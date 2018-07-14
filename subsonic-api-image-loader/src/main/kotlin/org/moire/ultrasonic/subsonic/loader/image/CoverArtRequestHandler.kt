@@ -20,7 +20,7 @@ class CoverArtRequestHandler(private val apiClient: SubsonicAPIClient) : Request
     }
 
     override fun load(request: Request, networkPolicy: Int): Result {
-        val id = request.uri.getQueryParameter("id")
+        val id = request.uri.getQueryParameter(QUERY_ID)
 
         val response = apiClient.getCoverArt(id)
         if (response.hasError()) {

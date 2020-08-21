@@ -19,15 +19,22 @@
 
 #pragma once
 
+#include <vector>
+#include <Wt/WSignal.h>
+
+#include "database/Types.hpp"
+
 namespace UserInterface
 {
 
 	enum class PlayQueueAction
 	{
 		Play,
-		AddNext,
-		AddLast,
+		PlayLast,
+		PlayShuffled,
 	};
+
+	using PlayQueueActionSignal = Wt::Signal<PlayQueueAction, const std::vector<Database::IdType>&>;
 
 }
 

@@ -19,6 +19,8 @@
 
 #include "ReleasePopup.hpp"
 
+#include "database/Release.hpp"
+#include "database/User.hpp"
 #include "resource/DownloadResource.hpp"
 #include "LmsApplication.hpp"
 
@@ -41,6 +43,29 @@ namespace UserInterface
 				->triggered().connect(&target, [&releasesAction, releaseId]
 					{
 						releasesAction.emit(PlayQueueAction::PlayLast, {releaseId});
+					});
+
+			bool isStarred {};
+			{
+				auto transaction {LmsApp->getDbSession().createSharedTransaction()};
+
+				if (auto release {Database::Release::getById(LmsApp->getDbSession(), releaseId)})
+					isStarred = LmsApp->getUser()->hasStarredRelease(release);
+			}
+
+			popup->addItem(Wt::WString::tr(isStarred ? "Lms.Explore.unstar" : "Lms.Explore.star"))
+				->triggered().connect(&target, [=]
+					{
+						auto transaction {LmsApp->getDbSession().createUniqueTransaction()};
+
+						auto release {Database::Release::getById(LmsApp->getDbSession(), releaseId)};
+						if (!release)
+							return;
+
+						if (isStarred)
+							LmsApp->getUser().modify()->unstarRelease(release);
+						else
+							LmsApp->getUser().modify()->starRelease(release);
 					});
 			popup->addItem(Wt::WString::tr("Lms.Explore.download"))
 				->setLink(Wt::WLink {std::make_unique<DownloadReleaseResource>(releaseId)});

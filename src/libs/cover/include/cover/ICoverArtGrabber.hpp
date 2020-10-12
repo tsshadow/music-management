@@ -19,32 +19,37 @@
 
 #pragma once
 
+#include <cstddef>
 #include <filesystem>
-#include <vector>
+#include <memory>
+#include <string_view>
 
 #include "database/Types.hpp"
-#include "cover/CoverArt.hpp"
+#include "cover/ICoverArt.hpp"
 
-namespace Database {
+namespace Database
+{
 	class Session;
 }
 
-namespace CoverArt {
-
-class IGrabber
+namespace CoverArt
 {
-	public:
-		virtual ~IGrabber() = default;
+	using Width = std::size_t;
 
-		virtual void			setDefaultCover(const std::filesystem::path& defaultCoverPath) = 0;
+	class IGrabber
+	{
+		public:
+			virtual ~IGrabber() = default;
 
-		virtual std::vector<uint8_t>	getFromTrack(Database::Session& dbSession, Database::IdType trackId, Format format, std::size_t width) = 0;
-		virtual std::vector<uint8_t>	getFromRelease(Database::Session& dbSession, Database::IdType releaseId, Format format, std::size_t width) = 0;
+			virtual void			setDefaultCover(const std::filesystem::path& defaultCoverPath) = 0;
 
-		virtual void flushCache() = 0;
-};
+			virtual std::unique_ptr<ICoverArt>	getFromTrack(Database::Session& dbSession, Database::IdType trackId, Width width) = 0;
+			virtual std::unique_ptr<ICoverArt>	getFromRelease(Database::Session& dbSession, Database::IdType releaseId, Width width) = 0;
 
-std::unique_ptr<IGrabber> createGrabber(const std::filesystem::path& execPath);
+			virtual void flushCache() = 0;
+	};
+
+	std::unique_ptr<IGrabber> createGrabber(const std::filesystem::path& execPath, std::size_t maxCacheEntries, std::size_t maxFileSize);
 
 } // namespace CoverArt
 

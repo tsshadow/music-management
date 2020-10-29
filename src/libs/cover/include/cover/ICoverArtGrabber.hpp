@@ -19,13 +19,11 @@
 
 #pragma once
 
-#include <cstddef>
 #include <filesystem>
 #include <memory>
-#include <string_view>
 
 #include "database/Types.hpp"
-#include "cover/ICoverArt.hpp"
+#include "cover/IEncodedImage.hpp"
 
 namespace Database
 {
@@ -34,22 +32,22 @@ namespace Database
 
 namespace CoverArt
 {
-	using Width = std::size_t;
-
 	class IGrabber
 	{
 		public:
 			virtual ~IGrabber() = default;
 
-			virtual void			setDefaultCover(const std::filesystem::path& defaultCoverPath) = 0;
-
-			virtual std::unique_ptr<ICoverArt>	getFromTrack(Database::Session& dbSession, Database::IdType trackId, Width width) = 0;
-			virtual std::unique_ptr<ICoverArt>	getFromRelease(Database::Session& dbSession, Database::IdType releaseId, Width width) = 0;
+			virtual std::shared_ptr<IEncodedImage>	getFromTrack(Database::Session& dbSession, Database::IdType trackId, ImageSize width) = 0;
+			virtual std::shared_ptr<IEncodedImage>	getFromRelease(Database::Session& dbSession, Database::IdType releaseId, ImageSize width) = 0;
 
 			virtual void flushCache() = 0;
 	};
 
-	std::unique_ptr<IGrabber> createGrabber(const std::filesystem::path& execPath, std::size_t maxCacheEntries, std::size_t maxFileSize);
+	std::unique_ptr<IGrabber> createGrabber(const std::filesystem::path& execPath,
+			const std::filesystem::path& defaultCoverPath,
+			std::size_t maxCacheEntries,
+			std::size_t maxFileSize,
+			unsigned jpegQuality);
 
 } // namespace CoverArt
 

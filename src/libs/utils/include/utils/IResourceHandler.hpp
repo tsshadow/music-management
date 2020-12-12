@@ -22,13 +22,12 @@
 #include <Wt/Http/Request.h>
 #include <Wt/Http/Response.h>
 
-// Helper class to serve a resource (must be saved as continuation data if not complete) 
+// Helper class to serve a resource (must be saved as continuation data if not complete)
 class IResourceHandler
 {
 	public:
 		virtual ~IResourceHandler() = default;
 
-		virtual void processRequest(const Wt::Http::Request& request, Wt::Http::Response& response) = 0;
-		virtual bool isFinished() const = 0;
+		[[nodiscard]] virtual Wt::Http::ResponseContinuation* processRequest(const Wt::Http::Request& request, Wt::Http::Response& response) = 0;
 };
 

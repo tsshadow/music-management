@@ -25,6 +25,6 @@ class UUID;
 
 namespace AcousticBrainz
 {
-	std::string extractLowLevelFeatures(const UUID& MBID);
+	std::string extractLowLevelFeatures(const UUID& recordingMBID);
 }
 

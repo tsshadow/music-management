@@ -26,7 +26,7 @@ namespace Database
 	std::string
 	escapeLikeKeyword(std::string_view keyword)
 	{
-		return StringUtils::escapeString(keyword, "*_", escapeChar);
+		return StringUtils::escapeString(keyword, "%_", escapeChar);
 	}
 
 } // namespace Database

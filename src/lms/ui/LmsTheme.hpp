@@ -20,13 +20,13 @@
 #pragma once
 
 #include <vector>
-
-#include <Wt/WBootstrap5Theme.h>
 #include <Wt/WLinkedCssStyleSheet.h>
+
+#include "Bootstrap5Theme.h"
 
 namespace UserInterface
 {
-	class LmsTheme : public Wt::WBootstrap5Theme
+	class LmsTheme : public Bootstrap5Theme
 	{
 		private:
 			std::vector<Wt::WLinkedCssStyleSheet> styleSheets() const override;

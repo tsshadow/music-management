@@ -19,14 +19,16 @@
 
 #include "utils/StreamLogger.hpp"
 
-StreamLogger::StreamLogger(std::ostream& os)
+StreamLogger::StreamLogger(std::ostream& os, EnumSet<Severity> severities)
 : _os {os}
+, _severities {severities}
 {
 }
 
 void
 StreamLogger::processLog(const Log& log)
 {
-	_os << "[" << getSeverityName(log.getSeverity()) << "] [" << getModuleName(log.getModule()) << "] " << log.getMessage() << std::endl;
+	if (_severities.contains(log.getSeverity()))
+		_os << "[" << getSeverityName(log.getSeverity()) << "] [" << getModuleName(log.getModule()) << "] " << log.getMessage() << std::endl;
 }
 

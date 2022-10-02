@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <string_view>
+
 #include "ListenTypes.hpp"
 
 namespace Scrobbling::ListenBrainz

@@ -9,7 +9,7 @@ import re
 import eps_scanner
 
 # musicFolderPath = "\\\\192.0.2.2\\Music\\Eps\\__TODO"
-musicFolderPath = "'/todo"
+musicFolderPath = "'\\todo"
 
 
 def is_parsed(folder):

@@ -1,5 +1,5 @@
 #musicFolderPath = "\\\\192.0.2.2\\Music\\Eps"
-musicFolderPath = "/music"
+musicFolderPath = "\\music"
 
 from os import listdir
 from os.path import isfile, join

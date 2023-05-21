@@ -1,9 +1,10 @@
 import os
 
 # musicFolderPathTODO = "\\\\192.0.2.2\\Music\\Eps\\__TODO"
-musicFolderPathTODO = "\\volume1\\Music\\Eps\\__TODO"
+musicFolderPathTODO = "\\todo"
 # musicFolderPath = "\\\\192.0.2.2\\Music\\Eps"
-musicFolderPath = "\\volume1\\Music\\Eps"
+musicFolderPath = "\\music"
+
 from os import listdir
 from os.path import isfile, join
 

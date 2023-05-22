@@ -1,12 +1,12 @@
 import os
+from os import listdir
+from os.path import isfile, join
+import string
 
 # musicFolderPathTODO = "\\\\192.0.2.2\\Music\\Eps\\__TODO"
 musicFolderPathTODO = "/todo"
 # musicFolderPath = "\\\\192.0.2.2\\Music\\Eps"
 musicFolderPath = "/music"
-
-from os import listdir
-from os.path import isfile, join
 
 labels = {
     '247HC': '247 Hardcore',
@@ -220,6 +220,7 @@ labels = {
     'KKV': 'KarmaKontra Records',
     'KKE': 'KarmaKontra Records',
     'KRE': 'KarmaKontra Records',
+    'KKRMX': 'KarmaKontra Records',
     '_': 'Karnage Records',
     'KIU': 'Keep it up',
     '_': 'Keeping The Rave Alive',
@@ -473,38 +474,34 @@ def get_label_by_cat_id():
     print('a')
 
 
-import string
-
-
-# cleaned = yourstring.rstrip(string.digits)
 def move():
-    onlyfolders = [f for f in listdir(musicFolderPathTODO) if not isfile(join(musicFolderPathTODO, f))]
-    for folder in onlyfolders:
-        catid = get_cat_id(folder);
+    only_folders = [f for f in listdir(musicFolderPathTODO) if not isfile(join(musicFolderPathTODO, f))]
+    for folder in only_folders:
+        cat_id = get_cat_id(folder);
 
-        if(len(catid)):
-            last_char = catid[-1]
+        if len(cat_id):
+            last_char = cat_id[-1]
 
             # Remove E, D, R, or B postfix
-            if(last_char == 'B' or last_char == 'D' or last_char == 'E'  or last_char == 'R' ):
-                if(catid[-2].isdigit()):
-                     catid = catid[:-1]
+            if last_char == 'B' or last_char == 'D' or last_char == 'E' or last_char == 'R':
+                if cat_id[-2].isdigit():
+                    cat_id = cat_id[:-1]
 
             # Strip last numbers after PRO
-            catid_prefix = catid.rstrip(string.digits);
+            cat_id_prefix = cat_id.rstrip(string.digits);
 
-            #remove pro if used
-            if 'PRO' in catid_prefix:
-                catid_prefix = catid_prefix[:-3]
+            # remove pro if used
+            if 'PRO' in cat_id_prefix:
+                cat_id_prefix = cat_id_prefix[:-3]
 
-            #Remove last numbers before PRO
-            catid_prefix = catid_prefix.rstrip(string.digits);
+            # Remove last numbers before PRO
+            cat_id_prefix = cat_id_prefix.rstrip(string.digits);
         try:
-            label = labels[catid_prefix]
-            src = musicFolderPathTODO+'\\'+folder
-            dst = musicFolderPath+'\\'+ label+'\\'+ folder
-            print('src: '+ src)
-            print('dst: '+ dst)
+            label = labels[cat_id_prefix]
+            src = musicFolderPathTODO + '\\' + folder
+            dst = musicFolderPath + '\\' + label + '\\' + folder
+            print('src: ' + src)
+            print('dst: ' + dst)
             os.rename(src, dst)
         except:
-            print('Could not find label for \''+folder+ '\'')
+            print('Could not find label for \'' + folder + '\'')

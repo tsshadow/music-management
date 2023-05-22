@@ -11,5 +11,5 @@ if __name__ == '__main__':
         # eps_scanner.scan()
 
         print('sleeping for 1 day')
-        sleep(3600*24)
+        sleep(3600)
 

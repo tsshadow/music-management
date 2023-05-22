@@ -19,8 +19,8 @@ def is_parsed(folder):
         return False
 
 
-def has_numbers(inputString):
-    return any(char.isdigit() for char in inputString)
+def has_numbers(input_string):
+    return any(char.isdigit() for char in input_string)
 
 
 # Press the green button in the gutter to run the script.
@@ -40,9 +40,9 @@ def find_cat_id(folder):
 
 
 def rename():
-    onlyfolders = [f for f in listdir(musicFolderPath) if not isfile(join(musicFolderPath, f))]
+    only_folders = [f for f in listdir(musicFolderPath) if not isfile(join(musicFolderPath, f))]
 
-    for folder in onlyfolders:
+    for folder in only_folders:
 
         if not is_parsed(folder):
             print('input: ' + folder)

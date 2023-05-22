@@ -10,6 +10,6 @@ if __name__ == '__main__':
         eps_mover.move()
         # eps_scanner.scan()
 
-        print('sleeping for 1 day')
+        print('sleeping for 1 hour')
         sleep(3600)
 

@@ -482,29 +482,30 @@ def move():
     for folder in onlyfolders:
         catid = get_cat_id(folder);
 
-        if(len(catid)):
+        if (len(catid)):
             last_char = catid[-1]
 
             # Remove E, D, R, or B postfix
-            if(last_char == 'B' or last_char == 'D' or last_char == 'E'  or last_char == 'R' ):
-                if(catid[-2].isdigit()):
-                     catid = catid[:-1]
+            if (last_char == 'B' or last_char == 'D' or last_char == 'E' or last_char == 'R'):
+                if (catid[-2].isdigit()):
+                    catid = catid[:-1]
 
             # Strip last numbers after PRO
             catid_prefix = catid.rstrip(string.digits);
 
-            #remove pro if used
+            # remove pro if used
             if 'PRO' in catid_prefix:
                 catid_prefix = catid_prefix[:-3]
 
-            #Remove last numbers before PRO
+            # Remove last numbers before PRO
             catid_prefix = catid_prefix.rstrip(string.digits);
         try:
             label = labels[catid_prefix]
-            src = musicFolderPathTODO+'/'+folder
-            dst = musicFolderPath+'/'+ label+'/'+ folder
-            print('src: '+ src)
-            print('dst: '+ dst)
+            src = musicFolderPathTODO + '/' + folder
+            dst = musicFolderPath + '/' + label + '/' + folder
+            print('src: ' + src)
+            print('dst: ' + dst)
             os.rename(src, dst)
-        except:
-            print('Could not find label for \''+folder+ '\'')
+        except Exception as e:
+            print(e)
+            print('Thrown exception  \'' + str(e) + '\' for \'' + folder + '\'')

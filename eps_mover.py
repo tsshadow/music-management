@@ -501,8 +501,8 @@ def move():
             catid_prefix = catid_prefix.rstrip(string.digits);
         try:
             label = labels[catid_prefix]
-            src = musicFolderPathTODO+'\\'+folder
-            dst = musicFolderPath+'\\'+ label+'\\'+ folder
+            src = musicFolderPathTODO+'/'+folder
+            dst = musicFolderPath+'/'+ label+'/'+ folder
             print('src: '+ src)
             print('dst: '+ dst)
             os.rename(src, dst)

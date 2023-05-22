@@ -47,7 +47,7 @@ def rename():
         if not is_parsed(folder):
             print('input: ' + folder)
             print('parsed: ' + find_cat_id(folder))
-            os.rename(musicFolderPath+'\\'+folder, musicFolderPath+'\\'+find_cat_id(folder))
+            os.rename(musicFolderPath+'/'+folder, musicFolderPath+'/'+find_cat_id(folder))
         else:
             print('skipped: ' + folder)
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

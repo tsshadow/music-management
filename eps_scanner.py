@@ -1,12 +1,12 @@
-# music_folder_path = "\\\\192.0.2.2\\Music\\Eps"
-music_folder_path = "/music"
-
 from os import listdir
 from os.path import isfile, join
 
+# music_folder_path = "\\\\192.0.2.2\\Music\\Eps"
+music_folder_path = "/music"
+
 
 def scan():
-    total_count = 0;
+    total_count = 0
     only_folders = [f for f in listdir(music_folder_path) if not isfile(join(music_folder_path, f))]
     for folder in only_folders:
         if not '__' in folder:

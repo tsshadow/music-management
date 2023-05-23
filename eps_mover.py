@@ -3,11 +3,6 @@ from os import listdir
 from os.path import isfile, join
 import string
 
-# musicFolderPathTODO = "\\\\192.0.2.2\\Music\\Eps\\__TODO"
-musicFolderPathTODO = "/music/__TODO"
-# musicFolderPath = "\\\\192.0.2.2\\Music\\Eps"
-musicFolderPath = "/music"
-
 labels = {
     '247HC': '247 Hardcore',
     'A2REC': 'A2 Records',
@@ -474,8 +469,18 @@ def get_label_by_cat_id():
     print('a')
 
 
-def move():
-    only_folders = [f for f in listdir(musicFolderPathTODO) if not isfile(join(musicFolderPathTODO, f))]
+def move(environment):
+    if environment == 'docker':
+        import_folder_path = "/music/__TODO"
+        music_folder_path = "/music"
+        delimiter = '/'
+    else:
+        import_folder_path = "\\\\192.0.2.2\\Music\\Eps\\__TODO"
+        music_folder_path = "\\\\192.0.2.2\\Music\\Eps"
+        delimiter = '\\'
+
+    print('starting move with environment ' + environment);
+    only_folders = [f for f in listdir(import_folder_path) if not isfile(join(import_folder_path, f))]
     for folder in only_folders:
         cat_id = get_cat_id(folder);
 
@@ -488,7 +493,7 @@ def move():
                     cat_id = cat_id[:-1]
 
             # Strip last numbers after PRO
-            cat_id_prefix = cat_id.rstrip(string.digits);
+            cat_id_prefix = cat_id.rstrip(string.digits)
 
             # remove pro if used
             if 'PRO' in cat_id_prefix:
@@ -498,11 +503,11 @@ def move():
                 cat_id_prefix = cat_id_prefix[:-3]
 
             # Remove last numbers before PRO
-            cat_id_prefix = cat_id_prefix.rstrip(string.digits);
+            cat_id_prefix = cat_id_prefix.rstrip(string.digits)
         try:
             label = labels[cat_id_prefix]
-            src = musicFolderPathTODO + '/' + folder
-            dst = musicFolderPath + '/' + label + '/' + folder
+            src = import_folder_path + delimiter + folder
+            dst = music_folder_path + delimiter + label + delimiter + folder
             print('src: ' + src)
             print('dst: ' + dst)
             os.rename(src, dst)

@@ -8,9 +8,6 @@ import re
 
 import eps_scanner
 
-# musicFolderPath = "\\\\192.0.2.2\\Music\\Eps\\__TODO"
-musicFolderPath = "/music/__TODO"
-
 
 def is_parsed(folder):
     if '- ' in folder:
@@ -39,16 +36,22 @@ def find_cat_id(folder):
     pass
 
 
-def rename():
-    only_folders = [f for f in listdir(musicFolderPath) if not isfile(join(musicFolderPath, f))]
+def rename(environment):
+    if environment == 'docker':
+        import_folder_path = "/music/__TODO"
+        delimiter = '/'
+    else:
+        import_folder_path = "\\\\192.0.2.2\\Music\\Eps\\__TODO"
+        delimiter = '\\'
+
+    print('starting rename with environment ' + environment);
+    only_folders = [f for f in listdir(import_folder_path) if not isfile(join(import_folder_path, f))]
 
     for folder in only_folders:
-
         if not is_parsed(folder):
             print('input: ' + folder)
             print('parsed: ' + find_cat_id(folder))
-            os.rename(musicFolderPath+'/'+folder, musicFolderPath+'/'+find_cat_id(folder))
+            os.rename(import_folder_path + delimiter + folder, import_folder_path + delimiter + find_cat_id(folder))
         else:
             print('skipped: ' + folder)
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
-

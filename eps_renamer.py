@@ -1,10 +1,8 @@
-# This is a sample Python script.
 import os
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 from os import listdir
 from os.path import isfile, join
 import re
+
 
 def is_parsed(folder):
     if '- ' in folder:

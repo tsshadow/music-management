@@ -6,9 +6,6 @@ from os import listdir
 from os.path import isfile, join
 import re
 
-import eps_scanner
-
-
 def is_parsed(folder):
     if '- ' in folder:
         return True
@@ -44,7 +41,7 @@ def rename(environment):
         import_folder_path = "\\\\192.0.2.2\\Music\\Eps\\__TODO"
         delimiter = '\\'
 
-    print('starting rename with environment ' + environment);
+    print('starting rename with environment ' + environment)
     only_folders = [f for f in listdir(import_folder_path) if not isfile(join(import_folder_path, f))]
 
     for folder in only_folders:

@@ -4,7 +4,7 @@ from os.path import isfile, join
 import string
 
 # musicFolderPathTODO = "\\\\192.0.2.2\\Music\\Eps\\__TODO"
-musicFolderPathTODO = "/todo"
+musicFolderPathTODO = "/music/__TODO"
 # musicFolderPath = "\\\\192.0.2.2\\Music\\Eps"
 musicFolderPath = "/music"
 
@@ -436,7 +436,7 @@ labels = {
     '_': 'War Force Records',
     '_': 'Warner Music Denmark',
     'WER': 'WE R',
-    'WER': 'WE R RAW',
+    'WERR': 'WE R RAW',
     'WERT': 'WE R Tomorrow',
     '_': 'WLFPCK',
     '_': 'Wolf Clan',
@@ -466,8 +466,8 @@ labels = {
 
 
 def get_cat_id(folder):
-    catid = folder.split(' ')
-    return catid[0]
+    cat_id = folder.split(' ')
+    return cat_id[0]
 
 
 def get_label_by_cat_id():
@@ -493,15 +493,19 @@ def move():
             # remove pro if used
             if 'PRO' in cat_id_prefix:
                 cat_id_prefix = cat_id_prefix[:-3]
+            # remove pro if used
+            if 'PRO' in cat_id_prefix:
+                cat_id_prefix = cat_id_prefix[:-3]
 
             # Remove last numbers before PRO
             cat_id_prefix = cat_id_prefix.rstrip(string.digits);
         try:
             label = labels[cat_id_prefix]
-            src = musicFolderPathTODO + '\\' + folder
-            dst = musicFolderPath + '\\' + label + '\\' + folder
+            src = musicFolderPathTODO + '/' + folder
+            dst = musicFolderPath + '/' + label + '/' + folder
             print('src: ' + src)
             print('dst: ' + dst)
             os.rename(src, dst)
-        except:
-            print('Could not find label for \'' + folder + '\'')
+        except Exception as e:
+            print(e)
+            print('Thrown exception  \'' + str(e) + '\' for \'' + folder + '\'')

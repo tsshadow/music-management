@@ -9,7 +9,7 @@ import re
 import eps_scanner
 
 # musicFolderPath = "\\\\192.0.2.2\\Music\\Eps\\__TODO"
-musicFolderPath = "/todo"
+musicFolderPath = "/music/__TODO"
 
 
 def is_parsed(folder):
@@ -47,7 +47,7 @@ def rename():
         if not is_parsed(folder):
             print('input: ' + folder)
             print('parsed: ' + find_cat_id(folder))
-            os.rename(musicFolderPath+'\\'+folder, musicFolderPath+'\\'+find_cat_id(folder))
+            os.rename(musicFolderPath+'/'+folder, musicFolderPath+'/'+find_cat_id(folder))
         else:
             print('skipped: ' + folder)
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

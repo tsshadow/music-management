@@ -10,8 +10,8 @@ def scan():
     only_folders = [f for f in listdir(musicFolderPath) if not isfile(join(musicFolderPath, f))]
     for folder in only_folders:
         if not '__' in folder:
-            sub_folder = [fi for fi in listdir(musicFolderPath + '\\' + folder) if
-                          not isfile(join(musicFolderPath + '\\' + folder, fi))]
+            sub_folder = [fi for fi in listdir(musicFolderPath + '/' + folder) if
+                          not isfile(join(musicFolderPath + '/' + folder, fi))]
             print(folder + ', ' + str(len(sub_folder)))
             total_count = total_count + len(sub_folder)
     print('labels: ' + str(len(only_folders)))

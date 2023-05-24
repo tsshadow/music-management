@@ -50,13 +50,17 @@ def move(environment):
 
             # Remove last numbers before PRO
             cat_id_prefix = cat_id_prefix.rstrip(string.digits)
-        try:
-            label = labels[cat_id_prefix]
-            src = import_folder_path + delimiter + folder
-            dst = music_folder_path + delimiter + label + delimiter + folder
-            print('src: ' + src)
-            print('dst: ' + dst)
-            os.rename(src, dst)
-        except Exception as e:
-            print(e)
-            print('Thrown exception  \'' + str(e) + '\' for \'' + folder + '\'')
+
+            if cat_id_prefix == '':
+                print('No label found for ' + folder)
+            else:
+                try:
+                    label = labels[cat_id_prefix]
+                    src = import_folder_path + delimiter + folder
+                    dst = music_folder_path + delimiter + label + delimiter + folder
+                    print('src: ' + src)
+                    print('dst: ' + dst)
+                    os.rename(src, dst)
+                except Exception as e:
+                    print(e)
+                    print('Thrown exception  \'' + str(e) + '\' for \'' + folder + '\'')

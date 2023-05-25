@@ -111,6 +111,7 @@ labels = {
     'DROKZ': 'Drokz',
     'DTS': 'DTS',
     'DMW': 'Dutch Master Works',
+    'DMWH': 'Dutch Master Works Hybrid',
     'DWARF': 'Dwarf Records',
     'ESU': 'Eastside Underground',
     'ESU_': 'Eastside Underground',

@@ -29,7 +29,7 @@ class Settings(metaclass=SingletonMeta):
             self.import_folder_path = "/music/__TODO"
             self.music_folder_path = "/music"
             self.delimiter = '/'
-        if environment == 'test':
+        elif environment == 'test':
             self.delimiter = '\\'
             self.import_folder_path = "D:\\test\\import"
             self.music_folder_path = "D:\\test"

@@ -5,6 +5,7 @@ import config
 import renamer
 import mover
 import scanner
+import extractor
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -13,10 +14,12 @@ if __name__ == '__main__':
         settings = config.Settings()
         settings.initialize(sys.argv[1])
 
+        extractor = extractor.Extractor()
         renamer = renamer.Renamer()
         mover = mover.Mover()
         scanner = scanner.Scanner()
         while True:
+            extractor.extract()
             renamer.rename()
             mover.move()
             scanner.scan()

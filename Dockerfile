@@ -3,7 +3,7 @@
 FROM python:3.8-slim-buster
 
 #install dependencies
-RUN apt install update && \
+RUN apt update && \
     apt install -y unrar-free
 
 WORKDIR /app

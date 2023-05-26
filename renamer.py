@@ -44,7 +44,10 @@ class Renamer:
             if not is_parsed(folder):
                 print('input: ' + folder)
                 print('parsed: ' + find_cat_id(folder))
-                os.rename(self.settings.import_folder_path + self.settings.delimiter + folder,
-                          self.settings.import_folder_path + self.settings.delimiter + find_cat_id(folder))
+                try:
+                    os.rename(self.settings.import_folder_path + self.settings.delimiter + folder,
+                              self.settings.import_folder_path + self.settings.delimiter + find_cat_id(folder))
+                except Exception as e:
+                    print(e)
             else:
                 print('skipped: ' + folder)

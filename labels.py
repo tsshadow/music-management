@@ -402,6 +402,7 @@ labels = {
     '_': 'Sound of Hardcore',
     '_': 'Speedcore Italia',
     'SPEQTRUM': 'Speqtrum Music',
+    'SPQ': 'Speqtrum Music',
     'SPIKEPROTEIN': 'Spike Protein',
     'SR_': 'Spinning records',
     'SOH': 'Spirit of Hardstyle',

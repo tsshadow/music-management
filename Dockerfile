@@ -3,8 +3,9 @@
 FROM python:3.8-slim-buster
 
 #install dependencies
-RUN apt update && \
-    apt install -y unrar-free
+RUN add-apt-repository universe &&
+    apt update && \
+    apt install p7zip-full p7zip-rar
 
 WORKDIR /app
 

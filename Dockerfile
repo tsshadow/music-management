@@ -3,9 +3,12 @@
 FROM python:3.8-slim-buster
 
 #install dependencies
-RUN add-apt-repository universe &&
+RUN apt update && apt install wget -y
+
+RUN wget http://ftp.nl.debian.org/debian/pool/non-free/u/unrar-nonfree/unrar_5.>
+    dpkg -i *.deb && \
     apt update && \
-    apt install p7zip-full p7zip-rar
+    apt install unzip p7zip-full -y
 
 WORKDIR /app
 

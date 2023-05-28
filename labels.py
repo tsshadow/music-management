@@ -23,7 +23,7 @@ labels = {
     '_': 'ARTificial',
     'ASTROPROJEKT': 'AstroFonik',
     'APHET': 'Audiophetamine',
-    'ARM': 'Aurora Mortem records',
+    'AMR': 'Aurora Mortem records',
     'AVIO': 'AVIO',
     'AVIOCD': 'AVIO',
     'B2S': 'B2S',

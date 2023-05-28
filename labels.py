@@ -9,6 +9,7 @@ labels = {
     'ACTSH': 'Activa Shine',
     '_': 'Actuation',
     'AT': 'Adrenaline_Tracks',
+    'ADMECH': 'Advancing Mechanism',
     'AFT3R': 'Afterlife Recordings (2) (AFT3R)',
     'AFTER': 'Afterlife Recordings (AFTER)',
     'AR': 'Aggressive Records',

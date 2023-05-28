@@ -22,7 +22,7 @@ if __name__ == '__main__':
             extractor.extract()
             renamer.rename()
             mover.move()
-            scanner.scan()
+            #scanner.scan()
 
-            print('sleeping for 1 hour')
-            sleep(3600)
+            print('sleeping for 300s')
+            sleep(300)

@@ -1,4 +1,5 @@
 import os
+import shutil
 import string
 from os import listdir
 from os.path import isfile, join
@@ -64,7 +65,16 @@ class Mover:
                             print('src: ' + src)
                             print('dst: ' + dst)
                             os.rename(src, dst)
+                        except FileExistsError:
+                            src = self.settings.import_folder_path + self.settings.delimiter + folder
+                            print('File exists:' + src)
+                            print('Removing file:' + src)
+                            try:
+                                shutil.rmtree(src)
+                            except Exception as e:
+                                print('Thrown exception \'' + str(e) + '\' while deleting for \'' + folder + '\'')
                         except Exception as e:
-                            print('Thrown exception  \'' + str(e) + '\' for \'' + folder + '\'')
+                            print('Thrown exception  \'' + str(e) + '\' while moving for \'' + folder + '\'')
+
 
 

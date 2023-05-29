@@ -310,6 +310,7 @@ labels = {
     'NUTTY': 'Nutty Traxx',
     'OBVN': 'Oblivion Music',
     'OBLIVION': 'Oblivion Underground Recordings',
+    'OTG': 'Off The Grid',
     'OFFRAGE': 'Offensive Rage',
     'OFF': 'Offensive Records',
     'OMN': 'Omny Lab',

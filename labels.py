@@ -209,6 +209,7 @@ labels = {
     'ID': 'Identity Records',
     'IGD': 'Ignition Digital',
     'ERPN_': 'Ignored Records',
+    'ERPN': 'Ignored Records',
     '_': 'IGor Records',
     'IMPCS': 'Important Corestyle',
     'IMPHC': 'Important Hardcore',

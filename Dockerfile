@@ -5,7 +5,7 @@ FROM python:3.8-slim-buster
 #install dependencies
 RUN apt update && apt install wget -y
 
-RUN wget http://ftp.nl.debian.org/debian/pool/non-free/u/unrar-nonfree/unrar_5.>
+RUN wget http://ftp.nl.debian.org/debian/pool/non-free/u/unrar-nonfree/unrar_5.6.6-1+deb && \
     dpkg -i *.deb && \
     apt update && \
     apt install unzip p7zip-full -y

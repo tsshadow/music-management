@@ -24,6 +24,7 @@ labels = {
     'ASTROPROJEKT': 'AstroFonik',
     'APHET': 'Audiophetamine',
     'AMR': 'Aurora Mortem records',
+    'ATK': 'Autektone Records',
     'AVIO': 'AVIO',
     'AVIOCD': 'AVIO',
     'B2S': 'B2S',

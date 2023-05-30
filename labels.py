@@ -435,7 +435,7 @@ labels = {
     'SOC': 'Symphony of Core',
     'SOC_': 'Symphony of Core',
     'SYSTEM': 'System outage',
-    'TGO': 'T-Go Records';
+    'TGO': 'T-Go Records',
     'TILLT': 'T!LLT',
     'TILLTG': 'T!LLT',
     'TILLTLBL': 'T!LLT',

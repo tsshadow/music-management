@@ -282,7 +282,7 @@ labels = {
     'MIM': 'Minus Is More',
     'MINUS': 'Minus Is More',
     '_': 'Monolith',
-    'MC': 'Monstercat',',
+    'MC': 'Monstercat',
     'MCSX': 'Monstercat',
     'MONSTER': 'Monsters Of Terrorcore Records',
     'MOR': 'More Music And Media',

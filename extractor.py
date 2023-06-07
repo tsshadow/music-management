@@ -18,7 +18,7 @@ class Extractor:
             try:
                 file_with_path = self.settings.import_folder_path + self.settings.delimiter + file
                 print('extracting ' + file_with_path)
-                patoolib.extract_archive(file_with_path, outdir=self.settings.import_folder_path)
+                patoolib.extract_archive(file_with_path, outdir=self.settings.import_folder_path, interactive=False)
                 print('removing ' + file_with_path)
                 os.remove(file_with_path)
             except Exception as e:

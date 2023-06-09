@@ -64,7 +64,7 @@ class Mover:
                             dst = self.settings.music_folder_path + self.settings.delimiter + label + self.settings.delimiter + folder
                             print('src: ' + src)
                             print('dst: ' + dst)
-                            os.rename(src, dst)
+                            shutil.move(src, dst)
                         except FileExistsError:
                             src = self.settings.import_folder_path + self.settings.delimiter + folder
                             print('File exists:' + src)

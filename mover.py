@@ -16,10 +16,21 @@ def get_label_by_cat_id():
     print('a')
 
 
+
 class Mover:
 
     def __init__(self):
         self.settings = config.Settings()
+
+    def remove(self, folder):
+        src = self.settings.import_folder_path + self.settings.delimiter + folder
+        print('File exists:' + src)
+        print('Removing file:' + src)
+        try:
+            shutil.rmtree(src)
+        except Exception as e:
+            print('Thrown exception (type: ' + e.__class__.__name__ + ') \'' + str(
+                e) + '\' while deleting for \'' + folder + '\'')
 
     def move(self):
         only_folders = [f for f in listdir(self.settings.import_folder_path) if
@@ -66,16 +77,12 @@ class Mover:
                             print('dst: ' + dst)
                             shutil.move(src, dst)
                         except FileExistsError:
-                            src = self.settings.import_folder_path + self.settings.delimiter + folder
-                            print('File exists:' + src)
-                            print('Removing file:' + src)
-                            try:
-                                shutil.rmtree(src)
-                            except Exception as e:
-                                print('Thrown exception (type: '+e.__class__.__name__+') \'' + str(e) + '\' while deleting for \'' + folder + '\'')
-
+                            self.remove(folder)
                         except Exception as e:
-                            print('Thrown exception (type: '+e.__class__.__name__+') \'' + str(e) + '\' while moving for \'' + folder + '\'')
+                            if 'already exists' in str(e):
+                                self.remove(folder)
+                            else:
+                                print('Thrown exception (type: '+e.__class__.__name__+') \'' + str(e) + '\' while moving for \'' + folder + '\'')
 
 
 

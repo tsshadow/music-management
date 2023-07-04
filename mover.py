@@ -72,9 +72,10 @@ class Mover:
                             try:
                                 shutil.rmtree(src)
                             except Exception as e:
-                                print('Thrown exception \'' + str(e) + '\' while deleting for \'' + folder + '\'')
+                                print('Thrown exception (type: '+e.__class__.__name__+') \'' + str(e) + '\' while deleting for \'' + folder + '\'')
+
                         except Exception as e:
-                            print('Thrown exception  \'' + str(e) + '\' while moving for \'' + folder + '\'')
+                            print('Thrown exception (type: '+e.__class__.__name__+') \'' + str(e) + '\' while moving for \'' + folder + '\'')
 
 
 

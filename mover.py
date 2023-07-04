@@ -32,7 +32,7 @@ class Mover:
                 last_char = cat_id[-1]
 
                 # Remove E, D, R, or B postfix
-                if last_char == 'B' or last_char == 'D' or last_char == 'E' or last_char == 'R':
+                if last_char == 'B' or last_char == 'D' or last_char == 'E' or last_char == 'R' or last_char == 'X' or last_char == '_':
                     if cat_id[-2].isdigit():
                         cat_id = cat_id[:-1]
 

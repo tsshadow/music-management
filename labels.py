@@ -260,6 +260,7 @@ labels = {
     'LBSK': 'Le Bask Records',
     'LTD': 'Lethal Theory',
     'LVL': 'LEVEL',
+    'LS': 'Lightshield',
     'LCM': 'Lose Control Music',
     '_': 'LOVE 4 HARD',
     'LVHz': 'Love Hz',

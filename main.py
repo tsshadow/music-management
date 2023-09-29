@@ -6,6 +6,7 @@ import renamer
 import mover
 import scanner
 import extractor
+import database
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -18,11 +19,13 @@ if __name__ == '__main__':
         renamer = renamer.Renamer()
         mover = mover.Mover()
         scanner = scanner.Scanner()
+        database = database.Database()
+
         while True:
             extractor.extract()
             renamer.rename()
             mover.move()
-            #scanner.scan()
+            scanner.scan(database)
 
             print('sleeping for 300s')
             sleep(300)

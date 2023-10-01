@@ -28,7 +28,7 @@ namespace Database
 {
     class Artist;
     class User;
-    class session;
+    class Session;
 }
 
 namespace API::Subsonic

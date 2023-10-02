@@ -60,6 +60,7 @@ class Mover:
                 # Remove last numbers before PRO
                 cat_id_prefix = cat_id_prefix.rstrip(string.digits)
 
+
                 if cat_id_prefix == '':
                     print('No label found for ' + folder)
                 else:

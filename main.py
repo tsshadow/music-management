@@ -18,14 +18,14 @@ if __name__ == '__main__':
         extractor = extractor.Extractor()
         renamer = renamer.Renamer()
         mover = mover.Mover()
-        scanner = scanner.Scanner()
         database = database.Database()
+        scanner = scanner.Scanner(database)
 
         while True:
             extractor.extract()
             renamer.rename()
             mover.move()
-            scanner.scan(database)
+            scanner.scan()
 
             print('sleeping for 300s')
             sleep(300)

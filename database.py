@@ -20,14 +20,11 @@ class Database:
 
         # Get Cursor
         self.cur = conn.cursor()
-        self.clear_database()
         self.create_table()
 
-    def clear_database(self):
-        self.cur.execute('drop table if exists stats')
 
     def create_table(self):
-        self.cur.execute('CREATE TABLE stats ('
+        self.cur.execute('CREATE TABLE IF NOT EXISTS labels ('
                          ' name varchar(255) not null unique,'
                          ' eps int);')
 
@@ -40,6 +37,6 @@ class Database:
             database="music-stats"
         )
         cur = conn.cursor()
-        cur.execute('INSERT INTO `stats`(`name`, `eps`) VALUES (\'' + name + '\',' + eps + ') ON DUPLICATE KEY UPDATE eps='+eps+';;')
+        cur.execute('INSERT INTO `labels`(`name`, `eps`) VALUES (\'' + name + '\',' + eps + ') ON DUPLICATE KEY UPDATE eps='+eps+';;')
         conn.commit()
 

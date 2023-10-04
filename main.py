@@ -21,11 +21,15 @@ if __name__ == '__main__':
         database = database.Database()
         scanner = scanner.Scanner(database)
 
+        counter = 75;
         while True:
             extractor.extract()
             renamer.rename()
             mover.move()
-            scanner.scan()
 
+            if (counter > 72):
+                counter = 0
+                scanner.scan()
+            counter = counter + 1;
             print('sleeping for 300s')
             sleep(300)

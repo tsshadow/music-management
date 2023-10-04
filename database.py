@@ -39,7 +39,8 @@ class Database:
         self.cur.execute('DROP TABLE eps')
         self.cur.execute('CREATE TABLE IF NOT EXISTS eps ('
                          ' label varchar(255),'
-                         ' catid varchar(255));')
+                         ' catid varchar(255),'
+                         ' path varchar(255));')
 
     def insert_label(self, name, eps):
         conn = connect()
@@ -53,10 +54,10 @@ class Database:
         cur.execute('TRUNCATE TABLE `eps`;')
         conn.commit()
 
-    def insert_eps(self, name, eps):
+    def insert_eps(self, label, cat_id, path):
         conn = connect()
         cur = conn.cursor()
-        cur.execute('INSERT INTO `eps`(`label`, `catid`) VALUES (\'' + name + '\',\'' + eps + '\');')
+        cur.execute('INSERT INTO `eps`(`label`, `catid`, `path`) VALUES (\'' + label + '\',\'' + cat_id + '\',\'' + path + '\');')
         conn.commit()
 
 

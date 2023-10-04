@@ -27,7 +27,9 @@ class Scanner:
         self.db.insert_label(folder, str(len(sub_folder)))
 
     def process_folder_contents(self, folder, sub_folder):
-        catid = sub_folder.split(' ')[0];
+        splitted_sub_folder = sub_folder.split(' ', 1)
         # Max length is 20, because sometime catid is not filled.
-        if len(catid) < 20:
-            self.db.insert_eps(folder, sub_folder.split(' ')[0])
+        if (len(splitted_sub_folder[0]) < 20) and (len(splitted_sub_folder) > 1):
+            self.db.insert_eps(folder, splitted_sub_folder[0], splitted_sub_folder[1])
+        else:
+            self.db.insert_eps(folder, 'none', sub_folder)

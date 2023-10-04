@@ -105,6 +105,7 @@ labels = {
     '_': 'Dimitri K Records',
     'DR': 'Dirty Rave',
     'DWX': 'Dirty workz',
+    'DWXCVR': 'Dirty workz',
     'DSBR': 'Disobey Records',
     'DSB': 'Disobey Records',
     'DSB_REC': 'Disobey Records',

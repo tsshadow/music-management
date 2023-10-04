@@ -45,7 +45,10 @@ class Database:
     def insert_label(self, name, eps):
         conn = connect()
         cur = conn.cursor()
-        cur.execute('INSERT INTO `labels`(`name`, `eps`) VALUES (\'' + name + '\',' + eps + ') ON DUPLICATE KEY UPDATE eps='+eps+';')
+        cur.execute('INSERT INTO `labels`(`name`, `eps`) '
+                    'VALUES (%s, %s) '
+                    'ON DUPLICATE KEY UPDATE eps=%s;',
+                    (name, eps, eps))
         conn.commit()
 
     def clear_eps(self):
@@ -57,7 +60,9 @@ class Database:
     def insert_eps(self, label, cat_id, path):
         conn = connect()
         cur = conn.cursor()
-        cur.execute('INSERT INTO `eps`(`label`, `catid`, `path`) VALUES (\'' + label + '\',\'' + cat_id + '\',\'' + path + '\');')
+        cur.execute('INSERT INTO `eps`(`label`, `catid`, `path`) '
+                    'VALUES (%s, %s, %s);',
+                    (label, cat_id, path))
         conn.commit()
 
 

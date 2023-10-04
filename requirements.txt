@@ -1,1 +1,3 @@
 patool~=1.12
+mariadb~=1.1.7
+python-dotenv~=1.0.0

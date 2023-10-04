@@ -1,21 +1,28 @@
 # Module Imports
-import mariadb
-import sys
 import os
+import sys
+
+import mariadb
 from dotenv import load_dotenv
 
 
+def connect():
+    return  mariadb.connect(
+            user=os.getenv('DB_USER'),
+            password=os.getenv('DB_PASS'),
+            host=os.getenv('DB_HOST'),
+            port=int(os.getenv('DB_PORT')),
+            database=os.getenv('DB_DATABASE')
+        )
+
+
 class Database:
+
     def __init__(self):
+        load_dotenv()
         # Connect to MariaDB Platform
         try:
-            conn = mariadb.connect(
-                user=os.getenv('DB_USER'),
-                password=os.getenv('DB_PASS'),
-                host=os.getenv('DB_HOST'),
-                port=os.getenv('DB_PORT'),
-                database=os.getenv('DB_DATABASE')
-            )
+            conn = connect()
         except mariadb.Error as e:
             print(f"Error connecting to MariaDB Platform: {e}")
             sys.exit(1)
@@ -35,37 +42,19 @@ class Database:
                          ' catid varchar(255));')
 
     def insert_label(self, name, eps):
-        conn = mariadb.connect(
-            user=os.getenv('DB_USER'),
-            password=os.getenv('DB_PASS'),
-            host=os.getenv('DB_HOST'),
-            port=os.getenv('DB_PORT'),
-            database=os.getenv('DB_DATABASE')
-        )
+        conn = connect()
         cur = conn.cursor()
         cur.execute('INSERT INTO `labels`(`name`, `eps`) VALUES (\'' + name + '\',' + eps + ') ON DUPLICATE KEY UPDATE eps='+eps+';')
         conn.commit()
 
     def clear_eps(self):
-        conn = mariadb.connect(
-            user=os.getenv('DB_USER'),
-            password=os.getenv('DB_PASS'),
-            host=os.getenv('DB_HOST'),
-            port=os.getenv('DB_PORT'),
-            database=os.getenv('DB_DATABASE')
-        )
+        conn = connect()
         cur = conn.cursor()
         cur.execute('TRUNCATE TABLE `eps`;')
         conn.commit()
 
     def insert_eps(self, name, eps):
-        conn = mariadb.connect(
-            user=os.getenv('DB_USER'),
-            password=os.getenv('DB_PASS'),
-            host=os.getenv('DB_HOST'),
-            port=os.getenv('DB_PORT'),
-            database=os.getenv('DB_DATABASE')
-        )
+        conn = connect()
         cur = conn.cursor()
         cur.execute('INSERT INTO `eps`(`label`, `catid`) VALUES (\'' + name + '\',\'' + eps + '\');')
         conn.commit()

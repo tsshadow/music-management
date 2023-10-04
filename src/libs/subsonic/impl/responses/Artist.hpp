@@ -40,4 +40,5 @@ namespace API::Subsonic
         std::string_view toString(Database::TrackArtistLinkType type);
     }
     Response::Node createArtistNode(const Database::ObjectPtr<Database::Artist>& artist, Database::Session& session, const Database::ObjectPtr<Database::User>& user, bool id3);
+    Response::Node createArtistNode(const Database::ObjectPtr<Database::Artist>& artist); // only minimal info
 }

@@ -33,22 +33,25 @@ class Database:
 
 
     def create_table(self):
+        self.cur.execute('DROP TABLE labels')
         self.cur.execute('CREATE TABLE IF NOT EXISTS labels ('
                          ' name varchar(255) not null unique,'
+                         ' mood varchar(511),'
                          ' eps int);')
         self.cur.execute('DROP TABLE eps')
         self.cur.execute('CREATE TABLE IF NOT EXISTS eps ('
                          ' label varchar(255),'
                          ' catid varchar(255),'
-                         ' path varchar(255));')
+                         ' mood varchar(511),'
+                         ' path varchar(511));')
 
-    def insert_label(self, name, eps):
+    def insert_label(self, name, eps, mood):
         conn = connect()
         cur = conn.cursor()
-        cur.execute('INSERT INTO `labels`(`name`, `eps`) '
-                    'VALUES (%s, %s) '
+        cur.execute('INSERT INTO `labels`(`name`, `eps`, `mood`) '
+                    'VALUES (%s, %s, %s) '
                     'ON DUPLICATE KEY UPDATE eps=%s;',
-                    (name, eps, eps))
+                    (name, eps, mood, eps))
         conn.commit()
 
     def clear_eps(self):
@@ -57,12 +60,13 @@ class Database:
         cur.execute('TRUNCATE TABLE `eps`;')
         conn.commit()
 
-    def insert_eps(self, label, cat_id, path):
+    def insert_eps(self, label, cat_id, path, mood):
+
         conn = connect()
         cur = conn.cursor()
-        cur.execute('INSERT INTO `eps`(`label`, `catid`, `path`) '
-                    'VALUES (%s, %s, %s);',
-                    (label, cat_id, path))
+        cur.execute('INSERT INTO `eps`(`label`, `catid`, `path`, `mood`) '
+                    'VALUES (%s, %s, %s, %s);',
+                    (label, cat_id, path, mood))
         conn.commit()
 
 

@@ -19,8 +19,6 @@
 
 #pragma once
 
-#include "services/database/Cluster.hpp"
-
 #include "services/database/Object.hpp"
 #include "SubsonicResponse.hpp"
 

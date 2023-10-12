@@ -21,13 +21,13 @@ if __name__ == '__main__':
         database = database.Database()
         scanner = scanner.Scanner(database)
 
-        counter = 75;
+        counter = 75
         while True:
             extractor.extract()
             renamer.rename()
             mover.move()
 
-            if (counter > 72):
+            if counter > 72:
                 counter = 0
                 scanner.scan()
             counter = counter + 1;

@@ -61,5 +61,5 @@ class Renamer:
                 except Exception as e:
                     print('Thrown exception  \'' + str(e) + '\' while moving for \'' + folder + '\'')
 
-        else:
-                    print('skipped: ' + folder)
+            else:
+                print('skipped: ' + folder)

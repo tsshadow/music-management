@@ -20,14 +20,17 @@ class Scanner:
     def __init__(self, db):
         self.settings = config.Settings()
         self.db = db
-        self.allMoods = [];
 
     def scan(self):
         label_folders = [f for f in listdir(self.settings.music_folder_path) if
-                        not isfile(join(self.settings.music_folder_path, f))]
+                         not isfile(join(self.settings.music_folder_path, f))]
         for label_folder in label_folders:
             if not '__' in label_folder:
-                self.process_label_folder(label_folder)
+                if not '@' in label_folder:
+                    self.db.start()
+                    print('start processing ' + label_folder)
+                    self.process_label_folder(label_folder)
+                    self.db.done()
 
     def process_label_folder(self, label_folder):
         # Insert the label-entry
@@ -39,13 +42,12 @@ class Scanner:
         for ep_folder in eps_folders:
             self.process_ep_folder(label_folder, ep_folder)
 
-
     def process_ep_folder(self, label_folder, ep_folder):
         splitted_ep_folder = ep_folder.split(' ', 1)
 
         # Max length is 20, because sometime catid is not filled.
         if (len(splitted_ep_folder[0]) < 20) and (len(splitted_ep_folder) > 1):
-            self.db.insert_eps(label_folder, splitted_ep_folder[0], splitted_ep_folder[1])
+            self.db.insert_eps(label_folder, splitted_ep_folder[0], ep_folder)
         else:
             self.db.insert_eps(label_folder, 'none', ep_folder)
 
@@ -53,16 +55,27 @@ class Scanner:
                        isfile(join(self.settings.music_folder_path + '/' + label_folder + '/' + ep_folder, fi))]
 
         for file in music_files:
-            self.process_file(self.settings.music_folder_path + "/" + label_folder + "/" + ep_folder + "/" + file, label_folder, ep_folder)
+            self.process_file(self.settings.music_folder_path + "/" + label_folder + "/" + ep_folder + "/" + file,
+                              label_folder, ep_folder)
 
     def process_file(self, f, label, ep):
         if f.endswith('.mp3'):
+            mp3 = ID3(f)
+            song_mood = []
+            mood_success = True
             try:
-                mp3 = ID3(f)
                 song_mood = str(mp3['TMOO']).split('; ')
+
+            except Exception as e:
+                if ('TM00' in str(e)):
+                    mood_success = False
+                    pass
+
+            if mood_success:
                 for m in song_mood:
                     self.db.insert_mood(m)
-                    self.db.insert_song(f, label, ep)
+            self.db.insert_song(f, label, ep)
+            if mood_success:
+                for m in song_mood:
                     self.db.insert_song_mood(f, m)
-            except Exception as e:
-                print(e)
+

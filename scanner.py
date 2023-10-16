@@ -67,7 +67,7 @@ class Scanner:
                 song_mood = str(mp3['TMOO']).split('; ')
 
             except Exception as e:
-                if ('TM00' in str(e)):
+                if 'TM00' in str(e):
                     mood_success = False
                     pass
 

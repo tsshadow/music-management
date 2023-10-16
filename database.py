@@ -4,6 +4,7 @@ import sys
 
 import mariadb
 from dotenv import load_dotenv
+from time import sleep
 
 
 def connect():
@@ -71,68 +72,50 @@ class Database:
 
     def insert_label(self, name):
         try:
-            self.cur.execute('INSERT INTO `labels`(`name`) '
-                             'VALUES (\'' + name + '\') ')
-        except Exception:
+            query = f"INSERT INTO `labels`(`name`) VALUES (%s)"
+            self.cur.execute(query, [name])
+        except Exception as e:
+            print(e)
             pass
 
     def clear_eps(self):
         try:
             self.cur.execute('TRUNCATE TABLE `eps`;')
-        except Exception:
+        except Exception as e:
+            print(e)
             pass
 
     def insert_eps(self, label, cat_id, path):
         try:
-            self.cur.execute('INSERT INTO `eps`(`label_id`, `catid`, `path`) '
-                             'VALUES ((select id from labels where name=\'' + label + '\'), \'' + cat_id + '\', \'' + path + '\');')
-        except Exception:
+            query = f"INSERT INTO `eps`(`label_id`, `catid`, `path`) VALUES ((select id from labels where name=%s), %s, %s);"
+            self.cur.execute(query, (label, cat_id, path))
+        except Exception as e:
+            print(e)
             pass
 
     def insert_mood(self, mood):
         try:
-            self.cur.execute('INSERT IGNORE INTO  `moods`(`name`) '
-                             'VALUES (\'' + mood + '\');')
-        except Exception:
+            query = f"INSERT IGNORE INTO  `moods`(`name`) VALUES (%s);"
+            self.cur.execute(query, [mood])
+        except Exception as e:
+            print(query, e)
             pass
 
     def insert_song(self, filename, label, ep):
         try:
-            self.cur.execute('INSERT INTO `songs`(`filename`, `label_id`, `ep_id`)'
-                             'VALUES (\'' + filename + '\', (select id from labels where name=\'' + label + '\'),'
-                                                                                                            ' (select id from eps where path=\'' + ep + '\'));')
-        except Exception:
+            query = f"INSERT INTO `songs`(`filename`, `label_id`, `ep_id`) VALUES (%s, (select id from labels where name=%s),(select id from eps where path=%s));"
+            self.cur.execute(query, (filename, label, ep))
+        except Exception as e:
+            print(query, e)
             pass
 
     def insert_song_mood(self, filename, mood):
         try:
-            self.cur.execute('INSERT INTO `song_moods`(`song_id`, `mood_id`)'
-                             'VALUES ((select id from songs where filename=\'' + filename + '\'), (select id from moods where name=\'' + mood + '\'));')
-        except Exception:
+            query = f"INSERT INTO `song_moods`(`song_id`, `mood_id`) VALUES ((select id from songs where filename=%s), (select id from moods where name=%s));"
+            self.cur.execute(query, (filename, mood))
+        except Exception as e:
+            print(query, e)
             pass
-
-    # def update_label_mood_count(self, label, mood, count):
-    #     conn = connect()
-    #     cur = conn.cursor()
-    #     self.cur.execute('INSERT INTO `label_mood_counts`(`label_id`, `moods_id`, `count`) '
-    #                 'VALUES ((select id from labels where name='+name+'), (select id from moods where name='+name+'), '+name+');'
-    #                 'ON DUPLICATE KEY UPDATE count='+name+';',
-    #                 label, mood, count, count)
-    #     conn.commit()
-    # def update_ep_mood_count(self, ep_path, mood, count):
-    #     conn = connect()
-    #     cur = conn.cursor()
-    #     self.cur.execute('INSERT INTO `ep_mood_counts`(`ep_id`, `moods_id`, `count`) '
-    #                 'VALUES ((select id from eps where path='+name+'), (select id from moods where name='+name+'), '+name+');'
-    #                 'ON DUPLICATE KEY UPDATE count='+name+';',
-    #                 ep_path, mood, count, count)
-    #     conn.commit()
-    #
-    # def get_ep_mood_count(self, mood):
-    #     conn = connect()
-    #     cur = conn.cursor()
-    #     self.cur.execute('SELECT count  from `ep_mood_counts` where mood=(select id from moods where name='+name+')', mood)
-    #     return cur.fetchall()
 
     def done(self):
         self.conn.commit()

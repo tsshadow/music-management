@@ -96,7 +96,7 @@ class Database:
             query = f"INSERT INTO `labels`(`name`) VALUES (%s)"
             self.cur.execute(query, [name])
         except Exception as e:
-            print(e)
+            print(e, query, name)
             pass
 
     def insert_eps(self, label, cat_id, path):
@@ -104,7 +104,7 @@ class Database:
             query = f"INSERT INTO `eps`(`label_id`, `catid`, `path`) VALUES ((select id from labels where name=%s), %s, %s);"
             self.cur.execute(query, (label, cat_id, path))
         except Exception as e:
-            print(query, e)
+            print(e, query, cat_id, path)
             pass
 
     def insert_mood(self, mood):
@@ -112,7 +112,7 @@ class Database:
             query = f"INSERT IGNORE INTO `moods`(`name`) VALUES (%s);"
             self.cur.execute(query, [mood])
         except Exception as e:
-            print(query, e)
+            print(e, query, mood)
             pass
 
     def insert_genre(self, genre):
@@ -120,7 +120,7 @@ class Database:
             query = f"INSERT IGNORE INTO `genres`(`name`) VALUES (%s);"
             self.cur.execute(query, [genre])
         except Exception as e:
-            print(query, e)
+            print(e, query, genre)
             pass
 
     def insert_artist(self, artist):
@@ -128,7 +128,7 @@ class Database:
             query = f"INSERT IGNORE INTO  `artists`(`name`) VALUES (%s);"
             self.cur.execute(query, [artist])
         except Exception as e:
-            print(query, e)
+            print(e, query, artist)
             pass
 
     def insert_song(self, filename, label, ep, album, rating, year):

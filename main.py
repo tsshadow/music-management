@@ -30,6 +30,6 @@ if __name__ == '__main__':
             if counter > 72:
                 counter = 0
                 scanner.scan()
-            counter = counter + 1;
+            counter = counter + 1
             print('sleeping for 300s')
             sleep(300)

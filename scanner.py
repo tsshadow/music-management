@@ -1,19 +1,12 @@
-import multiprocessing
-from multiprocessing.pool import ThreadPool
-from os import listdir
-from os.path import isfile, join
-from threading import Thread
-
 from mutagen.id3 import ID3
-
-import config
 from os import listdir
 from os.path import isfile, join
-
 import config
 
 
-# load the libraries that we'll use
+def ignore(test):
+    pass
+
 
 class Scanner:
 
@@ -58,24 +51,50 @@ class Scanner:
             self.process_file(self.settings.music_folder_path + "/" + label_folder + "/" + ep_folder + "/" + file,
                               label_folder, ep_folder)
 
-    def process_file(self, f, label, ep):
-        if f.endswith('.mp3'):
-            mp3 = ID3(f)
-            song_mood = []
-            mood_success = True
-            try:
-                song_mood = str(mp3['TMOO']).split('; ')
+    def process_file(self, filename, label, ep):
+        if filename.endswith('.mp3'):
+            mp3 = ID3(filename)
+            moods = self.process_file_tag(mp3, 'TMOO', self.db.insert_mood)
+            artists = self.process_file_tag(mp3, 'TPE1', self.db.insert_artist, '/')
+            genres = self.process_file_tag(mp3, 'TCON', self.db.insert_genre)
+            album = self.process_file_tag(mp3, 'TALB', ignore)
+            rating = self.process_file_tag(mp3, 'POPM:no@email', ignore)
+            date = self.process_file_tag(mp3, 'TDRC',ignore)
+            if len(rating) > 0 and rating[0].find('rating='):
+                rating = (rating[0].split('rating=')[1].split(', ')[0])
+            else:
+                rating = -1
 
-            except Exception as e:
-                if 'TM00' in str(e):
-                    mood_success = False
-                    pass
+            if len(date) > 0:
+                date = date[0]
+            else:
+                date = ''
+            if len(album) > 0:
+                album = album[0]
+            else:
+                album = ''
 
-            if mood_success:
-                for m in song_mood:
-                    self.db.insert_mood(m)
-            self.db.insert_song(f, label, ep)
-            if mood_success:
-                for m in song_mood:
-                    self.db.insert_song_mood(f, m)
+            self.db.insert_song(filename, label, ep, album, rating, date)
 
+            # song_mood links due to multiple moods per song
+            self.process_file_tag_links(moods, filename, self.db.insert_song_mood)
+            self.process_file_tag_links(artists, filename, self.db.insert_song_artist)
+            self.process_file_tag_links(genres, filename, self.db.insert_song_genre)
+
+    def process_file_tag(self, mp3, tag, database_function, split='; '):
+        tags = []
+        try:
+            tags = str(mp3[tag]).split(split)
+            for tag in tags:
+                database_function(tag)
+        except Exception as e:
+            if tag in str(e):
+                pass
+            else:
+                print(e)
+        return tags
+
+    def process_file_tag_links(self, tags, filename, database_function):
+        if len(tags) > 0:
+            for tag in tags:
+                database_function(filename, tag)

@@ -54,12 +54,14 @@ class Scanner:
     def process_file(self, filename, label, ep):
         if filename.endswith('.mp3'):
             mp3 = ID3(filename)
+            # print(mp3)
             moods = self.process_file_tag(mp3, 'TMOO', self.db.insert_mood)
             artists = self.process_file_tag(mp3, 'TPE1', self.db.insert_artist, '/')
             genres = self.process_file_tag(mp3, 'TCON', self.db.insert_genre)
             album = self.process_file_tag(mp3, 'TALB', ignore)
             rating = self.process_file_tag(mp3, 'POPM:no@email', ignore)
-            date = self.process_file_tag(mp3, 'TDRC',ignore)
+            date = self.process_file_tag(mp3, 'TDRC', ignore)
+            title = self.process_file_tag(mp3, 'TIT2', ignore)
             if len(rating) > 0 and rating[0].find('rating='):
                 rating = (rating[0].split('rating=')[1].split(', ')[0])
             else:
@@ -69,12 +71,18 @@ class Scanner:
                 date = date[0]
             else:
                 date = ''
+
+            if len(title) > 0:
+                title = title[0]
+            else:
+                title = ''
+
             if len(album) > 0:
                 album = album[0]
             else:
                 album = ''
 
-            self.db.insert_song(filename, label, ep, album, rating, date)
+            self.db.insert_song(filename, label, ep, title, album, rating, date)
 
             # song_mood links due to multiple moods per song
             self.process_file_tag_links(moods, filename, self.db.insert_song_mood)

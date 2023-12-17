@@ -119,9 +119,25 @@ namespace MetaData
             std::initializer_list<std::string_view> artistMBIDTagNames
         )
         {
-            const std::vector<std::string_view> artistNames{ getPropertyValuesFirstMatchAs<std::string_view>(tags, artistTagNames) };
-            if (artistNames.empty())
+            std::vector<std::string_view> artistNamesInput{ getPropertyValuesFirstMatchAs<std::string_view>(tags, artistTagNames) };
+            std::vector<std::string_view> artistNames{};
+            if (artistNamesInput.empty())
                 return {};
+
+            // convert artistnames with an / to 2 seperate artists
+            for (const auto& an: artistNamesInput)
+            {
+                auto pos = an.find('/');
+                if (pos != std::string_view::npos)
+                {
+                    artistNames.emplace_back(an.substr(0, pos));  // Add the part before '/'
+                    artistNames.emplace_back(an.substr(pos + 1)); // Add the part after '/'
+                }
+                else
+                {
+                    artistNames.emplace_back(an);
+                }
+            }
 
             std::vector<Artist> artists;
             artists.reserve(artistNames.size());
@@ -368,6 +384,18 @@ namespace MetaData
             track.replayGain = StringUtils::readAs<float>(value);
         else if (tag == "ARTIST")
             track.artistDisplayName = value;
+        else if (tag == "RATING")
+        {
+            //Convert flac rating to stars
+            int rating = StringUtils::readAs<int>(value).value_or(0);
+
+            if (rating == 100) track.rating= 5;
+            else if (rating == 80) track.rating= 4;
+            else if (rating == 60) track.rating= 3;
+            else if (rating == 40) track.rating= 2;
+            else if (rating == 20) track.rating= 1;
+            else track.rating= 0;
+        }
         else if (std::find(std::cbegin(_extraTags), std::cend(_extraTags), tag) != std::cend(_extraTags))
         {
             std::set<std::string> tagValues;
@@ -458,6 +486,27 @@ namespace MetaData
             if (mp3File->ID3v2Tag())
             {
                 const auto& frameListMap{ mp3File->ID3v2Tag()->frameListMap() };
+
+                // Convert mediamonkey rating to 5 stars.
+                if (!frameListMap["POPM"].isEmpty())
+                {
+                    std::string str = frameListMap["POPM"].front()->toString().to8Bit();
+                    size_t rating_pos = str.find("rating=");
+                    // Extract the substring starting from the position of "rating="
+                    std::string rating_substring = str.substr(rating_pos + 7);
+
+                    // Find the position of the next space to determine the end of the rating value
+                    size_t space_pos = rating_substring.find(' ');
+
+                    // Extract the rating value
+                    std::string rating_value = rating_substring.substr(0, space_pos);
+                    if (rating_value == "255") track.rating= 5;
+                    else if (rating_value == "196") track.rating= 4;
+                    else if (rating_value == "128") track.rating= 3;
+                    else if (rating_value == "64") track.rating= 2;
+                    else if (rating_value == "1") track.rating= 1;
+                    else track.rating= 0;
+                }
 
                 if (!frameListMap["APIC"].isEmpty())
                     track.hasCover = true;

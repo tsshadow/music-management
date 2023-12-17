@@ -495,6 +495,7 @@ namespace Scanner
         track.modify()->setBitrate(trackInfo->bitrate);
         track.modify()->setAddedTime(Wt::WDateTime::currentDateTime());
         track.modify()->setTrackNumber(trackInfo->position);
+        track.modify()->setRating(trackInfo->rating);
         track.modify()->setDiscNumber(trackInfo->medium ? trackInfo->medium->position : std::nullopt);
         track.modify()->setDate(trackInfo->date);
         track.modify()->setOriginalDate(trackInfo->originalDate);

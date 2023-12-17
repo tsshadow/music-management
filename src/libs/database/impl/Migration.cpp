@@ -139,6 +139,7 @@ CREATE TABLE IF NOT EXISTS "track_backup" (
   "id" integer primary key autoincrement,
   "version" integer not null,
   "scan_version" integer not null,
+  "rating" integer,
   "track_number" integer,
   "disc_number" integer,
   "total_track" integer,
@@ -161,7 +162,7 @@ CREATE TABLE IF NOT EXISTS "track_backup" (
   constraint "fk_track_release" foreign key ("release_id") references "release" ("id") on delete cascade deferrable initially deferred
 );
 ))");
-        session.getDboSession().execute("INSERT INTO track_backup SELECT id, version, scan_version, track_number, disc_number, total_track, disc_subtitle, name, duration, date, original_date, file_path, file_last_write, file_added, has_cover, mbid, recording_mbid, copyright, copyright_url, track_replay_gain, release_replay_gain, release_id FROM track");
+        session.getDboSession().execute("INSERT INTO track_backup SELECT id, version, scan_version,  track_number, disc_number, total_track, disc_subtitle, name, duration, date, original_date, file_path, file_last_write, file_added, has_cover, mbid, recording_mbid, copyright, copyright_url, track_replay_gain, release_replay_gain, release_id FROM track");
         session.getDboSession().execute("DROP TABLE track");
         session.getDboSession().execute("ALTER TABLE track_backup RENAME TO track");
 

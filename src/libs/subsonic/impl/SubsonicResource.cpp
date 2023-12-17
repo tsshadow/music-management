@@ -171,7 +171,6 @@ namespace API::Subsonic
             {"/getIndexes",             {handleGetIndexesRequest}},
             {"/getMusicDirectory",      {handleGetMusicDirectoryRequest}},
             {"/getGenres",              {handleGetGenresRequest}},
-                        {"/getCustom1",		{handleGetCustom1Request}},
                         {"/getMoods",		{handleGetMoodRequest}},
                         {"/getYears",		{handleGetYearsRequest}},
             {"/getArtists",             {handleGetArtistsRequest}},

@@ -388,6 +388,21 @@ namespace Database
         return (_date.isValid() ? std::make_optional<int>(_date.year()) : std::nullopt);
     }
 
+    std::vector<Track::pointer>
+    Track::getByYear(Session& session, int yearFrom, int yearTo, std::optional<Range> range)
+    {
+        auto res {session.getDboSession().query<Wt::Dbo::ptr<Track>>
+                        ("SELECT t from track t")
+                          .where("t.date >= ?").bind(Wt::WDate {yearFrom, 1, 1})
+                          .where("t.date <= ?").bind(Wt::WDate {yearTo, 12, 31})
+                          .orderBy("t.name COLLATE NOCASE")
+                          .offset(range ? static_cast<int>(range->offset) : -1)
+//        .limit(range ? static_cast<int>(range->limit) : -1)
+                          .resultList()};
+
+        return std::vector<pointer>(res.begin(), res.end());
+    }
+
     std::optional<int> Track::getOriginalYear() const
     {
         return (_originalDate.isValid() ? std::make_optional<int>(_originalDate.year()) : std::nullopt);

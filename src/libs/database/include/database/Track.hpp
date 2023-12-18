@@ -76,6 +76,7 @@ namespace Database {
             std::string							releaseName;	// matching this release name
             TrackListId							trackList;		// matching this trackList
             std::optional<int>					trackNumber;	// matching this track number
+            std::optional<int>					rating;
             bool								distinct{ true };
 
             FindParameters& setClusters(const std::vector<ClusterId>& _clusters) { clusters = _clusters; return *this; }
@@ -92,6 +93,7 @@ namespace Database {
             FindParameters& setReleaseName(std::string_view _releaseName) { releaseName = _releaseName; return *this; }
             FindParameters& setTrackList(TrackListId _trackList) { trackList = _trackList; return *this; }
             FindParameters& setTrackNumber(int _trackNumber) { trackNumber = _trackNumber; return *this; }
+            FindParameters& setRating(int _rating) { rating = _rating; return *this; }
             FindParameters& setDistinct(bool _distinct) { distinct = _distinct; return *this; }
         };
 
@@ -118,10 +120,12 @@ namespace Database {
         static RangeResults<PathResult>	findPaths(Session& session, std::optional<Range> range = std::nullopt);
         static RangeResults<TrackId>	findIdsTrackMBIDDuplicates(Session& session, std::optional<Range> range = std::nullopt);
         static RangeResults<TrackId>	findIdsWithRecordingMBIDAndMissingFeatures(Session& session, std::optional<Range> range = std::nullopt);
+        static std::vector<pointer>	getByYear(Session& session, int yearFrom, int yearTo, std::optional<Range> range = std::nullopt);
 
         // Accessors
         void setScanVersion(std::size_t version) { _scanVersion = version; }
         void setTrackNumber(std::optional<int> num) { _trackNumber = num; }
+        void setRating(std::optional<int> num) { _rating = num; }
         void setDiscNumber(std::optional<int> num) { _discNumber = num; }
         void setTotalTrack(std::optional<int> totalTrack) { _totalTrack = totalTrack; }
         void setDiscSubtitle(const std::string& name) { _discSubtitle = name; }
@@ -148,6 +152,7 @@ namespace Database {
 
         std::size_t 				getScanVersion() const { return _scanVersion; }
         std::optional<std::size_t>	getTrackNumber() const { return _trackNumber; }
+        std::optional<std::size_t>	getRating() const { return _rating; }
         std::optional<std::size_t>	getTotalTrack() const { return _totalTrack; }
         std::optional<std::size_t>	getDiscNumber() const { return _discNumber; }
         const std::string& getDiscSubtitle() const { return _discSubtitle; }
@@ -183,6 +188,7 @@ namespace Database {
         {
             Wt::Dbo::field(a, _scanVersion, "scan_version");
             Wt::Dbo::field(a, _trackNumber, "track_number");
+            Wt::Dbo::field(a, _rating, "rating");
             Wt::Dbo::field(a, _discNumber, "disc_number");
             Wt::Dbo::field(a, _totalTrack, "total_track"); // here in Track since Release does not have concept of "disc" (yet?)
             Wt::Dbo::field(a, _discSubtitle, "disc_subtitle"); // here in Track since Release does not have concept of "disc" (yet?)
@@ -218,6 +224,7 @@ namespace Database {
 
         int						_scanVersion{};
         std::optional<int>		_trackNumber{};
+        std::optional<int>		_rating{};
         std::optional<int>		_discNumber{};
         std::optional<int>		_totalTrack{};
         std::string				_discSubtitle;

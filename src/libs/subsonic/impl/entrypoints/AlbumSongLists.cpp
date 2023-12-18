@@ -241,7 +241,10 @@ namespace API::Subsonic
         std::string genre{ getMandatoryParameterAs<std::string>(context.parameters, "genre") };
 
         // Optional params
+        std::optional<int> year {getParameterAs<int>(context.parameters, "year")};
         std::size_t count{ getParameterAs<std::size_t>(context.parameters, "count").value_or(10) };
+        std::size_t ratingMin{ getParameterAs<std::size_t>(context.parameters, "ratingMin").value_or(0) };
+        std::size_t ratingMax{ getParameterAs<std::size_t>(context.parameters, "ratingMax").value_or(5) };
         if (count > defaultMaxCountSize)
             throw ParameterValueTooHighGenericError{"count", defaultMaxCountSize};
 
@@ -270,8 +273,89 @@ namespace API::Subsonic
 
         Track::find(context.dbSession, params, [&](const Track::pointer& track)
             {
+                if((!year.has_value() ||
+                    track->getYear() == year) &&
+                    track->getRating().value_or(0) >= ratingMin &&
+                    track->getRating().value_or(0)  <= ratingMax)
                 songsByGenreNode.addArrayChild("song", createSongNode(context, track, user));
             });
+
+        return response;
+    }
+
+    Response handleGetSongsByYearRequest(RequestContext& context)
+    {
+        // Mandatory params
+        std::string year {getMandatoryParameterAs<std::string>(context.parameters, "year")};
+
+        // Optional params
+        std::size_t count{ getParameterAs<std::size_t>(context.parameters, "count").value_or(10) };
+        if (count > defaultMaxCountSize)
+            throw ParameterValueTooHighGenericError{"count", defaultMaxCountSize};
+
+        std::size_t offset{ getParameterAs<std::size_t>(context.parameters, "offset").value_or(0) };
+
+        auto transaction{ context.dbSession.createReadTransaction() };
+
+        User::pointer user{ User::find(context.dbSession, context.userId) };
+        if (!user)
+            throw UserNotAuthorizedError{};
+
+        Response response{ Response::createOkResponse(context.serverProtocolVersion) };
+        Response::Node& songsByYear{ response.createNode("songsByYear") };
+
+        Track::FindParameters params;
+        auto tracks {Track::getByYear(context.dbSession, std::stoi(year), std::stoi(year))};
+        for (const Track::pointer& track : tracks)
+            songsByYear.addArrayChild("song", createSongNode(context, track, user));
+
+        return response;
+    }
+    
+    Response handleGetSongsByMoodRequest(RequestContext& context)
+    {
+        // Mandatory params
+        std::string Mood{ getMandatoryParameterAs<std::string>(context.parameters, "mood") };
+
+        // Optional params
+        std::optional<int> year {getParameterAs<int>(context.parameters, "year")};
+        std::size_t count{ getParameterAs<std::size_t>(context.parameters, "count").value_or(10) };
+        std::size_t ratingMin{ getParameterAs<std::size_t>(context.parameters, "ratingMin").value_or(0) };
+        std::size_t ratingMax{ getParameterAs<std::size_t>(context.parameters, "ratingMax").value_or(5) };
+        if (count > defaultMaxCountSize)
+            throw ParameterValueTooHighGenericError{"count", defaultMaxCountSize};
+
+        std::size_t offset{ getParameterAs<std::size_t>(context.parameters, "offset").value_or(0) };
+
+        auto transaction{ context.dbSession.createReadTransaction() };
+
+        auto clusterType{ ClusterType::find(context.dbSession, "MOOD") };
+        if (!clusterType)
+            throw RequestedDataNotFoundError{};
+
+        auto cluster{ clusterType->getCluster(Mood) };
+        if (!cluster)
+            throw RequestedDataNotFoundError{};
+
+        User::pointer user{ User::find(context.dbSession, context.userId) };
+        if (!user)
+            throw UserNotAuthorizedError{};
+
+        Response response{ Response::createOkResponse(context.serverProtocolVersion) };
+        Response::Node& songsByMoodNode{ response.createNode("songsByMood") };
+
+        Track::FindParameters params;
+        params.setClusters({ cluster->getId() });
+        params.setRange(Range{ offset, count });
+
+        Track::find(context.dbSession, params, [&](const Track::pointer& track)
+        {
+            if((!year.has_value() ||
+                track->getYear() == year) &&
+                track->getRating().value_or(0) >= ratingMin &&
+                track->getRating().value_or(0)  <= ratingMax)
+                songsByMoodNode.addArrayChild("song", createSongNode(context, track, user));
+        });
 
         return response;
     }

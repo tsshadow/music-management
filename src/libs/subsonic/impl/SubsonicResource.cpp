@@ -160,17 +160,20 @@ namespace API::Subsonic
         };
 
         static const std::unordered_map<std::string_view, RequestEntryPointInfo> requestEntryPoints
-        {
-            // System
-            {"/ping",                       {handlePingRequest}},
-            {"/getLicense",                 {handleGetLicenseRequest}},
-            {"/getOpenSubsonicExtensions",  {handleGetOpenSubsonicExtensions}},
+                {
+                        // System
+                        {"/ping",                       {handlePingRequest}},
+                        {"/getLicense",                 {handleGetLicenseRequest}},
+                        {"/getOpenSubsonicExtensions",  {handleGetOpenSubsonicExtensions}},
 
             // Browsing
             {"/getMusicFolders",        {handleGetMusicFoldersRequest}},
             {"/getIndexes",             {handleGetIndexesRequest}},
             {"/getMusicDirectory",      {handleGetMusicDirectoryRequest}},
             {"/getGenres",              {handleGetGenresRequest}},
+                        {"/getCustom1",		{handleGetCustom1Request}},
+                        {"/getMoods",		{handleGetMoodRequest}},
+                        {"/getYears",		{handleGetYearsRequest}},
             {"/getArtists",             {handleGetArtistsRequest}},
             {"/getArtist",              {handleGetArtistRequest}},
             {"/getAlbum",               {handleGetAlbumRequest}},
@@ -189,98 +192,102 @@ namespace API::Subsonic
             {"/getAlbumList2",          {handleGetAlbumList2Request}},
             {"/getRandomSongs",         {handleGetRandomSongsRequest}},
             {"/getSongsByGenre",        {handleGetSongsByGenreRequest}},
-            {"/getNowPlaying",          {handleNotImplemented}},
-            {"/getStarred",             {handleGetStarredRequest}},
+                        {"/getSongsByGenreAndYear",  {handleGetSongsByGenreRequest}},
+                        {"/getSongsByYear",	{handleGetSongsByYearRequest}},
+                        {"/getSongsByMood",  {handleGetSongsByMoodRequest}},
+                        {"/getSongsByMoodAndYear",  {handleGetSongsByMoodRequest}},
+                        {"/getNowPlaying",          {handleNotImplemented}},
+                        {"/getStarred",             {handleGetStarredRequest}},
             {"/getStarred2",            {handleGetStarred2Request}},
 
-            // Searching
-            {"/search",                 {handleNotImplemented}},
-            {"/search2",                {handleSearch2Request}},
-            {"/search3",                {handleSearch3Request}},
+                        // Searching
+                        {"/search",                 {handleNotImplemented}},
+                        {"/search2",                {handleSearch2Request}},
+                        {"/search3",                {handleSearch3Request}},
 
-            // Playlists
-            {"/getPlaylists",           {handleGetPlaylistsRequest}},
-            {"/getPlaylist",            {handleGetPlaylistRequest}},
-            {"/createPlaylist",         {handleCreatePlaylistRequest}},
-            {"/updatePlaylist",         {handleUpdatePlaylistRequest}},
-            {"/deletePlaylist",         {handleDeletePlaylistRequest}},
+                        // Playlists
+                        {"/getPlaylists",           {handleGetPlaylistsRequest}},
+                        {"/getPlaylist",            {handleGetPlaylistRequest}},
+                        {"/createPlaylist",         {handleCreatePlaylistRequest}},
+                        {"/updatePlaylist",         {handleUpdatePlaylistRequest}},
+                        {"/deletePlaylist",         {handleDeletePlaylistRequest}},
 
-            // Media retrieval
-            {"/hls",                    {handleNotImplemented}},
-            {"/getCaptions",            {handleNotImplemented}},
-            {"/getLyrics",              {handleNotImplemented}},
-            {"/getAvatar",              {handleNotImplemented}},
+                        // Media retrieval
+                        {"/hls",                    {handleNotImplemented}},
+                        {"/getCaptions",            {handleNotImplemented}},
+                        {"/getLyrics",              {handleNotImplemented}},
+                        {"/getAvatar",              {handleNotImplemented}},
 
-            // Media annotation
-            {"/star",                   {handleStarRequest}},
-            {"/unstar",                 {handleUnstarRequest}},
-            {"/setRating",              {handleNotImplemented}},
-            {"/scrobble",               {handleScrobble}},
+                        // Media annotation
+                        {"/star",                   {handleStarRequest}},
+                        {"/unstar",                 {handleUnstarRequest}},
+                        {"/setRating",              {handleNotImplemented}},
+                        {"/scrobble",               {handleScrobble}},
 
-            // Sharing
-            {"/getShares",              {handleNotImplemented}},
-            {"/createShares",           {handleNotImplemented}},
-            {"/updateShare",            {handleNotImplemented}},
-            {"/deleteShare",            {handleNotImplemented}},
+                        // Sharing
+                        {"/getShares",              {handleNotImplemented}},
+                        {"/createShares",           {handleNotImplemented}},
+                        {"/updateShare",            {handleNotImplemented}},
+                        {"/deleteShare",            {handleNotImplemented}},
 
-            // Podcast
-            {"/getPodcasts",            {handleNotImplemented}},
-            {"/getNewestPodcasts",      {handleNotImplemented}},
-            {"/refreshPodcasts",        {handleNotImplemented}},
-            {"/createPodcastChannel",   {handleNotImplemented}},
-            {"/deletePodcastChannel",   {handleNotImplemented}},
-            {"/deletePodcastEpisode",   {handleNotImplemented}},
-            {"/downloadPodcastEpisode", {handleNotImplemented}},
+                        // Podcast
+                        {"/getPodcasts",            {handleNotImplemented}},
+                        {"/getNewestPodcasts",      {handleNotImplemented}},
+                        {"/refreshPodcasts",        {handleNotImplemented}},
+                        {"/createPodcastChannel",   {handleNotImplemented}},
+                        {"/deletePodcastChannel",   {handleNotImplemented}},
+                        {"/deletePodcastEpisode",   {handleNotImplemented}},
+                        {"/downloadPodcastEpisode", {handleNotImplemented}},
 
-            // Jukebox
-            {"/jukeboxControl",	        {handleNotImplemented}},
+                        // Jukebox
+                        {"/jukeboxControl",	        {handleNotImplemented}},
 
-            // Internet radio
-            {"/getInternetRadioStations",	{handleNotImplemented}},
-            {"/createInternetRadioStation",	{handleNotImplemented}},
-            {"/updateInternetRadioStation",	{handleNotImplemented}},
-            {"/deleteInternetRadioStation",	{handleNotImplemented}},
+                        // Internet radio
+                        {"/getInternetRadioStations",	{handleNotImplemented}},
+                        {"/createInternetRadioStation",	{handleNotImplemented}},
+                        {"/updateInternetRadioStation",	{handleNotImplemented}},
+                        {"/deleteInternetRadioStation",	{handleNotImplemented}},
 
-            // Chat
-            {"/getChatMessages",    {handleNotImplemented}},
-            {"/addChatMessages",    {handleNotImplemented}},
+                        // Chat
+                        {"/getChatMessages",    {handleNotImplemented}},
+                        {"/addChatMessages",    {handleNotImplemented}},
 
-            // User management
-            {"/getUser",            {handleGetUserRequest}},
-            {"/getUsers",           {handleGetUsersRequest,     {UserType::ADMIN}}},
-            {"/createUser",         {handleCreateUserRequest,   {UserType::ADMIN},                      &Utils::checkSetPasswordImplemented}},
-            {"/updateUser",         {handleUpdateUserRequest,   {UserType::ADMIN}}},
-            {"/deleteUser",         {handleDeleteUserRequest,   {UserType::ADMIN}}},
-            {"/changePassword",     {handleChangePassword,      {UserType::REGULAR, UserType::ADMIN},   &Utils::checkSetPasswordImplemented}},
+                        // User management
+                        {"/getUser",            {handleGetUserRequest}},
+                        {"/getUsers",           {handleGetUsersRequest,     {UserType::ADMIN}}},
+                        {"/createUser",         {handleCreateUserRequest,   {UserType::ADMIN},                      &Utils::checkSetPasswordImplemented}},
+                        {"/updateUser",         {handleUpdateUserRequest,   {UserType::ADMIN}}},
+                        {"/deleteUser",         {handleDeleteUserRequest,   {UserType::ADMIN}}},
+                        {"/changePassword",     {handleChangePassword,      {UserType::REGULAR, UserType::ADMIN},   &Utils::checkSetPasswordImplemented}},
 
-            // Bookmarks
-            {"/getBookmarks",       {handleGetBookmarks}},
-            {"/createBookmark",     {handleCreateBookmark}},
-            {"/deleteBookmark",     {handleDeleteBookmark}},
-            {"/getPlayQueue",       {handleNotImplemented}},
-            {"/savePlayQueue",      {handleNotImplemented}},
+                        // Bookmarks
+                        {"/getBookmarks",       {handleGetBookmarks}},
+                        {"/createBookmark",     {handleCreateBookmark}},
+                        {"/deleteBookmark",     {handleDeleteBookmark}},
+                        {"/getPlayQueue",       {handleNotImplemented}},
+                        {"/savePlayQueue",      {handleNotImplemented}},
 
-            // Media library scanning
-            {"/getScanStatus",      {Scan::handleGetScanStatus, {UserType::ADMIN}}},
-            {"/startScan",          {Scan::handleStartScan,     {UserType::ADMIN}}},
-        };
+                        // Media library scanning
+                        {"/getScanStatus",      {Scan::handleGetScanStatus, {UserType::ADMIN}}},
+                        {"/startScan",          {Scan::handleStartScan,     {UserType::ADMIN}}},
+                };
 
         using MediaRetrievalHandlerFunc = std::function<void(RequestContext&, const Wt::Http::Request&, Wt::Http::Response&)>;
         static std::unordered_map<std::string, MediaRetrievalHandlerFunc> mediaRetrievalHandlers
-        {
-            // Media retrieval
-            {"/download",       handleDownload},
-            {"/stream",         handleStream},
-            {"/getCoverArt",    handleGetCoverArt},
-        };
+                {
+                        // Media retrieval
+                        {"/download",       handleDownload},
+                        {"/stream",         handleStream},
+                        {"/getCoverArt",    handleGetCoverArt},
+                };
     }
 
 
     SubsonicResource::SubsonicResource(Db& db)
-        : _serverProtocolVersionsByClient{ readConfigProtocolVersions() }
-        , _openSubsonicDisabledClients{ readOpenSubsonicDisabledClients() }
-        , _defaultCoverClients{ readDefaultCoverClients() }
-        , _db{ db }
+            : _serverProtocolVersionsByClient{ readConfigProtocolVersions() }
+            , _openSubsonicDisabledClients{ readOpenSubsonicDisabledClients() }
+            , _defaultCoverClients{ readDefaultCoverClients() }
+            , _db{ db }
     {
     }
 
@@ -291,6 +298,7 @@ namespace API::Subsonic
         const std::size_t requestId{ curRequestId++ };
 
         LMS_LOG(API_SUBSONIC, DEBUG, "Handling request " << requestId << " '" << request.pathInfo() << "', continuation = " << (request.continuation() ? "true" : "false") << ", params = " << parameterMapToDebugString(request.getParameterMap()));
+        std::cout<< "Handling request " << requestId << " '" << request.pathInfo() << "', continuation = " << (request.continuation() ? "true" : "false") << ", params = " << parameterMapToDebugString(request.getParameterMap());
 
         std::string requestPath{ request.pathInfo() };
         if (StringUtils::stringEndsWith(requestPath, ".view"))
@@ -338,8 +346,8 @@ namespace API::Subsonic
         catch (const Error& e)
         {
             LMS_LOG(API_SUBSONIC, ERROR, "Error while processing request '" << requestPath << "'"
-                << ", params = [" << parameterMapToDebugString(request.getParameterMap()) << "]"
-                << ", code = " << static_cast<int>(e.getCode()) << ", msg = '" << e.getMessage() << "'");
+                                                                            << ", params = [" << parameterMapToDebugString(request.getParameterMap()) << "]"
+                                                                            << ", code = " << static_cast<int>(e.getCode()) << ", msg = '" << e.getMessage() << "'");
             Response resp{ Response::createFailedResponse(protocolVersion, e) };
             resp.write(response.out(), format);
             response.setMimeType(std::string{ ResponseFormatToMimeType(format) });
@@ -426,13 +434,13 @@ namespace API::Subsonic
 
             switch (checkResult.state)
             {
-            case Auth::IPasswordService::CheckResult::State::Granted:
-                return *checkResult.userId;
-                break;
-            case Auth::IPasswordService::CheckResult::State::Denied:
-                throw WrongUsernameOrPasswordError{};
-            case Auth::IPasswordService::CheckResult::State::Throttled:
-                throw LoginThrottledGenericError{};
+                case Auth::IPasswordService::CheckResult::State::Granted:
+                    return *checkResult.userId;
+                    break;
+                case Auth::IPasswordService::CheckResult::State::Denied:
+                    throw WrongUsernameOrPasswordError{};
+                case Auth::IPasswordService::CheckResult::State::Throttled:
+                    throw LoginThrottledGenericError{};
             }
         }
 

@@ -381,6 +381,83 @@ namespace API::Subsonic
         return response;
     }
 
+    Response handleGetMoodRequest(RequestContext& context)
+    {
+        Response response{ Response::createOkResponse(context.serverProtocolVersion) };
+        std::optional<int> year {getParameterAs<int>(context.parameters, "year")};
+
+        Response::Node& moodNode{ response.createNode("mood") };
+
+        auto transaction{ context.dbSession.createReadTransaction() };
+
+        const ClusterType::pointer clusterType{ ClusterType::find(context.dbSession, "MOOD") };
+        if (clusterType)
+        {
+            const auto clusters{ clusterType->getClusters() };
+
+            for (const Cluster::pointer& cluster : clusters)
+                if (!year.has_value() || year==-1)
+                    moodNode.addArrayChild("mood", createGenreNode(cluster));
+        }
+
+        return response;
+    }
+
+    Response handleGetYearsRequest(RequestContext& context)
+    {
+        Response response {Response::createOkResponse(context.serverProtocolVersion)};
+
+        Response::Node& yearsNode {response.createNode("years")};
+
+        auto transaction{ context.dbSession.createReadTransaction() };
+
+//    const std::vector<int> years = Track::getAllYears(context.dbSession)};
+        std::vector<int> years = {
+                1992,
+                1993,
+                1994,
+                1995,
+                1996,
+                1997,
+                1998,
+                1999,
+                2000,
+                2001,
+                2002,
+                2003,
+                2004,
+                2005,
+                2006,
+                2007,
+                2008,
+                2009,
+                2010,
+                2011,
+                2012,
+                2013,
+                2014,
+                2015,
+                2016,
+                2017,
+                2018,
+                2019,
+                2020,
+                2021,
+                2022,
+                2023,
+                2024
+        };
+
+        for (const int year : years)
+        {
+            Response::Node yearNode;
+
+            yearNode.setValue(year);
+            yearsNode.addArrayChild("year", Response::Node(yearNode));
+        }
+        return response;
+    }
+
     Response handleGetArtistsRequest(RequestContext& context)
     {
         return handleGetArtistsRequestCommon(context, true /* id3 */);

@@ -245,6 +245,7 @@ namespace API::Subsonic
             trackResponse.addArrayChild("genres", createItemGenreNode(genre->getName()));
 
         trackResponse.addChild("replayGain", createReplayGainNode(track));
+        trackResponse.setAttribute("userRating", track->getRating().value_or(0));
 
         return trackResponse;
     }

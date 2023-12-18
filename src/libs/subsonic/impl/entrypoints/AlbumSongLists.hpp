@@ -28,6 +28,8 @@ namespace API::Subsonic
     Response handleGetAlbumList2Request(RequestContext& context);
     Response handleGetRandomSongsRequest(RequestContext& context);
     Response handleGetSongsByGenreRequest(RequestContext& context);
+    Response handleGetSongsByYearRequest(RequestContext& context);
+    Response handleGetSongsByMoodRequest(RequestContext& context);
     Response handleGetStarredRequest(RequestContext& context);
     Response handleGetStarred2Request(RequestContext& context);
 }

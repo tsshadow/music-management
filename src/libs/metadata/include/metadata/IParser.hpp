@@ -73,6 +73,7 @@ namespace MetaData
         std::optional<UUID>			mbid;
         std::optional<UUID>			recordingMBID;
         std::string					title;
+        int rating;
         std::optional<Medium>		medium;
         std::optional<std::size_t>	position; // in medium
         std::vector<std::string>    grouping;

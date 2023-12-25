@@ -113,6 +113,24 @@ namespace MetaData
             return strings;
         }
 
+        std::vector<std::string_view> splitArtist(std::string_view artist)
+        {
+            std::vector<std::string_view> artists{};
+            auto pos = artist.find('/');
+            if (pos != std::string_view::npos)
+            {
+                artists.emplace_back(artist.substr(0, pos));  // Add the part before '/'
+                auto arts = splitArtist(artist.substr(pos + 1)); // Add the part after '/'
+                for (const auto& art: arts)
+                    artists.emplace_back(art);
+            }
+            else
+            {
+                artists.emplace_back(artist);
+            }
+            return artists;
+        }
+
         std::vector<Artist> getArtists(const TagMap& tags,
             std::initializer_list<std::string_view> artistTagNames,
             std::initializer_list<std::string_view> artistSortTagNames,
@@ -127,18 +145,10 @@ namespace MetaData
             // convert artistnames with an / to 2 seperate artists
             for (const auto& an: artistNamesInput)
             {
-                auto pos = an.find('/');
-                if (pos != std::string_view::npos)
-                {
-                    artistNames.emplace_back(an.substr(0, pos));  // Add the part before '/'
-                    artistNames.emplace_back(an.substr(pos + 1)); // Add the part after '/'
-                }
-                else
-                {
-                    artistNames.emplace_back(an);
-                }
+                auto arts = splitArtist(an);
+                for (const auto& art: arts)
+                    artistNames.emplace_back(art);
             }
-
             std::vector<Artist> artists;
             artists.reserve(artistNames.size());
             std::transform(std::cbegin(artistNames), std::cend(artistNames), std::back_inserter(artists),

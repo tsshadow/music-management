@@ -137,6 +137,12 @@ namespace UserInterface::TrackListHelpers
         }
 
         trackInfo->bindString("duration", Utils::durationToString(track->getDuration()));
+        if (track->getRating().has_value())
+        {
+            trackInfo->setCondition("if-has-rating", true);
+            trackInfo->bindInt("rating", track->getRating().value());
+        }
+
         if (track->getBitrate())
         {
             trackInfo->setCondition("if-has-bitrate", true);
@@ -193,6 +199,20 @@ namespace UserInterface::TrackListHelpers
         }
 
         entry->bindString("duration", Utils::durationToString(track->getDuration()), Wt::TextFormat::Plain);
+
+        if (track->getRating().has_value())
+        {
+            entry->setCondition("if-has-rating", true);
+            Wt::WString star("★");
+            Wt::WString empty_star("☆");
+            Wt::WString rating = star;
+            for (unsigned int i=1; i<track->getRating(); i++)
+                rating += star;
+            for (unsigned int i = 5; i > track->getRating(); i--)
+                rating += empty_star;
+            entry->bindString("rating", rating);
+        }
+
 
         Wt::WPushButton* playBtn{ entry->bindNew<Wt::WPushButton>("play-btn", Wt::WString::tr("Lms.template.play-btn"), Wt::TextFormat::XHTML) };
         playBtn->clicked().connect([trackId, &playQueueController]

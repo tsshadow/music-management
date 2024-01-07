@@ -74,6 +74,9 @@
 				${<if-has-artists>}${artists-md class="d-none d-md-block"}${</if-has-artists>}
 			</div>
 		</div>
+		<div class="p-2 d-none d-sm-block text-muted text-center Lms-tracks-entry-rating">
+			${<if-has-rating>}${rating}${</if-has-rating>}
+		</div>
 		<div class="p-2 d-none d-sm-block text-muted text-center Lms-tracks-entry-duration">
 			${duration}
 		</div>

@@ -62,6 +62,10 @@
 				${<if-has-release>}${release class="d-none d-lg-inline text-truncate text-decoration-none link-success"}${</if-has-release>}
 			</div>
 		</div>
+
+		<div class="p-2 d-none d-sm-block text-muted text-center Lms-tracks-entry-rating">
+			${<if-has-rating>}${rating}${</if-has-rating>}
+		</div>
 		<div class="p-2 d-none d-sm-block text-muted text-center Lms-tracks-entry-duration">
 			${duration}
 		</div>
@@ -105,6 +109,16 @@
 						${<if-has-artist>}
 						${artist-table class="d-grid gap-2"}
 						${</if-has-artist>}
+						${<if-has-rating>}
+						<div class="row align-items-center">
+							<div class="col-4">
+								${tr:Lms.Explore.rating}
+							</div>
+							<div class="col">
+								${rating}
+							</div>
+						</div>
+						${</if-has-rating>}
 						<div class="row align-items-center">
 							<div class="col-4">
 								${tr:Lms.Explore.duration}

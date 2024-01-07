@@ -458,6 +458,19 @@ namespace UserInterface
                         ->clicked().connect([=] { TrackListHelpers::showTrackInfoModal(trackId, _filters); });
                 }
 
+                if (track->getRating().has_value())
+                {
+                    entry->setCondition("if-has-rating", true);
+                    Wt::WString star("★");
+                    Wt::WString empty_star("☆");
+                    Wt::WString rating = star;
+                    for (unsigned int i=1; i < track->getRating(); i++)
+                        rating += star;
+                    for (unsigned int i = 5; i > track->getRating(); i--)
+                        rating += empty_star;
+                    entry->bindString("rating", rating);
+                }
+
                 entry->bindString("duration", Utils::durationToString(track->getDuration()), Wt::TextFormat::Plain);
 
                 LmsApp->getMediaPlayer().trackLoaded.connect(entry, [=](TrackId loadedTrackId)

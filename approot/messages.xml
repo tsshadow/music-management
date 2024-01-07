@@ -128,6 +128,7 @@
 <message id="Lms.Explore.codec">Codec</message>
 <message id="Lms.Explore.download">Download</message>
 <message id="Lms.Explore.duration">Duration</message>
+<message id="Lms.Explore.rating">Rating</message>
 <message id="Lms.Explore.filter-added">Filter added</message>
 <message id="Lms.Explore.filters">Filters</message>
 <message id="Lms.Explore.most-played">Most played</message>

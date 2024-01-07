@@ -293,6 +293,13 @@ CREATE TABLE IF NOT EXISTS "track_backup" (
         session.getDboSession().execute("UPDATE scan_settings SET scan_version = scan_version + 1");
     }
 
+    void migrateFromV48(Session& session)
+    {
+        // Regression for the extra tags not being parsed
+        // Just increment the scan version of the settings to make the next scheduled scan rescan everything
+        session.getDboSession().execute("UPDATE scan_settings SET scan_version = scan_version + 1");
+    }
+
     void doDbMigration(Session& session)
     {
         static const std::string outdatedMsg{ "Outdated database, please rebuild it (delete the .db file and restart)" };
@@ -319,6 +326,7 @@ CREATE TABLE IF NOT EXISTS "track_backup" (
             {45, migrateFromV45},
             {46, migrateFromV46},
             {47, migrateFromV47},
+            {48, migrateFromV48},
         };
 
         {

@@ -392,14 +392,15 @@ namespace MetaData
         else if (tag == "RATING")
         {
             //Convert flac rating to stars
-            int rating = StringUtils::readAs<int>(value).value_or(0);
+            int rating = StringUtils::readAs<int>(value).value_or(-1);
 
             if (rating == 100) track.rating= 5;
             else if (rating == 80) track.rating= 4;
             else if (rating == 60) track.rating= 3;
             else if (rating == 40) track.rating= 2;
             else if (rating == 20) track.rating= 1;
-            else track.rating= 0;
+            else if (rating == 0) track.rating = 0;
+            else track.rating = std::nullopt;
         }
         else if (std::find(std::cbegin(_userExtraTags), std::cend(_userExtraTags), tag) != std::cend(_userExtraTags))
         {
@@ -512,6 +513,8 @@ namespace MetaData
                     else if (rating_value == "1") track.rating= 1;
                     else track.rating= 0;
                 }
+                else
+                    track.rating = std::nullopt;
 
                 if (!frameListMap["APIC"].isEmpty())
                     track.hasCover = true;

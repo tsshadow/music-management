@@ -19,7 +19,7 @@ if __name__ == '__main__':
         renamer = renamer.Renamer()
         mover = mover.Mover()
         database = database.Database()
-        scanner = scanner.Scanner(database)
+        # scanner = scanner.Scanner(database)
 
         counter = 75
         while True:

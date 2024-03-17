@@ -18,7 +18,7 @@ if __name__ == '__main__':
         extractor = extractor.Extractor()
         renamer = renamer.Renamer()
         mover = mover.Mover()
-        database = database.Database()
+        # database = database.Database()
         # scanner = scanner.Scanner(database)
 
         counter = 75
@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
             if counter > 72:
                 counter = 0
-                scanner.scan()
+                # scanner.scan()
             counter = counter + 1
             print('sleeping for 300s')
             sleep(300)

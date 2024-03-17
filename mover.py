@@ -5,7 +5,6 @@ from os import listdir
 from os.path import isfile, join
 # from labels import labels
 import config
-import ast
 
 def get_cat_id(folder):
     cat_id = folder.split(' ')

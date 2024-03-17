@@ -42,7 +42,7 @@ class Mover:
 
     def __init__(self):
         self.settings = config.Settings()
-        file_path = self.settings.music_folder_path+"\labels.txt"  # Path to your text file
+        file_path = self.settings.music_folder_path+self.settings.delimiter+"labels.txt"  # Path to your text file
         print(file_path)
         self.labels = populate_map_from_file(file_path)
         print(self.labels)

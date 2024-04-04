@@ -77,6 +77,9 @@
 		<div class="p-2 d-none d-sm-block text-muted text-center Lms-tracks-entry-rating">
 			${<if-has-rating>}${rating}${</if-has-rating>}
 		</div>
+		<div class="p-2 d-none d-sm-block text-muted text-center Lms-tracks-entry-year">
+			${<if-has-year>}${year}${</if-has-year>}
+		</div>
 		<div class="p-2 d-none d-sm-block text-muted text-center Lms-tracks-entry-duration">
 			${duration}
 		</div>

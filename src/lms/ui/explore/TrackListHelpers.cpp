@@ -143,6 +143,12 @@ namespace UserInterface::TrackListHelpers
             trackInfo->bindInt("rating", track->getRating().value());
         }
 
+        if (track->getYear().has_value())
+        {
+          trackInfo->setCondition("if-has-year", true);
+          trackInfo->bindInt("year", track->getYear().value());
+        }
+
         if (track->getBitrate())
         {
             trackInfo->setCondition("if-has-bitrate", true);
@@ -213,6 +219,12 @@ namespace UserInterface::TrackListHelpers
             entry->bindString("rating", rating);
         }
 
+
+      if (track->getYear().has_value())
+      {
+        entry->setCondition("if-has-year", true);
+        entry->bindInt("year", track->getYear().value());
+      }
 
         Wt::WPushButton* playBtn{ entry->bindNew<Wt::WPushButton>("play-btn", Wt::WString::tr("Lms.template.play-btn"), Wt::TextFormat::XHTML) };
         playBtn->clicked().connect([trackId, &playQueueController]

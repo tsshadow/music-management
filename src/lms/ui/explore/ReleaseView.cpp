@@ -471,6 +471,12 @@ namespace UserInterface
                     entry->bindString("rating", rating);
                 }
 
+              if (track->getYear().has_value())
+              {
+                entry->setCondition("if-has-year", true);
+                entry->bindInt("year", track->getYear().value());
+              }
+
                 entry->bindString("duration", Utils::durationToString(track->getDuration()), Wt::TextFormat::Plain);
 
                 LmsApp->getMediaPlayer().trackLoaded.connect(entry, [=](TrackId loadedTrackId)

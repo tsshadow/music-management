@@ -572,6 +572,18 @@ namespace MetaData
         for (const auto& [tag, values] : tags)
             processTag(track, tag, values, debug);
 
+        if (track.date.year())
+        {
+          track.userExtraTags["YEAR"] = {std::to_string(track.date.year())};
+        }
+
+        if (track.duration > std::chrono::minutes(10))
+        {
+          track.userExtraTags["LENGTH"] = {"long"};
+        }
+        else {
+          track.userExtraTags["LENGTH"] = {"short"};
+        }
         return track;
     }
 

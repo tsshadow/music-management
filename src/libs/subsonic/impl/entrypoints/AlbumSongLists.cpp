@@ -235,13 +235,25 @@ namespace API::Subsonic
         return response;
     }
 
+  Database::ClusterId GetCluster(std::string value, std::string name, RequestContext& context)
+    {
+        auto clusterType{ ClusterType::find(context.dbSession, name) };
+        if (!clusterType)
+          throw RequestedDataNotFoundError{};
+        auto cluster{clusterType->getCluster(value)};
+        if (!cluster)
+          throw RequestedDataNotFoundError{};
+        return cluster->getId();
+    }
+
     Response handleGetSongsByGenreRequest(RequestContext& context)
     {
         // Mandatory params
         std::string genre{ getMandatoryParameterAs<std::string>(context.parameters, "genre") };
 
         // Optional params
-        std::optional<int> year {getParameterAs<int>(context.parameters, "year")};
+        std::optional<std::string> year {getParameterAs<std::string>(context.parameters, "year")};
+        std::optional<std::string> length {getParameterAs<std::string>(context.parameters, "length")};
         std::size_t count{ getParameterAs<std::size_t>(context.parameters, "count").value_or(10) };
         std::size_t ratingMin{ getParameterAs<std::size_t>(context.parameters, "ratingMin").value_or(0) };
         std::size_t ratingMax{ getParameterAs<std::size_t>(context.parameters, "ratingMax").value_or(5) };
@@ -268,13 +280,22 @@ namespace API::Subsonic
         Response::Node& songsByGenreNode{ response.createNode("songsByGenre") };
 
         Track::FindParameters params;
-        params.setClusters({ cluster->getId() });
+        std::vector<Database::ClusterId> clusters =  {cluster->getId()};
+        if (year.has_value())
+        {
+          clusters.push_back(GetCluster(year.value(), "YEAR", context));
+        }
+        if (length.has_value())
+        {
+          clusters.push_back(GetCluster(length.value(), "LENGTH", context));
+        }
+        params.setClusters(clusters);
         params.setRange(Range{ offset, count });
+
 
         Track::find(context.dbSession, params, [&](const Track::pointer& track)
             {
-                if((!year.has_value() ||
-                    track->getYear() == year) &&
+                if(
                     track->getRating().value_or(0) >= ratingMin &&
                     track->getRating().value_or(0)  <= ratingMax)
                 songsByGenreNode.addArrayChild("song", createSongNode(context, track, user));
@@ -311,14 +332,15 @@ namespace API::Subsonic
 
         return response;
     }
-    
+
     Response handleGetSongsByMoodRequest(RequestContext& context)
     {
         // Mandatory params
         std::string Mood{ getMandatoryParameterAs<std::string>(context.parameters, "mood") };
 
         // Optional params
-        std::optional<int> year {getParameterAs<int>(context.parameters, "year")};
+        std::optional<std::string> year {getParameterAs<std::string>(context.parameters, "year")};
+        std::optional<std::string> length {getParameterAs<std::string>(context.parameters, "length")};
         std::size_t count{ getParameterAs<std::size_t>(context.parameters, "count").value_or(10) };
         std::size_t ratingMin{ getParameterAs<std::size_t>(context.parameters, "ratingMin").value_or(0) };
         std::size_t ratingMax{ getParameterAs<std::size_t>(context.parameters, "ratingMax").value_or(5) };
@@ -345,14 +367,21 @@ namespace API::Subsonic
         Response::Node& songsByMoodNode{ response.createNode("songsByMood") };
 
         Track::FindParameters params;
-        params.setClusters({ cluster->getId() });
+        std::vector<Database::ClusterId> clusters =  {cluster->getId()};
+        if (year.has_value())
+        {
+          clusters.push_back(GetCluster(year.value(), "YEAR", context));
+        }
+        if (length.has_value())
+        {
+          clusters.push_back(GetCluster(length.value(), "LENGTH", context));
+        }
+        params.setClusters(clusters);
         params.setRange(Range{ offset, count });
 
         Track::find(context.dbSession, params, [&](const Track::pointer& track)
         {
-            if((!year.has_value() ||
-                track->getYear() == year) &&
-                track->getRating().value_or(0) >= ratingMin &&
+            if (track->getRating().value_or(0) >= ratingMin &&
                 track->getRating().value_or(0)  <= ratingMax)
                 songsByMoodNode.addArrayChild("song", createSongNode(context, track, user));
         });

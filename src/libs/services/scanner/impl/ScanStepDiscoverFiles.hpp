@@ -30,7 +30,7 @@ namespace lms::scanner
 
 		private:
 			ScanStep getStep() const override { return ScanStep::DiscoveringFiles; }
-			std::string_view getStepName() const override { return "DiscoveringFiles"; }
+			core::LiteralString getStepName() const override { return "Discovering files"; }
 			void process(ScanContext& context) override;
 	};
 }

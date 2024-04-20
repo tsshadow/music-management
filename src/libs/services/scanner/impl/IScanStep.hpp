@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "core/LiteralString.hpp"
+#include "services/scanner/ScannerOptions.hpp"
 #include "services/scanner/ScannerStats.hpp"
 
 namespace lms::scanner
@@ -36,7 +37,7 @@ namespace lms::scanner
 
         struct ScanContext
         {
-            const bool forceScan;
+            ScanOptions scanOptions;
             ScanStats stats;
             ScanStepStats currentStepStats;
         };

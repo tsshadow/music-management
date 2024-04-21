@@ -330,7 +330,7 @@ namespace lms::scanner
                 {
                     try
                     {
-                        track = _metadataParser.parse(path);
+                        track = _metadataParser.parse(path, true);
                     }
                     catch (const metadata::Exception& e)
                     {

@@ -125,6 +125,7 @@ namespace lms::metadata
             { TagType::ProducerSortOrder, { "PRODUCERSORTORDER" } },
             { TagType::Producers, { "PRODUCERS" } },
             { TagType::ProducersSortOrder, { "PRODUCERSSORTORDER" } },
+            { TagType::Rating, { "RATING", "POPM" } },
             { TagType::RecordLabel, { "LABEL" } },
             { TagType::ReleaseCountry, { "RELEASECOUNTRY" } },
             { TagType::ReleaseDate, { "RELEASEDATE" } },
@@ -256,6 +257,16 @@ namespace lms::metadata
 
                 if (!frameListMap["TSST"].isEmpty() && !_propertyMap.contains("DISCSUBTITLE"))
                     _propertyMap["DISCSUBTITLE"] = { frameListMap["TSST"].front()->toString() };
+
+                if (!frameListMap["POPM"].isEmpty())
+                {
+                    const auto popm = frameListMap["POPM"].front()->toString().to8Bit();
+                    // Extract the substring starting from the position of "rating="
+                    const auto rating_substring = popm.substr(popm.find("rating=") + 7);
+
+                    // Extract the rating value
+                    _propertyMap["RATING"] = { rating_substring.substr(0, rating_substring.find(' ')) };
+                }
             }
 
             getAPETags(mp3File->APETag());
@@ -295,12 +306,14 @@ namespace lms::metadata
                 _hasEmbeddedCover = true;
         }
 
-        if (debug && core::Service<core::logging::ILogger>::get()->isSeverityActive(core::logging::Severity::DEBUG))
+        if()
+
+//        if (debug && core::Service<core::logging::ILogger>::get()->isSeverityActive(core::logging::Severity::DEBUG))
         {
             for (const auto& [key, values] : _propertyMap)
             {
                 for (const auto& value : values)
-                    LMS_LOG(METADATA, DEBUG, "Key = '" << key << "', value = '" << value.to8Bit(true) << "'");
+                    LMS_LOG(METADATA, INFO, "TAG Key = '" << key << "', value = '" << value.to8Bit(true) << "'");
             }
 
             for (const auto& value : _propertyMap.unsupportedData())

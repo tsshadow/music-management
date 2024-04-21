@@ -265,7 +265,7 @@ namespace lms::api::subsonic
         return response;
     }
 
-  Database::ClusterId GetCluster(std::string value, std::string name, RequestContext& context)
+  ClusterId GetCluster(std::string value, std::string name, RequestContext& context)
     {
         auto clusterType{ ClusterType::find(context.dbSession, name) };
         if (!clusterType)
@@ -311,7 +311,7 @@ namespace lms::api::subsonic
         Response::Node& songsByGenreNode{ response.createNode("songsByGenre") };
 
         Track::FindParameters params;
-        std::vector<Database::ClusterId> clusters =  {cluster->getId()};
+        std::vector<ClusterId> clusters =  {cluster->getId()};
         if (year.has_value())
         {
           clusters.push_back(GetCluster(year.value(), "YEAR", context));
@@ -339,9 +339,10 @@ namespace lms::api::subsonic
     Response handleGetSongsByYearRequest(RequestContext& context)
     {
         // Mandatory params
-        std::string year {getMandatoryParameterAs<std::string>(context.parameters, "year")};
+        std::string year{ getMandatoryParameterAs<std::string>(context.parameters, "year") };
 
         // Optional params
+        const MediaLibraryId mediaLibrary{ getParameterAs<MediaLibraryId>(context.parameters, "musicFolderId").value_or(MediaLibraryId{}) };
         std::size_t count{ getParameterAs<std::size_t>(context.parameters, "count").value_or(10) };
         if (count > defaultMaxCountSize)
             throw ParameterValueTooHighGenericError{"count", defaultMaxCountSize};
@@ -350,21 +351,34 @@ namespace lms::api::subsonic
 
         auto transaction{ context.dbSession.createReadTransaction() };
 
+        auto clusterType{ ClusterType::find(context.dbSession, "YEAR") };
+        if (!clusterType)
+            throw RequestedDataNotFoundError{};
+
+        auto cluster{ clusterType->getCluster(year) };
+        if (!cluster)
+            throw RequestedDataNotFoundError{};
+
         User::pointer user{ User::find(context.dbSession, context.userId) };
         if (!user)
             throw UserNotAuthorizedError{};
 
         Response response{ Response::createOkResponse(context.serverProtocolVersion) };
-        Response::Node& songsByYear{ response.createNode("songsByYear") };
+        Response::Node& songsByYearNode{ response.createNode("songsByYear") };
 
         Track::FindParameters params;
-        auto tracks {Track::getByYear(context.dbSession, std::stoi(year), std::stoi(year))};
-        for (const Track::pointer& track : tracks)
-            songsByYear.addArrayChild("song", createSongNode(context, track, user));
+        params.setClusters({ cluster->getId() });
+        params.setRange(Range{ offset, count });
+        params.setMediaLibrary(mediaLibrary);
+
+        Track::find(context.dbSession, params, [&](const Track::pointer& track)
+        {
+            songsByYearNode.addArrayChild("song", createSongNode(context, track, user));
+        });
 
         return response;
     }
-
+    
     Response handleGetSongsByMoodRequest(RequestContext& context)
     {
         // Mandatory params
@@ -399,7 +413,7 @@ namespace lms::api::subsonic
         Response::Node& songsByMoodNode{ response.createNode("songsByMood") };
 
         Track::FindParameters params;
-        std::vector<Database::ClusterId> clusters =  {cluster->getId()};
+        std::vector<ClusterId> clusters =  {cluster->getId()};
         if (year.has_value())
         {
           clusters.push_back(GetCluster(year.value(), "YEAR", context));

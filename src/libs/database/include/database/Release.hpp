@@ -28,17 +28,18 @@
 #include <Wt/WDateTime.h>
 #include <Wt/Dbo/Dbo.h>
 
+#include "core/EnumSet.hpp"
+#include "core/UUID.hpp"
 #include "database/ArtistId.hpp"
 #include "database/ClusterId.hpp"
+#include "database/MediaLibraryId.hpp"
 #include "database/Object.hpp"
 #include "database/ReleaseId.hpp"
 #include "database/ReleaseTypeId.hpp"
 #include "database/Types.hpp"
 #include "database/UserId.hpp"
-#include "utils/EnumSet.hpp"
-#include "utils/UUID.hpp"
 
-namespace Database
+namespace lms::db
 {
     class Artist;
     class Cluster;
@@ -90,9 +91,10 @@ namespace Database
             UserId                              starringUser;				// only releases starred by this user
             std::optional<FeedbackBackend>      feedbackBackend;		    //    and for this backend
             ArtistId                            artist;						// only releases that involved this user
-            EnumSet<TrackArtistLinkType>        trackArtistLinkTypes; 			//    and for these link types
-            EnumSet<TrackArtistLinkType>        excludedTrackArtistLinkTypes; 	//    but not for these link types
+            core::EnumSet<TrackArtistLinkType>        trackArtistLinkTypes; 			//    and for these link types
+            core::EnumSet<TrackArtistLinkType>        excludedTrackArtistLinkTypes; 	//    but not for these link types
             std::string                         releaseType;    // If set, albums that has this release type
+            MediaLibraryId                      mediaLibrary;   // If set, releases that has at least a track in this library
 
             FindParameters& setClusters(const std::vector<ClusterId>& _clusters) { clusters = _clusters; return *this; }
             FindParameters& setKeywords(const std::vector<std::string_view>& _keywords) { keywords = _keywords; return *this; }
@@ -101,7 +103,7 @@ namespace Database
             FindParameters& setWrittenAfter(const Wt::WDateTime& _after) { writtenAfter = _after; return *this; }
             FindParameters& setDateRange(const std::optional<DateRange>& _dateRange) { dateRange = _dateRange; return *this; }
             FindParameters& setStarringUser(UserId _user, FeedbackBackend _feedbackBackend) { starringUser = _user; feedbackBackend = _feedbackBackend; return *this; }
-            FindParameters& setArtist(ArtistId _artist, EnumSet<TrackArtistLinkType> _trackArtistLinkTypes = {}, EnumSet<TrackArtistLinkType> _excludedTrackArtistLinkTypes = {})
+            FindParameters& setArtist(ArtistId _artist, core::EnumSet<TrackArtistLinkType> _trackArtistLinkTypes = {}, core::EnumSet<TrackArtistLinkType> _excludedTrackArtistLinkTypes = {})
             {
                 artist = _artist;
                 trackArtistLinkTypes = _trackArtistLinkTypes;
@@ -109,6 +111,7 @@ namespace Database
                 return *this;
             }
             FindParameters& setReleaseType(std::string_view _releaseType) { releaseType = _releaseType; return *this; }
+            FindParameters& setMediaLibrary(MediaLibraryId  _mediaLibrary) { mediaLibrary = _mediaLibrary; return *this; }
         };
 
         Release() = default;
@@ -116,15 +119,15 @@ namespace Database
         // Accessors
         static std::size_t              getCount(Session& session);
         static bool                     exists(Session& session, ReleaseId id);
-        static pointer                  find(Session& session, const UUID& MBID);
+        static pointer                  find(Session& session, const core::UUID& MBID);
         static std::vector<pointer>     find(Session& session, const std::string& name, const std::filesystem::path& releaseDirectory);
         static pointer                  find(Session& session, ReleaseId id);
+        static void                     find(Session& session, ReleaseId& lastRetrievedRelease, std::size_t count, const std::function<void(const Release::pointer&)>& func, MediaLibraryId library = {});
         static RangeResults<pointer>    find(Session& session, const FindParameters& parameters);
-        static void                     find(Session& session, const FindParameters& parameters, std::function<void(const pointer&)> func);
+        static void                     find(Session& session, const FindParameters& parameters, const std::function<void(const pointer&)>& func);
         static RangeResults<ReleaseId>  findIds(Session& session, const FindParameters& parameters);
         static std::size_t              getCount(Session& session, const FindParameters& parameters);
         static RangeResults<ReleaseId>  findOrphanIds(Session& session, std::optional<Range> range = std::nullopt); // not track related
-        static RangeResults<ReleaseId>  findIdsOrderedByArtist(Session& session, std::optional<Range> range = std::nullopt);
 
         // Get the cluster of the tracks that belong to this release
         // Each clusters are grouped by cluster type, sorted by the number of occurence (max to min)
@@ -132,28 +135,34 @@ namespace Database
         std::vector<std::vector<ObjectPtr<Cluster>>> getClusterGroups(const std::vector<ClusterTypeId>& clusterTypeIds, std::size_t size) const;
 
         // Utility functions (if all tracks have the same values, which is legit to not be the case)
-        Wt::WDate                   getReleaseDate() const;
-        Wt::WDate                   getOriginalReleaseDate() const;
+        Wt::WDate                   getDate() const;
+        std::optional<int>          getYear() const;
+        Wt::WDate                   getOriginalDate() const;
+        std::optional<int>          getOriginalYear() const;
         std::optional<std::string>  getCopyright() const;
         std::optional<std::string>  getCopyrightURL() const;
         std::size_t                 getMeanBitrate() const;
 
         // Accessors
-        const std::string& getName() const { return _name; }
-        std::optional<UUID>                 getMBID() const { return UUID::fromString(_MBID); }
+        std::string_view                    getName() const { return _name; }
+        std::string_view                    getSortName() const { return _sortName; }
+        std::optional<core::UUID>                 getMBID() const { return core::UUID::fromString(_MBID); }
+        std::optional<core::UUID>                 getGroupMBID() const { return core::UUID::fromString(_groupMBID); }
         std::optional<std::size_t>          getTotalDisc() const { return _totalDisc; }
         std::size_t                         getDiscCount() const; // may not be total disc (if incomplete for example)
         std::vector<DiscInfo>               getDiscs() const;
         std::chrono::milliseconds           getDuration() const;
         Wt::WDateTime                       getLastWritten() const;
         std::string_view                    getArtistDisplayName() const { return _artistDisplayName; }
-        std::size_t                         getTracksCount() const;
+        std::size_t                         getTrackCount() const;
         std::vector<ObjectPtr<ReleaseType>> getReleaseTypes() const;
         std::vector<std::string>            getReleaseTypeNames() const;
 
         // Setters
         void setName(std::string_view name) { _name = name; }
-        void setMBID(const std::optional<UUID>& mbid) { _MBID = mbid ? mbid->getAsString() : ""; }
+        void setSortName(std::string_view sortName) { _sortName = sortName; }
+        void setMBID(const std::optional<core::UUID>& mbid) { _MBID = mbid ? mbid->getAsString() : ""; }
+        void setGroupMBID(const std::optional<core::UUID>& mbid) { _groupMBID = mbid ? mbid->getAsString() : ""; }
         void setTotalDisc(std::optional<int> totalDisc) { _totalDisc = totalDisc; }
         void setArtistDisplayName(std::string_view name) { _artistDisplayName = name; }
         void clearReleaseTypes();
@@ -169,7 +178,9 @@ namespace Database
         void persist(Action& a)
         {
             Wt::Dbo::field(a, _name, "name");
+            Wt::Dbo::field(a, _sortName, "sort_name");
             Wt::Dbo::field(a, _MBID, "mbid");
+            Wt::Dbo::field(a, _groupMBID, "group_mbid");
             Wt::Dbo::field(a, _totalDisc, "total_disc");
             Wt::Dbo::field(a, _artistDisplayName, "artist_display_name");
             Wt::Dbo::hasMany(a, _tracks, Wt::Dbo::ManyToOne, "release");
@@ -178,15 +189,18 @@ namespace Database
 
     private:
         friend class Session;
-        Release(const std::string& name, const std::optional<UUID>& MBID = {});
-        static pointer create(Session& session, const std::string& name, const std::optional<UUID>& MBID = {});
+        Release(const std::string& name, const std::optional<core::UUID>& MBID = {});
+        static pointer create(Session& session, const std::string& name, const std::optional<core::UUID>& MBID = {});
 
-        Wt::WDate getReleaseDate(bool original) const;
+        Wt::WDate getDate(bool original) const;
+        std::optional<int> getYear(bool original) const;
 
-        static constexpr std::size_t _maxNameLength{ 128 };
+        static constexpr std::size_t _maxNameLength{ 256 };
 
         std::string                         _name;
+        std::string                         _sortName;
         std::string                         _MBID;
+        std::string                         _groupMBID;
         std::optional<int>                  _totalDisc{};
         std::string                         _artistDisplayName;
 
@@ -194,4 +208,4 @@ namespace Database
         Wt::Dbo::collection<Wt::Dbo::ptr<ReleaseType>>  _releaseTypes; // Release types
     };
 
-} // namespace Database
+} // namespace lms::db

@@ -31,11 +31,10 @@
 #include "explore/ReleaseHelpers.hpp"
 #include "LmsApplication.hpp"
 
-using namespace Database;
-
-namespace UserInterface
+namespace lms::ui
 {
-
+    using namespace db;
+    
     Releases::Releases(Filters& filters, PlayQueueController& playQueueController)
         : Template{ Wt::WString::tr("Lms.Explore.Releases.template") }
         , _playQueueController{ playQueueController }
@@ -47,7 +46,7 @@ namespace UserInterface
         auto bindMenuItem{ [this](const std::string& var, const Wt::WString& title, ReleaseCollector::Mode mode)
         {
             auto* menuItem {bindNew<Wt::WPushButton>(var, title)};
-            menuItem->clicked().connect([=]
+            menuItem->clicked().connect([this, mode, menuItem]
             {
                 refreshView(mode);
                 _currentActiveItem->removeStyleClass("active");
@@ -76,17 +75,17 @@ namespace UserInterface
             });
 
         bindNew<Wt::WPushButton>("play-shuffled", Wt::WString::tr("Lms.Explore.play-shuffled"), Wt::TextFormat::Plain)
-            ->clicked().connect([=]
+            ->clicked().connect([this]
                 {
                     _playQueueController.processCommand(PlayQueueController::Command::PlayShuffled, getAllReleases());
                 });
         bindNew<Wt::WPushButton>("play-next", Wt::WString::tr("Lms.Explore.play-next"), Wt::TextFormat::Plain)
-            ->clicked().connect([=]
+            ->clicked().connect([this]
                 {
                     _playQueueController.processCommand(PlayQueueController::Command::PlayNext, getAllReleases());
                 });
         bindNew<Wt::WPushButton>("play-last", Wt::WString::tr("Lms.Explore.play-last"), Wt::TextFormat::Plain)
-            ->clicked().connect([=]
+            ->clicked().connect([this]
                 {
                     _playQueueController.processCommand(PlayQueueController::Command::PlayOrAddLast, getAllReleases());
                 });
@@ -127,9 +126,11 @@ namespace UserInterface
             for (const ReleaseId releaseId : releaseIds.results)
             {
                 if (const Release::pointer release{ Release::find(LmsApp->getDbSession(), releaseId) })
-                    _container->add(ReleaseListHelpers::createEntry(release));
+                    _container->add(releaseListHelpers::createEntry(release));
             }
         }
+
+        _container->setHasMore(releaseIds.moreResults);
     }
 
     std::vector<ReleaseId> Releases::getAllReleases()
@@ -138,4 +139,4 @@ namespace UserInterface
         return std::move(releaseIds.results);
     }
 
-} // namespace UserInterface
+} // namespace lms::ui

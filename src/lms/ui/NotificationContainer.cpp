@@ -22,10 +22,10 @@
 #include <sstream>
 #include <Wt/WTemplate.h>
 
-#include "utils/ILogger.hpp"
+#include "core/ILogger.hpp"
 #include "LmsApplication.hpp"
 
-namespace UserInterface
+namespace lms::ui
 {
     namespace
     {
@@ -80,7 +80,7 @@ namespace UserInterface
     {
         NotificationWidget* notification{ addNew<NotificationWidget>(type, category, message, duration) };
 
-        notification->closed.connect([=]
+        notification->closed.connect([this, notification]
             {
                 removeWidget(notification);
             });

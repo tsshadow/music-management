@@ -23,29 +23,31 @@
 #include <string>
 #include <vector>
 #include <Wt/WDateTime.h>
+#include "database/MediaLibraryId.hpp"
 #include "database/ScanSettings.hpp"
 
-namespace Scanner
+namespace lms::scanner
 {
-	struct ScannerSettings
-	{
-		std::size_t											scanVersion {};
-		Wt::WTime											startTime;
-		Database::ScanSettings::UpdatePeriod 				updatePeriod {Database::ScanSettings::UpdatePeriod::Never};
-		std::vector<std::filesystem::path>					supportedExtensions;
-		std::filesystem::path								mediaDirectory;
-		bool												skipDuplicateMBID {};
-		std::vector<std::string>							extraTags;
+    struct ScannerSettings
+    {
+        std::size_t								scanVersion{};
+        Wt::WTime								startTime;
+        db::ScanSettings::UpdatePeriod 	updatePeriod{ db::ScanSettings::UpdatePeriod::Never };
+        std::vector<std::filesystem::path>		supportedExtensions;
+        bool									skipDuplicateMBID{};
+        std::vector<std::string>				extraTags;
+        std::vector<std::string>                artistTagDelimiters;
+        std::vector<std::string>                defaultTagDelimiters;
 
-		bool operator==(const ScannerSettings& rhs) const
-		{
-			return scanVersion == rhs.scanVersion
-				&& startTime == rhs.startTime
-				&& updatePeriod == rhs.updatePeriod
-				&& supportedExtensions == rhs.supportedExtensions
-				&& mediaDirectory == rhs.mediaDirectory
-				&& skipDuplicateMBID == rhs.skipDuplicateMBID
-				&& extraTags == rhs.extraTags;
-		}
-	};
+        struct MediaLibraryInfo
+        {
+            db::MediaLibraryId id;
+            std::filesystem::path rootDirectory;
+
+            auto operator<=>(const MediaLibraryInfo& other) const = default;
+        };
+        std::vector<MediaLibraryInfo>			mediaLibraries;
+
+        bool operator==(const ScannerSettings& rhs) const = default;
+    };
 }

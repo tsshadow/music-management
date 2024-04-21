@@ -22,13 +22,16 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
 
+#include "core/ITraceLogger.hpp"
 #include "image/Exception.hpp"
 #include "RawImage.hpp"
 
-namespace Image::STB
+namespace lms::image::STB
 {
 	JPEGImage::JPEGImage(const RawImage& rawImage, unsigned quality)
 	{
+        LMS_SCOPED_TRACE_DETAILED("Image", "WriteJPEG");
+
 		auto writeCb {[](void* ctx, void* writeData, int writeSize)
 		{
 			auto& output {*reinterpret_cast<std::vector<std::byte>*>(ctx)};
@@ -40,7 +43,7 @@ namespace Image::STB
 		if (stbi_write_jpg_to_func(writeCb, &_data, rawImage.getWidth(), rawImage.getHeight(), 3, rawImage.getData(), quality) == 0)
 		{
 			_data.clear();
-			throw ImageException {"Failed to export in jpeg format!"};
+			throw Exception {"Failed to export in jpeg format!"};
 		}
 	}
 

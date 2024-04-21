@@ -1,4 +1,7 @@
 /*
+ * NO LONGER IN USE
+ *
+ *
  * Copyright (C) 2016 Emeric Poupon
  *
  * This file is part of LMS.

@@ -34,8 +34,8 @@
 #include "database/TrackId.hpp"
 #include "database/Types.hpp"
 
-namespace Database {
-
+namespace lms::db
+{
     class Track;
     class ClusterType;
     class Session;
@@ -75,7 +75,7 @@ namespace Database {
         // Accessors
         std::string_view                getName() const { return _name; }
         ObjectPtr<ClusterType>          getType() const { return _clusterType; }
-        std::size_t                     getTracksCount() const { return _trackCount; }
+        std::size_t                     getTrackCount() const { return _trackCount; }
         RangeResults<TrackId>           getTracks(std::optional<Range> range = std::nullopt) const;
         std::size_t                     getReleasesCount() const { return _releaseCount; };
 
@@ -149,5 +149,5 @@ namespace Database {
         Wt::Dbo::collection< Wt::Dbo::ptr<Cluster> > _clusters;
     };
 
-} // namespace Database
+} // namespace lms::db
 

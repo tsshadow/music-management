@@ -17,12 +17,12 @@
  * along with LMS.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "DirectoryValidator.hpp"
+#include "UppercaseValidator.hpp"
 
 #include <string>
 #include <string_view>
 
-namespace UserInterface
+namespace lms::ui
 {
     class UppercaseValidator : public Wt::WValidator
     {
@@ -49,4 +49,4 @@ namespace UserInterface
     {
         return std::make_unique<UppercaseValidator>();
     }
-} // namespace UserInterface
+} // namespace lms::ui

@@ -27,15 +27,15 @@
 #include "database/ArtistId.hpp"
 #include "database/ClusterId.hpp"
 #include "database/ListenId.hpp"
+#include "database/MediaLibraryId.hpp"
 #include "database/Object.hpp"
 #include "database/ReleaseId.hpp"
 #include "database/TrackId.hpp"
 #include "database/Types.hpp"
 #include "database/UserId.hpp"
 
-namespace Database
+namespace lms::db
 {
-
     class Session;
     class Track;
     class User;
@@ -65,14 +65,37 @@ namespace Database
         static RangeResults<ListenId>   find(Session& session, const FindParameters& parameters);
 
         // Stats
-        static RangeResults<ArtistId>   getTopArtists(Session& session, UserId userId, ScrobblingBackend backend, const std::vector<ClusterId>& clusterIds, std::optional<TrackArtistLinkType> linkType, std::optional<Range> range = std::nullopt);
-        static RangeResults<ReleaseId>  getTopReleases(Session& session, UserId userId, ScrobblingBackend backend, const std::vector<ClusterId>& clusterIds, std::optional<Range> range = std::nullopt);
-        static RangeResults<TrackId>    getTopTracks(Session& session, UserId userId, ScrobblingBackend backend, const std::vector<ClusterId>& clusterIds, std::optional<Range> range = std::nullopt);
-        static RangeResults<TrackId>    getTopTracks(Session& session, UserId userId, ArtistId artistId, ScrobblingBackend backend, const std::vector<ClusterId>& clusterIds, std::optional<Range> range = std::nullopt);
+        struct StatsFindParameters
+        {
+            UserId                              user;
+            std::optional<ScrobblingBackend>    backend;
+            std::vector<ClusterId>              clusters; // if non empty, entities that belong to these clusters
+            std::optional<Range>                range;
+            ArtistId                            artist; // if set, matching this artist
+            MediaLibraryId                      library;
 
-        static RangeResults<ArtistId>   getRecentArtists(Session& session, UserId userId, ScrobblingBackend backend, const std::vector<ClusterId>& clusterIds, std::optional<TrackArtistLinkType> linkType, std::optional<Range> range = std::nullopt);
-        static RangeResults<ReleaseId>  getRecentReleases(Session& session, UserId userId, ScrobblingBackend backend, const std::vector<ClusterId>& clusterIds, std::optional<Range> range = std::nullopt);
-        static RangeResults<TrackId>    getRecentTracks(Session& session, UserId userId, ScrobblingBackend backend, const std::vector<ClusterId>& clusterIds, std::optional<Range> range = std::nullopt);
+            StatsFindParameters& setUser(UserId _user) { user = _user; return *this; }
+            StatsFindParameters& setScrobblingBackend(std::optional<ScrobblingBackend> _backend) { backend = _backend; return *this; }
+            StatsFindParameters& setClusters(const std::vector<ClusterId>& _clusters) { clusters = _clusters; return *this; }
+            StatsFindParameters& setRange(std::optional<Range> _range) { range = _range; return *this; }
+            StatsFindParameters& setArtist(ArtistId _artist) { artist = _artist; return *this; }
+            StatsFindParameters& setMediaLibrary(MediaLibraryId _library) { library = _library; return *this; }
+        };
+
+        struct ArtistStatsFindParameters : public StatsFindParameters
+        {
+            std::optional<TrackArtistLinkType>  linkType;	// if set, only artists that have produced at least one track with this link type
+
+            ArtistStatsFindParameters& setLinkType(std::optional<TrackArtistLinkType> _linkType) { linkType = _linkType; return *this; }
+        };
+
+        static RangeResults<ArtistId>   getTopArtists(Session& session, const ArtistStatsFindParameters& params);
+        static RangeResults<ReleaseId>  getTopReleases(Session& session, const StatsFindParameters& params);
+        static RangeResults<TrackId>    getTopTracks(Session& session, const StatsFindParameters& params);
+
+        static RangeResults<ArtistId>   getRecentArtists(Session& session, const ArtistStatsFindParameters& params);
+        static RangeResults<ReleaseId>  getRecentReleases(Session& session, const StatsFindParameters& params);
+        static RangeResults<TrackId>    getRecentTracks(Session& session, const StatsFindParameters& params);
 
         static std::size_t              getCount(Session& session, UserId userId, TrackId trackId); // for the current backend
         static std::size_t              getCount(Session& session, UserId userId, ReleaseId trackId); // for the current backend
@@ -111,5 +134,5 @@ namespace Database
         Wt::Dbo::ptr<Track>	_track;
     };
 
-} // namespace Database
+} // namespace lms::db
 

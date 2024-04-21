@@ -24,7 +24,7 @@
 #include <functional>
 #include <Wt/WDate.h>
 
-namespace Database
+namespace lms::db
 {
     // Caution: do not change enum values if they are set!
 
@@ -93,8 +93,8 @@ namespace Database
 
     struct DateRange
     {
-        Wt::WDate begin;
-        Wt::WDate end;
+        int begin;
+        int end;
 
         static DateRange fromYearRange(int from, int to);
     };
@@ -108,8 +108,9 @@ namespace Database
     enum class ArtistSortMethod
     {
         None,
-        ByName,
-        BySortName,
+        Id,
+        Name,
+        SortName,
         Random,
         LastWritten,
         StarredDateDesc,
@@ -118,7 +119,9 @@ namespace Database
     enum class ReleaseSortMethod
     {
         None,
+        Id,
         Name,
+        ArtistNameThenName,
         Date,
         OriginalDate,
         OriginalDateDesc,
@@ -137,6 +140,7 @@ namespace Database
     enum class TrackSortMethod
     {
         None,
+        Id,
         Random,
         LastWritten,
         StarredDateDesc,

@@ -24,20 +24,21 @@
 #include "av/IAudioFile.hpp"
 
 #include "database/Db.hpp"
+#include "database/Artist.hpp"
 #include "database/Release.hpp"
 #include "database/Session.hpp"
 #include "database/Track.hpp"
 
 #include "image/Exception.hpp"
-#include "image/IRawImage.hpp"
-#include "utils/IConfig.hpp"
-#include "utils/ILogger.hpp"
-#include "utils/Path.hpp"
-#include "utils/Random.hpp"
-#include "utils/String.hpp"
-#include "utils/Utils.hpp"
+#include "image/Image.hpp"
+#include "core/IConfig.hpp"
+#include "core/ILogger.hpp"
+#include "core/Path.hpp"
+#include "core/Random.hpp"
+#include "core/String.hpp"
+#include "core/Utils.hpp"
 
-namespace Cover
+namespace lms::cover
 {
     namespace
     {
@@ -46,25 +47,25 @@ namespace Cover
             bool hasCover{};
             bool isMultiDisc{};
             std::filesystem::path trackPath;
-            std::optional<Database::ReleaseId> releaseId;
+            std::optional<db::ReleaseId> releaseId;
         };
 
-        std::optional<TrackInfo> getTrackInfo(Database::Session& dbSession, Database::TrackId trackId)
+        std::optional<TrackInfo> getTrackInfo(db::Session& dbSession, db::TrackId trackId)
         {
             std::optional<TrackInfo> res;
 
             auto transaction{ dbSession.createReadTransaction() };
 
-            const Database::Track::pointer track{ Database::Track::find(dbSession, trackId) };
+            const db::Track::pointer track{ db::Track::find(dbSession, trackId) };
             if (!track)
                 return res;
 
             res = TrackInfo{};
 
             res->hasCover = track->hasCover();
-            res->trackPath = track->getPath();
+            res->trackPath = track->getAbsoluteFilePath();
 
-            if (const Database::Release::pointer & release{ track->getRelease() })
+            if (const db::Release::pointer & release{ track->getRelease() })
             {
                 res->releaseId = release->getId();
                 if (release->getTotalDisc() > 1)
@@ -78,7 +79,7 @@ namespace Cover
         {
             std::vector<std::string> res;
 
-            Service<IConfig>::get()->visitStrings("cover-preferred-file-names",
+            core::Service<core::IConfig>::get()->visitStrings("cover-preferred-file-names",
                 [&res](std::string_view fileName)
                 {
                     res.emplace_back(fileName);
@@ -91,7 +92,7 @@ namespace Cover
         {
             std::vector<std::string> res;
 
-            Service<IConfig>::get()->visitStrings("artist-image-file-names",
+            core::Service<core::IConfig>::get()->visitStrings("artist-image-file-names",
                 [&res](std::string_view fileName)
                 {
                     res.emplace_back(fileName);
@@ -106,51 +107,36 @@ namespace Cover
         }
     }
 
-    std::unique_ptr<ICoverService> createCoverService(Database::Db& db, const std::filesystem::path& execPath, const std::filesystem::path& defaultCoverPath)
+    std::unique_ptr<ICoverService> createCoverService(db::Db& db, const std::filesystem::path& defaultSvgCoverPath)
     {
-        return std::make_unique<CoverService>(db, execPath, defaultCoverPath);
+        return std::make_unique<CoverService>(db, defaultSvgCoverPath);
     }
 
-    using namespace Image;
+    using namespace image;
 
-    CoverService::CoverService(Database::Db& db,
-        const std::filesystem::path& execPath,
-        const std::filesystem::path& defaultCoverPath)
+    CoverService::CoverService(db::Db& db,
+        const std::filesystem::path& defaultSvgCoverPath)
         : _db{ db }
-        , _defaultCoverPath{ defaultCoverPath }
-        , _maxCacheSize{ Service<IConfig>::get()->getULong("cover-max-cache-size", 30) * 1000 * 1000 }
-        , _maxFileSize{ Service<IConfig>::get()->getULong("cover-max-file-size", 10) * 1000 * 1000 }
+        , _cache{ core::Service<core::IConfig>::get()->getULong("cover-max-cache-size", 30) * 1000 * 1000 }
+        , _maxFileSize{ core::Service<core::IConfig>::get()->getULong("cover-max-file-size", 10) * 1000 * 1000 }
         , _preferredFileNames{ constructPreferredFileNames() }
         , _artistFileNames{ constructArtistFileNames() }
     {
-        setJpegQuality(Service<IConfig>::get()->getULong("cover-jpeg-quality", 75));
+        setJpegQuality(core::Service<core::IConfig>::get()->getULong("cover-jpeg-quality", 75));
 
-        LMS_LOG(COVER, INFO, "Default cover path = '" << _defaultCoverPath.string() << "'");
-        LMS_LOG(COVER, INFO, "Max cache size = " << _maxCacheSize);
+        LMS_LOG(COVER, INFO, "Default cover path = '" << defaultSvgCoverPath.string() << "'");
+        LMS_LOG(COVER, INFO, "Max cache size = " << _cache.getMaxCacheSize());
         LMS_LOG(COVER, INFO, "Max file size = " << _maxFileSize);
-        LMS_LOG(COVER, INFO, "Preferred file names: " << StringUtils::joinStrings(_preferredFileNames, ","));
+        LMS_LOG(COVER, INFO, "Preferred file names: " << core::stringUtils::joinStrings(_preferredFileNames, ","));
 
-#if LMS_SUPPORT_IMAGE_GM
-        GraphicsMagick::init(execPath);
-#else
-        (void)execPath;
-#endif
-
-        try
-        {
-            getDefault(512);
-        }
-        catch (const Image::ImageException& e)
-        {
-            throw LmsException("Cannot read default cover file '" + _defaultCoverPath.string() + "': " + e.what());
-        }
+        _defaultCover = image::readSvgFile(defaultSvgCoverPath); // may throw
     }
 
-    std::unique_ptr<IEncodedImage> CoverService::getFromAvMediaFile(const Av::IAudioFile& input, ImageSize width) const
+    std::unique_ptr<IEncodedImage> CoverService::getFromAvMediaFile(const av::IAudioFile& input, ImageSize width) const
     {
         std::unique_ptr<IEncodedImage> image;
 
-        input.visitAttachedPictures([&](const Av::Picture& picture)
+        input.visitAttachedPictures([&](const av::Picture& picture)
             {
                 if (image)
                     return;
@@ -161,7 +147,7 @@ namespace Cover
                     rawImage->resize(width);
                     image = rawImage->encodeToJPEG(_jpegQuality);
                 }
-                catch (const Image::ImageException& e)
+                catch (const image::Exception& e)
                 {
                     LMS_LOG(COVER, ERROR, "Cannot read embedded cover: " << e.what());
                 }
@@ -180,7 +166,7 @@ namespace Cover
             rawImage->resize(width);
             image = rawImage->encodeToJPEG(_jpegQuality);
         }
-        catch (const ImageException& e)
+        catch (const image::Exception& e)
         {
             LMS_LOG(COVER, ERROR, "Cannot read cover in file '" << p.string() << "': " << e.what());
         }
@@ -188,27 +174,9 @@ namespace Cover
         return image;
     }
 
-    std::shared_ptr<IEncodedImage> CoverService::getDefault(ImageSize width)
+    std::shared_ptr<IEncodedImage> CoverService::getDefaultSvgCover()
     {
-        {
-            std::shared_lock lock{ _cacheMutex };
-
-            if (auto it{ _defaultCoverCache.find(width) }; it != std::cend(_defaultCoverCache))
-                return it->second;
-        }
-
-        {
-            std::unique_lock lock{ _cacheMutex };
-
-            if (auto it{ _defaultCoverCache.find(width) }; it != std::cend(_defaultCoverCache))
-                return it->second;
-
-            std::shared_ptr<IEncodedImage> image{ getFromCoverFile(_defaultCoverPath, width) };
-            _defaultCoverCache[width] = image;
-            LMS_LOG(COVER, DEBUG, "Default cache entries = " << _defaultCoverCache.size());
-
-            return image;
-        }
+        return _defaultCover;
     }
 
     std::unique_ptr<IEncodedImage> CoverService::getFromDirectory(const std::filesystem::path& directory, ImageSize width, const std::vector<std::string>& preferredFileNames, bool allowPickRandom) const
@@ -231,7 +199,7 @@ namespace Cover
 
         std::unique_ptr<IEncodedImage> image;
 
-        for (std::string_view filename : preferredFileNames)
+        for (const std::string_view filename : preferredFileNames)
         {
             image = tryLoadImageFromFilename(filename);
             if (image)
@@ -299,7 +267,7 @@ namespace Cover
         std::error_code ec;
 
         std::filesystem::directory_iterator itPath(directoryPath, ec);
-        std::filesystem::directory_iterator itEnd;
+        const std::filesystem::directory_iterator itEnd;
         while (!ec && itPath != itEnd)
         {
             const std::filesystem::path& path{ *itPath };
@@ -319,9 +287,9 @@ namespace Cover
 
         try
         {
-            image = getFromAvMediaFile(*Av::parseAudioFile(p), width);
+            image = getFromAvMediaFile(*av::parseAudioFile(p), width);
         }
-        catch (Av::Exception& e)
+        catch (av::Exception& e)
         {
             LMS_LOG(COVER, ERROR, "Cannot get covers from track " << p.string() << ": " << e.what());
         }
@@ -329,18 +297,18 @@ namespace Cover
         return image;
     }
 
-    std::shared_ptr<IEncodedImage> CoverService::getFromTrack(Database::TrackId trackId, ImageSize width)
+    std::shared_ptr<IEncodedImage> CoverService::getFromTrack(db::TrackId trackId, ImageSize width)
     {
         return getFromTrack(_db.getTLSSession(), trackId, width, true /* allow release fallback*/);
     }
 
-    std::shared_ptr<IEncodedImage> CoverService::getFromTrack(Database::Session& dbSession, Database::TrackId trackId, ImageSize width, bool allowReleaseFallback)
+    std::shared_ptr<IEncodedImage> CoverService::getFromTrack(db::Session& dbSession, db::TrackId trackId, ImageSize width, bool allowReleaseFallback)
     {
-        using namespace Database;
+        using namespace db;
 
-        const CacheEntryDesc cacheEntryDesc{ trackId, width };
+        const ImageCache::EntryDesc cacheEntryDesc{ trackId, width };
 
-        std::shared_ptr<IEncodedImage> cover{ loadFromCache(cacheEntryDesc) };
+        std::shared_ptr<IEncodedImage> cover{ _cache.getImage(cacheEntryDesc) };
         if (cover)
             return cover;
 
@@ -363,17 +331,17 @@ namespace Cover
         }
 
         if (cover)
-            saveToCache(cacheEntryDesc, cover);
+            _cache.addImage(cacheEntryDesc, cover);
 
         return cover;
     }
 
-    std::shared_ptr<IEncodedImage> CoverService::getFromRelease(Database::ReleaseId releaseId, ImageSize width)
+    std::shared_ptr<IEncodedImage> CoverService::getFromRelease(db::ReleaseId releaseId, ImageSize width)
     {
-        using namespace Database;
-        const CacheEntryDesc cacheEntryDesc{ releaseId, width };
+        using namespace db;
+        const ImageCache::EntryDesc cacheEntryDesc{ releaseId, width };
 
-        std::shared_ptr<IEncodedImage> cover{ loadFromCache(cacheEntryDesc) };
+        std::shared_ptr<IEncodedImage> cover{ _cache.getImage(cacheEntryDesc) };
         if (cover)
             return cover;
 
@@ -398,7 +366,7 @@ namespace Cover
                 const Track::pointer& track{ tracks.results.front() };
                 res = ReleaseInfo{};
                 res->firstTrackId = track->getId();
-                res->releaseDirectory = track->getPath().parent_path();
+                res->releaseDirectory = track->getAbsoluteFilePath().parent_path();
             }
 
             return res;
@@ -412,108 +380,121 @@ namespace Cover
         }
 
         if (cover)
-            saveToCache(cacheEntryDesc, cover);
+            _cache.addImage(cacheEntryDesc, cover);
 
         return cover;
     }
 
-    std::shared_ptr<IEncodedImage> CoverService::getFromArtist(Database::ArtistId artistId, ImageSize width)
+    std::shared_ptr<IEncodedImage> CoverService::getFromArtist(db::ArtistId artistId, ImageSize width)
     {
-        using namespace Database;
-        const CacheEntryDesc cacheEntryDesc{ artistId, width };
+        using namespace db;
+        const ImageCache::EntryDesc cacheEntryDesc{ artistId, width };
 
-        std::shared_ptr<IEncodedImage> artistImage{ loadFromCache(cacheEntryDesc) };
+        std::shared_ptr<IEncodedImage> artistImage{ _cache.getImage(cacheEntryDesc) };
         if (artistImage)
             return artistImage;
 
-        std::set<std::filesystem::path> parentPaths;
+        std::string artistName;
+        std::string artistMBID;
+
+        std::set<std::filesystem::path> releasePaths;
+        std::set<std::filesystem::path> multiArtistReleasePaths;
+
         {
             Session& session{ _db.getTLSSession() };
+
+            auto transaction{ session.createReadTransaction() };
+
+            const Artist::pointer artist{ Artist::find(session, artistId) };
+            if (!artist)
+                return artistImage;
+
+            artistName = artist->getName();
+            if (auto mbid{ artist->getMBID() })
+                artistMBID = mbid->getAsString();
 
             Track::FindParameters params;
             params.setArtist(artistId, { TrackArtistLinkType::ReleaseArtist });
 
-            auto transaction{ session.createReadTransaction() };
-
             Track::find(session, params, [&](const Track::pointer& track)
                 {
-                    parentPaths.insert(track->getPath().parent_path());
+                    Artist::FindParameters artistFindParams;
+                    artistFindParams.setTrack(track->getId());
+                    artistFindParams.setLinkType(TrackArtistLinkType::ReleaseArtist);
+
+                    const auto releaseArtists{ Artist::findIds(session, artistFindParams) };
+                    if (releaseArtists.results.size() == 1)
+                        releasePaths.insert(track->getAbsoluteFilePath().parent_path());
+                    else
+                        multiArtistReleasePaths.insert(track->getAbsoluteFilePath().parent_path());
                 });
         }
 
-        if (parentPaths.size() == 1)
+        std::vector<std::string> artistFileNames;
+        if (!artistMBID.empty())
+            artistFileNames.push_back(artistMBID);
+        artistFileNames.push_back(artistName);
+
+        std::vector<std::string> artistFileNamesWithGenericNames{ artistFileNames };
+        artistFileNamesWithGenericNames.insert(artistFileNamesWithGenericNames.end(), std::cbegin(_artistFileNames), std::cend(_artistFileNames));
+
+        // Expect layout like this:
+        // ReleaseArtist/Release/Tracks'
+        //              /artist-mbid.jpg
+        //              /artist-name.jpg
+        //              /artist.jpg
+        if (!releasePaths.empty())
         {
-            artistImage = getFromDirectory(parentPaths.begin()->parent_path(), width, _artistFileNames, false);
-        }
-        else if (parentPaths.size() > 1)
-        {
-            const std::filesystem::path longestCommonPath{ PathUtils::getLongestCommonPath(std::cbegin(parentPaths), std::cend(parentPaths)) };
-            artistImage = getFromDirectory(longestCommonPath, width, _artistFileNames, false);
+            const std::filesystem::path artistPath{ releasePaths.size() == 1 ? releasePaths.begin()->parent_path() : core::pathUtils::getLongestCommonPath(std::cbegin(releasePaths), std::cend(releasePaths)) };
+            artistImage = getFromDirectory(artistPath, width, artistFileNamesWithGenericNames, false);
         }
 
+        // Expect layout like this:
+        // ReleaseArtist/Release/Tracks'
+        //                      /artist-mbid.jpg
+        //                      /artist-name.jpg
+        //                      /artist.jpg
         if (!artistImage)
         {
-            for (const std::filesystem::path& parentPath : parentPaths)
+            for (const std::filesystem::path& releasePath : releasePaths)
             {
-                artistImage = getFromDirectory(parentPath, width, _artistFileNames, false);
+                artistImage = getFromDirectory(releasePath, width, artistFileNamesWithGenericNames, false);
+                if (artistImage)
+                    break;
+            }
+        }
+
+        // Expect layout like this:
+        // Only search for the artist's name in the release path, as we can't map a generic name to several artists
+        // ReleaseArtist/Release/Tracks'
+        //                      /artist-name.jpg
+        //                      /artist-mbid.jpg
+        if (!artistImage)
+        {
+            for (const std::filesystem::path& releasePath : multiArtistReleasePaths)
+            {
+                artistImage = getFromDirectory(releasePath, width, artistFileNames, false);
                 if (artistImage)
                     break;
             }
         }
 
         if (artistImage)
-            saveToCache(cacheEntryDesc, artistImage);
+            _cache.addImage(cacheEntryDesc, artistImage);
 
         return artistImage;
     }
 
     void CoverService::flushCache()
     {
-        std::unique_lock lock{ _cacheMutex };
-
-        LMS_LOG(COVER, DEBUG, "Cache stats: hits = " << _cacheHits << ", misses = " << _cacheMisses << ", nb entries = " << _cache.size() << ", size = " << _cacheSize);
-        _cacheHits = 0;
-        _cacheMisses = 0;
-        _cacheSize = 0;
-        _cache.clear();
     }
 
     void CoverService::setJpegQuality(unsigned quality)
     {
-        _jpegQuality = Utils::clamp<unsigned>(quality, 1, 100);
+        _jpegQuality = core::utils::clamp<unsigned>(quality, 1, 100);
 
         LMS_LOG(COVER, INFO, "JPEG export quality = " << _jpegQuality);
     }
 
-    void CoverService::saveToCache(const CacheEntryDesc& entryDesc, std::shared_ptr<IEncodedImage> image)
-    {
-        std::unique_lock lock{ _cacheMutex };
-
-        while (_cacheSize + image->getDataSize() > _maxCacheSize && !_cache.empty())
-        {
-            auto itRandom{ Random::pickRandom(_cache) };
-            _cacheSize -= itRandom->second->getDataSize();
-            _cache.erase(itRandom);
-        }
-
-        _cacheSize += image->getDataSize();
-        _cache[entryDesc] = image;
-    }
-
-    std::shared_ptr<IEncodedImage> CoverService::loadFromCache(const CacheEntryDesc& entryDesc)
-    {
-        std::shared_lock lock{ _cacheMutex };
-
-        auto it{ _cache.find(entryDesc) };
-        if (it == std::cend(_cache))
-        {
-            ++_cacheMisses;
-            return nullptr;
-        }
-
-        ++_cacheHits;
-        return it->second;
-    }
-
-} // namespace Cover
+} // namespace lms::cover
 

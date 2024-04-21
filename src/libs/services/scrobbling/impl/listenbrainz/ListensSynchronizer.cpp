@@ -33,187 +33,188 @@
 #include "database/Track.hpp"
 #include "database/User.hpp"
 #include "services/scrobbling/Exception.hpp"
-#include "utils/IConfig.hpp"
-#include "utils/http/IClient.hpp"
-#include "utils/Service.hpp"
+#include "core/IConfig.hpp"
+#include "core/http/IClient.hpp"
+#include "core/Service.hpp"
 #include "ListensParser.hpp"
 
 #include "Utils.hpp"
 
-namespace
+namespace lms::scrobbling::listenBrainz
 {
-    using namespace Scrobbling::ListenBrainz;
-
-    std::optional<Wt::Json::Object> listenToJsonPayload(Database::Session& session, const Scrobbling::Listen& listen, const Wt::WDateTime& timePoint)
+    namespace
     {
-        auto transaction{ session.createReadTransaction() };
-
-        const Database::Track::pointer track{ Database::Track::find(session, listen.trackId) };
-        if (!track)
-            return std::nullopt;
-
-        auto artists{ track->getArtists({Database::TrackArtistLinkType::Artist}) };
-        if (artists.empty())
-            artists = track->getArtists({ Database::TrackArtistLinkType::ReleaseArtist });
-
-        if (artists.empty())
+        std::optional<Wt::Json::Object> listenToJsonPayload(db::Session& session, const scrobbling::Listen& listen, const Wt::WDateTime& timePoint)
         {
-            LOG(DEBUG, "Track cannot be scrobbled since it does not have any artist");
-            return std::nullopt;
-        }
+            auto transaction{ session.createReadTransaction() };
 
-        Wt::Json::Object additionalInfo;
-        additionalInfo["listening_from"] = "LMS";
-        if (track->getRelease())
-        {
-            if (auto MBID{ track->getRelease()->getMBID() })
-                additionalInfo["release_mbid"] = Wt::Json::Value{ std::string {MBID->getAsString()} };
-        }
+            const db::Track::pointer track{ db::Track::find(session, listen.trackId) };
+            if (!track)
+                return std::nullopt;
 
-        {
-            Wt::Json::Array artistMBIDs;
-            for (const Database::Artist::pointer& artist : artists)
+            auto artists{ track->getArtists({db::TrackArtistLinkType::Artist}) };
+            if (artists.empty())
+                artists = track->getArtists({ db::TrackArtistLinkType::ReleaseArtist });
+
+            if (artists.empty())
             {
-                if (auto MBID{ artist->getMBID() })
-                    artistMBIDs.push_back(Wt::Json::Value{ std::string {MBID->getAsString()} });
+                LOG(DEBUG, "Track cannot be scrobbled since it does not have any artist");
+                return std::nullopt;
             }
 
-            if (!artistMBIDs.empty())
-                additionalInfo["artist_mbids"] = std::move(artistMBIDs);
+            Wt::Json::Object additionalInfo;
+            additionalInfo["listening_from"] = "LMS";
+            additionalInfo["duration_ms"] = std::chrono::duration_cast<std::chrono::milliseconds>(track->getDuration()).count();
+            if (const auto release {track->getRelease()})
+            {
+                if (auto MBID{ release->getMBID() })
+                    additionalInfo["release_mbid"] = Wt::Json::Value{ std::string {MBID->getAsString()} };
+                if (auto groupMBID{ release->getGroupMBID() })
+                    additionalInfo["release_group_mbid"] = Wt::Json::Value{ std::string {groupMBID->getAsString()} };
+            }
+
+            {
+                Wt::Json::Array artistMBIDs;
+                for (const db::Artist::pointer& artist : artists)
+                {
+                    if (auto MBID{ artist->getMBID() })
+                        artistMBIDs.push_back(Wt::Json::Value{ std::string {MBID->getAsString()} });
+                }
+
+                if (!artistMBIDs.empty())
+                    additionalInfo["artist_mbids"] = std::move(artistMBIDs);
+            }
+
+            if (auto MBID{ track->getTrackMBID() })
+                additionalInfo["track_mbid"] = Wt::Json::Value{ std::string {MBID->getAsString()} };
+
+            if (auto MBID{ track->getRecordingMBID() })
+                additionalInfo["recording_mbid"] = Wt::Json::Value{ std::string {MBID->getAsString()} };
+
+            if (const std::optional<std::size_t> trackNumber{ track->getTrackNumber() })
+                additionalInfo["tracknumber"] = Wt::Json::Value{ static_cast<long long int>(*trackNumber) };
+
+            Wt::Json::Object trackMetadata;
+            trackMetadata["additional_info"] = std::move(additionalInfo);
+            trackMetadata["artist_name"] = Wt::Json::Value{ std::string{ track->getArtistDisplayName() } };
+            trackMetadata["track_name"] = Wt::Json::Value{ track->getName() };
+            if (track->getRelease())
+                trackMetadata["release_name"] = Wt::Json::Value{ std::string {track->getRelease()->getName()} };
+
+            Wt::Json::Object payload;
+            payload["track_metadata"] = std::move(trackMetadata);
+            if (timePoint.isValid())
+                payload["listened_at"] = Wt::Json::Value{ static_cast<long long int>(timePoint.toTime_t()) };
+
+            return payload;
         }
 
-        if (auto MBID{ track->getTrackMBID() })
-            additionalInfo["track_mbid"] = Wt::Json::Value{ std::string {MBID->getAsString()} };
-
-        if (auto MBID{ track->getRecordingMBID() })
-            additionalInfo["recording_mbid"] = Wt::Json::Value{ std::string {MBID->getAsString()} };
-
-        if (const std::optional<std::size_t> trackNumber{ track->getTrackNumber() })
-            additionalInfo["tracknumber"] = Wt::Json::Value{ static_cast<long long int>(*trackNumber) };
-
-        Wt::Json::Object trackMetadata;
-        trackMetadata["additional_info"] = std::move(additionalInfo);
-        trackMetadata["artist_name"] = Wt::Json::Value{ artists.front()->getName() };
-        trackMetadata["track_name"] = Wt::Json::Value{ track->getName() };
-        if (track->getRelease())
-            trackMetadata["release_name"] = Wt::Json::Value{ track->getRelease()->getName() };
-
-        Wt::Json::Object payload;
-        payload["track_metadata"] = std::move(trackMetadata);
-        if (timePoint.isValid())
-            payload["listened_at"] = Wt::Json::Value{ static_cast<long long int>(timePoint.toTime_t()) };
-
-        return payload;
-    }
-
-    std::string listenToJsonString(Database::Session& session, const Scrobbling::Listen& listen, const Wt::WDateTime& timePoint, std::string_view listenType)
-    {
-        std::string res;
-
-        std::optional<Wt::Json::Object> payload{ listenToJsonPayload(session, listen, timePoint) };
-        if (!payload)
-            return res;
-
-        Wt::Json::Object root;
-        root["listen_type"] = Wt::Json::Value{ std::string {listenType} };
-        root["payload"] = Wt::Json::Array{ std::move(*payload) };
-
-        res = Wt::Json::serialize(root);
-        return res;
-    }
-
-    std::optional<std::size_t> parseListenCount(std::string_view msgBody)
-    {
-        try
+        std::string listenToJsonString(db::Session& session, const scrobbling::Listen& listen, const Wt::WDateTime& timePoint, std::string_view listenType)
         {
+            std::string res;
+
+            std::optional<Wt::Json::Object> payload{ listenToJsonPayload(session, listen, timePoint) };
+            if (!payload)
+                return res;
+
             Wt::Json::Object root;
-            Wt::Json::parse(std::string{ msgBody }, root);
+            root["listen_type"] = Wt::Json::Value{ std::string {listenType} };
+            root["payload"] = Wt::Json::Array{ std::move(*payload) };
 
-            const Wt::Json::Object& payload{ static_cast<const Wt::Json::Object&>(root.get("payload")) };
-            return static_cast<int>(payload.get("count"));
+            res = Wt::Json::serialize(root);
+            return res;
         }
-        catch (const Wt::WException& e)
+
+        std::optional<std::size_t> parseListenCount(std::string_view msgBody)
         {
-            LOG(ERROR, "Cannot parse listen count response: " << e.what());
-            return std::nullopt;
-        }
-    }
-
-    Database::TrackId tryGetMatchingTrack(Database::Session& session, const Listen& listen)
-    {
-        using namespace Database;
-
-        auto transaction{ session.createReadTransaction() };
-
-        // first try to match using track MBID, and then fallback on possibly ambiguous info
-        if (listen.trackMBID)
-        {
-            const auto tracks{ Track::findByMBID(session, *listen.trackMBID) };
-            // if duplicated files, do not record it (let the user correct its database)
-            if (tracks.size() == 1)
+            try
             {
-                LOG(DEBUG, "Matched listen '" << listen << "' using track MBID");
-                return tracks.front()->getId();
+                Wt::Json::Object root;
+                Wt::Json::parse(std::string{ msgBody }, root);
+
+                const Wt::Json::Object& payload{ static_cast<const Wt::Json::Object&>(root.get("payload")) };
+                return static_cast<int>(payload.get("count"));
             }
-            else if (tracks.size() > 1)
+            catch (const Wt::WException& e)
             {
-                LOG(DEBUG, "Too many matches for listen '" << listen << "' using track MBID!");
+                LOG(ERROR, "Cannot parse listen count response: " << e.what());
+                return std::nullopt;
+            }
+        }
+
+        db::TrackId tryGetMatchingTrack(db::Session& session, const Listen& listen)
+        {
+            using namespace db;
+
+            auto transaction{ session.createReadTransaction() };
+
+            // first try to match using track MBID, and then fallback on possibly ambiguous info
+            if (listen.trackMBID)
+            {
+                const auto tracks{ Track::findByMBID(session, *listen.trackMBID) };
+                // if duplicated files, do not record it (let the user correct its database)
+                if (tracks.size() == 1)
+                {
+                    LOG(DEBUG, "Matched listen '" << listen << "' using track MBID");
+                    return tracks.front()->getId();
+                }
+                else if (tracks.size() > 1)
+                {
+                    LOG(DEBUG, "Too many matches for listen '" << listen << "' using track MBID!");
+                    return {};
+                }
+            }
+
+            if (listen.recordingMBID)
+            {
+                const auto tracks{ Track::findByRecordingMBID(session, *listen.recordingMBID) };
+                // if duplicated files, do not record it (let the user correct its database)
+                if (tracks.size() == 1)
+                {
+                    LOG(DEBUG, "Matched listen '" << listen << "' using recording MBID");
+                    return tracks.front()->getId();
+                }
+                else if (tracks.size() > 1)
+                {
+                    LOG(DEBUG, "Too many matches for listen '" << listen << "' using recording MBID!");
+                    return {};
+                }
+            }
+
+            assert(!listen.trackName.empty() && !listen.artistName.empty());
+
+            // TODO check release MBID?
+            Track::FindParameters params;
+            params.setName(listen.trackName);
+            params.setReleaseName(listen.releaseName);
+            params.setArtistName(listen.artistName);
+            if (listen.trackNumber)
+                params.setTrackNumber(*listen.trackNumber);
+
+            const auto tracks{ Track::findIds(session, params) };
+            // conservative behavior: in case of multiple matches: reject
+            if (tracks.results.size() == 1)
+            {
+                LOG(DEBUG, "Matched listen '" << listen << "' using metadata");
+                return tracks.results.front();
+            }
+            else if (tracks.results.size() > 1)
+            {
+                LOG(DEBUG, "Too many matches for listen '" << listen << "' using metadata");
                 return {};
             }
-        }
 
-        if (listen.recordingMBID)
-        {
-            const auto tracks{ Track::findByRecordingMBID(session, *listen.recordingMBID) };
-            // if duplicated files, do not record it (let the user correct its database)
-            if (tracks.size() == 1)
-            {
-                LOG(DEBUG, "Matched listen '" << listen << "' using recording MBID");
-                return tracks.front()->getId();
-            }
-            else if (tracks.size() > 1)
-            {
-                LOG(DEBUG, "Too many matches for listen '" << listen << "' using recording MBID!");
-                return {};
-            }
-        }
-
-        assert(!listen.trackName.empty() && !listen.artistName.empty());
-
-        // TODO check release MBID?
-        Track::FindParameters params;
-        params.setName(listen.trackName);
-        params.setReleaseName(listen.releaseName);
-        params.setArtistName(listen.artistName);
-        if (listen.trackNumber)
-            params.setTrackNumber(*listen.trackNumber);
-
-        const auto tracks{ Track::findIds(session, params) };
-        // conservative behavior: in case of multiple matches: reject
-        if (tracks.results.size() == 1)
-        {
-            LOG(DEBUG, "Matched listen '" << listen << "' using metadata");
-            return tracks.results.front();
-        }
-        else if (tracks.results.size() > 1)
-        {
-            LOG(DEBUG, "Too many matches for listen '" << listen << "' using metadata");
+            LOG(DEBUG, "No match for listen '" << listen << "'");
             return {};
         }
-
-        LOG(DEBUG, "No match for listen '" << listen << "'");
-        return {};
     }
-}
 
-namespace Scrobbling::ListenBrainz
-{
-    ListensSynchronizer::ListensSynchronizer(boost::asio::io_context& ioContext, Database::Db& db, Http::IClient& client)
+    ListensSynchronizer::ListensSynchronizer(boost::asio::io_context& ioContext, db::Db& db, core::http::IClient& client)
         : _ioContext{ ioContext }
         , _db{ db }
         , _client{ client }
-        , _maxSyncListenCount{ Service<IConfig>::get()->getULong("listenbrainz-max-sync-listen-count", 1000) }
-        , _syncListensPeriod{ Service<IConfig>::get()->getULong("listenbrainz-sync-listens-period-hours", 1) }
+        , _maxSyncListenCount{ core::Service<core::IConfig>::get()->getULong("listenbrainz-max-sync-listen-count", 1000) }
+        , _syncListensPeriod{ core::Service<core::IConfig>::get()->getULong("listenbrainz-sync-listens-period-hours", 1) }
     {
         LOG(INFO, "Starting Listens synchronizer, maxSyncListenCount = " << _maxSyncListenCount << ", _syncListensPeriod = " << _syncListensPeriod.count() << " hours");
 
@@ -226,30 +227,30 @@ namespace Scrobbling::ListenBrainz
         enqueListen(listen, listen.listenedAt);
     }
 
-    void ListensSynchronizer::enqueListenNow(const Scrobbling::Listen& listen)
+    void ListensSynchronizer::enqueListenNow(const scrobbling::Listen& listen)
     {
         enqueListen(listen, {});
     }
 
-    void ListensSynchronizer::enqueListen(const Scrobbling::Listen& listen, const Wt::WDateTime& timePoint)
+    void ListensSynchronizer::enqueListen(const scrobbling::Listen& listen, const Wt::WDateTime& timePoint)
     {
-        Http::ClientPOSTRequestParameters request;
+        core::http::ClientPOSTRequestParameters request;
         request.relativeUrl = "/1/submit-listens";
 
         if (timePoint.isValid())
         {
             const TimedListen timedListen{ listen, timePoint };
             // We want the listen to be sent again later in case of failure, so we just save it as pending send
-            saveListen(timedListen, Database::SyncState::PendingAdd);
+            saveListen(timedListen, db::SyncState::PendingAdd);
 
-            request.priority = Http::ClientRequestParameters::Priority::Normal;
-            request.onSuccessFunc = [=](std::string_view)
+            request.priority = core::http::ClientRequestParameters::Priority::Normal;
+            request.onSuccessFunc = [this, timedListen](std::string_view)
                 {
-                    _strand.dispatch([=]
+                    _strand.dispatch([this, timedListen]
                         {
-                            if (saveListen(timedListen, Database::SyncState::Synchronized))
+                            if (saveListen(timedListen, db::SyncState::Synchronized))
                             {
-                                UserContext& context{ getUserContext(listen.userId) };
+                                UserContext& context{ getUserContext(timedListen.userId) };
                                 if (context.listenCount)
                                     (*context.listenCount)++;
                             }
@@ -260,7 +261,7 @@ namespace Scrobbling::ListenBrainz
         else
         {
             // We want "listen now" to appear as soon as possible
-            request.priority = Http::ClientRequestParameters::Priority::High;
+            request.priority = core::http::ClientRequestParameters::Priority::High;
             // don't retry on failure
         }
 
@@ -271,7 +272,7 @@ namespace Scrobbling::ListenBrainz
             return;
         }
 
-        const std::optional<UUID> listenBrainzToken{ Utils::getListenBrainzToken(_db.getTLSSession(), listen.userId) };
+        const std::optional<core::UUID> listenBrainzToken{ utils::getListenBrainzToken(_db.getTLSSession(), listen.userId) };
         if (!listenBrainzToken)
         {
             LOG(DEBUG, "No listenbrainz token found: skipping");
@@ -284,14 +285,14 @@ namespace Scrobbling::ListenBrainz
         _client.sendPOSTRequest(std::move(request));
     }
 
-    bool ListensSynchronizer::saveListen(const TimedListen& listen, Database::SyncState scrobblingState)
+    bool ListensSynchronizer::saveListen(const TimedListen& listen, db::SyncState scrobblingState)
     {
-        using namespace Database;
+        using namespace db;
 
         Session& session{ _db.getTLSSession() };
         auto transaction{ session.createWriteTransaction() }; // TODO: unique only if needed
 
-        Database::Listen::pointer dbListen{ Database::Listen::find(session, listen.userId, listen.trackId, Database::ScrobblingBackend::ListenBrainz, listen.listenedAt) };
+        db::Listen::pointer dbListen{ db::Listen::find(session, listen.userId, listen.trackId, db::ScrobblingBackend::ListenBrainz, listen.listenedAt) };
         if (!dbListen)
         {
             const User::pointer user{ User::find(session, listen.userId) };
@@ -302,7 +303,7 @@ namespace Scrobbling::ListenBrainz
             if (!track)
                 return false;
 
-            dbListen = session.create<Database::Listen>(user, track, Database::ScrobblingBackend::ListenBrainz, listen.listenedAt);
+            dbListen = session.create<db::Listen>(user, track, db::ScrobblingBackend::ListenBrainz, listen.listenedAt);
             dbListen.modify()->setSyncState(scrobblingState);
 
             LOG(DEBUG, "LISTEN CREATED for user " << user->getLoginName() << ", track '" << track->getName() << "' AT " << listen.listenedAt.toString());
@@ -322,21 +323,21 @@ namespace Scrobbling::ListenBrainz
         std::vector<TimedListen> pendingListens;
 
         {
-            Database::Session& session{ _db.getTLSSession() };
+            db::Session& session{ _db.getTLSSession() };
 
             auto transaction{ session.createWriteTransaction() };
 
-            Database::Listen::FindParameters params;
-            params.setScrobblingBackend(Database::ScrobblingBackend::ListenBrainz)
-                .setSyncState(Database::SyncState::PendingAdd)
-                .setRange(Database::Range{ 0, 100 }); // don't flood too much?
+            db::Listen::FindParameters params;
+            params.setScrobblingBackend(db::ScrobblingBackend::ListenBrainz)
+                .setSyncState(db::SyncState::PendingAdd)
+                .setRange(db::Range{ 0, 100 }); // don't flood too much?
 
-            const Database::RangeResults results{ Database::Listen::find(session, params) };
+            const db::RangeResults results{ db::Listen::find(session, params) };
             pendingListens.reserve(results.results.size());
 
-            for (Database::ListenId listenId : results.results)
+            for (db::ListenId listenId : results.results)
             {
-                const Database::Listen::pointer listen{ Database::Listen::find(session, listenId) };
+                const db::Listen::pointer listen{ db::Listen::find(session, listenId) };
 
                 TimedListen timedListen;
                 timedListen.listenedAt = listen->getDateTime();
@@ -353,7 +354,7 @@ namespace Scrobbling::ListenBrainz
             enqueListen(pendingListen);
     }
 
-    ListensSynchronizer::UserContext& ListensSynchronizer::getUserContext(Database::UserId userId)
+    ListensSynchronizer::UserContext& ListensSynchronizer::getUserContext(db::UserId userId)
     {
         assert(_strand.running_in_this_thread());
 
@@ -405,14 +406,14 @@ namespace Scrobbling::ListenBrainz
 
         enquePendingListens();
 
-        Database::RangeResults<Database::UserId> userIds;
+        db::RangeResults<db::UserId> userIds;
         {
-            Database::Session& session{ _db.getTLSSession() };
+            db::Session& session{ _db.getTLSSession() };
             auto transaction{ session.createReadTransaction() };
-            userIds = Database::User::find(_db.getTLSSession(), Database::User::FindParameters{}.setScrobblingBackend(Database::ScrobblingBackend::ListenBrainz));
+            userIds = db::User::find(_db.getTLSSession(), db::User::FindParameters{}.setScrobblingBackend(db::ScrobblingBackend::ListenBrainz));
         }
 
-        for (const Database::UserId userId : userIds.results)
+        for (const db::UserId userId : userIds.results)
             startSync(getUserContext(userId));
 
         if (!isSyncing())
@@ -447,20 +448,20 @@ namespace Scrobbling::ListenBrainz
     {
         assert(context.listenBrainzUserName.empty());
 
-        const std::optional<UUID> listenBrainzToken{ Utils::getListenBrainzToken(_db.getTLSSession(), context.userId) };
+        const std::optional<core::UUID> listenBrainzToken{ utils::getListenBrainzToken(_db.getTLSSession(), context.userId) };
         if (!listenBrainzToken)
         {
             onSyncEnded(context);
             return;
         }
 
-        Http::ClientGETRequestParameters request;
-        request.priority = Http::ClientRequestParameters::Priority::Low;
+        core::http::ClientGETRequestParameters request;
+        request.priority = core::http::ClientRequestParameters::Priority::Low;
         request.relativeUrl = "/1/validate-token";
         request.headers = { {"Authorization",  "Token " + std::string {listenBrainzToken->getAsString()}} };
         request.onSuccessFunc = [this, &context](std::string_view msgBody)
             {
-                context.listenBrainzUserName = Utils::parseValidateToken(msgBody);
+                context.listenBrainzUserName = utils::parseValidateToken(msgBody);
                 if (context.listenBrainzUserName.empty())
                 {
                     onSyncEnded(context);
@@ -480,14 +481,14 @@ namespace Scrobbling::ListenBrainz
     {
         assert(!context.listenBrainzUserName.empty());
 
-        Http::ClientGETRequestParameters request;
+        core::http::ClientGETRequestParameters request;
         request.relativeUrl = "/1/user/" + std::string{ context.listenBrainzUserName } + "/listen-count";
-        request.priority = Http::ClientRequestParameters::Priority::Low;
-        request.onSuccessFunc = [=, &context](std::string_view msgBody)
+        request.priority = core::http::ClientRequestParameters::Priority::Low;
+        request.onSuccessFunc = [this, &context](std::string_view msgBody)
             {
-                _strand.dispatch([=, &context]
+                const auto listenCount{ parseListenCount(msgBody) };
+                _strand.dispatch([this, listenCount, &context]
                     {
-                        const auto listenCount = parseListenCount(msgBody);
                         if (listenCount)
                             LOG(DEBUG, "Listen count for listenbrainz user '" << context.listenBrainzUserName << "' = " << *listenCount);
 
@@ -516,10 +517,10 @@ namespace Scrobbling::ListenBrainz
     {
         assert(!context.listenBrainzUserName.empty());
 
-        Http::ClientGETRequestParameters request;
+        core::http::ClientGETRequestParameters request;
         request.relativeUrl = "/1/user/" + context.listenBrainzUserName + "/listens?max_ts=" + std::to_string(context.maxDateTime.toTime_t());
-        request.priority = Http::ClientRequestParameters::Priority::Low;
-        request.onSuccessFunc = [=, &context](std::string_view msgBody)
+        request.priority = core::http::ClientRequestParameters::Priority::Low;
+        request.onSuccessFunc = [this, &context](std::string_view msgBody)
             {
                 processGetListensResponse(msgBody, context);
                 if (context.fetchedListenCount >= _maxSyncListenCount || !context.maxDateTime.isValid())
@@ -530,7 +531,7 @@ namespace Scrobbling::ListenBrainz
 
                 enqueGetListens(context);
             };
-        request.onFailureFunc = [=, &context]
+        request.onFailureFunc = [this, &context]
             {
                 onSyncEnded(context);
             };
@@ -540,7 +541,7 @@ namespace Scrobbling::ListenBrainz
 
     void ListensSynchronizer::processGetListensResponse(std::string_view msgBody, UserContext& context)
     {
-        Database::Session& session{ _db.getTLSSession() };
+        db::Session& session{ _db.getTLSSession() };
 
         context.maxDateTime = {}; // invalidate to break in case no more listens are fetched
         ListensParser::Result result{ ListensParser::parse(msgBody) };
@@ -558,14 +559,14 @@ namespace Scrobbling::ListenBrainz
             if (!context.maxDateTime.isValid() || context.maxDateTime > parsedListen.listenedAt)
                 context.maxDateTime = parsedListen.listenedAt;
 
-            if (const Database::TrackId trackId{ tryGetMatchingTrack(session, parsedListen) }; trackId.isValid())
+            if (const db::TrackId trackId{ tryGetMatchingTrack(session, parsedListen) }; trackId.isValid())
             {
                 context.matchedListenCount++;
 
-                const Scrobbling::TimedListen listen{ {context.userId, trackId}, parsedListen.listenedAt };
-                if (saveListen(listen, Database::SyncState::Synchronized))
+                const scrobbling::TimedListen listen{ {context.userId, trackId}, parsedListen.listenedAt };
+                if (saveListen(listen, db::SyncState::Synchronized))
                     context.importedListenCount++;
             }
         }
     }
-} // namespace Scrobbling::ListenBrainz
+} // namespace lms::scrobbling::listenBrainz

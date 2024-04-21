@@ -23,19 +23,21 @@
 
 #include "database/Artist.hpp"
 #include "database/Cluster.hpp"
+#include "database/MediaLibrary.hpp"
 #include "database/Release.hpp"
 #include "database/TrackArtistLink.hpp"
 #include "database/TrackFeatures.hpp"
 #include "database/Session.hpp"
 #include "database/User.hpp"
-#include "utils/ILogger.hpp"
+#include "core/ILogger.hpp"
 
 #include "IdTypeTraits.hpp"
+#include "PathTraits.hpp"
 #include "SqlQuery.hpp"
 #include "StringViewTraits.hpp"
 #include "Utils.hpp"
 
-namespace Database
+namespace lms::db
 {
     namespace
     {
@@ -44,12 +46,11 @@ namespace Database
         {
             session.checkReadTransaction();
 
-            std::string selectStatement{ params.distinct ? "SELECT DISTINCT" : "SELECT" };
-            auto query{ session.getDboSession().query<ResultType>(selectStatement + " " + std::string{ itemToSelect } + " FROM track t") };
+            auto query{ session.getDboSession()->query<ResultType>("SELECT " + std::string{ itemToSelect } + " FROM track t") };
 
             assert(params.keywords.empty() || params.name.empty());
             for (std::string_view keyword : params.keywords)
-                query.where("t.name LIKE ? ESCAPE '" ESCAPE_CHAR_STR "'").bind("%" + Utils::escapeLikeKeyword(keyword) + "%");
+                query.where("t.name LIKE ? ESCAPE '" ESCAPE_CHAR_STR "'").bind("%" + utils::escapeLikeKeyword(keyword) + "%");
 
             if (!params.name.empty())
                 query.where("t.name = ?").bind(params.name);
@@ -117,6 +118,8 @@ namespace Database
                     }
                     query.where(oss.str());
                 }
+
+                query.groupBy("t.id");
             }
 
             assert(!(params.nonRelease && params.release.isValid()));
@@ -140,9 +143,18 @@ namespace Database
             if (params.trackNumber)
                 query.where("t.track_number = ?").bind(*params.trackNumber);
 
+            if (params.discNumber)
+                query.where("t.disc_number = ?").bind(*params.discNumber);
+
+            if (params.mediaLibrary.isValid())
+                query.where("t.media_library_id = ?").bind(params.mediaLibrary);
+
             switch (params.sortMethod)
             {
             case TrackSortMethod::None:
+                break;
+            case TrackSortMethod::Id:
+                query.orderBy("t.id");
                 break;
             case TrackSortMethod::LastWritten:
                 query.orderBy("t.file_last_write DESC");
@@ -158,7 +170,7 @@ namespace Database
                 query.orderBy("t.name COLLATE NOCASE");
                 break;
             case TrackSortMethod::DateDescAndRelease:
-                query.orderBy("t.date DESC,t.release_id,t.disc_number,t.track_number");
+                query.orderBy("COALESCE(t.date, CAST(t.year AS TEXT)) DESC,t.release_id,t.disc_number,t.track_number");
                 break;
             case TrackSortMethod::Release:
                 query.orderBy("t.disc_number,t.track_number");
@@ -170,12 +182,12 @@ namespace Database
 
             return query;
         }
-        
+
         template <typename ResultType>
         Wt::Dbo::Query<ResultType> createQuery(Session& session, const Track::FindParameters& params)
         {
             std::string_view itemToSelect;
-            
+
             if constexpr (std::is_same_v<ResultType, TrackId>)
                 itemToSelect = "t.id";
             else if constexpr (std::is_same_v<ResultType, Wt::Dbo::ptr<Track>>)
@@ -187,128 +199,111 @@ namespace Database
         }
     }
 
-    Track::Track(const std::filesystem::path& p)
-        : _filePath{ p.string() }
+    Track::pointer Track::create(Session& session)
     {
-    }
-
-    Track::pointer Track::create(Session& session, const std::filesystem::path& p)
-    {
-        return session.getDboSession().add(std::unique_ptr<Track> {new Track{ p }});
+        return session.getDboSession()->add(std::make_unique<Track>());
     }
 
     std::size_t Track::getCount(Session& session)
     {
         session.checkReadTransaction();
 
-        return session.getDboSession().query<int>("SELECT COUNT(*) FROM track");
+        return utils::fetchQuerySingleResult(session.getDboSession()->query<int>("SELECT COUNT(*) FROM track"));
     }
 
     Track::pointer Track::findByPath(Session& session, const std::filesystem::path& p)
     {
         session.checkReadTransaction();
 
-        return session.getDboSession().find<Track>().where("file_path = ?").bind(p.string()).resultValue();
+        return utils::fetchQuerySingleResult(session.getDboSession()->find<Track>().where("absolute_file_path = ?").bind(p.string()));
     }
 
     Track::pointer Track::find(Session& session, TrackId id)
     {
         session.checkReadTransaction();
 
-        return session.getDboSession().find<Track>()
-            .where("id = ?").bind(id)
-            .resultValue();
+        return utils::fetchQuerySingleResult(session.getDboSession()->find<Track>()
+            .where("id = ?").bind(id));
+    }
+
+    void Track::find(Session& session, TrackId& lastRetrievedTrack, std::size_t count, const std::function<void(const Track::pointer&)>& func, MediaLibraryId library)
+    {
+        session.checkReadTransaction();
+
+        auto query{ session.getDboSession()->find<Track>()
+            .orderBy("id")
+            .where("id > ?").bind(lastRetrievedTrack)
+            .limit(static_cast<int>(count)) };
+
+        if (library.isValid())
+            query.where("media_library_id = ?").bind(library);
+
+        utils::forEachQueryResult(query, [&](const Track::pointer& track)
+            {
+                func(track);
+                lastRetrievedTrack = track->getId();
+            });
     }
 
     bool Track::exists(Session& session, TrackId id)
     {
         session.checkReadTransaction();
 
-        return session.getDboSession().query<int>("SELECT 1 from track").where("id = ?").bind(id).resultValue() == 1;
+        return utils::fetchQuerySingleResult(session.getDboSession()->query<int>("SELECT 1 from track").where("id = ?").bind(id)) == 1;
     }
 
-    std::vector<Track::pointer> Track::findByMBID(Session& session, const UUID& mbid)
+    std::vector<Track::pointer> Track::findByMBID(Session& session, const core::UUID& mbid)
     {
         session.checkReadTransaction();
 
-        auto res{ session.getDboSession().find<Track>()
-            .where("mbid = ?").bind(std::string {mbid.getAsString()})
-            .resultList() };
-
-        return std::vector<Track::pointer>(res.begin(), res.end());
+        return utils::fetchQueryResults<Track::pointer>(session.getDboSession()->find<Track>()
+            .where("mbid = ?").bind(mbid.getAsString()));
     }
 
-    std::vector<Track::pointer> Track::findByRecordingMBID(Session& session, const UUID& mbid)
+    std::vector<Track::pointer> Track::findByRecordingMBID(Session& session, const core::UUID& mbid)
     {
         session.checkReadTransaction();
 
-        auto res{ session.getDboSession().find<Track>()
-            .where("recording_mbid = ?").bind(std::string {mbid.getAsString()})
-            .resultList() };
-
-        return std::vector<Track::pointer>(res.begin(), res.end());
-    }
-
-    RangeResults<Track::PathResult> Track::findPaths(Session& session, std::optional<Range> range)
-    {
-        using QueryResultType = std::tuple<TrackId, std::string>;
-        session.checkReadTransaction();
-
-        // TODO Dbo traits on filesystem
-        auto query{ session.getDboSession().query<QueryResultType>("SELECT id, file_path FROM track") };
-
-        RangeResults<QueryResultType> queryResults{ Utils::execQuery<QueryResultType>(query, range) };
-
-        RangeResults<PathResult> res;
-        res.range = queryResults.range;
-        res.moreResults = queryResults.moreResults;
-        res.results.reserve(queryResults.results.size());
-
-        std::transform(std::cbegin(queryResults.results), std::cend(queryResults.results), std::back_inserter(res.results),
-            [](const QueryResultType& queryResult)
-            {
-                return PathResult{ std::get<TrackId>(queryResult), std::move(std::get<std::string>(queryResult)) };
-            });
-
-        return res;
+        return utils::fetchQueryResults<Track::pointer>(session.getDboSession()->find<Track>()
+            .where("recording_mbid = ?").bind(mbid.getAsString()));
     }
 
     RangeResults<TrackId> Track::findIdsTrackMBIDDuplicates(Session& session, std::optional<Range> range)
     {
         session.checkReadTransaction();
 
-        auto query{ session.getDboSession().query<TrackId>("SELECT track.id FROM track WHERE mbid in (SELECT mbid FROM track WHERE mbid <> '' GROUP BY mbid HAVING COUNT (*) > 1)")
+        auto query{ session.getDboSession()->query<TrackId>("SELECT track.id FROM track WHERE mbid in (SELECT mbid FROM track WHERE mbid <> '' GROUP BY mbid HAVING COUNT (*) > 1)")
             .orderBy("track.release_id,track.disc_number,track.track_number,track.mbid") };
 
-        return Utils::execQuery<TrackId>(query, range);
+        return utils::execRangeQuery<TrackId>(query, range);
     }
 
     RangeResults<TrackId> Track::findIdsWithRecordingMBIDAndMissingFeatures(Session& session, std::optional<Range> range)
     {
         session.checkReadTransaction();
 
-        auto query{ session.getDboSession().query<TrackId>("SELECT t.id FROM track t")
+        auto query{ session.getDboSession()->query<TrackId>("SELECT t.id FROM track t")
             .where("LENGTH(t.recording_mbid) > 0")
             .where("NOT EXISTS (SELECT * FROM track_features t_f WHERE t_f.track_id = t.id)") };
 
-        return Utils::execQuery<TrackId>(query, range);
+        return utils::execRangeQuery<TrackId>(query, range);
     }
 
     std::vector<Cluster::pointer> Track::getClusters() const
     {
-        return std::vector<Cluster::pointer>(_clusters.begin(), _clusters.end());
+        return utils::fetchQueryResults<Cluster::pointer>(_clusters.find());
     }
 
     std::vector<ClusterId> Track::getClusterIds() const
     {
         assert(session());
 
-        auto res{ session()->query<ClusterId>
-            ("SELECT DISTINCT c.id FROM cluster c INNER JOIN track_cluster t_c ON t_c.cluster_id = c.id INNER JOIN track t ON t.id = t_c.track_id")
-            .where("t.id = ?").bind(getId())
-            .resultList() };
+        const auto query{ session()->query<ClusterId>
+            ("SELECT t_c.cluster_id FROM track_cluster t_c")
+            .where("t_c.track_id = ?").bind(getId())
+            .groupBy("t_c.cluster_id") };
 
-        return std::vector<ClusterId>(res.begin(), res.end());
+        return utils::fetchQueryResults(query);
     }
 
     RangeResults<TrackId> Track::findIds(Session& session, const FindParameters& parameters)
@@ -316,7 +311,7 @@ namespace Database
         session.checkReadTransaction();
 
         auto query{ createQuery<TrackId>(session, parameters) };
-        return Utils::execQuery<TrackId>(query, parameters.range);
+        return utils::execRangeQuery<TrackId>(query, parameters.range);
     }
 
     RangeResults<Track::pointer> Track::find(Session& session, const FindParameters& parameters)
@@ -324,15 +319,23 @@ namespace Database
         session.checkReadTransaction();
 
         auto query{ createQuery<Wt::Dbo::ptr<Track>>(session, parameters) };
-        return Utils::execQuery<Track::pointer>(query, parameters.range);
+        return utils::execRangeQuery<Track::pointer>(query, parameters.range);
     }
 
-    void Track::find(Session& session, const FindParameters& params, std::function<void(const Track::pointer&)> func)
+    void Track::find(Session& session, const FindParameters& params, const std::function<void(const Track::pointer&)>& func)
     {
         session.checkReadTransaction();
 
-        auto query{ createQuery<Wt::Dbo::ptr<Track>>(session, params)};
-        Utils::execQuery(query, params.range, func);
+        auto query{ createQuery<Wt::Dbo::ptr<Track>>(session, params) };
+        utils::forEachQueryRangeResult(query, params.range, func);
+    }
+
+    void Track::find(Session& session, const FindParameters& params, bool& moreResults, const std::function<void(const Track::pointer&)>& func)
+    {
+        session.checkReadTransaction();
+
+        auto query{ createQuery<Wt::Dbo::ptr<Track>>(session, params) };
+        utils::forEachQueryRangeResult(query, params.range, moreResults, func);
     }
 
     RangeResults<TrackId> Track::findSimilarTrackIds(Session& session, const std::vector<TrackId>& tracks, std::optional<Range> range)
@@ -348,7 +351,7 @@ namespace Database
             oss << "?";
         }
 
-        auto query{ session.getDboSession().query<TrackId>(
+        auto query{ session.getDboSession()->query<TrackId>(
                 "SELECT t.id FROM track t"
                 " INNER JOIN track_cluster t_c ON t_c.track_id = t.id"
                         " AND t_c.cluster_id IN (SELECT DISTINCT c.id FROM cluster c INNER JOIN track_cluster t_c ON t_c.cluster_id = c.id WHERE t_c.track_id IN (" + oss.str() + "))"
@@ -362,7 +365,19 @@ namespace Database
         for (TrackId trackId : tracks)
             query.bind(trackId);
 
-        return Utils::execQuery<TrackId>(query, range);
+        return utils::execRangeQuery<TrackId>(query, range);
+    }
+
+    void Track::setAbsoluteFilePath(const std::filesystem::path& filePath)
+    {
+        assert(filePath.is_absolute());
+        _absoluteFilePath = filePath;
+    }
+
+    void Track::setRelativeFilePath(const std::filesystem::path& filePath)
+    {
+        assert(filePath.is_relative());
+        _relativeFilePath = filePath;
     }
 
     void Track::clearArtistLinks()
@@ -382,31 +397,6 @@ namespace Database
             _clusters.insert(getDboPtr(cluster));
     }
 
-    std::optional<int> Track::getYear() const
-    {
-        return (_date.isValid() ? std::make_optional<int>(_date.year()) : std::nullopt);
-    }
-
-    std::vector<Track::pointer>
-    Track::getByYear(Session& session, int yearFrom, int yearTo, std::optional<Range> range)
-    {
-        auto res {session.getDboSession().query<Wt::Dbo::ptr<Track>>
-                        ("SELECT t from track t")
-                          .where("t.date >= ?").bind(Wt::WDate {yearFrom, 1, 1})
-                          .where("t.date <= ?").bind(Wt::WDate {yearTo, 12, 31})
-                          .orderBy("t.name COLLATE NOCASE")
-                          .offset(range ? static_cast<int>(range->offset) : -1)
-//        .limit(range ? static_cast<int>(range->limit) : -1)
-                          .resultList()};
-
-        return std::vector<pointer>(res.begin(), res.end());
-    }
-
-    std::optional<int> Track::getOriginalYear() const
-    {
-        return (_originalDate.isValid() ? std::make_optional<int>(_originalDate.year()) : std::nullopt);
-    }
-
     std::optional<std::string> Track::getCopyright() const
     {
         return _copyright != "" ? std::make_optional<std::string>(_copyright) : std::nullopt;
@@ -417,7 +407,7 @@ namespace Database
         return _copyrightURL != "" ? std::make_optional<std::string>(_copyrightURL) : std::nullopt;
     }
 
-    std::vector<Artist::pointer> Track::getArtists(EnumSet<TrackArtistLinkType> linkTypes) const
+    std::vector<Artist::pointer> Track::getArtists(core::EnumSet<TrackArtistLinkType> linkTypes) const
     {
         assert(session());
 
@@ -448,19 +438,17 @@ namespace Database
 
         query.where("t.id = ?").bind(getId());
 
-        auto res{ query.resultList() };
-        return std::vector<Artist::pointer>(std::begin(res), std::end(res));
+        return utils::fetchQueryResults<Artist::pointer>(query);
     }
 
-    std::vector<ArtistId> Track::getArtistIds(EnumSet<TrackArtistLinkType> linkTypes) const
+    std::vector<ArtistId> Track::getArtistIds(core::EnumSet<TrackArtistLinkType> linkTypes) const
     {
         assert(self());
         assert(session());
 
         std::ostringstream oss;
         oss <<
-            "SELECT DISTINCT a.id from artist a"
-            " INNER JOIN track_artist_link t_a_l ON a.id = t_a_l.artist_id"
+            "SELECT t_a_l.artist_id FROM track_artist_link t_a_l"
             " INNER JOIN track t ON t.id = t_a_l.track_id";
 
         if (!linkTypes.empty())
@@ -483,14 +471,14 @@ namespace Database
             query.bind(type);
 
         query.where("t.id = ?").bind(getId());
+        query.groupBy("t_a_l.artist_id");
 
-        auto res{ query.resultList() };
-        return std::vector<ArtistId>(std::cbegin(res), std::cend(res));
+        return utils::fetchQueryResults(query);
     }
 
     std::vector<TrackArtistLink::pointer> Track::getArtistLinks() const
     {
-        return std::vector<TrackArtistLink::pointer>(_trackArtistLinks.begin(), _trackArtistLinks.end());
+        return utils::fetchQueryResults<TrackArtistLink::pointer>(_trackArtistLinks.find());
     }
 
     std::vector<std::vector<Cluster::pointer>> Track::getClusterGroups(const std::vector<ClusterTypeId>& clusterTypeIds, std::size_t size) const
@@ -518,14 +506,12 @@ namespace Database
         for (const std::string& bindArg : where.getBindArgs())
             query.bind(bindArg);
 
-        auto queryRes{ query.resultList() };
-
         std::map<ClusterTypeId, std::vector<Cluster::pointer>> clusters;
-        for (const Wt::Dbo::ptr<Cluster>& cluster : queryRes)
-        {
-            if (clusters[cluster->getType()->getId()].size() < size)
-                clusters[cluster->getType()->getId()].push_back(cluster);
-        }
+        utils::forEachQueryResult(query, [&](const Cluster::pointer& cluster)
+            {
+                if (clusters[cluster->getType()->getId()].size() < size)
+                    clusters[cluster->getType()->getId()].push_back(cluster);
+            });
 
         std::vector<std::vector<Cluster::pointer>> res;
         for (const auto& [type, clusters] : clusters)
@@ -561,4 +547,4 @@ namespace Database
         }
     }
 
-} // namespace Database
+} // namespace lms::db

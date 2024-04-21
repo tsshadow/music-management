@@ -4,9 +4,9 @@ if(BUILD_TESTING)
 endif()
 
 add_library(lmsmetadata SHARED
-	impl/AvFormatParser.cpp
-	impl/Factory.cpp
-	impl/TagLibParser.cpp
+	impl/AvFormatTagReader.cpp
+	impl/Parser.cpp
+	impl/TagLibTagReader.cpp
 	impl/Utils.cpp
 	)
 
@@ -24,9 +24,9 @@ target_link_libraries(lmsmetadata PRIVATE
 	)
 
 target_link_libraries(lmsmetadata PUBLIC
-	lmsutils
+	lmscore
 	std::filesystem
 	)
 
-install(TARGETS lmsmetadata DESTINATION lib)
+install(TARGETS lmsmetadata DESTINATION ${CMAKE_INSTALL_LIBDIR})
 

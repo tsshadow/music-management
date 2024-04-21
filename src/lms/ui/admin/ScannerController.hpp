@@ -23,23 +23,25 @@
 #include <Wt/WTemplate.h>
 #include <Wt/WLineEdit.h>
 
-namespace UserInterface
+#include "services/scanner/IScannerService.hpp"
+
+namespace lms::ui
 {
+    class ScannerController : public Wt::WTemplate
+    {
+    public:
+        ScannerController();
 
-	class ScannerController : public Wt::WTemplate
-	{
-		public:
-			ScannerController();
+    private:
+        void refreshContents();
+        void refreshLastScanStatus(const scanner::IScannerService::Status& status);
+        void refreshStatus(const scanner::IScannerService::Status& status);
+        void refreshCurrentStep(const scanner::ScanStepStats& stepStats);
 
-		private:
-			void refreshContents();
-
-			Wt::WPushButton*	_reportBtn;
-			Wt::WLineEdit*		_lastScanStatus;
-			Wt::WLineEdit*		_status;
-			Wt::WLineEdit*		_stepStatus;
-			class ReportResource* _reportResource;
-	};
-
-} // namespace DatabaseStatus
-
+        Wt::WPushButton* _reportBtn;
+        Wt::WLineEdit* _lastScanStatus;
+        Wt::WLineEdit* _status;
+        Wt::WLineEdit* _stepStatus;
+        class ReportResource* _reportResource;
+    };
+} // namespace lms::dbStatus

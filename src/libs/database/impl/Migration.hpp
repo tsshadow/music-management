@@ -21,16 +21,18 @@
 
 #include <Wt/Dbo/Dbo.h>
 
-namespace Database
+namespace lms::db
 {
     class Session;
 
     using Version = std::size_t;
-    static constexpr Version LMS_DATABASE_VERSION{ 49 };
+
     class VersionInfo
     {
     public:
         using pointer = Wt::Dbo::ptr<VersionInfo>;
+
+        VersionInfo();
 
         static VersionInfo::pointer getOrCreate(Session& session);
         static VersionInfo::pointer get(Session& session);
@@ -45,11 +47,11 @@ namespace Database
         }
 
     private:
-        int _version{ LMS_DATABASE_VERSION };
+        int _version;
     };
 
     namespace Migration
     {
-        void doDbMigration(Session& session);
+        bool doDbMigration(Session& session); // return true if migration was performed
     }
 }

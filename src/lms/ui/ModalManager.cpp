@@ -18,14 +18,14 @@
  */
 
 #include "ModalManager.hpp"
-#include "utils/ILogger.hpp"
+#include "core/ILogger.hpp"
 
-namespace UserInterface
+namespace lms::ui
 {
     ModalManager::ModalManager()
         : _closed{ this, "closed" }
     {
-        _closed.connect([=](const std::string& id)
+        _closed.connect([this](const std::string& id)
             {
                 LMS_LOG(UI, DEBUG, "Received closed for id '" << id << "'");
                 for (int i{}; i < count(); ++i)
@@ -69,7 +69,7 @@ namespace UserInterface
             << R"({const modalElementParent = document.getElementById(')" << modalWidget->id() << R"(');)"
             << R"(const modalElement = modalElementParent.getElementsByClassName('modal')[0];)"
             << R"(const modal = bootstrap.Modal.getInstance(modalElement);)"
-            << R"(modal.hide();)"
+            << R"(if (modal) { modal.hide(); })" // may already be removed client side
             << R"(})";
 
         LMS_LOG(UI, DEBUG, "Running JS '" << oss.str() << "'");

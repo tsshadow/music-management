@@ -19,53 +19,76 @@
 
 #include "AuthServiceBase.hpp"
 
+#include <cstdlib>
 #include "database/Db.hpp"
 #include "database/Session.hpp"
 #include "database/User.hpp"
-#include "utils/ILogger.hpp"
+#include "core/ILogger.hpp"
 
-namespace Auth
+namespace lms::auth
 {
-	using namespace Database;
+    using namespace db;
 
-	AuthServiceBase::AuthServiceBase(Db& db)
-	: _db {db}
-	{}
+    AuthServiceBase::AuthServiceBase(Db& db)
+        : _db{ db }
+    {}
 
-	UserId
-	AuthServiceBase::getOrCreateUser(std::string_view loginName)
-	{
-		Session& session {getDbSession()};
-		auto transaction {session.createWriteTransaction()};
+    UserId AuthServiceBase::getOrCreateUser(std::string_view loginName)
+    {
+        Session& session{ getDbSession() };
 
-		User::pointer user {User::find(session, loginName)};
-		if (!user)
-		{
-			const UserType type {User::getCount(session) == 0 ? UserType::ADMIN : UserType::REGULAR};
+        User::pointer user;
 
-			LMS_LOG(AUTH, DEBUG, "Creating user '" << loginName << "', admin = " << (type == UserType::ADMIN));
+        {
+            auto transaction{ session.createReadTransaction() };
+            user = User::find(session, loginName);
+        }
 
-			user = session.create<User>(loginName);
-			user.modify()->setType(type);
-		}
+        if (!user)
+        {
+            auto transaction{ session.createWriteTransaction() };
 
-		return user->getId();
-	}
+            user = User::find(session, loginName);
+            if (!user)
+            {
+                const UserType type{ User::getCount(session) == 0 ? UserType::ADMIN : UserType::REGULAR };
 
-	void
-	AuthServiceBase::onUserAuthenticated(UserId userId)
-	{
-		Session& session {getDbSession()};
-		auto transaction {session.createWriteTransaction()};
+                LMS_LOG(AUTH, DEBUG, "Creating user '" << loginName << "', admin = " << (type == UserType::ADMIN));
 
-		User::pointer user {User::find(session, userId)};
-		if (user)
-			user.modify()->setLastLogin(Wt::WDateTime::currentDateTime());
-	}
+                user = session.create<User>(loginName);
+                user.modify()->setType(type);
+            }
+        }
 
-	Session&
-	AuthServiceBase::getDbSession()
-	{
-		return _db.getTLSSession();
-	}
+        return user->getId();
+    }
+
+    void AuthServiceBase::onUserAuthenticated(UserId userId)
+    {
+        Session& session{ getDbSession() };
+
+        // Update last login only if relevant (avoid hammering write accesses to the database)
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            const User::pointer user{ User::find(session, userId) };
+            if (!user)
+                return;
+
+            if (std::abs(Wt::WDateTime::currentDateTime().secsTo(user->getLastLogin())) < 60)
+                return;
+        }
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+
+            if (User::pointer user{ User::find(session, userId) })
+                user.modify()->setLastLogin(Wt::WDateTime::currentDateTime());
+        }
+    }
+
+    Session& AuthServiceBase::getDbSession()
+    {
+        return _db.getTLSSession();
+    }
 }

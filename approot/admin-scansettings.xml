@@ -1,0 +1,70 @@
+
+<?xml version="1.0" encoding="UTF-8" ?>
+<messages xmlns:if="Wt.WTemplate.conditions">
+<!--FORMS message blocks-->
+
+<message id="Lms.Admin.Database.template">
+	<form class="row g-3">
+		<legend>${tr:Lms.Admin.Database.scan-settings}</legend>
+		<div class="col-sm-6">
+			<label class="form-label" for="${id:update-period}">
+				${tr:Lms.Admin.Database.update-period}
+			</label>
+			${update-period class="form-control"}
+			<div class="invalid-feedback">
+				${update-period-info"}
+			</div>
+		</div>
+		<div class="col-sm-6">
+			<label class="form-label" for="${id:update-start-time}">
+				${tr:Lms.Admin.Database.update-start-time}
+			</label>
+			${update-start-time class="form-control"}
+			<div class="invalid-feedback">
+				${update-start-time-info}
+			</div>
+		</div>
+		<div class="col-12">
+			<label class="form-label" for="${id:similarity-engine-type}">
+				${tr:Lms.Admin.Database.similarity-engine-type}
+			</label>
+			${similarity-engine-type class="form-control"}
+			<div class="invalid-feedback">
+				${similarity-engine-type-info}
+			</div>
+		</div>
+		<div class="col-12">
+			<label class="form-label" for="${id:extra-tags-to-scan}">
+				${tr:Lms.Admin.Database.extra-tags-to-scan}
+			</label>
+			${extra-tags-to-scan class="form-control"}
+			<div class="invalid-feedback">
+				${extra-tags-to-scan-info}
+			</div>
+		</div>
+		<div class="col-12">
+			<label class="form-label" for="${id:artist-tag-delimiter}">
+				${tr:Lms.Admin.Database.artist-tag-delimiter}
+			</label>
+			${artist-tag-delimiter class="form-control"}
+			<div class="invalid-feedback">
+				${artist-tag-delimiter-info}
+			</div>
+		</div>
+		<div class="col-12">
+			<label class="form-label" for="${id:default-tag-delimiter}">
+				${tr:Lms.Admin.Database.default-tag-delimiter}
+			</label>
+			${default-tag-delimiter class="form-control"}
+			<div class="invalid-feedback">
+				${default-tag-delimiter-info}
+			</div>
+		</div>
+		<div class="col-12">
+			${save-btn class="btn btn-primary me-1"}${discard-btn class="btn btn-secondary"}
+		</div>
+	</form>
+	<br/>
+</message>
+
+</messages>

@@ -19,9 +19,9 @@
 
 #pragma once
 
-#include "utils/String.hpp"
+#include "core/String.hpp"
 
-namespace API::Subsonic
+namespace lms::api::subsonic
 {
     struct ProtocolVersion
     {
@@ -31,12 +31,12 @@ namespace API::Subsonic
     };
 
     static inline constexpr ProtocolVersion defaultServerProtocolVersion{ 1, 16, 0 };
-    static inline constexpr std::string_view serverVersion{ "5" };
+    static inline constexpr std::string_view serverVersion{ "6" };
 }
 
-namespace StringUtils
+namespace lms::core::stringUtils
 {
     template<>
-    std::optional<API::Subsonic::ProtocolVersion> readAs(std::string_view str);
+    std::optional<api::subsonic::ProtocolVersion> readAs(std::string_view str);
 }
 

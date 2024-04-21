@@ -32,7 +32,7 @@
 
 #include "Types.hpp"
 
-namespace Av
+namespace lms::av
 {
     // List should be sync with the codecs shipped in the lms's docker version
     enum class DecodingCodec
@@ -75,6 +75,9 @@ namespace Av
     {
         size_t			index{};
         std::size_t     bitrate{};
+        std::size_t     bitsPerSample{};
+        std::size_t     channelCount{};
+        std::size_t     sampleRate{};
         DecodingCodec   codec;
         std::string 	codecName;
     };
@@ -84,6 +87,7 @@ namespace Av
     public:
         virtual ~IAudioFile() = default;
 
+        // Keys are forced to be in upper case
         using MetadataMap = std::unordered_map<std::string, std::string>;
 
         virtual const std::filesystem::path& getPath() const = 0;
@@ -106,5 +110,5 @@ namespace Av
 
     std::string_view getMimeType(const std::filesystem::path& fileExtension);
 
-} // namespace Av
+} // namespace lms::av
 

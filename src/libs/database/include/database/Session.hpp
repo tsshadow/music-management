@@ -22,24 +22,29 @@
 #include <Wt/Dbo/Dbo.h>
 #include <Wt/Dbo/SqlConnectionPool.h>
 
-#include "utils/RecursiveSharedMutex.hpp"
+#include <string>
+#include <vector>
+#include "core/ITraceLogger.hpp"
+#include "core/RecursiveSharedMutex.hpp"
 #include "database/Object.hpp"
 #include "database/TransactionChecker.hpp"
 
-namespace Database
+namespace lms::db
 {
     class WriteTransaction
     {
     public:
         ~WriteTransaction();
+
     private:
         friend class Session;
-        WriteTransaction(RecursiveSharedMutex& mutex, Wt::Dbo::Session& session);
+        WriteTransaction(core::RecursiveSharedMutex& mutex, Wt::Dbo::Session& session);
 
         WriteTransaction(const WriteTransaction&) = delete;
         WriteTransaction& operator=(const WriteTransaction&) = delete;
 
-        std::unique_lock<RecursiveSharedMutex> _lock;
+        const std::unique_lock<core::RecursiveSharedMutex> _lock;
+        const core::tracing::ScopedTrace _trace{ "Database", core::tracing::Level::Detailed, "WriteTransaction" }; // before actual transaction
         Wt::Dbo::Transaction _transaction;
     };
 
@@ -47,14 +52,15 @@ namespace Database
     {
     public:
         ~ReadTransaction();
+
     private:
         friend class Session;
         ReadTransaction(Wt::Dbo::Session& session);
 
-
         ReadTransaction(const ReadTransaction&) = delete;
         ReadTransaction& operator=(const ReadTransaction&) = delete;
 
+        const core::tracing::ScopedTrace _trace{ "Database", core::tracing::Level::Detailed, "ReadTransaction" }; // before actual transaction
         Wt::Dbo::Transaction _transaction;
     };
 
@@ -67,24 +73,42 @@ namespace Database
         [[nodiscard]] WriteTransaction createWriteTransaction();
         [[nodiscard]] ReadTransaction createReadTransaction();
 
-        void checkWriteTransaction() { TransactionChecker::checkWriteTransaction(_session); }
-        void checkReadTransaction() { TransactionChecker::checkReadTransaction(_session); }
+        void checkWriteTransaction()
+        {
+#if LMS_CHECK_TRANSACTION_ACCESSES
+            TransactionChecker::checkWriteTransaction(_session);
+#endif
+        }
+        void checkReadTransaction()
+        {
+#if LMS_CHECK_TRANSACTION_ACCESSES
+            TransactionChecker::checkReadTransaction(_session);
+#endif
+        }
 
-        void analyze();
-        void optimize();
+        // All these methods will acquire transactions
+        void fullAnalyze(); // helper for retrieveEntriesToAnalyze + analyzeEntry
+        void retrieveEntriesToAnalyze(std::vector<std::string>& entryList);
+        void analyzeEntry(const std::string& entry);
 
-        void prepareTables(); // need to run only once at startup
+        void prepareTablesIfNeeded(); // need to run only once at startup
+        bool migrateSchemaIfNeeded(); // returns true if migration was performed
+        void createIndexesIfNeeded();
+        void vacuumIfNeeded();
+        void vacuum();
+        void refreshTracingLoggerStats();
 
-        Wt::Dbo::Session& getDboSession() { return _session; }
+        // returning a ptr here to ease further wrapping using operator->
+        Wt::Dbo::Session* getDboSession() { return &_session; }
         Db& getDb() { return _db; }
 
         template <typename Object, typename... Args>
         typename Object::pointer create(Args&&... args)
         {
-            TransactionChecker::checkWriteTransaction(_session);
+            checkWriteTransaction();
 
             typename Object::pointer res{ Object::create(*this, std::forward<Args>(args)...) };
-            getDboSession().flush();
+            getDboSession()->flush();
 
             if (res->hasOnPostCreated())
                 res.modify()->onPostCreated();
@@ -99,4 +123,4 @@ namespace Database
         Db& _db;
         Wt::Dbo::Session	_session;
     };
-} // namespace Database
+} // namespace lms::db

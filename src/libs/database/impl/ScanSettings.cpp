@@ -21,14 +21,12 @@
 
 #include <Wt/Dbo/WtSqlTraits.h>
 
-#include "utils/Path.hpp"
-#include "utils/ILogger.hpp"
-#include "utils/String.hpp"
-
-#include "database/Cluster.hpp"
+#include "database/MediaLibrary.hpp"
 #include "database/Session.hpp"
+#include "core/String.hpp"
+#include "Utils.hpp"
 
-namespace Database
+namespace lms::db
 {
     void ScanSettings::init(Session& session)
     {
@@ -37,19 +35,19 @@ namespace Database
         if (pointer settings{ get(session) })
             return;
 
-        session.getDboSession().add(std::make_unique<ScanSettings>());
+        session.getDboSession()->add(std::make_unique<ScanSettings>());
     }
 
     ScanSettings::pointer ScanSettings::get(Session& session)
     {
         session.checkReadTransaction();
 
-        return session.getDboSession().find<ScanSettings>().resultValue();
+        return utils::fetchQuerySingleResult(session.getDboSession()->find<ScanSettings>());
     }
 
     std::vector<std::filesystem::path> ScanSettings::getAudioFileExtensions() const
     {
-        const auto extensions{ StringUtils::splitString(_audioFileExtensions, " ") };
+        const auto extensions{ core::stringUtils::splitString(_audioFileExtensions, ' ') };
 
         std::vector<std::filesystem::path> res(std::cbegin(extensions), std::cend(extensions));
         std::sort(std::begin(res), std::end(res));
@@ -58,32 +56,52 @@ namespace Database
         return res;
     }
 
-    void ScanSettings::addAudioFileExtension(const std::filesystem::path& ext)
-    {
-        _audioFileExtensions += " " + ext.string();
-    }
-
     std::vector<std::string_view> ScanSettings::getExtraTagsToScan() const
     {
-        return StringUtils::splitString(_extraTagsToScan, ";");
+        return core::stringUtils::splitString(_extraTagsToScan, ';');
     }
 
-    void ScanSettings::setMediaDirectory(const std::filesystem::path& p)
+    std::vector<std::string> ScanSettings::getArtistTagDelimiters() const
     {
-        _mediaDirectory = StringUtils::stringTrimEnd(p.string(), "/\\");
+        return core::stringUtils::splitEscapedStrings(_artistTagDelimiters, ';', '\\');
+    }
+
+    std::vector<std::string> ScanSettings::getDefaultTagDelimiters() const
+    {
+        return core::stringUtils::splitEscapedStrings(_defaultTagDelimiters, ';', '\\');
     }
 
     void ScanSettings::setExtraTagsToScan(const std::vector<std::string_view>& extraTags)
     {
-        std::string newTagsToScan{ StringUtils::joinStrings(extraTags, ";") };
+        std::string newTagsToScan{ core::stringUtils::joinStrings(extraTags, ";") };
         if (newTagsToScan != _extraTagsToScan)
             incScanVersion();
 
         _extraTagsToScan = std::move(newTagsToScan);
     }
 
+    void ScanSettings::setArtistTagDelimiters(std::span<const std::string_view> delimiters)
+    {
+        std::string tagDelimiters{ core::stringUtils::escapeAndJoinStrings(delimiters, ';', '\\') };
+        if (tagDelimiters != _artistTagDelimiters)
+        {
+            _artistTagDelimiters.swap(tagDelimiters);
+            incScanVersion();
+        }
+    }
+
+    void ScanSettings::setDefaultTagDelimiters(std::span<const std::string_view> delimiters)
+    {
+        std::string tagDelimiters{ core::stringUtils::escapeAndJoinStrings(delimiters, ';', '\\') };
+        if (tagDelimiters != _defaultTagDelimiters)
+        {
+            _defaultTagDelimiters.swap(tagDelimiters);
+            incScanVersion();
+        }
+    }
+
     void ScanSettings::incScanVersion()
     {
         _scanVersion += 1;
     }
-} // namespace Database
+} // namespace lms::db

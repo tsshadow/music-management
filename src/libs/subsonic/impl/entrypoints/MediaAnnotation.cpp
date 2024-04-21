@@ -26,13 +26,13 @@
 #include "database/TrackId.hpp"
 #include "services/feedback/IFeedbackService.hpp"
 #include "services/scrobbling/IScrobblingService.hpp"
-#include "utils/Service.hpp"
+#include "core/Service.hpp"
 #include "ParameterParsing.hpp"
 #include "SubsonicId.hpp"
 
-namespace API::Subsonic
+namespace lms::api::subsonic
 {
-    using namespace Database;
+    using namespace db;
 
     namespace
     {
@@ -61,13 +61,13 @@ namespace API::Subsonic
         StarParameters params{ getStarParameters(context.parameters) };
 
         for (const ArtistId id : params.artistIds)
-            Service<Feedback::IFeedbackService>::get()->star(context.userId, id);
+            core::Service<feedback::IFeedbackService>::get()->star(context.userId, id);
 
         for (const ReleaseId id : params.releaseIds)
-            Service<Feedback::IFeedbackService>::get()->star(context.userId, id);
+            core::Service<feedback::IFeedbackService>::get()->star(context.userId, id);
 
         for (const TrackId id : params.trackIds)
-            Service<Feedback::IFeedbackService>::get()->star(context.userId, id);
+            core::Service<feedback::IFeedbackService>::get()->star(context.userId, id);
 
         return Response::createOkResponse(context.serverProtocolVersion);
     }
@@ -77,13 +77,13 @@ namespace API::Subsonic
         StarParameters params{ getStarParameters(context.parameters) };
 
         for (const ArtistId id : params.artistIds)
-            Service<Feedback::IFeedbackService>::get()->unstar(context.userId, id);
+            core::Service<feedback::IFeedbackService>::get()->unstar(context.userId, id);
 
         for (const ReleaseId id : params.releaseIds)
-            Service<Feedback::IFeedbackService>::get()->unstar(context.userId, id);
+            core::Service<feedback::IFeedbackService>::get()->unstar(context.userId, id);
 
         for (const TrackId id : params.trackIds)
-            Service<Feedback::IFeedbackService>::get()->unstar(context.userId, id);
+            core::Service<feedback::IFeedbackService>::get()->unstar(context.userId, id);
 
         return Response::createOkResponse(context.serverProtocolVersion);
     }
@@ -94,27 +94,23 @@ namespace API::Subsonic
         const std::vector<unsigned long> times{ getMultiParametersAs<unsigned long>(context.parameters, "time") };
         const bool submission{ getParameterAs<bool>(context.parameters, "submission").value_or(true) };
 
-        // playing now => no time to be provided
-        if (!submission && !times.empty())
-            throw BadParameterGenericError{ "time" };
-
         // playing now => only one at a time
         if (!submission && ids.size() > 1)
             throw BadParameterGenericError{ "id" };
 
-        // if multiple submissions, must have times
+        // if multiple submissions, must have all times
         if (ids.size() > 1 && ids.size() != times.size())
             throw BadParameterGenericError{ "time" };
 
         if (!submission)
         {
-            Service<Scrobbling::IScrobblingService>::get()->listenStarted({ context.userId, ids.front() });
+            core::Service<scrobbling::IScrobblingService>::get()->listenStarted({ context.userId, ids.front() });
         }
         else
         {
             if (times.empty())
             {
-                Service<Scrobbling::IScrobblingService>::get()->listenFinished({ context.userId, ids.front() });
+                core::Service<scrobbling::IScrobblingService>::get()->listenFinished({ context.userId, ids.front() });
             }
             else
             {
@@ -122,7 +118,7 @@ namespace API::Subsonic
                 {
                     const TrackId trackId{ ids[i] };
                     const unsigned long time{ times[i] };
-                    Service<Scrobbling::IScrobblingService>::get()->addTimedListen({ {context.userId, trackId}, Wt::WDateTime::fromTime_t(static_cast<std::time_t>(time / 1000)) });
+                    core::Service<scrobbling::IScrobblingService>::get()->addTimedListen({ {context.userId, trackId}, Wt::WDateTime::fromTime_t(static_cast<std::time_t>(time / 1000)) });
                 }
             }
         }

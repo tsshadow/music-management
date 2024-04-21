@@ -20,14 +20,16 @@
 
 #pragma once
 
+#include <optional>
 #include <string_view>
 #include <Wt/WDate.h>
 
 #include "metadata/IParser.hpp"
 
-namespace MetaData::Utils
+namespace lms::metadata::utils
 {
 	Wt::WDate parseDate(std::string_view dateStr);
+	std::optional<int> parseYear(std::string_view yearStr);
 	std::string_view readStyleToString(ParserReadStyle readStyle);
 
 	struct PerformerArtist

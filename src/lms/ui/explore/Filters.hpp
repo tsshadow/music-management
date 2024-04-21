@@ -28,23 +28,24 @@
 
 #include "Filters.hpp"
 
-namespace UserInterface
+namespace lms::ui
 {
-	class Filters : public Wt::WTemplate
-	{
-		public:
-			Filters();
+    class Filters : public Wt::WTemplate
+    {
+    public:
+        Filters();
 
-			void add(Database::ClusterId clusterId);
-			const std::vector<Database::ClusterId>& getClusterIds() const { return _clusterIds; }
-			Wt::Signal<>& updated() { return _sigUpdated; }
+        const std::vector<db::ClusterId>& getClusterIds() const { return _clusterIds; }
+        void add(db::ClusterId clusterId);
 
-		private:
-			void showDialog();
+        Wt::Signal<>& updated() { return _sigUpdated; }
 
-			Wt::WContainerWidget *_filters;
-			Wt::Signal<> _sigUpdated;
-			std::vector<Database::ClusterId> _clusterIds;
-	};
-} // namespace UserInterface
+    private:
+        void showDialog();
+
+        Wt::WContainerWidget* _filters;
+        Wt::Signal<> _sigUpdated;
+        std::vector<db::ClusterId> _clusterIds;
+    };
+} // namespace lms::ui
 

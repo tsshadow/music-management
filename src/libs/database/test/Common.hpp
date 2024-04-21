@@ -28,6 +28,7 @@
 #include "database/Cluster.hpp"
 #include "database/Db.hpp"
 #include "database/Listen.hpp"
+#include "database/MediaLibrary.hpp"
 #include "database/Release.hpp"
 #include "database/ScanSettings.hpp"
 #include "database/Session.hpp"
@@ -39,116 +40,119 @@
 #include "database/Types.hpp"
 #include "database/User.hpp"
 
-template <typename T>
-class [[nodiscard]] ScopedEntity
+namespace lms::db::tests
 {
-	public:
-		using IdType = typename T::IdType;
+    template <typename T>
+    class [[nodiscard]] ScopedEntity
+    {
+    public:
+        using IdType = typename T::IdType;
 
-		template <typename... Args>
-		ScopedEntity(Database::Session& session, Args&& ...args)
-			: _session {session}
-		{
-			auto transaction {_session.createWriteTransaction()};
+        template <typename... Args>
+        ScopedEntity(db::Session& session, Args&& ...args)
+            : _session{ session }
+        {
+            auto transaction{ _session.createWriteTransaction() };
 
-			auto entity {_session.create<T>(std::forward<Args>(args)...)};
-			EXPECT_TRUE(entity);
-			_id = entity->getId();
-		}
+            auto entity{ _session.create<T>(std::forward<Args>(args)...) };
+            EXPECT_TRUE(entity);
+            _id = entity->getId();
+        }
 
-		~ScopedEntity()
-		{
-			auto transaction {_session.createWriteTransaction()};
+        ~ScopedEntity()
+        {
+            auto transaction{ _session.createWriteTransaction() };
 
-			auto entity {T::find(_session, _id)};
-			// could not be here due to "on delete cascade" constraints...
-			if (entity)
-				entity.remove();
-		}
+            auto entity{ T::find(_session, _id) };
+            // could not be here due to "on delete cascade" constraints...
+            if (entity)
+                entity.remove();
+        }
 
-		ScopedEntity(const ScopedEntity&) = delete;
-		ScopedEntity(ScopedEntity&&) = delete;
-		ScopedEntity& operator=(const ScopedEntity&) = delete;
-		ScopedEntity& operator=(ScopedEntity&&) = delete;
+        ScopedEntity(const ScopedEntity&) = delete;
+        ScopedEntity(ScopedEntity&&) = delete;
+        ScopedEntity& operator=(const ScopedEntity&) = delete;
+        ScopedEntity& operator=(ScopedEntity&&) = delete;
 
-		typename T::pointer lockAndGet()
-		{
-			auto transaction {_session.createReadTransaction()};
-			return get();
-		}
+        typename T::pointer lockAndGet()
+        {
+            auto transaction{ _session.createReadTransaction() };
+            return get();
+        }
 
-		typename T::pointer get()
-		{
-			_session.checkReadTransaction();
+        typename T::pointer get()
+        {
+            _session.checkReadTransaction();
 
-			auto entity {T::find(_session, _id)};
-			EXPECT_TRUE(entity);
-			return entity;
-		}
+            auto entity{ T::find(_session, _id) };
+            EXPECT_TRUE(entity);
+            return entity;
+        }
 
-		typename T::pointer operator->()
-		{
-			return get();
-		}
+        typename T::pointer operator->()
+        {
+            return get();
+        }
 
-		IdType getId() const { return _id; }
+        IdType getId() const { return _id; }
 
-	private:
-		Database::Session& _session;
-		IdType _id {};
-};
+    private:
+        db::Session& _session;
+        IdType _id{};
+    };
 
-using ScopedArtist = ScopedEntity<Database::Artist>;
-using ScopedCluster = ScopedEntity<Database::Cluster>;
-using ScopedClusterType = ScopedEntity<Database::ClusterType>;
-using ScopedRelease = ScopedEntity<Database::Release>;
-using ScopedTrack = ScopedEntity<Database::Track>;
-using ScopedTrackList = ScopedEntity<Database::TrackList>;
-using ScopedUser = ScopedEntity<Database::User>;
+    using ScopedArtist = ScopedEntity<db::Artist>;
+    using ScopedCluster = ScopedEntity<db::Cluster>;
+    using ScopedClusterType = ScopedEntity<db::ClusterType>;
+    using ScopedMediaLibrary = ScopedEntity<db::MediaLibrary>;
+    using ScopedRelease = ScopedEntity<db::Release>;
+    using ScopedTrack = ScopedEntity<db::Track>;
+    using ScopedTrackList = ScopedEntity<db::TrackList>;
+    using ScopedUser = ScopedEntity<db::User>;
 
-class ScopedFileDeleter final
-{
-	public:
-		ScopedFileDeleter(const std::filesystem::path& path) : _path {path} {}
-		~ScopedFileDeleter() { std::filesystem::remove(_path); }
+    class ScopedFileDeleter final
+    {
+    public:
+        ScopedFileDeleter(const std::filesystem::path& path) : _path{ path } {}
+        ~ScopedFileDeleter() { std::filesystem::remove(_path); }
 
-		ScopedFileDeleter(const ScopedFileDeleter&) = delete;
-		ScopedFileDeleter(ScopedFileDeleter&&) = delete;
-		ScopedFileDeleter operator=(const ScopedFileDeleter&) = delete;
-		ScopedFileDeleter operator=(ScopedFileDeleter&&) = delete;
+    private:
+        ScopedFileDeleter(const ScopedFileDeleter&) = delete;
+        ScopedFileDeleter(ScopedFileDeleter&&) = delete;
+        ScopedFileDeleter operator=(const ScopedFileDeleter&) = delete;
+        ScopedFileDeleter operator=(ScopedFileDeleter&&) = delete;
 
-	private:
-		const std::filesystem::path _path;
-};
+        const std::filesystem::path _path;
+    };
 
-class TmpDatabase final
-{
-	public:
-		TmpDatabase ();
+    class TmpDatabase final
+    {
+    public:
+        TmpDatabase();
 
-		Database::Db& getDb();
+        db::Db& getDb();
 
-	private:
-		const std::filesystem::path _tmpFile;
-		ScopedFileDeleter _fileDeleter;
-		Database::Db _db;
-};
+    private:
+        const std::filesystem::path _tmpFile;
+        ScopedFileDeleter _fileDeleter;
+        db::Db _db;
+    };
 
-class DatabaseFixture : public ::testing::Test
-{
-public:
-	~DatabaseFixture();
+    class DatabaseFixture : public ::testing::Test
+    {
+    public:
+        ~DatabaseFixture();
 
-public:
-    static void SetUpTestCase();
-    static void TearDownTestCase();
+    public:
+        static void SetUpTestCase();
+        static void TearDownTestCase();
 
-private:
-	void testDatabaseEmpty();
+    private:
+        void testDatabaseEmpty();
 
-	static inline std::unique_ptr<TmpDatabase> _tmpDb {};
+        static inline std::unique_ptr<TmpDatabase> _tmpDb{};
 
-public:
-	Database::Session session {_tmpDb->getDb()};
-};
-
+    public:
+        db::Session session{ _tmpDb->getDb() };
+    };
+}

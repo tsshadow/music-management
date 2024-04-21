@@ -30,8 +30,9 @@
 #include "database/User.hpp"
 #include "services/feedback/IFeedbackService.hpp"
 #include "services/scrobbling/IScrobblingService.hpp"
-#include "utils/Service.hpp"
-#include "utils/String.hpp"
+#include "core/ITraceLogger.hpp"
+#include "core/Service.hpp"
+#include "core/String.hpp"
 #include "responses/Artist.hpp"
 #include "responses/Contributor.hpp"
 #include "responses/ItemGenre.hpp"
@@ -39,9 +40,9 @@
 #include "SubsonicId.hpp"
 #include "Utils.hpp"
 
-namespace API::Subsonic
+namespace lms::api::subsonic
 {
-    using namespace Database;
+    using namespace db;
 
     namespace
     {
@@ -58,44 +59,12 @@ namespace API::Subsonic
 
             return "";
         }
-
-        std::string getTrackPath(const Track::pointer& track)
-        {
-            std::string path;
-
-            // The track path has to be relative from the root
-
-            const auto release{ track->getRelease() };
-            if (release)
-            {
-                auto artists{ release->getReleaseArtists() };
-                if (artists.empty())
-                    artists = release->getArtists();
-
-                if (artists.size() > 1)
-                    path = "Various Artists/";
-                else if (artists.size() == 1)
-                    path = Utils::makeNameFilesystemCompatible(artists.front()->getName()) + "/";
-
-                path += Utils::makeNameFilesystemCompatible(track->getRelease()->getName()) + "/";
-            }
-
-            if (track->getDiscNumber())
-                path += std::to_string(*track->getDiscNumber()) + "-";
-            if (track->getTrackNumber())
-                path += std::to_string(*track->getTrackNumber()) + "-";
-
-            path += Utils::makeNameFilesystemCompatible(track->getName());
-
-            if (track->getPath().has_extension())
-                path += track->getPath().extension();
-
-            return path;
-        }
     }
 
     Response::Node createSongNode(RequestContext& context, const Track::pointer& track, const User::pointer& user)
     {
+        LMS_SCOPED_TRACE_DETAILED("Subsonic", "CreateSong");
+
         Response::Node trackResponse;
 
         trackResponse.setAttribute("id", idToString(track->getId()));
@@ -107,26 +76,20 @@ namespace API::Subsonic
             trackResponse.setAttribute("discNumber", *track->getDiscNumber());
         if (track->getYear())
             trackResponse.setAttribute("year", *track->getYear());
-        trackResponse.setAttribute("playCount", Service<Scrobbling::IScrobblingService>::get()->getCount(user->getId(), track->getId()));
-        trackResponse.setAttribute("path", getTrackPath(track));
-        {
-            // TODO, store this in DB
-            std::error_code ec;
-            const auto fileSize{ std::filesystem::file_size(track->getPath(), ec) };
-            if (!ec)
-                trackResponse.setAttribute("size", fileSize);
-        }
+        trackResponse.setAttribute("playCount", core::Service<scrobbling::IScrobblingService>::get()->getCount(user->getId(), track->getId()));
+        trackResponse.setAttribute("path", track->getRelativeFilePath().string());
+        trackResponse.setAttribute("size", track->getFileSize());
 
-        if (track->getPath().has_extension())
+        if (track->getAbsoluteFilePath().has_extension())
         {
-            auto extension{ track->getPath().extension() };
-            trackResponse.setAttribute("suffix", extension.string().substr(1));
+            auto extension{ track->getAbsoluteFilePath().extension() };
+            trackResponse.setAttribute("suffix", extension.string().substr(1) /* skip leading .*/);
         }
 
         {
             const std::string fileSuffix{ formatToSuffix(user->getSubsonicDefaultTranscodingOutputFormat()) };
             trackResponse.setAttribute("transcodedSuffix", fileSuffix);
-            trackResponse.setAttribute("transcodedContentType", Av::getMimeType(std::filesystem::path{ "." + fileSuffix }));
+            trackResponse.setAttribute("transcodedContentType", av::getMimeType(std::filesystem::path{ "." + fileSuffix }));
         }
 
         trackResponse.setAttribute("coverArt", idToString(track->getId()));
@@ -137,7 +100,7 @@ namespace API::Subsonic
             if (!track->getArtistDisplayName().empty())
                 trackResponse.setAttribute("artist", track->getArtistDisplayName());
             else
-                trackResponse.setAttribute("artist", Utils::joinArtistNames(artists));
+                trackResponse.setAttribute("artist", utils::joinArtistNames(artists));
 
             if (artists.size() == 1)
                 trackResponse.setAttribute("artistId", idToString(artists.front()->getId()));
@@ -154,11 +117,11 @@ namespace API::Subsonic
         trackResponse.setAttribute("duration", std::chrono::duration_cast<std::chrono::seconds>(track->getDuration()).count());
         trackResponse.setAttribute("bitRate", (track->getBitrate() / 1000));
         trackResponse.setAttribute("type", "music");
-        trackResponse.setAttribute("created", StringUtils::toISO8601String(track->getLastWritten()));
-        trackResponse.setAttribute("contentType", Av::getMimeType(track->getPath().extension()));
+        trackResponse.setAttribute("created", core::stringUtils::toISO8601String(track->getLastWritten()));
+        trackResponse.setAttribute("contentType", av::getMimeType(track->getAbsoluteFilePath().extension()));
 
-        if (const Wt::WDateTime dateTime{ Service<Feedback::IFeedbackService>::get()->getStarredDateTime(user->getId(), track->getId()) }; dateTime.isValid())
-            trackResponse.setAttribute("starred", StringUtils::toISO8601String(dateTime));
+        if (const Wt::WDateTime dateTime{ core::Service<feedback::IFeedbackService>::get()->getStarredDateTime(user->getId(), track->getId()) }; dateTime.isValid())
+            trackResponse.setAttribute("starred", core::stringUtils::toISO8601String(dateTime));
 
         // Report the first GENRE for this track
         std::vector<Cluster::pointer> genres;
@@ -176,52 +139,44 @@ namespace API::Subsonic
         if (!context.enableOpenSubsonic)
             return trackResponse;
 
+        trackResponse.setAttribute("bitDepth", track->getBitsPerSample());
+        trackResponse.setAttribute("samplingRate", track->getSampleRate());
+        trackResponse.setAttribute("channelCount", track->getChannelCount());
+
         trackResponse.setAttribute("mediaType", "song");
 
         {
-            const Wt::WDateTime dateTime{ Service<Scrobbling::IScrobblingService>::get()->getLastListenDateTime(user->getId(), track->getId()) };
-            trackResponse.setAttribute("played", dateTime.isValid() ? StringUtils::toISO8601String(dateTime) : "");
+            const Wt::WDateTime dateTime{ core::Service<scrobbling::IScrobblingService>::get()->getLastListenDateTime(user->getId(), track->getId()) };
+            trackResponse.setAttribute("played", dateTime.isValid() ? core::stringUtils::toISO8601String(dateTime) : "");
         }
 
         {
-            std::optional<UUID> mbid{ track->getRecordingMBID() };
+            std::optional<core::UUID> mbid{ track->getRecordingMBID() };
             trackResponse.setAttribute("musicBrainzId", mbid ? mbid->getAsString() : "");
         }
 
-        trackResponse.createEmptyArrayChild("contributors");
         {
-            TrackArtistLink::FindParameters params;
-            params.setTrack(track->getId());
+            trackResponse.createEmptyArrayChild("albumartists");
+            trackResponse.createEmptyArrayChild("artists");
+            trackResponse.createEmptyArrayChild("contributors");
 
-            for (const TrackArtistLinkId linkId : TrackArtistLink::find(context.dbSession, params).results)
+            TrackArtistLink::find(context.dbSession, track->getId(), [&](const TrackArtistLink::pointer& link, const Artist::pointer& artist)
             {
-                TrackArtistLink::pointer link{ TrackArtistLink::find(context.dbSession, linkId) };
-                // Don't report artists nor release artists as they are set in dedicated fields
-                if (link && link->getType() != TrackArtistLinkType::Artist && link->getType() != TrackArtistLinkType::ReleaseArtist)
-                    trackResponse.addArrayChild("contributors", createContributorNode(link));
-            }
+                switch (link->getType())
+                {
+                    case TrackArtistLinkType::Artist:
+                        trackResponse.addArrayChild("artists", createArtistNode(artist));
+                        break;
+                    case TrackArtistLinkType::ReleaseArtist:
+                        trackResponse.addArrayChild("albumartists", createArtistNode(artist));
+                        break;
+                    default:
+                        trackResponse.addArrayChild("contributors", createContributorNode(link, artist));
+                }
+            });
         }
 
-        auto addArtistLinks{ [&](Response::Node::Key nodeName, TrackArtistLinkType type)
-        {
-            trackResponse.createEmptyArrayChild(nodeName);
-
-            TrackArtistLink::FindParameters params;
-            params.setTrack(track->getId());
-            params.setLinkType(type);
-
-            for (const TrackArtistLinkId linkId : TrackArtistLink::find(context.dbSession, params).results)
-            {
-                TrackArtistLink::pointer link{ TrackArtistLink::find(context.dbSession, linkId) };
-                if (link)
-                    trackResponse.addArrayChild(nodeName, createArtistNode(link->getArtist()));
-            }
-        } };
-
-        addArtistLinks("artists", TrackArtistLinkType::Artist);
         trackResponse.setAttribute("displayArtist", track->getArtistDisplayName());
-
-        addArtistLinks("albumartists", TrackArtistLinkType::ReleaseArtist);
         if (release)
             trackResponse.setAttribute("displayAlbumArtist", release->getArtistDisplayName());
 

@@ -25,17 +25,17 @@
 
 #include <Wt/Dbo/Dbo.h>
 
+#include "core/EnumSet.hpp"
 #include "database/ArtistId.hpp"
 #include "database/IdType.hpp"
 #include "database/Object.hpp"
 #include "database/ReleaseId.hpp"
 #include "database/TrackId.hpp"
 #include "database/Types.hpp"
-#include "utils/EnumSet.hpp"
 
 LMS_DECLARE_IDTYPE(TrackArtistLinkId)
 
-namespace Database
+namespace lms::db
 {
     class Artist;
     class Session;
@@ -62,11 +62,12 @@ namespace Database
         TrackArtistLink() = default;
         TrackArtistLink(ObjectPtr<Track> track, ObjectPtr<Artist> artist, TrackArtistLinkType type, std::string_view subType);
 
-        static RangeResults<TrackArtistLinkId>	find(Session& session, const FindParameters& parameters);
+        static void                             find(Session& session, TrackId trackId, const std::function<void(const TrackArtistLink::pointer&, const ObjectPtr<Artist>&)>&);
+        static void                             find(Session& session, const FindParameters& parameters, const std::function<void(const TrackArtistLink::pointer&)>&);
         static pointer 							find(Session& session, TrackArtistLinkId linkId);
         static pointer							create(Session& session, ObjectPtr<Track> track, ObjectPtr<Artist> artist, TrackArtistLinkType type, std::string_view subType = {});
-        static EnumSet<TrackArtistLinkType>     findUsedTypes(Session& session);
-        static EnumSet<TrackArtistLinkType>     findUsedTypes(Session& session, ArtistId _artist);
+        static core::EnumSet<TrackArtistLinkType>     findUsedTypes(Session& session);
+        static core::EnumSet<TrackArtistLinkType>     findUsedTypes(Session& session, ArtistId _artist);
 
         ObjectPtr<Track>		getTrack() const { return _track; }
         ObjectPtr<Artist>		getArtist() const { return _artist; }

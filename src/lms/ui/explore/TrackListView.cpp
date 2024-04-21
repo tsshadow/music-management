@@ -26,8 +26,8 @@
 #include "database/Session.hpp"
 #include "database/Track.hpp"
 #include "database/TrackList.hpp"
-#include "utils/ILogger.hpp"
-#include "utils/String.hpp"
+#include "core/ILogger.hpp"
+#include "core/String.hpp"
 
 #include "common/InfiniteScrollingContainer.hpp"
 #include "explore/Filters.hpp"
@@ -39,15 +39,15 @@
 #include "ModalManager.hpp"
 #include "Utils.hpp"
 
-namespace UserInterface
+namespace lms::ui
 {
-    using namespace Database;
+    using namespace db;
 
     namespace
     {
         std::optional<TrackListId> extractTrackListIdFromInternalPath()
         {
-            return StringUtils::readAs<TrackListId::ValueType>(wApp->internalPathNextPart("/tracklist/"));
+            return core::stringUtils::readAs<TrackListId::ValueType>(wApp->internalPathNextPart("/tracklist/"));
         }
     }
 
@@ -83,7 +83,7 @@ namespace UserInterface
 
         auto transaction{ LmsApp->getDbSession().createReadTransaction() };
 
-        const Database::TrackList::pointer trackList{ Database::TrackList::find(LmsApp->getDbSession(), *trackListId) };
+        const db::TrackList::pointer trackList{ db::TrackList::find(LmsApp->getDbSession(), *trackListId) };
         if (!trackList)
             throw TrackListNotFoundException{};
 
@@ -93,7 +93,7 @@ namespace UserInterface
         clear();
 
         bindString("name", std::string{ trackList->getName() }, Wt::TextFormat::Plain);
-        bindString("duration", Utils::durationToString(trackList->getDuration()));
+        bindString("duration", utils::durationToString(trackList->getDuration()));
         const auto trackCount{ trackList->getCount() };
         bindString("track-count", Wt::WString::trn("Lms.track-count", trackCount).arg(trackCount));
 
@@ -104,11 +104,11 @@ namespace UserInterface
 
             for (const auto& clusters : clusterGroups)
             {
-                for (const Database::Cluster::pointer& cluster : clusters)
+                for (const db::Cluster::pointer& cluster : clusters)
                 {
                     const ClusterId clusterId{ cluster->getId() };
-                    Wt::WInteractWidget* entry{ clusterContainers->addWidget(Utils::createCluster(clusterId)) };
-                    entry->clicked().connect([=]
+                    Wt::WInteractWidget* entry{ clusterContainers->addWidget(utils::createCluster(clusterId)) };
+                    entry->clicked().connect([this, clusterId]
                         {
                             _filters.add(clusterId);
                         });
@@ -117,19 +117,19 @@ namespace UserInterface
         }
 
         bindNew<Wt::WPushButton>("play-btn", Wt::WString::tr("Lms.Explore.play"), Wt::TextFormat::XHTML)
-            ->clicked().connect([=]
+            ->clicked().connect([this, trackListId]
                 {
                     _playQueueController.processCommand(PlayQueueController::Command::Play, *trackListId);
                 });
 
         bindNew<Wt::WPushButton>("play-shuffled", Wt::WString::tr("Lms.Explore.play-shuffled"), Wt::TextFormat::Plain)
-            ->clicked().connect([=]
+            ->clicked().connect([this, trackListId]
                 {
                     _playQueueController.processCommand(PlayQueueController::Command::PlayShuffled, *trackListId);
                 });
 
         bindNew<Wt::WPushButton>("play-last", Wt::WString::tr("Lms.Explore.play-last"), Wt::TextFormat::Plain)
-            ->clicked().connect([=]
+            ->clicked().connect([this, trackListId]
                 {
                     _playQueueController.processCommand(PlayQueueController::Command::PlayOrAddLast, *trackListId);
                 });
@@ -138,19 +138,19 @@ namespace UserInterface
             ->setLink(Wt::WLink{ std::make_unique<DownloadTrackListResource>(*trackListId) });
 
         bindNew<Wt::WPushButton>("delete", Wt::WString::tr("Lms.delete"))
-            ->clicked().connect([=]
+            ->clicked().connect([this, trackListId]
                 {
                     auto modal{ std::make_unique<Wt::WTemplate>(Wt::WString::tr("Lms.Explore.TrackList.template.delete-tracklist")) };
                     modal->addFunction("tr", &Wt::WTemplate::Functions::tr);
                     Wt::WWidget* modalPtr{ modal.get() };
 
                     auto* delBtn{ modal->bindNew<Wt::WPushButton>("del-btn", Wt::WString::tr("Lms.delete")) };
-                    delBtn->clicked().connect([=]
+                    delBtn->clicked().connect([this, trackListId, modalPtr]
                         {
                             {
                                 auto transaction{ LmsApp->getDbSession().createWriteTransaction() };
 
-                                Database::TrackList::pointer trackList{ Database::TrackList::find(LmsApp->getDbSession(), *trackListId) };
+                                db::TrackList::pointer trackList{ db::TrackList::find(LmsApp->getDbSession(), *trackListId) };
                                 if (trackList)
                                     trackList.remove();
                             }
@@ -182,17 +182,19 @@ namespace UserInterface
     {
         auto transaction{ LmsApp->getDbSession().createReadTransaction() };
 
-        Database::Track::FindParameters params;
+        db::Track::FindParameters params;
         params.setClusters(_filters.getClusterIds());
         params.setTrackList(_trackListId);
-        params.setSortMethod(Database::TrackSortMethod::TrackList);
-        params.setRange(Database::Range{ static_cast<std::size_t>(_container->getCount()), _batchSize });
-        params.setDistinct(false);
-
-        Database::Track::find(LmsApp->getDbSession(), params, [this](const Track::pointer& track)
+        params.setSortMethod(db::TrackSortMethod::TrackList);
+        params.setRange(db::Range{ static_cast<std::size_t>(_container->getCount()), _batchSize });
+        
+        bool moreResults{};
+        db::Track::find(LmsApp->getDbSession(), params, moreResults, [this](const Track::pointer& track)
             {
                 _container->add(TrackListHelpers::createEntry(track, _playQueueController, _filters));
             });
+            
+        _container->setHasMore(moreResults);
     }
-} // namespace UserInterface
+} // namespace lms::ui
 

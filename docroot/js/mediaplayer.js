@@ -66,6 +66,9 @@ LMS.mediaplayer = function () {
 			navigator.mediaSession.setActionHandler("nexttrack", function() {
 				_playNext();
 			});
+			navigator.mediaSession.setActionHandler("seekto", function(e) {
+				_seekTo(e.seekTime);
+			});
 		}
 
 		if (_pendingTrackParameters != null) {
@@ -81,16 +84,10 @@ LMS.mediaplayer = function () {
 		if (_elems.audio.paused) {
 			_elems.playpause.firstElementChild.classList.remove(pauseClass);
 			_elems.playpause.firstElementChild.classList.add(playClass);
-			if ("mediaSession" in navigator) {
-				navigator.mediaSession.playbackState = "paused";
-			}
 		}
 		else {
 			_elems.playpause.firstElementChild.classList.remove(playClass);
 			_elems.playpause.firstElementChild.classList.add(pauseClass);
-			if ("mediaSession" in navigator) {
-				navigator.mediaSession.playbackState = "playing";
-			}
 		}
 	}
 
@@ -100,17 +97,21 @@ LMS.mediaplayer = function () {
 		_lastStartPlaying = Date.now();
 	}
 
-	let _stopTimer = function() {
+	let _pauseTimer = function() {
 		if (_lastStartPlaying != null) {
 			_playedDuration += Date.now() - _lastStartPlaying;
+			_lastStartPlaying = null;
 		}
 	}
 
 	let _resetTimer = function() {
 		if (_lastStartPlaying != null)
+			_pauseTimer();
+
+		if (_playedDuration > 0) {
 			Wt.emit(_root, "scrobbleListenFinished", _trackId, _playedDuration);
-		_playedDuration = 0;
-		_lastStartPlaying = null;
+			_playedDuration = 0;
+		}
 	}
 
 	let _durationToString = function (duration) {
@@ -202,6 +203,46 @@ LMS.mediaplayer = function () {
 		_gainNode.gain.value = Math.pow(10, (_settings.replayGain.preAmpGain + replayGain) / 20);
 	}
 
+	let _seekTo = function(seekTime) {
+		_initAudioCtx();
+		let mode = _getAudioMode();
+		if (!mode)
+			return;
+
+		switch (mode) {
+			case Mode.Transcoding:
+				_offset = seekTime;
+				_removeAudioSources();
+				_addAudioSource(_audioTranscodingSrc + "&offset=" + _offset);
+				_elems.audio.load();
+				_elems.audio.currentTime = 0;
+				_playTrack();
+				break;
+
+			case Mode.File:
+				_elems.audio.currentTime = seekTime;
+				_playTrack();
+				break;
+		}
+
+		_updateMediaSessionState();
+	}
+
+	let _updateMediaSessionState = function() {
+		if ("mediaSession" in navigator) {
+			navigator.mediaSession.setPositionState({
+				duration: _duration,
+				playbackRate: 1,
+				position: Math.min(_offset + _elems.audio.currentTime, _duration),
+			});
+
+			if (_elems.audio.paused)
+				navigator.mediaSession.playbackState = "paused";
+			else
+				navigator.mediaSession.playbackState = "playing";
+		}
+	}
+
 	let init = function(root, defaultSettings) {
 		_root = root;
 
@@ -228,37 +269,20 @@ LMS.mediaplayer = function () {
 			_playNext();
 		});
 		_elems.seek.addEventListener("change", function() {
-			_initAudioCtx();
-			let mode = _getAudioMode();
-			if (!mode)
-				return;
-
-			let selectedOffset = parseInt(_elems.seek.value, 10);
-
-			switch (mode) {
-				case Mode.Transcoding:
-					_offset = selectedOffset;
-					_removeAudioSources();
-					_addAudioSource(_audioTranscodingSrc + "&offset=" + _offset);
-					_elems.audio.load();
-					_elems.audio.currentTime = 0;
-					_playTrack();
-					break;
-
-				case Mode.File:
-					_elems.audio.currentTime = selectedOffset;
-					_playTrack();
-					break;
-			}
+			_seekTo(parseInt(_elems.seek.value, 10));
 		});
 
 		_elems.audio.addEventListener("play", _updateControls);
 		_elems.audio.addEventListener("playing", _updateControls);
 		_elems.audio.addEventListener("pause", _updateControls);
 
-		_elems.audio.addEventListener("pause", _stopTimer);
+		_elems.audio.addEventListener("play", _updateMediaSessionState);
+		_elems.audio.addEventListener("playing", _updateMediaSessionState);
+		_elems.audio.addEventListener("pause", _updateMediaSessionState);
+
+		_elems.audio.addEventListener("pause", _pauseTimer);
 		_elems.audio.addEventListener("playing", _startTimer);
-		_elems.audio.addEventListener("waiting", _stopTimer);
+		_elems.audio.addEventListener("waiting", _pauseTimer);
 
 		_elems.audio.addEventListener("timeupdate", function() {
 			_elems.progress.style.width = "" + ((_offset + _elems.audio.currentTime) / _duration) * 100 + "%";
@@ -266,6 +290,7 @@ LMS.mediaplayer = function () {
 		});
 
 		_elems.audio.addEventListener("ended", function() {
+			_resetTimer();
 			Wt.emit(_root, "playbackEnded");
 		});
 
@@ -346,7 +371,6 @@ LMS.mediaplayer = function () {
 	}
 
 	let loadTrack = function(params, autoplay) {
-		_stopTimer();
 		_resetTimer();
 
 		_trackId = params.trackId;

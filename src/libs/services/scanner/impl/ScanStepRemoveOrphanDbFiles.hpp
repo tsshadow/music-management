@@ -23,7 +23,7 @@
 
 #include "ScanStepBase.hpp"
 
-namespace Scanner
+namespace lms::scanner
 {
 	class ScanStepRemoveOrphanDbFiles : public ScanStepBase
 	{
@@ -31,8 +31,8 @@ namespace Scanner
 			using ScanStepBase::ScanStepBase;
 
 		private:
-			std::string_view getStepName() const override { return "Checking orphaned entries"; }
-			ScanStep getStep() const override { return ScanStep::ChekingForMissingFiles; }
+			core::LiteralString getStepName() const override { return "Check orphaned entries"; }
+			ScanStep getStep() const override { return ScanStep::CheckForMissingFiles; }
 			void process(ScanContext& context) override;
 
 			void removeOrphanTracks(ScanContext& context);

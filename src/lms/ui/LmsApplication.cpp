@@ -37,12 +37,16 @@
 #include "database/TrackList.hpp"
 #include "database/User.hpp"
 #include "services/scrobbling/IScrobblingService.hpp"
-#include "utils/ILogger.hpp"
-#include "utils/Service.hpp"
-#include "utils/String.hpp"
+#include "core/ILogger.hpp"
+#include "core/ITraceLogger.hpp"
+#include "core/Service.hpp"
+#include "core/String.hpp"
 
 #include "admin/InitWizardView.hpp"
-#include "admin/DatabaseSettingsView.hpp"
+#include "admin/MediaLibrariesView.hpp"
+#include "admin/TracingView.hpp"
+#include "admin/ScannerController.hpp"
+#include "admin/ScanSettingsView.hpp"
 #include "admin/UserView.hpp"
 #include "admin/UsersView.hpp"
 #include "common/Template.hpp"
@@ -50,7 +54,6 @@
 #include "explore/Filters.hpp"
 #include "resource/AudioFileResource.hpp"
 #include "resource/AudioTranscodingResource.hpp"
-#include "resource/DownloadResource.hpp"
 #include "resource/CoverResource.hpp"
 #include "Auth.hpp"
 #include "LmsApplicationException.hpp"
@@ -62,7 +65,7 @@
 #include "PlayQueue.hpp"
 #include "SettingsView.hpp"
 
-namespace UserInterface
+namespace lms::ui
 {
     namespace
     {
@@ -73,9 +76,12 @@ namespace UserInterface
             const std::string appRoot{ Wt::WApplication::appRoot() };
 
             auto res{ std::make_shared<Wt::WMessageResourceBundle>() };
-            res->use(appRoot + "admin-database");
             res->use(appRoot + "admin-initwizard");
+            res->use(appRoot + "admin-medialibraries");
+            res->use(appRoot + "admin-medialibrary");
             res->use(appRoot + "admin-scannercontroller");
+            res->use(appRoot + "admin-scansettings");
+            res->use(appRoot + "admin-tracing");
             res->use(appRoot + "admin-user");
             res->use(appRoot + "admin-users");
             res->use(appRoot + "artist");
@@ -111,9 +117,12 @@ namespace UserInterface
             IdxExplore = 0,
             IdxPlayQueue,
             IdxSettings,
-            IdxAdminDatabase,
+            IdxAdminLibraries,
+            IdxAdminScanSettings,
+            IdxAdminScanner,
             IdxAdminUsers,
             IdxAdminUser,
+            IdxAdminTracing,
         };
 
         void handlePathChange(Wt::WStackedWidget& stack, bool isAdmin)
@@ -126,19 +135,22 @@ namespace UserInterface
                 std::optional<Wt::WString> title;
             } views[] =
             {
-                { "/artists",			IdxExplore,			false,	Wt::WString::tr("Lms.Explore.artists") },
-                { "/artist",			IdxExplore,			false,	std::nullopt },
-                { "/releases",			IdxExplore,			false,	Wt::WString::tr("Lms.Explore.releases") },
-                { "/release",			IdxExplore,			false,	std::nullopt },
-                { "/search",			IdxExplore,			false,	Wt::WString::tr("Lms.Explore.search") },
-                { "/tracks",			IdxExplore,			false,	Wt::WString::tr("Lms.Explore.tracks") },
-                { "/tracklists",		IdxExplore,			false,	Wt::WString::tr("Lms.Explore.tracklists") },
-                { "/tracklist",			IdxExplore,			false,	std::nullopt },
-                { "/playqueue",			IdxPlayQueue,		false,	Wt::WString::tr("Lms.PlayQueue.playqueue") },
-                { "/settings",			IdxSettings,		false,	Wt::WString::tr("Lms.Settings.settings") },
-                { "/admin/database",	IdxAdminDatabase,	true,	Wt::WString::tr("Lms.Admin.Database.database") },
-                { "/admin/users",		IdxAdminUsers,		true,	Wt::WString::tr("Lms.Admin.Users.users") },
-                { "/admin/user",		IdxAdminUser,		true,	std::nullopt },
+                { "/artists",			    IdxExplore,			    false,	Wt::WString::tr("Lms.Explore.artists") },
+                { "/artist",			    IdxExplore,			    false,	std::nullopt },
+                { "/releases",			    IdxExplore,			    false,	Wt::WString::tr("Lms.Explore.releases") },
+                { "/release",			    IdxExplore,			    false,	std::nullopt },
+                { "/search",			    IdxExplore,			    false,	Wt::WString::tr("Lms.Explore.search") },
+                { "/tracks",			    IdxExplore,			    false,	Wt::WString::tr("Lms.Explore.tracks") },
+                { "/tracklists",		    IdxExplore,			    false,	Wt::WString::tr("Lms.Explore.tracklists") },
+                { "/tracklist",			    IdxExplore,			    false,	std::nullopt },
+                { "/playqueue",			    IdxPlayQueue,		    false,	Wt::WString::tr("Lms.PlayQueue.playqueue") },
+                { "/settings",			    IdxSettings,		    false,	Wt::WString::tr("Lms.Settings.settings") },
+                { "/admin/libraries",	    IdxAdminLibraries,	    true,	Wt::WString::tr("Lms.Admin.MediaLibraries.media-libraries") },
+                { "/admin/scan-settings",	IdxAdminScanSettings,	true,	Wt::WString::tr("Lms.Admin.Database.scan-settings") },
+                { "/admin/scanner",	        IdxAdminScanner,	    true,	Wt::WString::tr("Lms.Admin.ScannerController.scanner") },
+                { "/admin/users",		    IdxAdminUsers,		    true,	Wt::WString::tr("Lms.Admin.Users.users") },
+                { "/admin/user",		    IdxAdminUser,		    true,	std::nullopt },
+                { "/admin/tracing",		    IdxAdminTracing,		true,	Wt::WString::tr("Lms.Admin.Tracing.tracing") },
             };
 
             LMS_LOG(UI, DEBUG, "Internal path changed to '" << wApp->internalPath() << "'");
@@ -163,12 +175,12 @@ namespace UserInterface
         }
     }
 
-    std::unique_ptr<Wt::WApplication> LmsApplication::create(const Wt::WEnvironment& env, Database::Db& db, LmsApplicationManager& appManager)
+    std::unique_ptr<Wt::WApplication> LmsApplication::create(const Wt::WEnvironment& env, db::Db& db, LmsApplicationManager& appManager)
     {
-        if (auto * authEnvService{ Service<::Auth::IEnvService>::get() })
+        if (auto * authEnvService{ core::Service<auth::IEnvService>::get() })
         {
             const auto checkResult{ authEnvService->processEnv(env) };
-            if (checkResult.state != ::Auth::IEnvService::CheckResult::State::Granted)
+            if (checkResult.state != auth::IEnvService::CheckResult::State::Granted)
             {
                 LMS_LOG(UI, ERROR, "Cannot authenticate user from environment!");
                 // return a blank page
@@ -186,25 +198,25 @@ namespace UserInterface
         return static_cast<LmsApplication*>(Wt::WApplication::instance());
     }
 
-    Database::Db& LmsApplication::getDb()
+    db::Db& LmsApplication::getDb()
     {
         return _db;
     }
 
-    Database::Session& LmsApplication::getDbSession()
+    db::Session& LmsApplication::getDbSession()
     {
         return _db.getTLSSession();
     }
 
-    Database::User::pointer LmsApplication::getUser()
+    db::User::pointer LmsApplication::getUser()
     {
         if (!_authenticatedUser)
             return {};
 
-        return Database::User::find(getDbSession(), _authenticatedUser->userId);
+        return db::User::find(getDbSession(), _authenticatedUser->userId);
     }
 
-    Database::UserId LmsApplication::getUserId()
+    db::UserId LmsApplication::getUserId()
     {
         return _authenticatedUser->userId;
     }
@@ -214,7 +226,7 @@ namespace UserInterface
         return _authenticatedUser->strongAuth;
     }
 
-    Database::UserType LmsApplication::getUserType()
+    db::UserType LmsApplication::getUserType()
     {
         auto transaction{ getDbSession().createReadTransaction() };
 
@@ -229,9 +241,9 @@ namespace UserInterface
     }
 
     LmsApplication::LmsApplication(const Wt::WEnvironment& env,
-        Database::Db& db,
+        db::Db& db,
         LmsApplicationManager& appManager,
-        std::optional<Database::UserId> userId)
+        std::optional<db::UserId> userId)
         : Wt::WApplication{ env }
         , _db{ db }
         , _appManager{ appManager }
@@ -249,7 +261,7 @@ namespace UserInterface
         catch (std::exception& e)
         {
             LMS_LOG(UI, ERROR, "Caught exception: " << e.what());
-            throw LmsException{ "Internal error" }; // Do not put details here at it may appear on the user rendered html
+            throw core::LmsException{ "Internal error" }; // Do not put details here at it may appear on the user rendered html
         }
     }
 
@@ -257,6 +269,8 @@ namespace UserInterface
 
     void LmsApplication::init()
     {
+        LMS_SCOPED_TRACE_OVERVIEW("UI", "ApplicationInit");
+
         setTheme(std::make_shared<LmsTheme>());
 
         useStyleSheet("resources/font-awesome/css/font-awesome.min.css");
@@ -270,14 +284,14 @@ namespace UserInterface
 
         if (_authenticatedUser)
             onUserLoggedIn();
-        else if (Service<::Auth::IPasswordService>::exists())
+        else if (core::Service<auth::IPasswordService>::exists())
             processPasswordAuth();
     }
 
     void LmsApplication::processPasswordAuth()
     {
         {
-            std::optional<Database::UserId> userId{ processAuthToken(environment()) };
+            std::optional<db::UserId> userId{ processAuthToken(environment()) };
             if (userId)
             {
                 LMS_LOG(UI, DEBUG, "User authenticated using Auth token!");
@@ -291,19 +305,19 @@ namespace UserInterface
         bool firstConnection{};
         {
             auto transaction{ getDbSession().createReadTransaction() };
-            firstConnection = Database::User::getCount(getDbSession()) == 0;
+            firstConnection = db::User::getCount(getDbSession()) == 0;
         }
 
         LMS_LOG(UI, DEBUG, "Creating root widget. First connection = " << firstConnection);
 
-        if (firstConnection && Service<::Auth::IPasswordService>::get()->canSetPasswords())
+        if (firstConnection && core::Service<auth::IPasswordService>::get()->canSetPasswords())
         {
             root()->addWidget(std::make_unique<InitWizardView>());
         }
         else
         {
             Auth* auth{ root()->addNew<Auth>() };
-            auth->userLoggedIn.connect(this, [this](Database::UserId userId)
+            auth->userLoggedIn.connect(this, [this](db::UserId userId)
                 {
                     _authenticatedUser = { userId, true };
                     onUserLoggedIn();
@@ -362,7 +376,7 @@ namespace UserInterface
                 // Only one active session by user
                 if (otherApplication.getUserId() == getUserId())
                 {
-                    if (LmsApp->getUserType() != Database::UserType::DEMO)
+                    if (LmsApp->getUserType() != db::UserType::DEMO)
                     {
                         quit(Wt::WString::tr("Lms.quit-other-session"));
                     }
@@ -374,6 +388,8 @@ namespace UserInterface
 
     void LmsApplication::createHome()
     {
+        LMS_SCOPED_TRACE_OVERVIEW("UI", "ApplicationCreateHome");
+
         _coverResource = std::make_shared<CoverResource>();
 
         declareJavaScriptFunction("onLoadCover", "function(id) { id.className += \" Lms-cover-loaded\"}");
@@ -422,11 +438,18 @@ namespace UserInterface
         Wt::WLineEdit* searchEdit{ navbar->bindNew<Wt::WLineEdit>("search") };
         searchEdit->setPlaceholderText(Wt::WString::tr("Lms.Explore.Search.search-placeholder"));
 
-        if (LmsApp->getUserType() == Database::UserType::ADMIN)
+        if (LmsApp->getUserType() == db::UserType::ADMIN)
         {
             navbar->setCondition("if-is-admin", true);
-            navbar->bindNew<Wt::WAnchor>("database", Wt::WLink{ Wt::LinkType::InternalPath, "/admin/database" }, Wt::WString::tr("Lms.Admin.Database.menu-database"));
-            navbar->bindNew<Wt::WAnchor>("users", Wt::WLink{ Wt::LinkType::InternalPath, "/admin/users" }, Wt::WString::tr("Lms.Admin.Users.menu-users"));
+            navbar->bindNew<Wt::WAnchor>("media-libraries", Wt::WLink{ Wt::LinkType::InternalPath, "/admin/libraries" }, Wt::WString::tr("Lms.Admin.menu-media-libraries"));
+            navbar->bindNew<Wt::WAnchor>("scan-settings", Wt::WLink{ Wt::LinkType::InternalPath, "/admin/scan-settings" }, Wt::WString::tr("Lms.Admin.menu-scan-settings"));
+            navbar->bindNew<Wt::WAnchor>("scanner", Wt::WLink{ Wt::LinkType::InternalPath, "/admin/scanner" }, Wt::WString::tr("Lms.Admin.menu-scanner"));
+            navbar->bindNew<Wt::WAnchor>("users", Wt::WLink{ Wt::LinkType::InternalPath, "/admin/users" }, Wt::WString::tr("Lms.Admin.menu-users"));
+            // Hide the entry if the trace logger is not enabled
+            if (core::Service<core::tracing::ITraceLogger>::get())
+                navbar->bindNew<Wt::WAnchor>("tracing", Wt::WLink{ Wt::LinkType::InternalPath, "/admin/tracing" }, Wt::WString::tr("Lms.Admin.menu-tracing"));
+            else
+                navbar->bindEmpty("tracing");
         }
 
         // Contents
@@ -439,23 +462,26 @@ namespace UserInterface
         _playQueue = mainStack->addWidget(std::move(playQueue));
         mainStack->addNew<SettingsView>();
 
-        searchEdit->enterPressed().connect([=]
+        searchEdit->enterPressed().connect([this]
             {
                 setInternalPath("/search", true);
             });
 
-        searchEdit->textInput().connect([=]
+        searchEdit->textInput().connect([this, explore, searchEdit]
             {
                 setInternalPath("/search", true);
                 explore->search(searchEdit->text());
             });
 
         // Admin stuff
-        if (getUserType() == Database::UserType::ADMIN)
+        if (getUserType() == db::UserType::ADMIN)
         {
-            mainStack->addNew<DatabaseSettingsView>();
+            mainStack->addNew<MediaLibrariesView>();
+            mainStack->addNew<ScanSettingsView>();
+            mainStack->addNew<ScannerController>();
             mainStack->addNew<UsersView>();
             mainStack->addNew<UserView>();
+            mainStack->addNew<TracingView>();
         }
 
         explore->getPlayQueueController().setMaxTrackCountToEnqueue(_playQueue->getCapacity());
@@ -463,76 +489,80 @@ namespace UserInterface
         // Events from MediaPlayer
         _mediaPlayer->playNext.connect([this]
             {
+                LMS_LOG(UI, DEBUG, "Received playNext from player");
                 _playQueue->playNext();
             });
         _mediaPlayer->playPrevious.connect([this]
             {
+                LMS_LOG(UI, DEBUG, "Received playPrevious from player");
                 _playQueue->playPrevious();
             });
 
-        _mediaPlayer->scrobbleListenNow.connect([this](Database::TrackId trackId)
+        _mediaPlayer->scrobbleListenNow.connect([this](db::TrackId trackId)
             {
                 LMS_LOG(UI, DEBUG, "Received ScrobbleListenNow from player for trackId = " << trackId.toString());
-                const Scrobbling::Listen listen{ getUserId(), trackId };
-                Service<Scrobbling::IScrobblingService>::get()->listenStarted(listen);
-                    });
-                _mediaPlayer->scrobbleListenFinished.connect([this](Database::TrackId trackId, unsigned durationMs)
-                    {
-                        LMS_LOG(UI, DEBUG, "Received ScrobbleListenFinished from player for trackId = " << trackId.toString() << ", duration = " << (durationMs / 1000) << "s");
-                        const std::chrono::milliseconds duration{ durationMs };
-                        const Scrobbling::Listen listen{ getUserId(), trackId };
-                        Service<Scrobbling::IScrobblingService>::get()->listenFinished(listen, std::chrono::duration_cast<std::chrono::seconds>(duration));
-                            });
+                const scrobbling::Listen listen{ getUserId(), trackId };
+                core::Service<scrobbling::IScrobblingService>::get()->listenStarted(listen);
+            });
+        _mediaPlayer->scrobbleListenFinished.connect([this](db::TrackId trackId, unsigned durationMs)
+            {
+                LMS_LOG(UI, DEBUG, "Received ScrobbleListenFinished from player for trackId = " << trackId.toString() << ", duration = " << (durationMs / 1000) << "s");
+                const std::chrono::milliseconds duration{ durationMs };
+                const scrobbling::Listen listen{ getUserId(), trackId };
+                core::Service<scrobbling::IScrobblingService>::get()->listenFinished(listen, std::chrono::duration_cast<std::chrono::seconds>(duration));
+            });
 
-                        _mediaPlayer->playbackEnded.connect([this]
-                            {
-                                _playQueue->onPlaybackEnded();
-                            });
+        _mediaPlayer->playbackEnded.connect([this]
+            {
+                LMS_LOG(UI, DEBUG, "Received playbackEnded from player");
+                _playQueue->onPlaybackEnded();
+            });
 
-                        _playQueue->trackSelected.connect([this](Database::TrackId trackId, bool play, float replayGain)
-                            {
-                                _mediaPlayer->loadTrack(trackId, play, replayGain);
-                            });
+        _playQueue->trackSelected.connect([this](db::TrackId trackId, bool play, float replayGain)
+            {
+                _mediaPlayer->loadTrack(trackId, play, replayGain);
+            });
 
-                        _playQueue->trackUnselected.connect([this]
-                            {
-                                _mediaPlayer->stop();
-                            });
-                        _playQueue->trackCountChanged.connect([this](std::size_t trackCount)
-                            {
-                                _mediaPlayer->onPlayQueueUpdated(trackCount);
-                            });
-                        _mediaPlayer->onPlayQueueUpdated(_playQueue->getCount());
+        _playQueue->trackUnselected.connect([this]
+            {
+                _mediaPlayer->stop();
+            });
+        _playQueue->trackCountChanged.connect([this](std::size_t trackCount)
+            {
+                _mediaPlayer->onPlayQueueUpdated(trackCount);
+            });
+        _mediaPlayer->onPlayQueueUpdated(_playQueue->getCount());
 
-                        const bool isAdmin{ getUserType() == Database::UserType::ADMIN };
-                        if (isAdmin)
-                        {
-                            _scannerEvents.scanComplete.connect([=](const Scanner::ScanStats& stats)
-                                {
-                                    notifyMsg(Notification::Type::Info,
-                                    Wt::WString::tr("Lms.Admin.Database.database"),
-                                    Wt::WString::tr("Lms.Admin.Database.scan-complete")
-                                    .arg(static_cast<unsigned>(stats.nbFiles()))
-                                        .arg(static_cast<unsigned>(stats.additions))
-                                        .arg(static_cast<unsigned>(stats.updates))
-                                        .arg(static_cast<unsigned>(stats.deletions))
-                                        .arg(static_cast<unsigned>(stats.duplicates.size()))
-                                        .arg(static_cast<unsigned>(stats.errors.size())));
-                                });
-                        }
+        const bool isAdmin{ getUserType() == db::UserType::ADMIN };
+        if (isAdmin)
+        {
+            _scannerEvents.scanComplete.connect([this](const scanner::ScanStats& stats)
+                {
+                    notifyMsg(Notification::Type::Info,
+                    Wt::WString::tr("Lms.Admin.Database.database"),
+                    Wt::WString::tr("Lms.Admin.Database.scan-complete")
+                    .arg(static_cast<unsigned>(stats.nbFiles()))
+                        .arg(static_cast<unsigned>(stats.additions))
+                        .arg(static_cast<unsigned>(stats.updates))
+                        .arg(static_cast<unsigned>(stats.deletions))
+                        .arg(static_cast<unsigned>(stats.duplicates.size()))
+                        .arg(static_cast<unsigned>(stats.errors.size())));
+                });
+        }
 
-                        internalPathChanged().connect(mainStack, [=]
-                            {
-                                handlePathChange(*mainStack, isAdmin);
-                            });
+        internalPathChanged().connect(mainStack, [=]
+            {
+                handlePathChange(*mainStack, isAdmin);
+            });
 
-                        handlePathChange(*mainStack, isAdmin);
+        handlePathChange(*mainStack, isAdmin);
     }
 
     void LmsApplication::notify(const Wt::WEvent& event)
     {
         try
         {
+            LMS_SCOPED_TRACE_OVERVIEW("UI", "ProcessEvent");
             WApplication::notify(event);
         }
         catch (LmsApplicationException& e)
@@ -543,7 +573,7 @@ namespace UserInterface
         catch (std::exception& e)
         {
             LMS_LOG(UI, ERROR, "Caught exception: " << e.what());
-            throw LmsException{ "Internal error" }; // Do not put details here at it may appear on the user rendered html
+            throw core::LmsException{ "Internal error" }; // Do not put details here at it may appear on the user rendered html
         }
     }
 
@@ -565,4 +595,4 @@ namespace UserInterface
         LMS_LOG(UI, INFO, "Notifying message '" << message.toUTF8() << "' for category '" << category.toUTF8() << "'");
         _notificationContainer->add(type, category, message, duration);
     }
-} // namespace UserInterface
+} // namespace lms::ui

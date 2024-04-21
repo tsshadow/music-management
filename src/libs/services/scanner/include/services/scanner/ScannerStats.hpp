@@ -26,7 +26,7 @@
 
 #include "database/TrackId.hpp"
 
-namespace Scanner
+namespace lms::scanner
 {
     enum class ScanErrorType
     {
@@ -53,27 +53,30 @@ namespace Scanner
 
     struct ScanDuplicate
     {
-        Database::TrackId	trackId;
+        db::TrackId	trackId;
         DuplicateReason		reason;
     };
 
     enum class ScanStep
     {
-        DiscoveringFiles,
-        ScanningFiles,
-        ChekingForMissingFiles,
-        CheckingForDuplicateFiles,
-        FetchingTrackFeatures,
-        ReloadingSimilarityEngine,
+        CheckForMissingFiles,
+        CheckForDuplicateFiles,
         ComputeClusterStats,
+        Compact,
+        DiscoverFiles,
+        FetchTrackFeatures,
+        Optimize,
+        ReloadSimilarityEngine,
+        ScanFiles,
     };
-    static inline constexpr unsigned ScanProgressStepCount{ 7 };
+    static inline constexpr unsigned ScanProgressStepCount{ 9 };
 
     // reduced scan stats
     struct ScanStepStats
     {
         Wt::WDateTime   startTime;
 
+        std::size_t stepIndex{};
         ScanStep currentStep;
 
         std::size_t	totalElems{};
@@ -104,5 +107,5 @@ namespace Scanner
         std::size_t	nbFiles() const;
         std::size_t	nbChanges() const;
     };
-} // namespace Scanner
+} // namespace lms::scanner
 

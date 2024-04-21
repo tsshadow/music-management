@@ -5,7 +5,6 @@
 <!--Common-->
 <message id="Lms.add">添加</message>
 <message id="Lms.administration">管理</message>
-<message id="Lms.apply">应用</message>
 <message id="Lms.cancel">取消</message>
 <message id="Lms.clusters">标签</message>
 <message id="Lms.create">新建</message>
@@ -16,7 +15,6 @@
 <message id="Lms.loading">加载中...</message>
 <message id="Lms.login">登陆</message>
 <message id="Lms.logout"><i class="fa fa-fw fa-sign-out" aria-hidden="true"></i> 注销</message>
-<message id="Lms.not-a-directory">不是一个目录</message>
 
 <message id="Lms.password">密码</message>
 <message id="Lms.password-bad-login-combination">用户名或密码无效</message>
@@ -33,6 +31,7 @@
 
 
 
+
 <message id="Lms.user">用户</message>
 
 <!--Errors-->
@@ -45,20 +44,39 @@
 <message id="Lms.Error.user-not-found">用户未找到</message>
 
 <!--Administration-->
+
+
+
+
+
+
+<!--MediaLibraries-->
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--Scan settings-->
+
 <message id="Lms.Admin.Database.daily">每日</message>
-<message id="Lms.Admin.Database.database">音乐收藏</message>
+
 
 <message id="Lms.Admin.Database.hourly">每小时</message>
 <message id="Lms.Admin.Database.immediate-scan">立即扫描！</message>
 <message id="Lms.Admin.Database.monthly">每月</message>
-<message id="Lms.Admin.Database.menu-database"><i class="fa fa-fw fa-database" aria-hidden="true"></i> 音乐收藏</message>
 <message id="Lms.Admin.Database.never">从不</message>
-<message id="Lms.Admin.Database.path">媒体根目录</message>
-<message id="Lms.Admin.Database.path-help">包含 <code>.lmsignore</code> 文件的目录将会被跳过</message>
+
 <message id="Lms.Admin.Database.scan-complete">扫描完成：总文件 {1}，添加文件 {2}，更新文件 {3}，删除文件 {4}，重复文件 {5}，错误文件 {6}</message>
 <message id="Lms.Admin.Database.scan-launched">扫描已完成！</message>
-<message id="Lms.Admin.Database.scan-options">扫描选项</message>
-<message id="Lms.Admin.Database.settings-saved">新设置已保存！</message>
+<message id="Lms.Admin.Database.scan-settings">扫描选项</message>
 
 
 
@@ -66,12 +84,16 @@
 <message id="Lms.Admin.Database.update-start-time">更新开始时间</message>
 <message id="Lms.Admin.Database.weekly">每周</message>
 
+
+<!--Scanner Controller-->
 <message id="Lms.Admin.ScannerController.bad-duration">无法获得音轨时间</message>
 <message id="Lms.Admin.ScannerController.cannot-parse-file">无法解析文件</message>
 <message id="Lms.Admin.ScannerController.cannot-read-file">无法读取文件</message>
+
 <message id="Lms.Admin.ScannerController.duplicates-header">{1} 个重复文件：</message>
 <message id="Lms.Admin.ScannerController.errors-header">{1} 个错误：</message>
-<message id="Lms.Admin.ScannerController.force-scan-now">立即强制全盘扫描</message>
+
+
 <message id="Lms.Admin.ScannerController.get-report">生成报告</message>
 <message id="Lms.Admin.ScannerController.last-scan">最后扫描</message>
 <message id="Lms.Admin.ScannerController.last-scan-not-available">不可用</message>
@@ -80,6 +102,7 @@
 <message id="Lms.Admin.ScannerController.same-hash">相同文件哈希值</message>
 <message id="Lms.Admin.ScannerController.same-mbid">相同 MBID</message>
 <message id="Lms.Admin.ScannerController.scan-now">立即扫描</message>
+
 <message id="Lms.Admin.ScannerController.scanner">扫描器</message>
 <message id="Lms.Admin.ScannerController.status">状态</message>
 <message id="Lms.Admin.ScannerController.status-not-scheduled">无计划</message>
@@ -88,11 +111,17 @@
 
 <message id="Lms.Admin.ScannerController.step-checking-for-missing-files">检查文件中... {1}%</message>
 
+
 <message id="Lms.Admin.ScannerController.step-discovering-files">检索文件中: {1} 文件</message>
 <message id="Lms.Admin.ScannerController.step-fetching-track-features">从 AcousticBrainz 获取音轨特征: {1}/{2} 音轨 ({3}%)...</message>
+
 <message id="Lms.Admin.ScannerController.step-reloading-similarity-engine">重载相似引擎中 {1}%...</message>
 <message id="Lms.Admin.ScannerController.step-scanning-files">扫描文件中: {1}/{2} 个文件 ({3}%)...</message>
 <message id="Lms.Admin.ScannerController.step-status">当前步骤状态</message>
+
+<!--Tracing-->
+
+
 
 <!--Users-->
 <message id="Lms.Admin.Users.add">新建用户</message>
@@ -100,7 +129,6 @@
 <message id="Lms.Admin.Users.del-user-confirm">删除用户？</message>
 <message id="Lms.Admin.Users.demo">演示</message>
 <message id="Lms.Admin.Users.users">用户</message>
-<message id="Lms.Admin.Users.menu-users"><i class="fa fa-fw fa-users" aria-hidden="true"></i> 用户</message>
 
 <!--User-->
 <message id="Lms.Admin.User.demo-account">演示账号</message>

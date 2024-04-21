@@ -20,11 +20,11 @@
 #include "MediaLibraryScanning.hpp"
 
 #include "services/scanner/IScannerService.hpp"
-#include "utils/Service.hpp"
+#include "core/Service.hpp"
 
-namespace API::Subsonic::Scan
+namespace lms::api::subsonic::Scan
 {
-    using namespace Scanner;
+    using namespace scanner;
 
     namespace
     {
@@ -32,14 +32,14 @@ namespace API::Subsonic::Scan
         {
             Response::Node statusResponse;
 
-            const IScannerService::Status scanStatus{ Service<IScannerService>::get()->getStatus() };
+            const IScannerService::Status scanStatus{ core::Service<IScannerService>::get()->getStatus() };
 
             statusResponse.setAttribute("scanning", scanStatus.currentState == IScannerService::State::InProgress);
             if (scanStatus.currentState == IScannerService::State::InProgress)
             {
                 std::size_t count{};
 
-                if (scanStatus.currentScanStepStats && scanStatus.currentScanStepStats->currentStep == ScanStep::ScanningFiles)
+                if (scanStatus.currentScanStepStats && scanStatus.currentScanStepStats->currentStep == ScanStep::ScanFiles)
                     count = scanStatus.currentScanStepStats->processedElems;
 
                 statusResponse.setAttribute("count", count);
@@ -59,7 +59,7 @@ namespace API::Subsonic::Scan
 
     Response handleStartScan(RequestContext& context)
     {
-        Service<IScannerService>::get()->requestImmediateScan(false);
+        core::Service<IScannerService>::get()->requestImmediateScan();
 
         Response response{ Response::createOkResponse(context.serverProtocolVersion) };
         response.addNode("scanStatus", createStatusResponseNode());

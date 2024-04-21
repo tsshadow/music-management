@@ -26,12 +26,24 @@
 
 #include <Wt/WDate.h>
 
+#include "metadata/Exception.hpp"
 #include "metadata/IParser.hpp"
-#include "utils/StreamLogger.hpp"
+#include "core/StreamLogger.hpp"
 
-namespace
+namespace lms::metadata
 {
-    std::ostream& operator<<(std::ostream& os, const MetaData::Artist& artist)
+    std::ostream& operator<<(std::ostream& os, const AudioProperties& audioProperties)
+    {
+        os << "\tBitrate: " << audioProperties.bitrate << " bps" << std::endl;
+        os << "\tBitsPerSample: " << audioProperties.bitsPerSample << std::endl;
+        os << "\tChannelCount: " << audioProperties.channelCount << std::endl;
+        os << "\tDuration: " << std::fixed << std::setprecision(2) << audioProperties.duration.count() / 1000. << "s" << std::endl;
+        os << "\tSampleRate: " << audioProperties.sampleRate << std::endl;
+
+        return os;
+    }
+
+    std::ostream& operator<<(std::ostream& os, const Artist& artist)
     {
         os << artist.name;
 
@@ -44,12 +56,18 @@ namespace
         return os;
     }
 
-    std::ostream& operator<<(std::ostream& os, const MetaData::Release& release)
+    std::ostream& operator<<(std::ostream& os, const Release& release)
     {
         os << release.name;
+        if (!release.sortName.empty())
+            os << " '" << release.sortName << "'";
+        os << std::endl;
 
         if (release.mbid)
-            os << " (" << release.mbid->getAsString() << ")" << std::endl;
+            os << "\tRelease MBID = " << release.mbid->getAsString() << std::endl;
+
+        if (release.groupMBID)
+            os << "\tRelease Group MBID = " << release.groupMBID->getAsString() << std::endl;
 
         if (release.mediumCount)
             std::cout << "\tMediumCount: " << *release.mediumCount << std::endl;
@@ -57,17 +75,16 @@ namespace
         if (!release.artistDisplayName.empty())
             std::cout << "\tDisplay artist: " << release.artistDisplayName << std::endl;
 
-        for (const MetaData::Artist& artist : release.artists)
+        for (const Artist& artist : release.artists)
             std::cout << "\tRelease artist: " << artist << std::endl;
 
-        std::cout << "Release types:" << std::endl;
         for (std::string_view releaseType : release.releaseTypes)
-            std::cout << "\t" << releaseType << std::endl;
+            std::cout << "\tRelease type: " << releaseType << std::endl;
 
         return os;
     }
 
-    std::ostream& operator<<(std::ostream& os, const MetaData::Medium& medium)
+    std::ostream& operator<<(std::ostream& os, const Medium& medium)
     {
         if (!medium.name.empty())
             os << medium.name;
@@ -76,8 +93,8 @@ namespace
         if (medium.position)
             os << "\tPosition: " << *medium.position << std::endl;
 
-        if (!medium.type.empty())
-            os << "\tType: " << medium.type << std::endl;
+        if (!medium.media.empty())
+            os << "\tMedia: " << medium.media << std::endl;
 
         if (medium.trackCount)
             std::cout << "\tTrackCount: " << *medium.trackCount << std::endl;
@@ -86,27 +103,22 @@ namespace
             std::cout << "\tReplay gain: " << *medium.replayGain << std::endl;
 
         if (medium.release)
-            std::cout << "Release: " << *medium.release << std::endl;
+            std::cout << "Release: " << *medium.release;
 
         return os;
     }
 
-    void parse(MetaData::IParser& parser, const std::filesystem::path& file)
+    void parse(IParser& parser, const std::filesystem::path& file)
     {
-        using namespace MetaData;
-
-        parser.setUserExtraTags({ "MOOD", "ALBUMGROUPING", "GENRE", "LANGUAGE" });
+        using namespace metadata;
 
         const auto start{ std::chrono::steady_clock::now() };
-        std::optional<Track> track{ parser.parse(file, true) };
-        if (!track)
-        {
-            std::cerr << "Parsing failed" << std::endl;
-            return;
-        }
+        std::unique_ptr<Track> track{ parser.parse(file, true) };
         const auto end{ std::chrono::steady_clock::now() };
 
         std::cout << "Parsing time: " << std::fixed << std::setprecision(2) << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000. << "ms" << std::endl;
+
+        std::cout << "Audio properties:\n" << track->audioProperties << std::endl;
 
         std::cout << "Parsed metadata:" << std::endl;
 
@@ -155,6 +167,21 @@ namespace
         if (track->recordingMBID)
             std::cout << "Recording MBID = " << track->recordingMBID->getAsString() << std::endl;
 
+        for (std::string_view genre : track->genres)
+            std::cout << "Genre: " << genre << std::endl;
+
+        for (std::string_view genre : track->moods)
+            std::cout << "Mood: " << genre << std::endl;
+
+        for (std::string_view grouping : track->groupings)
+            std::cout << "Grouping: " << grouping << std::endl;
+
+        for (std::string_view language : track->languages)
+            std::cout << "Language: " << language << std::endl;
+
+        for (std::string_view label : track->labels)
+            std::cout << "Label: " << label << std::endl;
+
         for (const auto& [tag, values] : track->userExtraTags)
         {
             std::cout << "Tag: " << tag << std::endl;
@@ -164,17 +191,18 @@ namespace
             }
         }
 
-        std::cout << "Duration: " << std::fixed << std::setprecision(2) << track->duration.count() / 1000. << "s" << std::endl;
-        std::cout << "Bitrate: " << track->bitrate << " bps" << std::endl;
-
         if (track->position)
             std::cout << "Position: " << *track->position << std::endl;
 
         if (track->date.isValid())
             std::cout << "Date: " << track->date.toString("yyyy-MM-dd") << std::endl;
+        if (track->year)
+            std::cout << "Year: " << *track->year << std::endl;
 
         if (track->originalDate.isValid())
             std::cout << "Original date: " << track->originalDate.toString("yyyy-MM-dd") << std::endl;
+        if (track->originalYear)
+            std::cout << "Original year: " << *track->originalYear << std::endl;
 
         std::cout << "HasCover = " << std::boolalpha << track->hasCover << std::endl;
 
@@ -204,8 +232,10 @@ int main(int argc, char* argv[])
 
     try
     {
+        using namespace lms;
+        
         // log to stdout
-        Service<ILogger> logger{ std::make_unique<StreamLogger>(std::cout) };
+        core::Service<core::logging::ILogger> logger{ std::make_unique<core::logging::StreamLogger>(std::cout, core::logging::StreamLogger::allSeverities) };
 
         for (std::size_t i{}; i < static_cast<std::size_t>(argc - 1); ++i)
         {
@@ -213,16 +243,26 @@ int main(int argc, char* argv[])
 
             std::cout << "Parsing file '" << file << "'" << std::endl;
 
+            try
             {
                 std::cout << "Using av:" << std::endl;
-                auto parser{ MetaData::createParser(MetaData::ParserType::AvFormat, MetaData::ParserReadStyle::Accurate) };
+                auto parser{ metadata::createParser(metadata::ParserBackend::AvFormat, metadata::ParserReadStyle::Accurate) };
                 parse(*parser, file);
             }
+            catch (metadata::Exception& e)
+            {
+                std::cerr << "Parsing failed: " << e.what() << std::endl;
+            }
 
+            try
             {
                 std::cout << "Using TagLib:" << std::endl;
-                auto parser{ MetaData::createParser(MetaData::ParserType::TagLib, MetaData::ParserReadStyle::Accurate) };
+                auto parser{ metadata::createParser(metadata::ParserBackend::TagLib, metadata::ParserReadStyle::Accurate) };
                 parse(*parser, file);
+            }
+            catch (metadata::Exception& e)
+            {
+                std::cerr << "Parsing failed: " << e.what() << std::endl;
             }
         }
     }

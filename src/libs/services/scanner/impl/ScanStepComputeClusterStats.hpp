@@ -21,7 +21,7 @@
 
 #include "ScanStepBase.hpp"
 
-namespace Scanner
+namespace lms::scanner
 {
     class ScanStepComputeClusterStats : public ScanStepBase
     {
@@ -30,7 +30,7 @@ namespace Scanner
 
     private:
         ScanStep getStep() const override { return ScanStep::ComputeClusterStats; }
-        std::string_view getStepName() const override { return "Compute cluster stats"; }
+        core::LiteralString getStepName() const override { return "Compute cluster stats"; }
         void process(ScanContext& context) override;
     };
 }

@@ -23,9 +23,9 @@
 #include <iomanip>
 #include <sstream>
 
-#include "utils/Exception.hpp"
+#include "core/Exception.hpp"
 
-namespace MetaData::Utils
+namespace lms::metadata::utils
 {
     Wt::WDate parseDate(std::string_view dateStr)
     {
@@ -37,17 +37,23 @@ namespace MetaData::Utils
 
         for (const char* format : formats)
         {
-            std::tm tm = {};
+            std::tm tm{};
+            tm.tm_mon = -1;
+            tm.tm_mday = -1;
+
             std::istringstream ss{ std::string {dateStr} }; // TODO, remove extra copy here
             ss >> std::get_time(&tm, format);
             if (ss.fail())
                 continue;
 
+            if (tm.tm_mday <= 0 || tm.tm_mon < 0)
+                continue;
+
             const Wt::WDate res
             {
-                tm.tm_year + 1900,			// years since 1900
-                tm.tm_mon + 1,				// months since January – [0, 11]
-                tm.tm_mday ? tm.tm_mday : 1 // day of the month – [1, 31]
+                tm.tm_year + 1900,  // tm.tm_year: years since 1900
+                tm.tm_mon + 1,      // tm.tm_mon: months since January – [00, 11]
+                tm.tm_mday          // tm.tm_mday: day of the month – [1, 31]
             };
             if (!res.isValid())
                 continue;
@@ -56,6 +62,38 @@ namespace MetaData::Utils
         }
 
         return {};
+    }
+
+    std::optional<int> parseYear(std::string_view yearStr)
+    {
+        // limit to first 4 digit, accept leading '-'
+        if (yearStr.empty())
+            return std::nullopt;
+
+        int sign;
+        if (yearStr.front() == '-')
+        {
+            sign = -1;
+            yearStr.remove_prefix(1);
+        }
+        else
+        {
+            sign = 1;
+        }
+
+        if (yearStr.empty() || !std::isdigit(yearStr.front()))
+            return std::nullopt;
+
+        int result{};
+        for (std::size_t i{}; i < yearStr.size() && i < 4; ++i)
+        {
+            if (!std::isdigit(yearStr[i])) {
+                break;
+            }
+            result = result * 10 + (yearStr[i] - '0');
+        }
+
+        return result * sign;
     }
 
     std::string_view readStyleToString(ParserReadStyle readStyle)
@@ -67,7 +105,7 @@ namespace MetaData::Utils
         case ParserReadStyle::Accurate: return "accurate";
         }
 
-        throw LmsException{ "Unknown read style" };
+        throw core::LmsException{ "Unknown read style" };
     }
 
     PerformerArtist extractPerformerAndRole(std::string_view entry)
@@ -100,8 +138,8 @@ namespace MetaData::Utils
                 if (--count == 0)
                 {
                     roleBegin = currentIndex + 1;
-                    role = StringUtils::stringTrim(entry.substr(roleBegin, roleEnd - roleBegin));
-                    artistName = StringUtils::stringTrim(entry.substr(0, currentIndex));
+                    role = core::stringUtils::stringTrim(entry.substr(roleBegin, roleEnd - roleBegin));
+                    artistName = core::stringUtils::stringTrim(entry.substr(0, currentIndex));
                     break;
                 }
             }
@@ -110,7 +148,7 @@ namespace MetaData::Utils
         }
 
         if (!roleEnd || !roleBegin)
-            artistName = StringUtils::stringTrim(entry);
+            artistName = core::stringUtils::stringTrim(entry);
 
         return PerformerArtist{ Artist {artistName}, std::string {role} };
     }

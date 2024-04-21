@@ -27,8 +27,9 @@
 #include <Wt/WDateTime.h>
 
 #include "database/Types.hpp"
+#include "core/ITraceLogger.hpp"
 
-namespace Database::Utils
+namespace lms::db::utils
 {
 #define ESCAPE_CHAR_STR "\\"
     static inline constexpr char escapeChar{ '\\' };
@@ -44,41 +45,132 @@ namespace Database::Utils
         }
     }
 
+    template <typename T>
+    auto fetchFirstResult(const Wt::Dbo::collection<T>& collection)
+    {
+        LMS_SCOPED_TRACE_DETAILED("Database", "FetchFirstResult");
+        return collection.begin();
+    }
+
+    template <typename T>
+    void fetchNextResult(typename Wt::Dbo::collection<T>::const_iterator& it)
+    {
+        LMS_SCOPED_TRACE_DETAILED("Database", "FetchNextResult");
+        it++;
+    }
+
+    template <typename T, typename Func>
+    void forEachResult(const Wt::Dbo::collection<T>& collection, Func&& func)
+    {
+        typename Wt::Dbo::collection<T>::const_iterator it{ fetchFirstResult(collection) };
+        while (it != collection.end())
+        {
+            func(*it);
+            fetchNextResult<T>(it);
+        }
+    }
+
+    template <typename T>
+    struct QueryResultType;
+
+    template <class ResultType, typename BindStrategy>
+    struct QueryResultType<Wt::Dbo::Query<ResultType, BindStrategy>>
+    {
+        using type = ResultType;
+    };
+
+    template <typename Query, typename UnaryFunc>
+    void forEachQueryResult(const Query& query, UnaryFunc&& func)
+    {
+        LMS_SCOPED_TRACE_DETAILED_WITH_ARG("Database", "ForEachQueryResult", "Query", query.asString());
+        forEachResult(query.resultList(), std::forward<UnaryFunc>(func));
+    }
+
+    template <typename T, typename Query>
+    std::vector<T> fetchQueryResults(const Query& query)
+    {
+        LMS_SCOPED_TRACE_DETAILED_WITH_ARG("Database", "FetchQueryResults", "Query", query.asString());
+
+        auto collection{ query.resultList() };
+        return std::vector<T>(collection.begin(), collection.end());
+    }
+
+    template <typename Query>
+    std::vector<typename QueryResultType<Query>::type> fetchQueryResults(const Query& query)
+    {
+        LMS_SCOPED_TRACE_DETAILED_WITH_ARG("Database", "FetchQueryResults", "Query", query.asString());
+
+        auto collection{ query.resultList() };
+        return std::vector<typename QueryResultType<Query>::type>(collection.begin(), collection.end());
+    }
+    
+    template <typename Query>
+    auto fetchQuerySingleResult(const Query& query)
+    {
+        LMS_SCOPED_TRACE_DETAILED_WITH_ARG("Database", "FetchQuerySingleResult", "Query", query.asString());
+        return query.resultValue();
+    }
+
     template <typename ResultType, typename Query>
-    RangeResults<ResultType> execQuery(Query& query, std::optional<Range> range)
+    RangeResults<ResultType> execRangeQuery(Query& query, const std::optional<Range> range)
     {
         RangeResults<ResultType> res;
 
         if (range)
+        {
+            res.range.offset = range->offset;
             applyRange(query, Range{ range->offset, range->size + 1 });
 
-        auto collection{ query.resultList() };
-        res.results.assign(collection.begin(), collection.end());
-        if (range && res.results.size() == static_cast<std::size_t>(range->size) + 1)
+            res.results.reserve(range->size);
+        }
+
+        // TODO optim useless last copy
+        res.results = utils::fetchQueryResults<ResultType>(query);
+        if (range && (res.results.size() == range->size + 1))
         {
-            // TODO may optim by not actually requesting the last one
             res.moreResults = true;
             res.results.pop_back();
         }
-        else
-            res.moreResults = false;
 
-        res.range.offset = range->offset;
         res.range.size = res.results.size();
 
         return res;
     }
 
-    template <typename ResultType, typename Query>
-    void execQuery(Query& query, std::optional<Range> range, std::function<void(const ResultType&)> func)
+    template <typename Query, typename UnaryFunc>
+    void forEachQueryRangeResult(Query& query, std::optional<Range> range, UnaryFunc&& func)
     {
         if (range)
             applyRange(query, range);
 
-        for (const auto& res : query.resultList())
-            func(res);
+        forEachQueryResult(query, std::forward<UnaryFunc>(func));
+    }
+
+    template <typename Query, typename UnaryFunc>
+    void forEachQueryRangeResult(Query& query, std::optional<Range> range, bool& moreResults, UnaryFunc&& func)
+    {
+        using ResultType = typename QueryResultType<Query>::type;
+
+        if (range)
+            applyRange(query, Range{ range->offset, range->size + 1 });
+
+        moreResults = false;
+
+        std::size_t count{};
+        const auto collection{ query.resultList() };
+        auto it{ fetchFirstResult(collection) };
+        while (it != collection.end())
+        {
+            if (range && (count++ == static_cast<std::size_t>(range->size)))
+            {
+                moreResults = true;
+                break;
+            }
+
+            func(*it);
+            fetchNextResult<ResultType>(it);
+        }
     }
 
     Wt::WDateTime normalizeDateTime(const Wt::WDateTime& dateTime);
-} // namespace Database::Utils
-
+}

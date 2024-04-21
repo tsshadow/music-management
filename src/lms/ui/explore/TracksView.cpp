@@ -23,7 +23,7 @@
 
 #include "database/Session.hpp"
 #include "database/Track.hpp"
-#include "utils/ILogger.hpp"
+#include "core/ILogger.hpp"
 
 #include "common/InfiniteScrollingContainer.hpp"
 #include "explore/Filters.hpp"
@@ -31,10 +31,10 @@
 #include "explore/TrackListHelpers.hpp"
 #include "LmsApplication.hpp"
 
-using namespace Database;
-
-namespace UserInterface
+namespace lms::ui
 {
+    using namespace db;
+
     Tracks::Tracks(Filters& filters, PlayQueueController& playQueueController)
         : Template{ Wt::WString::tr("Lms.Explore.Tracks.template") }
         , _filters{ filters }
@@ -47,7 +47,7 @@ namespace UserInterface
         auto bindMenuItem{ [this](const std::string& var, const Wt::WString& title, TrackCollector::Mode mode)
         {
             auto* menuItem {bindNew<Wt::WPushButton>(var, title)};
-            menuItem->clicked().connect([=]
+            menuItem->clicked().connect([this, mode, menuItem]
             {
                 refreshView(mode);
                 _currentActiveItem->removeStyleClass("active");
@@ -70,23 +70,23 @@ namespace UserInterface
         bindMenuItem("all", Wt::WString::tr("Lms.Explore.all"), TrackCollector::Mode::All);
 
         bindNew<Wt::WPushButton>("play-btn", Wt::WString::tr("Lms.Explore.play"), Wt::TextFormat::XHTML)
-            ->clicked().connect([=]
+            ->clicked().connect([this]
                 {
                     _playQueueController.processCommand(PlayQueueController::Command::Play, getAllTracks());
                 });
 
         bindNew<Wt::WPushButton>("play-shuffled", Wt::WString::tr("Lms.Explore.play-shuffled"), Wt::TextFormat::Plain)
-            ->clicked().connect([=]
+            ->clicked().connect([this]
                 {
                     _playQueueController.processCommand(PlayQueueController::Command::PlayShuffled, getAllTracks());
                 });
         bindNew<Wt::WPushButton>("play-next", Wt::WString::tr("Lms.Explore.play-next"), Wt::TextFormat::Plain)
-            ->clicked().connect([=]
+            ->clicked().connect([this]
                 {
                     _playQueueController.processCommand(PlayQueueController::Command::PlayNext, getAllTracks());
                 });
         bindNew<Wt::WPushButton>("play-last", Wt::WString::tr("Lms.Explore.play-last"), Wt::TextFormat::Plain)
-            ->clicked().connect([=]
+            ->clicked().connect([this]
                 {
                     _playQueueController.processCommand(PlayQueueController::Command::PlayOrAddLast, getAllTracks());
                 });
@@ -128,11 +128,13 @@ namespace UserInterface
             if (const Track::pointer track{ Track::find(LmsApp->getDbSession(), trackId) })
                 _container->add(TrackListHelpers::createEntry(track, _playQueueController, _filters));
         }
+
+        _container->setHasMore(trackIds.moreResults);
     }
 
-    std::vector<Database::TrackId> Tracks::getAllTracks()
+    std::vector<db::TrackId> Tracks::getAllTracks()
     {
         RangeResults<TrackId> trackIds{ _trackCollector.get() };
         return std::move(trackIds.results);
     }
-} // namespace UserInterface
+} // namespace lms::ui

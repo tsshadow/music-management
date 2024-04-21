@@ -15,6 +15,7 @@ add_library(lmssubsonic SHARED
 	impl/responses/Bookmark.cpp
 	impl/responses/Contributor.cpp
 	impl/responses/DiscTitle.cpp
+	impl/responses/ItemDate.cpp
 	impl/responses/ItemGenre.cpp
 	impl/responses/Genre.cpp
 	impl/responses/Playlist.cpp
@@ -47,7 +48,7 @@ target_link_libraries(lmssubsonic PRIVATE
 	lmsscanner
 	lmsscrobbling
 	lmsservice-cover
-	lmsutils
+	lmscore
 	std::filesystem
 	)
 
@@ -55,5 +56,8 @@ target_link_libraries(lmssubsonic PUBLIC
 	Wt::Wt
 	)
 
-install(TARGETS lmssubsonic DESTINATION lib)
+install(TARGETS lmssubsonic DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
+if (BUILD_BENCHMARKS)
+       add_subdirectory(bench)
+endif()

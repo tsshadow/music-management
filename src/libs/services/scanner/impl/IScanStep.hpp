@@ -19,27 +19,28 @@
 
 #pragma once
 
-#include <string_view>
+#include <vector>
 
+#include "core/LiteralString.hpp"
+#include "services/scanner/ScannerOptions.hpp"
 #include "services/scanner/ScannerStats.hpp"
 
-namespace Scanner
+namespace lms::scanner
 {
-	class IScanStep
-	{
-		public:
-			virtual ~IScanStep() = default;
+    class IScanStep
+    {
+    public:
+        virtual ~IScanStep() = default;
 
-			virtual ScanStep getStep() const = 0;
-			virtual std::string_view getStepName() const = 0;
+        virtual ScanStep getStep() const = 0;
+        virtual core::LiteralString getStepName() const = 0;
 
-			struct ScanContext
-			{
-				const std::filesystem::path directory;
-				const bool forceScan;
-				ScanStats stats;
-				ScanStepStats currentStepStats;
-			};
-			virtual void process(ScanContext& context) = 0;
-	};
+        struct ScanContext
+        {
+            ScanOptions scanOptions;
+            ScanStats stats;
+            ScanStepStats currentStepStats;
+        };
+        virtual void process(ScanContext& context) = 0;
+    };
 }

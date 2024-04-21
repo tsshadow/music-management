@@ -4,6 +4,7 @@ add_library(lmsdatabase SHARED
 	impl/Cluster.cpp
 	impl/Db.cpp
 	impl/Listen.cpp
+	impl/MediaLibrary.cpp
 	impl/Migration.cpp
 	impl/TrackArtistLink.cpp
 	impl/TrackFeatures.cpp
@@ -17,11 +18,14 @@ add_library(lmsdatabase SHARED
 	impl/SqlQuery.cpp
 	impl/Track.cpp
 	impl/TrackBookmark.cpp
-	impl/TransactionChecker.cpp
 	impl/Types.cpp
 	impl/User.cpp
 	impl/Utils.cpp
 	)
+
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+	target_sources(lmsdatabase PRIVATE impl/TransactionChecker.cpp)
+endif()
 
 target_include_directories(lmsdatabase INTERFACE
 	include
@@ -36,12 +40,12 @@ target_link_libraries(lmsdatabase PRIVATE
 	)
 
 target_link_libraries(lmsdatabase PUBLIC
-	lmsutils
+	lmscore
 	std::filesystem
 	Wt::Dbo
 	)
 
-install(TARGETS lmsdatabase DESTINATION lib)
+install(TARGETS lmsdatabase DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 if(BUILD_TESTING)
 	add_subdirectory(test)

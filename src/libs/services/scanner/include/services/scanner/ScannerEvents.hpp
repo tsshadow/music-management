@@ -24,23 +24,26 @@
 
 #include "ScannerStats.hpp"
 
-namespace Scanner
+namespace lms::scanner
 {
 
-	struct Events
-	{
-		// Called just after scan start
-		Wt::Signal<> 				scanStarted;
+    struct Events
+    {
+        // Called if scan was aborted
+        Wt::Signal<> 				scanAborted;
 
-		// Called just after scan complete (true if changes have been made)
-		Wt::Signal<ScanStats>		scanComplete;
+        // Called just after scan start
+        Wt::Signal<> 				scanStarted;
 
-		// Called during scan in progress
-		Wt::Signal<ScanStepStats>	scanInProgress;
+        // Called just after scan complete (true if changes have been made)
+        Wt::Signal<ScanStats>		scanComplete;
 
-		// Called after a schedule
-		Wt::Signal<Wt::WDateTime>	scanScheduled;
-	};
+        // Called during scan in progress
+        Wt::Signal<ScanStepStats>	scanInProgress;
+
+        // Called after a schedule
+        Wt::Signal<Wt::WDateTime>	scanScheduled;
+    };
 
 } // ns Scanner
 

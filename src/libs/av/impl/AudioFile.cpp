@@ -31,10 +31,10 @@ extern "C"
 #include <map>
 #include <unordered_map>
 
-#include "utils/ILogger.hpp"
-#include "utils/String.hpp"
+#include "core/ILogger.hpp"
+#include "core/String.hpp"
 
-namespace Av
+namespace lms::av
 {
     namespace
     {
@@ -48,11 +48,11 @@ namespace Av
                 return "Unknown error";
         }
 
-        class AudioFileException : public Av::Exception
+        class AudioFileException : public Exception
         {
         public:
             AudioFileException(int avError)
-                : Av::Exception{ "AudioFileException: " + averror_to_string(avError) }
+                : Exception{ "AudioFileException: " + averror_to_string(avError) }
             {}
         };
 
@@ -64,7 +64,7 @@ namespace Av
             AVDictionaryEntry* tag = NULL;
             while ((tag = ::av_dict_get(dictionnary, "", tag, AV_DICT_IGNORE_SUFFIX)))
             {
-                res[StringUtils::stringToUpper(tag->key)] = tag->value;
+                res[core::stringUtils::stringToUpper(tag->key)] = tag->value;
             }
         }
 
@@ -281,9 +281,16 @@ namespace Av
         res.emplace();
         res->index = streamIndex;
         res->bitrate = static_cast<std::size_t>(avstream->codecpar->bit_rate);
+        res->bitsPerSample = static_cast<std::size_t>(avstream->codecpar->bits_per_coded_sample);
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(59, 24, 100)
+        res->channelCount = static_cast<std::size_t>(avstream->codecpar->channels);
+#else
+        res->channelCount = static_cast<std::size_t>(avstream->codecpar->ch_layout.nb_channels);
+#endif
         res->codec = avcodecToDecodingCodec(avstream->codecpar->codec_id);
         res->codecName = ::avcodec_get_name(avstream->codecpar->codec_id);
         assert(!res->codecName.empty()); // doc says it is never NULL
+        res->sampleRate = static_cast<std::size_t>(avstream->codecpar->sample_rate);
 
         return res;
     }
@@ -320,10 +327,10 @@ namespace Av
             {".mka",    "audio/x-matroska"},
         };
 
-        auto it{ entries.find(StringUtils::stringToLower(fileExtension.string())) };
+        auto it{ entries.find(core::stringUtils::stringToLower(fileExtension.string())) };
         if (it == std::cend(entries))
             return "";
 
         return it->second;
     }
-} // namespace Av
+} // namespace lms::av

@@ -306,9 +306,7 @@ namespace lms::metadata
                 _hasEmbeddedCover = true;
         }
 
-        if()
-
-//        if (debug && core::Service<core::logging::ILogger>::get()->isSeverityActive(core::logging::Severity::DEBUG))
+        if (debug && core::Service<core::logging::ILogger>::get()->isSeverityActive(core::logging::Severity::DEBUG))
         {
             for (const auto& [key, values] : _propertyMap)
             {

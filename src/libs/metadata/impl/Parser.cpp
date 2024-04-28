@@ -323,9 +323,9 @@ namespace lms::metadata
         // user.schriks: Custom tags:
         track.rating = getRating(tagReader);
 
-        if (track.date.year())
+        if (track.year.has_value())
         {
-            track.userExtraTags["YEAR"] = {std::to_string(track.date.year())};
+            track.userExtraTags["YEAR"] = {std::to_string(track.year.value())};
         }
 
         if (track.audioProperties.duration > std::chrono::minutes(10))
@@ -347,11 +347,8 @@ namespace lms::metadata
      */
     std::optional<int> Parser::getRating(const ITagReader& tagReader)
     {
-        std::cout << "getRating" << std::endl;
         std::optional<int> tagRating = getTagValueAs<int>(tagReader, TagType::Rating);
         if (tagRating.has_value()) {
-            std::cout << tagRating.value() << std::endl;
-
             if (tagRating.value() == 100 || tagRating.value() == 255) return 5;
             if (tagRating.value() == 80 || tagRating.value() == 196) return 4;
             if (tagRating.value() == 60 || tagRating.value() == 128) return 3;

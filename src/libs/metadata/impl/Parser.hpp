@@ -39,7 +39,7 @@ namespace lms::metadata
 
         void processTags(const ITagReader& reader, Track& track);
 
-        std::optional<int> getRating(const ITagReader& tagReader);
+        static std::optional<int> getRating(const ITagReader& tagReader);
         std::optional<Medium> getMedium(const ITagReader& tagReader);
         std::optional<Release> getRelease(const ITagReader& tagReader);
 

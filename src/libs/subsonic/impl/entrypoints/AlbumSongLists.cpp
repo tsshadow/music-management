@@ -295,7 +295,6 @@ namespace lms::api::subsonic
         Response::Node& songsByGenreNode{ response.createNode("songsByGenre") };
 
         Track::FindParameters params;
-//        params.setClusters(std::initializer_list<ClusterId>{ cluster->getId() });
         std::vector<ClusterId> clusters =  {cluster->getId()};
         if (year.has_value())
         {
@@ -344,21 +343,17 @@ namespace lms::api::subsonic
         if (!cluster)
             throw RequestedDataNotFoundError{};
 
-        User::pointer user{ User::find(context.dbSession, context.userId) };
-        if (!user)
-            throw UserNotAuthorizedError{};
-
         Response response{ Response::createOkResponse(context.serverProtocolVersion) };
         Response::Node& songsByYearNode{ response.createNode("songsByYear") };
 
         Track::FindParameters params;
-        params.setClusters({ cluster->getId() });
+        params.setClusters(std::initializer_list<ClusterId>{ cluster->getId() });
         params.setRange(Range{ offset, count });
         params.setMediaLibrary(mediaLibrary);
 
         Track::find(context.dbSession, params, [&](const Track::pointer& track)
         {
-            songsByYearNode.addArrayChild("song", createSongNode(context, track, user));
+            songsByYearNode.addArrayChild("song", createSongNode(context, track, context.user));
         });
 
         return response;
@@ -390,10 +385,6 @@ namespace lms::api::subsonic
         if (!cluster)
             throw RequestedDataNotFoundError{};
 
-        User::pointer user{ User::find(context.dbSession, context.userId) };
-        if (!user)
-            throw UserNotAuthorizedError{};
-
         Response response{ Response::createOkResponse(context.serverProtocolVersion) };
         Response::Node& songsByMoodNode{ response.createNode("songsByMood") };
 
@@ -414,7 +405,7 @@ namespace lms::api::subsonic
         {
             if (track->getRating().value_or(0) >= ratingMin &&
                 track->getRating().value_or(0)  <= ratingMax)
-                songsByMoodNode.addArrayChild("song", createSongNode(context, track, user));
+                songsByMoodNode.addArrayChild("song", createSongNode(context, track, context.user));
         });
 
         return response;

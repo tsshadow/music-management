@@ -365,6 +365,9 @@ namespace lms::api::subsonic
             LMS_LOG(API_SUBSONIC, ERROR, "Error while processing request '" << requestPath << "'"
                                                                             << ", params = [" << parameterMapToDebugString(request.getParameterMap()) << "]"
                                                                             << ", code = " << static_cast<int>(e.getCode()) << ", msg = '" << e.getMessage() << "'");
+            std::cout<<"Error while processing request '" << requestPath << "'"
+                                                                            << ", params = [" << parameterMapToDebugString(request.getParameterMap()) << "]"
+                                                                            << ", code = " << static_cast<int>(e.getCode()) << ", msg = '" << e.getMessage() << "'"<<std::endl;
             Response resp{ Response::createFailedResponse(protocolVersion, e) };
             resp.write(response.out(), format);
             response.setMimeType(std::string{ ResponseFormatToMimeType(format) });

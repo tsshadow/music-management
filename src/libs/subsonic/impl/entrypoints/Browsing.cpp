@@ -123,29 +123,29 @@ namespace lms::api::subsonic
             std::map<char, std::vector<ArtistId>> artistsSortedByFirstChar;
             std::size_t currentArtistOffset{ 0 };
             constexpr std::size_t batchSize{ 100 };
-            bool hasMoreArtists{ true };
-            while (hasMoreArtists)
-            {
-                auto transaction{ context.dbSession.createReadTransaction() };
-
-                parameters.setRange(Range{ currentArtistOffset, batchSize });
-                const auto artists{ Artist::find(context.dbSession, parameters) };
-                for (const Artist::pointer& artist : artists.results)
-                {
-                    std::string_view sortName{ artist->getSortName() };
-
-                    char sortChar;
-                    if (sortName.empty() || !std::isalpha(sortName[0]))
-                        sortChar = '?';
-                    else
-                        sortChar = std::toupper(sortName[0]);
-
-                    artistsSortedByFirstChar[sortChar].push_back(artist->getId());
-                }
-
-                hasMoreArtists = artists.moreResults;
-                currentArtistOffset += artists.results.size();
-            }
+//            bool hasMoreArtists{ true };
+//            while (hasMoreArtists)
+//            {
+//                auto transaction{ context.dbSession.createReadTransaction() };
+//
+//                parameters.setRange(Range{ currentArtistOffset, batchSize });
+//                const auto artists{ Artist::find(context.dbSession, parameters) };
+//                for (const Artist::pointer& artist : artists.results)
+//                {
+//                    std::string_view sortName{ artist->getSortName() };
+//
+//                    char sortChar;
+//                    if (sortName.empty() || !std::isalpha(sortName[0]))
+//                        sortChar = '?';
+//                    else
+//                        sortChar = std::toupper(sortName[0]);
+//
+//                    artistsSortedByFirstChar[sortChar].push_back(artist->getId());
+//                }
+//
+//                hasMoreArtists = artists.moreResults;
+//                currentArtistOffset += artists.results.size();
+//            }
 
             // second pass: add each artist
             LMS_LOG(API_SUBSONIC, DEBUG, "GetArtists: constructing response...");

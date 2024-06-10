@@ -191,6 +191,7 @@ CREATE TABLE IF NOT EXISTS "track" (
   "id" integer primary key autoincrement,
   "version" integer not null,
   "scan_version" integer not null,
+  "rating" integer not null,
   "track_number" integer not null,
   "disc_number" integer not null,
   "name" text not null,
@@ -275,16 +276,16 @@ INSERT INTO release (version, name, mbid) VALUES
 (2, 'Release Y', 'mbid_release_y');
 
 -- Inserting tracks without any associated artists or releases (Orphan Tracks)
-INSERT INTO track (version, scan_version, track_number, disc_number, name, duration, date, original_date, file_path, file_last_write, file_added, has_cover, mbid, recording_mbid, copyright, copyright_url)
+INSERT INTO track (version, scan_version, rating, track_number, disc_number, name, duration, date, original_date, file_path, file_last_write, file_added, has_cover, mbid, recording_mbid, copyright, copyright_url)
 VALUES
-(1, 1, 1, 1, 'Orphan Track 1', 180, '2024-05-08', '2024-05-08', '/path/to/orphan_track_1.mp3', '2024-05-08', '2024-05-08', 1, 'mbid_orphan_track_1', 'mbid_recording_orphan_track_1', 'Copyright 2024', 'http://example.com/copyright'),
-(2, 1, 2, 1, 'Orphan Track 2', 210, '2024-05-08', '2024-05-08', '/path/to/orphan_track_2.mp3', '2024-05-08', '2024-05-08', 1, 'mbid_orphan_track_2', 'mbid_recording_orphan_track_2', 'Copyright 2024', 'http://example.com/copyright');
+(1, 1, 0, 1, 1, 'Orphan Track 1', 180, '2024-05-08', '2024-05-08', '/path/to/orphan_track_1.mp3', '2024-05-08', '2024-05-08', 1, 'mbid_orphan_track_1', 'mbid_recording_orphan_track_1', 'Copyright 2024', 'http://example.com/copyright'),
+(2, 1, 0, 2, 1, 'Orphan Track 2', 210, '2024-05-08', '2024-05-08', '/path/to/orphan_track_2.mp3', '2024-05-08', '2024-05-08', 1, 'mbid_orphan_track_2', 'mbid_recording_orphan_track_2', 'Copyright 2024', 'http://example.com/copyright');
 
 -- Inserting tracks with artists but no releases
-INSERT INTO track (version, scan_version, track_number, disc_number, name, duration, date, original_date, file_path, file_last_write, file_added, has_cover, mbid, recording_mbid, copyright, copyright_url)
+INSERT INTO track (version, scan_version, rating, track_number, disc_number, name, duration, date, original_date, file_path, file_last_write, file_added, has_cover, mbid, recording_mbid, copyright, copyright_url)
 VALUES
-(1, 1, 3, 1, 'Track with Artist A', 200, '2024-05-08', '2024-05-08', '/path/to/track_with_artist_a.mp3', '2024-05-08', '2024-05-08', 1, 'mbid_track_with_artist_a', 'mbid_recording_track_with_artist_a', 'Copyright 2024', 'http://example.com/copyright'),
-(2, 1, 4, 1, 'Track with Artist B', 220, '2024-05-08', '2024-05-08', '/path/to/track_with_artist_b.mp3', '2024-05-08', '2024-05-08', 1, 'mbid_track_with_artist_b', 'mbid_recording_track_with_artist_b', 'Copyright 2024', 'http://example.com/copyright');
+(1, 1, 0, 3, 1, 'Track with Artist A', 200, '2024-05-08', '2024-05-08', '/path/to/track_with_artist_a.mp3', '2024-05-08', '2024-05-08', 1, 'mbid_track_with_artist_a', 'mbid_recording_track_with_artist_a', 'Copyright 2024', 'http://example.com/copyright'),
+(2, 1, 0, 4, 1, 'Track with Artist B', 220, '2024-05-08', '2024-05-08', '/path/to/track_with_artist_b.mp3', '2024-05-08', '2024-05-08', 1, 'mbid_track_with_artist_b', 'mbid_recording_track_with_artist_b', 'Copyright 2024', 'http://example.com/copyright');
 
 -- Inserting tracks with artists linked
 INSERT INTO track_artist_link (version, type, name, track_id, artist_id)
@@ -293,10 +294,10 @@ VALUES
 (2, 1, 'Artist B', 4, 2);
 
 -- Inserting tracks with artists and releases
-INSERT INTO track (version, scan_version, track_number, disc_number, name, duration, date, original_date, file_path, file_last_write, file_added, has_cover, mbid, recording_mbid, copyright, copyright_url, release_id, total_disc, total_track, track_replay_gain, release_replay_gain)
+INSERT INTO track (version, scan_version, rating, track_number, disc_number, name, duration, date, original_date, file_path, file_last_write, file_added, has_cover, mbid, recording_mbid, copyright, copyright_url, release_id, total_disc, total_track, track_replay_gain, release_replay_gain)
 VALUES
-(1, 1, 5, 1, 'Track with Artist and Release X', 180, '2024-05-08', '2024-05-08', '/path/to/track_with_artist_and_release_x.mp3', '2024-05-08', '2024-05-08', 1, 'mbid_track_with_artist_and_release_x', 'mbid_recording_track_with_artist_and_release_x', 'Copyright 2024', 'http://example.com/copyright', 1, 1, 10, 0, 0),
-(1, 1, 6, 1, 'Track with Artist and Release Y', 210, '2024-05-08', '2024-05-08', '/path/to/track_with_artist_and_release_y.mp3', '2024-05-08', '2024-05-08', 1, 'mbid_track_with_artist_and_release_y', 'mbid_recording_track_with_artist_and_release_y', 'Copyright 2024', 'http://example.com/copyright', 1, 1, 10, 0, 0);
+(1, 1, 0, 5, 1, 'Track with Artist and Release X', 180, '2024-05-08', '2024-05-08', '/path/to/track_with_artist_and_release_x.mp3', '2024-05-08', '2024-05-08', 1, 'mbid_track_with_artist_and_release_x', 'mbid_recording_track_with_artist_and_release_x', 'Copyright 2024', 'http://example.com/copyright', 1, 1, 10, 0, 0),
+(1, 1, 0, 6, 1, 'Track with Artist and Release Y', 210, '2024-05-08', '2024-05-08', '/path/to/track_with_artist_and_release_y.mp3', '2024-05-08', '2024-05-08', 1, 'mbid_track_with_artist_and_release_y', 'mbid_recording_track_with_artist_and_release_y', 'Copyright 2024', 'http://example.com/copyright', 1, 1, 10, 0, 0);
 
 -- Inserting tracks with artists and releases linked
 INSERT INTO track_artist_link (version, type, name, track_id, artist_id)

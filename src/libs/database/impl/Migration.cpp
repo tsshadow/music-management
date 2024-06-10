@@ -377,6 +377,7 @@ SELECT
  id,
  version,
  scan_version,
+ rating,
  track_number,
  disc_number,
  total_track,

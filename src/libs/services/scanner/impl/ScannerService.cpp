@@ -263,10 +263,8 @@ namespace lms::scanner
 
         {
             std::unique_lock lock{ _statusMutex };
-            _curState = State::InProgress;
             _nextScheduledScan = {};
         }
-
 
         LMS_LOG(UI, INFO, "New scan started!");
 
@@ -302,7 +300,12 @@ namespace lms::scanner
         if (!_abortScan)
         {
             stats.stopTime = Wt::WDateTime::currentDateTime();
-          
+
+            {
+                std::unique_lock lock{ _statusMutex };
+                _lastCompleteScanStats = stats;
+            }
+
             LMS_LOG(DBUPDATER, DEBUG, "Scan not aborted, scheduling next scan!");
             scheduleNextScan();
 
@@ -391,6 +394,8 @@ namespace lms::scanner
     {
         {
             std::unique_lock lock{ _statusMutex };
+
+            _curState = State::InProgress;
             _currentScanStepStats = stepStats;
         }
 

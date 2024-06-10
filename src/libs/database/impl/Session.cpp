@@ -19,8 +19,6 @@
 
 #include "database/Session.hpp"
 
-#include <cassert>
-
 #include "core/Exception.hpp"
 #include "core/ILogger.hpp"
 #include "core/ITraceLogger.hpp"
@@ -119,6 +117,11 @@ namespace lms::db
     ReadTransaction Session::createReadTransaction()
     {
         return ReadTransaction{ _session };
+    }
+
+    void Session::execute(std::string_view statement)
+    {
+        _session.execute(std::string{ statement });
     }
 
     void Session::prepareTablesIfNeeded()

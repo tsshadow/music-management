@@ -27,6 +27,10 @@ namespace lms::image
     {
     public:
         virtual ~IRawImage() = default;
+
+        virtual ImageSize getWidth() const = 0;
+        virtual ImageSize getHeight() const = 0;
+
         virtual void resize(ImageSize width) = 0;
         virtual std::unique_ptr<IEncodedImage> encodeToJPEG(unsigned quality) const = 0;
     };

@@ -21,9 +21,10 @@
 
 #include <Wt/Dbo/WtSqlTraits.h>
 
+#include "core/String.hpp"
 #include "database/MediaLibrary.hpp"
 #include "database/Session.hpp"
-#include "core/String.hpp"
+
 #include "Utils.hpp"
 
 namespace lms::db
@@ -58,7 +59,11 @@ namespace lms::db
 
     std::vector<std::string_view> ScanSettings::getExtraTagsToScan() const
     {
-        return core::stringUtils::splitString(_extraTagsToScan, ';');
+        std::vector<std::string_view> tags{ core::stringUtils::splitString(_extraTagsToScan, ';') };
+        if (tags.size() == 1 && tags.front().empty())
+            tags.clear();
+
+        return tags;
     }
 
     std::vector<std::string> ScanSettings::getArtistTagDelimiters() const
@@ -71,7 +76,7 @@ namespace lms::db
         return core::stringUtils::splitEscapedStrings(_defaultTagDelimiters, ';', '\\');
     }
 
-    void ScanSettings::setExtraTagsToScan(const std::vector<std::string_view>& extraTags)
+    void ScanSettings::setExtraTagsToScan(std::span<const std::string_view> extraTags)
     {
         std::string newTagsToScan{ core::stringUtils::joinStrings(extraTags, ";") };
         if (newTagsToScan != _extraTagsToScan)

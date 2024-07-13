@@ -18,8 +18,14 @@
  */
 
 #include "Common.hpp"
+
 #include "core/String.hpp"
 #include "database/Db.hpp"
+#include "database/Directory.hpp"
+#include "database/Image.hpp"
+#include "database/StarredArtist.hpp"
+#include "database/StarredRelease.hpp"
+#include "database/StarredTrack.hpp"
 
 namespace lms::db::tests
 {
@@ -34,7 +40,7 @@ namespace lms::db::tests
                     session.execute(statement);
             }
         }
-    }
+    } // namespace
 
     TEST(Database, migration)
     {
@@ -264,7 +270,7 @@ CREATE INDEX starred_artist_user_scrobbler_idx ON starred_artist(user_id,scrobbl
 CREATE INDEX starred_release_user_scrobbler_idx ON starred_release(user_id,scrobbler);
 CREATE INDEX starred_track_user_scrobbler_idx ON starred_track(user_id,scrobbler);)" };
 
-        const std::string_view createDummyData{R"(
+        const std::string_view createDummyData{ R"(
 -- Inserting artists
 INSERT INTO artist (version, name, sort_name, mbid) VALUES
 (1, 'Artist A', 'Artist A', 'mbid_artist_a'),
@@ -303,7 +309,7 @@ VALUES
 INSERT INTO track_artist_link (version, type, name, track_id, artist_id)
 VALUES
 (1, 1, 'Artist A', 5, 1),
-(2, 1, 'Artist B', 6, 2);)"};
+(2, 1, 'Artist B', 6, 2);)" };
 
         Session session{ db };
 
@@ -319,5 +325,24 @@ VALUES
 
         // Now perform full migration
         db.getTLSSession().migrateSchemaIfNeeded();
+
+        // Now perform some dummy finds to ensure all fields are correctly mapped
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            EXPECT_FALSE(Artist::find(session, ArtistId{}));
+            EXPECT_FALSE(Cluster::find(session, ClusterId{}));
+            EXPECT_FALSE(ClusterType::find(session, ClusterTypeId{}));
+            EXPECT_FALSE(Directory::find(session, DirectoryId{}));
+            EXPECT_FALSE(Image::find(session, ImageId{}));
+            EXPECT_FALSE(Listen::find(session, ListenId{}));
+            EXPECT_FALSE(Release::find(session, ReleaseId{}));
+            EXPECT_FALSE(StarredArtist::find(session, StarredArtistId{}));
+            EXPECT_FALSE(StarredRelease::find(session, StarredReleaseId{}));
+            EXPECT_FALSE(StarredTrack::find(session, StarredTrackId{}));
+            EXPECT_FALSE(Track::find(session, TrackId{}));
+            EXPECT_FALSE(TrackList::find(session, TrackListId{}));
+            EXPECT_FALSE(User::find(session, UserId{}));
+        }
     }
-}
+} // namespace lms::db::tests

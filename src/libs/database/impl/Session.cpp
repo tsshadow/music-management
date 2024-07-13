@@ -22,11 +22,12 @@
 #include "core/Exception.hpp"
 #include "core/ILogger.hpp"
 #include "core/ITraceLogger.hpp"
-
 #include "database/Artist.hpp"
 #include "database/AuthToken.hpp"
 #include "database/Cluster.hpp"
 #include "database/Db.hpp"
+#include "database/Directory.hpp"
+#include "database/Image.hpp"
 #include "database/Listen.hpp"
 #include "database/MediaLibrary.hpp"
 #include "database/Release.hpp"
@@ -35,22 +36,23 @@
 #include "database/StarredRelease.hpp"
 #include "database/StarredTrack.hpp"
 #include "database/Track.hpp"
-#include "database/TrackBookmark.hpp"
 #include "database/TrackArtistLink.hpp"
-#include "database/TrackList.hpp"
+#include "database/TrackBookmark.hpp"
 #include "database/TrackFeatures.hpp"
+#include "database/TrackList.hpp"
 #include "database/TransactionChecker.hpp"
 #include "database/User.hpp"
+
 #include "EnumSetTraits.hpp"
-#include "PathTraits.hpp"
 #include "Migration.hpp"
+#include "PathTraits.hpp"
 #include "Utils.hpp"
 
 namespace lms::db
 {
     WriteTransaction::WriteTransaction(core::RecursiveSharedMutex& mutex, Wt::Dbo::Session& session)
-        : _lock{ mutex },
-        _transaction{ session }
+        : _lock{ mutex }
+        , _transaction{ session }
     {
 #if LMS_CHECK_TRANSACTION_ACCESSES
         TransactionChecker::pushWriteTransaction(_transaction.session());
@@ -92,6 +94,8 @@ namespace lms::db
         _session.mapClass<AuthToken>("auth_token");
         _session.mapClass<Cluster>("cluster");
         _session.mapClass<ClusterType>("cluster_type");
+        _session.mapClass<Directory>("directory");
+        _session.mapClass<Image>("image");
         _session.mapClass<Listen>("listen");
         _session.mapClass<MediaLibrary>("media_library");
         _session.mapClass<Release>("release");
@@ -176,6 +180,15 @@ namespace lms::db
 
         _session.execute("CREATE INDEX IF NOT EXISTS cluster_cluster_type_idx ON cluster(cluster_type_id)");
         _session.execute("CREATE INDEX IF NOT EXISTS cluster_type_name_idx ON cluster_type(name)");
+
+        _session.execute("CREATE INDEX IF NOT EXISTS directory_id_idx ON directory(id)");
+        _session.execute("CREATE INDEX IF NOT EXISTS directory_path_idx ON directory(absolute_path)");
+
+        _session.execute("CREATE INDEX IF NOT EXISTS image_artist_idx ON image(artist_id)");
+        _session.execute("CREATE INDEX IF NOT EXISTS image_directory_idx ON image(directory_id)");
+        _session.execute("CREATE INDEX IF NOT EXISTS image_id_idx ON image(id)");
+        _session.execute("CREATE INDEX IF NOT EXISTS image_path_idx ON image(absolute_file_path)");
+        _session.execute("CREATE INDEX IF NOT EXISTS image_stem_idx ON image(stem)");
 
         _session.execute("CREATE INDEX IF NOT EXISTS listen_backend_idx ON listen(backend)");
         _session.execute("CREATE INDEX IF NOT EXISTS listen_id_idx ON listen(id)");

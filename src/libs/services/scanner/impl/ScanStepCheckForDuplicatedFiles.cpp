@@ -17,24 +17,24 @@
  * along with LMS.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScanStepCheckDuplicatedDbFiles.hpp"
+#include "ScanStepCheckForDuplicatedFiles.hpp"
 
+#include "core/ILogger.hpp"
 #include "database/Db.hpp"
 #include "database/Session.hpp"
 #include "database/Track.hpp"
-#include "core/ILogger.hpp"
 
 namespace lms::scanner
 {
-    void ScanStepCheckDuplicatedDbFiles::process(ScanContext& context)
+    void ScanStepCheckForDuplicatedFiles::process(ScanContext& context)
     {
         using namespace db;
 
         if (_abortScan)
             return;
 
-		Session& session {_db.getTLSSession()};
-		auto transaction {session.createReadTransaction()};
+        Session& session{ _db.getTLSSession() };
+        auto transaction{ session.createReadTransaction() };
 
         const RangeResults<TrackId> tracks = Track::findIdsTrackMBIDDuplicates(session);
         for (const TrackId trackId : tracks.results)
@@ -54,4 +54,4 @@ namespace lms::scanner
 
         LMS_LOG(DBUPDATER, DEBUG, "Found " << context.currentStepStats.processedElems << " duplicated audio files");
     }
-}
+} // namespace lms::scanner

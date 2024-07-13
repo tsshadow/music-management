@@ -22,21 +22,20 @@
 #include <set>
 
 #include "av/IAudioFile.hpp"
-
-#include "database/Db.hpp"
-#include "database/Artist.hpp"
-#include "database/Release.hpp"
-#include "database/Session.hpp"
-#include "database/Track.hpp"
-
-#include "image/Exception.hpp"
-#include "image/Image.hpp"
 #include "core/IConfig.hpp"
 #include "core/ILogger.hpp"
 #include "core/Path.hpp"
 #include "core/Random.hpp"
 #include "core/String.hpp"
 #include "core/Utils.hpp"
+#include "database/Artist.hpp"
+#include "database/Db.hpp"
+#include "database/Image.hpp"
+#include "database/Release.hpp"
+#include "database/Session.hpp"
+#include "database/Track.hpp"
+#include "image/Exception.hpp"
+#include "image/Image.hpp"
 
 namespace lms::cover
 {
@@ -80,23 +79,10 @@ namespace lms::cover
             std::vector<std::string> res;
 
             core::Service<core::IConfig>::get()->visitStrings("cover-preferred-file-names",
-                [&res](std::string_view fileName)
-                {
+                [&res](std::string_view fileName) {
                     res.emplace_back(fileName);
-                }, { "cover", "front" });
-
-            return res;
-        }
-
-        std::vector<std::string> constructArtistFileNames()
-        {
-            std::vector<std::string> res;
-
-            core::Service<core::IConfig>::get()->visitStrings("artist-image-file-names",
-                [&res](std::string_view fileName)
-                {
-                    res.emplace_back(fileName);
-                }, { "artist" });
+                },
+                { "cover", "front" });
 
             return res;
         }
@@ -105,7 +91,7 @@ namespace lms::cover
         {
             return (std::find(std::cbegin(extensions), std::cend(extensions), file.extension()) != std::cend(extensions));
         }
-    }
+    } // namespace
 
     std::unique_ptr<ICoverService> createCoverService(db::Db& db, const std::filesystem::path& defaultSvgCoverPath)
     {
@@ -120,7 +106,6 @@ namespace lms::cover
         , _cache{ core::Service<core::IConfig>::get()->getULong("cover-max-cache-size", 30) * 1000 * 1000 }
         , _maxFileSize{ core::Service<core::IConfig>::get()->getULong("cover-max-file-size", 10) * 1000 * 1000 }
         , _preferredFileNames{ constructPreferredFileNames() }
-        , _artistFileNames{ constructArtistFileNames() }
     {
         setJpegQuality(core::Service<core::IConfig>::get()->getULong("cover-jpeg-quality", 75));
 
@@ -136,22 +121,21 @@ namespace lms::cover
     {
         std::unique_ptr<IEncodedImage> image;
 
-        input.visitAttachedPictures([&](const av::Picture& picture)
-            {
-                if (image)
-                    return;
+        input.visitAttachedPictures([&](const av::Picture& picture) {
+            if (image)
+                return;
 
-                try
-                {
-                    std::unique_ptr<IRawImage> rawImage{ decodeImage(picture.data, picture.dataSize) };
-                    rawImage->resize(width);
-                    image = rawImage->encodeToJPEG(_jpegQuality);
-                }
-                catch (const image::Exception& e)
-                {
-                    LMS_LOG(COVER, ERROR, "Cannot read embedded cover: " << e.what());
-                }
-            });
+            try
+            {
+                std::unique_ptr<IRawImage> rawImage{ decodeImage(picture.data, picture.dataSize) };
+                rawImage->resize(width);
+                image = rawImage->encodeToJPEG(_jpegQuality);
+            }
+            catch (const image::Exception& e)
+            {
+                LMS_LOG(COVER, ERROR, "Cannot read embedded cover: " << e.what());
+            }
+        });
 
         return image;
     }
@@ -183,19 +167,18 @@ namespace lms::cover
     {
         const std::multimap<std::string, std::filesystem::path> coverPaths{ getCoverPaths(directory) };
 
-        auto tryLoadImageFromFilename = [&](std::string_view fileName)
-            {
-                std::unique_ptr<IEncodedImage> image;
+        auto tryLoadImageFromFilename = [&](std::string_view fileName) {
+            std::unique_ptr<IEncodedImage> image;
 
-                auto range{ coverPaths.equal_range(std::string {fileName}) };
-                for (auto it{ range.first }; it != range.second; ++it)
-                {
-                    image = getFromCoverFile(it->second, width);
-                    if (image)
-                        break;
-                }
-                return image;
-            };
+            auto range{ coverPaths.equal_range(std::string{ fileName }) };
+            for (auto it{ range.first }; it != range.second; ++it)
+            {
+                image = getFromCoverFile(it->second, width);
+                if (image)
+                    break;
+            }
+            return image;
+        };
 
         std::unique_ptr<IEncodedImage> image;
 
@@ -353,14 +336,13 @@ namespace lms::cover
 
         Session& session{ _db.getTLSSession() };
 
-        auto getReleaseInfo{ [&]
-        {
+        auto getReleaseInfo{ [&] {
             std::optional<ReleaseInfo> res;
 
             auto transaction{ session.createReadTransaction() };
 
             // get a track in this release, consider the release is in a single directory
-            const auto tracks{ Track::find(session, Track::FindParameters {}.setRelease(releaseId).setRange(Range{ 0, 1 }).setSortMethod(TrackSortMethod::Release)) };
+            const auto tracks{ Track::find(session, Track::FindParameters{}.setRelease(releaseId).setRange(Range{ 0, 1 }).setSortMethod(TrackSortMethod::Release)) };
             if (!tracks.results.empty())
             {
                 const Track::pointer& track{ tracks.results.front() };
@@ -394,88 +376,15 @@ namespace lms::cover
         if (artistImage)
             return artistImage;
 
-        std::string artistName;
-        std::string artistMBID;
-
-        std::set<std::filesystem::path> releasePaths;
-        std::set<std::filesystem::path> multiArtistReleasePaths;
-
         {
             Session& session{ _db.getTLSSession() };
 
             auto transaction{ session.createReadTransaction() };
 
-            const Artist::pointer artist{ Artist::find(session, artistId) };
-            if (!artist)
-                return artistImage;
-
-            artistName = artist->getName();
-            if (auto mbid{ artist->getMBID() })
-                artistMBID = mbid->getAsString();
-
-            Track::FindParameters params;
-            params.setArtist(artistId, { TrackArtistLinkType::ReleaseArtist });
-
-            Track::find(session, params, [&](const Track::pointer& track)
-                {
-                    Artist::FindParameters artistFindParams;
-                    artistFindParams.setTrack(track->getId());
-                    artistFindParams.setLinkType(TrackArtistLinkType::ReleaseArtist);
-
-                    const auto releaseArtists{ Artist::findIds(session, artistFindParams) };
-                    if (releaseArtists.results.size() == 1)
-                        releasePaths.insert(track->getAbsoluteFilePath().parent_path());
-                    else
-                        multiArtistReleasePaths.insert(track->getAbsoluteFilePath().parent_path());
-                });
-        }
-
-        std::vector<std::string> artistFileNames;
-        if (!artistMBID.empty())
-            artistFileNames.push_back(artistMBID);
-        artistFileNames.push_back(artistName);
-
-        std::vector<std::string> artistFileNamesWithGenericNames{ artistFileNames };
-        artistFileNamesWithGenericNames.insert(artistFileNamesWithGenericNames.end(), std::cbegin(_artistFileNames), std::cend(_artistFileNames));
-
-        // Expect layout like this:
-        // ReleaseArtist/Release/Tracks'
-        //              /artist-mbid.jpg
-        //              /artist-name.jpg
-        //              /artist.jpg
-        if (!releasePaths.empty())
-        {
-            const std::filesystem::path artistPath{ releasePaths.size() == 1 ? releasePaths.begin()->parent_path() : core::pathUtils::getLongestCommonPath(std::cbegin(releasePaths), std::cend(releasePaths)) };
-            artistImage = getFromDirectory(artistPath, width, artistFileNamesWithGenericNames, false);
-        }
-
-        // Expect layout like this:
-        // ReleaseArtist/Release/Tracks'
-        //                      /artist-mbid.jpg
-        //                      /artist-name.jpg
-        //                      /artist.jpg
-        if (!artistImage)
-        {
-            for (const std::filesystem::path& releasePath : releasePaths)
+            if (const Artist::pointer artist{ Artist::find(session, artistId) })
             {
-                artistImage = getFromDirectory(releasePath, width, artistFileNamesWithGenericNames, false);
-                if (artistImage)
-                    break;
-            }
-        }
-
-        // Expect layout like this:
-        // Only search for the artist's name in the release path, as we can't map a generic name to several artists
-        // ReleaseArtist/Release/Tracks'
-        //                      /artist-name.jpg
-        //                      /artist-mbid.jpg
-        if (!artistImage)
-        {
-            for (const std::filesystem::path& releasePath : multiArtistReleasePaths)
-            {
-                artistImage = getFromDirectory(releasePath, width, artistFileNames, false);
-                if (artistImage)
-                    break;
+                if (const db::Image::pointer image{ artist->getImage() })
+                    artistImage = getFromCoverFile(image->getAbsoluteFilePath(), width);
             }
         }
 
@@ -487,6 +396,7 @@ namespace lms::cover
 
     void CoverService::flushCache()
     {
+        _cache.flush();
     }
 
     void CoverService::setJpegQuality(unsigned quality)
@@ -497,4 +407,3 @@ namespace lms::cover
     }
 
 } // namespace lms::cover
-

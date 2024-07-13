@@ -19,37 +19,39 @@
 
 #include "JPEGImage.hpp"
 
-#include "RawImage.hpp"
-#include "image/Exception.hpp"
 #include "core/ILogger.hpp"
+#include "core/ITraceLogger.hpp"
+#include "image/Exception.hpp"
+
+#include "RawImage.hpp"
 
 namespace lms::image::GraphicsMagick
 {
-	JPEGImage::JPEGImage(const RawImage& rawImage, unsigned quality)
-	{
-		try
-		{
-			Magick::Image image {rawImage.getMagickImage()};
-			image.magick("JPEG");
-			image.quality(quality);
-			image.write(&_blob);
-		}
-		catch (Magick::Exception& e)
-		{
-			LMS_LOG(COVER, ERROR, "Caught Magick exception: " << e.what());
-			throw Exception {std::string {"Magick read error: "} + e.what()};
-		}
-	}
+    JPEGImage::JPEGImage(const RawImage& rawImage, unsigned quality)
+    {
+        LMS_SCOPED_TRACE_DETAILED("Image", "WriteJPEG");
 
-	const std::byte*
-	JPEGImage::getData() const
-	{
-		return reinterpret_cast<const std::byte*>(_blob.data());
-	}
+        try
+        {
+            Magick::Image image{ rawImage.getMagickImage() };
+            image.magick("JPEG");
+            image.quality(quality);
+            image.write(&_blob);
+        }
+        catch (Magick::Exception& e)
+        {
+            LMS_LOG(COVER, ERROR, "Caught Magick exception: " << e.what());
+            throw Exception{ std::string{ "Magick read error: " } + e.what() };
+        }
+    }
 
-	std::size_t
-	JPEGImage::getDataSize() const
-	{
-		return _blob.length();
-	}
-}
+    const std::byte* JPEGImage::getData() const
+    {
+        return reinterpret_cast<const std::byte*>(_blob.data());
+    }
+
+    std::size_t JPEGImage::getDataSize() const
+    {
+        return _blob.length();
+    }
+} // namespace lms::image::GraphicsMagick

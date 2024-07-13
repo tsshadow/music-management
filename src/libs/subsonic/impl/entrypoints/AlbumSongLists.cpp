@@ -19,6 +19,7 @@
 
 #include "AlbumSongLists.hpp"
 
+#include "core/Service.hpp"
 #include "database/Artist.hpp"
 #include "database/Cluster.hpp"
 #include "database/Release.hpp"
@@ -27,12 +28,12 @@
 #include "database/User.hpp"
 #include "services/feedback/IFeedbackService.hpp"
 #include "services/scrobbling/IScrobblingService.hpp"
+
+#include "ParameterParsing.hpp"
+#include "SubsonicId.hpp"
 #include "responses/Album.hpp"
 #include "responses/Artist.hpp"
 #include "responses/Song.hpp"
-#include "core/Service.hpp"
-#include "ParameterParsing.hpp"
-#include "SubsonicId.hpp"
 
 namespace lms::api::subsonic
 {
@@ -103,9 +104,9 @@ namespace lms::api::subsonic
                 const int toYear{ getMandatoryParameterAs<int>(context.parameters, "toYear") };
 
                 Release::FindParameters params;
-                params.setSortMethod(ReleaseSortMethod::Date);
+                params.setSortMethod(fromYear > toYear ? ReleaseSortMethod::DateDesc : ReleaseSortMethod::DateAsc);
                 params.setRange(range);
-                params.setDateRange(DateRange::fromYearRange(fromYear, toYear));
+                params.setDateRange(DateRange::fromYearRange(std::min(fromYear, toYear), std::max(fromYear, toYear)));
                 params.setMediaLibrary(mediaLibraryId);
 
                 releases = Release::findIds(context.dbSession, params);
@@ -245,10 +246,9 @@ namespace lms::api::subsonic
         params.setRange(Range{ 0, size });
         params.setMediaLibrary(mediaLibraryId);
 
-        Track::find(context.dbSession, params, [&](const Track::pointer& track)
-            {
-                randomSongsNode.addArrayChild("song", createSongNode(context, track, context.user));
-            });
+        Track::find(context.dbSession, params, [&](const Track::pointer& track) {
+            randomSongsNode.addArrayChild("song", createSongNode(context, track, context.user));
+        });
 
         return response;
     }
@@ -277,7 +277,7 @@ namespace lms::api::subsonic
         std::size_t ratingMin{ getParameterAs<std::size_t>(context.parameters, "ratingMin").value_or(0) };
         std::size_t ratingMax{ getParameterAs<std::size_t>(context.parameters, "ratingMax").value_or(5) };
         if (count > defaultMaxCountSize)
-            throw ParameterValueTooHighGenericError{"count", defaultMaxCountSize};
+            throw ParameterValueTooHighGenericError{ "count", defaultMaxCountSize };
 
         std::size_t offset{ getParameterAs<std::size_t>(context.parameters, "offset").value_or(0) };
 
@@ -308,14 +308,12 @@ namespace lms::api::subsonic
         params.setRange(Range{ offset, count });
         params.setMediaLibrary(mediaLibrary);
 
-
-        Track::find(context.dbSession, params, [&](const Track::pointer& track)
-            {
-                if(
+        Track::find(context.dbSession, params, [&](const Track::pointer& track) {
+            if(
                     track->getRating().value_or(0) >= ratingMin &&
                     track->getRating().value_or(0)  <= ratingMax)
-                songsByGenreNode.addArrayChild("song", createSongNode(context, track, context.user));
-            });
+            songsByGenreNode.addArrayChild("song", createSongNode(context, track, context.user));
+        });
 
         return response;
     }
@@ -421,4 +419,4 @@ namespace lms::api::subsonic
         return handleGetStarredRequestCommon(context, true /* id3 */);
     }
 
-}
+} // namespace lms::api::subsonic

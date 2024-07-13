@@ -19,14 +19,15 @@
 
 #include "responses/Artist.hpp"
 
+#include "core/ITraceLogger.hpp"
+#include "core/Service.hpp"
+#include "core/String.hpp"
 #include "database/Artist.hpp"
+#include "database/Image.hpp"
 #include "database/Release.hpp"
 #include "database/TrackArtistLink.hpp"
 #include "database/User.hpp"
 #include "services/feedback/IFeedbackService.hpp"
-#include "core/ITraceLogger.hpp"
-#include "core/Service.hpp"
-#include "core/String.hpp"
 
 #include "SubsonicId.hpp"
 
@@ -45,8 +46,7 @@ namespace lms::api::subsonic
             names.resize(artists.size());
 
             std::transform(std::cbegin(artists), std::cend(artists), std::begin(names),
-                [](const Artist::pointer& artist)
-                {
+                [](const Artist::pointer& artist) {
                     return artist->getName();
                 });
 
@@ -57,22 +57,33 @@ namespace lms::api::subsonic
         {
             switch (type)
             {
-            case TrackArtistLinkType::Arranger: return "arranger";
-            case TrackArtistLinkType::Artist: return "artist";
-            case TrackArtistLinkType::Composer: return "composer";
-            case TrackArtistLinkType::Conductor: return "conductor";
-            case TrackArtistLinkType::Lyricist: return "lyricist";
-            case TrackArtistLinkType::Mixer: return "mixer";
-            case TrackArtistLinkType::Performer: return "performer";
-            case TrackArtistLinkType::Producer: return "producer";
-            case TrackArtistLinkType::ReleaseArtist: return "albumartist";
-            case TrackArtistLinkType::Remixer: return "remixer";
-            case TrackArtistLinkType::Writer: return "writer";
+            case TrackArtistLinkType::Arranger:
+                return "arranger";
+            case TrackArtistLinkType::Artist:
+                return "artist";
+            case TrackArtistLinkType::Composer:
+                return "composer";
+            case TrackArtistLinkType::Conductor:
+                return "conductor";
+            case TrackArtistLinkType::Lyricist:
+                return "lyricist";
+            case TrackArtistLinkType::Mixer:
+                return "mixer";
+            case TrackArtistLinkType::Performer:
+                return "performer";
+            case TrackArtistLinkType::Producer:
+                return "producer";
+            case TrackArtistLinkType::ReleaseArtist:
+                return "albumartist";
+            case TrackArtistLinkType::Remixer:
+                return "remixer";
+            case TrackArtistLinkType::Writer:
+                return "writer";
             }
 
             return "unknown";
         }
-    }
+    } // namespace utils
 
     Response::Node createArtistNode(RequestContext& context, const Artist::pointer& artist, const User::pointer& user, bool id3)
     {
@@ -82,11 +93,12 @@ namespace lms::api::subsonic
 
         artistNode.setAttribute("id", idToString(artist->getId()));
         artistNode.setAttribute("name", artist->getName());
-        artistNode.setAttribute("coverArt", idToString(artist->getId()));
+        if (const db::Image::pointer artistImage{ artist->getImage() })
+            artistNode.setAttribute("coverArt", idToString(artist->getId()));
 
         if (id3)
         {
-            const std::size_t count{ Release::getCount(context.dbSession, Release::FindParameters {}.setArtist(artist->getId())) };
+            const std::size_t count{ Release::getCount(context.dbSession, Release::FindParameters{}.setArtist(artist->getId())) };
             artistNode.setAttribute("albumCount", count);
         }
 
@@ -125,4 +137,4 @@ namespace lms::api::subsonic
 
         return artistNode;
     }
-}
+} // namespace lms::api::subsonic

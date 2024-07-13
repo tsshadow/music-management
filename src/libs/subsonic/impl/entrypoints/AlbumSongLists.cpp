@@ -28,12 +28,14 @@
 #include "database/User.hpp"
 #include "services/feedback/IFeedbackService.hpp"
 #include "services/scrobbling/IScrobblingService.hpp"
+#include "rapidjson.h"
 
 #include "ParameterParsing.hpp"
 #include "SubsonicId.hpp"
 #include "responses/Album.hpp"
 #include "responses/Artist.hpp"
 #include "responses/Song.hpp"
+#include "document.h"
 
 namespace lms::api::subsonic
 {
@@ -314,6 +316,117 @@ namespace lms::api::subsonic
                     track->getRating().value_or(0)  <= ratingMax)
             songsByGenreNode.addArrayChild("song", createSongNode(context, track, context.user));
         });
+
+        return response;
+    }
+
+    TrackSortMethod stringToSortMethod(const std::string& input)
+    {
+            if (input=="Id") { return TrackSortMethod::Id; }
+            if (input=="None") { return TrackSortMethod::None; }
+            if (input=="Random") { return TrackSortMethod::Random; }
+            if (input=="Added") { return TrackSortMethod::Added; }
+            if (input=="LastWritten") { return TrackSortMethod::LastWritten; }
+            if (input=="StarredDateDesc") { return TrackSortMethod::StarredDateDesc; }
+            if (input=="Name") { return TrackSortMethod::Name; }
+            if (input=="DateDescAndRelease") { return TrackSortMethod::DateDescAndRelease; }
+            if (input=="Release") { return TrackSortMethod::Release; }   // order by disc/track number
+            if (input=="TrackList") { return TrackSortMethod::TrackList; } // order by asc order in tracklist
+            return TrackSortMethod::Name;
+    }
+
+    std::string sortMethodToString(TrackSortMethod input)
+    {
+        if (input==TrackSortMethod::Id) { return "Id"; }
+        if (input==TrackSortMethod::None) { return "None"; }
+        if (input==TrackSortMethod::Random) { return "Random"; }
+        if (input==TrackSortMethod::Added) { return "Added"; }
+        if (input==TrackSortMethod::LastWritten) { return "LastWritten"; }
+        if (input==TrackSortMethod::StarredDateDesc) { return "StarredDateDesc"; }
+        if (input==TrackSortMethod::Name) { return "Name"; }
+        if (input==TrackSortMethod::DateDescAndRelease) { return "DateDescAndRelease"; }
+        if (input==TrackSortMethod::Release) { return "Release"; }   // order by disc/track number
+        if (input==TrackSortMethod::TrackList) { return "TrackList"; } // order by asc order in tracklist
+    }
+
+
+    /**
+     * Handle songs endpoint
+     *
+     * example clusters data
+     * clusters : [
+     *    {
+     *    "name": "genre"
+     *    "value": "Hardcore"
+     *    },
+     *    {
+     *    "name": "year",
+     *    "value": "2024"
+     *    }
+     * ]
+     *
+     *
+     *
+     * @param context
+     * @return
+     */
+    Response handleGetSongs(RequestContext& context) {
+        // Optional params
+        auto filters = getParameterAs<std::string>(context.parameters, "clusters");
+        auto sortMethod = stringToSortMethod(
+                getParameterAs<std::string>(context.parameters, "sortMethod").value_or("None"));
+        const MediaLibraryId mediaLibraryId{ getParameterAs<MediaLibraryId>(context.parameters, "musicFolderId").value_or(MediaLibraryId{}) };
+        std::size_t const size{ getParameterAs<std::size_t>(context.parameters, "size").value_or(50) };
+        if (size > defaultMaxCountSize)
+            throw ParameterValueTooHighGenericError{ "size", defaultMaxCountSize };
+
+        Response response{ Response::createOkResponse(context.serverProtocolVersion) };
+        auto transaction{ context.dbSession.createReadTransaction() };
+
+        Track::FindParameters params;
+
+        params.setSortMethod(sortMethod);
+        params.setRange(Range{ 0, size });
+        params.setMediaLibrary(mediaLibraryId);
+
+        // Filters / Clusters
+        if (filters.has_value()) {
+            std::vector<ClusterId> clusters = {};
+            rapidjson::Document document;
+            document.Parse(filters.value().c_str());
+            if(document.HasParseError())
+            {
+                throw ParameterJsonFailedToParse{ filters.value()  };
+            }
+            for (auto &filter: document.GetArray()) {
+                clusters.push_back(GetCluster(filter["value"].GetString(), filter["name"].GetString(), context));
+            }
+            params.setClusters(clusters);
+        }
+
+        Response::Node& songsNode{ response.createNode("songs") };
+        Track::find(context.dbSession, params, [&](const Track::pointer& track)
+        {
+            songsNode.addArrayChild("song", createSongNode(context, track, context.user));
+        });
+        return response;
+    }
+
+    Response handleGetSongSortMethods(RequestContext& context)
+    {
+        Response response{ Response::createOkResponse(context.serverProtocolVersion) };
+        Response::Node& sortMethods{ response.createNode("sortMethods") };
+
+        sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::Id));
+        sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::Name));
+        sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::Random));
+        sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::Added));
+        sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::DateDescAndRelease));
+        sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::LastWritten));
+        sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::Release));
+        sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::TrackList));
+        sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::StarredDateDesc));
+        sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::None));
 
         return response;
     }

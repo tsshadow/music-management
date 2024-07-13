@@ -185,6 +185,8 @@ namespace lms::api::subsonic
             { "/getSongsByGenre", { handleGetSongsByGenreRequest } },
             {"/getSongsByGenreAndYear",  {handleGetSongsByGenreRequest}},
             {"/getSongsByYear",	{handleGetSongsByYearRequest}},
+            {"/getSongs",	{handleGetSongs}},
+            {"/getSongSortMethods",	{handleGetSongSortMethods}},
             {"/getSongsByMood",  {handleGetSongsByMoodRequest}},
             {"/getSongsByMoodAndYear",  {handleGetSongsByMoodRequest}},
             { "/getNowPlaying", { handleNotImplemented } },

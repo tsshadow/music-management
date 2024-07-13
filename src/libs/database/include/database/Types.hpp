@@ -150,6 +150,7 @@ namespace lms::db
         None,
         Id,
         Random,
+        Added,
         LastWritten,
         StarredDateDesc,
         Name,

@@ -222,6 +222,19 @@ namespace lms::api::subsonic
         std::size_t _max;
     };
 
+    class ParameterJsonFailedToParse : public GenericError
+    {
+    public:
+        ParameterJsonFailedToParse(std::string_view JSON)
+                : _JSON{ JSON } {}
+
+    private:
+        std::string getMessage() const override { return "ParameterJsonFailedToParse (value is " + _JSON + ")"; }
+
+        const std::string _JSON;
+    };
+
+
     class Response
     {
     public:

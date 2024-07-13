@@ -161,10 +161,10 @@ namespace lms::metadata
             _metaDataMap = audioFile->getMetaData();
             _hasEmbeddedCover = audioFile->hasAttachedPictures();
 
-//            if (debug && core::Service<core::logging::ILogger>::get()->isSeverityActive(core::logging::Severity::DEBUG))
+            if (debug && core::Service<core::logging::ILogger>::get()->isSeverityActive(core::logging::Severity::DEBUG))
             {
                 for (const auto& [key, value] : _metaDataMap)
-                    LMS_LOG(METADATA, INFO, "AV Key = '" << key << "', value = '" << value << "'");
+                    LMS_LOG(METADATA, DEBUG, "Key = '" << key << "', value = '" << value << "'");
             }
         }
         catch (av::Exception& e)

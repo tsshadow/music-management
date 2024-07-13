@@ -301,7 +301,6 @@ namespace lms::api::subsonic
         TLSMonotonicMemoryResourceCleaner memoryResourceCleaner;
 
         LMS_LOG(API_SUBSONIC, DEBUG, "Handling request " << requestId << " '" << request.pathInfo() << "', continuation = " << (request.continuation() ? "true" : "false") << ", params = " << parameterMapToDebugString(request.getParameterMap()));
-        std::cout<< "Handling request " << requestId << " '" << request.pathInfo() << "', continuation = " << (request.continuation() ? "true" : "false") << ", params = " << parameterMapToDebugString(request.getParameterMap());
 
         std::string requestPath{ request.pathInfo() };
         if (core::stringUtils::stringEndsWith(requestPath, ".view"))

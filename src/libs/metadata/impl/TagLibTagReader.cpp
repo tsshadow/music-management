@@ -317,7 +317,7 @@ namespace lms::metadata
             for (const auto& [key, values] : _propertyMap)
             {
                 for (const auto& value : values)
-                    LMS_LOG(METADATA, INFO, "TAG Key = '" << key << "', value = '" << value.to8Bit(true) << "'");
+                    LMS_LOG(METADATA, DEBUG, "Key = '" << key << "', value = '" << value.to8Bit(true) << "'");
             }
 
             for (const auto& value : _propertyMap.unsupportedData())

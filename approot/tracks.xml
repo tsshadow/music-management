@@ -46,7 +46,6 @@
 				${<if-has-release>}${release class="d-none d-lg-inline text-truncate text-decoration-none link-success"}${</if-has-release>}
 			</div>
 		</div>
-
 		<div class="p-2 d-none d-sm-block text-muted text-center Lms-tracks-entry-rating">
 			${<if-has-rating>}${rating}${</if-has-rating>}
 		</div>

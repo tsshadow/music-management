@@ -239,7 +239,7 @@ namespace lms::db
         std::optional<std::size_t> getTrackNumber() const { return _trackNumber; }
         std::optional<std::size_t> getTotalTrack() const { return _totalTrack; }
         std::optional<std::size_t> getDiscNumber() const { return _discNumber; }
-        std::optional<std::size_t>	getRating() const { return _rating; }
+        std::optional<std::size_t> getRating() const { return _rating; }
         const std::string& getDiscSubtitle() const { return _discSubtitle; }
         std::string getName() const { return _name; }
         const std::filesystem::path& getAbsoluteFilePath() const { return _absoluteFilePath; }
@@ -327,7 +327,7 @@ namespace lms::db
         int _scanVersion{};
         std::optional<int> _trackNumber{};
         std::optional<int> _discNumber{};
-        std::optional<int>		_rating{};
+        std::optional<int> _rating{};
         std::optional<int> _totalTrack{};
         std::string _discSubtitle;
         std::string _name;

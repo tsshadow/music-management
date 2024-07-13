@@ -124,29 +124,29 @@ namespace lms::api::subsonic
             std::map<char, std::vector<ArtistId>> artistsSortedByFirstChar;
             std::size_t currentArtistOffset{ 0 };
             constexpr std::size_t batchSize{ 100 };
-//            bool hasMoreArtists{ true };
-//            while (hasMoreArtists)
-//            {
-//                auto transaction{ context.dbSession.createReadTransaction() };
-//
-//                parameters.setRange(Range{ currentArtistOffset, batchSize });
-//                const auto artists{ Artist::find(context.dbSession, parameters) };
-//                for (const Artist::pointer& artist : artists.results)
-//                {
-//                    std::string_view sortName{ artist->getSortName() };
-//
-//                    char sortChar;
-//                    if (sortName.empty() || !std::isalpha(sortName[0]))
-//                        sortChar = '?';
-//                    else
-//                        sortChar = std::toupper(sortName[0]);
-//
-//                    artistsSortedByFirstChar[sortChar].push_back(artist->getId());
-//                }
-//
-//                hasMoreArtists = artists.moreResults;
-//                currentArtistOffset += artists.results.size();
-//            }
+            bool hasMoreArtists{ true };
+            while (hasMoreArtists)
+            {
+                auto transaction{ context.dbSession.createReadTransaction() };
+
+                parameters.setRange(Range{ currentArtistOffset, batchSize });
+                const auto artists{ Artist::find(context.dbSession, parameters) };
+                for (const Artist::pointer& artist : artists.results)
+                {
+                    std::string_view sortName{ artist->getSortName() };
+
+                    char sortChar;
+                    if (sortName.empty() || !std::isalpha(sortName[0]))
+                        sortChar = '?';
+                    else
+                        sortChar = std::toupper(sortName[0]);
+
+                    artistsSortedByFirstChar[sortChar].push_back(artist->getId());
+                }
+
+                hasMoreArtists = artists.moreResults;
+                currentArtistOffset += artists.results.size();
+            }
 
             // second pass: add each artist
             LMS_LOG(API_SUBSONIC, DEBUG, "GetArtists: constructing response...");
@@ -392,56 +392,21 @@ namespace lms::api::subsonic
 
     Response handleGetYearsRequest(RequestContext& context)
     {
-        Response response {Response::createOkResponse(context.serverProtocolVersion)};
+        Response response{ Response::createOkResponse(context.serverProtocolVersion) };
 
-        Response::Node& yearsNode {response.createNode("years")};
+        Response::Node& moodNode{ response.createNode("years") };
 
         auto transaction{ context.dbSession.createReadTransaction() };
 
-//    const std::vector<int> years = Track::getAllYears(context.dbSession)};
-        std::vector<int> years = {
-                1992,
-                1993,
-                1994,
-                1995,
-                1996,
-                1997,
-                1998,
-                1999,
-                2000,
-                2001,
-                2002,
-                2003,
-                2004,
-                2005,
-                2006,
-                2007,
-                2008,
-                2009,
-                2010,
-                2011,
-                2012,
-                2013,
-                2014,
-                2015,
-                2016,
-                2017,
-                2018,
-                2019,
-                2020,
-                2021,
-                2022,
-                2023,
-                2024
-        };
-
-        for (const int year : years)
+        const ClusterType::pointer clusterType{ ClusterType::find(context.dbSession, "YEAR") };
+        if (clusterType)
         {
-            Response::Node yearNode;
+            const auto clusters{ clusterType->getClusters() };
 
-            yearNode.setValue(year);
-            yearsNode.addArrayChild("year", Response::Node(yearNode));
+            for (const Cluster::pointer& cluster : clusters)
+                    moodNode.addArrayChild("year", createGenreNode(cluster));
         }
+
         return response;
     }
 

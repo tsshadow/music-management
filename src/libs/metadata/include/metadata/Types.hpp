@@ -101,6 +101,7 @@ namespace lms::metadata
         std::optional<core::UUID> mbid;
         std::optional<core::UUID> recordingMBID;
         std::string title;
+        std::optional<int> rating;
         std::optional<Medium> medium;
         std::optional<std::size_t> position; // in medium
         std::vector<std::string> groupings;

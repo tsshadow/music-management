@@ -384,7 +384,7 @@ namespace lms::api::subsonic
 
             for (const Cluster::pointer& cluster : clusters)
                 if (!year.has_value() || year==-1)
-                    moodNode.addArrayChild("mood", createGenreNode(cluster));
+                    moodNode.addArrayChild("mood", createGenreNode(context, cluster));
         }
 
         return response;
@@ -404,7 +404,7 @@ namespace lms::api::subsonic
             const auto clusters{ clusterType->getClusters() };
 
             for (const Cluster::pointer& cluster : clusters)
-                    moodNode.addArrayChild("year", createGenreNode(cluster));
+                moodNode.addArrayChild("genre", createGenreNode(context, cluster));
         }
 
         return response;

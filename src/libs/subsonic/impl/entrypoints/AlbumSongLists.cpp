@@ -349,6 +349,7 @@ namespace lms::api::subsonic
         if (input==TrackSortMethod::DateDescAndRelease) { return "DateDescAndRelease"; }
         if (input==TrackSortMethod::Release) { return "Release"; }   // order by disc/track number
         if (input==TrackSortMethod::TrackList) { return "TrackList"; } // order by asc order in tracklist
+        return "";
     }
 
 

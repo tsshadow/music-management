@@ -37,6 +37,7 @@
 #include "core/UUID.hpp"
 #include "database/ArtistId.hpp"
 #include "database/ClusterId.hpp"
+#include "database/DirectoryId.hpp"
 #include "database/MediaLibraryId.hpp"
 #include "database/Object.hpp"
 #include "database/ReleaseId.hpp"
@@ -82,6 +83,7 @@ namespace lms::db
             std::optional<int> discNumber;                           // matching this disc number
             MediaLibraryId mediaLibrary;                             // If set, tracks in this library
             std::optional<int> rating;
+            DirectoryId directory;                                   // if set, tracks in this directory
 
             FindParameters& setClusters(std::span<const ClusterId> _clusters)
             {
@@ -171,6 +173,11 @@ namespace lms::db
                 rating = _rating;
                 return *this;
             }
+            FindParameters& setDirectory(DirectoryId _directory)
+            {
+                directory = _directory;
+                return *this;
+            }
         };
 
         struct PathResult
@@ -204,8 +211,8 @@ namespace lms::db
         void setRating(std::optional<int> num) { _rating = num; }
         void setDiscNumber(std::optional<int> num) { _discNumber = num; }
         void setTotalTrack(std::optional<int> totalTrack) { _totalTrack = totalTrack; }
-        void setDiscSubtitle(const std::string& name) { _discSubtitle = name; }
-        void setName(const std::string& name) { _name = std::string(name, 0, _maxNameLength); }
+        void setDiscSubtitle(std::string_view name) { _discSubtitle = name; }
+        void setName(std::string_view name);
         void setAbsoluteFilePath(const std::filesystem::path& filePath);
         void setRelativeFilePath(const std::filesystem::path& filePath);
         void setFileSize(std::size_t fileSize) { _fileSize = fileSize; }
@@ -223,8 +230,8 @@ namespace lms::db
         void setHasCover(bool hasCover) { _hasCover = hasCover; }
         void setTrackMBID(const std::optional<core::UUID>& MBID) { _trackMBID = MBID ? MBID->getAsString() : ""; }
         void setRecordingMBID(const std::optional<core::UUID>& MBID) { _recordingMBID = MBID ? MBID->getAsString() : ""; }
-        void setCopyright(const std::string& copyright) { _copyright = std::string(copyright, 0, _maxCopyrightLength); }
-        void setCopyrightURL(const std::string& copyrightURL) { _copyrightURL = std::string(copyrightURL, 0, _maxCopyrightURLLength); }
+        void setCopyright(std::string_view copyright);
+        void setCopyrightURL(std::string_view copyrightURL);
         void setTrackReplayGain(std::optional<float> replayGain) { _trackReplayGain = replayGain; }
         void setReleaseReplayGain(std::optional<float> replayGain) { _releaseReplayGain = replayGain; } // may be by disc!
         void setArtistDisplayName(std::string_view name) { _artistDisplayName = name; }
@@ -320,9 +327,9 @@ namespace lms::db
         friend class Session;
         static pointer create(Session& session);
 
-        static constexpr std::size_t _maxNameLength{ 256 };
-        static constexpr std::size_t _maxCopyrightLength{ 256 };
-        static constexpr std::size_t _maxCopyrightURLLength{ 256 };
+        static constexpr std::size_t _maxNameLength{ 512 };
+        static constexpr std::size_t _maxCopyrightLength{ 512 };
+        static constexpr std::size_t _maxCopyrightURLLength{ 512 };
 
         int _scanVersion{};
         std::optional<int> _trackNumber{};

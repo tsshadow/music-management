@@ -447,7 +447,7 @@ namespace lms::api::subsonic
         std::map<char, std::vector<ArtistId>> artistsSortedByFirstChar;
         std::size_t currentArtistOffset{ 0 };
         constexpr std::size_t batchSize{ 100 };
-        bool hasMoreArtists{ true };
+        bool hasMoreArtists{ false };
         while (hasMoreArtists)
         {
             auto transaction{ context.dbSession.createReadTransaction() };

@@ -26,16 +26,16 @@
 #include "database/Session.hpp"
 #include "database/Track.hpp"
 #include "database/User.hpp"
+#include "rapidjson.h"
 #include "services/feedback/IFeedbackService.hpp"
 #include "services/scrobbling/IScrobblingService.hpp"
-#include "rapidjson.h"
 
 #include "ParameterParsing.hpp"
 #include "SubsonicId.hpp"
+#include "document.h"
 #include "responses/Album.hpp"
 #include "responses/Artist.hpp"
 #include "responses/Song.hpp"
-#include "document.h"
 
 namespace lms::api::subsonic
 {
@@ -257,14 +257,14 @@ namespace lms::api::subsonic
         return response;
     }
 
-  ClusterId GetCluster(std::string value, std::string name, RequestContext& context)
+    ClusterId GetCluster(std::string value, std::string name, RequestContext& context)
     {
         auto clusterType{ ClusterType::find(context.dbSession, name) };
         if (!clusterType)
-          throw RequestedDataNotFoundError{};
-        auto cluster{clusterType->getCluster(value)};
+            throw RequestedDataNotFoundError{};
+        auto cluster{ clusterType->getCluster(value) };
         if (!cluster)
-          throw RequestedDataNotFoundError{};
+            throw RequestedDataNotFoundError{};
         return cluster->getId();
     }
 
@@ -274,8 +274,8 @@ namespace lms::api::subsonic
         std::string genre{ getMandatoryParameterAs<std::string>(context.parameters, "genre") };
 
         // Optional params
-        std::optional<std::string> year {getParameterAs<std::string>(context.parameters, "year")};
-        std::optional<std::string> length {getParameterAs<std::string>(context.parameters, "length")};
+        std::optional<std::string> year{ getParameterAs<std::string>(context.parameters, "year") };
+        std::optional<std::string> length{ getParameterAs<std::string>(context.parameters, "length") };
         const MediaLibraryId mediaLibrary{ getParameterAs<MediaLibraryId>(context.parameters, "musicFolderId").value_or(MediaLibraryId{}) };
         std::size_t count{ getParameterAs<std::size_t>(context.parameters, "count").value_or(10) };
         std::size_t ratingMin{ getParameterAs<std::size_t>(context.parameters, "ratingMin").value_or(0) };
@@ -299,24 +299,23 @@ namespace lms::api::subsonic
         Response::Node& songsByGenreNode{ response.createNode("songsByGenre") };
 
         Track::FindParameters params;
-        std::vector<ClusterId> clusters =  {cluster->getId()};
+        std::vector<ClusterId> clusters = { cluster->getId() };
         if (year.has_value())
         {
-          clusters.push_back(GetCluster(year.value(), "YEAR", context));
+            clusters.push_back(GetCluster(year.value(), "YEAR", context));
         }
         if (length.has_value())
         {
-          clusters.push_back(GetCluster(length.value(), "LENGTH", context));
+            clusters.push_back(GetCluster(length.value(), "LENGTH", context));
         }
         params.setClusters(clusters);
         params.setRange(Range{ offset, count });
         params.setMediaLibrary(mediaLibrary);
 
         Track::find(context.dbSession, params, [&](const Track::pointer& track) {
-            if(
-                    track->getRating().value_or(0) >= ratingMin &&
-                    track->getRating().value_or(0)  <= ratingMax)
-            songsByGenreNode.addArrayChild("song", createSongNode(context, track, context.user));
+            if (
+                track->getRating().value_or(0) >= ratingMin && track->getRating().value_or(0) <= ratingMax)
+                songsByGenreNode.addArrayChild("song", createSongNode(context, track, context.user));
         });
 
         return response;
@@ -324,34 +323,93 @@ namespace lms::api::subsonic
 
     TrackSortMethod stringToSortMethod(const std::string& input)
     {
-            if (input=="Id") { return TrackSortMethod::Id; }
-            if (input=="None") { return TrackSortMethod::None; }
-            if (input=="Random") { return TrackSortMethod::Random; }
-            if (input=="Added") { return TrackSortMethod::Added; }
-            if (input=="LastWritten") { return TrackSortMethod::LastWritten; }
-            if (input=="StarredDateDesc") { return TrackSortMethod::StarredDateDesc; }
-            if (input=="Name") { return TrackSortMethod::Name; }
-            if (input=="DateDescAndRelease") { return TrackSortMethod::DateDescAndRelease; }
-            if (input=="Release") { return TrackSortMethod::Release; }   // order by disc/track number
-            if (input=="TrackList") { return TrackSortMethod::TrackList; } // order by asc order in tracklist
+        if (input == "Id")
+        {
+            return TrackSortMethod::Id;
+        }
+        if (input == "None")
+        {
+            return TrackSortMethod::None;
+        }
+        if (input == "Random")
+        {
+            return TrackSortMethod::Random;
+        }
+        if (input == "Added")
+        {
+            return TrackSortMethod::Added;
+        }
+        if (input == "LastWritten")
+        {
+            return TrackSortMethod::LastWritten;
+        }
+        if (input == "StarredDateDesc")
+        {
+            return TrackSortMethod::StarredDateDesc;
+        }
+        if (input == "Name")
+        {
             return TrackSortMethod::Name;
+        }
+        if (input == "DateDescAndRelease")
+        {
+            return TrackSortMethod::DateDescAndRelease;
+        }
+        if (input == "Release")
+        {
+            return TrackSortMethod::Release;
+        } // order by disc/track number
+        if (input == "TrackList")
+        {
+            return TrackSortMethod::TrackList;
+        } // order by asc order in tracklist
+        return TrackSortMethod::Name;
     }
 
     std::string sortMethodToString(TrackSortMethod input)
     {
-        if (input==TrackSortMethod::Id) { return "Id"; }
-        if (input==TrackSortMethod::None) { return "None"; }
-        if (input==TrackSortMethod::Random) { return "Random"; }
-        if (input==TrackSortMethod::Added) { return "Added"; }
-        if (input==TrackSortMethod::LastWritten) { return "LastWritten"; }
-        if (input==TrackSortMethod::StarredDateDesc) { return "StarredDateDesc"; }
-        if (input==TrackSortMethod::Name) { return "Name"; }
-        if (input==TrackSortMethod::DateDescAndRelease) { return "DateDescAndRelease"; }
-        if (input==TrackSortMethod::Release) { return "Release"; }   // order by disc/track number
-        if (input==TrackSortMethod::TrackList) { return "TrackList"; } // order by asc order in tracklist
+        if (input == TrackSortMethod::Id)
+        {
+            return "Id";
+        }
+        if (input == TrackSortMethod::None)
+        {
+            return "None";
+        }
+        if (input == TrackSortMethod::Random)
+        {
+            return "Random";
+        }
+        if (input == TrackSortMethod::Added)
+        {
+            return "Added";
+        }
+        if (input == TrackSortMethod::LastWritten)
+        {
+            return "LastWritten";
+        }
+        if (input == TrackSortMethod::StarredDateDesc)
+        {
+            return "StarredDateDesc";
+        }
+        if (input == TrackSortMethod::Name)
+        {
+            return "Name";
+        }
+        if (input == TrackSortMethod::DateDescAndRelease)
+        {
+            return "DateDescAndRelease";
+        }
+        if (input == TrackSortMethod::Release)
+        {
+            return "Release";
+        } // order by disc/track number
+        if (input == TrackSortMethod::TrackList)
+        {
+            return "TrackList";
+        } // order by asc order in tracklist
         return "";
     }
-
 
     /**
      * Handle songs endpoint
@@ -373,11 +431,12 @@ namespace lms::api::subsonic
      * @param context
      * @return
      */
-    Response handleGetSongs(RequestContext& context) {
+    Response handleGetSongs(RequestContext& context)
+    {
         // Optional params
         auto filters = getParameterAs<std::string>(context.parameters, "clusters");
         auto sortMethod = stringToSortMethod(
-                getParameterAs<std::string>(context.parameters, "sortMethod").value_or("None"));
+            getParameterAs<std::string>(context.parameters, "sortMethod").value_or("None"));
         const MediaLibraryId mediaLibraryId{ getParameterAs<MediaLibraryId>(context.parameters, "musicFolderId").value_or(MediaLibraryId{}) };
         std::size_t const size{ getParameterAs<std::size_t>(context.parameters, "count").value_or(50) };
         if (size > defaultMaxCountSize)
@@ -393,23 +452,24 @@ namespace lms::api::subsonic
         params.setMediaLibrary(mediaLibraryId);
 
         // Filters / Clusters
-        if (filters.has_value()) {
+        if (filters.has_value())
+        {
             std::vector<ClusterId> clusters = {};
             rapidjson::Document document;
             document.Parse(filters.value().c_str());
-            if(document.HasParseError())
+            if (document.HasParseError())
             {
-                throw ParameterJsonFailedToParse{ filters.value()  };
+                throw ParameterJsonFailedToParse{ filters.value() };
             }
-            for (auto &filter: document.GetArray()) {
+            for (auto& filter : document.GetArray())
+            {
                 clusters.push_back(GetCluster(filter["value"].GetString(), filter["name"].GetString(), context));
             }
             params.setClusters(clusters);
         }
 
         Response::Node& songsNode{ response.createNode("songs") };
-        Track::find(context.dbSession, params, [&](const Track::pointer& track)
-        {
+        Track::find(context.dbSession, params, [&](const Track::pointer& track) {
             songsNode.addArrayChild("song", createSongNode(context, track, context.user));
         });
         return response;
@@ -443,7 +503,7 @@ namespace lms::api::subsonic
         const MediaLibraryId mediaLibrary{ getParameterAs<MediaLibraryId>(context.parameters, "musicFolderId").value_or(MediaLibraryId{}) };
         std::size_t count{ getParameterAs<std::size_t>(context.parameters, "count").value_or(10) };
         if (count > defaultMaxCountSize)
-            throw ParameterValueTooHighGenericError{"count", defaultMaxCountSize};
+            throw ParameterValueTooHighGenericError{ "count", defaultMaxCountSize };
 
         std::size_t offset{ getParameterAs<std::size_t>(context.parameters, "offset").value_or(0) };
 
@@ -465,8 +525,7 @@ namespace lms::api::subsonic
         params.setRange(Range{ offset, count });
         params.setMediaLibrary(mediaLibrary);
 
-        Track::find(context.dbSession, params, [&](const Track::pointer& track)
-        {
+        Track::find(context.dbSession, params, [&](const Track::pointer& track) {
             songsByYearNode.addArrayChild("song", createSongNode(context, track, context.user));
         });
 
@@ -479,13 +538,13 @@ namespace lms::api::subsonic
         std::string Mood{ getMandatoryParameterAs<std::string>(context.parameters, "mood") };
 
         // Optional params
-        std::optional<std::string> year {getParameterAs<std::string>(context.parameters, "year")};
-        std::optional<std::string> length {getParameterAs<std::string>(context.parameters, "length")};
+        std::optional<std::string> year{ getParameterAs<std::string>(context.parameters, "year") };
+        std::optional<std::string> length{ getParameterAs<std::string>(context.parameters, "length") };
         std::size_t count{ getParameterAs<std::size_t>(context.parameters, "count").value_or(10) };
         std::size_t ratingMin{ getParameterAs<std::size_t>(context.parameters, "ratingMin").value_or(0) };
         std::size_t ratingMax{ getParameterAs<std::size_t>(context.parameters, "ratingMax").value_or(5) };
         if (count > defaultMaxCountSize)
-            throw ParameterValueTooHighGenericError{"count", defaultMaxCountSize};
+            throw ParameterValueTooHighGenericError{ "count", defaultMaxCountSize };
 
         std::size_t offset{ getParameterAs<std::size_t>(context.parameters, "offset").value_or(0) };
 
@@ -503,22 +562,20 @@ namespace lms::api::subsonic
         Response::Node& songsByMoodNode{ response.createNode("songsByMood") };
 
         Track::FindParameters params;
-        std::vector<ClusterId> clusters =  {cluster->getId()};
+        std::vector<ClusterId> clusters = { cluster->getId() };
         if (year.has_value())
         {
-          clusters.push_back(GetCluster(year.value(), "YEAR", context));
+            clusters.push_back(GetCluster(year.value(), "YEAR", context));
         }
         if (length.has_value())
         {
-          clusters.push_back(GetCluster(length.value(), "LENGTH", context));
+            clusters.push_back(GetCluster(length.value(), "LENGTH", context));
         }
         params.setClusters(clusters);
         params.setRange(Range{ offset, count });
 
-        Track::find(context.dbSession, params, [&](const Track::pointer& track)
-        {
-            if (track->getRating().value_or(0) >= ratingMin &&
-                track->getRating().value_or(0)  <= ratingMax)
+        Track::find(context.dbSession, params, [&](const Track::pointer& track) {
+            if (track->getRating().value_or(0) >= ratingMin && track->getRating().value_or(0) <= ratingMax)
                 songsByMoodNode.addArrayChild("song", createSongNode(context, track, context.user));
         });
 

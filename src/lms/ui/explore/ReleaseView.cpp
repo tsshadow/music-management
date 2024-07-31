@@ -474,7 +474,7 @@ namespace lms::ui
                 Wt::WString star("★");
                 Wt::WString empty_star("☆");
                 Wt::WString rating = star;
-                for (unsigned int i=1; i < track->getRating(); i++)
+                for (unsigned int i = 1; i < track->getRating(); i++)
                     rating += star;
                 for (unsigned int i = 5; i > track->getRating(); i--)
                     rating += empty_star;
@@ -486,7 +486,6 @@ namespace lms::ui
                 entry->setCondition("if-has-year", true);
                 entry->bindInt("year", track->getYear().value());
             }
-
 
             entry->bindString("duration", utils::durationToString(track->getDuration()), Wt::TextFormat::Plain);
 

@@ -332,18 +332,18 @@ namespace lms::metadata
 
         if (track.year.has_value())
         {
-            track.userExtraTags["YEAR"] = {std::to_string(track.year.value())};
+            track.userExtraTags["YEAR"] = { std::to_string(track.year.value()) };
         }
 
         if (track.audioProperties.duration > std::chrono::minutes(10))
         {
-            track.userExtraTags["LENGTH"] = {"long"};
+            track.userExtraTags["LENGTH"] = { "long" };
         }
-        else {
-            track.userExtraTags["LENGTH"] = {"short"};
+        else
+        {
+            track.userExtraTags["LENGTH"] = { "short" };
         }
     }
-
 
     /**
      * This function gets the rating tag and will convert is to 0 to 5 starts
@@ -355,7 +355,8 @@ namespace lms::metadata
     std::optional<int> Parser::getRating(const ITagReader& tagReader)
     {
         std::optional<int> tagRating = getTagValueAs<int>(tagReader, TagType::Rating);
-        if (tagRating.has_value()) {
+        if (tagRating.has_value())
+        {
             if (tagRating.value() == 100 || tagRating.value() == 255) return 5;
             if (tagRating.value() == 80 || tagRating.value() == 196) return 4;
             if (tagRating.value() == 60 || tagRating.value() == 128) return 3;

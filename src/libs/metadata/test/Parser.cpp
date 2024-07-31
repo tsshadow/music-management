@@ -67,7 +67,7 @@ namespace lms::metadata
                 { TagType::Lyricist, { "MyLyricist1", "MyLyricist2" } },
                 { TagType::OriginalReleaseDate, { "2019/02/03" } },
                 { TagType::ReleaseType, { "Album", "Compilation" } },
-                { TagType::Rating, {"255"} },
+                { TagType::Rating, { "255" } },
                 { TagType::ReplayGainTrackGain, { "-0.33" } },
                 { TagType::ReplayGainAlbumGain, { "-0.5" } },
                 { TagType::TrackTitle, { "MyTitle" } },

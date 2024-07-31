@@ -26,9 +26,9 @@
 
 #include <taglib/apetag.h>
 #include <taglib/asffile.h>
-#include <taglib/id3v2tag.h>
 #include <taglib/fileref.h>
 #include <taglib/flacfile.h>
+#include <taglib/id3v2tag.h>
 #include <taglib/mp4file.h>
 #include <taglib/mpcfile.h>
 #include <taglib/mpegfile.h>
@@ -38,12 +38,12 @@
 #include <taglib/vorbisfile.h>
 #include <taglib/wavpackfile.h>
 
-#include "utils/IConfig.hpp"
+#include "Utils.hpp"
 #include "utils/Exception.hpp"
+#include "utils/IConfig.hpp"
 #include "utils/ILogger.hpp"
 #include "utils/Service.hpp"
 #include "utils/String.hpp"
-#include "Utils.hpp"
 
 namespace MetaData
 {
@@ -59,7 +59,7 @@ namespace MetaData
 
             for (std::string_view key : keys)
             {
-                const auto itValues{ tags.find(std::string {key}) };
+                const auto itValues{ tags.find(std::string{ key }) };
                 if (itValues == std::cend(tags))
                     continue;
 
@@ -84,7 +84,7 @@ namespace MetaData
             return res;
         }
 
-        template <typename T>
+        template<typename T>
         std::optional<T> getPropertyValueFirstMatchAs(const TagMap& tags, std::initializer_list<std::string_view> keys)
         {
             std::optional<T> res;
@@ -95,13 +95,13 @@ namespace MetaData
             return res;
         }
 
-        template <typename T>
+        template<typename T>
         std::vector<T> getPropertyValuesAs(const TagMap& tags, std::string_view key)
         {
             return getPropertyValuesFirstMatchAs<T>(tags, { key });
         }
 
-        template <typename T>
+        template<typename T>
         std::optional<T> getPropertyValueAs(const TagMap& tags, std::string_view key)
         {
             return getPropertyValueFirstMatchAs<T>(tags, { key });
@@ -122,9 +122,9 @@ namespace MetaData
             auto pos = artist.find('/');
             if (pos != std::string_view::npos)
             {
-                artists.emplace_back(artist.substr(0, pos));  // Add the part before '/'
+                artists.emplace_back(artist.substr(0, pos));     // Add the part before '/'
                 auto arts = splitArtist(artist.substr(pos + 1)); // Add the part after '/'
-                for (const auto& art: arts)
+                for (const auto& art : arts)
                     artists.emplace_back(art);
             }
             else
@@ -137,8 +137,7 @@ namespace MetaData
         std::vector<Artist> getArtists(const TagMap& tags,
             std::initializer_list<std::string_view> artistTagNames,
             std::initializer_list<std::string_view> artistSortTagNames,
-            std::initializer_list<std::string_view> artistMBIDTagNames
-        )
+            std::initializer_list<std::string_view> artistMBIDTagNames)
         {
             std::vector<std::string_view> artistNamesInput{ getPropertyValuesFirstMatchAs<std::string_view>(tags, artistTagNames) };
             std::vector<std::string_view> artistNames{};
@@ -146,10 +145,10 @@ namespace MetaData
                 return {};
 
             // convert artistnames with an / to 2 seperate artists
-            for (const auto& an: artistNamesInput)
+            for (const auto& an : artistNamesInput)
             {
                 auto arts = splitArtist(an);
-                for (const auto& art: arts)
+                for (const auto& art : arts)
                     artistNames.emplace_back(art);
             }
             std::vector<Artist> artists;
@@ -175,7 +174,6 @@ namespace MetaData
                         artists[i].mbid = artistsMBID[i];
                 }
             }
-
 
             return artists;
         }
@@ -289,9 +287,12 @@ namespace MetaData
         {
             switch (readStyle)
             {
-            case ParserReadStyle::Fast: return TagLib::AudioProperties::ReadStyle::Fast;
-            case ParserReadStyle::Average: return TagLib::AudioProperties::ReadStyle::Average;
-            case ParserReadStyle::Accurate: return TagLib::AudioProperties::ReadStyle::Accurate;
+            case ParserReadStyle::Fast:
+                return TagLib::AudioProperties::ReadStyle::Fast;
+            case ParserReadStyle::Average:
+                return TagLib::AudioProperties::ReadStyle::Average;
+            case ParserReadStyle::Accurate:
+                return TagLib::AudioProperties::ReadStyle::Accurate;
             }
 
             throw LmsException{ "Cannot convert read style" };
@@ -324,7 +325,7 @@ namespace MetaData
             }
         }
 
-    }
+    } // namespace
 
     TagLibParser::TagLibParser(ParserReadStyle readStyle)
         : _readStyle{ readStyleToTagLibReadStyle(readStyle) }
@@ -344,14 +345,14 @@ namespace MetaData
         if (tag == "TITLE")
             track.title = value;
         else if (tag == "MUSICBRAINZ_RELEASETRACKID"
-            || tag == "MUSICBRAINZ RELEASE TRACK ID"
-            || tag == "MUSICBRAINZ/RELEASE TRACK ID")
+                 || tag == "MUSICBRAINZ RELEASE TRACK ID"
+                 || tag == "MUSICBRAINZ/RELEASE TRACK ID")
         {
             track.mbid = UUID::fromString(value);
         }
         else if (tag == "MUSICBRAINZ_TRACKID"
-            || tag == "MUSICBRAINZ TRACK ID"
-            || tag == "MUSICBRAINZ/TRACK ID")
+                 || tag == "MUSICBRAINZ TRACK ID"
+                 || tag == "MUSICBRAINZ/TRACK ID")
             track.recordingMBID = UUID::fromString(value);
         else if (tag == "ACOUSTID_ID")
             track.acoustID = UUID::fromString(value);
@@ -394,16 +395,23 @@ namespace MetaData
             track.artistDisplayName = value;
         else if (tag == "RATING")
         {
-            //Convert flac rating to stars
+            // Convert flac rating to stars
             int rating = StringUtils::readAs<int>(value).value_or(-1);
 
-            if (rating == 100) track.rating= 5;
-            else if (rating == 80) track.rating= 4;
-            else if (rating == 60) track.rating= 3;
-            else if (rating == 40) track.rating= 2;
-            else if (rating == 20) track.rating= 1;
-            else if (rating == 0) track.rating = 0;
-            else track.rating = std::nullopt;
+            if (rating == 100)
+                track.rating = 5;
+            else if (rating == 80)
+                track.rating = 4;
+            else if (rating == 60)
+                track.rating = 3;
+            else if (rating == 40)
+                track.rating = 2;
+            else if (rating == 20)
+                track.rating = 1;
+            else if (rating == 0)
+                track.rating = 0;
+            else
+                track.rating = std::nullopt;
         }
         else if (std::find(std::cbegin(_userExtraTags), std::cend(_userExtraTags), tag) != std::cend(_userExtraTags))
         {
@@ -434,7 +442,7 @@ namespace MetaData
 
         Track track;
 
-        if (const TagLib::AudioProperties* properties{ f.audioProperties() })
+        if (const TagLib::AudioProperties * properties{ f.audioProperties() })
         {
             track.duration = std::chrono::milliseconds{ properties->lengthInMilliseconds() };
             track.bitrate = static_cast<std::size_t>(properties->bitrate() * 1000);
@@ -447,13 +455,12 @@ namespace MetaData
 
         TagMap tags{ constructTagMap(f.file()->properties()) };
 
-        auto getAPETags = [&](const TagLib::APE::Tag* apeTag)
-            {
-                if (!apeTag)
-                    return;
+        auto getAPETags = [&](const TagLib::APE::Tag* apeTag) {
+            if (!apeTag)
+                return;
 
-                mergeTagMaps(tags, constructTagMap(apeTag->properties()));
-            };
+            mergeTagMaps(tags, constructTagMap(apeTag->properties()));
+        };
 
         // Not that good embedded pictures handling
 
@@ -509,12 +516,18 @@ namespace MetaData
 
                     // Extract the rating value
                     std::string rating_value = rating_substring.substr(0, space_pos);
-                    if (rating_value == "255") track.rating= 5;
-                    else if (rating_value == "196") track.rating= 4;
-                    else if (rating_value == "128") track.rating= 3;
-                    else if (rating_value == "64") track.rating= 2;
-                    else if (rating_value == "1") track.rating= 1;
-                    else track.rating= 0;
+                    if (rating_value == "255")
+                        track.rating = 5;
+                    else if (rating_value == "196")
+                        track.rating = 4;
+                    else if (rating_value == "128")
+                        track.rating = 3;
+                    else if (rating_value == "64")
+                        track.rating = 2;
+                    else if (rating_value == "1")
+                        track.rating = 1;
+                    else
+                        track.rating = 0;
                 }
                 else
                     track.rating = std::nullopt;
@@ -527,7 +540,7 @@ namespace MetaData
 
             getAPETags(mp3File->APETag());
         }
-        //MP4
+        // MP4
         else if (TagLib::MP4::File * mp4File{ dynamic_cast<TagLib::MP4::File*>(f.file()) })
         {
             TagLib::MP4::Item coverItem{ mp4File->tag()->item("covr") };
@@ -577,18 +590,18 @@ namespace MetaData
 
         if (track.date.year())
         {
-          track.userExtraTags["YEAR"] = {std::to_string(track.date.year())};
+            track.userExtraTags["YEAR"] = { std::to_string(track.date.year()) };
         }
 
         if (track.duration > std::chrono::minutes(10))
         {
-          track.userExtraTags["LENGTH"] = {"long"};
+            track.userExtraTags["LENGTH"] = { "long" };
         }
-        else {
-          track.userExtraTags["LENGTH"] = {"short"};
+        else
+        {
+            track.userExtraTags["LENGTH"] = { "short" };
         }
         return track;
     }
 
 } // namespace MetaData
-

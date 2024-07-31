@@ -137,8 +137,8 @@ namespace lms::ui::TrackListHelpers
 
         if (track->getYear().has_value())
         {
-          trackInfo->setCondition("if-has-year", true);
-          trackInfo->bindInt("year", track->getYear().value());
+            trackInfo->setCondition("if-has-year", true);
+            trackInfo->bindInt("year", track->getYear().value());
         }
 
         if (track->getBitrate())
@@ -203,19 +203,18 @@ namespace lms::ui::TrackListHelpers
             Wt::WString star("★");
             Wt::WString empty_star("☆");
             Wt::WString rating = star;
-            for (unsigned int i=1; i<track->getRating(); i++)
+            for (unsigned int i = 1; i < track->getRating(); i++)
                 rating += star;
             for (unsigned int i = 5; i > track->getRating(); i--)
                 rating += empty_star;
             entry->bindString("rating", rating);
         }
 
-
-      if (track->getYear().has_value())
-      {
-        entry->setCondition("if-has-year", true);
-        entry->bindInt("year", track->getYear().value());
-      }
+        if (track->getYear().has_value())
+        {
+            entry->setCondition("if-has-year", true);
+            entry->bindInt("year", track->getYear().value());
+        }
 
         Wt::WPushButton* playBtn{ entry->bindNew<Wt::WPushButton>("play-btn", Wt::WString::tr("Lms.template.play-btn"), Wt::TextFormat::XHTML) };
         playBtn->clicked().connect([trackId, &playQueueController] {

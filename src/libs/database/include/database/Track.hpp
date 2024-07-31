@@ -83,7 +83,7 @@ namespace lms::db
             std::optional<int> discNumber;                           // matching this disc number
             MediaLibraryId mediaLibrary;                             // If set, tracks in this library
             std::optional<int> rating;
-            DirectoryId directory;                                   // if set, tracks in this directory
+            DirectoryId directory; // if set, tracks in this directory
 
             FindParameters& setClusters(std::span<const ClusterId> _clusters)
             {

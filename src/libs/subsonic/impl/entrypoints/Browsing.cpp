@@ -371,7 +371,7 @@ namespace lms::api::subsonic
     Response handleGetMoodRequest(RequestContext& context)
     {
         Response response{ Response::createOkResponse(context.serverProtocolVersion) };
-        std::optional<int> year {getParameterAs<int>(context.parameters, "year")};
+        std::optional<int> year{ getParameterAs<int>(context.parameters, "year") };
 
         Response::Node& moodNode{ response.createNode("mood") };
 
@@ -383,7 +383,7 @@ namespace lms::api::subsonic
             const auto clusters{ clusterType->getClusters() };
 
             for (const Cluster::pointer& cluster : clusters)
-                if (!year.has_value() || year==-1)
+                if (!year.has_value() || year == -1)
                     moodNode.addArrayChild("mood", createGenreNode(context, cluster));
         }
 

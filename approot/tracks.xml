@@ -141,6 +141,10 @@
 								${playcount}
 							</div>
 						</div>
+						${<if-has-comment>}
+						<hr/>
+						<pre>${comment}</pre>
+						${</if-has-comment>}
 					</div>
 				</div>
 				<div class="modal-footer">

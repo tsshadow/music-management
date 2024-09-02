@@ -35,7 +35,7 @@ namespace lms::db
 {
     namespace
     {
-        static constexpr Version LMS_DATABASE_VERSION{ 63 };
+        static constexpr Version LMS_DATABASE_VERSION{ 65 };
     }
 
     VersionInfo::VersionInfo()
@@ -678,6 +678,69 @@ SELECT
         session.getDboSession()->execute("UPDATE scan_settings SET scan_version = scan_version + 1");
     }
 
+    void migrateFromV63(Session& session)
+    {
+        // Add a rated entities
+
+        session.getDboSession()->execute(R"(CREATE TABLE IF NOT EXISTS "rated_artist" (
+  "id" integer primary key autoincrement,
+  "version" integer not null,
+  "rating" integer not null,
+  "last_updated" text,
+  "artist_id" bigint,
+  "user_id" bigint,
+  constraint "fk_rated_artist_artist" foreign key ("artist_id") references "artist" ("id") on delete cascade deferrable initially deferred,
+  constraint "fk_rated_artist_user" foreign key ("user_id") references "user" ("id") on delete cascade deferrable initially deferred
+))");
+
+        session.getDboSession()->execute(R"(CREATE TABLE IF NOT EXISTS "rated_release" (
+  "id" integer primary key autoincrement,
+  "version" integer not null,
+  "rating" integer not null,
+  "last_updated" text,
+  "release_id" bigint,
+  "user_id" bigint,
+  constraint "fk_rated_release_release" foreign key ("release_id") references "release" ("id") on delete cascade deferrable initially deferred,
+  constraint "fk_rated_release_user" foreign key ("user_id") references "user" ("id") on delete cascade deferrable initially deferred
+))");
+
+        session.getDboSession()->execute(R"(CREATE TABLE IF NOT EXISTS "rated_track" (
+  "id" integer primary key autoincrement,
+  "version" integer not null,
+  "rating" bigint not null,
+  "last_updated" text,
+  "track_id" bigint,
+  "user_id" bigint,
+  constraint "fk_rated_track_track" foreign key ("track_id") references "track" ("id") on delete cascade deferrable initially deferred,
+  constraint "fk_rated_track_user" foreign key ("user_id") references "user" ("id") on delete cascade deferrable initially deferred
+))");
+
+        // Drop badly named index, will be recreated
+        session.getDboSession()->execute("DROP INDEX IF EXISTS listen_user_backend_date_time");
+    }
+
+    void migrateFromV64(Session& session)
+    {
+        session.getDboSession()->execute(R"(CREATE TABLE IF NOT EXISTS "label" (
+  "id" integer primary key autoincrement,
+  "version" integer not null,
+  "name" text not null
+))");
+
+        session.getDboSession()->execute(R"(CREATE TABLE IF NOT EXISTS "release_label" (
+  "label_id" bigint,
+  "release_id" bigint,
+  primary key ("label_id", "release_id"),
+  constraint "fk_release_label_key1" foreign key ("label_id") references "label" ("id") on delete cascade deferrable initially deferred,
+  constraint "fk_release_label_key2" foreign key ("release_id") references "release" ("id") on delete cascade deferrable initially deferred
+))");
+        session.getDboSession()->execute(R"(CREATE INDEX "release_label_label" on "release_label" ("label_id"))");
+        session.getDboSession()->execute(R"(CREATE INDEX "release_label_release" on "release_label" ("release_id"))");
+
+        // Just increment the scan version of the settings to make the next scheduled scan rescan everything
+        session.getDboSession()->execute("UPDATE scan_settings SET scan_version = scan_version + 1");
+    }
+
     bool doDbMigration(Session& session)
     {
         static const std::string outdatedMsg{ "Outdated database, please rebuild it (delete the .db file and restart)" };
@@ -717,6 +780,8 @@ SELECT
             { 60, migrateFromV60 },
             { 61, migrateFromV61 },
             { 62, migrateFromV62 },
+            { 63, migrateFromV63 },
+            { 64, migrateFromV64 },
         };
 
         bool migrationPerformed{};

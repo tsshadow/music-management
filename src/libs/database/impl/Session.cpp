@@ -30,6 +30,9 @@
 #include "database/Image.hpp"
 #include "database/Listen.hpp"
 #include "database/MediaLibrary.hpp"
+#include "database/RatedArtist.hpp"
+#include "database/RatedRelease.hpp"
+#include "database/RatedTrack.hpp"
 #include "database/Release.hpp"
 #include "database/ScanSettings.hpp"
 #include "database/StarredArtist.hpp"
@@ -96,8 +99,12 @@ namespace lms::db
         _session.mapClass<ClusterType>("cluster_type");
         _session.mapClass<Directory>("directory");
         _session.mapClass<Image>("image");
+        _session.mapClass<Label>("label");
         _session.mapClass<Listen>("listen");
         _session.mapClass<MediaLibrary>("media_library");
+        _session.mapClass<RatedArtist>("rated_artist");
+        _session.mapClass<RatedRelease>("rated_release");
+        _session.mapClass<RatedTrack>("rated_track");
         _session.mapClass<Release>("release");
         _session.mapClass<ReleaseType>("release_type");
         _session.mapClass<ScanSettings>("scan_settings");
@@ -191,12 +198,18 @@ namespace lms::db
         _session.execute("CREATE INDEX IF NOT EXISTS image_path_idx ON image(absolute_file_path)");
         _session.execute("CREATE INDEX IF NOT EXISTS image_stem_idx ON image(stem)");
 
+        _session.execute("CREATE INDEX IF NOT EXISTS label_name_idx ON label(name)");
+
         _session.execute("CREATE INDEX IF NOT EXISTS listen_backend_idx ON listen(backend)");
         _session.execute("CREATE INDEX IF NOT EXISTS listen_id_idx ON listen(id)");
         _session.execute("CREATE INDEX IF NOT EXISTS listen_user_backend_idx ON listen(user_id,backend)");
-        _session.execute("CREATE INDEX IF NOT EXISTS listen_user_backend_date_time ON listen(user_id, backend, date_time DESC)");
+        _session.execute("CREATE INDEX IF NOT EXISTS listen_user_backend_date_time_idx ON listen(user_id, backend, date_time DESC)");
         _session.execute("CREATE INDEX IF NOT EXISTS listen_track_user_backend_idx ON listen(track_id,user_id,backend)");
         _session.execute("CREATE INDEX IF NOT EXISTS listen_user_track_backend_date_time_idx ON listen(user_id,track_id,backend,date_time)");
+
+        _session.execute("CREATE INDEX IF NOT EXISTS rated_artist_user_artist_idx ON rated_artist(user_id,artist_id)");
+        _session.execute("CREATE INDEX IF NOT EXISTS rated_release_user_release_idx ON rated_release(user_id,release_id)");
+        _session.execute("CREATE INDEX IF NOT EXISTS rated_track_user_track_idx ON rated_track(user_id,track_id)");
 
         _session.execute("CREATE INDEX IF NOT EXISTS release_id_idx ON release(id)");
         _session.execute("CREATE INDEX IF NOT EXISTS release_name_idx ON release(name)");

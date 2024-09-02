@@ -214,7 +214,7 @@ namespace lms::api::subsonic
             // Media annotation
             { "/star", { handleStarRequest } },
             { "/unstar", { handleUnstarRequest } },
-            { "/setRating", { handleNotImplemented } },
+            { "/setRating", { handleSetRating } },
             { "/scrobble", { handleScrobble } },
 
             // Sharing

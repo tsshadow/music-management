@@ -24,7 +24,9 @@ The following extra fields are implemented:
   * `moods`
   * `musicBrainzId`
   * `originalReleaseDate`
+  * `recordLabels`
   * `releaseTypes`
+  * `userRating`
 * `Child` response:
   * `albumArtists`
   * `artists`

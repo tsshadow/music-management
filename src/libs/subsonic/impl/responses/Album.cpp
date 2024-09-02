@@ -36,6 +36,7 @@
 #include "responses/DiscTitle.hpp"
 #include "responses/ItemDate.hpp"
 #include "responses/ItemGenre.hpp"
+#include "responses/RecordLabel.hpp"
 
 namespace lms::api::subsonic
 {
@@ -116,6 +117,10 @@ namespace lms::api::subsonic
         if (const Wt::WDateTime dateTime{ core::Service<feedback::IFeedbackService>::get()->getStarredDateTime(context.user->getId(), release->getId()) }; dateTime.isValid())
             albumNode.setAttribute("starred", core::stringUtils::toISO8601String(dateTime));
 
+        // Always report user rating, even if legacy API only specified it for directories
+        if (const auto rating{ core::Service<feedback::IFeedbackService>::get()->getRating(context.user->getId(), release->getId()) })
+            albumNode.setAttribute("userRating", *rating);
+
         if (!context.enableOpenSubsonic)
             return albumNode;
 
@@ -182,13 +187,17 @@ namespace lms::api::subsonic
             albumNode.setAttribute("isCompilation", isCompilation);
         }
 
-        // disc titles
         albumNode.createEmptyArrayChild("discTitles");
         for (const DiscInfo& discInfo : release->getDiscs())
         {
             if (!discInfo.name.empty())
                 albumNode.addArrayChild("discTitles", createDiscTitle(discInfo));
         }
+
+        albumNode.createEmptyArrayChild("recordLabels");
+        release->visitLabels([&](const Label::pointer& label) {
+            albumNode.addArrayChild("recordLabels", createRecordLabel(label));
+        });
 
         return albumNode;
     }

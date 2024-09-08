@@ -3,9 +3,8 @@ import shutil
 import string
 from os import listdir
 from os.path import isfile, join
-from labels import labels
+# from labels import labels
 import config
-
 
 def get_cat_id(folder):
     cat_id = folder.split(' ')
@@ -16,11 +15,38 @@ def get_label_by_cat_id():
     print('a')
 
 
+def populate_map_from_file(file_path):
+    # Initialize an empty dictionary
+    key_value_map = {}
+
+    # Read the content of the file
+    with open(file_path, 'r') as file:
+        for line in file:
+            # Remove leading/trailing whitespace and square brackets
+            line = line.strip()[1:-1]
+
+            # Split the line at the colon
+            parts = line.split(':')
+
+            # Ensure there are exactly two parts (key and value)
+            if len(parts) == 2:
+                key = parts[0].strip().strip("'")  # Remove extra whitespace and single quotes
+                value = parts[1].strip().strip("'")  # Remove extra whitespace and single quotes
+                key_value_map[key] = value
+            else:
+                print(f"Error: Line '{line}' is not in key:value format. Skipping...")
+    return key_value_map
+
 
 class Mover:
 
     def __init__(self):
         self.settings = config.Settings()
+        file_path = self.settings.music_folder_path+self.settings.delimiter+"labels.txt"  # Path to your text file
+        print(file_path)
+        self.labels = populate_map_from_file(file_path)
+        print(self.labels)
+
 
     def remove(self, folder):
         src = self.settings.import_folder_path + self.settings.delimiter + folder
@@ -66,7 +92,7 @@ class Mover:
                 else:
                     # Find label
                     try:
-                        label = labels[cat_id_prefix]
+                        label = self.labels[cat_id_prefix]
                     except Exception as e:
                         print(str(e) + ' not found in label list')
                     else:

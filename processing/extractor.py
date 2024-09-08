@@ -2,13 +2,13 @@ import os
 from os import listdir
 from os.path import join, isfile
 
-import config
 import patoolib
+from data.settings import Settings
 
 
 class Extractor:
     def __init__(self):
-        self.settings = config.Settings()
+        self.settings = Settings()
 
     def extract(self):
         only_files = [f for f in listdir(self.settings.import_folder_path) if

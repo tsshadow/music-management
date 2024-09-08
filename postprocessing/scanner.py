@@ -1,7 +1,6 @@
 from mutagen.id3 import ID3
 from os import listdir
 from os.path import isfile, join
-import config
 
 
 def ignore(test):

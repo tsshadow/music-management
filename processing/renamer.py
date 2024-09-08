@@ -3,8 +3,8 @@ import shutil
 from os import listdir
 from os.path import isfile, join
 import re
-import config
 
+from data.settings import Settings
 
 def has_numbers(input_string):
     return any(char.isdigit() for char in input_string)
@@ -35,7 +35,7 @@ def find_cat_id(folder):
 class Renamer:
 
     def __init__(self):
-        self.settings = config.Settings()
+        self.settings = Settings()
 
     def rename(self):
         only_folders = [f for f in listdir(self.settings.import_folder_path) if

@@ -1,10 +1,8 @@
-import os
 import shutil
 import string
 from os import listdir
 from os.path import isfile, join
-# from labels import labels
-import config
+from data.settings import Settings
 
 def get_cat_id(folder):
     cat_id = folder.split(' ')
@@ -41,7 +39,7 @@ def populate_map_from_file(file_path):
 class Mover:
 
     def __init__(self):
-        self.settings = config.Settings()
+        self.settings = Settings()
         file_path = self.settings.music_folder_path+self.settings.delimiter+"labels.txt"  # Path to your text file
         print(file_path)
         self.labels = populate_map_from_file(file_path)

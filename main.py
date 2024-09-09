@@ -1,24 +1,26 @@
 import sys
 from time import sleep
 
-import config
-import renamer
-import mover
-import scanner
-import extractor
-import database
+from processing.extractor import Extractor
+from processing.mover import Mover
+from processing.renamer import Renamer
+from data.settings import Settings
+# from data.database import Database
+# from postprocessing.scanner import Scanner
+from postprocessing.tagger import Tagger
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print('Run command with \'main.py docker\' or \'main.py windows\'')
     else:
-        settings = config.Settings()
+        settings = Settings()
         settings.initialize(sys.argv[1])
 
-        extractor = extractor.Extractor()
-        renamer = renamer.Renamer()
-        mover = mover.Mover()
-        # database = database.Database()
+        extractor = Extractor()
+        renamer = Renamer()
+        mover = Mover()
+        tagger = Tagger()
+        # database = Database()
         # scanner = scanner.Scanner(database)
 
         counter = 75
@@ -26,6 +28,7 @@ if __name__ == '__main__':
             extractor.extract()
             renamer.rename()
             mover.move()
+            tagger.tag()
 
             if counter > 72:
                 counter = 0

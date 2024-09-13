@@ -16,19 +16,19 @@ if __name__ == '__main__':
         settings = Settings()
         settings.initialize(sys.argv[1])
 
-        extractor = Extractor()
-        renamer = Renamer()
-        mover = Mover()
         tagger = Tagger()
+        # extractor = Extractor()
+        # renamer = Renamer()
+        # mover = Mover()
         # database = Database()
         # scanner = scanner.Scanner(database)
 
         counter = 75
         while True:
-            extractor.extract()
-            renamer.rename()
-            mover.move()
             tagger.tag()
+            # extractor.extract()
+            # renamer.rename()
+            # mover.move()
 
             if counter > 72:
                 counter = 0

@@ -4,6 +4,7 @@ from os import listdir
 from os.path import isfile, join
 from data.settings import Settings
 
+
 def get_cat_id(folder):
     cat_id = folder.split(' ')
     return cat_id[0]
@@ -40,11 +41,10 @@ class Mover:
 
     def __init__(self):
         self.settings = Settings()
-        file_path = self.settings.music_folder_path+self.settings.delimiter+"labels.txt"  # Path to your text file
+        file_path = self.settings.music_folder_path + self.settings.delimiter + "labels.txt"  # Path to your text file
         print(file_path)
         self.labels = populate_map_from_file(file_path)
         print(self.labels)
-
 
     def remove(self, folder):
         src = self.settings.import_folder_path + self.settings.delimiter + folder
@@ -84,7 +84,6 @@ class Mover:
                 # Remove last numbers before PRO
                 cat_id_prefix = cat_id_prefix.rstrip(string.digits)
 
-
                 if cat_id_prefix == '':
                     print('No label found for ' + folder)
                 else:
@@ -107,7 +106,5 @@ class Mover:
                             if 'already exists' in str(e):
                                 self.remove(folder)
                             else:
-                                print('Thrown exception (type: '+e.__class__.__name__+') \'' + str(e) + '\' while moving for \'' + folder + '\'')
-
-
-
+                                print('Thrown exception (type: ' + e.__class__.__name__ + ') \'' + str(
+                                    e) + '\' while moving for \'' + folder + '\'')

@@ -69,6 +69,7 @@ class Tagger:
                         mp3file['GENRE'] = self.parse_tag("GENRE", mp3file) + ';' + entry['genre']
                         return mp3file, True
         return mp3file, False
+
     def get_genre_from_label(self, mp3file):
         already_exists = False
         publisher = self.parse_tag("publisher", mp3file)
@@ -169,37 +170,37 @@ class Tagger:
 
             mp3file, has_changed = self.update_tag(mp3file, "CATALOGNUMBER", self.get_ep(path))
             should_update += has_changed
-            if (has_changed):
+            if has_changed:
                 print("CATALOGNUMBER changed")
             mp3file, has_changed = self.update_tag(mp3file, "PUBLISHER", self.get_label(path))
             should_update += has_changed
-            if (has_changed):
-                print("PUBLISHER changed")
+            if has_changed:
+                print("PUBLISHER changed" + self.parse_tag('PUBLISHER', mp3file))
             mp3file, has_changed = self.update_tag(mp3file, "GENRE", self.parse_tag("GENRE", mp3file))
             should_update += has_changed
-            if (has_changed):
+            if has_changed:
                 print("GENRE changed")
             mp3file, has_changed = self.get_genre_from_artist(mp3file)
             should_update += has_changed
-            if (has_changed):
-                print("get_genre_from_artist changed "+self.parse_tag('Artist', mp3file))
+            if has_changed:
+                print("get_genre_from_artist changed " + self.parse_tag('Artist', mp3file))
             mp3file, has_changed = self.get_genre_from_label(mp3file)
             should_update += has_changed
-            if (has_changed):
+            if has_changed:
                 print("get_genre_from_label changed")
             mp3file, has_changed = self.get_genre_from_subgenres(mp3file)
             should_update += has_changed
-            if (has_changed):
+            if has_changed:
                 print("get_genre_from_subgenres changed")
             if self.get_copyright(mp3file):
-                mp3file, has_changed = self.update_tag(mp3file, "COPYRIGHT", self.get_copyright(mp3file))
+                mp3file, has_changed = self.update_tag(mp3file, "COPYRIGHT", self.parse_tag('COPYRIGHT', mp3file))
                 should_update += has_changed
-                if (has_changed):
-                    print("COPYRIGHT changed")
+                if has_changed:
+                    print("COPYRIGHT changed" + mp3file['COPYRIGHT'])
             if should_update:
                 mp3file['parsed'] = 'True'
                 mp3file.save()
-                print('Saved ' + path)
+                print('Saved ' + filename)
                 self.print_mp3(mp3file)
             else:
                 print('.', end='')
@@ -207,5 +208,6 @@ class Tagger:
                 # self.print_mp3(mp3file)
 
     def print_mp3(self, mp3file):
-        print(mp3file["publisher"], mp3file["catalognumber"], mp3file["genre"], mp3file["copyright"],mp3file.get('parsed'))
+        print(mp3file["publisher"], mp3file["catalognumber"], mp3file["genre"], mp3file["copyright"],
+              mp3file.get('parsed'))
         pass

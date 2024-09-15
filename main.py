@@ -14,7 +14,12 @@ if __name__ == '__main__':
         print('Run command with \'main.py docker\' or \'main.py windows\'')
     else:
         settings = Settings()
-        settings.initialize(sys.argv[1])
+
+        if len(sys.argv) < 3:
+            settings.initialize(sys.argv[1], "")
+        else:
+            settings.initialize(sys.argv[1], sys.argv[2])
+
 
         tagger = Tagger()
         # extractor = Extractor()

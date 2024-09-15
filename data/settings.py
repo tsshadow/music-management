@@ -23,8 +23,10 @@ class Settings(metaclass=SingletonMeta):
     music_folder_path = ''
     delimiter = ''
 
+    def __init__(self):
+        self.rescan = None
 
-    def initialize(self, environment):
+    def initialize(self, environment, rescan):
         print('Initializing settings for ' + environment)
         if environment == 'docker':
             self.import_folder_path = "/music/__TODO"
@@ -44,3 +46,4 @@ class Settings(metaclass=SingletonMeta):
         print('import_folder_path = ' + self.import_folder_path)
         print('music_folder_path = ' + self.music_folder_path)
         print('delimiter = ' + self.delimiter)
+        self.rescan = rescan

@@ -41,7 +41,7 @@ class Mover:
 
     def __init__(self):
         self.settings = Settings()
-        file_path = self.settings.music_folder_path + self.settings.delimiter + "labels.txt"  # Path to your text file
+        file_path = self.settings.eps_folder_path + self.settings.delimiter + "labels.txt"  # Path to your text file
         print(file_path)
         self.labels = populate_map_from_file(file_path)
         print(self.labels)
@@ -96,7 +96,7 @@ class Mover:
                         # copy file
                         try:
                             src = self.settings.import_folder_path + self.settings.delimiter + folder
-                            dst = self.settings.music_folder_path + self.settings.delimiter + label + self.settings.delimiter + folder
+                            dst = self.settings.eps_folder_path + self.settings.delimiter + label + self.settings.delimiter + folder
                             print('src: ' + src)
                             print('dst: ' + dst)
                             shutil.move(src, dst)

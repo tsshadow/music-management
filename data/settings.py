@@ -20,7 +20,7 @@ class SingletonMeta(type):
 
 class Settings(metaclass=SingletonMeta):
     import_folder_path = ''
-    music_folder_path = ''
+    eps_folder_path = ''
     delimiter = ''
 
     def __init__(self):
@@ -30,20 +30,20 @@ class Settings(metaclass=SingletonMeta):
         print('Initializing settings for ' + environment)
         if environment == 'docker':
             self.import_folder_path = "/music/__TODO"
-            self.music_folder_path = "/music"
-            self.music_folder_path2 = self.music_folder_path
+            self.eps_folder_path = "/music"
+            self.music_folder_path = self.eps_folder_path
             self.delimiter = '/'
         elif environment == 'test':
             self.delimiter = '\\'
             self.import_folder_path = "D:\\test\\import"
-            self.music_folder_path = "D:\\test"
-            self.music_folder_path2 = self.music_folder_path
+            self.eps_folder_path = "D:\\test"
+            self.music_folder_path = self.eps_folder_path
         else:
             self.import_folder_path = "\\\\192.0.2.2\\Music\\Eps\\__TODO"
-            self.music_folder_path = "\\\\192.0.2.2\\Music\\Eps"
-            self.music_folder_path2 = "\\\\192.0.2.2\\Music"
+            self.eps_folder_path = "\\\\192.0.2.2\\Music\\Eps"
+            self.music_folder_path = "\\\\192.0.2.2\\Music"
             self.delimiter = '\\'
         print('import_folder_path = ' + self.import_folder_path)
-        print('music_folder_path = ' + self.music_folder_path)
+        print('music_folder_path = ' + self.eps_folder_path)
         print('delimiter = ' + self.delimiter)
         self.rescan = rescan

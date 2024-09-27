@@ -1,5 +1,7 @@
 publisher_genre_mapping = [
     {"name": "A2 Records", "genre": "Hardstyle"},
+    {"name": "Apex Records", "genre": "Raw Hardstyle"},
+    {"name": "Art Of Creation", "genre": "Mainstream Hardstyle"},
     {"name": "Partyraiser records", "genre": "Uptempo Hardcore"},
     {"name": "Partyraiser records", "genre": "Hardcore"},
     {"name": "Barbaric Records", "genre": "Uptempo Hardcore"},
@@ -7,6 +9,9 @@ publisher_genre_mapping = [
     {"name": "Art of Creation", "genre": "Mainstream Hardstyle"},
     {"name": "Barbaric Records", "genre": "Hardcore"},
     {"name": "Snakepit Music", "genre": "Uptempo Hardcore"},
+    {"name": "Snakepit Music", "genre": "Hardcore"},
     {"name": "Chaotic Universe", "genre": "Hardcore"},
     {"name": "Chaotic Universe", "genre": "Uptempo Hardcore"},
+    {"name": "Gearbox Digital", "genre": "Raw Hardstyle"},
+    {"name": "Gearbox Overdrive", "genre": "Uptempo Hardcore"},
 ]

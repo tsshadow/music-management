@@ -14,8 +14,8 @@ class Scanner:
         self.db = db
 
     def scan(self):
-        label_folders = [f for f in listdir(self.settings.music_folder_path) if
-                         not isfile(join(self.settings.music_folder_path, f))]
+        label_folders = [f for f in listdir(self.settings.eps_folder_path) if
+                         not isfile(join(self.settings.eps_folder_path, f))]
         for label_folder in label_folders:
             if not '__' in label_folder:
                 if not '@' in label_folder:
@@ -28,8 +28,8 @@ class Scanner:
         # Insert the label-entry
         self.db.insert_label(label_folder)
 
-        eps_folders = [fi for fi in listdir(self.settings.music_folder_path + '/' + label_folder) if
-                       not isfile(join(self.settings.music_folder_path + '/' + label_folder, fi))]
+        eps_folders = [fi for fi in listdir(self.settings.eps_folder_path + '/' + label_folder) if
+                       not isfile(join(self.settings.eps_folder_path + '/' + label_folder, fi))]
 
         for ep_folder in eps_folders:
             self.process_ep_folder(label_folder, ep_folder)
@@ -43,11 +43,11 @@ class Scanner:
         else:
             self.db.insert_eps(label_folder, 'none', ep_folder)
 
-        music_files = [fi for fi in listdir(self.settings.music_folder_path + '/' + label_folder + '/' + ep_folder) if
-                       isfile(join(self.settings.music_folder_path + '/' + label_folder + '/' + ep_folder, fi))]
+        music_files = [fi for fi in listdir(self.settings.eps_folder_path + '/' + label_folder + '/' + ep_folder) if
+                       isfile(join(self.settings.eps_folder_path + '/' + label_folder + '/' + ep_folder, fi))]
 
         for file in music_files:
-            self.process_file(self.settings.music_folder_path + "/" + label_folder + "/" + ep_folder + "/" + file,
+            self.process_file(self.settings.eps_folder_path + "/" + label_folder + "/" + ep_folder + "/" + file,
                               label_folder, ep_folder)
 
     def process_file(self, filename, label, ep):

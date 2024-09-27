@@ -9,5 +9,25 @@ artist_genre_mapping = [
     {"name": "Rosbeek", "genre": "Bouncy Uptempo"},
     {"name": "Akimbo", "genre": "Bouncy Uptempo"},
     {"name": "Udow", "genre": "Bouncy Uptempo"},
-    {"name": "Kroefoe", "genre": "Bouncy Uptempo"}
+    {"name": "Kroefoe", "genre": "Bouncy Uptempo"},
+
+    {"name": "Headhunterz", "genre": "Mainstream Hardstyle"},
+    {"name": "Noisecontrollers", "genre": "Mainstream Hardstyle"},
+    {"name": "Wildstylez", "genre": "Mainstream Hardstyle"},
+    {"name": "Frontliner", "genre": "Mainstream Hardstyle"},
+    {"name": "Ran-D", "genre": "Mainstream Hardstyle"},
+    {"name": "Hard Driver", "genre": "Mainstream Hardstyle"},
+
+    {"name": "Angerfist", "genre": "Mainstream Hardcore"},
+    {"name": "Restrained", "genre": "Mainstream Hardcore"},
+    {"name": "Odium", "genre": "Mainstream Hardcore"},
+    {"name": "Never Surrender", "genre": "Mainstream Hardcore"},
+    {"name": "Mad Dog", "genre": "Mainstream Hardcore"},
+    {"name": "Miss K8", "genre": "Mainstream Hardcore"},
+    {"name": "Neophyte", "genre": "Mainstream Hardcore"},
+
+    {"name": "Adjuzt", "genre": "Raw Hardstyle"},
+    {"name": "The Purge", "genre": "Raw Hardstyle"},
+    {"name": "Killshot", "genre": "Raw Hardstyle"},
+    {"name": "Omnya", "genre": "Raw Hardstyle"},
 ]

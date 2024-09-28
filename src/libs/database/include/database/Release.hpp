@@ -114,7 +114,8 @@ namespace lms::db
         struct FindParameters
         {
             std::vector<ClusterId> clusters;        // if non empty, releases that belong to these clusters
-            std::vector<std::string_view> keywords; // if non empty, name must match all of these keywords
+            std::vector<std::string_view> keywords; // if non empty, name must match all of these keywords (cannot be set with keywords)
+            std::string name;                       // must match this name (cannot be set with keywords)
             ReleaseSortMethod sortMethod{ ReleaseSortMethod::None };
             std::optional<Range> range;
             Wt::WDateTime writtenAfter;
@@ -126,7 +127,8 @@ namespace lms::db
             core::EnumSet<TrackArtistLinkType> excludedTrackArtistLinkTypes; //    but not for these link types
             std::string releaseType;                                         // If set, albums that has this release type
             MediaLibraryId mediaLibrary;                                     // If set, releases that has at least a track in this library
-            DirectoryId directory;                                           // if set, tracks in this directory
+            DirectoryId directory;                                           // if set, releases in this directory (cannot be set with parent directory)
+            DirectoryId parentDirectory;                                     // if set, releases in this parent directory (cannot be set with directory)
 
             FindParameters& setClusters(std::span<const ClusterId> _clusters)
             {
@@ -136,6 +138,11 @@ namespace lms::db
             FindParameters& setKeywords(const std::vector<std::string_view>& _keywords)
             {
                 keywords = _keywords;
+                return *this;
+            }
+            FindParameters& setName(std::string_view _name)
+            {
+                name = _name;
                 return *this;
             }
             FindParameters& setSortMethod(ReleaseSortMethod _sortMethod)
@@ -186,6 +193,11 @@ namespace lms::db
                 directory = _directory;
                 return *this;
             }
+            FindParameters& setParentDirectory(DirectoryId _parentDirectory)
+            {
+                parentDirectory = _parentDirectory;
+                return *this;
+            }
         };
 
         Release() = default;
@@ -194,7 +206,6 @@ namespace lms::db
         static std::size_t getCount(Session& session);
         static bool exists(Session& session, ReleaseId id);
         static pointer find(Session& session, const core::UUID& MBID);
-        static std::vector<pointer> find(Session& session, const std::string& name, const std::filesystem::path& releaseDirectory);
         static pointer find(Session& session, ReleaseId id);
         static void find(Session& session, ReleaseId& lastRetrievedRelease, std::size_t count, const std::function<void(const Release::pointer&)>& func, MediaLibraryId library = {});
         static RangeResults<pointer> find(Session& session, const FindParameters& parameters);
@@ -228,6 +239,7 @@ namespace lms::db
         std::chrono::milliseconds getDuration() const;
         Wt::WDateTime getLastWritten() const;
         std::string_view getArtistDisplayName() const { return _artistDisplayName; }
+        bool isCompilation() const { return _isCompilation; }
         std::size_t getTrackCount() const;
         std::vector<ObjectPtr<ReleaseType>> getReleaseTypes() const;
         std::vector<std::string> getLabelNames() const;
@@ -241,6 +253,7 @@ namespace lms::db
         void setGroupMBID(const std::optional<core::UUID>& mbid) { _groupMBID = mbid ? mbid->getAsString() : ""; }
         void setTotalDisc(std::optional<int> totalDisc) { _totalDisc = totalDisc; }
         void setArtistDisplayName(std::string_view name) { _artistDisplayName = name; }
+        void setCompilation(bool value) { _isCompilation = value; }
         void clearLabels();
         void clearReleaseTypes();
         void addLabel(ObjectPtr<Label> releaseType);
@@ -262,6 +275,7 @@ namespace lms::db
             Wt::Dbo::field(a, _groupMBID, "group_mbid");
             Wt::Dbo::field(a, _totalDisc, "total_disc");
             Wt::Dbo::field(a, _artistDisplayName, "artist_display_name");
+            Wt::Dbo::field(a, _isCompilation, "is_compilation");
             Wt::Dbo::hasMany(a, _tracks, Wt::Dbo::ManyToOne, "release");
 
             Wt::Dbo::hasMany(a, _labels, Wt::Dbo::ManyToMany, "release_label", "", Wt::Dbo::OnDeleteCascade);
@@ -284,6 +298,7 @@ namespace lms::db
         std::string _groupMBID;
         std::optional<int> _totalDisc{};
         std::string _artistDisplayName;
+        bool _isCompilation{}; // See https://picard-docs.musicbrainz.org/en/appendices/tag_mapping.html#compilation-itunes-5
 
         Wt::Dbo::collection<Wt::Dbo::ptr<Track>> _tracks;
         Wt::Dbo::collection<Wt::Dbo::ptr<Label>> _labels;

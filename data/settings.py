@@ -24,7 +24,9 @@ class Settings(metaclass=SingletonMeta):
     delimiter = ''
 
     def __init__(self):
+        self.debug = True
         self.rescan = None
+        self.dryrun = True
 
     def initialize(self, environment, rescan):
         print('Initializing settings for ' + environment)

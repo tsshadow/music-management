@@ -1,8 +1,8 @@
+import os
 import re
 import sys
-from os import listdir
-from os.path import join, isfile
 
+from typing import Final
 from mutagen.mp3 import MP3
 from mutagen.easyid3 import EasyID3
 import glob
@@ -15,25 +15,163 @@ from data.publishergenre import publisher_genre_mapping
 
 import librosa
 
+s = Settings()
+
+# MP# Tags in use
+# noinspection SpellCheckingInspection
+CATALOG_NUMBER: Final = "CATALOGNUMBER"
+PUBLISHER: Final = "PUBLISHER"
+BPM: Final = "BPM"
+COPYRIGHT: Final = "COPYRIGHT"
+GENRE: Final = "GENRE"
+ARTIST: Final = "ARTIST"
+PARSED: Final = "PARSED"
+
+EasyID3.RegisterTextKey('publisher', 'TPUB')
+EasyID3.RegisterTXXXKey('parsed', 'parsed')
+
+
+def to_semicolon_separated_tag(tags, format_tag="None"):
+    if len(tags) == 1:
+        return tags[0]
+    if len(tags) > 1:
+        parsed_tags = ""
+        for tag in tags:
+            for g in re.split(';|,/', tag):
+                g = g.strip()
+                if format_tag == "None":
+                    parsed_tags += g + ";"
+                elif format_tag == "Title":
+                    parsed_tags += g.title() + ";"
+
+                parsed_tags = parsed_tags[:-1]
+        return parsed_tags
+
 
 class Song:
     def __init__(self, path):
-        self.settings = Settings()
-        self.path = path
-        paths = path.rsplit(self.settings.delimiter, 2)
-        self.filename = paths[0]
-        ep_folder = paths[1]
-        self.ep = ep_folder.split('-')[0]
-        self.label = paths[2]
+        # Setup member variables
+        self.has_changes = False
+        paths = path.rsplit(s.delimiter, 2)
+        self._path = path
+        self._filename = str(paths[-1])
+        self._extension = os.path.splitext(self._filename)[1]
+        self._publisher = None  # no default
+        self._catalog_number = None  # no default
+        self.mp3file = MP3(path, ID3=EasyID3)
 
-        self.mp3file = MP3.
+    def parse(self):
+        if not self.has_changes or s.rescan:
+            self.analyze_track()
+            self.update_tags()
+
+    def check_or_update_tag(self, tag, value):
+        tag_value = self.get_tag_as_string(tag)
+        if tag_value is None or value is None or tag_value != value:
+            if tag_value is not None and value is not None and tag_value.title() == value.title():
+                self.mp3file[tag] = value + "_CapError"
+                self.save_file()
+        self.mp3file[tag] = value
+        self.has_changes = True
+
+    def update_tags(self):
+        self.check_or_update_tag(PUBLISHER, self._publisher)
+        self.check_or_update_tag(CATALOG_NUMBER, self._catalog_number)
+        self.save_file()
+
+    def save_file(self):
+        if self.has_changes and not s.dryrun:
+            self.mp3file.save()
+
+    def get_tag(self, tag):
+        return self.mp3file.get(tag)
+
+    def get_tag_as_string(self, tag):
+        value = self.mp3file.get(tag)
+        return to_semicolon_separated_tag(value)
+
+    def set_tag(self, tag, value):
+        self.mp3file[tag] = value
 
     def print(self):
-        print("genre ", self.genre)
-        print("artist ", self.artist)
-        print("copyright ", self.copyright)
-        print("publisher ", self.publisher)
-        print("catalogusnumber ", self.catalogusnumber)
+        if s.debug:
+            print("path           ", self.path())
+            print("filename       ", self.filename())
+            print("extension      ", self.extension())
+            print("genre          ", self.genre())
+            print("artist         ", self.artist())
+            print("copyright      ", self.copyright())
+            print("publisher      ", self.publisher(), self._publisher)
+            print("catalog_number ", self.catalog_number(), self._catalog_number)
+            print("bpm            ", self.bpm())
+            print("\n\n")
+
+    def analyze_track(self):
+        if not self.bpm():
+            try:
+                audio_file = librosa.load(self._path)
+                y, sr = audio_file
+                tempo = librosa.beat.beat_track(y=y, sr=sr)
+                # noinspection PyTypeChecker
+                self.set_tag("BPM", str(round(tempo[0][0])))
+            except Exception as e:
+                print('Failed to parse bpm for ' + self._filename + str(e))
+                return 0
+
+    # Getter wrappers
+    def genre(self):
+        return self.get_tag(GENRE)
+
+    def bpm(self):
+        return self.get_tag(BPM)
+
+    def artist(self):
+        return self.get_tag(ARTIST)
+
+    def copyright(self):
+        return self.get_tag(COPYRIGHT)
+
+    def publisher(self):
+        return self.get_tag(PUBLISHER)
+
+    def catalog_number(self):
+        return self.get_tag(CATALOG_NUMBER)
+
+    def filename(self):
+        return self._filename
+
+    def path(self):
+        return self._path
+
+    def extension(self):
+        return self._extension
+
+    def parsed(self):
+        return self.get_tag(PARSED)
+
+
+class LabelSong(Song):
+    def __init__(self, path):
+        super().__init__(path)
+        paths = path.rsplit(s.delimiter, 2)
+        self._publisher = str(paths[0].split(s.delimiter)[-1])
+        self._catalog_number = str(paths[1].split(' ')[0])
+
+        self.parse()
+
+
+class YoutubeSong(Song):
+    def __init__(self, path):
+        super().__init__(path)
+        self._publisher = "Youtube"
+        self._catalog_number = None
+
+
+class SoundcloudSong(Song):
+    def __init__(self, path):
+        super().__init__(path)
+        self._publisher = "Soundcloud"
+        self._catalog_number = None
 
 
 class Tagger:
@@ -52,15 +190,6 @@ class Tagger:
             parsed_tags = parsed_tags[:-1]
             mp3file[name] = parsed_tags
         return parsed_tags
-
-    def get_label(self, path):
-        label = path.rsplit(self.settings.delimiter, 3)[1]
-        return label
-
-    def get_ep(self, path):
-        paths = path.rsplit(self.settings.delimiter, 2)
-        ep_folder = paths[1]
-        return ep_folder.split(' ')[0]
 
     def get_genre_from_artist(self, mp3file):
         already_exists = False
@@ -118,26 +247,26 @@ class Tagger:
 
     # mp3file.save()
     def tag(self):
-        # label_folders = [f for f in listdir(self.settings.eps_folder_path) if
-        #                  not isfile(join(self.settings.eps_folder_path, f))]
-        # for label in label_folders:
-        #     self.parse_label(label)
+        label_folders = [f for f in os.listdir(self.settings.eps_folder_path) if
+                         not os.path.isfile(os.path.join(self.settings.eps_folder_path, f))]
+        for label in label_folders:
+            self.parse_label(label)
 
-        # sc_folder = self.settings.music_folder_path + self.settings.delimiter + "Soundcloud"
-        # sound_cloud_folders = [f for f in listdir(sc_folder) if
-        #                        not isfile(join(sc_folder, f))]
-        # for sound_cloud in sound_cloud_folders:
-        #     self.parse_folder("Soundcloud" + self.settings.delimiter + sound_cloud)
-        #
-        # yt_folder = self.settings.music_folder_path + self.settings.delimiter + "Youtube"
-        # sound_cloud_folders = [f for f in listdir(yt_folder) if
-        #                        not isfile(join(yt_folder, f))]
-        # for sound_cloud in sound_cloud_folders:
-        #     self.parse_label(sound_cloud)
+    # sc_folder = self.settings.music_folder_path + self.settings.delimiter + "Soundcloud"
+    # sound_cloud_folders = [f for f in os.listdir(sc_folder) if
+    #                        not os.path.isfile(os.path.join(sc_folder, f))]
+    # for sound_cloud in sound_cloud_folders:
+    #     self.parse_folder("Soundcloud" + self.settings.delimiter + sound_cloud)
+    #
+    # yt_folder = self.settings.music_folder_path + self.settings.delimiter + "Youtube"
+    # sound_cloud_folders = [f for f in os.listdir(yt_folder) if
+    #                        not os.path.isfile(os.path.join(yt_folder, f))]
+    # for sound_cloud in sound_cloud_folders:
+    #     self.parse_label(sound_cloud)
 
     def parse_label(self, label):
-        eps_folders = [fi for fi in listdir(self.settings.eps_folder_path + self.settings.delimiter + label) if
-                       not isfile(join(self.settings.eps_folder_path + '\\' + label, fi))]
+        eps_folders = [fi for fi in os.listdir(self.settings.eps_folder_path + self.settings.delimiter + label) if
+                       not os.path.isfile(os.path.join(self.settings.eps_folder_path + '\\' + label, fi))]
         for ep in eps_folders:
             if label[0] != '_':
                 try:
@@ -147,15 +276,15 @@ class Tagger:
                     sys.exit(1)
                 except SystemExit:
                     sys.exit(2)
-                except Exception as e:
-                    print('Failed to parse ep ' + ep + ' ' + str(e))
+                # except Exception as e:
+                #     print('Failed to parse ep ' + ep + ' ' + str(e))
 
     def parse_folder(self, folder):
         path = self.settings.music_folder_path + self.settings.delimiter + folder
-        folders = [fi for fi in listdir(path) if
-                   not isfile(join(path, fi))]
-        files = [fi for fi in listdir(path) if
-                 isfile(join(path, fi))]
+        folders = [fi for fi in os.listdir(path) if
+                   not os.path.isfile(os.path.join(path, fi))]
+        files = [fi for fi in os.listdir(path) if
+                 os.path.isfile(os.path.join(path, fi))]
 
         for file in files:
             self.parse_song(
@@ -169,8 +298,8 @@ class Tagger:
                     sys.exit(1)
                 except SystemExit:
                     sys.exit(2)
-                except Exception as e:
-                    print('Failed to parse sub_folder ' + sub_folder + ' ' + str(e))
+                # except Exception as e:
+                #     print('Failed to parse sub_folder ' + sub_folder + ' ' + str(e))
 
     def parse_ep(self, label, ep):
         files = glob.glob(
@@ -181,8 +310,8 @@ class Tagger:
             except KeyboardInterrupt:
                 print('KeyboardInterrupt')
                 sys.exit(1)
-            except Exception as e:
-                print('Failed to parse song ' + song + ' ' + str(e))
+            # except Exception as e:
+            #     print('Failed to parse song ' + song + ' ' + str(e))
 
     def get_tag(self, mp3file, tag):
         tag = mp3file.get(tag)
@@ -204,80 +333,82 @@ class Tagger:
         return mp3file, 0
 
     def parse_song(self, path):
-        should_redo_file = True
-        while should_redo_file:
-            should_redo_file = False
-            paths = path.rsplit(self.settings.delimiter, 1)
-            filename = paths[1]
-            mp3file = MP3(path, ID3=EasyID3)
-            EasyID3.RegisterTextKey('publisher', 'TPUB')
-            EasyID3.RegisterTXXXKey('parsed', 'parsed')
-
-            if not mp3file.get('parsed') or self.settings.rescan:
-                should_update = False
-
-                # CATALOG NUMBER
-                mp3file, has_changed = self.update_tag(mp3file, "CATALOGNUMBER", self.get_ep(path))
-                should_update += has_changed
-                if has_changed:
-                    print("CATALOGNUMBER changed ")
-
-                # PUBLISHER
-                publisher = self.get_label(path)
-                if publisher:
-                    mp3file, has_changed = self.update_tag(mp3file, "PUBLISHER", publisher)
-                    should_update += has_changed
-                    if has_changed == 2:
-                        should_redo_file = True
-                        print('should redo file..')
-                    if has_changed == 1:
-                        print("PUBLISHER changed " + publisher)
-                # BPM
-                bpm = self.parse_tag("BPM", mp3file)
-                if bpm:
-                    pass
-                else:
-                    bpm = self.analyze_bpm(path)
-                    if bpm:
-                        mp3file, has_changed = self.update_tag(mp3file, "BPM", bpm)
-                        should_update += has_changed
-                        if has_changed:
-                            print("bpm changed " + bpm)
-
-                # GENRE
-                genre = self.parse_tag("GENRE", mp3file)
-                if genre:
-                    mp3file, has_changed = self.update_tag(mp3file, "GENRE", genre)
-                    should_update += has_changed
-                    if has_changed:
-                        print("Genre changed " + genre)
-
-                mp3file, has_changed = self.get_genre_from_artist(mp3file)
-                should_update += has_changed
-                if has_changed:
-                    print("get_genre_from_artist changed " + self.parse_tag('Artist', mp3file))
-                # mp3file, has_changed = self.get_genre_from_label(mp3file)
-                # should_update += has_changed
-                # if has_changed:
-                #     print("get_genre_from_label changed ")
-                mp3file, has_changed = self.get_genre_from_subgenres(mp3file)
-                should_update += has_changed
-                if has_changed:
-                    print("get_genre_from_subgenres changed ")
-                if self.get_copyright(mp3file):
-                    mp3file, has_changed = self.update_tag(mp3file, "COPYRIGHT", self.parse_tag('COPYRIGHT', mp3file))
-                    should_update += has_changed
-                    if has_changed:
-                        print("COPYRIGHT changed " +  self.parse_tag('COPYRIGHT', mp3file))
-                if should_update:
-                    mp3file['parsed'] = 'True'
-                    mp3file.save()
-                    print('Saved ' + filename)
-                    self.print_mp3(mp3file)
-                # else:
-                #     print('.', end='')
-                # print('Skipped (no changes) ' + path)
-                # self.print_mp3(mp3file)
+        song = LabelSong(path)
+        song.print()
+        # should_redo_file = True
+        # while should_redo_file:
+        #     should_redo_file = False
+        #     paths = path.rsplit(self.settings.delimiter, 1)
+        #     filename = paths[1]
+        #     mp3file = MP3(path, ID3=EasyID3)
+        #     EasyID3.RegisterTextKey('publisher', 'TPUB')
+        #     EasyID3.RegisterTXXXKey('parsed', 'parsed')
+        #
+        #     if not mp3file.get('parsed') or self.settings.rescan:
+        #         should_update = False
+        #
+        #         # CATALOG NUMBER
+        #         mp3file, has_changed = self.update_tag(mp3file, "CATALOGNUMBER", self.get_ep(path))
+        #         should_update += has_changed
+        #         if has_changed:
+        #             print("CATALOGNUMBER changed ")
+        #
+        #         # PUBLISHER
+        #         publisher = self.get_label(path)
+        #         if publisher:
+        #             mp3file, has_changed = self.update_tag(mp3file, "PUBLISHER", publisher)
+        #             should_update += has_changed
+        #             if has_changed == 2:
+        #                 should_redo_file = True
+        #                 print('should redo file..')
+        #             if has_changed == 1:
+        #                 print("PUBLISHER changed " + publisher)
+        #         # BPM
+        #         bpm = self.parse_tag("BPM", mp3file)
+        #         if bpm:
+        #             pass
+        #         else:
+        #             bpm = self.analyze_bpm(path)
+        #             if bpm:
+        #                 mp3file, has_changed = self.update_tag(mp3file, "BPM", bpm)
+        #                 should_update += has_changed
+        #                 if has_changed:
+        #                     print("bpm changed " + bpm)
+        #
+        #         # GENRE
+        #         genre = self.parse_tag("GENRE", mp3file)
+        #         if genre:
+        #             mp3file, has_changed = self.update_tag(mp3file, "GENRE", genre)
+        #             should_update += has_changed
+        #             if has_changed:
+        #                 print("Genre changed " + genre)
+        #
+        #         mp3file, has_changed = self.get_genre_from_artist(mp3file)
+        #         should_update += has_changed
+        #         if has_changed:
+        #             print("get_genre_from_artist changed " + self.parse_tag('Artist', mp3file))
+        #         # mp3file, has_changed = self.get_genre_from_label(mp3file)
+        #         # should_update += has_changed
+        #         # if has_changed:
+        #         #     print("get_genre_from_label changed ")
+        #         mp3file, has_changed = self.get_genre_from_subgenres(mp3file)
+        #         should_update += has_changed
+        #         if has_changed:
+        #             print("get_genre_from_subgenres changed ")
+        #         if self.get_copyright(mp3file):
+        #             mp3file, has_changed = self.update_tag(mp3file, "COPYRIGHT", self.parse_tag('COPYRIGHT', mp3file))
+        #             should_update += has_changed
+        #             if has_changed:
+        #                 print("COPYRIGHT changed " + self.parse_tag('COPYRIGHT', mp3file))
+        #         if should_update:
+        #             mp3file['parsed'] = 'True'
+        #             mp3file.save()
+        #             print('Saved ' + filename)
+        #             self.print_mp3(mp3file)
+        #         # else:
+        #         #     print('.', end='')
+        #         # print('Skipped (no changes) ' + path)
+        #         # self.print_mp3(mp3file)
 
     def print_mp3(self, mp3file):
         print(mp3file["publisher"], mp3file["catalognumber"], mp3file["genre"], mp3file["bpm"], mp3file["copyright"],

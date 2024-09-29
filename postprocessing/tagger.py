@@ -34,7 +34,7 @@ class FORMAT(Enum):
 # noinspection SpellCheckingInspection
 CATALOG_NUMBER: Final = "CATALOGNUMBER"
 PUBLISHER: Final = "PUBLISHER"
-PUBLISHER2: Final = "PUBLISHER2"
+PUBLISHER_OLD: Final = "PUBLISHER_OLD"
 DATE: Final = "DATE"
 BPM: Final = "BPM"
 COPYRIGHT: Final = "COPYRIGHT"
@@ -43,8 +43,8 @@ ARTIST: Final = "ARTIST"
 ALBUM_ARTIST: Final = "ALBUM_ARTIST"
 PARSED: Final = "PARSED"
 
-EasyID3.RegisterTextKey('publisher', 'TPUB')
-EasyID3.RegisterTXXXKey('publisher2', 'publisher')
+EasyID3.RegisterTextKey('publisher_old', 'TPUB')
+EasyID3.RegisterTXXXKey('publisher', 'publisher')
 EasyID3.RegisterTXXXKey('parsed', 'parsed')
 
 
@@ -91,9 +91,11 @@ class Song:
             self.mp3file = WAVE(path, ID3=EasyID3)
 
     def parse(self):
-        if not self.has_changes or s.rescan:
-            self.analyze_track()
-            self.update_tags()
+        self.analyze_track()
+        self.update_tags()
+        self.get_genre_from_artist()
+        self.get_genre_from_label()
+        self.get_genre_from_subgenres()
 
     def check_or_update_tag(self, tag, value):
         tag_value = self.get_tag_as_string(tag)
@@ -109,6 +111,51 @@ class Song:
                 print("updated", tag, "to", value, "was", tag_value)
             self.has_changes = True
 
+    def delete_tag(self, tag):
+        if self.mp3file:
+            if self.mp3file.get(tag):
+                print("deleting", tag)
+                self.mp3file.pop(tag)
+
+    # Smart tag calculation
+    def get_genre_from_artist(self):
+        already_exists = False
+        artists = self.artist()
+        for artist in artists:
+            for entry in artist_genre_mapping:
+                if entry['name'] == artist:
+                    for g in re.split(';|,/', self.genre()):
+                        if g == entry['genre']:
+                            already_exists = True
+                    if not already_exists:
+                        self.check_or_update_tag(GENRE, self.genre() + ';' + entry['genre'])
+                        print("get_genre_from_artist", artist, self.genre())
+
+    def get_genre_from_label(self):
+        already_exists = False
+        publisher = self.publisher()
+        for entry in publisher_genre_mapping:
+            if entry['name'] == publisher:
+                for g in re.split(';|,/', self.genre()):
+                    if g == entry['genre']:
+                        already_exists = True
+                if not already_exists:
+                    self.check_or_update_tag(GENRE, self.genre() + ';' + entry['genre'])
+                    print("get_genre_from_label", publisher, self.genre())
+
+    def get_genre_from_subgenres(self):
+        already_exists = False
+        genres = self.get_tag_as_array(GENRE)
+        for genre in genres:
+            for entry in genressubgenres:
+                if entry['name'] == genre:
+                    for g in re.split(';|,/', self.genre()):
+                        if g == entry['genre']:
+                            already_exists = True
+                    if not already_exists:
+                        self.check_or_update_tag(GENRE, self.genre() + ';' + entry['genre'])
+                        print("get_genre_from_subgenres", genre, self.genre())
+
     def calculate_copyright(self):
         publisher = self.publisher()
         date = self.date()
@@ -121,22 +168,26 @@ class Song:
 
     def update_tags(self):
         self.check_or_update_tag(PUBLISHER, self._publisher)
-        self.check_or_update_tag(PUBLISHER2, self._publisher)
         self.check_or_update_tag(CATALOG_NUMBER, self._catalog_number)
         self.check_or_update_tag(GENRE, self.genre(FORMAT.RECAPITALIZE))
         self.check_or_update_tag(ARTIST, parse_artist(self.artist()))
         self.check_or_update_tag(ALBUM_ARTIST, parse_artist(self.album_artist()))
         self.check_or_update_tag(COPYRIGHT, self.calculate_copyright())
+        self.delete_tag(PUBLISHER_OLD)
         self.save_file()
 
     def save_file(self):
-        if self.has_changes and not s.dryrun:
+        if self.has_changes or s.rescan and not s.dryrun:
             if self.mp3file:
                 self.mp3file.save()
 
     def get_tag(self, tag):
         if self.mp3file:
             return self.mp3file.get(tag)
+
+    def get_tag_as_array(self, tag):
+        value = self.get_tag_as_string(tag)
+        return value.split(";")
 
     def get_tag_as_string(self, tag, format_tag=FORMAT.NONE):
         value = self.get_tag(tag)
@@ -245,61 +296,6 @@ class Tagger:
         self.rescan = None
         self.settings = Settings()
 
-    def parse_tag(self, name, mp3file):
-        parsed_tags = ""
-        tags = mp3file.get(name)
-        if tags:
-            for tag in tags:
-                for g in re.split(';|,/', tag):
-                    g = g.strip()
-                    parsed_tags += g.title() + ";"
-            parsed_tags = parsed_tags[:-1]
-            mp3file[name] = parsed_tags
-        return parsed_tags
-
-    def get_genre_from_artist(self, mp3file):
-        already_exists = False
-        artists = self.parse_tag("ARTIST", mp3file)
-        for artist in artists:
-            for entry in artist_genre_mapping:
-                if entry['name'] == artist:
-                    for g in re.split(';|,/', self.parse_tag("GENRE", mp3file)):
-                        if g == entry['genre']:
-                            already_exists = True
-                    if not already_exists:
-                        mp3file['GENRE'] = self.parse_tag("GENRE", mp3file) + ';' + entry['genre']
-                        return mp3file, True
-        return mp3file, False
-
-    def get_genre_from_label(self, mp3file):
-        already_exists = False
-        publisher = self.get_tag(mp3file, "publisher")
-        for entry in publisher_genre_mapping:
-            if entry['name'] == publisher:
-                for g in re.split(';|,/', self.parse_tag("GENRE", mp3file)):
-                    if g == entry['genre']:
-                        already_exists = True
-                if not already_exists:
-                    mp3file['GENRE'] = self.parse_tag("GENRE", mp3file) + ';' + entry['genre']
-                    print(mp3file['GENRE'])
-                    return mp3file, True
-        return mp3file, False
-
-    def get_genre_from_subgenres(self, mp3file):
-        already_exists = False
-        genres = self.parse_tag("GENRE", mp3file)
-        for entry in genressubgenres:
-            if entry['name'] == genres:
-                for g in re.split(';|,/', self.parse_tag("GENRE", mp3file)):
-                    if g == entry['genre']:
-                        already_exists = True
-                if not already_exists:
-                    mp3file['GENRE'] = self.parse_tag("GENRE", mp3file) + ';' + entry['genre']
-                    print(mp3file['GENRE'])
-                    return mp3file, True
-        return mp3file, False
-
-    # mp3file.save()
     def tag(self):
         label_folders = [f for f in os.listdir(self.settings.eps_folder_path) if
                          not os.path.isfile(os.path.join(self.settings.eps_folder_path, f))]
@@ -369,65 +365,8 @@ class Tagger:
             except Exception as e:
                 print('Failed to parse song ' + song + ' ' + str(e))
 
-    #
-    # def get_tag(self, mp3file, tag):
-    #     tag = mp3file.get(tag)
-    #     if tag:
-    #         if len(tag) == 1:
-    #             return tag[0]
-    #         return tag
-    #     return tag
-    #
-    # def update_tag(self, mp3file, tag, value):
-    #     tag_value = self.get_tag(mp3file, tag)
-    #     if tag_value != value:
-    #         if tag_value and value and tag_value.title() == value.title():
-    #             print('Capitalization error for ' + tag_value + ' ' + value)
-    #             mp3file[tag] = value + "_CapError"
-    #             return mp3file, 2
-    #         mp3file[tag] = value
-    #         return mp3file, 1
-    #     return mp3file, 0
-
     def parse_song(self, path):
-
         song = LabelSong(path)
         # noinspection PyUnreachableCode
         if False:
             song.print()
-        # song.print()
-        #
-        #         # GENRE
-        #         genre = self.parse_tag("GENRE", mp3file)
-        #         if genre:
-        #             mp3file, has_changed = self.update_tag(mp3file, "GENRE", genre)
-        #             should_update += has_changed
-        #             if has_changed:
-        #                 print("Genre changed " + genre)
-        #
-        #         mp3file, has_changed = self.get_genre_from_artist(mp3file)
-        #         should_update += has_changed
-        #         if has_changed:
-        #             print("get_genre_from_artist changed " + self.parse_tag('Artist', mp3file))
-        #         # mp3file, has_changed = self.get_genre_from_label(mp3file)
-        #         # should_update += has_changed
-        #         # if has_changed:
-        #         #     print("get_genre_from_label changed ")
-        #         mp3file, has_changed = self.get_genre_from_subgenres(mp3file)
-        #         should_update += has_changed
-        #         if has_changed:
-        #             print("get_genre_from_subgenres changed ")
-        #         if self.get_copyright(mp3file):
-        #             mp3file, has_changed = self.update_tag(mp3file, "COPYRIGHT", self.parse_tag('COPYRIGHT', mp3file))
-        #             should_update += has_changed
-        #             if has_changed:
-        #                 print("COPYRIGHT changed " + self.parse_tag('COPYRIGHT', mp3file))
-        #         if should_update:
-        #             mp3file['parsed'] = 'True'
-        #             mp3file.save()
-        #             print('Saved ' + filename)
-        #             self.print_mp3(mp3file)
-        #         # else:
-        #         #     print('.', end='')
-        #         # print('Skipped (no changes) ' + path)
-        #         # self.print_mp3(mp3file)

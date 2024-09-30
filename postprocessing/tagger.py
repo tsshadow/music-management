@@ -1,3 +1,4 @@
+import shutil
 from typing import Final
 import glob
 import re
@@ -5,6 +6,7 @@ import os
 import sys
 
 import librosa
+import mutagen
 
 from mutagen.easyid3 import EasyID3
 from mutagen.wave import WAVE
@@ -25,7 +27,7 @@ EasyID3.RegisterTXXXKey('publisher', 'publisher')
 EasyID3.RegisterTXXXKey('parsed', 'parsed')
 
 # Constants
-ARTIST_REGEX: Final = "\s(&|feat\.?|featuring|features|ft\.?|presenting|X|pres\.?|versus|vs\.?)\s"
+ARTIST_REGEX: Final = "\s(&|and|feat\.?|featuring|features|ft\.?|presenting|X|pres\.?|versus|vs\.?)\s"
 
 # noinspection SpellCheckingInspection
 CATALOG_NUMBER: Final = "CATALOGNUMBER"
@@ -52,6 +54,13 @@ class SongTypeEnum(Enum):
     LABEL = 1
     YOUTUBE = 2
     SOUNDCLOUD = 3
+
+
+class MusicFileType(Enum):
+    NONE = 0
+    MP3 = 1
+    FLAC = 2
+    WAV = 3
 
 
 def to_semicolon_separated_tag(tags, format_tag=FormatEnum.NONE):
@@ -88,17 +97,18 @@ class Song:
         self._extension = os.path.splitext(self._filename)[1]
         self._publisher = None  # no default
         self._catalog_number = ""  # no default
-
-        if self._extension.lower() == ".flac":
-            self.mp3file = FLAC(path)
+        if self._extension.lower() == ".mp3":
+            self.music_file = MP3(path, ID3=EasyID3)
+            self.type = MusicFileType.FLAC
+        elif self._extension.lower() == ".flac":
+            self.music_file = FLAC(path)
+            self.type = MusicFileType.FLAC
+        elif self._extension.lower() == ".wav":
+            self.music_file = WAVE(path)
+            self.type = MusicFileType.WAV
+            raise Exception("WAV file not supported")
         else:
-            if self._extension.lower() == ".mp3":
-                self.mp3file = MP3(path, ID3=EasyID3)
-            else:
-                if self._extension.lower() == ".wav":
-                    self.mp3file = WAVE(path)
-                else:
-                    raise ("Cant find mp3 file for", path)
+            raise Exception("Cant find mp3 file for", path)
 
     def parse(self):
         # self.analyze_track()
@@ -123,10 +133,10 @@ class Song:
                 print("updated", tag, "to", value, "was", tag_value)
 
     def delete_tag(self, tag):
-        if self.mp3file:
-            if self.mp3file.get(tag):
-                print("deleting", tag)
-                self.mp3file.pop(tag)
+        if self.music_file:
+            if self.music_file.get(tag):
+                # print("deleting", tag)
+                self.music_file.pop(tag)
                 self.has_changes = True
 
     # Smart tag calculation
@@ -182,12 +192,20 @@ class Song:
 
     def save_file(self):
         if self.has_changes or s.rescan and not s.dryrun:
-            if self.mp3file:
-                self.mp3file.save()
+            if self.music_file:
+                self.music_file.save()
 
     def get_tag(self, tag):
-        if self.mp3file:
-            return self.mp3file.get(tag)
+        if self.music_file:
+            if self.type != MusicFileType.WAV:
+                return self.music_file.get(tag)
+            else:
+                text_frame = self.music_file.get(tag)
+                if not text_frame:
+                    return None
+                returnv =  str(text_frame)
+                print(returnv)
+                return [returnv]
 
     def get_tag_as_array(self, tag):
         value = self.get_tag_as_string(tag)
@@ -201,8 +219,11 @@ class Song:
             return to_semicolon_separated_tag(value, format_tag)
 
     def set_tag(self, tag, value):
-        if self.mp3file:
-            self.mp3file[tag] = value
+        if self.music_file:
+            if self.type != MusicFileType.WAV:
+                self.music_file[tag] = value
+            else:
+                self.music_file[tag] = mutagen.id3.TextFrame(encoding=3, text=[value])
             self.has_changes = True
 
     def print(self):
@@ -373,6 +394,24 @@ class Tagger:
             except Exception as e:
                 print('Failed to parse song ' + file + ' ' + str(e))
         for sub_folder in folders:
+            # Testcode for finding and fixing multi-level deep folders
+            # a = folder + s.delimiter + sub_folder
+            # if len(a.split("\\")) > 7:
+            #     fs = glob.glob(a.rsplit("\\", 1)[0] + s.delimiter + "*.mp3") + glob.glob(
+            #         a.rsplit("\\", 1)[0] + s.delimiter + "*.wav") + glob.glob(
+            #         a.rsplit("\\", 1)[0] + s.delimiter + "*.flac")
+            #     if len(fs) != 0:
+            #         shutil.rmtree(a)
+            #         print("deleting", a, "# files", len(fs))
+            #     else:
+            #         fs2 = glob.glob(a + s.delimiter + "*.*")
+            #         if len(fs2) != 0:
+            #             print("moving ", a, "to", a.rsplit("\\", 1)[0])
+            #             for fs22 in fs2:
+            #                 shutil.move(fs22, str(a.rsplit("\\", 1)[0]))
+            #             shutil.rmtree(a)
+            #         else:
+            #             print("MISSING", a)
             if sub_folder[0] != '_':
                 try:
                     self.parse_folder(folder + s.delimiter + sub_folder, song_type)

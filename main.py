@@ -28,16 +28,11 @@ if __name__ == '__main__':
         # database = Database()
         # scanner = scanner.Scanner(database)
 
-        counter = 75
-        # while True:
-        tagger.tag()
-        # extractor.extract()
-        # renamer.rename()
-        # mover.move()
+        while True:
+            tagger.tag()
+            # extractor.extract()
+            # renamer.rename()
+            # mover.move()
 
-        if counter > 72:
-            counter = 0
-            # scanner.scan()
-        counter = counter + 1
-        print('sleeping for 300s')
-        sleep(300)
+            print('sleeping for 300s')
+            sleep(300)

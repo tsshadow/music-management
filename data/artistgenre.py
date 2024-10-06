@@ -1,5 +1,4 @@
 artist_genre_mapping = {
-
    "Angerfist": "Mainstream Hardcore",
    "Anime": "Mainstream Hardcore",
    "Art of Fighters": "Mainstream Hardcore",

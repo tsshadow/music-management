@@ -5,7 +5,7 @@ from postprocessing.constants import ALBUM_ARTIST, PUBLISHER, CATALOG_NUMBER, GE
 s = Settings()
 
 
-class LabelBaseSong(BaseSong):
+class LabelSong(BaseSong):
     def __init__(self, path):
         super().__init__(path)
         paths = path.rsplit(s.delimiter, 2)
@@ -17,6 +17,10 @@ class LabelBaseSong(BaseSong):
         self.check_or_update_tag(GENRE, self.genre(FormatEnum.RECAPITALIZE))
         self.check_or_update_tag(ARTIST, self.parse_artist(self.artist()))
         self.check_or_update_tag(COPYRIGHT, self.calculate_copyright())
+        self.get_genre_from_label()
+        self.get_genre_from_artist()
+        self.get_genre_from_subgenres()
+        self.save_file()
 
     def calculate_copyright(self):
         publisher = self.publisher()

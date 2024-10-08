@@ -14,14 +14,22 @@ from data.artistgenre import artist_genre_mapping
 from data.genressubgenres import genressubgenres
 from data.publishergenre import publisher_genre_mapping
 from data.settings import Settings
+from postprocessing.Song.Helpers import LookupTableHelper
 from postprocessing.constants import ARTIST, GENRE, WAVTags, MP4Tags, DATE, PARSED, CATALOG_NUMBER, PUBLISHER, \
     COPYRIGHT, ALBUM_ARTIST, BPM, ARTIST_REGEX, FormatEnum, MusicFileType
 
 s = Settings()
+artistGenreHelper = LookupTableHelper('data/artist-genre.txt')
+labelGenreHelper = LookupTableHelper('data/label-genre.txt')
 
 
 class BaseSong:
-    @staticmethod
+    def special_print(self, *arg):
+        if self.new_line:
+            print('\n')
+            self.new_line = False
+        print(arg)
+
     def to_semicolon_separated_tag(self, tags, format_tag=FormatEnum.NONE):
         if len(tags) == 1:
             if tags[0] is None:
@@ -48,6 +56,7 @@ class BaseSong:
 
     def __init__(self, path):
         # Setup member variables
+        self.new_line = True
         self.has_changes = False
         paths = path.rsplit(s.delimiter, 2)
         self._path = path
@@ -64,19 +73,12 @@ class BaseSong:
         elif self._extension.lower() == ".wav":
             self.music_file = WAVE(path)
             self.type = MusicFileType.WAV
-            raise Exception("WAV file not supported")
+            # raise Exception("WAV file not supported")
         elif self._extension.lower() == ".m4a":
             self.music_file = MP4(path)
             self.type = MusicFileType.M4A
         else:
             raise Exception("Cant find mp3 file for", path)
-
-    def parse(self):
-        # self.analyze_track()
-        self.get_genre_from_artist()
-        self.get_genre_from_label()
-        self.get_genre_from_subgenres()
-        self.save_file()
 
     def check_or_update_tag(self, tag, value):
         if not value:
@@ -86,21 +88,18 @@ class BaseSong:
             if tag_value is not None and value is not None and tag_value.title() == value.title():
                 self.set_tag(tag, value + "_CapError")
                 if s.debug:
-                    print("cap error for ", tag)
+                    self.special_print("cap error for ", tag)
+                self.has_changes = True
                 self.save_file()
             self.set_tag(tag, value)
             if s.debug:
-                global print_new_line
-                if print_new_line:
-                    print("\n")
-                    print_new_line = False
-                print("updated", tag, "to", value, "was", tag_value)
-            self.save_file()
+                self.special_print("updated", tag, "to", value, "was", tag_value)
+            self.has_changes = True
 
     def delete_tag(self, tag):
         if self.music_file:
             if self.music_file.get(tag):
-                # print("deleting", tag)
+                # self.special_print("deleting", tag)
                 self.music_file.pop(tag)
                 self.has_changes = True
 
@@ -128,11 +127,11 @@ class BaseSong:
                 if g == publisher_genre_mapping[publisher]:
                     already_exists = True
             if not already_exists:
-                if len(self.genre() == 0):
-                    self.check_or_update_tag(artist_genre_mapping[publisher])
+                if len(self.genre()) == 0:
+                    self.check_or_update_tag(GENRE, publisher_genre_mapping[publisher])
                 else:
                     self.check_or_update_tag(GENRE, self.genre() + ';' + publisher_genre_mapping[publisher])
-                print("get_genre_from_label", publisher, self.genre())
+                self.special_print("get_genre_from_label", publisher, self.genre())
 
     def get_genre_from_subgenres(self):
         already_exists = False
@@ -148,7 +147,7 @@ class BaseSong:
                             self.check_or_update_tag(GENRE, entry['genre'])
                         else:
                             self.check_or_update_tag(GENRE, self.genre() + ';' + entry['genre'])
-                        print("get_genre_from_subgenres", genre, self.genre())
+                        self.special_print("get_genre_from_subgenres", genre, self.genre())
 
     def calculate_copyright(self):
         return None
@@ -166,7 +165,7 @@ class BaseSong:
                 try:
                     value = self.music_file.tags[WAVTags[tag]]
                 except Exception as e:
-                    print(e)
+                    self.special_print(e)
                     return None
                 return value.text
             elif self.type == MusicFileType.M4A:
@@ -196,30 +195,30 @@ class BaseSong:
                 self.music_file[tag] = value
             elif self.type == MusicFileType.WAV:
                 try:
-                    print(self.music_file.tags[WAVTags[tag]])
+                    self.special_print(self.music_file.tags[WAVTags[tag]])
                 except Exception as e:
                     print(e)
                     self.music_file.tags.add(TXXX(encoding=3, text=[value], desc=WAVTags[tag]))
                 self.music_file.tags[WAVTags[tag]] = mutagen.id3.TextFrame(encoding=3, text=[value])
-                print(' set ', self.music_file.tags[WAVTags[tag]])
+                self.special_print(' set ', self.music_file.tags[WAVTags[tag]])
             elif self.type == MusicFileType.M4A:
                 self.music_file.tags[MP4Tags[tag]] = str(value)
             self.has_changes = True
 
-    def print(self):
+    def debug(self):
         if s.debug:
-            # print("\n")
-            # print("path           ", self.path())
-            # print("filename       ", self.filename())
-            # print("extension      ", self.extension())
-            # print("genre          ", self.genre())
-            # print("artist         ", self.artist())
-            # print("album_artist         ", self.album_artist())
-            # print("copyright      ", self.copyright())
-            # print("publisher      ", self.publisher())
-            # print("catalog_number ", self.catalog_number())
-            # print("bpm            ", self.bpm())
-            # print("\n\n")
+
+            # self.special_print("path           ", self.path())
+            # self.special_print("filename       ", self.filename())
+            # self.special_print("extension      ", self.extension())
+            # self.special_print("genre          ", self.genre())
+            # self.special_print("artist         ", self.artist())
+            # self.special_print("album_artist         ", self.album_artist())
+            # self.special_print("copyright      ", self.copyright())
+            # self.special_print("publisher      ", self.publisher())
+            # self.special_print("catalog_number ", self.catalog_number())
+            # self.special_print("bpm            ", self.bpm())
+            # self.special_print("\n\n")
             pass
 
     def analyze_track(self):
@@ -231,7 +230,7 @@ class BaseSong:
             self.check_or_update_tag(BPM, str(round(tempo[0][0])))
         except Exception as e:
             if s.debug:
-                print('Failed to parse bpm for ' + self._path + str(e))
+                self.special_print('Failed to parse bpm for ' + self._path + str(e))
 
     # Getter wrappers
     def genre(self, format_tag=FormatEnum.NONE):

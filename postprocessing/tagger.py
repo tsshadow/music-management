@@ -6,10 +6,10 @@ from mutagen.easyid3 import EasyID3
 from mutagen.easymp4 import EasyMP4Tags
 
 from data.settings import Settings
-from postprocessing.Song.GenericSong import GenericBaseSong
-from postprocessing.Song.LabelSong import LabelBaseSong
-from postprocessing.Song.SoundcloudSong import SoundcloudBaseSong
-from postprocessing.Song.YoutubeSong import YoutubeBaseSong
+from postprocessing.Song.GenericSong import GenericSong
+from postprocessing.Song.LabelSong import LabelSong
+from postprocessing.Song.SoundcloudSong import SoundcloudSong
+from postprocessing.Song.YoutubeSong import YoutubeSong
 from postprocessing.constants import SongTypeEnum
 
 # global vars
@@ -19,8 +19,6 @@ EasyID3.RegisterTXXXKey('parsed', 'parsed')
 EasyMP4Tags.RegisterTextKey("publisher", "publisher")
 EasyMP4Tags.RegisterTextKey("parsed", "parsed")
 
-print_new_line = False
-
 s = Settings()
 
 class Tagger:
@@ -28,7 +26,7 @@ class Tagger:
         self.rescan = None
 
     def tag(self):
-        parse_labels = True
+        parse_labels = False
         parse_youtube = True
         parse_soundcloud = True
         parse_generic = True
@@ -92,16 +90,14 @@ class Tagger:
 
     def parse_folder(self, folder, song_type):
         print("\r", folder, end="")
-        global print_new_line
-        print_new_line = True
         folders = [f for f in os.listdir(folder) if
                    not os.path.isfile(os.path.join(folder, f))]
         files = glob.glob(
             folder + s.delimiter + "*.mp3") + glob.glob(
-            folder + s.delimiter + "*.wav") + glob.glob(
+            # folder + s.delimiter + "*.wav") + glob.glob(
             folder + s.delimiter + "*.flac") + glob.glob(
             folder + s.delimiter + "*.m4a")
-
+        files = []
         for file in files:
             try:
                 self.parse_song(file, song_type)
@@ -113,25 +109,6 @@ class Tagger:
             except Exception as e:
                 print('Failed to parse song ' + file + ' ' + str(e))
         for sub_folder in folders:
-            # Testcode for finding and fixing multi-level deep folders
-            # a = folder + s.delimiter + sub_folder
-            # if len(a.split("\\")) > 7:
-            #     fs = glob.glob(a.rsplit("\\", 1)[0] + s.delimiter + "*.mp3") + glob.glob(
-            #         a.rsplit("\\", 1)[0] + s.delimiter + "*.wav") + glob.glob(
-            #         a.rsplit("\\", 1)[0] + s.delimiter + "*.flac") + glob.glob(
-            #         a.rsplit("\\", 1)[0] + s.delimiter + "*.m4a")
-            #     if len(fs) != 0:
-            #         shutil.rmtree(a)
-            #         print("deleting", a, "# files", len(fs))
-            #     else:
-            #         fs2 = glob.glob(a + s.delimiter + "*.*")
-            #         if len(fs2) != 0:
-            #             print("moving ", a, "to", a.rsplit("\\", 1)[0])
-            #             for fs22 in fs2:
-            #                 shutil.move(fs22, str(a.rsplit("\\", 1)[0]))
-            #             shutil.rmtree(a)
-            #         else:
-            #             print("MISSING", a)
             if sub_folder[0] != '_':
                 try:
                     self.parse_folder(folder + s.delimiter + sub_folder, song_type)
@@ -146,12 +123,11 @@ class Tagger:
     @staticmethod
     def parse_song(path, song_type):
         print("\r", path, end="")
-
         if song_type == SongTypeEnum.LABEL:
-            song = LabelBaseSong(path)
+            song = LabelSong(path)
         if song_type == SongTypeEnum.YOUTUBE:
-            song = YoutubeBaseSong(path)
+            song = YoutubeSong(path)
         if song_type == SongTypeEnum.SOUNDCLOUD:
-            song = SoundcloudBaseSong(path)
+            song = SoundcloudSong(path)
         if song_type == SongTypeEnum.GENERIC:
-            song = GenericBaseSong(path)
+            song = GenericSong(path)

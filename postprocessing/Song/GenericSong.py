@@ -14,6 +14,7 @@ class GenericSong(BaseSong):
         self.get_genre_from_label()
         self.get_genre_from_artist()
         self.get_genre_from_subgenres()
+        self.sort_genres()
         self.save_file()
 
     def calculate_copyright(self):

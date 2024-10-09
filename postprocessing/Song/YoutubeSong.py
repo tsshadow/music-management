@@ -19,6 +19,7 @@ class YoutubeSong(BaseSong):
         self.check_or_update_tag(COPYRIGHT, self.calculate_copyright())
         self.get_genre_from_artist()
         self.get_genre_from_subgenres()
+        self.sort_genres()
         self.save_file()
 
     def calculate_copyright(self):

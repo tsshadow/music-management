@@ -10,9 +10,6 @@ from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4
 from mutagen.wave import WAVE
 
-from data.artistgenre import artist_genre_mapping
-from data.genressubgenres import genressubgenres
-from data.publishergenre import publisher_genre_mapping
 from data.settings import Settings
 from postprocessing.Song.Helpers import LookupTableHelper
 from postprocessing.constants import ARTIST, GENRE, WAVTags, MP4Tags, DATE, PARSED, CATALOG_NUMBER, PUBLISHER, \
@@ -21,12 +18,13 @@ from postprocessing.constants import ARTIST, GENRE, WAVTags, MP4Tags, DATE, PARS
 s = Settings()
 artistGenreHelper = LookupTableHelper('data/artist-genre.txt')
 labelGenreHelper = LookupTableHelper('data/label-genre.txt')
+subgenreGenreHelper = LookupTableHelper('data/subgenres-genres.txt')
 
 
 class BaseSong:
     def special_print(self, *arg):
         if self.new_line:
-            print('\n')
+            print()
             self.new_line = False
         print(arg)
 
@@ -103,57 +101,47 @@ class BaseSong:
                 self.music_file.pop(tag)
                 self.has_changes = True
 
-    # Smart tag calculation
+
     def get_genre_from_artist(self):
-        already_exists = False
-        artists = self.get_tag_as_array(ARTIST)
-        for artist in artists:
-            if artist in artist_genre_mapping:
-                for g in re.split(';|,/', self.genre()):
-                    if g == artist_genre_mapping[artist]:
-                        already_exists = True
-                if not already_exists:
-                    if len(self.genre()) == 0:
-                        self.check_or_update_tag(GENRE, artist_genre_mapping[artist])
-                    else:
-                        self.check_or_update_tag(GENRE, self.genre() + ';' + artist_genre_mapping[artist])
-                    print("get_genre_from_artist", artist, self.genre())
+        song_artists = self.get_tag_as_array(ARTIST)
+        song_genres = self.get_tag_as_array(GENRE)
+        for artist in song_artists:
+            lookup_genres = artistGenreHelper.get(artist)
+            if lookup_genres:
+                merged_array = list(set(song_genres + lookup_genres))
+                merged_array.sort()
+                self.check_or_update_tag(GENRE, ";".join(merged_array))
+                song_genres = merged_array
 
     def get_genre_from_label(self):
-        already_exists = False
-        publisher = self.publisher()
-        if publisher in publisher_genre_mapping:
-            for g in re.split(';|,/', self.genre()):
-                if g == publisher_genre_mapping[publisher]:
-                    already_exists = True
-            if not already_exists:
-                if len(self.genre()) == 0:
-                    self.check_or_update_tag(GENRE, publisher_genre_mapping[publisher])
-                else:
-                    self.check_or_update_tag(GENRE, self.genre() + ';' + publisher_genre_mapping[publisher])
-                self.special_print("get_genre_from_label", publisher, self.genre())
+        publisher = self.get_tag_as_string(PUBLISHER)
+        song_genres = self.get_tag_as_array(GENRE)
+        lookup_genres = labelGenreHelper.get(publisher)
+        if lookup_genres is not None:
+            merged_array = list(set(song_genres + lookup_genres))
+            merged_array.sort()
+            self.check_or_update_tag(GENRE, ";".join(merged_array))
 
     def get_genre_from_subgenres(self):
-        already_exists = False
-        genres = self.get_tag_as_array(GENRE)
-        for genre in genres:
-            for entry in genressubgenres:
-                if entry['name'] == genre:
-                    for g in re.split(';|,/', self.genre()):
-                        if g == entry['genre']:
-                            already_exists = True
-                    if not already_exists:
-                        if len(self.genre()) == 0:
-                            self.check_or_update_tag(GENRE, entry['genre'])
-                        else:
-                            self.check_or_update_tag(GENRE, self.genre() + ';' + entry['genre'])
-                        self.special_print("get_genre_from_subgenres", genre, self.genre())
+        song_genres = self.get_tag_as_array(GENRE)
+        for genre in song_genres:
+            lookup_genres = subgenreGenreHelper.get(genre)
+            if lookup_genres is not None:
+                merged_array = list(set(song_genres + lookup_genres))
+                merged_array.sort()
+                self.check_or_update_tag(GENRE, ";".join(merged_array))
+                song_genres = merged_array
+
+    def sort_genres(self):
+        song_genres = self.get_tag_as_array(GENRE)
+        song_genres.sort()
+        self.check_or_update_tag(GENRE, ";".join(song_genres))
 
     def calculate_copyright(self):
         return None
 
     def save_file(self):
-        if self.has_changes or s.rescan and not s.dryrun:
+        if self.has_changes and not s.dryrun:
             if self.music_file:
                 self.music_file.save()
 
@@ -207,7 +195,6 @@ class BaseSong:
 
     def debug(self):
         if s.debug:
-
             # self.special_print("path           ", self.path())
             # self.special_print("filename       ", self.filename())
             # self.special_print("extension      ", self.extension())

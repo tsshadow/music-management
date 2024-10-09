@@ -26,7 +26,7 @@ class Tagger:
         self.rescan = None
 
     def tag(self):
-        parse_labels = False
+        parse_labels = True
         parse_youtube = True
         parse_soundcloud = True
         parse_generic = True
@@ -97,7 +97,6 @@ class Tagger:
             # folder + s.delimiter + "*.wav") + glob.glob(
             folder + s.delimiter + "*.flac") + glob.glob(
             folder + s.delimiter + "*.m4a")
-        files = []
         for file in files:
             try:
                 self.parse_song(file, song_type)

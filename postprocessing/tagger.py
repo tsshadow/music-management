@@ -26,10 +26,10 @@ class Tagger:
         self.rescan = None
 
     def tag(self):
-        parse_labels = True
-        parse_youtube = True
+        parse_labels = False
+        parse_youtube = False
         parse_soundcloud = True
-        parse_generic = True
+        parse_generic = False
         if parse_labels:
             label_folders = [f for f in os.listdir(s.eps_folder_path) if
                              not os.path.isfile(os.path.join(s.eps_folder_path, f))]
@@ -60,33 +60,15 @@ class Tagger:
                     SongTypeEnum.YOUTUBE)
 
         if parse_generic:
-            generic_music_folders = [f for f in os.listdir(s.music_folder_path + s.delimiter + "Livesets") if
-                                     not os.path.isfile(
-                                         os.path.join(s.music_folder_path + s.delimiter + "Livesets", f))]
-            for generic_music_folder in generic_music_folders:
-                self.parse_folder(
-                    s.music_folder_path + s.delimiter + "Livesets" + s.delimiter + generic_music_folder,
-                    SongTypeEnum.GENERIC)
-            generic_music_folders = [f for f in os.listdir(s.music_folder_path + s.delimiter + "Podcasts") if
-                                     not os.path.isfile(
-                                         os.path.join(s.music_folder_path + s.delimiter + "Podcasts", f))]
-            for generic_music_folder in generic_music_folders:
-                self.parse_folder(
-                    s.music_folder_path + s.delimiter + "Podcasts" + s.delimiter + generic_music_folder,
-                    SongTypeEnum.GENERIC)
-            generic_music_folders = [f for f in os.listdir(s.music_folder_path + s.delimiter + "Top 100") if
-                                     not os.path.isfile(os.path.join(s.music_folder_path + s.delimiter + "Top 100", f))]
-            for generic_music_folder in generic_music_folders:
-                self.parse_folder(
-                    s.music_folder_path + s.delimiter + "Top 100" + s.delimiter + generic_music_folder,
-                    SongTypeEnum.GENERIC)
-            generic_music_folders = [f for f in os.listdir(s.music_folder_path + s.delimiter + "Warm Up Mixes") if
-                                     not os.path.isfile(
-                                         os.path.join(s.music_folder_path + s.delimiter + "Warm Up Mixes", f))]
-            for generic_music_folder in generic_music_folders:
-                self.parse_folder(
-                    s.music_folder_path + s.delimiter + "Warm Up Mixes" + s.delimiter + generic_music_folder,
-                    SongTypeEnum.GENERIC)
+            folders = ["Livesets", "Podcasts", "Top 100", "Warm Up Mixes"]
+            for folder in folders:
+                generic_music_folders = [f for f in os.listdir(s.music_folder_path + s.delimiter + folder) if
+                                         not os.path.isfile(
+                                             os.path.join(s.music_folder_path + s.delimiter + folder, f))]
+                for generic_music_folder in generic_music_folders:
+                    self.parse_folder(
+                        s.music_folder_path + s.delimiter + folder + s.delimiter + generic_music_folder,
+                        SongTypeEnum.GENERIC)
 
     def parse_folder(self, folder, song_type):
         print("\r", folder, end="")
@@ -123,10 +105,10 @@ class Tagger:
     def parse_song(path, song_type):
         print("\r", path, end="")
         if song_type == SongTypeEnum.LABEL:
-            song = LabelSong(path)
+            LabelSong(path)
         if song_type == SongTypeEnum.YOUTUBE:
-            song = YoutubeSong(path)
+            YoutubeSong(path)
         if song_type == SongTypeEnum.SOUNDCLOUD:
-            song = SoundcloudSong(path)
+            SoundcloudSong(path)
         if song_type == SongTypeEnum.GENERIC:
-            song = GenericSong(path)
+            GenericSong(path)

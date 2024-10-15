@@ -13,12 +13,42 @@ from mutagen.wave import WAVE
 from data.settings import Settings
 from postprocessing.Song.Helpers import LookupTableHelper
 from postprocessing.constants import ARTIST, GENRE, WAVTags, MP4Tags, DATE, PARSED, CATALOG_NUMBER, PUBLISHER, \
-    COPYRIGHT, ALBUM_ARTIST, BPM, ARTIST_REGEX, FormatEnum, MusicFileType
+    COPYRIGHT, ALBUM_ARTIST, BPM, ARTIST_REGEX, FormatEnum, MusicFileType, TITLE
 
 s = Settings()
 artistGenreHelper = LookupTableHelper('data/artist-genre.txt')
 labelGenreHelper = LookupTableHelper('data/label-genre.txt')
 subgenreGenreHelper = LookupTableHelper('data/subgenres-genres.txt')
+
+
+class Tag:
+    def __init__(self, tag, value):
+        self.tag = tag
+        if isinstance(value, str):
+            self.value = value.split(";")
+        if isinstance(value, list):
+            self.value = []
+            for item in value:
+                self.value.append(item)
+
+    def to_array(self):
+        return self.value
+
+    def to_string(self):
+        return ";".join(self.value)
+
+    def sort(self):
+        self.value.sort()
+
+    def deduplicate(self):
+        self.value = list(set(self.value))
+
+    def add(self, item):
+        if item not in self.value:
+            self.value.append(item)
+
+    def recapitalize(self):
+        self.value = [element.title() for element in self.value]
 
 
 class BaseSong:
@@ -56,6 +86,7 @@ class BaseSong:
         # Setup member variables
         self.new_line = True
         self.has_changes = False
+        self.tags = {}
         paths = path.rsplit(s.delimiter, 2)
         self._path = path
         self._filename = str(paths[-1])
@@ -77,6 +108,12 @@ class BaseSong:
             self.type = MusicFileType.M4A
         else:
             raise Exception("Cant find mp3 file for", path)
+
+    def __del__(self):
+        # for tag in self.tags:
+        #     self.check_or_update_tag(tag.tag, tag.value)
+        # self.save_file()
+        pass
 
     def check_or_update_tag(self, tag, value):
         if not value:
@@ -134,6 +171,7 @@ class BaseSong:
 
     def sort_genres(self):
         song_genres = self.get_tag_as_array(GENRE)
+        song_genres = list(set([item.lstrip() for item in song_genres]))
         song_genres.sort()
         self.check_or_update_tag(GENRE, ";".join(song_genres))
 
@@ -228,6 +266,9 @@ class BaseSong:
 
     def artist(self):
         return self.get_tag_as_string(ARTIST)
+
+    def title(self):
+        return self.get_tag_as_string(TITLE)
 
     def album_artist(self):
         return self.get_tag_as_string(ALBUM_ARTIST)

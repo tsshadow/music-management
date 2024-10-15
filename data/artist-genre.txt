@@ -9,17 +9,19 @@ Art of Fighters:Mainstream Hardcore
 Atmozfears:Mainstream Hardstyle
 Barber:Bouncy Uptempo
 Broken Element:Euphoric Hardstyle
+Broken:Mainstream Hardcore
 Bulletproof:Uptempo Hardcore
 Chaos Project:Mainstream Hardcore
 DJ Mutante:Frenchcore
 DRS:Uptempo Hardcore
 Da Tweekaz:Mainstream Hardstyle
 Demi Kanon:Euphoric Hardstyle
+Dyprax:Mainstream Hardcore
 Ecstatic:Euphoric Hardstyle
 Envine:Euphoric Hardstyle
 Eraized:Bouncy Uptempo
-Frontliner:Euphoric Hardstyle
-Frontliner:Mainstream Hardstyle
+F. Noize:Uptempo Hardcore
+Frontliner:Euphoric Hardstyle,Mainstream Hardstyle
 Gridkiller:Mainstream Hardcore
 Hard Driver:Mainstream Hardstyle
 Headhunterz:Mainstream Hardstyle
@@ -32,16 +34,18 @@ Juliex:Uptempo Hardcore
 Killshot:Raw Hardstyle
 Kroefoe:Bouncy Uptempo
 Krowdexx:Raw Hardstyle
-MBK:Uptempo Hardcore
+Lunakorpz:Uptempo Hardcore
 Mad Dog:Mainstream Hardcore
+MadZON Uptempo:Uptempo Hardcore
+Madzon:Uptempo Hardcore
 Major Conspiracy:Uptempo Hardcore
 Manifest Destiny:Bouncy Uptempo
+Mbk:Uptempo Hardcore
 Micropoint:Frenchcore
 Miss K8:Mainstream Hardcore
 N-Vitral:Mainstream Hardcore
 Navion:Euphoric Hardstyle
 Neophyte:Mainstream Hardcore
-Broken:Mainstream Hardcore
 Never Surrender:Mainstream Hardcore
 Noisecontrollers:Mainstream Hardstyle
 Nosferatu:Mainstream Hardcore
@@ -55,15 +59,20 @@ Radium:Frenchcore
 Ran-D:Mainstream Hardstyle
 Reflexx:Uptempo Hardcore
 Restrained:Mainstream Hardcore
+Revealer:Uptempo Hardcore
 Rosbeek:Bouncy Uptempo
 Satirized:Bouncy Uptempo
 Screecher:Bouncy Uptempo
 Serzo:Euphoric Hardstyle
 Solstice:Euphoric Hardstyle
 Spitnoise:Uptempo Hardcore
+Stv:Uptempo Hardcore
+Synthax:Mainstream Hardcore
+Tha Playah:Mainstream Hardcore
 Tharken:Uptempo Hardcore
 Tharoza:Bouncy Uptempo
 The Dope Doctor:Uptempo Hardcore
+The Herbalist:Uptempo Hardcore
 The Purge:Raw Hardstyle
 The Sickest Squad:Frenchcore
 Udow:Bouncy Uptempo

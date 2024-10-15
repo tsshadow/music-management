@@ -5,38 +5,38 @@ from typing import Final
 ARTIST_REGEX: Final = "\s(&|and|feat\.?|featuring|features|ft\.?|presenting|X|pres\.?|versus|vs\.?)\s"
 
 # noinspection SpellCheckingInspection
+ALBUM_ARTIST: Final = "ALBUMARTIST"
+ARTIST: Final = "ARTIST"
+BPM: Final = "BPM"
+# noinspection SpellCheckingInspection
 CATALOG_NUMBER: Final = "CATALOGNUMBER"
-TITLE: Final = ""
+COPYRIGHT: Final = "COPYRIGHT"
+DATE: Final = "DATE"
+GENRE: Final = "GENRE"
+PARSED: Final = "PARSED"
 PUBLISHER: Final = "PUBLISHER"
 PUBLISHER_OLD: Final = "PUBLISHER_OLD"
-DATE: Final = "DATE"
-BPM: Final = "BPM"
-COPYRIGHT: Final = "COPYRIGHT"
-GENRE: Final = "GENRE"
-ARTIST: Final = "ARTIST"
-# noinspection SpellCheckingInspection
-ALBUM_ARTIST: Final = "ALBUMARTIST"
-PARSED: Final = "PARSED"
+TITLE: Final = "TITLE"
 
 MP4Tags = {
     ALBUM_ARTIST: 'TALB',
+    ARTIST: '\xa9ART',
+    CATALOG_NUMBER: 'CATA',
+    COPYRIGHT: 'cprt',
+    DATE: '\xa9DAY',
     GENRE: '\xa9gen',
     PUBLISHER: 'PUBL',
-    ARTIST: '\xa9ART',
-    DATE: '\xa9DAY',
-    COPYRIGHT: 'cprt',
-    CATALOG_NUMBER: 'CATA'
 }
 
 WAVTags = {
-    TITLE: 'TIT2',
-    ARTIST: 'TPE1',
     ALBUM_ARTIST: 'ALBU',
+    ARTIST: 'TPE1',
+    CATALOG_NUMBER: 'CATA',
+    COPYRIGHT: 'cprt',
+    DATE: 'TDRC',
     GENRE: 'TCON',
     PUBLISHER: 'PUBLISHER',
-    DATE: 'TDRC',
-    COPYRIGHT: 'cprt',
-    CATALOG_NUMBER: 'CATA'
+    TITLE: 'TIT2',
 }
 
 

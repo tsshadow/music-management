@@ -12,6 +12,7 @@ class SoundcloudSong(BaseSong):
         paths = path.rsplit(s.delimiter, 2)
         self.check_or_update_tag(ALBUM_ARTIST, str(paths[1]))
         self._publisher = "Soundcloud"
+        self.update_title()
         self.check_or_update_tag(PUBLISHER, self._publisher)
         self.check_or_update_tag(CATALOG_NUMBER, self._catalog_number)
         self.check_or_update_tag(GENRE, self.genre(FormatEnum.RECAPITALIZE))
@@ -31,3 +32,13 @@ class SoundcloudSong(BaseSong):
                 return album_artist + " (" + year + ")"
             return self.publisher()
         return None
+
+    def update_title(self):
+        title = self.title()
+        # if title is not None and len(title) > 0:
+        #     if title.find(" - ") > 0:
+        #         print("\nupdate title", self.artist(),
+        #               " new artist:",
+        #               title.split(" - ")[0],
+        #               " title:",
+        #               title.split(" - ")[1])

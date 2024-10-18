@@ -13,14 +13,12 @@ class SoundcloudSong(BaseSong):
         self.check_or_update_tag(ALBUM_ARTIST, str(paths[1]))
         self._publisher = "Soundcloud"
         self.update_title()
-        self.check_or_update_tag(PUBLISHER, self._publisher)
-        self.check_or_update_tag(CATALOG_NUMBER, self._catalog_number)
-        self.check_or_update_tag(GENRE, self.genre(FormatEnum.RECAPITALIZE))
-        self.check_or_update_tag(ARTIST, self.parse_artist(self.artist()))
+        self.tag_collection.add(CATALOG_NUMBER, self._catalog_number)
         self.check_or_update_tag(COPYRIGHT, self.calculate_copyright())
         self.get_genre_from_artist()
         self.get_genre_from_subgenres()
         self.sort_genres()
+        self.parse_tags()
         self.save_file()
 
     def calculate_copyright(self):

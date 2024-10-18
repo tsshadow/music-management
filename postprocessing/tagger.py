@@ -87,8 +87,6 @@ class Tagger:
                 sys.exit(1)
             except SystemExit:
                 sys.exit(2)
-            except Exception as e:
-                print('Failed to parse song ' + file + ' ' + str(e))
         for sub_folder in folders:
             if sub_folder[0] != '_':
                 try:
@@ -98,8 +96,6 @@ class Tagger:
                     sys.exit(1)
                 except SystemExit:
                     sys.exit(2)
-                except Exception as e:
-                    print('Failed to parse folder ' + sub_folder + ' ' + str(e))
 
     @staticmethod
     def parse_song(path, song_type):

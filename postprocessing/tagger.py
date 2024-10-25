@@ -2,10 +2,12 @@ import glob
 import os
 import sys
 
+from mutagen import MutagenError
 from mutagen.easyid3 import EasyID3
 from mutagen.easymp4 import EasyMP4Tags
 
 from data.settings import Settings
+from postprocessing.Song.BaseSong import ExtensionNotSupportedException
 from postprocessing.Song.GenericSong import GenericSong
 from postprocessing.Song.LabelSong import LabelSong
 from postprocessing.Song.SoundcloudSong import SoundcloudSong
@@ -26,10 +28,10 @@ class Tagger:
         self.rescan = None
 
     def tag(self):
-        parse_labels = False
-        parse_youtube = False
+        parse_labels = True
+        parse_youtube = True
         parse_soundcloud = True
-        parse_generic = False
+        parse_generic = True
         if parse_labels:
             label_folders = [f for f in os.listdir(s.eps_folder_path) if
                              not os.path.isfile(os.path.join(s.eps_folder_path, f))]
@@ -85,17 +87,23 @@ class Tagger:
             except KeyboardInterrupt:
                 print('KeyboardInterrupt')
                 sys.exit(1)
+            except PermissionError as e:
+                print(f"PermissionError: {e}")
+                pass
+            except MutagenError as e:
+                print(f"MutagenError: {e}")
+                pass
+            except FileNotFoundError as e:
+                print(f"FileNotFoundError: {e}")
+                pass
+            except ExtensionNotSupportedException as e:
+                print(f"ExtensionNotSupportedException: {e}")
+                pass
             except SystemExit:
                 sys.exit(2)
         for sub_folder in folders:
             if sub_folder[0] != '_':
-                try:
-                    self.parse_folder(folder + s.delimiter + sub_folder, song_type)
-                except KeyboardInterrupt:
-                    print('KeyboardInterrupt')
-                    sys.exit(1)
-                except SystemExit:
-                    sys.exit(2)
+                self.parse_folder(folder + s.delimiter + sub_folder, song_type)
 
     @staticmethod
     def parse_song(path, song_type):

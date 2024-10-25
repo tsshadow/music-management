@@ -9,13 +9,12 @@ class GenericSong(BaseSong):
     def __init__(self, path):
         super().__init__(path)
         self._catalog_number = None
-        self.check_or_update_tag(GENRE, self.genre(FormatEnum.RECAPITALIZE))
-        self.check_or_update_tag(ARTIST, self.parse_artist(self.artist()))
-        self.get_genre_from_label()
+        if not self.copyright():
+            self.update_tag(COPYRIGHT, self.calculate_copyright())
         self.get_genre_from_artist()
         self.get_genre_from_subgenres()
         self.sort_genres()
-        self.save_file()
+        self.parse_tags()
 
     def calculate_copyright(self):
         album_artist = self.album_artist()

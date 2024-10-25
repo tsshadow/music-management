@@ -27,7 +27,7 @@ class Settings(metaclass=SingletonMeta):
     def __init__(self):
         self.debug = True
         self.rescan = None
-        self.dryrun = True
+        self.dryrun = False
 
     def initialize(self, environment, rescan):
         print('Initializing settings for ' + environment)

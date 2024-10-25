@@ -8,18 +8,17 @@ s = Settings()
 class SoundcloudSong(BaseSong):
     def __init__(self, path):
         super().__init__(path)
-        self._catalog_number = None
         paths = path.rsplit(s.delimiter, 2)
-        self.check_or_update_tag(ALBUM_ARTIST, str(paths[1]))
+        if not self.album_artist():
+            self.update_tag(ALBUM_ARTIST, str(paths[1]))
+        if not self.copyright():
+            self.update_tag(COPYRIGHT, self.calculate_copyright())
         self._publisher = "Soundcloud"
-        self.update_title()
-        self.tag_collection.add(CATALOG_NUMBER, self._catalog_number)
-        self.check_or_update_tag(COPYRIGHT, self.calculate_copyright())
+        self.update_tag(PUBLISHER, self._publisher)
         self.get_genre_from_artist()
         self.get_genre_from_subgenres()
         self.sort_genres()
         self.parse_tags()
-        self.save_file()
 
     def calculate_copyright(self):
         album_artist = self.album_artist()

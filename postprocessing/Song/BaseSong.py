@@ -23,6 +23,10 @@ labelGenreHelper = LookupTableHelper('data/label-genre.txt')
 subgenreGenreHelper = LookupTableHelper('data/subgenres-genres.txt')
 
 
+class ExtensionNotSupportedException(Exception):
+    pass
+
+
 class BaseSong:
     def special_print(self, *arg):
         if self.new_line:
@@ -70,10 +74,11 @@ class BaseSong:
             self.type = MusicFileType.FLAC
             self.tag_collection = TagCollection(self.music_file.tags)
         elif self._extension.lower() == ".wav":
+            raise ExtensionNotSupportedException(".wav currently not supported")
             self.music_file = WAVE(path)
             self.type = MusicFileType.WAV
-            # raise Exception("WAV file not supported")
         elif self._extension.lower() == ".m4a":
+            raise ExtensionNotSupportedException(".m4a currently not supported")
             self.music_file = MP4(path)
             self.type = MusicFileType.M4A
         else:
@@ -82,21 +87,17 @@ class BaseSong:
     def parse_tags(self):
         if self.tag_collection.has_item(ARTIST):
             self.tag_collection.get_item(ARTIST).regex()
-            self.tag_collection.get_item(ARTIST).recapitalize()
-            print(self.tag_collection.get_item_as_string(ARTIST))
+            self.tag_collection.get_item(ARTIST).special_recapitalize()
         if self.tag_collection.has_item(ALBUM_ARTIST):
             self.tag_collection.get_item(ALBUM_ARTIST).regex()
-            self.tag_collection.get_item(ALBUM_ARTIST).recapitalize()
-            print(self.tag_collection.get_item_as_string(ALBUM_ARTIST))
+            self.tag_collection.get_item(ALBUM_ARTIST).special_recapitalize()
         if self.tag_collection.has_item(GENRE):
             self.tag_collection.get_item(GENRE).recapitalize()
 
     def __del__(self):
-
         self.save_file()
-        pass
 
-    def check_or_update_tag(self, tag, value):
+    def update_tag(self, tag, value):
         if not value:
             return
         self.tag_collection.add(tag, value)
@@ -127,7 +128,7 @@ class BaseSong:
         if lookup_genres is not None:
             merged_array = list(set(song_genres + lookup_genres))
             merged_array.sort()
-            self.check_or_update_tag(GENRE, ";".join(merged_array))
+            self.update_tag(GENRE, ";".join(merged_array))
 
     def get_genre_from_subgenres(self):
         song_genres = self.tag_collection.get_item_as_array(GENRE)
@@ -136,7 +137,7 @@ class BaseSong:
             if lookup_genres is not None:
                 merged_array = list(set(song_genres + lookup_genres))
                 merged_array.sort()
-                self.check_or_update_tag(GENRE, ";".join(merged_array))
+                self.update_tag(GENRE, ";".join(merged_array))
                 song_genres = merged_array
 
     def sort_genres(self):
@@ -146,25 +147,20 @@ class BaseSong:
         return None
 
     def save_file(self):
-        for tag in self.tag_collection.get().values():
-            if isinstance(tag, Tag):
-                if tag.has_capitalization_error():
-                    force_tag: Tag = tag
-                    force_tag.value = force_tag.value.append("Force")
-                    self.set_tag(force_tag)
-                    self.set_tag(tag)
-                    if self.has_changes and not s.dryrun:
-                        exit(1)
-                        if self.music_file:
-                            self.music_file.save()
-                elif tag.has_changes():
-                    self.set_tag(tag)
-            else:
-                print("Failed to save tag:", tag)
-        if self.has_changes and not s.dryrun:
-            exit(1)
-            if self.music_file:
-                self.music_file.save()
+        if not s.dryrun and hasattr(self, 'tag_collection'):
+            for tag in self.tag_collection.get().values():
+                if isinstance(tag, Tag):
+                    # if tag.has_capitalization_error():
+                    #     self.set_tag(Tag(tag.tag, ['temp']))
+                    #     self.music_file.save()
+                    #     self.set_tag(tag)
+                    #     self.music_file.save()
+                    if tag.has_changes():
+                        self.set_tag(tag)
+                        self.music_file.save()
+                        print("save")
+                else:
+                    print("Failed to save tag:", tag)
 
     def get_tag(self, tag):
         if self.music_file:
@@ -187,20 +183,22 @@ class BaseSong:
                 except:
                     return None
 
-    # def get_tag_as_array(self, tag):
-    #     value = self.get_tag_as_string(tag)
-    #     return value.split(";")
+        # def get_tag_as_array(self, tag):
+        #     value = self.get_tag_as_string(tag)
+        #     return value.split(";")
 
-    # def get_tag_as_string(self, tag, format_tag=FormatEnum.NONE):
-    #     value = self.get_tag(tag)
-    #     if value is None:
-    #         return ""
-    #     else:
-    #         return self.to_semicolon_separated_tag(value, format_tag)
+        # def get_tag_as_string(self, tag, format_tag=FormatEnum.NONE):
+        #     value = self.get_tag(tag)
+        #     if value is None:
+        #         return ""
+        #     else:
+        #         return self.to_semicolon_separated_tag(value, format_tag)
 
     def set_tag(self, tag: Tag):
+        print("set tag", tag.tag, tag.to_string())
         if self.music_file:
             if self.type == MusicFileType.MP3 or self.type == MusicFileType.FLAC:
+                print("was:", self.music_file.get(tag.tag))
                 self.music_file[tag.tag] = tag.to_string()
             elif self.type == MusicFileType.WAV:
                 try:
@@ -220,12 +218,13 @@ class BaseSong:
             y, sr = audio_file
             tempo = librosa.beat.beat_track(y=y, sr=sr)
             # noinspection PyTypeChecker
-            self.check_or_update_tag(BPM, str(round(tempo[0][0])))
+            self.update_tag(BPM, str(round(tempo[0][0])))
         except Exception as e:
             if s.debug:
                 self.special_print('Failed to parse bpm for ' + self._path + str(e))
 
-    # Getter wrappers
+        # Getter wrappers
+
     def genre(self):
         return self.tag_collection.get_item_as_string(GENRE)
 

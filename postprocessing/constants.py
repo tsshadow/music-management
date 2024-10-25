@@ -5,18 +5,17 @@ from typing import Final
 ARTIST_REGEX: Final = "\s(&|and|feat\.?|featuring|features|ft\.?|presenting|X|pres\.?|versus|vs\.?)\s"
 
 # noinspection SpellCheckingInspection
-ALBUM_ARTIST: Final = "ALBUMARTIST"
-ARTIST: Final = "ARTIST"
-BPM: Final = "BPM"
+ALBUM_ARTIST: Final = "albumartist"
+ARTIST: Final = "artist"
+BPM: Final = "bpm"
 # noinspection SpellCheckingInspection
-CATALOG_NUMBER: Final = "CATALOGNUMBER"
-COPYRIGHT: Final = "COPYRIGHT"
-DATE: Final = "DATE"
-GENRE: Final = "GENRE"
-PARSED: Final = "PARSED"
-PUBLISHER: Final = "PUBLISHER"
-PUBLISHER_OLD: Final = "PUBLISHER_OLD"
-TITLE: Final = "TITLE"
+CATALOG_NUMBER: Final = "catalognumber"
+COPYRIGHT: Final = "copyright"
+DATE: Final = "date"
+GENRE: Final = "genre"
+PARSED: Final = "parsed"
+PUBLISHER: Final = "publisher"
+TITLE: Final = "title"
 
 MP4Tags = {
     ALBUM_ARTIST: 'TALB',

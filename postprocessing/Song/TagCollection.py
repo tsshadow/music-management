@@ -1,12 +1,22 @@
+from mutagen.easyid3 import EasyID3
+from mutagen.flac import VCFLACDict
+
 from postprocessing.Song.Tag import Tag
 
 
 class TagCollection:
     def __init__(self, tags):
         self.tags: dict[str, Tag] = {}
-        for tag in tags:
-            self.tags[tag] = Tag(tag, tags[tag])
-        pass
+
+        # FLAC Support
+        if isinstance(tags, VCFLACDict):
+            for tag in tags:
+                self.tags[tag] = Tag(tag[0], tag[1])
+        elif isinstance(tags, EasyID3):
+            for tag in tags:
+                self.tags[tag] = Tag(tag, tags[tag])
+        else:
+            print()
 
     def add(self, mp3tag, value):
         if value is not None:

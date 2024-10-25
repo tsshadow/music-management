@@ -11,17 +11,15 @@ class LabelSong(BaseSong):
         paths = path.rsplit(s.delimiter, 2)
         self._publisher = str(paths[0].split(s.delimiter)[-1])
         self._catalog_number = str(paths[1].split(' ')[0])
-        self.check_or_update_tag(ALBUM_ARTIST, self.parse_artist(self.album_artist()))
-        self.check_or_update_tag(PUBLISHER, self._publisher)
-        self.check_or_update_tag(CATALOG_NUMBER, self._catalog_number)
-        self.check_or_update_tag(GENRE, self.genre(FormatEnum.RECAPITALIZE))
-        self.check_or_update_tag(ARTIST, self.parse_artist(self.artist()))
-        self.check_or_update_tag(COPYRIGHT, self.calculate_copyright())
+        self.update_tag(PUBLISHER, self._publisher)
+        self.update_tag(CATALOG_NUMBER, self._catalog_number)
+        if not self.copyright():
+            self.update_tag(COPYRIGHT, self.calculate_copyright())
         self.get_genre_from_label()
         self.get_genre_from_artist()
         self.get_genre_from_subgenres()
         self.sort_genres()
-        self.save_file()
+        self.parse_tags()
 
     def calculate_copyright(self):
         publisher = self.publisher()

@@ -10,17 +10,17 @@ class YoutubeSong(BaseSong):
         super().__init__(path)
         self._catalog_number = None
         paths = path.rsplit(s.delimiter, 2)
-        self.check_or_update_tag(ALBUM_ARTIST, str(paths[1]))
+        if not self.album_artist():
+            self.update_tag(ALBUM_ARTIST, str(paths[1]))
+        if not self.copyright():
+            self.update_tag(COPYRIGHT, self.calculate_copyright())
         self._publisher = "Youtube"
-        self.check_or_update_tag(PUBLISHER, self._publisher)
-        self.check_or_update_tag(CATALOG_NUMBER, self._catalog_number)
-        self.check_or_update_tag(GENRE, self.genre(FormatEnum.RECAPITALIZE))
-        self.check_or_update_tag(ARTIST, self.parse_artist(self.artist()))
-        self.check_or_update_tag(COPYRIGHT, self.calculate_copyright())
+        self.update_tag(PUBLISHER, self._publisher)
+        self.update_tag(CATALOG_NUMBER, self._catalog_number)
         self.get_genre_from_artist()
         self.get_genre_from_subgenres()
         self.sort_genres()
-        self.save_file()
+        self.parse_tags()
 
     def calculate_copyright(self):
         album_artist = self.album_artist()

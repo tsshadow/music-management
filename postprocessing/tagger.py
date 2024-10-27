@@ -78,7 +78,7 @@ class Tagger:
                    not os.path.isfile(os.path.join(folder, f))]
         files = glob.glob(
             folder + s.delimiter + "*.mp3") + glob.glob(
-            # folder + s.delimiter + "*.wav") + glob.glob(
+            folder + s.delimiter + "*.wav") + glob.glob(
             folder + s.delimiter + "*.flac") + glob.glob(
             folder + s.delimiter + "*.m4a")
         for file in files:

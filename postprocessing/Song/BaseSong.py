@@ -1,5 +1,4 @@
 import os
-import re
 
 import librosa
 import mutagen
@@ -15,7 +14,7 @@ from postprocessing.Song.Tag import Tag
 from postprocessing.Song.Helpers import LookupTableHelper
 from postprocessing.Song.TagCollection import TagCollection
 from postprocessing.constants import ARTIST, GENRE, WAVTags, MP4Tags, DATE, PARSED, CATALOG_NUMBER, PUBLISHER, \
-    COPYRIGHT, ALBUM_ARTIST, BPM, ARTIST_REGEX, FormatEnum, MusicFileType, TITLE
+    COPYRIGHT, ALBUM_ARTIST, BPM, MusicFileType, TITLE
 
 s = Settings()
 artistGenreHelper = LookupTableHelper('data/artist-genre.txt')
@@ -28,61 +27,23 @@ class ExtensionNotSupportedException(Exception):
 
 
 class BaseSong:
-    def special_print(self, *arg):
-        if self.new_line:
-            print()
-            self.new_line = False
-        print(arg)
-
-    def to_semicolon_separated_tag(self, tags, format_tag=FormatEnum.NONE):
-        if len(tags) == 1:
-            if tags[0] is None:
-                return ""
-            if format_tag == FormatEnum.NONE:
-                return tags[0]
-            elif format_tag == FormatEnum.RECAPITALIZE:
-                return tags[0].title()
-        if len(tags) > 1:
-            parsed_tags = ""
-            for tag in tags:
-                for g in re.split(';|,/', tag):
-                    g = g.strip()
-                    if format_tag == FormatEnum.NONE:
-                        parsed_tags += g + ";"
-                    elif format_tag == FormatEnum.RECAPITALIZE:
-                        parsed_tags += g.title() + ";"
-            parsed_tags = parsed_tags[:-1]
-            return parsed_tags
 
     def __init__(self, path):
-        # Setup member variables
-        self.new_line = True
-        self.has_changes = False
-        self.tags: TagCollection
         paths = path.rsplit(s.delimiter, 2)
         self._path = path
         self._filename = str(paths[-1])
         self._extension = os.path.splitext(self._filename)[1]
-        self._publisher = None  # no default
-        self._catalog_number = ""  # no default
-        if self._extension.lower() == ".mp3":
-            self.music_file = MP3(path, ID3=EasyID3)
-            self.type = MusicFileType.MP3
-            self.tag_collection = TagCollection(self.music_file.tags)
-        elif self._extension.lower() == ".flac":
-            self.music_file = FLAC(path)
-            self.type = MusicFileType.FLAC
-            self.tag_collection = TagCollection(self.music_file.tags)
-        elif self._extension.lower() == ".wav":
-            raise ExtensionNotSupportedException(".wav currently not supported")
-            self.music_file = WAVE(path)
-            self.type = MusicFileType.WAV
-        elif self._extension.lower() == ".m4a":
-            raise ExtensionNotSupportedException(".m4a currently not supported")
-            self.music_file = MP4(path)
-            self.type = MusicFileType.M4A
-        else:
-            raise Exception("Cant find mp3 file for", path)
+        music_file_classes = {
+            ".mp3": lambda p: (MP3(p, ID3=EasyID3), MusicFileType.MP3),
+            ".flac": lambda p: (FLAC(p), MusicFileType.FLAC),
+            ".wav": lambda p: (WAVE(p), MusicFileType.WAV),
+            ".m4a": lambda p: (MP4(p), MusicFileType.M4A)
+        }
+        try:
+            self.music_file, self.type = music_file_classes[self._extension.lower()](path)
+        except KeyError:
+            raise ExtensionNotSupportedException(f"{self._extension} is not supported")
+        self.tag_collection = TagCollection(self.music_file.tags)
 
     def parse_tags(self):
         if self.tag_collection.has_item(ARTIST):
@@ -105,9 +66,7 @@ class BaseSong:
     def delete_tag(self, tag):
         if self.music_file:
             if self.music_file.get(tag):
-                # self.special_print("deleting", tag)
                 self.music_file.pop(tag)
-                self.has_changes = True
             self.tag_collection[tag].pop()
 
     def get_genre_from_artist(self):
@@ -170,7 +129,7 @@ class BaseSong:
                 try:
                     value = self.music_file.tags[WAVTags[tag]]
                 except Exception as e:
-                    self.special_print(e)
+                    print(e)
                     return None
                 return value.text
             elif self.type == MusicFileType.M4A:
@@ -183,17 +142,6 @@ class BaseSong:
                 except:
                     return None
 
-        # def get_tag_as_array(self, tag):
-        #     value = self.get_tag_as_string(tag)
-        #     return value.split(";")
-
-        # def get_tag_as_string(self, tag, format_tag=FormatEnum.NONE):
-        #     value = self.get_tag(tag)
-        #     if value is None:
-        #         return ""
-        #     else:
-        #         return self.to_semicolon_separated_tag(value, format_tag)
-
     def set_tag(self, tag: Tag):
         print("set tag", tag.tag, tag.to_string())
         if self.music_file:
@@ -202,15 +150,14 @@ class BaseSong:
                 self.music_file[tag.tag] = tag.to_string()
             elif self.type == MusicFileType.WAV:
                 try:
-                    self.special_print(self.music_file.tags[WAVTags[tag]])
+                    print(self.music_file.tags[WAVTags[tag]])
                 except Exception as e:
                     print(e)
                     self.music_file.tags.add(TXXX(encoding=3, text=[tag.to_string()], desc=WAVTags[tag]))
                 self.music_file.tags[WAVTags[tag]] = mutagen.id3.TextFrame(encoding=3, text=[tag.to_string()])
-                self.special_print(' set ', self.music_file.tags[WAVTags[tag]])
+                print(' set ', self.music_file.tags[WAVTags[tag]])
             elif self.type == MusicFileType.M4A:
                 self.music_file.tags[MP4Tags[tag]] = str(tag.to_string())
-            self.has_changes = True
 
     def analyze_track(self):
         try:
@@ -221,7 +168,7 @@ class BaseSong:
             self.update_tag(BPM, str(round(tempo[0][0])))
         except Exception as e:
             if s.debug:
-                self.special_print('Failed to parse bpm for ' + self._path + str(e))
+                print('Failed to parse bpm for ' + self._path + str(e))
 
         # Getter wrappers
 

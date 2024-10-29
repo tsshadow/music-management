@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Final
 
 # Constants
-ARTIST_REGEX: Final = "\s(&|and|feat\.?|featuring|features|ft\.?|presenting|X|pres\.?|versus|vs\.?)\s"
+ARTIST_REGEX: Final = "\s(&|and|feat\.?|featuring|features|ft\.?|Ft.|presenting|x|X|pres\.?|versus|vs\.?)\s"
 
 # noinspection SpellCheckingInspection
 ALBUM_ARTIST: Final = "albumartist"

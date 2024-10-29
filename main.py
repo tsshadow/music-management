@@ -28,11 +28,11 @@ if __name__ == '__main__':
         # database = Database()
         # scanner = scanner.Scanner(database)
 
-        while True:
-            tagger.tag()
-            # extractor.extract()
-            # renamer.rename()
-            # mover.move()
+        # while True:
+        tagger.tag()
+        # extractor.extract()
+        # renamer.rename()
+        # mover.move()
 
-            print('sleeping for 300s')
-            sleep(300)
+        print('sleeping for 300s')
+        sleep(300)

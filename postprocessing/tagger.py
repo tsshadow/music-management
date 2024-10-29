@@ -23,6 +23,7 @@ EasyMP4Tags.RegisterTextKey("parsed", "parsed")
 
 s = Settings()
 
+
 class Tagger:
     def __init__(self):
         self.rescan = None

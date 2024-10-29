@@ -26,6 +26,70 @@ class ExtensionNotSupportedException(Exception):
     pass
 
 
+def custom_title(s):
+    # List of words to ignore (not capitalize)
+    ignore_words = {"of", "and", "the", "in", "on", "for", "with", "a", "an", "but", "to"}
+    words = s.split()
+
+    # Capitalize the first word and other words unless they are in ignore_words
+    return ' '.join(
+        word if word.lower() in ignore_words and i != 0 else word.title()
+        for i, word in enumerate(words)
+    )
+
+class UniqueArtistHandler:
+    def __init__(self, name):
+        self.name = name
+        self.artists = []
+        self.known_artists = self.load_known_artists()
+        self.known_ignored = self.load_known_ignored_artists()
+
+    def load_known_artists(self):
+        try:
+            with open("data/artists.txt", "r", encoding="utf-8") as file:
+                return {line.strip() for line in file if line.strip()}
+        except FileNotFoundError:
+            return set()
+
+    def load_known_ignored_artists(self):
+        try:
+            with open("data/ignored_artists.txt", "r", encoding="utf-8") as file:
+                return {line.strip() for line in file if line.strip()}
+        except FileNotFoundError:
+            return set()
+
+    def add_non_standard_names(self, artists):
+        non_standard = [
+            artist for artist in artists
+            if artist != custom_title(artist) and
+               artist not in self.known_artists and
+               artist not in self.known_ignored
+        ]
+        self.artists.extend(non_standard)
+
+    def verify_and_save_artist(self):
+        new_artists = set(self.artists) - self.known_artists - self.known_ignored
+        with open("data/artists.txt", "a",  encoding="utf-8") as file:
+            with open("data/ignored_artists.txt", "a",  encoding="utf-8") as ignored_file:
+                for artist in sorted(new_artists):
+                    response = input(f"\nIs '{artist}' correctly spelled (expected {custom_title(artist)}? (yes/no): ").strip().lower()
+                    if response == "yes" or response == "y":
+                        file.write(f"{artist}\n")
+                        self.known_artists.add(artist)
+                    elif response == "no" or  response == "n":
+                        ignored_file.write(f"{artist}\n")
+                        self.known_ignored.add(artist)
+                    else:
+                        self.artists.remove(artist)
+
+    def save(self):
+        self.verify_and_save_artist()
+
+
+uniqueArtists = UniqueArtistHandler("Artists")
+uniqueAlbumArtists = UniqueArtistHandler("Album Artists")
+
+
 class BaseSong:
 
     def __init__(self, path):
@@ -49,13 +113,16 @@ class BaseSong:
         if self.tag_collection.has_item(ARTIST):
             self.tag_collection.get_item(ARTIST).regex()
             self.tag_collection.get_item(ARTIST).special_recapitalize()
+            uniqueArtists.add_non_standard_names(self.tag_collection.get_item(ARTIST).to_array())
         if self.tag_collection.has_item(ALBUM_ARTIST):
             self.tag_collection.get_item(ALBUM_ARTIST).regex()
             self.tag_collection.get_item(ALBUM_ARTIST).special_recapitalize()
+            uniqueArtists.add_non_standard_names(self.tag_collection.get_item(ALBUM_ARTIST).to_array())
         if self.tag_collection.has_item(GENRE):
             self.tag_collection.get_item(GENRE).recapitalize()
 
     def __del__(self):
+        uniqueArtists.save()
         self.save_file()
 
     def update_tag(self, tag, value):

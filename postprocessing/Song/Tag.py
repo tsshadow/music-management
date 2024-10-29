@@ -28,6 +28,8 @@ class Tag:
             self.value = value.split(";")
         elif isinstance(value, list):
             self.value = list(value)
+            self.value = [item for sublist in self.value for item in sublist.split(';')]
+            self.value = [item for sublist in self.value for item in sublist.split('/')]
         self.changed = False
 
     def to_array(self):

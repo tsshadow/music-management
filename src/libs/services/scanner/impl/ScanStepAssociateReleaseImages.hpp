@@ -32,7 +32,7 @@ namespace lms::scanner
         ScanStepAssociateReleaseImages(InitParams& initParams);
 
     private:
-        ScanStep getStep() const override { return ScanStep::AssociateArtistImages; }
+        ScanStep getStep() const override { return ScanStep::AssociateReleaseImages; }
         core::LiteralString getStepName() const override { return "Associate release images"; }
         void process(ScanContext& context) override;
 

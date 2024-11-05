@@ -23,16 +23,22 @@ EasyMP4Tags.RegisterTextKey("parsed", "parsed")
 
 s = Settings()
 
+parse_labels = True
+parse_youtube = True
+parse_soundcloud = True
+parse_generic = True
+
+parse_mp3 = False
+parse_flac = True
+parse_m4a = False
+parse_wav = False
+
 
 class Tagger:
     def __init__(self):
         self.rescan = None
 
     def tag(self):
-        parse_labels = True
-        parse_youtube = True
-        parse_soundcloud = True
-        parse_generic = True
         if parse_labels:
             label_folders = [f for f in os.listdir(s.eps_folder_path) if
                              not os.path.isfile(os.path.join(s.eps_folder_path, f))]
@@ -77,11 +83,19 @@ class Tagger:
         print("\r", folder, end="")
         folders = [f for f in os.listdir(folder) if
                    not os.path.isfile(os.path.join(folder, f))]
-        files = glob.glob(
-            folder + s.delimiter + "*.mp3") + glob.glob(
-            folder + s.delimiter + "*.wav") + glob.glob(
-            folder + s.delimiter + "*.flac") + glob.glob(
-            folder + s.delimiter + "*.m4a")
+        files = []
+        if parse_mp3:
+            files += (glob.glob(
+                folder + s.delimiter + "*.mp3"))
+        if parse_flac:
+            files += (glob.glob(
+                folder + s.delimiter + "*.flac"))
+        if parse_wav:
+            files += (glob.glob(
+                folder + s.delimiter + "*.wav"))
+        if parse_m4a:
+            files += (glob.glob(
+                folder + s.delimiter + "*.m4a"))
         for file in files:
             try:
                 self.parse_song(file, song_type)
@@ -99,6 +113,8 @@ class Tagger:
                 pass
             except ExtensionNotSupportedException as e:
                 print(f"ExtensionNotSupportedException: {e}")
+                pass
+            except TabError:
                 pass
             except SystemExit:
                 sys.exit(2)

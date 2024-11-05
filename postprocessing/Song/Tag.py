@@ -1,5 +1,6 @@
 import re
 
+from postprocessing.Song.UniqueTagHandler import custom_title
 from postprocessing.constants import ARTIST_REGEX
 
 
@@ -10,7 +11,7 @@ class ArtistHelper:
     def load_artist_cache(file_path='./data/artists.txt'):
         if ArtistHelper.artist_cache is None:
             ArtistHelper.artist_cache = {}
-            with open(file_path, 'r') as f:
+            with open(file_path, 'r', encoding="utf-8") as f:
                 for line in f:
                     artist = line.strip()
                     ArtistHelper.artist_cache[artist.lower()] = artist  # Store lowercase for case-insensitive lookup
@@ -21,6 +22,23 @@ class ArtistHelper:
         return ArtistHelper.artist_cache.get(name.lower(), name)
 
 
+# class ArtistHelper2:
+#     artist_cache = None
+#
+#     @staticmethod
+#     def load_artist_cache(file_path='./data/artists.txt'):
+#         if ArtistHelper.artist_cache is None:
+#             ArtistHelper.artist_cache = {}
+#             with open(file_path, 'r',  encoding="utf-8") as f:
+#                 for line in f:
+#                     artist = line.strip()
+#                     ArtistHelper.artist_cache[artist.lower()] = artist  # Store lowercase for case-insensitive lookup
+#
+#     @staticmethod
+#     def recapitalize(name):
+#         ArtistHelper.load_artist_cache()
+#         return ArtistHelper.artist_cache.get(name.lower(), name)
+
 class Tag:
     def __init__(self, tag, value):
         self.tag: str = tag
@@ -28,9 +46,19 @@ class Tag:
             self.value = value.split(";")
         elif isinstance(value, list):
             self.value = list(value)
-            self.value = [item for sublist in self.value for item in sublist.split(';')]
-            self.value = [item for sublist in self.value for item in sublist.split('/')]
+            try:
+                self.resplit()
+            except AttributeError:
+                print("AttributeError")
+                pass
+            except TypeError:
+                print("TypeError")
+                pass
         self.changed = False
+
+    def resplit(self):
+        self.value = [item for sublist in self.value for item in sublist.split(';')]
+        self.value = [item for sublist in self.value for item in sublist.split('/')]
 
     def to_array(self):
         return self.value
@@ -42,41 +70,58 @@ class Tag:
         old_value = self.value[:]
         self.value.sort()
         if old_value != self.value:
-            print("changed sort")
+            print("\n",self.tag,"changed (sort) from", old_value, " to ", self.value)
             self.changed = True
 
     def deduplicate(self):
         old_value = self.value[:]
         self.value = list(dict.fromkeys(self.value))
         if old_value != self.value:
-            print("changed deduplicate")
+            print("\n",self.tag,"changed (deduplicate) from", old_value, " to ", self.value)
             self.changed = True
 
     def add(self, item):
         if item not in self.value:
+            old_value = self.value[:]
             self.value.append(item)
-            print("changed add")
+            print("\n",self.tag,"changed (add) from", old_value, " to ", self.value)
             self.changed = True
 
     def remove(self, val):
+        old_value = self.value[:]
         if val in self.value:
             self.value.remove(val)
-            print("changed remove")
+            print("\n",self.tag,"changed (remove) from", old_value, " to ", self.value)
             self.changed = True
 
     def recapitalize(self):
         old_value = self.value[:]
         self.value = [element.title() for element in self.value]
         if old_value != self.value:
-            print("changed recapitalize")
+            print("\n",self.tag,"changed (recapitalize) from", old_value, " to ", self.value)
             self.changed = True
+
+    def strip(self):
+        old_value = self.value[:]
+        self.value = [element.strip() for element in self.value]
+        if old_value != self.value:
+            print("\n",self.tag,"changed (strip) from", old_value, " to ", self.value)
+            self.changed = True
+
+    # def filter(self, input, output):
+    #     old_value = self.value[:]
+    #     self.value = [element.strip() for element in self.value]
+    #     if old_value != self.value:
+    #         print("\n",self.tag,"changed (filter) from", old_value, " to ", self.value)
+    #         self.changed = True
 
     def regex(self):
         old_value = self.value[:]
         self.value = [re.sub(ARTIST_REGEX, ";", elem) for elem in self.value]
         if old_value != self.value:
             self.changed = True
-            print("changed regex")
+            self.resplit()
+            print("\n",self.tag,"changed (regex) from", old_value, " to ", self.value)
 
     def has_changes(self):
         return self.changed
@@ -93,4 +138,29 @@ class Tag:
         self.value = [ArtistHelper.recapitalize(name) for name in self.value]
         if old_value != self.value:
             self.changed = True
-            print("changed special_recapitalize")
+            print("\n",self.tag,"changed (special_recapitalize) from", old_value, " to ", self.value)
+
+    def special_fix(self):
+        old_value = self.value[:]
+        self.value = [ArtistHelper.recapitalize(name) for name in self.value]
+        if old_value != self.value:
+            self.changed = True
+            print("\n",self.tag,"changed (special_fix) from", old_value, " to ", self.value)
+
+    def set(self, value):
+        old_value = self.value[:]
+        if isinstance(value, str):
+            self.value = value.split(";")
+        elif isinstance(value, list):
+            self.value = list(value)
+            try:
+                self.resplit()
+            except AttributeError:
+                print('AttributeError')
+                pass
+            except TypeError:
+                print('TypeError')
+                pass
+        if old_value != self.value:
+            self.changed = True
+            print("\n",self.tag,"changed (set) from", old_value, " to ", self.value)

@@ -13,8 +13,9 @@ from data.settings import Settings
 from postprocessing.Song.Tag import Tag
 from postprocessing.Song.Helpers import LookupTableHelper
 from postprocessing.Song.TagCollection import TagCollection
+from postprocessing.Song.UniqueTagHandler import UniqueTagHandler, TitleCaseTagChecker
 from postprocessing.constants import ARTIST, GENRE, WAVTags, MP4Tags, DATE, PARSED, CATALOG_NUMBER, PUBLISHER, \
-    COPYRIGHT, ALBUM_ARTIST, BPM, MusicFileType, TITLE
+    COPYRIGHT, ALBUM_ARTIST, BPM, MusicFileType, TITLE, MP3Tags, FLACTags
 
 s = Settings()
 artistGenreHelper = LookupTableHelper('data/artist-genre.txt')
@@ -26,68 +27,9 @@ class ExtensionNotSupportedException(Exception):
     pass
 
 
-def custom_title(s):
-    # List of words to ignore (not capitalize)
-    ignore_words = {"of", "and", "the", "in", "on", "for", "with", "a", "an", "but", "to"}
-    words = s.split()
-
-    # Capitalize the first word and other words unless they are in ignore_words
-    return ' '.join(
-        word if word.lower() in ignore_words and i != 0 else word.title()
-        for i, word in enumerate(words)
-    )
-
-class UniqueArtistHandler:
-    def __init__(self, name):
-        self.name = name
-        self.artists = []
-        self.known_artists = self.load_known_artists()
-        self.known_ignored = self.load_known_ignored_artists()
-
-    def load_known_artists(self):
-        try:
-            with open("data/artists.txt", "r", encoding="utf-8") as file:
-                return {line.strip() for line in file if line.strip()}
-        except FileNotFoundError:
-            return set()
-
-    def load_known_ignored_artists(self):
-        try:
-            with open("data/ignored_artists.txt", "r", encoding="utf-8") as file:
-                return {line.strip() for line in file if line.strip()}
-        except FileNotFoundError:
-            return set()
-
-    def add_non_standard_names(self, artists):
-        non_standard = [
-            artist for artist in artists
-            if artist != custom_title(artist) and
-               artist not in self.known_artists and
-               artist not in self.known_ignored
-        ]
-        self.artists.extend(non_standard)
-
-    def verify_and_save_artist(self):
-        new_artists = set(self.artists) - self.known_artists - self.known_ignored
-        with open("data/artists.txt", "a",  encoding="utf-8") as file:
-            with open("data/ignored_artists.txt", "a",  encoding="utf-8") as ignored_file:
-                for artist in sorted(new_artists):
-                    response = input(f"\nIs '{artist}' correctly spelled (expected {custom_title(artist)}? (yes/no): ").strip().lower()
-                    if response == "yes" or response == "y":
-                        file.write(f"{artist}\n")
-                        self.known_artists.add(artist)
-                    elif response == "no" or  response == "n":
-                        ignored_file.write(f"{artist}\n")
-                        self.known_ignored.add(artist)
-                    else:
-                        self.artists.remove(artist)
-
-    def save(self):
-        self.verify_and_save_artist()
-
-
-uniqueArtists = UniqueArtistHandler("Artists")
-uniqueAlbumArtists = UniqueArtistHandler("Album Artists")
+uniqueArtists = TitleCaseTagChecker("Artists", "data/artists.txt", "data/ignored_artists.txt")
+uniqueGenres = UniqueTagHandler("Genres", "data/genres.txt", "data/ignored_genres.txt")
+uniqueAlbumArtists = TitleCaseTagChecker("Album Artists", "data/artists.txt", "data/ignored_artists.txt")
 
 
 class BaseSong:
@@ -108,21 +50,38 @@ class BaseSong:
         except KeyError:
             raise ExtensionNotSupportedException(f"{self._extension} is not supported")
         self.tag_collection = TagCollection(self.music_file.tags)
-
+        if self.type == MusicFileType.FLAC:
+            for tag in self.music_file.tags:
+                if tag[0] == tag[0].lower():
+                    val = self.music_file.tags[tag[0]]
+                    self.music_file[tag[0]] = []
+                    self.music_file.save()
+                    self.music_file[tag[0].upper()] = "TEST"
+                    self.music_file.save()
+                    self.music_file[tag[0].upper()] = val
+                    self.music_file.save()
+                    print(val)
+            raise TabError
     def parse_tags(self):
         if self.tag_collection.has_item(ARTIST):
             self.tag_collection.get_item(ARTIST).regex()
             self.tag_collection.get_item(ARTIST).special_recapitalize()
-            uniqueArtists.add_non_standard_names(self.tag_collection.get_item(ARTIST).to_array())
+            self.tag_collection.get_item(ARTIST).special_fix()
+            self.tag_collection.get_item(ARTIST).strip()
+            # uniqueArtists.add_non_standard_names(self.tag_collection.get_item(ARTIST).to_array())
         if self.tag_collection.has_item(ALBUM_ARTIST):
             self.tag_collection.get_item(ALBUM_ARTIST).regex()
             self.tag_collection.get_item(ALBUM_ARTIST).special_recapitalize()
-            uniqueArtists.add_non_standard_names(self.tag_collection.get_item(ALBUM_ARTIST).to_array())
+            self.tag_collection.get_item(ALBUM_ARTIST).strip()
+            # uniqueArtists.add_non_standard_names(self.tag_collection.get_item(ALBUM_ARTIST).to_array())
         if self.tag_collection.has_item(GENRE):
             self.tag_collection.get_item(GENRE).recapitalize()
+            self.tag_collection.get_item(GENRE).strip()
+            uniqueGenres.add_non_standard_names(self.tag_collection.get_item(GENRE).to_array())
 
     def __del__(self):
         uniqueArtists.save()
+        uniqueGenres.save()
         self.save_file()
 
     def update_tag(self, tag, value):
@@ -184,14 +143,15 @@ class BaseSong:
                     if tag.has_changes():
                         self.set_tag(tag)
                         self.music_file.save()
-                        print("save")
                 else:
                     print("Failed to save tag:", tag)
 
     def get_tag(self, tag):
         if self.music_file:
-            if self.type == MusicFileType.MP3 or self.type == MusicFileType.FLAC:
-                return self.music_file.get(tag)
+            if self.type == MusicFileType.MP3:
+                return self.music_file.get(MP3Tags[tag])
+            elif self.type == MusicFileType.FLAC:
+                return self.music_file.get(FLACTags[tag])
             elif self.type == MusicFileType.WAV:
                 try:
                     value = self.music_file.tags[WAVTags[tag]]
@@ -210,11 +170,12 @@ class BaseSong:
                     return None
 
     def set_tag(self, tag: Tag):
-        print("set tag", tag.tag, tag.to_string())
+        print("set tag", tag.tag, tag.to_string(), self.music_file.get(tag.tag))
         if self.music_file:
-            if self.type == MusicFileType.MP3 or self.type == MusicFileType.FLAC:
-                print("was:", self.music_file.get(tag.tag))
+            if self.type == MusicFileType.MP3:
                 self.music_file[tag.tag] = tag.to_string()
+            elif self.type == MusicFileType.FLAC:
+                self.music_file[FLACTags[tag.tag]] = tag.to_string()
             elif self.type == MusicFileType.WAV:
                 try:
                     print(self.music_file.tags[WAVTags[tag]])
@@ -224,6 +185,11 @@ class BaseSong:
                 self.music_file.tags[WAVTags[tag]] = mutagen.id3.TextFrame(encoding=3, text=[tag.to_string()])
                 print(' set ', self.music_file.tags[WAVTags[tag]])
             elif self.type == MusicFileType.M4A:
+                try:
+                    print(self.music_file.tags[MP4Tags[tag]])
+                except Exception as e:
+                    print(e)
+                    self.music_file.tags.add(TXXX(encoding=3, text=[tag.to_string()], desc=MP4Tags[tag]))
                 self.music_file.tags[MP4Tags[tag]] = str(tag.to_string())
 
     def analyze_track(self):

@@ -114,8 +114,6 @@ class Tagger:
             except ExtensionNotSupportedException as e:
                 print(f"ExtensionNotSupportedException: {e}")
                 pass
-            except TabError:
-                pass
             except SystemExit:
                 sys.exit(2)
         for sub_folder in folders:

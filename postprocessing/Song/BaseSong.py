@@ -50,18 +50,7 @@ class BaseSong:
         except KeyError:
             raise ExtensionNotSupportedException(f"{self._extension} is not supported")
         self.tag_collection = TagCollection(self.music_file.tags)
-        if self.type == MusicFileType.FLAC:
-            for tag in self.music_file.tags:
-                if tag[0] == tag[0].lower():
-                    val = self.music_file.tags[tag[0]]
-                    self.music_file[tag[0]] = []
-                    self.music_file.save()
-                    self.music_file[tag[0].upper()] = "TEST"
-                    self.music_file.save()
-                    self.music_file[tag[0].upper()] = val
-                    self.music_file.save()
-                    print(val)
-            raise TabError
+
     def parse_tags(self):
         if self.tag_collection.has_item(ARTIST):
             self.tag_collection.get_item(ARTIST).regex()

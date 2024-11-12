@@ -51,10 +51,11 @@ reversed_FLACTags = {v: k for k, v in FLACTags.items()}
 
 MP4Tags = {
     ALBUM_ARTIST: 'TALB',
+    TITLE: '\xa9nam',
     ARTIST: '\xa9ART',
     CATALOG_NUMBER: 'CATA',
     COPYRIGHT: 'cprt',
-    DATE: '\xa9DAY',
+    DATE: '\xa9day',
     GENRE: '\xa9gen',
     PUBLISHER: 'PUBL',
 }

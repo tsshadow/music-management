@@ -32,7 +32,7 @@ class TagCollection:
                 except KeyError:
                     if tag[0] not in missing_tags_flac:
                         missing_tags_flac.append(tag[0])
-                        print('flac missing:', tag[0])
+                        print('\nflac missing:', missing_tags_flac)
 
         # MP3
         elif isinstance(tags, EasyID3):
@@ -42,7 +42,7 @@ class TagCollection:
                 except KeyError:
                     if tag not in missing_tags_mp3:
                         missing_tags_mp3.append(tag)
-                        print('mp3 missing:', tag)
+                        print('\nmp3 missing:', missing_tags_mp3)
 
         # WAV
         elif isinstance(tags, _WaveID3):
@@ -51,8 +51,8 @@ class TagCollection:
                     self.tags[reversed_WAVTags[tag]] = Tag(reversed_WAVTags[tag], tags[tag])
                 except KeyError:
                     if tag not in missing_tags_wav:
-                        missing_tags_wav.append(tag)
-                        print('wav missing:', tag)
+                        missing_tags_wav.append(missing_tags_wav)
+                        print('\nwav missing:', tag)
 
         # M4A
         elif isinstance(tags, MP4Tags):
@@ -62,7 +62,7 @@ class TagCollection:
                 except KeyError:
                     if tag not in missing_tags_m4a:
                         missing_tags_m4a.append(tag)
-                        print('m4a missing:', tag)
+                        print('\nm4a missing:', missing_tags_m4a)
 
         else:
             print("TagCollection not supporting this file extension")

@@ -28,10 +28,10 @@ parse_youtube = True
 parse_soundcloud = True
 parse_generic = True
 
-parse_mp3 = False
+parse_mp3 = True
 parse_flac = True
-parse_m4a = False
-parse_wav = False
+parse_m4a = True
+parse_wav = True
 
 
 class Tagger:
@@ -65,7 +65,7 @@ class Tagger:
             youtube_channel_folders.sort()
             for youtube_channel_folder in youtube_channel_folders:
                 self.parse_folder(
-                    s.music_folder_path + s.delimiter + "Youtube" + s.delimiter + youtube_channel_folder,
+                    s.music_folder_path + s.delimiter + "Youtube" + s.delimiter + "Monstercat Uncaged",
                     SongTypeEnum.YOUTUBE)
 
         if parse_generic:
@@ -113,6 +113,8 @@ class Tagger:
                 pass
             except ExtensionNotSupportedException as e:
                 print(f"ExtensionNotSupportedException: {e}")
+                pass
+            except TabError:
                 pass
             except SystemExit:
                 sys.exit(2)

@@ -50,6 +50,18 @@ class BaseSong:
         except KeyError:
             raise ExtensionNotSupportedException(f"{self._extension} is not supported")
         self.tag_collection = TagCollection(self.music_file.tags)
+        if self.type == MusicFileType.FLAC:
+            for tag in self.music_file.tags:
+                if tag[0] != tag[0].upper():
+                    val = self.music_file.tags[tag[0]]
+                    self.music_file[tag[0]] = []
+                    self.music_file.save()
+                    self.music_file[tag[0].upper()] = "TEST"
+                    self.music_file.save()
+                    self.music_file[tag[0].upper()] = val
+                    self.music_file.save()
+                    print(tag[0], tag[0].upper(), val)
+            raise TabError
 
     def parse_tags(self):
         if self.tag_collection.has_item(ARTIST):
@@ -166,20 +178,19 @@ class BaseSong:
             elif self.type == MusicFileType.FLAC:
                 self.music_file[FLACTags[tag.tag]] = tag.to_string()
             elif self.type == MusicFileType.WAV:
-                try:
-                    print(self.music_file.tags[WAVTags[tag]])
-                except Exception as e:
-                    print(e)
-                    self.music_file.tags.add(TXXX(encoding=3, text=[tag.to_string()], desc=WAVTags[tag]))
-                self.music_file.tags[WAVTags[tag]] = mutagen.id3.TextFrame(encoding=3, text=[tag.to_string()])
-                print(' set ', self.music_file.tags[WAVTags[tag]])
+                # try:
+                #     print(self.music_file.tags[WAVTags[tag]])
+                # except Exception as e:
+                #     print(e)
+                self.music_file.tags[WAVTags[tag.tag]] = mutagen.id3.TextFrame(encoding=3, text=[tag.to_string()])
+                print(' set ', self.music_file.tags[WAVTags[tag.tag]])
             elif self.type == MusicFileType.M4A:
-                try:
-                    print(self.music_file.tags[MP4Tags[tag]])
-                except Exception as e:
-                    print(e)
-                    self.music_file.tags.add(TXXX(encoding=3, text=[tag.to_string()], desc=MP4Tags[tag]))
-                self.music_file.tags[MP4Tags[tag]] = str(tag.to_string())
+                # try:
+                #     print(self.music_file.tags[MP4Tags[tag]])
+                # except Exception as e:
+                #     print(e)
+                #     self.music_file.tags.add(TXXX(encoding=3, text=[tag.to_string()], desc=MP4Tags[tag]))
+                self.music_file.tags[MP4Tags[tag.tag]] = str(tag.to_string())
 
     def analyze_track(self):
         try:

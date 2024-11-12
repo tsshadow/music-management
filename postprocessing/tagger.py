@@ -65,7 +65,7 @@ class Tagger:
             youtube_channel_folders.sort()
             for youtube_channel_folder in youtube_channel_folders:
                 self.parse_folder(
-                    s.music_folder_path + s.delimiter + "Youtube" + s.delimiter + "Monstercat Uncaged",
+                    s.music_folder_path + s.delimiter + "Youtube" + s.delimiter + youtube_channel_folder,
                     SongTypeEnum.YOUTUBE)
 
         if parse_generic:

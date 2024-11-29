@@ -22,10 +22,12 @@
 #include <Wt/Http/Request.h>
 #include <Wt/Http/Response.h>
 
-#include "RequestContext.hpp"
+#include "SubsonicResponse.hpp"
 
 namespace lms::api::subsonic
 {
+    class RequestContext;
+
     Response handleGetLyrics(RequestContext& context);
     Response handleGetLyricsBySongId(RequestContext& context);
 

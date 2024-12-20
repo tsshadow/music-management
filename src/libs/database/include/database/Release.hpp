@@ -47,6 +47,7 @@ namespace lms::db
     class Artist;
     class Cluster;
     class ClusterType;
+    class Image;
     class Release;
     class Session;
     class Track;
@@ -56,8 +57,11 @@ namespace lms::db
     {
     public:
         Label() = default;
+
+        static std::size_t getCount(Session& session);
         static pointer find(Session& session, LabelId id);
         static pointer find(Session& session, std::string_view name);
+        static RangeResults<LabelId> findOrphanIds(Session& session, std::optional<Range> range = std::nullopt);
 
         // Accessors
         std::string_view getName() const { return _name; }
@@ -84,8 +88,11 @@ namespace lms::db
     {
     public:
         ReleaseType() = default;
+
+        static std::size_t getCount(Session& session);
         static pointer find(Session& session, ReleaseTypeId id);
         static pointer find(Session& session, std::string_view name);
+        static RangeResults<ReleaseTypeId> findOrphanIds(Session& session, std::optional<Range> range = std::nullopt);
 
         // Accessors
         std::string_view getName() const { return _name; }
@@ -245,6 +252,8 @@ namespace lms::db
         std::vector<std::string> getLabelNames() const;
         std::vector<std::string> getReleaseTypeNames() const;
         void visitLabels(const std::function<void(const Label::pointer& label)>& _func) const;
+        std::string_view getBarcode() const { return _barcode; }
+        ObjectPtr<Image> getImage() const;
 
         // Setters
         void setName(std::string_view name) { _name = name; }
@@ -258,9 +267,12 @@ namespace lms::db
         void clearReleaseTypes();
         void addLabel(ObjectPtr<Label> releaseType);
         void addReleaseType(ObjectPtr<ReleaseType> releaseType);
+        void setBarcode(std::string_view barcode) { _barcode = barcode; }
+        void setImage(ObjectPtr<Image> image);
 
         // Get the artists of this release
         std::vector<ObjectPtr<Artist>> getArtists(TrackArtistLinkType type = TrackArtistLinkType::Artist) const;
+        std::vector<ArtistId> getArtistIds(TrackArtistLinkType type = TrackArtistLinkType::Artist) const;
         std::vector<ObjectPtr<Artist>> getReleaseArtists() const { return getArtists(TrackArtistLinkType::ReleaseArtist); }
         bool hasVariousArtists() const;
         std::vector<pointer> getSimilarReleases(std::optional<std::size_t> offset = {}, std::optional<std::size_t> count = {}) const;
@@ -276,8 +288,10 @@ namespace lms::db
             Wt::Dbo::field(a, _totalDisc, "total_disc");
             Wt::Dbo::field(a, _artistDisplayName, "artist_display_name");
             Wt::Dbo::field(a, _isCompilation, "is_compilation");
+            Wt::Dbo::field(a, _barcode, "barcode");
             Wt::Dbo::hasMany(a, _tracks, Wt::Dbo::ManyToOne, "release");
 
+            Wt::Dbo::belongsTo(a, _image, "image", Wt::Dbo::OnDeleteSetNull);
             Wt::Dbo::hasMany(a, _labels, Wt::Dbo::ManyToMany, "release_label", "", Wt::Dbo::OnDeleteCascade);
             Wt::Dbo::hasMany(a, _releaseTypes, Wt::Dbo::ManyToMany, "release_release_type", "", Wt::Dbo::OnDeleteCascade);
         }
@@ -299,7 +313,9 @@ namespace lms::db
         std::optional<int> _totalDisc{};
         std::string _artistDisplayName;
         bool _isCompilation{}; // See https://picard-docs.musicbrainz.org/en/appendices/tag_mapping.html#compilation-itunes-5
+        std::string _barcode;
 
+        Wt::Dbo::ptr<Image> _image;
         Wt::Dbo::collection<Wt::Dbo::ptr<Track>> _tracks;
         Wt::Dbo::collection<Wt::Dbo::ptr<Label>> _labels;
         Wt::Dbo::collection<Wt::Dbo::ptr<ReleaseType>> _releaseTypes;

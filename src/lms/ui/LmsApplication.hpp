@@ -30,8 +30,8 @@
 #include "database/UserId.hpp"
 #include "services/scanner/ScannerEvents.hpp"
 
+#include "Auth.hpp"
 #include "Notification.hpp"
-#include "admin/ScannerController.hpp"
 
 namespace lms::db
 {
@@ -42,7 +42,7 @@ namespace lms::db
 
 namespace lms::ui
 {
-    class CoverResource;
+    class ArtworkResource;
     class LmsApplicationException;
     class MediaPlayer;
     class PlayQueue;
@@ -53,14 +53,14 @@ namespace lms::ui
     class LmsApplication : public Wt::WApplication
     {
     public:
-        LmsApplication(const Wt::WEnvironment& env, db::Db& db, LmsApplicationManager& appManager, std::optional<db::UserId> userId = std::nullopt);
+        LmsApplication(const Wt::WEnvironment& env, db::Db& db, LmsApplicationManager& appManager, AuthenticationBackend authBackend);
         ~LmsApplication();
 
-        static std::unique_ptr<Wt::WApplication> create(const Wt::WEnvironment& env, db::Db& db, LmsApplicationManager& appManager);
+        static std::unique_ptr<Wt::WApplication> create(const Wt::WEnvironment& env, db::Db& db, LmsApplicationManager& appManager, AuthenticationBackend authBackend);
         static LmsApplication* instance();
 
         // Session application data
-        std::shared_ptr<CoverResource> getCoverResource() { return _coverResource; }
+        std::shared_ptr<ArtworkResource> getArtworkResource() { return _artworkResource; }
         db::Db& getDb();
         db::Session& getDbSession(); // always thread safe
 
@@ -72,6 +72,8 @@ namespace lms::ui
 
         // Proxified scanner events
         scanner::Events& getScannerEvents() { return _scannerEvents; }
+
+        AuthenticationBackend getAuthBackend() const { return _authBackend; }
 
         // Utils
         void post(std::function<void()> func);
@@ -88,7 +90,7 @@ namespace lms::ui
         Wt::Signal<>& preQuit() { return _preQuit; }
 
     private:
-        void init(std::optional<db::UserId> userId);
+        void init();
         void processPasswordAuth();
         void handleException(LmsApplicationException& e);
         void goHomeAndQuit();
@@ -106,6 +108,7 @@ namespace lms::ui
         db::Db& _db;
         Wt::Signal<> _preQuit;
         LmsApplicationManager& _appManager;
+        const AuthenticationBackend _authBackend;
         scanner::Events _scannerEvents;
         struct UserAuthInfo
         {
@@ -115,7 +118,7 @@ namespace lms::ui
             bool strongAuth{};
         };
         std::optional<UserAuthInfo> _user;
-        std::shared_ptr<CoverResource> _coverResource;
+        std::shared_ptr<ArtworkResource> _artworkResource;
         MediaPlayer* _mediaPlayer{};
         PlayQueue* _playQueue{};
         NotificationContainer* _notificationContainer{};

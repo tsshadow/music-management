@@ -23,6 +23,7 @@
 
 #include "database/Artist.hpp"
 #include "database/Directory.hpp"
+#include "database/Release.hpp"
 #include "database/Session.hpp"
 
 #include "IdTypeTraits.hpp"
@@ -40,7 +41,7 @@ namespace lms::db
             if (params.directory.isValid())
                 query.where("i.directory_id = ?").bind(params.directory);
             if (!params.fileStem.empty())
-                query.where("i.stem = ?").bind(params.fileStem);
+                query.where("i.stem = ? COLLATE NOCASE").bind(params.fileStem);
 
             return query;
         }
@@ -70,11 +71,11 @@ namespace lms::db
         return utils::fetchQuerySingleResult(session.getDboSession()->query<Wt::Dbo::ptr<Image>>("SELECT i from image i").where("i.id = ?").bind(id));
     }
 
-    Image::pointer Image::find(Session& session, const std::filesystem::path& path)
+    Image::pointer Image::find(Session& session, const std::filesystem::path& file)
     {
         session.checkReadTransaction();
 
-        return utils::fetchQuerySingleResult(session.getDboSession()->query<Wt::Dbo::ptr<Image>>("SELECT i from image i").where("i.absolute_file_path = ?").bind(path));
+        return utils::fetchQuerySingleResult(session.getDboSession()->query<Wt::Dbo::ptr<Image>>("SELECT i from image i").where("i.absolute_file_path = ?").bind(file));
     }
 
     void Image::find(Session& session, ImageId& lastRetrievedImage, std::size_t count, const std::function<void(const Image::pointer&)>& func)

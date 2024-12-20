@@ -7,7 +7,7 @@ _LMS_ is a self-hosted music streaming software: access your music collection fr
 A [demo instance](http://lms-demo.poupon.dev) is available. Note the administration settings are not available.
 
 ## Main features
-* Recommendation engine
+* [Subsonic/OpenSubsonic API](SUBSONIC.md) support
 * Multi-valued tags: `genre`, `mood`, `artists`, ...
 * Artist relationships: `composer`, `conductor`, `lyricist`, `mixer`, `performer`, `producer`, `remixer`
 * [Release types](https://musicbrainz.org/doc/Release_Group/Type): `album`, `single`, `EP`, `compilation`, `live`, ...
@@ -15,11 +15,13 @@ A [demo instance](http://lms-demo.poupon.dev) is available. Note the administrat
 * [ListenBrainz](https://listenbrainz.org) support for:
   * Scrobbling and synchronizing listens
   * Synchronizing 'love' feedbacks
-* Audio transcoding for maximum interoperability and reduced bandwith requirements
+* Recommendation engine
 * Multi-library support
 * ReplayGain support
+* Audio transcoding for compatibility and reduced bandwidth
 * User management, with several [authentication backends](INSTALL.md#authentication-backend)
-* [Subsonic/OpenSubsonic API](SUBSONIC.md) support
+* Playlists support
+* Lyrics support
 
 ## Music discovery
 _LMS_ provides several ways to help you find the music you like:
@@ -43,19 +45,25 @@ _LMS_ primarily relies on tags to organize your music collection but also suppor
 ### Filtering
 It is possible to apply global filters on your collection using `genre`, `mood`, `grouping`, `language`, and by music library. More tags, including custom ones, can be added in the database administration settings.
 
-__Note__: You can use the `lms-metadata` tool to get an idea of the tags parsed by _LMS_ using [TagLib](https://github.com/taglib/taglib).
+__Note__: You can use the `lms-metadata` tool to get an idea of the tags parsed by _LMS_.
 
 ### Multiple artists
-_LMS_ works best when using the default Picard settings, where the `artist` tag contains a single display-friendly value, and the `artists` tag holds the actual artist names. This ensures a cleaner, more organized representation of artist names, when multiple artists are involved.
+_LMS_ works best when using the default [Picard](https://picard.musicbrainz.org/) settings, where the `artist` tag contains a single display-friendly value, and the `artists` tag holds the actual artist names. This ensures a cleaner, more organized representation of artist names, when multiple artists are involved.
 
 ### Multiple album artists
 While LMS can manage multiple album artists using the `albumartist` tag, it works better when using the custom `albumartists` and `albumartistssort` tags, similar to how it handles regular artist tags.
 
-__Note__: if you use [Picard](https://picard.musicbrainz.org/), add the following script to include these tags:
+__Note__: if you use Picard, add the following script to include these tags:
 ```
 $setmulti(albumartists,%_albumartists%)
 $setmulti(albumartistssort,%_albumartists_sort%)
 ```
+
+## Playlist support
+_LMS_ supports playlist files in `m3u` and `m3u8` formats. These playlists are synced during the scan process and are available as public shared playlists.
+
+## Lyrics support
+_LMS_ supports lyrics in `lrc` files and embedded track metadata. Both synchronized and unsynchronized lyrics are supported.
 
 ## Keyboard shortcuts
 * Play/pause: <kbd>Space</kbd>

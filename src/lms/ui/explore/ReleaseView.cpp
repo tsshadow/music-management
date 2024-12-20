@@ -26,7 +26,6 @@
 #include <Wt/WPushButton.h>
 
 #include "av/IAudioFile.hpp"
-#include "core/ILogger.hpp"
 #include "database/Artist.hpp"
 #include "database/Cluster.hpp"
 #include "database/Release.hpp"
@@ -245,7 +244,7 @@ namespace lms::ui
 
         refreshReleaseArtists(release);
 
-        bindWidget<Wt::WImage>("cover", utils::createCover(release->getId(), CoverResource::Size::Large));
+        bindWidget<Wt::WImage>("cover", utils::createReleaseCover(release->getId(), ArtworkResource::Size::Large));
 
         Wt::WContainerWidget* clusterContainers{ bindNew<Wt::WContainerWidget>("clusters") };
         {
@@ -466,6 +465,14 @@ namespace lms::ui
                 entry->bindNew<Wt::WPushButton>("track-info", Wt::WString::tr("Lms.Explore.track-info"))
                     ->clicked()
                     .connect([this, trackId] { TrackListHelpers::showTrackInfoModal(trackId, _filters); });
+
+                if (track->hasLyrics())
+                {
+                    entry->setCondition("if-has-lyrics", true);
+                    entry->bindNew<Wt::WPushButton>("track-lyrics", Wt::WString::tr("Lms.Explore.track-lyrics"))
+                        ->clicked()
+                        .connect([trackId] { TrackListHelpers::showTrackLyricsModal(trackId); });
+                }
             }
 
             if (track->getRating().has_value())

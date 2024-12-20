@@ -37,9 +37,9 @@
 
 #include "LmsApplication.hpp"
 #include "Utils.hpp"
+#include "resource/ArtworkResource.hpp"
 #include "resource/AudioFileResource.hpp"
 #include "resource/AudioTranscodingResource.hpp"
-#include "resource/CoverResource.hpp"
 
 namespace lms::ui
 {
@@ -227,6 +227,8 @@ namespace lms::ui
         }
     }
 
+    MediaPlayer::~MediaPlayer() = default;
+
     void MediaPlayer::loadTrack(db::TrackId trackId, bool play, float replayGain)
     {
         LMS_LOG(UI, DEBUG, "Playing track ID = " << trackId.toString());
@@ -255,13 +257,13 @@ namespace lms::ui
                 << " artist: \"" << (!artists.empty() ? core::stringUtils::jsEscape(track->getArtistDisplayName()) : "") << "\","
                 << " release: \"" << (track->getRelease() ? core::stringUtils::jsEscape(track->getRelease()->getName()) : "") << "\","
                 << " artwork: ["
-                << "   { src: \"" << LmsApp->getCoverResource()->getTrackUrl(trackId, CoverResource::Size::Small) << "\", sizes: \"128x128\",	type: \"image/jpeg\" },"
-                << "   { src: \"" << LmsApp->getCoverResource()->getTrackUrl(trackId, CoverResource::Size::Large) << "\", sizes: \"512x512\",	type: \"image/jpeg\" },"
+                << "   { src: \"" << LmsApp->getArtworkResource()->getTrackImageUrl(trackId, ArtworkResource::Size::Small) << "\", sizes: \"128x128\",	type: \"image/jpeg\" },"
+                << "   { src: \"" << LmsApp->getArtworkResource()->getTrackImageUrl(trackId, ArtworkResource::Size::Large) << "\", sizes: \"512x512\",	type: \"image/jpeg\" },"
                 << " ]"
                 << "};";
             // Update 'sizes' above to match this:
-            static_assert(static_cast<std::underlying_type_t<CoverResource::Size>>(CoverResource::Size::Small) == 128);
-            static_assert(static_cast<std::underlying_type_t<CoverResource::Size>>(CoverResource::Size::Large) == 512);
+            static_assert(static_cast<std::underlying_type_t<ArtworkResource::Size>>(ArtworkResource::Size::Small) == 128);
+            static_assert(static_cast<std::underlying_type_t<ArtworkResource::Size>>(ArtworkResource::Size::Large) == 512);
             oss << "LMS.mediaplayer.loadTrack(params, " << (play ? "true" : "false") << ")"; // true to autoplay
 
             _title->setTextFormat(Wt::TextFormat::Plain);

@@ -30,6 +30,7 @@
 #include "database/Session.hpp"
 #include "database/TrackArtistLink.hpp"
 #include "database/TrackFeatures.hpp"
+#include "database/TrackLyrics.hpp"
 #include "database/User.hpp"
 
 #include "IdTypeTraits.hpp"
@@ -52,6 +53,12 @@ namespace lms::db
             assert(params.keywords.empty() || params.name.empty());
             for (std::string_view keyword : params.keywords)
                 query.where("t.name LIKE ? ESCAPE '" ESCAPE_CHAR_STR "'").bind("%" + utils::escapeLikeKeyword(keyword) + "%");
+
+            if (!params.fileStem.empty())
+                query.where("t.file_stem = ?").bind(params.fileStem);
+
+            if (!params.fileName.empty())
+                query.where("t.file_name = ?").bind(params.fileName);
 
             if (!params.name.empty())
                 query.where("t.name = ?").bind(params.name);
@@ -157,6 +164,9 @@ namespace lms::db
             if (params.directory.isValid())
                 query.where("t.directory_id = ?").bind(params.directory);
 
+            if (params.hasEmbeddedImage.has_value())
+                query.where("t.has_cover = ?").bind(params.hasEmbeddedImage.value());
+
             switch (params.sortMethod)
             {
             case TrackSortMethod::None:
@@ -188,7 +198,7 @@ namespace lms::db
                 break;
             case TrackSortMethod::TrackList:
                 assert(params.trackList.isValid());
-                query.orderBy("t_l.id");
+                query.orderBy("t_l_e.id");
             }
 
             return query;
@@ -371,12 +381,19 @@ namespace lms::db
     void Track::setAbsoluteFilePath(const std::filesystem::path& filePath)
     {
         assert(filePath.is_absolute());
+
         _absoluteFilePath = filePath;
+        _fileStem = filePath.stem();
+        _fileName = filePath.filename();
     }
 
     void Track::setRelativeFilePath(const std::filesystem::path& filePath)
     {
         assert(filePath.is_relative());
+
+        assert(_absoluteFilePath.filename() == filePath.filename()); // must be compatible with previous setAbsoluteFilePath call
+        _fileStem = filePath.stem();                                 // lazy migration (_fileStem added later, could be set only with setAbsoluteFilePath)
+        _fileName = filePath.filename();                             // lazy migration (_fileName added later, could be set only with setAbsoluteFilePath)
         _relativeFilePath = filePath;
     }
 
@@ -416,6 +433,26 @@ namespace lms::db
         _clusters.clear();
         for (const ObjectPtr<Cluster>& cluster : clusters)
             _clusters.insert(getDboPtr(cluster));
+    }
+
+    void Track::clearLyrics()
+    {
+        _trackLyrics.clear();
+    }
+
+    void Track::clearEmbeddedLyrics()
+    {
+        utils::executeCommand(*session(), "DELETE FROM track_lyrics WHERE absolute_file_path = '' AND track_id = ?", getId());
+    }
+
+    void Track::addLyrics(const ObjectPtr<TrackLyrics>& lyrics)
+    {
+        _trackLyrics.insert(getDboPtr(lyrics));
+    }
+
+    bool Track::hasLyrics() const
+    {
+        return !_trackLyrics.empty();
     }
 
     std::optional<std::string> Track::getCopyright() const

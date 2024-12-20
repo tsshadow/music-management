@@ -27,38 +27,32 @@
     #include "pam/PAMPasswordService.hpp"
 #endif // LMS_SUPPORT_PAM
 
-#include "core/Exception.hpp"
 #include "core/ILogger.hpp"
 #include "database/Session.hpp"
-#include "database/User.hpp"
 #include "services/auth/Types.hpp"
 
 namespace lms::auth
 {
     static const Wt::Auth::SHA1HashFunction sha1Function;
 
-    std::unique_ptr<IPasswordService>
-    createPasswordService(std::string_view passwordAuthenticationBackend, db::Db& db, std::size_t maxThrottlerEntries, IAuthTokenService& authTokenService)
+    std::unique_ptr<IPasswordService> createPasswordService(std::string_view backend, db::Db& db, std::size_t maxThrottlerEntryCount)
     {
-        if (passwordAuthenticationBackend == "internal")
-            return std::make_unique<InternalPasswordService>(db, maxThrottlerEntries, authTokenService);
+        if (backend == "internal")
+            return std::make_unique<InternalPasswordService>(db, maxThrottlerEntryCount);
 #ifdef LMS_SUPPORT_PAM
-        else if (passwordAuthenticationBackend == "pam")
-            return std::make_unique<PAMPasswordService>(db, maxThrottlerEntries, authTokenService);
+        if (backend == "PAM")
+            return std::make_unique<PAMPasswordService>(db, maxThrottlerEntryCount);
 #endif // LMS_SUPPORT_PAM
-
-        throw Exception{ "Authentication backend '" + std::string{ passwordAuthenticationBackend } + "' is not supported!" };
+        throw Exception{ "Authentication backend '" + std::string{ backend } + "' not supported!" };
     }
 
-    PasswordServiceBase::PasswordServiceBase(db::Db& db, std::size_t maxThrottlerEntries, IAuthTokenService& authTokenService)
+    PasswordServiceBase::PasswordServiceBase(db::Db& db, std::size_t maxThrottlerEntries)
         : AuthServiceBase{ db }
         , _loginThrottler{ maxThrottlerEntries }
-        , _authTokenService{ authTokenService }
     {
     }
 
-    PasswordServiceBase::CheckResult
-    PasswordServiceBase::checkUserPassword(const boost::asio::ip::address& clientAddress, std::string_view loginName, std::string_view password)
+    PasswordServiceBase::CheckResult PasswordServiceBase::checkUserPassword(const boost::asio::ip::address& clientAddress, std::string_view loginName, std::string_view password)
     {
         LMS_LOG(AUTH, DEBUG, "Checking password for user '" << loginName << "'");
 
@@ -67,7 +61,7 @@ namespace lms::auth
             std::shared_lock lock{ _mutex };
 
             if (_loginThrottler.isClientThrottled(clientAddress))
-                return { CheckResult::State::Throttled };
+                return CheckResult{ .state = CheckResult::State::Throttled, .userId = {} };
         }
 
         const bool match{ checkUserPassword(loginName, password) };
@@ -75,7 +69,7 @@ namespace lms::auth
             std::unique_lock lock{ _mutex };
 
             if (_loginThrottler.isClientThrottled(clientAddress))
-                return { CheckResult::State::Throttled };
+                return CheckResult{ .state = CheckResult::State::Throttled, .userId = {} };
 
             if (match)
             {
@@ -83,13 +77,11 @@ namespace lms::auth
 
                 const db::UserId userId{ getOrCreateUser(loginName) };
                 onUserAuthenticated(userId);
-                return { CheckResult::State::Granted, userId };
+                return CheckResult{ .state = CheckResult::State::Granted, .userId = userId };
             }
-            else
-            {
-                _loginThrottler.onBadClientAttempt(clientAddress);
-                return { CheckResult::State::Denied };
-            }
+
+            _loginThrottler.onBadClientAttempt(clientAddress);
+            return CheckResult{ .state = CheckResult::State::Denied, .userId = {} };
         }
     }
 } // namespace lms::auth

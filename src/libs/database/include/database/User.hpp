@@ -42,6 +42,7 @@ namespace lms::db
     public:
         struct PasswordHash
         {
+            std::size_t bcryptRoundCount;
             std::string salt;
             std::string hash;
         };
@@ -75,6 +76,7 @@ namespace lms::db
         static inline constexpr TranscodingOutputFormat defaultSubsonicTranscodingOutputFormat{ TranscodingOutputFormat::OGG_OPUS };
         static inline constexpr Bitrate defaultSubsonicTranscodingOutputBitrate{ 128000 };
         static inline constexpr UITheme defaultUITheme{ UITheme::Dark };
+        static inline constexpr ReleaseSortMethod _defaultUIArtistReleaseSortMethod{ ReleaseSortMethod::OriginalDateDesc };
         static inline constexpr SubsonicArtistListMode defaultSubsonicArtistListMode{ SubsonicArtistListMode::AllArtists };
         static inline constexpr ScrobblingBackend defaultScrobblingBackend{ ScrobblingBackend::Internal };
         static inline constexpr FeedbackBackend defaultFeedbackBackend{ FeedbackBackend::Internal };
@@ -90,7 +92,7 @@ namespace lms::db
 
         // accessors
         const std::string& getLoginName() const { return _loginName; }
-        PasswordHash getPasswordHash() const { return PasswordHash{ _passwordSalt, _passwordHash }; }
+        PasswordHash getPasswordHash() const { return PasswordHash{ .bcryptRoundCount = static_cast<std::size_t>(_bcryptRoundCount), .salt = _passwordSalt, .hash = _passwordHash }; }
         const Wt::WDateTime& getLastLogin() const { return _lastLogin; }
         std::size_t getAuthTokensCount() const { return _authTokens.size(); }
 
@@ -98,6 +100,7 @@ namespace lms::db
         void setLastLogin(const Wt::WDateTime& dateTime) { _lastLogin = dateTime; }
         void setPasswordHash(const PasswordHash& passwordHash)
         {
+            _bcryptRoundCount = passwordHash.bcryptRoundCount;
             _passwordSalt = passwordHash.salt;
             _passwordHash = passwordHash.hash;
         }
@@ -106,7 +109,7 @@ namespace lms::db
         void setSubsonicDefaultTranscodintOutputFormat(TranscodingOutputFormat encoding) { _subsonicDefaultTranscodingOutputFormat = encoding; }
         void setSubsonicDefaultTranscodingOutputBitrate(Bitrate bitrate);
         void setUITheme(UITheme uiTheme) { _uiTheme = uiTheme; }
-        void clearAuthTokens();
+        void setUIArtistReleaseSortMethod(ReleaseSortMethod method) { _uiArtistReleaseSortMethod = method; }
         void setSubsonicArtistListMode(SubsonicArtistListMode mode) { _subsonicArtistListMode = mode; }
         void setFeedbackBackend(FeedbackBackend feedbackBackend) { _feedbackBackend = feedbackBackend; }
         void setScrobblingBackend(ScrobblingBackend scrobblingBackend) { _scrobblingBackend = scrobblingBackend; }
@@ -120,6 +123,7 @@ namespace lms::db
         TranscodingOutputFormat getSubsonicDefaultTranscodingOutputFormat() const { return _subsonicDefaultTranscodingOutputFormat; }
         Bitrate getSubsonicDefaultTranscodingOutputBitrate() const { return _subsonicDefaultTranscodingOutputBitrate; }
         UITheme getUITheme() const { return _uiTheme; }
+        ReleaseSortMethod getUIArtistReleaseSortMethod() const { return _uiArtistReleaseSortMethod; }
         SubsonicArtistListMode getSubsonicArtistListMode() const { return _subsonicArtistListMode; }
         FeedbackBackend getFeedbackBackend() const { return _feedbackBackend; }
         ScrobblingBackend getScrobblingBackend() const { return _scrobblingBackend; }
@@ -130,6 +134,7 @@ namespace lms::db
         {
             Wt::Dbo::field(a, _type, "type");
             Wt::Dbo::field(a, _loginName, "login_name");
+            Wt::Dbo::field(a, _bcryptRoundCount, "bcrypt_round_count");
             Wt::Dbo::field(a, _passwordSalt, "password_salt");
             Wt::Dbo::field(a, _passwordHash, "password_hash");
             Wt::Dbo::field(a, _lastLogin, "last_login");
@@ -138,6 +143,7 @@ namespace lms::db
             Wt::Dbo::field(a, _subsonicDefaultTranscodingOutputBitrate, "subsonic_default_transcode_bitrate");
             Wt::Dbo::field(a, _subsonicArtistListMode, "subsonic_artist_list_mode");
             Wt::Dbo::field(a, _uiTheme, "ui_theme");
+            Wt::Dbo::field(a, _uiArtistReleaseSortMethod, "ui_artist_release_sort_method");
             Wt::Dbo::field(a, _feedbackBackend, "feedback_backend");
             Wt::Dbo::field(a, _scrobblingBackend, "scrobbling_backend");
             Wt::Dbo::field(a, _listenbrainzToken, "listenbrainz_token");
@@ -152,10 +158,12 @@ namespace lms::db
         static pointer create(Session& session, std::string_view loginName);
 
         std::string _loginName;
+        int _bcryptRoundCount{};
         std::string _passwordSalt;
         std::string _passwordHash;
         Wt::WDateTime _lastLogin;
         UITheme _uiTheme{ defaultUITheme };
+        ReleaseSortMethod _uiArtistReleaseSortMethod{ _defaultUIArtistReleaseSortMethod };
         FeedbackBackend _feedbackBackend{ defaultFeedbackBackend };
         ScrobblingBackend _scrobblingBackend{ defaultScrobblingBackend };
         std::string _listenbrainzToken; // Musicbrainz Identifier
@@ -172,5 +180,4 @@ namespace lms::db
         Wt::Dbo::collection<Wt::Dbo::ptr<AuthToken>> _authTokens;
         Wt::Dbo::collection<Wt::Dbo::ptr<UIState>> _uiStates;
     };
-
 } // namespace lms::db

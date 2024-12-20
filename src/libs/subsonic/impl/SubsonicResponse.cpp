@@ -25,26 +25,12 @@
 
 #include <boost/property_tree/xml_parser.hpp>
 
-#include "core/Exception.hpp"
 #include "core/String.hpp"
 
 #include "ProtocolVersion.hpp"
 
 namespace lms::api::subsonic
 {
-    std::string_view ResponseFormatToMimeType(ResponseFormat format)
-    {
-        switch (format)
-        {
-        case ResponseFormat::xml:
-            return "text/xml";
-        case ResponseFormat::json:
-            return "application/json";
-        }
-
-        return "";
-    }
-
     void Response::Node::setValue(std::string_view value)
     {
         assert(_children.empty() && _childrenArrays.empty() && _childrenValues.empty());
@@ -196,7 +182,11 @@ namespace lms::api::subsonic
             auto valueToPropertyTree = [](const Node::ValueType& value) {
                 boost::property_tree::ptree res;
                 std::visit([&](const auto& rawValue) {
-                    res.put_value(rawValue);
+                    using RawValueType = std::decay_t<decltype(rawValue)>;
+                    if constexpr (std::is_same_v<RawValueType, Node::string>)
+                        res.put_value(core::stringUtils::replaceInString(rawValue, "\n", "\\n"));
+                    else
+                        res.put_value(rawValue);
                 },
                     value);
 
@@ -211,7 +201,10 @@ namespace lms::api::subsonic
             {
                 for (const auto& [key, childNode] : node._children)
                 {
-                    res.add_child(std::string{ key.str() }, nodeToPropertyTree(childNode));
+                    boost::property_tree::ptree& tree{ res.add_child(std::string{ key.str() }, nodeToPropertyTree(childNode)) };
+                    // Hardcoded attribute to simplify createOkResponse calls
+                    if (key == "subsonic-response")
+                        tree.put("<xmlattr>.xmlns", "http://subsonic.org/restapi");
                 }
 
                 for (const auto& [key, childArrayNodes] : node._childrenArrays)

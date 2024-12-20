@@ -18,8 +18,9 @@
  */
 #include "ArtistListHelpers.hpp"
 
+#include <Wt/WAnchor.h>
+
 #include "database/Artist.hpp"
-#include "database/Session.hpp"
 
 #include "LmsApplication.hpp"
 #include "Utils.hpp"
@@ -28,9 +29,14 @@ namespace lms::ui::ArtistListHelpers
 {
     std::unique_ptr<Wt::WTemplate> createEntry(const db::ObjectPtr<db::Artist>& artist)
     {
-        auto res{ std::make_unique<Wt::WTemplate>(Wt::WString::tr("Lms.Explore.Artists.template.entry")) };
-        res->bindWidget("name", utils::createArtistAnchor(artist));
+        auto entry{ std::make_unique<Wt::WTemplate>(Wt::WString::tr("Lms.Explore.Artists.template.entry")) };
+        entry->bindWidget("name", utils::createArtistAnchor(artist));
 
-        return res;
+        Wt::WAnchor* anchor{ entry->bindWidget("image", utils::createArtistAnchor(artist, false)) };
+        auto image{ utils::createArtistImage(artist->getId(), ArtworkResource::Size::Large) };
+        image->addStyleClass("Lms-cover-release Lms-cover-anchor");
+        anchor->setImage(std::move(image));
+
+        return entry;
     }
 } // namespace lms::ui::ArtistListHelpers

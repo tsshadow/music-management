@@ -30,6 +30,8 @@
 
 #include "core/UUID.hpp"
 
+#include "Lyrics.hpp"
+
 namespace lms::metadata
 {
     using Tags = std::map<std::string /* type */, std::vector<std::string> /* values */>;
@@ -66,6 +68,7 @@ namespace lms::metadata
         std::vector<std::string> labels;
         std::vector<std::string> releaseTypes;
         bool isCompilation{};
+        std::string barcode;
 
         auto operator<=>(const Release&) const = default;
     };
@@ -120,6 +123,7 @@ namespace lms::metadata
         std::string copyright;
         std::string copyrightURL;
         std::vector<std::string> comments;
+        std::vector<Lyrics> lyrics;
         std::optional<float> replayGain;
         std::string artistDisplayName;
         std::vector<Artist> artists;

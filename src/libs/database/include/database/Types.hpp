@@ -167,6 +167,13 @@ namespace lms::db
         TrackList, // order by asc order in tracklist
     };
 
+    enum class TrackLyricsSortMethod
+    {
+        None,
+        ExternalFirst,
+        EmbeddedFirst,
+    };
+
     enum class TrackArtistLinkType
     {
         Artist = 0, // regular track artist
@@ -240,7 +247,7 @@ namespace lms::db
 
     enum class TrackListType
     {
-        Playlist, // user controlled playlists
-        Internal, // internal usage (current playqueue, history, ...)
+        PlayList = 0, // user controlled playlists
+        Internal = 1, // internal usage (current playqueue, history, ...)
     };
 } // namespace lms::db

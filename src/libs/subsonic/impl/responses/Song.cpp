@@ -28,6 +28,7 @@
 #include "database/Artist.hpp"
 #include "database/Cluster.hpp"
 #include "database/Directory.hpp"
+#include "database/Image.hpp"
 #include "database/Release.hpp"
 #include "database/Track.hpp"
 #include "database/TrackArtistLink.hpp"
@@ -35,9 +36,9 @@
 #include "services/feedback/IFeedbackService.hpp"
 #include "services/scrobbling/IScrobblingService.hpp"
 
+#include "CoverArtId.hpp"
 #include "RequestContext.hpp"
 #include "SubsonicId.hpp"
-#include "Utils.hpp"
 #include "responses/Artist.hpp"
 #include "responses/Contributor.hpp"
 #include "responses/ItemGenre.hpp"
@@ -109,9 +110,18 @@ namespace lms::api::subsonic
         const Release::pointer release{ track->getRelease() };
 
         if (track->hasCover())
-            trackResponse.setAttribute("coverArt", idToString(track->getId()));
+        {
+            const CoverArtId coverArtId{ track->getId(), track->getLastWriteTime().toTime_t() };
+            trackResponse.setAttribute("coverArt", idToString(coverArtId));
+        }
         else if (release)
-            trackResponse.setAttribute("coverArt", idToString(release->getId()));
+        {
+            if (const db::Image::pointer image{ release->getImage() })
+            {
+                const CoverArtId coverArtId{ image->getId(), image->getLastWriteTime().toTime_t() };
+                trackResponse.setAttribute("coverArt", idToString(coverArtId));
+            }
+        }
 
         const std::vector<Artist::pointer>& artists{ track->getArtists({ TrackArtistLinkType::Artist }) };
         if (!artists.empty())

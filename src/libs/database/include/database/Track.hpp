@@ -26,7 +26,6 @@
 #include <span>
 #include <string>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 #include <Wt/Dbo/Dbo.h>
@@ -56,6 +55,7 @@ namespace lms::db
     class Release;
     class Session;
     class TrackArtistLink;
+    class TrackLyrics;
     class TrackStats;
     class User;
 
@@ -66,7 +66,9 @@ namespace lms::db
         {
             std::vector<ClusterId> clusters;        // if non empty, tracks that belong to these clusters
             std::vector<std::string_view> keywords; // if non empty, name must match all of these keywords
-            std::string name;                       // if non empty, must match this name
+            std::string name;                       // if non empty, must match this name (title)
+            std::string fileStem;                   // if non empty, must match this file stem
+            std::string fileName;                   // if non empty, must match this file name
             TrackSortMethod sortMethod{ TrackSortMethod::None };
             std::optional<Range> range;
             Wt::WDateTime writtenAfter;
@@ -83,7 +85,8 @@ namespace lms::db
             std::optional<int> discNumber;                           // matching this disc number
             MediaLibraryId mediaLibrary;                             // If set, tracks in this library
             std::optional<int> rating;
-            DirectoryId directory; // if set, tracks in this directory
+            DirectoryId directory;                                    // if set, tracks in this directory
+            std::optional<bool> hasEmbeddedImage;                    // if set, tracks that have or not embedded images
 
             FindParameters& setClusters(std::span<const ClusterId> _clusters)
             {
@@ -100,6 +103,17 @@ namespace lms::db
                 name = _name;
                 return *this;
             }
+            FindParameters& setFileStem(std::string_view _fileStem)
+            {
+                fileStem = _fileStem;
+                return *this;
+            }
+            FindParameters& setFileName(std::string_view _fileName)
+            {
+                fileName = _fileName;
+                return *this;
+            }
+
             FindParameters& setSortMethod(TrackSortMethod _method)
             {
                 sortMethod = _method;
@@ -178,6 +192,11 @@ namespace lms::db
                 directory = _directory;
                 return *this;
             }
+            FindParameters& setHasEmbeddedImage(std::optional<bool> _hasEmbeddedImage)
+            {
+                hasEmbeddedImage = _hasEmbeddedImage;
+                return *this;
+            }
         };
 
         struct PathResult
@@ -240,6 +259,9 @@ namespace lms::db
         void addArtistLink(const ObjectPtr<TrackArtistLink>& artistLink);
         void setRelease(ObjectPtr<Release> release) { _release = getDboPtr(release); }
         void setClusters(const std::vector<ObjectPtr<Cluster>>& clusters);
+        void clearLyrics();
+        void clearEmbeddedLyrics();
+        void addLyrics(const ObjectPtr<TrackLyrics>& lyrics);
         void setMediaLibrary(ObjectPtr<MediaLibrary> mediaLibrary) { _mediaLibrary = getDboPtr(mediaLibrary); }
         void setDirectory(ObjectPtr<Directory> directory) { _directory = getDboPtr(directory); }
 
@@ -266,6 +288,7 @@ namespace lms::db
         const Wt::WDateTime& getLastWriteTime() const { return _fileLastWrite; }
         const Wt::WDateTime& getAddedTime() const { return _fileAdded; }
         bool hasCover() const { return _hasCover; }
+        bool hasLyrics() const;
         std::optional<core::UUID> getTrackMBID() const { return core::UUID::fromString(_trackMBID); }
         std::optional<core::UUID> getRecordingMBID() const { return core::UUID::fromString(_recordingMBID); }
         std::optional<std::string> getCopyright() const;
@@ -308,6 +331,8 @@ namespace lms::db
             Wt::Dbo::field(a, _originalYear, "original_year");
             Wt::Dbo::field(a, _absoluteFilePath, "absolute_file_path");
             Wt::Dbo::field(a, _relativeFilePath, "relative_file_path");
+            Wt::Dbo::field(a, _fileStem, "file_stem");
+            Wt::Dbo::field(a, _fileName, "file_name");
             Wt::Dbo::field(a, _fileSize, "file_size");
             Wt::Dbo::field(a, _fileLastWrite, "file_last_write");
             Wt::Dbo::field(a, _fileAdded, "file_added");
@@ -326,6 +351,7 @@ namespace lms::db
             Wt::Dbo::belongsTo(a, _directory, "directory", Wt::Dbo::OnDeleteCascade);
             Wt::Dbo::hasMany(a, _trackArtistLinks, Wt::Dbo::ManyToOne, "track");
             Wt::Dbo::hasMany(a, _clusters, Wt::Dbo::ManyToMany, "track_cluster", "", Wt::Dbo::OnDeleteCascade);
+            Wt::Dbo::hasMany(a, _trackLyrics, Wt::Dbo::ManyToOne, "track");
         }
 
     private:
@@ -354,6 +380,8 @@ namespace lms::db
         std::optional<int> _originalYear;
         std::filesystem::path _absoluteFilePath; // full path
         std::filesystem::path _relativeFilePath; // relative to root (that may be deleted)
+        std::filesystem::path _fileStem;
+        std::filesystem::path _fileName;
         long long _fileSize{};
         Wt::WDateTime _fileLastWrite;
         Wt::WDateTime _fileAdded;
@@ -372,6 +400,7 @@ namespace lms::db
         Wt::Dbo::ptr<Directory> _directory;
         Wt::Dbo::collection<Wt::Dbo::ptr<TrackArtistLink>> _trackArtistLinks;
         Wt::Dbo::collection<Wt::Dbo::ptr<Cluster>> _clusters;
+        Wt::Dbo::collection<Wt::Dbo::ptr<TrackLyrics>> _trackLyrics;
     };
 
     namespace Debug

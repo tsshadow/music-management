@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <initializer_list>
 #include <optional>
 #include <span>
@@ -51,8 +52,8 @@ namespace lms::core::stringUtils
     [[nodiscard]] std::string escapeAndJoinStrings(std::span<const std::string_view> strings, char delimiter, char escapeChar);
     [[nodiscard]] std::vector<std::string> splitEscapedStrings(std::string_view string, char delimiter, char escapeChar);
 
-    [[nodiscard]] std::string_view stringTrim(std::string_view str, std::string_view whitespaces = " \t");
-    [[nodiscard]] std::string_view stringTrimEnd(std::string_view str, std::string_view whitespaces = " \t");
+    [[nodiscard]] std::string_view stringTrim(std::string_view str, std::string_view whitespaces = " \t\r");
+    [[nodiscard]] std::string_view stringTrimEnd(std::string_view str, std::string_view whitespaces = " \t\r");
 
     [[nodiscard]] std::string stringToLower(std::string_view str);
     void stringToLower(std::string& str);
@@ -61,6 +62,7 @@ namespace lms::core::stringUtils
     [[nodiscard]] std::string bufferToString(std::span<const unsigned char> data);
 
     [[nodiscard]] bool stringCaseInsensitiveEqual(std::string_view strA, std::string_view strB);
+    [[nodiscard]] std::string_view::size_type stringCaseInsensitiveContains(std::string_view str, std::string_view strtoFind);
 
     void capitalize(std::string& str);
 
@@ -113,4 +115,7 @@ namespace lms::core::stringUtils
 
     [[nodiscard]] std::string toISO8601String(const Wt::WDateTime& dateTime);
     [[nodiscard]] std::string toISO8601String(const Wt::WDate& date);
+
+    // to "[minutes:seconds.milliseconds]"
+    std::string formatTimestamp(std::chrono::milliseconds timestamp);
 } // namespace lms::core::stringUtils

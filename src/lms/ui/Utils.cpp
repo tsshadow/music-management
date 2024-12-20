@@ -27,6 +27,7 @@
 
 #include "database/Artist.hpp"
 #include "database/Cluster.hpp"
+#include "database/Image.hpp"
 #include "database/Release.hpp"
 #include "database/ScanSettings.hpp"
 #include "database/Session.hpp"
@@ -62,21 +63,31 @@ namespace lms::ui::utils
         return oss.str();
     }
 
-    std::unique_ptr<Wt::WImage> createCover(db::ReleaseId releaseId, CoverResource::Size size)
+    std::unique_ptr<Wt::WImage> createArtistImage(db::ArtistId artistId, ArtworkResource::Size size)
+    {
+        auto image{ std::make_unique<Wt::WImage>() };
+        image->setImageLink(LmsApp->getArtworkResource()->getArtistImageUrl(artistId, size));
+        image->setStyleClass("Lms-cover img-fluid");                                          // HACK
+        image->setAttributeValue("onload", LmsApp->javaScriptClass() + ".onLoadCover(this)"); // HACK
+        return image;
+    }
+
+    std::unique_ptr<Wt::WImage> createReleaseCover(db::ReleaseId releaseId, ArtworkResource::Size size)
     {
         auto cover{ std::make_unique<Wt::WImage>() };
-        cover->setImageLink(LmsApp->getCoverResource()->getReleaseUrl(releaseId, size));
+        cover->setImageLink(LmsApp->getArtworkResource()->getReleaseCoverUrl(releaseId, size));
         cover->setStyleClass("Lms-cover img-fluid");                                          // HACK
         cover->setAttributeValue("onload", LmsApp->javaScriptClass() + ".onLoadCover(this)"); // HACK
         return cover;
     }
 
-    std::unique_ptr<Wt::WImage> createCover(db::TrackId trackId, CoverResource::Size size)
+    std::unique_ptr<Wt::WImage> createTrackImage(db::TrackId trackId, ArtworkResource::Size size)
     {
         auto cover{ std::make_unique<Wt::WImage>() };
-        cover->setImageLink(LmsApp->getCoverResource()->getTrackUrl(trackId, size));
+        cover->setImageLink(LmsApp->getArtworkResource()->getTrackImageUrl(trackId, size));
         cover->setStyleClass("Lms-cover img-fluid");                                          // HACK
         cover->setAttributeValue("onload", LmsApp->javaScriptClass() + ".onLoadCover(this)"); // HACK
+
         return cover;
     }
 
@@ -228,29 +239,24 @@ namespace lms::ui::utils
     {
         using namespace db;
 
-        Artist::FindParameters params;
-        params.setRelease(release->getId());
-        params.setLinkType(TrackArtistLinkType::ReleaseArtist);
-
-        if (const auto releaseArtists{ Artist::findIds(LmsApp->getDbSession(), params) }; !releaseArtists.results.empty())
+        if (const std::vector<ArtistId> releaseArtists{ release->getArtistIds(TrackArtistLinkType::ReleaseArtist) }; !releaseArtists.empty())
         {
-            if (releaseArtists.results.size() == 1 && releaseArtists.results.front() == omitIfMatchThisArtist)
+            if (releaseArtists.size() == 1 && releaseArtists.front() == omitIfMatchThisArtist)
                 return {};
 
-            return createArtistDisplayNameWithAnchors(release->getArtistDisplayName(), releaseArtists.results, cssAnchorClass);
+            return createArtistDisplayNameWithAnchors(release->getArtistDisplayName(), releaseArtists, cssAnchorClass);
         }
 
-        params.setLinkType(TrackArtistLinkType::Artist);
-        const auto artists{ Artist::findIds(LmsApp->getDbSession(), params) };
-        if (artists.results.size() == 1)
+        const auto artists{ release->getArtistIds(TrackArtistLinkType::Artist) };
+        if (artists.size() == 1)
         {
-            if (artists.results.front() == omitIfMatchThisArtist)
+            if (artists.front() == omitIfMatchThisArtist)
                 return {};
 
-            return createArtistAnchorList({ artists.results.front() }, cssAnchorClass);
+            return createArtistAnchorList({ artists.front() }, cssAnchorClass);
         }
 
-        if (artists.results.size() > 1)
+        if (artists.size() > 1)
         {
             auto res{ std::make_unique<Wt::WContainerWidget>() };
             res->addNew<Wt::WText>(Wt::WString::tr("Lms.Explore.various-artists"));

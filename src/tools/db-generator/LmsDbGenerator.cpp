@@ -19,7 +19,6 @@
 
 #include <chrono>
 #include <filesystem>
-#include <iomanip>
 #include <iostream>
 #include <optional>
 #include <stdexcept>
@@ -32,6 +31,7 @@
 #include "core/Random.hpp"
 #include "core/Service.hpp"
 #include "core/StreamLogger.hpp"
+#include "core/SystemPaths.hpp"
 #include "database/Artist.hpp"
 #include "database/Cluster.hpp"
 #include "database/Db.hpp"
@@ -141,7 +141,7 @@ namespace lms
 
         // create some random media libraries
         for (std::size_t i{}; i < params.mediaLibraryCount; ++i)
-            context.mediaLibraries.push_back(context.session.create<db::MediaLibrary>());
+            context.mediaLibraries.push_back(context.session.create<db::MediaLibrary>("Library" + std::to_string(i), "/root" + std::to_string(i)));
 
         // create some random genres/moods
         {
@@ -177,7 +177,7 @@ int main(int argc, char* argv[])
         const GeneratorParameters defaultParams;
 
         program_options::options_description options{ "Options" };
-        options.add_options()("conf,c", program_options::value<std::string>()->default_value("/etc/lms.conf"), "lms config file")("media-library-count", program_options::value<unsigned>()->default_value(defaultParams.mediaLibraryCount), "Number of media libraries to use")("release-count-per-batch", program_options::value<unsigned>()->default_value(defaultParams.releaseCountPerBatch), "Number of releases to generate before committing transaction")("release-count", program_options::value<unsigned>()->default_value(defaultParams.releaseCount), "Number of releases to generate")("track-count-per-release", program_options::value<unsigned>()->default_value(defaultParams.trackCountPerRelease), "Number of tracks per release")("compilation-ratio", program_options::value<float>()->default_value(defaultParams.compilationRatio), "Compilation ratio (compilation means all tracks have a different artist)")("track-path", program_options::value<std::string>()->required(), "Path of a valid track file, that will be used for all generated tracks")("genre-count", program_options::value<unsigned>()->default_value(defaultParams.genreCount), "Number of genres to generate")("genre-count-per-track", program_options::value<unsigned>()->default_value(defaultParams.genreCountPerTrack), "Number of genres to assign to each track")("mood-count", program_options::value<unsigned>()->default_value(defaultParams.moodCount), "Number of moods to generate")("mood-count-per-track", program_options::value<unsigned>()->default_value(defaultParams.moodCountPerTrack), "Number of moods to assign to each track")("help,h", "produce help message");
+        options.add_options()("conf,c", program_options::value<std::string>()->default_value(core::sysconfDirectory / "lms.conf"), "lms config file")("media-library-count", program_options::value<unsigned>()->default_value(defaultParams.mediaLibraryCount), "Number of media libraries to use")("release-count-per-batch", program_options::value<unsigned>()->default_value(defaultParams.releaseCountPerBatch), "Number of releases to generate before committing transaction")("release-count", program_options::value<unsigned>()->default_value(defaultParams.releaseCount), "Number of releases to generate")("track-count-per-release", program_options::value<unsigned>()->default_value(defaultParams.trackCountPerRelease), "Number of tracks per release")("compilation-ratio", program_options::value<float>()->default_value(defaultParams.compilationRatio), "Compilation ratio (compilation means all tracks have a different artist)")("track-path", program_options::value<std::string>()->required(), "Path of a valid track file, that will be used for all generated tracks")("genre-count", program_options::value<unsigned>()->default_value(defaultParams.genreCount), "Number of genres to generate")("genre-count-per-track", program_options::value<unsigned>()->default_value(defaultParams.genreCountPerTrack), "Number of genres to assign to each track")("mood-count", program_options::value<unsigned>()->default_value(defaultParams.moodCount), "Number of moods to generate")("mood-count-per-track", program_options::value<unsigned>()->default_value(defaultParams.moodCountPerTrack), "Number of moods to assign to each track")("help,h", "produce help message");
 
         program_options::variables_map vm;
         program_options::store(program_options::parse_command_line(argc, argv, options), vm);

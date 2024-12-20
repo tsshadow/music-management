@@ -8,10 +8,11 @@
     + [Upgrade](#upgrade)
 - [Deployment](#deployment)
   * [Configuration](#configuration)
-  * [Authentication backend](#authentication-backend)
+  * [Authentication backends](#authentication-backends)
   * [Deploy on non root path](#deploy-on-non-root-path)
   * [Reverse proxy settings](#reverse-proxy-settings)
 - [Run](#run)
+- [First launch](#first-launch)
 # Installation
 ## Docker
 _Docker_ images are available, please see detailed instructions on https://hub.docker.com/r/epoupon/lms.
@@ -100,7 +101,7 @@ __Note__: don't forget to give the _lms_ user read access to the music directory
 _LMS_ uses a configuration file, installed by default in `/etc/lms.conf`. It is recommended to edit this file and change relevant settings (listen address, listen port, working directory, Subsonic API activation, deployment path, ...).
 All other settings are set using the web interface (user management, scan settings, transcode settings, ...).
 If a setting is not present in the configuration file, a hardcoded default value is used (the same as in the [default configuration file](conf/lms.conf))
-## Authentication backend
+## Authentication backends
 You can define which authentication backend to be used thanks to the `authentication-backend` option:
 * `internal` (default): _LMS_ uses an internal database to store users and their associated passwords (salted and hashed using [Bcrypt](https://en.wikipedia.org/wiki/Bcrypt)). Only the admin user can create, edit or remove other users.
 * `PAM`: the user/password authentication request is forwarded to PAM (see the default [PAM configuration file](conf/pam/lms) provided).
@@ -129,7 +130,10 @@ deploy-path = "/newroot/"; # ending slash is important
 ```
 If you use nginx as a reverse proxy, you can simply replace `location /` with `location /newroot/` to achieve the same result.
 ## Reverse proxy settings
-_LMS_ is shipped with an embedded web server, but it is recommended to deploy behind a reverse proxy. You have to set the _behind-reverse-proxy_ option to _true_ in the `lms.conf` configuration file.
+_LMS_ is shipped with an embedded web server, but it is recommended to deploy behind a reverse proxy. You have to set the `behind-reverse-proxy` option to _true_ in the `lms.conf` configuration file and to adjust the trusted proxy list in `trusted-proxies` option.
+
+__Note__: when running in a docker environment, you have to trust the docker gateway IP (which is `172.17.0.1` by default)
+
 Here is an example to make _LMS_ properly work on _myserver.org_ using _nginx_:
 ```
 server {
@@ -147,10 +151,9 @@ server {
 	keepalive_timeout 10m;
 
     location / {
-
-      proxy_set_header        Client-IP $remote_addr;
       proxy_set_header        Host $host;
-      proxy_set_header        X-Forwarded-For $remote_addr;
+      proxy_set_header        X-Real-IP $remote_addr;
+      proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
       proxy_set_header        X-Forwarded-Proto $scheme;
 
       proxy_pass          http://localhost:5082/;
@@ -168,3 +171,10 @@ Log traces can be accessed using journactl:
 journalctl -u lms.service
 ```
 To connect to _LMS_, just open your favorite browser and go to `http://localhost:5082`
+# First launch
+At the first launch, a setup assistant will guide you through creating the administrator account (username and password). Once this information is saved, you can refresh the page to access the _LMS_ login screen.
+__Note__: If you are using `PAM` or `http-header` authentication, this setup assistant will not appear (see [Authentication backends](#authentication-backends)).
+
+Once logged in as an administrator, you will need to define your libraries—that is, select the music folders you want to scan. Then, check that the scan settings meet your needs (scan frequency, tag delimiters, etc.).
+
+You can now initiate the initial scan to import your music into _LMS_.

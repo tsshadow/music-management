@@ -121,6 +121,29 @@ namespace lms::metadata
             return getTagValueFirstMatchAs<T>(tagReader, { tagType });
         }
 
+        std::vector<Lyrics> getLyrics(const ITagReader& tagReader)
+        {
+            std::vector<Lyrics> res;
+
+            tagReader.visitLyricsTags([&](std::string_view language, std::string_view lyricsText) {
+                std::istringstream iss{ std::string{ lyricsText } }; // TODO avoid copies (ispanstream?)
+                try
+                {
+                    Lyrics lyrics{ parseLyrics(iss) };
+                    if (lyrics.language.empty())
+                        lyrics.language = language;
+
+                    res.emplace_back(std::move(lyrics));
+                }
+                catch (const LyricsException& e)
+                {
+                    LMS_LOG(METADATA, ERROR, "Failed to parse lyrics: " + std::string{ e.what() });
+                }
+            });
+
+            return res;
+        }
+
         std::vector<Artist> getArtists(const ITagReader& tagReader,
             std::initializer_list<TagType> artistTagNames,
             std::initializer_list<TagType> artistSortTagNames,
@@ -200,24 +223,29 @@ namespace lms::metadata
 
         std::string computeArtistDisplayName(std::span<const Artist> artists, const std::optional<std::string> artistTag, std::span<const std::string> artistTagDelimiters)
         {
+            std::string artistDisplayName;
+
             if (artists.size() == 1)
-                return artists.front().name;
+                artistDisplayName = artists.front().name;
             else if (artists.size() > 1)
             {
                 std::vector<std::string_view> artistNames;
                 std::transform(std::cbegin(artists), std::cend(artists), std::back_inserter(artistNames), [](const Artist& artist) -> std::string_view { return artist.name; });
 
-                // Picard use case: if we manage to match all artists in the "artist" tag (considered single-valued), and if it does not contain any custom artist delimiter, we use it as the display name
+                // Picard use case: if we manage to match all artists in the "artist" tag (considered single-valued), and if no custom delimiter is hit, we use it as the display name
                 // Otherwise, we reconstruct the string using a standard, hardcoded, join
-                if (artistTag && !strIsContainingAny(*artistTag, artistTagDelimiters) && strIsMatchingArtistNames(*artistTag, artistNames))
-                    return *artistTag;
-                else
-                    return core::stringUtils::joinStrings(artistNames, ", ");
+                if (artistTag && strIsMatchingArtistNames(*artistTag, artistNames))
+                {
+                    if (!strIsContainingAny(*artistTag, artistTagDelimiters))
+                        artistDisplayName = *artistTag;
+                }
+
+                if (artistDisplayName.empty())
+                    artistDisplayName = core::stringUtils::joinStrings(artistNames, ", ");
             }
 
-            return "";
+            return artistDisplayName;
         }
-
     } // namespace
 
     std::unique_ptr<IParser> createParser(ParserBackend parserBackend, ParserReadStyle parserReadStyle)
@@ -239,6 +267,32 @@ namespace lms::metadata
             LMS_LOG(METADATA, INFO, "Using AvFormat parser");
             break;
         }
+    }
+
+    std::span<const std::filesystem::path> Parser::getSupportedExtensions() const
+    {
+        // TODO: use backend capability to retrieve supported formats
+        static const std::array<std::filesystem::path, 18> fileExtensions{
+            ".aac",
+            ".alac",
+            ".aif",
+            ".aiff",
+            ".ape",
+            ".dsf",
+            ".flac",
+            ".m4a",
+            ".m4b",
+            ".mp3",
+            ".mpc",
+            ".oga",
+            ".ogg",
+            ".opus",
+            ".shn",
+            ".wav",
+            ".wma",
+            ".wv",
+        };
+        return fileExtensions;
     }
 
     std::unique_ptr<Track> Parser::parse(const std::filesystem::path& p, bool debug)
@@ -316,6 +370,7 @@ namespace lms::metadata
             track.originalYear = utils::parseYear(*dateStr);
         }
 
+        track.lyrics = getLyrics(tagReader); // no custom delimiter on lyrics
         track.comments = getTagValuesAs<std::string>(tagReader, TagType::Comment, {} /* no custom delimiter on comments */);
         track.copyright = getTagValueAs<std::string>(tagReader, TagType::Copyright).value_or("");
         track.copyrightURL = getTagValueAs<std::string>(tagReader, TagType::CopyrightURL).value_or("");
@@ -444,6 +499,7 @@ namespace lms::metadata
         release->groupMBID = getTagValueAs<core::UUID>(tagReader, TagType::MusicBrainzReleaseGroupID);
         release->mediumCount = getTagValueAs<std::size_t>(tagReader, TagType::TotalDiscs);
         release->isCompilation = getTagValueAs<bool>(tagReader, TagType::Compilation).value_or(false);
+        release->barcode = getTagValueAs<std::string>(tagReader, TagType::Barcode).value_or("");
         release->labels = getTagValuesAs<std::string>(tagReader, TagType::RecordLabel, _defaultTagDelimiters);
         if (!release->mediumCount)
         {

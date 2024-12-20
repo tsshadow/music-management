@@ -26,13 +26,13 @@
 #include <Wt/WPushButton.h>
 
 #include "av/IAudioFile.hpp"
-#include "core/ILogger.hpp"
 #include "core/Service.hpp"
 #include "database/Artist.hpp"
 #include "database/Release.hpp"
 #include "database/Session.hpp"
 #include "database/Track.hpp"
 #include "database/TrackArtistLink.hpp"
+#include "database/TrackLyrics.hpp"
 #include "database/User.hpp"
 #include "services/feedback/IFeedbackService.hpp"
 #include "services/scrobbling/IScrobblingService.hpp"
@@ -43,7 +43,7 @@
 #include "Utils.hpp"
 #include "common/Template.hpp"
 #include "explore/PlayQueueController.hpp"
-#include "resource/CoverResource.hpp"
+#include "resource/ArtworkResource.hpp"
 #include "resource/DownloadResource.hpp"
 
 namespace lms::ui::TrackListHelpers
@@ -167,6 +167,52 @@ namespace lms::ui::TrackListHelpers
         LmsApp->getModalManager().show(std::move(trackInfo));
     }
 
+    void showTrackLyricsModal(db::TrackId trackId)
+    {
+        auto transaction{ LmsApp->getDbSession().createReadTransaction() };
+
+        auto trackLyrics{ std::make_unique<Template>(Wt::WString::tr("Lms.Explore.Tracks.template.track-lyrics")) };
+        Wt::WWidget* trackLyricsPtr{ trackLyrics.get() };
+        trackLyrics->addFunction("tr", &Wt::WTemplate::Functions::tr);
+
+        Wt::WContainerWidget* lyricsContainer{ trackLyrics->bindNew<Wt::WContainerWidget>("lyrics") };
+
+        // limitation: display only first lyrics for now
+        db::TrackLyrics::FindParameters params;
+        params.setTrack(trackId);
+        params.setSortMethod(db::TrackLyricsSortMethod::ExternalFirst);
+        params.setRange(db::Range{ 0, 1 });
+
+        db::TrackLyrics::find(LmsApp->getDbSession(), params, [&](const db::TrackLyrics::pointer& lyrics) {
+            std::string text;
+            auto addLine = [&](std::string_view line) {
+                if (!text.empty())
+                    text += '\n';
+                text += line;
+            };
+
+            if (lyrics->isSynchronized())
+            {
+                for (const auto& [timestamp, line] : lyrics->getSynchronizedLines())
+                    addLine(line);
+            }
+            else
+            {
+                for (const auto& line : lyrics->getUnsynchronizedLines())
+                    addLine(line);
+            }
+
+            lyricsContainer->addNew<Wt::WText>(Wt::WString::fromUTF8(text), Wt::TextFormat::Plain);
+        });
+
+        Wt::WPushButton* okBtn{ trackLyrics->bindNew<Wt::WPushButton>("ok-btn", Wt::WString::tr("Lms.ok")) };
+        okBtn->clicked().connect([=] {
+            LmsApp->getModalManager().dispose(trackLyricsPtr);
+        });
+
+        LmsApp->getModalManager().show(std::move(trackLyrics));
+    }
+
     std::unique_ptr<Wt::WWidget> createEntry(const db::ObjectPtr<db::Track>& track, PlayQueueController& playQueueController, Filters& filters)
     {
         auto entry{ std::make_unique<Template>(Wt::WString::tr("Lms.Explore.Tracks.template.entry")) };
@@ -185,20 +231,20 @@ namespace lms::ui::TrackListHelpers
             entry->bindWidget("artists-md", utils::createArtistDisplayNameWithAnchors(track->getArtistDisplayName(), artists));
         }
 
+        auto image{ utils::createTrackImage(trackId, ArtworkResource::Size::Small) };
+        image->addStyleClass("Lms-cover-track");
         if (track->getRelease())
         {
             entry->setCondition("if-has-release", true);
             entry->bindWidget("release", utils::createReleaseAnchor(track->getRelease()));
+
             Wt::WAnchor* anchor{ entry->bindWidget("cover", utils::createReleaseAnchor(release, false)) };
-            auto cover{ utils::createCover(release->getId(), CoverResource::Size::Small) };
-            cover->addStyleClass("Lms-cover-track Lms-cover-anchor"); // HACK
-            anchor->setImage(std::move((cover)));
+            image->addStyleClass("Lms-cover-anchor"); // HACK
+            anchor->setImage(std::move((image)));
         }
         else
         {
-            auto cover{ utils::createCover(trackId, CoverResource::Size::Small) };
-            cover->addStyleClass("Lms-cover-track"); // HACK
-            entry->bindWidget<Wt::WImage>("cover", std::move(cover));
+            entry->bindWidget<Wt::WImage>("cover", std::move(image));
         }
 
         entry->bindString("duration", utils::durationToString(track->getDuration()), Wt::TextFormat::Plain);
@@ -270,6 +316,14 @@ namespace lms::ui::TrackListHelpers
         entry->bindNew<Wt::WPushButton>("track-info", Wt::WString::tr("Lms.Explore.track-info"))
             ->clicked()
             .connect([trackId, &filters] { showTrackInfoModal(trackId, filters); });
+
+        if (track->hasLyrics())
+        {
+            entry->setCondition("if-has-lyrics", true);
+            entry->bindNew<Wt::WPushButton>("track-lyrics", Wt::WString::tr("Lms.Explore.track-lyrics"))
+                ->clicked()
+                .connect([trackId] { showTrackLyricsModal(trackId); });
+        }
 
         LmsApp->getMediaPlayer().trackLoaded.connect(entryPtr, [=](db::TrackId loadedTrackId) {
             entryPtr->toggleStyleClass("Lms-entry-playing", loadedTrackId == trackId);

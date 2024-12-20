@@ -29,7 +29,6 @@
 #include "core/ILogger.hpp"
 #include "core/ITraceLogger.hpp"
 #include "core/Service.hpp"
-#include "core/String.hpp"
 #include "database/Artist.hpp"
 #include "database/Cluster.hpp"
 #include "database/Db.hpp"
@@ -37,9 +36,10 @@
 #include "database/Session.hpp"
 #include "database/TrackList.hpp"
 #include "database/User.hpp"
+#include "services/artwork/IArtworkService.hpp"
+#include "services/auth/IAuthTokenService.hpp"
 #include "services/auth/IEnvService.hpp"
 #include "services/auth/IPasswordService.hpp"
-#include "services/cover/ICoverService.hpp"
 #include "services/scrobbling/IScrobblingService.hpp"
 
 #include "Auth.hpp"
@@ -61,9 +61,8 @@
 #include "common/Template.hpp"
 #include "explore/Explore.hpp"
 #include "explore/Filters.hpp"
-#include "resource/AudioFileResource.hpp"
+#include "resource/ArtworkResource.hpp"
 #include "resource/AudioTranscodingResource.hpp"
-#include "resource/CoverResource.hpp"
 
 namespace lms::ui
 {
@@ -109,6 +108,18 @@ namespace lms::ui
         {
             static std::shared_ptr<Wt::WMessageResourceBundle> res{ createMessageResourceBundle() };
             return res;
+        }
+
+        Wt::WLocale createLocale(const std::string& name)
+        {
+            Wt::WLocale locale{ name };
+            locale.setDecimalPoint(Wt::WString::tr("Lms.locale.decimal-point").toUTF8());
+            locale.setGroupSeparator(Wt::WString::tr("Lms.locale.group-separator").toUTF8());
+            locale.setDateFormat(Wt::WString::tr("Lms.locale.date-format").toUTF8());
+            locale.setTimeFormat(Wt::WString::tr("Lms.locale.time-format").toUTF8());
+            locale.setDateTimeFormat(Wt::WString::tr("Lms.locale.date-time-format").toUTF8());
+
+            return locale;
         }
 
         enum IdxRoot
@@ -172,22 +183,9 @@ namespace lms::ui
         }
     } // namespace
 
-    std::unique_ptr<Wt::WApplication> LmsApplication::create(const Wt::WEnvironment& env, db::Db& db, LmsApplicationManager& appManager)
+    std::unique_ptr<Wt::WApplication> LmsApplication::create(const Wt::WEnvironment& env, db::Db& db, LmsApplicationManager& appManager, AuthenticationBackend authBackend)
     {
-        if (auto* authEnvService{ core::Service<auth::IEnvService>::get() })
-        {
-            const auto checkResult{ authEnvService->processEnv(env) };
-            if (checkResult.state != auth::IEnvService::CheckResult::State::Granted)
-            {
-                LMS_LOG(UI, ERROR, "Cannot authenticate user from environment!");
-                // return a blank page
-                return std::make_unique<Wt::WApplication>(env);
-            }
-
-            return std::make_unique<LmsApplication>(env, db, appManager, checkResult.userId);
-        }
-
-        return std::make_unique<LmsApplication>(env, db, appManager);
+        return std::make_unique<LmsApplication>(env, db, appManager, authBackend);
     }
 
     LmsApplication* LmsApplication::instance()
@@ -237,17 +235,15 @@ namespace lms::ui
         return _user->userLoginName;
     }
 
-    LmsApplication::LmsApplication(const Wt::WEnvironment& env,
-        db::Db& db,
-        LmsApplicationManager& appManager,
-        std::optional<db::UserId> userId)
+    LmsApplication::LmsApplication(const Wt::WEnvironment& env, db::Db& db, LmsApplicationManager& appManager, AuthenticationBackend authBackend)
         : Wt::WApplication{ env }
         , _db{ db }
         , _appManager{ appManager }
+        , _authBackend{ authBackend }
     {
         try
         {
-            init(userId);
+            init();
         }
         catch (LmsApplicationException& e)
         {
@@ -263,7 +259,7 @@ namespace lms::ui
 
     LmsApplication::~LmsApplication() = default;
 
-    void LmsApplication::init(std::optional<db::UserId> userId)
+    void LmsApplication::init()
     {
         LMS_SCOPED_TRACE_OVERVIEW("UI", "ApplicationInit");
 
@@ -274,28 +270,43 @@ namespace lms::ui
 
         setTitle();
         setLocalizedStrings(getOrCreateMessageBundle());
+        setLocale(createLocale(Wt::WLocale::currentLocale().name()));
 
         // Handle Media Scanner events and other session events
         enableUpdates(true);
 
-        if (userId)
-            onUserLoggedIn(*userId, false /* strongAuth */);
-        else if (core::Service<auth::IPasswordService>::exists())
+        db::UserId userId;
+        switch (_authBackend)
+        {
+        case AuthenticationBackend::Env:
+            {
+                const auto checkResult{ core::Service<auth::IEnvService>::get()->processEnv(environment()) };
+                if (checkResult.state != auth::IEnvService::CheckResult::State::Granted)
+                {
+                    LMS_LOG(UI, ERROR, "Cannot authenticate user from environment!");
+                    throw core::LmsException{ "Cannot authenticate user from environment!" }; // Do not put details here at it may appear on the user rendered html
+                }
+                assert(checkResult.userId.isValid());
+                userId = checkResult.userId;
+            }
+            break;
+
+        case AuthenticationBackend::Internal:
+            [[fallthrough]];
+        case AuthenticationBackend::PAM:
+            // Try to authenticate using auth token ("remember me" checkbox), may fail
+            userId = processAuthToken(environment());
+            break;
+        }
+
+        if (userId.isValid())
+            onUserLoggedIn(userId, false /* strongAuth */);
+        else
             processPasswordAuth();
     }
 
     void LmsApplication::processPasswordAuth()
     {
-        {
-            std::optional<db::UserId> userId{ processAuthToken(environment()) };
-            if (userId)
-            {
-                LMS_LOG(UI, DEBUG, "User authenticated using Auth token!");
-                onUserLoggedIn(*userId, false /* strongAuth */);
-                return;
-            }
-        }
-
         // If here is no account in the database, launch the first connection wizard
         bool firstConnection{};
         {
@@ -305,17 +316,19 @@ namespace lms::ui
 
         LMS_LOG(UI, DEBUG, "Creating root widget. First connection = " << firstConnection);
 
-        if (firstConnection && core::Service<auth::IPasswordService>::get()->canSetPasswords())
+        assert(_authBackend == AuthenticationBackend::Internal || _authBackend == AuthenticationBackend::PAM);
+        auth::IPasswordService& passwordService{ *core::Service<auth::IPasswordService>::get() };
+
+        if (firstConnection && _authBackend == AuthenticationBackend::Internal)
         {
-            root()->addWidget(std::make_unique<InitWizardView>());
+            root()->addNew<InitWizardView>(passwordService);
+            return;
         }
-        else
-        {
-            Auth* auth{ root()->addNew<Auth>() };
-            auth->userLoggedIn.connect(this, [this](db::UserId userId) {
-                onUserLoggedIn(userId, true /* strongAuth */);
-            });
-        }
+
+        PasswordAuth* auth{ root()->addNew<PasswordAuth>(passwordService) };
+        auth->userLoggedIn.connect(this, [this](db::UserId userId) {
+            onUserLoggedIn(userId, true /* strongAuth */);
+        });
     }
 
     void LmsApplication::finalize()
@@ -347,11 +360,7 @@ namespace lms::ui
 
     void LmsApplication::logoutUser()
     {
-        {
-            auto transaction{ getDbSession().createWriteTransaction() };
-            getUser().modify()->clearAuthTokens();
-        }
-
+        core::Service<auth::IAuthTokenService>::get()->clearAuthTokens("ui", getUserId());
         LMS_LOG(UI, INFO, "User '" << getUserLoginName() << " 'logged out");
         goHomeAndQuit();
     }
@@ -362,7 +371,7 @@ namespace lms::ui
 
         setUserInfo(userId, strongAuth);
 
-        LMS_LOG(UI, INFO, "User '" << getUserLoginName() << "' logged in from '" << environment().clientAddress() << "', user agent = " << environment().userAgent());
+        LMS_LOG(UI, INFO, "User '" << getUserLoginName() << "' logged in from '" << environment().clientAddress() << "', user agent = " << environment().userAgent() << ", locale = '" << locale().name() << "'");
 
         _appManager.registerApplication(*this);
         _appManager.applicationRegistered.connect(this, [this](LmsApplication& otherApplication) {
@@ -400,7 +409,7 @@ namespace lms::ui
     {
         LMS_SCOPED_TRACE_OVERVIEW("UI", "ApplicationCreateHome");
 
-        _coverResource = std::make_shared<CoverResource>();
+        _artworkResource = std::make_shared<ArtworkResource>();
 
         declareJavaScriptFunction("onLoadCover", "function(id) { id.className += \" Lms-cover-loaded\"}");
         declareJavaScriptFunction("updateActiveNav",

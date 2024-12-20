@@ -438,9 +438,9 @@ namespace lms::api::subsonic
         auto sortMethod = stringToSortMethod(
             getParameterAs<std::string>(context.parameters, "sortMethod").value_or("None"));
         const MediaLibraryId mediaLibraryId{ getParameterAs<MediaLibraryId>(context.parameters, "musicFolderId").value_or(MediaLibraryId{}) };
-        std::size_t const size{ getParameterAs<std::size_t>(context.parameters, "count").value_or(50) };
+        std::size_t size{ getParameterAs<std::size_t>(context.parameters, "count").value_or(50) };
         if (size > defaultMaxCountSize)
-            throw ParameterValueTooHighGenericError{ "count", defaultMaxCountSize };
+            size = defaultMaxCountSize;
 
         Response response{ Response::createOkResponse(context.serverProtocolVersion) };
         auto transaction{ context.dbSession.createReadTransaction() };

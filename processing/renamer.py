@@ -6,6 +6,7 @@ import re
 
 from data.settings import Settings
 
+
 def has_numbers(input_string):
     return any(char.isdigit() for char in input_string)
 
@@ -38,11 +39,12 @@ class Renamer:
         self.settings = Settings()
 
     def rename(self):
+        print("Starting Rename Step")
         only_folders = [f for f in listdir(self.settings.import_folder_path) if
                         not isfile(join(self.settings.import_folder_path, f))]
 
         for folder in only_folders:
-            if folder == '@eaDir':
+            if '@eaDir' in folder :
                 print('skipping @eaDir')
             elif not is_parsed(folder):
                 print('input: ' + folder)
@@ -62,4 +64,4 @@ class Renamer:
                     print('Thrown exception  \'' + str(e) + '\' while moving for \'' + folder + '\'')
 
             else:
-                print('skipped: ' + folder)
+                print('skipped: `' + folder + '` is already renamed to CATID - NAME')

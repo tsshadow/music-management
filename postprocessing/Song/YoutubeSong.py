@@ -35,16 +35,15 @@ class YoutubeSong(BaseSong):
         return None
 
     def update_song(self, folder):
-        allowed_folders = self.load_folders("data/yt_folders.txt")
 
-        if folder not in allowed_folders:
+        ignored_artists = []
+        if folder in ignored_artists:
             return
-
         if self.artist() == self.album_artist() and self.artist() == folder:
             if self.title().find(" - ") != -1:
                 parts = self.title().split(" - ", 1)
                 self.tag_collection.add(ARTIST, parts[0])
-                self.tag_collection.get_item(TITLE).value = parts[1]
+                self.tag_collection.set_item(TITLE, parts[1])
 
     def load_folders(self, file_path):
         try:

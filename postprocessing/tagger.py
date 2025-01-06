@@ -31,7 +31,8 @@ parse_generic = True
 parse_mp3 = True
 parse_flac = True
 parse_m4a = True
-parse_wav = True
+parse_wav = False # Wav is currently bugged, should fix
+parse_aac = False # AAC does somehow not have any tags -> Changed downloads to m4a..
 
 
 class Tagger:
@@ -39,6 +40,7 @@ class Tagger:
         self.rescan = None
 
     def tag(self):
+        print("Starting Tag Step")
         if parse_labels:
             label_folders = [f for f in os.listdir(s.eps_folder_path) if
                              not os.path.isfile(os.path.join(s.eps_folder_path, f))]
@@ -46,7 +48,11 @@ class Tagger:
             for label in label_folders:
                 # Skip free/none and todofolder
                 if label[0] != "_":
-                    self.parse_folder(s.eps_folder_path + s.delimiter + label, SongTypeEnum.LABEL)
+                    # self.parse_folder(s.eps_folder_path + s.delimiter + label, SongTypeEnum.LABEL)
+                    pass
+                else:
+                    self.parse_folder(s.eps_folder_path + s.delimiter + label, SongTypeEnum.GENERIC)
+
 
         if parse_soundcloud:
             soundcloud_folder = s.music_folder_path + s.delimiter + "Soundcloud"
@@ -80,6 +86,9 @@ class Tagger:
                         SongTypeEnum.GENERIC)
 
     def parse_folder(self, folder, song_type):
+        if '@eaDir' in folder:
+            return
+
         print("\r", folder, end="")
         folders = [f for f in os.listdir(folder) if
                    not os.path.isfile(os.path.join(folder, f))]
@@ -96,6 +105,9 @@ class Tagger:
         if parse_m4a:
             files += (glob.glob(
                 folder + s.delimiter + "*.m4a"))
+        if parse_aac:
+            files += (glob.glob(
+                folder + s.delimiter + "*.aac"))
         for file in files:
             try:
                 self.parse_song(file, song_type)

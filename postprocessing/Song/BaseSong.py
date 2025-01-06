@@ -2,6 +2,8 @@ import os
 
 import librosa
 import mutagen
+from mutagen.aac import AAC
+from mutagen.apev2 import APEv2
 from mutagen.easyid3 import EasyID3
 from mutagen.flac import FLAC
 from mutagen.id3 import TXXX
@@ -43,13 +45,19 @@ class BaseSong:
             ".mp3": lambda p: (MP3(p, ID3=EasyID3), MusicFileType.MP3),
             ".flac": lambda p: (FLAC(p), MusicFileType.FLAC),
             ".wav": lambda p: (WAVE(p), MusicFileType.WAV),
-            ".m4a": lambda p: (MP4(p), MusicFileType.M4A)
+            ".m4a": lambda p: (MP4(p), MusicFileType.M4A),
+            # AAC does not support tagging, use APEv2 instead.
+            ".aac": lambda p: (APEv2(p), MusicFileType.AAC)
         }
         try:
             self.music_file, self.type = music_file_classes[self._extension.lower()](path)
         except KeyError:
             raise ExtensionNotSupportedException(f"{self._extension} is not supported")
-        self.tag_collection = TagCollection(self.music_file.tags)
+
+        if self.type != MusicFileType.AAC:
+            self.tag_collection = TagCollection(self.music_file.tags)
+        else:
+            self.tag_collection = TagCollection(self.music_file)
         if self.type == MusicFileType.FLAC:
             for tag in self.music_file.tags:
                 if tag[0] != tag[0].upper():
@@ -67,7 +75,6 @@ class BaseSong:
         if self.tag_collection.has_item(ARTIST):
             self.tag_collection.get_item(ARTIST).regex()
             self.tag_collection.get_item(ARTIST).special_recapitalize()
-            self.tag_collection.get_item(ARTIST).special_fix()
             self.tag_collection.get_item(ARTIST).strip()
             # uniqueArtists.add_non_standard_names(self.tag_collection.get_item(ARTIST).to_array())
         if self.tag_collection.has_item(ALBUM_ARTIST):
@@ -76,6 +83,7 @@ class BaseSong:
             self.tag_collection.get_item(ALBUM_ARTIST).strip()
             # uniqueArtists.add_non_standard_names(self.tag_collection.get_item(ALBUM_ARTIST).to_array())
         if self.tag_collection.has_item(GENRE):
+            self.tag_collection.get_item(GENRE).regex()
             self.tag_collection.get_item(GENRE).recapitalize()
             self.tag_collection.get_item(GENRE).strip()
             uniqueGenres.add_non_standard_names(self.tag_collection.get_item(GENRE).to_array())
@@ -153,6 +161,8 @@ class BaseSong:
                 return self.music_file.get(MP3Tags[tag])
             elif self.type == MusicFileType.FLAC:
                 return self.music_file.get(FLACTags[tag])
+            elif self.type == MusicFileType.AAC:
+                return self.music_file.get(AACTags[tag])
             elif self.type == MusicFileType.WAV:
                 try:
                     value = self.music_file.tags[WAVTags[tag]]
@@ -177,6 +187,8 @@ class BaseSong:
                 self.music_file[tag.tag] = tag.to_string()
             elif self.type == MusicFileType.FLAC:
                 self.music_file[FLACTags[tag.tag]] = tag.to_string()
+            elif self.type == MusicFileType.AAC:
+                self.music_file[AACTags[tag.tag]] = tag.to_string()
             elif self.type == MusicFileType.WAV:
                 # try:
                 #     print(self.music_file.tags[WAVTags[tag]])

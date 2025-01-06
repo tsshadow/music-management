@@ -1,18 +1,16 @@
+import mutagen
+from mutagen.apev2 import APEv2
 from mutagen.easyid3 import EasyID3
 from mutagen.flac import VCFLACDict
 from mutagen.mp4 import MP4Tags
 from mutagen.wave import _WaveID3
 
 from postprocessing.Song.Tag import Tag
-from postprocessing.constants import MP3Tags, reversed_FLACTags, reversed_MP3Tags, reversed_MP4Tags, reversed_WAVTags
-
-# {'TALB': TALB(encoding= < Encoding.UTF16: 1 >, text = ['Rescue Me (Back To The Roots Edit)']), 'TPE1': TPE1(
-#     encoding= < Encoding.UTF16: 1 >, text = ['Headhunterz', 'Sound Rush', 'Eurielle']), 'TCON': TCON(
-#     encoding= < Encoding.UTF16: 1 >, text = ['Hardstyle\ufeff;Mainstream Hardstyle']), 'TIT2': TIT2(
-#     encoding= < Encoding.UTF16: 1 >, text = ['Rescue Me (Back To The Roots Edit) (Extended Mix)']), 'TDRC': TDRC(
-#     encoding= < Encoding.LATIN1: 0 >, text = ['2021'])}
+from postprocessing.constants import MP3Tags, reversed_FLACTags, reversed_MP3Tags, reversed_MP4Tags, reversed_WAVTags, \
+    reversed_AACTags
 
 missing_tags_flac = []
+missing_aac_tags = []
 missing_tags_mp3 = []
 missing_tags_wav = []
 missing_tags_m4a = []
@@ -21,9 +19,11 @@ missing_tags_m4a = []
 class TagCollection:
     def __init__(self, tags):
         self.tags: dict[str, Tag] = {}
+        if tags is None:
+            print('no tags for tagcollection')
 
         # FLAC
-        if isinstance(tags, VCFLACDict):
+        elif isinstance(tags, VCFLACDict):
             for tag in tags:
                 if tag[0] == tag[0].lower():
                     print('error in tag', tag)
@@ -32,7 +32,15 @@ class TagCollection:
                 except KeyError:
                     if tag[0] not in missing_tags_flac:
                         missing_tags_flac.append(tag[0])
-                        print('\nflac missing:', missing_tags_flac)
+        # AAC
+        # elif isinstance(tags, APEv2):
+        #     for tag in tags:
+        #         try:
+        #             self.tags[reversed_AACTags[tag]] = Tag(reversed_AACTags[tag], tags[tag])
+        #         except KeyError:
+        #             if tag not in missing_aac_tags:
+        #                 missing_aac_tags.append(tag)
+        #                 print(missing_aac_tags)
 
         # MP3
         elif isinstance(tags, EasyID3):
@@ -42,7 +50,6 @@ class TagCollection:
                 except KeyError:
                     if tag not in missing_tags_mp3:
                         missing_tags_mp3.append(tag)
-                        print('\nmp3 missing:', missing_tags_mp3)
 
         # WAV
         elif isinstance(tags, _WaveID3):
@@ -52,7 +59,6 @@ class TagCollection:
                 except KeyError:
                     if tag not in missing_tags_wav:
                         missing_tags_wav.append(missing_tags_wav)
-                        print('\nwav missing:', tag)
 
         # M4A
         elif isinstance(tags, MP4Tags):
@@ -62,11 +68,11 @@ class TagCollection:
                 except KeyError:
                     if tag not in missing_tags_m4a:
                         missing_tags_m4a.append(tag)
-                        print('\nm4a missing:', missing_tags_m4a)
 
         else:
             print("TagCollection not supporting this file extension")
             print(type(tags))
+            exit(1)
 
     def add(self, mp3tag, value):
         if value is not None:
@@ -87,6 +93,10 @@ class TagCollection:
 
     def get_item(self, tag):
         return self.tags[tag]
+
+    def set_item(self, tag, value):
+        tag = self.get_item(tag)
+        tag.set(value)
 
     def get_item_as_string(self, tag):
         try:

@@ -1,3 +1,7 @@
+import os
+from dotenv import load_dotenv
+
+
 class SingletonMeta(type):
     """
     The Singleton class can be implemented in different ways in Python. Some
@@ -19,35 +23,18 @@ class SingletonMeta(type):
 
 
 class Settings(metaclass=SingletonMeta):
-    import_folder_path = ''
-    eps_folder_path = ''
-    music_folder_path = ''
-    delimiter = ''
+    load_dotenv()
 
     def __init__(self):
-        self.debug = True
-        self.rescan = None
-        self.dryrun = False
+        self.debug = os.getenv("debug")
+        self.rescan = os.getenv("rescan")
+        self.dryrun = os.getenv("dryrun")
+        self.import_folder_path = os.getenv("import_folder_path")
+        self.eps_folder_path = os.getenv("eps_folder_path")
+        self.music_folder_path = os.getenv("music_folder_path")
+        self.delimiter = os.getenv("delimiter")
 
-    def initialize(self, environment, rescan):
-        print('Initializing settings for ' + environment)
-        if environment == 'docker':
-            self.import_folder_path = "/music/__TODO"
-            self.eps_folder_path = "/music"
-            self.music_folder_path = self.eps_folder_path
-            self.delimiter = '/'
-        elif environment == 'test':
-            self.delimiter = '\\'
-            self.import_folder_path = "D:\\test\\import"
-            self.eps_folder_path = "D:\\test"
-            self.music_folder_path = self.eps_folder_path
-        else:
-            self.import_folder_path = "\\\\192.0.2.2\\Music\\Eps\\__TODO"
-            self.eps_folder_path = "\\\\192.0.2.2\\Music\\Eps"
-            self.music_folder_path = "\\\\192.0.2.2\\Music"
-            self.delimiter = '\\'
         print('import_folder_path = ' + self.import_folder_path)
         print('music_folder_path = ' + self.music_folder_path)
-        print('music_folder_path = ' + self.eps_folder_path)
+        print('eps_folder_path = ' + self.eps_folder_path)
         print('delimiter = ' + self.delimiter)
-        self.rescan = rescan

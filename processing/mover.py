@@ -3,15 +3,12 @@ import string
 from os import listdir
 from os.path import isfile, join
 from data.settings import Settings
+from postprocessing.Song.LabelSong import LabelSong
 
 
 def get_cat_id(folder):
     cat_id = folder.split(' ')
     return cat_id[0]
-
-
-def get_label_by_cat_id():
-    print('a')
 
 
 def populate_map_from_file(file_path):
@@ -33,7 +30,7 @@ def populate_map_from_file(file_path):
                 value = parts[1].strip().strip("'")  # Remove extra whitespace and single quotes
                 key_value_map[key] = value
             else:
-                print(f"Error: Line '{line}' is not in key:value format. Skipping...")
+                print(f"Error: Line '{line}' in '{file_path}' is not in key:value format. Skipping...")
     return key_value_map
 
 
@@ -44,7 +41,6 @@ class Mover:
         file_path = self.settings.eps_folder_path + self.settings.delimiter + "labels.txt"  # Path to your text file
         print(file_path)
         self.labels = populate_map_from_file(file_path)
-        print(self.labels)
 
     def remove(self, folder):
         src = self.settings.import_folder_path + self.settings.delimiter + folder
@@ -57,6 +53,7 @@ class Mover:
                 e) + '\' while deleting for \'' + folder + '\'')
 
     def move(self):
+        print("Starting Move Step")
         only_folders = [f for f in listdir(self.settings.import_folder_path) if
                         not isfile(join(self.settings.import_folder_path, f))]
         for folder in only_folders:
@@ -67,7 +64,7 @@ class Mover:
                 last_char = cat_id[-1]
 
                 # Remove E, D, R, or B postfix
-                if last_char == 'B' or last_char == 'D' or last_char == 'E' or last_char == 'R' or last_char == 'X' or last_char == '_':
+                if last_char == 'B' or last_char == 'A' or last_char == 'D' or last_char == 'E' or last_char == 'R' or last_char == 'X' or last_char == '_':
                     if cat_id[-2].isdigit():
                         cat_id = cat_id[:-1]
 
@@ -100,6 +97,8 @@ class Mover:
                             print('src: ' + src)
                             print('dst: ' + dst)
                             shutil.move(src, dst)
+                            # Done moving:
+
                         except FileExistsError:
                             self.remove(folder)
                         except Exception as e:
@@ -108,3 +107,4 @@ class Mover:
                             else:
                                 print('Thrown exception (type: ' + e.__class__.__name__ + ') \'' + str(
                                     e) + '\' while moving for \'' + folder + '\'')
+

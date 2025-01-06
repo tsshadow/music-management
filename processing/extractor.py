@@ -11,6 +11,7 @@ class Extractor:
         self.settings = Settings()
 
     def extract(self):
+        print("Starting Extract Step")
         only_files = [f for f in listdir(self.settings.import_folder_path) if
                       isfile(join(self.settings.import_folder_path, f))]
         print(only_files)

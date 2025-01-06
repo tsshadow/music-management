@@ -43,18 +43,14 @@ class SoundcloudSong(BaseSong):
         #               title.split(" - ")[1])
 
     def update_song(self, folder):
-        # Load allowed and skipped folders
-        allowed_folders = self.load_folders("data/sc_folders.txt")
-
-        if folder not in allowed_folders:
+        ignored_artists = ['Sapher', 'C418', 'T78', 'Basher']
+        if folder in ignored_artists:
             return
-
-        # Now process the song update if the folder is allowed
         if self.artist() == self.album_artist() and self.artist() == folder:
             if self.title().find(" - ") != -1:
                 parts = self.title().split(" - ", 1)
                 self.tag_collection.add(ARTIST, parts[0])
-                self.tag_collection.get_item(TITLE).value = parts[1]
+                self.tag_collection.set_item(TITLE, parts[1])
 
     def load_folders(self, file_path):
         try:
@@ -62,4 +58,3 @@ class SoundcloudSong(BaseSong):
                 return {line.strip() for line in file if line.strip()}
         except FileNotFoundError:
             return set()  # Return an empty set if the file doesn't exist
-

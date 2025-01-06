@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Final
 
 # Constants
-ARTIST_REGEX: Final = "\s(&|aka|Aka|AKA|and|And|b2b|B2B|B2b|b3b|B3b|B3B|feat\.?|Feat\.?|featuring|Featuring|features|Features|ft|Ft\.?|ft\.?|invite|Invite|invites|Invites|pres\.?|Pres\.?|presenting|Presenting|versus|Versus|vs\.?|Vs\.?|VS\.?|with|With|x|X)\s"
+ARTIST_REGEX: Final = "\s(?i)(&|aka|and|b2b|b3b|feat\.?|featuring|features|ft|ft\.?|invite|invites|pres\.?|presenting|versus|vs\.?|with|x)\s|,\s"
 
 # noinspection SpellCheckingInspection
 ALBUM_ARTIST: Final = "albumartist"
@@ -48,6 +48,20 @@ FLACTags = {
     TITLE: "TITLE",
 }
 reversed_FLACTags = {v: k for k, v in FLACTags.items()}
+AACTags = {
+    ALBUM_ARTIST: "ALBUMARTIST",
+    ALBUM: "ALBUM",
+    ARTIST: "ARTIST",
+    BPM: "BPM",
+    CATALOG_NUMBER: "CATALOGNUMBER",
+    COPYRIGHT: "COPYRIGHT",
+    DATE: "DATE",
+    GENRE: "GENRE",
+    PARSED: "PARSED",
+    PUBLISHER: "PUBLISHER",
+    TITLE: "Title",
+}
+reversed_AACTags = {v: k for k, v in AACTags.items()}
 
 MP4Tags = {
     ALBUM_ARTIST: 'TALB',
@@ -94,3 +108,4 @@ class MusicFileType(Enum):
     FLAC = 2
     WAV = 3
     M4A = 4
+    AAC = 5

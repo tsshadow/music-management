@@ -4,107 +4,111 @@ import string
 from os import listdir
 from os.path import isfile, join
 from data.settings import Settings
-from postprocessing.Song.LabelSong import LabelSong
 
 
 def get_cat_id(folder):
-    cat_id = folder.split(' ')
-    return cat_id[0]
+    """
+    Extract the category ID from the folder name and clean it.
+    """
+    cat_id = folder.split(' ')[0]  # Split at the first space and get the first part
+
+    # Ensure cat_id is not empty before further processing
+    if not cat_id:
+        return ''
+
+    # Remove specific postfix characters
+    if cat_id[-1] in ['B', 'A', 'D', 'E', 'R', 'X', '_']:
+        if len(cat_id) > 1 and cat_id[-2].isdigit():  # Ensure there's a digit before the last character
+            cat_id = cat_id[:-1]
+
+    # Strip trailing numbers and handle 'PRO' in multiple locations
+    cat_id_prefix = cat_id.rstrip(string.digits)
+    if 'PRO' in cat_id_prefix:
+        cat_id_prefix = cat_id_prefix.replace('PRO', '', 1).rstrip(string.digits)
+    if 'PRO' in cat_id_prefix:
+        cat_id_prefix = cat_id_prefix.replace('PRO', '', 1).rstrip(string.digits)
+
+    return cat_id_prefix
 
 
 def populate_map_from_file(file_path):
-    # Initialize an empty dictionary
+    """
+    Read a file and populate a dictionary of key-value pairs.
+    """
     key_value_map = {}
 
-    # Read the content of the file
-    with open(file_path, 'r') as file:
-        for line in file:
-            # Remove leading/trailing whitespace and square brackets
-            line = line.strip()[1:-1]
+    try:
+        with open(file_path, 'r') as file:
+            for line in file:
+                # Remove brackets and split key-value pairs
+                line = line.strip()[1:-1]
+                parts = line.split(':')
+                if len(parts) == 2:
+                    key = parts[0].strip().strip("'")
+                    value = parts[1].strip().strip("'")
+                    key_value_map[key] = value
+                else:
+                    logging.warning(f"Invalid line format in {file_path}: {line}")
+    except FileNotFoundError:
+        logging.error(f"File not found: {file_path}")
+    except Exception as e:
+        logging.error(f"Error reading file {file_path}: {e}")
 
-            # Split the line at the colon
-            parts = line.split(':')
-
-            # Ensure there are exactly two parts (key and value)
-            if len(parts) == 2:
-                key = parts[0].strip().strip("'")  # Remove extra whitespace and single quotes
-                value = parts[1].strip().strip("'")  # Remove extra whitespace and single quotes
-                key_value_map[key] = value
-            else:
-                logging.info(f"Error: Line '{line}' in '{file_path}' is not in key:value format. Skipping...")
     return key_value_map
 
 
 class Mover:
-
     def __init__(self):
         self.settings = Settings()
-        file_path = self.settings.eps_folder_path + self.settings.delimiter + "labels.txt"  # Path to your text file
+        file_path = join(self.settings.eps_folder_path, "labels.txt")
         self.labels = populate_map_from_file(file_path)
 
     def remove(self, folder):
-        src = self.settings.import_folder_path + self.settings.delimiter + folder
-        logging.info('File exists:' + src)
-        logging.info('Removing file:' + src)
+        """
+        Remove a folder.
+        """
+        src = join(self.settings.import_folder_path, folder)
+        logging.info(f"Removing folder: {src}")
         try:
             shutil.rmtree(src)
         except Exception as e:
-            logging.info('Thrown exception (type: ' + e.__class__.__name__ + ') \'' + str(
-                e) + '\' while deleting for \'' + folder + '\'')
+            logging.error(f"Error removing {src}: {e}")
 
-    def move(self):
+    def move(self, dry_run=False):
+        """
+        Move folders to categorized destinations based on their labels.
+        """
         logging.info("Starting Move Step")
         only_folders = [f for f in listdir(self.settings.import_folder_path) if
                         not isfile(join(self.settings.import_folder_path, f))]
+
         for folder in only_folders:
             label = ''
             cat_id = get_cat_id(folder)
 
-            if len(cat_id):
-                last_char = cat_id[-1]
+            if cat_id:
+                # Attempt to match category ID with a label
+                try:
+                    label = self.labels[cat_id]
+                except KeyError:
+                    logging.warning(f"Category ID {cat_id} not found in labels for folder {folder}")
+                    continue
 
-                # Remove E, D, R, or B postfix
-                if last_char == 'B' or last_char == 'A' or last_char == 'D' or last_char == 'E' or last_char == 'R' or last_char == 'X' or last_char == '_':
-                    if cat_id[-2].isdigit():
-                        cat_id = cat_id[:-1]
+                # Build source and destination paths
+                src = join(self.settings.import_folder_path, folder)
+                dst = join(self.settings.eps_folder_path, label, folder)
 
-                # Strip last numbers after PRO
-                cat_id_prefix = cat_id.rstrip(string.digits)
+                # Move or simulate move
+                try:
+                    if not dry_run:
+                        shutil.move(src, dst)
+                    logging.info(f"Moved: {src} -> {dst}")
+                except FileExistsError:
+                    logging.warning(f"Conflict: {dst} already exists. Removing {src}")
+                    if not dry_run:
+                        self.remove(folder)
+                except Exception as e:
+                    logging.error(f"Error moving {src} to {dst}: {e}")
 
-                # remove pro if used
-                if 'PRO' in cat_id_prefix:
-                    cat_id_prefix = cat_id_prefix[:-3]
-                # remove pro if used
-                if 'PRO' in cat_id_prefix:
-                    cat_id_prefix = cat_id_prefix[:-3]
-
-                # Remove last numbers before PRO
-                cat_id_prefix = cat_id_prefix.rstrip(string.digits)
-
-                if cat_id_prefix == '':
-                    logging.info('No label found for ' + folder)
-                else:
-                    # Find label
-                    try:
-                        label = self.labels[cat_id_prefix]
-                    except Exception as e:
-                        logging.info(str(e) + ' not found in label list')
-                    else:
-                        # copy file
-                        try:
-                            src = self.settings.import_folder_path + self.settings.delimiter + folder
-                            dst = self.settings.eps_folder_path + self.settings.delimiter + label + self.settings.delimiter + folder
-                            logging.info('src: ' + src)
-                            logging.info('dst: ' + dst)
-                            shutil.move(src, dst)
-                            # Done moving:
-
-                        except FileExistsError:
-                            self.remove(folder)
-                        except Exception as e:
-                            if 'already exists' in str(e):
-                                self.remove(folder)
-                            else:
-                                logging.info('Thrown exception (type: ' + e.__class__.__name__ + ') \'' + str(
-                                    e) + '\' while moving for \'' + folder + '\'')
-
+            else:
+                logging.warning(f"No valid category ID found for folder: {folder}")

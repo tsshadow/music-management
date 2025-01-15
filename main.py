@@ -1,4 +1,6 @@
 from time import sleep
+
+from postprocessing.sanitizer import Sanitizer
 from processing.extractor import Extractor
 from processing.mover import Mover
 from processing.renamer import Renamer
@@ -7,7 +9,7 @@ from postprocessing.tagger import Tagger
 import logging
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s  %(filename)s [%(levelname)s] %(message)s', force=True)
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s  %(filename)s:%(lineno)s [%(levelname)s] %(message)s', force=True)
     logging.info("Starting music importer")
     sleep(5)
 
@@ -17,6 +19,7 @@ if __name__ == '__main__':
     extractor = Extractor()
     renamer = Renamer()
     mover = Mover()
+    sanitizer = Sanitizer()
 
     # Configure logging
 
@@ -44,6 +47,13 @@ if __name__ == '__main__':
                 logging.info("Moving completed.")
             except Exception as e:
                 logging.error(f"Mover failed: {e}")
+
+            # Sanitize process
+            try:
+                sanitizer.sanitize()
+                logging.info("Sanitizing completed.")
+            except Exception as e:
+                logging.error(f"Sanitizing failed: {e}")
 
             # Tagging process
             try:

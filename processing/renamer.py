@@ -65,4 +65,5 @@ class Renamer:
                     logging.info('Thrown exception  \'' + str(e) + '\' while moving for \'' + folder + '\'')
 
             else:
-                logging.info('skipped: `' + folder + '` is already renamed to CATID - NAME')
+                # logging.info('skipped: `' + folder + '` is already renamed to CATID - NAME')
+                pass

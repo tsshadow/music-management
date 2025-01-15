@@ -1,4 +1,6 @@
+import logging
 import os
+import pathlib
 
 import librosa
 import mutagen
@@ -17,7 +19,7 @@ from postprocessing.Song.Helpers import LookupTableHelper
 from postprocessing.Song.TagCollection import TagCollection
 from postprocessing.Song.UniqueTagHandler import UniqueTagHandler, TitleCaseTagChecker
 from postprocessing.constants import ARTIST, GENRE, WAVTags, MP4Tags, DATE, PARSED, CATALOG_NUMBER, PUBLISHER, \
-    COPYRIGHT, ALBUM_ARTIST, BPM, MusicFileType, TITLE, MP3Tags, FLACTags
+    COPYRIGHT, ALBUM_ARTIST, BPM, MusicFileType, TITLE, MP3Tags, FLACTags, AACTags
 
 s = Settings()
 artistGenreHelper = LookupTableHelper('data/artist-genre.txt')
@@ -68,7 +70,7 @@ class BaseSong:
                     self.music_file.save()
                     self.music_file[tag[0].upper()] = val
                     self.music_file.save()
-                    print(tag[0], tag[0].upper(), val)
+                    logging.info("%s, %s %s", tag[0], tag[0].upper(), val)
             raise TabError
 
     def parse_tags(self):
@@ -141,7 +143,7 @@ class BaseSong:
         return None
 
     def save_file(self):
-        if not s.dryrun and hasattr(self, 'tag_collection'):
+        if hasattr(self, 'tag_collection'):
             for tag in self.tag_collection.get().values():
                 if isinstance(tag, Tag):
                     # if tag.has_capitalization_error():
@@ -152,8 +154,9 @@ class BaseSong:
                     if tag.has_changes():
                         self.set_tag(tag)
                         self.music_file.save()
+                        logging.info("saving %s", self.path())
                 else:
-                    print("Failed to save tag:", tag)
+                    logging.info("Failed to save tag: %s", tag)
 
     def get_tag(self, tag):
         if self.music_file:
@@ -167,7 +170,7 @@ class BaseSong:
                 try:
                     value = self.music_file.tags[WAVTags[tag]]
                 except Exception as e:
-                    print(e)
+                    logging.error(e)
                     return None
                 return value.text
             elif self.type == MusicFileType.M4A:
@@ -181,7 +184,7 @@ class BaseSong:
                     return None
 
     def set_tag(self, tag: Tag):
-        print("set tag", tag.tag, tag.to_string(), self.music_file.get(tag.tag))
+        logging.info("set tag %s to %s", tag.tag, tag.to_string(), self.music_file.get(tag.tag))
         if self.music_file:
             if self.type == MusicFileType.MP3:
                 self.music_file[tag.tag] = tag.to_string()
@@ -191,16 +194,16 @@ class BaseSong:
                 self.music_file[AACTags[tag.tag]] = tag.to_string()
             elif self.type == MusicFileType.WAV:
                 # try:
-                #     print(self.music_file.tags[WAVTags[tag]])
+                #     logging.info(self.music_file.tags[WAVTags[tag]])
                 # except Exception as e:
-                #     print(e)
+                #     logging.info(e)
                 self.music_file.tags[WAVTags[tag.tag]] = mutagen.id3.TextFrame(encoding=3, text=[tag.to_string()])
-                print(' set ', self.music_file.tags[WAVTags[tag.tag]])
+                logging.info('set %s', self.music_file.tags[WAVTags[tag.tag]])
             elif self.type == MusicFileType.M4A:
                 # try:
-                #     print(self.music_file.tags[MP4Tags[tag]])
+                #     logging.info(self.music_file.tags[MP4Tags[tag]])
                 # except Exception as e:
-                #     print(e)
+                #     logging.info(e)
                 #     self.music_file.tags.add(TXXX(encoding=3, text=[tag.to_string()], desc=MP4Tags[tag]))
                 self.music_file.tags[MP4Tags[tag.tag]] = str(tag.to_string())
 
@@ -213,7 +216,7 @@ class BaseSong:
             self.update_tag(BPM, str(round(tempo[0][0])))
         except Exception as e:
             if s.debug:
-                print('Failed to parse bpm for ' + self._path + str(e))
+                logging.info('Failed to parse bpm for ' + self._path + str(e))
 
         # Getter wrappers
 

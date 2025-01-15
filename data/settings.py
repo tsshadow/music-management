@@ -1,3 +1,4 @@
+import logging
 import os
 from dotenv import load_dotenv
 
@@ -34,7 +35,7 @@ class Settings(metaclass=SingletonMeta):
         self.music_folder_path = os.getenv("music_folder_path")
         self.delimiter = os.getenv("delimiter")
 
-        print('import_folder_path = ' + self.import_folder_path)
-        print('music_folder_path = ' + self.music_folder_path)
-        print('eps_folder_path = ' + self.eps_folder_path)
-        print('delimiter = ' + self.delimiter)
+        logging.info('import_folder_path = ' + self.import_folder_path)
+        logging.info('music_folder_path = ' + self.music_folder_path)
+        logging.info('eps_folder_path = ' + self.eps_folder_path)
+        logging.info('delimiter = ' + self.delimiter)

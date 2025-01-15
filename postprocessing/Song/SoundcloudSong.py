@@ -36,7 +36,7 @@ class SoundcloudSong(BaseSong):
         title = self.title()
         # if title is not None and len(title) > 0:
         #     if title.find(" - ") > 0:
-        #         print("\nupdate title", self.artist(),
+        #         logging.info("\nupdate title", self.artist(),
         #               " new artist:",
         #               title.split(" - ")[0],
         #               " title:",

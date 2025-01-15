@@ -1,3 +1,5 @@
+import logging
+
 import mutagen
 from mutagen.apev2 import APEv2
 from mutagen.easyid3 import EasyID3
@@ -20,13 +22,13 @@ class TagCollection:
     def __init__(self, tags):
         self.tags: dict[str, Tag] = {}
         if tags is None:
-            print('no tags for tagcollection')
+            logging.info('no tags for tagcollection')
 
         # FLAC
         elif isinstance(tags, VCFLACDict):
             for tag in tags:
                 if tag[0] == tag[0].lower():
-                    print('error in tag', tag)
+                    logging.info('error in tag %s', tag)
                 try:
                     self.tags[reversed_FLACTags[tag[0]]] = Tag(reversed_FLACTags[tag[0]], tag[1])
                 except KeyError:
@@ -40,7 +42,7 @@ class TagCollection:
         #         except KeyError:
         #             if tag not in missing_aac_tags:
         #                 missing_aac_tags.append(tag)
-        #                 print(missing_aac_tags)
+        #                 logging.info(missing_aac_tags)
 
         # MP3
         elif isinstance(tags, EasyID3):
@@ -70,8 +72,8 @@ class TagCollection:
                         missing_tags_m4a.append(tag)
 
         else:
-            print("TagCollection not supporting this file extension")
-            print(type(tags))
+            logging.info("TagCollection not supporting this file extension")
+            logging.info(type(tags))
             exit(1)
 
     def add(self, mp3tag, value):
@@ -82,11 +84,11 @@ class TagCollection:
                 self.tags[mp3tag] = Tag(mp3tag, "")
                 self.tags[mp3tag].set(value)
         else:
-            print("Error adding tag(" + mp3tag + "), value is none")
+            logging.info("Error adding tag(" + mp3tag + "), value is none")
 
-    def print(self):
+    def log(self):
         for tag in self.tags.values():
-            tag.print()
+            tag.log()
 
     def has_item(self, tag):
         return tag in self.tags

@@ -12,6 +12,7 @@ RUN wget http://ftp.nl.debian.org/debian/pool/non-free/u/unrar-nonfree/unrar_5.6
 WORKDIR /app
 
 COPY . .
+COPY data/* data/
 COPY requirements.txt requirements.txt
 
 RUN pip3 install -r requirements.txt

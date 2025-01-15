@@ -1,4 +1,5 @@
 import glob
+import logging
 import os
 import sys
 
@@ -37,10 +38,10 @@ parse_aac = False # AAC does somehow not have any tags -> Changed downloads to m
 
 class Tagger:
     def __init__(self):
-        self.rescan = None
+        pass
 
     def tag(self):
-        print("Starting Tag Step")
+        logging.info("Starting Tag Step")
         if parse_labels:
             label_folders = [f for f in os.listdir(s.eps_folder_path) if
                              not os.path.isfile(os.path.join(s.eps_folder_path, f))]
@@ -89,7 +90,7 @@ class Tagger:
         if '@eaDir' in folder:
             return
 
-        print("\r", folder, end="")
+        # logging.info(folder)
         folders = [f for f in os.listdir(folder) if
                    not os.path.isfile(os.path.join(folder, f))]
         files = []
@@ -112,19 +113,19 @@ class Tagger:
             try:
                 self.parse_song(file, song_type)
             except KeyboardInterrupt:
-                print('KeyboardInterrupt')
+                logging.info('KeyboardInterrupt')
                 sys.exit(1)
             except PermissionError as e:
-                print(f"PermissionError: {e}")
+                logging.info(f"PermissionError: {e}")
                 pass
             except MutagenError as e:
-                print(f"MutagenError: {e}")
+                logging.info(f"MutagenError: {e}")
                 pass
             except FileNotFoundError as e:
-                print(f"FileNotFoundError: {e}")
+                logging.info(f"FileNotFoundError: {e}")
                 pass
             except ExtensionNotSupportedException as e:
-                print(f"ExtensionNotSupportedException: {e}")
+                logging.info(f"ExtensionNotSupportedException: {e}")
                 pass
             except TabError:
                 pass
@@ -136,7 +137,7 @@ class Tagger:
 
     @staticmethod
     def parse_song(path, song_type):
-        print("\r", path, end="")
+        # logging.info(path)
         if song_type == SongTypeEnum.LABEL:
             LabelSong(path)
         if song_type == SongTypeEnum.YOUTUBE:

@@ -116,16 +116,16 @@ class Tagger:
                 logging.info('KeyboardInterrupt')
                 sys.exit(1)
             except PermissionError as e:
-                logging.info(f"PermissionError: {e}")
+                logging.info(f"PermissionError: {e}, {file} ")
                 pass
             except MutagenError as e:
-                logging.info(f"MutagenError: {e}")
+                logging.info(f"MutagenError: {e}, {file} ")
                 pass
             except FileNotFoundError as e:
-                logging.info(f"FileNotFoundError: {e}")
+                logging.info(f"FileNotFoundError: {e}, {file} ")
                 pass
             except ExtensionNotSupportedException as e:
-                logging.info(f"ExtensionNotSupportedException: {e}")
+                logging.info(f"ExtensionNotSupportedException: {e}, {file} ")
                 pass
             except TabError:
                 pass

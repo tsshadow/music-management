@@ -15,7 +15,7 @@
 			${</if-has-biography>}
 			<div class="btn-group">
 				${play-btn class="btn btn-primary"}
-				<button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false"/>
+				<button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" aria-label="${tr:Lms.more}"/>
 				<ul class="dropdown-menu">
 					<li>${play-next class="dropdown-item"}</li>
 					<li>${play-last class="dropdown-item"}</li>

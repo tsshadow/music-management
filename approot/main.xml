@@ -3,11 +3,11 @@
 
 <message id="Lms.main.template">
 	${navbar}
-	<div class="container">
+	<main class="container">
 		${contents}
 		${notifications class="toast-container Lms-notification-container p-3"}
 		${modal}
-	</div>
+	</main>
 	${player class="fixed-bottom bg-dark Lms-player"}
 </message>
 

@@ -15,6 +15,7 @@
 <message id="Lms.loading">Loading...</message>
 <message id="Lms.login">Login</message>
 <message id="Lms.logout"><i class="fa fa-fw fa-sign-out" aria-hidden="true"></i> Logout</message>
+<message id="Lms.more">More...</message>
 <message id="Lms.ok">Ok</message>
 <message id="Lms.password">Password</message>
 <message id="Lms.password-bad-login-combination">Bad login / password combination</message>
@@ -197,6 +198,7 @@
 <message id="Lms.Explore.all">All</message>
 <message id="Lms.Explore.artists">Artists</message>
 <message id="Lms.Explore.bitrate">Bitrate</message>
+<message id="Lms.Explore.cover-art">Cover art</message>
 <message id="Lms.Explore.codec">Codec</message>
 <message id="Lms.Explore.download">Download</message>
 <message id="Lms.Explore.duration">Duration</message>
@@ -207,6 +209,7 @@
 <message id="Lms.Explore.most-played">Most played</message>
 <message id="Lms.Explore.musicbrainz-artist">MusicBrainz Artist</message>
 <message id="Lms.Explore.musicbrainz-release">MusicBrainz Release</message>
+<message id="Lms.Explore.play-item">Play {1}</message>
 <message id="Lms.Explore.play">Play</message>
 <message id="Lms.Explore.play-last">Play last</message>
 <message id="Lms.Explore.play-next">Play next</message>
@@ -221,6 +224,7 @@
 <message id="Lms.Explore.releases">Albums</message>
 <message id="Lms.Explore.search">Search</message>
 <message id="Lms.Explore.star">Star</message>
+<message id="Lms.Explore.star-item">Star {1}</message>
 <message id="Lms.Explore.starred">Starred</message>
 <message id="Lms.Explore.track-info">Track information</message>
 <message id="Lms.Explore.track-lyrics">Lyrics</message>
@@ -309,6 +313,13 @@
 
 <!--Player-->
 <message id="Lms.Player.transcoding-active">Transcoding active</message>
+<message id="Lms.Player.now-playing">Now playing</message>
+<message id="Lms.Player.previous">Previous</message>
+<message id="Lms.Player.play-pause">Play / pause</message>
+<message id="Lms.Player.next">Next</message>
+<message id="Lms.Player.seek">Seek</message>
+<message id="Lms.Player.volume">Volume</message>
+
 
 <!--Playqueue-->
 <message id="Lms.PlayQueue.clear">Clear</message>

@@ -250,11 +250,13 @@ namespace lms::ui::TrackListHelpers
         entry->bindString("duration", utils::durationToString(track->getDuration()), Wt::TextFormat::Plain);
 
         Wt::WPushButton* playBtn{ entry->bindNew<Wt::WPushButton>("play-btn", Wt::WString::tr("Lms.template.play-btn"), Wt::TextFormat::XHTML) };
+        playBtn->setAttributeValue("aria-label", Wt::WString::tr("Lms.Explore.play-item").arg(track->getName()));
         playBtn->clicked().connect([trackId, &playQueueController] {
             playQueueController.processCommand(PlayQueueController::Command::Play, { trackId });
         });
 
-        entry->bindNew<Wt::WPushButton>("more-btn", Wt::WString::tr("Lms.template.more-btn"), Wt::TextFormat::XHTML);
+        entry->bindNew<Wt::WPushButton>("more-btn", Wt::WString::tr("Lms.template.more-btn"), Wt::TextFormat::XHTML)
+            ->setAttributeValue("aria-label", Wt::WString::tr("Lms.more"));
 
         entry->bindNew<Wt::WPushButton>("play", Wt::WString::tr("Lms.Explore.play"))
             ->clicked()
@@ -276,6 +278,8 @@ namespace lms::ui::TrackListHelpers
             auto isStarred{ [=] { return core::Service<feedback::IFeedbackService>::get()->isStarred(LmsApp->getUserId(), trackId); } };
 
             Wt::WPushButton* starBtn{ entry->bindNew<Wt::WPushButton>("star-btn", Wt::WString::tr(isStarred() ? "Lms.template.unstar-btn" : "Lms.template.star-btn"), Wt::TextFormat::XHTML) };
+            starBtn->setAttributeValue("aria-label", Wt::WString::tr("Lms.Explore.star-item").arg(track->getName()));
+            starBtn->setAttributeValue("aria-pressed", isStarred() ? "true" : "false");
             Wt::WPushButton* starMenuEntry{ entry->bindNew<Wt::WPushButton>("star", Wt::WString::tr(isStarred() ? "Lms.Explore.unstar" : "Lms.Explore.star")) };
 
             auto toggle{ [=] {
@@ -286,12 +290,14 @@ namespace lms::ui::TrackListHelpers
                     core::Service<feedback::IFeedbackService>::get()->unstar(LmsApp->getUserId(), trackId);
                     starMenuEntry->setText(Wt::WString::tr("Lms.Explore.star"));
                     starBtn->setText(Wt::WString::tr("Lms.template.star-btn"));
+                    starBtn->setAttributeValue("aria-pressed", "false");
                 }
                 else
                 {
                     core::Service<feedback::IFeedbackService>::get()->star(LmsApp->getUserId(), trackId);
                     starMenuEntry->setText(Wt::WString::tr("Lms.Explore.unstar"));
                     starBtn->setText(Wt::WString::tr("Lms.template.unstar-btn"));
+                    starBtn->setAttributeValue("aria-pressed", "true");
                 }
             } };
 

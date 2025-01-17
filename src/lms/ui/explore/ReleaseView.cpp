@@ -475,12 +475,14 @@ namespace lms::ui
             }
 
             Wt::WPushButton* playBtn{ entry->bindNew<Wt::WPushButton>("play-btn", Wt::WString::tr("Lms.template.play-btn"), Wt::TextFormat::XHTML) };
+            playBtn->setAttributeValue("aria-label", Wt::WString::tr("Lms.Explore.play-item").arg(track->getName()));
             playBtn->clicked().connect([this, trackId] {
                 _playQueueController.playTrackInRelease(trackId);
             });
 
             {
-                entry->bindNew<Wt::WPushButton>("more-btn", Wt::WString::tr("Lms.template.more-btn"), Wt::TextFormat::XHTML);
+                entry->bindNew<Wt::WPushButton>("more-btn", Wt::WString::tr("Lms.template.more-btn"), Wt::TextFormat::XHTML)
+                    ->setAttributeValue("aria-label", Wt::WString::tr("Lms.more"));
                 entry->bindNew<Wt::WPushButton>("play", Wt::WString::tr("Lms.Explore.play"))
                     ->clicked()
                     .connect([this, trackId] {
@@ -501,6 +503,8 @@ namespace lms::ui
                     auto isStarred{ [=] { return core::Service<feedback::IFeedbackService>::get()->isStarred(LmsApp->getUserId(), trackId); } };
 
                     Wt::WPushButton* starBtn{ entry->bindNew<Wt::WPushButton>("star-btn", Wt::WString::tr(isStarred() ? "Lms.template.unstar-btn" : "Lms.template.star-btn"), Wt::TextFormat::XHTML) };
+                    starBtn->setAttributeValue("aria-pressed", isStarred() ? "true" : "false");
+                    starBtn->setAttributeValue("aria-label", Wt::WString::tr("Lms.Explore.star-item").arg(track->getName()));
                     Wt::WPushButton* starMenuEntry{ entry->bindNew<Wt::WPushButton>("star", Wt::WString::tr(isStarred() ? "Lms.Explore.unstar" : "Lms.Explore.star")) };
 
                     auto toggle{ [=] {
@@ -511,12 +515,14 @@ namespace lms::ui
                             core::Service<feedback::IFeedbackService>::get()->unstar(LmsApp->getUserId(), trackId);
                             starMenuEntry->setText(Wt::WString::tr("Lms.Explore.star"));
                             starBtn->setText(Wt::WString::tr("Lms.template.star-btn"));
+                            starBtn->setAttributeValue("aria-pressed", "false");
                         }
                         else
                         {
                             core::Service<feedback::IFeedbackService>::get()->star(LmsApp->getUserId(), trackId);
                             starMenuEntry->setText(Wt::WString::tr("Lms.Explore.unstar"));
                             starBtn->setText(Wt::WString::tr("Lms.template.unstar-btn"));
+                            starBtn->setAttributeValue("aria-pressed", "true");
                         }
                     } };
 
@@ -648,6 +654,7 @@ namespace lms::ui
 
     {
         const db::MediumId mediumId{ medium->getId() };
+        Wt::WString disc_title;
 
         std::unique_ptr<Wt::WTemplate> disc{ std::make_unique<Template>(Wt::WString::tr("Lms.Explore.Release.template.entry-disc")) };
         disc->addFunction("id", &Wt::WTemplate::Functions::id);
@@ -666,15 +673,18 @@ namespace lms::ui
         }
 
         if (medium->getName().empty())
-            disc->bindNew<Wt::WText>("disc-title", Wt::WString::tr("Lms.Explore.Release.disc").arg(medium->getPosition() ? *medium->getPosition() : 1 /* TODO */));
+            disc_title = Wt::WString::tr("Lms.Explore.Release.disc").arg(medium->getPosition() ? *medium->getPosition() : 1 /* TODO */);
         else
-            disc->bindString("disc-title", Wt::WString::fromUTF8(std::string{ medium->getName() }), Wt::TextFormat::Plain);
-
+            disc_title = Wt::WString::fromUTF8(std::string{ medium->getName() });
+        disc->bindNew<Wt::WText>("disc-title", disc_title, Wt::TextFormat::Plain);
         Wt::WPushButton* playBtn{ disc->bindNew<Wt::WPushButton>("play-btn", Wt::WString::tr("Lms.template.play-btn"), Wt::TextFormat::XHTML) };
+        playBtn->setAttributeValue("aria-label", Wt::WString::tr("Lms.Explore.play-item").arg(disc_title));
         playBtn->clicked().connect([this, mediumId] {
             _playQueueController.processCommand(PlayQueueController::Command::Play, mediumId);
         });
-        disc->bindNew<Wt::WPushButton>("more-btn", Wt::WString::tr("Lms.template.more-btn"), Wt::TextFormat::XHTML);
+        disc->bindNew<Wt::WPushButton>("more-btn", Wt::WString::tr("Lms.template.more-btn"), Wt::TextFormat::XHTML)
+            ->setAttributeValue("aria-label", Wt::WString::tr("Lms.more"));
+        ;
         disc->bindNew<Wt::WPushButton>("play", Wt::WString::tr("Lms.Explore.play"))
             ->clicked()
             .connect([this, mediumId] {

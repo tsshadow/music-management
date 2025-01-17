@@ -47,6 +47,7 @@ namespace lms::ui::utils
             auto image{ std::make_unique<Wt::WImage>() };
             image->setStyleClass("Lms-cover img-fluid");                                          // HACK
             image->setAttributeValue("onload", LmsApp->javaScriptClass() + ".onLoadCover(this)"); // HACK
+            image->setAlternateText(Wt::WString::tr("Lms.Explore.cover-art"));
 
             return image;
         }

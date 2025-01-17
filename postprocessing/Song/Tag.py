@@ -71,42 +71,42 @@ class Tag:
         old_value = self.value[:]
         self.value.sort()
         if old_value != self.value:
-            logging.info(self.tag, "changed (sort) from %s to %s", old_value, self.value)
+            logging.info(f" {self.tag} changed(sort) from {old_value} to {self.value}")
             self.changed = True
 
     def deduplicate(self):
         old_value = self.value[:]
         self.value = list(dict.fromkeys(self.value))
         if old_value != self.value:
-            logging.info(self.tag, "changed (deduplicate) from %s to %s", old_value, self.value)
+            logging.info(f" {self.tag} changed(deduplicate) from {old_value} to {self.value}")
             self.changed = True
 
     def add(self, item):
         if item not in self.value:
             old_value = self.value[:]
             self.value.append(item)
-            logging.info(self.tag, "changed (add) from %s to %s", old_value, self.value)
+            logging.info(f" {self.tag} changed(add) from {old_value} to {self.value}")
             self.changed = True
 
     def remove(self, val):
         old_value = self.value[:]
         if val in self.value:
             self.value.remove(val)
-            logging.info(self.tag, "changed (remove) from %s to %s", old_value, self.value)
+            logging.info(f" {self.tag} changed(remove) from {old_value} to {self.value}")
             self.changed = True
 
     def recapitalize(self):
         old_value = self.value[:]
         self.value = [element.title() for element in self.value]
         if old_value != self.value:
-            logging.info(self.tag, "changed (recapitalize) from %s to %s", old_value, self.value)
+            logging.info(f" {self.tag} changed(recapitalize) from {old_value} to {self.value}")
             self.changed = True
 
     def strip(self):
         old_value = self.value[:]
         self.value = [element.strip() for element in self.value]
         if old_value != self.value:
-            logging.info(self.tag, "changed (strip) from %s to %s", old_value, self.value)
+            logging.info(f" {self.tag} changed(strip) from {old_value} to {self.value}")
             self.changed = True
 
     # def filter(self, input, output):
@@ -122,7 +122,7 @@ class Tag:
         if old_value != self.value:
             self.changed = True
             self.resplit()
-            logging.info(self.tag, "changed (regex from %s to %s", old_value, self.value)
+            logging.info(f" {self.tag} changed(regex) from {old_value} to {self.value}")
 
     def has_changes(self):
         return self.changed
@@ -139,7 +139,7 @@ class Tag:
         self.value = [ArtistHelper.recapitalize(name) for name in self.value]
         if old_value != self.value:
             self.changed = True
-            logging.info(self.tag, "changed (special_recapitalize) from %s to %s", old_value, self.value)
+            logging.info(f" {self.tag} changed(special_recapitalize) from {old_value} to {self.value}")
 
     def set(self, value):
         old_value = self.value[:]
@@ -156,6 +156,6 @@ class Tag:
                 logging.info('TypeError')
                 pass
         if old_value != self.value:
-            logging.info(self.tag, "changed (set) from %s to %s", old_value, self.value)
+            logging.info(f" {self.tag} changed(set) from {old_value} to {self.value}")
             self.changed = True
 

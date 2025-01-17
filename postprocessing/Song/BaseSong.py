@@ -154,7 +154,7 @@ class BaseSong:
                     if tag.has_changes():
                         self.set_tag(tag)
                         self.music_file.save()
-                        logging.info("saving %s", self.path())
+                        logging.info(f"saving {self.path()}")
                 else:
                     logging.info("Failed to save tag: %s", tag)
 
@@ -184,7 +184,7 @@ class BaseSong:
                     return None
 
     def set_tag(self, tag: Tag):
-        logging.info("set tag %s to %s", tag.tag, tag.to_string(), self.music_file.get(tag.tag))
+        logging.info(f"set tag {tag.tag} to {tag.to_string()} (was: {self.music_file.get(tag.tag)})")
         if self.music_file:
             if self.type == MusicFileType.MP3:
                 self.music_file[tag.tag] = tag.to_string()
@@ -198,7 +198,7 @@ class BaseSong:
                 # except Exception as e:
                 #     logging.info(e)
                 self.music_file.tags[WAVTags[tag.tag]] = mutagen.id3.TextFrame(encoding=3, text=[tag.to_string()])
-                logging.info('set %s', self.music_file.tags[WAVTags[tag.tag]])
+                logging.info(f'set {self.music_file.tags[WAVTags[tag.tag]]}')
             elif self.type == MusicFileType.M4A:
                 # try:
                 #     logging.info(self.music_file.tags[MP4Tags[tag]])

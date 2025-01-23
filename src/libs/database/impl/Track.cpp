@@ -181,9 +181,6 @@ namespace lms::db
             case TrackSortMethod::AddedDesc:
                 query.orderBy("t.file_added DESC");
                 break;
-            case TrackSortMethod::Added:
-                query.orderBy("t.file_added DESC");
-                break;
             case TrackSortMethod::Random:
                 query.orderBy("RANDOM()");
                 break;

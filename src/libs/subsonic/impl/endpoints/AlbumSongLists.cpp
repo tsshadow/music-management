@@ -336,13 +336,13 @@ namespace lms::api::subsonic
         {
             return TrackSortMethod::Random;
         }
-        if (input == "Added")
+        if (input == "AddedDesc")
         {
-            return TrackSortMethod::Added;
+            return TrackSortMethod::AddedDesc;
         }
-        if (input == "LastWritten")
+        if (input == "LastWrittenDesc")
         {
-            return TrackSortMethod::LastWritten;
+            return TrackSortMethod::LastWrittenDesc;
         }
         if (input == "StarredDateDesc")
         {
@@ -381,13 +381,13 @@ namespace lms::api::subsonic
         {
             return "Random";
         }
-        if (input == TrackSortMethod::Added)
+        if (input == TrackSortMethod::AddedDesc)
         {
-            return "Added";
+            return "AddedDesc";
         }
-        if (input == TrackSortMethod::LastWritten)
+        if (input == TrackSortMethod::LastWrittenDesc)
         {
-            return "LastWritten";
+            return "LastWrittenDesc";
         }
         if (input == TrackSortMethod::StarredDateDesc)
         {
@@ -484,9 +484,9 @@ namespace lms::api::subsonic
         sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::Id));
         sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::Name));
         sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::Random));
-        sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::Added));
+        sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::AddedDesc));
         sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::DateDescAndRelease));
-        sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::LastWritten));
+        sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::LastWrittenDesc));
         sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::Release));
         sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::TrackList));
         sortMethods.addArrayValue("sortMethods", sortMethodToString(TrackSortMethod::StarredDateDesc));

@@ -34,7 +34,7 @@
 namespace lms::api::subsonic
 {
     // Max count expected from all API methods that expose a count
-    static inline constexpr std::size_t defaultMaxCountSize{ \52'000 };
+    static inline constexpr std::size_t defaultMaxCountSize{ 2'500 };
 
     class Error
     {

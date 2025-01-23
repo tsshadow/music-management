@@ -423,9 +423,9 @@ namespace lms::metadata
         // user.schriks: Custom tags:
         track.rating = getRating(tagReader);
 
-        if (track.year.has_value())
+        if (track.date.getYear().has_value())
         {
-            track.userExtraTags["YEAR"] = { std::to_string(track.year.value()) };
+            track.userExtraTags["YEAR"] = { std::to_string(track.date.getYear().value()) };
         }
 
         if (track.audioProperties.duration > std::chrono::minutes(10))

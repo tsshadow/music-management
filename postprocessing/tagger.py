@@ -131,6 +131,8 @@ class Tagger:
                 pass
             except SystemExit:
                 sys.exit(2)
+            except Exception as e:
+                logging.error(f"Parse_song failed: {e} {file}")
         for sub_folder in folders:
             if sub_folder[0] != '_':
                 self.parse_folder(folder + s.delimiter + sub_folder, song_type)

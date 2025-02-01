@@ -8,7 +8,7 @@ from data.settings import Settings
 
 def get_cat_id(folder):
     """
-    Extract the category ID from the folder name and clean it.
+    Extract the CAT ID from the folder name and clean it.
     """
     cat_id = folder.split(' ')[0]  # Split at the first space and get the first part
 
@@ -87,11 +87,11 @@ class Mover:
             cat_id = get_cat_id(folder)
 
             if cat_id:
-                # Attempt to match category ID with a label
+                # Attempt to match CAT ID with a label
                 try:
                     label = self.labels[cat_id]
                 except KeyError:
-                    logging.warning(f"Category ID {cat_id} not found in labels for folder {folder}")
+                    logging.warning(f"CAT ID {cat_id} not found in labels for folder {folder}")
                     continue
 
                 # Build source and destination paths
@@ -111,4 +111,4 @@ class Mover:
                     logging.error(f"Error moving {src} to {dst}: {e}")
 
             else:
-                logging.warning(f"No valid category ID found for folder: {folder}")
+                logging.warning(f"No valid CAT ID found for folder: {folder}")

@@ -48,12 +48,6 @@ if __name__ == '__main__':
             except Exception as e:
                 logging.error(f"Mover failed: {e}")
 
-            # Sanitize process
-            try:
-                sanitizer.sanitize()
-                logging.info("Sanitizing completed.")
-            except Exception as e:
-                logging.error(f"Sanitizing failed: {e}")
 
             # Tagging process
             try:
@@ -61,7 +55,12 @@ if __name__ == '__main__':
                 logging.info("Tagging completed.")
             except Exception as e:
                 logging.error(f"Tagger failed: {e}")
-
+            # Sanitize process
+            try:
+                sanitizer.sanitize()
+                logging.info("Sanitizing completed.")
+            except Exception as e:
+                logging.error(f"Sanitizing failed: {e}")
         except KeyboardInterrupt:
             logging.info("Process interrupted by user. Exiting.")
             break

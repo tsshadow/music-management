@@ -18,9 +18,9 @@ class ArtistHelper:
                     ArtistHelper.artist_cache[artist.lower()] = artist  # Store lowercase for case-insensitive lookup
 
     @staticmethod
-    def recapitalize(name):
+    def recapitalize(name: str):
         ArtistHelper.load_artist_cache()
-        return ArtistHelper.artist_cache.get(name.lower(), name)
+        return ArtistHelper.artist_cache.get(name.lower(), name.title())
 
 
 # class ArtistHelper2:

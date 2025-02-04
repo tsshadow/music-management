@@ -10,6 +10,7 @@ from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4
 from mutagen.wave import WAVE
 
+from data.DatabaseConnector import DatabaseConnector
 from data.settings import Settings
 from postprocessing.Song.Tag import Tag
 from postprocessing.Song.Helpers import LookupTableHelper
@@ -19,9 +20,24 @@ from postprocessing.constants import ARTIST, GENRE, WAVTags, MP4Tags, DATE, PARS
     COPYRIGHT, ALBUM_ARTIST, BPM, MusicFileType, TITLE, MP3Tags, FLACTags, AACTags
 
 s = Settings()
-artistGenreHelper = LookupTableHelper('data/artist-genre.txt')
-labelGenreHelper = LookupTableHelper('data/label-genre.txt')
-subgenreGenreHelper = LookupTableHelper('data/subgenres-genres.txt')
+db_connector = DatabaseConnector()
+artistGenreHelper = LookupTableHelper(
+    table_name="artist_genre",
+    key_column_name="artist",
+    value_column_name="genre"
+)
+
+labelGenreHelper = LookupTableHelper(
+    table_name="label_genre",
+    key_column_name="label",
+    value_column_name="genre"
+)
+
+subgenreGenreHelper = LookupTableHelper(
+    table_name="subgenre_genre",
+    key_column_name="subgenre",
+    value_column_name="genre"
+)
 
 
 class ExtensionNotSupportedException(Exception):
@@ -29,8 +45,8 @@ class ExtensionNotSupportedException(Exception):
 
 
 uniqueArtists = TitleCaseTagChecker("Artists", "data/artists.txt", "data/ignored_artists.txt")
-uniqueGenres = UniqueTagHandler("Genres", "data/genres.txt", "data/ignored_genres.txt")
 uniqueAlbumArtists = TitleCaseTagChecker("Album Artists", "data/artists.txt", "data/ignored_artists.txt")
+uniqueGenres = UniqueTagHandler("Genres", "data/genres.txt", "data/ignored_genres.txt")
 
 
 class BaseSong:
@@ -121,6 +137,14 @@ class BaseSong:
         if lookup_genres:
             song_genres = self.merge_and_sort_genres(song_genres, lookup_genres)
             self.update_tag(GENRE, ";".join(song_genres))
+    def get_genre_from_album_artist(self):
+        publisher = self.tag_collection.get_item_as_string(ALBUM_ARTIST)
+        song_genres = self.tag_collection.get_item_as_array(GENRE)
+        lookup_genres = labelGenreHelper.get(publisher)
+        if lookup_genres:
+            song_genres = self.merge_and_sort_genres(song_genres, lookup_genres)
+            self.update_tag(GENRE, ";".join(song_genres))
+
 
     def get_genre_from_subgenres(self):
         song_genres = self.tag_collection.get_item_as_array(GENRE)
@@ -129,6 +153,7 @@ class BaseSong:
             if lookup_genres:
                 song_genres = self.merge_and_sort_genres(song_genres, lookup_genres)
                 self.update_tag(GENRE, ";".join(song_genres))
+
     def sort_genres(self):
         self.tag_collection.get_item_as_array(GENRE).sort()
 

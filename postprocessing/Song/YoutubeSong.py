@@ -21,6 +21,7 @@ class YoutubeSong(BaseSong):
         self.update_tag(CATALOG_NUMBER, self._catalog_number)
         self.get_genre_from_artist()
         self.get_genre_from_subgenres()
+        self.get_genre_from_album_artist()
         self.sort_genres()
         self.parse_tags()
 

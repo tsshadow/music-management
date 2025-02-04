@@ -1,7 +1,0 @@
-Bouncy Uptempo:Uptempo Hardcore
-Euphoric Hardstyle:Hardstyle
-Mainstream Hardcore:Hardcore
-Mainstream Hardstyle:Hardstyle
-Raw Hardstyle:Hardstyle
-Uptempo Hardcore:Hardcore
-Industrial Hardcore:Hardcore

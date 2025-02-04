@@ -1,26 +1,28 @@
 import logging
 import re
 
-from postprocessing.Song.UniqueTagHandler import custom_title
+from data.DatabaseConnector import DatabaseConnector
 from postprocessing.constants import ARTIST_REGEX
 
+import logging
 
 class ArtistHelper:
-    artist_cache = None
-
-    @staticmethod
-    def load_artist_cache(file_path='./data/artists.txt'):
-        if ArtistHelper.artist_cache is None:
-            ArtistHelper.artist_cache = {}
-            with open(file_path, 'r', encoding="utf-8") as f:
-                for line in f:
-                    artist = line.strip()
-                    ArtistHelper.artist_cache[artist.lower()] = artist  # Store lowercase for case-insensitive lookup
-
     @staticmethod
     def recapitalize(name: str):
-        ArtistHelper.load_artist_cache()
-        return ArtistHelper.artist_cache.get(name.lower(), name.title())
+        query = "SELECT name FROM artists WHERE LOWER(name) = %s"
+        db_connector = DatabaseConnector()
+        connection = db_connector.connect()
+
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query, (name.lower(),))
+                result = cursor.fetchone()
+                return result[0] if result else name.title()
+        except Exception as e:
+            logging.error(f"Error querying artist name: {e}")
+            return name.title()
+
+
 
 
 # class ArtistHelper2:

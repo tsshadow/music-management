@@ -1,20 +1,27 @@
 import logging
 
+from data.DatabaseConnector import DatabaseConnector
+
 
 class LookupTableHelper:
+    def __init__(self, table_name, key_column_name, value_column_name):
+        self.table_name = table_name
+        self.key_column_name = key_column_name
+        self.value_column_name = value_column_name
+        self.db_connector = DatabaseConnector()
 
-    def __init__(self, file_path):
-        self.map = self.load_map_from_file(file_path)
+    def get(self, key) -> list[str]:
+        query = f"SELECT {self.value_column_name} FROM {self.table_name} WHERE {self.key_column_name} = %s"
+        connection = self.db_connector.connect()
 
-    @staticmethod
-    def load_map_from_file(file_path):
-        local_map = {}
-
-        with open(file_path, 'r') as file:
-            for line in file:
-                key, values = line.strip().split(':')
-                local_map[key] = values.split(',')
-        return local_map
-
-    def get(self, key):
-        return self.map.get(key)
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query, key)
+                result = cursor.fetchall()
+                if result:
+                    return [str(row[0]) for row in result]
+                else:
+                    return []
+        except Exception as e:
+            logging.error(f"Error querying database: {e}")
+            return []

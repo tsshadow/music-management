@@ -49,7 +49,7 @@ class Tagger:
             for label in label_folders:
                 # Skip free/none and todofolder
                 if label[0] != "_":
-                    # self.parse_folder(s.eps_folder_path + s.delimiter + label, SongTypeEnum.LABEL)
+                    self.parse_folder(s.eps_folder_path + s.delimiter + label, SongTypeEnum.LABEL)
                     pass
                 else:
                     self.parse_folder(s.eps_folder_path + s.delimiter + label, SongTypeEnum.GENERIC)

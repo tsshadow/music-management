@@ -3,6 +3,8 @@ import shutil
 import string
 from os import listdir
 from os.path import isfile, join
+
+from data.DatabaseConnector import DatabaseConnector
 from data.settings import Settings
 
 
@@ -31,37 +33,27 @@ def get_cat_id(folder):
     return cat_id_prefix
 
 
-def populate_map_from_file(file_path):
-    """
-    Read a file and populate a dictionary of key-value pairs.
-    """
-    key_value_map = {}
-
-    try:
-        with open(file_path, 'r') as file:
-            for line in file:
-                # Remove brackets and split key-value pairs
-                line = line.strip()[1:-1]
-                parts = line.split(':')
-                if len(parts) == 2:
-                    key = parts[0].strip().strip("'")
-                    value = parts[1].strip().strip("'")
-                    key_value_map[key] = value
-                else:
-                    logging.warning(f"Invalid line format in {file_path}: {line}")
-    except FileNotFoundError:
-        logging.error(f"File not found: {file_path}")
-    except Exception as e:
-        logging.error(f"Error reading file {file_path}: {e}")
-
-    return key_value_map
-
 
 class Mover:
     def __init__(self):
         self.settings = Settings()
-        file_path = join(self.settings.eps_folder_path, "labels.txt")
-        self.labels = populate_map_from_file(file_path)
+        self.db_connector = DatabaseConnector()
+
+    def get_label(self, key) -> str | None:
+        query = f"SELECT 'label' FROM `catid_label` WHERE 'catid' = %s"
+        connection = self.db_connector.connect()
+
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query, key)
+                result = cursor.fetchone()
+                if result:
+                    return str(result[0])
+                else:
+                    return None
+        except Exception as e:
+            logging.error(f"Error querying database: {e}")
+            return None
 
     def remove(self, folder):
         """
@@ -88,27 +80,25 @@ class Mover:
 
             if cat_id:
                 # Attempt to match CAT ID with a label
-                try:
-                    label = self.labels[cat_id]
-                except KeyError:
+                label = self.get_label(cat_id)
+                print(label,cat_id)
+                if label is None:
                     logging.warning(f"CAT ID {cat_id} not found in labels for folder {folder}")
-                    continue
+                else:
+                    # Build source and destination paths
+                    src = join(self.settings.import_folder_path, folder)
+                    dst = join(self.settings.eps_folder_path, label, folder)
 
-                # Build source and destination paths
-                src = join(self.settings.import_folder_path, folder)
-                dst = join(self.settings.eps_folder_path, label, folder)
-
-                # Move or simulate move
-                try:
-                    if not dry_run:
-                        shutil.move(src, dst)
-                    logging.info(f"Moved: {src} -> {dst}")
-                except FileExistsError:
-                    logging.warning(f"Conflict: {dst} already exists. Removing {src}")
-                    if not dry_run:
-                        self.remove(folder)
-                except Exception as e:
-                    logging.error(f"Error moving {src} to {dst}: {e}")
-
+                    # Move or simulate move
+                    try:
+                        if not dry_run:
+                            shutil.move(src, dst)
+                        logging.info(f"Moved: {src} -> {dst}")
+                    except FileExistsError:
+                        logging.warning(f"Conflict: {dst} already exists. Removing {src}")
+                        if not dry_run:
+                            self.remove(folder)
+                    except Exception as e:
+                        logging.error(f"Error moving {src} to {dst}: {e}")
             else:
                 logging.warning(f"No valid CAT ID found for folder: {folder}")

@@ -1,4 +1,5 @@
 import logging
+import re
 import shutil
 import string
 from os import listdir
@@ -7,30 +8,21 @@ from os.path import isfile, join
 from data.DatabaseConnector import DatabaseConnector
 from data.settings import Settings
 
-
 def get_cat_id(folder):
     """
-    Extract the CAT ID from the folder name and clean it.
+    Extracts the catalog ID (CAT ID) from a folder name.
+    - Takes the first space-separated part.
+    - Keeps letters/numbers up to but not including at least 3 consecutive numbers.
     """
-    cat_id = folder.split(' ')[0]  # Split at the first space and get the first part
+    first_part = folder.split(' ')[0]  # Extract first space-separated segment
 
-    # Ensure cat_id is not empty before further processing
-    if not cat_id:
-        return ''
+    # Match letters/numbers before at least 3 consecutive digits
+    match = re.match(r"^([A-Za-z]*\d*[A-Za-z]*)(?=\d{3,})", first_part)
 
-    # Remove specific postfix characters
-    if cat_id[-1] in ['B', 'A', 'D', 'E', 'R', 'X', '_']:
-        if len(cat_id) > 1 and cat_id[-2].isdigit():  # Ensure there's a digit before the last character
-            cat_id = cat_id[:-1]
+    if match:
+        return match.group(1)  # Return only the first matched section
 
-    # Strip trailing numbers and handle 'PRO' in multiple locations
-    cat_id_prefix = cat_id.rstrip(string.digits)
-    if 'PRO' in cat_id_prefix:
-        cat_id_prefix = cat_id_prefix.replace('PRO', '', 1).rstrip(string.digits)
-    if 'PRO' in cat_id_prefix:
-        cat_id_prefix = cat_id_prefix.replace('PRO', '', 1).rstrip(string.digits)
-
-    return cat_id_prefix
+    return first_part  # Fallback return if no match is found
 
 
 
@@ -81,7 +73,6 @@ class Mover:
             if cat_id:
                 # Attempt to match CAT ID with a label
                 label = self.get_label(cat_id)
-                print(label,cat_id)
                 if label is None:
                     logging.warning(f"CAT ID {cat_id} not found in labels for folder {folder}")
                 else:

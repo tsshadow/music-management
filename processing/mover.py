@@ -8,27 +8,35 @@ from os.path import isfile, join
 from data.DatabaseConnector import DatabaseConnector
 from data.settings import Settings
 
-def get_cat_id(folder):
+def get_cat_id(folder: str):
     """
     Extracts the catalog ID (CAT ID) from a folder name.
     - Takes the first space-separated part.
     - Keeps letters/numbers up to but not including at least 3 consecutive numbers.
     """
-    first_part = folder.split(' ')[0]  # Extract first space-separated segment
+    if ' ' in folder:
+        first_part = folder.split(' ')[0]  # Extract first space-separated segment
 
-    # Exceptions, because it has 3 characters in its name.
-    if '247HC' in first_part:
-        return '247HC'
-    if 'R909' in first_part:
-        return 'R909'
+        # Exceptions, because it has 3 characters in its name.
+        if '247HC' in first_part:
+            return '247HC'
+        if 'R909' in first_part:
+            return 'R909'
+        if 'UNFD' in first_part:
+            return 'UNFD'
 
-    # Match letters/numbers before at least 3 consecutive digits
-    match = re.match(r"^([A-Za-z]*\d*[A-Za-z]*)(?=\d{3,})", first_part)
+        # Remove underscores and dashes (common formatting artifacts)
+        first_part = first_part.replace('_', '').replace('-', '')
 
-    if match:
-        return match.group(1)  # Return only the first matched section
+        # Match letters/numbers before at least 3 consecutive digits
+        match = re.match(r"^([A-Za-z]*\d*[A-Za-z]*)(?=\d{3,})", first_part)
 
-    return first_part  # Fallback return if no match is found
+        if match:
+            return match.group(1)  # Return only the first matched section
+
+        return first_part  # Fallback return if no match is found
+    else:
+        return None
 
 
 
@@ -73,15 +81,12 @@ class Mover:
                         not isfile(join(self.settings.import_folder_path, f))]
 
         for folder in only_folders:
-            label = ''
             cat_id = get_cat_id(folder)
 
             if cat_id:
                 # Attempt to match CAT ID with a label
                 label = self.get_label(cat_id)
-                print(label,cat_id)
                 if label is None:
-                    print(label,cat_id)
                     logging.warning(f"CAT ID {cat_id} not found in labels for folder {folder}")
                 else:
                     # Build source and destination paths

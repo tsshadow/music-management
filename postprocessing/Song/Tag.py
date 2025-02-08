@@ -22,26 +22,6 @@ class ArtistHelper:
             logging.error(f"Error querying artist name: {e}")
             return name.title()
 
-
-
-
-# class ArtistHelper2:
-#     artist_cache = None
-#
-#     @staticmethod
-#     def load_artist_cache(file_path='./data/artists.txt'):
-#         if ArtistHelper.artist_cache is None:
-#             ArtistHelper.artist_cache = {}
-#             with open(file_path, 'r',  encoding="utf-8") as f:
-#                 for line in f:
-#                     artist = line.strip()
-#                     ArtistHelper.artist_cache[artist.lower()] = artist  # Store lowercase for case-insensitive lookup
-#
-#     @staticmethod
-#     def recapitalize(name):
-#         ArtistHelper.load_artist_cache()
-#         return ArtistHelper.artist_cache.get(name.lower(), name)
-
 class Tag:
     def __init__(self, tag, value):
         self.tag: str = tag

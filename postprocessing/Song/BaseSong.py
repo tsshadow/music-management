@@ -15,7 +15,6 @@ from data.settings import Settings
 from postprocessing.Song.Tag import Tag
 from postprocessing.Song.Helpers import LookupTableHelper
 from postprocessing.Song.TagCollection import TagCollection
-from postprocessing.Song.UniqueTagHandler import UniqueTagHandler, TitleCaseTagChecker
 from postprocessing.constants import ARTIST, GENRE, WAVTags, MP4Tags, DATE, PARSED, CATALOG_NUMBER, PUBLISHER, \
     COPYRIGHT, ALBUM_ARTIST, BPM, MusicFileType, TITLE, MP3Tags, FLACTags, AACTags
 
@@ -43,10 +42,6 @@ subgenreGenreHelper = LookupTableHelper(
 class ExtensionNotSupportedException(Exception):
     pass
 
-
-uniqueArtists = TitleCaseTagChecker("Artists", "data/artists.txt", "data/ignored_artists.txt")
-uniqueAlbumArtists = TitleCaseTagChecker("Album Artists", "data/artists.txt", "data/ignored_artists.txt")
-uniqueGenres = UniqueTagHandler("Genres", "data/genres.txt", "data/ignored_genres.txt")
 
 
 class BaseSong:
@@ -98,11 +93,8 @@ class BaseSong:
             self.tag_collection.get_item(GENRE).recapitalize()
             self.tag_collection.get_item(GENRE).strip()
             self.tag_collection.get_item(GENRE).sort()
-            uniqueGenres.add_non_standard_names(self.tag_collection.get_item(GENRE).to_array())
 
     def __del__(self):
-        uniqueArtists.save()
-        uniqueGenres.save()
         self.save_file()
 
     def update_tag(self, tag, value):

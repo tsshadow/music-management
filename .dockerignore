@@ -1,0 +1,7 @@
+.venv
+venv
+.env.windows
+README.md
+test.py
+.git
+.gitignore

@@ -16,6 +16,12 @@ def get_cat_id(folder):
     """
     first_part = folder.split(' ')[0]  # Extract first space-separated segment
 
+    # Exceptions, because it has 3 characters in its name.
+    if '247HC' in first_part:
+        return '247HC'
+    if 'R909' in first_part:
+        return 'R909'
+
     # Match letters/numbers before at least 3 consecutive digits
     match = re.match(r"^([A-Za-z]*\d*[A-Za-z]*)(?=\d{3,})", first_part)
 
@@ -32,7 +38,7 @@ class Mover:
         self.db_connector = DatabaseConnector()
 
     def get_label(self, key) -> str | None:
-        query = f"SELECT 'label' FROM `catid_label` WHERE 'catid' = %s"
+        query = f"SELECT `label` FROM `catid_label` WHERE `catid` = %s"
         connection = self.db_connector.connect()
 
         try:
@@ -73,7 +79,9 @@ class Mover:
             if cat_id:
                 # Attempt to match CAT ID with a label
                 label = self.get_label(cat_id)
+                print(label,cat_id)
                 if label is None:
+                    print(label,cat_id)
                     logging.warning(f"CAT ID {cat_id} not found in labels for folder {folder}")
                 else:
                     # Build source and destination paths

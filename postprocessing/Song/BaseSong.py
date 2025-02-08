@@ -13,7 +13,7 @@ from mutagen.wave import WAVE
 from data.DatabaseConnector import DatabaseConnector
 from data.settings import Settings
 from postprocessing.Song.Tag import Tag
-from postprocessing.Song.Helpers import LookupTableHelper
+from postprocessing.Song.Helpers import LookupTableHelper, FilterTableHelper
 from postprocessing.Song.TagCollection import TagCollection
 from postprocessing.constants import ARTIST, GENRE, WAVTags, MP4Tags, DATE, PARSED, CATALOG_NUMBER, PUBLISHER, \
     COPYRIGHT, ALBUM_ARTIST, BPM, MusicFileType, TITLE, MP3Tags, FLACTags, AACTags
@@ -38,6 +38,7 @@ subgenreGenreHelper = LookupTableHelper(
     value_column_name="genre"
 )
 
+unique_genres = FilterTableHelper("genres", "genre")
 
 class ExtensionNotSupportedException(Exception):
     pass
@@ -72,11 +73,16 @@ class BaseSong:
             self.normalize_flac_tags()
 
     def normalize_flac_tags(self):
-        for tag in self.music_file.tags:
-            if tag[0] != tag[0].upper():
-                val = self.music_file.tags.pop(tag)
-                self.music_file[tag.upper()] = val
-                logging.info("Normalized FLAC tag: %s -> %s", tag, tag.upper())
+        new_tags = {}
+
+        for tag, value in self.music_file.tags:
+            upper_tag = tag.upper()
+            if tag != upper_tag:
+                logging.info("Normalized FLAC tag: %s -> %s", tag, upper_tag)
+            new_tags[upper_tag] = value  # Store normalized tag names
+
+        self.music_file.tags.clear()  # Clear original tags
+        self.music_file.tags.update(new_tags)  # Update with normalized tags
         self.music_file.save()
 
     def parse_tags(self):
@@ -93,6 +99,14 @@ class BaseSong:
             self.tag_collection.get_item(GENRE).recapitalize()
             self.tag_collection.get_item(GENRE).strip()
             self.tag_collection.get_item(GENRE).sort()
+            genres = self.tag_collection.get_item(GENRE).to_array()
+            for genre in genres:
+                if not unique_genres.exists(genre):
+                    print(genre)
+
+
+
+
 
     def __del__(self):
         self.save_file()

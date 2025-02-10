@@ -38,7 +38,7 @@ subgenreGenreHelper = LookupTableHelper(
     value_column_name="genre"
 )
 
-unique_genres = FilterTableHelper("genres", "genre")
+unique_genres = FilterTableHelper("genres", "genre", "corrected_genre")
 
 class ExtensionNotSupportedException(Exception):
     pass
@@ -102,10 +102,10 @@ class BaseSong:
             genres = self.tag_collection.get_item(GENRE).to_array()
             for genre in genres:
                 if not unique_genres.exists(genre):
-                    print(genre)
-
-
-
+                    self.tag_collection.get_item(GENRE).remove(genre)
+                elif unique_genres.get_corrected(genre) != "":
+                    self.tag_collection.get_item(GENRE).add(unique_genres.get_corrected(genre))
+                    self.tag_collection.get_item(GENRE).remove(genre)
 
 
     def __del__(self):

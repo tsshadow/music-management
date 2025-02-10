@@ -36,9 +36,10 @@ Helper class which wraps a table with a single column setup.
 This can be used to only allow filtered values. (For example genres)
 '''
 class FilterTableHelper:
-    def __init__(self, table_name, column_name):
+    def __init__(self, table_name, column_name, corrected_column_name):
         self.table_name = table_name
         self.column_name = column_name
+        self.corrected_column_name = corrected_column_name
         self.db_connector = DatabaseConnector()
 
     def exists(self, key) -> bool:
@@ -53,6 +54,19 @@ class FilterTableHelper:
         except Exception as e:
             logging.error(f"Error querying database: {e}")
             return False
+
+    def get_corrected(self, key) -> str:
+        query = f"SELECT {self.corrected_column_name} FROM {self.table_name} WHERE {self.column_name} = %s LIMIT 1"
+        connection = self.db_connector.connect()
+
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query, (key,))
+                result = cursor.fetchone()
+                return result[0]
+        except Exception as e:
+            logging.error(f"Error querying database: {e}")
+            return ""
 
     def add(self, key: str) -> bool:
         query = f"INSERT INTO {self.table_name} ({self.column_name}) VALUES (%s)"

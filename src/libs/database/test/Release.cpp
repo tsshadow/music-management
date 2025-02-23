@@ -26,6 +26,7 @@ namespace lms::db::tests
 {
     using ScopedImage = ScopedEntity<db::Image>;
     using ScopedLabel = ScopedEntity<db::Label>;
+    using ScopedCountry = ScopedEntity<db::Country>;
     using ScopedReleaseType = ScopedEntity<db::ReleaseType>;
 
     TEST_F(DatabaseFixture, Release)
@@ -245,13 +246,13 @@ namespace lms::db::tests
         }
         {
             auto transaction{ session.createReadTransaction() };
-            auto releases{ Release::findIds(session, Release::FindParameters{}.setMediaLibrary(library->getId())) };
+            auto releases{ Release::findIds(session, Release::FindParameters{}.setFilters(Filters{}.setMediaLibrary(library->getId()))) };
             ASSERT_EQ(releases.results.size(), 1);
             EXPECT_EQ(releases.results.front(), release.getId());
         }
         {
             auto transaction{ session.createReadTransaction() };
-            auto releases{ Release::findIds(session, Release::FindParameters{}.setMediaLibrary(otherLibrary->getId())) };
+            auto releases{ Release::findIds(session, Release::FindParameters{}.setFilters(Filters{}.setMediaLibrary(otherLibrary->getId()))) };
             EXPECT_EQ(releases.results.size(), 0);
         }
     }
@@ -808,6 +809,30 @@ namespace lms::db::tests
         }
     }
 
+    TEST_F(DatabaseFixture, Release_getLabelNames)
+    {
+        ScopedRelease release{ session, "MyRelease" };
+        ScopedLabel label{ session, "MyLabel" };
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            const auto names{ release.get()->getLabelNames() };
+            EXPECT_EQ(names.size(), 0);
+        }
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            release.get().modify()->addLabel(label.get());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            const auto names{ release.get()->getLabelNames() };
+            ASSERT_EQ(names.size(), 1);
+            EXPECT_EQ(names[0], "MyLabel");
+        }
+    }
+
     TEST_F(DatabaseFixture, Label_orphan)
     {
         ScopedLabel label{ session, "MyLabel" };
@@ -842,6 +867,78 @@ namespace lms::db::tests
             auto labels{ Label::findOrphanIds(session) };
             ASSERT_EQ(labels.results.size(), 1);
             EXPECT_EQ(labels.results.front(), label.getId());
+        }
+    }
+
+    TEST_F(DatabaseFixture, Country)
+    {
+        {
+            auto transaction{ session.createReadTransaction() };
+            Country::pointer res{ Country::find(session, "country") };
+            EXPECT_EQ(res, Country::pointer{});
+        }
+
+        ScopedCountry country{ session, "MyCountry" };
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            Country::pointer res{ Country::find(session, "MyCountry") };
+            EXPECT_EQ(res, country.get());
+        }
+    }
+
+    TEST_F(DatabaseFixture, Release_getCountryNames)
+    {
+        ScopedCountry country{ session, "MyCountry" };
+        ScopedRelease release{ session, "MyRelease" };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            release.get().modify()->addCountry(country.get());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            const auto names{ release.get()->getCountryNames() };
+            ASSERT_EQ(names.size(), 1);
+            EXPECT_EQ(names[0], "MyCountry");
+        }
+    }
+
+    TEST_F(DatabaseFixture, Country_orphan)
+    {
+        ScopedCountry country{ session, "MyCountry" };
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            auto countries{ Country::findOrphanIds(session) };
+            ASSERT_EQ(countries.results.size(), 1);
+            EXPECT_EQ(countries.results.front(), country.getId());
+        }
+
+        ScopedRelease release{ session, "MyRelease" };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            release.get().modify()->addCountry(country.get());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            auto countries{ Country::findOrphanIds(session) };
+            EXPECT_EQ(countries.results.size(), 0);
+        }
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            release.get().modify()->clearCountries();
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            auto countries{ Country::findOrphanIds(session) };
+            ASSERT_EQ(countries.results.size(), 1);
+            EXPECT_EQ(countries.results.front(), country.getId());
         }
     }
 
@@ -1261,6 +1358,62 @@ namespace lms::db::tests
             const Wt::WDateTime addedTime{ release.get()->getAddedTime() };
             ASSERT_TRUE(addedTime.isValid());
             EXPECT_EQ(addedTime, track2.get()->getAddedTime());
+        }
+    }
+
+    TEST_F(DatabaseFixture, Release_groupMBID)
+    {
+        ScopedRelease release{ session, "relA" };
+        const std::optional<core::UUID> groupMBID{ core::UUID::fromString("1ad8f716-2fd6-4d09-8ada-39525947217c") };
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            const auto releases{ Release::find(session, Release::FindParameters{}.setReleaseGroupMBID(groupMBID)) };
+            EXPECT_EQ(releases.results.size(), 0);
+        }
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            release.get().modify()->setGroupMBID(groupMBID);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            const auto releases{ Release::find(session, Release::FindParameters{}.setReleaseGroupMBID(groupMBID)) };
+            EXPECT_EQ(releases.results.size(), 1);
+            EXPECT_EQ(releases.results[0]->getId(), release->getId());
+        }
+    }
+
+    TEST_F(DatabaseFixture, Release_sortName)
+    {
+        ScopedRelease release1{ session, "MyRelease1" };
+        ScopedRelease release2{ session, "MyRelease2" };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            release1.get().modify()->setSortName("BB");
+            release2.get().modify()->setSortName("AA");
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            const auto releases{ Release::find(session, Release::FindParameters{}.setSortMethod(ReleaseSortMethod::Name)) };
+            ASSERT_EQ(releases.results.size(), 2);
+            EXPECT_EQ(releases.results[0]->getId(), release1->getId());
+            EXPECT_EQ(releases.results[1]->getId(), release2->getId());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            const auto releases{ Release::find(session, Release::FindParameters{}.setSortMethod(ReleaseSortMethod::SortName)) };
+            ASSERT_EQ(releases.results.size(), 2);
+            EXPECT_EQ(releases.results[0]->getId(), release2->getId());
+            EXPECT_EQ(releases.results[1]->getId(), release1->getId());
         }
     }
 } // namespace lms::db::tests

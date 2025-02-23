@@ -55,8 +55,8 @@ namespace lms::scanner
 
             if (artistInfo.mbid)
                 artist.modify()->setMBID(artistInfo.mbid);
-            if (artistInfo.sortName)
-                artist.modify()->setSortName(*artistInfo.sortName);
+
+            artist.modify()->setSortName(artistInfo.sortName ? *artistInfo.sortName : artistInfo.name);
 
             return artist;
         }
@@ -141,6 +141,15 @@ namespace lms::scanner
             return releaseType;
         }
 
+        db::Country::pointer getOrCreateCountry(db::Session& session, std::string_view name)
+        {
+            db::Country::pointer country{ db::Country::find(session, name) };
+            if (!country)
+                country = session.create<db::Country>(name);
+
+            return country;
+        }
+
         db::Label::pointer getOrCreateLabel(db::Session& session, std::string_view name)
         {
             db::Label::pointer label{ db::Label::find(session, name) };
@@ -166,13 +175,20 @@ namespace lms::scanner
                 release.modify()->setCompilation(releaseInfo.isCompilation);
             if (release->getBarcode() != releaseInfo.barcode)
                 release.modify()->setBarcode(releaseInfo.barcode);
+            if (release->getComment() != releaseInfo.comment)
+                release.modify()->setComment(releaseInfo.comment);
             if (release->getReleaseTypeNames() != releaseInfo.releaseTypes)
             {
                 release.modify()->clearReleaseTypes();
                 for (std::string_view releaseType : releaseInfo.releaseTypes)
                     release.modify()->addReleaseType(getOrCreateReleaseType(session, releaseType));
             }
-
+            if (release->getCountryNames() != releaseInfo.countries)
+            {
+                release.modify()->clearCountries();
+                for (std::string_view country : releaseInfo.countries)
+                    release.modify()->addCountry(getOrCreateCountry(session, country));
+            }
             if (release->getLabelNames() != releaseInfo.labels)
             {
                 release.modify()->clearLabels();
@@ -329,6 +345,45 @@ namespace lms::scanner
             return db::Advisory::UnSet;
         }
 
+        db::Track::pointer findMovedTrackBySizeAndMetaData(db::Session& session, const metadata::Track& parsedTrack, const FileInfo& fileInfo)
+        {
+            db::Track::FindParameters params;
+            // Add as many fields as possible to limit errors
+            params.setName(parsedTrack.title);
+            if (parsedTrack.medium)
+            {
+                if (parsedTrack.medium->position)
+                    params.setDiscNumber(*parsedTrack.medium->position);
+                if (parsedTrack.medium->release)
+                    params.setReleaseName(parsedTrack.medium->release->name);
+            }
+            if (parsedTrack.position)
+                params.setTrackNumber(*parsedTrack.position);
+            params.setHasEmbeddedImage(parsedTrack.hasCover);
+            params.setFileSize(fileInfo.fileSize);
+
+            bool error{};
+            db::Track::pointer res;
+            db::Track::find(session, params, [&](const db::Track::pointer& track) {
+                // Check that the track is truly no longer where it was during the last scan
+                std::error_code ec;
+                if (std::filesystem::exists(track->getAbsoluteFilePath(), ec))
+                    return;
+
+                if (res)
+                {
+                    LMS_LOG(DBUPDATER, DEBUG, "Found too many candidates for file move. New file = " << fileInfo.relativePath << ", candidate = " << track->getAbsoluteFilePath() << ", previous candidate = " << res->getAbsoluteFilePath());
+                    error = true;
+                }
+                res = track;
+            });
+
+            if (error)
+                res = db::Track::pointer{};
+
+            return res;
+        }
+
         class AudioFileScanOperation : public IFileScanOperation
         {
         public:
@@ -444,6 +499,17 @@ namespace lms::scanner
                         }
                         return;
                     }
+                }
+            }
+
+            if (!track)
+            {
+                // maybe the file just moved?
+                track = findMovedTrackBySizeAndMetaData(dbSession, *_parsedTrack, *fileInfo);
+                if (track)
+                {
+                    LMS_LOG(DBUPDATER, DEBUG, "Considering track " << _file << " moved from " << track->getAbsoluteFilePath());
+                    track.modify()->setAbsoluteFilePath(_file);
                 }
             }
 

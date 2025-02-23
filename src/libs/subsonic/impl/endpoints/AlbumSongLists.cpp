@@ -450,7 +450,7 @@ namespace lms::api::subsonic
 
         params.setSortMethod(sortMethod);
         params.setRange(Range{ 0, size });
-        params.setMediaLibrary(mediaLibraryId);
+        params.filters.setMediaLibrary(mediaLibraryId);
 
         // Filters / Clusters
         if (filters.has_value())
@@ -466,7 +466,7 @@ namespace lms::api::subsonic
             {
                 clusters.push_back(GetCluster(filter["value"].GetString(), filter["name"].GetString(), context));
             }
-            params.setClusters(clusters);
+            params.filters.setClusters(clusters);
         }
 
         Response::Node& songsNode{ response.createNode("songs") };
@@ -522,9 +522,9 @@ namespace lms::api::subsonic
         Response::Node& songsByYearNode{ response.createNode("songsByYear") };
 
         Track::FindParameters params;
-        params.setClusters(std::initializer_list<ClusterId>{ cluster->getId() });
+        params.filters.setClusters(std::initializer_list<ClusterId>{ cluster->getId() });
         params.setRange(Range{ offset, count });
-        params.setMediaLibrary(mediaLibrary);
+        params.filters.setMediaLibrary(mediaLibrary);
 
         Track::find(context.dbSession, params, [&](const Track::pointer& track) {
             songsByYearNode.addArrayChild("song", createSongNode(context, track, context.user));
@@ -572,7 +572,7 @@ namespace lms::api::subsonic
         {
             clusters.push_back(GetCluster(length.value(), "LENGTH", context));
         }
-        params.setClusters(clusters);
+        params.filters.setClusters(clusters);
         params.setRange(Range{ offset, count });
 
         Track::find(context.dbSession, params, [&](const Track::pointer& track) {

@@ -41,7 +41,7 @@ class SelectSongFragment : Fragment(), RefreshableFragment {
     private var ratingMin: Spinner? = null
     private var ratingMax: Spinner? = null
 
-    private var lengthSpinner: Spinner? = null
+
 
     private var genreSpinner: Spinner? = null
     private var genreList = ArrayList<String>()
@@ -69,7 +69,6 @@ class SelectSongFragment : Fragment(), RefreshableFragment {
         yearSpinner = view.findViewById(R.id.select_year)
         ratingMin = view.findViewById(R.id.select_rating_min)
         ratingMax = view.findViewById(R.id.select_rating_max)
-        lengthSpinner = view.findViewById(R.id.select_length)
         genreSpinner = view.findViewById(R.id.select_genre)
         sortMethodSpinner = view.findViewById(R.id.select_sort_method)
         searchButton = view.findViewById(R.id.search)
@@ -83,7 +82,7 @@ class SelectSongFragment : Fragment(), RefreshableFragment {
                 size = maxSongs,
                 offset = 0,
                 year = yearSpinner?.selectedItem as String,
-                length = lengthSpinner?.selectedItem as String?,
+                length = "short",
                 ratingMin = ratingMin?.selectedItem as Int,
                 ratingMax = ratingMax?.selectedItem as Int,
                 sortMethod = sortMethodSpinner?.selectedItem as String
@@ -140,14 +139,6 @@ class SelectSongFragment : Fragment(), RefreshableFragment {
             ArrayAdapter<String>(requireContext(), android.R.layout.simple_spinner_item, years)
         yearAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
 
-        val lengthAdapter =
-            ArrayAdapter<String>(
-                requireContext(),
-                android.R.layout.simple_spinner_item,
-                arrayOf("", "short", "long")
-            )
-        yearAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-
         // Initialize empty genres list
         genreList = arrayListOf("")
         val genreAdapter =
@@ -176,11 +167,10 @@ class SelectSongFragment : Fragment(), RefreshableFragment {
         ratingMin?.setAdapter(ratingAdapter)
         ratingMax?.setAdapter(ratingAdapter)
         ratingMax?.setSelection(5)
-        lengthSpinner?.setAdapter(lengthAdapter)
         genreSpinner?.setAdapter(genreAdapter)
         sortMethodSpinner?.setAdapter(sortMethodAdapter)
 
-        setTitle(this, R.string.main_advanced_search_title)
+        setTitle(this, R.string.main_songs_title)
         load(false)
     }
 
@@ -191,7 +181,6 @@ class SelectSongFragment : Fragment(), RefreshableFragment {
             val genres = withContext(Dispatchers.IO) {
                 val musicService = getMusicService()
 //                val yr = yearSpinner?.getSelectedItem() as String;
-//                val l = lengthSpinner?.getSelectedItem() as String
 
                 musicService.getGenres(refresh, null, null)
             }

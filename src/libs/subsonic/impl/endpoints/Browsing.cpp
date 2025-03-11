@@ -368,6 +368,28 @@ namespace lms::api::subsonic
         }
 
         return response;
+    }    
+    
+    Response handleGetTagsRequest(RequestContext& context)
+    {
+        Response response{ Response::createOkResponse(context.serverProtocolVersion) };
+        std::string name{ getMandatoryParameterAs<std::string>(context.parameters, "name") };
+
+
+        Response::Node& tagsNode{ response.createNode("tags") };
+
+        auto transaction{ context.dbSession.createReadTransaction() };
+
+        const ClusterType::pointer clusterType{ ClusterType::find(context.dbSession, name) };
+        if (clusterType)
+        {
+            const auto clusters{ clusterType->getClusters() };
+
+            for (const Cluster::pointer& cluster : clusters)
+                tagsNode.addArrayChild("tag", createGenreNode(context, cluster));
+        }
+
+        return response;
     }
 
     Response handleGetMoodRequest(RequestContext& context)

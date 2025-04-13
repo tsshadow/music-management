@@ -435,77 +435,63 @@ namespace lms::api::subsonic
     }
 
     Response handleGetArtistsRequest(RequestContext& context)
+{
+    // Optional params
+    const MediaLibraryId mediaLibrary{
+        getParameterAs<MediaLibraryId>(context.parameters, "musicFolderId").value_or(MediaLibraryId{})
+    };
+
+    // offset + count to allow paging
+    std::size_t offset{
+        getParameterAs<std::size_t>(context.parameters, "offset").value_or(0)
+    };
+    std::size_t count{
+        getParameterAs<std::size_t>(context.parameters, "count").value_or(100)
+    };
+
+    Response response{ Response::createOkResponse(context.serverProtocolVersion) };
+    Response::Node& artistsNode{ response.createNode("artists") };
+    artistsNode.setAttribute("ignoredArticles", "");
+    artistsNode.setAttribute("lastModified", reportedDummyDateULong); // TODO: proper lastModified?
+
+    Artist::FindParameters parameters;
+    parameters.filters.setMediaLibrary(mediaLibrary);
+    parameters.setSortMethod(ArtistSortMethod::SortName);
+    parameters.setRange(Range{ offset, count });
+
+    switch (context.user->getSubsonicArtistListMode())
     {
-        // Optional params
-        const MediaLibraryId mediaLibrary{ getParameterAs<MediaLibraryId>(context.parameters, "musicFolderId").value_or(MediaLibraryId{}) };
+        case SubsonicArtistListMode::AllArtists:
+            break;
+        case SubsonicArtistListMode::ReleaseArtists:
+            parameters.setLinkType(TrackArtistLinkType::ReleaseArtist);
+            break;
+        case SubsonicArtistListMode::TrackArtists:
+            parameters.setLinkType(TrackArtistLinkType::Artist);
+            break;
+    }
 
-        // offset + size to allow paging, default 0 - 100 because all artists would freeze the app.
-        std::size_t offset{ getParameterAs<std::size_t>(context.parameters, "offset").value_or(0) };
-        std::size_t count{ getParameterAs<std::size_t>(context.parameters, "count").value_or(100) };
+    auto transaction = context.dbSession.createReadTransaction();
+    const auto artists = Artist::find(context.dbSession, parameters);
 
-        Response response{ Response::createOkResponse(context.serverProtocolVersion) };
 
-        Response::Node& artistsNode{ response.createNode("artists") };
-        artistsNode.setAttribute("ignoredArticles", "");
-        artistsNode.setAttribute("lastModified", reportedDummyDateULong); // TODO report last file write?
-
-        Artist::FindParameters parameters;
-        {
-            auto transaction{ context.dbSession.createReadTransaction() };
-
-            parameters.setSortMethod(ArtistSortMethod::SortName);
-            switch (context.user->getSubsonicArtistListMode())
-            {
-            case SubsonicArtistListMode::AllArtists:
-                break;
-            case SubsonicArtistListMode::ReleaseArtists:
-                parameters.setLinkType(TrackArtistLinkType::ReleaseArtist);
-                break;
-            case SubsonicArtistListMode::TrackArtists:
-                parameters.setLinkType(TrackArtistLinkType::Artist);
-                break;
-            }
-        }
-        parameters.filters.setMediaLibrary(mediaLibrary);
-
-        // This endpoint does not scale: make sort lived transactions in order not to block the whole application
-
-        // first pass: dispatch the artists by first letter
-        LMS_LOG(API_SUBSONIC, DEBUG, "GetArtists: fetching all artists...");
+        // Sort by index
         std::map<char, std::vector<ArtistId>> artistsSortedByFirstChar;
-        std::size_t currentArtistOffset{ offset };
-        constexpr std::size_t batchSize{ 100 };
-        bool hasMoreArtists{ true };
-        while (hasMoreArtists)
+	    for (const Artist::pointer& artist : artists.results)
         {
-            // The remaining artists to fetch
-        	std::size_t remainingArtists{ count - currentArtistOffset };
-            bool isLastRun {remainingArtists <= batchSize};
+            std::string_view sortName{ artist->getSortName() };
 
-            auto transaction{ context.dbSession.createReadTransaction() };
+            char sortChar;
+            if (sortName.empty() || !std::isalpha(sortName[0]))
+                sortChar = '#';
+            else
+                sortChar = std::toupper(sortName[0]);
 
-            parameters.setRange(Range{ currentArtistOffset, isLastRun? remainingArtists: batchSize });
-            const auto artists{ Artist::find(context.dbSession, parameters) };
-            for (const Artist::pointer& artist : artists.results)
-            {
-                std::string_view sortName{ artist->getSortName() };
-
-                char sortChar;
-                if (sortName.empty() || !std::isalpha(sortName[0]))
-                    sortChar = '#';
-                else
-                    sortChar = std::toupper(sortName[0]);
-
-                artistsSortedByFirstChar[sortChar].push_back(artist->getId());
+            artistsSortedByFirstChar[sortChar].push_back(artist->getId());
             }
 
-            hasMoreArtists = artists.moreResults && !isLastRun;
-            currentArtistOffset += artists.results.size();
-        }
-
-        // second pass: add each artist
-        LMS_LOG(API_SUBSONIC, DEBUG, "GetArtists: constructing response...");
-        for (const auto& [sortChar, artistIds] : artistsSortedByFirstChar)
+        // Group by index
+         for (const auto& [sortChar, artistIds] : artistsSortedByFirstChar)
         {
             Response::Node& indexNode{ artistsNode.createArrayChild("index") };
             indexNode.setAttribute("name", std::string{ sortChar });
@@ -520,7 +506,8 @@ namespace lms::api::subsonic
         }
 
         return response;
-    }
+}
+
 
     Response handleGetArtistRequest(RequestContext& context)
     {

@@ -418,7 +418,7 @@ namespace lms::api::subsonic
     {
         Response response{ Response::createOkResponse(context.serverProtocolVersion) };
 
-        Response::Node& moodNode{ response.createNode("years") };
+        Response::Node& yearsNode{ response.createNode("years") };
 
         auto transaction{ context.dbSession.createReadTransaction() };
 
@@ -428,7 +428,7 @@ namespace lms::api::subsonic
             const auto clusters{ clusterType->getClusters() };
 
             for (const Cluster::pointer& cluster : clusters)
-                moodNode.addArrayChild("genre", createGenreNode(context, cluster));
+                yearsNode.addArrayChild("year", createGenreNode(context, cluster));
         }
 
         return response;
@@ -438,6 +438,10 @@ namespace lms::api::subsonic
     {
         // Optional params
         const MediaLibraryId mediaLibrary{ getParameterAs<MediaLibraryId>(context.parameters, "musicFolderId").value_or(MediaLibraryId{}) };
+
+        // offset + size to allow paging, default 0 - 100 because all artists would freeze the app.
+        std::size_t offset{ getParameterAs<std::size_t>(context.parameters, "offset").value_or(0) };
+        std::size_t count{ getParameterAs<std::size_t>(context.parameters, "count").value_or(100) };
 
         Response response{ Response::createOkResponse(context.serverProtocolVersion) };
 
@@ -469,14 +473,18 @@ namespace lms::api::subsonic
         // first pass: dispatch the artists by first letter
         LMS_LOG(API_SUBSONIC, DEBUG, "GetArtists: fetching all artists...");
         std::map<char, std::vector<ArtistId>> artistsSortedByFirstChar;
-        std::size_t currentArtistOffset{ 0 };
+        std::size_t currentArtistOffset{ offset };
         constexpr std::size_t batchSize{ 100 };
-        bool hasMoreArtists{ false };
+        bool hasMoreArtists{ true };
         while (hasMoreArtists)
         {
+            // The remaining artists to fetch
+        	std::size_t remainingArtists{ count - currentArtistOffset };
+            bool isLastRun {remainingArtists <= batchSize};
+
             auto transaction{ context.dbSession.createReadTransaction() };
 
-            parameters.setRange(Range{ currentArtistOffset, batchSize });
+            parameters.setRange(Range{ currentArtistOffset, isLastRun? remainingArtists: batchSize });
             const auto artists{ Artist::find(context.dbSession, parameters) };
             for (const Artist::pointer& artist : artists.results)
             {
@@ -491,7 +499,7 @@ namespace lms::api::subsonic
                 artistsSortedByFirstChar[sortChar].push_back(artist->getId());
             }
 
-            hasMoreArtists = artists.moreResults;
+            hasMoreArtists = artists.moreResults && !isLastRun;
             currentArtistOffset += artists.results.size();
         }
 

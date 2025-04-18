@@ -17,6 +17,7 @@ class LabelSong(BaseSong):
             self.update_tag(COPYRIGHT, self.calculate_copyright())
         self.get_genre_from_label()
         self.get_genre_from_artist()
+        self.get_artist_from_title()
         self.get_genre_from_subgenres()
         self.sort_genres()
         self.parse_tags()

@@ -9,7 +9,8 @@ from postprocessing.tagger import Tagger
 import logging
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s  %(filename)s:%(lineno)s [%(levelname)s] %(message)s', force=True)
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s  %(filename)s:%(lineno)s [%(levelname)s] %(message)s',
+                        force=True)
     logging.info("Starting music importer")
     sleep(5)
 
@@ -48,13 +49,13 @@ if __name__ == '__main__':
             except Exception as e:
                 logging.error(f"Mover failed: {e}")
 
-
             # Tagging process
             try:
                 tagger.tag()
                 logging.info("Tagging completed.")
             except Exception as e:
                 logging.error(f"Tagger failed: {e}")
+
             # Sanitize process
             try:
                 sanitizer.sanitize()

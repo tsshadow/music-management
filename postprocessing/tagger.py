@@ -19,8 +19,10 @@ from postprocessing.constants import SongTypeEnum
 EasyID3.RegisterTextKey('publisher_old', 'TPUB')
 EasyID3.RegisterTXXXKey('publisher', 'publisher')
 EasyID3.RegisterTXXXKey('parsed', 'parsed')
+EasyID3.RegisterTXXXKey('festival', 'festival')
 EasyMP4Tags.RegisterTextKey("publisher", "publisher")
 EasyMP4Tags.RegisterTextKey("parsed", "parsed")
+EasyMP4Tags.RegisterTextKey("festival", "festival")
 
 s = Settings()
 

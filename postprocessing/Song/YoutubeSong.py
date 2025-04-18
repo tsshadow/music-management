@@ -19,6 +19,8 @@ class YoutubeSong(BaseSong):
         self.update_song(str(paths[1]))
         self.update_tag(PUBLISHER, self._publisher)
         self.update_tag(CATALOG_NUMBER, self._catalog_number)
+        self.get_artist_from_title()
+        self.get_date_festival_from_title()
         self.get_genre_from_artist()
         self.get_genre_from_subgenres()
         self.get_genre_from_album_artist()

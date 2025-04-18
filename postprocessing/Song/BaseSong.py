@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 
 import librosa
 import mutagen
@@ -13,9 +14,9 @@ from mutagen.wave import WAVE
 from data.DatabaseConnector import DatabaseConnector
 from data.settings import Settings
 from postprocessing.Song.Tag import Tag
-from postprocessing.Song.Helpers import LookupTableHelper, FilterTableHelper
+from postprocessing.Song.Helpers import LookupTableHelper, FilterTableHelper, FestivalHelper
 from postprocessing.Song.TagCollection import TagCollection
-from postprocessing.constants import ARTIST, GENRE, WAVTags, MP4Tags, DATE, PARSED, CATALOG_NUMBER, PUBLISHER, \
+from postprocessing.constants import ARTIST, GENRE, WAVTags, MP4Tags, DATE, FESTIVAL, PARSED, CATALOG_NUMBER, PUBLISHER, \
     COPYRIGHT, ALBUM_ARTIST, BPM, MusicFileType, TITLE, MP3Tags, FLACTags, AACTags
 
 s = Settings()
@@ -37,6 +38,15 @@ subgenreGenreHelper = LookupTableHelper(
     key_column_name="subgenre",
     value_column_name="genre"
 )
+
+artistHelper = FilterTableHelper(
+    table_name="artists",
+    column_name="name",
+    corrected_column_name=None
+)
+
+festivalHelper = FestivalHelper()
+
 
 unique_genres = FilterTableHelper("genres", "genre", "corrected_genre")
 
@@ -135,6 +145,42 @@ class BaseSong:
             if lookup_genres:
                 song_genres = self.merge_and_sort_genres(song_genres, lookup_genres)
                 self.tag_collection.add(GENRE, ";".join(song_genres))
+
+    def get_artist_from_title(self):
+        title = self.tag_collection.get_item_as_string(TITLE)
+        if title is None:
+            return
+
+        pattern = r"\((.*?)\s+(edit|remix)\)"
+        match = re.search(pattern, title, re.IGNORECASE)
+
+        if match:
+            artist_name = match.group(1)  # Extracts the artist name
+            if artistHelper.exists(artist_name):
+                art = self.tag_collection.get_item_as_string(ARTIST)
+                changed = self.tag_collection.get_item(ARTIST).changed
+                self.tag_collection.get_item(ARTIST).add(artist_name)
+                self.tag_collection.get_item(ARTIST).special_recapitalize()
+                self.tag_collection.get_item(ARTIST).deduplicate()
+                if art == self.tag_collection.get_item_as_string(ARTIST):
+                    self.tag_collection.get_item(ARTIST).changed = changed
+
+
+    def get_date_festival_from_title(self):
+        title = self.tag_collection.get_item_as_string(TITLE)
+
+        if self.length() is None or self.length() < 600:
+            return  # Skip short or invalid files
+        info = festivalHelper.get(title)
+        if info:
+            festival = info.get("festival")
+            date = info.get("date")
+            if date:
+                self.tag_collection.set_item(DATE, date)
+            if festival:
+                self.tag_collection.add(FESTIVAL, festival)
+
+
 
     def get_genre_from_label(self):
         publisher = self.tag_collection.get_item_as_string(PUBLISHER)
@@ -236,3 +282,15 @@ class BaseSong:
 
     def date(self):
         return self.tag_collection.get_item_as_string(DATE)
+
+    def length(self):
+        try:
+            if self.music_file and hasattr(self.music_file, "info") and hasattr(self.music_file.info, "length"):
+                return self.music_file.info.length  # float: seconds
+            else:
+                logging.warning(f"Could not retrieve length for: {self.path()}")
+                return None
+        except Exception as e:
+            logging.warning(f"Error retrieving length for {self.path()}: {e}")
+            return None
+

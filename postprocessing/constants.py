@@ -13,6 +13,7 @@ BPM: Final = "bpm"
 CATALOG_NUMBER: Final = "catalognumber"
 COPYRIGHT: Final = "copyright"
 DATE: Final = "date"
+FESTIVAL: Final = "festival"
 GENRE: Final = "genre"
 PARSED: Final = "parsed"
 PUBLISHER: Final = "publisher"
@@ -27,6 +28,7 @@ MP3Tags = {
     CATALOG_NUMBER: "catalognumber",
     COPYRIGHT: "copyright",
     DATE: "date",
+    FESTIVAL: "festival",
     GENRE: "genre",
     PARSED: "parsed",
     PUBLISHER: "publisher",
@@ -42,6 +44,7 @@ FLACTags = {
     CATALOG_NUMBER: "CATALOGNUMBER",
     COPYRIGHT: "COPYRIGHT",
     DATE: "DATE",
+    FESTIVAL: "FESTIVAL",
     GENRE: "GENRE",
     PARSED: "PARSED",
     PUBLISHER: "PUBLISHER",
@@ -56,6 +59,7 @@ AACTags = {
     CATALOG_NUMBER: "CATALOGNUMBER",
     COPYRIGHT: "COPYRIGHT",
     DATE: "DATE",
+    FESTIVAL: "FESTIVAL",
     GENRE: "GENRE",
     PARSED: "PARSED",
     PUBLISHER: "PUBLISHER",
@@ -72,6 +76,7 @@ MP4Tags = {
     DATE: '\xa9day',
     GENRE: '\xa9gen',
     PUBLISHER: 'PUBL',
+    FESTIVAL: "FESTIVAL",
 }
 reversed_MP4Tags = {v: k for k, v in MP4Tags.items()}
 
@@ -84,6 +89,7 @@ WAVTags = {
     GENRE: 'TCON',
     PUBLISHER: 'PUBLISHER',
     TITLE: 'TIT2',
+    FESTIVAL: "FESTIVAL",
 }
 reversed_WAVTags = {v: k for k, v in WAVTags.items()}
 

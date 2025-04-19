@@ -1,19 +1,24 @@
+import logging
 from time import sleep
 
+from data.settings import Settings
 from postprocessing.sanitizer import Sanitizer
-from processing import converter
+from postprocessing.tagger import Tagger
 from processing.converter import Converter
 from processing.extractor import Extractor
 from processing.mover import Mover
 from processing.renamer import Renamer
-from data.settings import Settings
-from postprocessing.tagger import Tagger
-import logging
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s  %(filename)s:%(lineno)s [%(levelname)s] %(message)s',
-                        force=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s  %(filename)s:%(lineno)s [%(levelname)s] %(message)s',
+        force=True
+    )
+
     logging.info("Starting music importer")
+
+    # Give the user time to visually confirm it's starting (debugging convenience)
     sleep(5)
 
     # Initialize settings and components
@@ -25,57 +30,51 @@ if __name__ == '__main__':
     converter = Converter()
     sanitizer = Sanitizer()
 
-    # Configure logging
-
     while True:
         try:
             logging.info("Starting process...")
 
-            # Extraction process
             try:
-                extractor.extract()
+                extractor.run()
                 logging.info("Extraction completed.")
             except Exception as e:
                 logging.error(f"Extractor failed: {e}")
 
-            # Renaming process
             try:
-                renamer.rename()
+                renamer.run()
                 logging.info("Renaming completed.")
             except Exception as e:
                 logging.error(f"Renamer failed: {e}")
 
-            # Moving process
             try:
-                mover.move()
+                mover.run()
                 logging.info("Moving completed.")
             except Exception as e:
                 logging.error(f"Mover failed: {e}")
 
-            # try:
-            #     converter.run()
-            #     logging.info("Converter completed.")
-            # except Exception as e:
-            #     logging.error(f"Converter failed: {e}")
-
-            # Tagging process
             try:
-                tagger.tag()
+                tagger.run()
                 logging.info("Tagging completed.")
             except Exception as e:
                 logging.error(f"Tagger failed: {e}")
 
-            # Sanitize process
             try:
-                sanitizer.sanitize()
+                converter.run()
+                logging.info("Converter completed.")
+            except Exception as e:
+                logging.error(f"Converter failed: {e}")
+
+            try:
+                sanitizer.run()
                 logging.info("Sanitizing completed.")
             except Exception as e:
                 logging.error(f"Sanitizing failed: {e}")
+
         except KeyboardInterrupt:
             logging.info("Process interrupted by user. Exiting.")
             break
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
 
-        logging.info("Waiting for 3600 seconds.")
+        logging.info(f"Waiting for {3600} seconds.")
         sleep(3600)

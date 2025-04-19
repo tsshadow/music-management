@@ -39,7 +39,7 @@ class Renamer:
     def __init__(self):
         self.settings = Settings()
 
-    def rename(self):
+    def run(self):
         logging.info("Starting Rename Step")
         only_folders = [f for f in listdir(self.settings.import_folder_path) if
                         not isfile(join(self.settings.import_folder_path, f))]

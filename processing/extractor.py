@@ -10,7 +10,7 @@ class Extractor:
     def __init__(self):
         self.settings = Settings()
 
-    def extract(self):
+    def run(self):
         logging.info("Starting Extract Step")
 
         try:

@@ -72,7 +72,7 @@ class Mover:
         except Exception as e:
             logging.error(f"Error removing {src}: {e}")
 
-    def move(self, dry_run=False):
+    def run(self, dry_run=False):
         """
         Move folders to categorized destinations based on their labels.
         """

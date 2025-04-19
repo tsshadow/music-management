@@ -46,7 +46,7 @@ class Tagger:
     def __init__(self):
         pass
 
-    def tag(self):
+    def run(self):
         """
         Entrypoint for the tagging process.
         Scans various music directories (labels, YouTube, SoundCloud, generic) and applies appropriate tag parsing.

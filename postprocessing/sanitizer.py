@@ -20,7 +20,7 @@ class Sanitizer:
             " ⧸": "-",   # Unusual Unicode slash
         }
 
-    def sanitize(self):
+    def run(self):
         """
         Starts the recursive sanitization process from the root music folder.
         """

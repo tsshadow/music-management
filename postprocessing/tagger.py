@@ -1,6 +1,5 @@
-import glob
+from pathlib import Path
 import logging
-import os
 import sys
 
 from mutagen import MutagenError
@@ -34,119 +33,131 @@ parse_generic = True
 parse_mp3 = True
 parse_flac = True
 parse_m4a = True
-parse_wav = False # Wav is currently bugged, should fix
-parse_aac = False # AAC does somehow not have any tags -> Changed downloads to m4a..
+parse_wav = False  # WAV is currently bugged
+parse_aac = False  # AAC has no tags, downloads changed to M4A
 
 
 class Tagger:
+    """
+    Handles automatic tagging of music files using Mutagen,
+    based on their source (Label, SoundCloud, YouTube, etc).
+    """
+
     def __init__(self):
         pass
 
     def tag(self):
+        """
+        Entrypoint for the tagging process.
+        Scans various music directories (labels, YouTube, SoundCloud, generic) and applies appropriate tag parsing.
+        """
         logging.info("Starting Tag Step")
-        if parse_labels:
-            label_folders = [f for f in os.listdir(s.eps_folder_path) if
-                             not os.path.isfile(os.path.join(s.eps_folder_path, f))]
-            label_folders.sort()
-            for label in label_folders:
-                # Skip free/none and todofolder
-                if label[0] != "_":
-                    self.parse_folder(s.eps_folder_path + s.delimiter + label, SongTypeEnum.LABEL)
-                    pass
-                else:
-                    self.parse_folder(s.eps_folder_path + s.delimiter + label, SongTypeEnum.GENERIC)
 
+        if parse_labels:
+            self._parse_label_folders()
 
         if parse_soundcloud:
-            soundcloud_folder = s.music_folder_path + s.delimiter + "Soundcloud"
-            soundcloud_channel_folders = [f for f in os.listdir(soundcloud_folder) if
-                                          not os.path.isfile(os.path.join(soundcloud_folder, f))]
-            soundcloud_channel_folders.sort()
-            for soundcloud_channel_folder in soundcloud_channel_folders:
-                self.parse_folder(
-                    s.music_folder_path + s.delimiter + "Soundcloud" + s.delimiter + soundcloud_channel_folder,
-                    SongTypeEnum.SOUNDCLOUD)
+            self._parse_channel_folders("Soundcloud", SongTypeEnum.SOUNDCLOUD)
 
         if parse_youtube:
-            youtube_folder = s.music_folder_path + s.delimiter + "Youtube"
-            youtube_channel_folders = [f for f in os.listdir(youtube_folder) if
-                                       not os.path.isfile(os.path.join(youtube_folder, f))]
-            youtube_channel_folders.sort()
-            for youtube_channel_folder in youtube_channel_folders:
-                self.parse_folder(
-                    s.music_folder_path + s.delimiter + "Youtube" + s.delimiter + youtube_channel_folder,
-                    SongTypeEnum.YOUTUBE)
+            self._parse_channel_folders("Youtube", SongTypeEnum.YOUTUBE)
 
         if parse_generic:
-            folders = ["Livesets", "Podcasts", "Top 100", "Warm Up Mixes"]
-            for folder in folders:
-                generic_music_folders = [f for f in os.listdir(s.music_folder_path + s.delimiter + folder) if
-                                         not os.path.isfile(
-                                             os.path.join(s.music_folder_path + s.delimiter + folder, f))]
-                for generic_music_folder in generic_music_folders:
-                    self.parse_folder(
-                        s.music_folder_path + s.delimiter + folder + s.delimiter + generic_music_folder,
-                        SongTypeEnum.GENERIC)
+            self._parse_generic_folders()
 
-    def parse_folder(self, folder, song_type):
-        if '@eaDir' in folder:
+    def _parse_label_folders(self):
+        """
+        Parses the EPS folder which contains label/ep/song hierarchies.
+        """
+        eps_root = Path(s.eps_folder_path)
+        label_folders = sorted([f for f in eps_root.iterdir() if f.is_dir()])
+
+        for label in label_folders:
+            song_type = SongTypeEnum.LABEL if not label.name.startswith("_") else SongTypeEnum.GENERIC
+            self.parse_folder(label, song_type)
+
+    def _parse_channel_folders(self, source_folder: str, song_type: SongTypeEnum):
+        """
+        Parses folders under a platform-specific directory like SoundCloud or YouTube.
+
+        @param source_folder: Root subfolder under music_folder_path
+        @param song_type: Enum describing the song origin
+        """
+        root = Path(s.music_folder_path) / source_folder
+        if not root.exists():
             return
 
-        # logging.info(folder)
-        folders = [f for f in os.listdir(folder) if
-                   not os.path.isfile(os.path.join(folder, f))]
-        files = []
-        if parse_mp3:
-            files += (glob.glob(
-                folder + s.delimiter + "*.mp3"))
-        if parse_flac:
-            files += (glob.glob(
-                folder + s.delimiter + "*.flac"))
-        if parse_wav:
-            files += (glob.glob(
-                folder + s.delimiter + "*.wav"))
-        if parse_m4a:
-            files += (glob.glob(
-                folder + s.delimiter + "*.m4a"))
-        if parse_aac:
-            files += (glob.glob(
-                folder + s.delimiter + "*.aac"))
-        for file in files:
-            try:
-                self.parse_song(file, song_type)
-            except KeyboardInterrupt:
-                logging.info('KeyboardInterrupt')
-                sys.exit(1)
-            except PermissionError as e:
-                logging.info(f"PermissionError: {e}, {file} ")
-                pass
-            except MutagenError as e:
-                logging.info(f"MutagenError: {e}, {file} ")
-                pass
-            except FileNotFoundError as e:
-                logging.info(f"FileNotFoundError: {e}, {file} ")
-                pass
-            except ExtensionNotSupportedException as e:
-                logging.info(f"ExtensionNotSupportedException: {e}, {file} ")
-                pass
-            except TabError:
-                pass
-            except SystemExit:
-                sys.exit(2)
-            except Exception as e:
-                logging.error(f"Parse_song failed: {e} {file}")
-        for sub_folder in folders:
-            if sub_folder[0] != '_':
-                self.parse_folder(folder + s.delimiter + sub_folder, song_type)
+        for channel in sorted([f for f in root.iterdir() if f.is_dir()]):
+            self.parse_folder(channel, song_type)
+
+    def _parse_generic_folders(self):
+        """
+        Parses generic folders like Livesets, Podcasts, Top 100.
+        """
+        generic_folders = ["Livesets", "Podcasts", "Top 100", "Warm Up Mixes"]
+        music_root = Path(s.music_folder_path)
+
+        for folder_name in generic_folders:
+            root_path = music_root / folder_name
+            if not root_path.exists():
+                continue
+            for subfolder in [f for f in root_path.iterdir() if f.is_dir()]:
+                self.parse_folder(subfolder, SongTypeEnum.GENERIC)
+
+    def parse_folder(self, folder: Path, song_type: SongTypeEnum):
+        """
+        Recursively parses a folder and its subfolders for audio files to tag.
+
+        @param folder: Path object to folder to scan
+        @param song_type: Enum to define tag strategy
+        """
+        if "@eaDir" in str(folder):
+            return
+
+        extensions = {
+            "mp3": parse_mp3,
+            "flac": parse_flac,
+            "wav": parse_wav,
+            "m4a": parse_m4a,
+            "aac": parse_aac
+        }
+
+        try:
+            for ext, enabled in extensions.items():
+                if enabled:
+                    for file in folder.glob(f"*.{ext}"):
+                        self._try_parse(file, song_type)
+
+            for subfolder in [f for f in folder.iterdir() if f.is_dir() and not f.name.startswith("_")]:
+                self.parse_folder(subfolder, song_type)
+
+        except Exception as e:
+            logging.error(f"Error parsing folder {folder}: {e}", exc_info=True)
+
+    def _try_parse(self, file: Path, song_type: SongTypeEnum):
+        try:
+            self.parse_song(file, song_type)
+        except KeyboardInterrupt:
+            logging.info('KeyboardInterrupt')
+            sys.exit(1)
+        except (PermissionError, MutagenError, FileNotFoundError, ExtensionNotSupportedException) as e:
+            logging.warning(f"{type(e).__name__}: {e} -> {file}")
+        except Exception as e:
+            logging.error(f"Parse_song failed: {e} -> {file}", exc_info=True)
 
     @staticmethod
-    def parse_song(path, song_type):
-        # logging.info(path)
+    def parse_song(path: Path, song_type: SongTypeEnum):
+        """
+        Creates a Song instance to trigger tag parsing logic.
+
+        @param path: Path object to the song
+        @param song_type: Type of song source (LABEL, YOUTUBE, etc)
+        """
         if song_type == SongTypeEnum.LABEL:
-            LabelSong(path)
-        if song_type == SongTypeEnum.YOUTUBE:
-            YoutubeSong(path)
-        if song_type == SongTypeEnum.SOUNDCLOUD:
-            SoundcloudSong(path)
-        if song_type == SongTypeEnum.GENERIC:
-            GenericSong(path)
+            LabelSong(str(path))
+        elif song_type == SongTypeEnum.YOUTUBE:
+            YoutubeSong(str(path))
+        elif song_type == SongTypeEnum.SOUNDCLOUD:
+            SoundcloudSong(str(path))
+        elif song_type == SongTypeEnum.GENERIC:
+            GenericSong(str(path))

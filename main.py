@@ -1,6 +1,8 @@
 from time import sleep
 
 from postprocessing.sanitizer import Sanitizer
+from processing import converter
+from processing.converter import Converter
 from processing.extractor import Extractor
 from processing.mover import Mover
 from processing.renamer import Renamer
@@ -20,6 +22,7 @@ if __name__ == '__main__':
     extractor = Extractor()
     renamer = Renamer()
     mover = Mover()
+    converter = Converter()
     sanitizer = Sanitizer()
 
     # Configure logging
@@ -48,6 +51,12 @@ if __name__ == '__main__':
                 logging.info("Moving completed.")
             except Exception as e:
                 logging.error(f"Mover failed: {e}")
+
+            # try:
+            #     converter.run()
+            #     logging.info("Converter completed.")
+            # except Exception as e:
+            #     logging.error(f"Converter failed: {e}")
 
             # Tagging process
             try:

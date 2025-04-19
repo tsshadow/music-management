@@ -13,8 +13,11 @@ from mutagen.wave import WAVE
 
 from data.DatabaseConnector import DatabaseConnector
 from data.settings import Settings
+from postprocessing.Song.Helpers.ArtistHelper import ArtistHelper
+from postprocessing.Song.Helpers.LookupTableHelper import LookupTableHelper
+from postprocessing.Song.Helpers.FilterTableHelper import FilterTableHelper
+from postprocessing.Song.Helpers.FestivalHelper import FestivalHelper
 from postprocessing.Song.Tag import Tag
-from postprocessing.Song.Helpers import LookupTableHelper, FilterTableHelper, FestivalHelper
 from postprocessing.Song.TagCollection import TagCollection
 from postprocessing.constants import ARTIST, GENRE, WAVTags, MP4Tags, DATE, FESTIVAL, PARSED, CATALOG_NUMBER, PUBLISHER, \
     COPYRIGHT, ALBUM_ARTIST, BPM, MusicFileType, TITLE, MP3Tags, FLACTags, AACTags
@@ -156,6 +159,7 @@ class BaseSong:
 
         if match:
             artist_name = match.group(1)  # Extracts the artist name
+            artist_name = ArtistHelper.recapitalize(artist_name)
             if artistHelper.exists(artist_name):
                 art = self.tag_collection.get_item_as_string(ARTIST)
                 changed = self.tag_collection.get_item(ARTIST).changed
@@ -176,7 +180,7 @@ class BaseSong:
             festival = info.get("festival")
             date = info.get("date")
             if date:
-                self.tag_collection.set_item(DATE, date)
+                self.tag_collection.add(DATE, date)
             if festival:
                 self.tag_collection.add(FESTIVAL, festival)
 

@@ -1,9 +1,14 @@
 import re
 
-from postprocessing.Song.Helpers.ArtistHelper import ArtistHelper
+from postprocessing.Song.Helpers.TableHelper import TableHelper
 from postprocessing.constants import ARTIST_REGEX
 
 import logging
+
+artistTableHelper = TableHelper(
+    table_name="artists",
+    column_name="name",
+)
 
 class Tag:
     """
@@ -181,7 +186,7 @@ class Tag:
         Recapitalizes names using database matches (via ArtistHelper).
         """
         old_value = self.value[:]
-        self.value = [ArtistHelper.recapitalize(name) for name in self.value]
+        self.value = [artistTableHelper.get_canonical(name) for name in self.value]
         if old_value != self.value:
             logging.info(f"{self.tag} changed(special_recapitalize) from {old_value} to {self.value}")
             self.changed = True

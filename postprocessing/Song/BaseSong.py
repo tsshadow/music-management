@@ -13,7 +13,6 @@ from mutagen.wave import WAVE
 
 from data.DatabaseConnector import DatabaseConnector
 from data.settings import Settings
-from postprocessing.Song.Helpers.ArtistHelper import ArtistHelper
 from postprocessing.Song.Helpers.LookupTableHelper import LookupTableHelper
 from postprocessing.Song.Helpers.FilterTableHelper import FilterTableHelper
 from postprocessing.Song.Helpers.FestivalHelper import FestivalHelper
@@ -158,8 +157,8 @@ class BaseSong:
 
         if match:
             artist_name = match.group(1)  # Extracts the artist name
-            artist_name = ArtistHelper.recapitalize(artist_name)
-            if artistTableHelper.exists(artist_name):
+            canonical_name = artistTableHelper.get_canonical(artist_name)
+            if artistTableHelper.exists(canonical_name):
                 art = self.tag_collection.get_item_as_string(ARTIST)
                 changed = self.tag_collection.get_item(ARTIST).changed
                 self.tag_collection.get_item(ARTIST).add(artist_name)

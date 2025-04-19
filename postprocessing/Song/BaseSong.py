@@ -17,35 +17,34 @@ from postprocessing.Song.Helpers.ArtistHelper import ArtistHelper
 from postprocessing.Song.Helpers.LookupTableHelper import LookupTableHelper
 from postprocessing.Song.Helpers.FilterTableHelper import FilterTableHelper
 from postprocessing.Song.Helpers.FestivalHelper import FestivalHelper
+from postprocessing.Song.Helpers.TableHelper import TableHelper
 from postprocessing.Song.Tag import Tag
 from postprocessing.Song.TagCollection import TagCollection
 from postprocessing.constants import ARTIST, GENRE, WAVTags, MP4Tags, DATE, FESTIVAL, PARSED, CATALOG_NUMBER, PUBLISHER, \
     COPYRIGHT, ALBUM_ARTIST, BPM, MusicFileType, TITLE, MP3Tags, FLACTags, AACTags
 
 s = Settings()
-db_connector = DatabaseConnector()
-artistGenreHelper = LookupTableHelper(
+artistGenreTableHelper = LookupTableHelper(
     table_name="artist_genre",
     key_column_name="artist",
     value_column_name="genre"
 )
 
-labelGenreHelper = LookupTableHelper(
+labelGenreTableHelper = LookupTableHelper(
     table_name="label_genre",
     key_column_name="label",
     value_column_name="genre"
 )
 
-subgenreGenreHelper = LookupTableHelper(
+subgenreGenreTableHelper = LookupTableHelper(
     table_name="subgenre_genre",
     key_column_name="subgenre",
     value_column_name="genre"
 )
 
-artistHelper = FilterTableHelper(
+artistTableHelper = TableHelper(
     table_name="artists",
     column_name="name",
-    corrected_column_name=None
 )
 
 festivalHelper = FestivalHelper()
@@ -144,7 +143,7 @@ class BaseSong:
         song_artists = self.tag_collection.get_item_as_array(ARTIST)
         song_genres = self.tag_collection.get_item_as_array(GENRE)
         for artist in song_artists:
-            lookup_genres = artistGenreHelper.get(artist)
+            lookup_genres = artistGenreTableHelper.get(artist)
             if lookup_genres:
                 song_genres = self.merge_and_sort_genres(song_genres, lookup_genres)
                 self.tag_collection.add(GENRE, ";".join(song_genres))
@@ -160,7 +159,7 @@ class BaseSong:
         if match:
             artist_name = match.group(1)  # Extracts the artist name
             artist_name = ArtistHelper.recapitalize(artist_name)
-            if artistHelper.exists(artist_name):
+            if artistTableHelper.exists(artist_name):
                 art = self.tag_collection.get_item_as_string(ARTIST)
                 changed = self.tag_collection.get_item(ARTIST).changed
                 self.tag_collection.get_item(ARTIST).add(artist_name)
@@ -189,14 +188,14 @@ class BaseSong:
     def get_genre_from_label(self):
         publisher = self.tag_collection.get_item_as_string(PUBLISHER)
         song_genres = self.tag_collection.get_item_as_array(GENRE)
-        lookup_genres = labelGenreHelper.get(publisher)
+        lookup_genres = labelGenreTableHelper.get(publisher)
         if lookup_genres:
             song_genres = self.merge_and_sort_genres(song_genres, lookup_genres)
             self.update_tag(GENRE, ";".join(song_genres))
     def get_genre_from_album_artist(self):
         publisher = self.tag_collection.get_item_as_string(ALBUM_ARTIST)
         song_genres = self.tag_collection.get_item_as_array(GENRE)
-        lookup_genres = labelGenreHelper.get(publisher)
+        lookup_genres = labelGenreTableHelper.get(publisher)
         if lookup_genres:
             song_genres = self.merge_and_sort_genres(song_genres, lookup_genres)
             self.update_tag(GENRE, ";".join(song_genres))
@@ -205,7 +204,7 @@ class BaseSong:
     def get_genre_from_subgenres(self):
         song_genres = self.tag_collection.get_item_as_array(GENRE)
         for genre in song_genres:
-            lookup_genres = subgenreGenreHelper.get(genre)
+            lookup_genres = subgenreGenreTableHelper.get(genre)
             if lookup_genres:
                 song_genres = self.merge_and_sort_genres(song_genres, lookup_genres)
                 self.update_tag(GENRE, ";".join(song_genres))

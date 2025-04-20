@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with LMS.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #pragma once
 
 #define STBI_ONLY_JPEG
@@ -24,19 +25,3 @@
 #define STBI_FAILURE_USERMSG
 
 #include <stb_image.h>
-
-#include <string_view>
-
-#include "image/Exception.hpp"
-
-namespace lms::image
-{
-    class StbiException : public Exception
-    {
-    public:
-        StbiException(std::string_view desc);
-
-    private:
-        static std::string getLastFailureReason();
-    };
-} // namespace lms::image

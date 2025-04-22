@@ -10,7 +10,8 @@ class GenericSong(BaseSong):
         super().__init__(path)
         self._catalog_number = None
         if not self.copyright():
-            self.update_tag(COPYRIGHT, self.calculate_copyright())
+            if self.calculate_copyright():
+                self.tag_collection.set_item(COPYRIGHT, self.calculate_copyright())
         self.get_artist_from_title()
         self.get_date_festival_from_title()
         self.get_genre_from_artist()

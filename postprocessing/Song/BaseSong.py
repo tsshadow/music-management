@@ -116,11 +116,6 @@ class BaseSong:
                     valid_genres.append(genre)
             genre_tag.set(valid_genres)
 
-    def update_tag(self, tag, value):
-        """Adds or updates a tag value."""
-        if value:
-            self.tag_collection.add(tag, value)
-
     def delete_tag(self, tag):
         """Removes a tag from both the tag collection and file if present."""
         if self.music_file and self.music_file.get(tag):
@@ -136,7 +131,7 @@ class BaseSong:
                 merged = self.merge_and_sort_genres(
                     self.tag_collection.get_item_as_array(GENRE), genres
                 )
-                self.update_tag(GENRE, ";".join(merged))
+                self.tag_collection.set_item(GENRE, ";".join(merged))
 
     def get_genre_from_label(self):
         """Attempts to enrich genre based on the publisher (label)."""
@@ -146,7 +141,7 @@ class BaseSong:
             merged = self.merge_and_sort_genres(
                 self.tag_collection.get_item_as_array(GENRE), genres
             )
-            self.update_tag(GENRE, ";".join(merged))
+            self.tag_collection.set_item(GENRE, ";".join(merged))
 
     def get_genre_from_album_artist(self):
         """Enriches genre using the album artist field."""
@@ -156,7 +151,7 @@ class BaseSong:
             merged = self.merge_and_sort_genres(
                 self.tag_collection.get_item_as_array(GENRE), genres
             )
-            self.update_tag(GENRE, ";".join(merged))
+            self.tag_collection.set_item(GENRE, ";".join(merged))
 
     def get_genre_from_subgenres(self):
         """Maps existing genres to broader ones using subgenre lookup."""
@@ -165,7 +160,7 @@ class BaseSong:
             lookup = db_helpers["subgenre_genre"].get(genre)
             if lookup:
                 merged = self.merge_and_sort_genres(current_genres, lookup)
-                self.update_tag(GENRE, ";".join(merged))
+                self.tag_collection.set_item(GENRE, ";".join(merged))
 
     def get_artist_from_title(self):
         """Attempts to extract artist from title using regex and corrects capitalization."""
@@ -197,9 +192,9 @@ class BaseSong:
         info = db_helpers["festival"].get(title)
         if info:
             if "festival" in info:
-                self.update_tag(FESTIVAL, info["festival"])
+                self.tag_collection.set_item(FESTIVAL, info["festival"])
             if "date" in info:
-                self.update_tag(DATE, info["date"])
+                self.tag_collection.set_item(DATE, info["date"])
 
     def merge_and_sort_genres(self, a, b):
         """Merges and sorts two lists of genres, removing duplicates."""
@@ -225,21 +220,38 @@ class BaseSong:
     def set_tag(self, tag: Tag):
         """Sets a tag on the underlying music file based on type."""
         logging.info(f"Set tag {tag.tag} to {tag.to_string()} (was: {self.music_file.get(tag.tag)})")
+
+        value = tag.to_string()
+
         if self.type == MusicFileType.MP3:
-            self.music_file[tag.tag] = tag.to_string()
+            self.music_file[tag.tag] = value
+
         elif self.type == MusicFileType.FLAC:
-            self.music_file[FLACTags[tag.tag]] = tag.to_string()
+            flac_key = FLACTags.get(tag.tag)
+            if flac_key:
+                self.music_file[flac_key] = value
+
         elif self.type == MusicFileType.WAV:
-            self.music_file.tags[WAVTags[tag.tag]] = mutagen.id3.TextFrame(encoding=3, text=[tag.to_string()])
+            wav_key = WAVTags.get(tag.tag)
+            if wav_key:
+                self.music_file.tags[wav_key] = mutagen.id3.TextFrame(encoding=3, text=[value])
+
         elif self.type == MusicFileType.M4A:
-            self.music_file.tags[MP4Tags[tag.tag]] = str(tag.to_string())
+            mp4_key = MP4Tags.get(tag.tag)
+            if mp4_key:
+                self.music_file.tags[mp4_key] = value
+            else:
+                # Fallback for LMS-style custom tags
+                from mutagen.mp4 import MP4FreeForm
+                custom_key = f"----:com.apple.iTunes:{tag.tag.upper()}"
+                self.music_file.tags[custom_key] = [MP4FreeForm(value.encode('utf-8'))]
 
     def analyze_track(self):
         """Uses librosa to estimate BPM and updates the BPM tag."""
         try:
             y, sr = librosa.load(self._path)
             tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
-            self.update_tag(BPM, str(round(tempo)))
+            self.self.tag_collection.set_item(BPM, str(round(tempo)))
         except Exception as e:
             if s.debug:
                 logging.info(f"Failed to parse bpm for {self.path()}: {str(e)}")

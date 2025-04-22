@@ -76,7 +76,6 @@ MP4Tags = {
     DATE: '\xa9day',
     GENRE: '\xa9gen',
     PUBLISHER: 'PUBL',
-    FESTIVAL: "FESTIVAL",
 }
 reversed_MP4Tags = {v: k for k, v in MP4Tags.items()}
 

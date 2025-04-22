@@ -141,7 +141,7 @@ class Tagger:
             logging.info('KeyboardInterrupt')
             sys.exit(1)
         except (PermissionError, MutagenError, FileNotFoundError, ExtensionNotSupportedException) as e:
-            logging.warning(f"{type(e).__name__}: {e} -> {file}")
+            logging.error(f"{type(e).__name__}: {e} -> {file}", exc_info=True)
         except Exception as e:
             logging.error(f"Parse_song failed: {e} -> {file}", exc_info=True)
 

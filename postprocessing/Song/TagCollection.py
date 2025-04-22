@@ -4,7 +4,7 @@ import mutagen
 from mutagen.apev2 import APEv2
 from mutagen.easyid3 import EasyID3
 from mutagen.flac import VCFLACDict
-from mutagen.mp4 import MP4Tags
+from mutagen.mp4 import MP4Tags, MP4FreeForm
 from mutagen.wave import _WaveID3
 
 from postprocessing.Song.Tag import Tag
@@ -66,14 +66,27 @@ class TagCollection:
                     if tag not in missing_tags_wav:
                         missing_tags_wav.append(tag)
 
-        elif isinstance(tags, MP4Tags):  # M4A / AAC
-            for tag in tags:
-                try:
-                    self.tags[reversed_MP4Tags[tag]] = Tag(reversed_MP4Tags[tag], tags[tag])
-                except KeyError:
-                    if tag not in missing_tags_m4a:
-                        missing_tags_m4a.append(tag)
 
+        elif isinstance(tags, MP4Tags):  # M4A / AAC
+            for tag_key, value in tags.items():
+                # Known mapped tag
+                standard_key = reversed_MP4Tags.get(tag_key)
+                if standard_key:
+                    self.tags[standard_key] = Tag(standard_key, value)
+                elif tag_key.startswith("----:com.apple.iTunes:"):
+                    # fallback voor LMS-style custom tags
+                    custom_name = tag_key.split(":")[-1].lower()
+                    val = value[0]
+                    if isinstance(val, MP4FreeForm):
+                        decoded_val = val.decode("utf-8")
+                    elif isinstance(val, bytes):
+                        decoded_val = val.decode("utf-8")
+                    else:
+                        decoded_val = str(val)
+                    self.tags[custom_name] = Tag(custom_name, decoded_val)
+                else:
+                    if tag_key not in missing_tags_m4a:
+                        missing_tags_m4a.append(tag_key)
         else:
             logging.info("TagCollection not supporting this file extension")
             logging.info(type(tags))
@@ -182,13 +195,17 @@ class TagCollection:
     def set_item(self, tag, value):
         """
         Sets a new value on an existing tag.
+        It tag does not exist, create a new tag
 
         Args:
             tag (str): The tag name.
             value (Any): The value to set.
         """
-        tag = self.get_item(tag)
-        tag.set(value)
+        if self.has_item(tag):
+            tag = self.get_item(tag)
+            tag.set(value)
+        else:
+            self.add(tag, value)
 
     def get_item_as_string(self, tag):
         """

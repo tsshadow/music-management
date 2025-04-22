@@ -11,12 +11,13 @@ class SoundcloudSong(BaseSong):
         super().__init__(path)
         paths = path.rsplit(s.delimiter, 2)
         if not self.album_artist():
-            self.update_tag(ALBUM_ARTIST, str(paths[1]))
+            self.tag_collection.set_item(ALBUM_ARTIST, str(paths[1]))
         if not self.copyright():
-            self.update_tag(COPYRIGHT, self.calculate_copyright())
+            if self.calculate_copyright():
+                self.tag_collection.set_item(COPYRIGHT, self.calculate_copyright())
         self._publisher = "Soundcloud"
         self.update_song(str(paths[1]))
-        self.update_tag(PUBLISHER, self._publisher)
+        self.tag_collection.set_item(PUBLISHER, self._publisher)
         self.get_artist_from_title()
         self.get_date_festival_from_title()
         self.get_genre_from_artist()

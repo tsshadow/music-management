@@ -78,9 +78,9 @@ class TagCollection:
                     custom_name = tag_key.split(":")[-1].lower()
                     val = value[0]
                     if isinstance(val, MP4FreeForm):
-                        decoded_val = val.decode("utf-8")
+                        decoded_val = val.decode("utf-8", "ignore")
                     elif isinstance(val, bytes):
-                        decoded_val = val.decode("utf-8")
+                        decoded_val = val.decode("utf-8", "ignore")
                     else:
                         decoded_val = str(val)
                     self.tags[custom_name] = Tag(custom_name, decoded_val)

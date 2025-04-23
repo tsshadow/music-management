@@ -9,6 +9,7 @@ from mutagen.easymp4 import EasyMP4Tags
 from data.settings import Settings
 from postprocessing.Song.BaseSong import ExtensionNotSupportedException
 from postprocessing.Song.GenericSong import GenericSong
+from postprocessing.Song.Helpers.BrokenSongHelper import BrokenSongHelper
 from postprocessing.Song.LabelSong import LabelSong
 from postprocessing.Song.SoundcloudSong import SoundcloudSong
 from postprocessing.Song.YoutubeSong import YoutubeSong
@@ -36,6 +37,7 @@ parse_m4a = True
 parse_wav = False  # WAV is currently bugged
 parse_aac = False  # AAC has no tags, downloads changed to M4A
 
+broken_song_helper = BrokenSongHelper()
 
 class Tagger:
     """
@@ -142,6 +144,7 @@ class Tagger:
             sys.exit(1)
         except (PermissionError, MutagenError, FileNotFoundError, ExtensionNotSupportedException) as e:
             logging.error(f"{type(e).__name__}: {e} -> {file}", exc_info=True)
+            broken_song_helper.add(str(file), type(e).__name__)
         except Exception as e:
             logging.error(f"Parse_song failed: {e} -> {file}", exc_info=True)
 

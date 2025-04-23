@@ -12,7 +12,8 @@ class LabelSong(BaseSong):
         self._publisher = str(paths[0].split(s.delimiter)[-1])
         self._catalog_number = str(paths[1].split(' ')[0])
         self.tag_collection.set_item(PUBLISHER, self._publisher)
-        self.tag_collection.set_item(CATALOG_NUMBER, self._catalog_number)
+        if self._catalog_number:
+            self.tag_collection.set_item(CATALOG_NUMBER, self._catalog_number)
         if not self.copyright():
             if self.calculate_copyright():
                 self.tag_collection.set_item(COPYRIGHT, self.calculate_copyright())

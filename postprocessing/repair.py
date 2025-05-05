@@ -14,6 +14,7 @@ class FileRepair:
         self.failed_downloads = []
 
     def run(self):
+        self.import_accounts()
         try:
             rows = self.broken_helper.get_all()
 
@@ -40,6 +41,24 @@ class FileRepair:
         except Exception as e:
             logging.error(f"Error during repair run: {e}")
 
+    def import_accounts(self):
+        path = "/volume1/Music/Soundcloud/accounts.txt"
+        if not os.path.exists(path):
+            logging.warning("No Accounts.txt file found.")
+            return
+
+        with open(path, "r") as f:
+            for line in f:
+                normalized_name = line.strip()
+                if not normalized_name:
+                    continue
+                url = f"https://soundcloud.com/{normalized_name}"
+                raw_name = self.fetch_uploader_info(url)
+                if raw_name:
+                    self.artist_lookup.insert_if_missing(raw_name, normalized_name)
+                else:
+                    logging.warning(f"Uploader info could not be fetched for {url}")
+
     def repair_soundcloud(self, song_id: int, path: str) -> bool:
         url = self.derive_soundcloud_url(path)
         if not url:
@@ -47,7 +66,6 @@ class FileRepair:
         logging.info(f"[SoundCloud] Attempting redownload from {url}")
         success = self.download_from_soundcloud(url, path)
         if not success:
-            # Add to artist lookup table if normalization failed
             artist = path.split("/Music/Soundcloud/")[-1].split("/")[0].strip().lower()
             self.artist_lookup.insert_if_missing(artist)
             self.failed_downloads.append((song_id, path, url))
@@ -138,6 +156,20 @@ class FileRepair:
         except Exception as e:
             logging.error(f"YouTube download failed for {target_path}: {e}")
             return False
+
+    def fetch_uploader_info(self, url):
+        try:
+            ydl_opts = {
+                'quiet': True,
+                'cookiefile': '/volume1/Music/Soundcloud/cookies.txt',
+                'extract_flat': True
+            }
+            with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
+                info = ydl.extract_info(url, download=False)
+                return info.get("uploader")
+        except Exception as e:
+            logging.warning(f"Failed to fetch uploader for {url}: {e}")
+            return None
 
 if __name__ == "__main__":
     repairer = FileRepair()

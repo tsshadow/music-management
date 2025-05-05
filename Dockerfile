@@ -11,6 +11,10 @@ RUN wget http://ftp.nl.debian.org/debian/pool/non-free/u/unrar-nonfree/unrar_5.6
 
 WORKDIR /app
 
+# Download yt-dlp and make it executable
+RUN curl -Lo yt-dlp https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp && \
+    chmod +x yt-dlp
+
 COPY . .
 COPY requirements.txt requirements.txt
 

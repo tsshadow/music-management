@@ -10,12 +10,13 @@ from processing.converter import Converter
 from processing.extractor import Extractor
 from processing.mover import Mover
 from processing.renamer import Renamer
-
+from downloader.youtube import YoutubeDownloader
+from downloader.soundcloud import SoundcloudDownloader
 def main():
     parser = argparse.ArgumentParser(description="Run specific steps of the music importer")
     parser.add_argument(
         "--step",
-        choices=["extract", "rename", "move", "tag", "convert", "sanitize", "repair", "all"],
+        choices=["extract", "rename", "move", "tag", "convert", "sanitize", "repair", "download" , "all"],
         help="Run only the specified step. If omitted, all steps are run.",
         default="all"
     )
@@ -31,6 +32,8 @@ def main():
     sleep(5)
 
     settings = Settings()
+    youtube_downloader = YoutubeDownloader()
+    soundcloud_downloader = SoundcloudDownloader()
     tagger = Tagger()
     extractor = Extractor()
     renamer = Renamer()
@@ -42,6 +45,20 @@ def main():
     while True:
         try:
             logging.info("Starting process...")
+
+            if args.step in ("download", "all"):
+                try:
+                    youtube_downloader.run()
+                    logging.info("youtube downloader completed.")
+                except Exception as e:
+                    logging.error(f"youtube downloader failed: {e}")
+
+            if args.step in ("download", "all"):
+                try:
+                    soundcloud_downloader.run()
+                    logging.info("soundcloud downloader completed.")
+                except Exception as e:
+                    logging.error(f"soundcloud downloader failed: {e}")
 
             if args.step in ("extract", "all"):
                 try:
@@ -85,7 +102,7 @@ def main():
                 except Exception as e:
                     logging.error(f"Sanitizer failed: {e}")
 
-            if args.step in ("repair"):
+            if args.step in "repair":
                 try:
                     repair.run()
                     logging.info("Repair completed.")

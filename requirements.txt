@@ -3,3 +3,5 @@ python-dotenv~=1.0.0
 mutagen~=1.47.0
 librosa~=0.10.2.post1
 pymysql~=1.1.1
+requests~=2.28.1
+yt-dlp~=2023.3.4

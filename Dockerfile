@@ -3,7 +3,7 @@
 FROM python:3.11-slim-buster
 
 #install dependencies
-RUN apt-get update && apt-get install -y gcc wget
+RUN apt-get update && apt-get install -y gcc wget curl
 RUN wget http://ftp.nl.debian.org/debian/pool/non-free/u/unrar-nonfree/unrar_5.6.6-1+deb10u1_amd64.deb && \
     dpkg -i *.deb && \
     apt update && \

@@ -44,7 +44,14 @@ namespace lms::db::utils
             query.offset(static_cast<int>(range->offset));
         }
     }
-
+    inline std::string createPlaceholders(std::size_t count, const std::string& placeholder = "?")
+    {
+        if (count == 0) return "";
+        std::string result = placeholder;
+        for (std::size_t i = 1; i < count; ++i)
+            result += ", " + placeholder;
+        return result;
+    }
     template<typename T>
     auto fetchFirstResult(const Wt::Dbo::collection<T>& collection)
     {

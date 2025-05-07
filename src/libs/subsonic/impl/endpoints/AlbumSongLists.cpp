@@ -322,7 +322,7 @@ namespace lms::api::subsonic
         return response;
     }
 
-    TrackSortMethod stringToSortMethod(const std::string& input)
+    static TrackSortMethod stringToSortMethod(const std::string& input)
     {
         if (input == "Id")
         {
@@ -412,67 +412,116 @@ namespace lms::api::subsonic
         return "";
     }
 
+    static std::map<std::string, std::set<ClusterId>> parseClusterGroups(const std::string& json, RequestContext& context)
+    {
+        std::map<std::string, std::set<ClusterId>> clusterGroups;
+
+        rapidjson::Document document;
+        document.Parse(json.c_str());
+
+        if (document.HasParseError())
+            throw ParameterJsonFailedToParse{ json };
+
+        for (auto& filter : document.GetArray())
+        {
+            const std::string name = filter["name"].GetString();
+            auto& clusterSet = clusterGroups[name];
+
+            const auto& value = filter["value"];
+            if (value.IsArray())
+            {
+                for (auto& val : value.GetArray())
+                {
+                    if (val.IsString())
+                        clusterSet.insert(GetCluster(val.GetString(), name, context));
+                    else if (val.IsInt())
+                        clusterSet.insert(GetCluster(std::to_string(val.GetInt()), name, context));
+                    else
+                        throw ParameterJsonFailedToParse{ json };
+                }
+            }
+            else if (value.IsString())
+            {
+                clusterSet.insert(GetCluster(value.GetString(), name, context));
+            }
+            else if (value.IsInt())
+            {
+                clusterSet.insert(GetCluster(std::to_string(value.GetInt()), name, context));
+            }
+            else
+            {
+                throw ParameterJsonFailedToParse{ json };
+            }
+        }
+
+        return clusterGroups;
+    }
+
     /**
      * Handle songs endpoint
      *
-     * example clusters data
-     * clusters : [
-     *    {
-     *    "name": "genre"
-     *    "value": "Hardcore"
-     *    },
-     *    {
-     *    "name": "year",
-     *    "value": "2024"
-     *    }
+     * The `clusters` query parameter should be a JSON-encoded array of filter objects.
+     * Each filter object must include a `name` (e.g. "genre", "year") and a `value`.
+     *
+     * ✅ Supported value types:
+     * - Single string:        "Hardcore"
+     * - Single number:        2024
+     * - Array of strings:     ["Hardcore", "Frenchcore"]
+     * - Array of numbers:     [2023, 2024]
+     *
+     * 🔀 Each value array is interpreted as an OR condition.
+     * 🧩 Multiple filters are combined using AND.
+     *
+     * ✅ Examples:
+     * clusters=[
+     *   {
+     *     "name": "genre",
+     *     "value": "Hardcore"
+     *   },
+     *   {
+     *     "name": "year",
+     *     "value": [2023, 2024]
+     *   }
      * ]
      *
+     * This would match tracks where:
+     *   (genre == "Hardcore") AND (year == 2023 OR 2024)
      *
-     *
-     * @param context
-     * @return
+     * @param context RequestContext with parameters
+     * @return Response with filtered songs
      */
     Response handleGetSongs(RequestContext& context)
     {
-        // Optional params
+        // Optional query parameters
         auto filters = getParameterAs<std::string>(context.parameters, "clusters");
-        auto sortMethod = stringToSortMethod(
-            getParameterAs<std::string>(context.parameters, "sortMethod").value_or("None"));
-        const MediaLibraryId mediaLibraryId{ getParameterAs<MediaLibraryId>(context.parameters, "musicFolderId").value_or(MediaLibraryId{}) };
-        std::size_t size{ getParameterAs<std::size_t>(context.parameters, "count").value_or(50) };
+        auto sortMethod = stringToSortMethod(getParameterAs<std::string>(context.parameters, "sortMethod").value_or("None"));
+        MediaLibraryId mediaLibraryId = getParameterAs<MediaLibraryId>(context.parameters, "musicFolderId").value_or(MediaLibraryId{});
+        std::size_t size = getParameterAs<std::size_t>(context.parameters, "count").value_or(50);
+        std::size_t offset = getParameterAs<std::size_t>(context.parameters, "offset").value_or(0);
+
         if (size > defaultMaxCountSize)
             size = defaultMaxCountSize;
 
         Response response{ Response::createOkResponse(context.serverProtocolVersion) };
-        auto transaction{ context.dbSession.createReadTransaction() };
+        auto transaction = context.dbSession.createReadTransaction();
 
         Track::FindParameters params;
-
         params.setSortMethod(sortMethod);
-        params.setRange(Range{ 0, size });
+        params.setRange(Range{ offset, size });
         params.filters.setMediaLibrary(mediaLibraryId);
 
-        // Filters / Clusters
+        std::map<std::string, std::set<ClusterId>> clusterGroups;
         if (filters.has_value())
         {
-            std::vector<ClusterId> clusters = {};
-            rapidjson::Document document;
-            document.Parse(filters.value().c_str());
-            if (document.HasParseError())
-            {
-                throw ParameterJsonFailedToParse{ filters.value() };
-            }
-            for (auto& filter : document.GetArray())
-            {
-                clusters.push_back(GetCluster(filter["value"].GetString(), filter["name"].GetString(), context));
-            }
-            params.filters.setClusters(clusters);
+            clusterGroups = parseClusterGroups(filters.value(), context);
         }
 
-        Response::Node& songsNode{ response.createNode("songs") };
-        Track::find(context.dbSession, params, [&](const Track::pointer& track) {
+        Response::Node& songsNode = response.createNode("songs");
+
+        Track::find_advanced(context.dbSession, params, clusterGroups, [&](const Track::pointer& track) {
             songsNode.addArrayChild("song", createSongNode(context, track, context.user));
         });
+
         return response;
     }
 

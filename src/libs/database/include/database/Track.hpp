@@ -216,6 +216,11 @@ namespace lms::db
         static RangeResults<pointer> find(Session& session, const FindParameters& parameters);
         static void find(Session& session, const FindParameters& parameters, const std::function<void(const Track::pointer&)>& func);
         static void find(Session& session, const FindParameters& parameters, bool& moreResults, const std::function<void(const Track::pointer&)>& func);
+        static void find_advanced(
+            Session& session,
+            const FindParameters& params,
+            const std::map<std::string, std::set<ClusterId>>& clusterGroups,
+            const std::function<void(const Track::pointer&)>& func);
         static RangeResults<TrackId> findIdsTrackMBIDDuplicates(Session& session, std::optional<Range> range = std::nullopt);
         static RangeResults<TrackId> findIdsWithRecordingMBIDAndMissingFeatures(Session& session, std::optional<Range> range = std::nullopt);
 

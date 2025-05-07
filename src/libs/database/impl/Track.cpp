@@ -365,6 +365,73 @@ namespace lms::db
         utils::forEachQueryRangeResult(query, params.range, moreResults, func);
     }
 
+    inline std::string toSql(TrackSortMethod method)
+    {
+        switch (method)
+        {
+            case TrackSortMethod::None:               return "t.id";
+            case TrackSortMethod::Id:                 return "t.id";
+            case TrackSortMethod::Random:             return "RANDOM()";
+            case TrackSortMethod::LastWrittenDesc:    return "t.last_written DESC";
+            case TrackSortMethod::AddedDesc:          return "t.added DESC";
+            case TrackSortMethod::StarredDateDesc:    return "t.starred_date DESC";
+            case TrackSortMethod::FileName:           return "t.file_name";
+            case TrackSortMethod::Name:               return "t.name";
+            case TrackSortMethod::DateDescAndRelease: return "t.date DESC, t.release";
+            case TrackSortMethod::Release:            return "t.disc_number, t.track_number";
+            case TrackSortMethod::TrackList:          return "t.tracklist_order";
+            default:                                  return "t.id";
+        }
+    }
+
+    void Track::find_advanced(
+        Session& session,
+        const FindParameters& params,
+        const std::map<std::string, std::set<ClusterId>>& clusterGroups,
+        const std::function<void(const Track::pointer&)>& func)
+    {
+        session.checkReadTransaction();
+
+        std::string baseQuery = "SELECT DISTINCT t FROM track t";
+        std::vector<ClusterId> bindClusterIds;
+
+        int groupCounter = 0;
+        for (const auto& [filterName, clusterIds] : clusterGroups)
+        {
+            std::string joinAlias = "tc" + std::to_string(groupCounter++);
+            baseQuery += " JOIN track_cluster " + joinAlias + " ON " + joinAlias + ".track_id = t.id"
+                         + " AND " + joinAlias + ".cluster_id IN (" + utils::createPlaceholders(clusterIds.size()) + ")";
+
+            bindClusterIds.insert(bindClusterIds.end(), clusterIds.begin(), clusterIds.end());
+        }
+
+        baseQuery += " WHERE 1=1";
+
+        if (params.filters.mediaLibrary.isValid())
+            baseQuery += " AND t.media_library_id = ?";
+
+        if (params.sortMethod != TrackSortMethod::None)
+        {
+            baseQuery += " ORDER BY " + toSql(params.sortMethod);
+        }
+        else
+        {
+            baseQuery += " ORDER BY t.id";
+        }
+
+        auto query = session.getDboSession()->query<Wt::Dbo::ptr<Track>>(baseQuery);
+
+        for (const auto& cid : bindClusterIds)
+            query.bind(cid);
+
+        if (params.filters.mediaLibrary.isValid())
+            query.bind(params.filters.mediaLibrary);
+
+        bool moreResults = false;
+        utils::forEachQueryRangeResult(query, params.range, moreResults, func);
+    }
+
+
     RangeResults<TrackId> Track::findSimilarTrackIds(Session& session, const std::vector<TrackId>& tracks, std::optional<Range> range)
     {
         assert(!tracks.empty());

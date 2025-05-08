@@ -369,18 +369,30 @@ namespace lms::db
     {
         switch (method)
         {
-            case TrackSortMethod::None:               return "t.id";
-            case TrackSortMethod::Id:                 return "t.id";
-            case TrackSortMethod::Random:             return "RANDOM()";
-            case TrackSortMethod::LastWrittenDesc:    return "t.file_last_write DESC";
-            case TrackSortMethod::AddedDesc:          return "t.file_added DESC";
-            case TrackSortMethod::StarredDateDesc:    return "t.starred_date DESC";
-            case TrackSortMethod::FileName:           return "t.file_name";
-            case TrackSortMethod::Name:               return "t.name";
-            case TrackSortMethod::DateDescAndRelease: return "t.date DESC, t.release";
-            case TrackSortMethod::Release:            return "t.disc_number, t.track_number";
-            case TrackSortMethod::TrackList:          return "t.tracklist_order";
-            default:                                  return "t.id";
+        case TrackSortMethod::None:
+            return "t.id";
+        case TrackSortMethod::Id:
+            return "t.id";
+        case TrackSortMethod::Random:
+            return "RANDOM()";
+        case TrackSortMethod::LastWrittenDesc:
+            return "t.file_last_write DESC";
+        case TrackSortMethod::AddedDesc:
+            return "t.file_added DESC";
+        case TrackSortMethod::StarredDateDesc:
+            return "t.starred_date DESC";
+        case TrackSortMethod::FileName:
+            return "t.file_name";
+        case TrackSortMethod::Name:
+            return "t.name";
+        case TrackSortMethod::DateDescAndRelease:
+            return "t.date DESC, t.release";
+        case TrackSortMethod::Release:
+            return "t.disc_number, t.track_number";
+        case TrackSortMethod::TrackList:
+            return "t.tracklist_order";
+        default:
+            return "t.id";
         }
     }
 
@@ -400,7 +412,7 @@ namespace lms::db
         {
             std::string joinAlias = "tc" + std::to_string(groupCounter++);
             baseQuery += " JOIN track_cluster " + joinAlias + " ON " + joinAlias + ".track_id = t.id"
-                         + " AND " + joinAlias + ".cluster_id IN (" + utils::createPlaceholders(clusterIds.size()) + ")";
+                       + " AND " + joinAlias + ".cluster_id IN (" + utils::createPlaceholders(clusterIds.size()) + ")";
 
             bindClusterIds.insert(bindClusterIds.end(), clusterIds.begin(), clusterIds.end());
         }
@@ -430,7 +442,6 @@ namespace lms::db
         bool moreResults = false;
         utils::forEachQueryRangeResult(query, params.range, moreResults, func);
     }
-
 
     RangeResults<TrackId> Track::findSimilarTrackIds(Session& session, const std::vector<TrackId>& tracks, std::optional<Range> range)
     {

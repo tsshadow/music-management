@@ -466,7 +466,6 @@ namespace lms::api::subsonic
         return clusterGroups;
     }
 
-
     /**
      * Handle songs endpoint
      *

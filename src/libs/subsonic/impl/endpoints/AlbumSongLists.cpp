@@ -505,7 +505,7 @@ namespace lms::api::subsonic
     {
         // Optional query parameters
         auto filters = getParameterAs<std::string>(context.parameters, "clusters");
-        auto sortMethod = stringToSortMethod(getParameterAs<std::string>(context.parameters, "sortMethod").value_or("None"));
+        auto sortMethod = stringToSortMethod(getParameterAs<std::string>(context.parameters, "sortMethod").value_or("AddedDesc"));
         MediaLibraryId const mediaLibraryId = getParameterAs<MediaLibraryId>(context.parameters, "musicFolderId").value_or(MediaLibraryId{});
         std::size_t size = getParameterAs<std::size_t>(context.parameters, "count").value_or(50);
         std::size_t const offset = getParameterAs<std::size_t>(context.parameters, "offset").value_or(0);

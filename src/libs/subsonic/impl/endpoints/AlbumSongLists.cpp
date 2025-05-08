@@ -419,18 +419,27 @@ namespace lms::api::subsonic
         rapidjson::Document document;
         document.Parse(json.c_str());
 
-        if (document.HasParseError())
+        if (document.HasParseError() || !document.IsArray())
             throw ParameterJsonFailedToParse{ json };
 
-        for (auto& filter : document.GetArray())
+        for (const auto& filter : document.GetArray())
         {
-            const std::string name = filter["name"].GetString();
+            // Validate expected structure
+            if (!filter.IsObject() || !filter.HasMember("name") || !filter.HasMember("value"))
+                throw ParameterJsonFailedToParse{ json };
+
+            const auto& nameValue = filter["name"];
+            const auto& value = filter["value"];
+
+            if (!nameValue.IsString())
+                throw ParameterJsonFailedToParse{ json };
+
+            const std::string name = nameValue.GetString();
             auto& clusterSet = clusterGroups[name];
 
-            const auto& value = filter["value"];
             if (value.IsArray())
             {
-                for (auto& val : value.GetArray())
+                for (const auto& val : value.GetArray())
                 {
                     if (val.IsString())
                         clusterSet.insert(GetCluster(val.GetString(), name, context));
@@ -456,6 +465,7 @@ namespace lms::api::subsonic
 
         return clusterGroups;
     }
+
 
     /**
      * Handle songs endpoint

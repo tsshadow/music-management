@@ -372,8 +372,8 @@ namespace lms::db
             case TrackSortMethod::None:               return "t.id";
             case TrackSortMethod::Id:                 return "t.id";
             case TrackSortMethod::Random:             return "RANDOM()";
-            case TrackSortMethod::LastWrittenDesc:    return "t.last_written DESC";
-            case TrackSortMethod::AddedDesc:          return "t.added DESC";
+            case TrackSortMethod::LastWrittenDesc:    return "t.file_last_write DESC";
+            case TrackSortMethod::AddedDesc:          return "t.file_added DESC";
             case TrackSortMethod::StarredDateDesc:    return "t.starred_date DESC";
             case TrackSortMethod::FileName:           return "t.file_name";
             case TrackSortMethod::Name:               return "t.name";

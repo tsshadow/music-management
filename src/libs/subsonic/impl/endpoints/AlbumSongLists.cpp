@@ -19,6 +19,8 @@
 
 #include "AlbumSongLists.hpp"
 
+#include <algorithm>
+
 #include "core/Service.hpp"
 #include "database/Artist.hpp"
 #include "database/Cluster.hpp"
@@ -504,12 +506,11 @@ namespace lms::api::subsonic
         // Optional query parameters
         auto filters = getParameterAs<std::string>(context.parameters, "clusters");
         auto sortMethod = stringToSortMethod(getParameterAs<std::string>(context.parameters, "sortMethod").value_or("None"));
-        MediaLibraryId mediaLibraryId = getParameterAs<MediaLibraryId>(context.parameters, "musicFolderId").value_or(MediaLibraryId{});
+        MediaLibraryId const mediaLibraryId = getParameterAs<MediaLibraryId>(context.parameters, "musicFolderId").value_or(MediaLibraryId{});
         std::size_t size = getParameterAs<std::size_t>(context.parameters, "count").value_or(50);
-        std::size_t offset = getParameterAs<std::size_t>(context.parameters, "offset").value_or(0);
+        std::size_t const offset = getParameterAs<std::size_t>(context.parameters, "offset").value_or(0);
 
-        if (size > defaultMaxCountSize)
-            size = defaultMaxCountSize;
+        size = std::min(size, defaultMaxCountSize);
 
         Response response{ Response::createOkResponse(context.serverProtocolVersion) };
         auto transaction = context.dbSession.createReadTransaction();

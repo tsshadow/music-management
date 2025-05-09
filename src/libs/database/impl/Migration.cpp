@@ -1194,6 +1194,27 @@ FROM tracklist)");
         utils::executeCommand(*session.getDboSession(), "ALTER TABLE scan_settings ADD COLUMN artists_to_not_split TEXT NON NULL DEFAULT('')");
     }
 
+    void applyCustomExtensions(Session& session)
+    {
+        session.execute(R"(
+        CREATE TABLE IF NOT EXISTS track_play (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            track_id INTEGER NOT NULL,
+            user_id INTEGER,
+            played_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(track_id) REFERENCES track(id) ON DELETE CASCADE
+        )
+    )");
+
+        session.execute(R"(
+        CREATE INDEX IF NOT EXISTS idx_track_play_track_id ON track_play(track_id)
+    )");
+
+        session.execute(R"(
+        CREATE INDEX IF NOT EXISTS idx_track_play_played_at ON track_play(played_at DESC)
+    )");
+    }
+
     bool doDbMigration(Session& session)
     {
         constexpr std::string_view outdatedMsg{ "Outdated database, please rebuild it (delete the .db file and restart)" };
@@ -1265,6 +1286,7 @@ FROM tracklist)");
             LMS_SCOPED_TRACE_OVERVIEW("Database", "Migration");
             auto transaction{ session.createWriteTransaction() };
 
+            applyCustomExtensions(session);
             Version version;
             try
             {

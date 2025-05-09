@@ -370,37 +370,34 @@ namespace lms::db
         utils::forEachQueryRangeResult(query, params.range, moreResults, func);
     }
 
-    inline std::string toSql(TrackSortMethod method)
-    {
-        switch (method)
-        {
-        case TrackSortMethod::None:
-            return "t.id";
-        case TrackSortMethod::Id:
-            return "t.id";
-        case TrackSortMethod::Random:
-            return "RANDOM()";
-        case TrackSortMethod::LastWrittenDesc:
-            return "t.file_last_write DESC";
-        case TrackSortMethod::AddedDesc:
-            return "t.file_added DESC";
-        case TrackSortMethod::StarredDateDesc:
-            return "t.starred_date DESC";
-        case TrackSortMethod::FileName:
-            return "t.file_name";
-        case TrackSortMethod::Name:
-            return "t.name";
-        case TrackSortMethod::DateDescAndRelease:
-            return "t.date DESC, t.release";
-        case TrackSortMethod::Release:
-            return "t.disc_number, t.track_number";
-        case TrackSortMethod::TrackList:
-            return "t.tracklist_order";
-        default:
-            return "t.id";
-        }
-    }
-
+    /**
+     * @brief Perform an advanced search for tracks using a wide range of filtering options.
+     *
+     * This function executes a SQL query to find distinct tracks (`Track`) based on a variety of
+     * filtering criteria, including media library, clusters (such as genre, year, length),
+     * rating bounds, and sorting. The search supports advanced use cases such as:
+     * - Filtering by multiple cluster groups (e.g., genre AND year).
+     * - Applying minimum and/or maximum rating constraints.
+     * - Sorting by customizable track fields.
+     * - Efficient pagination using SQL-based offset and count.
+     *
+     * Results are streamed one by one through the provided callback to support large result sets
+     * without excessive memory usage.
+     *
+     * @param session          An active database session. Must be inside a read transaction.
+     * @param params           The parameters describing what to search for, including filters,
+     *                         sort method, result range, and rating constraints.
+     * @param clusterGroups    A map from filter names (e.g., "GENRE", "YEAR") to sets of ClusterIds
+     *                         to be joined as `AND` conditions. Each set within the group acts as an `OR`.
+     * @param func             A callback function that will be called for each matching track.
+     *
+     * @throws Wt::Dbo::Exception If the query or database interaction fails.
+     * @throws TransactionError   If the session is not in a read transaction.
+     *
+     * @note This is the most flexible and scalable track search entrypoint. It is optimized
+     *       for performance and extensibility. Prefer this over simpler queries when combining
+     *       filters like cluster, rating, and pagination.
+     */
     void Track::find_advanced(
         Session& session,
         const FindParameters& params,
@@ -411,6 +408,8 @@ namespace lms::db
 
         std::string baseQuery = "SELECT DISTINCT t FROM track t";
         std::vector<ClusterId> bindClusterIds;
+        std::vector<std::function<void(Wt::Dbo::Query<Wt::Dbo::ptr<Track>>&)>>
+            bindFuncs; // store lambdas that bind later
 
         int groupCounter = 0;
         for (const auto& [filterName, clusterIds] : clusterGroups)
@@ -419,30 +418,41 @@ namespace lms::db
             baseQuery += " JOIN track_cluster " + joinAlias + " ON " + joinAlias + ".track_id = t.id"
                        + " AND " + joinAlias + ".cluster_id IN (" + utils::createPlaceholders(clusterIds.size()) + ")";
 
-            bindClusterIds.insert(bindClusterIds.end(), clusterIds.begin(), clusterIds.end());
+            for (const auto& cid : clusterIds)
+            {
+                bindFuncs.emplace_back([cid](auto& q) { q.bind(cid); });
+            }
         }
 
         baseQuery += " WHERE 1=1";
 
+        if (params.minRating.has_value())
+        {
+            baseQuery += " AND t.rating >= ?";
+            bindFuncs.emplace_back([&params](auto& q) { q.bind(params.minRating.value()); });
+        }
+        if (params.maxRating.has_value())
+        {
+            baseQuery += " AND t.rating <= ?";
+            bindFuncs.emplace_back([&params](auto& q) { q.bind(params.maxRating.value()); });
+        }
+
         if (params.filters.mediaLibrary.isValid())
+        {
             baseQuery += " AND t.media_library_id = ?";
+            bindFuncs.emplace_back([&params](auto& q) { q.bind(params.filters.mediaLibrary); });
+        }
 
         if (params.sortMethod != TrackSortMethod::None)
-        {
-            baseQuery += " ORDER BY " + toSql(params.sortMethod);
-        }
+            baseQuery += " ORDER BY " + sortMethodToSQL(params.sortMethod);
         else
-        {
             baseQuery += " ORDER BY t.id";
-        }
 
         auto query = session.getDboSession()->query<Wt::Dbo::ptr<Track>>(baseQuery);
 
-        for (const auto& cid : bindClusterIds)
-            query.bind(cid);
-
-        if (params.filters.mediaLibrary.isValid())
-            query.bind(params.filters.mediaLibrary);
+        // Apply all bind lambdas
+        for (const auto& bind : bindFuncs)
+            bind(query);
 
         bool moreResults = false;
         utils::forEachQueryRangeResult(query, params.range, moreResults, func);
@@ -468,8 +478,8 @@ namespace lms::db
                                                + oss.str() + "))"
                                                              " AND t.id NOT IN ("
                                                + oss.str() + ")")
-                        .groupBy("t.id")
-                        .orderBy("COUNT(*) DESC, RANDOM()") };
+                .groupBy("t.id")
+                .orderBy("COUNT(*) DESC, RANDOM()") };
 
         for (TrackId trackId : tracks)
             query.bind(trackId);
@@ -660,6 +670,30 @@ namespace lms::db
     std::vector<TrackArtistLink::pointer> Track::getArtistLinks() const
     {
         return utils::fetchQueryResults<TrackArtistLink::pointer>(_trackArtistLinks.find());
+    }
+
+    void Track::logPlay(Session& session, TrackId trackId, std::optional<UserId> userId)
+    {
+        auto& dbo = *session.getDboSession();
+
+        if (userId.has_value())
+        {
+            dbo.execute("INSERT INTO track_play (track_id, user_id, played_at) VALUES (?, ?, CURRENT_TIMESTAMP)")
+                .bind(trackId)
+                .bind(*userId);
+        }
+        else
+        {
+            dbo.execute("INSERT INTO track_play (track_id, played_at) VALUES (?, CURRENT_TIMESTAMP)")
+                .bind(trackId);
+        }
+
+        dbo.execute(
+               "UPDATE track SET "
+               "play_count = COALESCE(play_count, 0) + 1, "
+               "last_played = CURRENT_TIMESTAMP "
+               "WHERE id = ?")
+            .bind(trackId);
     }
 
     std::vector<std::vector<Cluster::pointer>> Track::getClusterGroups(const std::vector<ClusterTypeId>& clusterTypeIds, std::size_t size) const

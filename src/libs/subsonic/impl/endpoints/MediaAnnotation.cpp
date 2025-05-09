@@ -35,6 +35,8 @@
 #include "ParameterParsing.hpp"
 #include "SubsonicId.hpp"
 
+#include <database/Track.hpp>
+
 namespace lms::api::subsonic
 {
     using namespace db;
@@ -191,6 +193,8 @@ namespace lms::api::subsonic
         if (!submission)
         {
             core::Service<scrobbling::IScrobblingService>::get()->listenStarted({ context.user->getId(), ids.front() });
+            Track::logPlay(context.dbSession, ids.front(), context.user->getId());
+
         }
         else
         {

@@ -17,6 +17,8 @@
  * along with LMS.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../impl/Migration.hpp"
+
 #include "Common.hpp"
 
 #include "core/String.hpp"

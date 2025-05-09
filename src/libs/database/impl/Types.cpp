@@ -41,4 +41,75 @@ namespace lms::db
     {
         return allowedAudioBitrates.find(bitrate) != std::cend(allowedAudioBitrates);
     }
+
+    TrackSortMethod stringToSortMethod(const std::string& input)
+    {
+        if (input == "Id") return TrackSortMethod::Id;
+        if (input == "None") return TrackSortMethod::None;
+        if (input == "Random") return TrackSortMethod::Random;
+        if (input == "AddedDesc") return TrackSortMethod::AddedDesc;
+        if (input == "LastWrittenDesc") return TrackSortMethod::LastWrittenDesc;
+        if (input == "StarredDateDesc") return TrackSortMethod::StarredDateDesc;
+        if (input == "Name") return TrackSortMethod::Name;
+        if (input == "DateDescAndRelease") return TrackSortMethod::DateDescAndRelease;
+        if (input == "Release") return TrackSortMethod::Release;
+        if (input == "TrackList") return TrackSortMethod::TrackList;
+        if (input == "MostPlayed") return TrackSortMethod::MostPlayed;
+        if (input == "RecentlyPlayed") return TrackSortMethod::RecentlyPlayed;
+
+        return TrackSortMethod::Name; // fallback
+    }
+
+    std::string sortMethodToString(TrackSortMethod input)
+    {
+        switch (input)
+        {
+        case TrackSortMethod::Id: return "Id";
+        case TrackSortMethod::None: return "None";
+        case TrackSortMethod::Random: return "Random";
+        case TrackSortMethod::AddedDesc: return "AddedDesc";
+        case TrackSortMethod::LastWrittenDesc: return "LastWrittenDesc";
+        case TrackSortMethod::StarredDateDesc: return "StarredDateDesc";
+        case TrackSortMethod::Name: return "Name";
+        case TrackSortMethod::DateDescAndRelease: return "DateDescAndRelease";
+        case TrackSortMethod::Release: return "Release";
+        case TrackSortMethod::TrackList: return "TrackList";
+        case TrackSortMethod::MostPlayed: return "MostPlayed";
+        case TrackSortMethod::RecentlyPlayed: return "RecentlyPlayed";
+        }
+
+        return "";
+    }
+
+    std::string sortMethodToSQL(TrackSortMethod input)
+    {
+        switch (input)
+        {
+        case TrackSortMethod::None:
+            return "t.id";
+        case TrackSortMethod::Id:
+            return "t.id";
+        case TrackSortMethod::Random:
+            return "RANDOM()";
+        case TrackSortMethod::LastWrittenDesc:
+            return "t.file_last_write DESC";
+        case TrackSortMethod::AddedDesc:
+            return "t.file_added DESC";
+        case TrackSortMethod::StarredDateDesc:
+            return "t.starred_date DESC";
+        case TrackSortMethod::FileName:
+            return "t.file_name";
+        case TrackSortMethod::Name:
+            return "t.name";
+        case TrackSortMethod::DateDescAndRelease:
+            return "t.date DESC, t.release";
+        case TrackSortMethod::Release:
+            return "t.disc_number, t.track_number";
+        case TrackSortMethod::TrackList:
+            return "t.tracklist_order";
+        default:
+            return "t.id";
+        }
+    }
+
 } // namespace lms::db

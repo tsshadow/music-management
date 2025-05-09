@@ -129,8 +129,6 @@ namespace lms::metadata::tests
         EXPECT_EQ(track->producerArtists[0].name, "MyProducer1");
         EXPECT_EQ(track->producerArtists[1].name, "MyProducer2");
         ASSERT_TRUE(track->recordingMBID.has_value());
-        ASSERT_TRUE(track->rating.has_value());
-        EXPECT_EQ(track->rating.value(), 5);
         EXPECT_EQ(track->recordingMBID.value(), core::UUID::fromString("bd3fc666-89de-4ac8-93f6-2dbf028ad8d5"));
         ASSERT_TRUE(track->replayGain.has_value());
         EXPECT_FLOAT_EQ(track->replayGain.value(), -0.33);

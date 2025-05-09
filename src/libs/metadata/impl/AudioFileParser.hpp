@@ -48,6 +48,7 @@ namespace lms::metadata
         void processTags(const ITagReader& reader, Track& track) const;
 
         std::optional<Medium> getMedium(const ITagReader& tagReader) const;
+        std::optional<int> getRating(const ITagReader& tagReader) const;
         std::optional<Release> getRelease(const ITagReader& tagReader) const;
 
         const AudioFileParserParameters _params;

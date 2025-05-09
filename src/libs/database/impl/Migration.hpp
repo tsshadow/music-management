@@ -53,5 +53,6 @@ namespace lms::db
     namespace Migration
     {
         bool doDbMigration(Session& session); // return true if migration was performed
+        void applyCustomExtensions(Session& session);
     }
 } // namespace lms::db

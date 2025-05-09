@@ -517,7 +517,7 @@ namespace lms::metadata
      * @param tagReader
      * @return
      */
-    std::optional<int> Parser::getRating(const ITagReader& tagReader)
+    std::optional<int> AudioFileParser::getRating(const ITagReader& tagReader) const
     {
         std::optional<int> tagRating = getTagValueAs<int>(tagReader, TagType::Rating);
         if (tagRating.has_value())

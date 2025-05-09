@@ -324,95 +324,7 @@ namespace lms::api::subsonic
         return response;
     }
 
-    static TrackSortMethod stringToSortMethod(const std::string& input)
-    {
-        if (input == "Id")
-        {
-            return TrackSortMethod::Id;
-        }
-        if (input == "None")
-        {
-            return TrackSortMethod::None;
-        }
-        if (input == "Random")
-        {
-            return TrackSortMethod::Random;
-        }
-        if (input == "AddedDesc")
-        {
-            return TrackSortMethod::AddedDesc;
-        }
-        if (input == "LastWrittenDesc")
-        {
-            return TrackSortMethod::LastWrittenDesc;
-        }
-        if (input == "StarredDateDesc")
-        {
-            return TrackSortMethod::StarredDateDesc;
-        }
-        if (input == "Name")
-        {
-            return TrackSortMethod::Name;
-        }
-        if (input == "DateDescAndRelease")
-        {
-            return TrackSortMethod::DateDescAndRelease;
-        }
-        if (input == "Release")
-        {
-            return TrackSortMethod::Release;
-        } // order by disc/track number
-        if (input == "TrackList")
-        {
-            return TrackSortMethod::TrackList;
-        } // order by asc order in tracklist
-        return TrackSortMethod::Name;
-    }
 
-    static std::string sortMethodToString(TrackSortMethod input)
-    {
-        if (input == TrackSortMethod::Id)
-        {
-            return "Id";
-        }
-        if (input == TrackSortMethod::None)
-        {
-            return "None";
-        }
-        if (input == TrackSortMethod::Random)
-        {
-            return "Random";
-        }
-        if (input == TrackSortMethod::AddedDesc)
-        {
-            return "AddedDesc";
-        }
-        if (input == TrackSortMethod::LastWrittenDesc)
-        {
-            return "LastWrittenDesc";
-        }
-        if (input == TrackSortMethod::StarredDateDesc)
-        {
-            return "StarredDateDesc";
-        }
-        if (input == TrackSortMethod::Name)
-        {
-            return "Name";
-        }
-        if (input == TrackSortMethod::DateDescAndRelease)
-        {
-            return "DateDescAndRelease";
-        }
-        if (input == TrackSortMethod::Release)
-        {
-            return "Release";
-        } // order by disc/track number
-        if (input == TrackSortMethod::TrackList)
-        {
-            return "TrackList";
-        } // order by asc order in tracklist
-        return "";
-    }
 
     static std::map<std::string, std::set<ClusterId>> parseClusterGroups(const std::string& json, RequestContext& context)
     {
@@ -509,6 +421,9 @@ namespace lms::api::subsonic
         MediaLibraryId const mediaLibraryId = getParameterAs<MediaLibraryId>(context.parameters, "musicFolderId").value_or(MediaLibraryId{});
         std::size_t size = getParameterAs<std::size_t>(context.parameters, "count").value_or(50);
         std::size_t const offset = getParameterAs<std::size_t>(context.parameters, "offset").value_or(0);
+        std::optional<int> minRating = getParameterAs<int>(context.parameters, "minRating");
+        std::optional<int> maxRating = getParameterAs<int>(context.parameters, "maxRating");
+
 
         size = std::min(size, defaultMaxCountSize);
 
@@ -525,7 +440,12 @@ namespace lms::api::subsonic
         {
             clusterGroups = parseClusterGroups(filters.value(), context);
         }
-
+        if (minRating) {
+            params.setMinRating(*minRating);
+        }
+        if (maxRating) {
+            params.setMaxRating(*maxRating);
+        }
         Response::Node& songsNode = response.createNode("songs");
 
         Track::find_advanced(context.dbSession, params, clusterGroups, [&](const Track::pointer& track) {

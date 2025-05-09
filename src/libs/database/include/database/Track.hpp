@@ -90,6 +90,20 @@ namespace lms::db
             DirectoryId directory;                                   // if set, tracks in this directory
             std::optional<std::size_t> fileSize;                     // if set, tracks that match this file size
             TrackEmbeddedImageId embeddedImageId;                    // if set, tracks that have this embedded image
+            std::optional<int> minRating;
+            std::optional<int> maxRating;
+
+            FindParameters& setMinRating(int value)
+            {
+                minRating = value;
+                return *this;
+            }
+
+            FindParameters& setMaxRating(int value)
+            {
+                maxRating = value;
+                return *this;
+            }
 
             FindParameters& setFilters(const Filters& _filters)
             {
@@ -225,6 +239,7 @@ namespace lms::db
             const std::function<void(const Track::pointer&)>& func);
         static RangeResults<TrackId> findIdsTrackMBIDDuplicates(Session& session, std::optional<Range> range = std::nullopt);
         static RangeResults<TrackId> findIdsWithRecordingMBIDAndMissingFeatures(Session& session, std::optional<Range> range = std::nullopt);
+        static void logPlay(Session& session, TrackId trackId, std::optional<UserId> userId);
 
         // Accessors
         void setScanVersion(std::size_t version) { _scanVersion = version; }

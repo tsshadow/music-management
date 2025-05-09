@@ -194,7 +194,13 @@ namespace lms::db
         DateDescAndRelease,
         Release,   // order by disc/track number
         TrackList, // order by asc order in tracklist
+        MostPlayed,
+        RecentlyPlayed
     };
+
+    TrackSortMethod stringToSortMethod(const std::string& input);
+    std::string sortMethodToString(TrackSortMethod method);
+    std::string sortMethodToSQL(TrackSortMethod input);
 
     enum class TrackLyricsSortMethod
     {

@@ -20,13 +20,15 @@
 #pragma once
 
 #include <atomic>
+#include <cassert>
+#include <memory>
 #include <optional>
 #include <shared_mutex>
 #include <unordered_map>
 #include <variant>
 
 #include "database/ImageId.hpp"
-#include "database/TrackId.hpp"
+#include "database/TrackEmbeddedImageId.hpp"
 #include "image/IEncodedImage.hpp"
 
 namespace lms::cover
@@ -38,7 +40,7 @@ namespace lms::cover
 
         struct EntryDesc
         {
-            using VariantType = std::variant<db::TrackId, db::ImageId>;
+            using VariantType = std::variant<db::TrackEmbeddedImageId, db::ImageId>;
             VariantType id;
             std::optional<std::size_t> size;
 

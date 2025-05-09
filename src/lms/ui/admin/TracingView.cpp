@@ -20,6 +20,7 @@
 #include "TracingView.hpp"
 
 #include <Wt/Http/Response.h>
+#include <Wt/Utils.h>
 #include <Wt/WDateTime.h>
 #include <Wt/WPushButton.h>
 #include <Wt/WResource.h>
@@ -33,23 +34,32 @@ namespace lms::ui
 {
     namespace
     {
-        class ReportResource : public Wt::WResource
+        class TracingReportResource : public Wt::WResource
         {
         public:
-            ReportResource(core::tracing::ITraceLogger& traceLogger)
+            TracingReportResource(core::tracing::ITraceLogger& traceLogger)
                 : _traceLogger{ traceLogger }
             {
             }
 
-            ~ReportResource()
+            ~TracingReportResource()
             {
                 beingDeleted();
             }
+            TracingReportResource(const TracingReportResource&) = delete;
+            TracingReportResource& operator=(const TracingReportResource&) = delete;
 
             void handleRequest(const Wt::Http::Request&, Wt::Http::Response& response)
             {
                 response.setMimeType("application/gzip");
-                suggestFileName(core::stringUtils::toISO8601String(Wt::WDateTime::currentDateTime()) + "-traces.json.gz");
+
+                auto encodeHttpHeaderField = [](const std::string& fieldName, const std::string& fieldValue) {
+                    // This implements RFC 5987
+                    return fieldName + "*=UTF-8''" + Wt::Utils::urlEncode(fieldValue);
+                };
+
+                const std::string cdp{ encodeHttpHeaderField("filename", "LMS_traces_" + core::stringUtils::toISO8601String(Wt::WDateTime::currentDateTime()) + ".json.gz") };
+                response.addHeader("Content-Disposition", "attachment; " + cdp);
 
                 boost::iostreams::filtering_ostream gzipStream;
                 gzipStream.push(boost::iostreams::gzip_compressor{});
@@ -72,7 +82,7 @@ namespace lms::ui
 
         if (auto traceLogger{ core::Service<core::tracing::ITraceLogger>::get() })
         {
-            Wt::WLink link{ std::make_shared<ReportResource>(*traceLogger) };
+            Wt::WLink link{ std::make_shared<TracingReportResource>(*traceLogger) };
             link.setTarget(Wt::LinkTarget::NewWindow);
             dumpBtn->setLink(link);
         }

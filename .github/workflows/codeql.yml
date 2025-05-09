@@ -1,12 +1,10 @@
 name: "CodeQL"
 
 on:
-  push:
-    branches: [ "master", "develop" ]
   pull_request:
     branches: [ "master", "develop" ]
   schedule:
-    - cron: "48 10 * * 4"
+    - cron: "48 10 1 * *"
 
 jobs:
   analyze:
@@ -30,8 +28,8 @@ jobs:
         name: Install dependencies (cpp)
         run: |
           sudo apt-get update
-          sudo apt-get install --yes build-essential cmake libboost-all-dev libconfig++-dev libavcodec-dev libavutil-dev libavformat-dev libstb-dev libtag1-dev libpam0g-dev libgtest-dev libarchive-dev
-          export WT_VERSION=4.9.0
+          sudo apt-get install --yes build-essential cmake libboost-all-dev libconfig++-dev libavcodec-dev libavutil-dev libavformat-dev libstb-dev libtag1-dev libpam0g-dev libgtest-dev libarchive-dev libxxhash-dev
+          export WT_VERSION=4.11.3
           export WT_INSTALL_PREFIX=/usr
           git clone https://github.com/emweb/wt.git /tmp/wt
           pushd /tmp/wt
@@ -42,24 +40,24 @@ jobs:
           popd
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
+        uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
           queries: +security-and-quality
 
       - if: matrix.language == 'javascript'
         name: Autobuild
-        uses: github/codeql-action/autobuild@v2
+        uses: github/codeql-action/autobuild@v3
 
       - if: matrix.language == 'cpp'
         name: Build
         run: |
           mkdir -p build
           cd build
-          cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=Release ..
+          cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_UNITY_BUILD=ON ..
           make -j$(nproc)
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+        uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"

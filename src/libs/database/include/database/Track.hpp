@@ -41,6 +41,7 @@
 #include "database/MediaLibraryId.hpp"
 #include "database/Object.hpp"
 #include "database/ReleaseId.hpp"
+#include "database/TrackEmbeddedImageId.hpp"
 #include "database/TrackId.hpp"
 #include "database/TrackListId.hpp"
 #include "database/Types.hpp"
@@ -52,6 +53,7 @@ namespace lms::db
     class Cluster;
     class ClusterType;
     class Directory;
+    class TrackEmbeddedImageLink;
     class MediaLibrary;
     class Release;
     class Session;
@@ -86,8 +88,8 @@ namespace lms::db
             std::optional<int> discNumber;                           // matching this disc number
             std::optional<int> rating;                               // track rating
             DirectoryId directory;                                   // if set, tracks in this directory
-            std::optional<bool> hasEmbeddedImage;                    // if set, tracks that have or not embedded images
             std::optional<std::size_t> fileSize;                     // if set, tracks that match this file size
+            TrackEmbeddedImageId embeddedImageId;                    // if set, tracks that have this embedded image
 
             FindParameters& setFilters(const Filters& _filters)
             {
@@ -188,14 +190,14 @@ namespace lms::db
                 directory = _directory;
                 return *this;
             }
-            FindParameters& setHasEmbeddedImage(std::optional<bool> _hasEmbeddedImage)
-            {
-                hasEmbeddedImage = _hasEmbeddedImage;
-                return *this;
-            }
             FindParameters& setFileSize(std::optional<std::size_t> _fileSize)
             {
                 fileSize = _fileSize;
+                return *this;
+            }
+            FindParameters& setEmbeddedImage(TrackEmbeddedImageId _embeddedImageId)
+            {
+                embeddedImageId = _embeddedImageId;
                 return *this;
             }
         };
@@ -244,7 +246,6 @@ namespace lms::db
         void setSampleRate(std::size_t channelCount) { _sampleRate = channelCount; }
         void setDate(const core::PartialDateTime& date) { _date = date; }
         void setOriginalDate(const core::PartialDateTime& date) { _originalDate = date; }
-        void setHasCover(bool hasCover) { _hasCover = hasCover; }
         void setTrackMBID(const std::optional<core::UUID>& MBID) { _trackMBID = MBID ? MBID->getAsString() : ""; }
         void setRecordingMBID(const std::optional<core::UUID>& MBID) { _recordingMBID = MBID ? MBID->getAsString() : ""; }
         void setCopyright(std::string_view copyright);
@@ -261,6 +262,8 @@ namespace lms::db
         void clearLyrics();
         void clearEmbeddedLyrics();
         void addLyrics(const ObjectPtr<TrackLyrics>& lyrics);
+        void clearEmbeddedImageLinks();
+        void addEmbeddedImageLink(const ObjectPtr<TrackEmbeddedImageLink>& link);
         void setMediaLibrary(ObjectPtr<MediaLibrary> mediaLibrary) { _mediaLibrary = getDboPtr(mediaLibrary); }
         void setDirectory(ObjectPtr<Directory> directory) { _directory = getDboPtr(directory); }
 
@@ -286,7 +289,6 @@ namespace lms::db
         std::optional<int> getOriginalYear() const;
         const Wt::WDateTime& getLastWriteTime() const { return _fileLastWrite; }
         const Wt::WDateTime& getAddedTime() const { return _fileAdded; }
-        bool hasCover() const { return _hasCover; }
         bool hasLyrics() const;
         std::optional<core::UUID> getTrackMBID() const { return core::UUID::fromString(_trackMBID); }
         std::optional<core::UUID> getRecordingMBID() const { return core::UUID::fromString(_recordingMBID); }
@@ -335,7 +337,6 @@ namespace lms::db
             Wt::Dbo::field(a, _fileSize, "file_size");
             Wt::Dbo::field(a, _fileLastWrite, "file_last_write");
             Wt::Dbo::field(a, _fileAdded, "file_added");
-            Wt::Dbo::field(a, _hasCover, "has_cover");
             Wt::Dbo::field(a, _trackMBID, "mbid");
             Wt::Dbo::field(a, _recordingMBID, "recording_mbid");
             Wt::Dbo::field(a, _copyright, "copyright");
@@ -352,6 +353,7 @@ namespace lms::db
             Wt::Dbo::hasMany(a, _trackArtistLinks, Wt::Dbo::ManyToOne, "track");
             Wt::Dbo::hasMany(a, _clusters, Wt::Dbo::ManyToMany, "track_cluster", "", Wt::Dbo::OnDeleteCascade);
             Wt::Dbo::hasMany(a, _trackLyrics, Wt::Dbo::ManyToOne, "track");
+            Wt::Dbo::hasMany(a, _embeddedImageLinks, Wt::Dbo::ManyToOne, "track");
         }
 
     private:
@@ -383,7 +385,6 @@ namespace lms::db
         long long _fileSize{};
         Wt::WDateTime _fileLastWrite;
         Wt::WDateTime _fileAdded;
-        bool _hasCover{};
         std::string _trackMBID;
         std::string _recordingMBID;
         std::string _copyright;
@@ -399,6 +400,7 @@ namespace lms::db
         Wt::Dbo::collection<Wt::Dbo::ptr<TrackArtistLink>> _trackArtistLinks;
         Wt::Dbo::collection<Wt::Dbo::ptr<Cluster>> _clusters;
         Wt::Dbo::collection<Wt::Dbo::ptr<TrackLyrics>> _trackLyrics;
+        Wt::Dbo::collection<Wt::Dbo::ptr<TrackEmbeddedImageLink>> _embeddedImageLinks;
     };
 
     namespace Debug

@@ -30,7 +30,7 @@ namespace lms::metadata
     namespace
     {
         // Mapping to internal avformat names and/or common alternative custom names
-        static const std::unordered_map<TagType, std::vector<std::string>> tagMapping{
+        static const std::unordered_map<TagType, std::vector<std::string>> avFormatTagMapping{
             { TagType::AcoustID, { "ACOUSTID_ID", "ACOUSTID ID" } },
             { TagType::Advisory, { "ITUNESADVISORY" } },
             { TagType::Album, { "ALBUM", "TALB", "WM/ALBUMTITLE" } },
@@ -157,7 +157,6 @@ namespace lms::metadata
 
             _containerInfo = audioFile->getContainerInfo();
             _metaDataMap = audioFile->getMetaData();
-            _hasEmbeddedCover = audioFile->hasAttachedPictures();
 
             if (debug && core::Service<core::logging::ILogger>::get()->isSeverityActive(core::logging::Severity::DEBUG))
             {
@@ -173,8 +172,8 @@ namespace lms::metadata
 
     void AvFormatTagReader::visitTagValues(TagType tag, TagValueVisitor visitor) const
     {
-        auto itTagNames{ tagMapping.find(tag) };
-        if (itTagNames == std::cend(tagMapping))
+        auto itTagNames{ avFormatTagMapping.find(tag) };
+        if (itTagNames == std::cend(avFormatTagMapping))
             return;
 
         for (const std::string& tagName : itTagNames->second)

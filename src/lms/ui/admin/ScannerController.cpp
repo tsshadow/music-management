@@ -19,9 +19,8 @@
 
 #include "ScannerController.hpp"
 
-#include <iomanip>
-
 #include <Wt/Http/Response.h>
+#include <Wt/Utils.h>
 #include <Wt/WCheckBox.h>
 #include <Wt/WDateTime.h>
 #include <Wt/WLocale.h>
@@ -29,6 +28,7 @@
 #include <Wt/WResource.h>
 
 #include "core/Service.hpp"
+#include "core/String.hpp"
 #include "database/Session.hpp"
 #include "database/Track.hpp"
 #include "services/scanner/IScannerService.hpp"
@@ -45,18 +45,16 @@ namespace lms::ui
         }
     } // namespace
 
-    class ReportResource : public Wt::WResource
+    class ScannerReportResource : public Wt::WResource
     {
     public:
-        ReportResource()
-        {
-            suggestFileName("report.txt");
-        }
-
-        ~ReportResource()
+        ScannerReportResource() = default;
+        ~ScannerReportResource() override
         {
             beingDeleted();
         }
+        ScannerReportResource(const ScannerReportResource&) = delete;
+        ScannerReportResource& operator=(const ScannerReportResource&) = delete;
 
         void setScanStats(const scanner::ScanStats& stats)
         {
@@ -66,10 +64,18 @@ namespace lms::ui
             *_stats = stats;
         }
 
-        void handleRequest(const Wt::Http::Request&, Wt::Http::Response& response)
+        void handleRequest(const Wt::Http::Request&, Wt::Http::Response& response) override
         {
             if (!_stats)
                 return;
+
+            auto encodeHttpHeaderField = [](const std::string& fieldName, const std::string& fieldValue) {
+                // This implements RFC 5987
+                return fieldName + "*=UTF-8''" + Wt::Utils::urlEncode(fieldValue);
+            };
+
+            const std::string cdp{ encodeHttpHeaderField("filename", "LMS_scan_report_" + core::stringUtils::toISO8601String(_stats->startTime) + ".txt") };
+            response.addHeader("Content-Disposition", "attachment; " + cdp);
 
             response.out() << Wt::WString::tr("Lms.Admin.ScannerController.errors-header").arg(_stats->errors.size()).toUTF8() << std::endl;
 
@@ -110,6 +116,8 @@ namespace lms::ui
             {
             case scanner::ScanErrorType::CannotReadFile:
                 return Wt::WString::tr("Lms.Admin.ScannerController.cannot-read-file");
+            case scanner::ScanErrorType::CannotReadArtistInfoFile:
+                return Wt::WString::tr("Lms.Admin.ScannerController.cannot-read-artist-info-file");
             case scanner::ScanErrorType::CannotReadAudioFile:
                 return Wt::WString::tr("Lms.Admin.ScannerController.cannot-read-audio-file");
             case scanner::ScanErrorType::CannotReadImageFile:
@@ -152,7 +160,7 @@ namespace lms::ui
         {
             _reportBtn = bindNew<Wt::WPushButton>("report-btn", Wt::WString::tr("Lms.Admin.ScannerController.get-report"));
 
-            auto reportResource{ std::make_shared<ReportResource>() };
+            auto reportResource{ std::make_shared<ScannerReportResource>() };
             reportResource->setTakesUpdateLock(true);
             _reportResource = reportResource.get();
 
@@ -320,6 +328,11 @@ namespace lms::ui
         case ScanStep::Optimize:
             _stepStatus->setText(Wt::WString::tr("Lms.Admin.ScannerController.step-optimize")
                                      .arg(stepStats.progress()));
+            break;
+
+        case ScanStep::ReconciliateArtists:
+            _stepStatus->setText(Wt::WString::tr("Lms.Admin.ScannerController.step-reconciliate-artists")
+                                     .arg(stepStats.processedElems));
             break;
 
         case ScanStep::RemoveOrphanedDbEntries:

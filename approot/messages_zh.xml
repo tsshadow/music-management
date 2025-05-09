@@ -34,6 +34,7 @@
 
 <message id="Lms.user">用户</message>
 
+
 <!--Locale-->
 <message id="Lms.locale.decimal-point">.</message>
 <message id="Lms.locale.group-separator">,</message>
@@ -73,6 +74,7 @@
 
 <!--Scan settings-->
 
+
 <message id="Lms.Admin.Database.daily">每日</message>
 
 
@@ -97,6 +99,7 @@
 
 <!--Scanner Controller-->
 <message id="Lms.Admin.ScannerController.bad-duration">无法获得音轨时间</message>
+
 <message id="Lms.Admin.ScannerController.cannot-read-audio-file">无法解析文件</message>
 
 <message id="Lms.Admin.ScannerController.cannot-read-file">无法读取文件</message>
@@ -131,6 +134,7 @@
 
 <message id="Lms.Admin.ScannerController.step-discovering-files">检索文件中: {1} 文件</message>
 <message id="Lms.Admin.ScannerController.step-fetching-track-features">从 AcousticBrainz 获取音轨特征: {1}/{2} 音轨 ({3}%)...</message>
+
 
 <message id="Lms.Admin.ScannerController.step-reloading-similarity-engine">重载相似引擎中 {1}%...</message>
 
@@ -208,6 +212,7 @@
 
 <!--Explore:Artist-->
 <message id="Lms.Explore.Artist.appears-on">出现于</message>
+
 <message id="Lms.Explore.Artist.similar-artists">相似歌手</message>
 
 <!--Explore:Artists-->
@@ -311,6 +316,8 @@
 <message id="Lms.Settings.demo-cannot-save">使用演示账号时不能保存！</message>
 
 
+
+
 <message id="Lms.Settings.menu-settings"><i class="fa fa-fw fa-cog" aria-hidden="true"></i> 设置</message>
 
 
@@ -348,6 +355,7 @@
 <message id="Lms.Settings.transcoding-output-format.ogg_opus">Ogg/Opus</message>
 <message id="Lms.Settings.transcoding-output-format.ogg_vorbis">Ogg/Vorbis</message>
 <message id="Lms.Settings.transcoding-output-format.webm_vorbis">WebM/Vorbis</message>
+
 
 <!--Wt-->
 <message id="Wt.WMessageBox.Yes">是</message>

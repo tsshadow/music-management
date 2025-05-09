@@ -49,20 +49,18 @@
 #include "core/String.hpp"
 #include "metadata/Exception.hpp"
 
-#if (TAGLIB_MAJOR_VERSION > 2) || (TAGLIB_MAJOR_VERSION == 2 && TAGLIB_MINOR_VERSION > 0)
-    #define TAGLIB_HAS_MP4_ITEM_TYPE
-#endif
+#include "TagLibDefs.hpp"
 
 namespace lms::metadata
 {
     namespace
     {
-        class ParsingFailedException : public Exception
+        class TagParsingFailedException : public Exception
         {
         };
 
         // Mapping to internal taglib names and/or common alternative custom names
-        const std::unordered_map<TagType, std::vector<std::string>> tagMapping{
+        const std::unordered_map<TagType, std::vector<std::string>> tagLibTagMapping{
             { TagType::AcoustID, { "ACOUSTID_ID", "ACOUSTID ID" } },
             { TagType::Advisory, { "ITUNESADVISORY" } },
             { TagType::Album, { "ALBUM" } },
@@ -217,7 +215,7 @@ namespace lms::metadata
 
         TagLib::FileRef parseFile(const std::filesystem::path& p, ParserReadStyle parserReadStyle)
         {
-            LMS_SCOPED_TRACE_DETAILED("MetaData", "TagLibParseFile");
+            LMS_SCOPED_TRACE_DETAILED("MetaData", "TagLibParseFileForMetaData");
 
             return TagLib::FileRef{ p.c_str(), true // read audio properties
                 ,
@@ -231,13 +229,13 @@ namespace lms::metadata
         if (_file.isNull())
         {
             LMS_LOG(METADATA, ERROR, "File " << p << ": parsing failed");
-            throw ParsingFailedException{};
+            throw TagParsingFailedException{};
         }
 
         if (!_file.audioProperties())
         {
             LMS_LOG(METADATA, ERROR, "File " << p << ": no audio properties");
-            throw ParsingFailedException{};
+            throw TagParsingFailedException{};
         }
 
         computeAudioProperties();
@@ -269,10 +267,6 @@ namespace lms::metadata
             dedupTagValues(_propertyMap, p);
 
             const auto& frameListMap{ id3v2Tags.frameListMap() };
-
-            // Not that good embedded pictures handling
-            if (!frameListMap["APIC"].isEmpty())
-                _hasEmbeddedCover = true;
 
             // Get some extra tags that may not be known by taglib
             if (!frameListMap["TSST"].isEmpty() && !_propertyMap.contains("DISCSUBTITLE"))
@@ -330,33 +324,44 @@ namespace lms::metadata
         {
             if (const TagLib::ASF::Tag * tag{ asfFile->tag() })
             {
-                if (tag->attributeListMap().contains("WM/Picture"))
-                    _hasEmbeddedCover = true;
-
                 for (const auto& [name, attributeList] : tag->attributeListMap())
                 {
                     if (attributeList.isEmpty())
                         continue;
 
-                    std::string strName{ core::stringUtils::stringToUpper(name.to8Bit(true)) };
-                    if (strName.find("WM/") == 0 || _propertyMap.find(strName) != std::cend(_propertyMap))
+                    const std::string strName{ core::stringUtils::stringToUpper(name.to8Bit(true)) };
+                    if (debug)
+                    {
+                        for (const auto& attribute : attributeList)
+                            LMS_LOG(METADATA, DEBUG, "ASF Attribute, Key = '" << strName << "', value = '" << (attribute.type() == TagLib::ASF::Attribute::AttributeTypes::UnicodeType ? attribute.toString() : TagLib::String{ "<Non unicode>" }) << "'");
+                    }
+
+                    if (strName.find("WM/") == 0 || _propertyMap.contains(strName))
                         continue;
 
-                    TagLib::StringList attributes;
+                    TagLib::StringList strAttributes;
                     for (const TagLib::ASF::Attribute& attribute : attributeList)
                     {
                         if (attribute.type() == TagLib::ASF::Attribute::AttributeTypes::UnicodeType)
-                            attributes.append(attribute.toString());
+                            strAttributes.append(attribute.toString());
                     }
 
-                    if (!attributes.isEmpty())
-                        _propertyMap[strName] = std::move(attributes);
+                    if (!strAttributes.isEmpty())
+                        _propertyMap[strName] = strAttributes;
                 }
 
+                // Merge artists that may have been saved only in Author (see #597)
                 if (auto itAuthor{ _propertyMap.find("AUTHOR") }; itAuthor != _propertyMap.end() && _propertyMap.unsupportedData().contains("Author"))
                 {
                     if (!_propertyMap.contains("ARTISTS"))
-                        _propertyMap["ARTIST"].append(itAuthor->second);
+                    {
+                        auto& artistEntries{ _propertyMap["ARTIST"] };
+                        for (const auto& author : itAuthor->second)
+                        {
+                            if (!artistEntries.contains(author))
+                                artistEntries.append(author);
+                        }
+                    }
                 }
             }
         }
@@ -371,14 +376,6 @@ namespace lms::metadata
         // MP4
         else if (TagLib::MP4::File * mp4File{ dynamic_cast<TagLib::MP4::File*>(_file.file()) })
         {
-            if (const TagLib::MP4::Item coverItem{ mp4File->tag()->item("covr") }; coverItem.isValid())
-            {
-#if TAGLIB_HAS_MP4_ITEM_TYPE
-                if (coverItem.type() == TagLib::MP4::Item::Type::CoverArtList)
-#endif
-                    _hasEmbeddedCover = true;
-            }
-
             // Taglib does not expose rtng in properties
             if (const TagLib::MP4::Item rtngItem{ mp4File->tag()->item("rtng") }; rtngItem.isValid())
             {
@@ -422,18 +419,8 @@ namespace lms::metadata
         // FLAC
         else if (TagLib::FLAC::File * flacFile{ dynamic_cast<TagLib::FLAC::File*>(_file.file()) })
         {
-            if (!flacFile->pictureList().isEmpty())
-                _hasEmbeddedCover = true;
-        }
-        else if (TagLib::Ogg::Vorbis::File * vorbisFile{ dynamic_cast<TagLib::Ogg::Vorbis::File*>(_file.file()) })
-        {
-            if (!vorbisFile->tag()->pictureList().isEmpty())
-                _hasEmbeddedCover = true;
-        }
-        else if (TagLib::Ogg::Opus::File * opusFile{ dynamic_cast<TagLib::Ogg::Opus::File*>(_file.file()) })
-        {
-            if (!opusFile->tag()->pictureList().isEmpty())
-                _hasEmbeddedCover = true;
+            if (flacFile->hasID3v2Tag()) // discouraged usage
+                processID3v2Tags(*flacFile->ID3v2Tag());
         }
         else if (TagLib::RIFF::AIFF::File * aiffFile{ dynamic_cast<TagLib::RIFF::AIFF::File*>(_file.file()) })
         {
@@ -479,8 +466,8 @@ namespace lms::metadata
 
     void TagLibTagReader::visitTagValues(TagType tag, TagValueVisitor visitor) const
     {
-        auto itTagNames{ tagMapping.find(tag) };
-        if (itTagNames == std::cend(tagMapping))
+        auto itTagNames{ tagLibTagMapping.find(tag) };
+        if (itTagNames == std::cend(tagLibTagMapping))
             return;
 
         for (const std::string& tagName : itTagNames->second)

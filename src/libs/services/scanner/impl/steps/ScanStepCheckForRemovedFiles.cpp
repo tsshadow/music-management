@@ -21,9 +21,9 @@
 
 #include <vector>
 
-#include "ScannerSettings.hpp"
 #include "core/ILogger.hpp"
 #include "core/Path.hpp"
+#include "database/ArtistInfo.hpp"
 #include "database/Db.hpp"
 #include "database/Image.hpp"
 #include "database/PlayListFile.hpp"
@@ -32,6 +32,8 @@
 #include "database/TrackLyrics.hpp"
 #include "scanners/IFileScanner.hpp"
 
+#include "ScannerSettings.hpp"
+
 namespace lms::scanner
 {
     namespace
@@ -39,11 +41,14 @@ namespace lms::scanner
         constexpr std::size_t batchSize = 100;
     }
 
+    bool ScanStepCheckForRemovedFiles::needProcess([[maybe_unused]] const ScanContext& context) const
+    {
+        // always check for removed files
+        return true;
+    }
+
     void ScanStepCheckForRemovedFiles::process(ScanContext& context)
     {
-        if (_abortScan)
-            return;
-
         db::Session& session{ _db.getTLSSession() };
 
         {
@@ -53,6 +58,7 @@ namespace lms::scanner
             context.currentStepStats.totalElems += db::Image::getCount(session);
             context.currentStepStats.totalElems += db::TrackLyrics::getExternalLyricsCount(session);
             context.currentStepStats.totalElems += db::PlayListFile::getCount(session);
+            context.currentStepStats.totalElems += db::ArtistInfo::getCount(session);
         }
         LMS_LOG(DBUPDATER, DEBUG, context.currentStepStats.totalElems << " files to be checked...");
 
@@ -67,6 +73,7 @@ namespace lms::scanner
         checkForRemovedFiles<db::Image>(context, supportedFileExtensions);
         checkForRemovedFiles<db::TrackLyrics>(context, supportedFileExtensions);
         checkForRemovedFiles<db::PlayListFile>(context, supportedFileExtensions);
+        checkForRemovedFiles<db::ArtistInfo>(context, supportedFileExtensions);
     }
 
     template<typename Object>

@@ -23,6 +23,7 @@
 #include "core/Random.hpp"
 #include "core/Service.hpp"
 #include "database/Artist.hpp"
+#include "database/ArtistInfo.hpp"
 #include "database/Cluster.hpp"
 #include "database/Directory.hpp"
 #include "database/MediaLibrary.hpp"
@@ -606,8 +607,7 @@ namespace lms::api::subsonic
             if (!artist)
                 throw RequestedDataNotFoundError{};
 
-            std::optional<core::UUID> artistMBID{ artist->getMBID() };
-            if (artistMBID)
+            if (const std::optional<core::UUID> artistMBID{ artist->getMBID() })
             {
                 switch (context.responseFormat)
                 {
@@ -619,6 +619,21 @@ namespace lms::api::subsonic
                     break;
                 }
             }
+
+            ArtistInfo::find(context.dbSession, id, Range{ .offset = 0, .size = 1 }, [&](const ArtistInfo::pointer& artistInfo) {
+                if (!artistInfo->getBiography().empty())
+                {
+                    switch (context.responseFormat)
+                    {
+                    case ResponseFormat::json:
+                        artistInfoNode.setAttribute("biography", artistInfo->getBiography());
+                        break;
+                    case ResponseFormat::xml:
+                        artistInfoNode.createChild("biography").setValue(artistInfo->getBiography());
+                        break;
+                    }
+                }
+            });
         }
 
         auto similarArtistsId{

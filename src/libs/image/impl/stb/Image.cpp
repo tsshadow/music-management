@@ -21,6 +21,7 @@
 
 #include <array>
 
+#include "Exception.hpp"
 #include "StbImage.hpp"
 #include "StbImageWrite.hpp"
 
@@ -51,6 +52,24 @@ namespace lms::image
         int comp{};
 
         if (::stbi_info(path.c_str(), &x, &y, &comp) == 0)
+            throw StbiException{ "Probe failed" };
+
+        ImageProperties properties;
+        properties.width = x;
+        properties.height = y;
+
+        return properties;
+    }
+
+    ImageProperties probeImage(std::span<const std::byte> encodedData)
+    {
+        LMS_SCOPED_TRACE_DETAILED("Image", "ProbeBuffer");
+
+        int x{};
+        int y{};
+        int comp{};
+
+        if (::stbi_info_from_memory(reinterpret_cast<const stbi_uc*>(encodedData.data()), static_cast<int>(encodedData.size()), &x, &y, &comp) == 0)
             throw StbiException{ "Probe failed" };
 
         ImageProperties properties;

@@ -37,7 +37,7 @@ __Notes__:
 * a C++20 compiler is needed
 * ffmpeg version 4 minimum is required
 ```sh
-apt-get install g++ cmake libboost-program-options-dev libboost-system-dev libavutil-dev libavformat-dev libstb-dev libconfig++-dev ffmpeg libtag1-dev libpam0g-dev libgtest-dev libarchive-dev
+apt-get install g++ cmake libboost-program-options-dev libboost-system-dev libavutil-dev libavformat-dev libstb-dev libconfig++-dev ffmpeg libtag1-dev libpam0g-dev libgtest-dev libarchive-dev libxxhash-dev
 ```
 __Notes__:
 * libpam0g-dev is optional (only for using PAM authentication)
@@ -51,15 +51,14 @@ git clone https://github.com/epoupon/lms.git lms
 cd lms
 mkdir build
 cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_UNITY_BUILD=ON -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=TRUE -DCMAKE_INSTALL_PREFIX=/usr
 ```
 __Notes__:
 * you can customize the installation directory using `-DCMAKE_INSTALL_PREFIX=path` (defaults to `/usr/local`).
 * you can customize the image library using `-DLMS_IMAGE_BACKEND=<stb|graphicsmagick>` (defaults to `stb`)
 ```sh
-make
+make -j$(nproc)
 ```
-__Note__: you can use `make -jN` to speed up compilation time (N is the number of compilation workers to spawn).
 ### Installation
 __Note__: the commands of this section require root privileges.
 ```sh

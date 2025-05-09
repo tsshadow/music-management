@@ -369,7 +369,7 @@ namespace lms::api::subsonic
         return TrackSortMethod::Name;
     }
 
-    std::string sortMethodToString(TrackSortMethod input)
+    static std::string sortMethodToString(TrackSortMethod input)
     {
         if (input == TrackSortMethod::Id)
         {

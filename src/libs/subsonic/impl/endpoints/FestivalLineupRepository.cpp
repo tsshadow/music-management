@@ -33,3 +33,29 @@ std::set<std::string> FestivalLineupRepository::getArtistsForFestival(const std:
 
     return artists;
 }
+
+std::set<std::string> FestivalLineupRepository::getAllLineups()
+{
+    std::set<std::string> result;
+
+    const std::string directory = "/music/metadata/festival-lineups";
+
+    if (!fs::exists(directory) || !fs::is_directory(directory))
+    {
+        return result;
+    }
+
+    for (const auto& entry : fs::directory_iterator(directory))
+    {
+        if (entry.is_regular_file())
+        {
+            if (const auto& path = entry.path(); path.extension() == ".txt")
+            {
+                result.insert(path.stem().string()); // e.g. intents_2025
+            }
+        }
+    }
+
+    return result;
+}
+

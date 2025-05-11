@@ -41,6 +41,8 @@
 #include "responses/Artist.hpp"
 #include "responses/Song.hpp"
 
+#include <responses/Genre.hpp>
+
 namespace lms::api::subsonic
 {
     using namespace db;
@@ -482,93 +484,23 @@ namespace lms::api::subsonic
         return response;
     }
 
-    Response handleGetSongsByYearRequest(RequestContext& context)
+    Response handleGetLineups(RequestContext& context)
     {
-        // Mandatory params
-        std::string year{ getMandatoryParameterAs<std::string>(context.parameters, "year") };
-
-        // Optional params
-        const MediaLibraryId mediaLibrary{ getParameterAs<MediaLibraryId>(context.parameters, "musicFolderId").value_or(MediaLibraryId{}) };
-        std::size_t count{ getParameterAs<std::size_t>(context.parameters, "count").value_or(10) };
-        if (count > defaultMaxCountSize)
-            throw ParameterValueTooHighGenericError{ "count", defaultMaxCountSize };
-
-        std::size_t offset{ getParameterAs<std::size_t>(context.parameters, "offset").value_or(0) };
-
-        auto transaction{ context.dbSession.createReadTransaction() };
-
-        auto clusterType{ ClusterType::find(context.dbSession, "YEAR") };
-        if (!clusterType)
-            throw RequestedDataNotFoundError{};
-
-        auto cluster{ clusterType->getCluster(year) };
-        if (!cluster)
-            throw RequestedDataNotFoundError{};
-
         Response response{ Response::createOkResponse(context.serverProtocolVersion) };
-        Response::Node& songsByYearNode{ response.createNode("songsByYear") };
+        Response::Node& lineupsNodes = response.createNode("lineups");
 
-        Track::FindParameters params;
-        params.filters.setClusters(std::initializer_list<ClusterId>{ cluster->getId() });
-        params.setRange(Range{ offset, count });
-        params.filters.setMediaLibrary(mediaLibrary);
+        const auto keys = FestivalLineupRepository::getAllLineups();
 
-        Track::find(context.dbSession, params, [&](const Track::pointer& track) {
-            songsByYearNode.addArrayChild("song", createSongNode(context, track, context.user));
-        });
+        for (const auto& key : keys)
+        {
+            Response::Node lineupNode;
+            lineupNode.setAttribute("name", key);
+            lineupsNodes.addArrayChild("lineup", std::move(lineupNode));
+        }
 
         return response;
     }
 
-    Response handleGetSongsByMoodRequest(RequestContext& context)
-    {
-        // Mandatory params
-        std::string Mood{ getMandatoryParameterAs<std::string>(context.parameters, "mood") };
-
-        // Optional params
-        std::optional<std::string> year{ getParameterAs<std::string>(context.parameters, "year") };
-        std::optional<std::string> length{ getParameterAs<std::string>(context.parameters, "length") };
-        std::size_t count{ getParameterAs<std::size_t>(context.parameters, "count").value_or(10) };
-        std::size_t ratingMin{ getParameterAs<std::size_t>(context.parameters, "ratingMin").value_or(0) };
-        std::size_t ratingMax{ getParameterAs<std::size_t>(context.parameters, "ratingMax").value_or(5) };
-        if (count > defaultMaxCountSize)
-            throw ParameterValueTooHighGenericError{ "count", defaultMaxCountSize };
-
-        std::size_t offset{ getParameterAs<std::size_t>(context.parameters, "offset").value_or(0) };
-
-        auto transaction{ context.dbSession.createReadTransaction() };
-
-        auto clusterType{ ClusterType::find(context.dbSession, "MOOD") };
-        if (!clusterType)
-            throw RequestedDataNotFoundError{};
-
-        auto cluster{ clusterType->getCluster(Mood) };
-        if (!cluster)
-            throw RequestedDataNotFoundError{};
-
-        Response response{ Response::createOkResponse(context.serverProtocolVersion) };
-        Response::Node& songsByMoodNode{ response.createNode("songsByMood") };
-
-        Track::FindParameters params;
-        std::vector<ClusterId> clusters = { cluster->getId() };
-        if (year.has_value())
-        {
-            clusters.push_back(GetCluster(year.value(), "YEAR", context));
-        }
-        if (length.has_value())
-        {
-            clusters.push_back(GetCluster(length.value(), "LENGTH", context));
-        }
-        params.filters.setClusters(clusters);
-        params.setRange(Range{ offset, count });
-
-        Track::find(context.dbSession, params, [&](const Track::pointer& track) {
-            if (track->getRating().value_or(0) >= ratingMin && track->getRating().value_or(0) <= ratingMax)
-                songsByMoodNode.addArrayChild("song", createSongNode(context, track, context.user));
-        });
-
-        return response;
-    }
 
     Response handleGetStarredRequest(RequestContext& context)
     {

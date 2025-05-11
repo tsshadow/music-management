@@ -32,7 +32,9 @@ add_library(lmssubsonic STATIC
 	impl/SubsonicId.cpp
 	impl/SubsonicResource.cpp
 	impl/SubsonicResponse.cpp
-	)
+		impl/endpoints/FestivalLineupRepository.cpp
+		impl/endpoints/FestivalLineupRepository.hpp
+)
 
 target_include_directories(lmssubsonic INTERFACE
 	include

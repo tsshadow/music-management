@@ -33,6 +33,7 @@
 #include "services/feedback/IFeedbackService.hpp"
 #include "services/scrobbling/IScrobblingService.hpp"
 
+#include "FestivalLineupRepository.hpp"
 #include "ParameterParsing.hpp"
 #include "SubsonicId.hpp"
 #include "document.h"
@@ -324,8 +325,6 @@ namespace lms::api::subsonic
         return response;
     }
 
-
-
     static std::map<std::string, std::set<ClusterId>> parseClusterGroups(const std::string& json, RequestContext& context)
     {
         std::map<std::string, std::set<ClusterId>> clusterGroups;
@@ -423,7 +422,7 @@ namespace lms::api::subsonic
         std::size_t const offset = getParameterAs<std::size_t>(context.parameters, "offset").value_or(0);
         std::optional<int> minRating = getParameterAs<int>(context.parameters, "ratingMin");
         std::optional<int> maxRating = getParameterAs<int>(context.parameters, "ratingMax");
-
+        std::optional<std::string> festivalLineup = getParameterAs<std::string>(context.parameters, "festivalLineup");
 
         size = std::min(size, defaultMaxCountSize);
 
@@ -440,12 +439,21 @@ namespace lms::api::subsonic
         {
             clusterGroups = parseClusterGroups(filters.value(), context);
         }
-        if (minRating) {
+
+        if (festivalLineup.has_value())
+        {
+            params.setAllowedArtists(FestivalLineupRepository::getArtistsForFestival(festivalLineup.value()));
+        }
+
+        if (minRating)
+        {
             params.setMinRating(*minRating);
         }
-        if (maxRating) {
+        if (maxRating)
+        {
             params.setMaxRating(*maxRating);
         }
+
         Response::Node& songsNode = response.createNode("songs");
 
         Track::find_advanced(context.dbSession, params, clusterGroups, [&](const Track::pointer& track) {
@@ -454,8 +462,6 @@ namespace lms::api::subsonic
 
         return response;
     }
-
-
 
     Response handleGetSongSortMethods(RequestContext& context)
     {

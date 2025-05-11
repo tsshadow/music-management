@@ -421,8 +421,8 @@ namespace lms::api::subsonic
         MediaLibraryId const mediaLibraryId = getParameterAs<MediaLibraryId>(context.parameters, "musicFolderId").value_or(MediaLibraryId{});
         std::size_t size = getParameterAs<std::size_t>(context.parameters, "count").value_or(50);
         std::size_t const offset = getParameterAs<std::size_t>(context.parameters, "offset").value_or(0);
-        std::optional<int> minRating = getParameterAs<int>(context.parameters, "minRating");
-        std::optional<int> maxRating = getParameterAs<int>(context.parameters, "maxRating");
+        std::optional<int> minRating = getParameterAs<int>(context.parameters, "ratingMin");
+        std::optional<int> maxRating = getParameterAs<int>(context.parameters, "ratingMax");
 
 
         size = std::min(size, defaultMaxCountSize);
@@ -454,6 +454,8 @@ namespace lms::api::subsonic
 
         return response;
     }
+
+
 
     Response handleGetSongSortMethods(RequestContext& context)
     {

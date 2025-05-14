@@ -1,3 +1,5 @@
+import logging
+
 from data.settings import Settings
 from postprocessing.Song.BaseSong import BaseSong
 from postprocessing.constants import ALBUM_ARTIST, PUBLISHER, CATALOG_NUMBER, GENRE, ARTIST, COPYRIGHT, FormatEnum, \
@@ -36,16 +38,6 @@ class SoundcloudSong(BaseSong):
             return self.publisher()
         return None
 
-    def update_title(self):
-        title = self.title()
-        # if title is not None and len(title) > 0:
-        #     if title.find(" - ") > 0:
-        #         logging.info("\nupdate title", self.artist(),
-        #               " new artist:",
-        #               title.split(" - ")[0],
-        #               " title:",
-        #               title.split(" - ")[1])
-
     def update_song(self, folder):
         ignored_artists = ['Sapher', 'C418', 'T78', 'Basher']
         if folder in ignored_artists:
@@ -55,6 +47,10 @@ class SoundcloudSong(BaseSong):
                 parts = self.title().split(" - ", 1)
                 self.tag_collection.add(ARTIST, parts[0])
                 self.tag_collection.set_item(TITLE, parts[1])
+            if self.title().find(" @ ") != -1:
+                parts = self.title().split(" @ ", 1)
+                self.tag_collection.add(ARTIST, parts[1])
+                self.tag_collection.set_item(TITLE, parts[0])
 
     def load_folders(self, file_path):
         try:

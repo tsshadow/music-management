@@ -7,16 +7,20 @@ from postprocessing.repair import FileRepair
 from postprocessing.sanitizer import Sanitizer
 from postprocessing.tagger import Tagger
 from processing.converter import Converter
+from processing.epsflattener import EpsFlattener
 from processing.extractor import Extractor
 from processing.mover import Mover
 from processing.renamer import Renamer
 from downloader.youtube import YoutubeDownloader
 from downloader.soundcloud import SoundcloudDownloader
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run specific steps of the music importer")
     parser.add_argument(
         "--step",
-        choices=["extract", "rename", "move", "tag", "convert", "sanitize", "repair", "download" , "all"],
+        choices=["extract", "rename", "move", "tag", "convert", "sanitize", "repair", "download", "download-youtube",
+                 "download-soundcloud", "all", "flatten"],
         help="Run only the specified step. If omitted, all steps are run.",
         default="all"
     )
@@ -40,20 +44,21 @@ def main():
     mover = Mover()
     converter = Converter()
     sanitizer = Sanitizer()
+    flattener = EpsFlattener()
     repair = FileRepair()
 
     while True:
         try:
             logging.info("Starting process...")
 
-            if args.step in ("download", "all"):
+            if args.step in ("download-youtube", "download", "all"):
                 try:
                     youtube_downloader.run()
                     logging.info("youtube downloader completed.")
                 except Exception as e:
                     logging.error(f"youtube downloader failed: {e}")
 
-            if args.step in ("download", "all"):
+            if args.step in ("download-soundcloud", "download", "all"):
                 try:
                     soundcloud_downloader.run()
                     logging.info("soundcloud downloader completed.")
@@ -109,6 +114,13 @@ def main():
                 except Exception as e:
                     logging.error(f"Repair failed: {e}")
 
+            if args.step in "flatten":
+                try:
+                    flattener.run()
+                    logging.info("Flatten completed.")
+                except Exception as e:
+                    logging.error(f"Flatten failed: {e}")
+
         except KeyboardInterrupt:
             logging.info("Process interrupted by user. Exiting.")
             break
@@ -120,6 +132,7 @@ def main():
 
         logging.info(f"Waiting for {3600} seconds.")
         sleep(3600)
+
 
 if __name__ == "__main__":
     main()

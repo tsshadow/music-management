@@ -40,7 +40,6 @@ class YoutubeSong(BaseSong):
         return None
 
     def update_song(self, folder):
-
         ignored_artists = []
         if folder in ignored_artists:
             return
@@ -49,6 +48,10 @@ class YoutubeSong(BaseSong):
                 parts = self.title().split(" - ", 1)
                 self.tag_collection.add(ARTIST, parts[0])
                 self.tag_collection.set_item(TITLE, parts[1])
+            if self.title().find(" @ ") != -1:
+                parts = self.title().split(" @ ", 1)
+                self.tag_collection.add(ARTIST, parts[1])
+                self.tag_collection.set_item(TITLE, parts[0])
 
     def load_folders(self, file_path):
         try:

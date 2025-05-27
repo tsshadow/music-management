@@ -433,14 +433,31 @@ namespace lms::db
         }
         if (params.minRating.has_value() && params.maxRating.has_value())
         {
-            baseQuery += " AND (t.rating IS NULL OR (t.rating >= ? AND t.rating <= ?))";
-            bindFuncs.emplace_back([&params](auto& q) { q.bind(params.minRating.value()); });
-            bindFuncs.emplace_back([&params](auto& q) { q.bind(params.maxRating.value()); });
+            if (params.minRating.value() == 0)
+            {
+                baseQuery += " AND (t.rating IS NULL OR t.rating BETWEEN ? AND ?)";
+                bindFuncs.emplace_back([&params](auto& q) { q.bind(params.minRating.value()); });
+                bindFuncs.emplace_back([&params](auto& q) { q.bind(params.maxRating.value()); });
+            }
+            else
+            {
+                baseQuery += " AND t.rating BETWEEN ? AND ?";
+                bindFuncs.emplace_back([&params](auto& q) { q.bind(params.minRating.value()); });
+                bindFuncs.emplace_back([&params](auto& q) { q.bind(params.maxRating.value()); });
+            }
         }
         else if (params.minRating.has_value())
         {
-            baseQuery += " AND (t.rating IS NULL OR t.rating >= ?)";
-            bindFuncs.emplace_back([&params](auto& q) { q.bind(params.minRating.value()); });
+            if (params.minRating.value() == 0)
+            {
+                baseQuery += " AND (t.rating IS NULL OR t.rating >= ?)";
+                bindFuncs.emplace_back([&params](auto& q) { q.bind(params.minRating.value()); });
+            }
+            else
+            {
+                baseQuery += " AND t.rating >= ?";
+                bindFuncs.emplace_back([&params](auto& q) { q.bind(params.minRating.value()); });
+            }
         }
         else if (params.maxRating.has_value())
         {

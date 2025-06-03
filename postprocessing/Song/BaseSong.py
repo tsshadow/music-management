@@ -4,23 +4,21 @@ import re
 
 import librosa
 import mutagen
-from mutagen.apev2 import APEv2
 from mutagen.easyid3 import EasyID3
 from mutagen.flac import FLAC
 from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4
 from mutagen.wave import WAVE
 
-from data.DatabaseConnector import DatabaseConnector
 from data.settings import Settings
-from postprocessing.Song.Helpers.LookupTableHelper import LookupTableHelper
-from postprocessing.Song.Helpers.FilterTableHelper import FilterTableHelper
 from postprocessing.Song.Helpers.FestivalHelper import FestivalHelper
+from postprocessing.Song.Helpers.FilterTableHelper import FilterTableHelper
+from postprocessing.Song.Helpers.LookupTableHelper import LookupTableHelper
 from postprocessing.Song.Helpers.TableHelper import TableHelper
 from postprocessing.Song.Tag import Tag
 from postprocessing.Song.TagCollection import TagCollection
 from postprocessing.constants import ARTIST, GENRE, WAVTags, MP4Tags, DATE, FESTIVAL, PARSED, CATALOG_NUMBER, \
-    PUBLISHER, COPYRIGHT, ALBUM_ARTIST, BPM, MusicFileType, TITLE, MP3Tags, FLACTags, AACTags
+    PUBLISHER, COPYRIGHT, ALBUM_ARTIST, BPM, MusicFileType, TITLE, FLACTags
 
 s = Settings()
 
@@ -66,7 +64,6 @@ class BaseSong:
             ".wav": lambda p: (WAVE(p), MusicFileType.WAV),
             ".m4a": lambda p: (MP4(p), MusicFileType.M4A)
             # ".aac": lambda p: (APEv2(p), MusicFileType.AAC)  # Non-standard fallback
-
         }
 
         try:
@@ -257,19 +254,45 @@ class BaseSong:
                 logging.info(f"Failed to parse bpm for {self.path()}: {str(e)}")
 
     # Property-style accessors for common metadata fields
-    def genre(self): return self.tag_collection.get_item_as_string(GENRE)
-    def bpm(self): return self.tag_collection.get_item_as_string(BPM)
-    def artist(self): return self.tag_collection.get_item_as_string(ARTIST)
-    def title(self): return self.tag_collection.get_item_as_string(TITLE)
-    def album_artist(self): return self.tag_collection.get_item_as_string(ALBUM_ARTIST)
-    def copyright(self): return self.tag_collection.get_item_as_string(COPYRIGHT)
-    def publisher(self): return self.tag_collection.get_item_as_string(PUBLISHER)
-    def catalog_number(self): return self.tag_collection.get_item_as_string(CATALOG_NUMBER)
-    def filename(self): return self._filename
-    def path(self): return self._path
-    def extension(self): return self._extension
-    def parsed(self): return self.tag_collection.get_item_as_string(PARSED)
-    def date(self): return self.tag_collection.get_item_as_string(DATE)
+    def genre(self):
+        return self.tag_collection.get_item_as_string(GENRE)
+
+    def bpm(self):
+        return self.tag_collection.get_item_as_string(BPM)
+
+    def artist(self):
+        return self.tag_collection.get_item_as_string(ARTIST)
+
+    def title(self):
+        return self.tag_collection.get_item_as_string(TITLE)
+
+    def album_artist(self):
+        return self.tag_collection.get_item_as_string(ALBUM_ARTIST)
+
+    def copyright(self):
+        return self.tag_collection.get_item_as_string(COPYRIGHT)
+
+    def publisher(self):
+        return self.tag_collection.get_item_as_string(PUBLISHER)
+
+    def catalog_number(self):
+        return self.tag_collection.get_item_as_string(CATALOG_NUMBER)
+
+    def filename(self):
+        return self._filename
+
+    def path(self):
+        return self._path
+
+    def extension(self):
+        return self._extension
+
+    def parsed(self):
+        return self.tag_collection.get_item_as_string(PARSED)
+
+    def date(self):
+        return self.tag_collection.get_item_as_string(DATE)
+
     def length(self):
         try:
             if hasattr(self.music_file, "info") and hasattr(self.music_file.info, "length"):

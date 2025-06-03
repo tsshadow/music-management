@@ -26,11 +26,6 @@ EasyMP4Tags.RegisterTextKey("festival", "festival")
 
 s = Settings()
 
-parse_labels = True
-parse_youtube = True
-parse_soundcloud = True
-parse_generic = True
-
 parse_mp3 = True
 parse_flac = True
 parse_m4a = True
@@ -48,7 +43,7 @@ class Tagger:
     def __init__(self):
         pass
 
-    def run(self):
+    def run(self, parse_labels=True, parse_soundcloud=True, parse_youtube=True, parse_generic=True):
         """
         Entrypoint for the tagging process.
         Scans various music directories (labels, YouTube, SoundCloud, generic) and applies appropriate tag parsing.

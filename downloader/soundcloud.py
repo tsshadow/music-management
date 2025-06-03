@@ -1,10 +1,29 @@
 import concurrent.futures
-import subprocess
 import logging
+import math
 import os
+import random
+import time
+
+from yt_dlp import YoutubeDL
+from yt_dlp.postprocessor import PostProcessor, FFmpegMetadataPP, EmbedThumbnailPP
 
 from data.DatabaseConnector import DatabaseConnector
+from postprocessing.Song.SoundcloudSong import SoundcloudSong
 
+class SoundcloudSongProcessor(PostProcessor):
+    def run(self, info):
+        path = info.get('filepath') or info.get('_filename')  # depending on yt-dlp version
+        if path:
+            logging.info(f"Postprocessing downloaded file: {path}")
+            try:
+                SoundcloudSong(path)
+                exit(2034)
+            except Exception as e:
+                logging.error(f"SoundcloudSong failed for {path}: {e}")
+        else:
+            logging.warning("Postprocessor: no path found in info dict")
+        return [], info
 
 def get_accounts_from_db():
     try:
@@ -19,47 +38,112 @@ def get_accounts_from_db():
 
 
 class SoundcloudDownloader:
-    def __init__(self):
+    """
+    Downloads tracks from SoundCloud accounts listed in the database.
+
+    Features:
+    - Downloads only MP3 files that are not yet in the archive.
+    - Embeds metadata and optionally thumbnails using FFmpeg.
+    - Supports private/follower-only tracks using session cookies.
+    - Handles batch downloads with configurable parallelism and throttling.
+    - Skips tracks outside a configurable duration range.
+    """
+    def __init__(self, max_workers=6, burst_size=10, min_pause=1, max_pause=5):
         self.output_folder = os.getenv("soundcloud_folder")
         self.archive_file = os.getenv("soundcloud_archive")
-        self.executable = os.getenv("ytdlp")
+        self.cookies_file = os.getenv("soundcloud_cookies", "soundcloud.com_cookies.txt")
 
-        if not self.output_folder or not self.archive_file or not self.executable:
-            raise ValueError("Missing required environment variables for youtube_folder, youtube_archive, or ytdlp")
+        if not self.output_folder or not self.archive_file:
+            raise ValueError("Missing required environment variables: soundcloud_folder or soundcloud_archive")
+
+        if not os.path.isdir(self.output_folder):
+            raise FileNotFoundError(f"Output folder does not exist: {self.output_folder}")
+
+        archive_dir = os.path.dirname(self.archive_file)
+        if archive_dir and not os.path.exists(archive_dir):
+            raise FileNotFoundError(f"Directory for archive file does not exist: {archive_dir}")
+
+        self.max_workers = max_workers
+        self.burst_size = burst_size
+        self.min_pause = min_pause
+        self.max_pause = max_pause
+
+        self.ydl_opts = {
+            'http_headers': {
+                'User-Agent': (
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                    'AppleWebKit/537.36 (KHTML, like Gecko) '
+                    'Chrome/120.0.0.0 Safari/537.36'
+                )
+            },
+            'outtmpl': f'{self.output_folder}/%(uploader)s/%(title)s.%(ext)s',
+            'download_archive': self.archive_file,
+            'compat_opts': ['filename'],
+            'nooverwrites': False,
+            'no_part': True,
+            'format': 'bestaudio[ext=mp3]',
+            'match_filter': self._match_filter,
+            'quiet': False,
+            'break_on_existing': True,
+            'cookies': self.cookies_file,
+        }
+
+    def _match_filter(self, info):
+        duration = info.get("duration")
+        title = info.get("title", "unknown")
+        if not duration or duration < 60 or duration > 10800:
+            logging.info(f"Skipping track '{title}' (duration: {duration}s)")
+            return "Outside allowed duration range"
+        return None
 
     def download_account(self, name: str):
-        link = f"http://www.soundcloud.com/{name}/tracks"
-        command = [
-            self.executable,
-            '--output', f'{self.output_folder}/%(uploader)s/%(title)s.%(ext)s',
-            "--download-archive", self.archive_file,
-            "--embed-metadata",
-            "--embed-thumbnail",
-            "--compat-options", "filename",
-            "--no-overwrites",
-            "-x",
-            "--audio-format", "m4a",
-            "--audio-quality", "0",
-            "--break-on-existing",
-            "--postprocessor-args", "ffmpeg:-acodec aac",
-            "--no-post-overwrites",
-            "--no-part",
-            "--format", "bestaudio/best",
-            link
-        ]
+        link = f"http://soundcloud.com/{name}/tracks"
+        logging.info(f"Downloading from SoundCloud account: {name}")
 
-        try:
-            logging.info(f"Downloading from SoundCloud account: {name}")
-            subprocess.run(command, check=True)
-            logging.info(f"Finished downloading from: {name}")
-        except subprocess.CalledProcessError as e:
-            logging.error(f"SoundCloud download failed for {name}: {e}")
+        for attempt in range(1, 4):
+            try:
+                with YoutubeDL(self.ydl_opts) as ydl:
+                    ydl.add_post_processor(FFmpegMetadataPP(ydl))
+                    ydl.add_post_processor(EmbedThumbnailPP(ydl))
+                    ydl.add_post_processor(SoundcloudSongProcessor())
+                    ydl.download([link])
+                logging.info(f"Finished downloading from: {name}")
+                return
+            except Exception as e:
+                msg = str(e)
+                if '403' in msg:
+                    wait_time = random.randint(60, 300)
+                    logging.warning(f"403 Forbidden for {name}. Pausing {wait_time}s before retry...")
+                    time.sleep(wait_time)
+                elif 'already in the archive' in msg:
+                    logging.info(f"All tracks for {name} already in archive — skipping.")
+                    return  # ✅ don't retry
+                else:
+                    logging.warning(f"Attempt {attempt} failed for {name}: {e}")
+                    time.sleep(5 * attempt)
+
+        logging.error(f"SoundCloud download failed for {name} after 3 attempts.")
+
 
     def run(self):
         accounts = get_accounts_from_db()
+        accounts.sort()
+
         if not accounts:
             logging.warning("No SoundCloud accounts found in the database.")
             return
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
-            executor.map(self.download_account, accounts)
+        total_batches = math.ceil(len(accounts) / self.burst_size)
+
+        for i in range(0, len(accounts), self.burst_size):
+            batch = accounts[i:i + self.burst_size]
+            batch_num = i // self.burst_size + 1
+            logging.info(f"Processing batch {batch_num} of {total_batches}")
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                executor.map(self.download_account, batch)
+
+            if i + self.burst_size < len(accounts):
+                pause = random.randint(self.min_pause, self.max_pause)
+                logging.info(f"Throttling pause: sleeping {pause} seconds...")
+                time.sleep(pause)

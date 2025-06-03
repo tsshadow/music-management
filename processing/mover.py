@@ -1,12 +1,14 @@
+import glob
 import logging
 import re
 import shutil
-import string
+
 from os import listdir
 from os.path import isfile, join
 
 from data.DatabaseConnector import DatabaseConnector
 from data.settings import Settings
+from postprocessing.Song.LabelSong import LabelSong
 
 def get_cat_id(folder: str):
     """
@@ -38,6 +40,19 @@ def get_cat_id(folder: str):
     else:
         return None
 
+
+def post_processing_songs(folder_path):
+    """
+    Call LabelSong(path) for every supported audio file in the folder.
+    """
+    supported_exts = ("*.mp3", "*.flac", "*.m4a", "*.aac", "*.wav")
+    for pattern in supported_exts:
+        for path in glob.glob(join(folder_path, "**", pattern), recursive=True):
+            try:
+                logging.info(f"Processing file with LabelSong: {path}")
+                LabelSong(path)
+            except Exception as e:
+                logging.error(f"Failed to process {path} with LabelSong: {e}")
 
 
 class Mover:
@@ -98,6 +113,7 @@ class Mover:
                         if not dry_run:
                             shutil.move(src, dst)
                         logging.info(f"Moved: {src} -> {dst}")
+                        post_processing_songs(dst)
                     except FileExistsError:
                         logging.warning(f"Conflict: {dst} already exists. Removing {src}")
                         if not dry_run:

@@ -79,7 +79,7 @@ def main():
             parser.error(f"Invalid step: {step}")
 
     def run_tagger():
-        parse_all = "tag" in steps
+        parse_all = "tag" in steps or "all" in steps
         tagger.run(
             parse_labels=parse_all or "tag-labels" in steps,
             parse_soundcloud=parse_all or "tag-soundcloud" in steps,
@@ -88,7 +88,7 @@ def main():
         )
 
     steps_to_run = [
-        Step("YouTube Downloader", ["download", "download-youtube"], youtube_downloader.run),
+        # Step("YouTube Downloader", ["download", "download-youtube"], youtube_downloader.run),
         Step("SoundCloud Downloader", ["download", "download-soundcloud"], soundcloud_downloader.run),
         Step("Extractor", ["extract"], extractor.run),
         Step("Renamer", ["rename"], renamer.run),

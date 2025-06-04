@@ -8,7 +8,7 @@ from data.settings import Settings
 
 
 class EpsFlattener:
-    def __init__(self, dry_run: bool = True):
+    def __init__(self, dry_run: bool = False):
         self.settings = Settings()
         self.eps_root = Path(self.settings.eps_folder_path)
         self.dry_run = dry_run

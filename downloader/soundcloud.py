@@ -18,7 +18,6 @@ class SoundcloudSongProcessor(PostProcessor):
             logging.info(f"Postprocessing downloaded file: {path}")
             try:
                 SoundcloudSong(path)
-                exit(2034)
             except Exception as e:
                 logging.error(f"SoundcloudSong failed for {path}: {e}")
         else:
@@ -48,7 +47,7 @@ class SoundcloudDownloader:
     - Handles batch downloads with configurable parallelism and throttling.
     - Skips tracks outside a configurable duration range.
     """
-    def __init__(self, max_workers=6, burst_size=10, min_pause=1, max_pause=5):
+    def __init__(self, max_workers=1, burst_size=10, min_pause=1, max_pause=5):
         self.output_folder = os.getenv("soundcloud_folder")
         self.archive_file = os.getenv("soundcloud_archive")
         self.cookies_file = os.getenv("soundcloud_cookies", "soundcloud.com_cookies.txt")

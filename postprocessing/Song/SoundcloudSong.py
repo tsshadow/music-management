@@ -49,8 +49,8 @@ class SoundcloudSong(BaseSong):
                 self.tag_collection.set_item(TITLE, parts[1])
             if self.title().find(" @ ") != -1:
                 parts = self.title().split(" @ ", 1)
-                self.tag_collection.add(ARTIST, parts[1])
-                self.tag_collection.set_item(TITLE, parts[0])
+                self.tag_collection.add(ARTIST, parts[0])
+                self.tag_collection.set_item(TITLE, parts[1])
 
     def load_folders(self, file_path):
         try:

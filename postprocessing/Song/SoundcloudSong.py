@@ -43,13 +43,21 @@ class SoundcloudSong(BaseSong):
         if folder in ignored_artists:
             return
         if self.artist() == self.album_artist() and self.artist() == folder:
-            if self.title().find(" - ") != -1:
-                parts = self.title().split(" - ", 1)
-                self.tag_collection.add(ARTIST, parts[0])
-                self.tag_collection.set_item(TITLE, parts[1])
             if self.title().find(" @ ") != -1:
                 parts = self.title().split(" @ ", 1)
                 self.tag_collection.add(ARTIST, parts[0])
+                self.tag_collection.set_item(TITLE, parts[1])
+            elif self.title().find(" - ") != -1:
+                parts = self.title().split(" - ", 1)
+                self.tag_collection.add(ARTIST, parts[0])
+                self.tag_collection.set_item(TITLE, parts[1])
+        if self.title().find(" - ") != -1:
+            parts = self.title().split(" - ", 1)
+            if parts[0] == self.artist():
+                self.tag_collection.set_item(TITLE, parts[1])
+        if self.title().find(" @ ") != -1:
+            parts = self.title().split(" @ ", 1)
+            if parts[0] == self.artist():
                 self.tag_collection.set_item(TITLE, parts[1])
 
     def load_folders(self, file_path):

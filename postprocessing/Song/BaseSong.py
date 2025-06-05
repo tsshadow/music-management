@@ -111,6 +111,9 @@ class BaseSong:
             for genre in genres:
                 if db_helpers["genres"].exists(genre):
                     valid_genres.append(genre)
+                # else:
+                #     db_helpers["genres"].add(genre)
+                #     valid_genres.append(genre)
             genre_tag.set(valid_genres)
 
     def delete_tag(self, tag):

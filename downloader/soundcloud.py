@@ -1,8 +1,10 @@
 import concurrent.futures
+import json
 import logging
 import math
 import os
 import random
+import subprocess
 import time
 
 from yt_dlp import YoutubeDL
@@ -14,14 +16,34 @@ from postprocessing.Song.SoundcloudSong import SoundcloudSong
 class SoundcloudSongProcessor(PostProcessor):
     def run(self, info):
         path = info.get('filepath') or info.get('_filename')  # depending on yt-dlp version
-        if path:
+        url = info.get('webpage_url')
+        if path and url:
             logging.info(f"Postprocessing downloaded file: {path}")
             try:
+                # Dump full info
+                result = subprocess.run(
+                    ["yt-dlp", "--dump-single-json", "--no-playlist", url],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                enriched_info = json.loads(result.stdout)
+                logging.debug(f"Enriched info dump keys: {list(enriched_info.keys())}")
+
+                # add enriched info
+                info.update(enriched_info)
+
+
+                # pass enriched info
+                SoundcloudSong(path, enriched_info)
+
+            except subprocess.CalledProcessError as e:
+                logging.error(f"Failed to enrich metadata for {url}: {e.stderr}")
                 SoundcloudSong(path)
             except Exception as e:
                 logging.error(f"SoundcloudSong failed for {path}: {e}")
         else:
-            logging.warning("Postprocessor: no path found in info dict")
+            logging.warning("Postprocessor: no path or URL found in info dict")
         return [], info
 
 def get_accounts_from_db():
@@ -83,7 +105,7 @@ class SoundcloudDownloader:
             'format': 'bestaudio[ext=mp3]',
             'match_filter': self._match_filter,
             'quiet': False,
-            'break_on_existing': True,
+            # 'break_on_existing': True,
             'cookies': self.cookies_file,
         }
 
@@ -124,13 +146,17 @@ class SoundcloudDownloader:
         logging.error(f"SoundCloud download failed for {name} after 3 attempts.")
 
 
-    def run(self):
-        accounts = get_accounts_from_db()
-        accounts.sort()
-
-        if not accounts:
-            logging.warning("No SoundCloud accounts found in the database.")
-            return
+    def run(self, account=""):
+        if not account:
+            accounts = get_accounts_from_db()
+            if not accounts:
+                logging.warning("No SoundCloud accounts found in the database.")
+                return
+            accounts.sort()
+        else:
+            accounts = [account]
+            self.ydl_opts['download_archive'] = "archives/" + account + ".txt"
+            print(account, self.archive_file)
 
         total_batches = math.ceil(len(accounts) / self.burst_size)
 

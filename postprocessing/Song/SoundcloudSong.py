@@ -9,8 +9,8 @@ s = Settings()
 
 
 class SoundcloudSong(BaseSong):
-    def __init__(self, path):
-        super().__init__(path)
+    def __init__(self, path, extra_info=None):
+        super().__init__(path, extra_info)
         paths = path.rsplit(s.delimiter, 2)
         if not self.album_artist():
             self.tag_collection.set_item(ALBUM_ARTIST, str(paths[1]))
@@ -42,11 +42,15 @@ class SoundcloudSong(BaseSong):
         ignored_artists = ['Sapher', 'C418', 'T78', 'Basher']
         if folder in ignored_artists:
             return
-        if self.artist() == self.album_artist() and self.artist() == folder:
+        if self.artist() == folder:
             if self.title().find(" @ ") != -1:
                 parts = self.title().split(" @ ", 1)
                 self.tag_collection.add(ARTIST, parts[0])
                 self.tag_collection.set_item(TITLE, parts[1])
+            elif self.title().find(" mix by ") != -1:
+                parts = self.title().split(" by ", 1)
+                self.tag_collection.add(ARTIST, parts[1])
+                self.tag_collection.set_item(TITLE, parts[0])
             elif self.title().find(" - ") != -1:
                 parts = self.title().split(" - ", 1)
                 self.tag_collection.add(ARTIST, parts[0])

@@ -46,7 +46,7 @@ class BaseSong:
     Provides methods to read, clean, update, and save tags.
     """
 
-    def __init__(self, path):
+    def __init__(self, path, extra_info=None):
         """
         Initializes the BaseSong object by loading the file and its tags.
 
@@ -78,6 +78,9 @@ class BaseSong:
             self.music_file.tags if self.type != MusicFileType.AAC else self.music_file
         )
 
+        if extra_info:
+            self._apply_extra_info(extra_info)
+            
         if self.type == MusicFileType.FLAC:
             self.normalize_flac_tags()
 
@@ -308,3 +311,17 @@ class BaseSong:
     def __del__(self):
         """Ensure changes are saved when the object is deleted."""
         self.save_file()
+
+
+    def _apply_extra_info(self, info):
+        """
+        Apply extra metadata from yt-dlp dump to tag collection.
+        """
+        # Prefer "artists", fallback to "artist", then "uploader"
+        artist = (
+            info.get("artists", [None])[0] if isinstance(info.get("artists"), list)
+            else info.get("artist")
+        )
+        if artist:
+            self.tag_collection.set_item(ARTIST, artist)
+

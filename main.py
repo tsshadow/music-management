@@ -88,15 +88,15 @@ def main():
         )
 
     steps_to_run = [
-        # Step("YouTube Downloader", ["download", "download-youtube"], youtube_downloader.run),
-        Step("SoundCloud Downloader", ["download", "download-soundcloud"], soundcloud_downloader.run),
         Step("Extractor", ["extract"], extractor.run),
         Step("Renamer", ["rename"], renamer.run),
         Step("Mover", ["move"], mover.run),
         Step("Converter", ["convert"], converter.run),
         Step("Sanitizer", ["sanitize"], sanitizer.run),
-        Step("Repair", ["repair"], repair.run),
+        # Step("Repair", ["repair"], repair.run),
         Step("Flattener", ["flatten"], flattener.run),
+        # Step("YouTube Downloader", ["download", "download-youtube"], youtube_downloader.run),
+        Step("SoundCloud Downloader", ["download", "download-soundcloud"], soundcloud_downloader.run),
         Step("Tagger", ["tag", "tag-labels", "tag-soundcloud", "tag-youtube", "tag-generic"], run_tagger),
     ]
 

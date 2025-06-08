@@ -2,6 +2,13 @@ import logging
 
 from data.settings import Settings
 from postprocessing.Song.BaseSong import BaseSong
+from postprocessing.Song.rules.CleanAndFilterGenreRule import CleanAndFilterGenreRule
+from postprocessing.Song.rules.CleanArtistFieldsRule import CleanArtistFieldsRule
+from postprocessing.Song.rules.InferFestivalFromTitleRule import InferFestivalFromTitleRule
+from postprocessing.Song.rules.InferGenreFromAlbumArtistRule import InferGenreFromAlbumArtistRule
+from postprocessing.Song.rules.InferGenreFromArtistRule import InferGenreFromArtistRule
+from postprocessing.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
+from postprocessing.Song.rules.InferRemixerFromTitleRule import InferRemixerFromTitleRule
 from postprocessing.constants import ALBUM_ARTIST, PUBLISHER, CATALOG_NUMBER, GENRE, ARTIST, COPYRIGHT, FormatEnum, \
     TITLE
 
@@ -20,13 +27,15 @@ class SoundcloudSong(BaseSong):
         self._publisher = "Soundcloud"
         self.update_song(str(paths[1]))
         self.tag_collection.set_item(PUBLISHER, self._publisher)
-        self.get_artist_from_title()
-        self.get_date_festival_from_title()
-        self.get_genre_from_artist()
-        self.get_genre_from_subgenres()
-        self.get_genre_from_album_artist()
-        self.sort_genres()
-        self.parse_tags()
+
+        self.rules.append(InferRemixerFromTitleRule())
+        self.rules.append(InferFestivalFromTitleRule())
+        self.rules.append(InferGenreFromArtistRule())
+        self.rules.append(InferGenreFromAlbumArtistRule())
+        self.rules.append(InferGenreFromSubgenreRule())
+        self.rules.append(CleanArtistFieldsRule())
+        self.rules.append(CleanAndFilterGenreRule())
+        self.run_all_rules()
 
     def calculate_copyright(self):
         album_artist = self.album_artist()
@@ -47,7 +56,7 @@ class SoundcloudSong(BaseSong):
                 parts = self.title().split(" @ ", 1)
                 self.tag_collection.add(ARTIST, parts[0])
                 self.tag_collection.set_item(TITLE, parts[1])
-            elif self.title().find(" mix by ") != -1:
+            elif self.title().find(" by ") != -1:
                 parts = self.title().split(" by ", 1)
                 self.tag_collection.add(ARTIST, parts[1])
                 self.tag_collection.set_item(TITLE, parts[0])

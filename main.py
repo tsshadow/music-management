@@ -45,6 +45,10 @@ def main():
         help="Comma-separated list of steps to run. If omitted, all steps are run.",
         default="all"
     )
+    parser.add_argument(
+        "--account",
+        help="optional dj",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -68,11 +72,24 @@ def main():
     flattener = EpsFlattener()
     repair = FileRepair()
 
+
+
+
     steps = args.step.split(",") if args.step != "all" else ["all"]
 
+
+
+
     valid_steps = {
-        "extract", "rename", "move", "tag", "tag-labels", "tag-soundcloud", "tag-youtube", "tag-generic",
-        "convert", "sanitize", "repair", "download", "download-youtube", "download-soundcloud", "flatten", "all", "manual"
+        "all",
+        "convert",
+        "download", "download-soundcloud", "download-youtube",
+        "flatten",
+        "import", "extract", "move","rename",
+        "manual",
+        "repair",
+        "sanitize",
+        "tag", "tag-generic", "tag-labels", "tag-soundcloud", "tag-youtube"
     }
     for step in steps:
         if step not in valid_steps:
@@ -87,10 +104,15 @@ def main():
             parse_generic=parse_all or "tag-generic" in steps,
         )
 
+    if args.step == "download-soundcloud":
+        if args.account:
+            soundcloud_downloader.run(args.account)
+            exit(1)
+
     steps_to_run = [
-        Step("Extractor", ["extract"], extractor.run),
-        Step("Renamer", ["rename"], renamer.run),
-        Step("Mover", ["move"], mover.run),
+        Step("Extractor", ["import", "extract"], extractor.run),
+        Step("Renamer", ["import", "rename"], renamer.run),
+        Step("Mover", ["import", "move"], mover.run),
         Step("Converter", ["convert"], converter.run),
         Step("Sanitizer", ["sanitize"], sanitizer.run),
         # Step("Repair", ["repair"], repair.run),

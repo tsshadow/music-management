@@ -156,7 +156,6 @@ class SoundcloudDownloader:
         else:
             accounts = [account]
             self.ydl_opts['download_archive'] = "archives/" + account + ".txt"
-            print(account, self.archive_file)
 
         total_batches = math.ceil(len(accounts) / self.burst_size)
 

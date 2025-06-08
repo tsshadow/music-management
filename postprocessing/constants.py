@@ -2,11 +2,12 @@ from enum import Enum
 from typing import Final
 
 # Constants
-ARTIST_REGEX: Final = r"(?i)\s(&|，|aka|and|b2b|b3b|feat\.?|featuring|features|ft|ft\.?|invite|invites|pres\.?|presenting|versus|vs\.?|with|x|\+|,|et)\s|,\s|，\s"
+ARTIST_REGEX: Final = r"(?i)\s(&|，|aka|and|b2b|b3b|feat\.?|featuring|features|ft|ft\.?|invite|invites|meets|pres\.?|presenting|versus|vs\.?|with|x|\+|,|et)\s|,\s|，\s"
 
 # noinspection SpellCheckingInspection
 ALBUM_ARTIST: Final = "albumartist"
 ARTIST: Final = "artist"
+REMIXERS: Final = "remixers"
 ALBUM: Final = "album"
 BPM: Final = "bpm"
 # noinspection SpellCheckingInspection

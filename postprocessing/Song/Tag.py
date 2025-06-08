@@ -121,7 +121,7 @@ class Tag:
         old_value = self.value[:]
         self.value = list(dict.fromkeys(self.value))
         if old_value != self.value:
-            logging.info(f"{self.tag} changed(deduplicate) from {old_value} to {self.value}")
+            # logging.info(f"{self.tag} changed(deduplicate) from {old_value} to {self.value}")
             self.changed = True
 
     def add(self, item):
@@ -134,7 +134,7 @@ class Tag:
         if item not in self.value:
             old_value = self.value[:]
             self.value.append(item)
-            logging.info(f"{self.tag} changed(add) from {old_value} to {self.value}")
+            # logging.info(f"{self.tag} changed(add) from {old_value} to {self.value}")
             self.changed = True
 
     def remove(self, val):
@@ -157,7 +157,7 @@ class Tag:
         old_value = self.value[:]
         self.value = [element.title() for element in self.value]
         if old_value != self.value:
-            logging.info(f"{self.tag} changed(recapitalize) from {old_value} to {self.value}")
+            # logging.info(f"{self.tag} changed(recapitalize) from {old_value} to {self.value}")
             self.changed = True
 
     def strip(self):
@@ -167,7 +167,7 @@ class Tag:
         old_value = self.value[:]
         self.value = [element.strip() for element in self.value]
         if old_value != self.value:
-            logging.info(f"{self.tag} changed(strip) from {old_value} to {self.value}")
+            # logging.info(f"{self.tag} changed(strip) from {old_value} to {self.value}")
             self.changed = True
 
     def regex(self):
@@ -178,7 +178,7 @@ class Tag:
         self.value = [re.sub(ARTIST_REGEX, ";", elem) for elem in self.value]
         if old_value != self.value:
             self.resplit()
-            logging.info(f"{self.tag} changed(regex) from {old_value} to {self.value}")
+            # logging.info(f"{self.tag} changed(regex) from {old_value} to {self.value}")
             self.changed = True
 
     def special_recapitalize(self):
@@ -188,7 +188,7 @@ class Tag:
         old_value = self.value[:]
         self.value = [artistTableHelper.get_canonical(name) for name in self.value]
         if old_value != self.value:
-            logging.info(f"{self.tag} changed(special_recapitalize) from {old_value} to {self.value}")
+            # logging.info(f"{self.tag} changed(special_recapitalize) from {old_value} to {self.value}")
             self.changed = True
 
     def set(self, value):
@@ -209,6 +209,8 @@ class Tag:
                 logging.info("Error during set->resplit")
         if old_value != self.value:
             logging.info(f"{self.tag} changed(set) from {old_value} to {self.value}")
+            # stack = "".join(traceback.format_stack())
+            # logging.info("Stack trace:\n" + stack)
             self.changed = True
 
     def has_changes(self):

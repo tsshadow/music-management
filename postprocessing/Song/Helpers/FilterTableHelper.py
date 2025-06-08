@@ -70,6 +70,39 @@ class FilterTableHelper:
             logging.error(f"Error querying database: {e}")
             return ""
 
+    def get_corrected_or_exists(self, key: str) -> str | bool:
+        """
+        Returns the corrected value if one exists for the given key.
+        If not corrected but exists, returns the original key.
+        If neither corrected nor existing, returns False.
+
+        Args:
+            key (str): The value to check and possibly correct.
+
+        Returns:
+            str | bool: Corrected value, original key, or False.
+        """
+        query = f"""
+            SELECT {self.corrected_column_name}
+            FROM {self.table_name}
+            WHERE {self.column_name} = %s
+            LIMIT 1
+        """
+        connection = self.db_connector.connect()
+
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query, (key,))
+                result = cursor.fetchone()
+                if result:
+                    corrected = result[0]
+                    return corrected if corrected else key
+                return False
+        except Exception as e:
+            logging.error(f"Error querying database: {e}")
+            return False
+
+
     def add(self, key: str) -> bool:
         """
         Inserts a new key into the filter table.

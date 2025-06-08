@@ -1,5 +1,6 @@
 import glob
 import logging
+import os
 import re
 import shutil
 
@@ -43,16 +44,24 @@ def get_cat_id(folder: str):
 
 def post_processing_songs(folder_path):
     """
-    Call LabelSong(path) for every supported audio file in the folder.
+    Call LabelSong(path) for every supported audio file in the folder,
+    excluding Synology's @eaDir directories and non-files.
     """
-    supported_exts = ("*.mp3", "*.flac", "*.m4a", "*.aac", "*.wav")
-    for pattern in supported_exts:
-        for path in glob.glob(join(folder_path, "**", pattern), recursive=True):
-            try:
-                logging.info(f"Processing file with LabelSong: {path}")
-                LabelSong(path)
-            except Exception as e:
-                logging.error(f"Failed to process {path} with LabelSong: {e}")
+    supported_exts = (".mp3", ".flac", ".m4a", ".aac", ".wav")
+    for root, dirs, files in os.walk(folder_path):
+        # Exclude Synology metadata directories
+        dirs[:] = [d for d in dirs if d != "@eaDir"]
+        for file in files:
+            if file.lower().endswith(supported_exts):
+                full_path = os.path.join(root, file)
+                if not os.path.isfile(full_path):
+                    logging.warning(f"Skipping non-file: {full_path}")
+                    continue
+                try:
+                    logging.info(f"Processing file with LabelSong: {full_path}")
+                    LabelSong(str(full_path))
+                except Exception as e:
+                    logging.error(f"Failed to process {full_path} with LabelSong: {e}")
 
 
 class Mover:

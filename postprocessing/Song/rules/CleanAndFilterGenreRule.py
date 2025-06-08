@@ -23,7 +23,7 @@ class CleanAndFilterGenreRule(TagRule):
         valid_genres = []
         for genre in genres:
             corrected = self.helper.get_corrected_or_exists(genre)
-            if corrected is not None:
+            if isinstance(corrected, str) and corrected.strip():
                 valid_genres.append(corrected)
 
         valid_genres.sort()

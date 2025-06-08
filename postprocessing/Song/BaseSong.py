@@ -63,7 +63,7 @@ class BaseSong:
         """
         self.rules: list[TagRule] = []
         paths = path.rsplit(s.delimiter, 2)
-        self._path = path
+        self._path: str = path
         self._filename = str(paths[-1])
         self._extension = os.path.splitext(self._filename)[1].lower()
 

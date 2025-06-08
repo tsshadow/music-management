@@ -4,6 +4,7 @@ from data.settings import Settings
 from postprocessing.Song.BaseSong import BaseSong
 from postprocessing.Song.rules.CleanAndFilterGenreRule import CleanAndFilterGenreRule
 from postprocessing.Song.rules.CleanArtistFieldsRule import CleanArtistFieldsRule
+from postprocessing.Song.rules.InferArtistFromTitleRule import InferArtistFromTitleRule
 from postprocessing.Song.rules.InferFestivalFromTitleRule import InferFestivalFromTitleRule
 from postprocessing.Song.rules.InferGenreFromAlbumArtistRule import InferGenreFromAlbumArtistRule
 from postprocessing.Song.rules.InferGenreFromArtistRule import InferGenreFromArtistRule
@@ -25,10 +26,10 @@ class SoundcloudSong(BaseSong):
             if self.calculate_copyright():
                 self.tag_collection.set_item(COPYRIGHT, self.calculate_copyright())
         self._publisher = "Soundcloud"
-        self.update_song(str(paths[1]))
         self.tag_collection.set_item(PUBLISHER, self._publisher)
-
+        self.rules.append(InferArtistFromTitleRule())
         self.rules.append(InferRemixerFromTitleRule())
+        self.rules.append(CleanArtistFieldsRule())
         self.rules.append(InferFestivalFromTitleRule())
         self.rules.append(InferGenreFromArtistRule())
         self.rules.append(InferGenreFromAlbumArtistRule())

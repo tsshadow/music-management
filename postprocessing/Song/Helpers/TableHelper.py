@@ -81,3 +81,23 @@ class TableHelper:
             return False
         finally:
             connection.close()
+
+    def get_all_values(self):
+        """
+        Retrieves all values (single column) from the table.
+        Returns:
+            List[str]: List of values from the column.
+        """
+        query = f"SELECT {self.column_name} FROM {self.table_name}"
+        connection = self.db_connector.connect()
+
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query)
+                results = cursor.fetchall()
+                return [row[0] for row in results]
+        except Exception as e:
+            logging.error(f"Error retrieving values from {self.table_name}: {e}")
+            return []
+        finally:
+            connection.close()

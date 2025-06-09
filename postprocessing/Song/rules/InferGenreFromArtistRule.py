@@ -20,7 +20,6 @@ class InferGenreFromArtistRule(TagRule):
 
         for artist in song.tag_collection.get_item_as_array(ARTIST):
             genres = self.artistGenreHelper.get(str(artist))
-            print(genres, artist)
             if genres:
                 current_genres = song.merge_and_sort_genres(current_genres, genres)
 

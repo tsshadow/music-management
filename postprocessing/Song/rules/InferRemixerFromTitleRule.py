@@ -91,27 +91,19 @@ class InferRemixerFromTitleRule(TagRule):
                     self.artist_db.add(canonical)
                     logging.info(f"Remixer '{canonical}' toegevoegd aan artists-tabel.")
 
-                # Voeg toe aan ARTIST (indien nodig)
+                # Voeg toe aan ARTIST
                 artist_tag = song.tag_collection.get_item(ARTIST)
                 if canonical not in artist_tag.to_array():
-                    before = artist_tag.to_string()
-                    changed = artist_tag.changed
-
                     artist_tag.add(canonical)
                     artist_tag.regex()
-                    artist_tag.special_recapitalize()
                     artist_tag.deduplicate()
-
-                    if before == artist_tag.to_string():
-                        artist_tag.changed = changed
-
                     logging.info(f"Toegevoegd aan ARTIST: {canonical}")
 
-                # Voeg toe aan REMIXERS (ook als al in ARTIST)
+                # Voeg toe aan REMIXERS
                 # remixer_tag = song.tag_collection.get_item(REMIXERS)
                 # if canonical not in remixer_tag.to_array():
                 #     remixer_tag.add(canonical)
                 #     remixer_tag.regex()
-                #     remixer_tag.special_recapitalize()
                 #     remixer_tag.deduplicate()
                 #     logging.info(f"Toegevoegd aan REMIXERS: {canonical}")
+

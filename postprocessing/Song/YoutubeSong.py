@@ -1,7 +1,7 @@
 from data.settings import Settings
 from postprocessing.Song.BaseSong import BaseSong
 from postprocessing.Song.rules.CleanAndFilterGenreRule import CleanAndFilterGenreRule
-from postprocessing.Song.rules.CleanArtistFieldsRule import CleanArtistFieldsRule
+from postprocessing.Song.rules.CleanTagsRule import CleanTagsRule
 from postprocessing.Song.rules.InferFestivalFromTitleRule import InferFestivalFromTitleRule
 from postprocessing.Song.rules.InferGenreFromAlbumArtistRule import InferGenreFromAlbumArtistRule
 from postprocessing.Song.rules.InferGenreFromArtistRule import InferGenreFromArtistRule
@@ -34,7 +34,7 @@ class YoutubeSong(BaseSong):
         self.rules.append(InferGenreFromArtistRule())
         self.rules.append(InferGenreFromAlbumArtistRule())
         self.rules.append(InferGenreFromSubgenreRule())
-        self.rules.append(CleanArtistFieldsRule())
+        self.rules.append(CleanTagsRule())
         self.rules.append(CleanAndFilterGenreRule())
         self.run_all_rules()
 

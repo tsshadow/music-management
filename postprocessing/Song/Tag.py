@@ -5,11 +5,6 @@ from postprocessing.constants import ARTIST_REGEX
 
 import logging
 
-artistTableHelper = TableHelper(
-    table_name="artists",
-    column_name="name",
-)
-
 class Tag:
     """
     Represents a single audio metadata tag that may contain multiple values.
@@ -179,16 +174,6 @@ class Tag:
         if old_value != self.value:
             self.resplit()
             # logging.info(f"{self.tag} changed(regex) from {old_value} to {self.value}")
-            self.changed = True
-
-    def special_recapitalize(self):
-        """
-        Recapitalizes names using database matches (via ArtistHelper).
-        """
-        old_value = self.value[:]
-        self.value = [artistTableHelper.get_canonical(name) for name in self.value]
-        if old_value != self.value:
-            # logging.info(f"{self.tag} changed(special_recapitalize) from {old_value} to {self.value}")
             self.changed = True
 
     def set(self, value):

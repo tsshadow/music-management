@@ -11,21 +11,10 @@ from mutagen.mp4 import MP4, MP4StreamInfoError
 from mutagen.wave import WAVE
 
 from data.settings import Settings
-from postprocessing.Song.Helpers.FestivalHelper import FestivalHelper
-from postprocessing.Song.Helpers.FilterTableHelper import FilterTableHelper
-from postprocessing.Song.Helpers.LookupTableHelper import LookupTableHelper
-from postprocessing.Song.Helpers.TableHelper import TableHelper
 from postprocessing.Song.Tag import Tag
 from postprocessing.Song.TagCollection import TagCollection
 from postprocessing.Song.rules.AnalyzeBpmRule import AnalyzeBpmRule
-from postprocessing.Song.rules.CleanAndFilterGenreRule import CleanAndFilterGenreRule
-from postprocessing.Song.rules.CleanArtistFieldsRule import CleanArtistFieldsRule
-from postprocessing.Song.rules.InferFestivalFromTitleRule import InferFestivalFromTitleRule
-from postprocessing.Song.rules.InferGenreFromAlbumArtistRule import InferGenreFromAlbumArtistRule
-from postprocessing.Song.rules.InferGenreFromArtistRule import InferGenreFromArtistRule
-from postprocessing.Song.rules.InferGenreFromLabelRule import InferGenreFromLabelRule
-from postprocessing.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
-from postprocessing.Song.rules.InferRemixerFromTitleRule import InferRemixerFromTitleRule
+from postprocessing.Song.rules.CheckArtistRule import CheckArtistRule
 from postprocessing.Song.rules.NormalizeFlacTagsRule import NormalizeFlacTagsRule
 from postprocessing.Song.rules.TagRule import TagRule
 from postprocessing.constants import ARTIST, GENRE, WAVTags, MP4Tags, DATE, FESTIVAL, PARSED, CATALOG_NUMBER, \
@@ -195,6 +184,9 @@ class BaseSong:
 
     def artist(self):
         return self.tag_collection.get_item_as_string(ARTIST)
+
+    def artists(self):
+        return self.tag_collection.get_item_as_array(ARTIST)
 
     def title(self):
         return self.tag_collection.get_item_as_string(TITLE)

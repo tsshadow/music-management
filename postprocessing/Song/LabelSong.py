@@ -1,8 +1,7 @@
 from data.settings import Settings
 from postprocessing.Song.BaseSong import BaseSong
 from postprocessing.Song.rules.CleanAndFilterGenreRule import CleanAndFilterGenreRule
-from postprocessing.Song.rules.CleanArtistFieldsRule import CleanArtistFieldsRule
-from postprocessing.Song.rules.CleanArtistFieldsRuleTest import CleanArtistFieldsRuleTest
+from postprocessing.Song.rules.CleanTagsRule import CleanTagsRule
 from postprocessing.Song.rules.InferGenreFromArtistRule import InferGenreFromArtistRule
 from postprocessing.Song.rules.InferGenreFromLabelRule import InferGenreFromLabelRule
 from postprocessing.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
@@ -34,7 +33,7 @@ class LabelSong(BaseSong):
         self.rules.append(InferGenreFromArtistRule())
         self.rules.append(InferRemixerFromTitleRule())
         self.rules.append(InferGenreFromSubgenreRule())
-        self.rules.append(CleanArtistFieldsRule())
+        self.rules.append(CleanTagsRule())
         self.rules.append(CleanAndFilterGenreRule())
         self.run_all_rules()
 

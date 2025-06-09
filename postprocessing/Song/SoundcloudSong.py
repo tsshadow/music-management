@@ -2,8 +2,10 @@ import logging
 
 from data.settings import Settings
 from postprocessing.Song.BaseSong import BaseSong
+from postprocessing.Song.rules.AddMissingArtistToDatabaseRule import AddMissingArtistToDatabaseRule
+from postprocessing.Song.rules.CheckArtistRule import CheckArtistRule
 from postprocessing.Song.rules.CleanAndFilterGenreRule import CleanAndFilterGenreRule
-from postprocessing.Song.rules.CleanArtistFieldsRule import CleanArtistFieldsRule
+from postprocessing.Song.rules.CleanTagsRule import CleanTagsRule
 from postprocessing.Song.rules.InferArtistFromTitleRule import InferArtistFromTitleRule
 from postprocessing.Song.rules.InferFestivalFromTitleRule import InferFestivalFromTitleRule
 from postprocessing.Song.rules.InferGenreFromAlbumArtistRule import InferGenreFromAlbumArtistRule
@@ -27,15 +29,17 @@ class SoundcloudSong(BaseSong):
                 self.tag_collection.set_item(COPYRIGHT, self.calculate_copyright())
         self._publisher = "Soundcloud"
         self.tag_collection.set_item(PUBLISHER, self._publisher)
-        self.rules.append(InferArtistFromTitleRule())
-        self.rules.append(InferRemixerFromTitleRule())
-        self.rules.append(CleanArtistFieldsRule())
-        self.rules.append(InferFestivalFromTitleRule())
-        self.rules.append(InferGenreFromArtistRule())
-        self.rules.append(InferGenreFromAlbumArtistRule())
-        self.rules.append(InferGenreFromSubgenreRule())
-        self.rules.append(CleanArtistFieldsRule())
-        self.rules.append(CleanAndFilterGenreRule())
+        self.rules.append(InferArtistFromTitleRule())       # Extract artist from title if missing
+        self.rules.append(InferRemixerFromTitleRule())      # Extract remixer info from title and add to REMIXERS
+        self.rules.append(CleanTagsRule())                  # Clean tags by executing regex
+        self.rules.append(InferFestivalFromTitleRule())     # Infer festival and date based on title patterns
+        self.rules.append(InferGenreFromArtistRule())       # Infer genre based on artist lookup
+        self.rules.append(InferGenreFromAlbumArtistRule())  # Infer genre based on album artist lookup
+        self.rules.append(InferGenreFromSubgenreRule())     # Infer genre based on subgenre mapping
+        self.rules.append(CleanTagsRule())          # Re-run cleanup after inference steps
+        self.rules.append(AddMissingArtistToDatabaseRule()) # Prompt user to classify unknown artists (valid/ignored/corrected)
+        self.rules.append(CheckArtistRule())                # Normalize/correct/remove tags based on artist DB state
+
         self.run_all_rules()
 
     def calculate_copyright(self):
@@ -48,31 +52,6 @@ class SoundcloudSong(BaseSong):
             return self.publisher()
         return None
 
-    def update_song(self, folder):
-        ignored_artists = ['Sapher', 'C418', 'T78', 'Basher']
-        if folder in ignored_artists:
-            return
-        if self.artist() == folder:
-            if self.title().find(" @ ") != -1:
-                parts = self.title().split(" @ ", 1)
-                self.tag_collection.add(ARTIST, parts[0])
-                self.tag_collection.set_item(TITLE, parts[1])
-            elif self.title().find(" by ") != -1:
-                parts = self.title().split(" by ", 1)
-                self.tag_collection.add(ARTIST, parts[1])
-                self.tag_collection.set_item(TITLE, parts[0])
-            elif self.title().find(" - ") != -1:
-                parts = self.title().split(" - ", 1)
-                self.tag_collection.add(ARTIST, parts[0])
-                self.tag_collection.set_item(TITLE, parts[1])
-        if self.title().find(" - ") != -1:
-            parts = self.title().split(" - ", 1)
-            if parts[0] == self.artist():
-                self.tag_collection.set_item(TITLE, parts[1])
-        if self.title().find(" @ ") != -1:
-            parts = self.title().split(" @ ", 1)
-            if parts[0] == self.artist():
-                self.tag_collection.set_item(TITLE, parts[1])
 
     def load_folders(self, file_path):
         try:

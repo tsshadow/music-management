@@ -27,6 +27,7 @@ class YoutubeDownloader:
             '--no-overwrites',
             '--extract-audio',
             '--audio-format', 'm4a',
+            '-cookies-from-browser firefox'
             '--no-keep-video',
            '--break-on-existing',
             link
@@ -61,5 +62,5 @@ class YoutubeDownloader:
             logging.warning("No YouTube accounts found in the database.")
             return
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             executor.map(self.download_account, accounts)

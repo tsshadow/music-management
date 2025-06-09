@@ -8,27 +8,49 @@ from postprocessing.constants import TITLE, ARTIST, ARTIST_REGEX_NON_CAPTURING
 def extract_artists_from_string(part: str) -> list[str]:
     return [a.strip() for a in re.split(ARTIST_REGEX_NON_CAPTURING, part) if a.strip()]
 
+import re
+from postprocessing.Song.Helpers.TableHelper import TableHelper
+from postprocessing.constants import ARTIST
+
 def set_cleaned_artist(song, artists: str | list[str], artist_db=None) -> bool:
     if isinstance(artists, str):
         artists = [artists]
 
-    blacklist = {"live", "dj set", "set", "remix", "edit", "extended mix", "mix", "version"}
+    blacklist = {
+        "live", "dj set", "set", "remix", "edit", "extended mix", "mix", "version"
+    }
+
     artist_db = artist_db or TableHelper("artists", "name")
     all_artists = {name.lower(): name for name in artist_db.get_all_values() if name}
 
     cleaned = []
     for a in artists:
-        norm = a.strip()
-        if norm.lower() in blacklist:
+        raw = a.strip()
+
+        # Remove anything in parentheses: e.g. "Artist (LIVE)" -> "Artist"
+        base = re.sub(r"\s*\([^)]*\)", "", raw).strip()
+
+        # Strip trailing blacklist suffixes (e.g. "LUNAKORPZ LIVE" -> "LUNAKORPZ")
+        words = base.split()
+        while words and words[-1].lower() in blacklist:
+            words.pop()
+        base = " ".join(words).strip()
+
+        if not base:
             continue
-        corrected = all_artists.get(norm.lower(), norm)  # use DB casing if available
+
+        corrected = all_artists.get(base.lower(), base)
         cleaned.append(corrected)
 
     if not cleaned:
         return False
 
+    print(cleaned)
     song.tag_collection.set_item(ARTIST, ";".join(cleaned))
     return True
+
+
+
 
 class InferArtistFromTitleRule(TagRule):
     def __init__(self, artist_db=None, ignored_artists=None):
@@ -99,6 +121,8 @@ class InferArtistFromTitleSingleDashRule(TagRule):
 
     def apply(self, song):
         title = song.tag_collection.get_item_as_string(TITLE)
+        title = title.replace('|','-')
+        title = title.replace(' I ',' - ')
         if not title or title.count(" - ") != 1:
             return False
         left, right = [s.strip() for s in title.split(" - ", 1)]
@@ -137,6 +161,8 @@ class InferArtistFromTitleMultiDashRule(TagRule):
 
     def apply(self, song):
         title = song.tag_collection.get_item_as_string(TITLE)
+        title = title.replace('|','-')
+        title = title.replace(' I ',' - ')
         if not title or " - " not in title:
             return False
         segments = [s.strip() for s in title.split(" - ") if s.strip()]
@@ -149,7 +175,17 @@ class InferArtistFromTitleMultiDashRule(TagRule):
 
         for idx, segment in enumerate(segments):
             artists = extract_artists_from_string(segment)
+
+            # Clean artists up front
+            filtered_artists = []
             for artist in artists:
+                cleaned = re.sub(r"\s*\([^)]*\)", "", artist).strip()
+                if not cleaned or cleaned.lower() in {"live", "dj set", "set", "remix", "edit", "extended mix", "mix",
+                                                      "version"}:
+                    continue
+                filtered_artists.append(cleaned)
+
+            for artist in filtered_artists:
                 matches = get_close_matches(artist.lower(), self.artist_names, n=1, cutoff=0.6)
                 if matches:
                     from difflib import SequenceMatcher
@@ -157,7 +193,7 @@ class InferArtistFromTitleMultiDashRule(TagRule):
                     if score > best_match_score:
                         best_match_score = score
                         best_match_index = idx
-                        best_artists = artists
+                        best_artists = filtered_artists
 
         if best_match_index == -1:
             return False
@@ -173,6 +209,8 @@ class InferArtistFromFirstSegmentFallbackRule(TagRule):
 
     def apply(self, song):
         title = song.tag_collection.get_item_as_string(TITLE)
+        title = title.replace('|','-')
+        title = title.replace(' I ',' - ')
         if not title or " - " not in title:
             return False
         parts = [s.strip() for s in title.split(" - ", 1)]

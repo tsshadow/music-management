@@ -98,6 +98,24 @@ class InferArtistFromTitleRuleTest(unittest.TestCase):
         self.song.tag_collection.set_item.assert_any_call(ARTIST, "Lunakorpz")
         self.song.tag_collection.set_item.assert_any_call(TITLE, "Snakepit 2024 - Pit II")
 
+    def test_artist_in_middle_multiple_dashes_extra_suffix(self):
+        self.song.path = lambda: "/home/user/Music/Snakepit/track.mp3"
+        self._apply_rule("Snakepit 2024 - LUNAKORPZ LIVE - Pit II")
+        self.song.tag_collection.set_item.assert_any_call(ARTIST, "Lunakorpz")
+        self.song.tag_collection.set_item.assert_any_call(TITLE, "Snakepit 2024 - Pit II")
+
+    def test_artist_in_middle_multiple_dashes_pipe(self):
+        self.song.path = lambda: "/home/user/Music/Snakepit/track.mp3"
+        self._apply_rule("Snakepit 2024 | LUNAKORPZ LIVE - Pit II")
+        self.song.tag_collection.set_item.assert_any_call(ARTIST, "Lunakorpz")
+        self.song.tag_collection.set_item.assert_any_call(TITLE, "Snakepit 2024 - Pit II")
+
+    def test_artist_in_middle_multiple_dashes_I(self):
+        self.song.path = lambda: "/home/user/Music/Snakepit/track.mp3"
+        self._apply_rule("Snakepit 2024 I Lunakorpz - Pit II ")
+        self.song.tag_collection.set_item.assert_any_call(ARTIST, "Lunakorpz")
+        self.song.tag_collection.set_item.assert_any_call(TITLE, "Snakepit 2024 - Pit II")
+
     def test_artist_in_middle_multiple_dashes_large(self):
         self.song.path = lambda: "/home/user/Music/Snakepit/track.mp3"
         self._apply_rule("Snakepit 2024 - Korpz live - Defqon edit - Lunakorpz - Pit II")

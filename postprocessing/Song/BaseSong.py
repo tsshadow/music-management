@@ -2,7 +2,6 @@ import logging
 import os
 import re
 
-import librosa
 import mutagen
 from mutagen.easyid3 import EasyID3
 from mutagen.flac import FLAC

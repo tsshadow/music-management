@@ -1,7 +1,5 @@
 import os
-import re
 from difflib import get_close_matches
-from postprocessing.Song.Helpers.TableHelper import TableHelper
 from postprocessing.Song.rules.TagRule import TagRule
 from postprocessing.constants import TITLE, ARTIST, ARTIST_REGEX_NON_CAPTURING
 
@@ -28,7 +26,7 @@ def set_cleaned_artist(song, artists: str | list[str], artist_db=None) -> bool:
         raw = a.strip()
 
         # Remove anything in parentheses: e.g. "Artist (LIVE)" -> "Artist"
-        base = re.sub(r"\s*\([^)]*\)", "", raw).strip()
+        base = re.sub(r"\s*[\(\[\{<][^()\[\]{}<>]*[\)\]\}>]", "", raw).strip()
 
         # Strip trailing blacklist suffixes (e.g. "LUNAKORPZ LIVE" -> "LUNAKORPZ")
         words = base.split()
@@ -53,17 +51,26 @@ def set_cleaned_artist(song, artists: str | list[str], artist_db=None) -> bool:
 
 
 class InferArtistFromTitleRule(TagRule):
-    def __init__(self, artist_db=None, ignored_artists=None):
+    def __init__(self, artist_db=None, ignored_artists=None, genre_db=None):
         self.artist_db = artist_db or TableHelper("artists", "name")
         all_names = self.artist_db.get_all_values()
         artist_names = set(name.lower() for name in all_names if name)
+        self.genre_db = genre_db or TableHelper("genres", "genre")
+        all_genres = self.genre_db.get_all_values()
+        all_genres = set(genre.lower() for genre in all_genres if genre)
+        all_genres.add('saturday')
+        all_genres.add('sunday')
+        all_genres.add('friday')
+        all_genres.add('mainstage')
         ignored_artists = ignored_artists or []
 
         self.rules = [
+            InferArtistFromPresentsOrColonRule(self.artist_db),
             InferArtistFromTitleAtRule(ignored_artists, self.artist_db),
             InferArtistFromTitleByRule(artist_names, self.artist_db),
+            InferArtistFromTitleDotRule(artist_names, self.artist_db),
             InferArtistFromTitleSingleDashRule(artist_names, self.artist_db),
-            InferArtistFromTitleMultiDashRule(artist_names, self.artist_db),
+            InferArtistFromTitleMultiDashRule(artist_names, self.artist_db, all_genres),
             InferArtistFromFirstSegmentFallbackRule(self.artist_db),
             InferArtistFromTitleFallbackRule(ignored_artists),
         ]
@@ -74,6 +81,34 @@ class InferArtistFromTitleRule(TagRule):
                 print(f"[InferArtistFromTitle] Applied rule: {rule.__class__.__name__} on '{song.path()}'")
                 return
 
+class InferArtistFromTitleDotRule(TagRule):
+    def __init__(self, ignored_artists, artist_db):
+        self.ignored_artists = set(a.lower() for a in ignored_artists)
+        self.artist_db = artist_db
+
+
+
+    def apply(self, song):
+        CATALOG_PATTERN = re.compile(r"^(GB[EDH]\d{3,})[.\s]+(.*?)\s+-\s+(.*)")
+        title = song.tag_collection.get_item_as_string(TITLE)
+        if not title and not '. ' in title and not ' - ' in title:
+            return False
+
+        match = CATALOG_PATTERN.match(title)
+        if not match:
+            return False
+
+        artist_str = match.group(2).strip()
+        rest_of_title = match.group(3).strip()
+
+        if not artist_str:
+            return False
+
+        artists = extract_artists_from_string(artist_str)
+        set_cleaned_artist(song, artists, self.artist_db)
+        song.tag_collection.set_item(TITLE, rest_of_title)
+
+        return True
 class InferArtistFromTitleAtRule(TagRule):
     def __init__(self, ignored_artists, artist_db):
         self.ignored_artists = set(a.lower() for a in ignored_artists)
@@ -83,17 +118,13 @@ class InferArtistFromTitleAtRule(TagRule):
         title = song.tag_collection.get_item_as_string(TITLE)
         if not title:
             return False
-        folder_artist = song.path().split(os.sep)[-2].lower()
-        if folder_artist in self.ignored_artists:
+        if not " @ " in title:
             return False
-        if folder_artist and folder_artist in title.lower() and " @ " in title:
-            parts = title.split(" @ ", 1)
-            if folder_artist in parts[0].lower():
-                artists = extract_artists_from_string(parts[0])
-                set_cleaned_artist(song, artists, self.artist_db)
-                song.tag_collection.set_item(TITLE, parts[1].strip())
-                return True
-        return False
+        parts = title.split(" @ ", 1)
+        artists = extract_artists_from_string(parts[0])
+        set_cleaned_artist(song, artists, self.artist_db)
+        song.tag_collection.set_item(TITLE, parts[1].strip())
+        return True
 
 class InferArtistFromTitleByRule(TagRule):
     def __init__(self, artist_names, artist_db):
@@ -105,6 +136,7 @@ class InferArtistFromTitleByRule(TagRule):
         if not title or " by " not in title.lower():
             return False
         parts = re.split(r"\sby\s", title, flags=re.IGNORECASE)
+        print(parts)
         if len(parts) == 2:
             track, artist_guess = parts[0].strip(), parts[1].strip()
             artists = extract_artists_from_string(artist_guess)
@@ -122,7 +154,8 @@ class InferArtistFromTitleSingleDashRule(TagRule):
     def apply(self, song):
         title = song.tag_collection.get_item_as_string(TITLE)
         title = title.replace('|','-')
-        title = title.replace(' I ',' - ')
+        if title != 'All I Wanna Do':
+            title = title.replace(' I ',' - ')
         if not title or title.count(" - ") != 1:
             return False
         left, right = [s.strip() for s in title.split(" - ", 1)]
@@ -155,14 +188,19 @@ class InferArtistFromTitleSingleDashRule(TagRule):
         return False
 
 class InferArtistFromTitleMultiDashRule(TagRule):
-    def __init__(self, artist_names, artist_db):
+    def __init__(self, artist_names, artist_db, genre_names):
         self.artist_names = artist_names
         self.artist_db = artist_db
+        self.genre_names = genre_names
 
     def apply(self, song):
         title = song.tag_collection.get_item_as_string(TITLE)
         title = title.replace('|','-')
-        title = title.replace(' I ',' - ')
+        title = title.replace('｜','-')
+        if title != 'All I Wanna Do':
+            title = title.replace(' I ',' - ')
+        title = title.replace(' warmup mix ',' warmup mix - ')
+        title = title.replace(' warm-up mix ',' warm-up mix - ')
         if not title or " - " not in title:
             return False
         segments = [s.strip() for s in title.split(" - ") if s.strip()]
@@ -179,17 +217,26 @@ class InferArtistFromTitleMultiDashRule(TagRule):
             # Clean artists up front
             filtered_artists = []
             for artist in artists:
-                cleaned = re.sub(r"\s*\([^)]*\)", "", artist).strip()
+
+                cleaned = re.sub(r"\s*[\(\[\{<][^()\[\]{}<>]*[\)\]\}>]", "", artist).strip()
+                print(cleaned)
                 if not cleaned or cleaned.lower() in {"live", "dj set", "set", "remix", "edit", "extended mix", "mix",
                                                       "version"}:
                     continue
                 filtered_artists.append(cleaned)
 
             for artist in filtered_artists:
-                matches = get_close_matches(artist.lower(), self.artist_names, n=1, cutoff=0.6)
+                lowered = artist.lower()
+
+                if lowered in self.genre_names:
+                    continue  # genres negeren
+
+                matches = get_close_matches(lowered, self.artist_names, n=1, cutoff=0.6)
                 if matches:
                     from difflib import SequenceMatcher
-                    score = SequenceMatcher(None, artist.lower(), matches[0]).ratio()
+                    score = SequenceMatcher(None, lowered, matches[0]).ratio()
+                    score += 0.05  # optioneel: boost voor artiesten
+
                     if score > best_match_score:
                         best_match_score = score
                         best_match_index = idx
@@ -200,7 +247,9 @@ class InferArtistFromTitleMultiDashRule(TagRule):
 
         set_cleaned_artist(song, best_artists, self.artist_db)
         remaining_segments = [seg for i, seg in enumerate(segments) if i != best_match_index]
-        song.tag_collection.set_item(TITLE, " - ".join(remaining_segments))
+        title = " - ".join(remaining_segments)
+        print(title)
+        song.tag_collection.set_item(TITLE, title)
         return True
 
 class InferArtistFromFirstSegmentFallbackRule(TagRule):
@@ -210,7 +259,6 @@ class InferArtistFromFirstSegmentFallbackRule(TagRule):
     def apply(self, song):
         title = song.tag_collection.get_item_as_string(TITLE)
         title = title.replace('|','-')
-        title = title.replace(' I ',' - ')
         if not title or " - " not in title:
             return False
         parts = [s.strip() for s in title.split(" - ", 1)]
@@ -240,4 +288,24 @@ class InferArtistFromTitleFallbackRule(TagRule):
                 if first_segment.lower() == folder_artist:
                     song.tag_collection.set_item(TITLE, rest)
                     return True
+        return False
+
+class InferArtistFromPresentsOrColonRule(TagRule):
+    def __init__(self, artist_db):
+        self.artist_db = artist_db
+        self.artist_names = set(name.lower() for name in artist_db.get_all_values() if name)
+
+    def apply(self, song):
+        title = song.tag_collection.get_item_as_string(TITLE)
+        if not title:
+            return False
+
+        # Match patterns like: "Sound Rush presents: Magic", "Unresolved: Bad Blood"
+        match = re.search(r"\b([A-Za-z0-9 &\-_]+?)\s*(presents:|:)", title, flags=re.IGNORECASE)
+        if match:
+            candidate = match.group(1).strip()
+            if get_close_matches(candidate.lower(), self.artist_names, n=1, cutoff=0.7):
+                set_cleaned_artist(song, candidate, self.artist_db)
+                return True
+
         return False

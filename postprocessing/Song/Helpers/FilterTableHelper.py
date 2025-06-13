@@ -103,22 +103,33 @@ class FilterTableHelper:
             return False
 
 
-    def add(self, key: str) -> bool:
+    def add(self, key: str, corrected: str | None = None) -> bool:
         """
         Inserts a new key into the filter table.
 
         Args:
             key (str): The value to insert.
+            corrected (str | None): Optional corrected value.
 
         Returns:
             bool: True if the insert succeeded, False otherwise.
         """
-        query = f"INSERT INTO {self.table_name} ({self.column_name}) VALUES (%s)"
+        columns = [self.column_name]
+        values = [key]
+
+        # Voeg alleen toe als de kolom ook daadwerkelijk bestaat
+        if self.corrected_column_name and corrected is not None:
+            columns.append(self.corrected_column_name)
+            values.append(corrected)
+
+        placeholders = ', '.join(['%s'] * len(columns))
+        column_names = ', '.join(columns)
+        query = f"INSERT INTO {self.table_name} ({column_names}) VALUES ({placeholders})"
         connection = self.db_connector.connect()
 
         try:
             with connection.cursor() as cursor:
-                cursor.execute(query, (key,))
+                cursor.execute(query, values)
                 connection.commit()
                 return True
         except Exception as e:

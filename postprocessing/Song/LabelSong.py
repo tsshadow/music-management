@@ -1,5 +1,8 @@
 from data.settings import Settings
 from postprocessing.Song.BaseSong import BaseSong
+from postprocessing.Song.rules.AddMissingArtistToDatabaseRule import AddMissingArtistToDatabaseRule
+from postprocessing.Song.rules.AddMissingGenreToDatabaseRule import AddMissingGenreToDatabaseRule
+from postprocessing.Song.rules.CheckArtistRule import CheckArtistRule
 from postprocessing.Song.rules.CleanAndFilterGenreRule import CleanAndFilterGenreRule
 from postprocessing.Song.rules.CleanTagsRule import CleanTagsRule
 from postprocessing.Song.rules.InferGenreFromArtistRule import InferGenreFromArtistRule
@@ -7,7 +10,7 @@ from postprocessing.Song.rules.InferGenreFromLabelRule import InferGenreFromLabe
 from postprocessing.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
 from postprocessing.Song.rules.InferRemixerFromTitleRule import InferRemixerFromTitleRule
 from postprocessing.constants import (
-    ALBUM_ARTIST, PUBLISHER, CATALOG_NUMBER, GENRE, ARTIST, COPYRIGHT, FormatEnum
+    PUBLISHER, CATALOG_NUMBER, COPYRIGHT,
 )
 
 s = Settings()
@@ -29,12 +32,19 @@ class LabelSong(BaseSong):
             if c:
                 self.tag_collection.set_item(COPYRIGHT, c)
 
-        self.rules.append(InferGenreFromLabelRule())
-        self.rules.append(InferGenreFromArtistRule())
-        self.rules.append(InferRemixerFromTitleRule())
-        self.rules.append(InferGenreFromSubgenreRule())
-        self.rules.append(CleanTagsRule())
-        self.rules.append(CleanAndFilterGenreRule())
+        # self.rules.append(InferArtistFromTitleRule())       # Extract artist from title
+        self.rules.append(InferRemixerFromTitleRule())  # Extract remixer info from title and add to REMIXERS
+        self.rules.append(CleanTagsRule())  # Clean tags by executing regex
+        self.rules.append(InferGenreFromArtistRule())  # Infer genre based on artist lookup
+        self.rules.append(InferGenreFromLabelRule())  # Infer genre based on album artist lookup
+        self.rules.append(InferGenreFromSubgenreRule())  # Infer genre based on subgenre mapping
+        self.rules.append(CleanTagsRule())  # Re-run cleanup after inference steps
+        self.rules.append(
+            AddMissingArtistToDatabaseRule())  # Prompt user to classify unknown artists (valid/ignored/corrected)
+        self.rules.append(
+            AddMissingGenreToDatabaseRule())  # Prompt user to classify unknown artists (valid/ignored/corrected)
+        self.rules.append(CleanAndFilterGenreRule())  #
+        self.rules.append(CheckArtistRule())  # Normalize/correct/remove tags based on artist DB state
         self.run_all_rules()
 
     def calculate_copyright(self):

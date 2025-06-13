@@ -1,7 +1,7 @@
 import logging
 from contextlib import closing
 from typing import List
-from data.DatabaseConnector import DatabaseConnector
+from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
 
 class TableHelper:
     def __init__(self, table_name: str, column_name: str):

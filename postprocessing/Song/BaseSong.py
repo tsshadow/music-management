@@ -14,11 +14,10 @@ from data.settings import Settings
 from postprocessing.Song.Tag import Tag
 from postprocessing.Song.TagCollection import TagCollection
 from postprocessing.Song.rules.AnalyzeBpmRule import AnalyzeBpmRule
-from postprocessing.Song.rules.CheckArtistRule import CheckArtistRule
 from postprocessing.Song.rules.NormalizeFlacTagsRule import NormalizeFlacTagsRule
 from postprocessing.Song.rules.TagRule import TagRule
 from postprocessing.constants import ARTIST, GENRE, WAVTags, MP4Tags, DATE, FESTIVAL, PARSED, CATALOG_NUMBER, \
-    PUBLISHER, COPYRIGHT, ALBUM_ARTIST, BPM, MusicFileType, TITLE, FLACTags, ARTIST_REGEX, REMIXER
+    PUBLISHER, COPYRIGHT, ALBUM_ARTIST, BPM, MusicFileType, TITLE, FLACTags, ARTIST_REGEX, REMIXER, ALBUM, TRACK_NUMBER
 
 LOG_FILE = "broken-files.log"
 s = Settings()
@@ -176,6 +175,8 @@ class BaseSong:
         )
         if artist:
             self.tag_collection.set_item(ARTIST, artist)
+        if info.get("upload_date"):
+            self.tag_collection.set_item(DATE, info.get("upload_date"))
 
     # Property-style accessors for common metadata fields
     def album(self):

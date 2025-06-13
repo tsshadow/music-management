@@ -3,7 +3,7 @@ import logging
 import os
 import concurrent.futures
 
-from data.DatabaseConnector import DatabaseConnector
+from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
 
 
 class YoutubeDownloader:

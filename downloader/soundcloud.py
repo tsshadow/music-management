@@ -10,7 +10,7 @@ import time
 from yt_dlp import YoutubeDL
 from yt_dlp.postprocessor import PostProcessor, FFmpegMetadataPP, EmbedThumbnailPP
 
-from data.DatabaseConnector import DatabaseConnector
+from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
 from postprocessing.Song.SoundcloudSong import SoundcloudSong
 
 class SoundcloudSongProcessor(PostProcessor):

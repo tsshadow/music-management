@@ -1,4 +1,3 @@
-import glob
 import logging
 import os
 import re
@@ -7,7 +6,7 @@ import shutil
 from os import listdir
 from os.path import isfile, join
 
-from data.DatabaseConnector import DatabaseConnector
+from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
 from data.settings import Settings
 from postprocessing.Song.LabelSong import LabelSong
 

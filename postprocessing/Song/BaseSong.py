@@ -18,7 +18,7 @@ from postprocessing.Song.rules.CheckArtistRule import CheckArtistRule
 from postprocessing.Song.rules.NormalizeFlacTagsRule import NormalizeFlacTagsRule
 from postprocessing.Song.rules.TagRule import TagRule
 from postprocessing.constants import ARTIST, GENRE, WAVTags, MP4Tags, DATE, FESTIVAL, PARSED, CATALOG_NUMBER, \
-    PUBLISHER, COPYRIGHT, ALBUM_ARTIST, BPM, MusicFileType, TITLE, FLACTags, ARTIST_REGEX
+    PUBLISHER, COPYRIGHT, ALBUM_ARTIST, BPM, MusicFileType, TITLE, FLACTags, ARTIST_REGEX, REMIXER
 
 LOG_FILE = "broken-files.log"
 s = Settings()
@@ -115,15 +115,19 @@ class BaseSong:
             genres.value.sort()
 
     def save_file(self):
-        if hasattr(self, 'tag_collection'):
-            changed = False
-            for tag in self.tag_collection.get().values():
-                if isinstance(tag, Tag) and tag.has_changes():
-                    self.set_tag(tag)
-                    changed = True
-            if changed:
+        if not hasattr(self, 'tag_collection'):
+            return
+
+        for tag in self.tag_collection.get().values():
+            if isinstance(tag, Tag) and tag.has_changes():
+                self.set_tag(tag)
                 self.music_file.save()
                 logging.info(f"File saved: {self.path()}")
+                return
+            else:
+                print('No changes')
+        else:
+            print('No tags to save')
 
     def set_tag(self, tag: Tag):
         """Sets a tag on the underlying music file based on type."""
@@ -176,12 +180,11 @@ class BaseSong:
             self.tag_collection.set_item(ARTIST, artist)
 
     # Property-style accessors for common metadata fields
-    def genre(self):
-        return self.tag_collection.get_item_as_string(GENRE)
-`    def genres(self):
-        return self.tag_collection.get_item_as_array(GENRE)
-    def bpm(self):
-        return self.tag_collection.get_item_as_string(BPM)
+    def album(self):
+        return self.tag_collection.get_item_as_string(ALBUM)
+
+    def album_artist(self):
+        return self.tag_collection.get_item_as_string(ALBUM_ARTIST)
 
     def artist(self):
         return self.tag_collection.get_item_as_string(ARTIST)
@@ -189,21 +192,46 @@ class BaseSong:
     def artists(self):
         return self.tag_collection.get_item_as_array(ARTIST)
 
-    def title(self):
-        return self.tag_collection.get_item_as_string(TITLE)
-
-    def album_artist(self):
-        return self.tag_collection.get_item_as_string(ALBUM_ARTIST)
-
-    def copyright(self):
-        return self.tag_collection.get_item_as_string(COPYRIGHT)
-
-    def publisher(self):
-        return self.tag_collection.get_item_as_string(PUBLISHER)
+    def bpm(self):
+        return self.tag_collection.get_item_as_string(BPM)
 
     def catalog_number(self):
         return self.tag_collection.get_item_as_string(CATALOG_NUMBER)
 
+    def copyright(self):
+        return self.tag_collection.get_item_as_string(COPYRIGHT)
+
+    def date(self):
+        return self.tag_collection.get_item_as_string(DATE)
+
+    def festival(self):
+        return self.tag_collection.get_item_as_string(FESTIVAL)
+
+    def genre(self):
+        return self.tag_collection.get_item_as_string(GENRE)
+
+    def genres(self):
+        return self.tag_collection.get_item_as_array(GENRE)
+
+    def parsed(self):
+        return self.tag_collection.get_item_as_string(PARSED)
+
+    def publisher(self):
+        return self.tag_collection.get_item_as_string(PUBLISHER)
+
+    def remixer(self):
+        return self.tag_collection.get_item_as_string(REMIXER)
+
+    def remixers(self):
+        return self.tag_collection.get_item_as_array(REMIXER)
+
+    def title(self):
+        return self.tag_collection.get_item_as_string(TITLE)
+
+    def track_number(self):
+        return self.tag_collection.get_item_as_string(TRACK_NUMBER)
+
+    # File-related properties (not tags, but useful for access)
     def filename(self):
         return self._filename
 
@@ -213,12 +241,6 @@ class BaseSong:
     def extension(self):
         return self._extension
 
-    def parsed(self):
-        return self.tag_collection.get_item_as_string(PARSED)
-
-    def date(self):
-        return self.tag_collection.get_item_as_string(DATE)
-
     def run_all_rules(self):
         for rule in self.rules:
             rule.apply(self)
@@ -226,3 +248,4 @@ class BaseSong:
     def __del__(self):
         """Ensure changes are saved when the object is deleted."""
         self.save_file()
+

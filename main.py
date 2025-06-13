@@ -1,5 +1,6 @@
 import logging
 import argparse
+import signal
 from time import sleep
 
 from data.settings import Settings
@@ -13,7 +14,8 @@ from processing.mover import Mover
 from processing.renamer import Renamer
 from downloader.youtube import YoutubeDownloader
 from downloader.soundcloud import SoundcloudDownloader
-
+import faulthandler
+faulthandler.register(signal.SIGUSR1)
 
 class Step:
     def __init__(self, name, condition_keys, action):

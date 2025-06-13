@@ -118,12 +118,14 @@ class BaseSong:
         if not hasattr(self, 'tag_collection'):
             return
 
+        changes = False
         for tag in self.tag_collection.get().values():
             if isinstance(tag, Tag) and tag.has_changes():
                 self.set_tag(tag)
-                self.music_file.save()
-                logging.info(f"File saved: {self.path()}")
-                return
+                changes = True
+        if changes:
+            logging.info(f"File saved: {self.path()}")
+            self.music_file.save()
 
     def set_tag(self, tag: Tag):
         """Sets a tag on the underlying music file based on type."""

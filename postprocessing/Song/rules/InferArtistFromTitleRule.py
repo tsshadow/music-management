@@ -43,7 +43,6 @@ def set_cleaned_artist(song, artists: str | list[str], artist_db=None) -> bool:
     if not cleaned:
         return False
 
-    print(cleaned)
     song.tag_collection.set_item(ARTIST, ";".join(cleaned))
     return True
 
@@ -136,7 +135,6 @@ class InferArtistFromTitleByRule(TagRule):
         if not title or " by " not in title.lower():
             return False
         parts = re.split(r"\sby\s", title, flags=re.IGNORECASE)
-        print(parts)
         if len(parts) == 2:
             track, artist_guess = parts[0].strip(), parts[1].strip()
             artists = extract_artists_from_string(artist_guess)
@@ -219,7 +217,6 @@ class InferArtistFromTitleMultiDashRule(TagRule):
             for artist in artists:
 
                 cleaned = re.sub(r"\s*[\(\[\{<][^()\[\]{}<>]*[\)\]\}>]", "", artist).strip()
-                print(cleaned)
                 if not cleaned or cleaned.lower() in {"live", "dj set", "set", "remix", "edit", "extended mix", "mix",
                                                       "version"}:
                     continue
@@ -248,7 +245,6 @@ class InferArtistFromTitleMultiDashRule(TagRule):
         set_cleaned_artist(song, best_artists, self.artist_db)
         remaining_segments = [seg for i, seg in enumerate(segments) if i != best_match_index]
         title = " - ".join(remaining_segments)
-        print(title)
         song.tag_collection.set_item(TITLE, title)
         return True
 

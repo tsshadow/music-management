@@ -41,7 +41,7 @@ class SoundcloudSongProcessor(PostProcessor):
                 logging.error(f"Failed to enrich metadata for {url}: {e.stderr}")
                 SoundcloudSong(path)
             except Exception as e:
-                logging.error(f"SoundcloudSong failed for {path}: {e}")
+                logging.error(f"SoundcloudSong failed for {path}: {e}", exc_info=True)
         else:
             logging.warning("Postprocessor: no path or URL found in info dict")
         return [], info
@@ -69,7 +69,7 @@ class SoundcloudDownloader:
     - Handles batch downloads with configurable parallelism and throttling.
     - Skips tracks outside a configurable duration range.
     """
-    def __init__(self, max_workers=1, burst_size=10, min_pause=1, max_pause=5):
+    def __init__(self, max_workers=1, burst_size=60, min_pause=1, max_pause=5):
         self.output_folder = os.getenv("soundcloud_folder")
         self.archive_file = os.getenv("soundcloud_archive")
         self.cookies_file = os.getenv("soundcloud_cookies", "soundcloud.com_cookies.txt")

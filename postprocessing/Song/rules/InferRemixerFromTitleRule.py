@@ -1,9 +1,10 @@
 import logging
 import re
 
+from postprocessing.Song.Helpers.FilterTableHelper import FilterTableHelper
 from postprocessing.Song.Helpers.TableHelper import TableHelper
 from postprocessing.Song.rules.TagRule import TagRule
-from postprocessing.constants import TITLE, ARTIST, REMIXERS
+from postprocessing.constants import TITLE, ARTIST, REMIXER
 
 
 class InferRemixerFromTitleRule(TagRule):
@@ -26,7 +27,7 @@ class InferRemixerFromTitleRule(TagRule):
     def __init__(self, artist_db=None, ignored_db=None):
         from postprocessing.Song.Helpers.LookupTableHelper import LookupTableHelper
         self.artist_db = artist_db or TableHelper("artists", "name")
-        self.ignored_db = ignored_db or TableHelper("ignored_artists", "name")
+        self.ignored_db = ignored_db or FilterTableHelper("ignored_artists", "name", "corrected_name")
 
     def _clean_artist_name(self, name: str) -> str:
         name = re.sub(r"['’]s\s+(remix|edit|refix|version|bootleg|mix|vip)\b", r" \1", name, flags=re.IGNORECASE)
@@ -74,23 +75,6 @@ class InferRemixerFromTitleRule(TagRule):
                     logging.info(f"Remixer '{canonical}' staat op ignore-lijst, verwijderd.")
                     continue
 
-                if not self.artist_db.exists(canonical):
-                    response = input(
-                        f"Remixer '{canonical}' voor\n`{original_artist} - {title}`\n niet gevonden. Toevoegen? [y/N/i voor negeren]: "
-                    ).strip().lower()
-
-                    if response == "i":
-                        self.ignored_db.add(canonical)
-                        logging.info(f"Remixer '{canonical}' toegevoegd aan ignore-tabel.")
-                        song.tag_collection.get_item(ARTIST).remove(canonical)
-                        continue
-                    if response != "y":
-                        logging.info(f"Remixer '{canonical}' overgeslagen.")
-                        continue
-
-                    self.artist_db.add(canonical)
-                    logging.info(f"Remixer '{canonical}' toegevoegd aan artists-tabel.")
-
                 # Voeg toe aan ARTIST
                 artist_tag = song.tag_collection.get_item(ARTIST)
                 if canonical not in artist_tag.to_array():
@@ -100,10 +84,14 @@ class InferRemixerFromTitleRule(TagRule):
                     logging.info(f"Toegevoegd aan ARTIST: {canonical}")
 
                 # Voeg toe aan REMIXERS
-                # remixer_tag = song.tag_collection.get_item(REMIXERS)
-                # if canonical not in remixer_tag.to_array():
-                #     remixer_tag.add(canonical)
-                #     remixer_tag.regex()
-                #     remixer_tag.deduplicate()
-                #     logging.info(f"Toegevoegd aan REMIXERS: {canonical}")
+                if song.tag_collection.has_item(REMIXER):
+                    remixer_tag = song.tag_collection.get_item(REMIXER)
+                    if canonical not in remixer_tag.to_array():
+                        remixer_tag.add(canonical)
+                        remixer_tag.regex()
+                        remixer_tag.deduplicate()
+                        logging.info(f"Toegevoegd aan REMIXERS: {canonical}")
+                else:
+                    song.tag_collection.add(REMIXER, canonical)
+
 

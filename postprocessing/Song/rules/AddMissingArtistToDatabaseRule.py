@@ -25,6 +25,9 @@ class AddMissingArtistToDatabaseRule(TagRule):
             if self.ignored_table.exists(name):
                 continue
 
+            #self.artist_table.add(name)
+            #print(f"✅ Artiest toegevoegd: {name}")
+            #return
             # ❓ Vraag gebruiker om bevestiging of correctie
             try:
                 user_input = input(

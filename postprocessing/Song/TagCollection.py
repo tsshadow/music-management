@@ -190,6 +190,8 @@ class TagCollection:
         Returns:
             Tag: The corresponding Tag object.
         """
+        if tag not in self.tags:
+            self.tags[tag] = Tag(tag, "")
         return self.tags[tag]
 
     def set_item(self, tag, value):

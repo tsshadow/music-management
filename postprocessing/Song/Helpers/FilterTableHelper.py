@@ -1,5 +1,5 @@
 import logging
-from data.DatabaseConnector import DatabaseConnector
+from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
 
 
 class FilterTableHelper:
@@ -13,81 +13,51 @@ class FilterTableHelper:
     """
 
     def __init__(self, table_name: str, column_name: str, corrected_column_name: str):
-        """
-        Initializes the filter helper with the given table and column names.
-
-        Args:
-            table_name (str): Name of the table to query/insert into.
-            column_name (str): Name of the column used for lookup and inserts.
-            corrected_column_name (str): Name of the column to retrieve corrected values from.
-        """
         self.table_name = table_name
         self.column_name = column_name
         self.corrected_column_name = corrected_column_name
         self.db_connector = DatabaseConnector()
 
     def exists(self, key: str) -> bool:
-        """
-        Checks whether the given key exists in the filter table.
-
-        Args:
-            key (str): The value to check.
-
-        Returns:
-            bool: True if the key exists in the table, False otherwise.
-        """
+        key = key.strip()
         query = f"SELECT 1 FROM {self.table_name} WHERE {self.column_name} = %s LIMIT 1"
         connection = self.db_connector.connect()
 
         try:
             with connection.cursor() as cursor:
                 cursor.execute(query, (key,))
-                result = cursor.fetchone()
-                return result is not None
+                return cursor.fetchone() is not None
         except Exception as e:
-            logging.error(f"Error querying database: {e}")
+            logging.error(f"[{self.table_name}] Error checking existence for key '{key}': {e}")
             return False
+        finally:
+            connection.close()
 
     def get_corrected(self, key: str) -> str:
-        """
-        Retrieves the corrected value for a given key from the table.
-
-        Args:
-            key (str): The value to correct.
-
-        Returns:
-            str: The corrected version of the key, or an empty string if not found.
-        """
-        query = f"SELECT {self.corrected_column_name} FROM {self.table_name} WHERE {self.column_name} = %s LIMIT 1"
+        key = key.strip()
+        query = (
+            f"SELECT {self.corrected_column_name} "
+            f"FROM {self.table_name} WHERE {self.column_name} = %s LIMIT 1"
+        )
         connection = self.db_connector.connect()
 
         try:
             with connection.cursor() as cursor:
                 cursor.execute(query, (key,))
                 result = cursor.fetchone()
-                return result[0] if result else ""
+                return result[0].strip() if result and result[0] else ""
         except Exception as e:
-            logging.error(f"Error querying database: {e}")
+            logging.error(f"[{self.table_name}] Error fetching corrected value for '{key}': {e}")
             return ""
+        finally:
+            connection.close()
 
     def get_corrected_or_exists(self, key: str) -> str | bool:
-        """
-        Returns the corrected value if one exists for the given key.
-        If not corrected but exists, returns the original key.
-        If neither corrected nor existing, returns False.
-
-        Args:
-            key (str): The value to check and possibly correct.
-
-        Returns:
-            str | bool: Corrected value, original key, or False.
-        """
-        query = f"""
-            SELECT {self.corrected_column_name}
-            FROM {self.table_name}
-            WHERE {self.column_name} = %s
-            LIMIT 1
-        """
+        key = key.strip()
+        query = (
+            f"SELECT {self.corrected_column_name} "
+            f"FROM {self.table_name} WHERE {self.column_name} = %s LIMIT 1"
+        )
         connection = self.db_connector.connect()
 
         try:
@@ -96,45 +66,58 @@ class FilterTableHelper:
                 result = cursor.fetchone()
                 if result:
                     corrected = result[0]
-                    return corrected if corrected else key
+                    return corrected.strip() if corrected else key
                 return False
         except Exception as e:
-            logging.error(f"Error querying database: {e}")
+            logging.error(f"[{self.table_name}] Error fetching corrected/existing for '{key}': {e}")
             return False
-
+        finally:
+            connection.close()
 
     def add(self, key: str, corrected: str | None = None) -> bool:
-        """
-        Inserts a new key into the filter table.
-
-        Args:
-            key (str): The value to insert.
-            corrected (str | None): Optional corrected value.
-
-        Returns:
-            bool: True if the insert succeeded, False otherwise.
-        """
-        columns = [self.column_name]
+        key = key.strip()
         values = [key]
+        columns = [self.column_name]
 
-        # Voeg alleen toe als de kolom ook daadwerkelijk bestaat
         if self.corrected_column_name and corrected is not None:
+            corrected = corrected.strip()
             columns.append(self.corrected_column_name)
             values.append(corrected)
 
-        placeholders = ', '.join(['%s'] * len(columns))
-        column_names = ', '.join(columns)
+        placeholders = ", ".join(["%s"] * len(columns))
+        column_names = ", ".join(columns)
         query = f"INSERT INTO {self.table_name} ({column_names}) VALUES ({placeholders})"
-        connection = self.db_connector.connect()
 
+        connection = self.db_connector.connect()
         try:
             with connection.cursor() as cursor:
                 cursor.execute(query, values)
                 connection.commit()
                 return True
         except Exception as e:
-            logging.error(f"Error inserting into database: {e}")
+            logging.error(f"[{self.table_name}] Error inserting key '{key}': {e}")
             connection.rollback()
             return False
+        finally:
+            connection.close()
+
+    def get_all(self) -> list[str]:
+        """
+        Returns all raw (unprocessed) values from the main column.
+
+        Returns:
+            list[str]: Sorted list of distinct values.
+        """
+        query = f"SELECT DISTINCT {self.column_name} FROM {self.table_name}"
+        connection = self.db_connector.connect()
+
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query)
+                result = cursor.fetchall()
+                return sorted([str(row[0]).strip() for row in result if row and row[0]])
+        except Exception as e:
+            logging.error(f"[{self.table_name}] Error fetching all values: {e}")
+            return []
         finally:
             connection.close()

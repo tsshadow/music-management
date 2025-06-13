@@ -31,7 +31,7 @@ class InferGenreFromTitleRule(TagRule):
         found = False
         for genre, pattern in self.genre_patterns.items():
             if pattern.search(title):
-                canonical = self.genre_db.get_canonical(genre)
+                canonical = self.genre_db.get(genre)
 
                 if self.dryrun:
                     line = f"{canonical} - {song.path}\n"

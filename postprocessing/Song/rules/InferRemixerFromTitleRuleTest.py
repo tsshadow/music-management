@@ -28,7 +28,7 @@ class InferRemixerFromTitleRuleTest(unittest.TestCase):
         }[key]
 
         self.artist_db = MagicMock()
-        self.artist_db.get_canonical.side_effect = lambda x: x.title()
+        self.artist_db.get.side_effect = lambda x: x.title()
         self.artist_db.exists.side_effect = lambda x: True
         self.ignored_db = MagicMock()
         self.ignored_db.exists.side_effect = lambda x: False

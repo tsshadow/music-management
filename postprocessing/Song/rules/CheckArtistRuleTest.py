@@ -16,7 +16,7 @@ class CheckArtistRuleTest(unittest.TestCase):
 
     def test_adds_canonical_name_if_artist_known(self):
         self.artist_table.exists.side_effect = lambda x: x == "Known Artist"
-        self.artist_table.get_canonical.side_effect = lambda x: x.upper()  # Simuleer kapitalisatie
+        self.artist_table.get.side_effect = lambda x: x.upper()  # Simuleer kapitalisatie
         self.ignored_table.get_corrected.return_value = None
         self.ignored_table.exists.return_value = False
 

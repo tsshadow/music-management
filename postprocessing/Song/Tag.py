@@ -183,20 +183,29 @@ class Tag:
         Args:
             value (str or list[str]): The new tag value(s).
         """
-        old_value = self.value[:]
+
+        def normalize(val):
+            # Strip whitespace and remove empty strings
+            return [v.strip() for v in val if v.strip()]
+
+        old_value = normalize(self.value[:])
+
         if isinstance(value, str):
-            self.value = value.split(";")
+            self.value = normalize(value.split(";"))
         elif isinstance(value, list):
-            self.value = list(value)
+            self.value = normalize(value)
             try:
                 self.resplit()
             except (AttributeError, TypeError):
                 logging.info("Error during set->resplit")
-        if old_value != self.value:
-            logging.info(f"{self.tag} changed(set) from {old_value} to {self.value}")
-            # stack = "".join(traceback.format_stack())
-            # logging.info("Stack trace:\n" + stack)
+
+        new_value = normalize(self.value)
+
+        if old_value != new_value:
+            logging.info(f"{self.tag} changed(set) from {old_value} to {new_value}")
             self.changed = True
+
+        self.value = new_value  # store the normalized version
 
     def has_changes(self):
         """

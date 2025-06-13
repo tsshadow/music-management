@@ -22,7 +22,7 @@ class CheckArtistRule(TagRule):
 
             # ✅ Artiest bekend → canonical taggen
             if self.artist_table.exists(name):
-                canonical = self.artist_table.get_canonical(name)
+                canonical = self.artist_table.get(name)
                 tag_item.add(canonical)
                 continue
 

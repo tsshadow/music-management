@@ -124,10 +124,6 @@ class BaseSong:
                 self.music_file.save()
                 logging.info(f"File saved: {self.path()}")
                 return
-            else:
-                logging.info('No changes')
-        else:
-            logging.info('No tags to save')
 
     def set_tag(self, tag: Tag):
         """Sets a tag on the underlying music file based on type."""

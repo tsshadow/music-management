@@ -65,7 +65,7 @@ class InferRemixerFromTitleRule(TagRule):
                 if not artist.strip() or artist.strip().isdigit():
                     continue
 
-                canonical = self.artist_db.get_canonical(artist)
+                canonical = self.artist_db.get(artist)
                 if not canonical:
                     logging.info(f"Geen canonical gevonden voor '{artist}', overslaan.")
                     continue

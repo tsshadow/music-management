@@ -12,7 +12,7 @@ class InferGenreFromTitleRuleTest(unittest.TestCase):
 
         self.genre_table = MagicMock()
         self.genre_table.get_all_values.return_value = ["Hardstyle", "Techno", "House"]
-        self.genre_table.get_canonical.side_effect = lambda g: g.capitalize()
+        self.genre_table.get.side_effect = lambda g: g.capitalize()
 
         self.rule = InferGenreFromTitleRule(genre_db=self.genre_table, dryrun=False)
 

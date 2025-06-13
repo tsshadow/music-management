@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 Emeric Poupon
+ * Copyright (C) 2024 Emeric Poupon
  *
  * This file is part of LMS.
  *
@@ -17,14 +17,18 @@
  * along with LMS.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include "FileScanOperationBase.hpp"
 
-#include <filesystem>
-#include <memory>
+#include "services/scanner/ScanErrors.hpp"
 
-#include "core/IResourceHandler.hpp"
-
-namespace lms::av
+namespace lms::scanner
 {
-    std::unique_ptr<IResourceHandler> createRawResourceHandler(const std::filesystem::path& path);
-}
+    FileScanOperationBase::FileScanOperationBase(FileToScan&& fileToScan, db::Db& db, const ScannerSettings& settings)
+        : _file{ std::move(fileToScan) }
+        , _db{ db }
+        , _settings{ settings }
+    {
+    }
+
+    FileScanOperationBase::~FileScanOperationBase() = default;
+} // namespace lms::scanner

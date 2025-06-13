@@ -441,7 +441,7 @@ namespace lms::api::subsonic
         const auto& parameters{ request.getParameterMap() };
 
         if (hasParameter(parameters, "t"))
-            throw TokenAuthenticationNotSupportedForLDAPUsersError{};
+            throw ProvidedAuthenticationMechanismNotSupportedError{};
 
         const auto user{ getParameterAs<std::string>(parameters, "u") };
         const auto password{ getParameterAs<std::string>(parameters, "p") };

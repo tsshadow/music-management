@@ -19,13 +19,13 @@
 
 #include "AvFormatTagReader.hpp"
 
+#include "av/Exception.hpp"
 #include "av/IAudioFile.hpp"
-#include "av/Types.hpp"
 #include "core/ILogger.hpp"
 #include "core/String.hpp"
 #include "metadata/Exception.hpp"
 
-namespace lms::metadata
+namespace lms::metadata::avformat
 {
     namespace
     {
@@ -166,9 +166,11 @@ namespace lms::metadata
         }
         catch (av::Exception& e)
         {
-            throw ParseException{};
+            throw AudioFileParsingException{ e.what() };
         }
     }
+
+    AvFormatTagReader::~AvFormatTagReader() = default;
 
     void AvFormatTagReader::visitTagValues(TagType tag, TagValueVisitor visitor) const
     {
@@ -224,4 +226,4 @@ namespace lms::metadata
             visitor("", value);
         });
     }
-} // namespace lms::metadata
+} // namespace lms::metadata::avformat

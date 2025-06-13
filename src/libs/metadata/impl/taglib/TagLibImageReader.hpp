@@ -19,14 +19,19 @@
 
 #pragma once
 
-#include <taglib/taglib.h>
+#include "IImageReader.hpp"
 
-// TAGLIB_HAS_MP4_ITEM_TYPE if version >= 2.0.1
-#if ((TAGLIB_MAJOR_VERSION > 2) || (TAGLIB_MAJOR_VERSION == 2 && TAGLIB_MINOR_VERSION > 0) || (TAGLIB_MAJOR_VERSION == 2 && TAGLIB_PATCH_VERSION >= 1))
-    #define TAGLIB_HAS_MP4_ITEM_TYPE 1
-#endif
+#include <taglib/tfile.h>
 
-// TAGLIB_HAS_APE_COMPLEX_PROPERTIES if version >= 2.0.2
-#if ((TAGLIB_MAJOR_VERSION > 2) || (TAGLIB_MAJOR_VERSION == 2 && TAGLIB_MINOR_VERSION > 0) || (TAGLIB_MAJOR_VERSION == 2 && TAGLIB_PATCH_VERSION >= 2))
-    #define TAGLIB_HAS_APE_COMPLEX_PROPERTIES 1
-#endif
+namespace lms::metadata::taglib
+{
+    class TagLibImageReader : public IImageReader
+    {
+    public:
+        TagLibImageReader(const std::filesystem::path& p);
+
+        void visitImages(ImageVisitor visitor) const override;
+
+        std::unique_ptr<TagLib::File> _file;
+    };
+} // namespace lms::metadata::taglib

@@ -1,5 +1,5 @@
 import logging
-from data.DatabaseConnector import DatabaseConnector
+from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
 
 class BrokenSongHelper:
     """

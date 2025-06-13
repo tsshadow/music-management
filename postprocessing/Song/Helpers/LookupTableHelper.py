@@ -1,5 +1,5 @@
 import logging
-from data.DatabaseConnector import DatabaseConnector
+from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
 
 
 class LookupTableHelper:
@@ -15,14 +15,6 @@ class LookupTableHelper:
     """
 
     def __init__(self, table_name: str, key_column_name: str, value_column_name: str):
-        """
-        Initializes the lookup helper with the given table and column names.
-
-        Args:
-            table_name (str): The name of the database table.
-            key_column_name (str): The name of the column representing the keys.
-            value_column_name (str): The name of the column representing the values.
-        """
         self.table_name = table_name
         self.key_column_name = key_column_name
         self.value_column_name = value_column_name
@@ -43,25 +35,26 @@ class LookupTableHelper:
 
         try:
             with connection.cursor() as cursor:
-                cursor.execute(query, (key,))
-                result = cursor.fetchall()
-                return [str(row[0]) for row in result] if result else []
+                cursor.execute(query, (key.strip(),))
+                return [str(row[0]).strip() for row in cursor.fetchall()]
         except Exception as e:
-            logging.error(f"Error querying database: {e}")
+            logging.error(f"[{self.table_name}] Failed to get values for key '{key}': {e}")
             return []
+        finally:
+            connection.close()
 
     def get_substring(self, input_string: str) -> list[str]:
         """
         Retrieves values for any key that is a substring match (case-insensitive)
         within the input string.
 
-        This is useful for fuzzy lookup based on filenames or folder names.
+        Useful for fuzzy lookup based on filenames or folder names.
 
         Args:
             input_string (str): Text to scan for known keys.
 
         Returns:
-            list[str]: Values for all matching keys found in the string.
+            list[str]: Unique values for all matching keys found in the string.
         """
         query = f"SELECT {self.key_column_name}, {self.value_column_name} FROM {self.table_name}"
         connection = self.db_connector.connect()
@@ -70,12 +63,15 @@ class LookupTableHelper:
             with connection.cursor() as cursor:
                 cursor.execute(query)
                 result = cursor.fetchall()
-                matches = [
-                    str(value)
+                input_lower = input_string.lower()
+                matches = {
+                    str(value).strip()
                     for name, value in result
-                    if name.lower() in input_string.lower()
-                ]
-                return matches
+                    if name and name.lower().strip() in input_lower
+                }
+                return sorted(matches)
         except Exception as e:
-            logging.error(f"Error querying database: {e}")
+            logging.error(f"[{self.table_name}] Failed to get substring matches for '{input_string}': {e}")
             return []
+        finally:
+            connection.close()

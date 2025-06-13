@@ -17,6 +17,12 @@ missing_tags_mp3 = []
 missing_tags_wav = []
 missing_tags_m4a = []
 
+class UnsupportedExtension(Exception):
+    """Raised when an unsupported file extension is encountered."""
+    def __init__(self, extension: str):
+        super().__init__(f"Unsupported file extension: {extension}")
+        self.extension = extension
+
 
 class TagCollection:
     """
@@ -61,11 +67,15 @@ class TagCollection:
         elif isinstance(tags, _WaveID3):  # WAV
             for tag in tags:
                 try:
-                    self.tags[reversed_WAVTags[tag]] = Tag(reversed_WAVTags[tag], tags[tag])
+                    id3_frame = tags[tag]
+                    if hasattr(id3_frame, "text"):
+                        value = id3_frame.text  # This is usually a list like ["Test Artist"]
+                    else:
+                        value = id3_frame
+                    self.tags[reversed_WAVTags[tag]] = Tag(reversed_WAVTags[tag], value)
                 except KeyError:
                     if tag not in missing_tags_wav:
                         missing_tags_wav.append(tag)
-
 
         elif isinstance(tags, MP4Tags):  # M4A / AAC
             for tag_key, value in tags.items():
@@ -90,59 +100,60 @@ class TagCollection:
         else:
             logging.info("TagCollection not supporting this file extension")
             logging.info(type(tags))
-            exit(1)
+            raise UnsupportedExtension(str(type(tags)))
 
 
-        def __str__(self):
-            """
-            Returns a readable string representation of the tag collection.
+    def __str__(self):
+        """
+        Returns a readable string representation of the tag collection.
 
-            Returns:
-                str: A string showing all tag keys and their values.
-            """
-            return '\n'.join(f"{key}: {tag.to_string()}" for key, tag in self.tags.items())
+        Returns:
+            str: A string showing all tag keys and their values.
+        """
+        return '\n'.join(f"{key}: {tag.to_string()}" for key, tag in self.tags.items())
 
-        def __eq__(self, other):
-            """
-            Compares this TagCollection with another for equality.
+    def __eq__(self, other):
+        """
+        Compares this TagCollection with another for equality.
 
-            Args:
-                other (TagCollection): The other collection to compare with.
+        Args:
+            other (TagCollection): The other collection to compare with.
 
-            Returns:
-                bool: True if both collections contain the same tags and values.
-            """
-            if not isinstance(other, TagCollection):
-                return False
-            return self.tags == other.tags
+        Returns:
+            bool: True if both collections contain the same tags and values.
+        """
+        if not isinstance(other, TagCollection):
+            return False
+        return self.tags == other.tags
 
-        def __len__(self):
-            """
-            Returns the number of tags in the collection.
+    def __len__(self):
+        """
+        Returns the number of tags in the collection.
 
-            Returns:
-                int: Number of tags.
-            """
-            return len(self.tags)
+        Returns:
+            int: Number of tags.
+        """
+        return len(self.tags)
 
-        def __iter__(self):
-            """
-            Iterates over the Tag objects in the collection.
+    def __iter__(self):
+        """
+        Iterates over the Tag objects in the collection.
 
-            Yields:
-                Tag: Each Tag object in the collection.
-            """
-            return iter(self.tags.values())
+        Yields:
+            Tag: Each Tag object in the collection.
+        """
+        return iter(self.tags.values())
 
-        def copy(self):
-            """
-            Creates a shallow copy of the tag collection.
+    def copy(self):
+        """
+        Creates a shallow copy of the tag collection.
 
-            Returns:
-                TagCollection: A new TagCollection with the same tags.
-            """
-            copied_tags = {key: tag.copy() for key, tag in self.tags.items()}
-            return TagCollection(copied_tags)
+        Returns:
+            TagCollection: A new TagCollection with the same tags.
+        """
+        copied = TagCollection(None)
+        copied.tags = {key: tag.copy() for key, tag in self.tags.items()}
+        return copied
 
     def add(self, mp3tag, value):
         """

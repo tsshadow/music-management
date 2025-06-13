@@ -12,6 +12,7 @@ from postprocessing.Song.rules.InferFestivalFromTitleRule import InferFestivalFr
 from postprocessing.Song.rules.InferGenreFromAlbumArtistRule import InferGenreFromAlbumArtistRule
 from postprocessing.Song.rules.InferGenreFromArtistRule import InferGenreFromArtistRule
 from postprocessing.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
+from postprocessing.Song.rules.InferGenreFromTitleRule import InferGenreFromTitleRule
 from postprocessing.Song.rules.InferRemixerFromTitleRule import InferRemixerFromTitleRule
 from postprocessing.Song.rules.MergeDrumAndBassGenresRule import MergeDrumAndBassGenresRule
 from postprocessing.constants import ALBUM_ARTIST, PUBLISHER, CATALOG_NUMBER, GENRE, ARTIST, COPYRIGHT, FormatEnum, \
@@ -38,6 +39,7 @@ class SoundcloudSong(BaseSong):
         self.rules.append(InferGenreFromArtistRule())       # Infer genre based on artist lookup
         self.rules.append(InferGenreFromAlbumArtistRule())  # Infer genre based on album artist lookup
         self.rules.append(InferGenreFromSubgenreRule())     # Infer genre based on subgenre mapping
+        self.rules.append(InferGenreFromTitleRule())        # Infer genre based on title name
         self.rules.append(CleanTagsRule())                  # Re-run cleanup after inference steps
         self.rules.append(AddMissingArtistToDatabaseRule()) # Prompt user to classify unknown artists (valid/ignored/corrected)
         self.rules.append(AddMissingGenreToDatabaseRule())  # Prompt user to classify unknown artists (valid/ignored/corrected)

@@ -178,7 +178,8 @@ class BaseSong:
     # Property-style accessors for common metadata fields
     def genre(self):
         return self.tag_collection.get_item_as_string(GENRE)
-
+`    def genres(self):
+        return self.tag_collection.get_item_as_array(GENRE)
     def bpm(self):
         return self.tag_collection.get_item_as_string(BPM)
 

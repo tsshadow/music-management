@@ -106,6 +106,7 @@ class SoundcloudDownloader:
             'match_filter': self._match_filter,
             'quiet': False,
             # 'break_on_existing': True,
+            'set_file_timestamp': True,
             'cookies': self.cookies_file,
         }
 
@@ -146,7 +147,7 @@ class SoundcloudDownloader:
         logging.error(f"SoundCloud download failed for {name} after 3 attempts.")
 
 
-    def run(self, account=""):
+    def run(self, account="", download=True):
         if not account:
             accounts = get_accounts_from_db()
             if not accounts:

@@ -106,11 +106,6 @@ def main():
             parse_generic=parse_all or "tag-generic" in steps,
         )
 
-    if args.step == "download-soundcloud":
-        if args.account:
-            soundcloud_downloader.run(args.account)
-            exit(1)
-
     steps_to_run = [
         Step("Extractor", ["import", "extract"], extractor.run),
         Step("Renamer", ["import", "rename"], renamer.run),
@@ -120,7 +115,9 @@ def main():
         # Step("Repair", ["repair"], repair.run),
         Step("Flattener", ["flatten"], flattener.run),
         # Step("YouTube Downloader", ["download", "download-youtube"], youtube_downloader.run),
-        Step("SoundCloud Downloader", ["download", "download-soundcloud"], soundcloud_downloader.run),
+        Step("SoundCloud Downloader", ["download", "download-soundcloud"], lambda: soundcloud_downloader.run(
+            account=args.account or "",
+        )),
         Step("Tagger", ["tag", "tag-labels", "tag-soundcloud", "tag-youtube", "tag-generic"], run_tagger),
     ]
 

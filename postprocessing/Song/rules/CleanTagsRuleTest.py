@@ -102,5 +102,10 @@ class CleanTagsRuleTest(unittest.TestCase):
         tag.regex()
         self.assertEqual(sorted(tag.value), sorted(["Anime", "Andy The Core"]))
 
+    def test_regex_split_on_colon(self):
+        tag = Tag(ARTIST, ["Anime: The new world"])
+        tag.regex()
+        self.assertEqual(sorted(tag.value), sorted(["Anime", "The new world"]))
+
 if __name__ == "__main__":
     unittest.main()

@@ -2,13 +2,13 @@ from enum import Enum
 from typing import Final
 
 # Constants
-ARTIST_REGEX: Final = r"(?i)\s(&|，|aka|and|b2b|b3b|feat\.?|featuring|features|ft|ft\.?|invite|invites|meets|pres\.?|presents|presenting|versus|vs\.?|with|x|\+|,|et)\s|,\s|，\s"
-ARTIST_REGEX_NON_CAPTURING: Final =  r"(?i)\s(?:&|，|aka|and|b2b|b3b|feat\.?|featuring|features|ft\.?|invite|invites|meets|pres\.?|presents|presenting|versus|vs\.?|with|x|\+|,|et)\s|,\s|，\s"
+ARTIST_REGEX: Final = r"(?i)\s(&|，|aka|and|b2b|b3b|feat\.?|featuring|features|ft|ft\.?|invite|invites|meets|pres\.?|present|presents|presenting|versus|vs\.?|with|x|\+|,|et)\s|,\s|，\s|presents:\s|present:\s|:\s"
+ARTIST_REGEX_NON_CAPTURING: Final =  r"(?i)\s(?:&|:\s|，|aka|and|b2b|b3b|feat\.?|featuring|features|ft\.?|invite|invites|meets|pres\.?|present|presents|presenting|versus|vs\.?|with|x|\+|,|et)\s|,\s|，\s|presents:\s|present:\s|:\s"
 
 # noinspection SpellCheckingInspection
 ALBUM_ARTIST: Final = "albumartist"
 ARTIST: Final = "artist"
-REMIXERS: Final = "remixers"
+REMIXER: Final = "remixer"
 ALBUM: Final = "album"
 BPM: Final = "bpm"
 # noinspection SpellCheckingInspection
@@ -34,6 +34,7 @@ MP3Tags = {
     GENRE: "genre",
     PARSED: "parsed",
     PUBLISHER: "publisher",
+    REMIXER: "remixer",
     TITLE: "title",
     TRACK_NUMBER: "tracknumber",
 }
@@ -50,6 +51,7 @@ FLACTags = {
     GENRE: "GENRE",
     PARSED: "PARSED",
     PUBLISHER: "PUBLISHER",
+    REMIXER: "REMIXER",
     TITLE: "TITLE",
 }
 reversed_FLACTags = {v: k for k, v in FLACTags.items()}
@@ -78,6 +80,7 @@ MP4Tags = {
     DATE: '\xa9day',
     GENRE: '\xa9gen',
     PUBLISHER: 'PUBL',
+    REMIXER: "REMIXER",
 }
 reversed_MP4Tags = {v: k for k, v in MP4Tags.items()}
 
@@ -91,6 +94,7 @@ WAVTags = {
     PUBLISHER: 'PUBLISHER',
     TITLE: 'TIT2',
     FESTIVAL: "FESTIVAL",
+    REMIXER: "REMIXER",
 }
 reversed_WAVTags = {v: k for k, v in WAVTags.items()}
 

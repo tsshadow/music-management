@@ -51,6 +51,11 @@ def main():
         "--account",
         help="optional dj",
     )
+    parser.add_argument(
+        "--break-on-existing",
+        help="optional break on existing for downloaders",
+        default=False
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -64,7 +69,7 @@ def main():
 
     settings = Settings()
     youtube_downloader = YoutubeDownloader()
-    soundcloud_downloader = SoundcloudDownloader()
+    soundcloud_downloader = SoundcloudDownloader(break_on_existing=args.break_on_existing)
     tagger = Tagger()
     extractor = Extractor()
     renamer = Renamer()
@@ -74,20 +79,14 @@ def main():
     flattener = EpsFlattener()
     repair = FileRepair()
 
-
-
-
     steps = args.step.split(",") if args.step != "all" else ["all"]
-
-
-
 
     valid_steps = {
         "all",
         "convert",
         "download", "download-soundcloud", "download-youtube",
         "flatten",
-        "import", "extract", "move","rename",
+        "import", "extract", "move", "rename",
         "manual",
         "repair",
         "sanitize",

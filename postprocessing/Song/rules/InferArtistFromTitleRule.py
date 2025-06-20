@@ -1,5 +1,7 @@
 import os
 from difflib import get_close_matches
+
+from postprocessing.Song.Helpers.FilterTableHelper import FilterTableHelper
 from postprocessing.Song.rules.TagRule import TagRule
 from postprocessing.constants import TITLE, ARTIST, ARTIST_REGEX_NON_CAPTURING
 
@@ -15,7 +17,7 @@ def set_cleaned_artist(song, artists: str | list[str], artist_db=None) -> bool:
         artists = [artists]
 
     blacklist = {
-        "live", "dj set", "set", "remix", "edit", "extended mix", "mix", "version"
+        "live", "dj set", "set", "remix", "edit", "extended mix", "mix", "version", "remix edit", "remix pro","a1 ", "a2 ","b1 ", "b2 "
     }
 
     artist_db = artist_db or TableHelper("artists", "name")
@@ -50,28 +52,28 @@ def set_cleaned_artist(song, artists: str | list[str], artist_db=None) -> bool:
 
 
 class InferArtistFromTitleRule(TagRule):
-    def __init__(self, artist_db=None, ignored_artists=None, genre_db=None):
+    def __init__(self, artist_db=None, ignored_db:FilterTableHelper=None, genre_db: FilterTableHelper=None):
         self.artist_db = artist_db or TableHelper("artists", "name")
         all_names = self.artist_db.get_all_values()
         artist_names = set(name.lower() for name in all_names if name)
-        self.genre_db = genre_db or TableHelper("genres", "genre")
-        all_genres = self.genre_db.get_all_values()
+        self.genre_db = genre_db
+        all_genres =  genre_db.get_all()
         all_genres = set(genre.lower() for genre in all_genres if genre)
         all_genres.add('saturday')
         all_genres.add('sunday')
         all_genres.add('friday')
         all_genres.add('mainstage')
-        ignored_artists = ignored_artists or []
+        ignored_db = ignored_db or []
 
         self.rules = [
             InferArtistFromPresentsOrColonRule(self.artist_db),
-            InferArtistFromTitleAtRule(ignored_artists, self.artist_db),
+            InferArtistFromTitleAtRule(ignored_db.get_all(), self.artist_db),
             InferArtistFromTitleByRule(artist_names, self.artist_db),
             InferArtistFromTitleDotRule(artist_names, self.artist_db),
             InferArtistFromTitleSingleDashRule(artist_names, self.artist_db),
             InferArtistFromTitleMultiDashRule(artist_names, self.artist_db, all_genres),
             InferArtistFromFirstSegmentFallbackRule(self.artist_db),
-            InferArtistFromTitleFallbackRule(ignored_artists),
+            InferArtistFromTitleFallbackRule(ignored_db.get_all()),
         ]
 
     def apply(self, song):

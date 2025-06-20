@@ -18,21 +18,30 @@ class InferArtistFromTitleRuleTest(unittest.TestCase):
 
         self.mock_artist_db = MagicMock()
         self.mock_artist_db.get_all_values.return_value = [
-            "Noisekick", "D-Fence", "Angerfist", "Headhunterz", "Wildstylez", "D-Sturb", "Hans Glock", "Lunakorpz", "The Viper", "Unresolved", "Bloodlust"
+            "Noisekick", "D-Fence", "Angerfist", "Headhunterz", "Wildstylez",
+            "D-Sturb", "Hans Glock", "Lunakorpz", "The Viper", "Unresolved", "Bloodlust"
         ]
+
         self.mock_genres_db = MagicMock()
-        self.mock_genres_db.get_all_values.return_value = [
+        self.mock_genres_db.get_all.return_value = [
             "Hardstyle"
         ]
+
+        self.mock_ignored_db = MagicMock()
+        self.mock_ignored_db.get_all.return_value = []  # add e.g. ["vieze jack"] for ignore tests
 
     def _apply_rule(self, title):
         self.song.tag_collection.get_item_as_string.side_effect = lambda key: {
             ARTIST: "",
             TITLE: title
         }[key]
-        rule = InferArtistFromTitleRule(artist_db=self.mock_artist_db, genre_db=self.mock_genres_db)
-        rule.apply(self.song)
 
+        rule = InferArtistFromTitleRule(
+            artist_db=self.mock_artist_db,
+            genre_db=self.mock_genres_db,
+            ignored_db=self.mock_ignored_db
+        )
+        rule.apply(self.song)
 # @
     def test_artist_at_event(self):
         self._apply_rule("D-Fence @ Emporium 2024")

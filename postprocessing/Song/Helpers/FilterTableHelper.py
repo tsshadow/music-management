@@ -3,23 +3,42 @@ from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
 
 
 class FilterTableHelper:
-    """
-    Helper class for interacting with a database table that acts as a filter
-    or whitelist for allowed values (e.g., genres, tag vocabularies).
-
-    This wrapper assumes the table contains at least:
-    - One main column for lookup (e.g. 'name').
-    - One optional corrected version column (e.g. 'standardized_name').
-    """
-
-    def __init__(self, table_name: str, column_name: str, corrected_column_name: str):
+    def __init__(self, table_name: str, column_name: str, corrected_column_name: str, preload: bool = True):
         self.table_name = table_name
         self.column_name = column_name
         self.corrected_column_name = corrected_column_name
         self.db_connector = DatabaseConnector()
+        self.cache_enabled = preload
+
+        self._exists_cache = set()
+        self._corrected_map = {}
+
+        if preload:
+            self._preload()
+
+    def _preload(self):
+        query = f"SELECT {self.column_name}, {self.corrected_column_name} FROM {self.table_name}"
+        connection = self.db_connector.connect()
+
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query)
+                for row in cursor.fetchall():
+                    name = str(row[0]).strip()
+                    corrected = str(row[1]).strip() if row[1] else ""
+                    self._exists_cache.add(name)
+                    if corrected:
+                        self._corrected_map[name] = corrected
+        except Exception as e:
+            logging.error(f"[{self.table_name}] Error preloading table: {e}")
+        finally:
+            connection.close()
 
     def exists(self, key: str) -> bool:
         key = key.strip()
+        if self.cache_enabled:
+            return key.lower() in (k.lower() for k in self._exists_cache)
+
         query = f"SELECT 1 FROM {self.table_name} WHERE {self.column_name} = %s LIMIT 1"
         connection = self.db_connector.connect()
 
@@ -35,6 +54,9 @@ class FilterTableHelper:
 
     def get_corrected(self, key: str) -> str:
         key = key.strip()
+        if self.cache_enabled:
+            return self._corrected_map.get(key, "")
+
         query = (
             f"SELECT {self.corrected_column_name} "
             f"FROM {self.table_name} WHERE {self.column_name} = %s LIMIT 1"
@@ -54,12 +76,20 @@ class FilterTableHelper:
 
     def get_corrected_or_exists(self, key: str) -> str | bool:
         key = key.strip()
+        if self.cache_enabled:
+            if key in self._corrected_map:
+                return self._corrected_map[key]
+            elif key in self._exists_cache:
+                return key
+            else:
+                return False
+
+        # fallback to DB mode
         query = (
             f"SELECT {self.corrected_column_name} "
             f"FROM {self.table_name} WHERE {self.column_name} = %s LIMIT 1"
         )
         connection = self.db_connector.connect()
-
         try:
             with connection.cursor() as cursor:
                 cursor.execute(query, (key,))

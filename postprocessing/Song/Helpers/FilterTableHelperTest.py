@@ -15,7 +15,8 @@ class FilterTableHelperTest(unittest.TestCase):
         self.mock_connection.cursor.return_value.__enter__.return_value = self.mock_cursor
         self.mock_connector_cls.return_value.connect.return_value = self.mock_connection
 
-        self.helper = FilterTableHelper("genres", "name", "corrected_name")
+        # Disable preload to ensure mock DB calls are used
+        self.helper = FilterTableHelper("genres", "name", "corrected_name", preload=False)
 
     def test_exists_true(self):
         self.mock_cursor.fetchone.return_value = (1,)

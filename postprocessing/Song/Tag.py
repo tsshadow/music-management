@@ -116,7 +116,7 @@ class Tag:
         old_value = self.value[:]
         self.value = list(dict.fromkeys(self.value))
         if old_value != self.value:
-            # logging.info(f"{self.tag} changed(deduplicate) from {old_value} to {self.value}")
+            logging.info(f"{self.tag} changed(deduplicate) from {old_value} to {self.value}")
             self.changed = True
 
     def add(self, item):
@@ -129,7 +129,7 @@ class Tag:
         if item not in self.value:
             old_value = self.value[:]
             self.value.append(item)
-            # logging.info(f"{self.tag} changed(add) from {old_value} to {self.value}")
+            logging.info(f"{self.tag} changed(add) from {old_value} to {self.value}")
             self.changed = True
 
     def remove(self, val):
@@ -144,6 +144,8 @@ class Tag:
             self.value.remove(val)
             logging.info(f"{self.tag} changed(remove) from {old_value} to {self.value}")
             self.changed = True
+            return True
+        return False
 
     def recapitalize(self):
         """
@@ -162,7 +164,7 @@ class Tag:
         old_value = self.value[:]
         self.value = [element.strip() for element in self.value]
         if old_value != self.value:
-            # logging.info(f"{self.tag} changed(strip) from {old_value} to {self.value}")
+            logging.info(f"{self.tag} changed(strip) from {old_value} to {self.value}")
             self.changed = True
 
     def regex(self):
@@ -173,7 +175,7 @@ class Tag:
         self.value = [re.sub(ARTIST_REGEX, ";", elem) for elem in self.value]
         if old_value != self.value:
             self.resplit()
-            # logging.info(f"{self.tag} changed(regex) from {old_value} to {self.value}")
+            logging.info(f"{self.tag} changed(regex) from {old_value} to {self.value}")
             self.changed = True
 
     def set(self, value):

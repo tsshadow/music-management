@@ -1,7 +1,5 @@
 import logging
 
-import mutagen
-from mutagen.apev2 import APEv2
 from mutagen.easyid3 import EasyID3
 from mutagen.flac import VCFLACDict
 from mutagen.mp4 import MP4Tags, MP4FreeForm
@@ -235,7 +233,7 @@ class TagCollection:
         except Exception:
             return ""
 
-    def get_item_as_array(self, tag):
+    def get_item_as_array(self, tag) -> list[str|None]:
         """
         Retrieves the tag value as an array.
 

@@ -25,21 +25,21 @@ class AddMissingGenreToDatabaseRule(TagRule):
             if self.ignored_table.exists(genre):
                 continue
 
-            try:
-                user_input = input(
-                    f"{song.path()}\nIs '{genre}' een juist genre? [y/N] voor:\n"
-                    f"{song.artist()} - {song.title()}\n"
-                    f"(Laat leeg of 'n' voor nee, of vul juist genre in): "
-                ).strip()
-            except EOFError:
+            #try:
+            #    user_input = input(
+            #        f"{song.path()}\nIs '{genre}' een juist genre? [y/N] voor:\n"
+            #        f"{song.artist()} - {song.title()}\n"
+            #        f"(Laat leeg of 'n' voor nee, of vul juist genre in): "
+            #    ).strip()
+            #except EOFError:
                 user_input = ""
 
-            if user_input.lower() == "y":
-                self.genre_table.add(genre)
-                print(f"✅ Genre toegevoegd: {genre}")
-            elif user_input == "" or user_input.lower() == "n":
-                self.ignored_table.add(genre)
-                print(f"❌ Genre genegeerd: {genre}")
-            else:
-                self.ignored_table.add(genre, user_input)
-                print(f"✅ Gecorrigeerd genre toegevoegd: {user_input}")
+            #if user_input.lower() == "y":
+            #    self.genre_table.add(genre)
+            #    print(f"✅ Genre toegevoegd: {genre}")
+            #elif user_input == "" or user_input.lower() == "n":
+            #    self.ignored_table.add(genre)
+            #    print(f"❌ Genre genegeerd: {genre}")
+            #else:
+            #    self.ignored_table.add(genre, user_input)
+            #    print(f"✅ Gecorrigeerd genre toegevoegd: {user_input}")

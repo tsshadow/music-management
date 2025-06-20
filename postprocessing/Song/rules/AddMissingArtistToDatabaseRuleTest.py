@@ -8,66 +8,109 @@ class AddMissingArtistToDatabaseRuleTest(unittest.TestCase):
         self.song = MagicMock()
         self.song.artists.return_value = ["Wrong Artist"]
         self.song.path.return_value = "/some/path/file.mp3"
-        self.song.artist.return_value = "Wrong Artist"
         self.song.title.return_value = "Some Title"
+        self.song.tag_collection.get_item.return_value = MagicMock()
 
         self.artist_table = MagicMock()
         self.ignored_table = MagicMock()
 
-        self.rule = AddMissingArtistToDatabaseRule(artist_db=self.artist_table, ignored_db=self.ignored_table)
-
     def test_does_nothing_if_artist_exists(self):
+        rule = AddMissingArtistToDatabaseRule(self.artist_table, self.ignored_table)
         self.artist_table.exists.return_value = True
         self.ignored_table.exists.return_value = False
 
-        self.rule.apply(self.song)
+        rule.apply(self.song)
 
         self.artist_table.add.assert_not_called()
         self.ignored_table.add.assert_not_called()
 
-    def test_does_nothing_if_artist_in_ignored_table(self):
+    def test_removes_artist_if_in_ignored_table_without_correction(self):
+        rule = AddMissingArtistToDatabaseRule(self.artist_table, self.ignored_table)
         self.artist_table.exists.return_value = False
         self.ignored_table.exists.return_value = True
+        self.ignored_table.get_corrected.return_value = None
 
-        self.rule.apply(self.song)
+        tag = self.song.tag_collection.get_item.return_value
+        rule.apply(self.song)
 
-        self.artist_table.add.assert_not_called()
+        tag.remove.assert_called_once_with("Wrong Artist")
         self.ignored_table.add.assert_not_called()
 
-    @patch("builtins.input", return_value="y")
-    def test_adds_artist_when_user_confirms(self, mock_input):
+    def test_replaces_artist_if_in_ignored_table_with_correction(self):
+        rule = AddMissingArtistToDatabaseRule(self.artist_table, self.ignored_table)
+        self.artist_table.exists.return_value = False
+        self.ignored_table.exists.return_value = True
+        self.ignored_table.get_corrected.return_value = "Corrected Artist"
+
+        tag = self.song.tag_collection.get_item.return_value
+        rule.apply(self.song)
+
+        tag.replace.assert_called_once_with("Wrong Artist", "Corrected Artist")
+        self.ignored_table.add.assert_not_called()
+
+    @patch.object(AddMissingArtistToDatabaseRule, "get_user_input", return_value="j")
+    def test_adds_artist_when_user_confirms(self, _):
+        rule = AddMissingArtistToDatabaseRule(self.artist_table, self.ignored_table, ask_for_missing=True)
         self.artist_table.exists.return_value = False
         self.ignored_table.exists.return_value = False
 
-        self.rule.apply(self.song)
+        rule.apply(self.song)
 
         self.artist_table.add.assert_called_once_with("Wrong Artist")
         self.ignored_table.add.assert_not_called()
 
-    @patch("builtins.input", return_value="n")
-    def test_adds_to_ignored_when_user_rejects(self, mock_input):
+    @patch.object(AddMissingArtistToDatabaseRule, "get_user_input", return_value="n")
+    def test_adds_to_ignored_when_user_rejects(self, _):
+        rule = AddMissingArtistToDatabaseRule(self.artist_table, self.ignored_table, ask_for_missing=True)
         self.artist_table.exists.return_value = False
         self.ignored_table.exists.return_value = False
 
-        self.rule.apply(self.song)
+        rule.apply(self.song)
 
         self.artist_table.add.assert_not_called()
         self.ignored_table.add.assert_called_once_with("Wrong Artist")
+        self.song.tag_collection.get_item.return_value.remove.assert_called_once_with("Wrong Artist")
 
-    @patch("builtins.input", return_value="Real Artist")
-    def test_adds_to_ignored_with_correction(self, mock_input):
+    @patch.object(AddMissingArtistToDatabaseRule, "get_user_input", return_value="Real Artist")
+    def test_adds_corrected_artist(self, _):
+        rule = AddMissingArtistToDatabaseRule(self.artist_table, self.ignored_table, ask_for_missing=True)
         self.artist_table.exists.return_value = False
         self.ignored_table.exists.return_value = False
 
-        self.rule.apply(self.song)
+        rule.apply(self.song)
 
         self.artist_table.add.assert_not_called()
         self.ignored_table.add.assert_called_once_with("Wrong Artist", "Real Artist")
+        self.song.tag_collection.get_item.return_value.replace.assert_called_once_with("Wrong Artist", "Real Artist")
 
-    def test_skips_empty_artist_list(self):
+    @patch.object(AddMissingArtistToDatabaseRule, "get_user_input", return_value="wrong artist")
+    def test_adds_case_corrected_artist(self, _):
+        rule = AddMissingArtistToDatabaseRule(self.artist_table, self.ignored_table, ask_for_missing=True)
+        self.artist_table.exists.return_value = False
+        self.ignored_table.exists.return_value = False
+
+        rule.apply(self.song)
+
+        self.artist_table.add.assert_called_once_with("wrong artist")
+        self.ignored_table.add.assert_not_called()
+
+    @patch.object(AddMissingArtistToDatabaseRule, "get_user_input", return_value="")
+    def test_skips_on_empty_input(self, _):
+        rule = AddMissingArtistToDatabaseRule(self.artist_table, self.ignored_table, ask_for_missing=True)
+        self.artist_table.exists.return_value = False
+        self.ignored_table.exists.return_value = False
+
+        rule.apply(self.song)
+
+        self.artist_table.add.assert_not_called()
+        self.ignored_table.add.assert_not_called()
+        self.song.tag_collection.get_item.return_value.replace.assert_not_called()
+
+    def test_skips_if_artist_list_is_empty(self):
+        rule = AddMissingArtistToDatabaseRule(self.artist_table, self.ignored_table)
         self.song.artists.return_value = []
 
-        self.rule.apply(self.song)
+        rule.apply(self.song)
 
         self.artist_table.add.assert_not_called()
         self.ignored_table.add.assert_not_called()

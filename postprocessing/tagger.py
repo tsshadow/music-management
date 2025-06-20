@@ -1,3 +1,5 @@
+import time
+from concurrent.futures import ProcessPoolExecutor, as_completed, ThreadPoolExecutor
 from pathlib import Path
 import logging
 import sys
@@ -13,6 +15,7 @@ from postprocessing.Song.Helpers.BrokenSongHelper import BrokenSongHelper
 from postprocessing.Song.LabelSong import LabelSong
 from postprocessing.Song.SoundcloudSong import SoundcloudSong
 from postprocessing.Song.YoutubeSong import YoutubeSong
+from postprocessing.analyzer import Analyzer
 from postprocessing.constants import SongTypeEnum
 
 # global vars
@@ -25,7 +28,6 @@ EasyMP4Tags.RegisterTextKey("parsed", "parsed")
 EasyMP4Tags.RegisterTextKey("festival", "festival")
 
 s = Settings()
-
 parse_mp3 = True
 parse_flac = True
 parse_m4a = True
@@ -33,6 +35,7 @@ parse_wav = False  # WAV is currently bugged
 parse_aac = False  # AAC has no tags, downloads changed to M4A
 
 broken_song_helper = BrokenSongHelper()
+#a = Analyzer()
 
 class Tagger:
     """
@@ -41,14 +44,17 @@ class Tagger:
     """
 
     def __init__(self):
+        self.parallel = True
         pass
 
-    def run(self, parse_labels=True, parse_soundcloud=True, parse_youtube=True, parse_generic=True):
+    def run(self, parse_labels=True, parse_soundcloud=True, parse_youtube=True, parse_generic=True, analyze=False):
         """
         Entrypoint for the tagging process.
         Scans various music directories (labels, YouTube, SoundCloud, generic) and applies appropriate tag parsing.
         """
         logging.info("Starting Tag Step")
+
+            #a.start()
 
         if parse_labels:
             self._parse_label_folders()
@@ -59,8 +65,9 @@ class Tagger:
         if parse_youtube:
             self._parse_channel_folders("Youtube", SongTypeEnum.YOUTUBE)
 
-        if parse_generic:
-            self._parse_generic_folders()
+        #if parse_generic:
+        #    self._parse_generic_folders()
+           # a.done()
 
     def _parse_label_folders(self):
         """
@@ -71,6 +78,7 @@ class Tagger:
 
         for label in label_folders:
             song_type = SongTypeEnum.LABEL if not label.name.startswith("_") else SongTypeEnum.GENERIC
+            print(label)
             self.parse_folder(label, song_type)
 
     def _parse_channel_folders(self, source_folder: str, song_type: SongTypeEnum):
@@ -120,10 +128,21 @@ class Tagger:
         }
 
         try:
+            files = []
             for ext, enabled in extensions.items():
                 if enabled:
-                    for file in folder.glob(f"*.{ext}"):
-                        self._try_parse(file, song_type)
+                    files.extend(folder.glob(f"*.{ext}"))
+
+            if self.parallel and files:
+                with ThreadPoolExecutor(max_workers=16) as executor:
+                    futures = [executor.submit(Tagger._parse_worker, str(file), song_type.name) for file in files]
+                    for future in as_completed(futures):
+                        path, status = future.result()
+                        if status != "OK":
+                            logging.warning(f"{path}: {status}")
+            else:
+                for file in files:
+                    self._try_parse(file, song_type)
 
             for subfolder in [f for f in folder.iterdir() if f.is_dir() and not f.name.startswith("_")]:
                 self.parse_folder(subfolder, song_type)
@@ -151,11 +170,23 @@ class Tagger:
         @param path: Path object to the song
         @param song_type: Type of song source (LABEL, YOUTUBE, etc)
         """
+        song = None
         if song_type == SongTypeEnum.LABEL:
-            LabelSong(str(path))
+            song = LabelSong(str(path))
         elif song_type == SongTypeEnum.YOUTUBE:
-            YoutubeSong(str(path))
+            song = YoutubeSong(str(path))
         elif song_type == SongTypeEnum.SOUNDCLOUD:
-            SoundcloudSong(str(path))
+            song = SoundcloudSong(str(path))
         elif song_type == SongTypeEnum.GENERIC:
-            GenericSong(str(path))
+            song = GenericSong(str(path))
+        #for artist in song.artists():
+        #    for genre in song.genres():
+        #        a.submit(artist, genre)
+    @staticmethod
+    def _parse_worker(file: str, song_type_str: str):
+        try:
+            song_type = SongTypeEnum[song_type_str]
+            Tagger.parse_song(Path(file), song_type)  # uses global `a`
+            return file, "OK"
+        except Exception as e:
+            return file, f"{type(e).__name__}: {e}"

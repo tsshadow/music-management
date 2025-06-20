@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import MagicMock
 
 from postprocessing.Song.Tag import Tag
-from postprocessing.constants import ARTIST, ALBUM_ARTIST, GENRE
+from postprocessing.constants import ARTIST, ALBUM_ARTIST, GENRE, REMIXER
 from postprocessing.Song.rules.CleanTagsRule import CleanTagsRule
 
 
@@ -13,6 +13,7 @@ class CleanTagsRuleTest(unittest.TestCase):
     def test_cleans_artist_album_artist_and_genre(self):
         tag_artist = MagicMock()
         tag_album_artist = MagicMock()
+        tag_remixer = MagicMock()
         tag_genre = MagicMock()
 
         tag_collection = MagicMock()
@@ -20,7 +21,8 @@ class CleanTagsRuleTest(unittest.TestCase):
         tag_collection.get_item.side_effect = lambda k: {
             ARTIST: tag_artist,
             ALBUM_ARTIST: tag_album_artist,
-            GENRE: tag_genre
+            GENRE: tag_genre,
+            REMIXER: tag_remixer,
         }[k]
 
         song = MagicMock()

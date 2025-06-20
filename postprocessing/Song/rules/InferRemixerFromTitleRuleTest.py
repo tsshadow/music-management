@@ -21,11 +21,15 @@ class InferRemixerFromTitleRuleTest(unittest.TestCase):
 
         self.remixers_tag = MagicMock()
         self.remixers_tag.to_array.return_value = []
+        self.remixers_tag.to_string.return_value = ""
+        self.remixers_tag.changed = False
 
         self.song.tag_collection.get_item.side_effect = lambda key: {
             ARTIST: self.artist_tag,
             REMIXER: self.remixers_tag
         }[key]
+
+        self.song.tag_collection.has_item.side_effect = lambda key: key in [ARTIST, REMIXER]
 
         self.artist_db = MagicMock()
         self.artist_db.get.side_effect = lambda x: x.title()
@@ -40,7 +44,6 @@ class InferRemixerFromTitleRuleTest(unittest.TestCase):
 
     def assertRemixerAdded(self, name):
         self.remixers_tag.add.assert_any_call(name)
-        pass
 
     def test_adjuzt_remix(self):
         self.title = "CPU (Adjuzt Remix)"
@@ -64,10 +67,12 @@ class InferRemixerFromTitleRuleTest(unittest.TestCase):
 
     def test_ignored_artist_is_removed(self):
         self.title = "CPU (IgnoredGuy Remix)"
-        self.ignored_db.exists.side_effect = lambda x: x == "Ignoredguy"
-        self.artist_db.get.side_effect = lambda x: x.title()
+        self.artist_db.exists.side_effect = lambda x: False
+        self.artist_db.get.side_effect = lambda x: None
+        self.ignored_db.exists.side_effect = lambda x: x.lower() == "ignoredguy"
+        self.ignored_db.get_corrected.return_value = None  #
         self.rule.apply(self.song)
-        self.artist_tag.remove.assert_called_with("Ignoredguy")
+        self.artist_tag.remove.assert_called_with("IgnoredGuy")
     #
     # def test_unknown_artist_skipped_by_input(self):
     #     self.title = "CPU (Mysteryman Remix)"

@@ -1,50 +1,17 @@
 import concurrent.futures
-import json
 import logging
 import math
 import os
 import random
-import subprocess
 import time
 
 from yt_dlp import YoutubeDL
-from yt_dlp.postprocessor import PostProcessor, FFmpegMetadataPP, EmbedThumbnailPP
+from yt_dlp.postprocessor import FFmpegMetadataPP, EmbedThumbnailPP
 
+from downloader.SoundcloudProcessor import SoundcloudSongProcessor
 from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
-from postprocessing.Song.SoundcloudSong import SoundcloudSong
-
-class SoundcloudSongProcessor(PostProcessor):
-    def run(self, info):
-        path = info.get('filepath') or info.get('_filename')  # depending on yt-dlp version
-        url = info.get('webpage_url')
-        if path and url:
-            logging.info(f"Postprocessing downloaded file: {path}")
-            try:
-                # Dump full info
-                result = subprocess.run(
-                    ["yt-dlp", "--dump-single-json", "--no-playlist", url],
-                    capture_output=True,
-                    text=True,
-                    check=True
-                )
-                enriched_info = json.loads(result.stdout)
-                logging.debug(f"Enriched info dump keys: {list(enriched_info.keys())}")
-
-                # add enriched info
-                info.update(enriched_info)
 
 
-                # pass enriched info
-                SoundcloudSong(path, enriched_info)
-
-            except subprocess.CalledProcessError as e:
-                logging.error(f"Failed to enrich metadata for {url}: {e.stderr}")
-                SoundcloudSong(path)
-            except Exception as e:
-                logging.error(f"SoundcloudSong failed for {path}: {e}", exc_info=True)
-        else:
-            logging.warning("Postprocessor: no path or URL found in info dict")
-        return [], info
 
 def get_accounts_from_db():
     try:
@@ -118,13 +85,13 @@ class SoundcloudDownloader:
             return "Outside allowed duration range"
         return None
 
-    def download_account(self, name: str):
+    def download_account(self, name: str, yt_dl_opts: dict = None):
         link = f"http://soundcloud.com/{name}/tracks"
         logging.info(f"Downloading from SoundCloud account: {name}")
 
         for attempt in range(1, 4):
             try:
-                with YoutubeDL(self.ydl_opts) as ydl:
+                with YoutubeDL(yt_dl_opts) as ydl:
                     ydl.add_post_processor(FFmpegMetadataPP(ydl))
                     ydl.add_post_processor(EmbedThumbnailPP(ydl))
                     ydl.add_post_processor(SoundcloudSongProcessor())
@@ -146,7 +113,6 @@ class SoundcloudDownloader:
 
         logging.error(f"SoundCloud download failed for {name} after 3 attempts.")
 
-
     def run(self, account="", download=True):
         if not account:
             accounts = get_accounts_from_db()
@@ -156,7 +122,6 @@ class SoundcloudDownloader:
             accounts.sort()
         else:
             accounts = [account]
-            self.ydl_opts['download_archive'] = "archives/" + account + ".txt"
 
         total_batches = math.ceil(len(accounts) / self.burst_size)
 
@@ -165,8 +130,19 @@ class SoundcloudDownloader:
             batch_num = i // self.burst_size + 1
             logging.info(f"Processing batch {batch_num} of {total_batches}")
 
-            with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                executor.map(self.download_account, batch)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
+                for acc in batch:
+                    # Clone ydl_opts and override archive file per account
+                    ydl_opts = self.ydl_opts.copy()
+                    account_archive = f"archives/{acc}.txt"
+                    if os.path.exists(account_archive):
+                        ydl_opts['download_archive'] = account_archive
+                        logging.info(f"Using per-account archive: {account_archive} for {acc}")
+                    else:
+                        ydl_opts['download_archive'] = self.archive_file
+                        logging.info(f"Using default archive: {self.archive_file} for {acc}")
+
+                    executor.submit(self.download_account, acc, ydl_opts)
 
             if i + self.burst_size < len(accounts):
                 pause = random.randint(self.min_pause, self.max_pause)

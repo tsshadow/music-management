@@ -5,6 +5,7 @@ from time import sleep
 from postprocessing.Song.Helpers.FilterTableHelper import FilterTableHelper
 from postprocessing.Song.Helpers.TableHelper import TableHelper
 from postprocessing.Song.rules.TagRule import TagRule
+from postprocessing.constants import ARTIST
 
 
 class AddMissingArtistToDatabaseRule(TagRule):
@@ -54,7 +55,8 @@ class AddMissingArtistToDatabaseRule(TagRule):
                 corrected = self.ignored_table.get_corrected(name)
                 if corrected:
                     # Corrigeer naam in tags
-                    song.tag_collection.get_item("ARTIST").replace(name, corrected)
+                    song.tag_collection.get_item(ARTIST).add(corrected)
+                    song.tag_collection.get_item(ARTIST).remove(name)
                     print(f"✅ '{name}' vervangen door gecorrigeerde naam '{corrected}'")
                 else:
                     # Gewoon verwijderen
@@ -86,5 +88,6 @@ class AddMissingArtistToDatabaseRule(TagRule):
             else:
                 # Corrigeer spelling → voeg aan ignore-lijst toe met correctie
                 self.ignored_table.add(name, user_input)
-                song.tag_collection.get_item("ARTIST").replace(name, user_input)
+                song.tag_collection.get_item("ARTIST").add(user_input)
+                song.tag_collection.get_item("ARTIST").remove(name)
                 print(f"🔁 '{name}' vervangen door '{user_input}', toegevoegd aan ignore-lijst met correctie")

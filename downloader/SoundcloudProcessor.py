@@ -35,7 +35,8 @@ class SoundcloudSongProcessor(PostProcessor):
         enriched_info = self._fetch_enriched_info(url)
         if not enriched_info:
             # Fallback: basic SoundcloudSong instance without extra metadata
-            SoundcloudSong(path)
+            s = SoundcloudSong(path)
+            s.parse()
             return [], info
 
         # Merge extra info into yt-dlp's original info dict
@@ -61,7 +62,8 @@ class SoundcloudSongProcessor(PostProcessor):
         )
 
         # Tag or further process the song
-        SoundcloudSong(path, enriched_info)
+        s = SoundcloudSong(path, enriched_info)
+        s.parse()
         return [], info
 
     @staticmethod

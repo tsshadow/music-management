@@ -58,7 +58,8 @@ def post_processing_songs(folder_path):
                     continue
                 try:
                     logging.info(f"Processing file with LabelSong: {full_path}")
-                    LabelSong(str(full_path))
+                    s = LabelSong(str(full_path))
+                    s.parse()
                 except Exception as e:
                     logging.error(f"Failed to process {full_path} with LabelSong: {e}")
 

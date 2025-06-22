@@ -23,6 +23,7 @@ class CheckArtistRuleTest(unittest.TestCase):
         rule = CheckArtistRule(self.artist_table, self.ignored_table)
         rule.apply(self.song)
 
+        self.tag_item.remove.assert_any_call("Known Artist")
         self.tag_item.add.assert_any_call("KNOWN ARTIST")
 
     def test_corrected_artist_is_used_if_known_in_ignored(self):

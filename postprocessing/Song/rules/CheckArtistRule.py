@@ -23,7 +23,9 @@ class CheckArtistRule(TagRule):
             # ✅ Artiest bekend → canonical taggen
             if self.artist_table.exists(name):
                 canonical = self.artist_table.get(name)
-                tag_item.add(canonical)
+                if canonical != name:
+                    tag_item.add(canonical)
+                    tag_item.remove(name)
                 continue
 
             # ↪️ Corrigeer indien mogelijk

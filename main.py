@@ -7,6 +7,7 @@ from data.settings import Settings
 from postprocessing.repair import FileRepair
 from postprocessing.sanitizer import Sanitizer
 from postprocessing.tagger import Tagger
+from postprocessing.analyze import Analyze
 from processing.converter import Converter
 from processing.epsflattener import EpsFlattener
 from processing.extractor import Extractor
@@ -78,6 +79,7 @@ def main():
     sanitizer = Sanitizer()
     flattener = EpsFlattener()
     repair = FileRepair()
+    analyze_step = Analyze()
 
     steps = args.step.split(",") if args.step != "all" else ["all"]
 
@@ -90,7 +92,8 @@ def main():
         "manual",
         "repair",
         "sanitize",
-        "tag", "tag-generic", "tag-labels", "tag-soundcloud", "tag-youtube"
+        "tag", "tag-generic", "tag-labels", "tag-soundcloud", "tag-youtube",
+        "analyze"
     }
     for step in steps:
         if step not in valid_steps:
@@ -117,6 +120,7 @@ def main():
         Step("SoundCloud Downloader", ["download", "download-soundcloud"], lambda: soundcloud_downloader.run(
             account=args.account or "",
         )),
+        Step("Analyze", ["analyze"], analyze_step.run),
         Step("Tagger", ["tag", "tag-labels", "tag-soundcloud", "tag-youtube", "tag-generic"], run_tagger),
     ]
 

@@ -26,13 +26,17 @@ class SoundcloudSong(BaseSong):
     def __init__(self, path, extra_info=None):
         super().__init__(path, extra_info)
         paths = path.rsplit(s.delimiter, 2)
+        self._album_artist_from_path = str(paths[1])
+        self._publisher = "Soundcloud"
+
+    def parse(self):
         if not self.album_artist():
-            self.tag_collection.set_item(ALBUM_ARTIST, str(paths[1]))
+            self.tag_collection.set_item(ALBUM_ARTIST, self._album_artist_from_path)
         if not self.copyright():
             if self.calculate_copyright():
                 self.tag_collection.set_item(COPYRIGHT, self.calculate_copyright())
-        self._publisher = "Soundcloud"
         self.tag_collection.set_item(PUBLISHER, self._publisher)
+
         # Rules voor tag-inferentie en opschoning
         self.rules.append(InferArtistFromTitleRule(
             artist_db=databaseHelpers["artists"],
@@ -77,7 +81,7 @@ class SoundcloudSong(BaseSong):
             ignored_db=databaseHelpers["ignored_artists"]
         ))  # Normalize/correct/remove tags based on artist DB state
 
-        self.run_all_rules()
+        super().parse()
 
 
     def calculate_copyright(self):

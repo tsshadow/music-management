@@ -18,6 +18,8 @@ class GenericSong(BaseSong):
     def __init__(self, path):
         super().__init__(path)
         self._catalog_number = None
+
+    def parse(self):
         if not self.copyright():
             if self.calculate_copyright():
                 self.tag_collection.set_item(COPYRIGHT, self.calculate_copyright())
@@ -54,13 +56,12 @@ class GenericSong(BaseSong):
             databaseHelpers["genres"]
         ))
 
-
         self.rules.append(CheckArtistRule(
             artist_db=databaseHelpers["artists"],
             ignored_db=databaseHelpers["ignored_artists"]
         ))  # Normalize/correct/remove tags based on artist DB state
 
-        self.run_all_rules()
+        super().parse()
 
     def calculate_copyright(self):
         album_artist = self.album_artist()

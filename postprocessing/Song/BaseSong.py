@@ -91,6 +91,11 @@ class BaseSong:
         if analyze_bpm:
             self.rules.append(AnalyzeBpmRule())
 
+    def parse(self):
+        """Run all rules and persist any changes."""
+        self.run_all_rules()
+        self.save_file()
+
     def delete_tag(self, tag):
         """Removes a tag from both the tag collection and file if present."""
         if self.music_file and self.music_file.get(tag):

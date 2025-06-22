@@ -23,6 +23,7 @@ class LabelSong(BaseSong):
         self._publisher = str(paths[0].split(s.delimiter)[-1])
         self._catalog_number = str(paths[1].split(" ")[0])
 
+    def parse(self):
         self.tag_collection.set_item(PUBLISHER, self._publisher)
         if self._catalog_number:
             self.tag_collection.set_item(CATALOG_NUMBER, self._catalog_number)
@@ -64,13 +65,12 @@ class LabelSong(BaseSong):
         ))
         self.rules.append(CleanTagsRule())  # Clean tags by executing regex
 
-
         self.rules.append(CheckArtistRule(
             artist_db=databaseHelpers["artists"],
             ignored_db=databaseHelpers["ignored_artists"]
         ))  # Normalize/correct/remove tags based on artist DB state
 
-        self.run_all_rules()
+        super().parse()
 
     def calculate_copyright(self):
         publisher = self.publisher()

@@ -15,7 +15,6 @@ from postprocessing.Song.Helpers.BrokenSongHelper import BrokenSongHelper
 from postprocessing.Song.LabelSong import LabelSong
 from postprocessing.Song.SoundcloudSong import SoundcloudSong
 from postprocessing.Song.YoutubeSong import YoutubeSong
-from postprocessing.analyzer import Analyzer
 from postprocessing.constants import SongTypeEnum
 
 # global vars
@@ -35,7 +34,6 @@ parse_wav = False  # WAV is currently bugged
 parse_aac = False  # AAC has no tags, downloads changed to M4A
 
 broken_song_helper = BrokenSongHelper()
-#a = Analyzer()
 
 class Tagger:
     """
@@ -179,6 +177,8 @@ class Tagger:
             song = SoundcloudSong(str(path))
         elif song_type == SongTypeEnum.GENERIC:
             song = GenericSong(str(path))
+        if song:
+            song.parse()
         #for artist in song.artists():
         #    for genre in song.genres():
         #        a.submit(artist, genre)
@@ -186,7 +186,7 @@ class Tagger:
     def _parse_worker(file: str, song_type_str: str):
         try:
             song_type = SongTypeEnum[song_type_str]
-            Tagger.parse_song(Path(file), song_type)  # uses global `a`
+            Tagger.parse_song(Path(file), song_type)
             return file, "OK"
         except Exception as e:
             return file, f"{type(e).__name__}: {e}"

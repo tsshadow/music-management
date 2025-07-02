@@ -80,7 +80,7 @@ class SoundcloudDownloader:
     def _match_filter(self, info):
         duration = info.get("duration")
         title = info.get("title", "unknown")
-        if not duration or duration < 60 or duration > 10800:
+        if not duration or duration < 60 or duration > 21600:
             logging.info(f"Skipping track '{title}' (duration: {duration}s)")
             return "Outside allowed duration range"
         return None
@@ -108,7 +108,7 @@ class SoundcloudDownloader:
                     logging.info(f"All tracks for {name} already in archive — skipping.")
                     return  # ✅ don't retry
                 else:
-                    logging.warning(f"Attempt {attempt} failed for {name}: {e}")
+                    logging.warning(f"Attempt {attempt} failed for {name}: {e}", exc_info=True)
                     time.sleep(5 * attempt)
 
         logging.error(f"SoundCloud download failed for {name} after 3 attempts.")
@@ -135,13 +135,8 @@ class SoundcloudDownloader:
                     # Clone ydl_opts and override archive file per account
                     ydl_opts = self.ydl_opts.copy()
                     account_archive = f"archives/{acc}.txt"
-                    if os.path.exists(account_archive):
-                        ydl_opts['download_archive'] = account_archive
-                        logging.info(f"Using per-account archive: {account_archive} for {acc}")
-                    else:
-                        ydl_opts['download_archive'] = self.archive_file
-                        logging.info(f"Using default archive: {self.archive_file} for {acc}")
-
+                    ydl_opts['download_archive'] = account_archive
+                    logging.info(f"Using per-account archive: {account_archive} for {acc}")
                     executor.submit(self.download_account, acc, ydl_opts)
 
             if i + self.burst_size < len(accounts):

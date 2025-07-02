@@ -3,7 +3,7 @@ from difflib import get_close_matches
 
 from postprocessing.Song.Helpers.FilterTableHelper import FilterTableHelper
 from postprocessing.Song.rules.TagRule import TagRule
-from postprocessing.constants import TITLE, ARTIST, ARTIST_REGEX_NON_CAPTURING
+from postprocessing.constants import TITLE, ARTIST, ARTIST_REGEX_NON_CAPTURING, ORIGINAL_TITLE
 
 def extract_artists_from_string(part: str) -> list[str]:
     return [a.strip() for a in re.split(ARTIST_REGEX_NON_CAPTURING, part) if a.strip()]
@@ -77,6 +77,9 @@ class InferArtistFromTitleRule(TagRule):
         ]
 
     def apply(self, song):
+        if not song.tag_collection.has_item(ORIGINAL_TITLE):
+            song.tag_collection.set_item(ORIGINAL_TITLE, song.tag_collection.get_item_as_string(TITLE))
+
         for rule in self.rules:
             if rule.apply(song):
                 print(f"[InferArtistFromTitle] Applied rule: {rule.__class__.__name__} on '{song.path()}'")
@@ -91,7 +94,7 @@ class InferArtistFromTitleDotRule(TagRule):
 
     def apply(self, song):
         CATALOG_PATTERN = re.compile(r"^(GB[EDH]\d{3,})[.\s]+(.*?)\s+-\s+(.*)")
-        title = song.tag_collection.get_item_as_string(TITLE)
+        title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
         if not title and not '. ' in title and not ' - ' in title:
             return False
 
@@ -116,7 +119,7 @@ class InferArtistFromTitleAtRule(TagRule):
         self.artist_db = artist_db
 
     def apply(self, song):
-        title = song.tag_collection.get_item_as_string(TITLE)
+        title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
         if not title:
             return False
         if not " @ " in title:
@@ -125,6 +128,7 @@ class InferArtistFromTitleAtRule(TagRule):
         artists = extract_artists_from_string(parts[0])
         set_cleaned_artist(song, artists, self.artist_db)
         song.tag_collection.set_item(TITLE, parts[1].strip())
+        print(artists, parts[1].strip())
         return True
 
 class InferArtistFromTitleByRule(TagRule):
@@ -133,7 +137,7 @@ class InferArtistFromTitleByRule(TagRule):
         self.artist_db = artist_db
 
     def apply(self, song):
-        title = song.tag_collection.get_item_as_string(TITLE)
+        title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
         if not title or " by " not in title.lower():
             return False
         parts = re.split(r"\sby\s", title, flags=re.IGNORECASE)
@@ -152,7 +156,7 @@ class InferArtistFromTitleSingleDashRule(TagRule):
         self.artist_db = artist_db
 
     def apply(self, song):
-        title = song.tag_collection.get_item_as_string(TITLE)
+        title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
         title = title.replace('|','-')
         if title != 'All I Wanna Do':
             title = title.replace(' I ',' - ')
@@ -194,7 +198,7 @@ class InferArtistFromTitleMultiDashRule(TagRule):
         self.genre_names = genre_names
 
     def apply(self, song):
-        title = song.tag_collection.get_item_as_string(TITLE)
+        title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
         title = title.replace('|','-')
         title = title.replace('｜','-')
         if title != 'All I Wanna Do':
@@ -255,7 +259,7 @@ class InferArtistFromFirstSegmentFallbackRule(TagRule):
         self.artist_db = artist_db
 
     def apply(self, song):
-        title = song.tag_collection.get_item_as_string(TITLE)
+        title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
         title = title.replace('|','-')
         if not title or " - " not in title:
             return False
@@ -273,7 +277,7 @@ class InferArtistFromTitleFallbackRule(TagRule):
         self.ignored_artists = set(a.lower() for a in ignored_artists)
 
     def apply(self, song):
-        title = song.tag_collection.get_item_as_string(TITLE)
+        title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
         if not title:
             return False
         folder_artist = song.path().split(os.sep)[-2].strip().lower()
@@ -294,7 +298,7 @@ class InferArtistFromPresentsOrColonRule(TagRule):
         self.artist_names = set(name.lower() for name in artist_db.get_all_values() if name)
 
     def apply(self, song):
-        title = song.tag_collection.get_item_as_string(TITLE)
+        title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
         if not title:
             return False
 

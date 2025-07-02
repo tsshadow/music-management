@@ -1,8 +1,5 @@
 import unittest
 from unittest.mock import MagicMock
-
-from packaging.utils import _
-
 from postprocessing.Song.rules.InferArtistFromTitleRule import InferArtistFromTitleRule
 from postprocessing.constants import TITLE, ARTIST
 
@@ -31,11 +28,12 @@ class InferArtistFromTitleRuleTest(unittest.TestCase):
         self.mock_ignored_db.get_all.return_value = []  # add e.g. ["vieze jack"] for ignore tests
 
     def _apply_rule(self, title):
+        self.song.tag_collection.has_item.return_value = False
         self.song.tag_collection.get_item_as_string.side_effect = lambda key: {
             ARTIST: "",
             TITLE: title
         }[key]
-
+        self.song.tag_collection.get_item = MagicMock(return_value=title)
         rule = InferArtistFromTitleRule(
             artist_db=self.mock_artist_db,
             genre_db=self.mock_genres_db,
@@ -188,8 +186,58 @@ class InferArtistFromTitleRuleTest(unittest.TestCase):
         for call in self.song.tag_collection.set_item.call_args_list:
             assert call.args[0] != TITLE, f"Unexpected TITLE modification: {call}"
 
-    # Fallbacks
+    def test_manual_test(self):
+        self.song.path = lambda: "/home/user/Music/The Viper/track.mp3"
+        title = "Warface & Rooler @ Defqon.1 2025 ｜ The Gathering ｜ Blue Stage"
+        self._apply_rule(title)
+
+        self.song.tag_collection.set_item.assert_any_call(ARTIST, "Warface;Rooler")
+        self.song.tag_collection.set_item.assert_any_call(TITLE, "Defqon.1 2025 ｜ The Gathering ｜ Blue Stage")
+
     def test_no_dash_in_title(self):
         self._apply_rule("Just One Part Title")
-        self.song.tag_collection.set_item.assert_not_called()
         self.song.tag_collection.set_artist.assert_not_called()
+        self.song.tag_collection.set_item.assert_not_called()
+
+    def test_original_is_set(self):
+        self._apply_rule("Headhunterz - From Within")
+        self.song.tag_collection.set_item.assert_any_call(ORIGINAL_TITLE, "Headhunterz - From Within")
+
+    def test_idempotent_rule_application(self):
+        title = "D-Fence - Emporium 2025"
+        self.song.tag_collection.has_item.return_value = False
+        self.song.tag_collection.get_item_as_string.side_effect = lambda key: {
+            ARTIST: "",
+            TITLE: title,
+            ORIGINAL_TITLE: title,
+        }[key]
+        self.song.tag_collection.get_item = MagicMock(return_value=title)
+
+        rule = InferArtistFromTitleRule(
+            artist_db=self.mock_artist_db,
+            genre_db=self.mock_genres_db,
+            ignored_db=self.mock_ignored_db
+        )
+
+        # Run rule once
+        rule.apply(self.song)
+        first_calls = [
+            call for call in self.song.tag_collection.set_item.call_args_list
+            if call.args[0] != ORIGINAL_TITLE
+        ]
+
+        # Clear mocks and re-run
+        self.song.tag_collection.set_item.reset_mock()
+        self.song.tag_collection.set_artist.reset_mock()
+        self.song.tag_collection.add.reset_mock()
+
+        # Pretend the ORIGINAL_TITLE is now set
+        self.song.tag_collection.has_item.return_value = True
+        rule.apply(self.song)
+        second_calls = [
+            call for call in self.song.tag_collection.set_item.call_args_list
+            if call.args[0] != ORIGINAL_TITLE
+        ]
+
+        self.assertEqual(first_calls, second_calls,
+                         "Repeated rule application should yield identical tag changes (except for ORIGINAL_TITLE)")

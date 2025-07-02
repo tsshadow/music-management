@@ -57,6 +57,11 @@ def main():
         help="optional break on existing for downloaders",
         default=False
     )
+    parser.add_argument(
+        "--repeat",
+        help="Repeat every hour",
+        action="store_true"
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -137,11 +142,11 @@ def main():
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
 
-        if "all" not in steps:
+        if not args.repeat:
             break
 
         logging.info(f"Waiting for 3600 seconds.")
-        sleep(3600)
+        sleep(300)
 
 
 if __name__ == "__main__":

@@ -22,9 +22,11 @@ EasyID3.RegisterTXXXKey('publisher', 'publisher')
 EasyID3.RegisterTXXXKey('parsed', 'parsed')
 EasyID3.RegisterTXXXKey('festival', 'festival')
 EasyID3.RegisterTXXXKey('remixer', 'remixer')
+EasyID3.RegisterTXXXKey("original_title", "original_title")
 EasyMP4Tags.RegisterTextKey("publisher", "publisher")
 EasyMP4Tags.RegisterTextKey("parsed", "parsed")
 EasyMP4Tags.RegisterTextKey("festival", "festival")
+EasyMP4Tags.RegisterTextKey("original_title", "original_title")
 
 s = Settings()
 parse_mp3 = True

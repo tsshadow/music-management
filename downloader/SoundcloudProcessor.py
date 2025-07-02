@@ -49,17 +49,16 @@ class SoundcloudSongProcessor(PostProcessor):
         # Check if we've already archived this track
         if SoundcloudArchive.exists(account_id, video_id):
             logging.info(f"Track already in soundcloud_archive: {account_name}/{video_id} — skipping.")
-            return [], info
-
-        # Store metadata in the archive table
-        SoundcloudArchive.insert(
-            account_name= account_name,
-            account_id=account_id,
-            video_id=video_id,
-            path=path,
-            url=enriched_info.get("original_url"),
-            title=enriched_info.get("title")
-        )
+        else:
+            # Store metadata in the archive table
+            SoundcloudArchive.insert(
+                account_name= account_name,
+                account_id=account_id,
+                video_id=video_id,
+                path=path,
+                url=enriched_info.get("original_url"),
+                title=enriched_info.get("title")
+            )
 
         # Tag or further process the song
         s = SoundcloudSong(path, enriched_info)

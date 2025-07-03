@@ -77,8 +77,9 @@ class InferArtistFromTitleRule(TagRule):
         ]
 
     def apply(self, song):
-        if not song.tag_collection.has_item(ORIGINAL_TITLE):
-            song.tag_collection.set_item(ORIGINAL_TITLE, song.tag_collection.get_item_as_string(TITLE))
+        title = song.tag_collection.get_item_as_string(TITLE)
+        if not song.tag_collection.has_item(ORIGINAL_TITLE) and any(c in title for c in ['-', '@', ':']):
+            song.tag_collection.set_item(ORIGINAL_TITLE, title)
 
         for rule in self.rules:
             if rule.apply(song):

@@ -15,6 +15,7 @@ from processing.mover import Mover
 from processing.renamer import Renamer
 from downloader.youtube import YoutubeDownloader
 from downloader.soundcloud import SoundcloudDownloader
+from downloader.telegram import TelegramDownloader
 import faulthandler
 faulthandler.register(signal.SIGUSR1)
 
@@ -76,6 +77,7 @@ def main():
     settings = Settings()
     youtube_downloader = YoutubeDownloader()
     soundcloud_downloader = SoundcloudDownloader(break_on_existing=args.break_on_existing)
+    telegram_downloader = TelegramDownloader()
     tagger = Tagger()
     extractor = Extractor()
     renamer = Renamer()
@@ -91,13 +93,13 @@ def main():
     valid_steps = {
         "all",
         "convert",
-        "download", "download-soundcloud", "download-youtube",
+        "download", "download-soundcloud", "download-youtube", "download-telegram",
         "flatten",
         "import", "extract", "move", "rename",
         "manual",
         "repair",
         "sanitize",
-        "tag", "tag-generic", "tag-labels", "tag-soundcloud", "tag-youtube",
+        "tag", "tag-generic", "tag-labels", "tag-soundcloud", "tag-youtube", "tag-telegram",
         "analyze"
     }
     for step in steps:
@@ -111,6 +113,7 @@ def main():
             parse_soundcloud=parse_all or "tag-soundcloud" in steps,
             parse_youtube=parse_all or "tag-youtube" in steps,
             parse_generic=parse_all or "tag-generic" in steps,
+            parse_telegram=parse_all or "tag-telegram" in steps,
         )
 
     steps_to_run = [
@@ -125,8 +128,11 @@ def main():
         Step("SoundCloud Downloader", ["download", "download-soundcloud"], lambda: soundcloud_downloader.run(
             account=args.account or "",
         )),
+        Step("Telegram Downloader", ["download", "download-telegram"], lambda: telegram_downloader.run(
+            args.account or ""
+        )),
         Step("Analyze", ["analyze"], analyze_step.run),
-        Step("Tagger", ["tag", "tag-labels", "tag-soundcloud", "tag-youtube", "tag-generic"], run_tagger),
+        Step("Tagger", ["tag", "tag-labels", "tag-soundcloud", "tag-youtube", "tag-generic", "tag-telegram"], run_tagger),
     ]
 
     while True:

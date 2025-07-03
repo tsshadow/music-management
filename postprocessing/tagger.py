@@ -15,6 +15,7 @@ from postprocessing.Song.Helpers.BrokenSongHelper import BrokenSongHelper
 from postprocessing.Song.LabelSong import LabelSong
 from postprocessing.Song.SoundcloudSong import SoundcloudSong
 from postprocessing.Song.YoutubeSong import YoutubeSong
+from postprocessing.Song.TelegramSong import TelegramSong
 from postprocessing.constants import SongTypeEnum
 
 # global vars
@@ -47,7 +48,7 @@ class Tagger:
         self.parallel = True
         pass
 
-    def run(self, parse_labels=True, parse_soundcloud=True, parse_youtube=True, parse_generic=True, analyze=False):
+    def run(self, parse_labels=True, parse_soundcloud=True, parse_youtube=True, parse_generic=True, parse_telegram=True, analyze=False):
         """
         Entrypoint for the tagging process.
         Scans various music directories (labels, YouTube, SoundCloud, generic) and applies appropriate tag parsing.
@@ -64,6 +65,9 @@ class Tagger:
 
         if parse_youtube:
             self._parse_channel_folders("Youtube", SongTypeEnum.YOUTUBE)
+
+        if parse_telegram:
+            self._parse_channel_folders("Telegram", SongTypeEnum.TELEGRAM)
 
         #if parse_generic:
         #    self._parse_generic_folders()
@@ -177,6 +181,8 @@ class Tagger:
             song = YoutubeSong(str(path))
         elif song_type == SongTypeEnum.SOUNDCLOUD:
             song = SoundcloudSong(str(path))
+        elif song_type == SongTypeEnum.TELEGRAM:
+            song = TelegramSong(str(path))
         elif song_type == SongTypeEnum.GENERIC:
             song = GenericSong(str(path))
         if song:

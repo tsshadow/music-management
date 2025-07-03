@@ -116,6 +116,7 @@ class SongTypeEnum(Enum):
     YOUTUBE = 2
     SOUNDCLOUD = 3
     GENERIC = 4
+    TELEGRAM = 5
 
 
 class MusicFileType(Enum):

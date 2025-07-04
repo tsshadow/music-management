@@ -56,7 +56,7 @@ def main():
     parser.add_argument(
         "--break-on-existing",
         help="optional break on existing for downloaders",
-        default=False
+        action="store_true"
     )
     parser.add_argument(
         "--repeat",
@@ -128,7 +128,7 @@ def main():
         Step("SoundCloud Downloader", ["download", "download-soundcloud"], lambda: soundcloud_downloader.run(
             account=args.account or "",
         )),
-        Step("Telegram Downloader", ["download", "download-telegram"], lambda: telegram_downloader.run(
+        Step("Telegram Downloader", ["download-telegram"], lambda: telegram_downloader.run(
             args.account or ""
         )),
         Step("Analyze", ["analyze"], analyze_step.run),

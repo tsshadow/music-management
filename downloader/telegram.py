@@ -1,5 +1,3 @@
-import asyncio
-import logging
 import os
 
 from telethon import TelegramClient
@@ -22,10 +20,13 @@ class TelegramDownloader:
         return bool(mime) and mime.startswith("audio")
 
     async def _download_channel(self, client, channel: str, limit: int | None = None):
-        os.makedirs(self.output_folder, exist_ok=True)
+        # Determine the folder specific to the channel
+        channel_folder = os.path.join(self.output_folder, channel)
+        os.makedirs(channel_folder, exist_ok=True)
+
         async for msg in client.iter_messages(channel, limit=limit):
             if self._is_audio(msg):
-                await client.download_media(msg, file=self.output_folder)
+                await client.download_media(msg, file=channel_folder)
 
     def run(self, channel: str, limit: int | None = None):
         if not channel:

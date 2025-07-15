@@ -34,18 +34,6 @@ jobs:
         mkdir -p site/coverage
         cp -r htmlcov/* site/coverage/
         cp README.md site/README.md
-        cat <<EOF > site/index.html
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta http-equiv="refresh" content="0; url=README.md" />
-    <title>Redirecting...</title>
-  </head>
-  <body>
-    Redirecting to README.md...
-  </body>
-</html>
-EOF
 
     - name: Deploy full site (README + coverage)
       uses: peaceiris/actions-gh-pages@v3

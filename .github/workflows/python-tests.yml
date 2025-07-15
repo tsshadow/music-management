@@ -18,6 +18,12 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    - name: Run unit tests
+    - name: Run tests with coverage
       run: |
-        python -m unittest discover -p "*Test.py" tests
+        coverage run --source=. -m unittest discover -p "*Test.py" tests
+        coverage xml
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: coverage.xml

@@ -33,7 +33,8 @@
 #include "services/scrobbling/IScrobblingService.hpp"
 
 #include "ParameterParsing.hpp"
-#include "SubsonicId.hpp"
+
+#include <database/User.hpp>
 
 #include <database/Track.hpp>
 

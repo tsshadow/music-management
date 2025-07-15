@@ -96,6 +96,21 @@ namespace lms::ui
                 break;
             }
 
+        case Mode::ReleaseDate:
+        {
+            db::Release::FindParameters params;
+            params.setFilters(getDbFilters());
+            params.setKeywords(getSearchKeywords());
+            params.setSortMethod(db::ReleaseSortMethod::DateDesc);
+            params.setRange(range);
+
+            {
+                auto transaction{ LmsApp->getDbSession().createReadTransaction() };
+                releases = db::Release::findIds(LmsApp->getDbSession(), params);
+            }
+            break;
+        }
+
         case Mode::RecentlyModified:
             {
                 db::Release::FindParameters params;

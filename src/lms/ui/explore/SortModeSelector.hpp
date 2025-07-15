@@ -37,6 +37,7 @@ namespace lms::ui
             bindItem("most-played", Wt::WString::tr("Lms.Explore.most-played"), DatabaseCollectorBase::Mode::MostPlayed);
             bindItem("recently-added", Wt::WString::tr("Lms.Explore.recently-added"), DatabaseCollectorBase::Mode::RecentlyAdded);
             bindItem("recently-modified", Wt::WString::tr("Lms.Explore.recently-modified"), DatabaseCollectorBase::Mode::RecentlyModified);
+            bindItem("release-date", Wt::WString::tr("Lms.Explore.release-date"), DatabaseCollectorBase::Mode::ReleaseDate);
             bindItem("all", Wt::WString::tr("Lms.Explore.all"), DatabaseCollectorBase::Mode::All);
         }
     };

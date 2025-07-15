@@ -102,7 +102,7 @@ namespace lms::db
         case TrackSortMethod::Name:
             return "t.name";
         case TrackSortMethod::DateDescAndRelease:
-            return "t.date DESC, t.release";
+            return "t.date DESC, t.release_id, t.disc_number, t.track_number";
         case TrackSortMethod::Release:
             return "t.disc_number, t.track_number";
         case TrackSortMethod::TrackList:

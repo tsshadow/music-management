@@ -223,6 +223,12 @@ namespace lms::db
             case TrackSortMethod::TrackList:
                 assert(params.trackList.isValid());
                 query.orderBy("t_l_e.id");
+            case TrackSortMethod::MostPlayed:
+                query.orderBy("t.play_count DESC");
+                break;
+            case TrackSortMethod::RecentlyPlayed:
+                query.orderBy("t.last_play DESC");
+                break;
             }
 
             return query;

@@ -48,6 +48,7 @@ namespace lms::ui
             Starred,
             RecentlyPlayed,
             RecentlyAdded,
+            ReleaseDate,
             RecentlyModified,
             MostPlayed,
             All

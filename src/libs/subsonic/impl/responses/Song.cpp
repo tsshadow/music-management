@@ -94,6 +94,7 @@ namespace lms::api::subsonic
             trackResponse.setAttribute("discNumber", *track->getDiscNumber());
         if (track->getYear())
             trackResponse.setAttribute("year", *track->getYear());
+        trackResponse.setAttribute("date", track->getDate().toString());
         trackResponse.setAttribute("playCount", core::Service<scrobbling::IScrobblingService>::get()->getCount(context.user->getId(), track->getId()));
         trackResponse.setAttribute("path", track->getRelativeFilePath().string());
         trackResponse.setAttribute("size", track->getFileSize());

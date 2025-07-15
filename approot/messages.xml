@@ -200,6 +200,7 @@
 <message id="Lms.Explore.random">Random</message>
 <message id="Lms.Explore.recently-added">Recently added</message>
 <message id="Lms.Explore.recently-modified">Recently modified</message>
+<message id="Lms.Explore.release-date">Release date</message>
 <message id="Lms.Explore.recently-played">Recently played</message>
 <message id="Lms.Explore.release-info">Release information</message>
 <message id="Lms.Explore.release-type">Release type</message>

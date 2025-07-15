@@ -42,4 +42,3 @@ jobs:
         publish_dir: ./site
         force_orphan: true
         enable_jekyll: false
-        external_repository: muma/MusicImporter

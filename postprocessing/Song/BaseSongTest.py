@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock, Mock
+import sitecustomize
 
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3Tags

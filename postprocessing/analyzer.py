@@ -25,7 +25,11 @@ class Analyzer(threading.Thread):
 
         self.queue = queue.Queue()
         self._running = True
+
+    def start(self):
+        """Start the analyzer thread and clear previous analysis data."""
         self._truncate_tables()
+        super().start()
 
     def _truncate_tables(self):
         logging.info("Clearing existing analysis data...")

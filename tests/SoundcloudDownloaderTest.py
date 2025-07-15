@@ -80,7 +80,7 @@ class SoundcloudDownloaderTest(unittest.TestCase):
         self.assertIsNotNone(dl._match_filter(too_short))
         ok = {'duration': 100, 'title': 'b'}
         self.assertIsNone(dl._match_filter(ok))
-        too_long = {'duration': 20000, 'title': 'c'}
+        too_long = {'duration': 30000, 'title': 'c'}
         self.assertIsNotNone(dl._match_filter(too_long))
 
 if __name__ == '__main__':

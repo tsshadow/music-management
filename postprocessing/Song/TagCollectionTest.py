@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import MagicMock
+import sitecustomize
 
 from mutagen.id3 import TPE1
 

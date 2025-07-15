@@ -23,7 +23,7 @@ jobs:
         coverage run --source=. -m unittest discover -p "*Test.py" tests
         coverage xml
     - name: Upload coverage report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: coverage-report
         path: coverage.xml

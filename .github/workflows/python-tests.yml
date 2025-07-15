@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  test-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,23 +24,16 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Run tests with coverage
+    - name: Run unit tests and generate coverage report
       run: |
         coverage run --source=. -m unittest discover -p "*Test.py" tests
         coverage html
-    
-    - name: Copy coverage to site/coverage/
-      run: |
-        mkdir -p site/coverage
-        cp -r htmlcov/. site/coverage/
-        
-    - name: Debug deployed site structure
-      run: ls -R site
+        ls -l htmlcov/
 
-    - name: Deploy site to GitHub Pages
+    - name: Deploy HTML coverage report to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./htmlcov
         publish_branch: gh-pages
-        publish_dir: ./site
         force_orphan: true

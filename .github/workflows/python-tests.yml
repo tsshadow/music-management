@@ -26,7 +26,7 @@ jobs:
 
     - name: Run tests with coverage
       run: |
-        coverage run --source=. -m unittest discover -p "*Test.py" tests
+        coverage run --source=. -m unittest discover -p "*Test.py"
         coverage html
 
     - name: Prepare GitHub Pages folder structure

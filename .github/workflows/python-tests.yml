@@ -28,12 +28,12 @@ jobs:
       run: |
         coverage run --source=. -m unittest discover -p "*Test.py" tests
         coverage html
-
-    - name: Move coverage to /coverage
+    
+    - name: Copy coverage to site/coverage/
       run: |
         mkdir -p site/coverage
-        mv htmlcov/* site/coverage/
-
+        cp -r htmlcov/. site/coverage/
+        
     - name: Debug deployed site structure
       run: ls -R site
 

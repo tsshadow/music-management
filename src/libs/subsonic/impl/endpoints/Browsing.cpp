@@ -538,9 +538,52 @@ namespace lms::api::subsonic
         Response response{ Response::createOkResponse(context.serverProtocolVersion) };
         Response::Node artistNode{ createArtistNode(context, artist) };
 
+
         const auto releases{ Release::find(context.dbSession, Release::FindParameters{}.setArtist(artist->getId())) };
         for (const Release::pointer& release : releases.results)
             artistNode.addArrayChild("album", createAlbumNode(context, release, true /* id3 */));
+
+        const auto nonReleaseTracks{ Track::find(
+            context.dbSession,
+            Track::FindParameters {}
+                .setArtist(artist->getId())
+                .setSortMethod(TrackSortMethod::Name)
+                .setNonRelease(true)) };
+        if (!nonReleaseTracks.results.empty())
+        {
+            Response::Node virtualAlbum;
+            virtualAlbum.setAttribute("id", "no_album");
+            virtualAlbum.setAttribute("isRealAlbum", false);
+            virtualAlbum.setAttribute("name", "Other tracks");
+            virtualAlbum.setAttribute("songCount", nonReleaseTracks.results.size());
+
+            std::chrono::milliseconds duration{};
+            Wt::WDateTime lastWritten;
+            bool firstTrack{ true };
+            for (const auto& track : nonReleaseTracks.results)
+            {
+                duration += track->getDuration();
+                if (firstTrack)
+                {
+                    virtualAlbum.setAttribute("coverArt", idToString(track->getId()));
+                    lastWritten = track->getLastWritten();
+                    firstTrack = false;
+                }
+                else if (track->getLastWritten() > lastWritten)
+                {
+                    lastWritten = track->getLastWritten();
+                }
+
+                virtualAlbum.addArrayChild("song", createSongNode(context, track, context.user));
+            }
+
+            virtualAlbum.setAttribute(
+                "duration",
+                std::chrono::duration_cast<std::chrono::seconds>(duration).count());
+            virtualAlbum.setAttribute("created", lastWritten.toString("yyyy-MM-ddThh:mm:ssZ").toUTF8());
+
+            artistNode.addArrayChild("album", std::move(virtualAlbum));
+        }
 
         response.addNode("artist", std::move(artistNode));
 

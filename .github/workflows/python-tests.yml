@@ -11,9 +11,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-    - uses: actions/setup-python@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
       with:
         python-version: '3.11'
 
@@ -27,10 +29,18 @@ jobs:
         coverage run --source=. -m unittest discover -p "*Test.py" tests
         coverage html
 
-    - name: Deploy coverage to GitHub Pages
+    - name: Move coverage to /coverage
+      run: |
+        mkdir -p site/coverage
+        mv htmlcov/* site/coverage/
+
+    - name: Debug deployed site structure
+      run: ls -R site
+
+    - name: Deploy site to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_branch: gh-pages
-        publish_dir: ./htmlcov
+        publish_dir: ./site
         force_orphan: true

@@ -28,8 +28,9 @@ class VerifyArtistRule(TagRule):
     NUMERIC_PREFIX = re.compile(r"^#?\d{1,3}[.)\s-]+")
     INVALID_START = re.compile(r"^[#\-\(\*'\"\[]+")
 
-    def __init__(self, artist_db: Optional[TableHelper] = None):
+    def __init__(self, artist_db: Optional[TableHelper] = None, lookup: Optional[ExternalArtistLookup] = None):
         self.artist_db = artist_db or TableHelper("artists", "name")
+        self.lookup = lookup or ExternalArtistLookup()
         self.seen_counts: defaultdict[str, int] = defaultdict(int)
 
     def _heuristic_check(self, name: str) -> tuple[str, bool, bool]:
@@ -106,7 +107,7 @@ class VerifyArtistRule(TagRule):
             return TagResult(artist, TagResultType.VALID)
 
         # Step 2: external lookup
-        if ExternalArtistLookup.is_known_artist(artist):
+        if self.lookup.is_known_artist(artist):
             insert = getattr(self.artist_db, "insert_if_not_exists", None)
             if callable(insert):
                 insert(artist)

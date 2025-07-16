@@ -1,5 +1,10 @@
+import sys
+import types
 import unittest
 from unittest.mock import MagicMock, patch
+
+# stub requests so ExternalArtistLookup can be imported without dependency
+sys.modules.setdefault('requests', types.ModuleType('requests'))
 
 from postprocessing.Song.rules.VerifyArtistRule import VerifyArtistRule
 from postprocessing.Song.rules.TagResult import TagResultType
@@ -12,6 +17,14 @@ class VerifyArtistRuleTest(unittest.TestCase):
         self.song.artist.return_value = "Unknown"
         self.song.tag_collection.get_item.return_value = self.tag
         self.artist_db = MagicMock()
+
+        # default: external lookup returns False
+        patcher = patch(
+            "postprocessing.Song.rules.ExternalArtistLookup.ExternalArtistLookup.is_known_artist",
+            return_value=False,
+        )
+        self.addCleanup(patcher.stop)
+        self.mock_lookup_default = patcher.start()
 
     def test_existing_artist_updates_casing(self):
         self.song.artist.return_value = "angerfist"

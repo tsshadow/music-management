@@ -8,6 +8,7 @@ from postprocessing.repair import FileRepair
 from postprocessing.sanitizer import Sanitizer
 from postprocessing.tagger import Tagger
 from postprocessing.analyze import Analyze
+from postprocessing.artistfixer import ArtistFixer
 from processing.converter import Converter
 from processing.epsflattener import EpsFlattener
 from processing.extractor import Extractor
@@ -87,6 +88,7 @@ def main():
     flattener = EpsFlattener()
     repair = FileRepair()
     analyze_step = Analyze()
+    artist_fixer = ArtistFixer()
 
     steps = args.step.split(",") if args.step != "all" else ["all"]
 
@@ -100,7 +102,8 @@ def main():
         "repair",
         "sanitize",
         "tag", "tag-generic", "tag-labels", "tag-soundcloud", "tag-youtube", "tag-telegram",
-        "analyze"
+        "analyze",
+        "artistfixer"
     }
     for step in steps:
         if step not in valid_steps:
@@ -132,6 +135,7 @@ def main():
             args.account or ""
         )),
         Step("Analyze", ["analyze"], analyze_step.run),
+        Step("ArtistFixer", ["artistfixer"], artist_fixer.run),
         Step("Tagger", ["tag", "tag-labels", "tag-soundcloud", "tag-youtube", "tag-generic", "tag-telegram"], run_tagger),
     ]
 

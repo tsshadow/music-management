@@ -61,6 +61,10 @@ class TableHelper:
             return key.title()
 
     def add(self, key: str) -> bool:
+        # Update cache if enabled
+        if self.cache_enabled:
+            self._values.add(key)
+            self._canonical_map[key.lower()] = key
         query = f"INSERT INTO {self.table_name} ({self.column_name}) VALUES (%s)"
         connection = self.db_connector.connect()
 

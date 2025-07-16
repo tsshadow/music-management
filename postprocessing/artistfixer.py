@@ -54,12 +54,12 @@ class ArtistFixer:
             result = self.rule.apply(song)
             song.save_file()
 
-            if result.result_type == TagResultType.VALID and not was_known:
-                print(f"✅ added '{original}' to artists table")
-            elif result.result_type == TagResultType.UPDATED:
-                print(f"✏️ updated '{original}' -> '{result.value}'")
-            elif result.result_type == TagResultType.IGNORED:
-                print(f"🗑️ removed invalid artist '{original}'")
+            # if result.result_type == TagResultType.VALID and not was_known:
+            #     print(f"✅ added '{original}' to artists table")
+            # elif result.result_type == TagResultType.UPDATED:
+            #     print(f"✏️ updated '{original}' -> '{result.value}'")
+            # elif result.result_type == TagResultType.IGNORED:
+            #     print(f"🗑️ removed invalid artist '{original}'")
         except (PermissionError, MutagenError, FileNotFoundError, ExtensionNotSupportedException) as e:
             logging.warning(f"{type(e).__name__}: {e} -> {path}")
         except Exception as e:

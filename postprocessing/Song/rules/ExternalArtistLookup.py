@@ -8,6 +8,7 @@ class DiscogsLookup:
     API_URL = "https://api.discogs.com/database/search"
 
     def __init__(self, token: Optional[str] = None):
+        self.name = "Discogs"
         self.token = token or os.getenv("DISCOGS_TOKEN")
 
     def is_known_artist(self, name: str) -> bool:
@@ -33,6 +34,8 @@ class DiscogsLookup:
 class MusicBrainzLookup:
     API_URL = "https://musicbrainz.org/ws/2/artist"
 
+    def __init__(self):
+        self.name = "MusicBrainz"
     def is_known_artist(self, name: str) -> bool:
         try:
             response = requests.get(
@@ -56,6 +59,7 @@ class LastfmLookup:
     API_URL = "https://ws.audioscrobbler.com/2.0/"
 
     def __init__(self, api_key: Optional[str] = None):
+        self.name = "Last.fm"
         self.api_key = api_key or os.getenv("LASTFM_API_KEY")
 
     def is_known_artist(self, name: str) -> bool:
@@ -88,6 +92,7 @@ class SpotifyLookup:
     SEARCH_URL = "https://api.spotify.com/v1/search"
 
     def __init__(self, client_id: Optional[str] = None, client_secret: Optional[str] = None):
+        self.name = "Spotify"
         self.client_id = client_id or os.getenv("SPOTIFY_CLIENT_ID")
         self.client_secret = client_secret or os.getenv("SPOTIFY_CLIENT_SECRET")
         self._token: Optional[str] = None
@@ -148,6 +153,7 @@ class ExternalArtistLookup:
         for service in self.services:
             try:
                 if service.is_known_artist(name):
+                    print(f"found at service: {service.name}")
                     return True
             except Exception as e:
                 logging.error("Lookup error with %s: %s", service.__class__.__name__, e)

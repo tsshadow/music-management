@@ -36,7 +36,7 @@ namespace lms::scanner
     class ScanStepScanFiles : public ScanStepBase
     {
     public:
-        ScanStepScanFiles(InitParams& initParams);
+        using ScanStepBase::ScanStepBase;
 
     private:
         ScanStep getStep() const override { return ScanStep::ScanFiles; }

@@ -9,6 +9,7 @@ from postprocessing.Song.rules.CleanTagsRule import CleanTagsRule
 from postprocessing.Song.rules.InferGenreFromArtistRule import InferGenreFromArtistRule
 from postprocessing.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
 from postprocessing.Song.rules.InferRemixerFromTitleRule import InferRemixerFromTitleRule
+from postprocessing.Song.rules.ReplaceInvalidUnicodeRule import ReplaceInvalidUnicodeRule
 from postprocessing.constants import (
     PUBLISHER, CATALOG_NUMBER, COPYRIGHT,
 )
@@ -69,6 +70,8 @@ class LabelSong(BaseSong):
             artist_db=databaseHelpers["artists"],
             ignored_db=databaseHelpers["ignored_artists"]
         ))  # Normalize/correct/remove tags based on artist DB state
+
+        self.rules.append(ReplaceInvalidUnicodeRule())
 
         super().parse()
 

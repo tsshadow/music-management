@@ -7,6 +7,7 @@ from postprocessing.Song.rules.InferGenreFromAlbumArtistRule import InferGenreFr
 from postprocessing.Song.rules.InferGenreFromArtistRule import InferGenreFromArtistRule
 from postprocessing.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
 from postprocessing.Song.rules.InferRemixerFromTitleRule import InferRemixerFromTitleRule
+from postprocessing.Song.rules.ReplaceInvalidUnicodeRule import ReplaceInvalidUnicodeRule
 from postprocessing.constants import ALBUM_ARTIST, PUBLISHER, CATALOG_NUMBER, GENRE, ARTIST, COPYRIGHT, FormatEnum, \
     TITLE
 
@@ -39,6 +40,7 @@ class YoutubeSong(BaseSong):
         self.rules.append(InferGenreFromSubgenreRule())
         self.rules.append(CleanTagsRule())
         self.rules.append(CleanAndFilterGenreRule())
+        self.rules.append(ReplaceInvalidUnicodeRule())
         super().parse()
 
     def calculate_copyright(self):

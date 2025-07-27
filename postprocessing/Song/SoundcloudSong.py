@@ -16,6 +16,7 @@ from postprocessing.Song.rules.InferGenreFromSubgenreRule import InferGenreFromS
 from postprocessing.Song.rules.InferGenreFromTitleRule import InferGenreFromTitleRule
 from postprocessing.Song.rules.InferRemixerFromTitleRule import InferRemixerFromTitleRule
 from postprocessing.Song.rules.MergeDrumAndBassGenresRule import MergeDrumAndBassGenresRule
+from postprocessing.Song.rules.ReplaceInvalidUnicodeRule import ReplaceInvalidUnicodeRule
 from postprocessing.constants import ALBUM_ARTIST, PUBLISHER, CATALOG_NUMBER, GENRE, ARTIST, COPYRIGHT, FormatEnum, \
     TITLE
 
@@ -80,6 +81,8 @@ class SoundcloudSong(BaseSong):
             artist_db=databaseHelpers["artists"],
             ignored_db=databaseHelpers["ignored_artists"]
         ))  # Normalize/correct/remove tags based on artist DB state
+
+        self.rules.append(ReplaceInvalidUnicodeRule())
 
         super().parse()
 

@@ -104,6 +104,8 @@ class SoundcloudDownloader:
                     wait_time = random.randint(60, 300)
                     logging.warning(f"403 Forbidden for {name}. Pausing {wait_time}s before retry...")
                     time.sleep(wait_time)
+                elif '404' in msg:
+                    logging.info(f"Got 404 for {name} — skip song.")
                 elif 'already in the archive' in msg:
                     logging.info(f"All tracks for {name} already in archive — skipping.")
                     return  # ✅ don't retry

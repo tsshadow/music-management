@@ -55,6 +55,10 @@ def main():
         help="optional dj",
     )
     parser.add_argument(
+        "--sleeptime",
+        help="time to sleep between repeating steps",
+    )
+    parser.add_argument(
         "--break-on-existing",
         help="optional break on existing for downloaders",
         action="store_true"
@@ -155,8 +159,8 @@ def main():
         if not args.repeat:
             break
 
-        logging.info(f"Waiting for 3600 seconds.")
-        sleep(300)
+        logging.info(f"Waiting for {args.sleeptime or 300} seconds.")
+        sleep(int(args.sleeptime) or 300)
 
 
 if __name__ == "__main__":

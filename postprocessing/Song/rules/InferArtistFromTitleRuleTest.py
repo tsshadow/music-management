@@ -198,7 +198,7 @@ class InferArtistFromTitleRuleTest(unittest.TestCase):
     def test_no_dash_in_title(self):
         self._apply_rule("Just One Part Title")
         self.song.tag_collection.set_artist.assert_not_called()
-        self.song.tag_collection.set_item.assert_not_called()
+        self.song.tag_collection.set_item.assert_any_call(ORIGINAL_TITLE, "Just One Part Title")
 
     def test_original_is_set(self):
         self._apply_rule("Headhunterz - From Within")

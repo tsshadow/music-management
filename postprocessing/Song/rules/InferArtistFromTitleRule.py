@@ -77,9 +77,8 @@ class InferArtistFromTitleRule(TagRule):
         ]
 
     def apply(self, song):
-        title = song.tag_collection.get_item_as_string(TITLE)
-        if not song.tag_collection.has_item(ORIGINAL_TITLE) and any(c in title for c in ['-', '@', ':']):
-            song.tag_collection.set_item(ORIGINAL_TITLE, title)
+        if not song.tag_collection.has_item(ORIGINAL_TITLE):
+            song.tag_collection.set_item(ORIGINAL_TITLE, song.tag_collection.get_item_as_string(TITLE))
 
         for rule in self.rules:
             if rule.apply(song):
@@ -159,8 +158,6 @@ class InferArtistFromTitleSingleDashRule(TagRule):
     def apply(self, song):
         title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
         title = title.replace('|','-')
-        if title != 'All I Wanna Do':
-            title = title.replace(' I ',' - ')
         if not title or title.count(" - ") != 1:
             return False
         left, right = [s.strip() for s in title.split(" - ", 1)]
@@ -202,8 +199,7 @@ class InferArtistFromTitleMultiDashRule(TagRule):
         title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
         title = title.replace('|','-')
         title = title.replace('｜','-')
-        if title != 'All I Wanna Do':
-            title = title.replace(' I ',' - ')
+        title = title.replace(' I ',' - ')
         title = title.replace(' warmup mix ',' warmup mix - ')
         title = title.replace(' warm-up mix ',' warm-up mix - ')
         if not title or " - " not in title:

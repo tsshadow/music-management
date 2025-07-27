@@ -15,18 +15,10 @@ logger = logging.getLogger(__name__)
 class VerifyArtistRule(TagRule):
     """Validate and normalize the ARTIST tag of a song."""
 
-    PLACEHOLDERS = [
-        "unknown artist",
-        "various artists",
-        "on toxic sickness radio",
-        "live at",
-        "year anniversary",
-        "hardcore special",
-    ]
 
     NUMERIC_ONLY = re.compile(r"^#?\d+[.)]?$")
     NUMERIC_PREFIX = re.compile(r"^#?\d{1,3}[.)\s-]+")
-    INVALID_START = re.compile(r"^[#\-\(\*'\"\[]+")
+    INVALID_START = re.compile(r"^[&#\-\(\*'\"\[]+")
 
     def __init__(self, artist_db: Optional[TableHelper] = None, lookup: Optional[ExternalArtistLookup] = None):
         self.artist_db = artist_db or TableHelper("artists", "name")
@@ -62,10 +54,10 @@ class VerifyArtistRule(TagRule):
 
         # unbalanced brackets/quotes
         if name.count("(") != name.count(")"):
-            name = name.replace("(", "").replace(")", "")
+            name = name.replace("(", ";").replace(")", ";")
             changed = True
         if name.count("[") != name.count("]"):
-            name = name.replace("[", "").replace("]", "")
+            name = name.replace("[", ";").replace("]", ";")
             changed = True
         if name.count('"') % 2 == 1:
             name = name.replace('"', "")
@@ -77,20 +69,14 @@ class VerifyArtistRule(TagRule):
         if not re.search(r"[A-Za-z]", name):
             return original, False, True
 
-        # placeholders
-        lower = name.lower()
-        for frag in self.PLACEHOLDERS:
-            if frag in lower:
-                return original, False, True
-
         return name, changed, False
 
     def apply(self, song) -> TagResult:
         artists = song.artists()
         for artist in artists:
             if not artist:
-                return TagResult(None, TagResultType.UNKNOWN)
-
+                # return TagResult(None, TagResultType.UNKNOWN)
+                break
             tag_item = song.tag_collection.get_item(ARTIST)
             self.seen_counts[artist.lower()] += 1
 
@@ -101,8 +87,10 @@ class VerifyArtistRule(TagRule):
                     tag_item.remove(artist)
                     tag_item.add(canonical)
                     logger.info("Updated artist casing '%s' -> '%s'", artist, canonical)
-                    return TagResult(canonical, TagResultType.UPDATED)
-                return TagResult(artist, TagResultType.VALID)
+                    # return TagResult(canonical, TagResultType.UPDATED)
+                    break
+                # return TagResult(artist, TagResultType.VALID)
+                break
 
             # Step 2: external lookup
             if self.lookup.is_known_artist(artist):
@@ -113,18 +101,21 @@ class VerifyArtistRule(TagRule):
                     if not self.artist_db.exists(artist):
                         self.artist_db.add(artist)
                 logger.info("Added artist '%s' from external lookup", artist)
-                return TagResult(artist, TagResultType.VALID)
-            #
+                # return TagResult(artist, TagResultType.VALID)
+                break
             # Step 3: heuristics
             cleaned, changed, invalid = self._heuristic_check(artist)
             if invalid:
                 # tag_item.remove(artist)
                 logger.info("Ignored invalid artist '%s'", artist)
-                return TagResult(artist, TagResultType.IGNORED)
+                # return TagResult(artist, TagResultType.IGNORED)
+                break
             if changed and cleaned != artist:
                 # tag_item.remove(artist)
                 # tag_item.add(cleaned)
                 logger.info("Cleaned artist '%s' -> '%s'", artist, cleaned)
-                return TagResult(cleaned, TagResultType.UPDATED)
+                # return TagResult(cleaned, TagResultType.UPDATED)
+                break
 
-            return TagResult(artist, TagResultType.UNKNOWN)
+            # return TagResult(artist, TagResultType.UNKNOWN)
+            break

@@ -4,6 +4,8 @@ import types
 # Stub mutagen modules with minimal classes used in tests
 if 'mutagen' not in sys.modules:
     mutagen = types.ModuleType('mutagen')
+    mutagen.__path__ = []  # treat as package
+    mutagen.__spec__ = types.SimpleNamespace(submodule_search_locations=[])
     mutagen.easyid3 = types.ModuleType('mutagen.easyid3')
     class EasyID3(dict):
         pass

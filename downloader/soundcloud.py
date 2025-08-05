@@ -8,6 +8,8 @@ import time
 from yt_dlp import YoutubeDL
 from yt_dlp.postprocessor import FFmpegMetadataPP, EmbedThumbnailPP
 
+from api.jobs import job_manager
+
 from downloader.SoundcloudProcessor import SoundcloudSongProcessor
 from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
 
@@ -125,23 +127,36 @@ class SoundcloudDownloader:
         else:
             accounts = [account]
 
-        total_batches = math.ceil(len(accounts) / self.burst_size)
+        total_accounts = len(accounts)
+        processed = 0
+        total_batches = math.ceil(total_accounts / self.burst_size)
 
-        for i in range(0, len(accounts), self.burst_size):
+        for i in range(0, total_accounts, self.burst_size):
             batch = accounts[i:i + self.burst_size]
             batch_num = i // self.burst_size + 1
             logging.info(f"Processing batch {batch_num} of {total_batches}")
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
+                futures = {}
                 for acc in batch:
                     # Clone ydl_opts and override archive file per account
                     ydl_opts = self.ydl_opts.copy()
                     account_archive = f"archives/{acc}.txt"
                     ydl_opts['download_archive'] = account_archive
                     logging.info(f"Using per-account archive: {account_archive} for {acc}")
-                    executor.submit(self.download_account, acc, ydl_opts)
+                    futures[executor.submit(self.download_account, acc, ydl_opts)] = acc
 
-            if i + self.burst_size < len(accounts):
+                for future in concurrent.futures.as_completed(futures):
+                    acc = futures[future]
+                    processed += 1
+                    job_manager.publish({
+                        "type": "soundcloud-account",
+                        "account": acc,
+                        "current": processed,
+                        "total": total_accounts,
+                    })
+
+            if i + self.burst_size < total_accounts:
                 pause = random.randint(self.min_pause, self.max_pause)
                 logging.info(f"Throttling pause: sleeping {pause} seconds...")
                 time.sleep(pause)

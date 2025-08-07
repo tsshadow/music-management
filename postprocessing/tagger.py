@@ -16,7 +16,7 @@ from postprocessing.Song.LabelSong import LabelSong
 from postprocessing.Song.SoundcloudSong import SoundcloudSong
 from postprocessing.Song.YoutubeSong import YoutubeSong
 from postprocessing.Song.TelegramSong import TelegramSong
-from postprocessing.constants import SongTypeEnum
+from postprocessing.constants import SongTypeEnum, MP3Tags
 
 # global vars
 EasyID3.RegisterTXXXKey('publisher', 'publisher')
@@ -47,6 +47,11 @@ class Tagger:
     def __init__(self):
         self.parallel = True
         pass
+
+    @staticmethod
+    def available_tags() -> list[str]:
+        """Return a list of known tag keys for dropdown options."""
+        return list(MP3Tags.keys())
 
     def run(self, parse_labels=True, parse_soundcloud=True, parse_youtube=True, parse_generic=True, parse_telegram=True, analyze=False):
         """
@@ -167,7 +172,7 @@ class Tagger:
             logging.error(f"Parse_song failed: {e} -> {file}", exc_info=True)
 
     @staticmethod
-    def parse_song(path: Path, song_type: SongTypeEnum):
+    def parse_song(path: Path, song_type: SongTypeEnum, manual_tags: dict[str, str] | None = None):
         """
         Creates a Song instance to trigger tag parsing logic.
 
@@ -187,14 +192,19 @@ class Tagger:
             song = GenericSong(str(path))
         if song:
             song.parse()
+            if manual_tags:
+                for tag, value in manual_tags.items():
+                    song.tag_collection.add(tag, value)
+                song.save_file()
         #for artist in song.artists():
         #    for genre in song.genres():
         #        a.submit(artist, genre)
+
     @staticmethod
-    def _parse_worker(file: str, song_type_str: str):
+    def _parse_worker(file: str, song_type_str: str, manual_tags: dict[str, str] | None = None):
         try:
             song_type = SongTypeEnum[song_type_str]
-            Tagger.parse_song(Path(file), song_type)
+            Tagger.parse_song(Path(file), song_type, manual_tags)
             return file, "OK"
         except Exception as e:
             return file, f"{type(e).__name__}: {e}"

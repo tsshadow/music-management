@@ -17,30 +17,10 @@ from processing.renamer import Renamer
 from downloader.youtube import YoutubeDownloader
 from downloader.soundcloud import SoundcloudDownloader
 from downloader.telegram import TelegramDownloader
+from api import start_api_server
+from step import Step
 import faulthandler
 faulthandler.register(signal.SIGUSR1)
-
-class Step:
-    def __init__(self, name, condition_keys, action):
-        """
-        :param name: Human-readable step name (used in logs)
-        :param condition_keys: List of step triggers (e.g. ['rename'] or ['download', 'download-youtube'])
-        :param action: Callable to execute (e.g. youtube_downloader.run)
-        """
-        self.name = name
-        self.condition_keys = set(condition_keys)
-        self.action = action
-
-    def should_run(self, steps):
-        return bool(self.condition_keys.intersection(steps)) or "all" in steps
-
-    def run(self, steps):
-        if self.should_run(steps):
-            try:
-                self.action()
-                logging.info(f"{self.name} completed.")
-            except Exception as e:
-                logging.error(f"{self.name} failed: {e}")
 
 
 def main():
@@ -79,6 +59,9 @@ def main():
     logging.info("Starting music importer")
     sleep(1)
 
+    # Start the lightweight API server for job tracking
+    start_api_server()
+
     settings = Settings()
     youtube_downloader = YoutubeDownloader()
     soundcloud_downloader = SoundcloudDownloader(break_on_existing=args.break_on_existing)
@@ -94,7 +77,8 @@ def main():
     analyze_step = Analyze()
     artist_fixer = ArtistFixer()
 
-    steps = args.step.split(",") if args.step != "all" else ["all"]
+    step_arg = args.step.lower()
+    steps = step_arg.split(",") if step_arg != "all" else ["all"]
 
     valid_steps = {
         "all",

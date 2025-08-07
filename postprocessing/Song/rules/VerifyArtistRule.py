@@ -72,50 +72,46 @@ class VerifyArtistRule(TagRule):
         return name, changed, False
 
     def apply(self, song) -> TagResult:
-        artists = song.artists()
-        for artist in artists:
-            if not artist:
-                # return TagResult(None, TagResultType.UNKNOWN)
-                break
-            tag_item = song.tag_collection.get_item(ARTIST)
-            self.seen_counts[artist.lower()] += 1
+        artist = song.artist()
+        if not artist:
+            return TagResult(None, TagResultType.UNKNOWN)
+
+        tag_item = song.tag_collection.get_item(ARTIST)
+        self.seen_counts[artist.lower()] += 1
 
             # Step 1: check database
-            if self.artist_db.exists(artist):
-                canonical = self.artist_db.get(artist)
-                if canonical != artist:
-                    tag_item.remove(artist)
-                    tag_item.add(canonical)
-                    logger.info("Updated artist casing '%s' -> '%s'", artist, canonical)
-                    # return TagResult(canonical, TagResultType.UPDATED)
-                    break
-                # return TagResult(artist, TagResultType.VALID)
-                break
+        if self.artist_db.exists(artist):
+            canonical = self.artist_db.get(artist)
+            if canonical != artist:
+                tag_item.remove(artist)
+                tag_item.add(canonical)
+                logger.info("Updated artist casing '%s' -> '%s'", artist, canonical)
+                return TagResult(canonical, TagResultType.UPDATED)
+            return TagResult(artist, TagResultType.VALID)
 
             # Step 2: external lookup
-            if self.lookup.is_known_artist(artist):
-                insert = getattr(self.artist_db, "insert_if_not_exists", None)
-                if callable(insert):
-                    insert(artist)
-                else:
-                    if not self.artist_db.exists(artist):
-                        self.artist_db.add(artist)
-                logger.info("Added artist '%s' from external lookup", artist)
-                # return TagResult(artist, TagResultType.VALID)
-                break
-            # Step 3: heuristics
-            cleaned, changed, invalid = self._heuristic_check(artist)
-            if invalid:
-                # tag_item.remove(artist)
-                logger.info("Ignored invalid artist '%s'", artist)
-                # return TagResult(artist, TagResultType.IGNORED)
-                break
-            if changed and cleaned != artist:
-                # tag_item.remove(artist)
-                # tag_item.add(cleaned)
-                logger.info("Cleaned artist '%s' -> '%s'", artist, cleaned)
-                # return TagResult(cleaned, TagResultType.UPDATED)
-                break
+        if self.lookup.is_known_artist(artist):
+            insert = getattr(self.artist_db, "insert_if_not_exists", None)
+            if callable(insert):
+                insert(artist)
+            else:
+                if not self.artist_db.exists(artist):
+                    self.artist_db.add(artist)
+            logger.info("Added artist '%s' from external lookup", artist)
+            return TagResult(artist, TagResultType.VALID)
+        if artist.lower() in {"unknown artist", "various artists"}:
+            tag_item.remove(artist)
+            return TagResult(artist, TagResultType.IGNORED)
+        # Step 3: heuristics
+        cleaned, changed, invalid = self._heuristic_check(artist)
+        if invalid:
+            tag_item.remove(artist)
+            logger.info("Ignored invalid artist '%s'", artist)
+            return TagResult(artist, TagResultType.IGNORED)
+        if changed and cleaned != artist:
+            tag_item.remove(artist)
+            tag_item.add(cleaned)
+            logger.info("Cleaned artist '%s' -> '%s'", artist, cleaned)
+            return TagResult(cleaned, TagResultType.UPDATED)
 
-            # return TagResult(artist, TagResultType.UNKNOWN)
-            break
+        return TagResult(artist, TagResultType.UNKNOWN)

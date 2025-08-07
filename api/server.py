@@ -92,6 +92,24 @@ steps_to_run = [
 step_map = {key: step for step in steps_to_run for key in step.condition_keys}
 
 
+@app.get("/api/steps")
+def list_steps():
+    """Return available step keys for dropdowns."""
+    return {"steps": sorted(step_map.keys())}
+
+
+@app.get("/api/jobs")
+def list_jobs():
+    """Return currently active jobs for selection."""
+    return {
+        "jobs": [
+            job
+            for job in jobs.values()
+            if job["status"] in {"queued", "running"}
+        ]
+    }
+
+
 class JobLogHandler(logging.Handler):
     def __init__(self, job_id: str):
         super().__init__()

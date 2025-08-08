@@ -44,15 +44,18 @@ repair = FileRepair()
 analyze_step = Analyze()
 artist_fixer = ArtistFixer()
 
-def run_tagger(steps):
-    parse_all = "tag" in steps
+def run_tagger(selected_key: str):
+    """Run Tagger with flags afgeleid van de gekozen step key."""
+    selected_key = selected_key or ""
+    parse_all = (selected_key == "tag")
+
     tagger = Tagger()
     tagger.run(
-        parse_labels=parse_all or "tag-labels" in steps,
-        parse_soundcloud=parse_all or "tag-soundcloud" in steps,
-        parse_youtube=parse_all or "tag-youtube" in steps,
-        parse_generic=parse_all or "tag-generic" in steps,
-        parse_telegram=parse_all or "tag-telegram" in steps,
+        parse_labels=    parse_all or selected_key == "tag-labels",
+        parse_soundcloud=parse_all or selected_key == "tag-soundcloud",
+        parse_youtube=   parse_all or selected_key == "tag-youtube",
+        parse_generic=   parse_all or selected_key == "tag-generic",
+        parse_telegram=  parse_all or selected_key == "tag-telegram",
     )
 
 steps_to_run = [

@@ -1,3 +1,4 @@
+import inspect
 import logging
 
 from job_manager import job_manager
@@ -18,7 +19,12 @@ class Step:
         if self.should_run(steps):
             job_id = job_manager.register(self.name)
             try:
-                self.action()
+                sig = inspect.signature(self.action)
+                if len(sig.parameters) > 0:
+                    self.action(steps)
+                else:
+                    self.action()
+
                 logging.info(f"{self.name} completed.")
                 job_manager.update(job_id, "completed")
             except Exception as e:

@@ -48,19 +48,12 @@ class Tagger:
         self.parallel = True
         pass
 
-    @staticmethod
-    def available_tags() -> list[str]:
-        """Return a list of known tag keys for dropdown options."""
-        return list(MP3Tags.keys())
-
-    def run(self, parse_labels=True, parse_soundcloud=True, parse_youtube=True, parse_generic=True, parse_telegram=True, analyze=False):
+    def run(self, parse_labels=True, parse_soundcloud=True, parse_youtube=True, parse_generic=True, parse_telegram=True):
         """
         Entrypoint for the tagging process.
         Scans various music directories (labels, YouTube, SoundCloud, generic) and applies appropriate tag parsing.
         """
-        logging.info("Starting Tag Step")
-
-            #a.start()
+        logging.info("Starting Tag Step with options: {}, {}, {}, {}, {}".format(parse_labels, parse_soundcloud, parse_youtube, parse_generic, parse_telegram))
 
         if parse_labels:
             self._parse_label_folders()
@@ -74,9 +67,9 @@ class Tagger:
         if parse_telegram:
             self._parse_channel_folders("Telegram", SongTypeEnum.TELEGRAM)
 
-        #if parse_generic:
-        #    self._parse_generic_folders()
-           # a.done()
+        if parse_generic:
+           self._parse_generic_folders()
+
 
     def _parse_label_folders(self):
         """
@@ -99,6 +92,7 @@ class Tagger:
         """
         root = Path(s.music_folder_path) / source_folder
         if not root.exists():
+            logging.warning(f"Folder '{root}' does not exist, skipping.")
             return
 
         for channel in sorted([f for f in root.iterdir() if f.is_dir()]):

@@ -8,6 +8,7 @@ from typing import Tuple, List
 class Analyzer(threading.Thread):
     def __init__(self):
         super().__init__()
+        import pymysql
         self.host = os.getenv('DB_HOST')
         self.user = os.getenv('DB_USER')
         self.port = int(os.getenv('DB_PORT'))

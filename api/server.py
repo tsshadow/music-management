@@ -2,6 +2,7 @@ import logging
 import os
 import uuid
 import asyncio
+from datetime import datetime
 from typing import Any, Dict, Optional, Set
 
 from fastapi import (
@@ -134,6 +135,7 @@ async def execute_step(
         job["status"] = "error"
         job["log"].append(str(e))
     finally:
+        job["ended"] = datetime.utcnow().isoformat()
         await broadcast(job)
         logging.getLogger().removeHandler(handler)
         job.pop("task", None)
@@ -161,6 +163,7 @@ async def run_step_endpoint(
         "status": "queued",
         "log": [],
         "stop_event": stop_event,
+        "started": datetime.utcnow().isoformat(),
     }
     await broadcast(jobs[job_id])
     task = asyncio.create_task(

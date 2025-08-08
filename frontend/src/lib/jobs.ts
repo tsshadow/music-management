@@ -4,6 +4,9 @@ export interface Job {
   id: string;
   step: string;
   status: string;
+  started?: string;
+  ended?: string;
+  log?: string[];
 }
 
 export const jobs = writable<Job[]>([]);

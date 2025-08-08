@@ -75,6 +75,15 @@ class JobsContext {
       // ignore
     }
   }
+
+  async get(jobId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/job/${jobId}`);
+      return (await res.json()) as Job;
+    } catch {
+      return null;
+    }
+  }
 }
 
 const key = Symbol('JobsContext');

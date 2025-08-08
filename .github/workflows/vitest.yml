@@ -27,8 +27,14 @@ jobs:
           corepack enable
           corepack prepare pnpm@10 --activate
 
+      # If the lockfile doesn't exist yet, don't freeze; switch to frozen once it's committed
       - name: Install deps
-        run: pnpm install --frozen-lockfile
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            pnpm install
+          fi
 
-      - name: Run vitest
-        run: pnpm test
+      - name: Run vitest (CI mode, no watch)
+        run: pnpm vitest run --reporter=verbose

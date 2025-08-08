@@ -20,6 +20,7 @@ from downloader.telegram import TelegramDownloader
 from api import start_api_server
 from step import Step
 import faulthandler
+
 faulthandler.register(signal.SIGUSR1)
 
 
@@ -124,7 +125,8 @@ def main():
         )),
         Step("Analyze", ["analyze"], analyze_step.run),
         Step("ArtistFixer", ["artistfixer"], artist_fixer.run),
-        Step("Tagger", ["tag", "tag-labels", "tag-soundcloud", "tag-youtube", "tag-generic", "tag-telegram"], run_tagger),
+        Step("Tagger", ["tag", "tag-labels", "tag-soundcloud", "tag-youtube", "tag-generic", "tag-telegram"],
+             run_tagger),
     ]
 
     while True:

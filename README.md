@@ -72,6 +72,17 @@ Music Importer automates the following tasks:
 
 ---
 
+## 🔐 Security
+
+The API restricts cross‑origin requests to trusted origins through CORS middleware.
+For production deployments you should place the service behind a reverse proxy such as
+Nginx and enable HTTP Basic Authentication.
+
+Optionally, set the `API_KEY` environment variable to require clients to include the
+key via the `X-API-Key` header (REST) or `api_key` query parameter (WebSocket).
+
+---
+
 
 
 ## 👨‍💻 Who Is It For?

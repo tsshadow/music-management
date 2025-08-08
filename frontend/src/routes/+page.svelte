@@ -1,6 +1,9 @@
 <script>
 import StepStarter from '$lib/StepStarter.svelte';
 import JobsList from '$lib/JobsList.svelte';
+import { initializeJobsContext } from '$lib/jobs-context';
+
+initializeJobsContext();
 </script>
 
 <main>

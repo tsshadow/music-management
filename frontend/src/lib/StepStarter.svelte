@@ -1,35 +1,29 @@
 <script>
-import { onMount, createEventDispatcher } from 'svelte';
-import { upsert } from '$lib/jobs';
+import { createEventDispatcher } from 'svelte';
+import { getJobsContext } from '$lib/jobs-context';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '';
-let steps = [];
+const { steps, start } = getJobsContext();
 let selected = '';
 const dispatch = createEventDispatcher();
 
-async function loadSteps() {
-  const res = await fetch(`${API_BASE}/steps`);
-  const data = await res.json();
-  steps = data.steps;
-  selected = steps[0] || '';
+$: if (!selected && $steps.length > 0) {
+  selected = $steps[0];
 }
 
-async function start() {
+async function startSelected() {
   if (!selected) return;
-  const res = await fetch(`${API_BASE}/run/${selected}`, { method: 'POST' });
-  const job = await res.json();
-  upsert(job);
-  dispatch('started', job);
+  const job = await start(selected);
+  if (job) {
+    dispatch('started', job);
+  }
 }
-
-onMount(loadSteps);
 </script>
 
 <div>
   <select bind:value={selected}>
-    {#each steps as step}
+    {#each $steps as step}
       <option value={step}>{step}</option>
     {/each}
   </select>
-  <button on:click={start}>Start</button>
+  <button on:click={startSelected}>Start</button>
 </div>

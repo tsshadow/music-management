@@ -1,10 +1,11 @@
 <script>
-import { onMount } from 'svelte';
+import { onMount, onDestroy } from 'svelte';
 import { getJobsContext } from '$lib/jobs-context';
 
 const { jobs, stop, get } = getJobsContext();
 let selected = null;
 let now = Date.now();
+let logInterval;
 
 onMount(() => {
   const interval = setInterval(() => {
@@ -12,6 +13,19 @@ onMount(() => {
   }, 1000);
   return () => clearInterval(interval);
 });
+
+$: {
+  if (selected && !selected.ended) {
+    clearInterval(logInterval);
+    logInterval = setInterval(async () => {
+      selected = await get(selected.id);
+    }, 1000);
+  } else {
+    clearInterval(logInterval);
+  }
+}
+
+onDestroy(() => clearInterval(logInterval));
 
 function duration(job) {
   if (!job.started) return '-';
@@ -28,19 +42,33 @@ async function select(id) {
 }
 </script>
 
-<h2>Running Jobs</h2>
-<ul>
-  {#each $jobs as job}
-    <li>
-      <button on:click={() => select(job.id)}>{job.step} – {job.id}</button>
-      <div>Started: {job.started ? new Date(job.started).toLocaleString() : '-'}</div>
-      <div>Duration: {duration(job)}</div>
-      <button on:click={() => stop(job.id)}>Stop</button>
-    </li>
-  {/each}
-</ul>
+<div class="space-y-4 rounded border border-green-700/40 bg-black/60 p-4">
+  <h2 class="text-xl font-bold text-green-400">Running Jobs</h2>
+  <ul class="space-y-2">
+    {#each $jobs as job}
+      <li class="rounded border border-green-700/40 bg-gray-900/60 p-2">
+        <button
+          class="mb-2 rounded bg-blue-600 px-2 py-1 text-sm font-bold text-white hover:bg-blue-500"
+          on:click={() => select(job.id)}
+        >
+          {job.step} – {job.id}
+        </button>
+        <div>Started: {job.started ? new Date(job.started).toLocaleString() : '-'}</div>
+        <div>Duration: {duration(job)}</div>
+        <button
+          class="mt-2 rounded bg-red-600 px-2 py-1 text-sm font-bold text-white hover:bg-red-500"
+          on:click={() => stop(job.id)}
+        >
+          Stop
+        </button>
+      </li>
+    {/each}
+  </ul>
 
-{#if selected}
-  <h3>Job Log</h3>
-  <pre>{selected.log?.join('\n') ?? ''}</pre>
-{/if}
+  {#if selected}
+    <div class="mt-4">
+      <h3 class="mb-2 text-lg font-bold text-green-400">Job Log</h3>
+      <pre class="h-64 overflow-auto rounded border border-green-700 bg-black p-2 text-green-400">{selected.log?.join(String.fromCharCode(10)) ?? ''}</pre>
+    </div>
+  {/if}
+</div>

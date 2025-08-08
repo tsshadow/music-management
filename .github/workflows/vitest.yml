@@ -16,24 +16,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Node first (no cache here)
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
 
-      - name: Enable pnpm via Corepack
-        run: |
-          corepack enable
-          corepack prepare pnpm@10 --activate
+      # Install pnpm
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      # Cache the pnpm store
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: pnpm-store-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-
 
       - name: Install deps
-        run: |
-          if [ -f pnpm-lock.yaml ]; then
-            pnpm install --frozen-lockfile
-          else
-            pnpm install
-          fi
+        run: pnpm install --frozen-lockfile
 
       - name: Run vitest (CI mode, no watch)
         run: pnpm vitest run --reporter=verbose

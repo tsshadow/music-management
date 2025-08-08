@@ -1,5 +1,6 @@
 <script>
 import { onMount, createEventDispatcher } from 'svelte';
+import { upsert } from '$lib/jobs';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 let steps = [];
@@ -17,6 +18,7 @@ async function start() {
   if (!selected) return;
   const res = await fetch(`${API_BASE}/run/${selected}`, { method: 'POST' });
   const job = await res.json();
+  upsert(job);
   dispatch('started', job);
 }
 

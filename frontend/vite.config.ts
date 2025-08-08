@@ -5,6 +5,12 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
+  server: {
+    host: true, // listen on all interfaces
+    allowedHosts: ['music-importer.example.com']
+    // If you proxy/HMR through a remote URL, you may also need:
+    // hmr: { host: 'music-importer.example.com', protocol: 'wss', clientPort: 443 }
+  },
 	test: {
 		workspace: [
 			{

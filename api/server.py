@@ -4,21 +4,7 @@ from typing import Dict
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 
-from main import Step
-from data.settings import Settings
-from postprocessing.repair import FileRepair
-from postprocessing.sanitizer import Sanitizer
-from postprocessing.tagger import Tagger
-from postprocessing.analyze import Analyze
-from postprocessing.artistfixer import ArtistFixer
-from processing.converter import Converter
-from processing.epsflattener import EpsFlattener
-from processing.extractor import Extractor
-from processing.mover import Mover
-from processing.renamer import Renamer
-from downloader.youtube import YoutubeDownloader
-from downloader.soundcloud import SoundcloudDownloader
-from downloader.telegram import TelegramDownloader
+from .steps import step_map
 
 app = FastAPI()
 
@@ -29,70 +15,6 @@ logging.basicConfig(
 )
 
 jobs: Dict[str, Dict] = {}
-
-settings = Settings()
-youtube_downloader = YoutubeDownloader()
-soundcloud_downloader = SoundcloudDownloader()
-telegram_downloader = TelegramDownloader()
-extractor = Extractor()
-renamer = Renamer()
-mover = Mover()
-converter = Converter()
-sanitizer = Sanitizer()
-flattener = EpsFlattener()
-repair = FileRepair()
-analyze_step = Analyze()
-artist_fixer = ArtistFixer()
-
-def run_tagger(selected_key: str):
-    """Run Tagger with flags afgeleid van de gekozen step key."""
-    selected_key = selected_key or ""
-    parse_all = (selected_key == "tag")
-
-    tagger = Tagger()
-    tagger.run(
-        parse_labels=    parse_all or selected_key == "tag-labels",
-        parse_soundcloud=parse_all or selected_key == "tag-soundcloud",
-        parse_youtube=   parse_all or selected_key == "tag-youtube",
-        parse_generic=   parse_all or selected_key == "tag-generic",
-        parse_telegram=  parse_all or selected_key == "tag-telegram",
-    )
-
-steps_to_run = [
-    Step("Extractor", ["import", "extract"], extractor.run),
-    Step("Renamer", ["import", "rename"], renamer.run),
-    Step("Mover", ["import", "move"], mover.run),
-    Step("Converter", ["convert"], converter.run),
-    Step("Sanitizer", ["sanitize"], sanitizer.run),
-    Step("Flattener", ["flatten"], flattener.run),
-    Step("YouTube Downloader", ["download", "download-youtube"], youtube_downloader.run),
-    Step(
-        "SoundCloud Downloader",
-        ["download", "download-soundcloud"],
-        lambda: soundcloud_downloader.run(account=""),
-    ),
-    Step(
-        "Telegram Downloader",
-        ["download-telegram"],
-        lambda: telegram_downloader.run(""),
-    ),
-    Step("Analyze", ["analyze"], analyze_step.run),
-    Step("ArtistFixer", ["artistfixer"], artist_fixer.run),
-    Step(
-        "Tagger",
-        [
-            "tag",
-            "tag-labels",
-            "tag-soundcloud",
-            "tag-youtube",
-            "tag-generic",
-            "tag-telegram",
-        ],
-        lambda steps=None: run_tagger(steps or []),
-    ),
-]
-
-step_map = {key: step for step in steps_to_run for key in step.condition_keys}
 
 
 @app.get("/api/steps")

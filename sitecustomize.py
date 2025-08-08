@@ -1,8 +1,9 @@
 import sys
 import types
+import importlib.util
 
 # Stub mutagen modules with minimal classes used in tests
-if 'mutagen' not in sys.modules:
+if importlib.util.find_spec('mutagen') is None and 'mutagen' not in sys.modules:
     mutagen = types.ModuleType('mutagen')
     mutagen.__path__ = []  # treat as package
     mutagen.__spec__ = types.SimpleNamespace(submodule_search_locations=[])

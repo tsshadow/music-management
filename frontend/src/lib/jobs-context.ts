@@ -53,14 +53,26 @@ class JobsContext {
     }
   }
 
-  async start(step: string) {
+  async start(step: string, options: Record<string, unknown> = {}) {
     try {
-      const res = await fetch(`${API_BASE}/run/${step}`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/run/${step}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(options),
+      });
       const job = await res.json();
       upsert(job);
       return job as Job;
     } catch {
       return null;
+    }
+  }
+
+  async stop(jobId: string) {
+    try {
+      await fetch(`${API_BASE}/job/${jobId}/stop`, { method: 'POST' });
+    } catch {
+      // ignore
     }
   }
 }

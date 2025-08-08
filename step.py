@@ -16,12 +16,15 @@ class Step:
     def should_run(self, steps):
         return bool(self.condition_keys.intersection(steps)) or "all" in steps
 
-    def run(self, steps):
+    def run(self, steps, **kwargs):
         if self.should_run(steps):
             job_id = job_manager.register(self.name)
             try:
-                if inspect.signature(self.action).parameters:
-                    self.action(steps)
+                params = inspect.signature(self.action).parameters
+                if "steps" in params:
+                    self.action(steps, **kwargs)
+                elif params:
+                    self.action(**kwargs)
                 else:
                     self.action()
                 logging.info(f"{self.name} completed.")

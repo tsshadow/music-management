@@ -6,13 +6,13 @@ on:
   pull_request:
     branches: [ main ]
 
-defaults:
-  run:
-    working-directory: frontend
-
 jobs:
   test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
     steps:
       - uses: actions/checkout@v4
 
@@ -27,7 +27,6 @@ jobs:
           corepack enable
           corepack prepare pnpm@10 --activate
 
-      # If the lockfile doesn't exist yet, don't freeze; switch to frozen once it's committed
       - name: Install deps
         run: |
           if [ -f pnpm-lock.yaml ]; then

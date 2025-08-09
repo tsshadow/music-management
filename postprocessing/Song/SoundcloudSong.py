@@ -18,7 +18,7 @@ from postprocessing.Song.rules.InferRemixerFromTitleRule import InferRemixerFrom
 from postprocessing.Song.rules.MergeDrumAndBassGenresRule import MergeDrumAndBassGenresRule
 from postprocessing.Song.rules.ReplaceInvalidUnicodeRule import ReplaceInvalidUnicodeRule
 from postprocessing.constants import ALBUM_ARTIST, PUBLISHER, CATALOG_NUMBER, GENRE, ARTIST, COPYRIGHT, FormatEnum, \
-    TITLE
+    TITLE, ALBUM
 
 s = Settings()
 
@@ -29,10 +29,17 @@ class SoundcloudSong(BaseSong):
         paths = path.rsplit(s.delimiter, 2)
         self._album_artist_from_path = str(paths[1])
         self._publisher = "Soundcloud"
+        uploader = None
+        if extra_info:
+            uploader = extra_info.get("uploader")
+        self._uploader = uploader or self._album_artist_from_path
+        self._album = f"{self._publisher} ({self._uploader})"
 
     def parse(self):
         if not self.album_artist():
             self.tag_collection.set_item(ALBUM_ARTIST, self._album_artist_from_path)
+        if not self.album():
+            self.tag_collection.set_item(ALBUM, self._album)
         if not self.copyright():
             if self.calculate_copyright():
                 self.tag_collection.set_item(COPYRIGHT, self.calculate_copyright())

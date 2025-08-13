@@ -4,6 +4,7 @@ import { getJobsContext } from '$lib/jobs-context';
 
 const { jobs, stop, get } = getJobsContext();
 let selected = null;
+let selectedId = null;
 let now = Date.now();
 let logInterval;
 
@@ -15,13 +16,15 @@ onMount(() => {
 });
 
 $: {
-  if (selected && !selected.ended) {
-    clearInterval(logInterval);
+  clearInterval(logInterval);
+  if (selectedId && (!selected || !selected.ended)) {
     logInterval = setInterval(async () => {
-      selected = await get(selected.id);
+      const id = selectedId;
+      const job = await get(id);
+      if (selectedId === id) {
+        selected = job;
+      }
     }, 1000);
-  } else {
-    clearInterval(logInterval);
   }
 }
 
@@ -38,7 +41,16 @@ function duration(job) {
 }
 
 async function select(id) {
-  selected = await get(id);
+  if (selectedId === id) {
+    selectedId = null;
+    selected = null;
+    return;
+  }
+  selectedId = id;
+  const job = await get(id);
+  if (selectedId === id) {
+    selected = job;
+  }
 }
 </script>
 
@@ -68,7 +80,10 @@ async function select(id) {
   {#if selected}
     <div class="mt-4">
       <h3 class="mb-2 text-lg font-bold text-green-400">Job Log</h3>
-      <pre class="h-64 overflow-auto rounded border border-green-700 bg-black p-2 text-green-400">{selected.log?.join(String.fromCharCode(10)) ?? ''}</pre>
+      <pre
+        class="min-h-64 max-h-[calc(100vh-20rem)] overflow-auto rounded border border-green-700 bg-black p-2 text-green-400"
+        >{selected.log?.join(String.fromCharCode(10)) ?? ''}</pre
+      >
     </div>
   {/if}
 </div>

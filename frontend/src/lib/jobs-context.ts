@@ -3,19 +3,22 @@ import { getContext, setContext } from 'svelte';
 import { jobs as jobsStore, upsert, type Job } from './jobs';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
-const WS_URL =
-  (API_BASE
-    ? API_BASE.replace(/^http/, 'ws').replace(/\/?api$/, '')
-    : window.location.origin.replace(/^http/, 'ws')) + '/ws/jobs';
+const WS_URL = API_BASE
+  ? API_BASE.replace(/^http/, 'ws').replace(/\/?api$/, '') + '/ws/jobs'
+  : typeof window !== 'undefined'
+    ? window.location.origin.replace(/^http/, 'ws') + '/ws/jobs'
+    : '';
 
 class JobsContext {
   steps: Writable<string[]> = writable([]);
   jobs = jobsStore;
 
   constructor() {
-    this.loadSteps();
-    this.loadJobs();
-    this.setupWebSocket();
+    if (typeof window !== 'undefined') {
+      this.loadSteps();
+      this.loadJobs();
+      this.setupWebSocket();
+    }
   }
 
   async loadSteps() {

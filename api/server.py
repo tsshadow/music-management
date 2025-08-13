@@ -42,7 +42,10 @@ def verify_api_key(x_api_key: Optional[str] = Header(default=None)) -> None:
 # -----------------------------------------------------
 # CORS configuration
 # -----------------------------------------------------
-trusted_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+default_origins = (
+    "http://192.0.2.178:5173,https://music-importer.example.com"
+)
+trusted_origins = os.getenv("CORS_ORIGINS", default_origins).split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in trusted_origins if origin.strip()],

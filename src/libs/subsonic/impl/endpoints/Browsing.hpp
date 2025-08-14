@@ -42,4 +42,5 @@ namespace lms::api::subsonic
     Response handleGetSimilarSongsRequest(RequestContext& context);
     Response handleGetSimilarSongs2Request(RequestContext& context);
     Response handleGetTopSongs(RequestContext& context);
+    Response handleGetSinglesRequest(RequestContext& context);
 } // namespace lms::api::subsonic

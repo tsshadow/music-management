@@ -767,4 +767,50 @@ namespace lms::api::subsonic
 
         return response;
     }
+
+    namespace
+    {
+        bool isRealAlbum(const Release::pointer& release)
+        {
+            for (std::string_view type : release->getReleaseTypeNames())
+            {
+                if (std::equal(type.begin(), type.end(), "album",
+                               [](char a, char b) { return std::tolower(a) == std::tolower(b); }))
+                    return true;
+            }
+            return false;
+        }
+    }
+
+    Response handleGetSinglesRequest(RequestContext& context)
+    {
+        // Mandatory params
+        ArtistId artistId{ getMandatoryParameterAs<ArtistId>(context.parameters, "artistId") };
+
+        auto transaction{ context.dbSession.createReadTransaction() };
+
+        Response response{ Response::createOkResponse(context.serverProtocolVersion) };
+        Response::Node& songsNode{ response.createNode("songs") };
+
+        Track::FindParameters params;
+        params.setArtist(artistId);
+        params.setSortMethod(TrackSortMethod::Name);
+
+        for (const Track::pointer& track : Track::find(context.dbSession, params).results)
+        {
+            bool single{ false };
+            if (const Release::pointer& release{ track->getRelease() })
+            {
+                if (!isRealAlbum(release))
+                    single = true;
+            }
+            else
+                single = true;
+
+            if (single)
+                songsNode.addArrayChild("song", createSongNode(context, track, context.user));
+        }
+
+        return response;
+    }
 } // namespace lms::api::subsonic

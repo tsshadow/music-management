@@ -2,6 +2,7 @@ import logging
 import os
 import uuid
 import asyncio
+from contextvars import ContextVar
 from datetime import datetime
 from typing import Any, Dict, Optional, Set
 
@@ -26,6 +27,42 @@ logging.basicConfig(
     format='%(asctime)s [%(levelname)s] %(message)s',
     force=True,
 )
+
+
+current_job_id: ContextVar[Optional[str]] = ContextVar("current_job_id", default=None)
+_default_logger = logging.LoggerAdapter(logging.getLogger(), {})
+current_logger: ContextVar[logging.LoggerAdapter] = ContextVar(
+    "current_logger", default=_default_logger
+)
+
+
+class JobLogFilter(logging.Filter):
+    def __init__(self, job_id: str):
+        super().__init__()
+        self.job_id = job_id
+
+    def filter(self, record: logging.LogRecord) -> bool:  # pragma: no cover - trivial
+        active = current_job_id.get()
+        return getattr(record, "job_id", None) == self.job_id and active == self.job_id
+
+
+
+
+def _log(level, msg, *args, **kwargs):  # pragma: no cover - simple delegation
+    logger = current_logger.get()
+    logger.log(level, msg, *args, **kwargs)
+
+
+def _exception(msg, *args, exc_info=True, **kwargs):  # pragma: no cover - simple
+    _log(logging.ERROR, msg, *args, exc_info=exc_info, **kwargs)
+
+
+logging.log = _log
+logging.debug = lambda msg, *a, **k: _log(logging.DEBUG, msg, *a, **k)
+logging.info = lambda msg, *a, **k: _log(logging.INFO, msg, *a, **k)
+logging.warning = lambda msg, *a, **k: _log(logging.WARNING, msg, *a, **k)
+logging.error = lambda msg, *a, **k: _log(logging.ERROR, msg, *a, **k)
+logging.exception = _exception
 
 # -----------------------------------------------------
 # Security helpers
@@ -115,7 +152,14 @@ async def execute_step(
 
     handler = JobLogHandler(job_id)
     handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
-    logging.getLogger().addHandler(handler)
+    handler.addFilter(JobLogFilter(job_id))
+    job_logger = logging.getLogger(f"job.{job_id}")
+    job_logger.setLevel(logging.INFO)
+    job_logger.propagate = False
+    job_logger.addHandler(handler)
+    token_id = current_job_id.set(job_id)
+    adapter = logging.LoggerAdapter(job_logger, {"job_id": job_id})
+    token_logger = current_logger.set(adapter)
 
     try:
         job["status"] = "running"
@@ -140,7 +184,9 @@ async def execute_step(
     finally:
         job["ended"] = datetime.utcnow().isoformat()
         await broadcast(job)
-        logging.getLogger().removeHandler(handler)
+        job_logger.removeHandler(handler)
+        current_logger.reset(token_logger)
+        current_job_id.reset(token_id)
         job.pop("task", None)
         job.pop("stop_event", None)
 

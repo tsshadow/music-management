@@ -199,6 +199,7 @@
 <message id="Lms.Explore.random">Aleatorio</message>
 <message id="Lms.Explore.recently-added">Añadidos recientemente</message>
 <message id="Lms.Explore.recently-modified">Modificados recientemente</message>
+<message id="Lms.Explore.release-date">Fecha de lanzamiento</message>
 <message id="Lms.Explore.recently-played">Reproducidos recientemente</message>
 <message id="Lms.Explore.release-info">Información sobre el álbum</message>
 <message id="Lms.Explore.release-type">Tipo de publicación</message>

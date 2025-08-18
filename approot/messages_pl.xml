@@ -216,6 +216,7 @@
 <message id="Lms.Explore.random">Losowo</message>
 <message id="Lms.Explore.recently-added">Ostatnio dodane</message>
 <message id="Lms.Explore.recently-modified">Ostatnio zmienione</message>
+<message id="Lms.Explore.release-date">Data wydania</message>
 <message id="Lms.Explore.recently-played">Ostatnio odtwarzane</message>
 <message id="Lms.Explore.release-info">Informacje o wydaniu</message>
 <message id="Lms.Explore.release-type">Typ wydania</message>

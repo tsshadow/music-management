@@ -88,7 +88,7 @@ namespace lms::db
             ReleaseId release;                                       // matching this release
             std::string releaseName;                                 // matching this release name
             TrackListId trackList;                                   // matching this trackList
-            std::optional<int> trackNumber;                              // matching this disc number
+            std::optional<int> trackNumber;                          // matching this disc number
             std::optional<int> rating;                               // track rating
             DirectoryId directory;                                   // if set, tracks in this directory
             std::optional<std::size_t> fileSize;                     // if set, tracks that match this file size
@@ -97,7 +97,8 @@ namespace lms::db
             std::optional<int> maxRating;
             std::set<std::string> allowedArtists;
 
-            void setAllowedArtists(const std::set<std::string>& artists) {
+            void setAllowedArtists(const std::set<std::string>& artists)
+            {
                 allowedArtists = artists;
             }
 
@@ -189,11 +190,6 @@ namespace lms::db
             FindParameters& setTrackNumber(int _trackNumber)
             {
                 trackNumber = _trackNumber;
-                return *this;
-            }
-            FindParameters& setDiscNumber(int _discNumber)
-            {
-                discNumber = _discNumber;
                 return *this;
             }
             FindParameters& setDirectory(DirectoryId _directory)
@@ -304,6 +300,8 @@ namespace lms::db
         const Wt::WDateTime& getLastWritten() const { return _fileLastWrite; }
         const core::PartialDateTime& getDate() const { return _date; }
         std::optional<int> getYear() const;
+
+        std::optional<int> getRating() const;
         const core::PartialDateTime& getOriginalDate() const { return _originalDate; }
         std::optional<int> getOriginalYear() const;
         const Wt::WDateTime& getLastWriteTime() const { return _fileLastWrite; }
@@ -390,6 +388,7 @@ namespace lms::db
         std::optional<int> _trackNumber{};
         std::optional<int> _discNumber{};
         std::optional<int> _totalTrack{};
+        std::optional<int> _rating{};
         std::string _discSubtitle;
         std::string _name;
         int _bitrate{}; // in bps

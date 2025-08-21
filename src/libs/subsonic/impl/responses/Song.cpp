@@ -258,7 +258,7 @@ namespace lms::api::subsonic
         };
         trackResponse.setAttribute("explicitStatus", advisoryToExplicitStatus(track->getAdvisory()));
 
-        trackResponse.addChild("replayGain", createReplayGainNode(track));
+        trackResponse.addChild("replayGain", createReplayGainNode(track, medium));
 
         return trackResponse;
     }

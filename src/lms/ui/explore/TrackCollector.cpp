@@ -99,15 +99,15 @@ namespace lms::ui
 
         case Mode::ReleaseDate:
             {
-                Track::FindParameters params;
+                db::Track::FindParameters params;
                 params.setFilters(getDbFilters());
                 params.setKeywords(getSearchKeywords());
-                params.setSortMethod(TrackSortMethod::DateDescAndRelease);
+                params.setSortMethod(db::TrackSortMethod::DateDescAndRelease);
                 params.setRange(range);
 
                 {
                     auto transaction{ LmsApp->getDbSession().createReadTransaction() };
-                    tracks = Track::findIds(LmsApp->getDbSession(), params);
+                    tracks = db::Track::findIds(LmsApp->getDbSession(), params);
                 }
                 break;
             }

@@ -56,6 +56,8 @@ namespace lms::db
         if (input == "TrackList") return TrackSortMethod::TrackList;
         if (input == "MostPlayed") return TrackSortMethod::MostPlayed;
         if (input == "RecentlyPlayed") return TrackSortMethod::RecentlyPlayed;
+        if (input == "TrackNumber") return TrackSortMethod::TrackNumber;
+        if (input == "AbsoluteFilePath") return TrackSortMethod::AbsoluteFilePath;
 
         return TrackSortMethod::Name; // fallback
     }
@@ -64,18 +66,36 @@ namespace lms::db
     {
         switch (input)
         {
-        case TrackSortMethod::Id: return "Id";
-        case TrackSortMethod::None: return "None";
-        case TrackSortMethod::Random: return "Random";
-        case TrackSortMethod::AddedDesc: return "AddedDesc";
-        case TrackSortMethod::LastWrittenDesc: return "LastWrittenDesc";
-        case TrackSortMethod::StarredDateDesc: return "StarredDateDesc";
-        case TrackSortMethod::Name: return "Name";
-        case TrackSortMethod::DateDescAndRelease: return "DateDescAndRelease";
-        case TrackSortMethod::Release: return "Release";
-        case TrackSortMethod::TrackList: return "TrackList";
-        case TrackSortMethod::MostPlayed: return "MostPlayed";
-        case TrackSortMethod::RecentlyPlayed: return "RecentlyPlayed";
+        case TrackSortMethod::Id:
+            return "Id";
+        case TrackSortMethod::None:
+            return "None";
+        case TrackSortMethod::Random:
+            return "Random";
+        case TrackSortMethod::AddedDesc:
+            return "AddedDesc";
+        case TrackSortMethod::LastWrittenDesc:
+            return "LastWrittenDesc";
+        case TrackSortMethod::StarredDateDesc:
+            return "StarredDateDesc";
+        case TrackSortMethod::Name:
+            return "Name";
+        case TrackSortMethod::DateDescAndRelease:
+            return "DateDescAndRelease";
+        case TrackSortMethod::Release:
+            return "Release";
+        case TrackSortMethod::TrackList:
+            return "TrackList";
+        case TrackSortMethod::MostPlayed:
+            return "MostPlayed";
+        case TrackSortMethod::RecentlyPlayed:
+            return "RecentlyPlayed";
+        case TrackSortMethod::TrackNumber:
+            return "TrackNumber";
+        case TrackSortMethod::AbsoluteFilePath:
+            return "AbsoluteFilePath";
+        default:
+            return "Unknown";
         }
 
         return "";
@@ -97,7 +117,7 @@ namespace lms::db
             return "t.file_added DESC";
         case TrackSortMethod::StarredDateDesc:
             return "t.starred_date DESC";
-        case TrackSortMethod::FileName:
+        case TrackSortMethod::AbsoluteFilePath:
             return "t.file_name";
         case TrackSortMethod::Name:
             return "t.name";
@@ -107,6 +127,13 @@ namespace lms::db
             return "t.disc_number, t.track_number";
         case TrackSortMethod::TrackList:
             return "t.tracklist_order";
+        case TrackSortMethod::TrackNumber:
+            return "t.disc_number, t.track_number";
+        case TrackSortMethod::MostPlayed:
+            return "t.play_count DESC, t.last_played DESC";
+        case TrackSortMethod::RecentlyPlayed:
+            return "t.last_played DESC";
+
         default:
             return "t.id";
         }

@@ -725,6 +725,10 @@ namespace lms::db
     {
         return _date.getYear();
     }
+    std::optional<int> Track::getRating() const
+    {
+        return _rating;
+    }
 
     std::optional<int> Track::getOriginalYear() const
     {

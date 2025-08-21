@@ -24,19 +24,17 @@
 #include "core/Service.hpp"
 #include "database/Session.hpp"
 #include "database/Types.hpp"
-#include "database/User.hpp"
-#include "rapidjson.h"
 #include "database/objects/Artist.hpp"
 #include "database/objects/Cluster.hpp"
 #include "database/objects/Release.hpp"
 #include "database/objects/Track.hpp"
 #include "database/objects/User.hpp"
+#include "rapidjson.h"
 #include "services/feedback/IFeedbackService.hpp"
 #include "services/scrobbling/IScrobblingService.hpp"
 
 #include "FestivalLineupRepository.hpp"
 #include "ParameterParsing.hpp"
-#include "SubsonicId.hpp"
 #include "document.h"
 #include "responses/Album.hpp"
 #include "responses/Artist.hpp"
@@ -318,11 +316,11 @@ namespace lms::api::subsonic
         params.filters.setClusters(clusters);
         params.filters.setMediaLibrary(mediaLibrary);
         params.setRange(Range{ offset, count });
+        params.setMinRating(static_cast<int>(ratingMin));
+        params.setMaxRating(static_cast<int>(ratingMax));
 
         Track::find(context.dbSession, params, [&](const Track::pointer& track) {
-            if (
-                track->getRating().value_or(0) >= ratingMin && track->getRating().value_or(0) <= ratingMax)
-                songsByGenreNode.addArrayChild("song", createSongNode(context, track, context.user));
+            songsByGenreNode.addArrayChild("song", createSongNode(context, track, context.user));
         });
 
         return response;
@@ -501,7 +499,6 @@ namespace lms::api::subsonic
 
         return response;
     }
-
 
     Response handleGetStarredRequest(RequestContext& context)
     {

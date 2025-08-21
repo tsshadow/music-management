@@ -1,85 +1,86 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <messages xmlns:if="Wt.WTemplate.conditions">
 
-<message id="Lms.Explore.template">
-	${contents}
-</message>
+    <message id="Lms.Explore.template">
+        ${contents}
+    </message>
 
-<message id="Lms.Explore.template.filters">
-	${add-filter class="btn btn-sm btn-outline-primary me-2"}${clusters class="d-inline-block align-items-center"}
-</message>
+    <message id="Lms.Explore.template.filters">
+        ${add-filter class="btn btn-sm btn-outline-primary me-2"}${clusters class="d-inline-block align-items-center"}
+    </message>
 
-<message id="Lms.Explore.template.add-filter">
-	<div class="modal fade" tabindex="-1">
-		<div class="modal-dialog">
-			<div class="modal-content">
-				<div class="modal-header">
-					<h5 class="modal-title">${tr:Lms.Explore.add-filter}</h5>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-				</div>
-				<div class="modal-body">
-					<form class="row g-3">
-						<div class="col-12">
-							<label class="form-label" for="${id:type}">
-								${tr:Lms.Explore.type}
-							</label>
-							${type class="form-control"}
-						</div>
-						<div class="col-12">
-							<label class="form-label" for="${id:value}">
-								${tr:Lms.Explore.value}
-							</label>
-							${value class="form-control"}
-						</div>
-					</form>
-				</div>
-				<div class="modal-footer">
-					${add-btn class="btn btn-primary me-1"}${cancel-btn class="btn btn-secondary"}
-				</div>
-			</div>
-		</div>
-	</div>
-</message>
+    <message id="Lms.Explore.template.add-filter">
+        <div class="modal fade" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">${tr:Lms.Explore.add-filter}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label" for="${id:type}">
+                                    ${tr:Lms.Explore.type}
+                                </label>
+                                ${type class="form-control"}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="${id:value}">
+                                    ${tr:Lms.Explore.value}
+                                </label>
+                                ${value class="form-control"}
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        ${add-btn class="btn btn-primary me-1"}${cancel-btn class="btn btn-secondary"}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </message>
 
-<message id="Lms.Explore.template.info.artists">
-	<div class="row align-items-center">
-		<div class="col-4">
-			${type}
-		</div>
-		<div class="col">
-			${artist-container data-bs-dismiss="modal"}
-		</div>
-	</div>
-</message>
+    <message id="Lms.Explore.template.info.artists">
+        <div class="row align-items-center">
+            <div class="col-4">
+                ${type}
+            </div>
+            <div class="col">
+                ${artist-container data-bs-dismiss="modal"}
+            </div>
+        </div>
+    </message>
 
-<message id="Lms.Explore.template.sort-mode-selector">
-	<div class="dropdown">
-		<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-			${selected-item}
-		</button>
-		<ul class="dropdown-menu">
-			<li>${random class="dropdown-item"}</li>
-			<li>${starred class="dropdown-item"}</li>
-			<li>${recently-played class="dropdown-item"}</li>
-			<li>${most-played class="dropdown-item"}</li>
-			<li>${recently-added class="dropdown-item"}</li>
-			<li>${recently-modified class="dropdown-item"}</li>
-			<li>${release-date class="dropdown-item"}</li>
-			<li>${all class="dropdown-item"}</li>
-		</ul>
-	</div>
-</message>
+    <message id="Lms.Explore.template.sort-mode-selector">
+        <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                    aria-expanded="false">
+                ${selected-item}
+            </button>
+            <ul class="dropdown-menu">
+                <li>${random class="dropdown-item"}</li>
+                <li>${starred class="dropdown-item"}</li>
+                <li>${recently-played class="dropdown-item"}</li>
+                <li>${most-played class="dropdown-item"}</li>
+                <li>${recently-added class="dropdown-item"}</li>
+                <li>${recently-modified class="dropdown-item"}</li>
+                <li>${release-date class="dropdown-item"}</li>
+                <li>${all class="dropdown-item"}</li>
+            </ul>
+        </div>
+    </message>
 
-<message id="Lms.Explore.template.full-modal-artwork">
-	<div class="modal fade" tabindex="-1">
-		<div class="modal-dialog modal-dialog-centered Lms-artwork-full-modal-dialog">
-			<div class="modal-content bg-transparent border-0">
-				<div class="modal-body text-center">
-					${artwork class="Lms-cover-full Lms-cursor-pointer"}
-				</div>
-			</div>
-		</div>
-	</div>
-</message>
+    <message id="Lms.Explore.template.full-modal-artwork">
+        <div class="modal fade" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered Lms-artwork-full-modal-dialog">
+                <div class="modal-content bg-transparent border-0">
+                    <div class="modal-body text-center">
+                        ${artwork class="Lms-cover-full Lms-cursor-pointer"}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </message>
 
 </messages>

@@ -246,9 +246,6 @@ namespace lms::db
         // Accessors
         void setScanVersion(std::size_t version) { _scanVersion = version; }
         void setTrackNumber(std::optional<int> num) { _trackNumber = num; }
-        void setDiscNumber(std::optional<int> num) { _discNumber = num; }
-        void setTotalTrack(std::optional<int> totalTrack) { _totalTrack = totalTrack; }
-        void setDiscSubtitle(std::string_view name) { _discSubtitle = name; }
         void setName(std::string_view name);
         void setAbsoluteFilePath(const std::filesystem::path& filePath);
         void setFileSize(std::size_t fileSize) { _fileSize = fileSize; }
@@ -286,9 +283,6 @@ namespace lms::db
 
         std::size_t getScanVersion() const { return _scanVersion; }
         std::optional<std::size_t> getTrackNumber() const { return _trackNumber; }
-        std::optional<std::size_t> getTotalTrack() const { return _totalTrack; }
-        std::optional<std::size_t> getDiscNumber() const { return _discNumber; }
-        const std::string& getDiscSubtitle() const { return _discSubtitle; }
         std::string getName() const { return _name; }
         const std::filesystem::path& getAbsoluteFilePath() const { return _absoluteFilePath; }
         long long getFileSize() const { return _fileSize; }
@@ -340,9 +334,6 @@ namespace lms::db
         {
             Wt::Dbo::field(a, _scanVersion, "scan_version");
             Wt::Dbo::field(a, _trackNumber, "track_number");
-            Wt::Dbo::field(a, _discNumber, "disc_number");
-            Wt::Dbo::field(a, _totalTrack, "total_track");     // here in Track since Release does not have concept of "disc" (yet?)
-            Wt::Dbo::field(a, _discSubtitle, "disc_subtitle"); // here in Track since Release does not have concept of "disc" (yet?)
             Wt::Dbo::field(a, _name, "name");
             Wt::Dbo::field(a, _duration, "duration");
             Wt::Dbo::field(a, _bitrate, "bitrate");
@@ -386,10 +377,7 @@ namespace lms::db
 
         int _scanVersion{};
         std::optional<int> _trackNumber{};
-        std::optional<int> _discNumber{};
-        std::optional<int> _totalTrack{};
         std::optional<int> _rating{};
-        std::string _discSubtitle;
         std::string _name;
         int _bitrate{}; // in bps
         int _bitsPerSample{};

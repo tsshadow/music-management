@@ -122,13 +122,13 @@ namespace lms::db
         case TrackSortMethod::Name:
             return "t.name";
         case TrackSortMethod::DateDescAndRelease:
-            return "t.date DESC, t.release_id, t.disc_number, t.track_number";
+            return "t.date DESC, t.release_id, t.track_number";
         case TrackSortMethod::Release:
-            return "t.disc_number, t.track_number";
+            return "t.track_number";
         case TrackSortMethod::TrackList:
             return "t.tracklist_order";
         case TrackSortMethod::TrackNumber:
-            return "t.disc_number, t.track_number";
+            return "t.track_number";
         case TrackSortMethod::MostPlayed:
             return "t.play_count DESC, t.last_played DESC";
         case TrackSortMethod::RecentlyPlayed:

@@ -24,7 +24,7 @@
 #include <memory>
 #include <vector>
 
-#include "database/TrackId.hpp"
+#include "database/objects/TrackId.hpp"
 
 #include "ScanErrors.hpp"
 
@@ -49,11 +49,11 @@ namespace lms::scanner
         AssociateExternalLyrics,
         AssociatePlayListTracks,
         AssociateReleaseImages,
+        AssociateTrackImages,
         CheckForDuplicatedFiles,
         CheckForRemovedFiles,
         ComputeClusterStats,
         Compact,
-        DiscoverFiles,
         FetchTrackFeatures,
         Optimize,
         ReconciliateArtists,
@@ -83,7 +83,7 @@ namespace lms::scanner
         Wt::WDateTime startTime;
         Wt::WDateTime stopTime;
 
-        std::size_t totalFileCount{}; // Total number of files (estimated)
+        std::size_t totalFileCount{}; // Total number of files (only valid after the file scan step)
 
         std::size_t skips{}; // no change since last scan
         std::size_t scans{}; // count of scanned files
@@ -100,7 +100,7 @@ namespace lms::scanner
         std::size_t errorsCount{}; // maybe bigger than errors.size() if too many errors
         std::vector<ScanDuplicate> duplicates;
 
-        std::size_t nbFiles() const;
-        std::size_t nbChanges() const;
+        std::size_t getTotalFileCount() const;
+        std::size_t getChangesCount() const;
     };
 } // namespace lms::scanner

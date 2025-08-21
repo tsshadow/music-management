@@ -25,14 +25,14 @@
 
 #include "av/IAudioFile.hpp"
 #include "core/Service.hpp"
-#include "database/Artist.hpp"
-#include "database/Release.hpp"
 #include "database/Session.hpp"
-#include "database/Track.hpp"
-#include "database/TrackArtistLink.hpp"
-#include "database/TrackLyrics.hpp"
 #include "database/Types.hpp"
-#include "database/User.hpp"
+#include "database/objects/Artist.hpp"
+#include "database/objects/Release.hpp"
+#include "database/objects/Track.hpp"
+#include "database/objects/TrackArtistLink.hpp"
+#include "database/objects/TrackLyrics.hpp"
+#include "database/objects/User.hpp"
 #include "services/feedback/IFeedbackService.hpp"
 #include "services/scrobbling/IScrobblingService.hpp"
 
@@ -240,8 +240,15 @@ namespace lms::ui::TrackListHelpers
             entry->bindWidget("artists-md", utils::createArtistDisplayNameWithAnchors(track->getArtistDisplayName(), artists));
         }
 
-        auto image{ utils::createTrackImage(trackId, ArtworkResource::Size::Small) };
-        image->addStyleClass("Lms-cover-track rounded");
+        std::unique_ptr<Wt::WImage> image;
+        if (track->getPreferredMediaArtworkId().isValid())
+            image = utils::createArtworkImage(track->getPreferredMediaArtworkId(), ArtworkResource::DefaultArtworkType::Track, ArtworkResource::Size::Small);
+        else if (track->getPreferredArtworkId().isValid())
+            image = utils::createArtworkImage(track->getPreferredArtworkId(), ArtworkResource::DefaultArtworkType::Track, ArtworkResource::Size::Small);
+        else
+            image = utils::createDefaultArtworkImage(ArtworkResource::DefaultArtworkType::Track);
+
+        image->addStyleClass("Lms-cover-track rounded"); // hack
         if (track->getRelease())
         {
             entry->setCondition("if-has-release", true);
@@ -283,6 +290,7 @@ namespace lms::ui::TrackListHelpers
         });
 
         entry->bindNew<Wt::WPushButton>("more-btn", Wt::WString::tr("Lms.template.more-btn"), Wt::TextFormat::XHTML);
+
         entry->bindNew<Wt::WPushButton>("play", Wt::WString::tr("Lms.Explore.play"))
             ->clicked()
             .connect([trackId, &playQueueController] {
@@ -302,21 +310,28 @@ namespace lms::ui::TrackListHelpers
         {
             auto isStarred{ [=] { return core::Service<feedback::IFeedbackService>::get()->isStarred(LmsApp->getUserId(), trackId); } };
 
-            Wt::WPushButton* starBtn{ entry->bindNew<Wt::WPushButton>("star", Wt::WString::tr(isStarred() ? "Lms.Explore.unstar" : "Lms.Explore.star")) };
-            starBtn->clicked().connect([=] {
+            Wt::WPushButton* starBtn{ entry->bindNew<Wt::WPushButton>("star-btn", Wt::WString::tr(isStarred() ? "Lms.template.unstar-btn" : "Lms.template.star-btn"), Wt::TextFormat::XHTML) };
+            Wt::WPushButton* starMenuEntry{ entry->bindNew<Wt::WPushButton>("star", Wt::WString::tr(isStarred() ? "Lms.Explore.unstar" : "Lms.Explore.star")) };
+
+            auto toggle{ [=] {
                 auto transaction{ LmsApp->getDbSession().createWriteTransaction() };
 
                 if (isStarred())
                 {
                     core::Service<feedback::IFeedbackService>::get()->unstar(LmsApp->getUserId(), trackId);
-                    starBtn->setText(Wt::WString::tr("Lms.Explore.star"));
+                    starMenuEntry->setText(Wt::WString::tr("Lms.Explore.star"));
+                    starBtn->setText(Wt::WString::tr("Lms.template.star-btn"));
                 }
                 else
                 {
                     core::Service<feedback::IFeedbackService>::get()->star(LmsApp->getUserId(), trackId);
-                    starBtn->setText(Wt::WString::tr("Lms.Explore.unstar"));
+                    starMenuEntry->setText(Wt::WString::tr("Lms.Explore.unstar"));
+                    starBtn->setText(Wt::WString::tr("Lms.template.unstar-btn"));
                 }
-            });
+            } };
+
+            starMenuEntry->clicked().connect([=] { toggle(); });
+            starBtn->clicked().connect([=] { toggle(); });
         }
 
         entry->bindNew<Wt::WPushButton>("download", Wt::WString::tr("Lms.Explore.download"))

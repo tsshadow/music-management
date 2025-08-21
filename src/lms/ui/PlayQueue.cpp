@@ -32,12 +32,13 @@
 #include "core/ILogger.hpp"
 #include "core/Random.hpp"
 #include "core/Service.hpp"
-#include "database/Artist.hpp"
-#include "database/Release.hpp"
 #include "database/Session.hpp"
-#include "database/Track.hpp"
-#include "database/TrackList.hpp"
-#include "database/User.hpp"
+#include "database/objects/Artist.hpp"
+#include "database/objects/Medium.hpp"
+#include "database/objects/Release.hpp"
+#include "database/objects/Track.hpp"
+#include "database/objects/TrackList.hpp"
+#include "database/objects/User.hpp"
 #include "services/feedback/IFeedbackService.hpp"
 #include "services/recommendation/IPlaylistGeneratorService.hpp"
 
@@ -490,8 +491,18 @@ namespace lms::ui
             entry->bindWidget("artists-md", utils::createArtistAnchorList(artists));
         }
 
-        auto image{ utils::createTrackImage(track->getId(), ArtworkResource::Size::Small) };
-        image->addStyleClass("Lms-cover-track rounded");
+        db::ArtworkId artworkId{ track->getPreferredMediaArtworkId() };
+        if (!artworkId.isValid())
+            artworkId = track->getPreferredArtworkId();
+
+        std::unique_ptr<Wt::WImage> image;
+        if (artworkId.isValid())
+            image = utils::createArtworkImage(artworkId, ArtworkResource::DefaultArtworkType::Track, ArtworkResource::Size::Small);
+        else
+            image = utils::createDefaultArtworkImage(ArtworkResource::DefaultArtworkType::Track);
+
+        image->addStyleClass("Lms-cover-track rounded"); // HACK
+
         if (const auto release{ track->getRelease() })
         {
             entry->setCondition("if-has-release", true);
@@ -611,14 +622,20 @@ namespace lms::ui
             return std::nullopt;
 
         case MediaPlayer::Settings::ReplayGain::Mode::Track:
-            gain = track->getTrackReplayGain();
+            gain = track->getReplayGain();
             break;
 
         case MediaPlayer::Settings::ReplayGain::Mode::Release:
-            gain = track->getReleaseReplayGain();
-            if (!gain)
-                gain = track->getTrackReplayGain();
-            break;
+            {
+                const auto medium{ track->getMedium() };
+                if (medium && medium->getReplayGain())
+                    gain = medium->getReplayGain();
+
+                if (!gain)
+                    gain = track->getReplayGain();
+
+                break;
+            }
 
         case MediaPlayer::Settings::ReplayGain::Mode::Auto:
             {
@@ -631,13 +648,15 @@ namespace lms::ui
                 if ((prevTrack && prevTrack->getRelease() && prevTrack->getRelease() == track->getRelease())
                     || (nextTrack && nextTrack->getRelease() && nextTrack->getRelease() == track->getRelease()))
                 {
-                    gain = track->getReleaseReplayGain();
+                    const auto medium{ track->getMedium() };
+                    if (medium && medium->getReplayGain())
+                        gain = medium->getReplayGain();
                     if (!gain)
-                        gain = track->getTrackReplayGain();
+                        gain = track->getReplayGain();
                 }
                 else
                 {
-                    gain = track->getTrackReplayGain();
+                    gain = track->getReplayGain();
                 }
                 break;
             }

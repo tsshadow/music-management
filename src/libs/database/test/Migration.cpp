@@ -22,27 +22,27 @@
 #include "Common.hpp"
 
 #include "core/String.hpp"
-#include "database/Artist.hpp"
-#include "database/ArtistInfo.hpp"
-#include "database/AuthToken.hpp"
-#include "database/Db.hpp"
-#include "database/Directory.hpp"
-#include "database/Image.hpp"
-#include "database/PlayListFile.hpp"
-#include "database/PlayQueue.hpp"
-#include "database/RatedArtist.hpp"
-#include "database/RatedRelease.hpp"
-#include "database/RatedTrack.hpp"
-#include "database/ScanSettings.hpp"
-#include "database/StarredArtist.hpp"
-#include "database/StarredRelease.hpp"
-#include "database/StarredTrack.hpp"
-#include "database/TrackArtistLink.hpp"
-#include "database/TrackEmbeddedImage.hpp"
-#include "database/TrackEmbeddedImageLink.hpp"
-#include "database/TrackLyrics.hpp"
-#include "database/UIState.hpp"
-#include "database/User.hpp"
+#include "database/objects/Artist.hpp"
+#include "database/objects/ArtistInfo.hpp"
+#include "database/objects/AuthToken.hpp"
+#include "database/objects/Directory.hpp"
+#include "database/objects/Image.hpp"
+#include "database/objects/Medium.hpp"
+#include "database/objects/PlayListFile.hpp"
+#include "database/objects/PlayQueue.hpp"
+#include "database/objects/RatedArtist.hpp"
+#include "database/objects/RatedRelease.hpp"
+#include "database/objects/RatedTrack.hpp"
+#include "database/objects/ScanSettings.hpp"
+#include "database/objects/StarredArtist.hpp"
+#include "database/objects/StarredRelease.hpp"
+#include "database/objects/StarredTrack.hpp"
+#include "database/objects/TrackArtistLink.hpp"
+#include "database/objects/TrackEmbeddedImage.hpp"
+#include "database/objects/TrackEmbeddedImageLink.hpp"
+#include "database/objects/TrackLyrics.hpp"
+#include "database/objects/UIState.hpp"
+#include "database/objects/User.hpp"
 
 namespace lms::db::tests
 {
@@ -357,6 +357,7 @@ VALUES
             EXPECT_FALSE(TrackEmbeddedImage::find(session, TrackEmbeddedImageId{}));
             EXPECT_FALSE(TrackEmbeddedImageLink::find(session, TrackEmbeddedImageLinkId{}));
             EXPECT_FALSE(Image::find(session, ImageId{}));
+            EXPECT_FALSE(Medium::find(session, MediumId{}));
             EXPECT_FALSE(Label::find(session, LabelId{}));
             EXPECT_FALSE(Listen::find(session, ListenId{}));
             EXPECT_FALSE(PlayListFile::find(session, PlayListFileId{}));

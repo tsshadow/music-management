@@ -22,14 +22,15 @@
 #include <Wt/WPushButton.h>
 
 #include "core/String.hpp"
-#include "database/Artist.hpp"
-#include "database/ArtistInfo.hpp"
-#include "database/Cluster.hpp"
-#include "database/Release.hpp"
-#include "database/ScanSettings.hpp"
 #include "database/Session.hpp"
-#include "database/Track.hpp"
-#include "database/User.hpp"
+#include "database/objects/Artist.hpp"
+#include "database/objects/ArtistInfo.hpp"
+#include "database/objects/ArtworkId.hpp"
+#include "database/objects/Cluster.hpp"
+#include "database/objects/Release.hpp"
+#include "database/objects/ScanSettings.hpp"
+#include "database/objects/Track.hpp"
+#include "database/objects/User.hpp"
 #include "services/feedback/IFeedbackService.hpp"
 #include "services/recommendation/IRecommendationService.hpp"
 
@@ -46,11 +47,9 @@
 
 namespace lms::ui
 {
-    using namespace db;
-
     namespace
     {
-        std::optional<ArtistId> extractArtistIdFromInternalPath()
+        std::optional<db::ArtistId> extractArtistIdFromInternalPath()
         {
             if (wApp->internalPathMatches("/artist/mbid/"))
             {
@@ -65,7 +64,7 @@ namespace lms::ui
                 return std::nullopt;
             }
 
-            return core::stringUtils::readAs<ArtistId::ValueType>(wApp->internalPathNextPart("/artist/"));
+            return core::stringUtils::readAs<db::ArtistId::ValueType>(wApp->internalPathNextPart("/artist/"));
         }
     } // namespace
 
@@ -108,7 +107,7 @@ namespace lms::ui
         if (!artistId)
             throw ArtistNotFoundException{};
 
-        const auto similarArtistIds{ core::Service<recommendation::IRecommendationService>::get()->getSimilarArtists(*artistId, { TrackArtistLinkType::Artist, TrackArtistLinkType::ReleaseArtist }, 6) };
+        const auto similarArtistIds{ core::Service<recommendation::IRecommendationService>::get()->getSimilarArtists(*artistId, { db::TrackArtistLinkType::Artist, db::TrackArtistLinkType::ReleaseArtist }, 6) };
 
         auto transaction{ LmsApp->getDbSession().createReadTransaction() };
 
@@ -119,7 +118,7 @@ namespace lms::ui
         LmsApp->setTitle(artist->getName());
         _artistId = *artistId;
 
-        refreshArtwork();
+        refreshArtwork(artist->getPreferredArtworkId());
         refreshArtistInfo();
         refreshReleases();
         refreshAppearsOnReleases();
@@ -130,7 +129,7 @@ namespace lms::ui
         Wt::WContainerWidget* clusterContainers{ bindNew<Wt::WContainerWidget>("clusters") };
 
         {
-            auto clusterTypes{ ClusterType::findIds(LmsApp->getDbSession()).results };
+            auto clusterTypes{ db::ClusterType::findIds(LmsApp->getDbSession()).results };
             auto clusterGroups{ artist->getClusterGroups(clusterTypes, 3) };
 
             for (const auto& clusters : clusterGroups)
@@ -191,12 +190,24 @@ namespace lms::ui
         }
     }
 
-    void Artist::refreshArtwork()
+    void Artist::refreshArtwork(db::ArtworkId artworkId)
     {
-        auto* image{ bindWidget<Wt::WImage>("artwork", utils::createArtistImage(_artistId, ArtworkResource::Size::Large)) };
-        image->clicked().connect([this] {
-            utils::showArtworkModal(Wt::WLink{ LmsApp->getArtworkResource()->getArtistImageUrl(_artistId) });
-        });
+        std::unique_ptr<Wt::WImage> artworkImage;
+        if (artworkId.isValid())
+        {
+            artworkImage = utils::createArtworkImage(artworkId, ArtworkResource::DefaultArtworkType::Artist, ArtworkResource::Size::Large);
+            artworkImage->addStyleClass("Lms-cursor-pointer"); // HACK
+        }
+        else
+            artworkImage = utils::createDefaultArtworkImage(ArtworkResource::DefaultArtworkType::Artist);
+
+        auto* image{ bindWidget<Wt::WImage>("artwork", std::move(artworkImage)) };
+        if (artworkId.isValid())
+        {
+            image->clicked().connect([artworkId] {
+                utils::showArtworkModal(Wt::WLink{ LmsApp->getArtworkResource()->getArtworkUrl(artworkId, ArtworkResource::DefaultArtworkType::Artist) });
+            });
+        }
     }
 
     void Artist::refreshArtistInfo()
@@ -219,16 +230,16 @@ namespace lms::ui
     {
         _releaseContainers.clear();
 
-        Release::FindParameters params;
+        db::Release::FindParameters params;
         params.setFilters(_filters.getDbFilters());
-        params.setArtist(_artistId, { TrackArtistLinkType::ReleaseArtist }, {});
+        params.setArtist(_artistId, { db::TrackArtistLinkType::ReleaseArtist }, {});
         params.setSortMethod(LmsApp->getUser()->getUIArtistReleaseSortMethod());
 
-        const auto releases{ Release::findIds(LmsApp->getDbSession(), params) };
+        const auto releases{ db::Release::findIds(LmsApp->getDbSession(), params) };
         if (!releases.results.empty())
         {
             // first pass: gather all ids and sort by release type
-            for (const ReleaseId releaseId : releases.results)
+            for (const db::ReleaseId releaseId : releases.results)
             {
                 const db::Release::pointer release{ db::Release::find(LmsApp->getDbSession(), releaseId) };
 
@@ -261,27 +272,27 @@ namespace lms::ui
 
     void Artist::refreshAppearsOnReleases()
     {
-        constexpr core::EnumSet<TrackArtistLinkType> types{
-            TrackArtistLinkType::Artist,
-            TrackArtistLinkType::Arranger,
-            TrackArtistLinkType::Composer,
-            TrackArtistLinkType::Conductor,
-            TrackArtistLinkType::Lyricist,
-            TrackArtistLinkType::Mixer,
-            TrackArtistLinkType::Performer,
-            TrackArtistLinkType::Producer,
-            TrackArtistLinkType::Remixer,
-            TrackArtistLinkType::Writer,
+        constexpr core::EnumSet<db::TrackArtistLinkType> types{
+            db::TrackArtistLinkType::Artist,
+            db::TrackArtistLinkType::Arranger,
+            db::TrackArtistLinkType::Composer,
+            db::TrackArtistLinkType::Conductor,
+            db::TrackArtistLinkType::Lyricist,
+            db::TrackArtistLinkType::Mixer,
+            db::TrackArtistLinkType::Performer,
+            db::TrackArtistLinkType::Producer,
+            db::TrackArtistLinkType::Remixer,
+            db::TrackArtistLinkType::Writer,
         };
 
         _appearsOnReleaseContainer = {};
 
-        Release::FindParameters params;
+        db::Release::FindParameters params;
         params.setFilters(_filters.getDbFilters());
-        params.setArtist(_artistId, types, { TrackArtistLinkType::ReleaseArtist });
-        params.setSortMethod(ReleaseSortMethod::OriginalDateDesc);
+        params.setArtist(_artistId, types, { db::TrackArtistLinkType::ReleaseArtist });
+        params.setSortMethod(db::ReleaseSortMethod::OriginalDateDesc);
 
-        const auto releases{ Release::findIds(LmsApp->getDbSession(), params) };
+        const auto releases{ db::Release::findIds(LmsApp->getDbSession(), params) };
         if (!releases.results.empty())
         {
             Wt::WTemplate* releaseContainer{ bindNew<Wt::WTemplate>("appears-on-releases", Wt::WString::tr("Lms.Explore.Artist.template.release-container")) };
@@ -310,7 +321,7 @@ namespace lms::ui
         setCondition("if-has-non-release-tracks", added);
     }
 
-    void Artist::refreshSimilarArtists(const std::vector<ArtistId>& similarArtistsId)
+    void Artist::refreshSimilarArtists(const std::vector<db::ArtistId>& similarArtistsId)
     {
         if (similarArtistsId.empty())
             return;
@@ -318,7 +329,7 @@ namespace lms::ui
         setCondition("if-has-similar-artists", true);
         Wt::WContainerWidget* similarArtistsContainer{ bindNew<Wt::WContainerWidget>("similar-artists") };
 
-        for (const ArtistId artistId : similarArtistsId)
+        for (const db::ArtistId artistId : similarArtistsId)
         {
             const db::Artist::pointer similarArtist{ db::Artist::find(LmsApp->getDbSession(), artistId) };
             if (!similarArtist)
@@ -358,19 +369,19 @@ namespace lms::ui
     {
         bool areTracksAdded{};
 
-        const Range range{ static_cast<std::size_t>(_trackContainer->getCount()), _tracksBatchSize };
+        const db::Range range{ static_cast<std::size_t>(_trackContainer->getCount()), _tracksBatchSize };
 
-        Track::FindParameters params;
+        db::Track::FindParameters params;
         params.setFilters(_filters.getDbFilters());
         params.setArtist(_artistId);
         params.setRange(range);
-        params.setSortMethod(TrackSortMethod::Name);
+        params.setSortMethod(db::TrackSortMethod::Name);
         params.setNonRelease(true);
 
         auto transaction{ LmsApp->getDbSession().createReadTransaction() };
 
-        const auto tracks{ Track::find(LmsApp->getDbSession(), params) };
-        for (const Track::pointer& track : tracks.results)
+        const auto tracks{ db::Track::find(LmsApp->getDbSession(), params) };
+        for (const db::Track::pointer& track : tracks.results)
         {
             // TODO handle this with range
             if (_trackContainer->getCount() == _tracksMaxCount)

@@ -27,10 +27,10 @@
 #include "core/String.hpp"
 #include "core/Utils.hpp"
 #include "database/Session.hpp"
-#include "database/Track.hpp"
-#include "database/TrackEmbeddedImageId.hpp"
-#include "database/TrackLyrics.hpp"
-#include "database/User.hpp"
+#include "database/objects/Track.hpp"
+#include "database/objects/TrackEmbeddedImageId.hpp"
+#include "database/objects/TrackLyrics.hpp"
+#include "database/objects/User.hpp"
 #include "services/artwork/IArtworkService.hpp"
 #include "services/transcoding/ITranscodingService.hpp"
 
@@ -207,9 +207,9 @@ namespace lms::api::subsonic
         auto transaction{ context.dbSession.createReadTransaction() };
 
         db::Track::FindParameters params;
-        params.name = titleName;
-        params.artistName = artistName;
-        params.range = Range{ 0, 2 };
+        params.setName(titleName);
+        params.setArtistName(artistName);
+        params.setRange(db::Range{ .offset = 0, .size = 2 });
 
         // Choice: we return nothing if there are too many results
         const auto tracks{ db::Track::findIds(context.dbSession, params) };
@@ -336,12 +336,7 @@ namespace lms::api::subsonic
         if (size)
             *size = core::utils::clamp(*size, std::size_t{ 32 }, std::size_t{ 2048 });
 
-        std::shared_ptr<image::IEncodedImage> image;
-        if (const db::TrackEmbeddedImageId * trackEmbeddedImageId{ std::get_if<db::TrackEmbeddedImageId>(&coverArtId.id) })
-            image = core::Service<cover::IArtworkService>::get()->getTrackEmbeddedImage(*trackEmbeddedImageId, size);
-        else if (const db::ImageId * imageId{ std::get_if<db::ImageId>(&coverArtId.id) })
-            image = core::Service<cover::IArtworkService>::get()->getImage(*imageId, size);
-
+        std::shared_ptr<image::IEncodedImage> image{ core::Service<artwork::IArtworkService>::get()->getImage(coverArtId.id, size) };
         if (!image)
         {
             response.setStatus(404);

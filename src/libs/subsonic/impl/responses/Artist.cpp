@@ -22,11 +22,11 @@
 #include "core/ITraceLogger.hpp"
 #include "core/Service.hpp"
 #include "core/String.hpp"
-#include "database/Artist.hpp"
-#include "database/Image.hpp"
-#include "database/Release.hpp"
-#include "database/TrackArtistLink.hpp"
-#include "database/User.hpp"
+#include "database/objects/Artist.hpp"
+#include "database/objects/Artwork.hpp"
+#include "database/objects/Release.hpp"
+#include "database/objects/TrackArtistLink.hpp"
+#include "database/objects/User.hpp"
 #include "services/feedback/IFeedbackService.hpp"
 
 #include "CoverArtId.hpp"
@@ -95,9 +95,9 @@ namespace lms::api::subsonic
 
         artistNode.setAttribute("id", idToString(artist->getId()));
         artistNode.setAttribute("name", artist->getName());
-        if (const auto image{ artist->getImage() })
+        if (const auto artwork{ artist->getPreferredArtwork() })
         {
-            const CoverArtId coverArtId{ image->getId(), image->getLastWriteTime().toTime_t() };
+            CoverArtId coverArtId{ artwork->getId(), artwork->getLastWrittenTime().toTime_t() };
             artistNode.setAttribute("coverArt", idToString(coverArtId));
         }
 

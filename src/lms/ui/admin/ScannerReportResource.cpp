@@ -24,7 +24,7 @@
 
 #include "core/String.hpp"
 #include "database/Session.hpp"
-#include "database/Track.hpp"
+#include "database/objects/Track.hpp"
 
 #include "LmsApplication.hpp"
 #include "services/scanner/ScanErrors.hpp"
@@ -55,7 +55,7 @@ namespace lms::ui
             }
             void visit(const scanner::EmbeddedImageScanError& error) override
             {
-                _os << error.path << ": " << Wt::WString::tr("Lms.Admin.ScannerController.bad-embedded-image").arg(error.index).toUTF8() << '\n';
+                _os << error.path << ": " << Wt::WString::tr("Lms.Admin.ScannerController.bad-embedded-image").arg(error.index).arg(Wt::WString::fromUTF8(error.errorMsg)).toUTF8() << '\n';
             }
             void visit(const scanner::NoAudioTrackFoundError& error) override
             {
@@ -75,7 +75,7 @@ namespace lms::ui
             }
             void visit(const scanner::ImageFileScanError& error) override
             {
-                _os << error.path << ": " << Wt::WString::tr("Lms.Admin.ScannerController.cannot-read-image-file").toUTF8() << '\n';
+                _os << error.path << ": " << Wt::WString::tr("Lms.Admin.ScannerController.cannot-read-image-file").arg(Wt::WString::fromUTF8(error.errorMsg)).toUTF8() << '\n';
             }
             void visit(const scanner::LyricsFileScanError& error) override
             {

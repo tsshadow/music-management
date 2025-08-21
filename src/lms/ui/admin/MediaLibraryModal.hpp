@@ -22,14 +22,14 @@
 #include <Wt/WSignal.h>
 #include <Wt/WTemplateFormView.h>
 
-#include "database/MediaLibraryId.hpp"
+#include "database/objects/MediaLibraryId.hpp"
 
 namespace lms::ui
 {
     class MediaLibraryModal : public Wt::WTemplateFormView
     {
     public:
-        MediaLibraryModal(db::MediaLibraryId mediaLibaryId);
+        MediaLibraryModal(db::MediaLibraryId mediaLibraryId);
 
         Wt::Signal<db::MediaLibraryId>& saved() { return _saved; };
         Wt::Signal<>& cancelled() { return _cancelled; }

@@ -24,16 +24,16 @@
 #include <boost/program_options.hpp>
 
 #include "core/IConfig.hpp"
+#include "core/ILogger.hpp"
 #include "core/Service.hpp"
-#include "core/StreamLogger.hpp"
 #include "core/SystemPaths.hpp"
-#include "database/Artist.hpp"
-#include "database/Cluster.hpp"
-#include "database/Db.hpp"
-#include "database/Release.hpp"
+#include "database/IDb.hpp"
 #include "database/Session.hpp"
-#include "database/Track.hpp"
 #include "database/Types.hpp"
+#include "database/objects/Artist.hpp"
+#include "database/objects/Cluster.hpp"
+#include "database/objects/Release.hpp"
+#include "database/objects/Track.hpp"
 #include "services/recommendation/IRecommendationService.hpp"
 
 namespace lms
@@ -129,7 +129,7 @@ int main(int argc, char* argv[])
         namespace po = boost::program_options;
 
         // log to stdout
-        core::Service<core::logging::ILogger> logger{ std::make_unique<core::logging::StreamLogger>(std::cout) };
+        core::Service<core::logging::ILogger> logger{ core::logging::createLogger() };
 
         po::options_description desc{ "Allowed options" };
         desc.add_options()("help,h", "print usage message")("conf,c", po::value<std::string>()->default_value(core::sysconfDirectory / "lms.conf"), "LMS config file")("artists,a", "Display recommendation for artists")("releases,r", "Display recommendation for releases")("tracks,t", "Display recommendation for tracks")("max,m", po::value<unsigned>()->default_value(3), "Max similarity result count");
@@ -145,11 +145,11 @@ int main(int argc, char* argv[])
 
         core::Service<core::IConfig> config{ core::createConfig(vm["conf"].as<std::string>()) };
 
-        Db db{ config->getPath("working-dir", "/var/lms") / "lms.db" };
-        Session session{ db };
+        auto db{ db::createDb(config->getPath("working-dir", "/var/lms") / "lms.db") };
+        Session session{ *db };
 
         std::cout << "Creating recommendation service..." << std::endl;
-        const auto recommendationService{ recommendation::createRecommendationService(db) };
+        const auto recommendationService{ recommendation::createRecommendationService(*db) };
         std::cout << "Recommendation service created!" << std::endl;
 
         std::cout << "Loading recommendation service..." << std::endl;
@@ -160,13 +160,13 @@ int main(int argc, char* argv[])
         std::cout << "Recommendation service loaded!" << std::endl;
 
         if (vm.count("tracks"))
-            dumpTracksRecommendation(db, *recommendationService, maxSimilarityCount);
+            dumpTracksRecommendation(*db, *recommendationService, maxSimilarityCount);
 
         if (vm.count("releases"))
-            dumpReleasesRecommendation(db, *recommendationService, maxSimilarityCount);
+            dumpReleasesRecommendation(*db, *recommendationService, maxSimilarityCount);
 
         if (vm.count("artists"))
-            dumpArtistsRecommendation(db, *recommendationService, maxSimilarityCount);
+            dumpArtistsRecommendation(*db, *recommendationService, maxSimilarityCount);
     }
     catch (std::exception& e)
     {

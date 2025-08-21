@@ -24,11 +24,11 @@
 
 #include "core/ILogger.hpp"
 #include "core/String.hpp"
-#include "database/Artist.hpp"
-#include "database/ArtistInfo.hpp"
-#include "database/Db.hpp"
-#include "database/MediaLibrary.hpp"
+#include "database/IDb.hpp"
 #include "database/Session.hpp"
+#include "database/objects/Artist.hpp"
+#include "database/objects/ArtistInfo.hpp"
+#include "database/objects/MediaLibrary.hpp"
 #include "metadata/ArtistInfo.hpp"
 #include "metadata/Types.hpp"
 #include "services/scanner/ScanErrors.hpp"
@@ -75,8 +75,8 @@ namespace lms::scanner
                 _parsedArtistInfo = metadata::parseArtistInfo(ifs);
                 if (_parsedArtistInfo->name.empty())
                 {
-                    addError<MissingArtistNameError>(getFilePath());
-                    _parsedArtistInfo.reset();
+                    _parsedArtistInfo->name = getFilePath().parent_path().filename();
+                    LMS_LOG(DBUPDATER, DEBUG, "No name found in " << getFilePath() << ", using '" << _parsedArtistInfo->name << "'");
                 }
             }
             catch (const metadata::ArtistInfoParseException& e)
@@ -137,7 +137,7 @@ namespace lms::scanner
         }
     } // namespace
 
-    ArtistInfoFileScanner::ArtistInfoFileScanner(db::Db& db, const ScannerSettings& settings)
+    ArtistInfoFileScanner::ArtistInfoFileScanner(db::IDb& db, const ScannerSettings& settings)
         : _db{ db }
         , _settings{ settings }
     {

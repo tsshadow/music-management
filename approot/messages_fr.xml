@@ -52,11 +52,17 @@
 <message id="Lms.Error.user-not-found">L'utilisateur n'existe pas</message>
 
 <!--Administration-->
+<message id="Lms.Admin.menu-about"><i class="fa fa-fw fa-question-circle" aria-hidden="true"></i> À propos</message>
+<message id="Lms.Admin.menu-debug-tools"><i class="fa fa-fw fa-bug" aria-hidden="true"></i> Outils de débogage</message>
 <message id="Lms.Admin.menu-media-libraries"><i class="fa fa-fw fa-database" aria-hidden="true"></i> Bibliothèques</message>
 <message id="Lms.Admin.menu-scan-settings"><i class="fa fa-fw fa-cogs" aria-hidden="true"></i> Paramètres du scan</message>
 <message id="Lms.Admin.menu-scanner"><i class="fa fa-fw fa-wrench" aria-hidden="true"></i> Scanner</message>
-<message id="Lms.Admin.menu-tracing"><i class="fa fa-fw fa-bar-chart" aria-hidden="true"></i> Traces</message>
 <message id="Lms.Admin.menu-users"><i class="fa fa-fw fa-users" aria-hidden="true"></i> Utilisateurs</message>
+
+<!--About-->
+<message id="Lms.Admin.About.about">À propos</message>
+<message id="Lms.Admin.About.homepage">Page d’accueil</message>
+<message id="Lms.Admin.About.version">Version</message>
 
 <!--MediaLibraries-->
 <message id="Lms.Admin.MediaLibraries.media-libraries">Bibliothèques musicales</message>
@@ -74,6 +80,7 @@
 
 <!--Scan settings-->
 <message id="Lms.Admin.Database.allow-mbid-artist-merge">Permettre la fusion des artistes sans MBID avec ceux qui en ont un</message>
+<message id="Lms.Admin.Database.artist-image-fallback-to-release">Utiliser une image d'album si aucune image de l'artiste n'est disponible</message>
 <message id="Lms.Admin.Database.artist-tag-delimiters">Délimiteurs à utiliser pour séparer les tags d'artistes</message>
 <message id="Lms.Admin.Database.artists-to-not-split">Artistes à ne pas séparer en utilisant les délimiteurs (un artiste par ligne)</message>
 <message id="Lms.Admin.Database.daily">Tous les jours</message>
@@ -100,11 +107,11 @@
 
 <!--Scanner Controller-->
 <message id="Lms.Admin.ScannerController.bad-duration">Impossible de récupérer la durée de la piste</message>
-<message id="Lms.Admin.ScannerController.bad-embedded-image">Impossible de lire l'image à l'indice {1}</message>
+<message id="Lms.Admin.ScannerController.bad-embedded-image">Impossible de lire l'image à l'indice {1} : {2}</message>
 <message id="Lms.Admin.ScannerController.cannot-read-artist-info-file">Impossible d'analyser le fichier d'informations sur l'artiste</message>
 <message id="Lms.Admin.ScannerController.cannot-read-audio-file">Impossible d'analyser le fichier audio</message>
 <message id="Lms.Admin.ScannerController.cannot-read-file">Impossible de lire le fichier ({1})</message>
-<message id="Lms.Admin.ScannerController.cannot-read-image-file">Impossible d'analyser le fichier image</message>
+<message id="Lms.Admin.ScannerController.cannot-read-image-file">Impossible d'analyser le fichier image : {1}</message>
 <message id="Lms.Admin.ScannerController.cannot-read-lyrics-file">Impossible d'analyser le fichier de paroles</message>
 <message id="Lms.Admin.ScannerController.cannot-read-playlist-file">Impossible d'analyser le fichier de liste de lecture</message>
 <message id="Lms.Admin.ScannerController.compact">Compacter la base de données. <strong>Attention :</strong> cette opération peut prendre du temps et va vérouiller l'application pendant toute l'étape de compactage!</message>
@@ -133,23 +140,30 @@
 <message id="Lms.Admin.ScannerController.step-associating-external-lyrics">Association des paroles externes: {1}%...</message>
 <message id="Lms.Admin.ScannerController.step-associating-playlist-tracks">Association des pistes des listes de lectures: {1}%...</message>
 <message id="Lms.Admin.ScannerController.step-associating-release-images">Association des images des albums: {1}%...</message>
+<message id="Lms.Admin.ScannerController.step-associating-track-images">Association des images des pistes: {1}%...</message>
 <message id="Lms.Admin.ScannerController.step-checking-for-duplicate-files">Vérification des fichiers dupliqués... {1} fichiers</message>
 <message id="Lms.Admin.ScannerController.step-checking-for-removed-files">Vérification des fichiers supprimés... {1}%</message>
 <message id="Lms.Admin.ScannerController.step-compact">Compactage de la base de données...</message>
 <message id="Lms.Admin.ScannerController.step-compute-cluster-stats">Calcul des statistiques... {1}%</message>
-<message id="Lms.Admin.ScannerController.step-discovering-files">Découverte des fichiers : {1} fichiers</message>
 <message id="Lms.Admin.ScannerController.step-fetching-track-features">Récupération des métadonnées AcousticBrainz : {1}/{2} fichiers ({3}%)...</message>
 <message id="Lms.Admin.ScannerController.step-optimize">Optimisation de la base de données... {1}%...</message>
 <message id="Lms.Admin.ScannerController.step-reconciliate-artists">Reconciliation des artistes: {1} entrées...</message>
 <message id="Lms.Admin.ScannerController.step-reloading-similarity-engine">Rechargement du moteur de recommandation : {1}%...</message>
 <message id="Lms.Admin.ScannerController.step-removing-orphaned-entries">Retrait des entrées orphelines: {1} entrées...</message>
-<message id="Lms.Admin.ScannerController.step-scanning-files">Scan des fichiers : {1}/{2} ({3}%)...</message>
+<message id="Lms.Admin.ScannerController.step-scanning-files">Analyse des bibliothèques : {1} fichiers...</message>
 <message id="Lms.Admin.ScannerController.step-status">Statut de l'étape</message>
 <message id="Lms.Admin.ScannerController.step-updating-library-fields">Mise à jour des champs des bibliothèques: {1} entrées</message>
 
+<!--Debug Tools-->
+<message id="Lms.Admin.DebugTools.debug-tools">Outils de débogage</message>
+
+<!--Db-->
+<message id="Lms.Admin.DebugTools.Db.export-query-plans">Exporter les plans de requête</message>
+<message id="Lms.Admin.DebugTools.Db.db">Base de données</message>
+
 <!--Tracing-->
-<message id="Lms.Admin.Tracing.export-current-buffer">Exporter les traces</message>
-<message id="Lms.Admin.Tracing.tracing">Traces</message>
+<message id="Lms.Admin.DebugTools.Tracing.export-current-buffer">Exporter les traces</message>
+<message id="Lms.Admin.DebugTools.Tracing.tracing">Traces</message>
 
 <!--Users-->
 <message id="Lms.Admin.Users.add">Ajouter</message>

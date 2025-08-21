@@ -23,34 +23,37 @@
 #include <memory>
 #include <optional>
 
-#include "database/ImageId.hpp"
-#include "database/TrackEmbeddedImageId.hpp"
+#include "database/objects/ArtworkId.hpp"
+#include "database/objects/TrackListId.hpp"
 #include "image/IEncodedImage.hpp"
 
 namespace lms::db
 {
-    class Db;
+    class IDb;
 }
 
-namespace lms::cover
+namespace lms::artwork
 {
     class IArtworkService
     {
     public:
         virtual ~IArtworkService() = default;
 
-        virtual std::shared_ptr<image::IEncodedImage> getImage(db::ImageId imageId, std::optional<image::ImageSize> width) = 0;
-        virtual std::shared_ptr<image::IEncodedImage> getTrackEmbeddedImage(db::TrackEmbeddedImageId trackEmbeddedImageId, std::optional<image::ImageSize> width) = 0;
+        // Helpers to get preferred artworks
+        virtual db::ArtworkId findTrackListImage(db::TrackListId trackListId) = 0;
 
-        // Svg images dont have image "size"
-        virtual std::shared_ptr<image::IEncodedImage> getDefaultReleaseCover() = 0;
-        virtual std::shared_ptr<image::IEncodedImage> getDefaultArtistImage() = 0;
+        // Image retrieval, no width means original size
+        virtual std::shared_ptr<image::IEncodedImage> getImage(db::ArtworkId artworkId, std::optional<image::ImageSize> width) = 0;
+
+        // Svg images don't have image "size"
+        virtual std::shared_ptr<image::IEncodedImage> getDefaultReleaseArtwork() = 0;
+        virtual std::shared_ptr<image::IEncodedImage> getDefaultArtistArtwork() = 0;
 
         virtual void flushCache() = 0;
 
         virtual void setJpegQuality(unsigned quality) = 0; // from 1 to 100
     };
 
-    std::unique_ptr<IArtworkService> createArtworkService(db::Db& db, const std::filesystem::path& defaultReleaseCoverSvgPath, const std::filesystem::path& defaultArtistImageSvgPath);
+    std::unique_ptr<IArtworkService> createArtworkService(db::IDb& db, const std::filesystem::path& defaultReleaseCoverSvgPath, const std::filesystem::path& defaultArtistImageSvgPath);
 
-} // namespace lms::cover
+} // namespace lms::artwork

@@ -2,6 +2,7 @@
 add_executable(test-database
 	Artist.cpp
 	ArtistInfo.cpp
+	Artwork.cpp
 	AuthToken.cpp
 	Cluster.cpp
 	Common.cpp
@@ -9,6 +10,7 @@ add_executable(test-database
 	Directory.cpp
 	Image.cpp
 	Listen.cpp
+	Medium.cpp
 	Migration.cpp
 	PlayListFile.cpp
 	RatedArtist.cpp

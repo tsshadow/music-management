@@ -19,23 +19,25 @@
 
 #include "responses/Song.hpp"
 
+#include <filesystem>
 #include <string_view>
+#include <system_error>
 
-#include "av/IAudioFile.hpp"
 #include "core/ITraceLogger.hpp"
 #include "core/MimeTypes.hpp"
 #include "core/Service.hpp"
 #include "core/String.hpp"
-#include "database/Artist.hpp"
-#include "database/Cluster.hpp"
-#include "database/Directory.hpp"
-#include "database/Image.hpp"
-#include "database/Release.hpp"
-#include "database/Track.hpp"
-#include "database/TrackArtistLink.hpp"
-#include "database/TrackEmbeddedImage.hpp"
 #include "database/Types.hpp"
-#include "database/User.hpp"
+#include "database/objects/Artist.hpp"
+#include "database/objects/Artwork.hpp"
+#include "database/objects/Cluster.hpp"
+#include "database/objects/Directory.hpp"
+#include "database/objects/MediaLibrary.hpp"
+#include "database/objects/Medium.hpp"
+#include "database/objects/Release.hpp"
+#include "database/objects/Track.hpp"
+#include "database/objects/TrackArtistLink.hpp"
+#include "database/objects/User.hpp"
 #include "services/feedback/IFeedbackService.hpp"
 #include "services/scrobbling/IScrobblingService.hpp"
 
@@ -77,6 +79,8 @@ namespace lms::api::subsonic
     {
         LMS_SCOPED_TRACE_DETAILED("Subsonic", "CreateSong");
 
+        const auto medium{ track->getMedium() };
+
         Response::Node trackResponse;
 
         if (!id3)
@@ -90,13 +94,24 @@ namespace lms::api::subsonic
         trackResponse.setAttribute("title", track->getName());
         if (track->getTrackNumber())
             trackResponse.setAttribute("track", *track->getTrackNumber());
-        if (track->getDiscNumber())
-            trackResponse.setAttribute("discNumber", *track->getDiscNumber());
-        if (track->getYear())
-            trackResponse.setAttribute("year", *track->getYear());
+        if (medium && medium->getPosition())
+            trackResponse.setAttribute("discNumber", *medium->getPosition());
+        if (const auto originalYear{ track->getOriginalYear() })
+            trackResponse.setAttribute("year", *originalYear);
+        else if (const auto year{ track->getYear() })
+            trackResponse.setAttribute("year", *year);
         trackResponse.setAttribute("date", track->getDate().toString());
         trackResponse.setAttribute("playCount", core::Service<scrobbling::IScrobblingService>::get()->getCount(context.user->getId(), track->getId()));
-        trackResponse.setAttribute("path", track->getRelativeFilePath().string());
+
+        // maybe not available if user just removed the library without rescanning
+        if (const db::MediaLibrary::pointer library{ track->getMediaLibrary() })
+        {
+            std::error_code ec;
+            const std::filesystem::path relativeTrackPath{ std::filesystem::relative(track->getAbsoluteFilePath(), library->getPath(), ec) };
+            if (!ec && !relativeTrackPath.empty())
+                trackResponse.setAttribute("path", relativeTrackPath.c_str());
+        }
+
         trackResponse.setAttribute("size", track->getFileSize());
 
         if (track->getAbsoluteFilePath().has_extension())
@@ -112,28 +127,14 @@ namespace lms::api::subsonic
             trackResponse.setAttribute("transcodedContentType", core::getMimeType(std::filesystem::path{ "." + fileSuffix }));
         }
 
-        const Release::pointer release{ track->getRelease() };
+        auto artwork{ track->getPreferredMediaArtwork() };
+        if (!artwork)
+            artwork = track->getPreferredArtwork();
 
+        if (artwork)
         {
-            TrackEmbeddedImage::FindParameters params;
-            params.setTrack(track->getId());
-            params.setIsPreferred(true);
-            params.setRange(Range{ .offset = 0, .size = 1 });
-
-            bool hasEmbeddedImage{};
-            TrackEmbeddedImage::find(context.dbSession, params, [&](const TrackEmbeddedImage::pointer& image) {
-                const CoverArtId coverArtId{ image->getId() };
-                trackResponse.setAttribute("coverArt", idToString(coverArtId));
-            });
-
-            if (!hasEmbeddedImage && release)
-            {
-                if (const db::Image::pointer image{ release->getImage() })
-                {
-                    const CoverArtId coverArtId{ image->getId(), image->getLastWriteTime().toTime_t() };
-                    trackResponse.setAttribute("coverArt", idToString(coverArtId));
-                }
-            }
+            CoverArtId coverArtId{ artwork->getId(), artwork->getLastWrittenTime().toTime_t() };
+            trackResponse.setAttribute("coverArt", idToString(coverArtId));
         }
 
         const std::vector<Artist::pointer>& artists{ track->getArtists({ TrackArtistLinkType::Artist }) };
@@ -148,6 +149,7 @@ namespace lms::api::subsonic
                 trackResponse.setAttribute("artistId", idToString(artists.front()->getId()));
         }
 
+        const Release::pointer release{ track->getRelease() };
         if (release)
         {
             trackResponse.setAttribute("album", release->getName());
@@ -257,7 +259,6 @@ namespace lms::api::subsonic
         trackResponse.setAttribute("explicitStatus", advisoryToExplicitStatus(track->getAdvisory()));
 
         trackResponse.addChild("replayGain", createReplayGainNode(track));
-        trackResponse.setAttribute("userRating", track->getRating().value_or(0));
 
         return trackResponse;
     }

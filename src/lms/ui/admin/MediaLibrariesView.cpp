@@ -22,8 +22,8 @@
 #include <Wt/WPushButton.h>
 
 #include "core/Service.hpp"
-#include "database/MediaLibrary.hpp"
 #include "database/Session.hpp"
+#include "database/objects/MediaLibrary.hpp"
 #include "services/scanner/IScannerService.hpp"
 
 #include "LmsApplication.hpp"
@@ -83,8 +83,6 @@ namespace lms::ui
 
     void MediaLibrariesView::showDeleteLibraryModal(db::MediaLibraryId mediaLibraryId, Wt::WTemplate* libraryEntry)
     {
-        using namespace db;
-
         auto modal{ std::make_unique<Wt::WTemplate>(Wt::WString::tr("Lms.Admin.MediaLibraries.template.delete-library")) };
         modal->addFunction("tr", &Wt::WTemplate::Functions::tr);
         Wt::WWidget* modalPtr{ modal.get() };
@@ -94,7 +92,7 @@ namespace lms::ui
             {
                 auto transaction{ LmsApp->getDbSession().createWriteTransaction() };
 
-                db::MediaLibrary::pointer mediaLibrary{ MediaLibrary::find(LmsApp->getDbSession(), mediaLibraryId) };
+                db::MediaLibrary::pointer mediaLibrary{ db::MediaLibrary::find(LmsApp->getDbSession(), mediaLibraryId) };
                 if (mediaLibrary)
                     mediaLibrary.remove();
             }

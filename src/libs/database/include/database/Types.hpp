@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <functional>
@@ -101,16 +102,27 @@ namespace lms::db
         }
     };
 
+    struct FileStats
+    {
+        std::size_t trackCount;
+        std::size_t imageCount;
+        std::size_t trackLyricsCount;
+        std::size_t playListCount;
+        std::size_t artistInfoCount;
+
+        std::size_t getTotalFileCount() const { return trackCount + imageCount + trackLyricsCount + playListCount + artistInfoCount; }
+    };
+
     struct YearRange
     {
         int begin{};
         int end{};
     };
 
-    struct DiscInfo
+    struct FileInfo
     {
-        std::size_t position;
-        std::string name;
+        Wt::WDateTime lastWrittenTime;
+        std::size_t scanVersion{};
     };
 
     enum class ArtistSortMethod
@@ -145,6 +157,12 @@ namespace lms::db
         Name,
     };
 
+    enum class MediumSortMethod
+    {
+        None,
+        PositionAsc,
+    };
+
     enum class ReleaseSortMethod
     {
         None,
@@ -171,7 +189,10 @@ namespace lms::db
     enum class TrackEmbeddedImageSortMethod
     {
         None,
-        FrontCoverAndSize,
+        SizeDesc,
+        TrackNumberThenSizeDesc,
+        DiscNumberThenTrackNumberThenSizeDesc,
+        TrackListIndexAscThenSizeDesc,
     };
 
     enum class TrackListSortMethod
@@ -189,11 +210,12 @@ namespace lms::db
         LastWrittenDesc,
         AddedDesc,
         StarredDateDesc,
-        FileName,
+        AbsoluteFilePath,
         Name,
         DateDescAndRelease,
         Release,   // order by disc/track number
         TrackList, // order by asc order in tracklist
+        TrackNumber,
         MostPlayed,
         RecentlyPlayed
     };

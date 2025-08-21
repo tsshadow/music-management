@@ -52,11 +52,17 @@
 <message id="Lms.Error.user-not-found">User not found</message>
 
 <!--Administration-->
+<message id="Lms.Admin.menu-about"><i class="fa fa-fw fa-question-circle" aria-hidden="true"></i> About</message>
+<message id="Lms.Admin.menu-debug-tools"><i class="fa fa-fw fa-bug" aria-hidden="true"></i> Debug tools</message>
 <message id="Lms.Admin.menu-media-libraries"><i class="fa fa-fw fa-database" aria-hidden="true"></i> Libraries</message>
 <message id="Lms.Admin.menu-scan-settings"><i class="fa fa-fw fa-cogs" aria-hidden="true"></i> Scan settings</message>
 <message id="Lms.Admin.menu-scanner"><i class="fa fa-fw fa-wrench" aria-hidden="true"></i> Scanner</message>
-<message id="Lms.Admin.menu-tracing"><i class="fa fa-fw fa-bar-chart" aria-hidden="true"></i> Tracing</message>
 <message id="Lms.Admin.menu-users"><i class="fa fa-fw fa-users" aria-hidden="true"></i> Users</message>
+
+<!--About-->
+<message id="Lms.Admin.About.about">About</message>
+<message id="Lms.Admin.About.homepage">Homepage</message>
+<message id="Lms.Admin.About.version">Version</message>
 
 <!--MediaLibraries-->
 <message id="Lms.Admin.MediaLibraries.media-libraries">Music libraries</message>
@@ -74,6 +80,7 @@
 
 <!--Scan settings-->
 <message id="Lms.Admin.Database.allow-mbid-artist-merge">Allow merging artists without an MBID to those with one</message>
+<message id="Lms.Admin.Database.artist-image-fallback-to-release">Use an album artwork if no artist image is available</message>
 <message id="Lms.Admin.Database.artist-tag-delimiters">Delimiters to be used for splitting artist tags</message>
 <message id="Lms.Admin.Database.artists-to-not-split">Artists to not split using the delimiters (one artist per line)</message>
 <message id="Lms.Admin.Database.daily">Daily</message>
@@ -100,11 +107,11 @@
 
 <!--Scanner Controller-->
 <message id="Lms.Admin.ScannerController.bad-duration">Cannot get track duration</message>
-<message id="Lms.Admin.ScannerController.bad-embedded-image">Unable to read the image at index {1}</message>
+<message id="Lms.Admin.ScannerController.bad-embedded-image">Unable to read the image at index {1}: {2}</message>
 <message id="Lms.Admin.ScannerController.cannot-read-artist-info-file">Cannot parse artist info file</message>
 <message id="Lms.Admin.ScannerController.cannot-read-audio-file">Cannot parse audio file</message>
 <message id="Lms.Admin.ScannerController.cannot-read-file">Cannot read file ({1})</message>
-<message id="Lms.Admin.ScannerController.cannot-read-image-file">Cannot parse image file</message>
+<message id="Lms.Admin.ScannerController.cannot-read-image-file">Cannot parse image file: {1}</message>
 <message id="Lms.Admin.ScannerController.cannot-read-lyrics-file">Cannot parse lyrics file</message>
 <message id="Lms.Admin.ScannerController.cannot-read-playlist-file">Cannot parse playlist file</message>
 <message id="Lms.Admin.ScannerController.compact">Compact the database. <strong>Caution:</strong> this may take a while and will block the whole application during the compact step!</message>
@@ -133,6 +140,7 @@
 <message id="Lms.Admin.ScannerController.step-associating-external-lyrics">Associating external lyrics: {1}%...</message>
 <message id="Lms.Admin.ScannerController.step-associating-playlist-tracks">Associating playlist tracks: {1}%...</message>
 <message id="Lms.Admin.ScannerController.step-associating-release-images">Associating release images: {1}%...</message>
+<message id="Lms.Admin.ScannerController.step-associating-track-images">Associating track images: {1}%...</message>
 <message id="Lms.Admin.ScannerController.step-checking-for-duplicate-files">Checking for duplicate files... {1} files</message>
 <message id="Lms.Admin.ScannerController.step-checking-for-removed-files">Checking for removed files... {1}%</message>
 <message id="Lms.Admin.ScannerController.step-compact">Compacting database...</message>
@@ -143,13 +151,20 @@
 <message id="Lms.Admin.ScannerController.step-reconciliate-artists">Reconciliating artists: {1} entries...</message>
 <message id="Lms.Admin.ScannerController.step-reloading-similarity-engine">Reloading similarity engine: {1}%...</message>
 <message id="Lms.Admin.ScannerController.step-removing-orphaned-entries">Removing orphaned entries: {1} entries...</message>
-<message id="Lms.Admin.ScannerController.step-scanning-files">Scanning files: {1}/{2} ({3}%)...</message>
+<message id="Lms.Admin.ScannerController.step-scanning-files">Library analysis: {1} files...</message>
 <message id="Lms.Admin.ScannerController.step-status">Step status</message>
 <message id="Lms.Admin.ScannerController.step-updating-library-fields">Updating library fields: {1} entries</message>
 
+<!--Debug Tools-->
+<message id="Lms.Admin.DebugTools.debug-tools">Debug tools</message>
+
+<!--Db-->
+<message id="Lms.Admin.DebugTools.Db.export-query-plans">Export query plans</message>
+<message id="Lms.Admin.DebugTools.Db.db">Database</message>
+
 <!--Tracing-->
-<message id="Lms.Admin.Tracing.export-current-buffer">Export traces</message>
-<message id="Lms.Admin.Tracing.tracing">Tracing</message>
+<message id="Lms.Admin.DebugTools.Tracing.export-current-buffer">Export traces</message>
+<message id="Lms.Admin.DebugTools.Tracing.tracing">Tracing</message>
 
 <!--Users-->
 <message id="Lms.Admin.Users.add">New user</message>

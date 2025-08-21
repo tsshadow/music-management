@@ -30,8 +30,8 @@
 
 #include "core/Service.hpp"
 #include "core/String.hpp"
-#include "database/ScanSettings.hpp"
 #include "database/Session.hpp"
+#include "database/objects/ScanSettings.hpp"
 #include "services/recommendation/IRecommendationService.hpp"
 #include "services/scanner/IScannerService.hpp"
 
@@ -42,8 +42,6 @@
 
 namespace lms::ui
 {
-    using namespace db;
-
     namespace
     {
         class TagDelimitersValidator : public Wt::WValidator
@@ -72,9 +70,10 @@ namespace lms::ui
             static inline constexpr Field SimilarityEngineTypeField{ "similarity-engine-type" };
             static inline constexpr Field SkipSingleReleasePlayListsField{ "skip-single-release-playlists" };
             static inline constexpr Field AllowMBIDArtistMergeField{ "allow-mbid-artist-merge" };
+            static inline constexpr Field ArtistImageFallbackToReleaseField{ "artist-image-fallback-to-release" };
             static inline constexpr Field ArtistsToNotSplitField{ "artists-to-not-split" };
 
-            using UpdatePeriodModel = ValueStringModel<ScanSettings::UpdatePeriod>;
+            using UpdatePeriodModel = ValueStringModel<db::ScanSettings::UpdatePeriod>;
 
             DatabaseSettingsModel()
             {
@@ -85,6 +84,7 @@ namespace lms::ui
                 addField(SimilarityEngineTypeField);
                 addField(SkipSingleReleasePlayListsField);
                 addField(AllowMBIDArtistMergeField);
+                addField(ArtistImageFallbackToReleaseField);
                 addField(ArtistsToNotSplitField);
 
                 setValidator(UpdatePeriodField, createMandatoryValidator());
@@ -92,6 +92,7 @@ namespace lms::ui
                 setValidator(SimilarityEngineTypeField, createMandatoryValidator());
                 setValidator(SkipSingleReleasePlayListsField, createMandatoryValidator());
                 setValidator(AllowMBIDArtistMergeField, createMandatoryValidator());
+                setValidator(ArtistImageFallbackToReleaseField, createMandatoryValidator());
             }
 
             std::shared_ptr<UpdatePeriodModel> updatePeriodModel() { return _updatePeriodModel; }
@@ -102,7 +103,7 @@ namespace lms::ui
             {
                 auto transaction{ LmsApp->getDbSession().createReadTransaction() };
 
-                const ScanSettings::pointer scanSettings{ ScanSettings::find(LmsApp->getDbSession()) };
+                const db::ScanSettings::pointer scanSettings{ db::ScanSettings::find(LmsApp->getDbSession()) };
 
                 auto periodRow{ _updatePeriodModel->getRowFromValue(scanSettings->getUpdatePeriod()) };
                 if (periodRow)
@@ -112,14 +113,15 @@ namespace lms::ui
                 if (startTimeRow)
                     setValue(UpdateStartTimeField, _updateStartTimeModel->getString(*startTimeRow));
 
-                if (scanSettings->getUpdatePeriod() == ScanSettings::UpdatePeriod::Hourly
-                    || scanSettings->getUpdatePeriod() == ScanSettings::UpdatePeriod::Never)
+                if (scanSettings->getUpdatePeriod() == db::ScanSettings::UpdatePeriod::Hourly
+                    || scanSettings->getUpdatePeriod() == db::ScanSettings::UpdatePeriod::Never)
                 {
                     setReadOnly(UpdateStartTimeField, true);
                 }
 
                 setValue(SkipSingleReleasePlayListsField, scanSettings->getSkipSingleReleasePlayLists());
                 setValue(AllowMBIDArtistMergeField, scanSettings->getAllowMBIDArtistMerge());
+                setValue(ArtistImageFallbackToReleaseField, scanSettings->getArtistImageFallbackToReleaseField());
 
                 auto similarityEngineTypeRow{ _similarityEngineTypeModel->getRowFromValue(scanSettings->getSimilarityEngineType()) };
                 if (similarityEngineTypeRow)
@@ -143,7 +145,7 @@ namespace lms::ui
             {
                 auto transaction{ LmsApp->getDbSession().createWriteTransaction() };
 
-                ScanSettings::pointer scanSettings{ ScanSettings::find(LmsApp->getDbSession()) };
+                db::ScanSettings::pointer scanSettings{ db::ScanSettings::find(LmsApp->getDbSession()) };
 
                 {
                     const auto updatePeriodRow{ _updatePeriodModel->getRowFromString(valueText(UpdatePeriodField)) };
@@ -168,6 +170,11 @@ namespace lms::ui
                 }
 
                 {
+                    const bool artistImageFallbackToRelease{ Wt::asNumber(value(ArtistImageFallbackToReleaseField)) != 0 };
+                    scanSettings.modify()->setArtistImageFallbackToReleaseField(artistImageFallbackToRelease);
+                }
+
+                {
                     const auto similarityEngineTypeRow{ _similarityEngineTypeModel->getRowFromString(valueText(SimilarityEngineTypeField)) };
                     if (similarityEngineTypeRow)
                         scanSettings.modify()->setSimilarityEngineType(_similarityEngineTypeModel->getValue(*similarityEngineTypeRow));
@@ -188,12 +195,12 @@ namespace lms::ui
             void
             initializeModels()
             {
-                _updatePeriodModel = std::make_shared<ValueStringModel<ScanSettings::UpdatePeriod>>();
-                _updatePeriodModel->add(Wt::WString::tr("Lms.Admin.Database.never"), ScanSettings::UpdatePeriod::Never);
-                _updatePeriodModel->add(Wt::WString::tr("Lms.Admin.Database.hourly"), ScanSettings::UpdatePeriod::Hourly);
-                _updatePeriodModel->add(Wt::WString::tr("Lms.Admin.Database.daily"), ScanSettings::UpdatePeriod::Daily);
-                _updatePeriodModel->add(Wt::WString::tr("Lms.Admin.Database.weekly"), ScanSettings::UpdatePeriod::Weekly);
-                _updatePeriodModel->add(Wt::WString::tr("Lms.Admin.Database.monthly"), ScanSettings::UpdatePeriod::Monthly);
+                _updatePeriodModel = std::make_shared<ValueStringModel<db::ScanSettings::UpdatePeriod>>();
+                _updatePeriodModel->add(Wt::WString::tr("Lms.Admin.Database.never"), db::ScanSettings::UpdatePeriod::Never);
+                _updatePeriodModel->add(Wt::WString::tr("Lms.Admin.Database.hourly"), db::ScanSettings::UpdatePeriod::Hourly);
+                _updatePeriodModel->add(Wt::WString::tr("Lms.Admin.Database.daily"), db::ScanSettings::UpdatePeriod::Daily);
+                _updatePeriodModel->add(Wt::WString::tr("Lms.Admin.Database.weekly"), db::ScanSettings::UpdatePeriod::Weekly);
+                _updatePeriodModel->add(Wt::WString::tr("Lms.Admin.Database.monthly"), db::ScanSettings::UpdatePeriod::Monthly);
 
                 _updateStartTimeModel = std::make_shared<ValueStringModel<Wt::WTime>>();
                 for (std::size_t i = 0; i < 24; ++i)
@@ -202,14 +209,14 @@ namespace lms::ui
                     _updateStartTimeModel->add(time.toString(), time);
                 }
 
-                _similarityEngineTypeModel = std::make_shared<ValueStringModel<ScanSettings::SimilarityEngineType>>();
-                _similarityEngineTypeModel->add(Wt::WString::tr("Lms.Admin.Database.similarity-engine-type.clusters"), ScanSettings::SimilarityEngineType::Clusters);
-                _similarityEngineTypeModel->add(Wt::WString::tr("Lms.Admin.Database.similarity-engine-type.none"), ScanSettings::SimilarityEngineType::None);
+                _similarityEngineTypeModel = std::make_shared<ValueStringModel<db::ScanSettings::SimilarityEngineType>>();
+                _similarityEngineTypeModel->add(Wt::WString::tr("Lms.Admin.Database.similarity-engine-type.clusters"), db::ScanSettings::SimilarityEngineType::Clusters);
+                _similarityEngineTypeModel->add(Wt::WString::tr("Lms.Admin.Database.similarity-engine-type.none"), db::ScanSettings::SimilarityEngineType::None);
             }
 
             std::shared_ptr<UpdatePeriodModel> _updatePeriodModel;
             std::shared_ptr<ValueStringModel<Wt::WTime>> _updateStartTimeModel;
-            std::shared_ptr<ValueStringModel<ScanSettings::SimilarityEngineType>> _similarityEngineTypeModel;
+            std::shared_ptr<ValueStringModel<db::ScanSettings::SimilarityEngineType>> _similarityEngineTypeModel;
         };
 
         class LineEditEntryModel : public Wt::WFormModel
@@ -353,8 +360,8 @@ namespace lms::ui
         auto updatePeriod{ std::make_unique<Wt::WComboBox>() };
         updatePeriod->setModel(model->updatePeriodModel());
         updatePeriod->activated().connect([=](int row) {
-            const ScanSettings::UpdatePeriod period{ model->updatePeriodModel()->getValue(row) };
-            model->setReadOnly(DatabaseSettingsModel::UpdateStartTimeField, period == ScanSettings::UpdatePeriod::Hourly || period == ScanSettings::UpdatePeriod::Never);
+            const db::ScanSettings::UpdatePeriod period{ model->updatePeriodModel()->getValue(row) };
+            model->setReadOnly(DatabaseSettingsModel::UpdateStartTimeField, period == db::ScanSettings::UpdatePeriod::Hourly || period == db::ScanSettings::UpdatePeriod::Never);
             t->updateModel(model.get());
             t->updateView(model.get());
         });
@@ -370,6 +377,9 @@ namespace lms::ui
 
         // Allow to merge artists without MBID with those with one
         t->setFormWidget(DatabaseSettingsModel::AllowMBIDArtistMergeField, std::make_unique<Wt::WCheckBox>());
+
+        // Allow to fallback on release image if artist image is not available
+        t->setFormWidget(DatabaseSettingsModel::ArtistImageFallbackToReleaseField, std::make_unique<Wt::WCheckBox>());
 
         // Similarity engine type
         auto similarityEngineType{ std::make_unique<Wt::WComboBox>() };

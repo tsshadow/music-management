@@ -19,8 +19,8 @@
 
 #include "Common.hpp"
 
-#include "database/Directory.hpp"
-#include "database/Image.hpp"
+#include "database/objects/Directory.hpp"
+#include "database/objects/Image.hpp"
 
 namespace lms::db::tests
 {
@@ -98,4 +98,126 @@ namespace lms::db::tests
             EXPECT_EQ(results.front()->getId(), image.getId());
         }
     }
+
+    TEST_F(DatabaseFixture, Image_findAbsoluteFilePath)
+    {
+        ScopedImage image{ session, "/path/to/image" };
+
+        const std::filesystem::path absoluteFilePath{ "/path/to/image" };
+        {
+            auto transaction{ session.createWriteTransaction() };
+            image.get().modify()->setAbsoluteFilePath(absoluteFilePath);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            ImageId lastRetrievedImageId;
+            std::filesystem::path retrievedPath;
+            Image::findAbsoluteFilePath(session, lastRetrievedImageId, 1, [&](ImageId id, const std::filesystem::path& path) {
+                EXPECT_EQ(id, image.getId());
+                retrievedPath = path;
+            });
+
+            EXPECT_EQ(retrievedPath, absoluteFilePath);
+        }
+    }
+
+    TEST_F(DatabaseFixture, Image_findByFileStem)
+    {
+        ScopedDirectory directory{ session, "/path/to" };
+        ScopedImage image{ session, "/path/to/image" };
+
+        const std::string fileStem{ "image" };
+        {
+            auto transaction{ session.createWriteTransaction() };
+            image.get().modify()->setDirectory(directory.get());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            Image::FindParameters params;
+            params.setFileStem(fileStem);
+            const auto results{ Image::find(session, params) };
+            ASSERT_EQ(results.results.size(), 1);
+            EXPECT_EQ(results.results[0]->getId(), image.getId());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            Image::FindParameters params;
+            params.setFileStem(fileStem, Image::FindParameters::ProcessWildcards{ true });
+            const auto results{ Image::find(session, params) };
+            ASSERT_EQ(results.results.size(), 1);
+            EXPECT_EQ(results.results[0]->getId(), image.getId());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            Image::FindParameters params;
+            params.setFileStem("nonexistent");
+            const auto results{ Image::find(session, params) };
+            EXPECT_EQ(results.results.size(), 0);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            Image::FindParameters params;
+            params.setFileStem("ima*");
+            const auto results{ Image::find(session, params) };
+            ASSERT_EQ(results.results.size(), 0);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            Image::FindParameters params;
+            params.setFileStem("ima*", Image::FindParameters::ProcessWildcards{ true });
+            const auto results{ Image::find(session, params) };
+            ASSERT_EQ(results.results.size(), 1);
+            EXPECT_EQ(results.results[0]->getId(), image.getId());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            Image::FindParameters params;
+            params.setFileStem("*ge", Image::FindParameters::ProcessWildcards{ true });
+            const auto results{ Image::find(session, params) };
+            ASSERT_EQ(results.results.size(), 1);
+            EXPECT_EQ(results.results[0]->getId(), image.getId());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            Image::FindParameters params;
+            params.setFileStem("*g*", Image::FindParameters::ProcessWildcards{ true });
+            const auto results{ Image::find(session, params) };
+            ASSERT_EQ(results.results.size(), 1);
+            EXPECT_EQ(results.results[0]->getId(), image.getId());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            Image::FindParameters params;
+            params.setFileStem("*", Image::FindParameters::ProcessWildcards{ true });
+            const auto results{ Image::find(session, params) };
+            ASSERT_EQ(results.results.size(), 1);
+            EXPECT_EQ(results.results[0]->getId(), image.getId());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            Image::FindParameters params;
+            params.setFileStem("ima%");
+            const auto results{ Image::find(session, params) };
+            ASSERT_EQ(results.results.size(), 0);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            Image::FindParameters params;
+            params.setFileStem("ima%", Image::FindParameters::ProcessWildcards{ true });
+            const auto results{ Image::find(session, params) };
+            ASSERT_EQ(results.results.size(), 0);
+        }
+    }
+
 } // namespace lms::db::tests

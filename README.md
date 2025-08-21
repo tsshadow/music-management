@@ -48,7 +48,7 @@ _LMS_ supports an Artist information folder to manage metadata and images for ar
 
 The folder must follow a structure defined by Kodi, as detailed [here](https://kodi.wiki/view/Artist_information_folder). `artist.nfo` files are used to define additional artist information such as biography, sort name, and MusicBrainz ArtistID. See the format [here](https://kodi.wiki/view/NFO_files/Artists).
 
-__Note__: `artist.nfo` files must include both `name` and `musicBrainzArtistID` fields to be recognized.
+__Note__: If no name is provided in the `artist.nfo` file, the name of the containing folder is used.
 
 ### Filtering
 It is possible to apply global filters on your collection using `genre`, `mood`, `grouping`, `language`, and by music library. More tags, including custom ones, can be added in the database administration settings.
@@ -89,6 +89,9 @@ If neither exists, it will then search for a file named `artist` (or another nam
 1. Identify the artist's directory: _LMS_ selects all albums by the artist using the "AlbumArtist" link and determines the longest common path among them.
 2. Scan for the image: the directory is scanned starting from this common path, moving upwards if needed, until the artist image file is found.
 3. Fallback search: if no image is found, _LMS_ will then search within each individual album folder.
+
+## Disc image lookup
+_LMS_ automatically associates images with each disc in your collection. Name the image file after the disc's subtitle or another identifier configured in `lms.conf` (see the `medium-image-file-names` setting), and place it in the same directory as the disc's tracks. If no suitable image is found, LMS will also look for embedded images within the tracks of the disc.
 
 ## Playlist support
 _LMS_ supports playlist files in `m3u` and `m3u8` formats. These playlists are synced during the scan process and are available as public shared playlists.

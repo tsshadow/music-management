@@ -8,24 +8,27 @@ add_library(lmsscanner STATIC
 	impl/scanners/LyricsFileScanner.cpp
 	impl/scanners/PlayListFileScanner.cpp
 	impl/scanners/Utils.cpp
-	impl/steps/FileScanQueue.cpp
+	impl/steps/JobQueue.cpp
 	impl/steps/ScanErrorLogger.cpp
 	impl/steps/ScanStepArtistReconciliation.cpp
 	impl/steps/ScanStepAssociateArtistImages.cpp
 	impl/steps/ScanStepAssociateExternalLyrics.cpp
+	impl/steps/ScanStepAssociateMediumImages.cpp
 	impl/steps/ScanStepAssociatePlayListTracks.cpp
 	impl/steps/ScanStepAssociateReleaseImages.cpp
+	impl/steps/ScanStepAssociateTrackImages.cpp
 	impl/steps/ScanStepBase.cpp
 	impl/steps/ScanStepCheckForDuplicatedFiles.cpp
 	impl/steps/ScanStepCheckForRemovedFiles.cpp
 	impl/steps/ScanStepCompact.cpp
 	impl/steps/ScanStepComputeClusterStats.cpp
-	impl/steps/ScanStepDiscoverFiles.cpp
 	impl/steps/ScanStepOptimize.cpp
 	impl/steps/ScanStepRemoveOrphanedDbEntries.cpp
 	impl/steps/ScanStepScanFiles.cpp
 	impl/steps/ScanStepUpdateLibraryFields.cpp
+	impl/FileScanners.cpp
 	impl/ScannerService.cpp
+	impl/ScannerServiceTraceLogger.cpp
 	impl/ScannerStats.cpp
 	)
 

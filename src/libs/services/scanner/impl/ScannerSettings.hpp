@@ -25,7 +25,7 @@
 
 #include <Wt/WDateTime.h>
 
-#include "database/ScanSettings.hpp"
+#include "database/objects/ScanSettings.hpp"
 
 #include "MediaLibraryInfo.hpp"
 
@@ -45,7 +45,8 @@ namespace lms::scanner
         std::vector<std::string> artistsToNotSplit;
         std::vector<std::string> defaultTagDelimiters;
         bool skipSingleReleasePlayLists{};
-        bool allowArtistMBIDFallback{ true }; // TODO false?
+        bool allowArtistMBIDFallback{ true };
+        bool artistImageFallbackToRelease{};
 
         std::vector<MediaLibraryInfo> mediaLibraries;
 

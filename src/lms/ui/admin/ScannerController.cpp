@@ -115,7 +115,7 @@ namespace lms::ui
         if (status.lastCompleteScanStats)
         {
             _lastScanStatus->setText(Wt::WString::tr("Lms.Admin.ScannerController.last-scan-status")
-                                         .arg(status.lastCompleteScanStats->nbFiles())
+                                         .arg(status.lastCompleteScanStats->getTotalFileCount())
                                          .arg(durationToString(status.lastCompleteScanStats->startTime, status.lastCompleteScanStats->stopTime))
                                          .arg(status.lastCompleteScanStats->stopTime.date().toString(Wt::WLocale::currentLocale().dateFormat()))
                                          .arg(status.lastCompleteScanStats->stopTime.time().toString(Wt::WLocale::currentLocale().timeFormat()))
@@ -188,6 +188,11 @@ namespace lms::ui
                                      .arg(stepStats.progress()));
             break;
 
+        case ScanStep::AssociateTrackImages:
+            _stepStatus->setText(Wt::WString::tr("Lms.Admin.ScannerController.step-associating-track-images")
+                                     .arg(stepStats.progress()));
+            break;
+
         case ScanStep::CheckForDuplicatedFiles:
             _stepStatus->setText(Wt::WString::tr("Lms.Admin.ScannerController.step-checking-for-duplicate-files")
                                      .arg(stepStats.processedElems));
@@ -205,11 +210,6 @@ namespace lms::ui
         case ScanStep::ComputeClusterStats:
             _stepStatus->setText(Wt::WString::tr("Lms.Admin.ScannerController.step-compute-cluster-stats")
                                      .arg(stepStats.progress()));
-            break;
-
-        case ScanStep::DiscoverFiles:
-            _stepStatus->setText(Wt::WString::tr("Lms.Admin.ScannerController.step-discovering-files")
-                                     .arg(stepStats.processedElems));
             break;
 
         case ScanStep::FetchTrackFeatures:
@@ -241,9 +241,7 @@ namespace lms::ui
 
         case ScanStep::ScanFiles:
             _stepStatus->setText(Wt::WString::tr("Lms.Admin.ScannerController.step-scanning-files")
-                                     .arg(stepStats.processedElems)
-                                     .arg(stepStats.totalElems)
-                                     .arg(stepStats.progress()));
+                                     .arg(stepStats.processedElems));
             break;
 
         case ScanStep::UpdateLibraryFields:

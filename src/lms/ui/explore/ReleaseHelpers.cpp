@@ -24,15 +24,13 @@
 #include <Wt/WText.h>
 
 #include "core/EnumSet.hpp"
-#include "database/Artist.hpp"
-#include "database/Release.hpp"
+#include "database/objects/Artist.hpp"
+#include "database/objects/Release.hpp"
 
 #include "Utils.hpp"
 
 namespace lms::ui::releaseListHelpers
 {
-    using namespace db;
-
     namespace
     {
         enum class ReleaseOptions
@@ -42,7 +40,7 @@ namespace lms::ui::releaseListHelpers
             ShowYear,
         };
 
-        std::unique_ptr<Wt::WTemplate> createEntryInternal(const Release::pointer& release, const Artist::pointer& artist, core::EnumSet<ReleaseOptions> options)
+        std::unique_ptr<Wt::WTemplate> createEntryInternal(const db::Release::pointer& release, const db::Artist::pointer& artist, core::EnumSet<ReleaseOptions> options)
         {
             auto entry{ std::make_unique<Wt::WTemplate>(Wt::WString::tr("Lms.Explore.Releases.template.entry-grid")) };
 
@@ -51,14 +49,20 @@ namespace lms::ui::releaseListHelpers
 
             {
                 Wt::WAnchor* anchor{ entry->bindWidget("cover", utils::createReleaseAnchor(release, false)) };
-                auto image{ utils::createReleaseCover(release->getId(), ArtworkResource::Size::Large) };
+
+                std::unique_ptr<Wt::WImage> image;
+                if (release->getPreferredArtworkId().isValid())
+                    image = utils::createArtworkImage(release->getPreferredArtworkId(), ArtworkResource::DefaultArtworkType::Release, ArtworkResource::Size::Large);
+                else
+                    image = utils::createDefaultArtworkImage(ArtworkResource::DefaultArtworkType::Release);
+
                 image->addStyleClass("Lms-cover-release Lms-cover-anchor rounded"); // hack
                 anchor->setImage(std::move(image));
             }
 
             if (options.contains(ReleaseOptions::ShowArtist))
             {
-                auto artistAnchors{ utils::createArtistsAnchorsForRelease(release, artist ? artist->getId() : ArtistId{}, "link-secondary") };
+                auto artistAnchors{ utils::createArtistsAnchorsForRelease(release, artist ? artist->getId() : db::ArtistId{}, "link-secondary") };
                 if (artistAnchors)
                 {
                     entry->setCondition("if-has-artist", true);
@@ -88,9 +92,9 @@ namespace lms::ui::releaseListHelpers
         }
     } // namespace
 
-    std::unique_ptr<Wt::WTemplate> createEntry(const Release::pointer& release)
+    std::unique_ptr<Wt::WTemplate> createEntry(const db::Release::pointer& release)
     {
-        return createEntryInternal(release, Artist::pointer{}, core::EnumSet<ReleaseOptions>{ ReleaseOptions::ShowArtist });
+        return createEntryInternal(release, db::Artist::pointer{}, core::EnumSet<ReleaseOptions>{ ReleaseOptions::ShowArtist });
     }
 
     std::unique_ptr<Wt::WTemplate> createEntryForArtist(const db::Release::pointer& release, const db::Artist::pointer& artist)
@@ -100,7 +104,7 @@ namespace lms::ui::releaseListHelpers
 
     std::unique_ptr<Wt::WTemplate> createEntryForOtherVersions(const db::ObjectPtr<db::Release>& release)
     {
-        return createEntryInternal(release, Artist::pointer{}, core::EnumSet<ReleaseOptions>{ ReleaseOptions::ShowYear });
+        return createEntryInternal(release, db::Artist::pointer{}, core::EnumSet<ReleaseOptions>{ ReleaseOptions::ShowYear });
     }
 } // namespace lms::ui::releaseListHelpers
 

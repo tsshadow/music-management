@@ -27,10 +27,10 @@ class YoutubeDownloader:
             '--no-overwrites',
             '--extract-audio',
             '--audio-format', 'm4a',
-            '-cookies-from-browser firefox'
+            '--cookies-from-browser', 'firefox',
             '--no-keep-video',
-           '--break-on-existing',
-            link
+            '--break-on-existing',
+            link,
         ]
 
         try:
@@ -39,6 +39,32 @@ class YoutubeDownloader:
             logging.info(f"Finished downloading from: {name}")
         except subprocess.CalledProcessError as e:
             logging.error(f"Download failed for {name}: {e}")
+
+    def download_link(self, url: str, breakOnExisting: bool = True):
+        """Download a single video using a direct URL."""
+        command = [
+            self.executable,
+            '--output', f'{self.output_folder}/%(uploader)s/%(title)s.%(ext)s',
+            '--download-archive', self.archive_file,
+            '--embed-metadata',
+            '--embed-thumbnail',
+            '--compat-options', 'filename',
+            '--no-overwrites',
+            '--extract-audio',
+            '--audio-format', 'm4a',
+            '--cookies-from-browser', 'firefox',
+            '--no-keep-video',
+        ]
+        if breakOnExisting:
+            command.append('--break-on-existing')
+        command.append(url)
+
+        try:
+            logging.info(f"Downloading from url: {url}")
+            subprocess.run(command, check=True)
+            logging.info("Finished downloading video")
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Download failed for {url}: {e}")
 
     def get_accounts_from_db(self):
         try:

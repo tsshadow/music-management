@@ -7,6 +7,7 @@ let selected = '';
 let repeat = false;
 let repeatInterval = 0;
 let breakOnExisting = false;
+let youtubeUrl = '';
 const dispatch = createEventDispatcher();
 
 $: if (!selected && $steps.length > 0) {
@@ -21,6 +22,7 @@ async function startSelected() {
     if (repeatInterval > 0) options.interval = repeatInterval;
   }
   if (breakOnExisting) options.breakOnExisting = true;
+  if (selected === 'manual-youtube' && youtubeUrl) options.url = youtubeUrl;
   const job = await start(selected, options);
   if (job) {
     dispatch('started', job);
@@ -61,6 +63,14 @@ async function startSelected() {
     />
     Break on existing
   </label>
+  {#if selected === 'manual-youtube'}
+    <input
+      class="rounded border border-green-700 bg-gray-900 p-2 text-green-400"
+      type="text"
+      placeholder="YouTube URL"
+      bind:value={youtubeUrl}
+    />
+  {/if}
   <button
     class="rounded bg-green-600 px-4 py-2 font-bold text-black shadow hover:bg-green-500"
     on:click={startSelected}

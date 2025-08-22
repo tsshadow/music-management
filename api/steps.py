@@ -33,6 +33,7 @@ steps_to_run = [
     Step("Sanitizer", ["sanitize"], sanitizer.run),
     Step("Flattener", ["flatten"], flattener.run),
     Step("YouTube Downloader", ["download", "download-youtube"], youtube_downloader.run),
+    Step("Manual YouTube Downloader", ["manual-youtube"], youtube_downloader.download_link),
     Step("SoundCloud Downloader", ["download", "download-soundcloud"], lambda: soundcloud_downloader.run(account="")),
     Step("Telegram Downloader", ["download-telegram"], lambda: telegram_downloader.run("")),
     Step("Analyze", ["analyze"], analyze_step.run),

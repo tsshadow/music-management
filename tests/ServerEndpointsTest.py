@@ -41,14 +41,13 @@ class ServerEndpointsTest(unittest.TestCase):
 
                     setattr(mod, cls, StubTagger)
                 else:
-                    setattr(
-                        mod,
-                        cls,
-                        type(cls, (), {
-                            '__init__': lambda self, *a, **k: None,
-                            'run': lambda self, *a, **k: None,
-                        }),
-                    )
+                    attrs = {
+                        '__init__': lambda self, *a, **k: None,
+                        'run': lambda self, *a, **k: None,
+                    }
+                    if module_name == 'downloader.youtube' and cls == 'YoutubeDownloader':
+                        attrs['download_link'] = lambda self, *a, **k: None
+                    setattr(mod, cls, type(cls, (), attrs))
             return mod
 
         modules_to_stub = {
@@ -102,6 +101,7 @@ class ServerEndpointsTest(unittest.TestCase):
         steps = resp.json()['steps']
         self.assertIn('tag', steps)
         self.assertIn('import', steps)
+        self.assertIn('manual-youtube', steps)
 
         # simulate a running job and verify listing
         job_id = '123'
@@ -110,6 +110,13 @@ class ServerEndpointsTest(unittest.TestCase):
         self.assertEqual(jobs_resp.status_code, 200)
         jobs = jobs_resp.json()['jobs']
         self.assertTrue(any(job['id'] == job_id and job['step'] == 'dummy' for job in jobs))
+
+    def test_run_manual_youtube(self):
+        resp = self.client.post('/api/run/manual-youtube', json={'url': 'http://example.com'})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data['step'], 'manual-youtube')
+        self.assertIn('id', data)
 
 
 if __name__ == '__main__':

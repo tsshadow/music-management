@@ -196,9 +196,12 @@ async def run_step_endpoint(
     step_name: str,
     options: Dict[str, Any] = Body(default={}),
     _: None = Depends(verify_api_key),
-):
+): 
     if step_name not in step_map:
         raise HTTPException(status_code=404, detail="Unknown step")
+
+    if step_name == "manual-youtube" and not options.get("url"):
+        raise HTTPException(status_code=400, detail="Missing url")
 
     repeat = bool(options.pop("repeat", False))
     interval = float(options.pop("interval", 0))

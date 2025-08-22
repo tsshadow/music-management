@@ -116,7 +116,7 @@ def main():
         Step("Sanitizer", ["sanitize"], sanitizer.run),
         # Step("Repair", ["repair"], repair.run),
         Step("Flattener", ["flatten"], flattener.run),
-        # Step("YouTube Downloader", ["download", "download-youtube"], youtube_downloader.run),
+        Step("YouTube Downloader", ["download", "download-youtube"], youtube_downloader.run),
         Step("SoundCloud Downloader", ["download", "download-soundcloud"], lambda: soundcloud_downloader.run(
             account=args.account or "",
         )),

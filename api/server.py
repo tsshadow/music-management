@@ -119,6 +119,25 @@ def _public_job(job: Dict) -> Dict:
     return {k: v for k, v in job.items() if k not in {"task", "stop_event"}}
 
 
+@app.get("/health")
+async def health() -> Dict[str, str]:
+    """Basic health check endpoint.
+
+    Optionally verifies database connectivity for additional assurance.
+    """
+    try:
+        from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
+
+        def _check_db() -> None:
+            conn = DatabaseConnector().connect()
+            conn.close()
+
+        await run_in_threadpool(_check_db)
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail="Database connection failed") from exc
+    return {"status": "ok"}
+
+
 @app.get("/api/steps")
 async def list_steps(_: None = Depends(verify_api_key)):
     """Return available step keys for dropdowns."""

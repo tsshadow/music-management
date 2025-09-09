@@ -50,7 +50,11 @@ class SoundcloudDownloader:
         if not os.path.isdir(self.output_folder):
             raise FileNotFoundError(f"Output folder does not exist: {self.output_folder}")
 
-        os.makedirs(self.archive_dir, exist_ok=True)
+        if os.path.isfile(self.archive_dir):
+            self.archive_file = self.archive_dir
+        else:
+            os.makedirs(self.archive_dir, exist_ok=True)
+            self.archive_file = None
 
         self.max_workers = max_workers
         self.burst_size = burst_size
@@ -137,11 +141,15 @@ class SoundcloudDownloader:
             with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
                 futures = {}
                 for acc in batch:
-                    # Clone ydl_opts and override archive file per account
+                    # Clone ydl_opts and set archive file (shared or per-account)
                     ydl_opts = self.ydl_opts.copy()
-                    account_archive = Path(self.archive_dir) / f"{acc}.txt"
-                    ydl_opts['download_archive'] = str(account_archive)
-                    logging.info(f"Using per-account archive: {account_archive} for {acc}")
+                    if self.archive_file:
+                        ydl_opts['download_archive'] = str(self.archive_file)
+                        logging.info(f"Using shared archive: {self.archive_file}")
+                    else:
+                        account_archive = Path(self.archive_dir) / f"{acc}.txt"
+                        ydl_opts['download_archive'] = str(account_archive)
+                        logging.info(f"Using per-account archive: {account_archive} for {acc}")
                     futures[executor.submit(self.download_account, acc, ydl_opts)] = acc
 
                 for future in concurrent.futures.as_completed(futures):

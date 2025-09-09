@@ -1,0 +1,44 @@
+version: "3.9"
+services:
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpass
+      MARIADB_DATABASE: music-importer
+      MARIADB_USER: music-importer
+      MARIADB_PASSWORD: music-importer
+    ports:
+      - "40000:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db
+      PMA_USER: music-importer
+      PMA_PASSWORD: music-importer
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+
+  music-importer:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: music-importer
+      DB_PASS: music-importer
+      DB_DB: music-importer
+    ports:
+      - "8001:8001"
+      - "5173:5173"
+    volumes:
+      - .:/app
+volumes:
+  db_data:

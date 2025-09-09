@@ -47,10 +47,25 @@ class DbInitTest(unittest.TestCase):
             from api.db_init import ensure_tables_exist
             ensure_tables_exist()
 
-        self.assertEqual(len(executed), 4)
+        expected_tables = [
+            'soundcloud_accounts',
+            'soundcloud_archive',
+            'youtube_accounts',
+            'youtube_archive',
+            'artists',
+            'artist_genre',
+            'catid_label',
+            'festival_data',
+            'genres',
+            'ignored_artists',
+            'ignored_genres',
+            'label_genre',
+            'subgenre_genre',
+        ]
+        self.assertEqual(len(executed), len(expected_tables))
         joined = ' '.join(executed)
-        self.assertIn('soundcloud_accounts', joined)
-        self.assertIn('youtube_archive', joined)
+        for table in expected_tables:
+            self.assertIn(table, joined)
 
     def test_server_startup_calls_ensure_tables_exist(self):
         original_modules = {}

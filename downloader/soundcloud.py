@@ -12,6 +12,7 @@ from api.jobs import job_manager
 
 from downloader.SoundcloudProcessor import SoundcloudSongProcessor
 from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
+from pathlib import Path
 
 
 
@@ -40,18 +41,16 @@ class SoundcloudDownloader:
     """
     def __init__(self, break_on_existing = True, max_workers=1, burst_size=60, min_pause=1, max_pause=5):
         self.output_folder = os.getenv("soundcloud_folder")
-        self.archive_file = os.getenv("soundcloud_archive")
+        self.archive_dir = os.getenv("soundcloud_archive")
         self.cookies_file = os.getenv("soundcloud_cookies", "soundcloud.com_cookies.txt")
 
-        if not self.output_folder or not self.archive_file:
+        if not self.output_folder or not self.archive_dir:
             raise ValueError("Missing required environment variables: soundcloud_folder or soundcloud_archive")
 
         if not os.path.isdir(self.output_folder):
             raise FileNotFoundError(f"Output folder does not exist: {self.output_folder}")
 
-        archive_dir = os.path.dirname(self.archive_file)
-        if archive_dir and not os.path.exists(archive_dir):
-            raise FileNotFoundError(f"Directory for archive file does not exist: {archive_dir}")
+        os.makedirs(self.archive_dir, exist_ok=True)
 
         self.max_workers = max_workers
         self.burst_size = burst_size
@@ -67,7 +66,6 @@ class SoundcloudDownloader:
                 )
             },
             'outtmpl': f'{self.output_folder}/%(uploader)s/%(title)s.%(ext)s',
-            'download_archive': self.archive_file,
             'compat_opts': ['filename'],
             'nooverwrites': False,
             'no_part': True,
@@ -141,8 +139,8 @@ class SoundcloudDownloader:
                 for acc in batch:
                     # Clone ydl_opts and override archive file per account
                     ydl_opts = self.ydl_opts.copy()
-                    account_archive = f"archives/{acc}.txt"
-                    ydl_opts['download_archive'] = account_archive
+                    account_archive = Path(self.archive_dir) / f"{acc}.txt"
+                    ydl_opts['download_archive'] = str(account_archive)
                     logging.info(f"Using per-account archive: {account_archive} for {acc}")
                     futures[executor.submit(self.download_account, acc, ydl_opts)] = acc
 

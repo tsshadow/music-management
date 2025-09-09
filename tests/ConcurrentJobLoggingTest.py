@@ -27,16 +27,14 @@ class ConcurrentJobLoggingTest(unittest.TestCase):
         def _make_stub_module(module_name, class_names):
             mod = types.ModuleType(module_name)
             for cls, message in class_names.items():
-                class Stub:
-                    def __init__(self, *a, **k):
-                        pass
-
-                    def run(self, *a, **k):
-                        if message:
-                            logging.info(message)
-                            time.sleep(0.1)
-
-                setattr(mod, cls, Stub)
+                attrs = {
+                    '__init__': lambda self, *a, **k: None,
+                    'run': lambda self, *a, **k: logging.info(message) or time.sleep(0.1) if message else None,
+                }
+                if module_name == 'downloader.youtube' and cls == 'YoutubeDownloader':
+                    attrs['download_link'] = lambda self, *a, **k: None
+                mod_class = type(cls, (), attrs)
+                setattr(mod, cls, mod_class)
             return mod
 
         modules_to_stub = {

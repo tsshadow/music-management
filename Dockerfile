@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.11-slim-buster
+FROM python:3.13-slim-trixie
 
 # install system packages, Node.js 20 and pnpm
 RUN apt-get update && apt-get install -y gcc wget curl gnupg && \
-    wget http://ftp.nl.debian.org/debian/pool/non-free/u/unrar-nonfree/unrar_5.6.6-1+deb10u1_amd64.deb && \
+    wget http://ftp.nl.debian.org/debian/pool/non-free/u/unrar-nonfree/unrar_7.1.8-1_amd64.deb && \
     dpkg -i *.deb && \
     apt-get update && apt-get install -y unzip p7zip-full && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \

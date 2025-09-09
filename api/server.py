@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
 
 from .steps import step_map
+from .db_init import ensure_tables_exist
 
 app = FastAPI()
 
@@ -34,6 +35,11 @@ _default_logger = logging.LoggerAdapter(logging.getLogger(), {})
 current_logger: ContextVar[logging.LoggerAdapter] = ContextVar(
     "current_logger", default=_default_logger
 )
+
+
+@app.on_event("startup")
+def _startup() -> None:  # pragma: no cover - trivial
+    ensure_tables_exist()
 
 
 class JobLogFilter(logging.Filter):

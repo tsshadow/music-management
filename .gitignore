@@ -1,4 +1,6 @@
 /.env
 .env
+/frontend/node_modules
+/frontend/.svelte-kit
 /youtube.com_cookies.txt
 /soundcloud.com_cookies.txt

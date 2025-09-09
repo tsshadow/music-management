@@ -5,3 +5,4 @@ README.md
 test.py
 .git
 .gitignore
+frontend/node_modules

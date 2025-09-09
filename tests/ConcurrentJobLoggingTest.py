@@ -56,6 +56,11 @@ class ConcurrentJobLoggingTest(unittest.TestCase):
             self.original_modules[mod_name] = sys.modules.get(mod_name)
             sys.modules[mod_name] = _make_stub_module(mod_name, classes)
 
+        # stub out DB initialization to avoid real connections
+        import api.db_init as db_init
+        self._orig_ensure_tables = db_init.ensure_tables_exist
+        db_init.ensure_tables_exist = lambda: None
+
         # provide minimal main module exposing Step
         from step import Step as RealStep
         self.original_modules['main'] = sys.modules.get('main')
@@ -65,10 +70,11 @@ class ConcurrentJobLoggingTest(unittest.TestCase):
 
         import api.server as server_module
         self.server = importlib.reload(server_module)
-        self.client = TestClient(self.server.app)
         self.server.jobs.clear()
 
     def tearDown(self):
+        import api.db_init as db_init
+        db_init.ensure_tables_exist = self._orig_ensure_tables
         for name, mod in self.original_modules.items():
             if mod is None:
                 sys.modules.pop(name, None)
@@ -76,8 +82,9 @@ class ConcurrentJobLoggingTest(unittest.TestCase):
                 sys.modules[name] = mod
 
     def test_logs_are_isolated(self):
-        tag_job = self.client.post('/api/run/tag').json()
-        dl_job = self.client.post('/api/run/download').json()
+        with TestClient(self.server.app) as client:
+            tag_job = client.post('/api/run/tag').json()
+            dl_job = client.post('/api/run/download').json()
 
         # Wait for jobs to finish
         time.sleep(0.3)

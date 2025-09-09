@@ -75,6 +75,11 @@ class ServerEndpointsTest(unittest.TestCase):
             self.original_modules[full_name] = sys.modules.get(full_name)
             sys.modules[full_name] = _make_stub_module(full_name, classes)
 
+        # stub out DB initialization to avoid real connections
+        import api.db_init as db_init
+        self._orig_ensure_tables = db_init.ensure_tables_exist
+        db_init.ensure_tables_exist = lambda: None
+
         # provide minimal main module exposing Step
         from step import Step as RealStep
         self.original_modules['main'] = sys.modules.get('main')
@@ -85,10 +90,11 @@ class ServerEndpointsTest(unittest.TestCase):
         import api.server as server_module
         self.server = importlib.reload(server_module)
         self.Step = RealStep
-        self.client = TestClient(self.server.app)
         self.server.jobs.clear()
 
     def tearDown(self):
+        import api.db_init as db_init
+        db_init.ensure_tables_exist = self._orig_ensure_tables
         for name, mod in self.original_modules.items():
             if mod is None:
                 sys.modules.pop(name, None)
@@ -96,27 +102,29 @@ class ServerEndpointsTest(unittest.TestCase):
                 sys.modules[name] = mod
 
     def test_steps_and_jobs_listing(self):
-        resp = self.client.get('/api/steps')
-        self.assertEqual(resp.status_code, 200)
-        steps = resp.json()['steps']
-        self.assertIn('tag', steps)
-        self.assertIn('import', steps)
-        self.assertIn('manual-youtube', steps)
+        with TestClient(self.server.app) as client:
+            resp = client.get('/api/steps')
+            self.assertEqual(resp.status_code, 200)
+            steps = resp.json()['steps']
+            self.assertIn('tag', steps)
+            self.assertIn('import', steps)
+            self.assertIn('manual-youtube', steps)
 
-        # simulate a running job and verify listing
-        job_id = '123'
-        self.server.jobs[job_id] = {'id': job_id, 'step': 'dummy', 'status': 'running', 'log': []}
-        jobs_resp = self.client.get('/api/jobs')
-        self.assertEqual(jobs_resp.status_code, 200)
-        jobs = jobs_resp.json()['jobs']
-        self.assertTrue(any(job['id'] == job_id and job['step'] == 'dummy' for job in jobs))
+            # simulate a running job and verify listing
+            job_id = '123'
+            self.server.jobs[job_id] = {'id': job_id, 'step': 'dummy', 'status': 'running', 'log': []}
+            jobs_resp = client.get('/api/jobs')
+            self.assertEqual(jobs_resp.status_code, 200)
+            jobs = jobs_resp.json()['jobs']
+            self.assertTrue(any(job['id'] == job_id and job['step'] == 'dummy' for job in jobs))
 
     def test_run_manual_youtube(self):
-        resp = self.client.post('/api/run/manual-youtube', json={'url': 'http://example.com'})
-        self.assertEqual(resp.status_code, 200)
-        data = resp.json()
-        self.assertEqual(data['step'], 'manual-youtube')
-        self.assertIn('id', data)
+        with TestClient(self.server.app) as client:
+            resp = client.post('/api/run/manual-youtube', json={'url': 'http://example.com'})
+            self.assertEqual(resp.status_code, 200)
+            data = resp.json()
+            self.assertEqual(data['step'], 'manual-youtube')
+            self.assertIn('id', data)
 
 
 if __name__ == '__main__':

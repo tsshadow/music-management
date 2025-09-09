@@ -5,7 +5,7 @@ import sys
 import types
 from unittest.mock import patch
 
-from fastapi.testclient import TestClient
+import anyio
 
 # minimal env vars
 os.environ.setdefault('DB_HOST', 'localhost')
@@ -101,8 +101,8 @@ class DbInitTest(unittest.TestCase):
         with patch('api.db_init.ensure_tables_exist') as ensure_mock:
             import api.server as server_module
             importlib.reload(server_module)
-            with TestClient(server_module.app):
-                pass
+            anyio.run(server_module.app.router.startup)
+            anyio.run(server_module.app.router.shutdown)
             ensure_mock.assert_called_once()
 
         for name, mod in original_modules.items():

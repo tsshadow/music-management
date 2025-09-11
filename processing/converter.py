@@ -53,7 +53,7 @@ class Converter:
 
         try:
             logging.info(f"Converting {src} to {dst}")
-            subprocess.run(["ffmpeg", "-y", "-i", src, "-c", "copy", dst], check=True)
+            subprocess.run(["/usr/bin/ffmpeg", "-y", "-i", src, "-c", "copy", dst], check=True)
             if os.path.exists(dst):
                 os.remove(src)
                 logging.info(f"Deleted original .aac file after conversion: {src}")

@@ -21,6 +21,33 @@ class YoutubeDownloader:
         os.makedirs(self.output_folder, exist_ok=True)
         os.makedirs(self.archive_dir, exist_ok=True)
 
+        # Read optional cookie/user-agent env once
+        self.cookies_file = os.getenv("YT_COOKIES")  # expected to be a path to cookies.txt
+        self.user_agent = os.getenv("YT_USER_AGENT")  # optional: keep UA aligned with browser
+
+    def _cookie_options(self) -> dict:
+        """
+        Build yt-dlp cookie-related options.
+        Prefer a provided cookies.txt (YT_COOKIES) if it exists; otherwise
+        fall back to reading from a Firefox profile inside the container.
+        """
+        opts: dict = {}
+        if self.cookies_file:
+            if os.path.exists(self.cookies_file):
+                logging.info(f"Using cookies.txt from YT_COOKIES: {self.cookies_file}")
+                opts["cookies"] = self.cookies_file
+                return opts
+            else:
+                logging.warning(
+                    f"YT_COOKIES is set but file not found: {self.cookies_file}. "
+                    "Falling back to cookiesfrombrowser=firefox."
+                )
+
+        # Fallback: read directly from Firefox profile (container-side)
+        opts["cookiesfrombrowser"] = ("firefox",)
+        logging.info("Using cookiesfrombrowser=firefox (no YT_COOKIES file).")
+        return opts
+
     def _create_ydl(self, archive_file: str, break_on_existing: bool = True) -> YoutubeDL:
         opts = {
             "outtmpl": f"{self.output_folder}/%(uploader)s/%(title)s.%(ext)s",
@@ -33,8 +60,16 @@ class YoutubeDownloader:
             "compat_opts": ["filename"],
             "nooverwrites": True,
             "keepvideo": False,
-            "cookiesfrombrowser": ("firefox",),
+            "ffmpeg_location": "/usr/local/bin",
         }
+
+        # Merge cookie options
+        opts.update(self._cookie_options())
+
+        # Optional: set a specific User-Agent to match the browser
+        if self.user_agent:
+            opts["user_agent"] = self.user_agent
+
         if break_on_existing:
             opts["break_on_existing"] = True
 
@@ -88,5 +123,6 @@ class YoutubeDownloader:
             logging.warning("No YouTube accounts found in the database.")
             return
 
+        # You can increase max_workers if you want concurrent downloads
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             executor.map(self.download_account, accounts)

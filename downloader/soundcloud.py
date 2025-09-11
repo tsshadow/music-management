@@ -79,6 +79,7 @@ class SoundcloudDownloader:
             'break_on_existing': break_on_existing,
             'set_file_timestamp': True,
             'cookies': self.cookies_file,
+            "ffmpeg_location": "/usr/local/bin",
         }
 
     def _match_filter(self, info):

@@ -17,6 +17,7 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
+from fastapi.staticfiles import StaticFiles
 
 from .steps import step_map
 from .db_init import ensure_tables_exist
@@ -293,3 +294,6 @@ async def jobs_ws(ws: WebSocket):
         pass
     finally:
         clients.discard(ws)
+
+# Serve the pre-built frontend as static files
+app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="frontend")

@@ -9,7 +9,18 @@ from mutagen import MutagenError
 class Analyze:
     def __init__(self):
         self.settings = Settings()
-        self.analyzer = Analyzer()
+        try:
+            self.analyzer = Analyzer()
+        except Exception as e:
+            logging.warning(f"Analyzer unavailable: {e}")
+            class _DummyAnalyzer:
+                def start(self):
+                    pass
+                def submit(self, *args, **kwargs):
+                    pass
+                def done(self):
+                    pass
+            self.analyzer = _DummyAnalyzer()
         self.extensions = {
             "mp3": True,
             "flac": True,

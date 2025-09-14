@@ -28,7 +28,11 @@ class LookupTableHelper:
 
     def _preload(self):
         query = f"SELECT {self.key_column_name}, {self.value_column_name} FROM {self.table_name}"
-        connection = self.db_connector.connect()
+        try:
+            connection = self.db_connector.connect()
+        except Exception as e:
+            logging.error(f"[{self.table_name}] Failed to preload key-value pairs: {e}")
+            return
 
         try:
             with connection.cursor() as cursor:
@@ -55,7 +59,11 @@ class LookupTableHelper:
 
         # fallback to DB
         query = f"SELECT {self.value_column_name} FROM {self.table_name} WHERE LOWER({self.key_column_name}) = LOWER(%s)"
-        connection = self.db_connector.connect()
+        try:
+            connection = self.db_connector.connect()
+        except Exception as e:
+            logging.error(f"[{self.table_name}] Failed to get values for key '{key}': {e}")
+            return []
         try:
             with connection.cursor() as cursor:
                 cursor.execute(query, (key,))
@@ -79,7 +87,11 @@ class LookupTableHelper:
 
         # fallback to DB
         query = f"SELECT {self.key_column_name}, {self.value_column_name} FROM {self.table_name}"
-        connection = self.db_connector.connect()
+        try:
+            connection = self.db_connector.connect()
+        except Exception as e:
+            logging.error(f"[{self.table_name}] Failed to get substring matches for '{input_string}': {e}")
+            return []
         try:
             with connection.cursor() as cursor:
                 cursor.execute(query)

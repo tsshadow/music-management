@@ -1,6 +1,7 @@
 import os
 import asyncio
 from pathlib import Path
+import logging
 
 from telethon import TelegramClient
 
@@ -14,9 +15,13 @@ class TelegramDownloader:
         self.max_concurrent_downloads = int(os.getenv("telegram_max_concurrent", 4))
 
         if not self.output_folder or not self.api_id or not self.api_hash:
-            raise ValueError(
-                "Missing required environment variables: telegram_folder, telegram_api_id, telegram_api_hash"
+            logging.warning(
+                "Missing required environment variables: telegram_folder, telegram_api_id, telegram_api_hash. "
+                "Telegram downloads will be disabled."
             )
+            self.output_folder = None
+            self.api_id = None
+            self.api_hash = None
 
     def _is_audio(self, message) -> bool:
         mime = getattr(getattr(message, "file", None), "mime_type", "")
@@ -61,6 +66,10 @@ class TelegramDownloader:
         await asyncio.gather(*download_tasks)
 
     def run(self, channel: str, limit: int | None = None):
+        if not self.output_folder or not self.api_id or not self.api_hash:
+            logging.warning("Telegram downloader is not configured; skipping run().")
+            return
+
         if not channel:
             raise ValueError("Channel must be provided")
 

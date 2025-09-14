@@ -18,7 +18,11 @@ class FilterTableHelper:
 
     def _preload(self):
         query = f"SELECT {self.column_name}, {self.corrected_column_name} FROM {self.table_name}"
-        connection = self.db_connector.connect()
+        try:
+            connection = self.db_connector.connect()
+        except Exception as e:
+            logging.error(f"[{self.table_name}] Error preloading table: {e}")
+            return
 
         try:
             with connection.cursor() as cursor:

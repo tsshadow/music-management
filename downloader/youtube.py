@@ -14,12 +14,15 @@ class YoutubeDownloader:
         self.archive_dir = os.getenv("youtube_archive")
 
         if not self.output_folder or not self.archive_dir:
-            raise ValueError(
-                "Missing required environment variables for youtube_folder or youtube_archive"
+            logging.warning(
+                "Missing required environment variables for youtube_folder or youtube_archive. "
+                "YouTube downloads will be disabled."
             )
-
-        os.makedirs(self.output_folder, exist_ok=True)
-        os.makedirs(self.archive_dir, exist_ok=True)
+            self.output_folder = None
+            self.archive_dir = None
+        else:
+            os.makedirs(self.output_folder, exist_ok=True)
+            os.makedirs(self.archive_dir, exist_ok=True)
 
         # Read optional cookie/user-agent env once
         self.cookies_file = os.getenv("YT_COOKIES")  # expected to be a path to cookies.txt
@@ -113,6 +116,10 @@ class YoutubeDownloader:
             return []
 
     def run(self):
+        if not self.output_folder or not self.archive_dir:
+            logging.warning("YouTube downloader is not configured; skipping run().")
+            return
+
         try:
             accounts = self.get_accounts_from_db()
         except Exception as e:

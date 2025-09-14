@@ -1,22 +1,23 @@
 import logging
-import re
-from pathlib import Path
 from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
 
 
-def _is_table_referenced(table: str) -> bool:
-    """Return True if *table* appears anywhere in the project code base."""
-    root = Path(__file__).resolve().parents[1]
-    pattern = re.compile(r"\b" + re.escape(table) + r"\b")
-    for path in root.rglob("*.py"):
-        if path == Path(__file__):
-            continue
-        try:
-            if pattern.search(path.read_text(encoding="utf-8")):
-                return True
-        except Exception:  # pragma: no cover - best effort
-            continue
-    return False
+# Static list of tables that should exist in the database.
+REQUIRED_TABLES = [
+    "soundcloud_accounts",
+    "soundcloud_archive",
+    "youtube_accounts",
+    "youtube_archive",
+    "artists",
+    "artist_genre",
+    "catid_label",
+    "festival_data",
+    "genres",
+    "ignored_artists",
+    "ignored_genres",
+    "label_genre",
+    "subgenre_genre",
+]
 
 
 def ensure_tables_exist() -> None:
@@ -125,13 +126,14 @@ def ensure_tables_exist() -> None:
         """,
     }
 
-    queries = [sql for table, sql in table_queries.items() if _is_table_referenced(table)]
+    queries = [table_queries[table] for table in REQUIRED_TABLES]
 
     try:
         conn = DatabaseConnector().connect()
         try:
             with conn.cursor() as cursor:
                 for query in queries:
+                    print(query)
                     cursor.execute(query)
             conn.commit()
         finally:

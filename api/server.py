@@ -18,6 +18,7 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from .steps import step_map
 from .db_init import ensure_tables_exist
@@ -296,5 +297,9 @@ async def jobs_ws(ws: WebSocket):
     finally:
         clients.discard(ws)
 
-# Serve the pre-built frontend as static files
-app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="frontend")
+# Serve the pre-built frontend as static files if available
+frontend_dir = Path("frontend/dist")
+if frontend_dir.exists():
+    app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
+else:
+    logging.warning("Frontend build directory not found; static files will not be served.")

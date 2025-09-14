@@ -45,7 +45,14 @@ class SoundcloudDownloader:
         self.cookies_file = os.getenv("soundcloud_cookies", "soundcloud.com_cookies.txt")
 
         if not self.output_folder or not self.archive_dir:
-            raise ValueError("Missing required environment variables: soundcloud_folder or soundcloud_archive")
+            logging.warning(
+                "Missing required environment variables: soundcloud_folder or soundcloud_archive. "
+                "SoundCloud downloads will be disabled."
+            )
+            self.output_folder = None
+            self.archive_dir = None
+            self.enabled = False
+            return
 
         if not os.path.isdir(self.output_folder):
             raise FileNotFoundError(f"Output folder does not exist: {self.output_folder}")
@@ -56,6 +63,7 @@ class SoundcloudDownloader:
             os.makedirs(self.archive_dir, exist_ok=True)
             self.archive_file = None
 
+        self.enabled = True
         self.max_workers = max_workers
         self.burst_size = burst_size
         self.min_pause = min_pause
@@ -121,6 +129,10 @@ class SoundcloudDownloader:
         logging.error(f"SoundCloud download failed for {name} after 3 attempts.")
 
     def run(self, account="", download=True):
+        if not getattr(self, "enabled", True):
+            logging.warning("SoundCloud downloader is not configured; skipping run().")
+            return
+
         if not account:
             accounts = get_accounts_from_db()
             if not accounts:

@@ -36,8 +36,7 @@ services:
       DB_PASS: music-importer
       DB_DB: music-importer
     ports:
-      - "8001:8001"
-      - "5173:5173"
+      - "${PORT:-8001}:${PORT:-8001}"
     volumes:
       - .:/app
 volumes:

@@ -3,7 +3,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
-const devProxyTarget = process.env.VITE_DEV_API_TARGET ?? 'http://192.0.2.178:8001';
+const devProxyTarget = process.env.VITE_DEV_API_TARGET ?? 'http://localhost:8001';
 
 export default defineConfig({
         plugins: [tailwindcss(), sveltekit()],

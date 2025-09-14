@@ -4,8 +4,8 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "VITE_API_BASE=/api VITE_DEV_API_TARGET=http://192.0.2.178:8001 vite dev",
-    "dev:docker": "VITE_API_BASE=/api VITE_DEV_API_TARGET=http://192.0.2.27:8001 vite dev",
+    "dev": "VITE_API_BASE=/api VITE_DEV_API_TARGET=${VITE_DEV_API_TARGET:-http://localhost:8001} vite dev",
+    "dev:docker": "VITE_API_BASE=/api VITE_DEV_API_TARGET=${VITE_DEV_API_TARGET:-http://localhost:8001} vite dev",
     "build": "vite build",
     "preview": "vite preview",
     "prepare": "svelte-kit sync || echo ''",

@@ -64,7 +64,9 @@ COPY --from=builder /app/frontend/dist frontend/dist
 # Copy default env again for runtime
 RUN cp .env.linux .env || true && rm -f .env.linux
 
-EXPOSE 8001
+ARG PORT=8001
+ENV PORT=${PORT}
+EXPOSE ${PORT}
 
 COPY entrypoint.sh ./entrypoint.sh
 RUN chmod +x entrypoint.sh

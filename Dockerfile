@@ -32,17 +32,17 @@ RUN set -eux; \
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 
+# Copy application source
+COPY . .
+
+# Optional env copy (your original step)
+RUN [ -f .env.linux ] && cp -f .env.linux .env && rm -f .env.linux || true
+
 # Frontend dependencies and build
 COPY frontend/pnpm-lock.yaml frontend/package.json frontend/
 RUN cd frontend && pnpm install
 COPY frontend/ frontend/
 RUN cd frontend && pnpm build
-
-# Copy application source
-COPY . .
-
-# Copy default env if present
-RUN cp .env.linux .env || true && rm -f .env.linux
 
 
 # -----------------------------------------------------

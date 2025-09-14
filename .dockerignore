@@ -38,6 +38,3 @@ result.json
 broken-files.log
 music-importer.session
 
-# Media/data caches (mount als volume i.p.v. in image)
-archives/
-data/

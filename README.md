@@ -155,3 +155,70 @@ volumes:
 
 Use the `PORT` variable to run multiple instances side-by-side and override any other
 variables as needed for your setup.
+
+## ⚙️ Configuration
+
+The application is configured through environment variables. Frequently used settings
+include:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `8001` | HTTP port for the API and static frontend |
+| `DB_HOST` | – | Database host name |
+| `DB_PORT` | `3306` | Database port |
+| `DB_USER` | – | Database user |
+| `DB_PASS` | – | Database password |
+| `DB_DB` | – | Database name |
+| `API_KEY` | – | Optional shared secret required by clients |
+| `CORS_ORIGINS` | `*` | Comma‑separated list of allowed origins |
+
+Other optional variables exist for specific downloaders such as Discogs, Spotify or
+Telegram; consult the source if you need those integrations.
+
+## 🐳 Running with Docker
+
+Build the production image and expose it on the desired port:
+
+```bash
+docker build -t music-importer .
+docker run -p 8001:8001 \
+  -e DB_HOST=db -e DB_PORT=3306 -e DB_USER=music-importer \
+  -e DB_PASS=music-importer -e DB_DB=music-importer \
+  music-importer
+```
+
+### docker-compose example
+
+```yaml
+version: "3.9"
+services:
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpass
+      MARIADB_DATABASE: music-importer
+      MARIADB_USER: music-importer
+      MARIADB_PASSWORD: music-importer
+    volumes:
+      - db_data:/var/lib/mysql
+
+  music-importer:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: music-importer
+      DB_PASS: music-importer
+      DB_DB: music-importer
+      # API_KEY: choose-a-secret
+    ports:
+      - "${PORT:-8001}:${PORT:-8001}"
+
+volumes:
+  db_data:
+```
+
+Use the `PORT` variable to run multiple instances side-by-side and override any other
+variables as needed for your setup.

@@ -32,17 +32,23 @@ RUN set -eux; \
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Copy application source
-COPY . .
-
-# Optional env copy (your original step)
-RUN [ -f .env.linux ] && cp -f .env.linux .env && rm -f .env.linux || true
-
 # Frontend dependencies and build
 COPY frontend/pnpm-lock.yaml frontend/package.json frontend/
 RUN cd frontend && pnpm install
 COPY frontend/ frontend/
 RUN cd frontend && pnpm build
+
+# Copy application source
+COPY . .
+
+# Remove dev files to shrink final image
+RUN rm -rf tests \
+    frontend/node_modules frontend/.svelte-kit frontend/.vite \
+    frontend/src frontend/static frontend/tsconfig.json \
+    frontend/vite.config.ts frontend/svelte.config.js \
+    frontend/eslint.config.js frontend/package.json \
+    frontend/pnpm-lock.yaml frontend/README.md \
+    frontend/vitest-setup-client.ts
 
 
 # -----------------------------------------------------
@@ -55,20 +61,14 @@ WORKDIR /app
 # Bring in Python deps and FFmpeg
 COPY --from=builder /usr/local /usr/local
 
-# Application source (node_modules are ignored via .dockerignore)
-COPY . .
-
-# Include built frontend
-COPY --from=builder /app/frontend/dist frontend/dist
-
-# Copy default env again for runtime
-RUN cp .env.linux .env || true && rm -f .env.linux
+# Bring in application code and built frontend
+COPY --from=builder /app /app
 
 ARG PORT=8001
 ENV PORT=${PORT}
 EXPOSE ${PORT}
 
-COPY entrypoint.sh ./entrypoint.sh
+# Ensure entrypoint is executable
 RUN chmod +x entrypoint.sh
 
 CMD ["bash", "./entrypoint.sh"]

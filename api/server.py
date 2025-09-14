@@ -40,6 +40,7 @@ current_logger: ContextVar[logging.LoggerAdapter] = ContextVar(
 
 @app.on_event("startup")
 def _startup() -> None:  # pragma: no cover - trivial
+    print("starting up...")
     ensure_tables_exist()
 
 

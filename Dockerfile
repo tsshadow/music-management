@@ -33,8 +33,10 @@ COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Frontend dependencies and build
-COPY frontend/package.json frontend/pnpm-lock.yaml frontend/
-RUN cd frontend && pnpm install && pnpm build
+COPY frontend/pnpm-lock.yaml frontend/package.json frontend/
+RUN cd frontend && pnpm install
+COPY frontend/ frontend/
+RUN cd frontend && pnpm build
 
 # Copy application source
 COPY . .

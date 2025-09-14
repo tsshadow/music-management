@@ -2,7 +2,7 @@ import { writable, type Writable } from 'svelte/store';
 import { getContext, setContext } from 'svelte';
 import { jobs as jobsStore, upsert, type Job } from './jobs';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '';
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 const WS_URL = API_BASE
   ? API_BASE.replace(/^http/, 'ws').replace(/\/?api$/, '') + '/ws/jobs'
   : typeof window !== 'undefined'

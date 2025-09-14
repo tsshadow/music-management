@@ -35,15 +35,15 @@ RUN set -eux; \
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Frontend deps (cache pnpm install)
-COPY frontend/package.json frontend/pnpm-lock.yaml frontend/
-RUN cd frontend && pnpm install
-
 # App source
 COPY . .
 
 # Optional env copy (your original step)
-RUN cp .env.linux .env || true && rm -f .env.linux
+RUN [ -f .env.linux ] && cp -f .env.linux .env && rm -f .env.linux || true
+
+# Frontend deps (cache pnpm install)
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/
+RUN cd frontend && pnpm install
 
 # Vite dev server env
 ENV VITE_API_BASE=/api

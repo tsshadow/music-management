@@ -9,7 +9,7 @@ const WS_URL = API_BASE
     ? window.location.origin.replace(/^http/, 'ws') + '/ws/jobs'
     : '';
 
-class JobsContext {
+export class JobsContext {
   steps: Writable<string[]> = writable([]);
   jobs = jobsStore;
 
@@ -45,15 +45,25 @@ class JobsContext {
 
   setupWebSocket() {
     if (typeof WebSocket === 'undefined') return;
-    try {
-      const ws = new WebSocket(WS_URL);
-      ws.onmessage = ev => {
-        const update = JSON.parse(ev.data);
-        upsert(update);
-      };
-    } catch {
-      // ignore errors
-    }
+    const connect = () => {
+      try {
+        const ws = new WebSocket(WS_URL);
+        ws.onmessage = ev => {
+          const update = JSON.parse(ev.data);
+          upsert(update);
+        };
+        ws.onclose = () => {
+          setTimeout(connect, 1000);
+        };
+        ws.onerror = () => {
+          ws.close();
+        };
+      } catch {
+      console.log('reconnecting...')
+        setTimeout(connect, 1000);
+      }
+    };
+    connect();
   }
 
   async start(step: string, options: Record<string, unknown> = {}) {

@@ -623,8 +623,8 @@ namespace lms::db
                                                + oss.str() + "))"
                                                              " AND t.id NOT IN ("
                                                + oss.str() + ")")
-                .groupBy("t.id")
-                .orderBy("COUNT(*) DESC, RANDOM()") };
+                        .groupBy("t.id")
+                        .orderBy("COUNT(*) DESC, RANDOM()") };
 
         for (TrackId trackId : tracks)
             query.bind(trackId);

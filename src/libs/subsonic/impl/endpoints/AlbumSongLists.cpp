@@ -35,12 +35,11 @@
 
 #include "FestivalLineupRepository.hpp"
 #include "ParameterParsing.hpp"
+#include "SubsonicId.hpp"
 #include "document.h"
 #include "responses/Album.hpp"
 #include "responses/Artist.hpp"
 #include "responses/Song.hpp"
-
-#include <responses/Genre.hpp>
 
 namespace lms::api::subsonic
 {

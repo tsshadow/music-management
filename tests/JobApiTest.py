@@ -9,12 +9,12 @@ sys.modules.pop('requests', None)
 requests = importlib.import_module('requests')
 from step import Step
 from api import start_api_server
-from job_manager import job_manager
+from api.job_manager import job_manager
 
 
 class JobApiTest(unittest.TestCase):
     def test_job_lifecycle_and_api(self):
-        job_manager.clear()
+        job_manager.jobs.clear()
         # start API server on random port
         server = start_api_server(port=0)
         try:
@@ -49,7 +49,7 @@ class JobApiTest(unittest.TestCase):
             server.server_close()
 
     def test_failed_job_status(self):
-        job_manager.clear()
+        job_manager.jobs.clear()
         server = start_api_server(port=0)
         try:
             host, port = server.server_address

@@ -1,8 +1,7 @@
-import inspect
 import logging
 import inspect
 
-from job_manager import job_manager
+from api.job_manager import job_manager
 
 
 class Step:

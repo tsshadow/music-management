@@ -19,7 +19,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from job_manager import job_manager
+from api.job_manager import job_manager
 
 # ---------------------------------------------------------------------------
 # FastAPI application

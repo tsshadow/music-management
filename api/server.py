@@ -89,7 +89,7 @@ def verify_api_key(x_api_key: Optional[str] = Header(default=None)) -> None:
 # CORS configuration
 # -----------------------------------------------------
 default_origins = (
-    "http://192.0.2.178:5173,https://music-importer.example.com"
+    "http://192.0.2.4:8001,https://music-importer.example.com"
 )
 trusted_origins = os.getenv("CORS_ORIGINS", default_origins).split(",")
 app.add_middleware(

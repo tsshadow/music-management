@@ -12,6 +12,7 @@ class YoutubeDownloader:
     def __init__(self):
         self.output_folder = os.getenv("youtube_folder")
         self.archive_dir = os.getenv("youtube_archive")
+        self.ffmpeg_location = os.getenv("ffmpeg-location", "usr/bin/local")
 
         if not self.output_folder or not self.archive_dir:
             logging.warning(
@@ -63,7 +64,7 @@ class YoutubeDownloader:
             "compat_opts": ["filename"],
             "nooverwrites": True,
             "keepvideo": False,
-            "ffmpeg_location": "/usr/local/bin",
+            "ffmpeg_location": self.ffmpeg_location,
         }
 
         # Merge cookie options

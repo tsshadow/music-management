@@ -43,6 +43,7 @@ class SoundcloudDownloader:
         self.output_folder = os.getenv("soundcloud_folder")
         self.archive_dir = os.getenv("soundcloud_archive")
         self.cookies_file = os.getenv("soundcloud_cookies", "soundcloud.com_cookies.txt")
+        self.ffmpeg_location = os.getenv("ffmpeg-location", "usr/bin/local")
 
         if not self.output_folder or not self.archive_dir:
             logging.warning(
@@ -87,7 +88,7 @@ class SoundcloudDownloader:
             'break_on_existing': break_on_existing,
             'set_file_timestamp': True,
             'cookies': self.cookies_file,
-            "ffmpeg_location": "/usr/local/bin",
+            "ffmpeg_location": self.ffmpeg_location,
         }
 
     def _match_filter(self, info):

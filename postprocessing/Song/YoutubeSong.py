@@ -9,22 +9,34 @@ from postprocessing.Song.rules.InferGenreFromSubgenreRule import InferGenreFromS
 from postprocessing.Song.rules.InferRemixerFromTitleRule import InferRemixerFromTitleRule
 from postprocessing.Song.rules.ReplaceInvalidUnicodeRule import ReplaceInvalidUnicodeRule
 from postprocessing.constants import ALBUM_ARTIST, PUBLISHER, CATALOG_NUMBER, GENRE, ARTIST, COPYRIGHT, FormatEnum, \
-    TITLE
+    TITLE, ALBUM
 
 s = Settings()
 
 
 class YoutubeSong(BaseSong):
-    def __init__(self, path):
-        super().__init__(path)
+    def __init__(self, path, extra_info=None):
+        super().__init__(path, extra_info)
         self._catalog_number = None
         paths = path.rsplit(s.delimiter, 2)
         self._album_artist_from_path = str(paths[1])
         self._publisher = "Youtube"
+        channel = None
+        if extra_info:
+            channel = (
+                extra_info.get("uploader")
+                or extra_info.get("channel")
+                or extra_info.get("uploader_id")
+                or extra_info.get("channel_id")
+            )
+        self._channel_for_album = channel or self._album_artist_from_path
+        self._album = f"{self._publisher} ({self._channel_for_album})"
 
     def parse(self):
         if not self.album_artist():
             self.tag_collection.set_item(ALBUM_ARTIST, self._album_artist_from_path)
+        if not self.album():
+            self.tag_collection.set_item(ALBUM, self._album)
         if not self.copyright():
             if self.calculate_copyright():
                 self.tag_collection.set_item(COPYRIGHT, self.calculate_copyright())

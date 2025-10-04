@@ -12,11 +12,16 @@ const WS_URL = API_BASE
 export class JobsContext {
   steps: Writable<string[]> = writable([]);
   jobs = jobsStore;
+  accounts: Writable<{ soundcloud: string[]; youtube: string[] }> = writable({
+    soundcloud: [],
+    youtube: [],
+  });
 
   constructor() {
     if (typeof window !== 'undefined') {
       this.loadSteps();
       this.loadJobs();
+      this.loadAccounts();
       this.setupWebSocket();
     }
   }
@@ -40,6 +45,21 @@ export class JobsContext {
         .forEach(upsert);
     } catch {
       // ignore errors
+    }
+  }
+
+  async loadAccounts() {
+    try {
+      const res = await fetch(`${API_BASE}/accounts`);
+      const data = await res.json();
+      const soundcloud = Array.isArray(data.soundcloud) ? data.soundcloud : [];
+      const youtube = Array.isArray(data.youtube) ? data.youtube : [];
+      this.accounts.set({
+        soundcloud: [...soundcloud].sort(),
+        youtube: [...youtube].sort(),
+      });
+    } catch {
+      this.accounts.set({ soundcloud: [], youtube: [] });
     }
   }
 

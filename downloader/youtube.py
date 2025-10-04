@@ -217,13 +217,17 @@ class YoutubeDownloader:
         self,
         breakOnExisting: Optional[bool] = None,
         redownload: bool = False,
+        account: str = "",
     ):
         if not getattr(self, "enabled", True):
             logging.warning("YouTube downloader is not configured; skipping run().")
             return
 
         try:
-            accounts = self.get_accounts_from_db()
+            if account:
+                accounts = [account]
+            else:
+                accounts = self.get_accounts_from_db()
         except Exception as e:
             logging.error(f"Database error while fetching YouTube accounts: {e}")
             return

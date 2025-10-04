@@ -5,7 +5,7 @@ import uuid
 from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from fastapi import (
     Depends,
@@ -19,6 +19,8 @@ from fastapi import (
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+
+from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
 
 from .db_init import ensure_tables_exist
 from .steps import step_map
@@ -130,6 +132,28 @@ def _public_job(job: Dict) -> Dict:
     return {k: v for k, v in job.items() if k not in {"task", "stop_event"}}
 
 
+def _load_accounts(table: str) -> List[str]:
+    """Fetch account names from the given table, logging errors on failure."""
+
+    try:
+        conn = DatabaseConnector().connect()
+    except Exception as exc:  # pragma: no cover - defensive
+        logging.error("Failed to connect to database for %s accounts: %s", table, exc)
+        return []
+
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(f"SELECT name FROM {table}")
+            accounts = [row[0] for row in cursor.fetchall()]
+    except Exception as exc:  # pragma: no cover - defensive
+        logging.error("Failed to fetch %s accounts: %s", table, exc)
+        return []
+    finally:
+        conn.close()
+
+    return sorted(accounts)
+
+
 @app.get("/health")
 async def health() -> Dict[str, str]:
     """Basic health check endpoint.
@@ -153,6 +177,16 @@ async def health() -> Dict[str, str]:
 async def list_steps(_: None = Depends(verify_api_key)):
     """Return available step keys for dropdowns."""
     return {"steps": sorted(step_map.keys())}
+
+
+@app.get("/api/accounts")
+async def list_accounts(_: None = Depends(verify_api_key)) -> Dict[str, List[str]]:
+    """Return SoundCloud and YouTube account names for UI dropdowns."""
+
+    return {
+        "soundcloud": _load_accounts("soundcloud_accounts"),
+        "youtube": _load_accounts("youtube_accounts"),
+    }
 
 
 @app.get("/api/jobs")

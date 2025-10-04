@@ -1,17 +1,34 @@
 <script>
-import { createEventDispatcher } from 'svelte';
+import { createEventDispatcher, onDestroy } from 'svelte';
 import { getJobsContext } from '$lib/jobs-context';
 
-const { steps, start } = getJobsContext();
+const { steps, start, accounts } = getJobsContext();
 let selected = '';
 let repeat = false;
 let repeatInterval = 0;
 let breakOnExisting = false;
 let redownload = false;
 let youtubeUrl = '';
+let availableAccounts = [];
+let selectedAccount = '';
+let accountType = '';
+let accountOptions = { soundcloud: [], youtube: [] };
+let selectedAccounts = { soundcloud: '', youtube: '' };
 const breakOnExistingSteps = ['download', 'download-soundcloud', 'download-youtube'];
 const redownloadSteps = ['download', 'download-soundcloud', 'download-youtube'];
+const accountStepMap = {
+  'download-soundcloud': 'soundcloud',
+  'download-youtube': 'youtube',
+};
 const dispatch = createEventDispatcher();
+
+const unsubscribeAccounts = accounts.subscribe(value => {
+  accountOptions = value ?? { soundcloud: [], youtube: [] };
+});
+
+onDestroy(() => {
+  unsubscribeAccounts();
+});
 
 $: if (!selected && $steps.length > 0) {
   selected = $steps[0];
@@ -25,6 +42,22 @@ $: if (!redownloadSteps.includes(selected)) {
   redownload = false;
 }
 
+$: accountType = accountStepMap[selected] ?? '';
+$: availableAccounts = accountType ? accountOptions[accountType] ?? [] : [];
+$: selectedAccount = accountType ? selectedAccounts[accountType] ?? '' : '';
+$: if (accountType && selectedAccount && !availableAccounts.includes(selectedAccount)) {
+  selectedAccount = '';
+  selectedAccounts = { ...selectedAccounts, [accountType]: '' };
+}
+
+function onAccountChange(event) {
+  const value = event.target.value;
+  if (accountType) {
+    selectedAccounts = { ...selectedAccounts, [accountType]: value };
+    selectedAccount = value;
+  }
+}
+
 async function startSelected() {
   if (!selected) return;
   const options = {};
@@ -36,6 +69,9 @@ async function startSelected() {
     options.breakOnExisting = true;
   if (redownload && redownloadSteps.includes(selected)) options.redownload = true;
   if (selected === 'manual-youtube' && youtubeUrl) options.url = youtubeUrl;
+  if (accountType && selectedAccount) {
+    options.account = selectedAccount;
+  }
   const job = await start(selected, options);
   if (job) {
     dispatch('started', job);
@@ -95,6 +131,21 @@ async function startSelected() {
       placeholder="YouTube URL"
       bind:value={youtubeUrl}
     />
+  {/if}
+  {#if accountType}
+    <label class="block text-sm">
+      <span class="mb-1 block text-green-300">Account</span>
+      <select
+        class="w-full rounded border border-green-700 bg-gray-900 p-2 text-green-400"
+        bind:value={selectedAccount}
+        on:change={onAccountChange}
+      >
+        <option value="">All accounts</option>
+        {#each availableAccounts as account}
+          <option value={account}>{account}</option>
+        {/each}
+      </select>
+    </label>
   {/if}
   <button
     class="rounded bg-green-600 px-4 py-2 font-bold text-black shadow hover:bg-green-500"

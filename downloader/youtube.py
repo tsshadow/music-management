@@ -3,6 +3,7 @@ import logging
 import os
 import random
 import time
+from typing import Optional
 
 from yt_dlp import YoutubeDL
 
@@ -95,16 +96,26 @@ class YoutubeDownloader:
         logging.info("Using cookiesfrombrowser=firefox (no YT_COOKIES file).")
         return opts
 
-    def _build_ydl_opts(self, archive_file: str, break_on_existing: bool = True) -> dict:
+    def _build_ydl_opts(
+        self,
+        archive_file: str,
+        break_on_existing: bool = True,
+        redownload: bool = False,
+    ) -> dict:
         opts = {**self._base_ydl_opts}
         if "postprocessors" in self._base_ydl_opts:
             opts["postprocessors"] = [
                 pp.copy() if isinstance(pp, dict) else pp
                 for pp in self._base_ydl_opts["postprocessors"]
             ]
-        opts["download_archive"] = archive_file
+        if not redownload:
+            opts["download_archive"] = archive_file
+        else:
+            opts.pop("download_archive", None)
         if break_on_existing:
             opts["break_on_existing"] = True
+        else:
+            opts.pop("break_on_existing", None)
         return opts
 
     def _create_ydl(self, ydl_opts: dict) -> YoutubeDL:
@@ -169,12 +180,21 @@ class YoutubeDownloader:
 
         logging.error(f"YouTube download failed for {name} after 3 attempts.")
 
-    def download_link(self, url: str, breakOnExisting: bool = True):
+    def download_link(
+        self,
+        url: str,
+        breakOnExisting: bool = True,
+        redownload: bool = False,
+    ):
         """Download a single video using a direct URL."""
         archive_file = os.path.join(self.archive_dir, "manual.txt")
 
         try:
-            opts = self._build_ydl_opts(archive_file, break_on_existing=breakOnExisting)
+            opts = self._build_ydl_opts(
+                archive_file,
+                break_on_existing=breakOnExisting,
+                redownload=redownload,
+            )
             with self._create_ydl(opts) as ydl:
                 logging.info(f"Downloading from url: {url}")
                 ydl.download([url])
@@ -193,7 +213,11 @@ class YoutubeDownloader:
             logging.error(f"Failed to fetch Youtube accounts from DB: {e}")
             return []
 
-    def run(self):
+    def run(
+        self,
+        breakOnExisting: Optional[bool] = None,
+        redownload: bool = False,
+    ):
         if not getattr(self, "enabled", True):
             logging.warning("YouTube downloader is not configured; skipping run().")
             return
@@ -226,8 +250,15 @@ class YoutubeDownloader:
                 futures = {}
                 for acc in batch:
                     account_archive = os.path.join(self.archive_dir, f"{acc}.txt")
+                    effective_break = (
+                        self.default_break_on_existing
+                        if breakOnExisting is None
+                        else breakOnExisting
+                    )
                     ydl_opts = self._build_ydl_opts(
-                        account_archive, break_on_existing=self.default_break_on_existing
+                        account_archive,
+                        break_on_existing=effective_break,
+                        redownload=redownload,
                     )
                     futures[executor.submit(self.download_account, acc, ydl_opts)] = acc
 

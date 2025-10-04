@@ -4,6 +4,7 @@ import math
 import os
 import random
 import time
+from typing import Optional
 
 from yt_dlp import YoutubeDL
 from yt_dlp.postprocessor import FFmpegMetadataPP, EmbedThumbnailPP
@@ -39,11 +40,12 @@ class SoundcloudDownloader:
     - Handles batch downloads with configurable parallelism and throttling.
     - Skips tracks outside a configurable duration range.
     """
-    def __init__(self, break_on_existing = True, max_workers=1, burst_size=10, min_pause=1, max_pause=5):
+    def __init__(self, break_on_existing=True, max_workers=1, burst_size=10, min_pause=1, max_pause=5):
         self.output_folder = os.getenv("soundcloud_folder")
         self.archive_dir = os.getenv("soundcloud_archive")
         self.cookies_file = os.getenv("soundcloud_cookies", "soundcloud.com_cookies.txt")
         self.ffmpeg_location = os.getenv("ffmpeg-location", "usr/bin/local")
+        self.default_break_on_existing = break_on_existing
 
         if not self.output_folder or not self.archive_dir:
             logging.warning(
@@ -85,11 +87,13 @@ class SoundcloudDownloader:
             'format': 'bestaudio[ext=mp3]',
             'match_filter': self._match_filter,
             'quiet': False,
-            'break_on_existing': break_on_existing,
             'set_file_timestamp': True,
             'cookies': self.cookies_file,
             "ffmpeg_location": self.ffmpeg_location,
         }
+
+        if break_on_existing:
+            self.ydl_opts['break_on_existing'] = True
 
     def _match_filter(self, info):
         duration = info.get("duration")
@@ -129,7 +133,13 @@ class SoundcloudDownloader:
 
         logging.error(f"SoundCloud download failed for {name} after 3 attempts.")
 
-    def run(self, account="", download=True):
+    def run(
+        self,
+        account: str = "",
+        download: bool = True,
+        breakOnExisting: Optional[bool] = None,
+        redownload: bool = False,
+    ):
         if not getattr(self, "enabled", True):
             logging.warning("SoundCloud downloader is not configured; skipping run().")
             return
@@ -157,13 +167,25 @@ class SoundcloudDownloader:
                 for acc in batch:
                     # Clone ydl_opts and set archive file (shared or per-account)
                     ydl_opts = self.ydl_opts.copy()
-                    if self.archive_file:
-                        ydl_opts['download_archive'] = str(self.archive_file)
-                        logging.info(f"Using shared archive: {self.archive_file}")
+                    effective_break = (
+                        self.default_break_on_existing if breakOnExisting is None else breakOnExisting
+                    )
+                    if effective_break:
+                        ydl_opts['break_on_existing'] = True
                     else:
-                        account_archive = Path(self.archive_dir) / f"{acc}.txt"
-                        ydl_opts['download_archive'] = str(account_archive)
-                        logging.info(f"Using per-account archive: {account_archive} for {acc}")
+                        ydl_opts.pop('break_on_existing', None)
+
+                    if not redownload:
+                        if self.archive_file:
+                            ydl_opts['download_archive'] = str(self.archive_file)
+                            logging.info(f"Using shared archive: {self.archive_file}")
+                        else:
+                            account_archive = Path(self.archive_dir) / f"{acc}.txt"
+                            ydl_opts['download_archive'] = str(account_archive)
+                            logging.info(f"Using per-account archive: {account_archive} for {acc}")
+                    else:
+                        ydl_opts.pop('download_archive', None)
+                        logging.info(f"Redownload enabled — skipping archive for {acc}.")
                     futures[executor.submit(self.download_account, acc, ydl_opts)] = acc
 
                 for future in concurrent.futures.as_completed(futures):

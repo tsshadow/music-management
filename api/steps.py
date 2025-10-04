@@ -34,7 +34,7 @@ steps_to_run = [
     Step("Flattener", ["flatten"], flattener.run),
     Step("YouTube Downloader", ["download", "download-youtube"], youtube_downloader.run),
     Step("Manual YouTube Downloader", ["manual-youtube"], youtube_downloader.download_link),
-    Step("SoundCloud Downloader", ["download", "download-soundcloud"], lambda: soundcloud_downloader.run(account="")),
+    Step("SoundCloud Downloader", ["download", "download-soundcloud"], soundcloud_downloader.run),
     Step("Telegram Downloader", ["download-telegram"], lambda: telegram_downloader.run("")),
     Step("Analyze", ["analyze"], analyze_step.run),
     Step("ArtistFixer", ["artistfixer"], artist_fixer.run),

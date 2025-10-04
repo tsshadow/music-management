@@ -1,9 +1,10 @@
+import asyncio
 import logging
 import os
 import uuid
-import asyncio
 from contextvars import ContextVar
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, Optional, Set
 
 from fastapi import (
@@ -15,13 +16,12 @@ from fastapi import (
     WebSocketDisconnect,
     Body,
 )
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 
-from .steps import step_map
 from .db_init import ensure_tables_exist
+from .steps import step_map
 
 app = FastAPI()
 
@@ -39,8 +39,16 @@ current_logger: ContextVar[logging.LoggerAdapter] = ContextVar(
 )
 
 
+def ensure_yt_dlp_is_updated():
+    import subprocess
+    try:
+        subprocess.run(["pip", "install", "--upgrade", "yt-dlp", "--break-system-packages"], check=True)
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to install yt-dlp: {e}")
+
 @app.on_event("startup")
 def _startup() -> None:  # pragma: no cover - trivial
+    ensure_yt_dlp_is_updated()
     print("starting up...")
     ensure_tables_exist()
 

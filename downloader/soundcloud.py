@@ -39,7 +39,7 @@ class SoundcloudDownloader:
     - Handles batch downloads with configurable parallelism and throttling.
     - Skips tracks outside a configurable duration range.
     """
-    def __init__(self, break_on_existing = True, max_workers=1, burst_size=60, min_pause=1, max_pause=5):
+    def __init__(self, break_on_existing = True, max_workers=1, burst_size=10, min_pause=1, max_pause=5):
         self.output_folder = os.getenv("soundcloud_folder")
         self.archive_dir = os.getenv("soundcloud_archive")
         self.cookies_file = os.getenv("soundcloud_cookies", "soundcloud.com_cookies.txt")

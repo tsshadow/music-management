@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
 
 from .db_init import ensure_tables_exist
-from .steps import step_map
+from .steps import step_map, steps_to_run
 
 app = FastAPI()
 
@@ -213,10 +213,18 @@ async def execute_step(
     args: Dict[str, Any],
 ):
     job = jobs[job_id]
-    step = step_map.get(step_name)
-    if not step:
+    if step_name not in step_map:
         job["status"] = "error"
         job["log"] = job.get("log", []) + [f"Unknown step: {step_name}"]
+        await broadcast(job)
+        return
+
+    step_keys = {step_name}
+    steps_sequence = [s for s in steps_to_run if s.should_run(step_keys)]
+
+    if not steps_sequence:
+        job["status"] = "error"
+        job["log"].append(f"No executable steps found for: {step_name}")
         await broadcast(job)
         return
 
@@ -235,7 +243,8 @@ async def execute_step(
         job["status"] = "running"
         await broadcast(job)
         while True:
-            await run_in_threadpool(step.run, {step_name}, **args)
+            for current_step in steps_sequence:
+                await run_in_threadpool(current_step.run, step_keys, **args)
             if stop_event.is_set() or not repeat:
                 job["status"] = "done" if not stop_event.is_set() else "stopped"
                 break

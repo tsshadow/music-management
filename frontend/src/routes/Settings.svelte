@@ -11,6 +11,8 @@
   let values: Record<string, string> = Object.fromEntries(editableFields.map((field) => [field.key, '']));
   let saving = false;
   let message = '';
+  let importing = false;
+  let importMessage = '';
 
   function handleInput(key: string, event: Event) {
     const input = event.target as HTMLInputElement;
@@ -45,6 +47,43 @@
     }
   }
 
+  async function runImport() {
+    importing = true;
+    importMessage = '';
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (values.api_key) {
+        headers['X-Api-Key'] = values.api_key;
+      }
+      const payload: Record<string, string> = {};
+      if (values.listenbrainz_user) {
+        payload.user = values.listenbrainz_user;
+      }
+      if (values.listenbrainz_token) {
+        payload.token = values.listenbrainz_token;
+      }
+      const response = await fetch('/api/v1/import/listenbrainz', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        const detail = await response.text();
+        importMessage = `Import failed: ${detail || response.statusText}`;
+        return;
+      }
+      const data = await response.json();
+      const processed = data.processed ?? 0;
+      const importedCount = data.imported ?? 0;
+      const skipped = data.skipped ?? 0;
+      importMessage = `Import complete: ${importedCount} imported, ${skipped} skipped out of ${processed} listens.`;
+    } catch (error) {
+      importMessage = 'Import failed: network error';
+    } finally {
+      importing = false;
+    }
+  }
+
   onMount(() => {
     loadConfig();
   });
@@ -64,9 +103,17 @@
         />
       </label>
     {/each}
-    <button on:click={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+    <div class="actions">
+      <button on:click={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+      <button on:click={runImport} disabled={importing} class="secondary">
+        {importing ? 'Importing…' : 'Import ListenBrainz history'}
+      </button>
+    </div>
     {#if message}
       <p class="message">{message}</p>
+    {/if}
+    {#if importMessage}
+      <p class="message">{importMessage}</p>
     {/if}
   </div>
 </section>
@@ -100,14 +147,24 @@
     color: var(--text-color);
   }
 
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
   button {
-    align-self: flex-start;
     padding: 0.75rem 1.5rem;
     border-radius: 0.75rem;
     border: none;
     background: var(--accent-color);
     color: white;
     cursor: pointer;
+  }
+
+  button.secondary {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--text-color);
   }
 
   .message {

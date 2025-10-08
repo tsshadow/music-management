@@ -122,10 +122,19 @@ class ListenBrainzImportService:
         artists = [ArtistInput(name=name) for name in artist_names]
 
         raw_tags = additional.get("tags")
+        genres: list[str] = []
         if isinstance(raw_tags, list):
-            genres = [str(tag) for tag in raw_tags if str(tag).strip()]
-        else:
-            genres = []
+            for tag in raw_tags:
+                if isinstance(tag, str):
+                    name = tag.strip()
+                    if name:
+                        genres.append(name)
+                elif isinstance(tag, dict):
+                    name = tag.get("name")
+                    if isinstance(name, str):
+                        name = name.strip()
+                        if name:
+                            genres.append(name)
 
         track = TrackInput(
             title=track_title,

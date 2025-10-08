@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ..services.stats_service import StatsService
 from .deps import get_stats_service, verify_api_key
@@ -9,17 +9,31 @@ router = APIRouter(prefix="/stats", tags=["stats"])
 
 
 @router.get("/artists", dependencies=[Depends(verify_api_key)])
-async def artists(year: int = Query(...), service: StatsService = Depends(get_stats_service)):
-    """Return listen counts grouped by artist for the requested year."""
+async def artists(
+    period: str = Query("year", pattern="^(day|month|year)$"),
+    value: str | None = Query(None),
+    service: StatsService = Depends(get_stats_service),
+):
+    """Return listen counts grouped by artist for the requested period."""
 
-    return await service.artists(year)
+    try:
+        return await service.artists(period, value)
+    except ValueError as exc:  # pragma: no cover - validated via tests
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/genres", dependencies=[Depends(verify_api_key)])
-async def genres(year: int = Query(...), service: StatsService = Depends(get_stats_service)):
-    """Return listen counts grouped by genre for the requested year."""
+async def genres(
+    period: str = Query("year", pattern="^(day|month|year)$"),
+    value: str | None = Query(None),
+    service: StatsService = Depends(get_stats_service),
+):
+    """Return listen counts grouped by genre for the requested period."""
 
-    return await service.genres(year)
+    try:
+        return await service.genres(period, value)
+    except ValueError as exc:  # pragma: no cover - validated via tests
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/top-artist-by-genre", dependencies=[Depends(verify_api_key)])

@@ -291,16 +291,26 @@ class MariaDBAdapter(DatabaseAdapter):
             result = await session.execute(select(func.count()).select_from(listens))
             return int(result.scalar_one())
 
-    async def stats_artists_by_year(self, year: int) -> list[dict[str, Any]]:
-        """Return artist listen counts for a specific year."""
+    def _period_clause(self, period: str, value: str):
+        """Return a SQL clause that filters listens by the requested period."""
 
+        if period == "day":
+            return func.strftime("%Y-%m-%d", listens.c.listened_at) == value
+        if period == "month":
+            return func.strftime("%Y-%m", listens.c.listened_at) == value
+        return func.strftime("%Y", listens.c.listened_at) == value
+
+    async def stats_artists(self, period: str, value: str) -> list[dict[str, Any]]:
+        """Return artist listen counts constrained by a time period."""
+
+        clause = self._period_clause(period, value)
         stmt = (
             select(artists.c.name.label("artist"), func.count().label("count"))
             .select_from(listens)
             .join(tracks, listens.c.track_id == tracks.c.id)
             .join(track_artists, track_artists.c.track_id == tracks.c.id)
             .join(artists, artists.c.id == track_artists.c.artist_id)
-            .where(func.strftime("%Y", listens.c.listened_at) == str(year))
+            .where(clause)
             .group_by(artists.c.name)
             .order_by(func.count().desc())
         )
@@ -308,16 +318,17 @@ class MariaDBAdapter(DatabaseAdapter):
             rows = await session.execute(stmt)
             return [dict(row._mapping) for row in rows]
 
-    async def stats_genres_by_year(self, year: int) -> list[dict[str, Any]]:
-        """Return genre listen counts for a specific year."""
+    async def stats_genres(self, period: str, value: str) -> list[dict[str, Any]]:
+        """Return genre listen counts constrained by a time period."""
 
+        clause = self._period_clause(period, value)
         stmt = (
             select(genres.c.name.label("genre"), func.count().label("count"))
             .select_from(listens)
             .join(tracks, listens.c.track_id == tracks.c.id)
             .join(track_genres, track_genres.c.track_id == tracks.c.id)
             .join(genres, genres.c.id == track_genres.c.genre_id)
-            .where(func.strftime("%Y", listens.c.listened_at) == str(year))
+            .where(clause)
             .group_by(genres.c.name)
             .order_by(func.count().desc())
         )

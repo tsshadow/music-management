@@ -1,0 +1,34 @@
+version: '3.9'
+services:
+  mariadb:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-scrobpass}
+      MARIADB_DATABASE: music-scrobbler
+      MARIADB_USER: ${MARIADB_USER:-scrob}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-scrobpass}
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  scrobbler:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    environment:
+      SCROBBLER_DB_DSN: mysql+asyncmy://${MARIADB_USER:-scrob}:${MARIADB_PASSWORD:-scrobpass}@mariadb:3306/music-scrobbler
+    ports:
+      - "8080:8080"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/docs"]
+      interval: 30s
+      timeout: 5s
+      retries: 5

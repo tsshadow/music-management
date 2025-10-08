@@ -12,6 +12,11 @@
   let saving = false;
   let message = '';
 
+  function handleInput(key: string, event: Event) {
+    const input = event.target as HTMLInputElement;
+    values = { ...values, [key]: input.value };
+  }
+
   async function loadConfig() {
     const res = await fetch('/api/v1/config');
     if (res.ok) {
@@ -53,8 +58,9 @@
         <span>{field.label}</span>
         <input
           type={field.type}
-          bind:value={values[field.key]}
+          value={values[field.key]}
           placeholder={`Enter ${field.label.toLowerCase()}`}
+          on:input={(event) => handleInput(field.key, event)}
         />
       </label>
     {/each}

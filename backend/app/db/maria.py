@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Iterable, Mapping
 
-from sqlalchemy import Integer, and_, func, insert, or_, select
+from sqlalchemy import Integer, and_, cast, func, insert, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
@@ -30,6 +30,7 @@ class MariaDBAdapter(DatabaseAdapter):
         """Store the async engine and session factory for later database work."""
 
         self.engine = engine
+        self._dialect_name = getattr(engine.dialect, "name", "")
         self.session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
     async def connect(self) -> None:  # pragma: no cover - handled by SQLAlchemy
@@ -291,14 +292,24 @@ class MariaDBAdapter(DatabaseAdapter):
             result = await session.execute(select(func.count()).select_from(listens))
             return int(result.scalar_one())
 
+    def _date_format(self, column, pattern: str):
+        """Return a SQL expression that formats a datetime using the active dialect."""
+
+        if self._dialect_name.startswith("sqlite"):
+            return func.strftime(pattern, column)
+        return func.date_format(column, pattern)
+
     def _period_clause(self, period: str, value: str):
         """Return a SQL clause that filters listens by the requested period."""
 
         if period == "day":
-            return func.strftime("%Y-%m-%d", listens.c.listened_at) == value
+            formatted = self._date_format(listens.c.listened_at, "%Y-%m-%d")
+            return formatted == value
         if period == "month":
-            return func.strftime("%Y-%m", listens.c.listened_at) == value
-        return func.strftime("%Y", listens.c.listened_at) == value
+            formatted = self._date_format(listens.c.listened_at, "%Y-%m")
+            return formatted == value
+        formatted = self._date_format(listens.c.listened_at, "%Y")
+        return formatted == value
 
     async def stats_artists(self, period: str, value: str) -> list[dict[str, Any]]:
         """Return artist listen counts constrained by a time period."""
@@ -351,7 +362,7 @@ class MariaDBAdapter(DatabaseAdapter):
             .join(genres, genres.c.id == track_genres.c.genre_id)
             .join(track_artists, track_artists.c.track_id == tracks.c.id)
             .join(artists, artists.c.id == track_artists.c.artist_id)
-            .where(func.strftime("%Y", listens.c.listened_at) == str(year))
+            .where(self._date_format(listens.c.listened_at, "%Y") == str(year))
             .group_by(genres.c.name, artists.c.name)
         )
         async with self.session_factory() as session:
@@ -366,7 +377,7 @@ class MariaDBAdapter(DatabaseAdapter):
     async def stats_time_of_day(self, year: int, period: str) -> list[dict[str, Any]]:
         """Return track listen counts filtered by the requested daypart."""
 
-        hour = func.cast(func.strftime("%H", listens.c.listened_at), Integer)
+        hour = cast(self._date_format(listens.c.listened_at, "%H"), Integer)
 
         if period == "morning":
             clause = and_(hour >= 5, hour <= 11)
@@ -381,7 +392,7 @@ class MariaDBAdapter(DatabaseAdapter):
             select(tracks.c.title.label("track"), func.count().label("count"))
             .select_from(listens)
             .join(tracks, listens.c.track_id == tracks.c.id)
-            .where(func.strftime("%Y", listens.c.listened_at) == str(year))
+            .where(self._date_format(listens.c.listened_at, "%Y") == str(year))
             .where(clause)
             .group_by(tracks.c.title)
             .order_by(func.count().desc())

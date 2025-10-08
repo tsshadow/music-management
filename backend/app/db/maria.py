@@ -198,10 +198,11 @@ class MariaDBAdapter(DatabaseAdapter):
         duration_secs: int | None,
         artist_ids: Iterable[int],
         genre_ids: Iterable[int],
-    ) -> int:
-        """Insert a listen while preserving deduplication and relation tables."""
+    ) -> tuple[int, bool]:
+        """Insert a listen and return its id plus a creation flag."""
 
         async with self.session_factory() as session:
+            created = True
             try:
                 result = await session.execute(
                     insert(listens).values(
@@ -225,6 +226,7 @@ class MariaDBAdapter(DatabaseAdapter):
                     )
                 )
                 listen_id = int(existing.scalar_one())
+                created = False
             else:
                 await session.commit()
 
@@ -250,7 +252,7 @@ class MariaDBAdapter(DatabaseAdapter):
                         insert(listen_genres).values(listen_id=listen_id, genre_id=genre_id)
                     )
             await session.commit()
-        return listen_id
+        return listen_id, created
 
     async def fetch_recent_listens(self, limit: int = 10) -> list[dict[str, Any]]:
         """Return the latest listens with joined artist and genre names."""

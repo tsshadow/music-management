@@ -17,6 +17,12 @@ class IngestService:
     async def ingest(self, payload: ScrobblePayload) -> int:
         """Persist a scrobble payload and return the resulting listen id."""
 
+        listen_id, _ = await self.ingest_with_status(payload)
+        return listen_id
+
+    async def ingest_with_status(self, payload: ScrobblePayload) -> tuple[int, bool]:
+        """Persist a scrobble payload and report whether it was newly created."""
+
         user_id = await self.adapter.upsert_user(payload.user)
 
         album_id = None
@@ -52,7 +58,7 @@ class IngestService:
         if genre_ids:
             await self.adapter.link_track_genres(track_id, genre_ids)
 
-        listen_id = await self.adapter.insert_listen(
+        listen_id, created = await self.adapter.insert_listen(
             user_id=user_id,
             track_id=track_id,
             listened_at=payload.listened_at,
@@ -63,4 +69,4 @@ class IngestService:
             artist_ids=artist_ids,
             genre_ids=genre_ids,
         )
-        return listen_id
+        return listen_id, created

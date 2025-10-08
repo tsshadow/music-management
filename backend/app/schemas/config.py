@@ -7,6 +7,8 @@ ALLOWED_CONFIG_KEYS = {
     "default_user",
     "api_key",
     "lms_source_name",
+    "listenbrainz_user",
+    "listenbrainz_token",
 }
 
 

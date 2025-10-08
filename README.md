@@ -74,6 +74,7 @@ This starts both MariaDB and the FastAPI service (serving the built frontend). T
 * `GET /api/v1/listens/count` – total count
 * `GET /api/v1/stats/*` – analytics endpoints
 * `GET/PUT /api/v1/config` – configuration
+* `POST /api/v1/import/listenbrainz` – import ListenBrainz history
 
 OpenAPI docs are available at `/docs`.
 
@@ -82,8 +83,23 @@ OpenAPI docs are available at `/docs`.
 * `default_user`
 * `api_key`
 * `lms_source_name`
+* `listenbrainz_user`
+* `listenbrainz_token`
 
 Values are persisted in the database via `/api/v1/config`.
+
+### ListenBrainz import
+
+Trigger an initial ListenBrainz import via:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/import/listenbrainz \
+  -H 'Content-Type: application/json' \
+  -d '{"user": "listenbrainz-user", "page_size": 200}'
+```
+
+If `listenbrainz_user` and `listenbrainz_token` are set in `/api/v1/config` you may omit them in the payload. Imports are idempotent;
+re-running the command skips previously stored listens.
 
 ### Example JSON scrobble
 
@@ -123,6 +139,7 @@ GET /rest/scrobble.view?u=alice&id=track123&time=1712516400000&t=Song&a=Artist&a
 | `SCROBBLER_API_KEY` | *(empty)* | Optional API key to require via `X-Api-Key` |
 | `SCROBBLER_LOG_LEVEL` | `INFO` | Logging level |
 | `SCROBBLER_CORS_ORIGINS` | *(empty)* | Comma separated origins |
+| `SCROBBLER_LISTENBRAINZ_BASE_URL` | `https://api.listenbrainz.org/1` | ListenBrainz API endpoint |
 
 ## Project layout
 

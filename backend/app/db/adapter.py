@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Iterable, Mapping, Protocol, Any
+from typing import Any, Iterable, Mapping, Tuple, Protocol
 
 
 class DatabaseAdapter(Protocol):
@@ -45,7 +45,7 @@ class DatabaseAdapter(Protocol):
         duration_secs: int | None,
         artist_ids: Iterable[int],
         genre_ids: Iterable[int],
-    ) -> int: ...
+    ) -> Tuple[int, bool]: ...
 
     async def fetch_recent_listens(self, limit: int = 10) -> list[dict[str, Any]]: ...
     async def count_listens(self) -> int: ...

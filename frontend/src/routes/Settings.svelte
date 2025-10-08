@@ -1,12 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
-  const editableKeys = ['default_user', 'lms_source_name', 'api_key'];
-  let values: Record<string, string> = {
-    default_user: '',
-    lms_source_name: '',
-    api_key: ''
-  };
+  const editableFields = [
+    { key: 'default_user', type: 'text', label: 'Default user' },
+    { key: 'lms_source_name', type: 'text', label: 'LMS source name' },
+    { key: 'api_key', type: 'text', label: 'API key' },
+    { key: 'listenbrainz_user', type: 'text', label: 'ListenBrainz user' },
+    { key: 'listenbrainz_token', type: 'password', label: 'ListenBrainz token' }
+  ];
+  let values: Record<string, string> = Object.fromEntries(editableFields.map((field) => [field.key, '']));
   let saving = false;
   let message = '';
 
@@ -14,7 +16,10 @@
     const res = await fetch('/api/v1/config');
     if (res.ok) {
       const data = await res.json();
-      values = { ...data.values };
+      values = {
+        ...Object.fromEntries(editableFields.map((field) => [field.key, ''])),
+        ...data.values
+      };
     }
   }
 
@@ -43,13 +48,13 @@
 <section class="settings">
   <h2>Settings</h2>
   <div class="form">
-    {#each editableKeys as key}
+    {#each editableFields as field}
       <label>
-        <span>{key}</span>
+        <span>{field.label}</span>
         <input
-          type="text"
-          bind:value={values[key]}
-          placeholder={`Enter ${key}`}
+          type={field.type}
+          bind:value={values[field.key]}
+          placeholder={`Enter ${field.label.toLowerCase()}`}
         />
       </label>
     {/each}

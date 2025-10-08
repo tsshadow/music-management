@@ -8,12 +8,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from .api import routes_config, routes_listens, routes_scrobble, routes_stats, routes_subsonic
+from .api import (
+    routes_config,
+    routes_import,
+    routes_listens,
+    routes_scrobble,
+    routes_stats,
+    routes_subsonic,
+)
 from .core.settings import get_settings
 from .core.startup import build_engine, init_database
 from .db.maria import MariaDBAdapter
 from .models import metadata
 from .services.ingest_service import IngestService
+from .services.listenbrainz_service import ListenBrainzImportService
 from .services.stats_service import StatsService
 
 logger = logging.getLogger(__name__)
@@ -29,9 +37,14 @@ async def on_startup():
     engine = build_engine()
     await init_database(engine, metadata)
     adapter = MariaDBAdapter(engine)
+    ingest_service = IngestService(adapter)
     app.state.db_adapter = adapter
-    app.state.ingest_service = IngestService(adapter)
+    app.state.ingest_service = ingest_service
     app.state.stats_service = StatsService(adapter)
+    app.state.listenbrainz_service = ListenBrainzImportService(
+        ingest_service,
+        base_url=settings.listenbrainz_base_url,
+    )
     if settings.cors_origins:
         app.add_middleware(
             CORSMiddleware,
@@ -65,6 +78,10 @@ app.include_router(
 )
 app.include_router(
     routes_config.router,
+    prefix=get_settings().api_prefix,
+)
+app.include_router(
+    routes_import.router,
     prefix=get_settings().api_prefix,
 )
 static_dir = Path(__file__).parent / "static"

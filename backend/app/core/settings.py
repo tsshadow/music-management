@@ -18,6 +18,10 @@ class AppSettings(BaseSettings):
     api_key: str | None = Field(default=None, alias="SCROBBLER_API_KEY")
     log_level: str = Field(default="INFO", alias="SCROBBLER_LOG_LEVEL")
     cors_origins: List[str] = Field(default_factory=list, alias="SCROBBLER_CORS_ORIGINS")
+    listenbrainz_base_url: str = Field(
+        default="https://api.listenbrainz.org/1",
+        alias="SCROBBLER_LISTENBRAINZ_BASE_URL",
+    )
 
 
 @lru_cache(maxsize=1)

@@ -35,7 +35,7 @@ async def test_adapter_upserts():
     await adapter.link_track_genres(track_id, [genre_id])
 
     listened_at = datetime.now(timezone.utc)
-    listen_id = await adapter.insert_listen(
+    listen_id, created = await adapter.insert_listen(
         user_id=user_id,
         track_id=track_id,
         listened_at=listened_at,
@@ -47,10 +47,11 @@ async def test_adapter_upserts():
         genre_ids=[genre_id],
     )
     assert listen_id > 0
+    assert created is True
     assert await adapter.count_listens() == 1
 
     # Deduped listen
-    listen_id2 = await adapter.insert_listen(
+    listen_id2, created2 = await adapter.insert_listen(
         user_id=user_id,
         track_id=track_id,
         listened_at=listened_at,
@@ -62,5 +63,6 @@ async def test_adapter_upserts():
         genre_ids=[genre_id],
     )
     assert listen_id == listen_id2
+    assert created2 is False
 
     await adapter.close()

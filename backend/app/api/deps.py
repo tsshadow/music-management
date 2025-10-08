@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import Depends, Header, HTTPException, Request, status
 
 from ..core.settings import get_settings
+from ..services.listenbrainz_service import ListenBrainzImportService
 
 
 async def verify_api_key(request: Request, x_api_key: str | None = Header(default=None)) -> None:
@@ -30,3 +31,9 @@ def get_stats_service(request: Request):
     """Return the statistics service bound to the FastAPI application state."""
 
     return request.app.state.stats_service
+
+
+def get_listenbrainz_service(request: Request) -> ListenBrainzImportService:
+    """Return the ListenBrainz import service bound to the application state."""
+
+    return request.app.state.listenbrainz_service

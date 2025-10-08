@@ -1,0 +1,173 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+
+  const editableFields = [
+    { key: 'default_user', type: 'text', label: 'Default user' },
+    { key: 'lms_source_name', type: 'text', label: 'LMS source name' },
+    { key: 'api_key', type: 'text', label: 'API key' },
+    { key: 'listenbrainz_user', type: 'text', label: 'ListenBrainz user' },
+    { key: 'listenbrainz_token', type: 'password', label: 'ListenBrainz token' }
+  ];
+  let values: Record<string, string> = Object.fromEntries(editableFields.map((field) => [field.key, '']));
+  let saving = false;
+  let message = '';
+  let importing = false;
+  let importMessage = '';
+
+  function handleInput(key: string, event: Event) {
+    const input = event.target as HTMLInputElement;
+    values = { ...values, [key]: input.value };
+  }
+
+  async function loadConfig() {
+    const res = await fetch('/api/v1/config');
+    if (res.ok) {
+      const data = await res.json();
+      values = {
+        ...Object.fromEntries(editableFields.map((field) => [field.key, ''])),
+        ...data.values
+      };
+    }
+  }
+
+  async function save() {
+    saving = true;
+    message = '';
+    const res = await fetch('/api/v1/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(values)
+    });
+    saving = false;
+    if (res.ok) {
+      message = 'Saved!';
+      await loadConfig();
+    } else {
+      message = 'Failed to save configuration';
+    }
+  }
+
+  async function runImport() {
+    importing = true;
+    importMessage = '';
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (values.api_key) {
+        headers['X-Api-Key'] = values.api_key;
+      }
+      const payload: Record<string, string> = {};
+      if (values.listenbrainz_user) {
+        payload.user = values.listenbrainz_user;
+      }
+      if (values.listenbrainz_token) {
+        payload.token = values.listenbrainz_token;
+      }
+      const response = await fetch('/api/v1/import/listenbrainz', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        const detail = await response.text();
+        importMessage = `Import failed: ${detail || response.statusText}`;
+        return;
+      }
+      const data = await response.json();
+      const processed = data.processed ?? 0;
+      const importedCount = data.imported ?? 0;
+      const skipped = data.skipped ?? 0;
+      importMessage = `Import complete: ${importedCount} imported, ${skipped} skipped out of ${processed} listens.`;
+    } catch (error) {
+      importMessage = 'Import failed: network error';
+    } finally {
+      importing = false;
+    }
+  }
+
+  onMount(() => {
+    loadConfig();
+  });
+</script>
+
+<section class="settings">
+  <h2>Settings</h2>
+  <div class="form">
+    {#each editableFields as field}
+      <label>
+        <span>{field.label}</span>
+        <input
+          type={field.type}
+          value={values[field.key]}
+          placeholder={`Enter ${field.label.toLowerCase()}`}
+          on:input={(event) => handleInput(field.key, event)}
+        />
+      </label>
+    {/each}
+    <div class="actions">
+      <button on:click={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+      <button on:click={runImport} disabled={importing} class="secondary">
+        {importing ? 'Importing…' : 'Import ListenBrainz history'}
+      </button>
+    </div>
+    {#if message}
+      <p class="message">{message}</p>
+    {/if}
+    {#if importMessage}
+      <p class="message">{importMessage}</p>
+    {/if}
+  </div>
+</section>
+
+<style>
+  .settings {
+    padding: 2rem;
+    max-width: 640px;
+    margin: 0 auto;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 1rem;
+  }
+
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  input {
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  button {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+    border: none;
+    background: var(--accent-color);
+    color: white;
+    cursor: pointer;
+  }
+
+  button.secondary {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--text-color);
+  }
+
+  .message {
+    opacity: 0.8;
+  }
+</style>

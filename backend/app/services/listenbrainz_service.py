@@ -121,20 +121,7 @@ class ListenBrainzImportService:
 
         artists = [ArtistInput(name=name) for name in artist_names]
 
-        raw_tags = additional.get("tags")
-        genres: list[str] = []
-        if isinstance(raw_tags, list):
-            for tag in raw_tags:
-                if isinstance(tag, str):
-                    name = tag.strip()
-                    if name:
-                        genres.append(name)
-                elif isinstance(tag, dict):
-                    name = tag.get("name")
-                    if isinstance(name, str):
-                        name = name.strip()
-                        if name:
-                            genres.append(name)
+        genres = self._extract_genres(listen)
 
         track = TrackInput(
             title=track_title,
@@ -173,3 +160,61 @@ class ListenBrainzImportService:
             except ValueError:
                 return None
         return None
+
+    @staticmethod
+    def _extract_genres(listen: dict[str, Any]) -> list[str]:
+        """Return unique, normalized genre names from ListenBrainz metadata."""
+
+        metadata = listen.get("track_metadata") or {}
+        additional = metadata.get("additional_info") or {}
+
+        candidates = [
+            metadata.get("genres"),
+            metadata.get("tags"),
+            additional.get("genres"),
+            additional.get("genre"),
+            additional.get("tags"),
+            additional.get("musicbrainz_tags"),
+            additional.get("artist_tags"),
+            additional.get("artist_genres"),
+            additional.get("track_tags"),
+            additional.get("release_tags"),
+            additional.get("release_group_tags"),
+            additional.get("recording_tags"),
+            additional.get("work_tags"),
+            listen.get("tags"),
+        ]
+
+        normalized: list[str] = []
+        seen: set[str] = set()
+
+        def add(value: Any) -> None:
+            if isinstance(value, str):
+                name = value.strip()
+                if not name:
+                    return
+                key = name.casefold()
+                if key not in seen:
+                    seen.add(key)
+                    normalized.append(name)
+                return
+
+            if isinstance(value, (list, tuple, set)):
+                for item in value:
+                    add(item)
+                return
+
+            if isinstance(value, dict):
+                matched = False
+                for key in ("name", "value", "tag", "genre"):
+                    if key in value:
+                        matched = True
+                        add(value[key])
+                if not matched:
+                    for item in value.values():
+                        add(item)
+
+        for candidate in candidates:
+            add(candidate)
+
+        return normalized

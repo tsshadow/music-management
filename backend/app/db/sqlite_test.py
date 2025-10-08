@@ -7,6 +7,8 @@ from .maria import MariaDBAdapter
 
 
 def create_sqlite_memory_adapter() -> MariaDBAdapter:
+    """Return a MariaDBAdapter backed by an in-memory SQLite engine for tests."""
+
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
         future=True,

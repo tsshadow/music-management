@@ -11,6 +11,8 @@ router = APIRouter(prefix="/config", tags=["config"], dependencies=[Depends(veri
 
 @router.get("", response_model=ConfigResponse)
 async def get_config(adapter: DatabaseAdapter = Depends(get_adapter)):
+    """Return configuration values limited to the exposed allowlist."""
+
     values = await adapter.get_config()
     filtered = {k: v for k, v in values.items() if k in ALLOWED_CONFIG_KEYS}
     return ConfigResponse(values=filtered)
@@ -18,6 +20,8 @@ async def get_config(adapter: DatabaseAdapter = Depends(get_adapter)):
 
 @router.put("", response_model=ConfigResponse)
 async def update_config(payload: ConfigUpdate, adapter: DatabaseAdapter = Depends(get_adapter)):
+    """Persist allowed configuration keys and return the updated snapshot."""
+
     data = payload.data
     if data:
         await adapter.update_config(data)

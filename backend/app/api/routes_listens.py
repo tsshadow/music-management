@@ -13,10 +13,14 @@ async def recent_listens(
     limit: int = Query(10, ge=1, le=100),
     adapter: DatabaseAdapter = Depends(get_adapter),
 ):
+    """Return the most recent listens capped by the requested limit."""
+
     return await adapter.fetch_recent_listens(limit=limit)
 
 
 @router.get("/count", dependencies=[Depends(verify_api_key)])
 async def listen_count(adapter: DatabaseAdapter = Depends(get_adapter)):
+    """Return the total number of stored listens."""
+
     count = await adapter.count_listens()
     return {"count": count}

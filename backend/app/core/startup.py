@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 
 
 def build_engine() -> AsyncEngine:
+    """Construct an async SQLAlchemy engine using application settings."""
+
     settings = get_settings()
     kwargs = {"echo": False, "future": True}
     if settings.db_dsn.endswith(":memory:"):
@@ -20,6 +22,8 @@ def build_engine() -> AsyncEngine:
 
 
 async def init_database(engine: AsyncEngine, metadata) -> None:
+    """Create all tables defined in metadata if they do not exist."""
+
     async with engine.begin() as conn:
         await conn.run_sync(metadata.create_all)
     logger.info("Database schema ensured")

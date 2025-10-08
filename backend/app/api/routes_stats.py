@@ -10,11 +10,15 @@ router = APIRouter(prefix="/stats", tags=["stats"])
 
 @router.get("/artists", dependencies=[Depends(verify_api_key)])
 async def artists(year: int = Query(...), service: StatsService = Depends(get_stats_service)):
+    """Return listen counts grouped by artist for the requested year."""
+
     return await service.artists(year)
 
 
 @router.get("/genres", dependencies=[Depends(verify_api_key)])
 async def genres(year: int = Query(...), service: StatsService = Depends(get_stats_service)):
+    """Return listen counts grouped by genre for the requested year."""
+
     return await service.genres(year)
 
 
@@ -23,6 +27,8 @@ async def top_artist_by_genre(
     year: int = Query(...),
     service: StatsService = Depends(get_stats_service),
 ):
+    """Return the most played artist per genre for the requested year."""
+
     return await service.top_artist_by_genre(year)
 
 
@@ -32,4 +38,6 @@ async def time_of_day(
     period: str = Query("morning", pattern="^(morning|afternoon|evening|night)$"),
     service: StatsService = Depends(get_stats_service),
 ):
+    """Return top tracks for the selected time-of-day segment in a year."""
+
     return await service.time_of_day(year, period)

@@ -24,25 +24,35 @@ from ..models import (
 
 
 class MariaDBAdapter(DatabaseAdapter):
-    """Generic SQLAlchemy-based adapter that also works with SQLite in tests."""
+    """SQLAlchemy adapter that targets MariaDB while remaining SQLite-compatible for tests."""
 
     def __init__(self, engine: AsyncEngine):
+        """Store the async engine and session factory for later database work."""
+
         self.engine = engine
         self.session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
     async def connect(self) -> None:  # pragma: no cover - handled by SQLAlchemy
+        """Open a connection to validate connectivity."""
+
         async with self.engine.begin() as conn:
             await conn.run_sync(lambda _: None)
 
     async def close(self) -> None:
+        """Dispose of the underlying engine resources."""
+
         await self.engine.dispose()
 
     async def get_config(self) -> Mapping[str, str]:
+        """Return all configuration key-value pairs stored in the database."""
+
         async with self.session_factory() as session:
             rows = await session.execute(select(config.c.key, config.c.value))
             return {row.key: row.value for row in rows}
 
     async def update_config(self, kv: Mapping[str, str]) -> None:
+        """Insert or update configuration keys with the provided values."""
+
         async with self.session_factory() as session:
             for key, value in kv.items():
                 try:
@@ -57,6 +67,8 @@ class MariaDBAdapter(DatabaseAdapter):
             await session.commit()
 
     async def _get_or_create(self, stmt, values: Mapping[str, Any], table) -> int:
+        """Return an existing primary key for stmt or insert a new row with values."""
+
         async with self.session_factory() as session:
             result = await session.execute(stmt)
             existing = result.scalar_one_or_none()
@@ -67,10 +79,14 @@ class MariaDBAdapter(DatabaseAdapter):
             return int(res.inserted_primary_key[0])
 
     async def upsert_user(self, username: str) -> int:
+        """Return the user id for the username, creating a row if needed."""
+
         stmt = select(users.c.id).where(func.lower(users.c.username) == username.lower())
         return await self._get_or_create(stmt, {"username": username}, users)
 
     async def upsert_artist(self, name: str, mbid: str | None = None) -> int:
+        """Return the artist id for the name, inserting when not present."""
+
         stmt = select(artists.c.id).where(func.lower(artists.c.name) == name.lower())
         return await self._get_or_create(
             stmt,
@@ -79,12 +95,16 @@ class MariaDBAdapter(DatabaseAdapter):
         )
 
     async def upsert_genre(self, name: str) -> int:
+        """Return the genre id for the name, inserting when missing."""
+
         stmt = select(genres.c.id).where(func.lower(genres.c.name) == name.lower())
         return await self._get_or_create(stmt, {"name": name}, genres)
 
     async def upsert_album(
         self, title: str, release_year: int | None = None, mbid: str | None = None
     ) -> int:
+        """Return the album id for the title and year, creating a row if absent."""
+
         stmt = select(albums.c.id).where(
             and_(func.lower(albums.c.title) == title.lower(), albums.c.release_year == release_year)
         )
@@ -105,6 +125,8 @@ class MariaDBAdapter(DatabaseAdapter):
         mbid: str | None,
         isrc: str | None,
     ) -> int:
+        """Return the track id for the provided fingerprint, inserting if needed."""
+
         async with self.session_factory() as session:
             stmt = select(tracks.c.id).where(
                 and_(
@@ -132,6 +154,8 @@ class MariaDBAdapter(DatabaseAdapter):
             return int(res.inserted_primary_key[0])
 
     async def link_track_artists(self, track_id: int, artists_pairs: list[tuple[int, str]]) -> None:
+        """Ensure each artist-role pairing is linked to the track."""
+
         async with self.session_factory() as session:
             for artist_id, role in artists_pairs:
                 exists = await session.execute(
@@ -147,6 +171,8 @@ class MariaDBAdapter(DatabaseAdapter):
             await session.commit()
 
     async def link_track_genres(self, track_id: int, genre_ids: Iterable[int]) -> None:
+        """Ensure each genre is linked to the track."""
+
         async with self.session_factory() as session:
             for genre_id in genre_ids:
                 exists = await session.execute(
@@ -173,6 +199,8 @@ class MariaDBAdapter(DatabaseAdapter):
         artist_ids: Iterable[int],
         genre_ids: Iterable[int],
     ) -> int:
+        """Insert a listen while preserving deduplication and relation tables."""
+
         async with self.session_factory() as session:
             try:
                 result = await session.execute(
@@ -225,6 +253,8 @@ class MariaDBAdapter(DatabaseAdapter):
         return listen_id
 
     async def fetch_recent_listens(self, limit: int = 10) -> list[dict[str, Any]]:
+        """Return the latest listens with joined artist and genre names."""
+
         stmt = (
             select(
                 listens.c.id,
@@ -253,11 +283,15 @@ class MariaDBAdapter(DatabaseAdapter):
             return [dict(row) for row in result.mappings().all()]
 
     async def count_listens(self) -> int:
+        """Return the total number of stored listen rows."""
+
         async with self.session_factory() as session:
             result = await session.execute(select(func.count()).select_from(listens))
             return int(result.scalar_one())
 
     async def stats_artists_by_year(self, year: int) -> list[dict[str, Any]]:
+        """Return artist listen counts for a specific year."""
+
         stmt = (
             select(artists.c.name.label("artist"), func.count().label("count"))
             .select_from(listens)
@@ -273,6 +307,8 @@ class MariaDBAdapter(DatabaseAdapter):
             return [dict(row._mapping) for row in rows]
 
     async def stats_genres_by_year(self, year: int) -> list[dict[str, Any]]:
+        """Return genre listen counts for a specific year."""
+
         stmt = (
             select(genres.c.name.label("genre"), func.count().label("count"))
             .select_from(listens)
@@ -288,6 +324,8 @@ class MariaDBAdapter(DatabaseAdapter):
             return [dict(row._mapping) for row in rows]
 
     async def stats_top_artist_by_genre(self, year: int) -> list[dict[str, Any]]:
+        """Return the top artist per genre for a specific year."""
+
         stmt = (
             select(
                 genres.c.name.label("genre"),
@@ -313,6 +351,8 @@ class MariaDBAdapter(DatabaseAdapter):
             return list(data.values())
 
     async def stats_time_of_day(self, year: int, period: str) -> list[dict[str, Any]]:
+        """Return track listen counts filtered by the requested daypart."""
+
         hour = func.cast(func.strftime("%H", listens.c.listened_at), Integer)
 
         if period == "morning":

@@ -13,6 +13,8 @@ router = APIRouter(prefix="/rest", tags=["subsonic"])
 
 @router.get("/ping.view")
 async def ping():
+    """Return a basic Subsonic-compatible health response."""
+
     return {"status": "ok"}
 
 
@@ -27,6 +29,8 @@ async def subsonic_scrobble(
     g: str | None = None,
     service: IngestService = Depends(get_ingest_service),
 ):
+    """Translate a Subsonic scrobble request into the generic ingest payload."""
+
     listened_at = datetime.utcfromtimestamp(time / 1000)
     track_title = t or id
     artists = []

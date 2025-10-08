@@ -14,5 +14,7 @@ async def ingest_scrobble(
     payload: ScrobblePayload,
     service: IngestService = Depends(get_ingest_service),
 ):
+    """Store a scrobble payload and return the created listen identifier."""
+
     listen_id = await service.ingest(payload)
     return {"listen_id": listen_id}

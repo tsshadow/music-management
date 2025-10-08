@@ -9,6 +9,8 @@ from pydantic import ConfigDict
 
 
 class AppSettings(BaseSettings):
+    """Runtime configuration loaded from environment variables or .env."""
+
     model_config = ConfigDict(env_file=".env", env_file_encoding="utf-8", populate_by_name=True)
     app_name: str = "Scrobbler"
     api_prefix: str = "/api/v1"
@@ -20,4 +22,6 @@ class AppSettings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> AppSettings:
+    """Return a cached settings instance for application-wide use."""
+
     return AppSettings()

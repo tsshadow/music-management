@@ -23,6 +23,8 @@ app = FastAPI(title="Scrobbler")
 
 @app.on_event("startup")
 async def on_startup():
+    """Initialize application services and ensure the database schema exists."""
+
     settings = get_settings()
     engine = build_engine()
     await init_database(engine, metadata)
@@ -43,6 +45,8 @@ async def on_startup():
 
 @app.on_event("shutdown")
 async def on_shutdown():
+    """Dispose database resources when the application stops."""
+
     adapter: MariaDBAdapter = app.state.db_adapter
     await adapter.close()
 
@@ -72,6 +76,8 @@ if static_dir.exists():
 
 @app.get("/", include_in_schema=False)
 async def root():
+    """Serve the built single-page application or a simple fallback message."""
+
     if static_dir.exists():
         index = static_dir / "index.html"
         if index.exists():

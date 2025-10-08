@@ -7,10 +7,16 @@ from ..schemas.common import ScrobblePayload
 
 
 class IngestService:
+    """Handle normalization and persistence of incoming scrobble payloads."""
+
     def __init__(self, adapter: DatabaseAdapter):
+        """Initialize the service with a database adapter implementation."""
+
         self.adapter = adapter
 
     async def ingest(self, payload: ScrobblePayload) -> int:
+        """Persist a scrobble payload and return the resulting listen id."""
+
         user_id = await self.adapter.upsert_user(payload.user)
 
         album_id = None

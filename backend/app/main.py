@@ -88,7 +88,10 @@ static_dir = Path(__file__).parent / "static"
 app.include_router(routes_subsonic.router)
 
 if static_dir.exists():
+    assets_dir = static_dir / "assets"
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
 
 @app.get("/", include_in_schema=False)

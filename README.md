@@ -101,6 +101,10 @@ curl -X POST http://localhost:8080/api/v1/import/listenbrainz \
 If `listenbrainz_user` and `listenbrainz_token` are set in `/api/v1/config` you may omit them in the payload. Imports are idempotent;
 re-running the command skips previously stored listens.
 
+### Verifying ListenBrainz genres
+
+If you want to double-check whether a listen actually has genre tags upstream, see [`docs/listenbrainz_genre_endpoints.md`](docs/listenbrainz_genre_endpoints.md) for ready-to-run API calls against ListenBrainz (and the underlying MusicBrainz data) that surface the `additional_info.tags` values used during imports.
+
 ### Example JSON scrobble
 
 ```json

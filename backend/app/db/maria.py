@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import re
 from datetime import datetime
 from typing import Any, Iterable, Mapping
 
@@ -277,25 +278,99 @@ class MariaDBAdapter(DatabaseAdapter):
                 listens.c.source,
                 listens.c.position_secs,
                 listens.c.duration_secs,
+                listens.c.track_id,
                 tracks.c.title.label("track_title"),
                 albums.c.title.label("album_title"),
-                func.group_concat(artists.c.name, ", ").label("artists"),
                 func.group_concat(genres.c.name, ", ").label("genres"),
             )
             .select_from(listens)
             .join(tracks, listens.c.track_id == tracks.c.id)
             .outerjoin(albums, tracks.c.album_id == albums.c.id)
-            .outerjoin(track_artists, track_artists.c.track_id == tracks.c.id)
-            .outerjoin(artists, artists.c.id == track_artists.c.artist_id)
             .outerjoin(track_genres, track_genres.c.track_id == tracks.c.id)
             .outerjoin(genres, genres.c.id == track_genres.c.genre_id)
-            .group_by(listens.c.id)
+            .group_by(
+                listens.c.id,
+                listens.c.listened_at,
+                listens.c.source,
+                listens.c.position_secs,
+                listens.c.duration_secs,
+                listens.c.track_id,
+                tracks.c.title,
+                albums.c.title,
+            )
             .order_by(listens.c.listened_at.desc())
             .limit(limit)
         )
         async with self.session_factory() as session:
             result = await session.execute(stmt)
-            return [dict(row) for row in result.mappings().all()]
+            rows = [dict(row) for row in result.mappings().all()]
+
+            if not rows:
+                return rows
+
+            listen_ids = [row["id"] for row in rows]
+            listen_artist_stmt = (
+                select(listen_artists.c.listen_id, artists.c.name)
+                .select_from(listen_artists.join(artists, artists.c.id == listen_artists.c.artist_id))
+                .where(listen_artists.c.listen_id.in_(listen_ids))
+                .order_by(listen_artists.c.listen_id, listen_artists.c.artist_id)
+            )
+            listen_artist_rows = await session.execute(listen_artist_stmt)
+            listen_artist_map: dict[int, list[str]] = defaultdict(list)
+            for listen_id, name in listen_artist_rows:
+                listen_artist_map[int(listen_id)].append(name)
+
+            missing_track_ids = {
+                int(row["track_id"])
+                for row in rows
+                if int(row["id"]) not in listen_artist_map
+            }
+
+            track_artist_map: dict[int, list[str]] = defaultdict(list)
+            if missing_track_ids:
+                track_artist_stmt = (
+                    select(track_artists.c.track_id, artists.c.name)
+                    .select_from(
+                        track_artists.join(artists, artists.c.id == track_artists.c.artist_id)
+                    )
+                    .where(track_artists.c.track_id.in_(missing_track_ids))
+                    .order_by(track_artists.c.track_id, track_artists.c.artist_id)
+                )
+                track_artist_rows = await session.execute(track_artist_stmt)
+                for track_id, name in track_artist_rows:
+                    track_artist_map[int(track_id)].append(name)
+
+            def combine(names: list[str]) -> str | None:
+                cleaned: list[str] = []
+                seen: set[str] = set()
+                for raw in names:
+                    if not raw:
+                        continue
+                    trimmed = raw.strip()
+                    if not trimmed:
+                        continue
+                    normalized = re.sub(r"^[,\s]+|[,\s]+$", "", trimmed)
+                    if not normalized:
+                        continue
+                    key = normalized.casefold()
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    cleaned.append(normalized)
+                if not cleaned:
+                    return None
+                return ", ".join(cleaned)
+
+            for row in rows:
+                listen_id = int(row["id"])
+                track_id = int(row["track_id"])
+                artist_names = combine(listen_artist_map.get(listen_id, []))
+                if artist_names is None:
+                    artist_names = combine(track_artist_map.get(track_id, []))
+                row["artists"] = artist_names
+                row.pop("track_id", None)
+
+            return rows
 
     async def count_listens(self) -> int:
         """Return the total number of stored listen rows."""

@@ -7,7 +7,8 @@ import pytest
 
 from backend.app.core.startup import init_database
 from backend.app.db.sqlite_test import create_sqlite_memory_adapter
-from backend.app.models import metadata
+from backend.app.models import metadata, track_artists
+from sqlalchemy import insert
 
 
 @pytest.mark.asyncio
@@ -82,5 +83,57 @@ async def test_adapter_upserts():
 
     await adapter.delete_all_listens()
     assert await adapter.count_listens() == 0
+
+    await adapter.close()
+
+
+@pytest.mark.asyncio
+async def test_fetch_recent_listens_prefers_clean_listen_artists():
+    adapter = create_sqlite_memory_adapter()
+    await init_database(adapter.engine, metadata)  # type: ignore[attr-defined]
+    await adapter.connect()
+
+    user_id = await adapter.upsert_user("alice")
+    artist_good1 = await adapter.upsert_artist("Jur Terreur")
+    artist_good2 = await adapter.upsert_artist("Brainkick")
+    artist_bad1 = await adapter.upsert_artist(",Jur Terreur")
+    artist_bad2 = await adapter.upsert_artist(" Brainkick ,")
+    track_id = await adapter.upsert_track(
+        title="Ready To Move", album_id=None, duration_secs=None, disc_no=None, track_no=None, mbid=None, isrc=None
+    )
+
+    await adapter.link_track_artists(
+        track_id,
+        [
+            (artist_good1, "primary"),
+            (artist_good2, "primary"),
+        ],
+    )
+
+    async with adapter.session_factory() as session:
+        await session.execute(
+            insert(track_artists).values(track_id=track_id, artist_id=artist_bad1, role="primary")
+        )
+        await session.execute(
+            insert(track_artists).values(track_id=track_id, artist_id=artist_bad2, role="primary")
+        )
+        await session.commit()
+
+    listened_at = datetime.now(timezone.utc)
+    await adapter.insert_listen(
+        user_id=user_id,
+        track_id=track_id,
+        listened_at=listened_at,
+        source="listenbrainz",
+        source_track_id="1",
+        position_secs=None,
+        duration_secs=None,
+        artist_ids=[artist_good1, artist_good2],
+        genre_ids=[],
+    )
+
+    rows = await adapter.fetch_recent_listens(limit=5)
+    assert len(rows) == 1
+    assert rows[0]["artists"] == "Jur Terreur, Brainkick"
 
     await adapter.close()

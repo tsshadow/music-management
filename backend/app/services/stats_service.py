@@ -19,6 +19,18 @@ class StatsService:
         normalized_period, normalized_value = self._normalize_period(period, value)
         return await self.adapter.stats_artists(normalized_period, normalized_value)
 
+    async def albums(self, period: str, value: str | None):
+        """Return album play counts for the selected period."""
+
+        normalized_period, normalized_value = self._normalize_period(period, value)
+        return await self.adapter.stats_albums(normalized_period, normalized_value)
+
+    async def tracks(self, period: str, value: str | None):
+        """Return track play counts for the selected period."""
+
+        normalized_period, normalized_value = self._normalize_period(period, value)
+        return await self.adapter.stats_tracks(normalized_period, normalized_value)
+
     async def genres(self, period: str, value: str | None):
         """Return genre play counts for the selected period."""
 
@@ -35,13 +47,16 @@ class StatsService:
 
         return await self.adapter.stats_time_of_day(year, period)
 
-    def _normalize_period(self, period: str, value: str | None) -> tuple[str, str]:
+    def _normalize_period(self, period: str, value: str | None) -> tuple[str, str | None]:
         """Validate and coerce the requested stats period."""
 
-        if period not in {"day", "month", "year"}:
+        if period not in {"day", "month", "year", "all"}:
             raise ValueError("Unsupported period")
 
         today = date.today()
+
+        if period == "all":
+            return "all", None
 
         if period == "year":
             if value is None:

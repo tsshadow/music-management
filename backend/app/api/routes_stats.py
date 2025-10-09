@@ -10,7 +10,7 @@ router = APIRouter(prefix="/stats", tags=["stats"])
 
 @router.get("/artists", dependencies=[Depends(verify_api_key)])
 async def artists(
-    period: str = Query("year", pattern="^(day|month|year)$"),
+    period: str = Query("year", pattern="^(day|month|year|all)$"),
     value: str | None = Query(None),
     service: StatsService = Depends(get_stats_service),
 ):
@@ -22,9 +22,37 @@ async def artists(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
+@router.get("/albums", dependencies=[Depends(verify_api_key)])
+async def albums(
+    period: str = Query("year", pattern="^(day|month|year|all)$"),
+    value: str | None = Query(None),
+    service: StatsService = Depends(get_stats_service),
+):
+    """Return listen counts grouped by album for the requested period."""
+
+    try:
+        return await service.albums(period, value)
+    except ValueError as exc:  # pragma: no cover - validated via tests
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/tracks", dependencies=[Depends(verify_api_key)])
+async def tracks(
+    period: str = Query("year", pattern="^(day|month|year|all)$"),
+    value: str | None = Query(None),
+    service: StatsService = Depends(get_stats_service),
+):
+    """Return listen counts grouped by track for the requested period."""
+
+    try:
+        return await service.tracks(period, value)
+    except ValueError as exc:  # pragma: no cover - validated via tests
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 @router.get("/genres", dependencies=[Depends(verify_api_key)])
 async def genres(
-    period: str = Query("year", pattern="^(day|month|year)$"),
+    period: str = Query("year", pattern="^(day|month|year|all)$"),
     value: str | None = Query(None),
     service: StatsService = Depends(get_stats_service),
 ):

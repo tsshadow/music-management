@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Iterable, Mapping
 
-from sqlalchemy import Integer, and_, cast, func, insert, or_, select
+from sqlalchemy import Integer, and_, cast, func, insert, or_, select, true
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
@@ -299,9 +299,13 @@ class MariaDBAdapter(DatabaseAdapter):
             return func.strftime(pattern, column)
         return func.date_format(column, pattern)
 
-    def _period_clause(self, period: str, value: str):
+    def _period_clause(self, period: str, value: str | None):
         """Return a SQL clause that filters listens by the requested period."""
 
+        if period == "all":
+            return true()
+        if value is None:
+            raise ValueError("Missing value for period filter")
         if period == "day":
             formatted = self._date_format(listens.c.listened_at, "%Y-%m-%d")
             return formatted == value
@@ -311,7 +315,7 @@ class MariaDBAdapter(DatabaseAdapter):
         formatted = self._date_format(listens.c.listened_at, "%Y")
         return formatted == value
 
-    async def stats_artists(self, period: str, value: str) -> list[dict[str, Any]]:
+    async def stats_artists(self, period: str, value: str | None) -> list[dict[str, Any]]:
         """Return artist listen counts constrained by a time period."""
 
         clause = self._period_clause(period, value)
@@ -329,7 +333,40 @@ class MariaDBAdapter(DatabaseAdapter):
             rows = await session.execute(stmt)
             return [dict(row._mapping) for row in rows]
 
-    async def stats_genres(self, period: str, value: str) -> list[dict[str, Any]]:
+    async def stats_albums(self, period: str, value: str | None) -> list[dict[str, Any]]:
+        """Return album listen counts constrained by a time period."""
+
+        clause = self._period_clause(period, value)
+        stmt = (
+            select(albums.c.title.label("album"), func.count().label("count"))
+            .select_from(listens)
+            .join(tracks, listens.c.track_id == tracks.c.id)
+            .join(albums, tracks.c.album_id == albums.c.id)
+            .where(clause)
+            .group_by(albums.c.title)
+            .order_by(func.count().desc())
+        )
+        async with self.session_factory() as session:
+            rows = await session.execute(stmt)
+            return [dict(row._mapping) for row in rows]
+
+    async def stats_tracks(self, period: str, value: str | None) -> list[dict[str, Any]]:
+        """Return track listen counts constrained by a time period."""
+
+        clause = self._period_clause(period, value)
+        stmt = (
+            select(tracks.c.title.label("track"), func.count().label("count"))
+            .select_from(listens)
+            .join(tracks, listens.c.track_id == tracks.c.id)
+            .where(clause)
+            .group_by(tracks.c.title)
+            .order_by(func.count().desc())
+        )
+        async with self.session_factory() as session:
+            rows = await session.execute(stmt)
+            return [dict(row._mapping) for row in rows]
+
+    async def stats_genres(self, period: str, value: str | None) -> list[dict[str, Any]]:
         """Return genre listen counts constrained by a time period."""
 
         clause = self._period_clause(period, value)

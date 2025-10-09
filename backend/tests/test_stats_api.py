@@ -16,6 +16,24 @@ async def test_stats_endpoints(client):
     artist_names = [row["artist"] for row in artists.json()]
     assert "Artist A" in artist_names
 
+    artists_all_time = await client.get("/api/v1/stats/artists", params={"period": "all"})
+    assert artists_all_time.status_code == 200
+    assert any(row["artist"] == "Artist A" for row in artists_all_time.json())
+
+    albums = await client.get(
+        "/api/v1/stats/albums", params={"period": "year", "value": "2023"}
+    )
+    assert albums.status_code == 200
+    album_titles = [row["album"] for row in albums.json()]
+    assert "Sunrise" in album_titles
+
+    tracks = await client.get(
+        "/api/v1/stats/tracks", params={"period": "all"}
+    )
+    assert tracks.status_code == 200
+    track_titles = [row["track"] for row in tracks.json()]
+    assert "Afternoon Groove" in track_titles
+
     genres = await client.get(
         "/api/v1/stats/genres", params={"period": "year", "value": "2023"}
     )

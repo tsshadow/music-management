@@ -1,11 +1,13 @@
 <script lang="ts">
   import Header from './lib/components/Header.svelte';
+  import Albums from './routes/Albums.svelte';
   import Artists from './routes/Artists.svelte';
   import Genres from './routes/Genres.svelte';
   import Home from './routes/Home.svelte';
+  import Tracks from './routes/Tracks.svelte';
   import Settings from './routes/Settings.svelte';
 
-  type Page = 'home' | 'genres' | 'artists' | 'settings';
+  type Page = 'home' | 'genres' | 'artists' | 'albums' | 'tracks' | 'settings';
 
   let page: Page = 'home';
 
@@ -18,11 +20,13 @@
   <Header title="Scrobbler" />
   <nav>
     <button class:active={page === 'home'} on:click={() => show('home')}>Home</button>
-    <button class:active={page === 'genres'} on:click={() => show('genres')}>
-      Genres
-    </button>
+    <button class:active={page === 'genres'} on:click={() => show('genres')}>Genres</button>
     <button class:active={page === 'artists'} on:click={() => show('artists')}>
       Artiesten
+    </button>
+    <button class:active={page === 'albums'} on:click={() => show('albums')}>Albums</button>
+    <button class:active={page === 'tracks'} on:click={() => show('tracks')}>
+      Tracks
     </button>
     <button class:active={page === 'settings'} on:click={() => show('settings')}>Settings</button>
   </nav>
@@ -33,6 +37,10 @@
     <Genres />
   {:else if page === 'artists'}
     <Artists />
+  {:else if page === 'albums'}
+    <Albums />
+  {:else if page === 'tracks'}
+    <Tracks />
   {:else}
     <Settings />
   {/if}

@@ -233,8 +233,9 @@ class ListenBrainzImportService:
             new_parts: list[str] = []
             regex = re.compile(pattern, re.IGNORECASE)
             for part in parts:
-                split = [chunk.strip() for chunk in regex.split(part) if chunk.strip()]
-                if len(split) > 1:
+                raw_split = regex.split(part)
+                split = [chunk.strip() for chunk in raw_split if chunk.strip()]
+                if split and (len(split) > 1 or split[0] != part):
                     new_parts.extend(split)
                 else:
                     new_parts.append(part)

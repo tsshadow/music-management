@@ -92,6 +92,17 @@ def test_extract_artist_names_strips_and_deduplicates_credit_strings():
     assert artists == ["Jur Terreur", "Brainkick"]
 
 
+def test_extract_artist_names_removes_trailing_delimiters():
+    metadata = {
+        "track_name": "Example",
+        "artist_name": "DitzKickz,",
+    }
+
+    artists = ListenBrainzImportService._extract_artist_names(metadata)
+
+    assert artists == ["DitzKickz"]
+
+
 def test_extract_artist_names_handles_additional_info_lists():
     metadata = {
         "track_name": "Example",

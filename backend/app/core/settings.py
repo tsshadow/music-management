@@ -22,6 +22,14 @@ class AppSettings(BaseSettings):
         default="https://api.listenbrainz.org/1",
         alias="SCROBBLER_LISTENBRAINZ_BASE_URL",
     )
+    musicbrainz_base_url: str = Field(
+        default="https://musicbrainz.org/ws/2",
+        alias="SCROBBLER_MUSICBRAINZ_BASE_URL",
+    )
+    musicbrainz_user_agent: str = Field(
+        default="scrobbler/1.0 (+https://github.com/)",
+        alias="SCROBBLER_MUSICBRAINZ_USER_AGENT",
+    )
 
 
 @lru_cache(maxsize=1)

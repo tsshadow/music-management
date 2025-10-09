@@ -144,6 +144,8 @@ GET /rest/scrobble.view?u=alice&id=track123&time=1712516400000&t=Song&a=Artist&a
 | `SCROBBLER_LOG_LEVEL` | `INFO` | Logging level |
 | `SCROBBLER_CORS_ORIGINS` | *(empty)* | Comma separated origins |
 | `SCROBBLER_LISTENBRAINZ_BASE_URL` | `https://api.listenbrainz.org/1` | ListenBrainz API endpoint |
+| `SCROBBLER_MUSICBRAINZ_BASE_URL` | `https://musicbrainz.org/ws/2` | MusicBrainz API endpoint for fallback tags |
+| `SCROBBLER_MUSICBRAINZ_USER_AGENT` | `scrobbler/1.0 (+https://github.com/)` | User agent for MusicBrainz requests |
 
 ## Project layout
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any, Callable
+from uuid import UUID
 
 import httpx
 
@@ -17,13 +18,20 @@ class ListenBrainzImportService:
         ingest_service: IngestService,
         *,
         base_url: str = "https://api.listenbrainz.org/1",
+        musicbrainz_base_url: str = "https://musicbrainz.org/ws/2",
+        musicbrainz_user_agent: str = "scrobbler/1.0 (https://github.com/)",
         client_factory: Callable[..., httpx.AsyncClient] | None = None,
     ) -> None:
         """Store dependencies and prepare the async client factory."""
 
         self.ingest_service = ingest_service
         self.base_url = base_url.rstrip("/")
+        self.musicbrainz_base_url = (
+            musicbrainz_base_url.rstrip("/") if musicbrainz_base_url else ""
+        )
+        self.musicbrainz_user_agent = musicbrainz_user_agent
         self._client_factory = client_factory or (lambda **kwargs: httpx.AsyncClient(**kwargs))
+        self._genre_cache: dict[str, list[str]] = {}
 
     async def import_user(
         self,
@@ -63,7 +71,7 @@ class ListenBrainzImportService:
                     break
                 earliest: int | None = None
                 for listen in listens:
-                    scrobble = self._to_payload(user, listen)
+                    scrobble = await self._to_payload(user, listen, client)
                     if scrobble is None:
                         skipped += 1
                         continue
@@ -87,7 +95,12 @@ class ListenBrainzImportService:
             "pages": pages,
         }
 
-    def _to_payload(self, user: str, listen: dict[str, Any]) -> ScrobblePayload | None:
+    async def _to_payload(
+        self,
+        user: str,
+        listen: dict[str, Any],
+        client: httpx.AsyncClient,
+    ) -> ScrobblePayload | None:
         """Convert a ListenBrainz listen into the local scrobble schema."""
 
         metadata = listen.get("track_metadata") or {}
@@ -104,11 +117,7 @@ class ListenBrainzImportService:
         disc_no = self._coerce_int(
             additional.get("discnumber") or additional.get("disc_number")
         )
-        mbid = (
-            additional.get("recording_mbid")
-            or listen.get("recording_mbid")
-            or listen.get("recording_msid")
-        )
+        mbid = self._get_recording_mbid(listen)
         isrc = additional.get("isrc")
         source_track_id = listen.get("recording_msid") or additional.get("track_msid")
 
@@ -122,6 +131,8 @@ class ListenBrainzImportService:
         artists = [ArtistInput(name=name) for name in artist_names]
 
         genres = self._extract_genres(listen)
+        if not genres:
+            genres = await self._fetch_remote_genres(listen, client)
 
         track = TrackInput(
             title=track_title,
@@ -143,6 +154,117 @@ class ListenBrainzImportService:
             artists=artists,
             genres=genres,
         )
+
+    async def _fetch_remote_genres(
+        self,
+        listen: dict[str, Any],
+        client: httpx.AsyncClient,
+    ) -> list[str]:
+        """Retrieve genres from ListenBrainz or MusicBrainz when missing locally."""
+
+        recording_mbid = self._get_recording_mbid(listen)
+        if recording_mbid is None:
+            return []
+
+        if recording_mbid in self._genre_cache:
+            return self._genre_cache[recording_mbid]
+
+        genres: list[str] = []
+
+        genres = await self._fetch_listenbrainz_metadata(recording_mbid, client)
+        if not genres:
+            genres = await self._fetch_musicbrainz_tags(recording_mbid)
+
+        self._genre_cache[recording_mbid] = genres
+        return genres
+
+    async def _fetch_listenbrainz_metadata(
+        self,
+        recording_mbid: str,
+        client: httpx.AsyncClient,
+    ) -> list[str]:
+        """Request ListenBrainz cached metadata for a specific recording."""
+
+        try:
+            response = await client.get(f"/metadata/recording/{recording_mbid}")
+        except httpx.HTTPError:
+            return []
+
+        if response.status_code >= 400:
+            return []
+
+        payload = response.json() or {}
+        metadata = payload.get("track_metadata") or {}
+        if not metadata:
+            return []
+
+        remote_listen = {"track_metadata": metadata}
+        return self._extract_genres(remote_listen)
+
+    async def _fetch_musicbrainz_tags(self, recording_mbid: str) -> list[str]:
+        """Fetch genre tags directly from MusicBrainz when ListenBrainz lacks them."""
+
+        if not self.musicbrainz_base_url:
+            return []
+
+        try:
+            async with self._client_factory(
+                base_url=self.musicbrainz_base_url,
+                headers={
+                    "User-Agent": self.musicbrainz_user_agent,
+                    "Accept": "application/json",
+                },
+                timeout=30.0,
+            ) as client:
+                response = await client.get(
+                    f"/recording/{recording_mbid}",
+                    params={"inc": "tags", "fmt": "json"},
+                )
+        except httpx.HTTPError:
+            return []
+
+        if response.status_code >= 400:
+            return []
+
+        data = response.json() or {}
+        tags = data.get("tags") or []
+        remote_listen = {"track_metadata": {"additional_info": {"tags": tags}}}
+        return self._extract_genres(remote_listen)
+
+    @staticmethod
+    def _get_recording_mbid(listen: dict[str, Any]) -> str | None:
+        """Return the best available recording MBID for the listen."""
+
+        metadata = listen.get("track_metadata") or {}
+        additional = metadata.get("additional_info") or {}
+
+        for value in (
+            additional.get("recording_mbid"),
+            metadata.get("recording_mbid"),
+            listen.get("recording_mbid"),
+        ):
+            mbid = ListenBrainzImportService._validate_uuid(value)
+            if mbid:
+                return mbid
+
+        mapping = metadata.get("mbid_mapping") or {}
+        mbid = ListenBrainzImportService._validate_uuid(mapping.get("recording_mbid"))
+        if mbid:
+            return mbid
+
+        return None
+
+    @staticmethod
+    def _validate_uuid(value: Any) -> str | None:
+        """Return the value if it is a valid UUID string."""
+
+        if not isinstance(value, str):
+            return None
+        try:
+            UUID(value)
+        except (TypeError, ValueError):
+            return None
+        return value
 
     @staticmethod
     def _coerce_int(value: Any) -> int | None:

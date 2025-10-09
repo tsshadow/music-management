@@ -44,6 +44,8 @@ async def on_startup():
     app.state.listenbrainz_service = ListenBrainzImportService(
         ingest_service,
         base_url=settings.listenbrainz_base_url,
+        musicbrainz_base_url=settings.musicbrainz_base_url,
+        musicbrainz_user_agent=settings.musicbrainz_user_agent,
     )
     if settings.cors_origins:
         app.add_middleware(

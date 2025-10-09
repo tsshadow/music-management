@@ -168,28 +168,48 @@ class ListenBrainzImportService:
             seen.add(key)
             names.append(cleaned)
 
+        def collect(value: Any) -> None:
+            if value is None:
+                return
+            if isinstance(value, str):
+                parts = ListenBrainzImportService._split_artist_credit(value)
+                if not parts:
+                    add(value)
+                else:
+                    for part in parts:
+                        add(part)
+                return
+            if isinstance(value, (list, tuple, set)):
+                for item in value:
+                    collect(item)
+                return
+            if isinstance(value, dict):
+                for key in ("artist_credit_name", "artist_name", "name"):
+                    if key in value:
+                        collect(value.get(key))
+                return
+
         mbid_mapping = metadata.get("mbid_mapping")
         if isinstance(mbid_mapping, dict):
             mapped_artists = mbid_mapping.get("artists")
             if isinstance(mapped_artists, list):
                 for entry in mapped_artists:
-                    if isinstance(entry, dict):
-                        add(
-                            entry.get("artist_credit_name")
-                            or entry.get("artist_name")
-                            or entry.get("name")
-                        )
-                    elif isinstance(entry, str):
-                        add(entry)
+                    collect(entry)
 
         if not names:
-            raw_artist = metadata.get("artist_name")
-            if isinstance(raw_artist, list):
-                for name in raw_artist:
-                    add(name)
-            elif isinstance(raw_artist, str):
-                for name in ListenBrainzImportService._split_artist_credit(raw_artist):
-                    add(name)
+            for key in ("artist_name", "artist_credit", "artists", "artist_names"):
+                collect(metadata.get(key))
+
+            additional = metadata.get("additional_info")
+            if isinstance(additional, dict):
+                for key in (
+                    "artist_name",
+                    "artist_credit_name",
+                    "artist_credit",
+                    "artists",
+                    "artist_names",
+                ):
+                    collect(additional.get(key))
 
         return names
 

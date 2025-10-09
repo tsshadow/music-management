@@ -81,6 +81,35 @@ def test_extract_genres_handles_tag_dict_keys():
     assert genres == ["Hip-Hop", "Rap"]
 
 
+def test_extract_artist_names_strips_and_deduplicates_credit_strings():
+    metadata = {
+        "track_name": "Example",
+        "artist_name": "Jur Terreur, Brainkick, ,Jur Terreur, ,Brainkick, ",
+    }
+
+    artists = ListenBrainzImportService._extract_artist_names(metadata)
+
+    assert artists == ["Jur Terreur", "Brainkick"]
+
+
+def test_extract_artist_names_handles_additional_info_lists():
+    metadata = {
+        "track_name": "Example",
+        "additional_info": {
+            "artist_names": [
+                " Jur Terreur",
+                "Brainkick ",
+                "",
+                {"name": "Jur Terreur"},
+            ]
+        },
+    }
+
+    artists = ListenBrainzImportService._extract_artist_names(metadata)
+
+    assert artists == ["Jur Terreur", "Brainkick"]
+
+
 class DummyResponse:
     def __init__(
         self,

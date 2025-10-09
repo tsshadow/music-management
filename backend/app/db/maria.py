@@ -1,9 +1,21 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import datetime
 from typing import Any, Iterable, Mapping
 
-from sqlalchemy import Integer, and_, cast, func, insert, or_, select, true
+from sqlalchemy import (
+    Integer,
+    and_,
+    cast,
+    case,
+    delete,
+    func,
+    insert,
+    or_,
+    select,
+    true,
+)
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
@@ -291,6 +303,155 @@ class MariaDBAdapter(DatabaseAdapter):
         async with self.session_factory() as session:
             result = await session.execute(select(func.count()).select_from(listens))
             return int(result.scalar_one())
+
+    async def delete_all_listens(self) -> None:
+        """Remove all stored listens from the database."""
+
+        async with self.session_factory() as session:
+            await session.execute(delete(listens))
+            await session.commit()
+
+    async def fetch_listens_for_export(
+        self,
+        *,
+        user: str | None = None,
+        since: datetime | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """Return listens with related metadata for ListenBrainz exports."""
+
+        async with self.session_factory() as session:
+            stmt = (
+                select(
+                    listens.c.id.label("listen_id"),
+                    listens.c.listened_at,
+                    listens.c.duration_secs.label("listen_duration"),
+                    listens.c.source,
+                    listens.c.source_track_id,
+                    tracks.c.id.label("track_id"),
+                    tracks.c.title.label("track_title"),
+                    tracks.c.duration_secs.label("track_duration"),
+                    tracks.c.track_no,
+                    tracks.c.disc_no,
+                    tracks.c.mbid,
+                    tracks.c.isrc,
+                    albums.c.title.label("album_title"),
+                    users.c.username,
+                )
+                .select_from(listens)
+                .join(users, listens.c.user_id == users.c.id)
+                .join(tracks, listens.c.track_id == tracks.c.id)
+                .outerjoin(albums, tracks.c.album_id == albums.c.id)
+                .order_by(listens.c.listened_at.asc(), listens.c.id.asc())
+                .offset(offset)
+                .limit(limit)
+            )
+            if user:
+                stmt = stmt.where(func.lower(users.c.username) == user.lower())
+            if since:
+                stmt = stmt.where(listens.c.listened_at >= since)
+
+            rows = (await session.execute(stmt)).mappings().all()
+            if not rows:
+                return []
+
+            listen_ids = [row["listen_id"] for row in rows]
+            track_ids = {row["track_id"] for row in rows}
+
+            artist_order = case(
+                (
+                    track_artists.c.role == "primary",
+                    0,
+                ),
+                (
+                    track_artists.c.role == "featured",
+                    1,
+                ),
+                (
+                    track_artists.c.role == "remixer",
+                    2,
+                ),
+                else_=3,
+            )
+
+            artist_stmt = (
+                select(
+                    track_artists.c.track_id,
+                    artists.c.name,
+                    track_artists.c.role,
+                )
+                .select_from(track_artists)
+                .join(artists, artists.c.id == track_artists.c.artist_id)
+                .where(track_artists.c.track_id.in_(track_ids))
+                .order_by(track_artists.c.track_id, artist_order, artists.c.name)
+            )
+            artist_rows = await session.execute(artist_stmt)
+            artist_map: dict[int, list[tuple[str, str]]] = defaultdict(list)
+            for track_id, name, role in artist_rows:
+                artist_map[int(track_id)].append((name, role))
+
+            genre_stmt = (
+                select(track_genres.c.track_id, genres.c.name)
+                .select_from(track_genres)
+                .join(genres, genres.c.id == track_genres.c.genre_id)
+                .where(track_genres.c.track_id.in_(track_ids))
+                .order_by(track_genres.c.track_id, genres.c.name)
+            )
+            genre_rows = await session.execute(genre_stmt)
+            genre_map: dict[int, list[str]] = defaultdict(list)
+            for track_id, name in genre_rows:
+                genre_map[int(track_id)].append(name)
+
+            result: list[dict[str, Any]] = []
+            for row in rows:
+                track_id = int(row["track_id"])
+                result.append(
+                    {
+                        "listen_id": int(row["listen_id"]),
+                        "username": row["username"],
+                        "listened_at": row["listened_at"],
+                        "listen_duration": row["listen_duration"],
+                        "source": row["source"],
+                        "source_track_id": row["source_track_id"],
+                        "track": {
+                            "id": track_id,
+                            "title": row["track_title"],
+                            "album": row["album_title"],
+                            "duration": row["track_duration"],
+                            "track_no": row["track_no"],
+                            "disc_no": row["disc_no"],
+                            "mbid": row["mbid"],
+                            "isrc": row["isrc"],
+                        },
+                        "artists": [
+                            {"name": name, "role": role}
+                            for name, role in artist_map.get(track_id, [])
+                        ],
+                        "genres": genre_map.get(track_id, []),
+                    }
+                )
+
+            listen_artist_stmt = (
+                select(listen_artists.c.listen_id, artists.c.name)
+                .select_from(listen_artists)
+                .join(artists, artists.c.id == listen_artists.c.artist_id)
+                .where(listen_artists.c.listen_id.in_(listen_ids))
+                .order_by(listen_artists.c.listen_id, artists.c.name)
+            )
+            listen_artist_rows = await session.execute(listen_artist_stmt)
+            listen_artist_map: dict[int, list[str]] = defaultdict(list)
+            for listen_id, name in listen_artist_rows:
+                listen_artist_map[int(listen_id)].append(name)
+
+            for item in result:
+                listen_id = item["listen_id"]
+                if listen_artist_map.get(listen_id):
+                    item["listen_artists"] = listen_artist_map[listen_id]
+                else:
+                    item["listen_artists"] = [artist["name"] for artist in item["artists"]]
+
+            return result
 
     def _date_format(self, column, pattern: str):
         """Return a SQL expression that formats a datetime using the active dialect."""

@@ -13,6 +13,8 @@
   let message = '';
   let importing = false;
   let importMessage = '';
+  let exporting = false;
+  let exportMessage = '';
   let deleting = false;
   let deleteMessage = '';
 
@@ -86,6 +88,46 @@
     }
   }
 
+  async function runExport() {
+    exporting = true;
+    exportMessage = '';
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (values.api_key) {
+        headers['X-Api-Key'] = values.api_key;
+      }
+      const payload: Record<string, string> = {};
+      if (values.listenbrainz_user) {
+        payload.user = values.listenbrainz_user;
+      }
+      if (values.listenbrainz_token) {
+        payload.token = values.listenbrainz_token;
+      }
+      const response = await fetch('/api/v1/export/listenbrainz', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        const detail = await response.text();
+        exportMessage = `Export failed: ${detail || response.statusText}`;
+        return;
+      }
+      const data = await response.json();
+      const exportedCount = data.exported ?? 0;
+      const skippedCount = data.skipped ?? 0;
+      if (skippedCount) {
+        exportMessage = `Export complete: ${exportedCount} listens sent, ${skippedCount} skipped.`;
+      } else {
+        exportMessage = `Export complete: ${exportedCount} listens sent.`;
+      }
+    } catch (error) {
+      exportMessage = 'Export failed: network error';
+    } finally {
+      exporting = false;
+    }
+  }
+
   async function deleteAllListens() {
     if (!confirm('This will permanently delete all stored listens. Are you really sure?')) {
       return;
@@ -138,6 +180,9 @@
       <button on:click={runImport} disabled={importing} class="secondary">
         {importing ? 'Importing…' : 'Import ListenBrainz history'}
       </button>
+      <button on:click={runExport} disabled={exporting} class="secondary">
+        {exporting ? 'Exporting…' : 'Export to ListenBrainz'}
+      </button>
       <button on:click={deleteAllListens} disabled={deleting} class="danger">
         {deleting ? 'Deleting…' : 'Delete all listens'}
       </button>
@@ -147,6 +192,9 @@
     {/if}
     {#if importMessage}
       <p class="message">{importMessage}</p>
+    {/if}
+    {#if exportMessage}
+      <p class="message">{exportMessage}</p>
     {/if}
     {#if deleteMessage}
       <p class="message warning">{deleteMessage}</p>

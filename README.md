@@ -76,6 +76,7 @@ This starts both MariaDB and the FastAPI service (serving the built frontend). T
 * `GET /api/v1/stats/*` – analytics endpoints
 * `GET/PUT /api/v1/config` – configuration
 * `POST /api/v1/import/listenbrainz` – import ListenBrainz history
+* `POST /api/v1/export/listenbrainz` – export stored listens to ListenBrainz
 
 OpenAPI docs are available at `/docs`.
 
@@ -102,7 +103,20 @@ curl -X POST http://localhost:8080/api/v1/import/listenbrainz \
 If `listenbrainz_user` and `listenbrainz_token` are set in `/api/v1/config` you may omit them in the payload. Imports are idempotent;
 re-running the command skips previously stored listens.
 
-To wipe the listen history and start a fresh import, call `DELETE /api/v1/listens`. Exporting data back to ListenBrainz is not supported yet.
+To wipe the listen history and start a fresh import, call `DELETE /api/v1/listens`.
+
+### ListenBrainz export
+
+You can push listens back to ListenBrainz using:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/export/listenbrainz \
+  -H 'Content-Type: application/json' \
+  -H 'X-Api-Key: $API_KEY' \
+  -d '{"listen_type": "import", "batch_size": 100}'
+```
+
+The API reuses the configured `listenbrainz_user` and `listenbrainz_token` unless overridden in the payload. Listens are exported in chronological batches (up to 100 per request by default) and the response reports how many entries were submitted and skipped.
 
 ### Verifying ListenBrainz genres
 

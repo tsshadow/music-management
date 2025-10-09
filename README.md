@@ -72,6 +72,7 @@ This starts both MariaDB and the FastAPI service (serving the built frontend). T
 * `GET /rest/scrobble.view` – Subsonic-compatible scrobble
 * `GET /api/v1/listens/recent?limit=10` – last listens
 * `GET /api/v1/listens/count` – total count
+* `DELETE /api/v1/listens` – remove all stored listens
 * `GET /api/v1/stats/*` – analytics endpoints
 * `GET/PUT /api/v1/config` – configuration
 * `POST /api/v1/import/listenbrainz` – import ListenBrainz history
@@ -100,6 +101,8 @@ curl -X POST http://localhost:8080/api/v1/import/listenbrainz \
 
 If `listenbrainz_user` and `listenbrainz_token` are set in `/api/v1/config` you may omit them in the payload. Imports are idempotent;
 re-running the command skips previously stored listens.
+
+To wipe the listen history and start a fresh import, call `DELETE /api/v1/listens`. Exporting data back to ListenBrainz is not supported yet.
 
 ### Verifying ListenBrainz genres
 

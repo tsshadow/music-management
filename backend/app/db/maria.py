@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Iterable, Mapping
 
-from sqlalchemy import Integer, and_, cast, func, insert, or_, select, true
+from sqlalchemy import Integer, and_, cast, delete, func, insert, or_, select, true
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
@@ -291,6 +291,13 @@ class MariaDBAdapter(DatabaseAdapter):
         async with self.session_factory() as session:
             result = await session.execute(select(func.count()).select_from(listens))
             return int(result.scalar_one())
+
+    async def delete_all_listens(self) -> None:
+        """Remove all stored listens from the database."""
+
+        async with self.session_factory() as session:
+            await session.execute(delete(listens))
+            await session.commit()
 
     def _date_format(self, column, pattern: str):
         """Return a SQL expression that formats a datetime using the active dialect."""

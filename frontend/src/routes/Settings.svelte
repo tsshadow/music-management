@@ -13,6 +13,8 @@
   let message = '';
   let importing = false;
   let importMessage = '';
+  let deleting = false;
+  let deleteMessage = '';
 
   function handleInput(key: string, event: Event) {
     const input = event.target as HTMLInputElement;
@@ -84,6 +86,34 @@
     }
   }
 
+  async function deleteAllListens() {
+    if (!confirm('This will permanently delete all stored listens. Are you really sure?')) {
+      return;
+    }
+    deleting = true;
+    deleteMessage = '';
+    try {
+      const headers: Record<string, string> = {};
+      if (values.api_key) {
+        headers['X-Api-Key'] = values.api_key;
+      }
+      const response = await fetch('/api/v1/listens', {
+        method: 'DELETE',
+        headers
+      });
+      if (!response.ok) {
+        const detail = await response.text();
+        deleteMessage = `Delete failed: ${detail || response.statusText}`;
+        return;
+      }
+      deleteMessage = 'All listens deleted. You can safely run a fresh ListenBrainz import.';
+    } catch (error) {
+      deleteMessage = 'Delete failed: network error';
+    } finally {
+      deleting = false;
+    }
+  }
+
   onMount(() => {
     loadConfig();
   });
@@ -108,12 +138,18 @@
       <button on:click={runImport} disabled={importing} class="secondary">
         {importing ? 'Importing…' : 'Import ListenBrainz history'}
       </button>
+      <button on:click={deleteAllListens} disabled={deleting} class="danger">
+        {deleting ? 'Deleting…' : 'Delete all listens'}
+      </button>
     </div>
     {#if message}
       <p class="message">{message}</p>
     {/if}
     {#if importMessage}
       <p class="message">{importMessage}</p>
+    {/if}
+    {#if deleteMessage}
+      <p class="message warning">{deleteMessage}</p>
     {/if}
   </div>
 </section>
@@ -167,7 +203,15 @@
     color: var(--text-color);
   }
 
+  button.danger {
+    background: #c43c3c;
+  }
+
   .message {
     opacity: 0.8;
+  }
+
+  .message.warning {
+    color: #f5d67b;
   }
 </style>

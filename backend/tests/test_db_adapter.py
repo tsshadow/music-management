@@ -65,4 +65,7 @@ async def test_adapter_upserts():
     assert listen_id == listen_id2
     assert created2 is False
 
+    await adapter.delete_all_listens()
+    assert await adapter.count_listens() == 0
+
     await adapter.close()

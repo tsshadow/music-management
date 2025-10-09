@@ -37,3 +37,10 @@ async def test_scrobble_flow(client):
     count = await client.get("/api/v1/listens/count")
     assert count.status_code == 200
     assert count.json()["count"] == 1
+
+    delete = await client.delete("/api/v1/listens")
+    assert delete.status_code == 204
+
+    count_after = await client.get("/api/v1/listens/count")
+    assert count_after.status_code == 200
+    assert count_after.json()["count"] == 0

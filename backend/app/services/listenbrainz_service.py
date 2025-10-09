@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import re
 from typing import Any, Callable
 from uuid import UUID
 
@@ -121,14 +122,7 @@ class ListenBrainzImportService:
         isrc = additional.get("isrc")
         source_track_id = listen.get("recording_msid") or additional.get("track_msid")
 
-        artist_names: list[str] = []
-        raw_artist = metadata.get("artist_name")
-        if isinstance(raw_artist, list):
-            artist_names = [name for name in raw_artist if isinstance(name, str)]
-        elif isinstance(raw_artist, str) and raw_artist.strip():
-            artist_names = [raw_artist.strip()]
-
-        artists = [ArtistInput(name=name) for name in artist_names]
+        artists = [ArtistInput(name=name) for name in self._extract_artist_names(metadata)]
 
         genres = self._extract_genres(listen)
         if not genres:
@@ -154,6 +148,79 @@ class ListenBrainzImportService:
             artists=artists,
             genres=genres,
         )
+
+    @staticmethod
+    def _extract_artist_names(metadata: dict[str, Any]) -> list[str]:
+        """Return a list of distinct artist names from ListenBrainz metadata."""
+
+        names: list[str] = []
+        seen: set[str] = set()
+
+        def add(name: str | None) -> None:
+            if not isinstance(name, str):
+                return
+            cleaned = name.strip()
+            if not cleaned:
+                return
+            key = cleaned.casefold()
+            if key in seen:
+                return
+            seen.add(key)
+            names.append(cleaned)
+
+        mbid_mapping = metadata.get("mbid_mapping")
+        if isinstance(mbid_mapping, dict):
+            mapped_artists = mbid_mapping.get("artists")
+            if isinstance(mapped_artists, list):
+                for entry in mapped_artists:
+                    if isinstance(entry, dict):
+                        add(
+                            entry.get("artist_credit_name")
+                            or entry.get("artist_name")
+                            or entry.get("name")
+                        )
+                    elif isinstance(entry, str):
+                        add(entry)
+
+        if not names:
+            raw_artist = metadata.get("artist_name")
+            if isinstance(raw_artist, list):
+                for name in raw_artist:
+                    add(name)
+            elif isinstance(raw_artist, str):
+                for name in ListenBrainzImportService._split_artist_credit(raw_artist):
+                    add(name)
+
+        return names
+
+    @staticmethod
+    def _split_artist_credit(credit: str) -> list[str]:
+        """Break a ListenBrainz artist credit string into individual names."""
+
+        credit = credit.strip()
+        if not credit:
+            return []
+
+        parts = [credit]
+        for pattern in (
+            r"\s+(?:feat\.?|ft\.?|featuring)\s+",
+            r"\s+(?:vs\.?|x|\+)\s+",
+            r"\s+with\s+",
+            r"\s+and\s+",
+            r",",
+            r"&",
+        ):
+            new_parts: list[str] = []
+            regex = re.compile(pattern, re.IGNORECASE)
+            for part in parts:
+                split = [chunk.strip() for chunk in regex.split(part) if chunk.strip()]
+                if len(split) > 1:
+                    new_parts.extend(split)
+                else:
+                    new_parts.append(part)
+            parts = new_parts
+
+        return [part for part in parts if part]
 
     async def _fetch_remote_genres(
         self,

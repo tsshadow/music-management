@@ -180,3 +180,47 @@ async def test_fetch_remote_genres_falls_back_to_musicbrainz_tags():
     assert mb_client.calls == [
         ("/recording/22222222-2222-2222-2222-222222222222", {"inc": "tags", "fmt": "json"})
     ]
+
+
+@pytest.mark.asyncio
+async def test_to_payload_splits_multiple_artist_names():
+    service = ListenBrainzImportService(SimpleNamespace())
+    listen = build_listen(
+        track_metadata={
+            "track_name": "Example",
+            "artist_name": "Headhunterz, Wildstylez",
+            "additional_info": {"tags": ["Hardstyle"]},
+        }
+    )
+
+    payload = await service._to_payload("tester", listen, SimpleNamespace())
+
+    assert [artist.name for artist in payload.artists] == [
+        "Headhunterz",
+        "Wildstylez",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_to_payload_uses_mbid_mapping_artist_credit():
+    service = ListenBrainzImportService(SimpleNamespace())
+    listen = build_listen(
+        track_metadata={
+            "track_name": "Example",
+            "artist_name": "Combined",
+            "additional_info": {"tags": ["Hardstyle"]},
+            "mbid_mapping": {
+                "artists": [
+                    {"artist_credit_name": "Elite Enemy"},
+                    {"artist_credit_name": "The Dope Doctor"},
+                ]
+            },
+        }
+    )
+
+    payload = await service._to_payload("tester", listen, SimpleNamespace())
+
+    assert [artist.name for artist in payload.artists] == [
+        "Elite Enemy",
+        "The Dope Doctor",
+    ]

@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import Depends, Header, HTTPException, Request, status
 
 from ..core.settings import get_settings
+from ..services.listenbrainz_export_service import ListenBrainzExportService
 from ..services.listenbrainz_service import ListenBrainzImportService
 
 
@@ -37,3 +38,9 @@ def get_listenbrainz_service(request: Request) -> ListenBrainzImportService:
     """Return the ListenBrainz import service bound to the application state."""
 
     return request.app.state.listenbrainz_service
+
+
+def get_listenbrainz_export_service(request: Request) -> ListenBrainzExportService:
+    """Return the ListenBrainz export service bound to the application state."""
+
+    return request.app.state.listenbrainz_export_service

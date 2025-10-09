@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -64,5 +64,23 @@ async def test_adapter_upserts():
     )
     assert listen_id == listen_id2
     assert created2 is False
+
+    rows = await adapter.fetch_listens_for_export(user="alice", limit=10)
+    assert len(rows) == 1
+    export_row = rows[0]
+    assert export_row["username"] == "alice"
+    assert export_row["track"]["title"] == "Song"
+    assert export_row["artists"] == [{"name": "Artist", "role": "primary"}]
+    assert export_row["genres"] == ["Genre"]
+    assert export_row["listen_artists"] == ["Artist"]
+
+    future_rows = await adapter.fetch_listens_for_export(
+        user="alice",
+        since=listened_at + timedelta(seconds=1),
+    )
+    assert future_rows == []
+
+    await adapter.delete_all_listens()
+    assert await adapter.count_listens() == 0
 
     await adapter.close()

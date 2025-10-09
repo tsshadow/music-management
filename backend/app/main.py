@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .api import (
     routes_config,
+    routes_export,
     routes_import,
     routes_listens,
     routes_scrobble,
@@ -21,6 +22,7 @@ from .core.startup import build_engine, init_database
 from .db.maria import MariaDBAdapter
 from .models import metadata
 from .services.ingest_service import IngestService
+from .services.listenbrainz_export_service import ListenBrainzExportService
 from .services.listenbrainz_service import ListenBrainzImportService
 from .services.stats_service import StatsService
 
@@ -46,6 +48,10 @@ async def on_startup():
         base_url=settings.listenbrainz_base_url,
         musicbrainz_base_url=settings.musicbrainz_base_url,
         musicbrainz_user_agent=settings.musicbrainz_user_agent,
+    )
+    app.state.listenbrainz_export_service = ListenBrainzExportService(
+        adapter,
+        base_url=settings.listenbrainz_base_url,
     )
     if settings.cors_origins:
         app.add_middleware(
@@ -84,6 +90,10 @@ app.include_router(
 )
 app.include_router(
     routes_import.router,
+    prefix=get_settings().api_prefix,
+)
+app.include_router(
+    routes_export.router,
     prefix=get_settings().api_prefix,
 )
 static_dir = Path(__file__).parent / "static"

@@ -101,6 +101,10 @@ curl -X POST http://localhost:8080/api/v1/import/listenbrainz \
 If `listenbrainz_user` and `listenbrainz_token` are set in `/api/v1/config` you may omit them in the payload. Imports are idempotent;
 re-running the command skips previously stored listens.
 
+### Verifying ListenBrainz genres
+
+If you want to double-check whether a listen actually has genre tags upstream, see [`docs/listenbrainz_genre_endpoints.md`](docs/listenbrainz_genre_endpoints.md) for ready-to-run API calls against ListenBrainz (and the underlying MusicBrainz data) that surface the `additional_info.tags` values used during imports.
+
 ### Example JSON scrobble
 
 ```json
@@ -140,6 +144,8 @@ GET /rest/scrobble.view?u=alice&id=track123&time=1712516400000&t=Song&a=Artist&a
 | `SCROBBLER_LOG_LEVEL` | `INFO` | Logging level |
 | `SCROBBLER_CORS_ORIGINS` | *(empty)* | Comma separated origins |
 | `SCROBBLER_LISTENBRAINZ_BASE_URL` | `https://api.listenbrainz.org/1` | ListenBrainz API endpoint |
+| `SCROBBLER_MUSICBRAINZ_BASE_URL` | `https://musicbrainz.org/ws/2` | MusicBrainz API endpoint for fallback tags |
+| `SCROBBLER_MUSICBRAINZ_USER_AGENT` | `scrobbler/1.0 (+https://github.com/)` | User agent for MusicBrainz requests |
 
 ## Project layout
 

@@ -82,11 +82,19 @@ def test_extract_genres_handles_tag_dict_keys():
 
 
 class DummyResponse:
-    def __init__(self, data: dict | None = None, status_code: int = 200):
+    def __init__(
+        self,
+        data: dict | None = None,
+        status_code: int = 200,
+        json_exc: Exception | None = None,
+    ):
         self._data = data or {}
         self.status_code = status_code
+        self._json_exc = json_exc
 
     def json(self) -> dict:
+        if self._json_exc is not None:
+            raise self._json_exc
         return self._data
 
 
@@ -180,6 +188,39 @@ async def test_fetch_remote_genres_falls_back_to_musicbrainz_tags():
     assert mb_client.calls == [
         ("/recording/22222222-2222-2222-2222-222222222222", {"inc": "tags", "fmt": "json"})
     ]
+
+
+@pytest.mark.asyncio
+async def test_fetch_listenbrainz_metadata_handles_non_json_response():
+    service = ListenBrainzImportService(SimpleNamespace())
+    listen = build_listen(
+        track_metadata={
+            "track_name": "Example",
+            "artist_name": "Artist",
+            "additional_info": {"recording_mbid": "33333333-3333-3333-3333-333333333333"},
+        }
+    )
+    client = DummyListenBrainzClient(
+        [DummyResponse(json_exc=ValueError())]
+    )
+
+    genres = await service._fetch_remote_genres(listen, client)
+
+    assert genres == []
+
+
+@pytest.mark.asyncio
+async def test_fetch_musicbrainz_tags_handles_non_json_response():
+    service = ListenBrainzImportService(SimpleNamespace())
+    service._client_factory = lambda **_: DummyMusicBrainzClient(
+        [DummyResponse(json_exc=ValueError())]
+    )
+
+    genres = await service._fetch_musicbrainz_tags(
+        "44444444-4444-4444-4444-444444444444"
+    )
+
+    assert genres == []
 
 
 @pytest.mark.asyncio

@@ -260,7 +260,10 @@ class ListenBrainzImportService:
         if response.status_code >= 400:
             return []
 
-        payload = response.json() or {}
+        try:
+            payload = response.json() or {}
+        except ValueError:
+            return []
         metadata = payload.get("track_metadata") or {}
         if not metadata:
             return []
@@ -293,7 +296,10 @@ class ListenBrainzImportService:
         if response.status_code >= 400:
             return []
 
-        data = response.json() or {}
+        try:
+            data = response.json() or {}
+        except ValueError:
+            return []
         tags = data.get("tags") or []
         remote_listen = {"track_metadata": {"additional_info": {"tags": tags}}}
         return self._extract_genres(remote_listen)

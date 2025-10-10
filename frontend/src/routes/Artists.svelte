@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import DetailPanel from '../lib/components/DetailPanel.svelte';
+  import HypeGraph, { type HypePoint } from '../lib/components/HypeGraph.svelte';
   import StatsLeaderboard, {
     type LeaderboardRow,
   } from '../lib/components/StatsLeaderboard.svelte';
@@ -32,6 +33,7 @@
       release_year: number | null;
       count: number;
     }[];
+    listen_history: { period: string; count: number }[];
   }
 
   const pageSize = 100;
@@ -53,6 +55,10 @@
   const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
     dateStyle: 'medium',
     timeStyle: 'medium',
+  });
+  const monthFormatter = new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    year: 'numeric',
   });
 
   function getDefaultValue(current: Period): string {
@@ -167,6 +173,31 @@
     return dateTimeFormatter.format(date);
   }
 
+  function formatPeriodLabel(period: string) {
+    const [year, month] = period.split('-').map((part) => Number.parseInt(part, 10));
+    if (!Number.isFinite(year)) {
+      return period;
+    }
+    if (Number.isFinite(month)) {
+      const date = new Date(Date.UTC(year, month - 1, 1));
+      return monthFormatter.format(date);
+    }
+    return String(year);
+  }
+
+  $: hypePoints = (insight?.listen_history ?? []).map<HypePoint>((entry) => ({
+    label: formatPeriodLabel(entry.period),
+    value: entry.count,
+  }));
+
+  $: hypeHighlights = [...(insight?.listen_history ?? [])]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3)
+    .map((entry) => ({
+      period: formatPeriodLabel(entry.period),
+      count: entry.count,
+    }));
+
   $: totalPages = Math.max(1, Math.ceil(total / pageSize));
   $: showingStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
   $: showingEnd = total === 0 ? 0 : Math.min(total, page * pageSize);
@@ -264,6 +295,19 @@
         <dt>MBID</dt>
         <dd>{insight.mbid ?? '—'}</dd>
       </dl>
+    </section>
+    <section class="detail-section">
+      <h4>Luisterhype</h4>
+      <HypeGraph {hypePoints} />
+      {#if hypeHighlights.length > 0}
+        <p class="muted">
+          Pieken in {hypeHighlights
+            .map((highlight) => `${highlight.period} (${highlight.count.toLocaleString()}×)`)
+            .join(', ')}.
+        </p>
+      {:else}
+        <p class="muted">Nog geen luistergeschiedenis voor deze artiest.</p>
+      {/if}
     </section>
     <section class="detail-section">
       <h4>Topgenres</h4>

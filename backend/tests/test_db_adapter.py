@@ -344,14 +344,30 @@ async def test_artist_insights_aggregates_listens():
         genre_ids=[genre_id],
     )
 
+    await adapter.insert_listen(
+        user_id=user_id,
+        track_id=track_guest,
+        listened_at=base_time - timedelta(days=40),
+        source="listenbrainz",
+        source_track_id="C",
+        position_secs=None,
+        duration_secs=None,
+        artist_ids=[artist_id],
+        genre_ids=[genre_id],
+    )
+
     insights = await adapter.artist_insights(artist_id)
     assert insights is not None
-    assert insights["listen_count"] == 2
+    assert insights["listen_count"] == 3
     assert insights["artist_id"] == artist_id
     assert len(insights["top_tracks"]) == 2
     assert insights["top_tracks"][0]["count"] >= insights["top_tracks"][1]["count"]
     assert insights["top_albums"][0]["album_id"] == album_id
     assert insights["top_genres"][0]["genre"] == "Hardcore"
+    history = insights["listen_history"]
+    assert len(history) == 2
+    assert history[-1]["period"] == base_time.strftime("%Y-%m")
+    assert history[-1]["count"] == 2
 
     await adapter.close()
 
@@ -421,6 +437,7 @@ async def test_album_insights_aggregates_metadata():
     assert insights["album_id"] == album_id
     assert len(insights["tracks"]) == 2
     assert insights["artists"][0]["artist_id"] == artist_id
+    assert insights["artists"][0]["listen_count"] == 2
     assert insights["genres"][0]["genre"] == "Industrial"
 
     await adapter.close()

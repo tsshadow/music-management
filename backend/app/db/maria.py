@@ -1027,6 +1027,16 @@ class MariaDBAdapter(DatabaseAdapter):
             )
             top_genres_rows = await session.execute(top_genres_stmt)
 
+            period_expr = self._date_format(listens.c.listened_at, "%Y-%m")
+
+            history_stmt = (
+                select(period_expr.label("period"), func.count().label("count"))
+                .select_from(base_join)
+                .where(clause)
+                .group_by(period_expr)
+                .order_by(period_expr)
+            )
+
             top_tracks_stmt = (
                 select(
                     tracks.c.id.label("track_id"),
@@ -1060,6 +1070,7 @@ class MariaDBAdapter(DatabaseAdapter):
                 .order_by(func.count().desc(), albums.c.title)
                 .limit(10)
             )
+            history_rows = (await session.execute(history_stmt)).mappings().all()
             top_albums_rows = await session.execute(top_albums_stmt)
 
             def _convert_rows(rows, id_key: str):
@@ -1075,6 +1086,12 @@ class MariaDBAdapter(DatabaseAdapter):
                     payload.append(data)
                 return payload
 
+            history_payload = [
+                {"period": row["period"], "count": int(row["count"])}
+                for row in history_rows
+                if row["period"] is not None
+            ]
+
             return {
                 "artist_id": int(artist["id"]),
                 "name": artist["name"],
@@ -1082,6 +1099,7 @@ class MariaDBAdapter(DatabaseAdapter):
                 "listen_count": total,
                 "first_listen": span["first_listen"],
                 "last_listen": span["last_listen"],
+                "listen_history": history_payload,
                 "top_genres": _convert_rows(top_genres_rows, "genre_id"),
                 "top_tracks": _convert_rows(top_tracks_rows, "track_id"),
                 "top_albums": _convert_rows(top_albums_rows, "album_id"),
@@ -1130,7 +1148,26 @@ class MariaDBAdapter(DatabaseAdapter):
                 .group_by(artists.c.id, artists.c.name)
                 .order_by(artists.c.name)
             )
-            artist_rows = await session.execute(artist_stmt)
+            artist_rows = (await session.execute(artist_stmt)).mappings().all()
+
+            artist_ids = [int(row["artist_id"]) for row in artist_rows]
+            listen_totals: dict[int, int] = {}
+            if artist_ids:
+                artist_totals_stmt = (
+                    select(track_artists.c.artist_id, func.count().label("count"))
+                    .select_from(
+                        listens
+                        .join(tracks, listens.c.track_id == tracks.c.id)
+                        .join(track_artists, track_artists.c.track_id == tracks.c.id)
+                    )
+                    .where(track_artists.c.artist_id.in_(artist_ids))
+                    .group_by(track_artists.c.artist_id)
+                )
+                totals_rows = await session.execute(artist_totals_stmt)
+                listen_totals = {
+                    int(row.artist_id): int(row.count)
+                    for row in totals_rows
+                }
 
             genre_stmt = (
                 select(
@@ -1147,7 +1184,7 @@ class MariaDBAdapter(DatabaseAdapter):
                 .group_by(genres.c.id, genres.c.name)
                 .order_by(func.count().desc(), genres.c.name)
             )
-            genre_rows = await session.execute(genre_stmt)
+            genre_rows = (await session.execute(genre_stmt)).mappings().all()
 
             tracks_stmt = (
                 select(
@@ -1169,11 +1206,11 @@ class MariaDBAdapter(DatabaseAdapter):
                 )
                 .order_by(tracks.c.disc_no, tracks.c.track_no, tracks.c.title)
             )
-            tracks_rows = await session.execute(tracks_stmt)
+            tracks_rows = (await session.execute(tracks_stmt)).mappings().all()
 
-            def _convert_simple(rows, id_key: str):
+            def _convert_simple(rows: Iterable[Mapping[str, Any]], id_key: str):
                 payload = []
-                for item in rows.mappings():
+                for item in rows:
                     data = dict(item)
                     if data.get(id_key) is not None:
                         data[id_key] = int(data[id_key])
@@ -1188,6 +1225,15 @@ class MariaDBAdapter(DatabaseAdapter):
                     payload.append(data)
                 return payload
 
+            artist_payload = [
+                {
+                    "artist_id": int(row["artist_id"]),
+                    "artist": row["artist"],
+                    "listen_count": listen_totals.get(int(row["artist_id"]), 0),
+                }
+                for row in artist_rows
+            ]
+
             return {
                 "album_id": int(album["id"]),
                 "title": album["title"],
@@ -1196,7 +1242,7 @@ class MariaDBAdapter(DatabaseAdapter):
                 "listen_count": total,
                 "first_listen": span["first_listen"],
                 "last_listen": span["last_listen"],
-                "artists": _convert_simple(artist_rows, "artist_id"),
+                "artists": artist_payload,
                 "genres": _convert_simple(genre_rows, "genre_id"),
                 "tracks": _convert_simple(tracks_rows, "track_id"),
             }

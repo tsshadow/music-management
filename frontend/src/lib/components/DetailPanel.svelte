@@ -11,11 +11,17 @@
   function close() {
     dispatch('close');
   }
+
+  function onOverlayClick(event: MouseEvent) {
+    if (event.currentTarget === event.target) {
+      close();
+    }
+  }
 </script>
 
 {#if open}
-  <div class="overlay" role="presentation" on:click={close}>
-    <section class="panel" role="dialog" aria-modal="true" aria-labelledby="panel-title" on:click|stopPropagation>
+  <div class="overlay" role="presentation" on:click={onOverlayClick}>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="panel-title">
       <header>
         <h3 id="panel-title">{title}</h3>
         <button type="button" class="close" on:click={close} aria-label="Close details">×</button>
@@ -29,7 +35,7 @@
           <slot />
         {/if}
       </div>
-    </section>
+    </div>
   </div>
 {/if}
 

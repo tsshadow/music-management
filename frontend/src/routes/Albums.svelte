@@ -20,7 +20,7 @@
     listen_count: number;
     first_listen: string | null;
     last_listen: string | null;
-    artists: { artist_id: number; artist: string }[];
+    artists: { artist_id: number; artist: string; listen_count: number }[];
     genres: { genre_id: number | null; genre: string; count: number }[];
     tracks: {
       track_id: number;
@@ -282,7 +282,10 @@
       <h4>Artiesten</h4>
       <ul>
         {#each insight.artists as artist}
-          <li>{artist.artist}</li>
+          <li class="artist-row">
+            <span>{artist.artist}</span>
+            <span class="count">{artist.listen_count.toLocaleString()}× geluisterd</span>
+          </li>
         {/each}
       </ul>
     </section>
@@ -457,6 +460,13 @@
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+  }
+
+  .artist-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
   }
 
   .muted {

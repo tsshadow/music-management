@@ -64,7 +64,7 @@ Build and run with Docker Compose:
 docker-compose up --build
 ```
 
-This starts both MariaDB and the FastAPI service (serving the built frontend). The backend listens on port 8080.
+This starts MariaDB, phpMyAdmin, and the FastAPI service (serving the built frontend). The backend listens on port 8080 and phpMyAdmin is available at <http://localhost:8081>.
 
 ### API
 

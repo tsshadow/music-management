@@ -63,6 +63,14 @@ async def recent_listens(
     return await adapter.fetch_recent_listens(limit=limit)
 
 
+@router.get("/count", dependencies=[Depends(verify_api_key)])
+async def listen_count(adapter: DatabaseAdapter = Depends(get_adapter)):
+    """Return the total number of stored listens."""
+
+    count = await adapter.count_listens()
+    return {"count": count}
+
+
 @router.get("/{listen_id}", dependencies=[Depends(verify_api_key)])
 async def get_listen(listen_id: int, adapter: DatabaseAdapter = Depends(get_adapter)):
     """Return the detailed metadata for a single listen."""
@@ -71,14 +79,6 @@ async def get_listen(listen_id: int, adapter: DatabaseAdapter = Depends(get_adap
     if listen is None:
         raise HTTPException(status_code=404, detail="Listen not found")
     return listen
-
-
-@router.get("/count", dependencies=[Depends(verify_api_key)])
-async def listen_count(adapter: DatabaseAdapter = Depends(get_adapter)):
-    """Return the total number of stored listens."""
-
-    count = await adapter.count_listens()
-    return {"count": count}
 
 
 @router.delete("", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(verify_api_key)])

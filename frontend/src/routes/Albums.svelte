@@ -145,6 +145,10 @@
     }
   }
 
+  function onSelect(event: CustomEvent<AlbumRow>) {
+    openInsight(event.detail);
+  }
+
   function closePanel() {
     panelOpen = false;
     panelError = null;
@@ -224,7 +228,7 @@
     <p class="status error">{error}</p>
   {:else}
     <div class="table-wrapper">
-      <StatsLeaderboard rows={rows} labelHeading="Album" clickable on:select={(event) => openInsight(event.detail as AlbumRow)} />
+      <StatsLeaderboard rows={rows} labelHeading="Album" clickable on:select={onSelect} />
       <footer class="pagination">
         {#if total === 0}
           <span>Geen data beschikbaar voor deze periode.</span>

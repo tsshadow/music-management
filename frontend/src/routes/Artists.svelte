@@ -146,6 +146,10 @@
     }
   }
 
+  function onSelect(event: CustomEvent<ArtistRow>) {
+    openInsight(event.detail);
+  }
+
   function closePanel() {
     panelOpen = false;
     panelError = null;
@@ -215,7 +219,7 @@
     <p class="status error">{error}</p>
   {:else}
     <div class="table-wrapper">
-      <StatsLeaderboard rows={rows} labelHeading="Artiest" clickable on:select={(event) => openInsight(event.detail as ArtistRow)} />
+      <StatsLeaderboard rows={rows} labelHeading="Artiest" clickable on:select={onSelect} />
       <footer class="pagination">
         {#if total === 0}
           <span>Geen data beschikbaar voor deze periode.</span>

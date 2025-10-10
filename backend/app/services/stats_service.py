@@ -13,29 +13,41 @@ class StatsService:
 
         self.adapter = adapter
 
-    async def artists(self, period: str, value: str | None):
+    async def artists(self, period: str, value: str | None, limit: int, offset: int):
         """Return artist play counts for the selected period."""
 
         normalized_period, normalized_value = self._normalize_period(period, value)
-        return await self.adapter.stats_artists(normalized_period, normalized_value)
+        items, total = await self.adapter.stats_artists(
+            normalized_period, normalized_value, limit, offset
+        )
+        return {"items": items, "total": total}
 
-    async def albums(self, period: str, value: str | None):
+    async def albums(self, period: str, value: str | None, limit: int, offset: int):
         """Return album play counts for the selected period."""
 
         normalized_period, normalized_value = self._normalize_period(period, value)
-        return await self.adapter.stats_albums(normalized_period, normalized_value)
+        items, total = await self.adapter.stats_albums(
+            normalized_period, normalized_value, limit, offset
+        )
+        return {"items": items, "total": total}
 
-    async def tracks(self, period: str, value: str | None):
+    async def tracks(self, period: str, value: str | None, limit: int, offset: int):
         """Return track play counts for the selected period."""
 
         normalized_period, normalized_value = self._normalize_period(period, value)
-        return await self.adapter.stats_tracks(normalized_period, normalized_value)
+        items, total = await self.adapter.stats_tracks(
+            normalized_period, normalized_value, limit, offset
+        )
+        return {"items": items, "total": total}
 
-    async def genres(self, period: str, value: str | None):
+    async def genres(self, period: str, value: str | None, limit: int, offset: int):
         """Return genre play counts for the selected period."""
 
         normalized_period, normalized_value = self._normalize_period(period, value)
-        return await self.adapter.stats_genres(normalized_period, normalized_value)
+        items, total = await self.adapter.stats_genres(
+            normalized_period, normalized_value, limit, offset
+        )
+        return {"items": items, "total": total}
 
     async def top_artist_by_genre(self, year: int):
         """Return the most played artist per genre for the given year."""

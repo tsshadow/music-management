@@ -12,6 +12,7 @@ from .api import (
     routes_config,
     routes_export,
     routes_import,
+    routes_library,
     routes_listens,
     routes_scrobble,
     routes_stats,
@@ -78,6 +79,10 @@ app.include_router(
 )
 app.include_router(
     routes_listens.router,
+    prefix=get_settings().api_prefix,
+)
+app.include_router(
+    routes_library.router,
     prefix=get_settings().api_prefix,
 )
 app.include_router(

@@ -9,6 +9,9 @@
   let loading = false;
   let error: string | null = null;
   let rows: LeaderboardRow[] = [];
+  let total = 0;
+  let page = 1;
+  const pageSize = 100;
 
   function getDefaultValue(current: Period): string {
     const now = new Date();
@@ -28,12 +31,13 @@
   async function loadData() {
     if (period !== 'all' && !value) {
       rows = [];
+      total = 0;
       return;
     }
     loading = true;
     error = null;
     try {
-      const params = new URLSearchParams({ period });
+      const params = new URLSearchParams({ period, page: String(page), page_size: String(pageSize) });
       if (period !== 'all') {
         params.set('value', value);
       }
@@ -41,11 +45,16 @@
       if (!response.ok) {
         throw new Error('Kon de genres niet laden');
       }
-      const data: { genre: string; count: number }[] = await response.json();
-      rows = data.map((item) => ({ label: item.genre, count: item.count }));
+      const data: {
+        items: { genre: string; count: number }[];
+        total: number;
+      } = await response.json();
+      rows = data.items.map((item) => ({ label: item.genre, count: item.count }));
+      total = data.total;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Onbekende fout';
       rows = [];
+      total = 0;
     } finally {
       loading = false;
     }
@@ -54,13 +63,27 @@
   function onPeriodChange(event: Event) {
     period = (event.target as HTMLSelectElement).value as Period;
     value = getDefaultValue(period);
+    page = 1;
     loadData();
   }
 
   function onValueChange(event: Event) {
     value = (event.target as HTMLInputElement).value;
+    page = 1;
     loadData();
   }
+
+  function changePage(newPage: number) {
+    if (newPage < 1 || newPage > totalPages) {
+      return;
+    }
+    page = newPage;
+    loadData();
+  }
+
+  $: totalPages = Math.max(1, Math.ceil(total / pageSize));
+  $: showingStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  $: showingEnd = total === 0 ? 0 : Math.min(total, page * pageSize);
 
   onMount(() => {
     loadData();
@@ -111,6 +134,26 @@
   {:else}
     <div class="table-wrapper">
       <StatsLeaderboard {rows} labelHeading="Genre" />
+      <footer class="pagination">
+        {#if total === 0}
+          <span>Geen data beschikbaar voor deze periode.</span>
+        {:else}
+          <span>Toont {showingStart}–{showingEnd} van {total}</span>
+        {/if}
+        <div class="pager-controls">
+          <button type="button" on:click={() => changePage(page - 1)} disabled={page === 1}>
+            Vorige pagina
+          </button>
+          <span>Pagina {page} van {totalPages}</span>
+          <button
+            type="button"
+            on:click={() => changePage(page + 1)}
+            disabled={page === totalPages || total === 0}
+          >
+            Volgende pagina
+          </button>
+        </div>
+      </footer>
     </div>
   {/if}
 </section>
@@ -175,6 +218,9 @@
     background: rgba(0, 0, 0, 0.15);
     border-radius: 1rem;
     padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
   .status {
@@ -183,5 +229,35 @@
 
   .status.error {
     color: #ff8080;
+  }
+
+  .pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .pager-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .pager-controls button {
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.75rem;
+    color: var(--text-color);
+    cursor: pointer;
+  }
+
+  .pager-controls button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 </style>

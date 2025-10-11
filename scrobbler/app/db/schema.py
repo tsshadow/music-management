@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy import inspect, text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from ..models import LISTENS_SCHEMA, MEDIALIBRARY_SCHEMA
+from ..models import LISTENS_SCHEMA, MEDIALIBRARY_SCHEMA, metadata
 
 __all__ = ["apply_schema_updates"]
 
@@ -52,6 +52,9 @@ def _run_schema_updates(connection) -> None:
         _ensure_mariadb_schemas(connection)
 
     _migrate_legacy_tables(connection, inspector, dialect)
+
+    # Ensure all metadata-defined tables exist so subsequent migrations can run.
+    metadata.create_all(bind=connection, checkfirst=True)
 
     # Refresh inspector after potential migrations
     inspector = inspect(connection)

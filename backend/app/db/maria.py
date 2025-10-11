@@ -15,9 +15,13 @@ from sqlalchemy import (
     or_,
     select,
     true,
+    update,
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
+
+from analyzer.matching.normalizer import normalize_text
+from analyzer.matching.uid import make_track_uid
 
 from .adapter import DatabaseAdapter
 from ..models import (
@@ -100,67 +104,168 @@ class MariaDBAdapter(DatabaseAdapter):
     async def upsert_artist(self, name: str, mbid: str | None = None) -> int:
         """Return the artist id for the name, inserting when not present."""
 
-        stmt = select(artists.c.id).where(func.lower(artists.c.name) == name.lower())
-        return await self._get_or_create(
-            stmt,
-            {"name": name, "mbid": mbid},
-            artists,
-        )
+        normalized = normalize_text(name)
+        async with self.session_factory() as session:
+            stmt = select(artists.c.id).where(artists.c.name_normalized == normalized)
+            existing = (await session.execute(stmt)).scalar_one_or_none()
+            if existing is not None:
+                await session.execute(
+                    update(artists)
+                    .where(artists.c.id == existing)
+                    .values(
+                        name=name,
+                        sort_name=normalized,
+                        mbid=mbid,
+                        updated_at=func.now(),
+                    )
+                )
+                await session.commit()
+                return int(existing)
+            res = await session.execute(
+                insert(artists).values(
+                    name=name,
+                    name_normalized=normalized,
+                    sort_name=normalized,
+                    mbid=mbid,
+                )
+            )
+            await session.commit()
+            return int(res.inserted_primary_key[0])
 
     async def upsert_genre(self, name: str) -> int:
         """Return the genre id for the name, inserting when missing."""
 
-        stmt = select(genres.c.id).where(func.lower(genres.c.name) == name.lower())
-        return await self._get_or_create(stmt, {"name": name}, genres)
+        normalized = normalize_text(name)
+        async with self.session_factory() as session:
+            stmt = select(genres.c.id).where(genres.c.name_normalized == normalized)
+            existing = (await session.execute(stmt)).scalar_one_or_none()
+            if existing is not None:
+                await session.execute(
+                    update(genres)
+                    .where(genres.c.id == existing)
+                    .values(name=name, updated_at=func.now())
+                )
+                await session.commit()
+                return int(existing)
+            res = await session.execute(
+                insert(genres).values(name=name, name_normalized=normalized)
+            )
+            await session.commit()
+            return int(res.inserted_primary_key[0])
 
     async def upsert_album(
-        self, title: str, release_year: int | None = None, mbid: str | None = None
+        self,
+        title: str,
+        *,
+        artist_id: int,
+        release_year: int | None = None,
+        mbid: str | None = None,
     ) -> int:
         """Return the album id for the title and year, creating a row if absent."""
 
-        stmt = select(albums.c.id).where(
-            and_(func.lower(albums.c.title) == title.lower(), albums.c.release_year == release_year)
-        )
-        return await self._get_or_create(
-            stmt,
-            {"title": title, "release_year": release_year, "mbid": mbid},
-            albums,
-        )
+        normalized = normalize_text(title)
+        async with self.session_factory() as session:
+            stmt = select(albums.c.id).where(
+                and_(
+                    albums.c.artist_id == artist_id,
+                    albums.c.title_normalized == normalized,
+                )
+            )
+            existing = (await session.execute(stmt)).scalar_one_or_none()
+            if existing is not None:
+                await session.execute(
+                    update(albums)
+                    .where(albums.c.id == existing)
+                    .values(
+                        title=title,
+                        year=release_year,
+                        mbid=mbid,
+                        updated_at=func.now(),
+                    )
+                )
+                await session.commit()
+                return int(existing)
+            res = await session.execute(
+                insert(albums).values(
+                    artist_id=artist_id,
+                    title=title,
+                    title_normalized=normalized,
+                    year=release_year,
+                    mbid=mbid,
+                )
+            )
+            await session.commit()
+            return int(res.inserted_primary_key[0])
 
     async def upsert_track(
         self,
         *,
         title: str,
         album_id: int | None,
+        primary_artist_id: int | None,
         duration_secs: int | None,
         disc_no: int | None,
         track_no: int | None,
         mbid: str | None,
         isrc: str | None,
+        acoustid: str | None,
+        track_uid: str | None,
     ) -> int:
         """Return the track id for the provided fingerprint, inserting if needed."""
 
         async with self.session_factory() as session:
-            stmt = select(tracks.c.id).where(
-                and_(
-                    func.lower(tracks.c.title) == title.lower(),
-                    (tracks.c.album_id == album_id) if album_id is not None else tracks.c.album_id.is_(None),
-                    (tracks.c.disc_no == disc_no) if disc_no is not None else tracks.c.disc_no.is_(None),
-                    (tracks.c.track_no == track_no) if track_no is not None else tracks.c.track_no.is_(None),
-                )
-            )
+            normalized = normalize_text(title)
+            computed_uid = track_uid
+            if computed_uid is None:
+                artist_name = None
+                if primary_artist_id:
+                    artist_row = await session.execute(
+                        select(artists.c.name).where(artists.c.id == primary_artist_id)
+                    )
+                    artist_name = artist_row.scalar_one_or_none()
+                album_title = None
+                if album_id:
+                    album_row = await session.execute(
+                        select(albums.c.title).where(albums.c.id == album_id)
+                    )
+                    album_title = album_row.scalar_one_or_none()
+                computed_uid = make_track_uid(artist_name, title, album_title, duration_secs)
+            stmt = select(tracks.c.id).where(tracks.c.track_uid == computed_uid)
             existing = (await session.execute(stmt)).scalar_one_or_none()
             if existing is not None:
+                await session.execute(
+                    update(tracks)
+                    .where(tracks.c.id == existing)
+                    .values(
+                        title=title,
+                        title_normalized=normalized,
+                        album_id=album_id,
+                        primary_artist_id=primary_artist_id,
+                        duration_secs=duration_secs,
+                        disc_no=disc_no,
+                        track_no=track_no,
+                        mbid=mbid,
+                        isrc=isrc,
+                        acoustid=acoustid,
+                        track_uid=computed_uid,
+                        updated_at=func.now(),
+                    )
+                )
+                await session.commit()
                 return int(existing)
             res = await session.execute(
                 insert(tracks).values(
                     title=title,
+                    title_normalized=normalized,
                     album_id=album_id,
+                    primary_artist_id=primary_artist_id,
                     duration_secs=duration_secs,
                     disc_no=disc_no,
                     track_no=track_no,
                     mbid=mbid,
                     isrc=isrc,
+                    acoustid=acoustid,
+                    track_uid=computed_uid,
                 )
             )
             await session.commit()
@@ -209,6 +314,9 @@ class MariaDBAdapter(DatabaseAdapter):
         source_track_id: str | None,
         position_secs: int | None,
         duration_secs: int | None,
+        artist_name_raw: str | None,
+        track_title_raw: str | None,
+        album_title_raw: str | None,
         artist_ids: Iterable[int],
         genre_ids: Iterable[int],
     ) -> tuple[int, bool]:
@@ -226,6 +334,12 @@ class MariaDBAdapter(DatabaseAdapter):
                         source_track_id=source_track_id,
                         position_secs=position_secs,
                         duration_secs=duration_secs,
+                        artist_name_raw=artist_name_raw,
+                        track_title_raw=track_title_raw,
+                        album_title_raw=album_title_raw,
+                        enrich_status="matched",
+                        match_confidence=100,
+                        last_enriched_at=func.now(),
                     )
                 )
                 listen_id = int(result.inserted_primary_key[0])
@@ -240,6 +354,18 @@ class MariaDBAdapter(DatabaseAdapter):
                 )
                 listen_id = int(existing.scalar_one())
                 created = False
+                await session.execute(
+                    update(listens)
+                    .where(listens.c.id == listen_id)
+                    .values(
+                        artist_name_raw=artist_name_raw,
+                        track_title_raw=track_title_raw,
+                        album_title_raw=album_title_raw,
+                        position_secs=position_secs,
+                        duration_secs=duration_secs,
+                    )
+                )
+                await session.commit()
             else:
                 await session.commit()
 

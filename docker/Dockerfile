@@ -14,6 +14,7 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 RUN pip install --no-cache-dir poetry && poetry config virtualenvs.create false && poetry install --no-interaction --no-ansi
 COPY backend ./backend
+COPY analyzer ./analyzer
 COPY --from=frontend /app/frontend/dist ./backend/app/static
 ENV SCROBBLER_DB_DSN="sqlite+aiosqlite:///./data/scrobbler.db"
 EXPOSE 8080

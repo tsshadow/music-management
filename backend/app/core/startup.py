@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from .settings import get_settings
+from ..db.schema import apply_schema_updates
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ def build_engine() -> AsyncEngine:
 async def init_database(engine: AsyncEngine, metadata) -> None:
     """Create all tables defined in metadata if they do not exist."""
 
+    await apply_schema_updates(engine)
     async with engine.begin() as conn:
         await conn.run_sync(metadata.create_all)
     logger.info("Database schema ensured")

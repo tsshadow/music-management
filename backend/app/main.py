@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api import (
+    routes_analyzer,
     routes_config,
     routes_export,
     routes_import,
@@ -94,6 +95,10 @@ app.include_router(
 )
 app.include_router(
     routes_export.router,
+    prefix=get_settings().api_prefix,
+)
+app.include_router(
+    routes_analyzer.router,
     prefix=get_settings().api_prefix,
 )
 static_dir = Path(__file__).parent / "static"

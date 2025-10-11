@@ -5,6 +5,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from analyzer.matching.uid import make_track_uid
+
 from backend.app.core.startup import init_database
 from backend.app.db.sqlite_test import create_sqlite_memory_adapter
 from backend.app.models import metadata
@@ -21,15 +23,19 @@ async def test_adapter_upserts():
 
     artist_id = await adapter.upsert_artist("Artist")
     genre_id = await adapter.upsert_genre("Genre")
-    album_id = await adapter.upsert_album("Album", release_year=2024)
+    album_id = await adapter.upsert_album("Album", artist_id=artist_id, release_year=2024)
+    track_uid = make_track_uid("Artist", "Song", "Album", 200)
     track_id = await adapter.upsert_track(
         title="Song",
         album_id=album_id,
+        primary_artist_id=artist_id,
         duration_secs=200,
         disc_no=None,
         track_no=1,
         mbid=None,
         isrc=None,
+        acoustid=None,
+        track_uid=track_uid,
     )
     await adapter.link_track_artists(track_id, [(artist_id, "primary")])
     await adapter.link_track_genres(track_id, [genre_id])
@@ -43,6 +49,9 @@ async def test_adapter_upserts():
         source_track_id="1",
         position_secs=10,
         duration_secs=200,
+        artist_name_raw="Artist",
+        track_title_raw="Song",
+        album_title_raw="Album",
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -59,6 +68,9 @@ async def test_adapter_upserts():
         source_track_id="1",
         position_secs=10,
         duration_secs=200,
+        artist_name_raw="Artist",
+        track_title_raw="Song",
+        album_title_raw="Album",
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )

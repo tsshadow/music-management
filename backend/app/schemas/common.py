@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 class ArtistInput(BaseModel):
     name: str
-    role: Literal["primary", "featured", "remixer", "composer"] = "primary"
+    role: Literal["primary", "featured", "featuring", "remixer", "producer", "composer"] = "primary"
 
 
 class TrackInput(BaseModel):

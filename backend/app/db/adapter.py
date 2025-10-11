@@ -15,7 +15,12 @@ class DatabaseAdapter(Protocol):
     async def upsert_artist(self, name: str, mbid: str | None = None) -> int: ...
     async def upsert_genre(self, name: str) -> int: ...
     async def upsert_album(
-        self, title: str, release_year: int | None = None, mbid: str | None = None
+        self,
+        title: str,
+        *,
+        artist_id: int,
+        release_year: int | None = None,
+        mbid: str | None = None,
     ) -> int: ...
 
     async def upsert_track(
@@ -23,11 +28,14 @@ class DatabaseAdapter(Protocol):
         *,
         title: str,
         album_id: int | None,
+        primary_artist_id: int | None,
         duration_secs: int | None,
         disc_no: int | None,
         track_no: int | None,
         mbid: str | None,
         isrc: str | None,
+        acoustid: str | None,
+        track_uid: str | None,
     ) -> int: ...
 
     async def link_track_artists(self, track_id: int, artists: list[tuple[int, str]]) -> None: ...
@@ -43,6 +51,9 @@ class DatabaseAdapter(Protocol):
         source_track_id: str | None,
         position_secs: int | None,
         duration_secs: int | None,
+        artist_name_raw: str | None,
+        track_title_raw: str | None,
+        album_title_raw: str | None,
         artist_ids: Iterable[int],
         genre_ids: Iterable[int],
     ) -> Tuple[int, bool]: ...

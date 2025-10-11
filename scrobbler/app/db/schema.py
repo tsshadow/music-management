@@ -56,20 +56,30 @@ def _run_schema_updates(connection) -> None:
     # Refresh inspector after potential migrations
     inspector = inspect(connection)
 
-    _ensure_media_columns(connection, inspector)
-    _ensure_listen_columns(connection, inspector)
+    _ensure_media_columns(connection, inspector, dialect)
+    _ensure_listen_columns(connection, inspector, dialect)
 
 
 def _ensure_sqlite_schemas(connection) -> None:
     attached = {row[1] for row in connection.execute(text("PRAGMA database_list"))}
-    for schema in (MEDIALIBRARY_SCHEMA, LISTENS_SCHEMA):
+    for schema in filter(None, (MEDIALIBRARY_SCHEMA, LISTENS_SCHEMA)):
         if schema not in attached:
             connection.execute(text(f"ATTACH DATABASE ':memory:' AS {schema}"))
 
 
 def _ensure_mariadb_schemas(connection) -> None:
-    for schema in (MEDIALIBRARY_SCHEMA, LISTENS_SCHEMA):
+    for schema in filter(None, (MEDIALIBRARY_SCHEMA, LISTENS_SCHEMA)):
         connection.execute(text(f"CREATE SCHEMA IF NOT EXISTS `{schema}`"))
+
+
+def _qualified_table(schema: str | None, table: str, dialect: str) -> str:
+    if schema:
+        if dialect in {"mysql", "mariadb"}:
+            return f"`{schema}`.`{table}`"
+        return f"{schema}.{table}"
+    if dialect in {"mysql", "mariadb"}:
+        return f"`{table}`"
+    return table
 
 
 def _migrate_legacy_tables(connection, inspector, dialect: str) -> None:
@@ -77,13 +87,19 @@ def _migrate_legacy_tables(connection, inspector, dialect: str) -> None:
     if not legacy_tables or dialect == "sqlite":
         return
 
-    medialibrary_tables = set(inspector.get_table_names(schema=MEDIALIBRARY_SCHEMA))
+    medialibrary_tables = set(
+        inspector.get_table_names(schema=MEDIALIBRARY_SCHEMA)
+    )
     listens_tables = set(inspector.get_table_names(schema=LISTENS_SCHEMA))
 
-    def rename(table: str, target_schema: str) -> None:
-        qualified = f"{target_schema}.{table}"
+    def rename(table: str, target_schema: str | None) -> None:
+        if not target_schema:
+            return
+        qualified = _qualified_table(target_schema, table, dialect)
         if dialect in {"mysql", "mariadb"}:
-            connection.execute(text(f"RENAME TABLE `{table}` TO `{target_schema}`.`{table}`"))
+            connection.execute(
+                text(f"RENAME TABLE `{table}` TO `{target_schema}`.`{table}`")
+            )
         else:
             connection.execute(text(f"ALTER TABLE {table} RENAME TO {qualified}"))
 
@@ -102,7 +118,7 @@ def _migrate_legacy_tables(connection, inspector, dialect: str) -> None:
             connection.execute(text("SET FOREIGN_KEY_CHECKS=1"))
 
 
-def _ensure_media_columns(connection, inspector) -> None:
+def _ensure_media_columns(connection, inspector, dialect: str) -> None:
     tables = set(inspector.get_table_names(schema=MEDIALIBRARY_SCHEMA))
 
     def ensure_column(table: str, column: str, ddl: str) -> None:
@@ -113,7 +129,7 @@ def _ensure_media_columns(connection, inspector) -> None:
             for col in inspector.get_columns(table, schema=MEDIALIBRARY_SCHEMA)
         }
         if column not in columns:
-            qualified = f"{MEDIALIBRARY_SCHEMA}.{table}"
+            qualified = _qualified_table(MEDIALIBRARY_SCHEMA, table, dialect)
             connection.execute(text(f"ALTER TABLE {qualified} ADD COLUMN {column} {ddl}"))
 
     def ensure_index(table: str, index: str, ddl: str) -> None:
@@ -124,7 +140,8 @@ def _ensure_media_columns(connection, inspector) -> None:
             for idx in inspector.get_indexes(table, schema=MEDIALIBRARY_SCHEMA)
         }
         if index not in indexes:
-            connection.execute(text(ddl.format(schema=MEDIALIBRARY_SCHEMA)))
+            qualified = _qualified_table(MEDIALIBRARY_SCHEMA, table, dialect)
+            connection.execute(text(ddl.format(table=qualified)))
 
     ensure_column("artists", "name_normalized", "VARCHAR(255) NOT NULL DEFAULT ''")
     ensure_column("artists", "sort_name", "VARCHAR(255) NOT NULL DEFAULT ''")
@@ -149,21 +166,21 @@ def _ensure_media_columns(connection, inspector) -> None:
             for col in inspector.get_columns("tracks", schema=MEDIALIBRARY_SCHEMA)
         }
         if "duration_sec" in columns and "duration_secs" not in columns:
+            qualified = _qualified_table(MEDIALIBRARY_SCHEMA, "tracks", dialect)
             connection.execute(
                 text(
-                    f"ALTER TABLE {MEDIALIBRARY_SCHEMA}.tracks "
+                    f"ALTER TABLE {qualified} "
                     "RENAME COLUMN duration_sec TO duration_secs"
                 )
             )
         ensure_index(
             "tracks",
             "ix_tracks_track_uid",
-            "CREATE UNIQUE INDEX IF NOT EXISTS ix_tracks_track_uid "
-            "ON {schema}.tracks (track_uid)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_tracks_track_uid ON {table} (track_uid)",
         )
 
 
-def _ensure_listen_columns(connection, inspector) -> None:
+def _ensure_listen_columns(connection, inspector, dialect: str) -> None:
     tables = set(inspector.get_table_names(schema=LISTENS_SCHEMA))
 
     def ensure_column(table: str, column: str, ddl: str) -> None:
@@ -174,7 +191,7 @@ def _ensure_listen_columns(connection, inspector) -> None:
             for col in inspector.get_columns(table, schema=LISTENS_SCHEMA)
         }
         if column not in columns:
-            qualified = f"{LISTENS_SCHEMA}.{table}"
+            qualified = _qualified_table(LISTENS_SCHEMA, table, dialect)
             connection.execute(text(f"ALTER TABLE {qualified} ADD COLUMN {column} {ddl}"))
 
     def ensure_index(table: str, index: str, ddl: str) -> None:
@@ -185,7 +202,8 @@ def _ensure_listen_columns(connection, inspector) -> None:
             for idx in inspector.get_indexes(table, schema=LISTENS_SCHEMA)
         }
         if index not in indexes:
-            connection.execute(text(ddl.format(schema=LISTENS_SCHEMA)))
+            qualified = _qualified_table(LISTENS_SCHEMA, table, dialect)
+            connection.execute(text(ddl.format(table=qualified)))
 
     if "listens" in tables:
         ensure_column("listens", "artist_name_raw", "VARCHAR(255)")
@@ -198,29 +216,28 @@ def _ensure_listen_columns(connection, inspector) -> None:
             col["name"]
             for col in inspector.get_columns("listens", schema=LISTENS_SCHEMA)
         }
+        qualified = _qualified_table(LISTENS_SCHEMA, "listens", dialect)
         if "position_sec" in columns and "position_secs" not in columns:
             connection.execute(
                 text(
-                    f"ALTER TABLE {LISTENS_SCHEMA}.listens "
+                    f"ALTER TABLE {qualified} "
                     "RENAME COLUMN position_sec TO position_secs"
                 )
             )
         if "duration_sec" in columns and "duration_secs" not in columns:
             connection.execute(
                 text(
-                    f"ALTER TABLE {LISTENS_SCHEMA}.listens "
+                    f"ALTER TABLE {qualified} "
                     "RENAME COLUMN duration_sec TO duration_secs"
                 )
             )
         ensure_index(
             "listens",
             "ix_listens_enrich_status",
-            "CREATE INDEX IF NOT EXISTS ix_listens_enrich_status "
-            "ON {schema}.listens (enrich_status)",
+            "CREATE INDEX IF NOT EXISTS ix_listens_enrich_status ON {table} (enrich_status)",
         )
         ensure_index(
             "listens",
             "ix_listens_listened_at",
-            "CREATE INDEX IF NOT EXISTS ix_listens_listened_at "
-            "ON {schema}.listens (listened_at)",
+            "CREATE INDEX IF NOT EXISTS ix_listens_listened_at ON {table} (listened_at)",
         )

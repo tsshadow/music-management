@@ -6,7 +6,7 @@ This document describes the relational data model shared by the `scrobbler` and 
 
 - **User activity** is stored in `listens`, with optional relationships to `tracks`, `artists`, and `genres` to enrich listening history.
 - **Media library** metadata flows in through the analyzer. It enriches artists, albums, tracks, and media files while populating association tables (`track_artists`, `track_genres`, `track_labels`, `track_tag_attributes`).
-- **Analyzer ↔ Scrobbler** operate on dedicated schemas (`medialibrary` and `listens`) that keep write ownership isolated while preserving cross-schema foreign keys.
+- **Analyzer ↔ Scrobbler** can operate on dedicated schemas (`medialibrary` and `listens`) that keep write ownership isolated while preserving cross-schema foreign keys. Deployments without schema privileges can continue to run in a single shared schema.
 
 ### Relationship model (text representation)
 
@@ -74,7 +74,7 @@ artists ──< albums
 
 ## Media library and listening history schemas
 
-The application now enforces a physical split between media metadata and listening history. Two schemas are created automatically during bootstrap:
+The application supports a physical split between media metadata and listening history. When configured, two schemas are created (or attached for SQLite) during bootstrap:
 
 | Schema | Ownership | Tables (indicative) | Notes |
 |--------|-----------|---------------------|-------|
@@ -83,13 +83,20 @@ The application now enforces a physical split between media metadata and listeni
 
 The `listens.listens` table keeps a foreign key into `medialibrary.tracks`, so every listen still resolves to canonical track metadata while writes remain isolated to the owning service.
 
-Existing single-schema deployments are upgraded in place. During application start-up the bootstrap routine will:
+Configure the split by setting the following environment variables before starting the application:
 
-1. Create the `medialibrary` and `listens` schemas (or in-memory attachments for SQLite-based tests).
+- `SCROBBLER_MEDIALIBRARY_SCHEMA` – schema/database used for analyzer-owned tables.
+- `SCROBBLER_LISTENS_SCHEMA` – schema/database used for scrobbler-owned tables.
+
+Leave either variable unset (or set it to an empty string) to keep the associated tables in the connection's default schema, which preserves compatibility for hosted MySQL/MariaDB accounts that lack privileges to create additional databases.
+
+When schemas are provided, existing single-schema deployments are upgraded in place. During application start-up the bootstrap routine will:
+
+1. Create or attach the configured schemas.
 2. Move legacy tables into their new schemas while preserving primary keys and data.
 3. Re-run column/index guards to ensure historical databases gain any newer analyzer fields.
 
-Fresh installations simply create the tables directly inside the appropriate schema.
+Fresh installations simply create the tables directly inside the configured schema(s).
 
 ## Column reference
 

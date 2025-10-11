@@ -1,5 +1,4 @@
 <script lang="ts">
-  import Header from './lib/components/Header.svelte';
   import Analyzer from './routes/Analyzer.svelte';
   import Scrobbler from './routes/Scrobbler.svelte';
   import Settings from './routes/Settings.svelte';
@@ -8,13 +7,21 @@
 
   let page: Page = 'scrobbler';
 
+  const titles: Record<Page, string> = {
+    scrobbler: 'Scrobbler',
+    analyzer: 'Analyzer',
+    settings: 'Settings',
+  };
+
   function show(newPage: Page) {
     page = newPage;
   }
 </script>
 
 <main>
-  <Header title="Scrobbler" />
+  <header class="main-header">
+    <h1>{titles[page]}</h1>
+  </header>
   <nav class="primary-nav">
     <button class:active={page === 'scrobbler'} on:click={() => show('scrobbler')}>
       Scrobbler
@@ -50,6 +57,16 @@
     gap: 1rem;
     flex-wrap: wrap;
     margin-bottom: 1rem;
+  }
+
+  .main-header {
+    text-align: center;
+    padding: 2rem 1rem 0.5rem;
+  }
+
+  .main-header h1 {
+    margin: 0;
+    font-size: clamp(2rem, 5vw, 3rem);
   }
 
   .primary-nav button {

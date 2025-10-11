@@ -154,7 +154,8 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    align-items: flex-start;
+    align-items: center;
+    text-align: center;
   }
 
   .heading h1 {

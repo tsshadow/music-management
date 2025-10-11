@@ -569,3 +569,140 @@ class AnalyzerRepository:
                 "artists": artists_summary,
                 "genres": genres_summary,
             }
+
+    async def fetch_library_artists(self, *, limit: int, offset: int) -> tuple[list[dict], int]:
+        """Return artists ordered by song count within the library."""
+
+        async with self.session_factory() as session:
+            song_count = func.count(tracks.c.id).label("count")
+            base_query = (
+                select(
+                    artists.c.id.label("artist_id"),
+                    artists.c.name.label("artist"),
+                    song_count,
+                )
+                .select_from(tracks.join(artists, tracks.c.primary_artist_id == artists.c.id))
+                .group_by(artists.c.id, artists.c.name)
+            )
+            total_query = select(func.count()).select_from(base_query.subquery())
+            total = await session.scalar(total_query) or 0
+            rows = await session.execute(
+                base_query.order_by(song_count.desc(), artists.c.name).offset(offset).limit(limit)
+            )
+            items = [
+                {
+                    "artist_id": int(row.artist_id),
+                    "artist": row.artist,
+                    "count": int(row.count),
+                }
+                for row in rows.fetchall()
+            ]
+            return items, int(total)
+
+    async def fetch_library_albums(self, *, limit: int, offset: int) -> tuple[list[dict], int]:
+        """Return albums ordered by song count within the library."""
+
+        async with self.session_factory() as session:
+            song_count = func.count(tracks.c.id).label("count")
+            base_query = (
+                select(
+                    albums.c.id.label("album_id"),
+                    albums.c.title.label("album"),
+                    albums.c.year.label("release_year"),
+                    artists.c.name.label("artist"),
+                    song_count,
+                )
+                .select_from(
+                    albums.join(artists, albums.c.artist_id == artists.c.id).join(
+                        tracks, tracks.c.album_id == albums.c.id
+                    )
+                )
+                .group_by(albums.c.id, albums.c.title, albums.c.year, artists.c.name)
+            )
+            total_query = select(func.count()).select_from(base_query.subquery())
+            total = await session.scalar(total_query) or 0
+            rows = await session.execute(
+                base_query.order_by(song_count.desc(), albums.c.title).offset(offset).limit(limit)
+            )
+            items = [
+                {
+                    "album_id": int(row.album_id),
+                    "album": row.album,
+                    "artist": row.artist,
+                    "release_year": row.release_year,
+                    "count": int(row.count),
+                }
+                for row in rows.fetchall()
+            ]
+            return items, int(total)
+
+    async def fetch_library_genres(self, *, limit: int, offset: int) -> tuple[list[dict], int]:
+        """Return genres ordered by song count within the library."""
+
+        async with self.session_factory() as session:
+            song_count = func.count(track_genres.c.track_id).label("count")
+            base_query = (
+                select(
+                    genres.c.id.label("genre_id"),
+                    genres.c.name.label("genre"),
+                    song_count,
+                )
+                .select_from(
+                    genres.join(track_genres, genres.c.id == track_genres.c.genre_id).join(
+                        tracks, track_genres.c.track_id == tracks.c.id
+                    )
+                )
+                .group_by(genres.c.id, genres.c.name)
+            )
+            total_query = select(func.count()).select_from(base_query.subquery())
+            total = await session.scalar(total_query) or 0
+            rows = await session.execute(
+                base_query.order_by(song_count.desc(), genres.c.name).offset(offset).limit(limit)
+            )
+            items = [
+                {
+                    "genre_id": int(row.genre_id),
+                    "genre": row.genre,
+                    "count": int(row.count),
+                }
+                for row in rows.fetchall()
+            ]
+            return items, int(total)
+
+    async def fetch_library_tracks(self, *, limit: int, offset: int) -> tuple[list[dict], int]:
+        """Return tracks ordered alphabetically for the library view."""
+
+        async with self.session_factory() as session:
+            base_query = (
+                select(
+                    tracks.c.id.label("track_id"),
+                    tracks.c.title.label("track"),
+                    albums.c.title.label("album"),
+                    artists.c.name.label("artist"),
+                    tracks.c.duration_secs.label("duration_secs"),
+                )
+                .select_from(
+                    tracks.outerjoin(albums, tracks.c.album_id == albums.c.id).outerjoin(
+                        artists, tracks.c.primary_artist_id == artists.c.id
+                    )
+                )
+            )
+            total = await session.scalar(select(func.count(tracks.c.id))) or 0
+            rows = await session.execute(
+                base_query
+                .order_by(artists.c.name.asc().nullslast(), tracks.c.title.asc())
+                .offset(offset)
+                .limit(limit)
+            )
+            items = [
+                {
+                    "track_id": int(row.track_id),
+                    "track": row.track,
+                    "album": row.album,
+                    "artist": row.artist,
+                    "duration_secs": row.duration_secs,
+                    "count": 1,
+                }
+                for row in rows.fetchall()
+            ]
+            return items, int(total)

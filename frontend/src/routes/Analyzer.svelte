@@ -45,16 +45,34 @@
       <Artists
         title="Library artists"
         description="Artists detected in your normalized music library."
+        endpoint="/api/v1/library/artists"
+        supportsPeriods={false}
+        countHeading="Songs"
       />
     {:else if tab === 'albums'}
       <Albums
         title="Library albums"
         description="Albums available in your media library."
+        endpoint="/api/v1/library/albums"
+        supportsPeriods={false}
+        countHeading="Songs"
       />
     {:else if tab === 'genres'}
-      <Genres title="Library genres" description="Genre distribution across your library." />
+      <Genres
+        title="Library genres"
+        description="Genre distribution across your library."
+        endpoint="/api/v1/library/genres"
+        supportsPeriods={false}
+        countHeading="Songs"
+      />
     {:else}
-      <Tracks title="Library tracks" description="Tracks registered during the last analyzer scan." />
+      <Tracks
+        title="Library tracks"
+        description="Tracks registered during the last analyzer scan."
+        endpoint="/api/v1/library/tracks"
+        supportsPeriods={false}
+        countHeading="Tracks"
+      />
     {/if}
   </div>
 </section>
@@ -71,6 +89,8 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    align-items: center;
+    text-align: center;
   }
 
   .heading h1 {

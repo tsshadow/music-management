@@ -1,13 +1,33 @@
 <script lang="ts">
+  import { createEventDispatcher } from 'svelte';
+
   export interface LeaderboardRow {
     label: string;
     count: number;
+    [key: string]: unknown;
   }
 
   export let rows: LeaderboardRow[] = [];
   export let labelHeading: string;
+  export let clickable = false;
 
   const medals = ['🥇', '🥈', '🥉'];
+
+  const dispatch = createEventDispatcher<{ select: LeaderboardRow }>();
+
+  function onSelect(row: LeaderboardRow) {
+    if (clickable) {
+      dispatch('select', row);
+    }
+  }
+
+  function onKeydown(event: KeyboardEvent, row: LeaderboardRow) {
+    if (!clickable) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      dispatch('select', row);
+    }
+  }
 </script>
 
 <table class="leaderboard">
@@ -25,7 +45,15 @@
       </tr>
     {:else}
       {#each rows as row, index}
-        <tr class:gold={index === 0} class:silver={index === 1} class:bronze={index === 2}>
+        <tr
+          class:gold={index === 0}
+          class:silver={index === 1}
+          class:bronze={index === 2}
+          class:clickable={clickable}
+          tabindex={clickable ? 0 : undefined}
+          on:click={() => onSelect(row)}
+          on:keydown={(event) => onKeydown(event, row)}
+        >
           <td class="rank">{index < 3 ? medals[index] : index + 1}</td>
           <td>{row.label}</td>
           <td>{row.count.toLocaleString()}</td>
@@ -62,6 +90,15 @@
 
   tbody tr:hover {
     background: rgba(255, 255, 255, 0.06);
+  }
+
+  tr.clickable {
+    cursor: pointer;
+  }
+
+  tr.clickable:focus {
+    outline: 2px solid var(--accent-color);
+    outline-offset: -2px;
   }
 
   .rank {

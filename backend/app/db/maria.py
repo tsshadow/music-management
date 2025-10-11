@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime
+import re
+from datetime import datetime, time, timedelta, timezone
 from typing import Any, Iterable, Mapping
 
 from sqlalchemy import (
@@ -267,35 +268,362 @@ class MariaDBAdapter(DatabaseAdapter):
             await session.commit()
         return listen_id, created
 
+    def _clean_artist_entries(self, entries: list[tuple[int | None, str]]) -> list[dict[str, Any]]:
+        """Normalize artist names and return unique dictionaries preserving order."""
+
+        cleaned: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for artist_id, raw_name in entries:
+            if not raw_name:
+                continue
+            trimmed = raw_name.strip()
+            if not trimmed:
+                continue
+            normalized = re.sub(r"^[,\s]+|[,\s]+$", "", trimmed)
+            if not normalized:
+                continue
+            key = normalized.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            cleaned.append({"id": int(artist_id) if artist_id is not None else None, "name": normalized})
+        return cleaned
+
+    async def _hydrate_listen_rows(
+        self,
+        session,
+        rows: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """Attach artist arrays and normalized genre strings to listen rows."""
+
+        if not rows:
+            return rows
+
+        listen_ids = [int(row["id"]) for row in rows]
+        track_ids = {int(row["track_id"]) for row in rows if row.get("track_id") is not None}
+
+        listen_artist_stmt = (
+            select(listen_artists.c.listen_id, artists.c.id, artists.c.name)
+            .select_from(listen_artists.join(artists, artists.c.id == listen_artists.c.artist_id))
+            .where(listen_artists.c.listen_id.in_(listen_ids))
+            .order_by(listen_artists.c.listen_id, listen_artists.c.artist_id)
+        )
+        listen_artist_rows = await session.execute(listen_artist_stmt)
+        listen_artist_map: dict[int, list[tuple[int | None, str]]] = defaultdict(list)
+        for listen_id, artist_id, name in listen_artist_rows:
+            listen_artist_map[int(listen_id)].append((int(artist_id) if artist_id is not None else None, name))
+
+        missing_track_ids = {
+            track_id
+            for track_id, listen_id in (
+                (int(row["track_id"]) if row.get("track_id") is not None else None, int(row["id"]))
+                for row in rows
+            )
+            if track_id is not None and listen_artist_map.get(listen_id) is None
+        }
+
+        track_artist_map: dict[int, list[tuple[int | None, str]]] = defaultdict(list)
+        if missing_track_ids:
+            track_artist_stmt = (
+                select(track_artists.c.track_id, artists.c.id, artists.c.name)
+                .select_from(track_artists.join(artists, artists.c.id == track_artists.c.artist_id))
+                .where(track_artists.c.track_id.in_(missing_track_ids))
+                .order_by(track_artists.c.track_id, track_artists.c.artist_id)
+            )
+            track_artist_rows = await session.execute(track_artist_stmt)
+            for track_id, artist_id, name in track_artist_rows:
+                track_artist_map[int(track_id)].append((int(artist_id) if artist_id is not None else None, name))
+
+        for row in rows:
+            listen_id = int(row["id"])
+            track_id = row.get("track_id")
+            artist_entries = listen_artist_map.get(listen_id)
+            if not artist_entries and track_id is not None:
+                artist_entries = track_artist_map.get(int(track_id), [])
+            artists_list = self._clean_artist_entries(artist_entries or [])
+            row["artists"] = artists_list
+            row["artist_names"] = ", ".join(artist["name"] for artist in artists_list) if artists_list else None
+
+            raw_genres = row.pop("genres", None)
+            genre_list: list[str] = []
+            if raw_genres:
+                seen_genres: set[str] = set()
+                for part in raw_genres.split(","):
+                    trimmed = part.strip()
+                    if not trimmed:
+                        continue
+                    key = trimmed.casefold()
+                    if key in seen_genres:
+                        continue
+                    seen_genres.add(key)
+                    genre_list.append(trimmed)
+            row["genres"] = genre_list
+            row["genre_names"] = ", ".join(genre_list) if genre_list else None
+
+            if track_id is not None:
+                row["track_id"] = int(track_id)
+            album_id = row.get("album_id")
+            if album_id is not None:
+                row["album_id"] = int(album_id)
+
+            for key in ("position_secs", "duration_secs"):
+                if row.get(key) is not None:
+                    row[key] = int(row[key])
+
+        return rows
+
+    def _period_range(self, period: str, value: str | None) -> tuple[datetime, datetime] | None:
+        """Return an inclusive start/exclusive end datetime window for a period filter."""
+
+        if period == "all":
+            return None
+        if value is None:
+            raise ValueError("Missing value for period filter")
+
+        if period == "day":
+            try:
+                day = datetime.strptime(value, "%Y-%m-%d")
+            except ValueError as exc:  # pragma: no cover - validated at API layer
+                raise ValueError("Invalid day format") from exc
+            start = datetime.combine(day.date(), time.min, tzinfo=timezone.utc)
+            return start, start + timedelta(days=1)
+
+        if period == "week":
+            try:
+                year_str, week_str = value.split("-W")
+                year = int(year_str)
+                week = int(week_str)
+                iso_start = datetime.fromisocalendar(year, week, 1)
+            except (ValueError, AttributeError) as exc:  # pragma: no cover - validated at API layer
+                raise ValueError("Invalid week format") from exc
+            start = iso_start.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
+            return start, start + timedelta(days=7)
+
+        if period == "month":
+            try:
+                month = datetime.strptime(value, "%Y-%m")
+            except ValueError as exc:  # pragma: no cover - validated at API layer
+                raise ValueError("Invalid month format") from exc
+            start = datetime(month.year, month.month, 1, tzinfo=timezone.utc)
+            if month.month == 12:
+                end = datetime(month.year + 1, 1, 1, tzinfo=timezone.utc)
+            else:
+                end = datetime(month.year, month.month + 1, 1, tzinfo=timezone.utc)
+            return start, end
+
+        raise ValueError("Unsupported period")
+
     async def fetch_recent_listens(self, limit: int = 10) -> list[dict[str, Any]]:
-        """Return the latest listens with joined artist and genre names."""
+        """Return the latest listens with enriched metadata."""
+
+        rows, _ = await self.fetch_listens(period="all", value=None, limit=limit, offset=0)
+        return rows
+
+    async def fetch_listens(
+        self,
+        *,
+        period: str,
+        value: str | None,
+        limit: int,
+        offset: int,
+    ) -> tuple[list[dict[str, Any]], int]:
+        """Return listens filtered by a time period along with total count."""
+
+        window = self._period_range(period, value)
+        clause = None
+        if window is not None:
+            start, end = window
+            clause = and_(listens.c.listened_at >= start, listens.c.listened_at < end)
 
         stmt = (
             select(
                 listens.c.id,
                 listens.c.listened_at,
                 listens.c.source,
+                listens.c.source_track_id,
                 listens.c.position_secs,
                 listens.c.duration_secs,
+                listens.c.track_id,
                 tracks.c.title.label("track_title"),
+                albums.c.id.label("album_id"),
                 albums.c.title.label("album_title"),
-                func.group_concat(artists.c.name, ", ").label("artists"),
+                albums.c.release_year.label("album_release_year"),
                 func.group_concat(genres.c.name, ", ").label("genres"),
             )
             .select_from(listens)
             .join(tracks, listens.c.track_id == tracks.c.id)
             .outerjoin(albums, tracks.c.album_id == albums.c.id)
-            .outerjoin(track_artists, track_artists.c.track_id == tracks.c.id)
-            .outerjoin(artists, artists.c.id == track_artists.c.artist_id)
             .outerjoin(track_genres, track_genres.c.track_id == tracks.c.id)
             .outerjoin(genres, genres.c.id == track_genres.c.genre_id)
-            .group_by(listens.c.id)
+            .group_by(
+                listens.c.id,
+                listens.c.listened_at,
+                listens.c.source,
+                listens.c.source_track_id,
+                listens.c.position_secs,
+                listens.c.duration_secs,
+                listens.c.track_id,
+                tracks.c.title,
+                albums.c.id,
+                albums.c.title,
+                albums.c.release_year,
+            )
             .order_by(listens.c.listened_at.desc())
             .limit(limit)
+            .offset(offset)
         )
+        if clause is not None:
+            stmt = stmt.where(clause)
+
+        count_stmt = select(func.count()).select_from(listens)
+        if clause is not None:
+            count_stmt = count_stmt.where(clause)
+
+        async with self.session_factory() as session:
+            total_result = await session.execute(count_stmt)
+            total = int(total_result.scalar_one())
+
+            result = await session.execute(stmt)
+            rows = [dict(row) for row in result.mappings().all()]
+            rows = await self._hydrate_listen_rows(session, rows)
+
+            return rows, total
+
+    async def fetch_listen_detail(self, listen_id: int) -> dict[str, Any] | None:
+        """Return a single listen with detailed track, album, artist, and genre metadata."""
+
+        stmt = (
+            select(
+                listens.c.id,
+                listens.c.listened_at,
+                listens.c.source,
+                listens.c.source_track_id,
+                listens.c.position_secs,
+                listens.c.duration_secs,
+                listens.c.user_id,
+                users.c.username,
+                tracks.c.id.label("track_id"),
+                tracks.c.title.label("track_title"),
+                tracks.c.duration_secs.label("track_duration_secs"),
+                tracks.c.disc_no,
+                tracks.c.track_no,
+                tracks.c.mbid.label("track_mbid"),
+                tracks.c.isrc,
+                albums.c.id.label("album_id"),
+                albums.c.title.label("album_title"),
+                albums.c.release_year,
+                albums.c.mbid.label("album_mbid"),
+            )
+            .select_from(listens)
+            .join(users, listens.c.user_id == users.c.id)
+            .join(tracks, listens.c.track_id == tracks.c.id)
+            .outerjoin(albums, tracks.c.album_id == albums.c.id)
+            .where(listens.c.id == listen_id)
+        )
+
         async with self.session_factory() as session:
             result = await session.execute(stmt)
-            return [dict(row) for row in result.mappings().all()]
+            mapping = result.mappings().one_or_none()
+            if mapping is None:
+                return None
+
+            row = dict(mapping)
+            row["id"] = int(row["id"])
+            row["track_id"] = int(row["track_id"])
+            if row.get("album_id") is not None:
+                row["album_id"] = int(row["album_id"])
+            if row.get("user_id") is not None:
+                row["user_id"] = int(row["user_id"])
+            if row.get("position_secs") is not None:
+                row["position_secs"] = int(row["position_secs"])
+            if row.get("duration_secs") is not None:
+                row["duration_secs"] = int(row["duration_secs"])
+            if row.get("track_duration_secs") is not None:
+                row["track_duration_secs"] = int(row["track_duration_secs"])
+            if row.get("disc_no") is not None:
+                row["disc_no"] = int(row["disc_no"])
+            if row.get("track_no") is not None:
+                row["track_no"] = int(row["track_no"])
+            if "release_year" in row:
+                value = row.pop("release_year")
+                if value is not None:
+                    row["album_release_year"] = int(value)
+                else:
+                    row["album_release_year"] = None
+
+            listen_artist_stmt = (
+                select(artists.c.id, artists.c.name)
+                .select_from(listen_artists.join(artists, artists.c.id == listen_artists.c.artist_id))
+                .where(listen_artists.c.listen_id == listen_id)
+                .order_by(listen_artists.c.artist_id)
+            )
+            listen_artists_rows = await session.execute(listen_artist_stmt)
+            artist_entries = [
+                (int(artist_id) if artist_id is not None else None, name)
+                for artist_id, name in listen_artists_rows
+            ]
+
+            if not artist_entries:
+                track_artist_stmt = (
+                    select(artists.c.id, artists.c.name)
+                    .select_from(track_artists.join(artists, artists.c.id == track_artists.c.artist_id))
+                    .where(track_artists.c.track_id == row["track_id"])
+                    .order_by(track_artists.c.artist_id)
+                )
+                track_artist_rows = await session.execute(track_artist_stmt)
+                artist_entries = [
+                    (int(artist_id) if artist_id is not None else None, name)
+                    for artist_id, name in track_artist_rows
+                ]
+
+            row["artists"] = self._clean_artist_entries(artist_entries)
+
+            listen_genre_stmt = (
+                select(genres.c.id, genres.c.name)
+                .select_from(listen_genres.join(genres, genres.c.id == listen_genres.c.genre_id))
+                .where(listen_genres.c.listen_id == listen_id)
+                .order_by(genres.c.name)
+            )
+            listen_genre_rows = await session.execute(listen_genre_stmt)
+            genre_entries = [
+                (int(genre_id) if genre_id is not None else None, name)
+                for genre_id, name in listen_genre_rows
+            ]
+
+            if not genre_entries:
+                track_genre_stmt = (
+                    select(genres.c.id, genres.c.name)
+                    .select_from(track_genres.join(genres, genres.c.id == track_genres.c.genre_id))
+                    .where(track_genres.c.track_id == row["track_id"])
+                    .order_by(genres.c.name)
+                )
+                track_genre_rows = await session.execute(track_genre_stmt)
+                genre_entries = [
+                    (int(genre_id) if genre_id is not None else None, name)
+                    for genre_id, name in track_genre_rows
+                ]
+
+            seen_genres: set[str] = set()
+            genres_list: list[dict[str, Any]] = []
+            for genre_id, name in genre_entries:
+                if not name:
+                    continue
+                trimmed = name.strip()
+                if not trimmed:
+                    continue
+                key = trimmed.casefold()
+                if key in seen_genres:
+                    continue
+                seen_genres.add(key)
+                genres_list.append(
+                    {
+                        "id": int(genre_id) if genre_id is not None else None,
+                        "name": trimmed,
+                    }
+                )
+            row["genres"] = genres_list
+
+            return row
 
     async def count_listens(self) -> int:
         """Return the total number of stored listen rows."""
@@ -476,74 +804,124 @@ class MariaDBAdapter(DatabaseAdapter):
         formatted = self._date_format(listens.c.listened_at, "%Y")
         return formatted == value
 
-    async def stats_artists(self, period: str, value: str | None) -> list[dict[str, Any]]:
+    async def stats_artists(
+        self, period: str, value: str | None, limit: int, offset: int
+    ) -> tuple[list[dict[str, Any]], int]:
         """Return artist listen counts constrained by a time period."""
 
         clause = self._period_clause(period, value)
-        stmt = (
-            select(artists.c.name.label("artist"), func.count().label("count"))
+        base_query = (
+            select(
+                artists.c.id.label("artist_id"),
+                artists.c.name.label("artist"),
+                func.count().label("count"),
+            )
             .select_from(listens)
             .join(tracks, listens.c.track_id == tracks.c.id)
             .join(track_artists, track_artists.c.track_id == tracks.c.id)
             .join(artists, artists.c.id == track_artists.c.artist_id)
             .where(clause)
-            .group_by(artists.c.name)
-            .order_by(func.count().desc())
+            .group_by(artists.c.id, artists.c.name)
         )
-        async with self.session_factory() as session:
-            rows = await session.execute(stmt)
-            return [dict(row._mapping) for row in rows]
 
-    async def stats_albums(self, period: str, value: str | None) -> list[dict[str, Any]]:
+        stmt = (
+            base_query.order_by(func.count().desc(), artists.c.name).limit(limit).offset(offset)
+        )
+
+        count_stmt = select(func.count()).select_from(base_query.subquery())
+
+        async with self.session_factory() as session:
+            total = int((await session.execute(count_stmt)).scalar_one())
+            rows = await session.execute(stmt)
+            return [dict(row._mapping) for row in rows], total
+
+    async def stats_albums(
+        self, period: str, value: str | None, limit: int, offset: int
+    ) -> tuple[list[dict[str, Any]], int]:
         """Return album listen counts constrained by a time period."""
 
         clause = self._period_clause(period, value)
-        stmt = (
-            select(albums.c.title.label("album"), func.count().label("count"))
+        base_query = (
+            select(
+                albums.c.id.label("album_id"),
+                albums.c.title.label("album"),
+                albums.c.release_year,
+                func.count().label("count"),
+            )
             .select_from(listens)
             .join(tracks, listens.c.track_id == tracks.c.id)
             .join(albums, tracks.c.album_id == albums.c.id)
             .where(clause)
-            .group_by(albums.c.title)
-            .order_by(func.count().desc())
+            .group_by(albums.c.id, albums.c.title, albums.c.release_year)
         )
-        async with self.session_factory() as session:
-            rows = await session.execute(stmt)
-            return [dict(row._mapping) for row in rows]
 
-    async def stats_tracks(self, period: str, value: str | None) -> list[dict[str, Any]]:
+        stmt = (
+            base_query.order_by(func.count().desc(), albums.c.title).limit(limit).offset(offset)
+        )
+        count_stmt = select(func.count()).select_from(base_query.subquery())
+
+        async with self.session_factory() as session:
+            total = int((await session.execute(count_stmt)).scalar_one())
+            rows = await session.execute(stmt)
+            return [dict(row._mapping) for row in rows], total
+
+    async def stats_tracks(
+        self, period: str, value: str | None, limit: int, offset: int
+    ) -> tuple[list[dict[str, Any]], int]:
         """Return track listen counts constrained by a time period."""
 
         clause = self._period_clause(period, value)
-        stmt = (
-            select(tracks.c.title.label("track"), func.count().label("count"))
+        base_query = (
+            select(
+                tracks.c.id.label("track_id"),
+                tracks.c.title.label("track"),
+                func.count().label("count"),
+            )
             .select_from(listens)
             .join(tracks, listens.c.track_id == tracks.c.id)
             .where(clause)
-            .group_by(tracks.c.title)
-            .order_by(func.count().desc())
+            .group_by(tracks.c.id, tracks.c.title)
         )
-        async with self.session_factory() as session:
-            rows = await session.execute(stmt)
-            return [dict(row._mapping) for row in rows]
 
-    async def stats_genres(self, period: str, value: str | None) -> list[dict[str, Any]]:
+        stmt = (
+            base_query.order_by(func.count().desc(), tracks.c.title).limit(limit).offset(offset)
+        )
+        count_stmt = select(func.count()).select_from(base_query.subquery())
+
+        async with self.session_factory() as session:
+            total = int((await session.execute(count_stmt)).scalar_one())
+            rows = await session.execute(stmt)
+            return [dict(row._mapping) for row in rows], total
+
+    async def stats_genres(
+        self, period: str, value: str | None, limit: int, offset: int
+    ) -> tuple[list[dict[str, Any]], int]:
         """Return genre listen counts constrained by a time period."""
 
         clause = self._period_clause(period, value)
-        stmt = (
-            select(genres.c.name.label("genre"), func.count().label("count"))
+        base_query = (
+            select(
+                genres.c.id.label("genre_id"),
+                genres.c.name.label("genre"),
+                func.count().label("count"),
+            )
             .select_from(listens)
             .join(tracks, listens.c.track_id == tracks.c.id)
             .join(track_genres, track_genres.c.track_id == tracks.c.id)
             .join(genres, genres.c.id == track_genres.c.genre_id)
             .where(clause)
-            .group_by(genres.c.name)
-            .order_by(func.count().desc())
+            .group_by(genres.c.id, genres.c.name)
         )
+
+        stmt = (
+            base_query.order_by(func.count().desc(), genres.c.name).limit(limit).offset(offset)
+        )
+        count_stmt = select(func.count()).select_from(base_query.subquery())
+
         async with self.session_factory() as session:
+            total = int((await session.execute(count_stmt)).scalar_one())
             rows = await session.execute(stmt)
-            return [dict(row._mapping) for row in rows]
+            return [dict(row._mapping) for row in rows], total
 
     async def stats_top_artist_by_genre(self, year: int) -> list[dict[str, Any]]:
         """Return the top artist per genre for a specific year."""
@@ -598,3 +976,273 @@ class MariaDBAdapter(DatabaseAdapter):
         async with self.session_factory() as session:
             rows = await session.execute(stmt)
             return [dict(row._mapping) for row in rows]
+
+    async def artist_insights(self, artist_id: int) -> dict[str, Any] | None:
+        """Return aggregated information for an artist across listens."""
+
+        async with self.session_factory() as session:
+            artist_stmt = (
+                select(artists.c.id, artists.c.name, artists.c.mbid)
+                .where(artists.c.id == artist_id)
+            )
+            artist_row = await session.execute(artist_stmt)
+            artist = artist_row.mappings().one_or_none()
+            if artist is None:
+                return None
+
+            base_join = (
+                listens.join(tracks, listens.c.track_id == tracks.c.id)
+                .join(track_artists, track_artists.c.track_id == tracks.c.id)
+            )
+            clause = track_artists.c.artist_id == artist_id
+
+            count_stmt = select(func.count()).select_from(base_join).where(clause)
+            total = int((await session.execute(count_stmt)).scalar_one())
+
+            span_stmt = (
+                select(
+                    func.min(listens.c.listened_at).label("first_listen"),
+                    func.max(listens.c.listened_at).label("last_listen"),
+                )
+                .select_from(base_join)
+                .where(clause)
+            )
+            span = (await session.execute(span_stmt)).mappings().one()
+
+            top_genres_stmt = (
+                select(
+                    genres.c.id.label("genre_id"),
+                    genres.c.name.label("genre"),
+                    func.count().label("count"),
+                )
+                .select_from(
+                    base_join.join(track_genres, track_genres.c.track_id == tracks.c.id).join(
+                        genres, genres.c.id == track_genres.c.genre_id
+                    )
+                )
+                .where(clause)
+                .group_by(genres.c.id, genres.c.name)
+                .order_by(func.count().desc(), genres.c.name)
+                .limit(10)
+            )
+            top_genres_rows = await session.execute(top_genres_stmt)
+
+            period_expr = self._date_format(listens.c.listened_at, "%Y-%m")
+
+            history_stmt = (
+                select(period_expr.label("period"), func.count().label("count"))
+                .select_from(base_join)
+                .where(clause)
+                .group_by(period_expr)
+                .order_by(period_expr)
+            )
+
+            top_tracks_stmt = (
+                select(
+                    tracks.c.id.label("track_id"),
+                    tracks.c.title.label("track"),
+                    albums.c.id.label("album_id"),
+                    albums.c.title.label("album_title"),
+                    func.count().label("count"),
+                )
+                .select_from(
+                    base_join.outerjoin(albums, albums.c.id == tracks.c.album_id)
+                )
+                .where(clause)
+                .group_by(tracks.c.id, tracks.c.title, albums.c.id, albums.c.title)
+                .order_by(func.count().desc(), tracks.c.title)
+                .limit(10)
+            )
+            top_tracks_rows = await session.execute(top_tracks_stmt)
+
+            top_albums_stmt = (
+                select(
+                    albums.c.id.label("album_id"),
+                    albums.c.title.label("album"),
+                    albums.c.release_year,
+                    func.count().label("count"),
+                )
+                .select_from(
+                    base_join.join(albums, albums.c.id == tracks.c.album_id)
+                )
+                .where(clause)
+                .group_by(albums.c.id, albums.c.title, albums.c.release_year)
+                .order_by(func.count().desc(), albums.c.title)
+                .limit(10)
+            )
+            history_rows = (await session.execute(history_stmt)).mappings().all()
+            top_albums_rows = await session.execute(top_albums_stmt)
+
+            def _convert_rows(rows, id_key: str):
+                payload = []
+                for item in rows.mappings():
+                    data = dict(item)
+                    if data.get(id_key) is not None:
+                        data[id_key] = int(data[id_key])
+                    if data.get("album_id") is not None:
+                        data["album_id"] = int(data["album_id"])
+                    if data.get("count") is not None:
+                        data["count"] = int(data["count"])
+                    payload.append(data)
+                return payload
+
+            history_payload = [
+                {"period": row["period"], "count": int(row["count"])}
+                for row in history_rows
+                if row["period"] is not None
+            ]
+
+            return {
+                "artist_id": int(artist["id"]),
+                "name": artist["name"],
+                "mbid": artist["mbid"],
+                "listen_count": total,
+                "first_listen": span["first_listen"],
+                "last_listen": span["last_listen"],
+                "listen_history": history_payload,
+                "top_genres": _convert_rows(top_genres_rows, "genre_id"),
+                "top_tracks": _convert_rows(top_tracks_rows, "track_id"),
+                "top_albums": _convert_rows(top_albums_rows, "album_id"),
+            }
+
+    async def album_insights(self, album_id: int) -> dict[str, Any] | None:
+        """Return aggregated information for an album across listens."""
+
+        async with self.session_factory() as session:
+            album_stmt = (
+                select(albums.c.id, albums.c.title, albums.c.release_year, albums.c.mbid)
+                .where(albums.c.id == album_id)
+            )
+            album_row = await session.execute(album_stmt)
+            album = album_row.mappings().one_or_none()
+            if album is None:
+                return None
+
+            base_clause = tracks.c.album_id == album_id
+
+            count_stmt = (
+                select(func.count())
+                .select_from(listens.join(tracks, listens.c.track_id == tracks.c.id))
+                .where(base_clause)
+            )
+            total = int((await session.execute(count_stmt)).scalar_one())
+
+            span_stmt = (
+                select(
+                    func.min(listens.c.listened_at).label("first_listen"),
+                    func.max(listens.c.listened_at).label("last_listen"),
+                )
+                .select_from(listens.join(tracks, listens.c.track_id == tracks.c.id))
+                .where(base_clause)
+            )
+            span = (await session.execute(span_stmt)).mappings().one()
+
+            artist_stmt = (
+                select(artists.c.id.label("artist_id"), artists.c.name.label("artist"))
+                .select_from(
+                    track_artists.join(artists, artists.c.id == track_artists.c.artist_id).join(
+                        tracks, track_artists.c.track_id == tracks.c.id
+                    )
+                )
+                .where(base_clause)
+                .group_by(artists.c.id, artists.c.name)
+                .order_by(artists.c.name)
+            )
+            artist_rows = (await session.execute(artist_stmt)).mappings().all()
+
+            artist_ids = [int(row["artist_id"]) for row in artist_rows]
+            listen_totals: dict[int, int] = {}
+            if artist_ids:
+                artist_totals_stmt = (
+                    select(track_artists.c.artist_id, func.count().label("count"))
+                    .select_from(
+                        listens
+                        .join(tracks, listens.c.track_id == tracks.c.id)
+                        .join(track_artists, track_artists.c.track_id == tracks.c.id)
+                    )
+                    .where(track_artists.c.artist_id.in_(artist_ids))
+                    .group_by(track_artists.c.artist_id)
+                )
+                totals_rows = await session.execute(artist_totals_stmt)
+                listen_totals = {
+                    int(row.artist_id): int(row.count)
+                    for row in totals_rows
+                }
+
+            genre_stmt = (
+                select(
+                    genres.c.id.label("genre_id"),
+                    genres.c.name.label("genre"),
+                    func.count().label("count"),
+                )
+                .select_from(
+                    track_genres.join(genres, genres.c.id == track_genres.c.genre_id).join(
+                        tracks, track_genres.c.track_id == tracks.c.id
+                    )
+                )
+                .where(base_clause)
+                .group_by(genres.c.id, genres.c.name)
+                .order_by(func.count().desc(), genres.c.name)
+            )
+            genre_rows = (await session.execute(genre_stmt)).mappings().all()
+
+            tracks_stmt = (
+                select(
+                    tracks.c.id.label("track_id"),
+                    tracks.c.title.label("track"),
+                    tracks.c.track_no,
+                    tracks.c.disc_no,
+                    tracks.c.duration_secs,
+                    func.count().label("count"),
+                )
+                .select_from(listens.join(tracks, listens.c.track_id == tracks.c.id))
+                .where(base_clause)
+                .group_by(
+                    tracks.c.id,
+                    tracks.c.title,
+                    tracks.c.track_no,
+                    tracks.c.disc_no,
+                    tracks.c.duration_secs,
+                )
+                .order_by(tracks.c.disc_no, tracks.c.track_no, tracks.c.title)
+            )
+            tracks_rows = (await session.execute(tracks_stmt)).mappings().all()
+
+            def _convert_simple(rows: Iterable[Mapping[str, Any]], id_key: str):
+                payload = []
+                for item in rows:
+                    data = dict(item)
+                    if data.get(id_key) is not None:
+                        data[id_key] = int(data[id_key])
+                    if data.get("count") is not None:
+                        data["count"] = int(data["count"])
+                    if data.get("track_no") is not None:
+                        data["track_no"] = int(data["track_no"])
+                    if data.get("disc_no") is not None:
+                        data["disc_no"] = int(data["disc_no"])
+                    if data.get("duration_secs") is not None:
+                        data["duration_secs"] = int(data["duration_secs"])
+                    payload.append(data)
+                return payload
+
+            artist_payload = [
+                {
+                    "artist_id": int(row["artist_id"]),
+                    "artist": row["artist"],
+                    "listen_count": listen_totals.get(int(row["artist_id"]), 0),
+                }
+                for row in artist_rows
+            ]
+
+            return {
+                "album_id": int(album["id"]),
+                "title": album["title"],
+                "release_year": album["release_year"],
+                "mbid": album["mbid"],
+                "listen_count": total,
+                "first_listen": span["first_listen"],
+                "last_listen": span["last_listen"],
+                "artists": artist_payload,
+                "genres": _convert_simple(genre_rows, "genre_id"),
+                "tracks": _convert_simple(tracks_rows, "track_id"),
+            }

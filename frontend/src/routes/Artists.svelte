@@ -11,6 +11,7 @@
   export let endpoint = '/api/v1/stats/artists';
   export let supportsPeriods = true;
   export let countHeading = 'Listens';
+  export let showInsights = true;
 
   type Period = 'all' | 'day' | 'month' | 'year';
 
@@ -149,6 +150,9 @@
   }
 
   async function openInsight(row: ArtistRow) {
+    if (!showInsights) {
+      return;
+    }
     panelOpen = true;
     panelTitle = row.label;
     panelLoading = true;
@@ -168,6 +172,9 @@
   }
 
   function onSelect(event: CustomEvent<ArtistRow>) {
+    if (!showInsights) {
+      return;
+    }
     openInsight(event.detail);
   }
 
@@ -200,18 +207,22 @@
     return String(year);
   }
 
-  $: hypePoints = (insight?.listen_history ?? []).map<HypePoint>((entry) => ({
-    label: formatPeriodLabel(entry.period),
-    value: entry.count,
-  }));
+  $: hypePoints = showInsights
+    ? (insight?.listen_history ?? []).map<HypePoint>((entry) => ({
+        label: formatPeriodLabel(entry.period),
+        value: entry.count,
+      }))
+    : [];
 
-  $: hypeHighlights = [...(insight?.listen_history ?? [])]
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 3)
-    .map((entry) => ({
-      period: formatPeriodLabel(entry.period),
-      count: entry.count,
-    }));
+  $: hypeHighlights = showInsights
+    ? [...(insight?.listen_history ?? [])]
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 3)
+        .map((entry) => ({
+          period: formatPeriodLabel(entry.period),
+          count: entry.count,
+        }))
+    : [];
 
   $: totalPages = Math.max(1, Math.ceil(total / pageSize));
   $: showingStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -271,7 +282,7 @@
         rows={rows}
         labelHeading="Artiest"
         {countHeading}
-        clickable
+        clickable={showInsights}
         on:select={onSelect}
       />
       <footer class="pagination">
@@ -298,78 +309,80 @@
   {/if}
 </section>
 
-<DetailPanel
-  title={panelTitle}
-  open={panelOpen}
-  loading={panelLoading}
-  error={panelError}
-  on:close={closePanel}
->
-  {#if insight}
-    <section class="detail-section">
-      <h4>Statistieken</h4>
-      <dl>
-        <dt>Totaal aantal listens</dt>
-        <dd>{insight.listen_count.toLocaleString()}</dd>
-        <dt>Eerste luisterbeurt</dt>
-        <dd>{formatDateTime(insight.first_listen)}</dd>
-        <dt>Laatste luisterbeurt</dt>
-        <dd>{formatDateTime(insight.last_listen)}</dd>
-        <dt>MBID</dt>
-        <dd>{insight.mbid ?? '—'}</dd>
-      </dl>
-    </section>
-    <section class="detail-section">
-      <h4>Luisterhype</h4>
-      <HypeGraph {hypePoints} />
-      {#if hypeHighlights.length > 0}
-        <p class="muted">
-          Pieken in {hypeHighlights
-            .map((highlight) => `${highlight.period} (${highlight.count.toLocaleString()}×)`)
-            .join(', ')}.
-        </p>
-      {:else}
-        <p class="muted">Nog geen luistergeschiedenis voor deze artiest.</p>
-      {/if}
-    </section>
-    <section class="detail-section">
-      <h4>Topgenres</h4>
-      <ul>
-        {#each insight.top_genres as item}
-          <li>{item.genre} — {item.count.toLocaleString()} listens</li>
-        {/each}
-      </ul>
-    </section>
-    <section class="detail-section">
-      <h4>Toptracks</h4>
-      <ul>
-        {#each insight.top_tracks as item}
-          <li>
-            {item.track}
-            {#if item.album_title}
-              — <span class="muted">{item.album_title}</span>
-            {/if}
-            <span class="count">{item.count.toLocaleString()}×</span>
-          </li>
-        {/each}
-      </ul>
-    </section>
-    <section class="detail-section">
-      <h4>Topalbums</h4>
-      <ul>
-        {#each insight.top_albums as item}
-          <li>
-            {item.album}
-            {#if item.release_year}
-              <span class="muted">({item.release_year})</span>
-            {/if}
-            <span class="count">{item.count.toLocaleString()}×</span>
-          </li>
-        {/each}
-      </ul>
-    </section>
-  {/if}
-</DetailPanel>
+{#if showInsights}
+  <DetailPanel
+    title={panelTitle}
+    open={panelOpen}
+    loading={panelLoading}
+    error={panelError}
+    on:close={closePanel}
+  >
+    {#if insight}
+      <section class="detail-section">
+        <h4>Statistieken</h4>
+        <dl>
+          <dt>Totaal aantal listens</dt>
+          <dd>{insight.listen_count.toLocaleString()}</dd>
+          <dt>Eerste luisterbeurt</dt>
+          <dd>{formatDateTime(insight.first_listen)}</dd>
+          <dt>Laatste luisterbeurt</dt>
+          <dd>{formatDateTime(insight.last_listen)}</dd>
+          <dt>MBID</dt>
+          <dd>{insight.mbid ?? '—'}</dd>
+        </dl>
+      </section>
+      <section class="detail-section">
+        <h4>Luisterhype</h4>
+        <HypeGraph {hypePoints} />
+        {#if hypeHighlights.length > 0}
+          <p class="muted">
+            Pieken in {hypeHighlights
+              .map((highlight) => `${highlight.period} (${highlight.count.toLocaleString()}×)`)
+              .join(', ')}.
+          </p>
+        {:else}
+          <p class="muted">Nog geen luistergeschiedenis voor deze artiest.</p>
+        {/if}
+      </section>
+      <section class="detail-section">
+        <h4>Topgenres</h4>
+        <ul>
+          {#each insight.top_genres as item}
+            <li>{item.genre} — {item.count.toLocaleString()} listens</li>
+          {/each}
+        </ul>
+      </section>
+      <section class="detail-section">
+        <h4>Toptracks</h4>
+        <ul>
+          {#each insight.top_tracks as item}
+            <li>
+              {item.track}
+              {#if item.album_title}
+                — <span class="muted">{item.album_title}</span>
+              {/if}
+              <span class="count">{item.count.toLocaleString()}×</span>
+            </li>
+          {/each}
+        </ul>
+      </section>
+      <section class="detail-section">
+        <h4>Topalbums</h4>
+        <ul>
+          {#each insight.top_albums as item}
+            <li>
+              {item.album}
+              {#if item.release_year}
+                <span class="muted">({item.release_year})</span>
+              {/if}
+              <span class="count">{item.count.toLocaleString()}×</span>
+            </li>
+          {/each}
+        </ul>
+      </section>
+    {/if}
+  </DetailPanel>
+{/if}
 
 <style>
   .page {

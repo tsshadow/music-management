@@ -48,6 +48,7 @@
         endpoint="/api/v1/library/artists"
         supportsPeriods={false}
         countHeading="Songs"
+        showInsights={false}
       />
     {:else if tab === 'albums'}
       <Albums
@@ -56,6 +57,7 @@
         endpoint="/api/v1/library/albums"
         supportsPeriods={false}
         countHeading="Songs"
+        showInsights={false}
       />
     {:else if tab === 'genres'}
       <Genres

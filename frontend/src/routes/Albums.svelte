@@ -10,6 +10,7 @@
   export let endpoint = '/api/v1/stats/albums';
   export let supportsPeriods = true;
   export let countHeading = 'Listens';
+  export let showInsights = true;
 
   type Period = 'all' | 'day' | 'month' | 'year';
 
@@ -142,6 +143,9 @@
   }
 
   async function openInsight(row: AlbumRow) {
+    if (!showInsights) {
+      return;
+    }
     panelOpen = true;
     panelTitle = row.label;
     panelLoading = true;
@@ -161,6 +165,9 @@
   }
 
   function onSelect(event: CustomEvent<AlbumRow>) {
+    if (!showInsights) {
+      return;
+    }
     openInsight(event.detail);
   }
 
@@ -249,7 +256,7 @@
         rows={rows}
         labelHeading="Album"
         {countHeading}
-        clickable
+        clickable={showInsights}
         on:select={onSelect}
       />
       <footer class="pagination">
@@ -276,72 +283,74 @@
   {/if}
 </section>
 
-<DetailPanel
-  title={panelTitle}
-  open={panelOpen}
-  loading={panelLoading}
-  error={panelError}
-  on:close={closePanel}
->
-  {#if insight}
-    <section class="detail-section">
-      <h4>Albuminfo</h4>
-      <dl>
-        <dt>Naam</dt>
-        <dd>{insight.title}</dd>
-        <dt>Jaar</dt>
-        <dd>{insight.release_year ?? '—'}</dd>
-        <dt>MBID</dt>
-        <dd>{insight.mbid ?? '—'}</dd>
-        <dt>Totaal aantal listens</dt>
-        <dd>{insight.listen_count.toLocaleString()}</dd>
-        <dt>Eerste luisterbeurt</dt>
-        <dd>{formatDateTime(insight.first_listen)}</dd>
-        <dt>Laatste luisterbeurt</dt>
-        <dd>{formatDateTime(insight.last_listen)}</dd>
-      </dl>
-    </section>
-    <section class="detail-section">
-      <h4>Artiesten</h4>
-      <ul>
-        {#each insight.artists as artist}
-          <li class="artist-row">
-            <span>{artist.artist}</span>
-            <span class="count">{artist.listen_count.toLocaleString()}× geluisterd</span>
-          </li>
-        {/each}
-      </ul>
-    </section>
-    <section class="detail-section">
-      <h4>Genres</h4>
-      <ul>
-        {#each insight.genres as item}
-          <li>{item.genre} — {item.count.toLocaleString()} listens</li>
-        {/each}
-      </ul>
-    </section>
-    <section class="detail-section">
-      <h4>Tracks</h4>
-      <ol>
-        {#each insight.tracks as track}
-          <li>
-            {track.track}
-            <span class="muted">
-              {#if track.track_no != null}
-                #{track.track_no}
-              {/if}
-              {#if track.disc_no != null}
-                · Disc {track.disc_no}
-              {/if}
-              · {formatDuration(track.duration_secs)}
-            </span>
-            <span class="count">{track.count.toLocaleString()}×</span>
-          </li>
-        {/each}
-      </ol>
-    </section>
-  {/if}
-</DetailPanel>
+{#if showInsights}
+  <DetailPanel
+    title={panelTitle}
+    open={panelOpen}
+    loading={panelLoading}
+    error={panelError}
+    on:close={closePanel}
+  >
+    {#if insight}
+      <section class="detail-section">
+        <h4>Albuminfo</h4>
+        <dl>
+          <dt>Naam</dt>
+          <dd>{insight.title}</dd>
+          <dt>Jaar</dt>
+          <dd>{insight.release_year ?? '—'}</dd>
+          <dt>MBID</dt>
+          <dd>{insight.mbid ?? '—'}</dd>
+          <dt>Totaal aantal listens</dt>
+          <dd>{insight.listen_count.toLocaleString()}</dd>
+          <dt>Eerste luisterbeurt</dt>
+          <dd>{formatDateTime(insight.first_listen)}</dd>
+          <dt>Laatste luisterbeurt</dt>
+          <dd>{formatDateTime(insight.last_listen)}</dd>
+        </dl>
+      </section>
+      <section class="detail-section">
+        <h4>Artiesten</h4>
+        <ul>
+          {#each insight.artists as artist}
+            <li class="artist-row">
+              <span>{artist.artist}</span>
+              <span class="count">{artist.listen_count.toLocaleString()}× geluisterd</span>
+            </li>
+          {/each}
+        </ul>
+      </section>
+      <section class="detail-section">
+        <h4>Genres</h4>
+        <ul>
+          {#each insight.genres as item}
+            <li>{item.genre} — {item.count.toLocaleString()} listens</li>
+          {/each}
+        </ul>
+      </section>
+      <section class="detail-section">
+        <h4>Tracks</h4>
+        <ol>
+          {#each insight.tracks as track}
+            <li>
+              {track.track}
+              <span class="muted">
+                {#if track.track_no != null}
+                  #{track.track_no}
+                {/if}
+                {#if track.disc_no != null}
+                  · Disc {track.disc_no}
+                {/if}
+                · {formatDuration(track.duration_secs)}
+              </span>
+              <span class="count">{track.count.toLocaleString()}×</span>
+            </li>
+          {/each}
+        </ol>
+      </section>
+    {/if}
+  </DetailPanel>
+{/if}
 
 <style>
   .page {

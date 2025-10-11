@@ -22,7 +22,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from analyzer.matching.normalizer import normalize_text
-from analyzer.matching.uid import make_track_uid
 
 from .adapter import DatabaseAdapter
 from ..models import (
@@ -102,68 +101,35 @@ class MariaDBAdapter(DatabaseAdapter):
         stmt = select(users.c.id).where(func.lower(users.c.username) == username.lower())
         return await self._get_or_create(stmt, {"username": username}, users)
 
-    async def upsert_artist(self, name: str, mbid: str | None = None) -> int:
-        """Return the artist id for the name, inserting when not present."""
+    async def lookup_artist_id(self, name: str) -> int | None:
+        """Return the artist identifier if it exists in the media library."""
 
         normalized = normalize_text(name)
         async with self.session_factory() as session:
             stmt = select(artists.c.id).where(artists.c.name_normalized == normalized)
             existing = (await session.execute(stmt)).scalar_one_or_none()
-            if existing is not None:
-                await session.execute(
-                    update(artists)
-                    .where(artists.c.id == existing)
-                    .values(
-                        name=name,
-                        sort_name=normalized,
-                        mbid=mbid,
-                        updated_at=func.now(),
-                    )
-                )
-                await session.commit()
-                return int(existing)
-            res = await session.execute(
-                insert(artists).values(
-                    name=name,
-                    name_normalized=normalized,
-                    sort_name=normalized,
-                    mbid=mbid,
-                )
-            )
-            await session.commit()
-            return int(res.inserted_primary_key[0])
+            return int(existing) if existing is not None else None
 
-    async def upsert_genre(self, name: str) -> int:
-        """Return the genre id for the name, inserting when missing."""
+    async def lookup_genre_id(self, name: str) -> int | None:
+        """Return the genre identifier if it exists in the media library."""
 
         normalized = normalize_text(name)
         async with self.session_factory() as session:
             stmt = select(genres.c.id).where(genres.c.name_normalized == normalized)
             existing = (await session.execute(stmt)).scalar_one_or_none()
-            if existing is not None:
-                await session.execute(
-                    update(genres)
-                    .where(genres.c.id == existing)
-                    .values(name=name, updated_at=func.now())
-                )
-                await session.commit()
-                return int(existing)
-            res = await session.execute(
-                insert(genres).values(name=name, name_normalized=normalized)
-            )
-            await session.commit()
-            return int(res.inserted_primary_key[0])
+            return int(existing) if existing is not None else None
 
-    async def upsert_album(
+    async def lookup_album_id(
         self,
-        title: str,
         *,
-        artist_id: int,
+        title: str,
+        artist_id: int | None,
         release_year: int | None = None,
-        mbid: str | None = None,
-    ) -> int:
-        """Return the album id for the title and year, creating a row if absent."""
+    ) -> int | None:
+        """Return the album identifier matching the provided metadata if present."""
 
+        if artist_id is None:
+            return None
         normalized = normalize_text(title)
         async with self.session_factory() as session:
             stmt = select(albums.c.id).where(
@@ -172,138 +138,66 @@ class MariaDBAdapter(DatabaseAdapter):
                     albums.c.title_normalized == normalized,
                 )
             )
+            if release_year is not None:
+                stmt = stmt.where(albums.c.year == release_year)
             existing = (await session.execute(stmt)).scalar_one_or_none()
-            if existing is not None:
-                await session.execute(
-                    update(albums)
-                    .where(albums.c.id == existing)
-                    .values(
-                        title=title,
-                        year=release_year,
-                        mbid=mbid,
-                        updated_at=func.now(),
-                    )
-                )
-                await session.commit()
-                return int(existing)
-            res = await session.execute(
-                insert(albums).values(
-                    artist_id=artist_id,
-                    title=title,
-                    title_normalized=normalized,
-                    year=release_year,
-                    mbid=mbid,
-                )
-            )
-            await session.commit()
-            return int(res.inserted_primary_key[0])
+            return int(existing) if existing is not None else None
 
-    async def upsert_track(
+    async def lookup_track_id_by_uid(self, track_uid: str | None) -> int | None:
+        """Return a track identifier by its computed UID when available."""
+
+        if not track_uid:
+            return None
+        async with self.session_factory() as session:
+            stmt = select(tracks.c.id).where(tracks.c.track_uid == track_uid)
+            existing = (await session.execute(stmt)).scalar_one_or_none()
+            return int(existing) if existing is not None else None
+
+    async def lookup_track_details(
         self,
         *,
         title: str,
+        artist_id: int | None,
         album_id: int | None,
-        primary_artist_id: int | None,
-        duration_secs: int | None,
-        disc_no: int | None,
-        track_no: int | None,
-        mbid: str | None,
-        isrc: str | None,
-        acoustid: str | None,
-        track_uid: str | None,
-    ) -> int:
-        """Return the track id for the provided fingerprint, inserting if needed."""
+    ) -> int | None:
+        """Return a track identifier that matches the supplied metadata."""
 
+        normalized = normalize_text(title)
+        conditions = [tracks.c.title_normalized == normalized]
+        if artist_id is not None:
+            conditions.append(tracks.c.primary_artist_id == artist_id)
+        if album_id is not None:
+            conditions.append(tracks.c.album_id == album_id)
+        if not conditions:
+            return None
         async with self.session_factory() as session:
-            normalized = normalize_text(title)
-            computed_uid = track_uid
-            if computed_uid is None:
-                artist_name = None
-                if primary_artist_id:
-                    artist_row = await session.execute(
-                        select(artists.c.name).where(artists.c.id == primary_artist_id)
-                    )
-                    artist_name = artist_row.scalar_one_or_none()
-                album_title = None
-                if album_id:
-                    album_row = await session.execute(
-                        select(albums.c.title).where(albums.c.id == album_id)
-                    )
-                    album_title = album_row.scalar_one_or_none()
-                computed_uid = make_track_uid(artist_name, title, album_title, duration_secs)
-            stmt = select(tracks.c.id).where(tracks.c.track_uid == computed_uid)
+            stmt = select(tracks.c.id).where(and_(*conditions))
             existing = (await session.execute(stmt)).scalar_one_or_none()
-            if existing is not None:
-                await session.execute(
-                    update(tracks)
-                    .where(tracks.c.id == existing)
-                    .values(
-                        title=title,
-                        title_normalized=normalized,
-                        album_id=album_id,
-                        primary_artist_id=primary_artist_id,
-                        duration_secs=duration_secs,
-                        disc_no=disc_no,
-                        track_no=track_no,
-                        mbid=mbid,
-                        isrc=isrc,
-                        acoustid=acoustid,
-                        track_uid=computed_uid,
-                        updated_at=func.now(),
-                    )
-                )
-                await session.commit()
-                return int(existing)
-            res = await session.execute(
-                insert(tracks).values(
-                    title=title,
-                    title_normalized=normalized,
-                    album_id=album_id,
-                    primary_artist_id=primary_artist_id,
-                    duration_secs=duration_secs,
-                    disc_no=disc_no,
-                    track_no=track_no,
-                    mbid=mbid,
-                    isrc=isrc,
-                    acoustid=acoustid,
-                    track_uid=computed_uid,
-                )
+            return int(existing) if existing is not None else None
+
+    async def lookup_track_artist_ids(self, track_id: int) -> list[int]:
+        """Return artist identifiers already linked to the provided track."""
+
+        async with self.session_factory() as session:
+            stmt = (
+                select(track_artists.c.artist_id)
+                .where(track_artists.c.track_id == track_id)
+                .order_by(track_artists.c.artist_id)
             )
-            await session.commit()
-            return int(res.inserted_primary_key[0])
+            rows = await session.execute(stmt)
+            return [int(row[0]) for row in rows.fetchall() if row[0] is not None]
 
-    async def link_track_artists(self, track_id: int, artists_pairs: list[tuple[int, str]]) -> None:
-        """Ensure each artist-role pairing is linked to the track."""
-
-        async with self.session_factory() as session:
-            for artist_id, role in artists_pairs:
-                exists = await session.execute(
-                    select(track_artists.c.track_id)
-                    .where(track_artists.c.track_id == track_id)
-                    .where(track_artists.c.artist_id == artist_id)
-                    .where(track_artists.c.role == role)
-                )
-                if exists.scalar_one_or_none() is None:
-                    await session.execute(
-                        insert(track_artists).values(track_id=track_id, artist_id=artist_id, role=role)
-                    )
-            await session.commit()
-
-    async def link_track_genres(self, track_id: int, genre_ids: Iterable[int]) -> None:
-        """Ensure each genre is linked to the track."""
+    async def lookup_track_genre_ids(self, track_id: int) -> list[int]:
+        """Return genre identifiers already linked to the provided track."""
 
         async with self.session_factory() as session:
-            for genre_id in genre_ids:
-                exists = await session.execute(
-                    select(track_genres.c.track_id)
-                    .where(track_genres.c.track_id == track_id)
-                    .where(track_genres.c.genre_id == genre_id)
-                )
-                if exists.scalar_one_or_none() is None:
-                    await session.execute(
-                        insert(track_genres).values(track_id=track_id, genre_id=genre_id)
-                    )
-            await session.commit()
+            stmt = (
+                select(track_genres.c.genre_id)
+                .where(track_genres.c.track_id == track_id)
+                .order_by(track_genres.c.genre_id)
+            )
+            rows = await session.execute(stmt)
+            return [int(row[0]) for row in rows.fetchall() if row[0] is not None]
 
     async def insert_listen(
         self,
@@ -467,6 +361,12 @@ class MariaDBAdapter(DatabaseAdapter):
             if not artist_entries and track_id is not None:
                 artist_entries = track_artist_map.get(int(track_id), [])
             artists_list = self._clean_artist_entries(artist_entries or [])
+            if not artists_list:
+                raw_artist = row.get("artist_name_raw")
+                if raw_artist:
+                    cleaned = raw_artist.strip()
+                    if cleaned:
+                        artists_list = [{"id": None, "name": cleaned}]
             row["artists"] = artists_list
             row["artist_names"] = ", ".join(artist["name"] for artist in artists_list) if artists_list else None
 
@@ -495,6 +395,9 @@ class MariaDBAdapter(DatabaseAdapter):
             for key in ("position_secs", "duration_secs"):
                 if row.get(key) is not None:
                     row[key] = int(row[key])
+
+            row.pop("track_title_raw", None)
+            row.pop("artist_name_raw", None)
 
         return rows
 
@@ -570,14 +473,16 @@ class MariaDBAdapter(DatabaseAdapter):
                 listens.c.position_secs,
                 listens.c.duration_secs,
                 listens.c.track_id,
-                tracks.c.title.label("track_title"),
+                func.coalesce(tracks.c.title, listens.c.track_title_raw).label("track_title"),
+                listens.c.track_title_raw,
+                listens.c.artist_name_raw,
                 albums.c.id.label("album_id"),
                 albums.c.title.label("album_title"),
                 albums.c.year.label("album_release_year"),
                 func.group_concat(genres.c.name, ", ").label("genres"),
             )
             .select_from(listens)
-            .join(tracks, listens.c.track_id == tracks.c.id)
+            .outerjoin(tracks, listens.c.track_id == tracks.c.id)
             .outerjoin(albums, tracks.c.album_id == albums.c.id)
             .outerjoin(track_genres, track_genres.c.track_id == tracks.c.id)
             .outerjoin(genres, genres.c.id == track_genres.c.genre_id)
@@ -590,6 +495,8 @@ class MariaDBAdapter(DatabaseAdapter):
                 listens.c.duration_secs,
                 listens.c.track_id,
                 tracks.c.title,
+                listens.c.track_title_raw,
+                listens.c.artist_name_raw,
                 albums.c.id,
                 albums.c.title,
                 albums.c.year,

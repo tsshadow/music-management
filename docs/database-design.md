@@ -70,7 +70,7 @@ artists ──< albums
 ## Usage patterns
 
 - **Analyzer ingest** reads files (`media_files`), creates or updates `artists`, `albums`, `tracks`, and relationship tables (`track_artists`, `track_genres`, `track_labels`, `track_tag_attributes`, `title_aliases`). When matching listens the analyzer populates `listen_match_candidates` and updates `listens.track_id`, `enrich_status`, and `match_confidence`.
-- **Scrobbler API/UI** writes new `listens` (including raw fields `artist_name_raw`, `track_title_raw`, `album_title_raw`) and consumes enriched data via the relationships. It relies on canonical metadata to support search and browsing.
+- **Scrobbler API/UI** writes new `listens` (including raw fields `artist_name_raw`, `track_title_raw`, `album_title_raw`) and consumes enriched data via the relationships. It looks up existing artists/albums/tracks/genres in the media library and stores the listen even when no canonical match is available, falling back to the raw strings in the UI.
 
 ## Media library and listening history schemas
 

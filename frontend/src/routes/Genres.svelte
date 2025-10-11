@@ -2,6 +2,10 @@
   import { onMount } from 'svelte';
   import StatsLeaderboard, { type LeaderboardRow } from '../lib/components/StatsLeaderboard.svelte';
 
+  export let title = 'Meest geluisterde genres';
+  export let description = 'Kies een periode om te zien welke genres je het meest draaide.';
+  export let endpoint = '/api/v1/stats/genres';
+
   type Period = 'all' | 'day' | 'month' | 'year';
 
   let period: Period = 'year';
@@ -41,7 +45,7 @@
       if (period !== 'all') {
         params.set('value', value);
       }
-      const response = await fetch(`/api/v1/stats/genres?${params.toString()}`);
+      const response = await fetch(`${endpoint}?${params.toString()}`);
       if (!response.ok) {
         throw new Error('Kon de genres niet laden');
       }
@@ -92,8 +96,8 @@
 
 <section class="page">
   <header>
-    <h2>Meest geluisterde genres</h2>
-    <p>Kies een periode om te zien welke genres je het meest draaide.</p>
+    <h2>{title}</h2>
+    <p>{description}</p>
   </header>
 
   <div class="controls">

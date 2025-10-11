@@ -5,6 +5,10 @@
     type LeaderboardRow,
   } from '../lib/components/StatsLeaderboard.svelte';
 
+  export let title = 'Meest geluisterde albums';
+  export let description = 'Bekijk welke releases je keer op keer hebt gedraaid.';
+  export let endpoint = '/api/v1/stats/albums';
+
   type Period = 'all' | 'day' | 'month' | 'year';
 
   interface AlbumRow extends LeaderboardRow {
@@ -81,7 +85,7 @@
       if (period !== 'all') {
         params.set('value', value);
       }
-      const response = await fetch(`/api/v1/stats/albums?${params.toString()}`);
+      const response = await fetch(`${endpoint}?${params.toString()}`);
       if (!response.ok) {
         throw new Error('Kon de albums niet laden');
       }
@@ -187,8 +191,8 @@
 
 <section class="page">
   <header>
-    <h2>Meest geluisterde albums</h2>
-    <p>Bekijk welke releases je keer op keer hebt gedraaid.</p>
+    <h2>{title}</h2>
+    <p>{description}</p>
   </header>
 
   <div class="controls">

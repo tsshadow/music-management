@@ -11,8 +11,6 @@
   let values: Record<string, string> = Object.fromEntries(editableFields.map((field) => [field.key, '']));
   let saving = false;
   let message = '';
-  let importing = false;
-  let importMessage = '';
   let exporting = false;
   let exportMessage = '';
   let deleting = false;
@@ -48,43 +46,6 @@
       await loadConfig();
     } else {
       message = 'Failed to save configuration';
-    }
-  }
-
-  async function runImport() {
-    importing = true;
-    importMessage = '';
-    try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (values.api_key) {
-        headers['X-Api-Key'] = values.api_key;
-      }
-      const payload: Record<string, string> = {};
-      if (values.listenbrainz_user) {
-        payload.user = values.listenbrainz_user;
-      }
-      if (values.listenbrainz_token) {
-        payload.token = values.listenbrainz_token;
-      }
-      const response = await fetch('/api/v1/import/listenbrainz', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload)
-      });
-      if (!response.ok) {
-        const detail = await response.text();
-        importMessage = `Import failed: ${detail || response.statusText}`;
-        return;
-      }
-      const data = await response.json();
-      const processed = data.processed ?? 0;
-      const importedCount = data.imported ?? 0;
-      const skipped = data.skipped ?? 0;
-      importMessage = `Import complete: ${importedCount} imported, ${skipped} skipped out of ${processed} listens.`;
-    } catch (error) {
-      importMessage = 'Import failed: network error';
-    } finally {
-      importing = false;
     }
   }
 
@@ -177,9 +138,6 @@
     {/each}
     <div class="actions">
       <button on:click={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
-      <button on:click={runImport} disabled={importing} class="secondary">
-        {importing ? 'Importing…' : 'Import ListenBrainz history'}
-      </button>
       <button on:click={runExport} disabled={exporting} class="secondary">
         {exporting ? 'Exporting…' : 'Export to ListenBrainz'}
       </button>
@@ -189,9 +147,6 @@
     </div>
     {#if message}
       <p class="message">{message}</p>
-    {/if}
-    {#if importMessage}
-      <p class="message">{importMessage}</p>
     {/if}
     {#if exportMessage}
       <p class="message">{exportMessage}</p>

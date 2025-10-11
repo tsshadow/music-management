@@ -2,6 +2,10 @@
   import { onMount } from 'svelte';
   import StatsLeaderboard, { type LeaderboardRow } from '../lib/components/StatsLeaderboard.svelte';
 
+  export let title = 'Meest geluisterde nummers';
+  export let description = 'Zie welke tracks je maar blijft draaien.';
+  export let endpoint = '/api/v1/stats/tracks';
+
   type Period = 'all' | 'day' | 'month' | 'year';
 
   let period: Period = 'year';
@@ -41,7 +45,7 @@
       if (period !== 'all') {
         params.set('value', value);
       }
-      const response = await fetch(`/api/v1/stats/tracks?${params.toString()}`);
+      const response = await fetch(`${endpoint}?${params.toString()}`);
       if (!response.ok) {
         throw new Error('Kon de nummers niet laden');
       }
@@ -92,8 +96,8 @@
 
 <section class="page">
   <header>
-    <h2>Meest geluisterde nummers</h2>
-    <p>Zie welke tracks je maar blijft draaien.</p>
+    <h2>{title}</h2>
+    <p>{description}</p>
   </header>
 
   <div class="controls">

@@ -16,22 +16,53 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
   scrobbler:
     build:
       context: .
       dockerfile: docker/Dockerfile
     environment:
       SCROBBLER_DB_DSN: mysql+asyncmy://${MARIADB_USER:-scrob}:${MARIADB_PASSWORD:-scrobpass}@mariadb:3306/music-scrobbler
+      SCROBBLER_REDIS_URL: redis://redis:6379/0
+      SCROBBLER_ANALYZER_QUEUE: scrobbler-analyzer
+      SCROBBLER_ANALYZER_PATHS: '["/music"]'
     ports:
       - "8080:8080"
     depends_on:
       mariadb:
         condition: service_healthy
+      redis:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/docs"]
       interval: 30s
       timeout: 5s
       retries: 5
+    volumes:
+      - ${SCROBBLER_MUSIC_PATH:-./music}:/music:ro
+
+  analyzer-worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    command: ["rq", "worker", "scrobbler-analyzer"]
+    environment:
+      SCROBBLER_DB_DSN: mysql+asyncmy://${MARIADB_USER:-scrob}:${MARIADB_PASSWORD:-scrobpass}@mariadb:3306/music-scrobbler
+      SCROBBLER_REDIS_URL: redis://redis:6379/0
+      SCROBBLER_ANALYZER_QUEUE: scrobbler-analyzer
+      SCROBBLER_ANALYZER_PATHS: '["/music"]'
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ${SCROBBLER_MUSIC_PATH:-./music}:/music:ro
 
   phpmyadmin:
     image: phpmyadmin:5

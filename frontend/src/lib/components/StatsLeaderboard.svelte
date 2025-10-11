@@ -7,9 +7,10 @@
     [key: string]: unknown;
   }
 
-  export let rows: LeaderboardRow[] = [];
-  export let labelHeading: string;
-  export let clickable = false;
+export let rows: LeaderboardRow[] = [];
+export let labelHeading: string;
+export let clickable = false;
+export let countHeading = 'Listens';
 
   const medals = ['🥇', '🥈', '🥉'];
 
@@ -35,7 +36,7 @@
     <tr>
       <th>#</th>
       <th>{labelHeading}</th>
-      <th>Listens</th>
+      <th>{countHeading}</th>
     </tr>
   </thead>
   <tbody>

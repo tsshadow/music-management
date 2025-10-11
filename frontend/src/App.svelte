@@ -1,16 +1,17 @@
 <script lang="ts">
-  import Header from './lib/components/Header.svelte';
-  import Albums from './routes/Albums.svelte';
   import Analyzer from './routes/Analyzer.svelte';
-  import Artists from './routes/Artists.svelte';
-  import Genres from './routes/Genres.svelte';
-  import Home from './routes/Home.svelte';
-  import Tracks from './routes/Tracks.svelte';
+  import Scrobbler from './routes/Scrobbler.svelte';
   import Settings from './routes/Settings.svelte';
 
-  type Page = 'home' | 'analyzer' | 'genres' | 'artists' | 'albums' | 'tracks' | 'settings';
+  type Page = 'scrobbler' | 'analyzer' | 'settings';
 
-  let page: Page = 'home';
+  let page: Page = 'scrobbler';
+
+  const titles: Record<Page, string> = {
+    scrobbler: 'Scrobbler',
+    analyzer: 'Analyzer',
+    settings: 'Settings',
+  };
 
   function show(newPage: Page) {
     page = newPage;
@@ -18,35 +19,25 @@
 </script>
 
 <main>
-  <Header title="Scrobbler" />
-  <nav>
-    <button class:active={page === 'home'} on:click={() => show('home')}>Home</button>
+  <header class="main-header">
+    <h1>{titles[page]}</h1>
+  </header>
+  <nav class="primary-nav">
+    <button class:active={page === 'scrobbler'} on:click={() => show('scrobbler')}>
+      Scrobbler
+    </button>
     <button class:active={page === 'analyzer'} on:click={() => show('analyzer')}>
       Analyzer
     </button>
-    <button class:active={page === 'genres'} on:click={() => show('genres')}>Genres</button>
-    <button class:active={page === 'artists'} on:click={() => show('artists')}>
-      Artiesten
+    <button class:active={page === 'settings'} on:click={() => show('settings')}>
+      Settings
     </button>
-    <button class:active={page === 'albums'} on:click={() => show('albums')}>Albums</button>
-    <button class:active={page === 'tracks'} on:click={() => show('tracks')}>
-      Tracks
-    </button>
-    <button class:active={page === 'settings'} on:click={() => show('settings')}>Settings</button>
   </nav>
 
-  {#if page === 'home'}
-    <Home />
+  {#if page === 'scrobbler'}
+    <Scrobbler />
   {:else if page === 'analyzer'}
     <Analyzer />
-  {:else if page === 'genres'}
-    <Genres />
-  {:else if page === 'artists'}
-    <Artists />
-  {:else if page === 'albums'}
-    <Albums />
-  {:else if page === 'tracks'}
-    <Tracks />
   {:else}
     <Settings />
   {/if}
@@ -60,7 +51,7 @@
     gap: 1rem;
   }
 
-  nav {
+  .primary-nav {
     display: flex;
     justify-content: center;
     gap: 1rem;
@@ -68,7 +59,17 @@
     margin-bottom: 1rem;
   }
 
-  nav button {
+  .main-header {
+    text-align: center;
+    padding: 2rem 1rem 0.5rem;
+  }
+
+  .main-header h1 {
+    margin: 0;
+    font-size: clamp(2rem, 5vw, 3rem);
+  }
+
+  .primary-nav button {
     background: rgba(255, 255, 255, 0.05);
     border: none;
     color: var(--text-color);
@@ -78,7 +79,7 @@
     transition: background 0.2s ease;
   }
 
-  nav button.active {
+  .primary-nav button.active {
     background: var(--accent-color);
     color: white;
   }

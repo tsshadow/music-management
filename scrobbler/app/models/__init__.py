@@ -16,6 +16,9 @@ from sqlalchemy import (
     func,
 )
 
+MEDIALIBRARY_SCHEMA = "medialibrary"
+LISTENS_SCHEMA = "listens"
+
 metadata = MetaData()
 
 users = Table(
@@ -24,6 +27,7 @@ users = Table(
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("username", String(190), nullable=False, unique=True),
     Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    schema=LISTENS_SCHEMA,
 )
 
 artists = Table(
@@ -36,15 +40,26 @@ artists = Table(
     Column("mbid", String(36)),
     Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
     Column("updated_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    schema=MEDIALIBRARY_SCHEMA,
 )
 
 artist_aliases = Table(
     "artist_aliases",
     metadata,
-    Column("id", Integer, primary_key=True, autoincrement=True),
-    Column("artist_id", ForeignKey("artists.id", ondelete="CASCADE"), nullable=False),
+    Column(
+        "id",
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    ),
+    Column(
+        "artist_id",
+        ForeignKey(f"{MEDIALIBRARY_SCHEMA}.artists.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
     Column("alias_normalized", String(255), nullable=False, unique=True),
     Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    schema=MEDIALIBRARY_SCHEMA,
 )
 
 genres = Table(
@@ -55,13 +70,18 @@ genres = Table(
     Column("name_normalized", String(100), nullable=False, unique=True),
     Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
     Column("updated_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    schema=MEDIALIBRARY_SCHEMA,
 )
 
 albums = Table(
     "albums",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
-    Column("artist_id", ForeignKey("artists.id", ondelete="CASCADE"), nullable=False),
+    Column(
+        "artist_id",
+        ForeignKey(f"{MEDIALIBRARY_SCHEMA}.artists.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
     Column("title", String(255), nullable=False),
     Column("title_normalized", String(255), nullable=False),
     Column("year", SmallInteger),
@@ -69,6 +89,7 @@ albums = Table(
     Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
     Column("updated_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
     UniqueConstraint("artist_id", "title_normalized", name="uq_albums_artist_title"),
+    schema=MEDIALIBRARY_SCHEMA,
 )
 
 tracks = Table(
@@ -77,8 +98,14 @@ tracks = Table(
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("title", String(255), nullable=False),
     Column("title_normalized", String(255), nullable=False),
-    Column("album_id", ForeignKey("albums.id", ondelete="SET NULL")),
-    Column("primary_artist_id", ForeignKey("artists.id", ondelete="SET NULL")),
+    Column(
+        "album_id",
+        ForeignKey(f"{MEDIALIBRARY_SCHEMA}.albums.id", ondelete="SET NULL"),
+    ),
+    Column(
+        "primary_artist_id",
+        ForeignKey(f"{MEDIALIBRARY_SCHEMA}.artists.id", ondelete="SET NULL"),
+    ),
     Column("duration_secs", Integer),
     Column("disc_no", SmallInteger),
     Column("track_no", SmallInteger),
@@ -95,13 +122,22 @@ tracks = Table(
         "track_no",
         name="uq_tracks_album_title_disc_track",
     ),
+    schema=MEDIALIBRARY_SCHEMA,
 )
 
 track_artists = Table(
     "track_artists",
     metadata,
-    Column("track_id", ForeignKey("tracks.id", ondelete="CASCADE"), primary_key=True),
-    Column("artist_id", ForeignKey("artists.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "track_id",
+        ForeignKey(f"{MEDIALIBRARY_SCHEMA}.tracks.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "artist_id",
+        ForeignKey(f"{MEDIALIBRARY_SCHEMA}.artists.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
     Column(
         "role",
         Enum(
@@ -115,14 +151,24 @@ track_artists = Table(
         ),
         primary_key=True,
     ),
+    schema=MEDIALIBRARY_SCHEMA,
 )
 
 track_genres = Table(
     "track_genres",
     metadata,
-    Column("track_id", ForeignKey("tracks.id", ondelete="CASCADE"), primary_key=True),
-    Column("genre_id", ForeignKey("genres.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "track_id",
+        ForeignKey(f"{MEDIALIBRARY_SCHEMA}.tracks.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "genre_id",
+        ForeignKey(f"{MEDIALIBRARY_SCHEMA}.genres.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
     Column("weight", SmallInteger, nullable=False, server_default="100"),
+    schema=MEDIALIBRARY_SCHEMA,
 )
 
 labels = Table(
@@ -133,22 +179,37 @@ labels = Table(
     Column("name_normalized", String(255), nullable=False, unique=True),
     Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
     Column("updated_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    schema=MEDIALIBRARY_SCHEMA,
 )
 
 track_labels = Table(
     "track_labels",
     metadata,
-    Column("track_id", ForeignKey("tracks.id", ondelete="CASCADE"), primary_key=True),
-    Column("label_id", ForeignKey("labels.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "track_id",
+        ForeignKey(f"{MEDIALIBRARY_SCHEMA}.tracks.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "label_id",
+        ForeignKey(f"{MEDIALIBRARY_SCHEMA}.labels.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    schema=MEDIALIBRARY_SCHEMA,
 )
 
 title_aliases = Table(
     "title_aliases",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
-    Column("track_id", ForeignKey("tracks.id", ondelete="CASCADE"), nullable=False),
+    Column(
+        "track_id",
+        ForeignKey(f"{MEDIALIBRARY_SCHEMA}.tracks.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
     Column("alias_normalized", String(255), nullable=False, unique=True),
     Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    schema=MEDIALIBRARY_SCHEMA,
 )
 
 media_files = Table(
@@ -165,6 +226,7 @@ media_files = Table(
     Column("last_scan_at", DateTime(timezone=True)),
     Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
     Column("updated_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    schema=MEDIALIBRARY_SCHEMA,
 )
 
 tag_sources = Table(
@@ -175,16 +237,26 @@ tag_sources = Table(
     Column("priority", SmallInteger, nullable=False, server_default="0"),
     Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
     Column("updated_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    schema=MEDIALIBRARY_SCHEMA,
 )
 
 track_tag_attributes = Table(
     "track_tag_attributes",
     metadata,
-    Column("track_id", ForeignKey("tracks.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "track_id",
+        ForeignKey(f"{MEDIALIBRARY_SCHEMA}.tracks.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
     Column("key", String(64), primary_key=True),
     Column("value", String(255), nullable=False),
-    Column("source_id", ForeignKey("tag_sources.id", ondelete="CASCADE"), nullable=False),
+    Column(
+        "source_id",
+        ForeignKey(f"{MEDIALIBRARY_SCHEMA}.tag_sources.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
     Column("updated_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    schema=MEDIALIBRARY_SCHEMA,
 )
 
 
@@ -200,8 +272,15 @@ listens = Table(
     "listens",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
-    Column("user_id", ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
-    Column("track_id", ForeignKey("tracks.id", ondelete="SET NULL")),
+    Column(
+        "user_id",
+        ForeignKey(f"{LISTENS_SCHEMA}.users.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column(
+        "track_id",
+        ForeignKey(f"{MEDIALIBRARY_SCHEMA}.tracks.id", ondelete="SET NULL"),
+    ),
     Column("listened_at", DateTime(timezone=True), nullable=False),
     Column("source", String(64), nullable=False),
     Column("source_track_id", String(128)),
@@ -215,15 +294,25 @@ listens = Table(
     Column("last_enriched_at", DateTime(timezone=True)),
     Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
     UniqueConstraint("user_id", "track_id", "listened_at", name="uq_listen_dedupe"),
+    schema=LISTENS_SCHEMA,
 )
 
 listen_match_candidates = Table(
     "listen_match_candidates",
     metadata,
-    Column("listen_id", ForeignKey("listens.id", ondelete="CASCADE"), primary_key=True),
-    Column("track_id", ForeignKey("tracks.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "listen_id",
+        ForeignKey(f"{LISTENS_SCHEMA}.listens.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "track_id",
+        ForeignKey(f"{MEDIALIBRARY_SCHEMA}.tracks.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
     Column("confidence", SmallInteger, nullable=False),
     Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    schema=LISTENS_SCHEMA,
 )
 
 Index("ix_artists_name_normalized", artists.c.name_normalized, unique=True)
@@ -237,15 +326,33 @@ Index("ix_media_files_path_hash", media_files.c.file_path_hash, unique=True)
 listen_artists = Table(
     "listen_artists",
     metadata,
-    Column("listen_id", ForeignKey("listens.id", ondelete="CASCADE"), primary_key=True),
-    Column("artist_id", ForeignKey("artists.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "listen_id",
+        ForeignKey(f"{LISTENS_SCHEMA}.listens.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "artist_id",
+        ForeignKey(f"{MEDIALIBRARY_SCHEMA}.artists.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    schema=LISTENS_SCHEMA,
 )
 
 listen_genres = Table(
     "listen_genres",
     metadata,
-    Column("listen_id", ForeignKey("listens.id", ondelete="CASCADE"), primary_key=True),
-    Column("genre_id", ForeignKey("genres.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "listen_id",
+        ForeignKey(f"{LISTENS_SCHEMA}.listens.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "genre_id",
+        ForeignKey(f"{MEDIALIBRARY_SCHEMA}.genres.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    schema=LISTENS_SCHEMA,
 )
 
 config = Table(
@@ -254,10 +361,13 @@ config = Table(
     Column("key", String(64), primary_key=True),
     Column("value", Text, nullable=False),
     Column("updated_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    schema=LISTENS_SCHEMA,
 )
 
 __all__ = [
     "metadata",
+    "MEDIALIBRARY_SCHEMA",
+    "LISTENS_SCHEMA",
     "users",
     "artists",
     "artist_aliases",

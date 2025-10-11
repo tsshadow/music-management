@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+"""Dependency providers for FastAPI route handlers."""
+
 from fastapi import Depends, Header, HTTPException, Request, status
+
+from analyzer.services.summary_service import AnalyzerSummaryService
 
 from ..core.settings import get_settings
 from ..services.listenbrainz_export_service import ListenBrainzExportService
@@ -44,3 +48,9 @@ def get_listenbrainz_export_service(request: Request) -> ListenBrainzExportServi
     """Return the ListenBrainz export service bound to the application state."""
 
     return request.app.state.listenbrainz_export_service
+
+
+def get_analyzer_summary_service(request: Request) -> AnalyzerSummaryService:
+    """Return the analyzer summary service stored in the application state."""
+
+    return request.app.state.analyzer_summary_service

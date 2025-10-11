@@ -13,7 +13,7 @@ from analyzer.ingestion.filesystem import scan_paths
 from analyzer.services.enrich_service import EnrichmentService
 from analyzer.services.library_service import LibraryService
 from analyzer.services.match_service import MatchService
-from backend.app.db.schema import apply_schema_updates
+from scrobbler.app.db.schema import apply_schema_updates
 
 __all__ = [
     "scan_library_job",

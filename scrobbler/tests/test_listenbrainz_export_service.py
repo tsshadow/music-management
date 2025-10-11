@@ -7,7 +7,7 @@ from typing import Any
 import httpx
 import pytest
 
-from backend.app.services.listenbrainz_export_service import ListenBrainzExportService
+from scrobbler.app.services.listenbrainz_export_service import ListenBrainzExportService
 
 
 class DummyAdapter:

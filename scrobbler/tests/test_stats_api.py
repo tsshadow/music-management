@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.tests.fixtures import seed_dataset
+from scrobbler.tests.fixtures import seed_dataset
 
 
 @pytest.mark.asyncio

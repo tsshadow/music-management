@@ -21,7 +21,7 @@ def _run_schema_updates(connection) -> None:
     def ensure_column(table: str, column: str, ddl: str) -> None:
         columns = {col["name"] for col in inspector.get_columns(table)}
         if column not in columns:
-            connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {ddl}"))
+            connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
 
     def ensure_index(table: str, index: str, ddl: str) -> None:
         indexes = {idx["name"] for idx in inspector.get_indexes(table)}

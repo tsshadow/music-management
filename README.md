@@ -6,7 +6,7 @@ Scrobbler is a FastAPI-based service that ingests listens from LMS/Open Subsonic
 
 ```
 ┌─────────────────────┐     ┌─────────────────────┐
-│     Frontend        │     │      Backend        │
+│     Frontend        │     │   Scrobbler API     │
 │  Vite + Svelte      │◀──▶ │  FastAPI + SQLA     │
 │  (static assets)    │     │  MariaDB / SQLite   │
 └─────────────────────┘     └─────────────────────┘
@@ -26,14 +26,14 @@ Scrobbler is a FastAPI-based service that ingests listens from LMS/Open Subsonic
 * Node 20+
 * MariaDB 11+ (or SQLite for development/tests)
 
-### Backend (development)
+### Scrobbler API (development)
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install poetry
 poetry install
-uvicorn backend.app.main:app --reload
+uvicorn scrobbler.app.main:app --reload
 ```
 
 Set `SCROBBLER_DB_DSN` to point to your MariaDB instance, e.g. `mysql+asyncmy://user:pass@localhost:3306/music-scrobbler`. By default the app uses SQLite (`sqlite+aiosqlite:///./scrobbler.db`).
@@ -46,7 +46,7 @@ npm install
 npm run dev
 ```
 
-The dev server runs on <http://localhost:5173>. Configure `SCROBBLER_CORS_ORIGINS=http://localhost:5173` when running the backend.
+The dev server runs on <http://localhost:5173>. Configure `SCROBBLER_CORS_ORIGINS=http://localhost:5173` when running the Scrobbler API.
 
 ### Running tests
 
@@ -64,7 +64,7 @@ Build and run with Docker Compose:
 docker-compose up --build
 ```
 
-This starts MariaDB, phpMyAdmin, and the FastAPI service (serving the built frontend). The backend listens on port 8080 and phpMyAdmin is available at <http://localhost:8081>.
+This starts MariaDB, phpMyAdmin, and the FastAPI service (serving the built frontend). The Scrobbler API listens on port 8080 and phpMyAdmin is available at <http://localhost:8081>.
 
 ### API
 
@@ -166,7 +166,7 @@ GET /rest/scrobble.view?u=alice&id=track123&time=1712516400000&t=Song&a=Artist&a
 
 ## Project layout
 
-See repo structure for backend, frontend, and Docker artefacts. Built frontend assets are copied into `backend/app/static` during the Docker build.
+See repo structure for scrobbler, frontend, and Docker artefacts. Built frontend assets are copied into `scrobbler/app/static` during the Docker build.
 
 ## License
 

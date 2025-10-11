@@ -58,11 +58,22 @@ jobs:
         run: pnpm build
 
   docker-image:
-    name: Build Docker image
+    name: Build Docker image (${{ matrix.image }})
     runs-on: ubuntu-latest
     needs:
       - tests
       - frontend
+    strategy:
+      matrix:
+        include:
+          - image: scrobbler
+            target: scrobbler
+            ghcr_repository: ${{ github.repository }}
+            dockerhub_repository: scrobbler
+          - image: analyzer-worker
+            target: analyzer-worker
+            ghcr_repository: ${{ github.repository_owner }}/analyzer-worker
+            dockerhub_repository: analyzer-worker
     permissions:
       contents: read
       packages: write
@@ -84,11 +95,11 @@ jobs:
           OWNER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
-          echo "ghcr_image=ghcr.io/${{ github.repository }}" >>"$GITHUB_OUTPUT"
+          echo "ghcr_image=ghcr.io/${{ matrix.ghcr_repository }}" >>"$GITHUB_OUTPUT"
           if [ -n "${DCKR_PAT:-}" ]; then
             username="${DCKR_USERNAME:-$OWNER}"
             echo "dockerhub_username=$username" >>"$GITHUB_OUTPUT"
-            echo "dockerhub_image=docker.io/$username/scrobbler" >>"$GITHUB_OUTPUT"
+            echo "dockerhub_image=docker.io/$username/${{ matrix.dockerhub_repository }}" >>"$GITHUB_OUTPUT"
             echo "push_dockerhub=true" >>"$GITHUB_OUTPUT"
           else
             echo "push_dockerhub=false" >>"$GITHUB_OUTPUT"
@@ -123,6 +134,7 @@ jobs:
           GHCR_IMAGE: ${{ steps.prep.outputs.ghcr_image }}
           DOCKERHUB_IMAGE: ${{ steps.prep.outputs.dockerhub_image }}
           PUSH_DOCKERHUB: ${{ steps.prep.outputs.push_dockerhub }}
+          TARGET: ${{ matrix.target }}
         run: |
           set -euo pipefail
 
@@ -137,6 +149,7 @@ jobs:
             if [ "${{ github.event.pull_request.head.repo.fork }}" = "true" ]; then
               docker buildx build \
                 --file docker/Dockerfile \
+                --target "${TARGET}" \
                 --platform linux/amd64 \
                 "${TAG_ARGS[@]}" \
                 --load \
@@ -149,6 +162,7 @@ jobs:
 
               docker buildx build \
                 --file docker/Dockerfile \
+                --target "${TARGET}" \
                 --platform linux/amd64 \
                 "${TAG_ARGS[@]}" \
                 --push \
@@ -162,6 +176,7 @@ jobs:
 
             docker buildx build \
               --file docker/Dockerfile \
+              --target "${TARGET}" \
               --platform linux/amd64 \
               "${TAG_ARGS[@]}" \
               --push \

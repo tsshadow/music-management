@@ -6,8 +6,8 @@ RUN npm install
 COPY frontend .
 RUN npm run build
 
-# Scrobbler API stage
-FROM python:3.11-slim AS scrobbler
+# Base application image
+FROM python:3.11-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 WORKDIR /app
@@ -16,6 +16,13 @@ RUN pip install --no-cache-dir poetry && poetry config virtualenvs.create false 
 COPY scrobbler ./scrobbler
 COPY analyzer ./analyzer
 COPY --from=frontend /app/frontend/dist ./scrobbler/app/static
+
+# Scrobbler API stage
+FROM base AS scrobbler
 ENV SCROBBLER_DB_DSN="sqlite+aiosqlite:///./data/scrobbler.db"
 EXPOSE 8080
 CMD ["uvicorn", "scrobbler.app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+
+# Analyzer worker stage
+FROM base AS analyzer-worker
+CMD ["rq", "worker", "scrobbler-analyzer"]

@@ -26,6 +26,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      target: scrobbler
     environment:
       SCROBBLER_DB_DSN: mysql+asyncmy://${MARIADB_USER:-scrob}:${MARIADB_PASSWORD:-scrobpass}@mariadb:3306/music-scrobbler
       SCROBBLER_REDIS_URL: redis://redis:6379/0
@@ -50,7 +51,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    command: ["rq", "worker", "scrobbler-analyzer"]
+      target: analyzer-worker
     environment:
       SCROBBLER_DB_DSN: mysql+asyncmy://${MARIADB_USER:-scrob}:${MARIADB_PASSWORD:-scrobpass}@mariadb:3306/music-scrobbler
       SCROBBLER_REDIS_URL: redis://redis:6379/0

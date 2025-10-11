@@ -10,7 +10,7 @@ from typing import Iterable, Sequence
 from sqlalchemy import and_, delete, func, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
-from backend.app.models import (
+from scrobbler.app.models import (
     albums,
     artist_aliases,
     artists,
@@ -513,3 +513,59 @@ class AnalyzerRepository:
                     .values(track_uid=uid, updated_at=func.now())
                 )
             await session.commit()
+
+    async def fetch_library_summary(self) -> dict:
+        """Return aggregate counts used by the analyzer dashboard."""
+
+        async with self.session_factory() as session:
+            total_files = await session.scalar(select(func.count(media_files.c.id))) or 0
+            songs_filter = or_(tracks.c.duration_secs.is_(None), tracks.c.duration_secs < 600)
+            songs_count = await session.scalar(
+                select(func.count()).select_from(tracks).where(songs_filter)
+            ) or 0
+            livesets_count = await session.scalar(
+                select(func.count())
+                .select_from(tracks)
+                .where(
+                    tracks.c.duration_secs.is_not(None),
+                    tracks.c.duration_secs >= 600,
+                )
+            ) or 0
+
+            artist_song_count = func.count(tracks.c.id).label("songs")
+            artist_rows = await session.execute(
+                select(artists.c.name.label("artist"), artist_song_count)
+                .select_from(tracks.join(artists, tracks.c.primary_artist_id == artists.c.id))
+                .where(songs_filter)
+                .group_by(artists.c.id, artists.c.name)
+                .order_by(artist_song_count.desc(), artists.c.name)
+                .limit(50)
+            )
+            artists_summary = [
+                {"artist": row.artist, "songs": int(row.songs)} for row in artist_rows.fetchall()
+            ]
+
+            genre_song_count = func.count(track_genres.c.track_id).label("songs")
+            genre_rows = await session.execute(
+                select(genres.c.name.label("genre"), genre_song_count)
+                .select_from(
+                    genres.join(track_genres, genres.c.id == track_genres.c.genre_id).join(
+                        tracks, track_genres.c.track_id == tracks.c.id
+                    )
+                )
+                .where(songs_filter)
+                .group_by(genres.c.id, genres.c.name)
+                .order_by(genre_song_count.desc(), genres.c.name)
+                .limit(50)
+            )
+            genres_summary = [
+                {"genre": row.genre, "songs": int(row.songs)} for row in genre_rows.fetchall()
+            ]
+
+            return {
+                "files": int(total_files),
+                "songs": int(songs_count),
+                "livesets": int(livesets_count),
+                "artists": artists_summary,
+                "genres": genres_summary,
+            }

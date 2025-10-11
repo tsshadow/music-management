@@ -1,5 +1,6 @@
 from . import (
     routes_analyzer,
+    routes_analyzer_summary,
     routes_config,
     routes_export,
     routes_import,
@@ -18,4 +19,5 @@ __all__ = [
     "routes_stats",
     "routes_subsonic",
     "routes_analyzer",
+    "routes_analyzer_summary",
 ]

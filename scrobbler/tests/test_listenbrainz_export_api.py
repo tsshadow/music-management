@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.app.main import app
+from scrobbler.app.main import app
 
 
 class DummyExportService:

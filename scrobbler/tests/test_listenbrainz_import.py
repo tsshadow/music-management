@@ -5,8 +5,8 @@ from typing import Any
 import httpx
 import pytest
 
-from backend.app.main import app
-from backend.app.services.listenbrainz_service import ListenBrainzImportService
+from scrobbler.app.main import app
+from scrobbler.app.services.listenbrainz_service import ListenBrainzImportService
 
 
 def build_listen(ts: int, title: str, artist: str) -> dict[str, Any]:

@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from backend.app.services.listenbrainz_service import ListenBrainzImportService
+from scrobbler.app.services.listenbrainz_service import ListenBrainzImportService
 
 
 def build_listen(**extra):

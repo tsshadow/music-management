@@ -7,9 +7,9 @@ import pytest
 
 from analyzer.matching.uid import make_track_uid
 
-from backend.app.core.startup import init_database
-from backend.app.db.sqlite_test import create_sqlite_memory_adapter
-from backend.app.models import metadata
+from scrobbler.app.core.startup import init_database
+from scrobbler.app.db.sqlite_test import create_sqlite_memory_adapter
+from scrobbler.app.models import metadata
 
 
 @pytest.mark.asyncio

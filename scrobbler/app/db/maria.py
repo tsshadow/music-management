@@ -573,7 +573,7 @@ class MariaDBAdapter(DatabaseAdapter):
                 tracks.c.title.label("track_title"),
                 albums.c.id.label("album_id"),
                 albums.c.title.label("album_title"),
-                albums.c.release_year.label("album_release_year"),
+                albums.c.year.label("album_release_year"),
                 func.group_concat(genres.c.name, ", ").label("genres"),
             )
             .select_from(listens)
@@ -592,7 +592,7 @@ class MariaDBAdapter(DatabaseAdapter):
                 tracks.c.title,
                 albums.c.id,
                 albums.c.title,
-                albums.c.release_year,
+                albums.c.year,
             )
             .order_by(listens.c.listened_at.desc())
             .limit(limit)
@@ -637,7 +637,7 @@ class MariaDBAdapter(DatabaseAdapter):
                 tracks.c.isrc,
                 albums.c.id.label("album_id"),
                 albums.c.title.label("album_title"),
-                albums.c.release_year,
+                albums.c.year.label("release_year"),
                 albums.c.mbid.label("album_mbid"),
             )
             .select_from(listens)
@@ -971,14 +971,14 @@ class MariaDBAdapter(DatabaseAdapter):
             select(
                 albums.c.id.label("album_id"),
                 albums.c.title.label("album"),
-                albums.c.release_year,
+                albums.c.year.label("release_year"),
                 func.count().label("count"),
             )
             .select_from(listens)
             .join(tracks, listens.c.track_id == tracks.c.id)
             .join(albums, tracks.c.album_id == albums.c.id)
             .where(clause)
-            .group_by(albums.c.id, albums.c.title, albums.c.release_year)
+            .group_by(albums.c.id, albums.c.title, albums.c.year)
         )
 
         stmt = (
@@ -1185,14 +1185,14 @@ class MariaDBAdapter(DatabaseAdapter):
                 select(
                     albums.c.id.label("album_id"),
                     albums.c.title.label("album"),
-                    albums.c.release_year,
+                    albums.c.year.label("release_year"),
                     func.count().label("count"),
                 )
                 .select_from(
                     base_join.join(albums, albums.c.id == tracks.c.album_id)
                 )
                 .where(clause)
-                .group_by(albums.c.id, albums.c.title, albums.c.release_year)
+                .group_by(albums.c.id, albums.c.title, albums.c.year)
                 .order_by(func.count().desc(), albums.c.title)
                 .limit(10)
             )
@@ -1236,7 +1236,12 @@ class MariaDBAdapter(DatabaseAdapter):
 
         async with self.session_factory() as session:
             album_stmt = (
-                select(albums.c.id, albums.c.title, albums.c.release_year, albums.c.mbid)
+                select(
+                    albums.c.id,
+                    albums.c.title,
+                    albums.c.year.label("release_year"),
+                    albums.c.mbid,
+                )
                 .where(albums.c.id == album_id)
             )
             album_row = await session.execute(album_stmt)

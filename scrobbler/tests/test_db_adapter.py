@@ -10,7 +10,7 @@ from analyzer.matching.uid import make_track_uid
 
 from scrobbler.app.core.startup import init_database
 from scrobbler.app.db.sqlite_test import create_sqlite_memory_adapter
-from scrobbler.app.models import metadata
+from scrobbler.app.models import metadata, track_artists
 
 
 @pytest.mark.asyncio
@@ -111,7 +111,16 @@ async def test_fetch_recent_listens_prefers_clean_listen_artists():
     artist_bad1 = await adapter.upsert_artist(",Jur Terreur")
     artist_bad2 = await adapter.upsert_artist(" Brainkick ,")
     track_id = await adapter.upsert_track(
-        title="Ready To Move", album_id=None, duration_secs=None, disc_no=None, track_no=None, mbid=None, isrc=None
+        title="Ready To Move",
+        album_id=None,
+        primary_artist_id=None,
+        duration_secs=None,
+        disc_no=None,
+        track_no=None,
+        mbid=None,
+        isrc=None,
+        acoustid=None,
+        track_uid=None,
     )
 
     await adapter.link_track_artists(
@@ -140,6 +149,9 @@ async def test_fetch_recent_listens_prefers_clean_listen_artists():
         source_track_id="1",
         position_secs=None,
         duration_secs=None,
+        artist_name_raw=None,
+        track_title_raw=None,
+        album_title_raw=None,
         artist_ids=[artist_good1, artist_good2],
         genre_ids=[],
     )
@@ -164,25 +176,31 @@ async def test_fetch_listens_supports_period_filters_and_pagination():
     user_id = await adapter.upsert_user("alice")
     artist_id = await adapter.upsert_artist("Artist")
     genre_id = await adapter.upsert_genre("Hardcore")
-    album_id = await adapter.upsert_album("Album", release_year=2023)
+    album_id = await adapter.upsert_album("Album", artist_id=artist_id, release_year=2023)
 
     track1 = await adapter.upsert_track(
         title="Track One",
         album_id=album_id,
+        primary_artist_id=artist_id,
         duration_secs=210,
         disc_no=1,
         track_no=1,
         mbid=None,
         isrc=None,
+        acoustid=None,
+        track_uid=None,
     )
     track2 = await adapter.upsert_track(
         title="Track Two",
         album_id=album_id,
+        primary_artist_id=artist_id,
         duration_secs=200,
         disc_no=1,
         track_no=2,
         mbid=None,
         isrc=None,
+        acoustid=None,
+        track_uid=None,
     )
 
     await adapter.link_track_artists(track1, [(artist_id, "primary")])
@@ -201,6 +219,9 @@ async def test_fetch_listens_supports_period_filters_and_pagination():
         source_track_id="1",
         position_secs=30,
         duration_secs=210,
+        artist_name_raw="Artist",
+        track_title_raw="Track One",
+        album_title_raw="Album",
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -212,6 +233,9 @@ async def test_fetch_listens_supports_period_filters_and_pagination():
         source_track_id="2",
         position_secs=None,
         duration_secs=None,
+        artist_name_raw="Artist",
+        track_title_raw="Track Two",
+        album_title_raw="Album",
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -255,15 +279,18 @@ async def test_fetch_listen_detail_returns_enriched_metadata():
     user_id = await adapter.upsert_user("alice")
     artist_id = await adapter.upsert_artist("Detail Artist")
     genre_id = await adapter.upsert_genre("Industrial")
-    album_id = await adapter.upsert_album("Detail Album", release_year=2024)
+    album_id = await adapter.upsert_album("Detail Album", artist_id=artist_id, release_year=2024)
     track_id = await adapter.upsert_track(
         title="Detail Track",
         album_id=album_id,
+        primary_artist_id=artist_id,
         duration_secs=250,
         disc_no=1,
         track_no=5,
         mbid="track-mbid",
         isrc="ISRC12345678",
+        acoustid=None,
+        track_uid=None,
     )
 
     await adapter.link_track_artists(track_id, [(artist_id, "primary")])
@@ -278,6 +305,9 @@ async def test_fetch_listen_detail_returns_enriched_metadata():
         source_track_id="SRC",
         position_secs=40,
         duration_secs=250,
+        artist_name_raw="Detail Artist",
+        track_title_raw="Detail Track",
+        album_title_raw="Detail Album",
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -306,25 +336,31 @@ async def test_artist_insights_aggregates_listens():
     artist_id = await adapter.upsert_artist("Insight Artist")
     other_artist = await adapter.upsert_artist("Guest")
     genre_id = await adapter.upsert_genre("Hardcore")
-    album_id = await adapter.upsert_album("Insight Album", release_year=2022)
+    album_id = await adapter.upsert_album("Insight Album", artist_id=artist_id, release_year=2022)
 
     track_main = await adapter.upsert_track(
         title="Main Track",
         album_id=album_id,
+        primary_artist_id=artist_id,
         duration_secs=200,
         disc_no=1,
         track_no=1,
         mbid=None,
         isrc=None,
+        acoustid=None,
+        track_uid=None,
     )
     track_guest = await adapter.upsert_track(
         title="Guest Track",
         album_id=album_id,
+        primary_artist_id=artist_id,
         duration_secs=180,
         disc_no=1,
         track_no=2,
         mbid=None,
         isrc=None,
+        acoustid=None,
+        track_uid=None,
     )
 
     await adapter.link_track_artists(track_main, [(artist_id, "primary")])
@@ -341,6 +377,9 @@ async def test_artist_insights_aggregates_listens():
         source_track_id="A",
         position_secs=None,
         duration_secs=None,
+        artist_name_raw="Insight Artist",
+        track_title_raw="Main Track",
+        album_title_raw="Insight Album",
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -352,6 +391,9 @@ async def test_artist_insights_aggregates_listens():
         source_track_id="B",
         position_secs=None,
         duration_secs=None,
+        artist_name_raw="Insight Artist",
+        track_title_raw="Guest Track",
+        album_title_raw="Insight Album",
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -364,6 +406,9 @@ async def test_artist_insights_aggregates_listens():
         source_track_id="C",
         position_secs=None,
         duration_secs=None,
+        artist_name_raw="Insight Artist",
+        track_title_raw="Guest Track",
+        album_title_raw="Insight Album",
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -393,25 +438,31 @@ async def test_album_insights_aggregates_metadata():
     user_id = await adapter.upsert_user("alice")
     artist_id = await adapter.upsert_artist("Album Artist")
     genre_id = await adapter.upsert_genre("Industrial")
-    album_id = await adapter.upsert_album("Album Insight", release_year=2021)
+    album_id = await adapter.upsert_album("Album Insight", artist_id=artist_id, release_year=2021)
 
     track_one = await adapter.upsert_track(
         title="Song One",
         album_id=album_id,
+        primary_artist_id=artist_id,
         duration_secs=210,
         disc_no=1,
         track_no=1,
         mbid=None,
         isrc=None,
+        acoustid=None,
+        track_uid=None,
     )
     track_two = await adapter.upsert_track(
         title="Song Two",
         album_id=album_id,
+        primary_artist_id=artist_id,
         duration_secs=205,
         disc_no=1,
         track_no=2,
         mbid=None,
         isrc=None,
+        acoustid=None,
+        track_uid=None,
     )
 
     await adapter.link_track_artists(track_one, [(artist_id, "primary")])
@@ -428,6 +479,9 @@ async def test_album_insights_aggregates_metadata():
         source_track_id="1",
         position_secs=None,
         duration_secs=None,
+        artist_name_raw="Album Artist",
+        track_title_raw="Song One",
+        album_title_raw="Album Insight",
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -439,6 +493,9 @@ async def test_album_insights_aggregates_metadata():
         source_track_id="2",
         position_secs=None,
         duration_secs=None,
+        artist_name_raw="Album Artist",
+        track_title_raw="Song Two",
+        album_title_raw="Album Insight",
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )

@@ -23,9 +23,10 @@ services:
       - "6379:6379"
 
   scrobbler:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
+#    build:
+#      context: .
+#      dockerfile: docker/Dockerfile
+    image: muma/scrobbler:latest
     environment:
       SCROBBLER_DB_DSN: mysql+asyncmy://${MARIADB_USER:-scrob}:${MARIADB_PASSWORD:-scrobpass}@mariadb:3306/music-scrobbler
       SCROBBLER_REDIS_URL: redis://redis:6379/0
@@ -47,10 +48,11 @@ services:
       - ${SCROBBLER_MUSIC_PATH:-./music}:/music:ro
 
   analyzer-worker:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-    command: ["rq", "worker", "scrobbler-analyzer"]
+#    build:
+#      context: .
+#      dockerfile: docker/Dockerfile
+    image: muma/analyzezr-worker:latest
+    command: ["rq", "worker", "backend-analyzer"]
     environment:
       SCROBBLER_DB_DSN: mysql+asyncmy://${MARIADB_USER:-scrob}:${MARIADB_PASSWORD:-scrobpass}@mariadb:3306/music-scrobbler
       SCROBBLER_REDIS_URL: redis://redis:6379/0

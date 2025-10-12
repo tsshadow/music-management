@@ -60,9 +60,7 @@
   {:else if summary}
     <div class="kpi-grid">
       <KpiCard label="Total listens" value={totalListens.toLocaleString()} />
-      <KpiCard label="Media files scanned" value={summary.files.toLocaleString()} />
-      <KpiCard label="Library songs" value={summary.songs.toLocaleString()} />
-      <KpiCard label="Livesets" value={summary.livesets.toLocaleString()} />
+      <KpiCard label="Total media files" value={summary.files.toLocaleString()} />
     </div>
 
     <div class="lists">

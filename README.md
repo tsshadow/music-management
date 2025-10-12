@@ -170,4 +170,4 @@ See repo structure for scrobbler, frontend, and Docker artefacts. Built frontend
 
 ## License
 
-MIT
+GNU-AGPL 3.0

@@ -66,6 +66,12 @@ docker-compose up --build
 
 This starts MariaDB, phpMyAdmin, and the FastAPI service (serving the built frontend). The Scrobbler API listens on port 8080 and phpMyAdmin is available at <http://localhost:8081>.
 
+Docker images are published for every commit. The `latest` tag always tracks the current `main` branch while `latest-beta` is updated on every successful build (including pull requests). Use the `latest-beta` tag if you want to automatically roll out the most recent build.
+
+#### Automatic updates with Watchtower
+
+The included `docker-compose.yml` defines a [Watchtower](https://containrrr.dev/watchtower/) service that monitors the Scrobbler containers and upgrades them whenever a new image tagged `latest-beta` is available. Watchtower prunes superseded images (`--cleanup`) and polls for updates every five minutes. Disable the service or remove the `com.centurylinklabs.watchtower.enable=true` labels if you prefer to manage updates manually.
+
 ### API
 
 * `POST /api/v1/scrobble` – ingest JSON payloads

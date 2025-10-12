@@ -159,8 +159,10 @@ jobs:
                 .
             else
               TAG_ARGS+=("--tag" "${GHCR_IMAGE}:pr-${{ github.event.number }}")
+              TAG_ARGS+=("--tag" "${GHCR_IMAGE}:latest-beta")
               if [ "${PUSH_DOCKERHUB}" = "true" ]; then
                 TAG_ARGS+=("--tag" "${DOCKERHUB_IMAGE}:pr-${{ github.event.number }}")
+                TAG_ARGS+=("--tag" "${DOCKERHUB_IMAGE}:latest-beta")
               fi
 
               TAG_ARGS+=("--tag" "${GHCR_IMAGE}:latest-beta")
@@ -178,8 +180,10 @@ jobs:
             fi
           else
             TAG_ARGS+=("--tag" "${GHCR_IMAGE}:latest")
+            TAG_ARGS+=("--tag" "${GHCR_IMAGE}:latest-beta")
             if [ "${PUSH_DOCKERHUB}" = "true" ]; then
               TAG_ARGS+=("--tag" "${DOCKERHUB_IMAGE}:latest")
+              TAG_ARGS+=("--tag" "${DOCKERHUB_IMAGE}:latest-beta")
             fi
 
             TAG_ARGS+=("--tag" "${GHCR_IMAGE}:latest-beta")

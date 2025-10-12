@@ -5,12 +5,155 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sqlalchemy import insert
+from sqlalchemy import insert, select
+from analyzer.matching.normalizer import normalize_text
 from analyzer.matching.uid import make_track_uid
 
 from scrobbler.app.core.startup import init_database
 from scrobbler.app.db.sqlite_test import create_sqlite_memory_adapter
-from scrobbler.app.models import metadata, track_artists
+from scrobbler.app.models import (
+    albums,
+    artists,
+    genres,
+    metadata,
+    track_artists,
+    track_genres,
+    tracks,
+)
+
+
+async def add_artist(adapter, name: str, mbid: str | None = None) -> int:
+    normalized = normalize_text(name)
+    async with adapter.session_factory() as session:
+        res = await session.execute(
+            insert(artists).values(
+                name=name,
+                name_normalized=normalized,
+                sort_name=normalized,
+                mbid=mbid,
+            )
+        )
+        await session.commit()
+        return int(res.inserted_primary_key[0])
+
+
+async def add_genre(adapter, name: str) -> int:
+    normalized = normalize_text(name)
+    async with adapter.session_factory() as session:
+        res = await session.execute(
+            insert(genres).values(
+                name=name,
+                name_normalized=normalized,
+            )
+        )
+        await session.commit()
+        return int(res.inserted_primary_key[0])
+
+
+async def add_album(
+    adapter,
+    title: str,
+    *,
+    artist_id: int,
+    release_year: int | None = None,
+    mbid: str | None = None,
+) -> int:
+    normalized = normalize_text(title)
+    async with adapter.session_factory() as session:
+        res = await session.execute(
+            insert(albums).values(
+                artist_id=artist_id,
+                title=title,
+                title_normalized=normalized,
+                year=release_year,
+                mbid=mbid,
+            )
+        )
+        await session.commit()
+        return int(res.inserted_primary_key[0])
+
+
+async def add_track(
+    adapter,
+    *,
+    title: str,
+    album_id: int | None,
+    primary_artist_id: int | None,
+    duration_secs: int | None,
+    disc_no: int | None,
+    track_no: int | None,
+    mbid: str | None = None,
+    isrc: str | None = None,
+    acoustid: str | None = None,
+    track_uid: str | None = None,
+) -> int:
+    normalized = normalize_text(title)
+    async with adapter.session_factory() as session:
+        uid = track_uid
+        if uid is None:
+            artist_name = None
+            if primary_artist_id is not None:
+                artist_row = await session.execute(
+                    select(artists.c.name).where(artists.c.id == primary_artist_id)
+                )
+                artist_name = artist_row.scalar_one_or_none()
+            album_title = None
+            if album_id is not None:
+                album_row = await session.execute(
+                    select(albums.c.title).where(albums.c.id == album_id)
+                )
+                album_title = album_row.scalar_one_or_none()
+            uid = make_track_uid(artist_name, title, album_title, duration_secs)
+        res = await session.execute(
+            insert(tracks).values(
+                title=title,
+                title_normalized=normalized,
+                album_id=album_id,
+                primary_artist_id=primary_artist_id,
+                duration_secs=duration_secs,
+                disc_no=disc_no,
+                track_no=track_no,
+                mbid=mbid,
+                isrc=isrc,
+                acoustid=acoustid,
+                track_uid=uid,
+            )
+        )
+        await session.commit()
+        return int(res.inserted_primary_key[0])
+
+
+async def link_track_artist(
+    adapter,
+    track_id: int,
+    artists_payload,
+    role: str = "primary",
+) -> None:
+    async with adapter.session_factory() as session:
+        if isinstance(artists_payload, list):
+            pairs = artists_payload
+        else:
+            pairs = [(artists_payload, role)]
+        for artist_id, artist_role in pairs:
+            await session.execute(
+                insert(track_artists).values(
+                    track_id=track_id, artist_id=artist_id, role=artist_role
+                )
+            )
+        await session.commit()
+
+
+async def link_track_genre(adapter, track_id: int, genres_payload) -> None:
+    async with adapter.session_factory() as session:
+        if isinstance(genres_payload, list):
+            genre_ids = genres_payload
+        else:
+            genre_ids = [genres_payload]
+        for genre_id in genre_ids:
+            await session.execute(
+                insert(track_genres).values(track_id=track_id, genre_id=genre_id)
+            )
+        await session.commit()
 
 
 @pytest.mark.asyncio
@@ -22,11 +165,12 @@ async def test_adapter_upserts():
     user_id = await adapter.upsert_user("alice")
     assert user_id == await adapter.upsert_user("alice")
 
-    artist_id = await adapter.upsert_artist("Artist")
-    genre_id = await adapter.upsert_genre("Genre")
-    album_id = await adapter.upsert_album("Album", artist_id=artist_id, release_year=2024)
+    artist_id = await add_artist(adapter, "Artist")
+    genre_id = await add_genre(adapter, "Genre")
+    album_id = await add_album(adapter, "Album", artist_id=artist_id, release_year=2024)
     track_uid = make_track_uid("Artist", "Song", "Album", 200)
-    track_id = await adapter.upsert_track(
+    track_id = await add_track(
+        adapter,
         title="Song",
         album_id=album_id,
         primary_artist_id=artist_id,
@@ -38,8 +182,19 @@ async def test_adapter_upserts():
         acoustid=None,
         track_uid=track_uid,
     )
-    await adapter.link_track_artists(track_id, [(artist_id, "primary")])
-    await adapter.link_track_genres(track_id, [genre_id])
+    await link_track_artist(adapter, track_id, artist_id, "primary")
+    await link_track_genre(adapter, track_id, genre_id)
+
+    assert await adapter.lookup_artist_id("Artist") == artist_id
+    assert (
+        await adapter.lookup_album_id(
+            title="Album", artist_id=artist_id, release_year=2024
+        )
+        == album_id
+    )
+    assert await adapter.lookup_track_id_by_uid(track_uid) == track_id
+    assert await adapter.lookup_track_artist_ids(track_id) == [artist_id]
+    assert await adapter.lookup_track_genre_ids(track_id) == [genre_id]
 
     listened_at = datetime.now(timezone.utc)
     listen_id, created = await adapter.insert_listen(
@@ -106,11 +261,11 @@ async def test_fetch_recent_listens_prefers_clean_listen_artists():
     await adapter.connect()
 
     user_id = await adapter.upsert_user("alice")
-    artist_good1 = await adapter.upsert_artist("Jur Terreur")
-    artist_good2 = await adapter.upsert_artist("Brainkick")
-    artist_bad1 = await adapter.upsert_artist(",Jur Terreur")
-    artist_bad2 = await adapter.upsert_artist(" Brainkick ,")
-    track_id = await adapter.upsert_track(
+    artist_good1 = await add_artist(adapter, "Jur Terreur")
+    artist_good2 = await add_artist(adapter, "Brainkick")
+    artist_bad1 = await add_artist(adapter, ",Jur Terreur")
+    artist_bad2 = await add_artist(adapter, " Brainkick ,")
+    track_id = await add_track(adapter, 
         title="Ready To Move",
         album_id=None,
         primary_artist_id=None,
@@ -123,7 +278,7 @@ async def test_fetch_recent_listens_prefers_clean_listen_artists():
         track_uid=None,
     )
 
-    await adapter.link_track_artists(
+    await link_track_artist(adapter, 
         track_id,
         [
             (artist_good1, "primary"),
@@ -174,11 +329,11 @@ async def test_fetch_listens_supports_period_filters_and_pagination():
     await adapter.connect()
 
     user_id = await adapter.upsert_user("alice")
-    artist_id = await adapter.upsert_artist("Artist")
-    genre_id = await adapter.upsert_genre("Hardcore")
-    album_id = await adapter.upsert_album("Album", artist_id=artist_id, release_year=2023)
+    artist_id = await add_artist(adapter, "Artist")
+    genre_id = await add_genre(adapter, "Hardcore")
+    album_id = await add_album(adapter, "Album", artist_id=artist_id, release_year=2023)
 
-    track1 = await adapter.upsert_track(
+    track1 = await add_track(adapter, 
         title="Track One",
         album_id=album_id,
         primary_artist_id=artist_id,
@@ -190,7 +345,7 @@ async def test_fetch_listens_supports_period_filters_and_pagination():
         acoustid=None,
         track_uid=None,
     )
-    track2 = await adapter.upsert_track(
+    track2 = await add_track(adapter, 
         title="Track Two",
         album_id=album_id,
         primary_artist_id=artist_id,
@@ -203,10 +358,10 @@ async def test_fetch_listens_supports_period_filters_and_pagination():
         track_uid=None,
     )
 
-    await adapter.link_track_artists(track1, [(artist_id, "primary")])
-    await adapter.link_track_artists(track2, [(artist_id, "primary")])
-    await adapter.link_track_genres(track1, [genre_id])
-    await adapter.link_track_genres(track2, [genre_id])
+    await link_track_artist(adapter, track1, [(artist_id, "primary")])
+    await link_track_artist(adapter, track2, [(artist_id, "primary")])
+    await link_track_genre(adapter, track1, [genre_id])
+    await link_track_genre(adapter, track2, [genre_id])
 
     listen_day = datetime(2025, 10, 9, 7, 14, tzinfo=timezone.utc)
     previous_day = listen_day - timedelta(days=1)
@@ -277,10 +432,10 @@ async def test_fetch_listen_detail_returns_enriched_metadata():
     await adapter.connect()
 
     user_id = await adapter.upsert_user("alice")
-    artist_id = await adapter.upsert_artist("Detail Artist")
-    genre_id = await adapter.upsert_genre("Industrial")
-    album_id = await adapter.upsert_album("Detail Album", artist_id=artist_id, release_year=2024)
-    track_id = await adapter.upsert_track(
+    artist_id = await add_artist(adapter, "Detail Artist")
+    genre_id = await add_genre(adapter, "Industrial")
+    album_id = await add_album(adapter, "Detail Album", artist_id=artist_id, release_year=2024)
+    track_id = await add_track(adapter, 
         title="Detail Track",
         album_id=album_id,
         primary_artist_id=artist_id,
@@ -293,8 +448,8 @@ async def test_fetch_listen_detail_returns_enriched_metadata():
         track_uid=None,
     )
 
-    await adapter.link_track_artists(track_id, [(artist_id, "primary")])
-    await adapter.link_track_genres(track_id, [genre_id])
+    await link_track_artist(adapter, track_id, [(artist_id, "primary")])
+    await link_track_genre(adapter, track_id, [genre_id])
 
     listened_at = datetime.now(timezone.utc)
     listen_id, _ = await adapter.insert_listen(
@@ -333,12 +488,12 @@ async def test_artist_insights_aggregates_listens():
     await adapter.connect()
 
     user_id = await adapter.upsert_user("alice")
-    artist_id = await adapter.upsert_artist("Insight Artist")
-    other_artist = await adapter.upsert_artist("Guest")
-    genre_id = await adapter.upsert_genre("Hardcore")
-    album_id = await adapter.upsert_album("Insight Album", artist_id=artist_id, release_year=2022)
+    artist_id = await add_artist(adapter, "Insight Artist")
+    other_artist = await add_artist(adapter, "Guest")
+    genre_id = await add_genre(adapter, "Hardcore")
+    album_id = await add_album(adapter, "Insight Album", artist_id=artist_id, release_year=2022)
 
-    track_main = await adapter.upsert_track(
+    track_main = await add_track(adapter, 
         title="Main Track",
         album_id=album_id,
         primary_artist_id=artist_id,
@@ -350,7 +505,7 @@ async def test_artist_insights_aggregates_listens():
         acoustid=None,
         track_uid=None,
     )
-    track_guest = await adapter.upsert_track(
+    track_guest = await add_track(adapter, 
         title="Guest Track",
         album_id=album_id,
         primary_artist_id=artist_id,
@@ -363,10 +518,10 @@ async def test_artist_insights_aggregates_listens():
         track_uid=None,
     )
 
-    await adapter.link_track_artists(track_main, [(artist_id, "primary")])
-    await adapter.link_track_artists(track_guest, [(artist_id, "primary"), (other_artist, "featured")])
-    await adapter.link_track_genres(track_main, [genre_id])
-    await adapter.link_track_genres(track_guest, [genre_id])
+    await link_track_artist(adapter, track_main, [(artist_id, "primary")])
+    await link_track_artist(adapter, track_guest, [(artist_id, "primary"), (other_artist, "featured")])
+    await link_track_genre(adapter, track_main, [genre_id])
+    await link_track_genre(adapter, track_guest, [genre_id])
 
     base_time = datetime(2025, 1, 1, tzinfo=timezone.utc)
     await adapter.insert_listen(
@@ -436,11 +591,11 @@ async def test_album_insights_aggregates_metadata():
     await adapter.connect()
 
     user_id = await adapter.upsert_user("alice")
-    artist_id = await adapter.upsert_artist("Album Artist")
-    genre_id = await adapter.upsert_genre("Industrial")
-    album_id = await adapter.upsert_album("Album Insight", artist_id=artist_id, release_year=2021)
+    artist_id = await add_artist(adapter, "Album Artist")
+    genre_id = await add_genre(adapter, "Industrial")
+    album_id = await add_album(adapter, "Album Insight", artist_id=artist_id, release_year=2021)
 
-    track_one = await adapter.upsert_track(
+    track_one = await add_track(adapter, 
         title="Song One",
         album_id=album_id,
         primary_artist_id=artist_id,
@@ -452,7 +607,7 @@ async def test_album_insights_aggregates_metadata():
         acoustid=None,
         track_uid=None,
     )
-    track_two = await adapter.upsert_track(
+    track_two = await add_track(adapter, 
         title="Song Two",
         album_id=album_id,
         primary_artist_id=artist_id,
@@ -465,10 +620,10 @@ async def test_album_insights_aggregates_metadata():
         track_uid=None,
     )
 
-    await adapter.link_track_artists(track_one, [(artist_id, "primary")])
-    await adapter.link_track_artists(track_two, [(artist_id, "primary")])
-    await adapter.link_track_genres(track_one, [genre_id])
-    await adapter.link_track_genres(track_two, [genre_id])
+    await link_track_artist(adapter, track_one, [(artist_id, "primary")])
+    await link_track_artist(adapter, track_two, [(artist_id, "primary")])
+    await link_track_genre(adapter, track_one, [genre_id])
+    await link_track_genre(adapter, track_two, [genre_id])
 
     now = datetime.now(timezone.utc)
     await adapter.insert_listen(

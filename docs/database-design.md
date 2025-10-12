@@ -6,7 +6,7 @@ This document describes the relational data model shared by the `scrobbler` and 
 
 - **User activity** is stored in `listens`, with optional relationships to `tracks`, `artists`, and `genres` to enrich listening history.
 - **Media library** metadata flows in through the analyzer. It enriches artists, albums, tracks, and media files while populating association tables (`track_artists`, `track_genres`, `track_labels`, `track_tag_attributes`).
-- **Analyzer ↔ Scrobbler** share the same tables. The analyzer writes (and enriches) metadata, while the scrobbler reads it for API responses and the user interface and persists new `listens`.
+- **Analyzer ↔ Scrobbler** can operate on dedicated schemas (`medialibrary` and `listens`) that keep write ownership isolated while preserving cross-schema foreign keys. Deployments without schema privileges can continue to run in a single shared schema.
 
 ### Relationship model (text representation)
 
@@ -70,7 +70,33 @@ artists ──< albums
 ## Usage patterns
 
 - **Analyzer ingest** reads files (`media_files`), creates or updates `artists`, `albums`, `tracks`, and relationship tables (`track_artists`, `track_genres`, `track_labels`, `track_tag_attributes`, `title_aliases`). When matching listens the analyzer populates `listen_match_candidates` and updates `listens.track_id`, `enrich_status`, and `match_confidence`.
-- **Scrobbler API/UI** writes new `listens` (including raw fields `artist_name_raw`, `track_title_raw`, `album_title_raw`) and consumes enriched data via the relationships. It relies on canonical metadata to support search and browsing.
+- **Scrobbler API/UI** writes new `listens` (including raw fields `artist_name_raw`, `track_title_raw`, `album_title_raw`) and consumes enriched data via the relationships. It looks up existing artists/albums/tracks/genres in the media library and stores the listen even when no canonical match is available, falling back to the raw strings in the UI.
+
+## Media library and listening history schemas
+
+The application supports a physical split between media metadata and listening history. When configured, two schemas are created (or attached for SQLite) during bootstrap:
+
+| Schema | Ownership | Tables (indicative) | Notes |
+|--------|-----------|---------------------|-------|
+| `medialibrary` | Analyzer | `artists`, `artist_aliases`, `albums`, `tracks`, `track_artists`, `track_genres`, `genres`, `labels`, `track_labels`, `track_tag_attributes`, `tag_sources`, `media_files`, `title_aliases` | Contains canonical metadata derived from local scans or enrichment jobs. |
+| `listens` | Scrobbler | `users`, `listens`, `listen_artists`, `listen_genres`, `listen_match_candidates`, configuration tables that drive ingestion | Stores listening events, aggregates, and app configuration. |
+
+The `listens.listens` table keeps a foreign key into `medialibrary.tracks`, so every listen still resolves to canonical track metadata while writes remain isolated to the owning service.
+
+Configure the split by setting the following environment variables before starting the application:
+
+- `SCROBBLER_MEDIALIBRARY_SCHEMA` – schema/database used for analyzer-owned tables.
+- `SCROBBLER_LISTENS_SCHEMA` – schema/database used for scrobbler-owned tables.
+
+Leave either variable unset (or set it to an empty string) to keep the associated tables in the connection's default schema, which preserves compatibility for hosted MySQL/MariaDB accounts that lack privileges to create additional databases.
+
+When schemas are provided, existing single-schema deployments are upgraded in place. During application start-up the bootstrap routine will:
+
+1. Create or attach the configured schemas.
+2. Move legacy tables into their new schemas while preserving primary keys and data.
+3. Re-run column/index guards to ensure historical databases gain any newer analyzer fields.
+
+Fresh installations simply create the tables directly inside the configured schema(s).
 
 ## Column reference
 

@@ -3,11 +3,12 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from analyzer.db.repo import AnalyzerRepository
+from analyzer.services.library_admin_service import AnalyzerLibraryAdminService
 from analyzer.services.library_stats_service import AnalyzerLibraryStatsService
 from analyzer.services.summary_service import AnalyzerSummaryService
 
@@ -52,6 +53,7 @@ async def on_startup():
     analyzer_repo = AnalyzerRepository(engine)
     app.state.analyzer_summary_service = AnalyzerSummaryService(analyzer_repo)
     app.state.analyzer_library_stats_service = AnalyzerLibraryStatsService(analyzer_repo)
+    app.state.analyzer_library_admin_service = AnalyzerLibraryAdminService(analyzer_repo)
     app.state.listenbrainz_service = ListenBrainzImportService(
         ingest_service,
         base_url=settings.listenbrainz_base_url,
@@ -136,3 +138,19 @@ async def root():
         if index.exists():
             return HTMLResponse(index.read_text())
     return HTMLResponse("<h1>Scrobbler</h1>")
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def spa_fallback(full_path: str):
+    """Return the SPA entrypoint for client-side routes outside the API namespace."""
+
+    api_prefix = get_settings().api_prefix.lstrip("/")
+    if api_prefix and full_path.startswith(api_prefix):
+        raise HTTPException(status_code=404)
+    if full_path.startswith("static/") or full_path.startswith("assets/"):
+        raise HTTPException(status_code=404)
+    if static_dir.exists():
+        index = static_dir / "index.html"
+        if index.exists():
+            return HTMLResponse(index.read_text())
+    raise HTTPException(status_code=404)

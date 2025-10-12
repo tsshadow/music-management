@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from analyzer.services.library_admin_service import AnalyzerLibraryAdminService
 from analyzer.services.library_stats_service import AnalyzerLibraryStatsService
 
 from ..db.adapter import DatabaseAdapter
 from .deps import (
     get_adapter,
+    get_analyzer_library_admin_service,
     get_analyzer_library_stats_service,
     verify_api_key,
 )
@@ -60,6 +62,20 @@ async def library_tracks(
 
     data = await service.tracks(limit=page_size, offset=(page - 1) * page_size)
     return {**data, "page": page, "page_size": page_size}
+
+
+@router.delete("")
+async def reset_library(
+    service: AnalyzerLibraryAdminService = Depends(get_analyzer_library_admin_service),
+):
+    """Erase analyzer-managed media library data without touching media files."""
+
+    cleared = await service.clear_library()
+    return {
+        "cleared": cleared,
+        "tracks_removed": cleared.get("tracks", 0),
+        "media_files_removed": cleared.get("media_files", 0),
+    }
 
 
 @router.get("/artists/{artist_id}/insights")

@@ -1,20 +1,30 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import StatsLeaderboard, { type LeaderboardRow } from '../lib/components/StatsLeaderboard.svelte';
 
+  /** Tabular track listing used by the analyzer library view. */
   export let title = 'Meest geluisterde nummers';
   export let description = 'Zie welke tracks je maar blijft draaien.';
   export let endpoint = '/api/v1/stats/tracks';
   export let supportsPeriods = true;
-  export let countHeading = 'Listens';
 
   type Period = 'all' | 'day' | 'month' | 'year';
+  type TrackRow = {
+    track_id: number;
+    track: string;
+    artist?: string | null;
+    album?: string | null;
+    duration_secs?: number | null;
+    labels?: string[];
+    catalog_number?: string | null;
+    festival?: string | null;
+    count?: number;
+  };
 
   let period: Period = supportsPeriods ? 'year' : 'all';
   let value = supportsPeriods ? getDefaultValue(period) : '';
   let loading = false;
   let error: string | null = null;
-  let rows: LeaderboardRow[] = [];
+  let rows: TrackRow[] = [];
   let total = 0;
   let page = 1;
   const pageSize = 100;
@@ -54,15 +64,8 @@
       if (!response.ok) {
         throw new Error('Kon de nummers niet laden');
       }
-      const data: {
-        items: { track: string; count: number; artist?: string | null; album?: string | null }[];
-        total: number;
-      } = await response.json();
-      rows = data.items.map((item) => ({
-        label: item.artist ? `${item.track} — ${item.artist}` : item.track,
-        count: item.count,
-        album: item.album,
-      }));
+      const data: { items: TrackRow[]; total: number } = await response.json();
+      rows = data.items;
       total = data.total;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Onbekende fout';
@@ -103,6 +106,16 @@
   $: totalPages = Math.max(1, Math.ceil(total / pageSize));
   $: showingStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
   $: showingEnd = total === 0 ? 0 : Math.min(total, page * pageSize);
+
+  function formatDuration(seconds: number | null | undefined): string {
+    if (seconds === null || seconds === undefined) {
+      return '—';
+    }
+    const safeSeconds = Math.max(0, Math.round(seconds));
+    const minutes = Math.floor(safeSeconds / 60);
+    const remainder = safeSeconds % 60;
+    return `${minutes}:${String(remainder).padStart(2, '0')}`;
+  }
 
   onMount(() => {
     loadData();
@@ -154,7 +167,38 @@
     <p class="status error">{error}</p>
   {:else}
     <div class="table-wrapper">
-      <StatsLeaderboard {rows} labelHeading="Nummer" {countHeading} />
+      <table>
+        <thead>
+          <tr>
+            <th>Track</th>
+            <th>Artist</th>
+            <th>Album</th>
+            <th>Duration</th>
+            <th>Labels</th>
+            <th>Catalog ID</th>
+            <th>Festival</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#if rows.length === 0}
+            <tr>
+              <td colspan="7" class="empty">Geen nummers gevonden.</td>
+            </tr>
+          {:else}
+            {#each rows as row}
+              <tr>
+                <td>{row.track}</td>
+                <td>{row.artist ?? '—'}</td>
+                <td>{row.album ?? '—'}</td>
+                <td>{formatDuration(row.duration_secs)}</td>
+                <td>{row.labels && row.labels.length ? row.labels.join(', ') : '—'}</td>
+                <td>{row.catalog_number ?? '—'}</td>
+                <td>{row.festival ?? '—'}</td>
+              </tr>
+            {/each}
+          {/if}
+        </tbody>
+      </table>
       <footer class="pagination">
         {#if total === 0}
           <span>Geen data beschikbaar voor deze periode.</span>
@@ -235,13 +279,42 @@
   }
 
   .table-wrapper {
-    width: min(720px, 100%);
+    width: min(960px, 100%);
     background: rgba(0, 0, 0, 0.15);
     border-radius: 1rem;
     padding: 1rem;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.5rem;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  thead {
+    background: rgba(255, 255, 255, 0.05);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.75rem;
+  }
+
+  tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .empty {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: rgba(255, 255, 255, 0.6);
   }
 
   .status {

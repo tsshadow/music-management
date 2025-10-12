@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import Depends, Header, HTTPException, Request, status
 
+from analyzer.services.library_admin_service import AnalyzerLibraryAdminService
 from analyzer.services.library_stats_service import AnalyzerLibraryStatsService
 from analyzer.services.summary_service import AnalyzerSummaryService
 
@@ -63,3 +64,11 @@ def get_analyzer_library_stats_service(
     """Return the analyzer library stats service stored in the application state."""
 
     return request.app.state.analyzer_library_stats_service
+
+
+def get_analyzer_library_admin_service(
+    request: Request,
+) -> AnalyzerLibraryAdminService:
+    """Return the analyzer library admin service stored in the application state."""
+
+    return request.app.state.analyzer_library_admin_service

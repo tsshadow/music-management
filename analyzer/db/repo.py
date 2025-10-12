@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections import defaultdict
 from datetime import datetime
 from typing import Iterable, Sequence
 
@@ -238,6 +239,66 @@ class AnalyzerRepository:
                     await session.execute(
                         insert(track_labels).values(track_id=track_id, label_id=label_id)
                     )
+            await session.commit()
+
+    async def _ensure_tag_source(self, session, name: str, priority: int) -> int:
+        stmt = select(tag_sources.c.id).where(tag_sources.c.name == name)
+        result = await session.execute(stmt)
+        row = result.first()
+        if row:
+            source_id = int(row[0])
+            await session.execute(
+                update(tag_sources)
+                .where(tag_sources.c.id == source_id)
+                .values(priority=priority, updated_at=func.now())
+            )
+            return source_id
+        insert_stmt = insert(tag_sources).values(name=name, priority=priority)
+        result = await session.execute(insert_stmt)
+        return int(result.inserted_primary_key[0])
+
+    async def set_track_attribute(
+        self,
+        track_id: int,
+        *,
+        key: str,
+        value: str,
+        source: str,
+        priority: int = 0,
+    ) -> None:
+        async with self.session_factory() as session:
+            source_id = await self._ensure_tag_source(session, source, priority)
+            exists_stmt = select(track_tag_attributes.c.track_id).where(
+                and_(
+                    track_tag_attributes.c.track_id == track_id,
+                    track_tag_attributes.c.key == key,
+                )
+            )
+            result = await session.execute(exists_stmt)
+            if result.first():
+                await session.execute(
+                    update(track_tag_attributes)
+                    .where(
+                        and_(
+                            track_tag_attributes.c.track_id == track_id,
+                            track_tag_attributes.c.key == key,
+                        )
+                    )
+                    .values(
+                        value=value,
+                        source_id=source_id,
+                        updated_at=func.now(),
+                    )
+                )
+            else:
+                await session.execute(
+                    insert(track_tag_attributes).values(
+                        track_id=track_id,
+                        key=key,
+                        value=value,
+                        source_id=source_id,
+                    )
+                )
             await session.commit()
 
     async def upsert_genre(self, *, name: str, name_normalized: str) -> int:
@@ -694,6 +755,73 @@ class AnalyzerRepository:
                 .offset(offset)
                 .limit(limit)
             )
+            records = rows.fetchall()
+            track_ids = [int(row.track_id) for row in records]
+            label_map: dict[int, list[str]] = defaultdict(list)
+            catalog_map: dict[int, str] = {}
+            festival_map: dict[int, str] = {}
+            if track_ids:
+                label_rows = await session.execute(
+                    select(track_labels.c.track_id, labels.c.name)
+                    .select_from(track_labels.join(labels, track_labels.c.label_id == labels.c.id))
+                    .where(track_labels.c.track_id.in_(track_ids))
+                    .order_by(track_labels.c.track_id, labels.c.name)
+                )
+                for row in label_rows.fetchall():
+                    label_map[int(row.track_id)].append(row.name)
+
+                catalog_rows = await session.execute(
+                    select(
+                        track_tag_attributes.c.track_id,
+                        track_tag_attributes.c.value,
+                    )
+                    .select_from(
+                        track_tag_attributes.join(
+                            tag_sources,
+                            track_tag_attributes.c.source_id == tag_sources.c.id,
+                        )
+                    )
+                    .where(
+                        track_tag_attributes.c.key == "catalog_number",
+                        track_tag_attributes.c.track_id.in_(track_ids),
+                    )
+                    .order_by(
+                        track_tag_attributes.c.track_id,
+                        tag_sources.c.priority.asc(),
+                        track_tag_attributes.c.updated_at.desc(),
+                    )
+                )
+                for row in catalog_rows.fetchall():
+                    track_id = int(row.track_id)
+                    if track_id not in catalog_map:
+                        catalog_map[track_id] = row.value
+
+                festival_rows = await session.execute(
+                    select(
+                        track_tag_attributes.c.track_id,
+                        track_tag_attributes.c.value,
+                    )
+                    .select_from(
+                        track_tag_attributes.join(
+                            tag_sources,
+                            track_tag_attributes.c.source_id == tag_sources.c.id,
+                        )
+                    )
+                    .where(
+                        track_tag_attributes.c.key == "festival",
+                        track_tag_attributes.c.track_id.in_(track_ids),
+                    )
+                    .order_by(
+                        track_tag_attributes.c.track_id,
+                        tag_sources.c.priority.asc(),
+                        track_tag_attributes.c.updated_at.desc(),
+                    )
+                )
+                for row in festival_rows.fetchall():
+                    track_id = int(row.track_id)
+                    if track_id not in festival_map:
+                        festival_map[track_id] = row.value
+
             items = [
                 {
                     "track_id": int(row.track_id),
@@ -701,8 +829,36 @@ class AnalyzerRepository:
                     "album": row.album,
                     "artist": row.artist,
                     "duration_secs": row.duration_secs,
+                    "labels": label_map.get(int(row.track_id), []),
+                    "catalog_number": catalog_map.get(int(row.track_id)),
+                    "festival": festival_map.get(int(row.track_id)),
                     "count": 1,
                 }
-                for row in rows.fetchall()
+                for row in records
             ]
             return items, int(total)
+
+    async def reset_library(self) -> dict[str, int]:
+        """Remove analyzer-managed media library data."""
+
+        tables = [
+            track_tag_attributes,
+            track_labels,
+            track_genres,
+            track_artists,
+            title_aliases,
+            media_files,
+            tracks,
+            albums,
+            artist_aliases,
+            labels,
+            genres,
+            artists,
+        ]
+        results: dict[str, int] = {}
+        async with self.session_factory() as session:
+            for table in tables:
+                outcome = await session.execute(delete(table))
+                results[table.name] = int(outcome.rowcount or 0)
+            await session.commit()
+        return results

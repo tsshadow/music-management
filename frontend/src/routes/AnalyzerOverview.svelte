@@ -1,4 +1,5 @@
 <script lang="ts">
+  /** Analyzer overview card summarising scan status and top-level metrics. */
   import { onMount } from 'svelte';
   import KpiCard from '../lib/components/KpiCard.svelte';
 

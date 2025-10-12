@@ -163,6 +163,11 @@ jobs:
                 TAG_ARGS+=("--tag" "${DOCKERHUB_IMAGE}:pr-${{ github.event.number }}")
               fi
 
+              TAG_ARGS+=("--tag" "${GHCR_IMAGE}:latest-beta")
+              if [ "${PUSH_DOCKERHUB}" = "true" ]; then
+                TAG_ARGS+=("--tag" "${DOCKERHUB_IMAGE}:latest-beta")
+              fi
+
               docker buildx build \
                 --file docker/Dockerfile \
                 --target "${TARGET}" \
@@ -175,6 +180,11 @@ jobs:
             TAG_ARGS+=("--tag" "${GHCR_IMAGE}:latest")
             if [ "${PUSH_DOCKERHUB}" = "true" ]; then
               TAG_ARGS+=("--tag" "${DOCKERHUB_IMAGE}:latest")
+            fi
+
+            TAG_ARGS+=("--tag" "${GHCR_IMAGE}:latest-beta")
+            if [ "${PUSH_DOCKERHUB}" = "true" ]; then
+              TAG_ARGS+=("--tag" "${DOCKERHUB_IMAGE}:latest-beta")
             fi
 
             docker buildx build \

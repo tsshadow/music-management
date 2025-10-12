@@ -26,6 +26,9 @@ from scrobbler.app.schemas.common import ArtistInput, ScrobblePayload, TrackInpu
 from scrobbler.app.services.ingest_service import IngestService
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.fixture
 async def isolated_database():
     """Create a fresh in-memory database for each integration scenario."""

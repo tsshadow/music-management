@@ -31,6 +31,9 @@ anyio = "^4.3.0"
 addopts = "-q"
 asyncio_mode = "auto"
 python_files = ["test_*.py"]
+markers = [
+    "integration: integration tests that exercise analyzer and scrobbler flows",
+]
 
 [build-system]
 requires = ["poetry-core>=1.8.2"]

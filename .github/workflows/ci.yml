@@ -29,8 +29,11 @@ jobs:
           poetry config virtualenvs.create false
           poetry install --no-interaction --no-ansi
 
-      - name: Run pytest
-        run: pytest
+      - name: Run unit tests
+        run: pytest -m "not integration"
+
+      - name: Run integration flow tests
+        run: pytest -m integration
 
   frontend:
     name: Build frontend

@@ -305,3 +305,35 @@ async def test_to_payload_uses_mbid_mapping_artist_credit():
         "Elite Enemy",
         "The Dope Doctor",
     ]
+
+
+@pytest.mark.asyncio
+async def test_to_payload_normalizes_soundcloud_album_title():
+    service = ListenBrainzImportService(SimpleNamespace())
+    listen = build_listen(
+        track_metadata={
+            "track_name": "Example",
+            "artist_name": "Artist",
+            "release_name": "Soundcloud (SCANTRAXX) - Week 1",
+        }
+    )
+
+    payload = await service._to_payload("tester", listen, SimpleNamespace())
+
+    assert payload.track.album == "Soundcloud (SCANTRAXX)"
+
+
+@pytest.mark.asyncio
+async def test_to_payload_normalizes_youtube_album_title_without_parenthesis():
+    service = ListenBrainzImportService(SimpleNamespace())
+    listen = build_listen(
+        track_metadata={
+            "track_name": "Example",
+            "artist_name": "Artist",
+            "release_name": "Youtube Special - Supremacy Warmup",
+        }
+    )
+
+    payload = await service._to_payload("tester", listen, SimpleNamespace())
+
+    assert payload.track.album == "Youtube Special"

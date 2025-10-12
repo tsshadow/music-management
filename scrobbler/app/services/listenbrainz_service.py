@@ -130,7 +130,7 @@ class ListenBrainzImportService:
 
         track = TrackInput(
             title=track_title,
-            album=metadata.get("release_name"),
+            album=self._normalize_album_title(metadata.get("release_name")),
             album_year=None,
             track_no=track_no,
             disc_no=disc_no,
@@ -242,6 +242,28 @@ class ListenBrainzImportService:
             parts = new_parts
 
         return [part for part in parts if part]
+
+    @staticmethod
+    def _normalize_album_title(title: Any) -> str | None:
+        """Return a cleaned album title with ListenBrainz specific tweaks."""
+
+        if not isinstance(title, str):
+            return None
+
+        cleaned = title.strip()
+        if not cleaned:
+            return None
+
+        lowered = cleaned.casefold()
+        if "soundcloud" in lowered or "youtube" in lowered:
+            if ")" in cleaned:
+                cleaned = cleaned[: cleaned.index(")") + 1].strip()
+            else:
+                for delimiter in (" - ", " -", "- ", ":", "|"):
+                    if delimiter in cleaned:
+                        cleaned = cleaned.split(delimiter, 1)[0].strip()
+                        break
+        return cleaned or None
 
     async def _fetch_remote_genres(
         self,

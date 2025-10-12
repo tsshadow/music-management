@@ -1,19 +1,18 @@
 <script lang="ts">
+  /** Scrobbler dashboard for inspecting listening history and running imports. */
   import { onMount } from 'svelte';
   import Albums from './Albums.svelte';
   import Artists from './Artists.svelte';
   import Genres from './Genres.svelte';
   import Home from './Home.svelte';
-  import Tracks from './Tracks.svelte';
 
-  type Tab = 'listens' | 'artists' | 'albums' | 'genres' | 'tracks';
+  type Tab = 'listens' | 'artists' | 'albums' | 'genres';
 
   const tabOrder: { id: Tab; label: string }[] = [
     { id: 'listens', label: 'Listens' },
     { id: 'artists', label: 'Artists' },
     { id: 'albums', label: 'Albums' },
-    { id: 'genres', label: 'Genres' },
-    { id: 'tracks', label: 'Tracks' }
+    { id: 'genres', label: 'Genres' }
   ];
 
   let tab: Tab = 'listens';
@@ -134,10 +133,8 @@
       <Artists title="Top artists by listens" description="See which artists dominate your listening history." />
     {:else if tab === 'albums'}
       <Albums title="Top albums by listens" description="Your most played records across different periods." />
-    {:else if tab === 'genres'}
-      <Genres title="Top genres by listens" description="Discover which genres you gravitate towards over time." />
     {:else}
-      <Tracks title="Top tracks by listens" description="Find the songs you keep coming back to." />
+      <Genres title="Top genres by listens" description="Discover which genres you gravitate towards over time." />
     {/if}
   </div>
 </section>
@@ -237,6 +234,7 @@
     display: flex;
     gap: 0.75rem;
     flex-wrap: wrap;
+    justify-content: center;
   }
 
   .tabs button {

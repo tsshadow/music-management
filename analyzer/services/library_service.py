@@ -92,11 +92,35 @@ class LibraryService:
     async def link_track_labels(self, track_id: int, label_ids: Iterable[int]) -> None:
         await self.repo.link_track_labels(track_id, label_ids)
 
+    async def set_track_attribute(
+        self,
+        track_id: int,
+        *,
+        key: str,
+        value: str,
+        source: str = "analyzer_scan",
+        priority: int = 0,
+    ) -> None:
+        """Assign a tag attribute value to a track from a given source."""
+
+        await self.repo.set_track_attribute(
+            track_id,
+            key=key,
+            value=value,
+            source=source,
+            priority=priority,
+        )
+
     async def upsert_genre(self, name: str) -> int:
         return await self.repo.upsert_genre(name=name, name_normalized=normalize_text(name))
 
     async def upsert_label(self, name: str) -> int:
         return await self.repo.upsert_label(name=name, name_normalized=normalize_text(name))
+
+    async def reset_library(self) -> dict[str, int]:
+        """Remove all analyzer-managed library records."""
+
+        return await self.repo.reset_library()
 
     async def register_media_file(
         self,

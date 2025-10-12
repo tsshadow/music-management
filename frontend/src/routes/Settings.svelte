@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
+  /** Settings view for application configuration and maintenance actions. */
+
   const editableFields = [
     { key: 'default_user', type: 'text', label: 'Default user' },
     { key: 'lms_source_name', type: 'text', label: 'LMS source name' },
@@ -15,6 +17,8 @@
   let exportMessage = '';
   let deleting = false;
   let deleteMessage = '';
+  let clearingLibrary = false;
+  let libraryMessage = '';
 
   function handleInput(key: string, event: Event) {
     const input = event.target as HTMLInputElement;
@@ -117,6 +121,37 @@
     }
   }
 
+  async function deleteMediaLibrary() {
+    if (!confirm('This will erase analyzer media library metadata. Continue?')) {
+      return;
+    }
+    clearingLibrary = true;
+    libraryMessage = '';
+    try {
+      const headers: Record<string, string> = {};
+      if (values.api_key) {
+        headers['X-Api-Key'] = values.api_key;
+      }
+      const response = await fetch('/api/v1/library', {
+        method: 'DELETE',
+        headers,
+      });
+      if (!response.ok) {
+        const detail = await response.text();
+        libraryMessage = `Library reset failed: ${detail || response.statusText}`;
+        return;
+      }
+      const data = await response.json();
+      const tracksRemoved = data.tracks_removed ?? 0;
+      const filesRemoved = data.media_files_removed ?? 0;
+      libraryMessage = `Media library cleared: ${tracksRemoved} tracks removed, ${filesRemoved} files detached.`;
+    } catch (error) {
+      libraryMessage = 'Library reset failed: network error';
+    } finally {
+      clearingLibrary = false;
+    }
+  }
+
   onMount(() => {
     loadConfig();
   });
@@ -144,6 +179,9 @@
       <button on:click={deleteAllListens} disabled={deleting} class="danger">
         {deleting ? 'Deleting…' : 'Delete all listens'}
       </button>
+      <button on:click={deleteMediaLibrary} disabled={clearingLibrary} class="danger">
+        {clearingLibrary ? 'Clearing…' : 'Delete media library data'}
+      </button>
     </div>
     {#if message}
       <p class="message">{message}</p>
@@ -153,6 +191,9 @@
     {/if}
     {#if deleteMessage}
       <p class="message warning">{deleteMessage}</p>
+    {/if}
+    {#if libraryMessage}
+      <p class="message warning">{libraryMessage}</p>
     {/if}
   </div>
 </section>

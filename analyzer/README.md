@@ -29,6 +29,7 @@ when scrobbles or enrichment jobs provide them:
 - Track number, disc number and duration (in seconds)
 - MusicBrainz identifiers (MBID) and ISRC codes when available
 - Genre assignments and record labels linked to each track
+- Catalog numbers (CATALOGUSNUMBER) and festival tags captured as analyzer attributes
 
 The analyzer API exposes queueable jobs to scan libraries, enrich listens and
 reindex track identifiers. The `/api/v1/analyzer/summary` endpoint surfaces a

@@ -1,4 +1,5 @@
 <script lang="ts">
+  /** Analyzer view offering access to normalized media library insights. */
   import Albums from './Albums.svelte';
   import AnalyzerOverview from './AnalyzerOverview.svelte';
   import Artists from './Artists.svelte';
@@ -110,6 +111,7 @@
     display: flex;
     gap: 0.75rem;
     flex-wrap: wrap;
+    justify-content: center;
   }
 
   .tabs button {

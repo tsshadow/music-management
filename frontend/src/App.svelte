@@ -19,9 +19,6 @@
 </script>
 
 <main>
-  <header class="main-header">
-    <h1>{titles[page]}</h1>
-  </header>
   <nav class="primary-nav">
     <button class:active={page === 'scrobbler'} on:click={() => show('scrobbler')}>
       Scrobbler

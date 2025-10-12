@@ -26,6 +26,7 @@ services:
 #    build:
 #      context: .
 #      dockerfile: docker/Dockerfile
+#      target: scrobbler
     image: muma/scrobbler:latest
     environment:
       SCROBBLER_DB_DSN: mysql+asyncmy://${MARIADB_USER:-scrob}:${MARIADB_PASSWORD:-scrobpass}@mariadb:3306/music-scrobbler
@@ -51,7 +52,8 @@ services:
 #    build:
 #      context: .
 #      dockerfile: docker/Dockerfile
-    image: muma/analyzezr-worker:latest
+#      target: analyzer-worker
+    image: muma/analyzer-worker:latest
     command: ["rq", "worker", "backend-analyzer"]
     environment:
       SCROBBLER_DB_DSN: mysql+asyncmy://${MARIADB_USER:-scrob}:${MARIADB_PASSWORD:-scrobpass}@mariadb:3306/music-scrobbler

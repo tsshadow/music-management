@@ -2,10 +2,16 @@
   import { onMount } from 'svelte';
   import StatsLeaderboard, { type LeaderboardRow } from '../lib/components/StatsLeaderboard.svelte';
 
+  export let title = 'Meest geluisterde genres';
+  export let description = 'Kies een periode om te zien welke genres je het meest draaide.';
+  export let endpoint = '/api/v1/stats/genres';
+  export let supportsPeriods = true;
+  export let countHeading = 'Listens';
+
   type Period = 'all' | 'day' | 'month' | 'year';
 
-  let period: Period = 'year';
-  let value = getDefaultValue(period);
+  let period: Period = supportsPeriods ? 'year' : 'all';
+  let value = supportsPeriods ? getDefaultValue(period) : '';
   let loading = false;
   let error: string | null = null;
   let rows: LeaderboardRow[] = [];
@@ -29,7 +35,7 @@
   }
 
   async function loadData() {
-    if (period !== 'all' && !value) {
+    if (supportsPeriods && period !== 'all' && !value) {
       rows = [];
       total = 0;
       return;
@@ -37,11 +43,14 @@
     loading = true;
     error = null;
     try {
-      const params = new URLSearchParams({ period, page: String(page), page_size: String(pageSize) });
-      if (period !== 'all') {
-        params.set('value', value);
+      const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+      if (supportsPeriods) {
+        params.set('period', period);
+        if (period !== 'all') {
+          params.set('value', value);
+        }
       }
-      const response = await fetch(`/api/v1/stats/genres?${params.toString()}`);
+      const response = await fetch(`${endpoint}?${params.toString()}`);
       if (!response.ok) {
         throw new Error('Kon de genres niet laden');
       }
@@ -61,6 +70,9 @@
   }
 
   function onPeriodChange(event: Event) {
+    if (!supportsPeriods) {
+      return;
+    }
     period = (event.target as HTMLSelectElement).value as Period;
     value = getDefaultValue(period);
     page = 1;
@@ -68,6 +80,9 @@
   }
 
   function onValueChange(event: Event) {
+    if (!supportsPeriods) {
+      return;
+    }
     value = (event.target as HTMLInputElement).value;
     page = 1;
     loadData();
@@ -92,40 +107,42 @@
 
 <section class="page">
   <header>
-    <h2>Meest geluisterde genres</h2>
-    <p>Kies een periode om te zien welke genres je het meest draaide.</p>
+    <h2>{title}</h2>
+    <p>{description}</p>
   </header>
 
-  <div class="controls">
-    <label>
-      Periode
-      <select bind:value={period} on:change={onPeriodChange}>
-        <option value="all">Altijd</option>
-        <option value="day">Dag</option>
-        <option value="month">Maand</option>
-        <option value="year">Jaar</option>
-      </select>
-    </label>
+  {#if supportsPeriods}
+    <div class="controls">
+      <label>
+        Periode
+        <select bind:value={period} on:change={onPeriodChange}>
+          <option value="all">Altijd</option>
+          <option value="day">Dag</option>
+          <option value="month">Maand</option>
+          <option value="year">Jaar</option>
+        </select>
+      </label>
 
-    <label class:disabled={period === 'all'}>
-      Waarde
-      {#if period === 'year'}
-        <input
-          type="text"
-          inputmode="numeric"
-          maxlength="4"
-          bind:value={value}
-          on:change={onValueChange}
-        />
-      {:else if period === 'month'}
-        <input type="month" bind:value={value} on:change={onValueChange} />
-      {:else if period === 'day'}
-        <input type="date" bind:value={value} on:change={onValueChange} />
-      {:else}
-        <span class="all-time-pill">Alles</span>
-      {/if}
-    </label>
-  </div>
+      <label class:disabled={period === 'all'}>
+        Waarde
+        {#if period === 'year'}
+          <input
+            type="text"
+            inputmode="numeric"
+            maxlength="4"
+            bind:value={value}
+            on:change={onValueChange}
+          />
+        {:else if period === 'month'}
+          <input type="month" bind:value={value} on:change={onValueChange} />
+        {:else if period === 'day'}
+          <input type="date" bind:value={value} on:change={onValueChange} />
+        {:else}
+          <span class="all-time-pill">Alles</span>
+        {/if}
+      </label>
+    </div>
+  {/if}
 
   {#if loading}
     <p class="status">Bezig met laden…</p>
@@ -133,7 +150,7 @@
     <p class="status error">{error}</p>
   {:else}
     <div class="table-wrapper">
-      <StatsLeaderboard {rows} labelHeading="Genre" />
+      <StatsLeaderboard {rows} labelHeading="Genre" {countHeading} />
       <footer class="pagination">
         {#if total === 0}
           <span>Geen data beschikbaar voor deze periode.</span>

@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from analyzer.db.repo import AnalyzerRepository
+from analyzer.services.library_stats_service import AnalyzerLibraryStatsService
 from analyzer.services.summary_service import AnalyzerSummaryService
 
 from .api import (
@@ -48,9 +49,9 @@ async def on_startup():
     app.state.db_adapter = adapter
     app.state.ingest_service = ingest_service
     app.state.stats_service = StatsService(adapter)
-    app.state.analyzer_summary_service = AnalyzerSummaryService(
-        AnalyzerRepository(engine)
-    )
+    analyzer_repo = AnalyzerRepository(engine)
+    app.state.analyzer_summary_service = AnalyzerSummaryService(analyzer_repo)
+    app.state.analyzer_library_stats_service = AnalyzerLibraryStatsService(analyzer_repo)
     app.state.listenbrainz_service = ListenBrainzImportService(
         ingest_service,
         base_url=settings.listenbrainz_base_url,

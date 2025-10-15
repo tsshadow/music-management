@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from scrobbler.app.db.schema import apply_schema_updates
+from backend.app.db.schema import apply_schema_updates
 
 
 @pytest.mark.asyncio

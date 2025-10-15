@@ -8,8 +8,8 @@ import pytest
 
 from analyzer.db.repo import AnalyzerRepository
 
-from scrobbler.app.main import app
-from scrobbler.tests.fixtures import seed_dataset
+from backend.app.main import app
+from backend.tests.fixtures import seed_dataset
 
 
 @pytest.mark.asyncio

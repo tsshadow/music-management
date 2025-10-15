@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from analyzer.jobs.queue import get_queue
-from scrobbler.app.core.settings import get_settings
+from backend.app.core.settings import get_settings
 
 router = APIRouter(prefix="/analyzer", tags=["analyzer"])
 

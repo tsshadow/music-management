@@ -14,11 +14,11 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
-from scrobbler.app.core.settings import get_settings
+from backend.app.core.settings import get_settings
 
 get_settings.cache_clear()  # type: ignore
 
-from scrobbler.app.main import app  # noqa: E402
+from backend.app.main import app  # noqa: E402
 
 
 @pytest.fixture(scope="session")

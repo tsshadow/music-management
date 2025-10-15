@@ -11,7 +11,7 @@ from typing import Iterable, Sequence
 from sqlalchemy import and_, delete, func, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
-from scrobbler.app.models import (
+from backend.app.models import (
     albums,
     artist_aliases,
     artists,

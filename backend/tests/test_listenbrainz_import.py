@@ -9,8 +9,8 @@ from analyzer.db.repo import AnalyzerRepository
 from analyzer.matching.normalizer import normalize_text
 from analyzer.matching.uid import make_track_uid
 
-from scrobbler.app.main import app
-from scrobbler.app.services.listenbrainz_service import ListenBrainzImportService
+from backend.app.main import app
+from backend.app.services.listenbrainz_service import ListenBrainzImportService
 
 
 def build_listen(ts: int, title: str, artist: str) -> dict[str, Any]:

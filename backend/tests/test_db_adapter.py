@@ -9,9 +9,9 @@ from sqlalchemy import insert, select
 from analyzer.matching.normalizer import normalize_text
 from analyzer.matching.uid import make_track_uid
 
-from scrobbler.app.core.startup import init_database
-from scrobbler.app.db.sqlite_test import create_sqlite_memory_adapter
-from scrobbler.app.models import (
+from backend.app.core.startup import init_database
+from backend.app.db.sqlite_test import create_sqlite_memory_adapter
+from backend.app.models import (
     albums,
     artists,
     genres,

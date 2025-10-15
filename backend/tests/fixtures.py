@@ -10,7 +10,7 @@ from analyzer.db.repo import AnalyzerRepository
 from analyzer.matching.normalizer import normalize_text
 from analyzer.matching.uid import make_track_uid
 
-from scrobbler.app.main import app
+from backend.app.main import app
 
 
 def iso(dt: datetime) -> str:

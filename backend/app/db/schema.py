@@ -23,10 +23,22 @@ MEDIA_LIBRARY_TABLES = {
     "media_files",
     "tag_sources",
     "track_tag_attributes",
+    "release_groups",
+    "releases",
+    "release_items",
+    "release_labels",
+    "publishers",
+    "release_publishers",
+    "playlists",
+    "playlist_items",
+    "events",
+    "event_recordings",
+    "external_ids",
 }
 
 LISTENING_TABLES = {
     "users",
+    "listens_raw",
     "listens",
     "listen_match_candidates",
     "listen_artists",
@@ -153,16 +165,20 @@ def _ensure_media_columns(connection, inspector, dialect: str) -> None:
     ensure_column("genres", "name_normalized", "VARCHAR(100) NOT NULL DEFAULT ''")
     ensure_column("genres", "updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP")
 
-    ensure_column("albums", "artist_id", "INTEGER")
+    ensure_column("albums", "primary_artist_id", "INTEGER")
     ensure_column("albums", "title_normalized", "VARCHAR(255) NOT NULL DEFAULT ''")
+    ensure_column("albums", "type", "VARCHAR(32) NOT NULL DEFAULT 'album'")
     ensure_column("albums", "year", "SMALLINT")
     ensure_column("albums", "updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP")
 
     if "tracks" in tables:
         ensure_column("tracks", "title_normalized", "VARCHAR(255) NOT NULL DEFAULT ''")
+        ensure_column("tracks", "album_id", "INTEGER")
         ensure_column("tracks", "primary_artist_id", "INTEGER")
         ensure_column("tracks", "acoustid", "VARCHAR(40)")
         ensure_column("tracks", "track_uid", "VARCHAR(40)")
+        ensure_column("tracks", "disc_no", "SMALLINT")
+        ensure_column("tracks", "track_no", "SMALLINT")
         ensure_column("tracks", "updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP")
         columns = {
             col["name"]
@@ -208,11 +224,19 @@ def _ensure_listen_columns(connection, inspector, dialect: str) -> None:
             qualified = _qualified_table(LISTENS_SCHEMA, table, dialect)
             connection.execute(text(ddl.format(table=qualified)))
 
+    if "listens_raw" in tables:
+        ensure_column("listens_raw", "source", "VARCHAR(64) NOT NULL DEFAULT ''")
+        ensure_column("listens_raw", "source_track_id", "VARCHAR(128) NOT NULL DEFAULT ''")
+        ensure_column("listens_raw", "payload_json", "LONGTEXT")
+        ensure_column("listens_raw", "ingested_at", "DATETIME DEFAULT CURRENT_TIMESTAMP")
+
     if "listens" in tables:
+        ensure_column("listens", "raw_id", "INTEGER")
         ensure_column("listens", "artist_name_raw", "VARCHAR(255)")
         ensure_column("listens", "track_title_raw", "VARCHAR(255)")
         ensure_column("listens", "album_title_raw", "VARCHAR(255)")
         ensure_column("listens", "match_confidence", "SMALLINT")
+        ensure_column("listens", "match_reason", "VARCHAR(255)")
         ensure_column("listens", "last_enriched_at", "DATETIME")
         ensure_column("listens", "enrich_status", "VARCHAR(16) DEFAULT 'pending'")
         columns = {

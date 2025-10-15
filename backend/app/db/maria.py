@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import json
 import re
 from datetime import datetime, time, timedelta, timezone
 from typing import Any, Iterable, Mapping
@@ -32,6 +33,7 @@ from ..models import (
     listen_artists,
     listen_genres,
     listens,
+    listens_raw,
     track_artists,
     track_genres,
     tracks,
@@ -134,7 +136,7 @@ class MariaDBAdapter(DatabaseAdapter):
         async with self.session_factory() as session:
             stmt = select(albums.c.id).where(
                 and_(
-                    albums.c.artist_id == artist_id,
+                    albums.c.primary_artist_id == artist_id,
                     albums.c.title_normalized == normalized,
                 )
             )
@@ -212,16 +214,47 @@ class MariaDBAdapter(DatabaseAdapter):
         artist_name_raw: str | None,
         track_title_raw: str | None,
         album_title_raw: str | None,
+        raw_payload: Mapping[str, Any],
         artist_ids: Iterable[int],
         genre_ids: Iterable[int],
     ) -> tuple[int, bool]:
         """Insert a listen and return its id plus a creation flag."""
+
+        payload_json = json.dumps(raw_payload, sort_keys=True)
+        normalized_source_track_id = source_track_id or ""
+
+        async with self.session_factory() as session:
+            try:
+                result = await session.execute(
+                    insert(listens_raw).values(
+                        user_id=user_id,
+                        source=source,
+                        source_track_id=normalized_source_track_id,
+                        payload_json=payload_json,
+                        listened_at=listened_at,
+                    )
+                )
+            except IntegrityError:
+                await session.rollback()
+                existing_raw = await session.execute(
+                    select(listens_raw.c.id).where(
+                        listens_raw.c.user_id == user_id,
+                        listens_raw.c.source == source,
+                        listens_raw.c.source_track_id == normalized_source_track_id,
+                        listens_raw.c.listened_at == listened_at,
+                    )
+                )
+                raw_id = int(existing_raw.scalar_one())
+            else:
+                await session.commit()
+                raw_id = int(result.inserted_primary_key[0])
 
         async with self.session_factory() as session:
             created = True
             try:
                 result = await session.execute(
                     insert(listens).values(
+                        raw_id=raw_id,
                         user_id=user_id,
                         track_id=track_id,
                         listened_at=listened_at,
@@ -253,6 +286,7 @@ class MariaDBAdapter(DatabaseAdapter):
                     update(listens)
                     .where(listens.c.id == listen_id)
                     .values(
+                        raw_id=raw_id,
                         artist_name_raw=artist_name_raw,
                         track_title_raw=track_title_raw,
                         album_title_raw=album_title_raw,

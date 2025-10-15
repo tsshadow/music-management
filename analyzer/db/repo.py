@@ -20,6 +20,8 @@ from backend.app.models import (
     listen_match_candidates,
     listens,
     media_files,
+    release_items,
+    releases,
     tag_sources,
     title_aliases,
     track_artists,
@@ -97,7 +99,7 @@ class AnalyzerRepository:
         async with self.session_factory() as session:
             stmt = select(albums.c.id).where(
                 and_(
-                    albums.c.artist_id == artist_id,
+                    albums.c.primary_artist_id == artist_id,
                     albums.c.title_normalized == title_normalized,
                 )
             )
@@ -110,6 +112,7 @@ class AnalyzerRepository:
                     .where(albums.c.id == album_id)
                     .values(
                         title=title,
+                        primary_artist_id=artist_id,
                         year=year,
                         mbid=mbid,
                         updated_at=func.now(),
@@ -117,7 +120,7 @@ class AnalyzerRepository:
                 )
             else:
                 insert_stmt = insert(albums).values(
-                    artist_id=artist_id,
+                    primary_artist_id=artist_id,
                     title=title,
                     title_normalized=title_normalized,
                     year=year,
@@ -125,6 +128,27 @@ class AnalyzerRepository:
                 )
                 result = await session.execute(insert_stmt)
                 album_id = int(result.inserted_primary_key[0])
+
+            release_date = None
+            if year:
+                release_date = datetime(year, 1, 1)
+
+            release_stmt = select(releases.c.id).where(
+                releases.c.release_group_id == album_id,
+                releases.c.title_normalized == title_normalized,
+            )
+            if release_date:
+                release_stmt = release_stmt.where(releases.c.release_date == release_date.date())
+            release_row = await session.execute(release_stmt)
+            if release_row.scalar_one_or_none() is None:
+                await session.execute(
+                    insert(releases).values(
+                        release_group_id=album_id,
+                        title=title,
+                        title_normalized=title_normalized,
+                        release_date=release_date.date() if release_date else None,
+                    )
+                )
             await session.commit()
             return album_id
 
@@ -185,6 +209,31 @@ class AnalyzerRepository:
                 )
                 result = await session.execute(insert_stmt)
                 track_id = int(result.inserted_primary_key[0])
+
+            if album_id is not None:
+                release_stmt = (
+                    select(releases.c.id)
+                    .where(releases.c.release_group_id == album_id)
+                    .order_by(releases.c.release_date.is_(None), releases.c.release_date)
+                )
+                release_result = await session.execute(release_stmt)
+                release_row = release_result.first()
+                if release_row:
+                    release_id = int(release_row[0])
+                    exists_stmt = select(release_items.c.release_id).where(
+                        release_items.c.release_id == release_id,
+                        release_items.c.track_id == track_id,
+                    )
+                    release_item = await session.execute(exists_stmt)
+                    if release_item.scalar_one_or_none() is None:
+                        await session.execute(
+                            insert(release_items).values(
+                                release_id=release_id,
+                                track_id=track_id,
+                                disc_no=1,
+                                track_no=1,
+                            )
+                        )
             await session.commit()
             return track_id
 
@@ -674,7 +723,7 @@ class AnalyzerRepository:
                     song_count,
                 )
                 .select_from(
-                    albums.join(artists, albums.c.artist_id == artists.c.id).join(
+                    albums.join(artists, albums.c.primary_artist_id == artists.c.id).join(
                         tracks, tracks.c.album_id == albums.c.id
                     )
                 )

@@ -85,6 +85,7 @@ class IngestService:
             artist_name_raw=primary_artist_name or (payload.artists[0].name if payload.artists else None),
             track_title_raw=payload.track.title,
             album_title_raw=payload.track.album,
+            raw_payload=payload.model_dump(mode="json"),
             artist_ids=artist_ids,
             genre_ids=genre_ids,
         )

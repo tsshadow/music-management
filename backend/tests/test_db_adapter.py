@@ -62,7 +62,7 @@ async def add_album(
     async with adapter.session_factory() as session:
         res = await session.execute(
             insert(albums).values(
-                artist_id=artist_id,
+                primary_artist_id=artist_id,
                 title=title,
                 title_normalized=normalized,
                 year=release_year,
@@ -208,6 +208,7 @@ async def test_adapter_upserts():
         artist_name_raw="Artist",
         track_title_raw="Song",
         album_title_raw="Album",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -227,6 +228,7 @@ async def test_adapter_upserts():
         artist_name_raw="Artist",
         track_title_raw="Song",
         album_title_raw="Album",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -307,6 +309,7 @@ async def test_fetch_recent_listens_prefers_clean_listen_artists():
         artist_name_raw=None,
         track_title_raw=None,
         album_title_raw=None,
+        raw_payload={},
         artist_ids=[artist_good1, artist_good2],
         genre_ids=[],
     )
@@ -377,6 +380,7 @@ async def test_fetch_listens_supports_period_filters_and_pagination():
         artist_name_raw="Artist",
         track_title_raw="Track One",
         album_title_raw="Album",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -391,6 +395,7 @@ async def test_fetch_listens_supports_period_filters_and_pagination():
         artist_name_raw="Artist",
         track_title_raw="Track Two",
         album_title_raw="Album",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -463,6 +468,7 @@ async def test_fetch_listen_detail_returns_enriched_metadata():
         artist_name_raw="Detail Artist",
         track_title_raw="Detail Track",
         album_title_raw="Detail Album",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -535,6 +541,7 @@ async def test_artist_insights_aggregates_listens():
         artist_name_raw="Insight Artist",
         track_title_raw="Main Track",
         album_title_raw="Insight Album",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -549,6 +556,7 @@ async def test_artist_insights_aggregates_listens():
         artist_name_raw="Insight Artist",
         track_title_raw="Guest Track",
         album_title_raw="Insight Album",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -564,6 +572,7 @@ async def test_artist_insights_aggregates_listens():
         artist_name_raw="Insight Artist",
         track_title_raw="Guest Track",
         album_title_raw="Insight Album",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -637,6 +646,7 @@ async def test_album_insights_aggregates_metadata():
         artist_name_raw="Album Artist",
         track_title_raw="Song One",
         album_title_raw="Album Insight",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -651,6 +661,7 @@ async def test_album_insights_aggregates_metadata():
         artist_name_raw="Album Artist",
         track_title_raw="Song Two",
         album_title_raw="Album Insight",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )

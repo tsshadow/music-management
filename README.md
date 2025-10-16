@@ -74,7 +74,7 @@ The included `docker-compose.yml` defines a [Watchtower](https://containrrr.dev/
 
 ### Analyzer background jobs
 
-Large media libraries can take longer than the default RQ timeout (three minutes) to scan. Set `SCROBBLER_ANALYZER_SCAN_JOB_TIMEOUT` to the number of seconds the `scan_library_job` may run (defaults to six hours). Increase the value if your library scan routinely exceeds the default window.
+Large media libraries can take longer than the default RQ timeout (three minutes) to scan. Set `SCROBBLER_ANALYZER_SCAN_JOB_TIMEOUT` to the number of seconds the `scan_library_job` may run (defaults to six hours). Increase the value if your library scan routinely exceeds the default window. The same timeout can be overridden at runtime by storing an `analyzer_scan_job_timeout` value (in seconds) through `/api/v1/config`. Enable the `split_paths` flag when calling `/api/v1/analyzer/library/scan` to enqueue one job per root path so multiple workers can process the library in parallel. See `docs/analyzer-jobs.md` for a walkthrough of the scan workflow and tuning options.
 
 ### API
 
@@ -97,6 +97,7 @@ OpenAPI docs are available at `/docs`.
 * `lms_source_name`
 * `listenbrainz_user`
 * `listenbrainz_token`
+* `analyzer_scan_job_timeout`
 
 Values are persisted in the database via `/api/v1/config`.
 

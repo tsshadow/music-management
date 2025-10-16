@@ -39,6 +39,8 @@ async def _build_services(engine: AsyncEngine) -> tuple[
 
 
 def scan_library_job(*, dsn: str, paths: Iterable[str], force: bool = False) -> dict:
+    """Walk the provided filesystem roots and register discovered media files."""
+
     async def runner() -> dict:
         engine = _create_engine(dsn)
         try:

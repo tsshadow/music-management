@@ -9,6 +9,7 @@ ALLOWED_CONFIG_KEYS = {
     "lms_source_name",
     "listenbrainz_user",
     "listenbrainz_token",
+    "analyzer_scan_job_timeout",
 }
 
 

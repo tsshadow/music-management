@@ -72,6 +72,10 @@ Docker images are published for every commit. The `latest` tag always tracks the
 
 The included `docker-compose.yml` defines a [Watchtower](https://containrrr.dev/watchtower/) service that monitors the Scrobbler containers and upgrades them whenever a new image tagged `latest-beta` is available. Watchtower prunes superseded images (`--cleanup`) and polls for updates every five minutes. Disable the service or remove the `com.centurylinklabs.watchtower.enable=true` labels if you prefer to manage updates manually.
 
+### Analyzer background jobs
+
+Large media libraries can take longer than the default RQ timeout (three minutes) to scan. Set `SCROBBLER_ANALYZER_SCAN_JOB_TIMEOUT` to the number of seconds the `scan_library_job` may run (defaults to six hours). Increase the value if your library scan routinely exceeds the default window.
+
 ### API
 
 * `POST /api/v1/scrobble` – ingest JSON payloads

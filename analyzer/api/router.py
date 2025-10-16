@@ -35,7 +35,14 @@ def _enqueue(job_name: str, **kwargs) -> dict:
         kwargs["paths"] = settings.analyzer_default_paths
     if job_name.endswith("scan_library_job") and not kwargs.get("paths"):
         raise HTTPException(status_code=400, detail="No library paths configured")
-    job = queue.enqueue(f"analyzer.jobs.handlers.{job_name}", kwargs={"dsn": settings.db_dsn, **kwargs})
+    enqueue_kwargs: dict[str, object] = {}
+    if job_name.endswith("scan_library_job"):
+        enqueue_kwargs["job_timeout"] = settings.analyzer_scan_job_timeout
+    job = queue.enqueue(
+        f"analyzer.jobs.handlers.{job_name}",
+        kwargs={"dsn": settings.db_dsn, **kwargs},
+        **enqueue_kwargs,
+    )
     return {"job_id": job.id, "queued": True}
 
 

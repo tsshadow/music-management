@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 
 from sqlalchemy import (
-    CheckConstraint,
     Column,
     Date,
     DateTime,
@@ -432,10 +431,6 @@ playlist_items = Table(
         ForeignKey(_fk(MEDIALIBRARY_SCHEMA, "releases", "id"), ondelete="SET NULL"),
     ),
     Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
-    CheckConstraint(
-        "(track_id IS NOT NULL) <> (release_id IS NOT NULL)",
-        name="ck_playlist_items_target",
-    ),
     **_schema_kwargs(MEDIALIBRARY_SCHEMA),
 )
 

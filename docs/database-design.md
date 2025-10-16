@@ -84,7 +84,7 @@ NOTE: releases.release_group_id is NULLABLE (single-edition releases don’t nee
 PLAYLISTS & CHANNELS
 ──────────────────────────────────────────────────────────────────────────────
 publishers ──< playlists
-playlists  ──< playlist_items {XOR: track_id OR release_id}
+playlists  ──< playlist_items {exactly one of track_id or release_id; ensure via service logic}
                  ├───→ tracks
                  └───→ releases
 
@@ -132,7 +132,7 @@ config (key/value store; app settings)
 | `publishers`           | Channels/platforms     | `name`, `platform` (YouTube/SC/Spotify/…), `handle`                     | Use for Q-dance YouTube channel                                                                                             |
 | `release_publishers`   | Publisher per release  | (`release_id`,`publisher_id`) unique                                    | ⇒ `releases`,`publishers`                                                                                                   |
 | `playlists`            | Playlists/series       | `platform`, `owner_publisher_id`, `title`                               | ⇒ `publishers`                                                                                                              |
-| `playlist_items`       | Items in a playlist    | (`playlist_id`,`position`) unique, `track_id` **or** `release_id`       | ⇒ `playlists`, ⇒ `tracks`/`releases`                                                                                        |
+| `playlist_items`       | Items in a playlist    | (`playlist_id`,`position`) unique, service logic must ensure `track_id` **or** `release_id`       | ⇒ `playlists`, ⇒ `tracks`/`releases`                                                                                        |
 | `events`               | Events/festivals       | `name`, `start_date`, `end_date`, `location`                            | Defqon.1, Qlimax, etc.                                                                                                      |
 | `event_recordings`     | Links sets to event    | (`event_id`,`track_id`) unique, `stage`, `set_time`                     | ⇒ `events`,`tracks`                                                                                                         |
 | `tag_sources`          | Tag provenance         | `name`, `priority`                                                      | ⇐ `track_tag_attributes`                                                                                                    |

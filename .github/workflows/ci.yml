@@ -70,7 +70,7 @@ jobs:
       matrix:
         include:
           - image: scrobbler
-            target: scrobbler
+            target: backend
             ghcr_repository: ${{ github.repository }}
             dockerhub_repository: scrobbler
           - image: analyzer-worker

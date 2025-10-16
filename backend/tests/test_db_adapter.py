@@ -12,7 +12,7 @@ from analyzer.matching.uid import make_track_uid
 from backend.app.core.startup import init_database
 from backend.app.db.sqlite_test import create_sqlite_memory_adapter
 from backend.app.models import (
-    albums,
+    release_groups,
     artists,
     genres,
     metadata,
@@ -61,7 +61,7 @@ async def add_album(
     normalized = normalize_text(title)
     async with adapter.session_factory() as session:
         res = await session.execute(
-            insert(albums).values(
+            insert(release_groups).values(
                 primary_artist_id=artist_id,
                 title=title,
                 title_normalized=normalized,
@@ -100,7 +100,7 @@ async def add_track(
             album_title = None
             if album_id is not None:
                 album_row = await session.execute(
-                    select(albums.c.title).where(albums.c.id == album_id)
+                    select(release_groups.c.title).where(release_groups.c.id == album_id)
                 )
                 album_title = album_row.scalar_one_or_none()
             uid = make_track_uid(artist_name, title, album_title, duration_secs)

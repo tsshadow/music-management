@@ -12,7 +12,6 @@ from sqlalchemy import and_, delete, func, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from backend.app.models import (
-    albums,
     artist_aliases,
     artists,
     genres,
@@ -21,6 +20,7 @@ from backend.app.models import (
     listens,
     media_files,
     release_items,
+    release_groups,
     releases,
     tag_sources,
     title_aliases,
@@ -97,10 +97,10 @@ class AnalyzerRepository:
         mbid: str | None,
     ) -> int:
         async with self.session_factory() as session:
-            stmt = select(albums.c.id).where(
+            stmt = select(release_groups.c.id).where(
                 and_(
-                    albums.c.primary_artist_id == artist_id,
-                    albums.c.title_normalized == title_normalized,
+                    release_groups.c.primary_artist_id == artist_id,
+                    release_groups.c.title_normalized == title_normalized,
                 )
             )
             result = await session.execute(stmt)
@@ -108,8 +108,8 @@ class AnalyzerRepository:
             if row:
                 album_id = int(row[0])
                 await session.execute(
-                    update(albums)
-                    .where(albums.c.id == album_id)
+                    update(release_groups)
+                    .where(release_groups.c.id == album_id)
                     .values(
                         title=title,
                         primary_artist_id=artist_id,
@@ -119,7 +119,7 @@ class AnalyzerRepository:
                     )
                 )
             else:
-                insert_stmt = insert(albums).values(
+                insert_stmt = insert(release_groups).values(
                     primary_artist_id=artist_id,
                     title=title,
                     title_normalized=title_normalized,
@@ -156,7 +156,7 @@ class AnalyzerRepository:
         if not album_id:
             return None
         async with self.session_factory() as session:
-            stmt = select(albums.c.title).where(albums.c.id == album_id)
+            stmt = select(release_groups.c.title).where(release_groups.c.id == album_id)
             row = await session.execute(stmt)
             record = row.first()
             return record[0] if record else None
@@ -599,10 +599,10 @@ class AnalyzerRepository:
                 tracks.c.title,
                 tracks.c.duration_secs,
                 artists.c.name,
-                albums.c.title.label("album_title"),
+                release_groups.c.title.label("album_title"),
             ).select_from(
                 tracks.outerjoin(artists, tracks.c.primary_artist_id == artists.c.id)
-                .outerjoin(albums, tracks.c.album_id == albums.c.id)
+                .outerjoin(release_groups, tracks.c.album_id == release_groups.c.id)
             )
             rows = await session.execute(stmt)
             for row in rows.fetchall():
@@ -716,23 +716,23 @@ class AnalyzerRepository:
             song_count = func.count(tracks.c.id).label("count")
             base_query = (
                 select(
-                    albums.c.id.label("album_id"),
-                    albums.c.title.label("album"),
-                    albums.c.year.label("release_year"),
+                    release_groups.c.id.label("album_id"),
+                    release_groups.c.title.label("album"),
+                    release_groups.c.year.label("release_year"),
                     artists.c.name.label("artist"),
                     song_count,
                 )
                 .select_from(
-                    albums.join(artists, albums.c.primary_artist_id == artists.c.id).join(
-                        tracks, tracks.c.album_id == albums.c.id
+                    release_groups.join(artists, release_groups.c.primary_artist_id == artists.c.id).join(
+                        tracks, tracks.c.album_id == release_groups.c.id
                     )
                 )
-                .group_by(albums.c.id, albums.c.title, albums.c.year, artists.c.name)
+                .group_by(release_groups.c.id, release_groups.c.title, release_groups.c.year, artists.c.name)
             )
             total_query = select(func.count()).select_from(base_query.subquery())
             total = await session.scalar(total_query) or 0
             rows = await session.execute(
-                base_query.order_by(song_count.desc(), albums.c.title).offset(offset).limit(limit)
+                base_query.order_by(song_count.desc(), release_groups.c.title).offset(offset).limit(limit)
             )
             items = [
                 {
@@ -787,12 +787,12 @@ class AnalyzerRepository:
                 select(
                     tracks.c.id.label("track_id"),
                     tracks.c.title.label("track"),
-                    albums.c.title.label("album"),
+                    release_groups.c.title.label("album"),
                     artists.c.name.label("artist"),
                     tracks.c.duration_secs.label("duration_secs"),
                 )
                 .select_from(
-                    tracks.outerjoin(albums, tracks.c.album_id == albums.c.id).outerjoin(
+                    tracks.outerjoin(release_groups, tracks.c.album_id == release_groups.c.id).outerjoin(
                         artists, tracks.c.primary_artist_id == artists.c.id
                     )
                 )
@@ -898,7 +898,7 @@ class AnalyzerRepository:
             title_aliases,
             media_files,
             tracks,
-            albums,
+            release_groups,
             artist_aliases,
             labels,
             genres,

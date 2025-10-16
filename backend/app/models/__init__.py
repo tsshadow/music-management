@@ -281,10 +281,6 @@ release_groups = Table(
     **_schema_kwargs(MEDIALIBRARY_SCHEMA),
 )
 
-# Backwards compatibility alias for legacy album queries while migrating to release terminology.
-albums = release_groups
-
-
 releases = Table(
     "releases",
     metadata,
@@ -661,7 +657,6 @@ __all__ = [
     "track_artists",
     "track_genres",
     "track_labels",
-    "albums",
     "release_groups",
     "releases",
     "release_items",

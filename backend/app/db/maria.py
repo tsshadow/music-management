@@ -249,6 +249,18 @@ class MariaDBAdapter(DatabaseAdapter):
                 await session.commit()
                 raw_id = int(result.inserted_primary_key[0])
 
+        orderings: list[Any] = [case((listens.c.track_id.is_(None), 1), else_=0)]
+        if track_id is not None:
+            orderings.insert(
+                0,
+                case((listens.c.track_id == track_id, 0), else_=1),
+            )
+        if source_track_id is not None:
+            orderings.append(
+                case((listens.c.source_track_id == source_track_id, 0), else_=1)
+            )
+        orderings.append(listens.c.id.asc())
+
         async with self.session_factory() as session:
             existing_row = (
                 await session.execute(
@@ -261,7 +273,7 @@ class MariaDBAdapter(DatabaseAdapter):
                     )
                     .where(listens.c.user_id == user_id)
                     .where(listens.c.listened_at == listened_at)
-                    .order_by(listens.c.id.asc())
+                    .order_by(*orderings)
                 )
             ).mappings().first()
 

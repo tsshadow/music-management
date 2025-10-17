@@ -8,7 +8,7 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Iterable, Sequence
 
-from sqlalchemy import and_, delete, func, insert, or_, select, update
+from sqlalchemy import and_, delete, func, insert, or_, select, update, case
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from backend.app.models import (
@@ -798,9 +798,10 @@ class AnalyzerRepository:
                 )
             )
             total = await session.scalar(select(func.count(tracks.c.id))) or 0
+            name_sort = case((artists.c.name.is_(None), 1), else_=0)
             rows = await session.execute(
                 base_query
-                .order_by(artists.c.name.asc().nullslast(), tracks.c.title.asc())
+                .order_by(name_sort, artists.c.name.asc(), tracks.c.title.asc())
                 .offset(offset)
                 .limit(limit)
             )

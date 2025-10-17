@@ -41,6 +41,7 @@ class DatabaseAdapter(Protocol):
         artist_name_raw: str | None,
         track_title_raw: str | None,
         album_title_raw: str | None,
+        raw_payload: Mapping[str, Any],
         artist_ids: Iterable[int],
         genre_ids: Iterable[int],
     ) -> Tuple[int, bool]: ...

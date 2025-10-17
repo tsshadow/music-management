@@ -13,15 +13,15 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY pyproject.toml README.md ./
 RUN pip install --no-cache-dir poetry && poetry config virtualenvs.create false && poetry install --no-interaction --no-ansi
-COPY scrobbler ./scrobbler
+COPY backend ./backend
 COPY analyzer ./analyzer
-COPY --from=frontend /app/frontend/dist ./scrobbler/app/static
+COPY --from=frontend /app/frontend/dist ./backend/app/static
 
-# Scrobbler API stage
-FROM base AS scrobbler
+# Backend API stage
+FROM base AS backend
 ENV SCROBBLER_DB_DSN="sqlite+aiosqlite:///./data/scrobbler.db"
 EXPOSE 8080
-CMD ["uvicorn", "scrobbler.app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8080"]
 
 # Analyzer worker stage
 FROM base AS analyzer-worker

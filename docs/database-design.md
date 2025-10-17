@@ -8,9 +8,9 @@ reference to find where data lives and how tables relate to one another.
 - User activity is stored in listens, with optional relationships to tracks, artists, and genres to enrich listening
   history.
 
-- Media library metadata flows in through the analyzer. It enriches artists, releases/release_groups, tracks, and media
-  files while populating association tables (track_artists, track_genres, release_labels, track_tag_attributes,
-  title_aliases).
+- Media library metadata flows in through the analyzer. It enriches artists, release groups/releases, tracks, and media
+  files while populating association tables (track_artists, track_genres, release_labels, track_labels,
+  track_tag_attributes, title_aliases).
 
 - Analyzer ↔ Scrobbler can operate on dedicated schemas (medialibrary and listens) that keep write ownership isolated
   while preserving cross-schema foreign keys. Deployments without schema privileges can continue to run in a single
@@ -35,6 +35,8 @@ users ──< listens_raw
             │
             └─< listens
                  └──tracks
+                 ├──< listen_artists >── artists
+                 └──< listen_genres >── genres
 
 users ──< listens
 users ──< listens_raw
@@ -49,8 +51,11 @@ tracks ──< track_artists >── artists
    │
    ├──< track_tag_attributes >── tag_sources
    │
+   ├──< track_labels >── labels
+   │
    └── media_files (1 ── N)
 
+tracks ──> release_groups (optional via tracks.album_id)
 tracks ──< external_ids
 artists ──< external_ids
 genres  ──< external_ids  (rare, but possible if you standardize)
@@ -79,7 +84,7 @@ NOTE: releases.release_group_id is NULLABLE (single-edition releases don’t nee
 PLAYLISTS & CHANNELS
 ──────────────────────────────────────────────────────────────────────────────
 publishers ──< playlists
-playlists  ──< playlist_items {XOR: track_id OR release_id}
+playlists  ──< playlist_items {exactly one of track_id or release_id; ensure via service logic}
                  ├───→ tracks
                  └───→ releases
 
@@ -112,26 +117,27 @@ config (key/value store; app settings)
 | Table                  | Purpose                | Key columns                                                             | Relationships                                                                                                               |
 |------------------------|------------------------|-------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
 | `media_files`          | Local files            | `file_path_hash` (unique), `audio_hash`, `duration_secs`                | Optional **FK** `track_id` → `tracks.id` (NULL when unmatched)                                                              |
-| `tracks`               | Recordings             | `title`, `duration_secs`, `track_uid` (unique)                          | ⇐ `media_files.track_id`; ⇒ `track_artists`, `track_genres`, `track_tag_attributes`; optional `primary_artist_id`           |
+| `tracks`               | Recordings             | `title`, `duration_secs`, `track_uid` (unique)                          | ⇐ `media_files.track_id`; ⇒ `track_artists`, `track_genres`, `track_tag_attributes`, `track_labels`; optional `primary_artist_id`; optional `album_id` → `release_groups.id` |
 | `track_artists`        | Artist roles per track | (`track_id`,`artist_id`,`role`,`position`) unique                       | ⇒ `artists.id` (role enum: primary/featuring/remixer/…; `position` keeps order)                                             |
 | `artists`              | Canonical artists      | `name`, `sort_name`, `mbid`                                             | ⇐ `track_artists`, `artist_aliases`                                                                                         |
 | `artist_aliases`       | Alternate spellings    | (`artist_id`,`alias`) unique                                            | ⇒ `artists.id`                                                                                                              |
 | `genres`               | Canonical genres       | `name` unique                                                           | ⇐ `track_genres`                                                                                                            |
 | `track_genres`         | Weighted genres        | (`track_id`,`genre_id`) unique, `weight`                                | ⇒ `tracks`,`genres`                                                                                                         |
 | `releases`             | Concrete editions      | `title`, `release_date`, `release_group_id` (NULL), `country`, `format` | ⇒ `release_groups` (optional), ⇒ `release_labels`, ⇒ `release_items`                                                        |
-| `release_groups`       | Bundles editions       | `title`, `type` (album/single/EP/comp/live), `mbid`                     | ⇐ `releases` (many-to-one)                                                                                                  |
+| `release_groups`       | Bundles editions       | `title`, `type` (album/single/EP/compilation/live/mixtape/dj_mix/remix/other), `mbid`, `primary_artist_id`, `year` | ⇐ `releases` (many-to-one); optional `primary_artist_id` → `artists.id`                                                     |
 | `release_items`        | Tracklist per release  | (`release_id`,`track_id`,`disc_no`,`track_no`) unique                   | ⇒ `releases`,`tracks` (captures CD/vinyl/digital differences)                                                               |
 | `labels`               | Music labels           | `name`                                                                  | ⇐ `release_labels`                                                                                                          |
-| `release_labels`       | Labels per release     | (`release_id`,`label_id`, `cat_id`) unique                              | ⇒ `releases`,`labels`                                                                                                       |
+| `release_labels`       | Labels per release     | (`release_id`,`label_id`, `cat_id`) unique                              | ⇒ `releases`,`labels`; extra metadata columns: `role`, `territory`                                                          |
+| `track_labels`         | Labels applied to track| (`track_id`,`label_id`) unique                                          | ⇒ `tracks`,`labels`                                                                                                         |
 | `publishers`           | Channels/platforms     | `name`, `platform` (YouTube/SC/Spotify/…), `handle`                     | Use for Q-dance YouTube channel                                                                                             |
 | `release_publishers`   | Publisher per release  | (`release_id`,`publisher_id`) unique                                    | ⇒ `releases`,`publishers`                                                                                                   |
 | `playlists`            | Playlists/series       | `platform`, `owner_publisher_id`, `title`                               | ⇒ `publishers`                                                                                                              |
-| `playlist_items`       | Items in a playlist    | (`playlist_id`,`position`) unique, `track_id` **or** `release_id`       | ⇒ `playlists`, ⇒ `tracks`/`releases`                                                                                        |
+| `playlist_items`       | Items in a playlist    | (`playlist_id`,`position`) unique, service logic must ensure `track_id` **or** `release_id`       | ⇒ `playlists`, ⇒ `tracks`/`releases`                                                                                        |
 | `events`               | Events/festivals       | `name`, `start_date`, `end_date`, `location`                            | Defqon.1, Qlimax, etc.                                                                                                      |
 | `event_recordings`     | Links sets to event    | (`event_id`,`track_id`) unique, `stage`, `set_time`                     | ⇒ `events`,`tracks`                                                                                                         |
 | `tag_sources`          | Tag provenance         | `name`, `priority`                                                      | ⇐ `track_tag_attributes`                                                                                                    |
-| `track_tag_attributes` | Key/val per track      | (`track_id`,`key`,`source_id`) unique, `value`                          | Resolve by `tag_sources.priority`                                                                                           |
-| `external_ids`         | Generic external IDs   | (`entity_type`,`entity_id`,`scheme`,`value`) unique                     | For `tracks`/`releases`/`release_groups`/`artists` (schemes: `mbid`,`isrc`,`acoustid`,`youtube_id`,`sc_id`,`spotify_id`, …) |
+| `track_tag_attributes` | Key/val per track      | (`track_id`,`key`) unique, `value`                                      | Resolve by `tag_sources.priority`; `source_id` → `tag_sources.id`                                                           |
+| `external_ids`         | Generic external IDs   | (`entity_type`,`entity_id`,`scheme`,`value`) unique                     | For `tracks`/`releases`/`release_groups`/`artists`/`publishers`/`playlists`/`events`/`genres` (schemes: `mbid`,`isrc`,`acoustid`,`youtube_id`,`sc_id`,`spotify_id`, …) |
 
 ### Listening history (primarily written by the scrobbler)
 
@@ -140,6 +146,8 @@ config (key/value store; app settings)
 | `listens_raw`             | Immutable ingest of scrobbles from any source.         | `user_id`, `ingested_at`, `source`, `source_track_id`, `payload_json`, `listened_at`                                                                         | **Unique**: (`user_id`,`listened_at`,`source`,COALESCE(`source_track_id`,'')); referenced by `listens.raw_id`.                                                             |
 | `listens`                 | Canonical listening events used for queries/analytics. | `raw_id`, `user_id`, `track_id` (nullable), `listened_at`, `duration_secs`(nullable) `enrich_status`, `match_confidence`, `match_reason`, `last_enriched_at` | **FKs**: `raw_id` → `listens_raw.id`; `user_id` → `users.id`; `track_id` → `tracks.id` (nullable). Indexes on (`user_id`,`listened_at DESC`), `enrich_status`, `track_id`. |
 | `listen_match_candidates` | Alternate track matches discovered during enrichment.  | `listen_id`, `track_id`, `confidence`, `features_json`                                                                                                       | **FKs**: `listen_id` → `listens.id`, `track_id` → `tracks.id`. **Unique**: (`listen_id`,`track_id`).                                                                       |
+| `listen_artists`          | Denormalized artist matches per listen                 | (`listen_id`,`artist_id`)                                                                                               | **FKs**: `listen_id` → `listens.id`, `artist_id` → `artists.id`.                                                                      |
+| `listen_genres`           | Denormalized genre matches per listen                  | (`listen_id`,`genre_id`)                                                                                                | **FKs**: `listen_id` → `listens.id`, `genre_id` → `genres.id`.                                                                         |
 
 ### Configuration
 
@@ -149,24 +157,23 @@ config (key/value store; app settings)
 
 ## Usage patterns
 
-- **Analyzer ingest** reads files (`media_files`), creates or updates `artists`, `albums`, `tracks`, and relationship
-  tables (`track_artists`, `track_genres`, `track_labels`, `track_tag_attributes`, `title_aliases`). When matching
+- **Analyzer ingest** reads files (`media_files`), creates or updates `artists`, `release_groups`, `releases`, `tracks`,
+  and relationship tables (`track_artists`, `track_genres`, `track_labels`, `track_tag_attributes`, `title_aliases`). When matching
   listens the analyzer populates `listen_match_candidates` and updates `listens.track_id`, `enrich_status`, and
   `match_confidence`.
-- **Scrobbler API/UI** writes new listens. If a canonical track.id exists, link it. If not, prefer creating a
-  provisional_tracks entry (and set listens.enrich_status='provisional'), then let the analyzer promote/merge into
-  tracks later. Only create real tracks immediately when you have high-confidence metadata (e.g., external IDs or audio
-  hashes).
+- **Scrobbler API/UI** writes new listens. If a canonical `tracks.id` exists, link it. Otherwise leave `listens.track_id`
+  null, capture the raw metadata, and let the analyzer attach the best match once enrichment finishes. Only create real
+  tracks immediately when you have high-confidence metadata (e.g., external IDs or audio hashes).
 
 ## Media library and listening history schemas
 
 The application supports a physical split between media metadata and listening history. When configured, two schemas are
 created (or attached for SQLite) during bootstrap:
 
-| Schema         | Ownership | Tables (indicative)                                                                                                                                                                                                                                                                                                                                             | Notes                                                           |
-|----------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------|
-| `medialibrary` | Analyzer  | `artists`, `artist_aliases`, **`release_groups`**, **`releases`**, `release_items`, `tracks`, `track_artists`, `track_genres`, `genres`, `labels`, **`release_labels`**, `track_tag_attributes`, `tag_sources`, `media_files`, `title_aliases`, `publishers`, `release_publishers`, `playlists`, `playlist_items`, `events`, `event_recordings`, `external_ids` | Canonical metadata derived from local scans or enrichment jobs. |
-| `listens`      | Scrobbler | `users`, `listens_raw`, `listens`, `listen_match_candidates`, `config`                                                                                                                                                                                                                                                                                          | Stores listening events, candidates, and app configuration.     |
+| Schema         | Ownership | Tables (indicative)                                                                                                                                                                                   | Notes                                                           |
+|----------------|-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------|
+| `medialibrary` | Analyzer  | `artists`, `artist_aliases`, **`release_groups`**, **`releases`**, `release_items`, `tracks`, `track_artists`, `track_genres`, `genres`, `labels`, **`release_labels`**, `track_labels`, `track_tag_attributes`, `tag_sources`, `media_files`, `title_aliases`, `publishers`, `release_publishers`, `playlists`, `playlist_items`, `events`, `event_recordings`, `external_ids` | Canonical metadata derived from local scans or enrichment jobs. |
+| `listens`      | Scrobbler | `users`, `listens_raw`, `listens`, `listen_match_candidates`, `listen_artists`, `listen_genres`, `config`                                                                                                | Stores listening events, candidates, denormalized facets, and app configuration.     |
 
 The `listens.listens` table keeps a foreign key into `medialibrary.tracks`, so every listen still resolves to canonical
 track metadata while writes remain isolated to the owning service.
@@ -180,12 +187,12 @@ Leave either variable unset (or set it to an empty string) to keep the associate
 schema, which preserves compatibility for hosted MySQL/MariaDB accounts that lack privileges to create additional
 databases.
 
-When schemas are provided, existing single-schema deployments are upgraded in place. During application start-up the
-bootstrap routine will:
+When schemas are provided, the bootstrapper:
 
-1. Create or attach the configured schemas.
-2. Move legacy tables into their new schemas while preserving primary keys and data.
-3. Re-run column/index guards to ensure historical databases gain any newer analyzer fields.
+1. Creates or attaches the configured schemas (MariaDB issues `CREATE SCHEMA IF NOT EXISTS`, SQLite uses `ATTACH DATABASE`).
+2. Calls `metadata.create_all` so every table defined in `backend.app.models` exists in the selected schema(s).
+
+Existing single-schema deployments should migrate historical tables manually before enabling the split.
 
 Fresh installations simply create the tables directly inside the configured schema(s).
 
@@ -207,8 +214,9 @@ The table below maps common properties to their storage locations:
 
 ## Indexing and constraints
 
-- Uniqueness on `artists.name_normalized`, `albums.artist_id + title_normalized`, `tracks.track_uid`, `track_artists` (
-  track/artist/role), and `track_labels` prevents duplicates.
+- Uniqueness on `artists.name_normalized`, `release_groups.primary_artist_id + title_normalized`,
+  `releases.release_group_id + title_normalized + release_date`, `tracks.track_uid`, `track_artists` (track/artist/role),
+  and `track_labels` prevents duplicates.
 - `listens` enforces `uq_listen_dedupe` on (`user_id`, `track_id`, `listened_at`) to avoid duplicate scrobbles.
 - Indexes on normalized names and status fields speed up analyzer queries for matching and enrichment.
 

@@ -24,6 +24,9 @@ class AppSettings(BaseSettings):
     analyzer_default_paths: List[str] = Field(
         default_factory=list, alias="SCROBBLER_ANALYZER_PATHS"
     )
+    analyzer_scan_job_timeout: int = Field(
+        default=21_600, alias="SCROBBLER_ANALYZER_SCAN_JOB_TIMEOUT", ge=60
+    )
     listenbrainz_base_url: str = Field(
         default="https://api.listenbrainz.org/1",
         alias="SCROBBLER_LISTENBRAINZ_BASE_URL",

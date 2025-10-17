@@ -12,7 +12,7 @@ from analyzer.matching.uid import make_track_uid
 from backend.app.core.startup import init_database
 from backend.app.db.sqlite_test import create_sqlite_memory_adapter
 from backend.app.models import (
-    albums,
+    release_groups,
     artists,
     genres,
     metadata,
@@ -61,8 +61,8 @@ async def add_album(
     normalized = normalize_text(title)
     async with adapter.session_factory() as session:
         res = await session.execute(
-            insert(albums).values(
-                artist_id=artist_id,
+            insert(release_groups).values(
+                primary_artist_id=artist_id,
                 title=title,
                 title_normalized=normalized,
                 year=release_year,
@@ -100,7 +100,7 @@ async def add_track(
             album_title = None
             if album_id is not None:
                 album_row = await session.execute(
-                    select(albums.c.title).where(albums.c.id == album_id)
+                    select(release_groups.c.title).where(release_groups.c.id == album_id)
                 )
                 album_title = album_row.scalar_one_or_none()
             uid = make_track_uid(artist_name, title, album_title, duration_secs)
@@ -208,6 +208,7 @@ async def test_adapter_upserts():
         artist_name_raw="Artist",
         track_title_raw="Song",
         album_title_raw="Album",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -227,6 +228,7 @@ async def test_adapter_upserts():
         artist_name_raw="Artist",
         track_title_raw="Song",
         album_title_raw="Album",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -307,6 +309,7 @@ async def test_fetch_recent_listens_prefers_clean_listen_artists():
         artist_name_raw=None,
         track_title_raw=None,
         album_title_raw=None,
+        raw_payload={},
         artist_ids=[artist_good1, artist_good2],
         genre_ids=[],
     )
@@ -377,6 +380,7 @@ async def test_fetch_listens_supports_period_filters_and_pagination():
         artist_name_raw="Artist",
         track_title_raw="Track One",
         album_title_raw="Album",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -391,6 +395,7 @@ async def test_fetch_listens_supports_period_filters_and_pagination():
         artist_name_raw="Artist",
         track_title_raw="Track Two",
         album_title_raw="Album",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -463,6 +468,7 @@ async def test_fetch_listen_detail_returns_enriched_metadata():
         artist_name_raw="Detail Artist",
         track_title_raw="Detail Track",
         album_title_raw="Detail Album",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -535,6 +541,7 @@ async def test_artist_insights_aggregates_listens():
         artist_name_raw="Insight Artist",
         track_title_raw="Main Track",
         album_title_raw="Insight Album",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -549,6 +556,7 @@ async def test_artist_insights_aggregates_listens():
         artist_name_raw="Insight Artist",
         track_title_raw="Guest Track",
         album_title_raw="Insight Album",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -564,6 +572,7 @@ async def test_artist_insights_aggregates_listens():
         artist_name_raw="Insight Artist",
         track_title_raw="Guest Track",
         album_title_raw="Insight Album",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -637,6 +646,7 @@ async def test_album_insights_aggregates_metadata():
         artist_name_raw="Album Artist",
         track_title_raw="Song One",
         album_title_raw="Album Insight",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )
@@ -651,6 +661,7 @@ async def test_album_insights_aggregates_metadata():
         artist_name_raw="Album Artist",
         track_title_raw="Song Two",
         album_title_raw="Album Insight",
+        raw_payload={},
         artist_ids=[artist_id],
         genre_ids=[genre_id],
     )

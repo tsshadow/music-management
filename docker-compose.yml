@@ -26,7 +26,7 @@ services:
 #    build:
 #      context: .
 #      dockerfile: docker/Dockerfile
-#      target: scrobbler
+#      target: backend
     image: muma/scrobbler:latest-beta
     environment:
       SCROBBLER_DB_DSN: mysql+asyncmy://${MARIADB_USER:-scrob}:${MARIADB_PASSWORD:-scrobpass}@mariadb:3306/music-scrobbler

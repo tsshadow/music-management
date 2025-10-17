@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import json
 import re
 from datetime import datetime, time, timedelta, timezone
 from typing import Any, Iterable, Mapping
@@ -25,13 +26,14 @@ from analyzer.matching.normalizer import normalize_text
 
 from .adapter import DatabaseAdapter
 from ..models import (
-    albums,
+    release_groups,
     artists,
     config,
     genres,
     listen_artists,
     listen_genres,
     listens,
+    listens_raw,
     track_artists,
     track_genres,
     tracks,
@@ -132,14 +134,14 @@ class MariaDBAdapter(DatabaseAdapter):
             return None
         normalized = normalize_text(title)
         async with self.session_factory() as session:
-            stmt = select(albums.c.id).where(
+            stmt = select(release_groups.c.id).where(
                 and_(
-                    albums.c.artist_id == artist_id,
-                    albums.c.title_normalized == normalized,
+                    release_groups.c.primary_artist_id == artist_id,
+                    release_groups.c.title_normalized == normalized,
                 )
             )
             if release_year is not None:
-                stmt = stmt.where(albums.c.year == release_year)
+                stmt = stmt.where(release_groups.c.year == release_year)
             existing = (await session.execute(stmt)).scalar_one_or_none()
             return int(existing) if existing is not None else None
 
@@ -212,16 +214,47 @@ class MariaDBAdapter(DatabaseAdapter):
         artist_name_raw: str | None,
         track_title_raw: str | None,
         album_title_raw: str | None,
+        raw_payload: Mapping[str, Any],
         artist_ids: Iterable[int],
         genre_ids: Iterable[int],
     ) -> tuple[int, bool]:
         """Insert a listen and return its id plus a creation flag."""
+
+        payload_json = json.dumps(raw_payload, sort_keys=True)
+        normalized_source_track_id = source_track_id or ""
+
+        async with self.session_factory() as session:
+            try:
+                result = await session.execute(
+                    insert(listens_raw).values(
+                        user_id=user_id,
+                        source=source,
+                        source_track_id=normalized_source_track_id,
+                        payload_json=payload_json,
+                        listened_at=listened_at,
+                    )
+                )
+            except IntegrityError:
+                await session.rollback()
+                existing_raw = await session.execute(
+                    select(listens_raw.c.id).where(
+                        listens_raw.c.user_id == user_id,
+                        listens_raw.c.source == source,
+                        listens_raw.c.source_track_id == normalized_source_track_id,
+                        listens_raw.c.listened_at == listened_at,
+                    )
+                )
+                raw_id = int(existing_raw.scalar_one())
+            else:
+                await session.commit()
+                raw_id = int(result.inserted_primary_key[0])
 
         async with self.session_factory() as session:
             created = True
             try:
                 result = await session.execute(
                     insert(listens).values(
+                        raw_id=raw_id,
                         user_id=user_id,
                         track_id=track_id,
                         listened_at=listened_at,
@@ -253,6 +286,7 @@ class MariaDBAdapter(DatabaseAdapter):
                     update(listens)
                     .where(listens.c.id == listen_id)
                     .values(
+                        raw_id=raw_id,
                         artist_name_raw=artist_name_raw,
                         track_title_raw=track_title_raw,
                         album_title_raw=album_title_raw,
@@ -476,14 +510,14 @@ class MariaDBAdapter(DatabaseAdapter):
                 func.coalesce(tracks.c.title, listens.c.track_title_raw).label("track_title"),
                 listens.c.track_title_raw,
                 listens.c.artist_name_raw,
-                albums.c.id.label("album_id"),
-                albums.c.title.label("album_title"),
-                albums.c.year.label("album_release_year"),
+                release_groups.c.id.label("album_id"),
+                release_groups.c.title.label("album_title"),
+                release_groups.c.year.label("album_release_year"),
                 func.group_concat(genres.c.name, ", ").label("genres"),
             )
             .select_from(listens)
             .outerjoin(tracks, listens.c.track_id == tracks.c.id)
-            .outerjoin(albums, tracks.c.album_id == albums.c.id)
+            .outerjoin(release_groups, tracks.c.album_id == release_groups.c.id)
             .outerjoin(track_genres, track_genres.c.track_id == tracks.c.id)
             .outerjoin(genres, genres.c.id == track_genres.c.genre_id)
             .group_by(
@@ -497,9 +531,9 @@ class MariaDBAdapter(DatabaseAdapter):
                 tracks.c.title,
                 listens.c.track_title_raw,
                 listens.c.artist_name_raw,
-                albums.c.id,
-                albums.c.title,
-                albums.c.year,
+                release_groups.c.id,
+                release_groups.c.title,
+                release_groups.c.year,
             )
             .order_by(listens.c.listened_at.desc())
             .limit(limit)
@@ -542,15 +576,15 @@ class MariaDBAdapter(DatabaseAdapter):
                 tracks.c.track_no,
                 tracks.c.mbid.label("track_mbid"),
                 tracks.c.isrc,
-                albums.c.id.label("album_id"),
-                albums.c.title.label("album_title"),
-                albums.c.year.label("release_year"),
-                albums.c.mbid.label("album_mbid"),
+                release_groups.c.id.label("album_id"),
+                release_groups.c.title.label("album_title"),
+                release_groups.c.year.label("release_year"),
+                release_groups.c.mbid.label("album_mbid"),
             )
             .select_from(listens)
             .join(users, listens.c.user_id == users.c.id)
             .join(tracks, listens.c.track_id == tracks.c.id)
-            .outerjoin(albums, tracks.c.album_id == albums.c.id)
+            .outerjoin(release_groups, tracks.c.album_id == release_groups.c.id)
             .where(listens.c.id == listen_id)
         )
 
@@ -697,13 +731,13 @@ class MariaDBAdapter(DatabaseAdapter):
                     tracks.c.disc_no,
                     tracks.c.mbid,
                     tracks.c.isrc,
-                    albums.c.title.label("album_title"),
+                    release_groups.c.title.label("album_title"),
                     users.c.username,
                 )
                 .select_from(listens)
                 .join(users, listens.c.user_id == users.c.id)
                 .join(tracks, listens.c.track_id == tracks.c.id)
-                .outerjoin(albums, tracks.c.album_id == albums.c.id)
+                .outerjoin(release_groups, tracks.c.album_id == release_groups.c.id)
                 .order_by(listens.c.listened_at.asc(), listens.c.id.asc())
                 .offset(offset)
                 .limit(limit)
@@ -876,20 +910,20 @@ class MariaDBAdapter(DatabaseAdapter):
         clause = self._period_clause(period, value)
         base_query = (
             select(
-                albums.c.id.label("album_id"),
-                albums.c.title.label("album"),
-                albums.c.year.label("release_year"),
+                release_groups.c.id.label("album_id"),
+                release_groups.c.title.label("album"),
+                release_groups.c.year.label("release_year"),
                 func.count().label("count"),
             )
             .select_from(listens)
             .join(tracks, listens.c.track_id == tracks.c.id)
-            .join(albums, tracks.c.album_id == albums.c.id)
+            .join(release_groups, tracks.c.album_id == release_groups.c.id)
             .where(clause)
-            .group_by(albums.c.id, albums.c.title, albums.c.year)
+            .group_by(release_groups.c.id, release_groups.c.title, release_groups.c.year)
         )
 
         stmt = (
-            base_query.order_by(func.count().desc(), albums.c.title).limit(limit).offset(offset)
+            base_query.order_by(func.count().desc(), release_groups.c.title).limit(limit).offset(offset)
         )
         count_stmt = select(func.count()).select_from(base_query.subquery())
 
@@ -1074,15 +1108,15 @@ class MariaDBAdapter(DatabaseAdapter):
                 select(
                     tracks.c.id.label("track_id"),
                     tracks.c.title.label("track"),
-                    albums.c.id.label("album_id"),
-                    albums.c.title.label("album_title"),
+                    release_groups.c.id.label("album_id"),
+                    release_groups.c.title.label("album_title"),
                     func.count().label("count"),
                 )
                 .select_from(
-                    base_join.outerjoin(albums, albums.c.id == tracks.c.album_id)
+                    base_join.outerjoin(release_groups, release_groups.c.id == tracks.c.album_id)
                 )
                 .where(clause)
-                .group_by(tracks.c.id, tracks.c.title, albums.c.id, albums.c.title)
+                .group_by(tracks.c.id, tracks.c.title, release_groups.c.id, release_groups.c.title)
                 .order_by(func.count().desc(), tracks.c.title)
                 .limit(10)
             )
@@ -1090,17 +1124,17 @@ class MariaDBAdapter(DatabaseAdapter):
 
             top_albums_stmt = (
                 select(
-                    albums.c.id.label("album_id"),
-                    albums.c.title.label("album"),
-                    albums.c.year.label("release_year"),
+                    release_groups.c.id.label("album_id"),
+                    release_groups.c.title.label("album"),
+                    release_groups.c.year.label("release_year"),
                     func.count().label("count"),
                 )
                 .select_from(
-                    base_join.join(albums, albums.c.id == tracks.c.album_id)
+                    base_join.join(release_groups, release_groups.c.id == tracks.c.album_id)
                 )
                 .where(clause)
-                .group_by(albums.c.id, albums.c.title, albums.c.year)
-                .order_by(func.count().desc(), albums.c.title)
+                .group_by(release_groups.c.id, release_groups.c.title, release_groups.c.year)
+                .order_by(func.count().desc(), release_groups.c.title)
                 .limit(10)
             )
             history_rows = (await session.execute(history_stmt)).mappings().all()
@@ -1144,12 +1178,12 @@ class MariaDBAdapter(DatabaseAdapter):
         async with self.session_factory() as session:
             album_stmt = (
                 select(
-                    albums.c.id,
-                    albums.c.title,
-                    albums.c.year.label("release_year"),
-                    albums.c.mbid,
+                    release_groups.c.id,
+                    release_groups.c.title,
+                    release_groups.c.year.label("release_year"),
+                    release_groups.c.mbid,
                 )
-                .where(albums.c.id == album_id)
+                .where(release_groups.c.id == album_id)
             )
             album_row = await session.execute(album_stmt)
             album = album_row.mappings().one_or_none()

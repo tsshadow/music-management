@@ -33,7 +33,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install poetry
 poetry install
-uvicorn scrobbler.app.main:app --reload
+uvicorn backend.app.main:app --reload
 ```
 
 Set `SCROBBLER_DB_DSN` to point to your MariaDB instance, e.g. `mysql+asyncmy://user:pass@localhost:3306/music-scrobbler`. By default the app uses SQLite (`sqlite+aiosqlite:///./scrobbler.db`).
@@ -72,6 +72,10 @@ Docker images are published for every commit. The `latest` tag always tracks the
 
 The included `docker-compose.yml` defines a [Watchtower](https://containrrr.dev/watchtower/) service that monitors the Scrobbler containers and upgrades them whenever a new image tagged `latest-beta` is available. Watchtower prunes superseded images (`--cleanup`) and polls for updates every five minutes. Disable the service or remove the `com.centurylinklabs.watchtower.enable=true` labels if you prefer to manage updates manually.
 
+### Analyzer background jobs
+
+Large media libraries can take longer than the default RQ timeout (three minutes) to scan. Set `SCROBBLER_ANALYZER_SCAN_JOB_TIMEOUT` to the number of seconds the `scan_library_job` may run (defaults to six hours). Increase the value if your library scan routinely exceeds the default window. The same timeout can be overridden at runtime by storing an `analyzer_scan_job_timeout` value (in seconds) through `/api/v1/config`. Enable the `split_paths` flag when calling `/api/v1/analyzer/library/scan` to enqueue one job per root path so multiple workers can process the library in parallel. See `docs/analyzer-jobs.md` for a walkthrough of the scan workflow and tuning options.
+
 ### API
 
 * `POST /api/v1/scrobble` – ingest JSON payloads
@@ -93,6 +97,7 @@ OpenAPI docs are available at `/docs`.
 * `lms_source_name`
 * `listenbrainz_user`
 * `listenbrainz_token`
+* `analyzer_scan_job_timeout`
 
 Values are persisted in the database via `/api/v1/config`.
 
@@ -172,7 +177,7 @@ GET /rest/scrobble.view?u=alice&id=track123&time=1712516400000&t=Song&a=Artist&a
 
 ## Project layout
 
-See repo structure for scrobbler, frontend, and Docker artefacts. Built frontend assets are copied into `scrobbler/app/static` during the Docker build.
+See repo structure for backend, frontend, and Docker artefacts. Built frontend assets are copied into `backend/app/static` during the Docker build.
 
 ## License
 

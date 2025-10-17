@@ -34,8 +34,13 @@ async def test_stats_endpoints(client):
         "/api/v1/stats/tracks", params={"period": "all"}
     )
     assert tracks.status_code == 200
-    track_titles = [row["track"] for row in tracks.json()["items"]]
+    track_payload = tracks.json()
+    track_titles = [row["track"] for row in track_payload["items"]]
     assert "Afternoon Groove" in track_titles
+    groove_row = next(row for row in track_payload["items"] if row["track"] == "Afternoon Groove")
+    assert groove_row["artist"] == "Artist A"
+    assert groove_row["album"] == "Groove"
+    assert groove_row["count"] == 1
 
     genres = await client.get(
         "/api/v1/stats/genres", params={"period": "year", "value": "2023"}

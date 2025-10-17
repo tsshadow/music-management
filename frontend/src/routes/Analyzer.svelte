@@ -75,6 +75,7 @@
         endpoint="/api/v1/library/tracks"
         supportsPeriods={false}
         countHeading="Tracks"
+        showCount={false}
       />
     {/if}
   </div>

@@ -1,11 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
-  /** Tabular track listing used by the analyzer library view. */
+  /**
+   * Tabular track listing that can display listen counts or raw library data
+   * depending on the provided endpoint configuration.
+   */
   export let title = 'Meest geluisterde nummers';
   export let description = 'Zie welke tracks je maar blijft draaien.';
   export let endpoint = '/api/v1/stats/tracks';
   export let supportsPeriods = true;
+  export let showCount = true;
+  export let countHeading = 'Listens';
 
   type Period = 'all' | 'day' | 'month' | 'year';
   type TrackRow = {
@@ -103,9 +108,11 @@
     loadData();
   }
 
+  const BASE_COLUMN_COUNT = 7;
   $: totalPages = Math.max(1, Math.ceil(total / pageSize));
   $: showingStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
   $: showingEnd = total === 0 ? 0 : Math.min(total, page * pageSize);
+  $: columnCount = showCount ? BASE_COLUMN_COUNT + 1 : BASE_COLUMN_COUNT;
 
   function formatDuration(seconds: number | null | undefined): string {
     if (seconds === null || seconds === undefined) {
@@ -171,6 +178,9 @@
         <thead>
           <tr>
             <th>Track</th>
+            {#if showCount}
+              <th>{countHeading}</th>
+            {/if}
             <th>Artist</th>
             <th>Album</th>
             <th>Duration</th>
@@ -182,12 +192,15 @@
         <tbody>
           {#if rows.length === 0}
             <tr>
-              <td colspan="7" class="empty">Geen nummers gevonden.</td>
+              <td colspan={columnCount} class="empty">Geen nummers gevonden.</td>
             </tr>
           {:else}
             {#each rows as row}
               <tr>
                 <td>{row.track}</td>
+                {#if showCount}
+                  <td class="numeric">{row.count ?? '—'}</td>
+                {/if}
                 <td>{row.artist ?? '—'}</td>
                 <td>{row.album ?? '—'}</td>
                 <td>{formatDuration(row.duration_secs)}</td>
@@ -298,6 +311,12 @@
     padding: 0.75rem 1rem;
     text-align: left;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .numeric {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
   thead {

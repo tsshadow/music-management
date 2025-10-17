@@ -938,27 +938,54 @@ class MariaDBAdapter(DatabaseAdapter):
         """Return track listen counts constrained by a time period."""
 
         clause = self._period_clause(period, value)
+        listen_count = func.count().label("count")
         base_query = (
             select(
                 tracks.c.id.label("track_id"),
                 tracks.c.title.label("track"),
-                func.count().label("count"),
+                release_groups.c.title.label("album"),
+                artists.c.name.label("artist"),
+                tracks.c.duration_secs.label("duration_secs"),
+                listen_count,
             )
             .select_from(listens)
             .join(tracks, listens.c.track_id == tracks.c.id)
+            .outerjoin(release_groups, tracks.c.album_id == release_groups.c.id)
+            .outerjoin(artists, tracks.c.primary_artist_id == artists.c.id)
             .where(clause)
-            .group_by(tracks.c.id, tracks.c.title)
+            .group_by(
+                tracks.c.id,
+                tracks.c.title,
+                release_groups.c.title,
+                artists.c.name,
+                tracks.c.duration_secs,
+            )
         )
 
         stmt = (
-            base_query.order_by(func.count().desc(), tracks.c.title).limit(limit).offset(offset)
+            base_query.order_by(listen_count.desc(), tracks.c.title).limit(limit).offset(offset)
         )
         count_stmt = select(func.count()).select_from(base_query.subquery())
 
         async with self.session_factory() as session:
             total = int((await session.execute(count_stmt)).scalar_one())
             rows = await session.execute(stmt)
-            return [dict(row._mapping) for row in rows], total
+            records = rows.fetchall()
+            items = [
+                {
+                    "track_id": int(row.track_id),
+                    "track": row.track,
+                    "album": row.album,
+                    "artist": row.artist,
+                    "duration_secs": row.duration_secs,
+                    "labels": [],
+                    "catalog_number": None,
+                    "festival": None,
+                    "count": int(row.count),
+                }
+                for row in records
+            ]
+            return items, total
 
     async def stats_genres(
         self, period: str, value: str | None, limit: int, offset: int

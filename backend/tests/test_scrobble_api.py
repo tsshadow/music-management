@@ -25,8 +25,16 @@ async def test_scrobble_flow(client):
 
     response = await client.post("/api/v1/scrobble", json=payload)
     assert response.status_code == 201
-    listen_id = response.json()["listen_id"]
+    data = response.json()
+    listen_id = data["listen_id"]
     assert listen_id > 0
+    assert data["enrich_job_id"] == "job-1"
+
+    calls = client.enrichment_queue.calls  # type: ignore[attr-defined]
+    assert len(calls) == 1
+    queued = calls[0]
+    assert queued["limit"] == 500
+    assert queued["since"] == datetime.fromisoformat(payload["listened_at"])
 
     recent = await client.get("/api/v1/listens/recent")
     assert recent.status_code == 200

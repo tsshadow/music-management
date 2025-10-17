@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -104,11 +105,20 @@ async def test_listenbrainz_import_endpoint(client):
         assert first_data["imported"] == 2
         assert first_data["processed"] == 2
         assert first_data["skipped"] == 0
+        expected_since = datetime.fromtimestamp(1_699_000_000, tz=timezone.utc)
+        assert first_data["earliest_created_at"] == expected_since.isoformat()
+        assert first_data["enrich_job_id"] == "job-1"
 
         second = await client.post("/api/v1/import/listenbrainz", json=payload)
         assert second.status_code == 200
         second_data = second.json()
         assert second_data["imported"] == 0
         assert second_data["processed"] == 2
+        assert second_data["earliest_created_at"] is None
+        assert second_data["enrich_job_id"] is None
+
+        calls = client.enrichment_queue.calls  # type: ignore[attr-defined]
+        assert len(calls) == 1
+        assert calls[0]["since"] == expected_since
     finally:
         app.state.listenbrainz_service = original_service

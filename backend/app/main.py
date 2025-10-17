@@ -29,6 +29,7 @@ from .core.startup import build_engine, init_database
 from .db.maria import MariaDBAdapter
 from .models import metadata
 from .services.ingest_service import IngestService
+from .services.enrichment_queue_service import EnrichmentQueueService
 from .services.listenbrainz_export_service import ListenBrainzExportService
 from .services.listenbrainz_service import ListenBrainzImportService
 from .services.stats_service import StatsService
@@ -64,6 +65,7 @@ async def on_startup():
         adapter,
         base_url=settings.listenbrainz_base_url,
     )
+    app.state.enrichment_queue_service = EnrichmentQueueService(settings)
     if settings.cors_origins:
         app.add_middleware(
             CORSMiddleware,

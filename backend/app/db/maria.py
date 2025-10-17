@@ -174,6 +174,13 @@ class MariaDBAdapter(DatabaseAdapter):
             return None
         async with self.session_factory() as session:
             stmt = select(tracks.c.id).where(and_(*conditions))
+            ordering: list[Any] = []
+            if album_id is not None:
+                ordering.append(case((tracks.c.album_id == album_id, 0), else_=1))
+            if artist_id is not None:
+                ordering.append(case((tracks.c.primary_artist_id == artist_id, 0), else_=1))
+            ordering.append(tracks.c.id)
+            stmt = stmt.order_by(*ordering).limit(1)
             existing = (await session.execute(stmt)).scalar_one_or_none()
             return int(existing) if existing is not None else None
 

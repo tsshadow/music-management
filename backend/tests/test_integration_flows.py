@@ -364,6 +364,65 @@ async def test_reingest_links_existing_listen_to_library(isolated_database):
 
 
 @pytest.mark.asyncio
+async def test_ingest_selects_consistent_track_when_duplicates_exist(isolated_database):
+    """When multiple matching tracks exist, ingestion picks a deterministic row."""
+
+    adapter, repository, ingest = isolated_database
+
+    artist_id = await repository.upsert_artist(
+        display_name="Orbit Nine",
+        name_normalized=normalize_text("Orbit Nine"),
+        sort_name=normalize_text("Orbit Nine"),
+        mbid=None,
+    )
+
+    normalized_title = normalize_text("Parallel Drift")
+
+    async with adapter.session_factory() as session:
+        first = await session.execute(
+            insert(tracks).values(
+                title="Parallel Drift",
+                title_normalized=normalized_title,
+                album_id=None,
+                primary_artist_id=artist_id,
+                duration_secs=180,
+            )
+        )
+        first_track_id = int(first.inserted_primary_key[0])
+
+        await session.execute(
+            insert(tracks).values(
+                title="Parallel Drift",
+                title_normalized=normalized_title,
+                album_id=None,
+                primary_artist_id=artist_id,
+                duration_secs=180,
+            )
+        )
+        await session.commit()
+
+    payload = ScrobblePayload(
+        user="listener",
+        source="listenbrainz",
+        listened_at=datetime(2024, 5, 1, 12, 0, tzinfo=timezone.utc),
+        track=TrackInput(title="Parallel Drift", duration_secs=180),
+        artists=[ArtistInput(name="Orbit Nine")],
+        genres=[],
+    )
+
+    listen_id, created = await ingest.ingest_with_status(payload)
+    assert created is True
+
+    async with adapter.session_factory() as session:
+        stored_track_id = (
+            await session.execute(
+                select(listens.c.track_id).where(listens.c.id == listen_id)
+            )
+        ).scalar_one()
+        assert stored_track_id == first_track_id
+
+
+@pytest.mark.asyncio
 async def test_deduplication_service_merges_duplicate_rows(isolated_database):
     """The deduplication service keeps the canonical listen and removes duplicates."""
 

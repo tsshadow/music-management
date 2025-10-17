@@ -16,6 +16,7 @@ from .api import (
     routes_analyzer,
     routes_analyzer_summary,
     routes_config,
+    routes_enrichment,
     routes_export,
     routes_import,
     routes_library,
@@ -103,6 +104,10 @@ app.include_router(
 )
 app.include_router(
     routes_config.router,
+    prefix=get_settings().api_prefix,
+)
+app.include_router(
+    routes_enrichment.router,
     prefix=get_settings().api_prefix,
 )
 app.include_router(

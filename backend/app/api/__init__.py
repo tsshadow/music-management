@@ -2,6 +2,7 @@ from . import (
     routes_analyzer,
     routes_analyzer_summary,
     routes_config,
+    routes_enrichment,
     routes_export,
     routes_import,
     routes_library,
@@ -13,6 +14,7 @@ from . import (
 
 __all__ = [
     "routes_config",
+    "routes_enrichment",
     "routes_export",
     "routes_import",
     "routes_library",

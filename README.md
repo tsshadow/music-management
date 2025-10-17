@@ -85,6 +85,7 @@ Large media libraries can take longer than the default RQ timeout (three minutes
 * `DELETE /api/v1/listens` – remove all stored listens
 * `GET /api/v1/stats/*` – analytics endpoints
 * `GET/PUT /api/v1/config` – configuration
+* `POST /api/v1/enrichment` – queue analyzer enrichment for stored listens
 * `POST /api/v1/import/listenbrainz` – import ListenBrainz history
 * `POST /api/v1/export/listenbrainz` – export stored listens to ListenBrainz
 
@@ -92,6 +93,8 @@ New listens automatically queue the analyzer's enrichment job so freshly importe
 scrobbles are merged with the media library. The scrobble endpoint returns an
 `enrich_job_id` when a job is queued, and ListenBrainz imports include the
 timestamp of the earliest newly created listen alongside the queued job id.
+You can also trigger an enrichment pass manually from the UI or by calling
+`POST /api/v1/enrichment`.
 
 OpenAPI docs are available at `/docs`.
 

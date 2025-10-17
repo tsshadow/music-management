@@ -205,7 +205,7 @@ class MariaDBAdapter(DatabaseAdapter):
         self,
         *,
         user_id: int,
-        track_id: int,
+        track_id: int | None,
         listened_at: datetime,
         source: str,
         source_track_id: str | None,
@@ -250,8 +250,57 @@ class MariaDBAdapter(DatabaseAdapter):
                 raw_id = int(result.inserted_primary_key[0])
 
         async with self.session_factory() as session:
-            created = True
-            try:
+            existing_row = (
+                await session.execute(
+                    select(
+                        listens.c.id,
+                        listens.c.track_id,
+                        listens.c.source_track_id,
+                        listens.c.position_secs,
+                        listens.c.duration_secs,
+                    )
+                    .where(listens.c.user_id == user_id)
+                    .where(listens.c.listened_at == listened_at)
+                    .order_by(listens.c.id.asc())
+                )
+            ).mappings().first()
+
+        if existing_row is not None:
+            listen_id = int(existing_row["id"])
+            created = False
+            updates = {
+                "raw_id": raw_id,
+                "artist_name_raw": artist_name_raw,
+                "track_title_raw": track_title_raw,
+                "album_title_raw": album_title_raw,
+                "enrich_status": "matched",
+                "match_confidence": 100,
+                "last_enriched_at": func.now(),
+            }
+            if track_id is not None and existing_row["track_id"] != track_id:
+                updates["track_id"] = track_id
+            if source_track_id is not None and existing_row["source_track_id"] != source_track_id:
+                updates["source_track_id"] = source_track_id
+            if (
+                position_secs is not None
+                and existing_row["position_secs"] != position_secs
+            ):
+                updates["position_secs"] = position_secs
+            if (
+                duration_secs is not None
+                and existing_row["duration_secs"] != duration_secs
+            ):
+                updates["duration_secs"] = duration_secs
+
+            async with self.session_factory() as session:
+                await session.execute(
+                    update(listens)
+                    .where(listens.c.id == listen_id)
+                    .values(**updates)
+                )
+                await session.commit()
+        else:
+            async with self.session_factory() as session:
                 result = await session.execute(
                     insert(listens).values(
                         raw_id=raw_id,
@@ -270,33 +319,9 @@ class MariaDBAdapter(DatabaseAdapter):
                         last_enriched_at=func.now(),
                     )
                 )
+                await session.commit()
                 listen_id = int(result.inserted_primary_key[0])
-            except IntegrityError:
-                await session.rollback()
-                existing = await session.execute(
-                    select(listens.c.id).where(
-                        listens.c.user_id == user_id,
-                        listens.c.track_id == track_id,
-                        listens.c.listened_at == listened_at,
-                    )
-                )
-                listen_id = int(existing.scalar_one())
-                created = False
-                await session.execute(
-                    update(listens)
-                    .where(listens.c.id == listen_id)
-                    .values(
-                        raw_id=raw_id,
-                        artist_name_raw=artist_name_raw,
-                        track_title_raw=track_title_raw,
-                        album_title_raw=album_title_raw,
-                        position_secs=position_secs,
-                        duration_secs=duration_secs,
-                    )
-                )
-                await session.commit()
-            else:
-                await session.commit()
+            created = True
 
         async with self.session_factory() as session:
             for artist_id in set(artist_ids):
@@ -321,6 +346,171 @@ class MariaDBAdapter(DatabaseAdapter):
                     )
             await session.commit()
         return listen_id, created
+
+    async def deduplicate_listens(self) -> int:
+        """Merge duplicate listens that share the same user and timestamp."""
+
+        removed = 0
+        async with self.session_factory() as session:
+            duplicates = (
+                await session.execute(
+                    select(
+                        listens.c.user_id,
+                        listens.c.listened_at,
+                        func.count(listens.c.id).label("dup_count"),
+                    )
+                    .group_by(listens.c.user_id, listens.c.listened_at)
+                    .having(func.count(listens.c.id) > 1)
+                )
+            ).all()
+
+            if not duplicates:
+                return removed
+
+            for user_id, listened_at, _ in duplicates:
+                rows = (
+                    await session.execute(
+                        select(
+                            listens.c.id,
+                            listens.c.track_id,
+                            listens.c.source_track_id,
+                            listens.c.position_secs,
+                            listens.c.duration_secs,
+                            listens.c.artist_name_raw,
+                            listens.c.track_title_raw,
+                            listens.c.album_title_raw,
+                        )
+                        .where(listens.c.user_id == user_id)
+                        .where(listens.c.listened_at == listened_at)
+                        .order_by(
+                            case((listens.c.track_id.is_(None), 1), else_=0),
+                            listens.c.id,
+                        )
+                    )
+                ).mappings().all()
+
+                if not rows:
+                    continue
+
+                canonical = rows[0]
+                canonical_id = int(canonical["id"])
+                canonical_track_id = canonical["track_id"]
+                canonical_source_track_id = canonical["source_track_id"]
+                canonical_position = canonical["position_secs"]
+                canonical_duration = canonical["duration_secs"]
+                canonical_artist = canonical["artist_name_raw"]
+                canonical_track = canonical["track_title_raw"]
+                canonical_album = canonical["album_title_raw"]
+
+                existing_artist_ids = set(
+                    await session.scalars(
+                        select(listen_artists.c.artist_id).where(
+                            listen_artists.c.listen_id == canonical_id
+                        )
+                    )
+                )
+                existing_genre_ids = set(
+                    await session.scalars(
+                        select(listen_genres.c.genre_id).where(
+                            listen_genres.c.listen_id == canonical_id
+                        )
+                    )
+                )
+
+                updates: dict[str, Any] = {}
+
+                for row in rows[1:]:
+                    removed += 1
+                    listen_id = int(row["id"])
+
+                    if canonical_track_id is None and row["track_id"] is not None:
+                        canonical_track_id = row["track_id"]
+                    if (
+                        canonical_source_track_id is None
+                        and row["source_track_id"] is not None
+                    ):
+                        canonical_source_track_id = row["source_track_id"]
+                    if canonical_position is None and row["position_secs"] is not None:
+                        canonical_position = row["position_secs"]
+                    if canonical_duration is None and row["duration_secs"] is not None:
+                        canonical_duration = row["duration_secs"]
+                    if not canonical_artist and row["artist_name_raw"]:
+                        canonical_artist = row["artist_name_raw"]
+                    if not canonical_track and row["track_title_raw"]:
+                        canonical_track = row["track_title_raw"]
+                    if not canonical_album and row["album_title_raw"]:
+                        canonical_album = row["album_title_raw"]
+
+                    duplicate_artist_ids = await session.scalars(
+                        select(listen_artists.c.artist_id).where(
+                            listen_artists.c.listen_id == listen_id
+                        )
+                    )
+                    for artist_id in duplicate_artist_ids:
+                        if artist_id is None or artist_id in existing_artist_ids:
+                            continue
+                        await session.execute(
+                            insert(listen_artists).values(
+                                listen_id=canonical_id, artist_id=int(artist_id)
+                            )
+                        )
+                        existing_artist_ids.add(int(artist_id))
+
+                    duplicate_genre_ids = await session.scalars(
+                        select(listen_genres.c.genre_id).where(
+                            listen_genres.c.listen_id == listen_id
+                        )
+                    )
+                    for genre_id in duplicate_genre_ids:
+                        if genre_id is None or genre_id in existing_genre_ids:
+                            continue
+                        await session.execute(
+                            insert(listen_genres).values(
+                                listen_id=canonical_id, genre_id=int(genre_id)
+                            )
+                        )
+                        existing_genre_ids.add(int(genre_id))
+
+                    await session.execute(
+                        delete(listen_artists).where(
+                            listen_artists.c.listen_id == listen_id
+                        )
+                    )
+                    await session.execute(
+                        delete(listen_genres).where(listen_genres.c.listen_id == listen_id)
+                    )
+                    await session.execute(
+                        delete(listens).where(listens.c.id == listen_id)
+                    )
+
+                if canonical_track_id is not None:
+                    updates["track_id"] = canonical_track_id
+                if canonical_source_track_id is not None:
+                    updates["source_track_id"] = canonical_source_track_id
+                if canonical_position is not None:
+                    updates["position_secs"] = canonical_position
+                if canonical_duration is not None:
+                    updates["duration_secs"] = canonical_duration
+                if canonical_artist:
+                    updates["artist_name_raw"] = canonical_artist
+                if canonical_track:
+                    updates["track_title_raw"] = canonical_track
+                if canonical_album:
+                    updates["album_title_raw"] = canonical_album
+
+                if updates:
+                    updates["last_enriched_at"] = func.now()
+                    updates["enrich_status"] = "matched"
+                    updates["match_confidence"] = 100
+                    await session.execute(
+                        update(listens)
+                        .where(listens.c.id == canonical_id)
+                        .values(**updates)
+                    )
+
+            await session.commit()
+
+        return removed
 
     def _clean_artist_entries(self, entries: list[tuple[int | None, str]]) -> list[dict[str, Any]]:
         """Normalize artist names and return unique dictionaries preserving order."""

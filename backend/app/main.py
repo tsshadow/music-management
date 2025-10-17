@@ -30,6 +30,7 @@ from .core.startup import build_engine, init_database
 from .db.maria import MariaDBAdapter
 from .models import metadata
 from .services.ingest_service import IngestService
+from .services.deduplication_service import DeduplicationService
 from .services.enrichment_queue_service import EnrichmentQueueService
 from .services.listenbrainz_export_service import ListenBrainzExportService
 from .services.listenbrainz_service import ListenBrainzImportService
@@ -51,6 +52,7 @@ async def on_startup():
     ingest_service = IngestService(adapter)
     app.state.db_adapter = adapter
     app.state.ingest_service = ingest_service
+    app.state.deduplication_service = DeduplicationService(adapter)
     app.state.stats_service = StatsService(adapter)
     analyzer_repo = AnalyzerRepository(engine)
     app.state.analyzer_summary_service = AnalyzerSummaryService(analyzer_repo)

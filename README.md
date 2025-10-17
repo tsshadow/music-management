@@ -120,7 +120,9 @@ curl -X POST http://localhost:8080/api/v1/import/listenbrainz \
 ```
 
 If `listenbrainz_user` and `listenbrainz_token` are set in `/api/v1/config` you may omit them in the payload. Imports are idempotent;
-re-running the command skips previously stored listens.
+re-running the command skips previously stored listens and links the original rows to the media library when matching metadata becomes available.
+
+For existing datasets you can call the backend `DeduplicationService` to merge duplicate listens that share a timestamp and preserve the best available metadata. The service is registered on the FastAPI application state as `deduplication_service` for use in scripts or admin endpoints.
 
 To wipe the listen history and start a fresh import, call `DELETE /api/v1/listens`.
 

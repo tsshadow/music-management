@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** Scrobbler dashboard for inspecting listening history and running imports. */
+  /** Scrobbler dashboard for inspecting listening history, imports, and enrichment. */
   import { onMount } from 'svelte';
   import Albums from './Albums.svelte';
   import Artists from './Artists.svelte';
@@ -21,6 +21,9 @@
   let importInProgress = false;
   let importState: 'idle' | 'success' | 'error' = 'idle';
   let importMessage = '';
+  let enrichmentInProgress = false;
+  let enrichmentState: 'idle' | 'success' | 'error' = 'idle';
+  let enrichmentMessage = '';
 
   async function loadConfig() {
     loadingConfig = true;
@@ -78,13 +81,52 @@
       const processed = data.processed ?? 0;
       const imported = data.imported ?? 0;
       const skipped = data.skipped ?? 0;
+      const jobId: string | undefined = data.enrich_job_id;
       importState = 'success';
-      importMessage = `Import complete: ${imported} imported, ${skipped} skipped out of ${processed} listens.`;
+      let message = `Import complete: ${imported} imported, ${skipped} skipped out of ${processed} listens.`;
+      if (jobId) {
+        message += ` Enrichment job queued (ID: ${jobId}).`;
+      } else if (imported > 0) {
+        message += ' Library enrichment will run automatically.';
+      }
+      importMessage = message;
     } catch (error) {
       importState = 'error';
       importMessage = error instanceof Error ? `Import failed: ${error.message}` : 'Import failed';
     } finally {
       importInProgress = false;
+    }
+  }
+
+  async function startEnrichment() {
+    if (enrichmentInProgress) {
+      return;
+    }
+    enrichmentInProgress = true;
+    enrichmentState = 'idle';
+    enrichmentMessage = '';
+    try {
+      const response = await fetch('/api/v1/enrichment', {
+        method: 'POST',
+        headers: buildHeaders(),
+        body: JSON.stringify({})
+      });
+      if (!response.ok) {
+        const detail = await response.text();
+        throw new Error(detail || response.statusText);
+      }
+      const data = await response.json();
+      const jobId: string | undefined = data.enrich_job_id;
+      enrichmentState = 'success';
+      enrichmentMessage = jobId
+        ? `Enrichment job queued (ID: ${jobId}).`
+        : 'Enrichment job queued.';
+    } catch (error) {
+      enrichmentState = 'error';
+      enrichmentMessage =
+        error instanceof Error ? `Enrichment failed: ${error.message}` : 'Enrichment failed';
+    } finally {
+      enrichmentInProgress = false;
     }
   }
 
@@ -100,18 +142,39 @@
       <p>Explore your listening history and queue new ListenBrainz imports.</p>
     </div>
     <div class="actions">
-      <button on:click={startImport} disabled={importInProgress || loadingConfig}>
-        {importInProgress ? 'Importing…' : 'Start ListenBrainz import'}
-      </button>
-      {#if importInProgress}
-        <div class="progress" role="status" aria-live="polite">
-          <span class="visually-hidden">Import in progress…</span>
-        </div>
-      {/if}
+      <div class="action">
+        <button on:click={startImport} disabled={importInProgress || loadingConfig}>
+          {importInProgress ? 'Importing…' : 'Start ListenBrainz import'}
+        </button>
+        {#if importInProgress}
+          <div class="progress" role="status" aria-live="polite">
+            <span class="visually-hidden">Import in progress…</span>
+          </div>
+        {/if}
+        {#if importMessage}
+          <p class:success={importState === 'success'} class:error={importState === 'error'} class="status">{importMessage}</p>
+        {/if}
+      </div>
+      <div class="action">
+        <button on:click={startEnrichment} disabled={enrichmentInProgress || loadingConfig}>
+          {enrichmentInProgress ? 'Syncing…' : 'Start library enrichment'}
+        </button>
+        {#if enrichmentInProgress}
+          <div class="progress" role="status" aria-live="polite">
+            <span class="visually-hidden">Enrichment in progress…</span>
+          </div>
+        {/if}
+        {#if enrichmentMessage}
+          <p
+            class:success={enrichmentState === 'success'}
+            class:error={enrichmentState === 'error'}
+            class="status"
+          >
+            {enrichmentMessage}
+          </p>
+        {/if}
+      </div>
     </div>
-    {#if importMessage}
-      <p class:success={importState === 'success'} class:error={importState === 'error'} class="status">{importMessage}</p>
-    {/if}
   </header>
 
   <nav class="tabs" aria-label="Scrobbler sections">
@@ -168,9 +231,18 @@
 
   .actions {
     display: flex;
-    align-items: center;
-    gap: 1rem;
+    align-items: stretch;
+    gap: 1.5rem;
     flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .action {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: center;
+    min-width: 220px;
   }
 
   .actions button {

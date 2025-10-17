@@ -52,6 +52,7 @@ class ListenBrainzImportService:
         pages = 0
         min_ts = int(since.timestamp()) if since else None
         max_ts: int | None = None
+        earliest_created: datetime | None = None
 
         async with self._client_factory(
             base_url=self.base_url,
@@ -80,6 +81,9 @@ class ListenBrainzImportService:
                     _, created = await self.ingest_service.ingest_with_status(scrobble)
                     if created:
                         imported += 1
+                        listened_dt = scrobble.listened_at
+                        if earliest_created is None or listened_dt < earliest_created:
+                            earliest_created = listened_dt
                     ts = listen.get("listened_at")
                     if isinstance(ts, int):
                         earliest = ts if earliest is None else min(earliest, ts)
@@ -94,6 +98,7 @@ class ListenBrainzImportService:
             "imported": imported,
             "skipped": skipped,
             "pages": pages,
+            "earliest_created_at": earliest_created,
         }
 
     async def _to_payload(

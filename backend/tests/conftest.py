@@ -4,6 +4,7 @@ import asyncio
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -21,6 +22,18 @@ get_settings.cache_clear()  # type: ignore
 from backend.app.main import app  # noqa: E402
 
 
+class DummyEnrichmentQueueService:
+    """Collect enrichment job requests queued during tests."""
+
+    def __init__(self) -> None:
+        self.calls: list[dict[str, Any]] = []
+
+    def queue_enrich(self, *, since=None, limit: int = 500) -> str:
+        job_id = f"job-{len(self.calls) + 1}"
+        self.calls.append({"since": since, "limit": limit, "job_id": job_id})
+        return job_id
+
+
 @pytest.fixture(scope="session")
 def event_loop():
     loop = asyncio.new_event_loop()
@@ -31,7 +44,10 @@ def event_loop():
 @pytest.fixture
 async def client():
     await app.router.startup()
+    dummy_queue = DummyEnrichmentQueueService()
+    app.state.enrichment_queue_service = dummy_queue
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
+        ac.enrichment_queue = dummy_queue  # type: ignore[attr-defined]
         yield ac
     await app.router.shutdown()

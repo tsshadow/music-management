@@ -32,7 +32,7 @@ class DatabaseAdapter(Protocol):
         self,
         *,
         user_id: int,
-        track_id: int,
+        track_id: int | None,
         listened_at: datetime,
         source: str,
         source_track_id: str | None,
@@ -45,6 +45,8 @@ class DatabaseAdapter(Protocol):
         artist_ids: Iterable[int],
         genre_ids: Iterable[int],
     ) -> Tuple[int, bool]: ...
+
+    async def deduplicate_listens(self) -> int: ...
 
     async def fetch_recent_listens(self, limit: int = 10) -> list[dict[str, Any]]: ...
     async def fetch_listens(

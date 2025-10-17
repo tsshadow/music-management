@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from datetime import datetime, timezone
+
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, insert, select
 
 from analyzer.db.repo import AnalyzerRepository
 from analyzer.matching.normalizer import normalize_text
@@ -17,12 +19,14 @@ from backend.app.models import (
     listen_artists,
     listen_genres,
     listens,
+    listens_raw,
     metadata,
     track_artists,
     track_genres,
     tracks,
 )
 from backend.app.schemas.common import ArtistInput, ScrobblePayload, TrackInput
+from backend.app.services.deduplication_service import DeduplicationService
 from backend.app.services.ingest_service import IngestService
 
 
@@ -307,3 +311,227 @@ async def test_scrobble_without_existing_track(isolated_database):
             await session.execute(select(func.count()).select_from(tracks))
         ).scalar_one()
         assert track_total == 0
+
+
+@pytest.mark.asyncio
+async def test_reingest_links_existing_listen_to_library(isolated_database):
+    """A second ingestion of the same listen links it to the library instead of duplicating."""
+
+    adapter, repository, ingest = isolated_database
+
+    listened_at = datetime(2024, 5, 1, 12, 0, tzinfo=timezone.utc)
+    payload = ScrobblePayload(
+        user="listener",
+        source="listenbrainz",
+        listened_at=listened_at,
+        track=TrackInput(title="Echo Trail", duration_secs=200),
+        artists=[ArtistInput(name="Signal Forms")],
+        genres=[],
+    )
+
+    listen_id, created = await ingest.ingest_with_status(payload)
+    assert created is True
+
+    async with adapter.session_factory() as session:
+        initial_row = (
+            await session.execute(
+                select(listens.c.track_id).where(listens.c.id == listen_id)
+            )
+        ).scalar_one()
+        assert initial_row is None
+
+    analyzed = await _analyze_track(
+        repository,
+        title="Echo Trail",
+        artist="Signal Forms",
+        duration=200,
+    )
+
+    second_id, created_again = await ingest.ingest_with_status(payload)
+    assert created_again is False
+    assert second_id == listen_id
+
+    async with adapter.session_factory() as session:
+        updated_row = (
+            await session.execute(
+                select(listens.c.track_id, listens.c.artist_name_raw).where(
+                    listens.c.id == listen_id
+                )
+            )
+        ).mappings().one()
+        assert updated_row["track_id"] == analyzed["track_id"]
+        assert updated_row["artist_name_raw"] == "Signal Forms"
+
+
+@pytest.mark.asyncio
+async def test_ingest_selects_consistent_track_when_duplicates_exist(isolated_database):
+    """When multiple matching tracks exist, ingestion picks a deterministic row."""
+
+    adapter, repository, ingest = isolated_database
+
+    artist_id = await repository.upsert_artist(
+        display_name="Orbit Nine",
+        name_normalized=normalize_text("Orbit Nine"),
+        sort_name=normalize_text("Orbit Nine"),
+        mbid=None,
+    )
+
+    normalized_title = normalize_text("Parallel Drift")
+
+    async with adapter.session_factory() as session:
+        first = await session.execute(
+            insert(tracks).values(
+                title="Parallel Drift",
+                title_normalized=normalized_title,
+                album_id=None,
+                primary_artist_id=artist_id,
+                duration_secs=180,
+            )
+        )
+        first_track_id = int(first.inserted_primary_key[0])
+
+        await session.execute(
+            insert(tracks).values(
+                title="Parallel Drift",
+                title_normalized=normalized_title,
+                album_id=None,
+                primary_artist_id=artist_id,
+                duration_secs=180,
+            )
+        )
+        await session.commit()
+
+    payload = ScrobblePayload(
+        user="listener",
+        source="listenbrainz",
+        listened_at=datetime(2024, 5, 1, 12, 0, tzinfo=timezone.utc),
+        track=TrackInput(title="Parallel Drift", duration_secs=180),
+        artists=[ArtistInput(name="Orbit Nine")],
+        genres=[],
+    )
+
+    listen_id, created = await ingest.ingest_with_status(payload)
+    assert created is True
+
+    async with adapter.session_factory() as session:
+        stored_track_id = (
+            await session.execute(
+                select(listens.c.track_id).where(listens.c.id == listen_id)
+            )
+        ).scalar_one()
+        assert stored_track_id == first_track_id
+
+
+@pytest.mark.asyncio
+async def test_deduplication_service_merges_duplicate_rows(isolated_database):
+    """The deduplication service keeps the canonical listen and removes duplicates."""
+
+    adapter, repository, _ = isolated_database
+
+    analyzed = await _analyze_track(
+        repository,
+        title="Parallel Drift",
+        artist="Orbit Nine",
+        genre="Downtempo",
+        duration=180,
+    )
+
+    user_id = await adapter.upsert_user("listener")
+
+    async with adapter.session_factory() as session:
+        raw_one = await session.execute(
+            insert(listens_raw).values(
+                user_id=user_id,
+                source="listenbrainz",
+                source_track_id="abc",
+                payload_json="{}",
+                listened_at=datetime(2024, 6, 1, 8, 0, tzinfo=timezone.utc),
+            )
+        )
+        raw_one_id = int(raw_one.inserted_primary_key[0])
+
+        raw_two = await session.execute(
+            insert(listens_raw).values(
+                user_id=user_id,
+                source="listenbrainz",
+                source_track_id="def",
+                payload_json="{}",
+                listened_at=datetime(2024, 6, 1, 8, 0, tzinfo=timezone.utc),
+            )
+        )
+        raw_two_id = int(raw_two.inserted_primary_key[0])
+
+        first_listen = await session.execute(
+            insert(listens).values(
+                raw_id=raw_one_id,
+                user_id=user_id,
+                track_id=None,
+                listened_at=datetime(2024, 6, 1, 8, 0, tzinfo=timezone.utc),
+                source="listenbrainz",
+                source_track_id="abc",
+                artist_name_raw="",
+                track_title_raw="",
+                album_title_raw="",
+            )
+        )
+        _first_listen_id = int(first_listen.inserted_primary_key[0])
+
+        second_listen = await session.execute(
+            insert(listens).values(
+                raw_id=raw_two_id,
+                user_id=user_id,
+                track_id=analyzed["track_id"],
+                listened_at=datetime(2024, 6, 1, 8, 0, tzinfo=timezone.utc),
+                source="listenbrainz",
+                source_track_id="def",
+                artist_name_raw="Orbit Nine",
+                track_title_raw="Parallel Drift",
+                album_title_raw="",
+            )
+        )
+        second_listen_id = int(second_listen.inserted_primary_key[0])
+
+        await session.execute(
+            insert(listen_artists).values(
+                listen_id=second_listen_id,
+                artist_id=analyzed["artist_id"],
+            )
+        )
+        await session.execute(
+            insert(listen_genres).values(
+                listen_id=second_listen_id,
+                genre_id=analyzed["genre_id"],
+            )
+        )
+        await session.commit()
+
+    service = DeduplicationService(adapter)
+    removed = await service.deduplicate()
+    assert removed == 1
+
+    async with adapter.session_factory() as session:
+        remaining = (
+            await session.execute(
+                select(listens).where(listens.c.user_id == user_id)
+            )
+        ).mappings().all()
+        assert len(remaining) == 1
+        row = remaining[0]
+        assert row["track_id"] == analyzed["track_id"]
+        assert row["source_track_id"] == "def"
+        assert row["artist_name_raw"] == "Orbit Nine"
+        assert row["track_title_raw"] == "Parallel Drift"
+
+        linked_artists = (
+            await session.execute(
+                select(listen_artists).where(listen_artists.c.listen_id == row["id"])
+            )
+        ).fetchall()
+        assert len(linked_artists) == 1
+
+        linked_genres = (
+            await session.execute(
+                select(listen_genres).where(listen_genres.c.listen_id == row["id"])
+            )
+        ).fetchall()
+        assert len(linked_genres) == 1

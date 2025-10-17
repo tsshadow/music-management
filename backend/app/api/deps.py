@@ -9,6 +9,8 @@ from analyzer.services.library_stats_service import AnalyzerLibraryStatsService
 from analyzer.services.summary_service import AnalyzerSummaryService
 
 from ..core.settings import get_settings
+from ..services.deduplication_service import DeduplicationService
+from ..services.enrichment_queue_service import EnrichmentQueueService
 from ..services.listenbrainz_export_service import ListenBrainzExportService
 from ..services.listenbrainz_service import ListenBrainzImportService
 
@@ -72,3 +74,15 @@ def get_analyzer_library_admin_service(
     """Return the analyzer library admin service stored in the application state."""
 
     return request.app.state.analyzer_library_admin_service
+
+
+def get_enrichment_queue_service(request: Request) -> EnrichmentQueueService:
+    """Return the enrichment queue service stored in the application state."""
+
+    return request.app.state.enrichment_queue_service
+
+
+def get_deduplication_service(request: Request) -> DeduplicationService:
+    """Return the deduplication service stored in the application state."""
+
+    return request.app.state.deduplication_service

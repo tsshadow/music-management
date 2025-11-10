@@ -9,7 +9,7 @@ export default defineConfig({
         plugins: [tailwindcss(), sveltekit()],
   server: {
     host: true, // listen on all interfaces
-    allowedHosts: ['music-importer.teunschriks.nl'],
+    allowedHosts: ['importer.muma.teunschriks.nl'],
     proxy: {
       '/api': {
         target: devProxyTarget,
@@ -18,7 +18,7 @@ export default defineConfig({
       },
     },
     // If you proxy/HMR through a remote URL, you may also need:
-    // hmr: { host: 'music-importer.teunschriks.nl', protocol: 'wss', clientPort: 443 }
+    // hmr: { host: 'importer.muma.teunschriks.nl', protocol: 'wss', clientPort: 443 }
   },
         test: {
                 projects: [

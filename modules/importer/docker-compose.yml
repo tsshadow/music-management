@@ -5,9 +5,9 @@ services:
     restart: unless-stopped
     environment:
       MARIADB_ROOT_PASSWORD: rootpass
-      MARIADB_DATABASE: music-importer
-      MARIADB_USER: music-importer
-      MARIADB_PASSWORD: music-importer
+      MARIADB_DATABASE: muma_importer
+      MARIADB_USER: muma_importer
+      MARIADB_PASSWORD: muma_importer
     ports:
       - "40000:3306"
     volumes:
@@ -18,23 +18,23 @@ services:
     restart: unless-stopped
     environment:
       PMA_HOST: db
-      PMA_USER: music-importer
-      PMA_PASSWORD: music-importer
+      PMA_USER: muma_importer
+      PMA_PASSWORD: muma_importer
     ports:
       - "8080:80"
     depends_on:
       - db
 
-  music-importer:
+  importer:
     build: .
     depends_on:
       - db
     environment:
       DB_HOST: db
       DB_PORT: 3306
-      DB_USER: music-importer
-      DB_PASS: music-importer
-      DB_DB: music-importer
+      DB_USER: muma_importer
+      DB_PASS: muma_importer
+      DB_DB: muma_importer
     ports:
       - "${PORT:-8001}:${PORT:-8001}"
     volumes:

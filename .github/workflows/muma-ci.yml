@@ -2,8 +2,12 @@ name: MuMa CI
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - "**"
   pull_request:
+    branches:
+      - "**"
+  workflow_dispatch:
 
 env:
   PYTHON_VERSION: "3.11"

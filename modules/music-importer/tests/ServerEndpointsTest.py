@@ -1,12 +1,9 @@
 import os
 import sys
 import time
-import json
 import types
 import unittest
 import importlib
-import tempfile
-from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -25,13 +22,6 @@ os.environ.setdefault('DB_DB', 'db')
 class ServerEndpointsTest(unittest.TestCase):
     def setUp(self):
         self.original_modules = {}
-
-        self.temp_dir = tempfile.TemporaryDirectory()
-        self.config_path = Path(self.temp_dir.name) / "config.json"
-        os.environ['CONFIG_PATH'] = str(self.config_path)
-
-        import api.config_store as config_store
-        self.config_store_module = importlib.reload(config_store)
 
         def _make_stub_module(module_name, class_names):
             mod = types.ModuleType(module_name)
@@ -99,7 +89,6 @@ class ServerEndpointsTest(unittest.TestCase):
 
         import api.server as server_module
         self.server = importlib.reload(server_module)
-        self.server.ensure_yt_dlp_is_updated = lambda: None
         self.Step = RealStep
         self.server.jobs.clear()
 
@@ -111,8 +100,6 @@ class ServerEndpointsTest(unittest.TestCase):
                 sys.modules.pop(name, None)
             else:
                 sys.modules[name] = mod
-        os.environ.pop('CONFIG_PATH', None)
-        self.temp_dir.cleanup()
 
     def test_steps_and_jobs_listing(self):
         with TestClient(self.server.app) as client:
@@ -130,36 +117,6 @@ class ServerEndpointsTest(unittest.TestCase):
             self.assertEqual(jobs_resp.status_code, 200)
             jobs = jobs_resp.json()['jobs']
             self.assertTrue(any(job['id'] == job_id and job['step'] == 'dummy' for job in jobs))
-
-    def test_config_get_and_update(self):
-        store = self.config_store_module.ConfigStore()
-        with TestClient(self.server.app) as client:
-            resp = client.get('/api/config')
-            self.assertEqual(resp.status_code, 200)
-            data = resp.json()
-            self.assertIn('fields', data)
-            keys = [field['key'] for field in data['fields']]
-            self.assertIn('import_folder_path', keys)
-
-            payload = {
-                'import_folder_path': '/var/imports',
-                'telegram_max_concurrent': 8,
-            }
-            update = client.patch('/api/config', json={'updates': payload})
-            self.assertEqual(update.status_code, 200)
-            result = update.json()['values']
-            self.assertEqual(result['import_folder_path'], '/var/imports')
-            self.assertEqual(result['telegram_max_concurrent'], 8)
-
-            invalid = client.patch('/api/config', json={'updates': {'telegram_max_concurrent': 'nope'}})
-            self.assertEqual(invalid.status_code, 422)
-
-        self.assertEqual(store.get('import_folder_path'), '/var/imports')
-        self.assertEqual(store.get('telegram_max_concurrent'), 8)
-        self.assertTrue(self.config_path.exists())
-        with self.config_path.open() as fh:
-            persisted = json.load(fh)
-        self.assertEqual(persisted['import_folder_path'], '/var/imports')
 
     def test_run_manual_youtube(self):
         with TestClient(self.server.app) as client:

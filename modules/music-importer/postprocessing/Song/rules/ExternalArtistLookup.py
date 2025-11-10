@@ -1,22 +1,15 @@
+import os
 import logging
 import requests
 from typing import Optional
-
-from api.config_store import ConfigStore
 
 
 class DiscogsLookup:
     API_URL = "https://api.discogs.com/database/search"
 
-    def __init__(self, token: Optional[str] = None, store: Optional[ConfigStore] = None):
+    def __init__(self, token: Optional[str] = None):
         self.name = "Discogs"
-        self._store = store or ConfigStore()
-        self.token = token if token is not None else self._store.get("discogs_token")
-        if token is None:
-            self._store.subscribe("discogs_token", self._set_token)
-
-    def _set_token(self, value: Optional[str]) -> None:
-        self.token = value or ""
+        self.token = token or os.getenv("DISCOGS_TOKEN")
 
     def is_known_artist(self, name: str) -> bool:
         if not self.token:
@@ -65,15 +58,9 @@ class MusicBrainzLookup:
 class LastfmLookup:
     API_URL = "https://ws.audioscrobbler.com/2.0/"
 
-    def __init__(self, api_key: Optional[str] = None, store: Optional[ConfigStore] = None):
+    def __init__(self, api_key: Optional[str] = None):
         self.name = "Last.fm"
-        self._store = store or ConfigStore()
-        self.api_key = api_key if api_key is not None else self._store.get("lastfm_api_key")
-        if api_key is None:
-            self._store.subscribe("lastfm_api_key", self._set_api_key)
-
-    def _set_api_key(self, value: Optional[str]) -> None:
-        self.api_key = value or ""
+        self.api_key = api_key or os.getenv("LASTFM_API_KEY")
 
     def is_known_artist(self, name: str) -> bool:
         if not self.api_key:
@@ -104,23 +91,11 @@ class SpotifyLookup:
     TOKEN_URL = "https://accounts.spotify.com/api/token"
     SEARCH_URL = "https://api.spotify.com/v1/search"
 
-    def __init__(
-        self,
-        client_id: Optional[str] = None,
-        client_secret: Optional[str] = None,
-        store: Optional[ConfigStore] = None,
-    ):
+    def __init__(self, client_id: Optional[str] = None, client_secret: Optional[str] = None):
         self.name = "Spotify"
-        self._store = store or ConfigStore()
-        self.client_id = client_id if client_id is not None else self._store.get("spotify_client_id")
-        self.client_secret = (
-            client_secret if client_secret is not None else self._store.get("spotify_client_secret")
-        )
+        self.client_id = client_id or os.getenv("SPOTIFY_CLIENT_ID")
+        self.client_secret = client_secret or os.getenv("SPOTIFY_CLIENT_SECRET")
         self._token: Optional[str] = None
-        if client_id is None:
-            self._store.subscribe("spotify_client_id", self._set_client_id)
-        if client_secret is None:
-            self._store.subscribe("spotify_client_secret", self._set_client_secret)
 
     def _get_token(self) -> Optional[str]:
         if self._token:
@@ -139,14 +114,6 @@ class SpotifyLookup:
         except Exception as e:
             logging.error("Spotify token retrieval failed: %s", e)
         return self._token
-
-    def _set_client_id(self, value: Optional[str]) -> None:
-        self.client_id = value or ""
-        self._token = None
-
-    def _set_client_secret(self, value: Optional[str]) -> None:
-        self.client_secret = value or ""
-        self._token = None
 
     def is_known_artist(self, name: str) -> bool:
         token = self._get_token()
@@ -175,12 +142,11 @@ class ExternalArtistLookup:
     """Check if an artist exists on various external music services."""
 
     def __init__(self):
-        store = ConfigStore()
         self.services = [
-            DiscogsLookup(store=store),
+            DiscogsLookup(),
             MusicBrainzLookup(),
-            LastfmLookup(store=store),
-            SpotifyLookup(store=store),
+            LastfmLookup(),
+            SpotifyLookup(),
         ]
 
     def is_known_artist(self, name: str) -> bool:

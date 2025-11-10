@@ -1,6 +1,6 @@
 import logging
-
-from api.config_store import ConfigStore
+import os
+from dotenv import load_dotenv
 
 
 class SingletonMeta(type):
@@ -24,33 +24,18 @@ class SingletonMeta(type):
 
 
 class Settings(metaclass=SingletonMeta):
+    load_dotenv()
+
     def __init__(self):
-        self._store = ConfigStore()
-        self._keys = [
-            "debug",
-            "rescan",
-            "dryrun",
-            "import_folder_path",
-            "eps_folder_path",
-            "music_folder_path",
-            "delimiter",
-        ]
-        self._subscriptions = []
-        self._refresh()
-        for key in self._keys:
-            self._subscriptions.append(
-                self._store.subscribe(key, lambda value, attr=key: self._update(attr, value))
-            )
+        self.debug = os.getenv("debug")
+        self.rescan = os.getenv("rescan")
+        self.dryrun = os.getenv("dryrun")
+        self.import_folder_path = os.getenv("import_folder_path", "")
+        self.eps_folder_path = os.getenv("eps_folder_path", "")
+        self.music_folder_path = os.getenv("music_folder_path", "")
+        self.delimiter = os.getenv("delimiter", os.sep)
 
         logging.info('import_folder_path = %s', self.import_folder_path)
         logging.info('music_folder_path = %s', self.music_folder_path)
         logging.info('eps_folder_path = %s', self.eps_folder_path)
         logging.info('delimiter = %s', self.delimiter)
-
-    def _refresh(self) -> None:
-        values = self._store.get_many(self._keys)
-        for key, value in values.items():
-            setattr(self, key, value)
-
-    def _update(self, attribute: str, value):
-        setattr(self, attribute, value)

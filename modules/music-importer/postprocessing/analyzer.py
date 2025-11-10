@@ -1,19 +1,18 @@
+import os
 import threading
 import logging
 import pymysql
 import queue
 from typing import Tuple, List
 
-from api.config_store import ConfigStore
-
 class Analyzer(threading.Thread):
     def __init__(self):
         super().__init__()
-        self._store = ConfigStore()
-        self._db_keys = ["db_host", "db_user", "db_port", "db_pass", "db_connect_timeout"]
-        self._apply_config()
-        for key in self._db_keys:
-            self._store.subscribe(key, lambda _value, k=key: self._apply_config())
+        import pymysql
+        self.host = os.getenv('DB_HOST')
+        self.user = os.getenv('DB_USER')
+        self.port = int(os.getenv('DB_PORT'))
+        self.password = os.getenv('DB_PASS')
 
         self.conn = pymysql.connect(
             host=self.host,
@@ -21,8 +20,7 @@ class Analyzer(threading.Thread):
             user=self.user,
             password=self.password,
             database="music-analyzer",
-            autocommit=True,
-            connect_timeout=self.connect_timeout,
+            autocommit=True
         )
         self.cursor = self.conn.cursor()
 
@@ -104,13 +102,3 @@ class Analyzer(threading.Thread):
         self.join()
         self.cursor.close()
         self.conn.close()
-
-    def _apply_config(self) -> None:
-        values = self._store.get_many(self._db_keys)
-        self.host = values.get("db_host") or None
-        self.user = values.get("db_user") or None
-        port = values.get("db_port")
-        self.port = int(port) if port else None
-        self.password = values.get("db_pass") or None
-        timeout = values.get("db_connect_timeout")
-        self.connect_timeout = int(timeout) if timeout else 5

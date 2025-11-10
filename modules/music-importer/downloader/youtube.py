@@ -9,7 +9,6 @@ from yt_dlp import YoutubeDL
 
 from downloader.YoutubeSongProcessor import YoutubeSongProcessor
 from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
-from api.config_store import ConfigStore
 
 
 class YoutubeDownloader:
@@ -22,25 +21,57 @@ class YoutubeDownloader:
         max_pause: int = 5,
         socket_timeout: int = 30,
     ):
-        self._config = ConfigStore()
+        self.output_folder = os.getenv("youtube_folder")
+        self.archive_dir = os.getenv("youtube_archive")
+        self.ffmpeg_location = os.getenv("ffmpeg-location", "usr/bin/local")
+
         self.max_workers = max_workers
         self.burst_size = burst_size
         self.min_pause = min_pause
         self.max_pause = max_pause
         self.socket_timeout = socket_timeout
         self.default_break_on_existing = break_on_existing
-        self._subscriptions = []
-        self._apply_config()
-        for key in [
-            "youtube_folder",
-            "youtube_archive",
-            "ffmpeg_location",
-            "yt_cookies",
-            "yt_user_agent",
-        ]:
-            self._subscriptions.append(
-                self._config.subscribe(key, lambda _value, k=key: self._apply_config())
+
+        if not self.output_folder or not self.archive_dir:
+            logging.warning(
+                "Missing required environment variables for youtube_folder or youtube_archive. "
+                "YouTube downloads will be disabled."
             )
+            self.output_folder = None
+            self.archive_dir = None
+            self.enabled = False
+        else:
+            os.makedirs(self.output_folder, exist_ok=True)
+            os.makedirs(self.archive_dir, exist_ok=True)
+            self.enabled = True
+
+        # Read optional cookie/user-agent env once
+        self.cookies_file = os.getenv("YT_COOKIES")  # expected to be a path to cookies.txt
+        self.user_agent = os.getenv("YT_USER_AGENT")  # optional: keep UA aligned with browser
+
+        if not self.enabled:
+            self._base_ydl_opts = {}
+            return
+
+        self._base_ydl_opts = {
+            "outtmpl": f"{self.output_folder}/%(uploader)s/%(title)s.%(ext)s",
+            "postprocessors": [
+                {"key": "FFmpegExtractAudio", "preferredcodec": "m4a"},
+                {"key": "EmbedThumbnail"},
+                {"key": "FFmpegMetadata"},
+            ],
+            "compat_opts": ["filename"],
+            "nooverwrites": True,
+            "keepvideo": False,
+            "ffmpeg_location": self.ffmpeg_location,
+            "match_filter": self._match_filter,
+            "socket_timeout": self.socket_timeout,
+        }
+
+        # Merge cookie options and user agent on the base options
+        self._base_ydl_opts.update(self._cookie_options())
+        if self.user_agent:
+            self._base_ydl_opts["user_agent"] = self.user_agent
 
     def _cookie_options(self) -> dict:
         """
@@ -64,48 +95,6 @@ class YoutubeDownloader:
         opts["cookiesfrombrowser"] = ("firefox",)
         logging.info("Using cookiesfrombrowser=firefox (no YT_COOKIES file).")
         return opts
-
-    def _apply_config(self) -> None:
-        values = self._config.get_many(
-            ["youtube_folder", "youtube_archive", "ffmpeg_location", "yt_cookies", "yt_user_agent"]
-        )
-        self.output_folder = values.get("youtube_folder") or None
-        self.archive_dir = values.get("youtube_archive") or None
-        self.ffmpeg_location = values.get("ffmpeg_location") or "usr/bin/local"
-        self.cookies_file = values.get("yt_cookies") or None
-        self.user_agent = values.get("yt_user_agent") or None
-
-        if not self.output_folder or not self.archive_dir:
-            if getattr(self, "enabled", True):
-                logging.warning(
-                    "Missing required configuration for YouTube downloads. YouTube downloads will be disabled."
-                )
-            self.enabled = False
-            self._base_ydl_opts = {}
-            return
-
-        os.makedirs(self.output_folder, exist_ok=True)
-        os.makedirs(self.archive_dir, exist_ok=True)
-        self.enabled = True
-
-        self._base_ydl_opts = {
-            "outtmpl": f"{self.output_folder}/%(uploader)s/%(title)s.%(ext)s",
-            "postprocessors": [
-                {"key": "FFmpegExtractAudio", "preferredcodec": "m4a"},
-                {"key": "EmbedThumbnail"},
-                {"key": "FFmpegMetadata"},
-            ],
-            "compat_opts": ["filename"],
-            "nooverwrites": True,
-            "keepvideo": False,
-            "ffmpeg_location": self.ffmpeg_location,
-            "match_filter": self._match_filter,
-            "socket_timeout": self.socket_timeout,
-        }
-
-        self._base_ydl_opts.update(self._cookie_options())
-        if self.user_agent:
-            self._base_ydl_opts["user_agent"] = self.user_agent
 
     def _build_ydl_opts(
         self,

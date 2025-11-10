@@ -1,28 +1,27 @@
-import asyncio
 import os
+import asyncio
 from pathlib import Path
 import logging
 
 from telethon import TelegramClient
 
-from api.config_store import ConfigStore
-
 
 class TelegramDownloader:
     def __init__(self):
-        self._config = ConfigStore()
-        self._subscriptions = []
-        self._apply_config()
-        for key in [
-            "telegram_folder",
-            "telegram_api_id",
-            "telegram_api_hash",
-            "telegram_session",
-            "telegram_max_concurrent",
-        ]:
-            self._subscriptions.append(
-                self._config.subscribe(key, lambda _value, k=key: self._apply_config())
+        self.output_folder = os.getenv("telegram_folder")
+        self.api_id = os.getenv("telegram_api_id")
+        self.api_hash = os.getenv("telegram_api_hash")
+        self.session = os.getenv("telegram_session", "telegram")
+        self.max_concurrent_downloads = int(os.getenv("telegram_max_concurrent", 4))
+
+        if not self.output_folder or not self.api_id or not self.api_hash:
+            logging.warning(
+                "Missing required environment variables: telegram_folder, telegram_api_id, telegram_api_hash. "
+                "Telegram downloads will be disabled."
             )
+            self.output_folder = None
+            self.api_id = None
+            self.api_hash = None
 
     def _is_audio(self, message) -> bool:
         mime = getattr(getattr(message, "file", None), "mime_type", "")
@@ -67,7 +66,7 @@ class TelegramDownloader:
         await asyncio.gather(*download_tasks)
 
     def run(self, channel: str, limit: int | None = None):
-        if not self.enabled:
+        if not self.output_folder or not self.api_id or not self.api_hash:
             logging.warning("Telegram downloader is not configured; skipping run().")
             return
 
@@ -76,32 +75,3 @@ class TelegramDownloader:
 
         with TelegramClient(self.session, int(self.api_id), self.api_hash) as client:
             client.loop.run_until_complete(self._download_channel(client, channel, limit))
-
-    def _apply_config(self) -> None:
-        values = self._config.get_many(
-            [
-                "telegram_folder",
-                "telegram_api_id",
-                "telegram_api_hash",
-                "telegram_session",
-                "telegram_max_concurrent",
-            ]
-        )
-
-        self.output_folder = values.get("telegram_folder") or None
-        self.api_id = values.get("telegram_api_id") or None
-        self.api_hash = values.get("telegram_api_hash") or None
-        self.session = values.get("telegram_session") or "telegram"
-        max_concurrent = values.get("telegram_max_concurrent")
-        self.max_concurrent_downloads = int(max_concurrent) if max_concurrent else 4
-
-        if not self.output_folder or not self.api_id or not self.api_hash:
-            if getattr(self, "enabled", True):
-                logging.warning(
-                    "Missing required configuration for Telegram downloads. Telegram downloads will be disabled."
-                )
-            self.enabled = False
-            return
-
-        Path(self.output_folder).mkdir(parents=True, exist_ok=True)
-        self.enabled = True

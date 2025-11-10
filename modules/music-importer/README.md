@@ -108,23 +108,6 @@ include:
 Other optional variables exist for specific downloaders such as Discogs, Spotify or
 Telegram; consult the source if you need those integrations.
 
-### Web configurator
-
-Runtime configuration is also accessible via the REST API:
-
-* `GET /api/config` returns the schema, defaults and current values.
-* `PATCH /api/config` accepts validated updates and persists them to `data/config.json`.
-
-The Svelte dashboard now features a **Configuration** panel that consumes these
-endpoints. To adjust settings without restarting the service:
-
-1. Open the Music Importer UI.
-2. Modify values within the grouped configuration form. Boolean switches and numeric
-   inputs include inline validation feedback.
-3. Click **Save changes** to push updates. Successful writes immediately refresh the
-   shared configuration store, and downloaders/listeners receive change notifications
-   so new paths or credentials take effect instantly.
-
 ## 🐳 Running with Docker
 
 Build the production image and expose it on the desired port:

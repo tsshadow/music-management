@@ -7,6 +7,7 @@ from typing import Optional
 
 from yt_dlp import YoutubeDL
 
+from api.config_store import ConfigStore
 from downloader.YoutubeSongProcessor import YoutubeSongProcessor
 from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
 
@@ -21,57 +22,25 @@ class YoutubeDownloader:
         max_pause: int = 5,
         socket_timeout: int = 30,
     ):
-        self.output_folder = os.getenv("youtube_folder")
-        self.archive_dir = os.getenv("youtube_archive")
-        self.ffmpeg_location = os.getenv("ffmpeg-location", "usr/bin/local")
-
+        self._config = ConfigStore()
         self.max_workers = max_workers
         self.burst_size = burst_size
         self.min_pause = min_pause
         self.max_pause = max_pause
         self.socket_timeout = socket_timeout
         self.default_break_on_existing = break_on_existing
-
-        if not self.output_folder or not self.archive_dir:
-            logging.warning(
-                "Missing required environment variables for youtube_folder or youtube_archive. "
-                "YouTube downloads will be disabled."
+        self._subscriptions = []
+        self._apply_config()
+        for key in [
+            "youtube_folder",
+            "youtube_archive",
+            "ffmpeg_location",
+            "yt_cookies",
+            "yt_user_agent",
+        ]:
+            self._subscriptions.append(
+                self._config.subscribe(key, lambda _value, k=key: self._apply_config())
             )
-            self.output_folder = None
-            self.archive_dir = None
-            self.enabled = False
-        else:
-            os.makedirs(self.output_folder, exist_ok=True)
-            os.makedirs(self.archive_dir, exist_ok=True)
-            self.enabled = True
-
-        # Read optional cookie/user-agent env once
-        self.cookies_file = os.getenv("YT_COOKIES")  # expected to be a path to cookies.txt
-        self.user_agent = os.getenv("YT_USER_AGENT")  # optional: keep UA aligned with browser
-
-        if not self.enabled:
-            self._base_ydl_opts = {}
-            return
-
-        self._base_ydl_opts = {
-            "outtmpl": f"{self.output_folder}/%(uploader)s/%(title)s.%(ext)s",
-            "postprocessors": [
-                {"key": "FFmpegExtractAudio", "preferredcodec": "m4a"},
-                {"key": "EmbedThumbnail"},
-                {"key": "FFmpegMetadata"},
-            ],
-            "compat_opts": ["filename"],
-            "nooverwrites": True,
-            "keepvideo": False,
-            "ffmpeg_location": self.ffmpeg_location,
-            "match_filter": self._match_filter,
-            "socket_timeout": self.socket_timeout,
-        }
-
-        # Merge cookie options and user agent on the base options
-        self._base_ydl_opts.update(self._cookie_options())
-        if self.user_agent:
-            self._base_ydl_opts["user_agent"] = self.user_agent
 
     def _cookie_options(self) -> dict:
         """
@@ -95,6 +64,48 @@ class YoutubeDownloader:
         opts["cookiesfrombrowser"] = ("firefox",)
         logging.info("Using cookiesfrombrowser=firefox (no YT_COOKIES file).")
         return opts
+
+    def _apply_config(self) -> None:
+        values = self._config.get_many(
+            ["youtube_folder", "youtube_archive", "ffmpeg_location", "yt_cookies", "yt_user_agent"]
+        )
+        self.output_folder = values.get("youtube_folder") or None
+        self.archive_dir = values.get("youtube_archive") or None
+        self.ffmpeg_location = values.get("ffmpeg_location") or "usr/bin/local"
+        self.cookies_file = values.get("yt_cookies") or None
+        self.user_agent = values.get("yt_user_agent") or None
+
+        if not self.output_folder or not self.archive_dir:
+            if getattr(self, "enabled", True):
+                logging.warning(
+                    "Missing required configuration for YouTube downloads. YouTube downloads will be disabled."
+                )
+            self.enabled = False
+            self._base_ydl_opts = {}
+            return
+
+        os.makedirs(self.output_folder, exist_ok=True)
+        os.makedirs(self.archive_dir, exist_ok=True)
+        self.enabled = True
+
+        self._base_ydl_opts = {
+            "outtmpl": f"{self.output_folder}/%(uploader)s/%(title)s.%(ext)s",
+            "postprocessors": [
+                {"key": "FFmpegExtractAudio", "preferredcodec": "m4a"},
+                {"key": "EmbedThumbnail"},
+                {"key": "FFmpegMetadata"},
+            ],
+            "compat_opts": ["filename"],
+            "nooverwrites": True,
+            "keepvideo": False,
+            "ffmpeg_location": self.ffmpeg_location,
+            "match_filter": self._match_filter,
+            "socket_timeout": self.socket_timeout,
+        }
+
+        self._base_ydl_opts.update(self._cookie_options())
+        if self.user_agent:
+            self._base_ydl_opts["user_agent"] = self.user_agent
 
     def _build_ydl_opts(
         self,
@@ -198,82 +209,59 @@ class YoutubeDownloader:
             with self._create_ydl(opts) as ydl:
                 logging.info(f"Downloading from url: {url}")
                 ydl.download([url])
-            logging.info("Finished downloading video")
         except Exception as e:
-            logging.error(f"Download failed for {url}: {e}", exc_info=True)
+            logging.error(f"Failed to download {url}: {e}")
+            raise
 
-    def get_accounts_from_db(self):
-        try:
-            db = DatabaseConnector().connect()
-            with db.cursor() as cursor:
-                cursor.execute("SELECT name FROM youtube_accounts")
-                accounts = [row[0] for row in cursor.fetchall()]
-            return accounts
-        except Exception as e:
-            logging.error(f"Failed to fetch Youtube accounts from DB: {e}")
-            return []
-
-    def run(
-        self,
-        breakOnExisting: Optional[bool] = None,
-        redownload: bool = False,
-        account: str = "",
-    ):
-        if not getattr(self, "enabled", True):
-            logging.warning("YouTube downloader is not configured; skipping run().")
+    def download_accounts(self, accounts: list[str], break_on_existing: bool = True):
+        if not self.enabled:
+            logging.warning("YouTube downloader is disabled; skipping download_accounts().")
             return
 
-        try:
-            if account:
-                accounts = [account]
-            else:
-                accounts = self.get_accounts_from_db()
-        except Exception as e:
-            logging.error(f"Database error while fetching YouTube accounts: {e}")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            futures = [
+                executor.submit(
+                    self.download_account,
+                    account,
+                    self._build_ydl_opts(
+                        os.path.join(self.archive_dir, f"{account}.txt"),
+                        break_on_existing=break_on_existing,
+                    ),
+                )
+                for account in accounts
+            ]
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    future.result()
+                except Exception as e:
+                    logging.error(f"Error downloading account: {e}")
+
+    def run(self):
+        if not self.enabled:
+            logging.warning("YouTube downloader is disabled; skipping run().")
             return
 
-        if not accounts:
-            logging.warning("No YouTube accounts found in the database.")
-            return
-
-        total_accounts = len(accounts)
-        accounts.sort()
-
-        total_batches = (total_accounts + self.burst_size - 1) // self.burst_size
-
-        for i in range(0, total_accounts, self.burst_size):
+        accounts = DatabaseConnector().get_youtube_accounts()
+        for i in range(0, len(accounts), self.burst_size):
             batch = accounts[i : i + self.burst_size]
-            batch_index = i // self.burst_size + 1
-            logging.info(
-                "Processing YouTube batch %s of %s", batch_index, total_batches
-            )
-
-            with concurrent.futures.ThreadPoolExecutor(
-                max_workers=self.max_workers
-            ) as executor:
-                futures = {}
-                for acc in batch:
-                    account_archive = os.path.join(self.archive_dir, f"{acc}.txt")
-                    effective_break = (
-                        self.default_break_on_existing
-                        if breakOnExisting is None
-                        else breakOnExisting
-                    )
-                    ydl_opts = self._build_ydl_opts(
-                        account_archive,
-                        break_on_existing=effective_break,
-                        redownload=redownload,
-                    )
-                    futures[executor.submit(self.download_account, acc, ydl_opts)] = acc
-
-                for future in concurrent.futures.as_completed(futures):
-                    acc = futures[future]
-                    try:
-                        future.result()
-                    except Exception as exc:
-                        logging.error(f"Unhandled error downloading {acc}: {exc}")
-
-            if i + self.burst_size < total_accounts:
+            logging.info(f"Processing batch: {batch}")
+            self.download_accounts(batch, break_on_existing=self.default_break_on_existing)
+            if i + self.burst_size < len(accounts):
                 pause = random.randint(self.min_pause, self.max_pause)
-                logging.info(f"Throttling pause: sleeping {pause} seconds...")
+                logging.info(f"Pausing for {pause} seconds before next batch")
                 time.sleep(pause)
+
+    def manual_download(self, url: str, break_on_existing: Optional[bool] = None, redownload: bool = False):
+        if break_on_existing is None:
+            break_on_existing = self.default_break_on_existing
+        return self.download_link(url, break_on_existing, redownload=redownload)
+
+    def manual_account_download(self, account: str, redownload: bool = False):
+        return self.download_account(
+            account,
+            self._build_ydl_opts(
+                os.path.join(self.archive_dir, f"{account}.txt"),
+                break_on_existing=self.default_break_on_existing,
+                redownload=redownload,
+            ),
+        )

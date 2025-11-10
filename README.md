@@ -47,6 +47,15 @@ python -m unittest
 The Importer web UI lives in `modules/importer/frontend` and is a SvelteKit project managed
 with pnpm.
 
+### Importer configuration
+
+The importer exposes a runtime configuration service backed by a persisted store.
+
+* `GET /api/config` returns the available fields with metadata, defaults, and current values.
+* `PATCH /api/config` validates updates, saves them to `data/config.json`, and notifies listeners so downloaders pick up changes immediately.
+
+The Svelte dashboard contains a **Configuration** panel that consumes these endpoints. Adjusting values in the UI lets you tweak paths, downloader credentials, or feature flags without bouncing the importer process.
+
 ### Scrobbler module
 
 ```bash

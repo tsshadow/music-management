@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
 
+from .config_store import ConfigStore
 from .db_init import ensure_tables_exist
 from .steps import step_map, steps_to_run
 

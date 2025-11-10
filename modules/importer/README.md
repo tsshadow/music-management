@@ -62,7 +62,11 @@ Set the `API_KEY` environment variable to require clients to include the key via
 
 ## ⚙️ Configuration
 
-Configure the service through environment variables:
+The importer now reads configuration from a centralized store that merges environment variables, persisted JSON, and live updates from the web UI.
+
+### Environment variables
+
+Environment variables still provide the bootstrap defaults when running in containers:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -75,8 +79,16 @@ Configure the service through environment variables:
 | `API_KEY` | – | Optional shared secret required by clients |
 | `CORS_ORIGINS` | `*` | Comma-separated list of allowed origins |
 
-Additional variables exist for specific downloaders (Discogs, Spotify, Telegram, etc.).
-Consult the source code for details.
+Other variables exist for downloaders (Discogs, Spotify, Telegram, YouTube). Set them in your `.env` file or container definition to provide initial values.
+
+### Web configurator
+
+Configuration is also editable at runtime through the REST API and Svelte UI:
+
+* `GET /api/config` returns the schema (group, type, description) and current values.
+* `PATCH /api/config` validates updates, writes them to `data/config.json`, and notifies listeners so downloaders immediately pick up the new settings.
+
+The dashboard includes a **Configuration** panel with grouped forms. Update folder paths, API tokens, or feature flags, press **Save changes**, and the backend switches to the new values without restarts.
 
 ---
 

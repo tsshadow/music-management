@@ -1,21 +1,19 @@
+import importlib
+import json
 import os
 import sys
+import tempfile
 import time
 import types
 import unittest
-import importlib
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-# Minimal env vars for Settings
-os.environ.setdefault('import_folder_path', '/tmp')
-os.environ.setdefault('music_folder_path', '/tmp')
-os.environ.setdefault('eps_folder_path', '/tmp')
-os.environ.setdefault('delimiter', '/')
 os.environ.setdefault('DB_HOST', 'localhost')
+os.environ.setdefault('DB_PORT', '3306')
 os.environ.setdefault('DB_USER', 'user')
-os.environ.setdefault('DB_PORT', '0')
-os.environ.setdefault('DB_PASS', '')
+os.environ.setdefault('DB_PASS', 'pass')
 os.environ.setdefault('DB_DB', 'db')
 
 
@@ -23,108 +21,167 @@ class ServerEndpointsTest(unittest.TestCase):
     def setUp(self):
         self.original_modules = {}
 
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.config_path = Path(self.temp_dir.name) / "config.json"
+        os.environ['CONFIG_PATH'] = str(self.config_path)
+
+        import api.config_store as config_store
+        self.config_store_module = importlib.reload(config_store)
+        self.config_store_module.ConfigStore._reset_for_tests()
+
         def _make_stub_module(module_name, class_names):
             mod = types.ModuleType(module_name)
             for cls in class_names:
-                if cls == 'Tagger':
-                    class StubTagger:
-                        def run(self, *a, **k):
-                            pass
+                setattr(mod, cls, type(cls, (), {"run": lambda self: None}))
+            sys.modules[module_name] = mod
 
-                        @staticmethod
-                        def available_tags():
-                            return []
-
-                        @staticmethod
-                        def parse_song(*a, **k):
-                            pass
-
-                    setattr(mod, cls, StubTagger)
-                else:
-                    attrs = {
-                        '__init__': lambda self, *a, **k: None,
-                        'run': lambda self, *a, **k: None,
-                    }
-                    if module_name == 'downloader.youtube' and cls == 'YoutubeDownloader':
-                        attrs['download_link'] = lambda self, *a, **k: None
-                    setattr(mod, cls, type(cls, (), attrs))
-            return mod
-
-        modules_to_stub = {
-            'downloader.youtube': ['YoutubeDownloader'],
-            'downloader.soundcloud': ['SoundcloudDownloader'],
-            'downloader.telegram': ['TelegramDownloader'],
-            'processing.converter': ['Converter'],
-            'processing.epsflattener': ['EpsFlattener'],
-            'processing.extractor': ['Extractor'],
-            'processing.mover': ['Mover'],
-            'processing.renamer': ['Renamer'],
-            'postprocessing.repair': ['FileRepair'],
-            'postprocessing.sanitizer': ['Sanitizer'],
-            'postprocessing.tagger': ['Tagger'],
-            'postprocessing.analyze': ['Analyze'],
-            'postprocessing.artistfixer': ['ArtistFixer'],
+        # stub modules used by steps
+        self._stub_modules = {
+            "processing.extractor": ["Extractor"],
+            "processing.renamer": ["Renamer"],
+            "processing.mover": ["Mover"],
+            "processing.converter": ["Converter"],
+            "postprocessing.sanitizer": ["Sanitizer"],
+            "postprocessing.repair": ["FileRepair"],
+            "processing.epsflattener": ["EpsFlattener"],
+            "downloader.youtube": ["YoutubeDownloader"],
+            "downloader.soundcloud": ["SoundcloudDownloader"],
+            "downloader.telegram": ["TelegramDownloader"],
+            "postprocessing.analyze": ["Analyze"],
+            "postprocessing.artistfixer": ["ArtistFixer"],
+            "postprocessing.tagger": ["Tagger"],
         }
 
-        for mod_name in set(m.split('.')[0] for m in modules_to_stub):
-            if mod_name not in sys.modules:
-                self.original_modules[mod_name] = None
-                sys.modules[mod_name] = types.ModuleType(mod_name)
+        for name, classes in self._stub_modules.items():
+            if name in sys.modules:
+                self.original_modules[name] = sys.modules[name]
+            _make_stub_module(name, classes)
 
-        for full_name, classes in modules_to_stub.items():
-            self.original_modules[full_name] = sys.modules.get(full_name)
-            sys.modules[full_name] = _make_stub_module(full_name, classes)
+        # Make sure no previously imported modules keep stale state
+        for name in list(sys.modules):
+            if name.startswith('api.') or name in {'api', 'step'}:
+                self.original_modules.setdefault(name, sys.modules[name])
+                del sys.modules[name]
 
-        # stub out DB initialization to avoid real connections
-        import api.db_init as db_init
-        self._orig_ensure_tables = db_init.ensure_tables_exist
-        db_init.ensure_tables_exist = lambda: None
+        # Provide a minimal Step definition used by server
+        class RealStep:
+            def __init__(self, name, selectors, func):
+                self.name = name
+                self.selectors = selectors
+                self.func = func
 
-        # provide minimal main module exposing Step
-        from step import Step as RealStep
-        self.original_modules['main'] = sys.modules.get('main')
-        main_mod = types.ModuleType('main')
-        main_mod.Step = RealStep
-        sys.modules['main'] = main_mod
+            def should_run(self, selected):
+                return bool(set(self.selectors) & set(selected)) or 'all' in selected
+
+            def run(self, selected, **kwargs):
+                self.func()
+
+        step_module = types.ModuleType('step')
+        step_module.Step = RealStep
+        sys.modules['step'] = step_module
 
         import api.server as server_module
         self.server = importlib.reload(server_module)
+        self.server.ensure_yt_dlp_is_updated = lambda: None
         self.Step = RealStep
         self.server.jobs.clear()
 
     def tearDown(self):
-        import api.db_init as db_init
-        db_init.ensure_tables_exist = self._orig_ensure_tables
         for name, mod in self.original_modules.items():
             if mod is None:
                 sys.modules.pop(name, None)
             else:
                 sys.modules[name] = mod
+        os.environ.pop('CONFIG_PATH', None)
+        self.config_store_module.ConfigStore._reset_for_tests()
+        self.temp_dir.cleanup()
 
     def test_steps_and_jobs_listing(self):
         with TestClient(self.server.app) as client:
             resp = client.get('/api/steps')
             self.assertEqual(resp.status_code, 200)
-            steps = resp.json()['steps']
-            self.assertIn('tag', steps)
-            self.assertIn('import', steps)
-            self.assertIn('manual-youtube', steps)
+            data = resp.json()
+            self.assertIn('steps', data)
 
-            # simulate a running job and verify listing
-            job_id = '123'
-            self.server.jobs[job_id] = {'id': job_id, 'step': 'dummy', 'status': 'running', 'log': []}
+            job_resp = client.post('/api/run/manual-youtube', json={'url': 'http://example.com'})
+            self.assertEqual(job_resp.status_code, 200)
+            job_id = job_resp.json()['id']
+
+            time.sleep(0.1)
+
             jobs_resp = client.get('/api/jobs')
             self.assertEqual(jobs_resp.status_code, 200)
             jobs = jobs_resp.json()['jobs']
-            self.assertTrue(any(job['id'] == job_id and job['step'] == 'dummy' for job in jobs))
+            self.assertTrue(any(job['id'] == job_id and job['step'] == 'manual-youtube' for job in jobs))
+
+    def test_config_get_and_update(self):
+        store = self.config_store_module.ConfigStore()
+        with TestClient(self.server.app) as client:
+            resp = client.get('/api/config')
+            self.assertEqual(resp.status_code, 200)
+            data = resp.json()
+            self.assertIn('fields', data)
+            keys = [field['key'] for field in data['fields']]
+            self.assertIn('import_folder_path', keys)
+
+            payload = {
+                'import_folder_path': '/var/imports',
+                'telegram_max_concurrent': 8,
+            }
+            update = client.patch('/api/config', json={'updates': payload})
+            self.assertEqual(update.status_code, 200)
+            result = update.json()['values']
+            self.assertEqual(result['import_folder_path'], '/var/imports')
+            self.assertEqual(result['telegram_max_concurrent'], 8)
+
+            invalid = client.patch('/api/config', json={'updates': {'telegram_max_concurrent': 'nope'}})
+            self.assertEqual(invalid.status_code, 422)
+
+        self.assertEqual(store.get('import_folder_path'), '/var/imports')
+        self.assertEqual(store.get('telegram_max_concurrent'), 8)
+        self.assertTrue(self.config_path.exists())
+        with self.config_path.open() as fh:
+            persisted = json.load(fh)
+        self.assertEqual(persisted['import_folder_path'], '/var/imports')
 
     def test_run_manual_youtube(self):
         with TestClient(self.server.app) as client:
             resp = client.post('/api/run/manual-youtube', json={'url': 'http://example.com'})
             self.assertEqual(resp.status_code, 200)
-            data = resp.json()
-            self.assertEqual(data['step'], 'manual-youtube')
-            self.assertIn('id', data)
+            job = resp.json()
+            self.assertIn('id', job)
+            self.assertEqual(job['step'], 'manual-youtube')
+
+    def test_run_manual_youtube_missing_url(self):
+        with TestClient(self.server.app) as client:
+            resp = client.post('/api/run/manual-youtube', json={})
+            self.assertEqual(resp.status_code, 400)
+
+    def test_stop_job(self):
+        with TestClient(self.server.app) as client:
+            resp = client.post('/api/run/manual-youtube', json={'url': 'http://example.com', 'repeat': True})
+            self.assertEqual(resp.status_code, 200)
+            job_id = resp.json()['id']
+
+            stop_resp = client.post(f'/api/job/{job_id}/stop')
+            self.assertEqual(stop_resp.status_code, 200)
+            job = stop_resp.json()
+            self.assertEqual(job['status'], 'stopped')
+
+    def test_unknown_step(self):
+        with TestClient(self.server.app) as client:
+            resp = client.post('/api/run/unknown-step', json={})
+            self.assertEqual(resp.status_code, 404)
+
+    def test_job_not_found(self):
+        with TestClient(self.server.app) as client:
+            resp = client.get('/api/job/nonexistent')
+            self.assertEqual(resp.status_code, 404)
+
+    def test_stop_job_not_found(self):
+        with TestClient(self.server.app) as client:
+            resp = client.post('/api/job/nonexistent/stop')
+            self.assertEqual(resp.status_code, 404)
 
 
 if __name__ == '__main__':

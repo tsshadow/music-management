@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+ytvenv/
+*.egg-info/
+
+# Node / Svelte / Vite
+node_modules/
+frontend/node_modules/
+frontend/.svelte-kit/
+frontend/.vite/
+frontend/dist/
+
+# VCS/IDE
+.git/
+.github/
+.gitignore
+.vscode/
+.idea/
+
+# Local env & secrets
+.env
+.env.*
+*.session
+youtube.com_cookies.txt
+soundcloud.com_cookies.txt
+
+# Build/run artifacts & logs
+dist/
+build/
+coverage/
+.coverage
+analysis_output.json
+result.json
+broken-files.log
+music-importer.session
+

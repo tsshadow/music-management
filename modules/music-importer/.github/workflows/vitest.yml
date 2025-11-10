@@ -1,0 +1,42 @@
+name: Frontend tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node first (no cache here)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Install pnpm
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      # Cache the pnpm store
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: pnpm-store-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Run vitest (CI mode, no watch)
+        run: pnpm vitest run --reporter=verbose

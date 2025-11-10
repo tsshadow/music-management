@@ -14,6 +14,7 @@ from api.jobs import job_manager
 from downloader.SoundcloudProcessor import SoundcloudSongProcessor
 from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
 from pathlib import Path
+from api.config_store import ConfigStore
 
 
 
@@ -41,59 +42,23 @@ class SoundcloudDownloader:
     - Skips tracks outside a configurable duration range.
     """
     def __init__(self, break_on_existing=True, max_workers=1, burst_size=10, min_pause=1, max_pause=5):
-        self.output_folder = os.getenv("soundcloud_folder")
-        self.archive_dir = os.getenv("soundcloud_archive")
-        self.cookies_file = os.getenv("soundcloud_cookies", "soundcloud.com_cookies.txt")
-        self.ffmpeg_location = os.getenv("ffmpeg-location", "usr/bin/local")
+        self._config = ConfigStore()
         self.default_break_on_existing = break_on_existing
-
-        if not self.output_folder or not self.archive_dir:
-            logging.warning(
-                "Missing required environment variables: soundcloud_folder or soundcloud_archive. "
-                "SoundCloud downloads will be disabled."
-            )
-            self.output_folder = None
-            self.archive_dir = None
-            self.enabled = False
-            return
-
-        if not os.path.isdir(self.output_folder):
-            raise FileNotFoundError(f"Output folder does not exist: {self.output_folder}")
-
-        if os.path.isfile(self.archive_dir):
-            self.archive_file = self.archive_dir
-        else:
-            os.makedirs(self.archive_dir, exist_ok=True)
-            self.archive_file = None
-
-        self.enabled = True
         self.max_workers = max_workers
         self.burst_size = burst_size
         self.min_pause = min_pause
         self.max_pause = max_pause
-
-        self.ydl_opts = {
-            'http_headers': {
-                'User-Agent': (
-                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                    'AppleWebKit/537.36 (KHTML, like Gecko) '
-                    'Chrome/120.0.0.0 Safari/537.36'
-                )
-            },
-            'outtmpl': f'{self.output_folder}/%(uploader)s/%(title)s.%(ext)s',
-            'compat_opts': ['filename'],
-            'nooverwrites': False,
-            'no_part': True,
-            'format': 'bestaudio[ext=mp3]',
-            'match_filter': self._match_filter,
-            'quiet': False,
-            'set_file_timestamp': True,
-            'cookies': self.cookies_file,
-            "ffmpeg_location": self.ffmpeg_location,
-        }
-
-        if break_on_existing:
-            self.ydl_opts['break_on_existing'] = True
+        self._subscriptions = []
+        self._apply_config()
+        for key in [
+            "soundcloud_folder",
+            "soundcloud_archive",
+            "soundcloud_cookies",
+            "ffmpeg_location",
+        ]:
+            self._subscriptions.append(
+                self._config.subscribe(key, lambda _value, k=key: self._apply_config())
+            )
 
     def _match_filter(self, info):
         duration = info.get("duration")
@@ -198,7 +163,108 @@ class SoundcloudDownloader:
                         "total": total_accounts,
                     })
 
+    def _apply_config(self) -> None:
+        values = self._config.get_many(
+            ["soundcloud_folder", "soundcloud_archive", "soundcloud_cookies", "ffmpeg_location"]
+        )
+        self.output_folder = values.get("soundcloud_folder") or None
+        self.archive_dir = values.get("soundcloud_archive") or None
+        self.cookies_file = values.get("soundcloud_cookies") or "soundcloud.com_cookies.txt"
+        self.ffmpeg_location = values.get("ffmpeg_location") or "usr/bin/local"
+
+        if not self.output_folder or not self.archive_dir:
+            if getattr(self, "enabled", True):
+                logging.warning(
+                    "Missing required configuration for SoundCloud downloads. SoundCloud downloads will be disabled."
+                )
+            self.enabled = False
+            self.ydl_opts = {}
+            self.archive_file = None
+            return
+
+        os.makedirs(self.output_folder, exist_ok=True)
+        if os.path.isfile(self.archive_dir):
+            self.archive_file = self.archive_dir
+        else:
+            os.makedirs(self.archive_dir, exist_ok=True)
+            self.archive_file = None
+
+        self.enabled = True
+        self.ydl_opts = {
+            'http_headers': {
+                'User-Agent': (
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                    'AppleWebKit/537.36 (KHTML, like Gecko) '
+                    'Chrome/120.0.0.0 Safari/537.36'
+                )
+            },
+            'outtmpl': f'{self.output_folder}/%(uploader)s/%(title)s.%(ext)s',
+            'compat_opts': ['filename'],
+            'nooverwrites': False,
+            'no_part': True,
+            'format': 'bestaudio[ext=mp3]',
+            'match_filter': self._match_filter,
+            'quiet': False,
+            'set_file_timestamp': True,
+            'cookies': self.cookies_file,
+            "ffmpeg_location": self.ffmpeg_location,
+        }
+
+        if self.default_break_on_existing:
+            self.ydl_opts['break_on_existing'] = True
+
             if i + self.burst_size < total_accounts:
                 pause = random.randint(self.min_pause, self.max_pause)
                 logging.info(f"Throttling pause: sleeping {pause} seconds...")
                 time.sleep(pause)
+
+    def _apply_config(self) -> None:
+        values = self._config.get_many(
+            ["soundcloud_folder", "soundcloud_archive", "soundcloud_cookies", "ffmpeg_location"]
+        )
+        self.output_folder = values.get("soundcloud_folder") or None
+        self.archive_dir = values.get("soundcloud_archive") or None
+        self.cookies_file = values.get("soundcloud_cookies") or "soundcloud.com_cookies.txt"
+        self.ffmpeg_location = values.get("ffmpeg_location") or "usr/bin/local"
+
+        if not self.output_folder or not self.archive_dir:
+            if getattr(self, "enabled", True):
+                logging.warning(
+                    "Missing required configuration for SoundCloud downloads. SoundCloud downloads will be disabled."
+                )
+            self.enabled = False
+            self.ydl_opts = {}
+            self.archive_file = None
+            return
+
+        os.makedirs(self.output_folder, exist_ok=True)
+        if os.path.isfile(self.archive_dir):
+            self.archive_file = self.archive_dir
+        else:
+            os.makedirs(self.archive_dir, exist_ok=True)
+            self.archive_file = None
+
+        self.enabled = True
+        self.ydl_opts = {
+            'http_headers': {
+                'User-Agent': (
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                    'AppleWebKit/537.36 (KHTML, like Gecko) '
+                    'Chrome/120.0.0.0 Safari/537.36'
+                )
+            },
+            'outtmpl': f'{self.output_folder}/%(uploader)s/%(title)s.%(ext)s',
+            'compat_opts': ['filename'],
+            'nooverwrites': False,
+            'no_part': True,
+            'format': 'bestaudio[ext=mp3]',
+            'match_filter': self._match_filter,
+            'quiet': False,
+            'set_file_timestamp': True,
+            'cookies': self.cookies_file,
+            "ffmpeg_location": self.ffmpeg_location,
+        }
+
+        if self.default_break_on_existing:
+            self.ydl_opts['break_on_existing'] = True
+

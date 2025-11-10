@@ -20,6 +20,8 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from pydantic import BaseModel, Field, field_validator
+
 from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
 
 from .db_init import ensure_tables_exist
@@ -42,6 +44,8 @@ current_logger: ContextVar[logging.LoggerAdapter] = ContextVar(
 
 
 def ensure_yt_dlp_is_updated():
+    if os.getenv("SKIP_YT_DLP_UPDATE"):
+        return
     import subprocess
     try:
         subprocess.run(["pip", "install", "--upgrade", "yt-dlp", "--break-system-packages"], check=True)
@@ -113,6 +117,17 @@ app.add_middleware(
 
 jobs: Dict[str, Dict] = {}
 clients: Set[WebSocket] = set()
+
+
+class ConfigUpdatePayload(BaseModel):
+    updates: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("updates")
+    @classmethod
+    def _validate_updates(cls, value: Dict[str, Any]) -> Dict[str, Any]:
+        if not value:
+            raise ValueError("updates must contain at least one entry")
+        return value
 
 
 async def broadcast(job: Dict) -> None:
@@ -187,6 +202,30 @@ async def list_accounts(_: None = Depends(verify_api_key)) -> Dict[str, List[str
         "soundcloud": _load_accounts("soundcloud_accounts"),
         "youtube": _load_accounts("youtube_accounts"),
     }
+
+
+@app.get("/api/config")
+async def get_config(_: None = Depends(verify_api_key)) -> Dict[str, Any]:
+    """Return the configuration schema and current values."""
+
+    store = ConfigStore()
+    return {"fields": store.describe()}
+
+
+@app.patch("/api/config")
+async def update_config(
+    payload: ConfigUpdatePayload, _: None = Depends(verify_api_key)
+) -> Dict[str, Any]:
+    """Persist configuration updates and notify registered listeners."""
+
+    store = ConfigStore()
+    try:
+        updated = store.update(payload.updates)
+    except KeyError as exc:  # Unknown key
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"values": updated}
 
 
 @app.get("/api/jobs")

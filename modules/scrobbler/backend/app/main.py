@@ -1,0 +1,165 @@
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from analyzer.db.repo import AnalyzerRepository
+from analyzer.services.library_admin_service import AnalyzerLibraryAdminService
+from analyzer.services.library_stats_service import AnalyzerLibraryStatsService
+from analyzer.services.summary_service import AnalyzerSummaryService
+
+from .api import (
+    routes_analyzer,
+    routes_analyzer_summary,
+    routes_config,
+    routes_enrichment,
+    routes_export,
+    routes_import,
+    routes_library,
+    routes_listens,
+    routes_scrobble,
+    routes_stats,
+    routes_subsonic,
+)
+from .core.settings import get_settings
+from .core.startup import build_engine, init_database
+from .db.maria import MariaDBAdapter
+from .models import metadata
+from .services.ingest_service import IngestService
+from .services.deduplication_service import DeduplicationService
+from .services.enrichment_queue_service import EnrichmentQueueService
+from .services.listenbrainz_export_service import ListenBrainzExportService
+from .services.listenbrainz_service import ListenBrainzImportService
+from .services.stats_service import StatsService
+
+logger = logging.getLogger(__name__)
+
+app = FastAPI(title="Scrobbler")
+
+
+@app.on_event("startup")
+async def on_startup():
+    """Initialize application services and ensure the database schema exists."""
+
+    settings = get_settings()
+    engine = build_engine()
+    await init_database(engine, metadata)
+    adapter = MariaDBAdapter(engine)
+    ingest_service = IngestService(adapter)
+    app.state.db_adapter = adapter
+    app.state.ingest_service = ingest_service
+    app.state.deduplication_service = DeduplicationService(adapter)
+    app.state.stats_service = StatsService(adapter)
+    analyzer_repo = AnalyzerRepository(engine)
+    app.state.analyzer_summary_service = AnalyzerSummaryService(analyzer_repo)
+    app.state.analyzer_library_stats_service = AnalyzerLibraryStatsService(analyzer_repo)
+    app.state.analyzer_library_admin_service = AnalyzerLibraryAdminService(analyzer_repo)
+    app.state.listenbrainz_service = ListenBrainzImportService(
+        ingest_service,
+        base_url=settings.listenbrainz_base_url,
+        musicbrainz_base_url=settings.musicbrainz_base_url,
+        musicbrainz_user_agent=settings.musicbrainz_user_agent,
+    )
+    app.state.listenbrainz_export_service = ListenBrainzExportService(
+        adapter,
+        base_url=settings.listenbrainz_base_url,
+    )
+    app.state.enrichment_queue_service = EnrichmentQueueService(settings)
+    if settings.cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.cors_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+    logger.info("Application startup complete")
+
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    """Dispose database resources when the application stops."""
+
+    adapter: MariaDBAdapter = app.state.db_adapter
+    await adapter.close()
+
+
+app.include_router(
+    routes_scrobble.router,
+    prefix=get_settings().api_prefix,
+)
+app.include_router(
+    routes_listens.router,
+    prefix=get_settings().api_prefix,
+)
+app.include_router(
+    routes_library.router,
+    prefix=get_settings().api_prefix,
+)
+app.include_router(
+    routes_stats.router,
+    prefix=get_settings().api_prefix,
+)
+app.include_router(
+    routes_config.router,
+    prefix=get_settings().api_prefix,
+)
+app.include_router(
+    routes_enrichment.router,
+    prefix=get_settings().api_prefix,
+)
+app.include_router(
+    routes_import.router,
+    prefix=get_settings().api_prefix,
+)
+app.include_router(
+    routes_export.router,
+    prefix=get_settings().api_prefix,
+)
+app.include_router(
+    routes_analyzer_summary.router,
+    prefix=get_settings().api_prefix,
+)
+app.include_router(
+    routes_analyzer.router,
+    prefix=get_settings().api_prefix,
+)
+static_dir = Path(__file__).parent / "static"
+app.include_router(routes_subsonic.router)
+
+if static_dir.exists():
+    assets_dir = static_dir / "assets"
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+
+@app.get("/", include_in_schema=False)
+async def root():
+    """Serve the built single-page application or a simple fallback message."""
+
+    if static_dir.exists():
+        index = static_dir / "index.html"
+        if index.exists():
+            return HTMLResponse(index.read_text())
+    return HTMLResponse("<h1>Scrobbler</h1>")
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def spa_fallback(full_path: str):
+    """Return the SPA entrypoint for client-side routes outside the API namespace."""
+
+    api_prefix = get_settings().api_prefix.lstrip("/")
+    if api_prefix and full_path.startswith(api_prefix):
+        raise HTTPException(status_code=404)
+    if full_path.startswith("static/") or full_path.startswith("assets/"):
+        raise HTTPException(status_code=404)
+    if static_dir.exists():
+        index = static_dir / "index.html"
+        if index.exists():
+            return HTMLResponse(index.read_text())
+    raise HTTPException(status_code=404)

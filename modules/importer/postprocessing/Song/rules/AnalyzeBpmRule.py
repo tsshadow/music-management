@@ -1,9 +1,32 @@
+import os
 import sys
 import types
 
-try:  # pragma: no cover - attempt real import
-    import librosa  # type: ignore
-except Exception:  # noqa: BLE001 - handle missing optional deps
+_missing_numpy_version = False
+try:  # pragma: no cover - optional dependency guard
+    import numpy as _np  # type: ignore
+
+    if getattr(_np, "__version__", None) is None:  # numpy stubbed by tests
+        _missing_numpy_version = True
+except Exception:  # noqa: BLE001 - numpy not available
+    _missing_numpy_version = True
+
+_use_real_librosa = os.getenv("ANALYZE_BPM_USE_REAL_LIBROSA", "").lower() in {
+    "1",
+    "true",
+    "yes",
+}
+
+if not _use_real_librosa:
+    _missing_numpy_version = True
+
+if not _missing_numpy_version:
+    try:  # pragma: no cover - attempt real import
+        import librosa  # type: ignore
+    except Exception:  # noqa: BLE001 - handle missing optional deps
+        _missing_numpy_version = True
+
+if _missing_numpy_version:
     librosa = types.ModuleType("librosa")
     librosa.load = lambda *a, **k: ([], 0)
     beat_mod = types.ModuleType("librosa.beat")

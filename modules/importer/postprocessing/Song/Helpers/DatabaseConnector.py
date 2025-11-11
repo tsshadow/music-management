@@ -73,17 +73,25 @@ class DatabaseConnector:
 
     def _apply_config(self) -> None:
         values = self._store.get_many(self._keys)
-        self.host = values.get("db_host") or None
-        self.user = values.get("db_user") or None
+
+        self.host = values.get("db_host") or os.getenv("DB_HOST") or None
+        self.user = values.get("db_user") or os.getenv("DB_USER") or None
+
         self.port = values.get("db_port")
+        if self.port in ("", None):
+            self.port = os.getenv("DB_PORT") or None
         if self.port is not None and not isinstance(self.port, int):
             try:
                 self.port = int(self.port)
             except (TypeError, ValueError):
                 logging.warning("Invalid db_port value %r", self.port)
                 self.port = None
-        self.password = values.get("db_pass") or None
-        self.db = values.get("db_name") or None
+
+        self.password = values.get("db_pass")
+        if not self.password:
+            self.password = os.getenv("DB_PASS") or None
+
+        self.db = values.get("db_name") or os.getenv("DB_DB") or None
         timeout = values.get("db_connect_timeout")
         try:
             self.connect_timeout = int(timeout) if timeout is not None else 5

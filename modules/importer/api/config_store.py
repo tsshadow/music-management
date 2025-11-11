@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import threading
+import types
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +16,11 @@ from dotenv import load_dotenv
 
 
 load_dotenv()
+
+_GLOBAL_SINGLETON = sys.modules.setdefault(
+    "_muma_config_store_singleton",
+    types.SimpleNamespace(instance=None),
+)
 
 
 @dataclass(frozen=True)
@@ -276,15 +283,16 @@ def _config_fields() -> List[ConfigField]:
 class ConfigStore:
     """Runtime configuration store shared across the application."""
 
-    _instance: Optional["ConfigStore"] = None
     _instance_lock = threading.Lock()
 
     def __new__(cls) -> "ConfigStore":
         with cls._instance_lock:
-            if cls._instance is None:
-                cls._instance = super().__new__(cls)
-                cls._instance._initialize()
-        return cls._instance
+            instance: Optional["ConfigStore"] = getattr(_GLOBAL_SINGLETON, "instance", None)
+            if instance is None:
+                instance = super().__new__(cls)
+                _GLOBAL_SINGLETON.instance = instance
+                instance._initialize()
+        return instance
 
     def _initialize(self) -> None:
         self._fields = _config_fields()
@@ -488,7 +496,7 @@ class ConfigStore:
     def _reset_for_tests(cls) -> None:
         """Reset the singleton instance (testing helper)."""
         with cls._instance_lock:
-            cls._instance = None
+            _GLOBAL_SINGLETON.instance = None
 
 
 __all__ = ["ConfigField", "ConfigStore"]

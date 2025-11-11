@@ -1,8 +1,8 @@
+import importlib
 import os
+import sys
 import unittest
 from unittest.mock import patch
-
-from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
 
 
 class DatabaseConnectorTimeoutTest(unittest.TestCase):
@@ -12,18 +12,25 @@ class DatabaseConnectorTimeoutTest(unittest.TestCase):
         os.environ.setdefault('DB_PORT', '0')
         os.environ.setdefault('DB_PASS', '')
         os.environ.setdefault('DB_DB', 'db')
+        sys.modules.pop('postprocessing.Song.Helpers.DatabaseConnector', None)
+        sys.modules.pop('modules.importer.postprocessing.Song.Helpers.DatabaseConnector', None)
+
+    def _load_db_module(self):
+        return importlib.import_module('postprocessing.Song.Helpers.DatabaseConnector')
 
     def test_connect_uses_default_timeout(self):
-        import postprocessing.Song.Helpers.DatabaseConnector as db_module
-        with patch.object(db_module, 'pymysql') as mock_pymysql:
+        db_module = self._load_db_module()
+        DatabaseConnector = db_module.DatabaseConnector
+        with patch.object(db_module, 'pymysql', create=True) as mock_pymysql:
             DatabaseConnector().connect()
             _, kwargs = mock_pymysql.connect.call_args
             self.assertEqual(kwargs.get('connect_timeout'), 5)
 
     def test_env_can_override_timeout(self):
         os.environ['DB_CONNECT_TIMEOUT'] = '1'
-        import postprocessing.Song.Helpers.DatabaseConnector as db_module
-        with patch.object(db_module, 'pymysql') as mock_pymysql:
+        db_module = self._load_db_module()
+        DatabaseConnector = db_module.DatabaseConnector
+        with patch.object(db_module, 'pymysql', create=True) as mock_pymysql:
             DatabaseConnector().connect()
             _, kwargs = mock_pymysql.connect.call_args
             self.assertEqual(kwargs.get('connect_timeout'), 1)

@@ -80,6 +80,8 @@ class DbInitTest(unittest.TestCase):
                 if module_name == 'downloader.youtube' and cls == 'YoutubeDownloader':
                     attrs['download_link'] = lambda self, *a, **k: None
                 setattr(mod, cls, type(cls, (), attrs))
+            if module_name == 'postprocessing.tagger':
+                setattr(mod, 'LabelSong', type('LabelSong', (), {}))
             return mod
 
         modules_to_stub = {
@@ -106,6 +108,11 @@ class DbInitTest(unittest.TestCase):
         for full_name, classes in modules_to_stub.items():
             original_modules[full_name] = sys.modules.get(full_name)
             sys.modules[full_name] = _make_stub_module(full_name, classes)
+
+        for cached in ("api.steps", "api.server", "api.run_tagger"):
+            if cached in sys.modules:
+                original_modules.setdefault(cached, sys.modules[cached])
+                del sys.modules[cached]
 
         from step import Step as RealStep
         original_modules['main'] = sys.modules.get('main')

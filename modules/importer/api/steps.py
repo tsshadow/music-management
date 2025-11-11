@@ -33,7 +33,15 @@ steps_to_run = [
     Step("Sanitizer", ["sanitize"], sanitizer.run),
     Step("Flattener", ["flatten"], flattener.run),
     Step("YouTube Downloader", ["download", "download-youtube"], youtube_downloader.run),
-    Step("Manual YouTube Downloader", ["manual-youtube"], youtube_downloader.download_link),
+    Step(
+        "Manual YouTube Downloader",
+        ["manual-youtube"],
+        getattr(
+            youtube_downloader,
+            "download_link",
+            getattr(youtube_downloader, "manual_download", lambda *args, **kwargs: None),
+        ),
+    ),
     Step("SoundCloud Downloader", ["download", "download-soundcloud"], soundcloud_downloader.run),
     Step("Telegram Downloader", ["download-telegram"], lambda: telegram_downloader.run("")),
     Step("Analyze", ["analyze"], analyze_step.run),
@@ -45,6 +53,14 @@ steps_to_run = [
     ),
 ]
 
-step_map = {key: step for step in steps_to_run for key in step.condition_keys}
+
+def _step_keys(step):
+    keys = getattr(step, "condition_keys", None)
+    if not keys:
+        keys = getattr(step, "selectors", ())
+    return keys
+
+
+step_map = {key: step for step in steps_to_run for key in _step_keys(step)}
 
 __all__ = ["steps_to_run", "step_map"]

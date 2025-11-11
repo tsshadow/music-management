@@ -32,8 +32,30 @@ class ServerEndpointsTest(unittest.TestCase):
         def _make_stub_module(module_name, class_names):
             mod = types.ModuleType(module_name)
             for cls in class_names:
-                setattr(mod, cls, type(cls, (), {"run": lambda self: None}))
+                attrs = {"run": lambda self: None}
+                if module_name == "postprocessing.tagger" and cls == "Tagger":
+                    def _parse_song(path, *_args, manual_tags=None, **_kwargs):
+                        song_cls = getattr(mod, "LabelSong", None)
+                        if song_cls is None:
+                            return None
+                        song = song_cls()
+                        parse = getattr(song, "parse", None)
+                        if callable(parse):
+                            parse()
+                        if manual_tags and hasattr(song, "tag_collection"):
+                            for tag, value in manual_tags.items():
+                                add = getattr(song.tag_collection, "add", None)
+                                if callable(add):
+                                    add(tag, value)
+                        save = getattr(song, "save_file", None)
+                        if callable(save):
+                            save()
+                        return song
+                    attrs["parse_song"] = staticmethod(_parse_song)
+                setattr(mod, cls, type(cls, (), attrs))
             sys.modules[module_name] = mod
+            if module_name == "postprocessing.tagger":
+                setattr(mod, "LabelSong", type("LabelSong", (), {}))
 
         # stub modules used by steps
         self._stub_modules = {
@@ -53,8 +75,7 @@ class ServerEndpointsTest(unittest.TestCase):
         }
 
         for name, classes in self._stub_modules.items():
-            if name in sys.modules:
-                self.original_modules[name] = sys.modules[name]
+            self.original_modules[name] = sys.modules.get(name)
             _make_stub_module(name, classes)
 
         # Make sure no previously imported modules keep stale state
@@ -76,6 +97,7 @@ class ServerEndpointsTest(unittest.TestCase):
             def run(self, selected, **kwargs):
                 self.func()
 
+        self.original_modules['step'] = sys.modules.get('step')
         step_module = types.ModuleType('step')
         step_module.Step = RealStep
         sys.modules['step'] = step_module

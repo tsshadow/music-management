@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import threading
 import uuid
 from contextvars import ContextVar
 from datetime import datetime
@@ -16,7 +17,6 @@ from fastapi import (
     WebSocketDisconnect,
     Body,
 )
-from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -66,8 +66,7 @@ class JobLogFilter(logging.Filter):
         self.job_id = job_id
 
     def filter(self, record: logging.LogRecord) -> bool:  # pragma: no cover - trivial
-        active = current_job_id.get()
-        return getattr(record, "job_id", None) == self.job_id and active == self.job_id
+        return getattr(record, "job_id", None) == self.job_id
 
 
 
@@ -244,19 +243,19 @@ class JobLogHandler(logging.Handler):
         jobs[self.job_id]["log"].append(self.format(record))
 
 
-async def execute_step(
+def execute_step(
     step_name: str,
     job_id: str,
     repeat: bool,
     interval: float,
-    stop_event: asyncio.Event,
+    stop_event: threading.Event,
     args: Dict[str, Any],
 ):
     job = jobs[job_id]
     if step_name not in step_map:
         job["status"] = "error"
         job["log"] = job.get("log", []) + [f"Unknown step: {step_name}"]
-        await broadcast(job)
+        asyncio.run(broadcast(job))
         return
 
     step_keys = {step_name}
@@ -265,7 +264,7 @@ async def execute_step(
     if not steps_sequence:
         job["status"] = "error"
         job["log"].append(f"No executable steps found for: {step_name}")
-        await broadcast(job)
+        asyncio.run(broadcast(job))
         return
 
     handler = JobLogHandler(job_id)
@@ -281,28 +280,30 @@ async def execute_step(
 
     try:
         job["status"] = "running"
-        await broadcast(job)
+        asyncio.run(broadcast(job))
         while True:
             for current_step in steps_sequence:
-                await run_in_threadpool(current_step.run, step_keys, **args)
+                token_thread_job = current_job_id.set(job_id)
+                token_thread_logger = current_logger.set(adapter)
+                try:
+                    current_step.run(step_keys, **args)
+                finally:
+                    current_logger.reset(token_thread_logger)
+                    current_job_id.reset(token_thread_job)
             if stop_event.is_set() or not repeat:
                 job["status"] = "done" if not stop_event.is_set() else "stopped"
                 break
-            try:
-                await asyncio.wait_for(stop_event.wait(), timeout=interval)
-            except asyncio.TimeoutError:
-                continue
+            if stop_event.wait(timeout=interval):
+                job["status"] = "stopped"
+                break
         if stop_event.is_set():
             job["status"] = "stopped"
-    except asyncio.CancelledError:
-        job["status"] = "stopped"
-        raise
     except Exception as e:  # pragma: no cover - for robustness
         job["status"] = "error"
         job["log"].append(str(e))
     finally:
         job["ended"] = datetime.utcnow().isoformat()
-        await broadcast(job)
+        asyncio.run(broadcast(job))
         job_logger.removeHandler(handler)
         current_logger.reset(token_logger)
         current_job_id.reset(token_id)
@@ -327,7 +328,7 @@ async def run_step_endpoint(
     args = options
 
     job_id = str(uuid.uuid4())
-    stop_event = asyncio.Event()
+    stop_event = threading.Event()
     jobs[job_id] = {
         "id": job_id,
         "step": step_name,
@@ -337,10 +338,14 @@ async def run_step_endpoint(
         "started": datetime.utcnow().isoformat(),
     }
     await broadcast(jobs[job_id])
-    task = asyncio.create_task(
-        execute_step(step_name, job_id, repeat, interval, stop_event, args)
+    thread = threading.Thread(
+        target=execute_step,
+        args=(step_name, job_id, repeat, interval, stop_event, args),
+        name=f"job-{job_id}",
+        daemon=True,
     )
-    jobs[job_id]["task"] = task
+    jobs[job_id]["task"] = thread
+    thread.start()
     return _public_job(jobs[job_id])
 
 
@@ -357,16 +362,12 @@ async def stop_job(job_id: str, _: None = Depends(verify_api_key)):
     job = jobs.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    stop_event: Optional[asyncio.Event] = job.get("stop_event")
-    task: Optional[asyncio.Task] = job.get("task")
+    stop_event: Optional[threading.Event] = job.get("stop_event")
+    task = job.get("task")
     if stop_event:
         stop_event.set()
-    if task and not task.done():
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+    if isinstance(task, threading.Thread) and task.is_alive():
+        task.join(timeout=0)
     job["status"] = "stopped"
     await broadcast(job)
     return _public_job(job)

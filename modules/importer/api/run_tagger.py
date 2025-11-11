@@ -1,9 +1,11 @@
-from postprocessing.tagger import Tagger
+from importlib import import_module
 
 
 def run_tagger(steps):
     """Run the tagger with the appropriate parsing options."""
     parse_all = "tag" in steps
+    tagger_module = import_module("postprocessing.tagger")
+    Tagger = getattr(tagger_module, "Tagger")
     tagger = Tagger()
     tagger.run(
         parse_labels=parse_all or "tag-labels" in steps,

@@ -23,11 +23,7 @@ services:
       - "6379:6379"
 
   scrobbler:
-#    build:
-#      context: .
-#      dockerfile: docker/Dockerfile
-#      target: backend
-    image: tsshadow/scrobbler:latest-beta
+    image: ghcr.io/tsshadow/music-management/scrobbler-backend:latest-beta
     environment:
       SCROBBLER_DB_DSN: mysql+asyncmy://${MARIADB_USER:-scrob}:${MARIADB_PASSWORD:-scrobpass}@mariadb:3306/music-scrobbler
       SCROBBLER_REDIS_URL: redis://redis:6379/0
@@ -51,12 +47,8 @@ services:
       - com.centurylinklabs.watchtower.enable=true
 
   analyzer-worker:
-#    build:
-#      context: .
-#      dockerfile: docker/Dockerfile
-#      target: analyzer-worker
-    image: tsshadow/analyzer-worker:latest-beta
-    command: ["rq", "worker", "backend-analyzer"]
+    image: ghcr.io/tsshadow/music-management/scrobbler-analyzer:latest-beta
+    command: ["rq", "worker", "scrobbler-analyzer"]
     environment:
       SCROBBLER_DB_DSN: mysql+asyncmy://${MARIADB_USER:-scrob}:${MARIADB_PASSWORD:-scrobpass}@mariadb:3306/music-scrobbler
       SCROBBLER_REDIS_URL: redis://redis:6379/0

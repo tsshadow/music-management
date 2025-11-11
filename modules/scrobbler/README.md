@@ -1,6 +1,9 @@
 # Scrobbler
 
-Scrobbler is a FastAPI-based service that ingests listens from LMS/Open Subsonic compatible clients and provides analytics with a lightweight Svelte frontend.
+Scrobbler is MuMa's FastAPI-based service that ingests listens from LMS/Open Subsonic
+compatible clients and provides analytics with a lightweight Svelte frontend. The module
+resides in `modules/scrobbler` inside the MuMa monorepo and ships with both a backend API and
+frontend application.
 
 ## Architecture
 

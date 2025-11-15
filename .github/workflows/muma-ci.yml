@@ -42,33 +42,6 @@ jobs:
       - name: Run integration flow tests
         run: pytest -m integration
 
-  scrobbler-frontend-build:
-    name: Scrobbler frontend build
-    runs-on: ubuntu-latest
-    needs: scrobbler-backend-tests
-    defaults:
-      run:
-        working-directory: modules/scrobbler/frontend
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 8
-
-      - name: Install frontend dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Build frontend
-        run: pnpm build
-
   importer-backend-tests:
     name: Importer backend tests
     runs-on: ubuntu-latest
@@ -94,13 +67,12 @@ jobs:
           coverage run --source=. -m unittest discover -p "*Test.py"
           coverage xml
 
-  importer-frontend-tests:
-    name: Importer frontend tests
+  web-frontend-build:
+    name: Web frontend build
     runs-on: ubuntu-latest
-    needs: importer-backend-tests
     defaults:
       run:
-        working-directory: modules/importer/frontend
+        working-directory: apps/web
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -115,42 +87,36 @@ jobs:
         with:
           version: 10
 
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ~/.pnpm-store
-          key: pnpm-store-${{ hashFiles('modules/importer/frontend/pnpm-lock.yaml') }}
-          restore-keys: |
-            pnpm-store-
-
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run vitest (CI mode)
-        run: pnpm vitest run --reporter=verbose
+      - name: Type check
+        run: pnpm check
+
+      - name: Build frontend
+        run: pnpm build
 
   docker-images:
     name: Build and publish Docker images
     runs-on: ubuntu-latest
     needs:
       - scrobbler-backend-tests
-      - scrobbler-frontend-build
       - importer-backend-tests
-      - importer-frontend-tests
+      - web-frontend-build
     strategy:
       matrix:
         include:
           - name: scrobbler-backend
-            context: modules/scrobbler
-            dockerfile: docker/Dockerfile
+            context: .
+            dockerfile: modules/scrobbler/docker/Dockerfile
             target: backend
           - name: scrobbler-analyzer
-            context: modules/scrobbler
-            dockerfile: docker/Dockerfile
+            context: .
+            dockerfile: modules/scrobbler/docker/Dockerfile
             target: analyzer-worker
           - name: importer
-            context: modules/importer
-            dockerfile: Dockerfile
+            context: .
+            dockerfile: modules/importer/Dockerfile
             target: ""
     permissions:
       contents: read
@@ -234,7 +200,7 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             if [ "${{ github.event.pull_request.head.repo.fork }}" = "true" ]; then
               docker buildx build \
-                --file "${{ matrix.context }}/${{ matrix.dockerfile }}" \
+                --file "${{ matrix.dockerfile }}" \
                 "${TARGET_ARGS[@]}" \
                 --platform linux/amd64 \
                 "${TAG_ARGS[@]}" \
@@ -249,7 +215,7 @@ jobs:
               fi
 
               docker buildx build \
-                --file "${{ matrix.context }}/${{ matrix.dockerfile }}" \
+                --file "${{ matrix.dockerfile }}" \
                 "${TARGET_ARGS[@]}" \
                 --platform linux/amd64 \
                 "${TAG_ARGS[@]}" \
@@ -265,7 +231,7 @@ jobs:
             fi
 
             docker buildx build \
-              --file "${{ matrix.context }}/${{ matrix.dockerfile }}" \
+              --file "${{ matrix.dockerfile }}" \
               "${TARGET_ARGS[@]}" \
               --platform linux/amd64 \
               "${TAG_ARGS[@]}" \

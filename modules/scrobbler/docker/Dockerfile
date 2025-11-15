@@ -1,21 +1,22 @@
 # Frontend build stage
 FROM node:24-alpine AS frontend
-WORKDIR /app/frontend
-COPY frontend/package.json ./
-RUN npm install
-COPY frontend .
-RUN npm run build
+WORKDIR /app
+COPY apps/web/pnpm-lock.yaml apps/web/package.json apps/web/pnpm-workspace.yaml ./apps/web/
+WORKDIR /app/apps/web
+RUN pnpm install --frozen-lockfile
+COPY apps/web/ ./
+RUN pnpm build
 
 # Base application image
 FROM python:3.11-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 WORKDIR /app
-COPY pyproject.toml README.md ./
+COPY modules/scrobbler/pyproject.toml modules/scrobbler/README.md ./
 RUN pip install --no-cache-dir poetry && poetry config virtualenvs.create false && poetry install --no-interaction --no-ansi
-COPY backend ./backend
-COPY analyzer ./analyzer
-COPY --from=frontend /app/frontend/dist ./backend/app/static
+COPY modules/scrobbler/backend ./backend
+COPY modules/scrobbler/analyzer ./analyzer
+COPY --from=frontend /app/apps/web/build ./backend/app/static
 
 # Backend API stage
 FROM base AS backend

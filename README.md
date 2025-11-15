@@ -1,85 +1,88 @@
 # MuMa – Music Management
 
-MuMa (Music Management) combines the original Scrobbler and Music Importer projects into a
-single monorepo. The goal is to provide a cohesive toolchain for collecting, analysing,
-organising, and tagging music libraries.
+MuMa (Music Management) now ships as a consolidated application: a single FastAPI backend that
+powers importer automation and scrobbler/analyzer features, and a unified SvelteKit control centre
+for operations. The legacy module directories remain for reference, but the `apps/` folder contains
+all actively maintained code.
 
 ## Repository layout
 
 ```
+apps/
+  api/   # Shared FastAPI application with importer + scrobbler routers
+  web/   # SvelteKit dashboard that talks to the combined backend
 modules/
-  importer/      # Automated downloading and importing pipeline (former Music Importer)
-  scrobbler/     # Scrobbling API, web UI, and analyzer worker
+  importer/   # Historical importer implementation (kept for reference/tests)
+  scrobbler/  # Historical scrobbler implementation and docs
 ```
 
-Planned modules that will join later:
+## Running the stack
 
-* `modules/analyzer` – shared analysis jobs that power recommendations and tagging.
-* `modules/tagger` – dedicated tagging utilities lifted from the Music Importer project.
-
-## Continuous integration
-
-GitHub Actions (`.github/workflows/muma-ci.yml`) orchestrates the shared CI pipeline:
-
-* Python unit and integration tests for the Scrobbler backend.
-* Frontend build for the Scrobbler web application.
-* Python unit tests (with coverage) for the Importer.
-* Vitest suite for the Importer frontend.
-* Multi-platform Docker builds for each deployable module. Images are tagged for GitHub
-  Container Registry, and optionally Docker Hub when credentials are provided.
-
-Every job runs from its module directory so individual dependency managers continue to work
-unchanged inside the monorepo.
-
-## Developing MuMa locally
-
-Each module retains its native tooling.
-
-### Importer module
+The recommended way to start MuMa locally is via Docker Compose:
 
 ```bash
-cd modules/importer
+docker compose build
+docker compose up
+```
+
+* Backend & frontend: <http://localhost:8000>
+
+The frontend expects `VITE_API_BASE` to point at the API container. The Compose file wires this up
+for you. If you run things manually set `VITE_API_BASE=http://localhost:8000/api` before executing
+`npm run dev` inside `apps/web`.
+
+## Local development
+
+### Backend
+
+```bash
+cd apps/api
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python -m unittest
+uvicorn apps.api.main:app --reload
 ```
 
-The Importer web UI lives in `modules/importer/frontend` and is a SvelteKit project managed
-with pnpm.
+The importer endpoints now live under `/api/importer` – for example
+`POST /api/importer/downloads` queues a new download batch while
+`POST /api/importer/tagging` schedules metadata updates. Scrobbler routes keep their `/api/v1`
+prefix (for example `/api/v1/stats/overview`).
 
-### Importer configuration
-
-The importer exposes a runtime configuration service backed by a persisted store.
-
-* `GET /api/config` returns the available fields with metadata, defaults, and current values.
-* `PATCH /api/config` validates updates, saves them to `data/config.json`, and notifies listeners so downloaders pick up changes immediately.
-
-The Svelte dashboard contains a **Configuration** panel that consumes these endpoints. Adjusting values in the UI lets you tweak paths, downloader credentials, or feature flags without bouncing the importer process.
-
-### Scrobbler module
+### Frontend
 
 ```bash
-cd modules/scrobbler
-poetry install
-poetry run pytest
+cd apps/web
+npm install
+npm run dev -- --open
 ```
 
-The frontend for Scrobbler is inside `modules/scrobbler/frontend` and uses pnpm.
+The dashboard shares a global layout, navigation and theme defined in `src/lib/theme.css` and
+`src/lib/ui`. Components are reused across the overview, importer and scrobbler pages to keep the
+experience consistent.
 
-### Docker builds
-
-Each module ships its own Dockerfile. From the repository root run, for example:
+### Tests
 
 ```bash
-docker build -f modules/scrobbler/docker/Dockerfile -t muma-scrobbler modules/scrobbler
-docker build -f modules/importer/Dockerfile -t muma-importer modules/importer
+# Backend unit tests
+cd apps/api
+pytest
+
+# Frontend lint/tests
+cd apps/web
+npm run lint
+npm run test
 ```
+
+## Configuration highlights
+
+* Importer configuration values are exposed via `GET /api/importer/config` and
+  `PATCH /api/importer/config`.
+* Download batches are created through `POST /api/importer/downloads` with a list of download tasks.
+* Tagging runs are created through `POST /api/importer/tagging` with a tagging request payload.
+* Job state can be queried via `GET /api/importer/jobs` and streamed with
+  `GET /api/ws/jobs/{job_id}`.
 
 ## Documentation
 
-Module specific documentation lives alongside the source code:
-
-* `modules/scrobbler/README.md`
-* `modules/importer/README.md`
-
-These guides were updated to reflect the MuMa naming and directory layout.
+Historical documentation for the importer and scrobbler projects is still available under
+`modules/importer/README.md` and `modules/scrobbler/README.md`. The combined stack is documented in
+this file and the inline component/service docstrings.

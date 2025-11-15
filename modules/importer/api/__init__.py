@@ -14,10 +14,31 @@ work as expected.
 from __future__ import annotations
 
 import json
+import sys
 import threading
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlparse
+
+
+# ---------------------------------------------------------------------------
+# Import compatibility
+# ---------------------------------------------------------------------------
+#
+# The historic importer tests expect ``modules.importer`` to be importable in
+# isolation (e.g. when ``coverage run`` sets the working directory to
+# ``modules/importer``).  In that situation Python would be unable to resolve
+# the new ``apps`` package that now contains the shared FastAPI services.  We
+# proactively add the repository root to ``sys.path`` so that ``import apps``
+# succeeds regardless of the current working directory.
+# ``__file__`` resolves to ``modules/importer/api/__init__.py``.  We need the
+# repository root (``parents[3]``) rather than the intermediate ``modules``
+# directory to ensure the top-level ``apps`` package is importable.
+repo_root = Path(__file__).resolve().parents[3]
+if str(repo_root) not in sys.path:  # pragma: no cover - defensive guard
+    sys.path.append(str(repo_root))
+
 
 from api.job_manager import job_manager
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   /** Analyzer overview card summarising scan status and top-level metrics. */
   import { onMount } from 'svelte';
-  import KpiCard from '../lib/components/KpiCard.svelte';
+  import { Card, KpiCard } from '$ui';
 
   type ArtistSummary = { artist: string; songs: number };
   type GenreSummary = { genre: string; songs: number };
@@ -18,7 +18,7 @@
     songs: 0,
     livesets: 0,
     artists: [],
-    genres: []
+    genres: [],
   };
   let loading = true;
   let scanInProgress = false;
@@ -49,7 +49,7 @@
       const response = await fetch('/api/v1/analyzer/library/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
+        body: JSON.stringify({}),
       });
       if (!response.ok) {
         const details = await response.json().catch(() => ({}));
@@ -70,38 +70,43 @@
   });
 </script>
 
-<section class="overview">
-  <div class="actions">
-    <button on:click={startScan} disabled={scanInProgress}>
+<section class="overview mx-auto flex w-full max-w-5xl flex-col gap-12">
+  <div class="flex flex-wrap items-center justify-center gap-4">
+    <button
+      class="rounded-full bg-[var(--color-accent)] px-6 py-2 font-semibold tracking-wide text-[var(--color-text-primary)] shadow-[var(--shadow-md)] transition-transform duration-150 ease-out hover:-translate-y-0.5 focus-visible:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-60"
+      on:click={startScan}
+      disabled={scanInProgress}
+    >
       {scanInProgress ? 'Queuing…' : 'Start analyzer scan'}
     </button>
     {#if scanInProgress}
-      <div class="progress" role="status" aria-live="polite">
-        <span class="visually-hidden">Analyzer scan queued…</span>
+      <div class="relative h-1.5 w-40 overflow-hidden rounded-full bg-[var(--color-accent-soft)]">
+        <span class="sr-only">Analyzer scan queued…</span>
+        <div class="absolute inset-0 w-full -translate-x-full animate-progress-slide bg-[linear-gradient(90deg,transparent,var(--color-text-primary),transparent)]"></div>
       </div>
     {/if}
     {#if scanMessage}
-      <span class="status success">{scanMessage}</span>
+      <span class="text-sm text-[var(--color-success)]">{scanMessage}</span>
     {/if}
     {#if error}
-      <span class="status error">{error}</span>
+      <span class="text-sm text-[var(--color-danger)]">{error}</span>
     {/if}
   </div>
 
   {#if loading}
-    <p class="status">Loading analyzer data…</p>
+    <p class="text-sm text-[var(--color-text-soft)]">Loading analyzer data…</p>
   {:else}
-    <div class="kpi-grid">
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
       <KpiCard label="Media files" value={summary.files.toLocaleString()} />
       <KpiCard label="Songs (&lt; 10 min)" value={summary.songs.toLocaleString()} />
       <KpiCard label="Livesets (≥ 10 min)" value={summary.livesets.toLocaleString()} />
     </div>
 
-    <div class="table-wrapper">
-      <h2>Artists with songs</h2>
+    <Card element="section" className="w-full overflow-x-auto">
+      <h2 class="mb-4 text-center text-2xl font-semibold text-[var(--color-text-primary)]">Artists with songs</h2>
       {#if summary.artists.length}
-        <table>
-          <thead>
+        <table class="table">
+          <thead class="bg-white/5">
             <tr>
               <th>Artist</th>
               <th>Songs</th>
@@ -109,7 +114,7 @@
           </thead>
           <tbody>
             {#each summary.artists as artist}
-              <tr>
+              <tr class="even:bg-white/5">
                 <td>{artist.artist}</td>
                 <td>{artist.songs.toLocaleString()}</td>
               </tr>
@@ -117,15 +122,15 @@
           </tbody>
         </table>
       {:else}
-        <p class="empty">No songs recorded yet.</p>
+        <p class="text-center text-[var(--color-text-soft)]">No songs recorded yet.</p>
       {/if}
-    </div>
+    </Card>
 
-    <div class="table-wrapper">
-      <h2>Genres with songs</h2>
+    <Card element="section" className="w-full overflow-x-auto">
+      <h2 class="mb-4 text-center text-2xl font-semibold text-[var(--color-text-primary)]">Genres with songs</h2>
       {#if summary.genres.length}
-        <table>
-          <thead>
+        <table class="table">
+          <thead class="bg-white/5">
             <tr>
               <th>Genre</th>
               <th>Songs</th>
@@ -133,7 +138,7 @@
           </thead>
           <tbody>
             {#each summary.genres as genre}
-              <tr>
+              <tr class="even:bg-white/5">
                 <td>{genre.genre}</td>
                 <td>{genre.songs.toLocaleString()}</td>
               </tr>
@@ -141,132 +146,8 @@
           </tbody>
         </table>
       {:else}
-        <p class="empty">No genres recorded yet.</p>
+        <p class="text-center text-[var(--color-text-soft)]">No genres recorded yet.</p>
       {/if}
-    </div>
+    </Card>
   {/if}
 </section>
-
-<style>
-  .overview {
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
-    align-items: center;
-  }
-
-  .actions {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  .actions button {
-    background: var(--accent-color);
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: opacity 0.2s ease;
-  }
-
-  .actions button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .progress {
-    position: relative;
-    width: 160px;
-    height: 6px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.15);
-    overflow: hidden;
-  }
-
-  .progress::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0));
-    animation: progress-slide 1.4s infinite;
-  }
-
-  @keyframes progress-slide {
-    0% {
-      transform: translateX(-100%);
-    }
-    50% {
-      transform: translateX(0%);
-    }
-    100% {
-      transform: translateX(100%);
-    }
-  }
-
-  .status {
-    font-size: 0.9rem;
-  }
-
-  .status.success {
-    color: #4caf50;
-  }
-
-  .status.error {
-    color: #f44336;
-  }
-
-  .kpi-grid {
-    display: flex;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .table-wrapper {
-    width: min(960px, 100%);
-    background: rgba(0, 0, 0, 0.15);
-    border-radius: 1rem;
-    padding: 1rem;
-    overflow-x: auto;
-  }
-
-  .visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    border: 0;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-
-  th,
-  td {
-    padding: 0.75rem 1rem;
-    text-align: left;
-  }
-
-  thead {
-    background: rgba(255, 255, 255, 0.05);
-  }
-
-  tbody tr:nth-child(even) {
-    background: rgba(255, 255, 255, 0.03);
-  }
-
-  .empty {
-    text-align: center;
-    margin: 0.5rem 0 0;
-    opacity: 0.7;
-  }
-</style>

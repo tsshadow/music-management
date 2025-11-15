@@ -1,6 +1,10 @@
 {
   "extends": "./tsconfig.node.json",
   "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "$ui/*": ["../../../apps/web/src/lib/ui/*"]
+    },
     "types": ["svelte"]
   },
   "include": ["src/**/*"],

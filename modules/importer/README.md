@@ -7,7 +7,8 @@ library with clean metadata.
 Whether you're a DJ, a collector, or just someone with a messy `Downloads` folder, MuMa
 Importer keeps your collection tidy with minimal manual work. The module lives in
 `modules/importer` inside the repository and can be developed independently from the other
-MuMa services.
+MuMa services. The Svelte UI is available from the unified API at `/importer/ui` when the
+frontend build is present.
 
 ---
 
@@ -44,9 +45,9 @@ MuMa Importer automates the following stages:
 
 ## 🔐 Security
 
-The API restricts cross-origin requests to trusted origins through CORS middleware. For
-production deployments place the service behind a reverse proxy (e.g. Nginx) and enable HTTP
-Basic Authentication.
+The unified MuMa API exposes the importer endpoints under `/importer`. The API restricts
+cross-origin requests to trusted origins through CORS middleware. For production deployments
+place the service behind a reverse proxy (e.g. Nginx) and enable HTTP Basic Authentication.
 
 Set the `API_KEY` environment variable to require clients to include the key via the
 `X-API-Key` header (REST) or `api_key` query parameter (WebSocket).
@@ -70,7 +71,7 @@ Environment variables still provide the bootstrap defaults when running in conta
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORT` | `8001` | HTTP port for the API and static frontend |
+| `PORT` | `8080` | HTTP port for the API and static frontend |
 | `DB_HOST` | – | Database host name |
 | `DB_PORT` | `3306` | Database port |
 | `DB_USER` | – | Database user |
@@ -85,8 +86,8 @@ Other variables exist for downloaders (Discogs, Spotify, Telegram, YouTube). Set
 
 Configuration is also editable at runtime through the REST API and Svelte UI:
 
-* `GET /api/config` returns the schema (group, type, description) and current values.
-* `PATCH /api/config` validates updates, writes them to `data/config.json`, and notifies listeners so downloaders immediately pick up the new settings.
+* `GET /importer/api/config` returns the schema (group, type, description) and current values.
+* `PATCH /importer/api/config` validates updates, writes them to `data/config.json`, and notifies listeners so downloaders immediately pick up the new settings.
 
 The dashboard includes a **Configuration** panel with grouped forms. Update folder paths, API tokens, or feature flags, press **Save changes**, and the backend switches to the new values without restarts.
 
@@ -94,48 +95,15 @@ The dashboard includes a **Configuration** panel with grouped forms. Update fold
 
 ## 🐳 Running with Docker
 
-Build the production image and expose it on the desired port:
+The importer now runs as part of the unified MuMa backend. Build and run the combined image
+from the repository root:
 
 ```bash
-docker build -t muma-importer .
-docker run -p 8001:8001 \
+docker build -f apps/api/Dockerfile -t muma-api .
+docker run -p 8080:8080 \
   -e DB_HOST=db -e DB_PORT=3306 -e DB_USER=muma_importer \
   -e DB_PASS=muma_importer -e DB_DB=muma_importer \
-  muma-importer
+  muma-api
 ```
 
-### docker-compose example
-
-```yaml
-version: "3.9"
-services:
-  db:
-    image: mariadb:11
-    environment:
-      MARIADB_ROOT_PASSWORD: rootpass
-      MARIADB_DATABASE: muma_importer
-      MARIADB_USER: muma_importer
-      MARIADB_PASSWORD: muma_importer
-    volumes:
-      - db_data:/var/lib/mysql
-
-  importer:
-    build: .
-    depends_on:
-      - db
-    environment:
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_USER: muma_importer
-      DB_PASS: muma_importer
-      DB_DB: muma_importer
-      # API_KEY: choose-a-secret
-    ports:
-      - "${PORT:-8001}:${PORT:-8001}"
-
-volumes:
-  db_data:
-```
-
-Use the `PORT` variable to run multiple instances side-by-side and override any other
-variables as needed for your setup.
+For a local stack with MariaDB and Redis use `docker-compose.yml` at the repository root.

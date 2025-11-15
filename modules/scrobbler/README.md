@@ -3,7 +3,8 @@
 Scrobbler is MuMa's FastAPI-based service that ingests listens from LMS/Open Subsonic
 compatible clients and provides analytics with a lightweight Svelte frontend. The module
 resides in `modules/scrobbler` inside the MuMa monorepo and ships with both a backend API and
-frontend application.
+frontend application. The production API is now served from the shared `apps/api` FastAPI
+application alongside the importer module.
 
 ## Architecture
 
@@ -36,7 +37,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install poetry
 poetry install
-uvicorn backend.app.main:app --reload
+uvicorn apps.api.main:app --reload
 ```
 
 Set `SCROBBLER_DB_DSN` to point to your MariaDB instance, e.g. `mysql+asyncmy://user:pass@localhost:3306/music-scrobbler`. By default the app uses SQLite (`sqlite+aiosqlite:///./scrobbler.db`).
@@ -61,13 +62,13 @@ To run integration tests against MariaDB, set `IT_MARIADB_DSN` and provide a run
 
 ### Docker
 
-Build and run with Docker Compose:
+Build and run with Docker Compose from the repository root:
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
-This starts MariaDB, phpMyAdmin, and the FastAPI service (serving the built frontend). The Scrobbler API listens on port 8080 and phpMyAdmin is available at <http://localhost:8081>.
+This starts MariaDB, Redis, and the unified FastAPI service (serving the built frontends when available). The API listens on port 8080.
 
 Docker images are published for every commit. The `latest` tag always tracks the current `main` branch while `latest-beta` is updated on every successful build (including pull requests). Use the `latest-beta` tag if you want to automatically roll out the most recent build.
 

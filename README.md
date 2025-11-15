@@ -45,14 +45,15 @@ python -m unittest
 ```
 
 The Importer web UI lives in `modules/importer/frontend` and is a SvelteKit project managed
-with pnpm.
+with pnpm. The backend API for the importer is now exposed via the unified MuMa service
+under the `/importer` prefix.
 
 ### Importer configuration
 
 The importer exposes a runtime configuration service backed by a persisted store.
 
-* `GET /api/config` returns the available fields with metadata, defaults, and current values.
-* `PATCH /api/config` validates updates, saves them to `data/config.json`, and notifies listeners so downloaders pick up changes immediately.
+* `GET /importer/api/config` returns the available fields with metadata, defaults, and current values.
+* `PATCH /importer/api/config` validates updates, saves them to `data/config.json`, and notifies listeners so downloaders pick up changes immediately.
 
 The Svelte dashboard contains a **Configuration** panel that consumes these endpoints. Adjusting values in the UI lets you tweak paths, downloader credentials, or feature flags without bouncing the importer process.
 
@@ -68,11 +69,10 @@ The frontend for Scrobbler is inside `modules/scrobbler/frontend` and uses pnpm.
 
 ### Docker builds
 
-Each module ships its own Dockerfile. From the repository root run, for example:
+The combined API ships with a Dockerfile in `apps/api`:
 
 ```bash
-docker build -f modules/scrobbler/docker/Dockerfile -t muma-scrobbler modules/scrobbler
-docker build -f modules/importer/Dockerfile -t muma-importer modules/importer
+docker build -f apps/api/Dockerfile -t muma-api .
 ```
 
 ## Documentation

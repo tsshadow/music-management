@@ -3,10 +3,25 @@
 from __future__ import annotations
 
 import os
+import sys
+from pathlib import Path
 from typing import Iterable
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# Ensure the legacy ``modules`` packages remain importable when the server is
+# started from nested working directories (e.g. ``apps``).  The importer and
+# scrobbler code rely on their historical top-level package names, so we prepend
+# their locations to ``sys.path`` before importing any routers.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_MODULES_DIR = _REPO_ROOT / "modules"
+for package in ("importer", "scrobbler"):
+    candidate = _MODULES_DIR / package
+    if candidate.is_dir():
+        candidate_path = str(candidate)
+        if candidate_path not in sys.path:
+            sys.path.insert(0, candidate_path)
 
 from .routers.importer import register_importer
 from .routers.scrobbler import register_scrobbler

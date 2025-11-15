@@ -37,14 +37,14 @@ from modules.scrobbler.backend.app.services.listenbrainz_service import (
     ListenBrainzImportService,
 )
 from modules.scrobbler.backend.app.services.stats_service import StatsService
-from modules.scrobbler.backend.analyzer.db.repo import AnalyzerRepository
-from modules.scrobbler.backend.analyzer.services.library_admin_service import (
+from modules.scrobbler.analyzer.db.repo import AnalyzerRepository
+from modules.scrobbler.analyzer.services.library_admin_service import (
     AnalyzerLibraryAdminService,
 )
-from modules.scrobbler.backend.analyzer.services.library_stats_service import (
+from modules.scrobbler.analyzer.services.library_stats_service import (
     AnalyzerLibraryStatsService,
 )
-from modules.scrobbler.backend.analyzer.services.summary_service import (
+from modules.scrobbler.analyzer.services.summary_service import (
     AnalyzerSummaryService,
 )
 

@@ -32,7 +32,10 @@ from urllib.parse import parse_qs, urlparse
 # the new ``apps`` package that now contains the shared FastAPI services.  We
 # proactively add the repository root to ``sys.path`` so that ``import apps``
 # succeeds regardless of the current working directory.
-repo_root = Path(__file__).resolve().parents[2]
+# ``__file__`` resolves to ``modules/importer/api/__init__.py``.  We need the
+# repository root (``parents[3]``) rather than the intermediate ``modules``
+# directory to ensure the top-level ``apps`` package is importable.
+repo_root = Path(__file__).resolve().parents[3]
 if str(repo_root) not in sys.path:  # pragma: no cover - defensive guard
     sys.path.append(str(repo_root))
 

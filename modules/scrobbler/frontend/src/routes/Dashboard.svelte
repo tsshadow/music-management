@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import KpiCard from '../lib/components/KpiCard.svelte';
+  import { Card, KpiCard } from '$ui';
 
   /** Display high-level metrics across listens and the analyzer library. */
   interface AnalyzerSummary {
@@ -64,7 +64,7 @@
     </div>
 
     <div class="lists">
-      <section class="list-panel">
+      <Card element="section" className="list-panel">
         <h2>Library artists</h2>
         {#if summary.artists.length}
           <ul>
@@ -78,8 +78,8 @@
         {:else}
           <p class="empty">Run the analyzer scan to populate artists.</p>
         {/if}
-      </section>
-      <section class="list-panel">
+      </Card>
+      <Card element="section" className="list-panel">
         <h2>Library genres</h2>
         {#if summary.genres.length}
           <ul>
@@ -93,7 +93,7 @@
         {:else}
           <p class="empty">Genre data becomes available after scanning your media library.</p>
         {/if}
-      </section>
+      </Card>
     </div>
   {:else}
     <p class="status">No data available yet. Start by scanning your library or importing listens.</p>
@@ -104,8 +104,8 @@
   .dashboard {
     display: flex;
     flex-direction: column;
-    gap: 2rem;
-    padding: 0 2rem 4rem;
+    gap: var(--space-2xl);
+    padding: 0 var(--space-xl) var(--space-3xl);
     align-items: center;
     text-align: center;
   }
@@ -116,46 +116,50 @@
 
   header h1 {
     margin: 0;
-    font-size: clamp(2rem, 5vw, 3rem);
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    line-height: var(--line-height-tight);
   }
 
   header p {
-    margin: 0.5rem 0 0;
-    color: rgba(255, 255, 255, 0.75);
+    margin: var(--space-sm) 0 0;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-lg);
   }
 
   .status {
     margin: 0;
+    font-size: var(--font-size-sm);
   }
 
   .status.error {
-    color: #ff6b6b;
+    color: var(--color-danger);
   }
 
   .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--space-lg);
     width: min(960px, 100%);
   }
 
   .lists {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: var(--space-lg);
     width: min(960px, 100%);
   }
 
-  .list-panel {
-    background: rgba(0, 0, 0, 0.15);
-    border-radius: 1rem;
-    padding: 1.5rem;
+  :global(.list-panel) {
     text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
   }
 
-  .list-panel h2 {
-    margin: 0 0 1rem;
+  :global(.list-panel h2) {
+    margin: 0;
     text-align: center;
+    font-size: var(--font-size-xl);
   }
 
   ul {
@@ -164,26 +168,27 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: var(--space-sm);
   }
 
   li {
     display: flex;
     justify-content: space-between;
-    gap: 1rem;
+    gap: var(--space-md);
   }
 
   .label {
     font-weight: 600;
+    color: var(--color-text-primary);
   }
 
   .value {
-    color: rgba(255, 255, 255, 0.75);
+    color: var(--color-text-muted);
   }
 
   .empty {
     margin: 0;
     text-align: center;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--color-text-soft);
   }
 </style>

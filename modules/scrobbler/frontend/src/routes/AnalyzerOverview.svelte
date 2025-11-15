@@ -1,7 +1,7 @@
 <script lang="ts">
   /** Analyzer overview card summarising scan status and top-level metrics. */
   import { onMount } from 'svelte';
-  import KpiCard from '../lib/components/KpiCard.svelte';
+  import { Card, KpiCard } from '$ui';
 
   type ArtistSummary = { artist: string; songs: number };
   type GenreSummary = { genre: string; songs: number };
@@ -97,10 +97,10 @@
       <KpiCard label="Livesets (≥ 10 min)" value={summary.livesets.toLocaleString()} />
     </div>
 
-    <div class="table-wrapper">
+    <Card element="section" className="overview__panel">
       <h2>Artists with songs</h2>
       {#if summary.artists.length}
-        <table>
+        <table class="table">
           <thead>
             <tr>
               <th>Artist</th>
@@ -119,12 +119,12 @@
       {:else}
         <p class="empty">No songs recorded yet.</p>
       {/if}
-    </div>
+    </Card>
 
-    <div class="table-wrapper">
+    <Card element="section" className="overview__panel">
       <h2>Genres with songs</h2>
       {#if summary.genres.length}
-        <table>
+        <table class="table">
           <thead>
             <tr>
               <th>Genre</th>
@@ -143,7 +143,7 @@
       {:else}
         <p class="empty">No genres recorded yet.</p>
       {/if}
-    </div>
+    </Card>
   {/if}
 </section>
 
@@ -151,30 +151,40 @@
   .overview {
     display: flex;
     flex-direction: column;
-    gap: 2rem;
-    align-items: center;
+    gap: var(--space-2xl);
+    align-items: stretch;
+    margin: 0 auto;
+    width: min(1080px, 100%);
   }
 
   .actions {
     display: flex;
-    gap: 1rem;
+    gap: var(--space-md);
     align-items: center;
     justify-content: center;
     flex-wrap: wrap;
   }
 
   .actions button {
-    background: var(--accent-color);
-    color: white;
+    background: var(--color-accent);
+    color: var(--color-text-primary);
     border: none;
-    padding: 0.75rem 1.5rem;
+    padding: var(--space-sm) var(--space-xl);
     border-radius: 999px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
     cursor: pointer;
-    transition: opacity 0.2s ease;
+    transition: transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+    box-shadow: var(--shadow-md);
+  }
+
+  .actions button:hover:not(:disabled),
+  .actions button:focus-visible:not(:disabled) {
+    transform: translateY(-2px);
   }
 
   .actions button:disabled {
-    opacity: 0.5;
+    opacity: 0.55;
     cursor: not-allowed;
   }
 
@@ -183,7 +193,7 @@
     width: 160px;
     height: 6px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--color-accent-soft);
     overflow: hidden;
   }
 
@@ -191,7 +201,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0));
+    background: linear-gradient(90deg, transparent, var(--color-text-primary), transparent);
     animation: progress-slide 1.4s infinite;
   }
 
@@ -208,30 +218,38 @@
   }
 
   .status {
-    font-size: 0.9rem;
+    font-size: var(--font-size-sm);
   }
 
   .status.success {
-    color: #4caf50;
+    color: var(--color-success);
   }
 
   .status.error {
-    color: #f44336;
+    color: var(--color-danger);
   }
 
   .kpi-grid {
-    display: flex;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-    justify-content: center;
+    display: grid;
+    gap: var(--space-lg);
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   }
 
-  .table-wrapper {
-    width: min(960px, 100%);
-    background: rgba(0, 0, 0, 0.15);
-    border-radius: 1rem;
-    padding: 1rem;
+  :global(.overview__panel) {
+    width: 100%;
     overflow-x: auto;
+  }
+
+  :global(.overview__panel h2) {
+    margin: 0 0 var(--space-md);
+    text-align: center;
+    font-size: var(--font-size-xl);
+  }
+
+  .empty {
+    text-align: center;
+    margin: var(--space-sm) 0 0;
+    color: var(--color-text-soft);
   }
 
   .visually-hidden {
@@ -245,28 +263,11 @@
     border: 0;
   }
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
+  .table thead {
+    background: rgba(255, 255, 255, 0.04);
   }
 
-  th,
-  td {
-    padding: 0.75rem 1rem;
-    text-align: left;
-  }
-
-  thead {
-    background: rgba(255, 255, 255, 0.05);
-  }
-
-  tbody tr:nth-child(even) {
-    background: rgba(255, 255, 255, 0.03);
-  }
-
-  .empty {
-    text-align: center;
-    margin: 0.5rem 0 0;
-    opacity: 0.7;
+  .table tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.02);
   }
 </style>

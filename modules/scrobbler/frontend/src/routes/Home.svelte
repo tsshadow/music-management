@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import DetailPanel from '../lib/components/DetailPanel.svelte';
-  import KpiCard from '../lib/components/KpiCard.svelte';
+  import { KpiCard } from '$ui';
   import RecentListensTable, {
     type ListenArtist,
     type ListenRow,

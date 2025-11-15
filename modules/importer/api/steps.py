@@ -1,28 +1,18 @@
-"""Pipeline step registry for the FastAPI server."""
-from __future__ import annotations
-
-from downloader.soundcloud import SoundcloudDownloader
-from downloader.telegram import TelegramDownloader
-from downloader.youtube import YoutubeDownloader
+from step import Step
+from postprocessing.sanitizer import Sanitizer
 from postprocessing.analyze import Analyze
 from postprocessing.artistfixer import ArtistFixer
-from postprocessing.sanitizer import Sanitizer
-from postprocessing.tagger import Tagger
 from processing.converter import Converter
 from processing.epsflattener import EpsFlattener
 from processing.extractor import Extractor
 from processing.mover import Mover
 from processing.renamer import Renamer
+from downloader.youtube import YoutubeDownloader
+from downloader.soundcloud import SoundcloudDownloader
+from downloader.telegram import TelegramDownloader
+from .run_tagger import run_tagger
 
-from services import (
-    DownloadService,
-    StepContext,
-    StepDefinition,
-    TaggingService,
-    create_default_steps,
-)
-
-# Instantiate processors and services once so they can maintain subscriptions/state.
+# instantiate processors and downloaders
 youtube_downloader = YoutubeDownloader()
 soundcloud_downloader = SoundcloudDownloader()
 telegram_downloader = TelegramDownloader()
@@ -34,43 +24,43 @@ sanitizer = Sanitizer()
 flattener = EpsFlattener()
 analyze_step = Analyze()
 artist_fixer = ArtistFixer()
-tagger = Tagger()
 
-_download_service = DownloadService(
-    youtube=youtube_downloader,
-    soundcloud=soundcloud_downloader,
-    telegram=telegram_downloader,
-)
-_tagging_service = TaggingService(tagger)
-
-steps_to_run: tuple[StepDefinition, ...] = tuple(
-    create_default_steps(
-        extractor=extractor,
-        renamer=renamer,
-        mover=mover,
-        converter=converter,
-        sanitizer=sanitizer,
-        flattener=flattener,
-        analyzer=analyze_step,
-        artist_fixer=artist_fixer,
-        download_service=_download_service,
-        tagging_service=_tagging_service,
-    )
-)
-
-
-def create_context() -> StepContext:
-    return StepContext(
-        download_service=_download_service,
-        tagging_service=_tagging_service,
-        extras={"source": "api"},
-    )
+steps_to_run = [
+    Step("Extractor", ["import", "extract"], extractor.run),
+    Step("Renamer", ["import", "rename"], renamer.run),
+    Step("Mover", ["import", "move"], mover.run),
+    Step("Converter", ["convert"], converter.run),
+    Step("Sanitizer", ["sanitize"], sanitizer.run),
+    Step("Flattener", ["flatten"], flattener.run),
+    Step("YouTube Downloader", ["download", "download-youtube"], youtube_downloader.run),
+    Step(
+        "Manual YouTube Downloader",
+        ["manual-youtube"],
+        getattr(
+            youtube_downloader,
+            "download_link",
+            getattr(youtube_downloader, "manual_download", lambda *args, **kwargs: None),
+        ),
+    ),
+    Step("SoundCloud Downloader", ["download", "download-soundcloud"], soundcloud_downloader.run),
+    Step("Telegram Downloader", ["download-telegram"], lambda: telegram_downloader.run("")),
+    Step("Analyze", ["analyze"], analyze_step.run),
+    Step("ArtistFixer", ["artistfixer"], artist_fixer.run),
+    Step(
+        "Tagger",
+        ["tag", "tag-labels", "tag-soundcloud", "tag-youtube", "tag-generic", "tag-telegram"],
+        run_tagger,
+    ),
+]
 
 
-def _step_keys(step: StepDefinition) -> set[str]:
-    return step.selectors
+def _step_keys(step):
+    keys = getattr(step, "condition_keys", None)
+    if not keys:
+        keys = getattr(step, "selectors", ())
+    return keys
 
 
 step_map = {key: step for step in steps_to_run for key in _step_keys(step)}
 
-__all__ = ["steps_to_run", "step_map", "create_context"]
+__all__ = ["steps_to_run", "step_map"]

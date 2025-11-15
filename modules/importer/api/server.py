@@ -26,7 +26,8 @@ from postprocessing.Song.Helpers.DatabaseConnector import DatabaseConnector
 
 from .config_store import ConfigStore
 from .db_init import ensure_tables_exist
-from .steps import step_map, steps_to_run
+from services import execute_pipeline_step
+from .steps import create_context, step_map, steps_to_run
 
 app = FastAPI()
 
@@ -259,7 +260,10 @@ def execute_step(
         return
 
     step_keys = {step_name}
-    steps_sequence = [s for s in steps_to_run if s.should_run(step_keys)]
+    steps_sequence = [s for s in steps_to_run if s.matches(step_keys)]
+
+    context = create_context()
+    context.extras.update({"job_id": job_id, "options": dict(args)})
 
     if not steps_sequence:
         job["status"] = "error"
@@ -286,7 +290,7 @@ def execute_step(
                 token_thread_job = current_job_id.set(job_id)
                 token_thread_logger = current_logger.set(adapter)
                 try:
-                    current_step.run(step_keys, **args)
+                    execute_pipeline_step(current_step, step_keys, context, args)
                 finally:
                     current_logger.reset(token_thread_logger)
                     current_job_id.reset(token_thread_job)
@@ -303,6 +307,7 @@ def execute_step(
         job["log"].append(str(e))
     finally:
         job["ended"] = datetime.utcnow().isoformat()
+        job["result"] = context.serialise()
         asyncio.run(broadcast(job))
         job_logger.removeHandler(handler)
         current_logger.reset(token_logger)
@@ -325,7 +330,7 @@ async def run_step_endpoint(
 
     repeat = bool(options.pop("repeat", False))
     interval = float(options.pop("interval", 0))
-    args = options
+    args = dict(options)
 
     job_id = str(uuid.uuid4())
     stop_event = threading.Event()
@@ -336,6 +341,7 @@ async def run_step_endpoint(
         "log": [],
         "stop_event": stop_event,
         "started": datetime.utcnow().isoformat(),
+        "parameters": args,
     }
     await broadcast(jobs[job_id])
     thread = threading.Thread(

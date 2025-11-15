@@ -1,35 +1,28 @@
 # Frontend style guide
 
-This frontend shares design tokens and UI primitives with other web modules so that future
-features (for example the rating or rule editor) inherit the same look and feel.
+This frontend uses Tailwind CSS for layout and theming so future modules (for example the
+rating or rule editor) can share the same look and feel.
 
-## Theme tokens
+## Tailwind theme
 
-The shared theme lives in `apps/web/src/lib/theme.css`. Import it once inside
-`src/app.css` (or the entry stylesheet of another module) using the Vite alias:
+The Tailwind configuration lives in `tailwind.config.cjs` and exposes the design tokens used by
+our Svelte components. Global CSS variables (colours, typography, shadows) are defined in
+`src/app.css` via `@layer base`. Components should prefer Tailwind utility classes (including
+arbitrary values such as `bg-[var(--color-surface-1)]`) instead of bespoke CSS whenever
+possible.
 
-```css
-@import '$design/theme.css';
+To run the Tailwind-powered build locally:
+
+```bash
+pnpm install
+pnpm run dev
 ```
-
-The file exposes CSS custom properties for colours, typography, spacing, radii, and shadows.
-Dark mode is the default. Switching to the light theme only requires setting a `data-theme`
-attribute on the `<body>` (or any parent element):
-
-```html
-<body data-theme="light">
-  <!-- content -->
-</body>
-```
-
-The theme also exposes legacy aliases (`--text-color`, `--accent-color`) to remain compatible
-with older components while we gradually migrate them to the new naming scheme.
 
 ## UI component library
 
-Reusable UI elements now live under `apps/web/src/lib/ui`. The SvelteKit project in this
-module accesses them through the `$ui` alias (configured in `vite.config.ts` and
-`tsconfig.json`). Import components directly from the index module:
+Reusable UI elements live under `apps/web/src/lib/ui`. The SvelteKit project in this module
+accesses them through the `$ui` alias (configured in `vite.config.ts` and `tsconfig.json`). Import
+components directly from the index module:
 
 ```svelte
 <script lang="ts">
@@ -38,21 +31,21 @@ module accesses them through the `$ui` alias (configured in `vite.config.ts` and
 ```
 
 ### `Card`
-Container primitive that handles surface styling, elevation, and spacing. It accepts the
-props below:
+Container primitive that handles surface styling, elevation, and spacing with Tailwind classes.
+Props:
 
 | Prop | Type | Default | Description |
 | --- | --- | --- | --- |
 | `element` | `keyof HTMLElementTagNameMap` | `'div'` | Underlying HTML element. |
-| `padding` | `'sm' \| 'md' \| 'lg' \| 'xl'` | `'lg'` | Applies theme spacing tokens. |
-| `variant` | `'surface' \| 'translucent'` | `'translucent'` | Chooses the background style. |
+| `padding` | `'sm' \| 'md' \| 'lg' \| 'xl'` | `'lg'` | Adjusts internal Tailwind padding. |
+| `variant` | `'surface' \| 'translucent'` | `'translucent'` | Chooses between overlay or frosted backgrounds. |
 | `interactive` | `boolean` | `false` | Enables hover and focus affordances. |
-| `className` | `string` | `''` | Appends custom classes. |
+| `className` | `string` | `''` | Appends additional Tailwind utilities. |
 
 Example:
 
 ```svelte
-<Card element="section" padding="md" className="panel">
+<Card element="section" padding="md" className="flex flex-col gap-4">
   <h2>Top artists</h2>
   <slot />
 </Card>

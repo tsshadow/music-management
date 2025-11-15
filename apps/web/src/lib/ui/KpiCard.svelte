@@ -6,38 +6,17 @@
   export let helper: string | null = null;
 </script>
 
-<Card className="ui-kpi-card" padding="xl">
-  <p class="ui-kpi-card__label">{label}</p>
-  <p class="ui-kpi-card__value">{value}</p>
+<Card
+  padding="xl"
+  className="ui-kpi-card flex flex-col items-center text-[var(--color-text-primary)]"
+>
+  <p class="mb-2 text-center text-[var(--color-text-soft)] text-xs font-semibold uppercase tracking-[0.28em]">
+    {label}
+  </p>
+  <p class="text-center text-[clamp(2.5rem,4vw,4rem)] font-bold leading-[var(--line-height-tight)]">
+    {value}
+  </p>
   {#if helper}
-    <p class="ui-kpi-card__helper">{helper}</p>
+    <p class="mt-3 text-center text-sm text-[var(--color-text-muted)]">{helper}</p>
   {/if}
 </Card>
-
-<style>
-  :global(.ui-kpi-card) {
-    text-align: center;
-    color: var(--color-text-primary);
-  }
-
-  .ui-kpi-card__label {
-    margin: 0 0 var(--space-xs);
-    text-transform: uppercase;
-    letter-spacing: 0.28em;
-    font-size: var(--font-size-xs);
-    color: var(--color-text-soft);
-  }
-
-  .ui-kpi-card__value {
-    margin: 0;
-    font-size: var(--font-size-2xl);
-    font-weight: 700;
-    line-height: var(--line-height-tight);
-  }
-
-  .ui-kpi-card__helper {
-    margin: var(--space-sm) 0 0;
-    font-size: var(--font-size-sm);
-    color: var(--color-text-muted);
-  }
-</style>

@@ -47,148 +47,63 @@
   });
 </script>
 
-<section class="dashboard">
-  <header>
-    <h1>Overview</h1>
-    <p>Welcome back! Here is a quick snapshot of your library and listening activity.</p>
+<section class="dashboard flex flex-col items-center gap-12 px-4 pb-16 text-center sm:px-8 lg:px-12">
+  <header class="max-w-2xl">
+    <h1 class="m-0 text-4xl font-semibold leading-[var(--line-height-tight)] sm:text-5xl">Overview</h1>
+    <p class="mt-3 text-lg leading-[var(--line-height-snug)] text-[var(--color-text-muted)]">
+      Welcome back! Here is a quick snapshot of your library and listening activity.
+    </p>
   </header>
 
   {#if loading}
-    <p class="status">Loading statistics…</p>
+    <p class="text-sm text-[var(--color-text-soft)]">Loading statistics…</p>
   {:else if error}
-    <p class="status error">{error}</p>
+    <p class="text-sm text-[var(--color-danger)]">{error}</p>
   {:else if summary}
-    <div class="kpi-grid">
+    <div class="grid w-full max-w-4xl grid-cols-1 gap-6 md:grid-cols-2">
       <KpiCard label="Total listens" value={totalListens.toLocaleString()} />
       <KpiCard label="Total media files" value={summary.files.toLocaleString()} />
     </div>
 
-    <div class="lists">
-      <Card element="section" className="list-panel">
-        <h2>Library artists</h2>
+    <div class="grid w-full max-w-4xl grid-cols-1 gap-6 lg:grid-cols-2">
+      <Card element="section" className="flex flex-col gap-5 text-left">
+        <h2 class="text-center text-2xl font-semibold text-[var(--color-text-primary)]">Library artists</h2>
         {#if summary.artists.length}
-          <ul>
+          <ul class="m-0 flex list-none flex-col gap-3 p-0">
             {#each summary.artists.slice(0, 5) as artist}
-              <li>
-                <span class="label">{artist.artist}</span>
-                <span class="value">{artist.songs.toLocaleString()} songs</span>
+              <li class="flex items-center justify-between gap-4">
+                <span class="font-semibold text-[var(--color-text-primary)]">{artist.artist}</span>
+                <span class="text-[var(--color-text-muted)]">{artist.songs.toLocaleString()} songs</span>
               </li>
             {/each}
           </ul>
         {:else}
-          <p class="empty">Run the analyzer scan to populate artists.</p>
+          <p class="text-center text-[var(--color-text-soft)]">
+            Run the analyzer scan to populate artists.
+          </p>
         {/if}
       </Card>
-      <Card element="section" className="list-panel">
-        <h2>Library genres</h2>
+      <Card element="section" className="flex flex-col gap-5 text-left">
+        <h2 class="text-center text-2xl font-semibold text-[var(--color-text-primary)]">Library genres</h2>
         {#if summary.genres.length}
-          <ul>
+          <ul class="m-0 flex list-none flex-col gap-3 p-0">
             {#each summary.genres.slice(0, 5) as genre}
-              <li>
-                <span class="label">{genre.genre}</span>
-                <span class="value">{genre.songs.toLocaleString()} songs</span>
+              <li class="flex items-center justify-between gap-4">
+                <span class="font-semibold text-[var(--color-text-primary)]">{genre.genre}</span>
+                <span class="text-[var(--color-text-muted)]">{genre.songs.toLocaleString()} songs</span>
               </li>
             {/each}
           </ul>
         {:else}
-          <p class="empty">Genre data becomes available after scanning your media library.</p>
+          <p class="text-center text-[var(--color-text-soft)]">
+            Genre data becomes available after scanning your media library.
+          </p>
         {/if}
       </Card>
     </div>
   {:else}
-    <p class="status">No data available yet. Start by scanning your library or importing listens.</p>
+    <p class="text-sm text-[var(--color-text-soft)]">
+      No data available yet. Start by scanning your library or importing listens.
+    </p>
   {/if}
 </section>
-
-<style>
-  .dashboard {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2xl);
-    padding: 0 var(--space-xl) var(--space-3xl);
-    align-items: center;
-    text-align: center;
-  }
-
-  header {
-    max-width: 640px;
-  }
-
-  header h1 {
-    margin: 0;
-    font-size: clamp(2rem, 5vw, 3.25rem);
-    line-height: var(--line-height-tight);
-  }
-
-  header p {
-    margin: var(--space-sm) 0 0;
-    color: var(--color-text-muted);
-    font-size: var(--font-size-lg);
-  }
-
-  .status {
-    margin: 0;
-    font-size: var(--font-size-sm);
-  }
-
-  .status.error {
-    color: var(--color-danger);
-  }
-
-  .kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: var(--space-lg);
-    width: min(960px, 100%);
-  }
-
-  .lists {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: var(--space-lg);
-    width: min(960px, 100%);
-  }
-
-  :global(.list-panel) {
-    text-align: left;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-md);
-  }
-
-  :global(.list-panel h2) {
-    margin: 0;
-    text-align: center;
-    font-size: var(--font-size-xl);
-  }
-
-  ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-sm);
-  }
-
-  li {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--space-md);
-  }
-
-  .label {
-    font-weight: 600;
-    color: var(--color-text-primary);
-  }
-
-  .value {
-    color: var(--color-text-muted);
-  }
-
-  .empty {
-    margin: 0;
-    text-align: center;
-    color: var(--color-text-soft);
-  }
-</style>

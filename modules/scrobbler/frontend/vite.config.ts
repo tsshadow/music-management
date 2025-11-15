@@ -7,7 +7,6 @@ export default defineConfig({
   resolve: {
     alias: {
       $ui: fileURLToPath(new URL('../../../apps/web/src/lib/ui', import.meta.url)),
-      $design: fileURLToPath(new URL('../../../apps/web/src/lib', import.meta.url)),
     },
   },
   server: {

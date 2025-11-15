@@ -3,8 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "$ui/*": ["../../../apps/web/src/lib/ui/*"],
-      "$design/*": ["../../../apps/web/src/lib/*"]
+      "$ui/*": ["../../../apps/web/src/lib/ui/*"]
     },
     "types": ["svelte"]
   },

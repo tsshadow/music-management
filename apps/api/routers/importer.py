@@ -56,7 +56,7 @@ def register_importer(app: FastAPI) -> None:
     if not getattr(register_importer, "_ws_attached", False):
         router.include_router(build_websocket_router("/ws"))
         register_importer._ws_attached = True  # type: ignore[attr-defined]
-    app.include_router(router)
+    app.include_router(router, prefix="/api")
 
 
 def verify_api_key(x_api_key: Optional[str] = Header(default=None)) -> None:

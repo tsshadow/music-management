@@ -25,11 +25,10 @@ docker compose build
 docker compose up
 ```
 
-* Backend: <http://localhost:8000>
-* Frontend: <http://localhost:5173>
+* Backend & frontend: <http://localhost:8000>
 
 The frontend expects `VITE_API_BASE` to point at the API container. The Compose file wires this up
-for you. If you run things manually set `VITE_API_BASE=http://localhost:8000` before executing
+for you. If you run things manually set `VITE_API_BASE=http://localhost:8000/api` before executing
 `npm run dev` inside `apps/web`.
 
 ## Local development
@@ -43,9 +42,10 @@ pip install -r requirements.txt
 uvicorn apps.api.main:app --reload
 ```
 
-The importer endpoints now live under `/importer` – for example `POST /importer/downloads` queues a
-new download batch while `POST /importer/tagging` schedules metadata updates. Scrobbler routes keep
-their `/api/v1` prefix (for example `/api/v1/stats/overview`).
+The importer endpoints now live under `/api/importer` – for example
+`POST /api/importer/downloads` queues a new download batch while
+`POST /api/importer/tagging` schedules metadata updates. Scrobbler routes keep their `/api/v1`
+prefix (for example `/api/v1/stats/overview`).
 
 ### Frontend
 
@@ -74,11 +74,12 @@ npm run test
 
 ## Configuration highlights
 
-* Importer configuration values are exposed via `GET /importer/config` and `PATCH /importer/config`.
-* Download batches are created through `POST /importer/downloads` with a list of download tasks.
-* Tagging runs are created through `POST /importer/tagging` with a tagging request payload.
-* Job state can be queried via `GET /importer/jobs` and streamed with
-  `GET /importer/ws/jobs/{job_id}`.
+* Importer configuration values are exposed via `GET /api/importer/config` and
+  `PATCH /api/importer/config`.
+* Download batches are created through `POST /api/importer/downloads` with a list of download tasks.
+* Tagging runs are created through `POST /api/importer/tagging` with a tagging request payload.
+* Job state can be queried via `GET /api/importer/jobs` and streamed with
+  `GET /api/ws/jobs/{job_id}`.
 
 ## Documentation
 

@@ -4,7 +4,7 @@
   import Button from '$lib/ui/Button.svelte';
   import type { DownloadBatch, DownloadTask, TaggingReport } from '$lib/types';
 
-  const apiBase = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000';
+  const apiBase = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000/api';
 
   let apiKey = '';
   let accounts: { youtube: string[]; soundcloud: string[] } = { youtube: [], soundcloud: [] };

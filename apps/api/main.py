@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from typing import Iterable
 
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -23,8 +25,11 @@ for package in ("importer", "scrobbler"):
         if candidate_path not in sys.path:
             sys.path.insert(0, candidate_path)
 
+from .frontend import register_frontend
 from .routers.importer import register_importer
 from .routers.scrobbler import register_scrobbler
+
+logger = logging.getLogger(__name__)
 
 
 def _trusted_origins() -> Iterable[str]:
@@ -55,6 +60,10 @@ def create_app() -> FastAPI:
 
     register_importer(app)
     register_scrobbler(app)
+
+    missing_frontend = register_frontend(app)
+    if missing_frontend:
+        logger.warning("Frontend build missing at %s", missing_frontend)
     return app
 
 

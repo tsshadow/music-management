@@ -1,6 +1,6 @@
 <script lang="ts">
   import '$lib/theme.css';
-  import '@fontsource/inter/variable.css';
+  import '@fontsource-variable/inter/index.css';
   import { page } from '$app/stores';
 
   const links = [

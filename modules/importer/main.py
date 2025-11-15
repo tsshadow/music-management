@@ -117,6 +117,11 @@ def main():
         # Step("Repair", ["repair"], repair.run),
         Step("Flattener", ["flatten"], flattener.run),
         Step("YouTube Downloader", ["download", "download-youtube"], youtube_downloader.run),
+        Step(
+            "Manual SoundCloud Downloader",
+            ["manual-soundcloud"],
+            getattr(soundcloud_downloader, "manual_download", lambda *args, **kwargs: None),
+        ),
         Step("SoundCloud Downloader", ["download", "download-soundcloud"], lambda: soundcloud_downloader.run(
             account=args.account or "",
         )),

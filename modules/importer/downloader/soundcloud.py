@@ -163,6 +163,44 @@ class SoundcloudDownloader:
                         "total": total_accounts,
                     })
 
+    def manual_download(
+        self,
+        url: str,
+        breakOnExisting: Optional[bool] = None,
+        redownload: bool = False,
+    ) -> None:
+        """Download a single SoundCloud URL on demand."""
+
+        if not getattr(self, "enabled", True):
+            logging.warning("SoundCloud downloader is not configured; skipping manual download.")
+            return
+
+        ydl_opts = dict(self.ydl_opts)
+        effective_break = (
+            self.default_break_on_existing if breakOnExisting is None else breakOnExisting
+        )
+        if effective_break:
+            ydl_opts["break_on_existing"] = True
+        else:
+            ydl_opts.pop("break_on_existing", None)
+
+        if not redownload:
+            archive: Optional[Path]
+            if self.archive_file:
+                archive = Path(self.archive_file)
+            else:
+                archive = Path(self.archive_dir) / "manual.txt"
+            ydl_opts["download_archive"] = str(archive)
+        else:
+            ydl_opts.pop("download_archive", None)
+
+        logging.info("Downloading SoundCloud URL: %s", url)
+        with YoutubeDL(ydl_opts) as ydl:
+            ydl.add_post_processor(FFmpegMetadataPP(ydl))
+            ydl.add_post_processor(EmbedThumbnailPP(ydl))
+            ydl.add_post_processor(SoundcloudSongProcessor())
+            ydl.download([url])
+
     def _apply_config(self) -> None:
         values = self._config.get_many(
             ["soundcloud_folder", "soundcloud_archive", "soundcloud_cookies", "ffmpeg_location"]

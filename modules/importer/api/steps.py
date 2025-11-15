@@ -42,6 +42,15 @@ steps_to_run = [
             getattr(youtube_downloader, "manual_download", lambda *args, **kwargs: None),
         ),
     ),
+    Step(
+        "Manual SoundCloud Downloader",
+        ["manual-soundcloud"],
+        getattr(
+            soundcloud_downloader,
+            "manual_download",
+            lambda *args, **kwargs: None,
+        ),
+    ),
     Step("SoundCloud Downloader", ["download", "download-soundcloud"], soundcloud_downloader.run),
     Step("Telegram Downloader", ["download-telegram"], lambda: telegram_downloader.run("")),
     Step("Analyze", ["analyze"], analyze_step.run),

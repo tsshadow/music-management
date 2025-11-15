@@ -16,12 +16,19 @@ from ..models.importer import (
     DownloadBatch,
     DownloadTask,
     DownloadedTrack,
+    ImporterJobStatus,
+    JobRunSummary,
     TagMutation,
     TaggingReport,
     TaggingTask,
+    ManualDownloadRequest,
+    ManualDownloadResponse,
+    RecurringJobRequest,
+    RecurringJobResponse,
 )
 from ..services.importer.download import DownloadHandler, DownloadService
 from ..services.importer.jobs import build_websocket_router, job_manager
+from ..services.importer.pipeline import JobRunRecord, RecurringJob, recurring_jobs
 from ..services.importer.tagging import TaggingService
 from ..utils import ensure_yt_dlp_is_updated
 from modules.importer.api.config_store import ConfigStore
@@ -125,6 +132,41 @@ def _load_accounts(table: str) -> List[str]:
     return sorted(accounts)
 
 
+_DOWNLOAD_KINDS = {"download-youtube", "download-soundcloud"}
+
+
+def _schedule_options(payload: RecurringJobRequest) -> Dict[str, Any]:
+    options: Dict[str, Any] = {}
+    if payload.kind in _DOWNLOAD_KINDS:
+        options["break_on_existing"] = payload.break_on_existing
+        options["redownload"] = payload.redownload
+    return options
+
+
+def _record_to_summary(record: JobRunRecord) -> JobRunSummary:
+    return JobRunSummary(
+        job_ids=list(record.job_ids),
+        started_at=record.started_at,
+        completed_at=record.completed_at,
+        details=[ImporterJobStatus.model_validate(detail) for detail in record.details],
+    )
+
+
+def _serialize_recurring_job(job: RecurringJob) -> RecurringJobResponse:
+    return RecurringJobResponse(
+        job_id=job.job_id,
+        kind=job.kind,
+        repeat=job.repeat,
+        interval=int(job.interval) if job.repeat else None,
+        started_at=job.started_at,
+        runs=job.runs,
+        last_run_at=job.last_run_at,
+        last_job_ids=list(job.last_job_ids),
+        options=dict(job.options),
+        history=[_record_to_summary(record) for record in job.history],
+    )
+
+
 def _youtube_base_path() -> Path:
     folder = ConfigStore().get("youtube_folder")
     return Path(folder or "/downloads/youtube")
@@ -191,8 +233,11 @@ async def create_tagging(
 
 
 @router.get("/jobs")
-async def list_jobs(_: None = Depends(verify_api_key)) -> Dict[str, List[Dict[str, Any]]]:
-    return {"jobs": job_manager.recent()}
+async def list_jobs(_: None = Depends(verify_api_key)) -> Dict[str, Any]:
+    return {
+        "active": job_manager.list_active_details(),
+        "recent": job_manager.recent(),
+    }
 
 
 @router.get("/jobs/{job_id}")
@@ -201,6 +246,58 @@ async def get_job(job_id: str, _: None = Depends(verify_api_key)) -> Dict[str, A
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
+
+
+@router.get("/jobs/recurring", response_model=List[RecurringJobResponse])
+async def list_recurring_jobs(_: None = Depends(verify_api_key)) -> List[RecurringJobResponse]:
+    return [_serialize_recurring_job(job) for job in recurring_jobs.list()]
+
+
+@router.post("/jobs/recurring", response_model=RecurringJobResponse)
+async def create_recurring_job(
+    payload: RecurringJobRequest,
+    _: None = Depends(verify_api_key),
+) -> RecurringJobResponse:
+    options = _schedule_options(payload)
+    if payload.repeat:
+        interval = payload.interval
+        if interval is None:
+            raise HTTPException(status_code=400, detail="Interval is required for recurring jobs")
+        job = await recurring_jobs.start(payload.kind, interval, **options)
+        return _serialize_recurring_job(job)
+
+    record = await recurring_jobs.run_once(payload.kind, **options)
+    history = [_record_to_summary(record)]
+    return RecurringJobResponse(
+        job_id=None,
+        kind=payload.kind,
+        repeat=False,
+        interval=None,
+        started_at=record.started_at,
+        runs=1 if record.job_ids else 0,
+        last_run_at=record.completed_at,
+        last_job_ids=list(record.job_ids),
+        options=options,
+        history=history,
+    )
+
+
+@router.post("/jobs/manual", response_model=ManualDownloadResponse)
+async def trigger_manual_download(
+    payload: ManualDownloadRequest,
+    _: None = Depends(verify_api_key),
+) -> ManualDownloadResponse:
+    kind = "manual-youtube" if payload.source == "youtube" else "manual-soundcloud"
+    record = await recurring_jobs.run_once(
+        kind,
+        url=payload.url,
+        break_on_existing=payload.break_on_existing,
+        redownload=payload.redownload,
+    )
+    return ManualDownloadResponse(
+        job_ids=list(record.job_ids),
+        requested_at=record.started_at,
+    )
 
 
 __all__ = ["register_importer"]

@@ -9,10 +9,13 @@
 <section class="card">
   {#if title}
     <header>
-      <h2>{title}</h2>
-      {#if subtitle}
-        <p>{subtitle}</p>
-      {/if}
+      <div class="heading">
+        <h2>{title}</h2>
+        {#if subtitle}
+          <p>{subtitle}</p>
+        {/if}
+      </div>
+      <slot name="actions" />
     </header>
   {/if}
   <slot />
@@ -27,6 +30,19 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
+  }
+
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .heading {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
   }
 
   header h2 {

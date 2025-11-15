@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 
 class DownloadTask(BaseModel):
@@ -66,6 +66,94 @@ class TaggingReport(BaseModel):
     mutations: List[TagMutation] = Field(default_factory=list)
 
 
+class ImporterJobStatus(BaseModel):
+    """Snapshot of a single importer job's lifecycle state."""
+
+    id: str
+    status: str
+    step: Optional[str] = None
+    started: Optional[datetime] = None
+    finished: Optional[datetime] = None
+    updated: Optional[datetime] = None
+    log: List[Dict[str, Any]] = Field(default_factory=list)
+    error: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class JobRunSummary(BaseModel):
+    """Aggregate information about a collection of importer jobs started together."""
+
+    job_ids: List[str]
+    started_at: datetime
+    completed_at: Optional[datetime] = None
+    details: List[ImporterJobStatus] = Field(default_factory=list)
+
+
+class RecurringJobRequest(BaseModel):
+    """Payload describing a scheduled importer job."""
+
+    kind: Literal[
+        "import",
+        "download-youtube",
+        "download-soundcloud",
+        "download-telegram",
+        "tag",
+        "tag-soundcloud",
+        "tag-youtube",
+        "tag-telegram",
+        "tag-labels",
+        "tag-generic",
+    ]
+    repeat: bool = True
+    interval: Optional[int] = Field(
+        default=None,
+        description="Interval in seconds between job executions.",
+        ge=1,
+    )
+    break_on_existing: Optional[bool] = Field(default=None)
+    redownload: bool = False
+
+    @model_validator(mode="after")
+    def _check_interval(cls, model: "RecurringJobRequest") -> "RecurringJobRequest":
+        if model.repeat and model.interval is None:
+            raise ValueError("interval is required when repeat is true")
+        if not model.repeat:
+            model.interval = None
+        return model
+
+
+class RecurringJobResponse(BaseModel):
+    """Metadata for a scheduled recurring job."""
+
+    job_id: Optional[str] = None
+    kind: str
+    repeat: bool
+    interval: Optional[int] = None
+    started_at: datetime
+    runs: int
+    last_run_at: Optional[datetime] = None
+    last_job_ids: List[str] = Field(default_factory=list)
+    options: Dict[str, Any] = Field(default_factory=dict)
+    history: List[JobRunSummary] = Field(default_factory=list)
+
+
+class ManualDownloadRequest(BaseModel):
+    """Request body for triggering a manual download."""
+
+    source: Literal["youtube", "soundcloud"]
+    url: str
+    break_on_existing: Optional[bool] = Field(default=None)
+    redownload: bool = False
+
+
+class ManualDownloadResponse(BaseModel):
+    """Response emitted after enqueuing a manual download job."""
+
+    job_ids: List[str]
+    requested_at: datetime
+
+
 __all__ = [
     "DownloadTask",
     "DownloadedTrack",
@@ -73,4 +161,10 @@ __all__ = [
     "TaggingTask",
     "TagMutation",
     "TaggingReport",
+    "ImporterJobStatus",
+    "JobRunSummary",
+    "RecurringJobRequest",
+    "RecurringJobResponse",
+    "ManualDownloadRequest",
+    "ManualDownloadResponse",
 ]

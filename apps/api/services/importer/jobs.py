@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextvars
 from collections import defaultdict, deque
+from datetime import datetime, timezone
 from typing import Any, Deque, Dict, Iterable, List, MutableMapping, Optional
 from uuid import uuid4
 
@@ -28,6 +29,8 @@ class JobManager:
         state = self.jobs[job_id]
         total = len(list(steps))
         state.update({"status": "running", "progress": 0, "total": total})
+        state.setdefault("started", datetime.now(timezone.utc).isoformat())
+        state.setdefault("log", [])
         await self._notify(job_id)
 
         for index, step in enumerate(steps, start=1):
@@ -42,16 +45,27 @@ class JobManager:
             await self._notify(job_id)
 
         state["status"] = "finished"
+        state["finished"] = datetime.now(timezone.utc).isoformat()
         await self._notify(job_id)
         self.results[job_id] = state.copy()
         self.history.appendleft(job_id)
 
     def create(self, job_id: str, payload: Dict[str, Any]) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        payload = {"id": job_id, **payload}
+        payload.setdefault("started", now)
+        payload.setdefault("log", [])
         self.jobs[job_id] = payload
 
     def register(self, step_name: str) -> str:
         job_id = str(uuid4())
-        self.jobs[job_id] = {"step": step_name, "status": "running"}
+        self.jobs[job_id] = {
+            "id": job_id,
+            "step": step_name,
+            "status": "running",
+            "started": datetime.now(timezone.utc).isoformat(),
+            "log": [],
+        }
         return job_id
 
     def update(self, job_id: str, status: str, error: Optional[str] = None) -> None:
@@ -59,6 +73,13 @@ class JobManager:
         if not job:
             return
         job["status"] = status
+        job["updated"] = datetime.now(timezone.utc).isoformat()
+        if status in {"completed", "failed", "finished"}:
+            job["finished"] = job.get("finished") or job["updated"]
+            self.results[job_id] = job.copy()
+            if job_id in self.history:
+                self.history.remove(job_id)
+            self.history.appendleft(job_id)
         if error:
             job["error"] = error
 
@@ -96,11 +117,23 @@ class JobManager:
         job_id = current_job_id.get()
         if not job_id:
             return
+        job = self.jobs.get(job_id)
+        if job is None:
+            return
+        entry = {"timestamp": datetime.now(timezone.utc).isoformat(), **payload}
+        job.setdefault("log", []).append(entry)
         loop = asyncio.get_running_loop()
-        loop.create_task(self._notify(job_id, payload))
+        loop.create_task(self._notify(job_id, entry))
 
     def recent(self) -> List[Dict[str, Any]]:
-        return [self.results[jid] for jid in self.history]
+        return [self.results[jid] for jid in self.history if jid in self.results]
+
+    def list_active_details(self) -> List[Dict[str, Any]]:
+        return [
+            data
+            for data in self.jobs.values()
+            if data.get("status") == "running"
+        ]
 
 
 job_manager = JobManager()

@@ -41,25 +41,12 @@ def _config_fields() -> List[ConfigField]:
 
     return [
         ConfigField(
-            key="debug",
-            type="boolean",
-            default=False,
-            env="debug",
-            description="Enable verbose debug logging for import jobs.",
-        ),
-        ConfigField(
-            key="rescan",
-            type="boolean",
-            default=False,
-            env="rescan",
-            description="Force a rescan of already processed files.",
-        ),
-        ConfigField(
-            key="dryrun",
-            type="boolean",
-            default=False,
-            env="dryrun",
-            description="Run processors without modifying files on disk.",
+            key="delimiter",
+            type="string",
+            default=os.sep,
+            env="delimiter",
+            group="General",
+            description="Path delimiter used when parsing artist/title strings.",
         ),
         ConfigField(
             key="import_folder_path",
@@ -84,14 +71,6 @@ def _config_fields() -> List[ConfigField]:
             env="music_folder_path",
             group="Paths",
             description="Destination library for processed tracks.",
-        ),
-        ConfigField(
-            key="delimiter",
-            type="string",
-            default=os.sep,
-            env="delimiter",
-            group="General",
-            description="Path delimiter used when parsing artist/title strings.",
         ),
         ConfigField(
             key="youtube_folder",

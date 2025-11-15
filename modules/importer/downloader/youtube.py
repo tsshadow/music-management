@@ -213,7 +213,12 @@ class YoutubeDownloader:
             logging.error(f"Failed to download {url}: {e}")
             raise
 
-    def download_accounts(self, accounts: list[str], break_on_existing: bool = True):
+    def download_accounts(
+        self,
+        accounts: list[str],
+        break_on_existing: bool = True,
+        redownload: bool = False,
+    ):
         if not self.enabled:
             logging.warning("YouTube downloader is disabled; skipping download_accounts().")
             return
@@ -226,6 +231,7 @@ class YoutubeDownloader:
                     self._build_ydl_opts(
                         os.path.join(self.archive_dir, f"{account}.txt"),
                         break_on_existing=break_on_existing,
+                        redownload=redownload,
                     ),
                 )
                 for account in accounts
@@ -236,16 +242,25 @@ class YoutubeDownloader:
                 except Exception as e:
                     logging.error(f"Error downloading account: {e}")
 
-    def run(self):
+    def run(
+        self,
+        breakOnExisting: Optional[bool] = None,
+        redownload: bool = False,
+    ):
         if not self.enabled:
             logging.warning("YouTube downloader is disabled; skipping run().")
             return
 
         accounts = DatabaseConnector().get_youtube_accounts()
+        effective_break = self.default_break_on_existing if breakOnExisting is None else breakOnExisting
         for i in range(0, len(accounts), self.burst_size):
             batch = accounts[i : i + self.burst_size]
             logging.info(f"Processing batch: {batch}")
-            self.download_accounts(batch, break_on_existing=self.default_break_on_existing)
+            self.download_accounts(
+                batch,
+                break_on_existing=effective_break,
+                redownload=redownload,
+            )
             if i + self.burst_size < len(accounts):
                 pause = random.randint(self.min_pause, self.max_pause)
                 logging.info(f"Pausing for {pause} seconds before next batch")

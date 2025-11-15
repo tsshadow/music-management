@@ -1,25 +1,32 @@
-import logging
 import argparse
+import logging
 import signal
 from time import sleep
 
+import faulthandler
+
+from api import start_api_server
 from data.settings import Settings
-from postprocessing.repair import FileRepair
-from postprocessing.sanitizer import Sanitizer
-from postprocessing.tagger import Tagger
+from downloader.soundcloud import SoundcloudDownloader
+from downloader.telegram import TelegramDownloader
+from downloader.youtube import YoutubeDownloader
 from postprocessing.analyze import Analyze
 from postprocessing.artistfixer import ArtistFixer
+from postprocessing.sanitizer import Sanitizer
+from postprocessing.tagger import Tagger
 from processing.converter import Converter
 from processing.epsflattener import EpsFlattener
 from processing.extractor import Extractor
 from processing.mover import Mover
 from processing.renamer import Renamer
-from downloader.youtube import YoutubeDownloader
-from downloader.soundcloud import SoundcloudDownloader
-from downloader.telegram import TelegramDownloader
-from api import start_api_server
-from step import Step
-import faulthandler
+
+from services import (
+    StepContext,
+    create_default_steps,
+    execute_pipeline_step,
+    DownloadService,
+    TaggingService,
+)
 
 faulthandler.register(signal.SIGUSR1)
 
@@ -42,12 +49,12 @@ def main():
     parser.add_argument(
         "--break-on-existing",
         help="optional break on existing for downloaders",
-        action="store_true"
+        action="store_true",
     )
     parser.add_argument(
         "--repeat",
         help="Repeat every hour",
-        action="store_true"
+        action="store_true",
     )
     args = parser.parse_args()
 
@@ -74,7 +81,6 @@ def main():
     converter = Converter()
     sanitizer = Sanitizer()
     flattener = EpsFlattener()
-    repair = FileRepair()
     analyze_step = Analyze()
     artist_fixer = ArtistFixer()
 
@@ -84,7 +90,7 @@ def main():
     valid_steps = {
         "all",
         "convert",
-        "download", "download-soundcloud", "download-youtube", "download-telegram",
+        "download", "download-soundcloud", "download-youtube", "download-telegram", "manual-youtube",
         "flatten",
         "import", "extract", "move", "rename",
         "manual",
@@ -98,43 +104,43 @@ def main():
         if step not in valid_steps:
             parser.error(f"Invalid step: {step}")
 
-    def run_tagger():
-        parse_all = "tag" in steps or "all" in steps
-        tagger.run(
-            parse_labels=parse_all or "tag-labels" in steps,
-            parse_soundcloud=parse_all or "tag-soundcloud" in steps,
-            parse_youtube=parse_all or "tag-youtube" in steps,
-            parse_generic=parse_all or "tag-generic" in steps,
-            parse_telegram=parse_all or "tag-telegram" in steps,
-        )
+    download_service = DownloadService(
+        youtube=youtube_downloader,
+        soundcloud=soundcloud_downloader,
+        telegram=telegram_downloader,
+        settings=settings,
+    )
+    tagging_service = TaggingService(tagger)
 
-    steps_to_run = [
-        Step("Extractor", ["import", "extract"], extractor.run),
-        Step("Renamer", ["import", "rename"], renamer.run),
-        Step("Mover", ["import", "move"], mover.run),
-        Step("Converter", ["convert"], converter.run),
-        Step("Sanitizer", ["sanitize"], sanitizer.run),
-        # Step("Repair", ["repair"], repair.run),
-        Step("Flattener", ["flatten"], flattener.run),
-        Step("YouTube Downloader", ["download", "download-youtube"], youtube_downloader.run),
-        Step("SoundCloud Downloader", ["download", "download-soundcloud"], lambda: soundcloud_downloader.run(
-            account=args.account or "",
-        )),
-        Step("Telegram Downloader", ["download-telegram"], lambda: telegram_downloader.run(
-            args.account or ""
-        )),
-        Step("Analyze", ["analyze"], analyze_step.run),
-        Step("ArtistFixer", ["artistfixer"], artist_fixer.run),
-        Step("Tagger", ["tag", "tag-labels", "tag-soundcloud", "tag-youtube", "tag-generic", "tag-telegram"],
-             run_tagger),
-    ]
+    pipeline_steps = create_default_steps(
+        extractor=extractor,
+        renamer=renamer,
+        mover=mover,
+        converter=converter,
+        sanitizer=sanitizer,
+        flattener=flattener,
+        analyzer=analyze_step,
+        artist_fixer=artist_fixer,
+        download_service=download_service,
+        tagging_service=tagging_service,
+    )
+
+    runtime_options = {
+        "account": args.account or None,
+        "break_on_existing": args.break_on_existing,
+    }
 
     while True:
+        context = StepContext(
+            download_service=download_service,
+            tagging_service=tagging_service,
+            extras={"source": "cli"},
+        )
         try:
             logging.info("Starting process...")
 
-            for step in steps_to_run:
-                step.run(steps)
+            for step in pipeline_steps:
+                execute_pipeline_step(step, steps, context, runtime_options)
 
         except KeyboardInterrupt:
             logging.info("Process interrupted by user. Exiting.")

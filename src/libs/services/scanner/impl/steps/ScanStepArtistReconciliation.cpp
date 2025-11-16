@@ -23,6 +23,7 @@
 #include <ostream>
 
 #include "core/ILogger.hpp"
+
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Artist.hpp"
@@ -73,6 +74,24 @@ namespace lms::scanner
             assert(newArtist != artistInfo->getArtist());
             artistInfo.modify()->setArtist(newArtist);
         }
+
+        db::TrackArtistLink::pointer getMostRecentMBIDArtistLink(db::Session& session, db::ArtistId artistId, std::optional<db::TrackArtistLinkType> linkType = std::nullopt)
+        {
+            db::TrackArtistLink::FindParameters params;
+            params.setArtist(artistId);
+            params.setLinkType(linkType);
+            params.setSortMethod(db::TrackArtistLinkSortMethod::OriginalDateDesc);
+            params.setMBIDMatched(true);
+            params.setRange(db::Range{ .offset = 0, .size = 1 });
+
+            db::TrackArtistLink::pointer foundLink;
+            db::TrackArtistLink::find(session, params, [&](const db::TrackArtistLink::pointer& link) {
+                foundLink = link;
+            });
+
+            return foundLink;
+        }
+
     } // namespace
 
     bool ScanStepArtistReconciliation::needProcess([[maybe_unused]] const ScanContext& context) const
@@ -112,8 +131,9 @@ namespace lms::scanner
         // - artist name changed over time (ex: Rhapsody then Rhapsody of Fire), legit use case
         // - user renamed the artist
         // Name to pick in order of priority:
-        // - name specified in artist info (if present)
-        // - name as referenced in the latest release
+        // - name specified in artist info
+        // - name as referenced in the latest release of the artist
+        // - name as referenced in the latest link (any type)
 
         struct ArtistToUpdate
         {
@@ -153,26 +173,24 @@ namespace lms::scanner
                     if (hasArtistInfo)
                         continue;
 
-                    std::optional<ArtistToUpdate> artistToUpdate;
+                    db::TrackArtistLink::pointer artistMostRecentLink{ getMostRecentMBIDArtistLink(session, artist->getId(), db::TrackArtistLinkType::ReleaseArtist) };
+                    if (!artistMostRecentLink)
+                        artistMostRecentLink = getMostRecentMBIDArtistLink(session, artist->getId());
 
-                    db::TrackArtistLink::FindParameters params;
-                    params.setArtist(artist->getId());
-                    params.setSortMethod(db::TrackArtistLinkSortMethod::OriginalDateDesc);
-                    params.setRange(db::Range{ .offset = 0, .size = 1 });
-                    db::TrackArtistLink::find(session, params, [&](const db::TrackArtistLink::pointer& link) {
-                        if (link->getArtistName() != artist->getName())
-                        {
-                            artistToUpdate.emplace();
-                            artistToUpdate->artist = artist;
-                            artistToUpdate->newName = link->getArtistName();
-                            artistToUpdate->newSortName = link->getArtistSortName();
-                        }
-                    });
-
-                    if (artistToUpdate)
+                    if (!artistMostRecentLink)
                     {
-                        LMS_LOG(DBUPDATER, DEBUG, "Updating artist " << artist << " name to '" << artistToUpdate->newName << "' using most recent release reference");
-                        artistsToUpdate.emplace_back(std::move(*artistToUpdate));
+                        LMS_LOG(DBUPDATER, DEBUG, "Unable to fix name discrepancy for artist " << artist << ": no link found!");
+                        continue;
+                    }
+
+                    if (artistMostRecentLink->getArtistName() != artist->getName())
+                    {
+                        ArtistToUpdate& artistToUpdate{ artistsToUpdate.emplace_back() };
+                        artistToUpdate.artist = artist;
+                        artistToUpdate.newName = artistMostRecentLink->getArtistName();
+                        artistToUpdate.newSortName = artistMostRecentLink->getArtistSortName();
+
+                        LMS_LOG(DBUPDATER, DEBUG, "Updating artist " << artist << " name to '" << artistToUpdate.newName << "' using most recent '" << db::trackArtistLinkTypeToString(artistMostRecentLink->getType()) << "' link reference");
                     }
                 }
 

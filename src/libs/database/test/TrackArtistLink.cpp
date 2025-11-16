@@ -222,4 +222,57 @@ namespace lms::db::tests
             EXPECT_EQ(links[1]->getArtistName(), "MyArtistOldName");
         }
     }
+
+    TEST_F(DatabaseFixture, TrackArtistLink_findWithMBIDMatched)
+    {
+        ScopedArtist artist{ session, "MyArtist", core::UUID::fromString("97d1fb6f-db09-4760-b0b3-816559bcb632") };
+        ScopedTrack track1{ session };
+        ScopedTrack track2{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            auto link1{ session.create<TrackArtistLink>(track1.get(), artist.get(), TrackArtistLinkType::Artist, false) };
+            auto link2{ session.create<TrackArtistLink>(track2.get(), artist.get(), TrackArtistLinkType::Artist, true) };
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            TrackArtistLink::FindParameters params;
+
+            std::vector<TrackArtistLink::pointer> links;
+            TrackArtistLink::find(session, params, [&](const TrackArtistLink::pointer& link) {
+                links.push_back(link);
+            });
+            ASSERT_EQ(links.size(), 2);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            TrackArtistLink::FindParameters params;
+            params.setMBIDMatched(false);
+
+            std::vector<TrackArtistLink::pointer> links;
+            TrackArtistLink::find(session, params, [&](const TrackArtistLink::pointer& link) {
+                links.push_back(link);
+            });
+            ASSERT_EQ(links.size(), 1);
+            EXPECT_EQ(links[0]->getTrack()->getId(), track1.getId());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            TrackArtistLink::FindParameters params;
+            params.setMBIDMatched(true);
+
+            std::vector<TrackArtistLink::pointer> links;
+            TrackArtistLink::find(session, params, [&](const TrackArtistLink::pointer& link) {
+                links.push_back(link);
+            });
+            ASSERT_EQ(links.size(), 1);
+            EXPECT_EQ(links[0]->getTrack()->getId(), track2.getId());
+        }
+    }
 } // namespace lms::db::tests

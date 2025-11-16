@@ -59,6 +59,9 @@ namespace lms::db
                     query.where("t.release_id = ?").bind(params.release);
             }
 
+            if (params.mbidMatched)
+                query.where("t_a_l.artist_mbid_matched = ?").bind(*params.mbidMatched);
+
             switch (params.sortMethod)
             {
             case TrackArtistLinkSortMethod::None:

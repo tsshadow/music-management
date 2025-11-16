@@ -22,6 +22,7 @@
 #include "core/ITraceLogger.hpp"
 #include "core/Service.hpp"
 #include "core/String.hpp"
+
 #include "database/objects/Artist.hpp"
 #include "database/objects/Artwork.hpp"
 #include "database/objects/Release.hpp"
@@ -57,33 +58,7 @@ namespace lms::api::subsonic
 
         std::string_view toString(TrackArtistLinkType type)
         {
-            switch (type)
-            {
-            case TrackArtistLinkType::Arranger:
-                return "arranger";
-            case TrackArtistLinkType::Artist:
-                return "artist";
-            case TrackArtistLinkType::Composer:
-                return "composer";
-            case TrackArtistLinkType::Conductor:
-                return "conductor";
-            case TrackArtistLinkType::Lyricist:
-                return "lyricist";
-            case TrackArtistLinkType::Mixer:
-                return "mixer";
-            case TrackArtistLinkType::Performer:
-                return "performer";
-            case TrackArtistLinkType::Producer:
-                return "producer";
-            case TrackArtistLinkType::ReleaseArtist:
-                return "albumartist";
-            case TrackArtistLinkType::Remixer:
-                return "remixer";
-            case TrackArtistLinkType::Writer:
-                return "writer";
-            }
-
-            return "unknown";
+            return db::trackArtistLinkTypeToString(type).str();
         }
     } // namespace utils
 

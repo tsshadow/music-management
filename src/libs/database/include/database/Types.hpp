@@ -27,6 +27,7 @@
 #include <Wt/WDate.h>
 
 #include "core/Exception.hpp"
+#include "core/LiteralString.hpp"
 #include "core/TaggedType.hpp"
 
 namespace lms::db
@@ -279,6 +280,8 @@ namespace lms::db
         Remixer = 9,
         Writer = 10,
     };
+
+    core::LiteralString trackArtistLinkTypeToString(TrackArtistLinkType type);
 
     // User selectable transcoding output formats
     enum class TranscodingOutputFormat

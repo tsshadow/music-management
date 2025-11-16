@@ -54,12 +54,35 @@ namespace lms::audio::taglib::utils
     std::span<const std::filesystem::path> getSupportedExtensions()
     {
         static const std::vector<std::filesystem::path> supportedExtensions{
-            ".mp3", ".mp2", ".aac", ".ogg", ".oga", ".flac", ".spx", ".opus",
-            ".mpc", ".wv", ".ape", ".tta", ".m4a", ".m4r", ".m4b", ".m4p",
-            ".3g2", ".m4v", ".wma", ".asf", ".aif", ".aiff", ".afc", ".aifc",
+            ".mp3",
+            ".mp2",
+            ".ogg",
+            ".oga",
+            ".flac",
+            ".spx",
+            ".opus",
+            ".mpc",
+            ".wv",
+            ".ape",
+            ".tta",
+            ".m4a",
+            ".m4r",
+            ".m4b",
+            ".m4p",
+            ".3g2",
+            ".m4v",
+            ".wma",
+            ".asf",
+            ".aif",
+            ".aiff",
+            ".afc",
+            ".aifc",
             ".wav",
+#if LMS_TAGLIB_HAS_ADTS
+            ".aac",
+#endif
 #if LMS_TAGLIB_HAS_DSF
-            ".dsf"
+            ".dsf",
 #endif
         };
 

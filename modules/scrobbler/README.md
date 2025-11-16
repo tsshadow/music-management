@@ -141,7 +141,7 @@ The API reuses the configured `listenbrainz_user` and `listenbrainz_token` unles
 
 ### Verifying ListenBrainz genres
 
-If you want to double-check whether a listen actually has genre tags upstream, see [`docs/listenbrainz_genre_endpoints.md`](docs/listenbrainz_genre_endpoints.md) for ready-to-run API calls against ListenBrainz (and the underlying MusicBrainz data) that surface the `additional_info.tags` values used during imports.
+If you want to double-check whether a listen actually has genre tags upstream, see [`docs/listenbrainz_genre_endpoints.md`](../../docs/listenbrainz_genre_endpoints.md) for ready-to-run API calls against ListenBrainz (and the underlying MusicBrainz data) that surface the `additional_info.tags` values used during imports.
 
 ### Example JSON scrobble
 

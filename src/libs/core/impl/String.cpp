@@ -418,11 +418,11 @@ namespace lms::core::stringUtils
         }
     }
 
-    std::string replaceInString(std::string_view str, const std::string& from, const std::string& to)
+    std::string replaceInString(std::string_view str, std::string_view from, std::string_view to)
     {
         std::string res{ str };
-        size_t pos = 0;
 
+        size_t pos = 0;
         while ((pos = res.find(from, pos)) != std::string::npos)
         {
             res.replace(pos, from.length(), to);

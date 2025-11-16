@@ -1,15 +1,11 @@
 from __future__ import annotations
-
 from datetime import datetime
 from typing import Literal
-
 from pydantic import BaseModel, Field
-
 
 class ArtistInput(BaseModel):
     name: str
-    role: Literal["primary", "featured", "featuring", "remixer", "producer", "composer"] = "primary"
-
+    role: Literal['primary', 'featured', 'featuring', 'remixer', 'producer', 'composer'] = 'primary'
 
 class TrackInput(BaseModel):
     title: str
@@ -21,10 +17,9 @@ class TrackInput(BaseModel):
     mbid: str | None = None
     isrc: str | None = None
 
-
 class ScrobblePayload(BaseModel):
     user: str
-    source: str = Field(default="lms")
+    source: str = Field(default='lms')
     listened_at: datetime
     position_secs: int | None = None
     duration_secs: int | None = None

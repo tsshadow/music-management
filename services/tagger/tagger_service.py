@@ -103,7 +103,7 @@ class TaggerService:
 
         return mapping[normalized]
 
-    def tag(self, tag_type: str, folder: str | Path, extra_info) -> None:
+    def tag_folder(self, tag_type: str, folder: str | Path, extra_info) -> None:
         """
         Tag a specific folder for a single source type.
 
@@ -119,6 +119,24 @@ class TaggerService:
 
         logging.info("Tagging folder '%s' as type '%s'", path, song_type.name)
         self.tagger.parse_folder(path, song_type,extra_info)
+        logging.info("Finished tagging folder '%s' (%s)", path, song_type.name)
+
+    def tag_file(self, tag_type: str, file: str | Path, extra_info) -> None:
+        """
+        Tag a specific folder for a single source type.
+
+        Args:
+            tag_type: One of 'label', 'soundcloud', 'youtube', 'generic', 'telegram'.
+            folder:  Folder path to process.
+        """
+        song_type = self._map_tag_type(tag_type)
+        path = Path(file)
+
+        if not path.exists():
+            raise ValueError(f"Folder does not exist or is not a directory: {path}")
+
+        logging.info("Tagging folder '%s' as type '%s'", path, song_type.name)
+        self.tagger.parse_song(path, song_type,extra_info=extra_info)
         logging.info("Finished tagging folder '%s' (%s)", path, song_type.name)
 
     def run_full(
@@ -193,7 +211,7 @@ def main() -> None:
         try:
             if folder:
                 # Single-folder mode: tag only the given folder and type.
-                tagger_service.tag(tag_type, folder)
+                tagger_service.tag_folder(tag_type, folder)
             else:
                 # Full mode: run Tagger.run with flags derived from enabled types.
                 parse_labels = "all" in enabled_types or "label" in enabled_types

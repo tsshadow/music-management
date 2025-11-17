@@ -32,7 +32,7 @@ class SoundcloudSongProcessor(PostProcessor):
         enriched_info = self._fetch_enriched_info(url)
         if not enriched_info:
             tagger_service = TaggerService()
-            tagger_service.tag("soundcloud", path)
+            tagger_service.tag_file("soundcloud", path,extra_info=enriched_info)
             return ([], info)
         info.update(enriched_info)
         account_name = self._extract_account_name_from_url(enriched_info.get('uploader_url'))
@@ -43,7 +43,7 @@ class SoundcloudSongProcessor(PostProcessor):
         else:
             SoundcloudArchive.insert(account_name=account_name, account_id=account_id, video_id=video_id, path=path, url=enriched_info.get('original_url'), title=enriched_info.get('title'))
         tagger_service = TaggerService()
-        tagger_service.tag("soundcloud", path, enriched_info)
+        tagger_service.tag_file("soundcloud", path, enriched_info)
         return ([], info)
 
     @staticmethod

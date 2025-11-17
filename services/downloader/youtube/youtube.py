@@ -137,7 +137,7 @@ class YoutubeDownloader:
         """
         duration = info.get('duration')
         title = info.get('title', 'unknown')
-        if not duration or duration < 60 or duration > 21600:
+        if not duration or duration < 60 or duration > 36000:
             logging.info(f"Skipping video '{title}' (duration: {duration}s)")
             return 'Outside allowed duration range'
         return None

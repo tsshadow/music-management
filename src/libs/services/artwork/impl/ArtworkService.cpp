@@ -24,7 +24,9 @@
 #include "core/IConfig.hpp"
 #include "core/ILogger.hpp"
 
+#include "audio/Exception.hpp"
 #include "audio/IAudioFileInfo.hpp"
+#include "audio/IAudioFileInfoParser.hpp"
 #include "audio/IImageReader.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
@@ -53,6 +55,7 @@ namespace lms::artwork
                                    const std::filesystem::path& defaultArtistImageSvgPath)
         : _db{ db }
         , _cache{ core::Service<core::IConfig>::get()->getULong("cover-max-cache-size", 30) * 1000 * 1000 }
+        , _audioFileInfoParser{ audio::createAudioFileInfoParser() }
     {
         setJpegQuality(core::Service<core::IConfig>::get()->getULong("cover-jpeg-quality", 75));
 
@@ -108,11 +111,14 @@ namespace lms::artwork
         {
             std::size_t currentIndex{};
 
-            audio::ParserOptions options;
-            options.readStyle = audio::ParserOptions::AudioPropertiesReadStyle::Fast; // only for images
+            audio::AudioFileInfoParseOptions options;
+            options.audioPropertiesReadStyle = audio::AudioFileInfoParseOptions::AudioPropertiesReadStyle::Fast; // only for images
+            options.readTags = false;
+            options.readImages = true;
 
-            auto audioFile{ audio::parseAudioFile(p) };
-            audioFile->getImageReader().visitImages([&](const audio::Image& parsedImage) {
+            const auto audioFileInfo{ _audioFileInfoParser->parse(p, options) };
+            assert(audioFileInfo->getImageReader());
+            audioFileInfo->getImageReader()->visitImages([&](const audio::Image& parsedImage) {
                 if (currentIndex++ != index)
                     return;
 

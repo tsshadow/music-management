@@ -48,9 +48,11 @@ namespace lms::audio
     enum class CodecType
     {
         AAC,
+        AC3,
         ALAC, // Apple Lossless Audio Codec (ALAC)
         APE,  // Monkey's Audio
         DSD,  // DSD
+        EAC3,
         FLAC, // Flac
         MP3,
         MP4ALS, // MPEG-4 Audio Lossless Coding

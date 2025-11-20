@@ -25,10 +25,10 @@
 
 #include <taglib/tfile.h>
 
-#include "audio/IAudioFileInfo.hpp"
+#include "audio/IAudioFileInfoParser.hpp"
 
 namespace lms::audio::taglib::utils
 {
     std::span<const std::filesystem::path> getSupportedExtensions();
-    std::unique_ptr<::TagLib::File> parseFile(const std::filesystem::path& p, ParserOptions::AudioPropertiesReadStyle readStyle);
+    std::unique_ptr<::TagLib::File> parseFile(const std::filesystem::path& p, AudioFileInfoParseOptions::AudioPropertiesReadStyle readStyle);
 } // namespace lms::audio::taglib::utils

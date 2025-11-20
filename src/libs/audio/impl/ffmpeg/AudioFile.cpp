@@ -20,21 +20,22 @@
 #include "AudioFile.hpp"
 
 #include <array>
+#include <cstdio>
 #include <unordered_map>
 
 extern "C"
 {
-#define __STDC_CONSTANT_MACROS
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/error.h>
+#include <libavutil/log.h>
 }
 
 #include "core/ILogger.hpp"
 #include "core/String.hpp"
 
 #include "audio/AudioTypes.hpp"
-#include "audio/IAudioFileInfo.hpp"
+#include "audio/Exception.hpp"
 
 namespace lms::audio::ffmpeg
 {
@@ -50,25 +51,23 @@ namespace lms::audio::ffmpeg
             return "Unknown error";
         }
 
-        class AudioFileException : public AudioFileParsingException
+        class AvException : public Exception
         {
         public:
-            AudioFileException(int avError)
-                : AudioFileParsingException{ averror_to_string(avError) }
+            AvException(int avError)
+                : Exception{ averror_to_string(avError) }
             {
             }
         };
 
-        void getMetaDataFromDictionnary(AVDictionary* dictionnary, AudioFile::MetadataMap& res)
+        void extractMetaDataFromDictionnary(AVDictionary* dictionnary, AudioFile::MetadataMap& res)
         {
             if (!dictionnary)
                 return;
 
-            AVDictionaryEntry* tag = NULL;
-            while ((tag = ::av_dict_get(dictionnary, "", tag, AV_DICT_IGNORE_SUFFIX)))
-            {
+            const AVDictionaryEntry* tag{ NULL };
+            while ((tag = av_dict_iterate(dictionnary, tag)))
                 res[core::stringUtils::stringToUpper(tag->key)] = tag->value;
-            }
         }
 
         std::optional<ContainerType> avdemuxerToContainerType(std::string_view name)
@@ -107,58 +106,112 @@ namespace lms::audio::ffmpeg
         {
             switch (codec)
             {
-            case AV_CODEC_ID_MP3:
-                return CodecType::MP3;
             case AV_CODEC_ID_AAC:
                 return CodecType::AAC;
-            case AV_CODEC_ID_VORBIS:
-                return CodecType::Vorbis;
-            case AV_CODEC_ID_WMAV1:
-                return CodecType::WMA1;
-            case AV_CODEC_ID_WMAV2:
-                return CodecType::WMA2;
-            case AV_CODEC_ID_WMAPRO:
-                return CodecType::WMA9Pro;
-            case AV_CODEC_ID_WMALOSSLESS:
-                return CodecType::WMA9Lossless;
-            case AV_CODEC_ID_FLAC:
-                return CodecType::FLAC;
+            case AV_CODEC_ID_AC3:
+                return CodecType::AC3;
             case AV_CODEC_ID_ALAC:
                 return CodecType::ALAC;
-            case AV_CODEC_ID_WAVPACK:
-                return CodecType::WavPack;
-            case AV_CODEC_ID_MUSEPACK7:
-                return CodecType::MPC7;
-            case AV_CODEC_ID_MUSEPACK8:
-                return CodecType::MPC8;
             case AV_CODEC_ID_APE:
                 return CodecType::APE;
-            case AV_CODEC_ID_MP4ALS:
-                return CodecType::MP4ALS;
-            case AV_CODEC_ID_OPUS:
-                return CodecType::Opus;
-            case AV_CODEC_ID_SHORTEN:
-                return CodecType::Shorten;
             case AV_CODEC_ID_DSD_LSBF:
             case AV_CODEC_ID_DSD_LSBF_PLANAR:
             case AV_CODEC_ID_DSD_MSBF:
             case AV_CODEC_ID_DSD_MSBF_PLANAR:
                 return CodecType::DSD;
+            case AV_CODEC_ID_EAC3:
+                return CodecType::EAC3;
+            case AV_CODEC_ID_FLAC:
+                return CodecType::FLAC;
+            case AV_CODEC_ID_MP3:
+                return CodecType::MP3;
+            case AV_CODEC_ID_MP4ALS:
+                return CodecType::MP4ALS;
+            case AV_CODEC_ID_MUSEPACK7:
+                return CodecType::MPC7;
+            case AV_CODEC_ID_MUSEPACK8:
+                return CodecType::MPC8;
+            case AV_CODEC_ID_OPUS:
+                return CodecType::Opus;
+            case AV_CODEC_ID_SHORTEN:
+                return CodecType::Shorten;
+            case AV_CODEC_ID_VORBIS:
+                return CodecType::Vorbis;
+            case AV_CODEC_ID_WAVPACK:
+                return CodecType::WavPack;
+            case AV_CODEC_ID_WMALOSSLESS:
+                return CodecType::WMA9Lossless;
+            case AV_CODEC_ID_WMAPRO:
+                return CodecType::WMA9Pro;
+            case AV_CODEC_ID_WMAV1:
+                return CodecType::WMA1;
+            case AV_CODEC_ID_WMAV2:
+                return CodecType::WMA2;
 
             default:
                 return std::nullopt;
             }
         }
+
+        core::LiteralString avLogLevelToStr(int level)
+        {
+            switch (level)
+            {
+            case AV_LOG_TRACE:
+                return "trace";
+            case AV_LOG_DEBUG:
+                return "debug";
+            case AV_LOG_VERBOSE:
+                return "verbose";
+            case AV_LOG_INFO:
+                return "info";
+            case AV_LOG_WARNING:
+                return "warning";
+            case AV_LOG_ERROR:
+                return "error";
+            case AV_LOG_FATAL:
+                return "fatal";
+            case AV_LOG_PANIC:
+                return "panic";
+            default:
+                return "unknown";
+            }
+        }
+
+        void avLogCallback(void*, int level, const char* fmt, va_list vl)
+        {
+            if (!core::Service<core::logging::ILogger>::get()->isSeverityActive(core::logging::Severity::DEBUG))
+                return;
+
+            if (level > AV_LOG_WARNING)
+                return;
+
+            std::array<char, 256> buffer{ 0 };
+            std::vsnprintf(buffer.data(), buffer.size(), fmt, vl);
+
+            LMS_LOG(AUDIO, DEBUG, "ffmpeg [" << avLogLevelToStr(level) << "] " << buffer.data());
+        }
+
+        class AvInitializer
+        {
+        public:
+            AvInitializer()
+            {
+                ::av_log_set_callback(avLogCallback);
+            }
+        };
     } // namespace
 
     AudioFile::AudioFile(const std::filesystem::path& p)
         : _p{ p }
     {
+        static AvInitializer init;
+
         int error{ avformat_open_input(&_context, _p.c_str(), nullptr, nullptr) };
         if (error < 0)
         {
             LMS_LOG(AUDIO, ERROR, "Cannot open " << _p << ": " << averror_to_string(error));
-            throw AudioFileException{ error };
+            throw AvException{ error };
         }
 
         error = avformat_find_stream_info(_context, nullptr);
@@ -166,7 +219,7 @@ namespace lms::audio::ffmpeg
         {
             LMS_LOG(AUDIO, ERROR, "Cannot find stream information on " << _p << ": " << averror_to_string(error));
             avformat_close_input(&_context);
-            throw AudioFileException{ error };
+            throw AvException{ error };
         }
     }
 
@@ -193,11 +246,11 @@ namespace lms::audio::ffmpeg
         return info;
     }
 
-    AudioFile::MetadataMap AudioFile::getMetaData() const
+    AudioFile::MetadataMap AudioFile::extractMetaData() const
     {
         MetadataMap res;
 
-        getMetaDataFromDictionnary(_context->metadata, res);
+        extractMetaDataFromDictionnary(_context->metadata, res);
 
         // HACK for OGG files
         // If we did not find tags, search metadata in streams
@@ -205,7 +258,7 @@ namespace lms::audio::ffmpeg
         {
             for (std::size_t i{}; i < _context->nb_streams; ++i)
             {
-                getMetaDataFromDictionnary(_context->streams[i]->metadata, res);
+                extractMetaDataFromDictionnary(_context->streams[i]->metadata, res);
 
                 if (!res.empty())
                     break;
@@ -266,7 +319,7 @@ namespace lms::audio::ffmpeg
         return false;
     }
 
-    void AudioFile::visitAttachedPictures(std::function<void(const Picture&, const MetadataMap&)> func) const
+    void AudioFile::visitAttachedPictures(std::function<void(const PictureView&, const MetadataMap&)> func) const
     {
         static const std::unordered_map<int, std::string> codecMimeMap{
             { AV_CODEC_ID_BMP, "image/bmp" },
@@ -286,14 +339,14 @@ namespace lms::audio::ffmpeg
 
             if (avstream->codecpar == nullptr)
             {
-                LMS_LOG(AUDIO, ERROR, "Skipping stream " << i << " since no codecpar is set");
+                LMS_LOG(AUDIO, WARNING, "Skipping stream " << i << " since no codecpar is set");
                 continue;
             }
 
             MetadataMap metadata;
-            getMetaDataFromDictionnary(avstream->metadata, metadata);
+            extractMetaDataFromDictionnary(avstream->metadata, metadata);
 
-            Picture picture;
+            PictureView picture;
 
             auto itMime = codecMimeMap.find(avstream->codecpar->codec_id);
             if (itMime != codecMimeMap.end())
@@ -303,10 +356,10 @@ namespace lms::audio::ffmpeg
             else
             {
                 picture.mimeType = "application/octet-stream";
-                LMS_LOG(AUDIO, ERROR, "CODEC ID " << avstream->codecpar->codec_id << " not handled in mime type conversion");
+                LMS_LOG(AUDIO, WARNING, "AVCodecID" << avstream->codecpar->codec_id << " (" << ::avcodec_get_name(avstream->codecpar->codec_id) << ") not handled in mime type conversion");
             }
 
-            const AVPacket& pkt{ avstream->attached_pic };
+            const ::AVPacket& pkt{ avstream->attached_pic };
 
             picture.data = std::span{ reinterpret_cast<const std::byte*>(pkt.data), static_cast<std::size_t>(pkt.size) };
             func(picture, metadata);
@@ -325,7 +378,7 @@ namespace lms::audio::ffmpeg
 
         if (!avstream->codecpar)
         {
-            LMS_LOG(AUDIO, ERROR, "Skipping stream " << streamIndex << " since no codecpar is set");
+            LMS_LOG(AUDIO, WARNING, "Skipping stream " << streamIndex << " since no codecpar is set");
             return res;
         }
 

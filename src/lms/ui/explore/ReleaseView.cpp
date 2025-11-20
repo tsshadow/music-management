@@ -30,7 +30,9 @@
 #include "core/String.hpp"
 
 #include "audio/AudioTypes.hpp"
+#include "audio/Exception.hpp"
 #include "audio/IAudioFileInfo.hpp"
+#include "audio/IAudioFileInfoParser.hpp"
 #include "database/Session.hpp"
 #include "database/Types.hpp"
 #include "database/objects/Artist.hpp"
@@ -145,10 +147,18 @@ namespace lms::ui
             {
                 try
                 {
-                    if (const auto audioFile{ audio::parseAudioFile(track->getAbsoluteFilePath()) })
+                    const auto parser{ audio::createAudioFileInfoParser(audio::AudioFileInfoParserBackend::FFmpeg) };
+
+                    audio::AudioFileInfoParseOptions parseOptions;
+                    parseOptions.audioPropertiesReadStyle = audio::AudioFileInfoParseOptions::AudioPropertiesReadStyle::Fast; // only coded needed
+                    parseOptions.readImages = false;
+                    parseOptions.readTags = false;
+                    const auto audioFile{ parser->parse(track->getAbsoluteFilePath(), parseOptions) };
+
+                    if (audioFile->getAudioProperties())
                     {
                         releaseInfo->setCondition("if-has-codec", true);
-                        releaseInfo->bindString("codec", audio::codecTypeToString(audioFile->getAudioProperties().codec).c_str(), Wt::TextFormat::Plain);
+                        releaseInfo->bindString("codec", audio::codecTypeToString(audioFile->getAudioProperties()->codec).c_str(), Wt::TextFormat::Plain);
                         break;
                     }
                 }

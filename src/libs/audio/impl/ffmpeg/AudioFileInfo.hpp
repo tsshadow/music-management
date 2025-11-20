@@ -20,9 +20,11 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 
 #include "audio/AudioTypes.hpp"
 #include "audio/IAudioFileInfo.hpp"
+#include "audio/IAudioFileInfoParser.hpp"
 
 namespace lms::audio::ffmpeg
 {
@@ -33,18 +35,19 @@ namespace lms::audio::ffmpeg
     class AudioFileInfo final : public IAudioFileInfo
     {
     public:
-        AudioFileInfo(const std::filesystem::path& filePath, bool enableExtraDebugLogs);
-        ~AudioFileInfo();
+        AudioFileInfo(const std::filesystem::path& filePath, const AudioFileInfoParseOptions& parseOptions);
+        ~AudioFileInfo() override;
+
         AudioFileInfo(const AudioFileInfo&) = delete;
         AudioFileInfo& operator=(const AudioFileInfo&) = delete;
 
     private:
-        const AudioProperties& getAudioProperties() const override;
-        const IImageReader& getImageReader() const override;
-        const ITagReader& getTagReader() const override;
+        const AudioProperties* getAudioProperties() const override;
+        const IImageReader* getImageReader() const override;
+        const ITagReader* getTagReader() const override;
 
         std::unique_ptr<AudioFile> _audioFile;
-        std::unique_ptr<AudioProperties> _audioProperties;
+        const std::optional<AudioProperties> _audioProperties;
         std::unique_ptr<TagReader> _tagReader;
         std::unique_ptr<ImageReader> _imageReader;
     };

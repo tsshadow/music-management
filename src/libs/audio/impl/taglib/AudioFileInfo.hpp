@@ -19,8 +19,12 @@
 
 #pragma once
 
+#include <filesystem>
+#include <optional>
+
 #include "audio/AudioTypes.hpp"
 #include "audio/IAudioFileInfo.hpp"
+#include "audio/IAudioFileInfoParser.hpp"
 #include "audio/IImageReader.hpp"
 #include "audio/ITagReader.hpp"
 
@@ -37,20 +41,20 @@ namespace lms::audio::taglib
     class AudioFileInfo final : public IAudioFileInfo
     {
     public:
-        AudioFileInfo(const std::filesystem::path& filePath, ParserOptions::AudioPropertiesReadStyle readStyle, bool enableExtraDebugLogs);
+        AudioFileInfo(const std::filesystem::path& filePath, const AudioFileInfoParseOptions& parseOptions);
         ~AudioFileInfo() override;
 
         AudioFileInfo(const AudioFileInfo&) = delete;
         AudioFileInfo& operator=(const AudioFileInfo&) = delete;
 
     private:
-        const AudioProperties& getAudioProperties() const override;
-        const IImageReader& getImageReader() const override;
-        const ITagReader& getTagReader() const override;
+        const AudioProperties* getAudioProperties() const override;
+        const IImageReader* getImageReader() const override;
+        const ITagReader* getTagReader() const override;
 
         const std::filesystem::path _filePath;
         std::unique_ptr<::TagLib::File> _file;
-        std::unique_ptr<AudioProperties> _audioProperties;
+        std::optional<AudioProperties> _audioProperties;
         std::unique_ptr<TagReader> _tagReader;
         std::unique_ptr<ImageReader> _imageReader;
     };

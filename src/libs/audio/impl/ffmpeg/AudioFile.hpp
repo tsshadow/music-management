@@ -36,7 +36,7 @@ extern "C"
 
 namespace lms::audio::ffmpeg
 {
-    struct Picture
+    struct PictureView
     {
         std::string mimeType;
         std::span<const std::byte> data; // valid as long as IAudioFile exists
@@ -75,12 +75,12 @@ namespace lms::audio::ffmpeg
 
         const std::filesystem::path& getPath() const;
         ContainerInfo getContainerInfo() const;
-        MetadataMap getMetaData() const;
+        MetadataMap extractMetaData() const;
         std::vector<StreamInfo> getStreamInfo() const;
         std::optional<StreamInfo> getBestStreamInfo() const;
         std::optional<std::size_t> getBestStreamIndex() const;
         bool hasAttachedPictures() const;
-        void visitAttachedPictures(std::function<void(const Picture&, const MetadataMap&)> func) const;
+        void visitAttachedPictures(std::function<void(const PictureView&, const MetadataMap&)> func) const;
 
     private:
         std::optional<StreamInfo> getStreamInfo(std::size_t streamIndex) const;

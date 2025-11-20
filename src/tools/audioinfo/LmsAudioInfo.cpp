@@ -31,6 +31,7 @@
 #include "audio/AudioTypes.hpp"
 #include "audio/Exception.hpp"
 #include "audio/IAudioFileInfo.hpp"
+#include "audio/IAudioFileInfoParser.hpp"
 #include "audio/IImageReader.hpp"
 #include "audio/ITagReader.hpp"
 
@@ -133,11 +134,21 @@ namespace lms::audio
 
     void displayInfo(const IAudioFileInfo& fileInfo)
     {
-        std::cout << "Audio properties:\n"
-                  << fileInfo.getAudioProperties() << std::endl;
+        if (fileInfo.getAudioProperties())
+        {
+            std::cout << "Audio properties:\n"
+                      << *fileInfo.getAudioProperties() << "\n";
+        }
+        else
+        {
+            std::cout << "Failed to parse audio properties!\n\n";
+        }
 
-        displayImages(fileInfo.getImageReader());
-        displayTags(fileInfo.getTagReader());
+        if (fileInfo.getImageReader())
+            displayImages(*fileInfo.getImageReader());
+
+        if (fileInfo.getTagReader())
+            displayTags(*fileInfo.getTagReader());
 
         std::cout << "\n";
     }
@@ -200,14 +211,15 @@ int main(int argc, char* argv[])
             return EXIT_FAILURE;
         }
 
-        audio::ParserOptions parserOptions;
-        parserOptions.enableExtraDebugLogs = true;
+        audio::AudioFileInfoParserBackend parserBackend{ audio::defaultAudioFileInfoParserBackend };
         if (core::stringUtils::stringCaseInsensitiveEqual(vm["parser"].as<std::string>(), "taglib"))
-            parserOptions.parser = audio::ParserOptions::Parser::TagLib;
+            parserBackend = audio::AudioFileInfoParserBackend::TagLib;
         else if (core::stringUtils::stringCaseInsensitiveEqual(vm["parser"].as<std::string>(), "ffmpeg"))
-            parserOptions.parser = audio::ParserOptions::Parser::FFmpeg;
+            parserBackend = audio::AudioFileInfoParserBackend::FFmpeg;
         else
             throw program_options::validation_error{ program_options::validation_error::invalid_option_value, "parser" };
+
+        const auto parser{ audio::createAudioFileInfoParser(parserBackend) };
 
         const auto& inputFiles{ vm["file"].as<std::vector<std::string>>() };
         // log to stdout
@@ -219,8 +231,11 @@ int main(int argc, char* argv[])
 
             try
             {
+                audio::AudioFileInfoParseOptions parseOptions;
+                parseOptions.enableExtraDebugLogs = true;
+
                 std::cout << "Parsing file " << file << ":\n";
-                const auto audioFileInfo{ audio::parseAudioFile(file, parserOptions) };
+                const auto audioFileInfo{ parser->parse(file, parseOptions) };
 
                 displayInfo(*audioFileInfo);
             }

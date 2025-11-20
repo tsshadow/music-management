@@ -30,6 +30,7 @@
 #include "audio/AudioTypes.hpp"
 #include "audio/Exception.hpp"
 #include "audio/IAudioFileInfo.hpp"
+#include "audio/IAudioFileInfoParser.hpp"
 
 #include "database/Session.hpp"
 #include "database/objects/PodcastEpisode.hpp"
@@ -118,13 +119,21 @@ namespace lms::api::subsonic
             // TODO: put this information in db during scan
             try
             {
-                const auto audioFile{ audio::parseAudioFile(trackPath) };
+                const auto parser{ audio::createAudioFileInfoParser(audio::AudioFileInfoParserBackend::FFmpeg) };
 
-                return isCodecCompatibleWithOutputFormat(audioFile->getAudioProperties().codec, outputFormat);
+                audio::AudioFileInfoParseOptions parseOptions;
+                parseOptions.audioPropertiesReadStyle = audio::AudioFileInfoParseOptions::AudioPropertiesReadStyle::Fast; // only coded needed
+                parseOptions.readImages = false;
+                parseOptions.readTags = false;
+                const auto audioFile{ parser->parse(trackPath, parseOptions) };
+
+                if (!audioFile->getAudioProperties())
+                    throw RequestedDataNotFoundError{};
+
+                return isCodecCompatibleWithOutputFormat(audioFile->getAudioProperties()->codec, outputFormat);
             }
             catch (const audio::Exception& e)
             {
-                // TODO 404?
                 throw RequestedDataNotFoundError{};
             }
         }

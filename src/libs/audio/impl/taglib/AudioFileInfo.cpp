@@ -43,8 +43,11 @@
     #include <taglib/shortenfile.h>
 #endif
 
+#include "core/ILogger.hpp"
+
 #include "audio/AudioTypes.hpp"
 #include "audio/IAudioFileInfo.hpp"
+#include "audio/IAudioFileInfoParser.hpp"
 
 #include "ImageReader.hpp"
 #include "TagReader.hpp"
@@ -54,31 +57,48 @@ namespace lms::audio::taglib
 {
     namespace
     {
-        AudioProperties computeAudioProperties(const ::TagLib::File& file)
+        std::optional<AudioProperties> computeAudioProperties(const ::TagLib::File& file, const std::filesystem::path& filePath)
         {
             assert(file.audioProperties());
 
             AudioProperties audioProperties;
 
             {
-                const ::TagLib::AudioProperties& properties{ *file.audioProperties() };
+                const ::TagLib::AudioProperties* properties{ file.audioProperties() };
+                if (!properties)
+                {
+                    LMS_LOG(AUDIO, DEBUG, "Cannot determine audio properties in " << filePath);
+                    return std::nullopt;
+                }
 
                 // Common properties
-                audioProperties.bitrate = static_cast<std::size_t>(properties.bitrate() * 1000);
+                audioProperties.bitrate = static_cast<std::size_t>(properties->bitrate() * 1000);
                 if (audioProperties.bitrate == 0)
-                    throw AudioFileParsingException{ "Cannot determine bitrate" };
+                {
+                    LMS_LOG(AUDIO, DEBUG, "Cannot determine bitrate in " << filePath);
+                    return std::nullopt;
+                }
 
-                audioProperties.channelCount = static_cast<std::size_t>(properties.channels());
+                audioProperties.channelCount = static_cast<std::size_t>(properties->channels());
                 if (audioProperties.channelCount == 0)
-                    throw AudioFileParsingException{ "Cannot determine channel count" };
+                {
+                    LMS_LOG(AUDIO, DEBUG, "Cannot determine channel count in " << filePath);
+                    return std::nullopt;
+                }
 
-                audioProperties.duration = std::chrono::milliseconds{ properties.lengthInMilliseconds() };
+                audioProperties.duration = std::chrono::milliseconds{ properties->lengthInMilliseconds() };
                 if (audioProperties.duration == decltype(audioProperties.duration)::zero())
-                    throw AudioFileParsingException{ "Cannot determine duration" };
+                {
+                    LMS_LOG(AUDIO, DEBUG, "Cannot determine duration in " << filePath);
+                    return std::nullopt;
+                }
 
-                audioProperties.sampleRate = static_cast<std::size_t>(properties.sampleRate());
+                audioProperties.sampleRate = static_cast<std::size_t>(properties->sampleRate());
                 if (audioProperties.sampleRate == 0)
-                    throw AudioFileParsingException{ "Cannot determine sample rate" };
+                {
+                    LMS_LOG(AUDIO, DEBUG, "Cannot determine sample rate in " << filePath);
+                    return std::nullopt;
+                }
             }
 
             // Guess container from the file type
@@ -107,7 +127,8 @@ namespace lms::audio::taglib
                     audioProperties.codec = CodecType::WMA9Pro;
                     break;
                 case ::TagLib::ASF::Properties::Codec::Unknown:
-                    throw AudioFileParsingException{ "Unhandled ASF codec" };
+                    LMS_LOG(AUDIO, DEBUG, "Unhandled ASF codec in " << filePath);
+                    return std::nullopt;
                 }
 
                 audioProperties.bitsPerSample = asfFile->audioProperties()->bitsPerSample();
@@ -138,7 +159,8 @@ namespace lms::audio::taglib
                     audioProperties.codec = CodecType::ALAC;
                     break;
                 case ::TagLib::MP4::Properties::Codec::Unknown:
-                    throw AudioFileParsingException{ "Unhandled MP4 codec" };
+                    LMS_LOG(AUDIO, DEBUG, "Unhandled MP4 codec in " << filePath);
+                    return std::nullopt;
                 }
 
                 audioProperties.bitsPerSample = mp4File->audioProperties()->bitsPerSample();
@@ -156,7 +178,8 @@ namespace lms::audio::taglib
                     audioProperties.codec = CodecType::MPC8;
                     break;
                 default:
-                    throw AudioFileParsingException{ "Unhandled MPC codec" };
+                    LMS_LOG(AUDIO, DEBUG, "Unhandled MPC codec version " << mpcFile->audioProperties()->mpcVersion() << " in " << filePath);
+                    return std::nullopt;
                 }
             }
             else if (const auto* mpegFile{ dynamic_cast<const ::TagLib::MPEG::File*>(&file) })
@@ -172,7 +195,10 @@ namespace lms::audio::taglib
                     audioProperties.codec = CodecType::AAC;
 #endif
                 else
-                    throw AudioFileParsingException{ "Unhandled MPEG codec" };
+                {
+                    LMS_LOG(AUDIO, DEBUG, "Unhandled MPEG codec in " << filePath);
+                    return std::nullopt;
+                }
             }
             else if (dynamic_cast<const ::TagLib::Ogg::Opus::File*>(&file))
             {
@@ -218,7 +244,8 @@ namespace lms::audio::taglib
             }
             else
             {
-                throw AudioFileParsingException{ "Unhandled file type" };
+                LMS_LOG(AUDIO, DEBUG, "Unhandled file type in " << filePath);
+                return std::nullopt;
             }
 
             if (audioProperties.bitsPerSample && *audioProperties.bitsPerSample == 0)
@@ -228,30 +255,32 @@ namespace lms::audio::taglib
         }
     } // namespace
 
-    AudioFileInfo::AudioFileInfo(const std::filesystem::path& filePath, ParserOptions::AudioPropertiesReadStyle readStyle, bool enableExtraDebugLogs)
+    AudioFileInfo::AudioFileInfo(const std::filesystem::path& filePath, const AudioFileInfoParseOptions& parseOptions)
         : _filePath{ filePath }
-        , _file{ utils::parseFile(filePath, readStyle) }
-        , _audioProperties{ std::make_unique<AudioProperties>(computeAudioProperties(*_file)) }
-        , _tagReader{ std::make_unique<TagReader>(*_file, enableExtraDebugLogs) }
-        , _imageReader{ std::make_unique<ImageReader>(*_file) }
+        , _file{ utils::parseFile(filePath, parseOptions.audioPropertiesReadStyle) }
+        , _audioProperties{ computeAudioProperties(*_file, filePath) }
     {
+        if (parseOptions.readTags)
+            _tagReader = std::make_unique<TagReader>(*_file, parseOptions.enableExtraDebugLogs);
+
+        if (parseOptions.readImages)
+            _imageReader = std::make_unique<ImageReader>(*_file);
     }
 
     AudioFileInfo::~AudioFileInfo() = default;
 
-    const AudioProperties& AudioFileInfo::getAudioProperties() const
+    const AudioProperties* AudioFileInfo::getAudioProperties() const
     {
-        return *_audioProperties;
+        return _audioProperties.has_value() ? &_audioProperties.value() : nullptr;
     }
 
-    const IImageReader& AudioFileInfo::getImageReader() const
+    const IImageReader* AudioFileInfo::getImageReader() const
     {
-        return *_imageReader;
+        return _imageReader.get();
     }
 
-    const ITagReader& AudioFileInfo::getTagReader() const
+    const ITagReader* AudioFileInfo::getTagReader() const
     {
-        return *_tagReader;
+        return _tagReader.get();
     }
-
 } // namespace lms::audio::taglib

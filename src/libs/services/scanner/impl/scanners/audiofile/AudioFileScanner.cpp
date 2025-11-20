@@ -19,11 +19,6 @@
 
 #include "AudioFileScanner.hpp"
 
-#include "core/IConfig.hpp"
-#include "core/Service.hpp"
-
-#include "audio/IAudioFileInfo.hpp"
-
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "database/objects/MediaLibrary.hpp"
@@ -31,6 +26,7 @@
 
 #include "ScannerSettings.hpp"
 #include "scanners/Utils.hpp"
+#include "scanners/audiofile/AudioFileInfoParserSet.hpp"
 #include "scanners/audiofile/AudioFileScanOperation.hpp"
 #include "scanners/audiofile/TrackMetadataParser.hpp"
 
@@ -38,20 +34,6 @@ namespace lms::scanner
 {
     namespace
     {
-        audio::ParserOptions::AudioPropertiesReadStyle getParserReadStyle()
-        {
-            std::string_view readStyle{ core::Service<core::IConfig>::get()->getString("scanner-parser-read-style", "average") };
-
-            if (readStyle == "fast")
-                return audio::ParserOptions::AudioPropertiesReadStyle::Fast;
-            if (readStyle == "average")
-                return audio::ParserOptions::AudioPropertiesReadStyle::Average;
-            if (readStyle == "accurate")
-                return audio::ParserOptions::AudioPropertiesReadStyle::Accurate;
-
-            throw core::LmsException{ "Invalid value for 'scanner-parser-read-style'" };
-        }
-
         TrackMetadataParser::Parameters createTrackMetadataParserParameters(const ScannerSettings& settings)
         {
             TrackMetadataParser::Parameters params;
@@ -62,23 +44,13 @@ namespace lms::scanner
 
             return params;
         }
-
-        audio::ParserOptions createAudioFileParserOptions()
-        {
-            audio::ParserOptions options;
-            options.readStyle = getParserReadStyle();
-            options.parser = audio::ParserOptions::Parser::TagLib; // For now, always use TagLib
-
-            return options;
-        }
-
     } // namespace
 
     AudioFileScanner::AudioFileScanner(db::IDb& db, const ScannerSettings& settings)
         : _db{ db }
         , _settings{ settings }
         , _trackMetadataParser{ createTrackMetadataParserParameters(settings) }
-        , _parserOptions{ createAudioFileParserOptions() }
+        , _audioFileInfoParserSet{ createAudioFileInfoParserSet() }
     {
     }
 
@@ -96,7 +68,7 @@ namespace lms::scanner
 
     std::span<const std::filesystem::path> AudioFileScanner::getSupportedExtensions() const
     {
-        return audio::getSupportedExtensions(_parserOptions.parser);
+        return _audioFileInfoParserSet.supportedExtensions;
     }
 
     bool AudioFileScanner::needsScan(const FileToScan& file) const
@@ -112,6 +84,6 @@ namespace lms::scanner
 
     std::unique_ptr<IFileScanOperation> AudioFileScanner::createScanOperation(FileToScan&& fileToScan) const
     {
-        return std::make_unique<AudioFileScanOperation>(std::move(fileToScan), _db, _settings, _trackMetadataParser, _parserOptions);
+        return std::make_unique<AudioFileScanOperation>(std::move(fileToScan), _db, _settings, _audioFileInfoParserSet, _trackMetadataParser);
     }
 } // namespace lms::scanner

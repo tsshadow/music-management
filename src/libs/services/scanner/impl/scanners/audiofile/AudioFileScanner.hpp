@@ -19,23 +19,14 @@
 
 #pragma once
 
-#include "audio/IAudioFileInfo.hpp"
-
 #include "scanners/IFileScanner.hpp"
+#include "scanners/audiofile/AudioFileInfoParserSet.hpp"
 #include "scanners/audiofile/TrackMetadataParser.hpp"
 
-namespace lms
+namespace lms::db
 {
-    namespace db
-    {
-        class IDb;
-    }
-
-    namespace metadata
-    {
-        class IAudioFileParser;
-    }
-} // namespace lms
+    class IDb;
+}
 
 namespace lms::scanner
 {
@@ -59,6 +50,6 @@ namespace lms::scanner
         db::IDb& _db;
         const ScannerSettings& _settings;
         const TrackMetadataParser _trackMetadataParser;
-        const audio::ParserOptions _parserOptions;
+        const AudioFileInfoParserSet _audioFileInfoParserSet;
     };
 } // namespace lms::scanner

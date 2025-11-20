@@ -25,7 +25,9 @@
 #include "core/Path.hpp"
 #include "core/XxHash3.hpp"
 
+#include "audio/Exception.hpp"
 #include "audio/IAudioFileInfo.hpp"
+#include "audio/IAudioFileInfoParser.hpp"
 #include "image/Exception.hpp"
 #include "image/Image.hpp"
 
@@ -52,6 +54,7 @@
 #include "helpers/ArtistHelpers.hpp"
 #include "scanners/IFileScanOperation.hpp"
 #include "scanners/Utils.hpp"
+#include "scanners/audiofile/AudioFileInfoParserSet.hpp"
 #include "scanners/audiofile/TrackMetadataParser.hpp"
 
 namespace lms::scanner
@@ -488,10 +491,10 @@ namespace lms::scanner
         }
     } // namespace
 
-    AudioFileScanOperation::AudioFileScanOperation(FileToScan&& fileToScan, db::IDb& db, const ScannerSettings& settings, const TrackMetadataParser& metadataParser, const audio::ParserOptions& parserOptions)
+    AudioFileScanOperation::AudioFileScanOperation(FileToScan&& fileToScan, db::IDb& db, const ScannerSettings& settings, const AudioFileInfoParserSet& audioFileInfoParserSet, const TrackMetadataParser& metadataParser)
         : FileScanOperationBase{ std::move(fileToScan), db, settings }
+        , _audioFileInfoParserSet{ audioFileInfoParserSet }
         , _metadataParser{ metadataParser }
-        , _parserOptions{ parserOptions }
     {
     }
 
@@ -501,18 +504,42 @@ namespace lms::scanner
     {
         try
         {
-            auto audioFileInfo{ audio::parseAudioFile(getFilePath(), _parserOptions) };
+            audio::AudioFileInfoParseOptions options;
+            options.audioPropertiesReadStyle = _audioFileInfoParserSet.audioPropertiesReadStyle;
+            options.readImages = true;
+            options.readTags = true;
+
+            const auto audioFileInfo{ _audioFileInfoParserSet.taglibParser->parse(getFilePath(), options) };
 
             _file.emplace();
 
-            _file->audioProperties = audioFileInfo->getAudioProperties();
-            _file->track = _metadataParser.parseTrackMetaData(audioFileInfo->getTagReader());
+            // Fallback on ffmpeg in case no audio properties are found by taglib
+            if (!audioFileInfo->getAudioProperties())
+            {
+                LMS_LOG(DBUPDATER, DEBUG, "Cannot parse audio properties in " << getFilePath() << " using TagLib, switching to ffmpeg");
+
+                options.readTags = false;
+                options.readImages = false;
+                const auto ffmpegAudioFileInfo{ _audioFileInfoParserSet.ffmpegParser->parse(getFilePath(), options) };
+                if (!ffmpegAudioFileInfo->getAudioProperties())
+                {
+                    addError<NoAudioTrackFoundError>(getFilePath());
+                    return;
+                }
+                _file->audioProperties = *ffmpegAudioFileInfo->getAudioProperties();
+            }
+            else
+            {
+                _file->audioProperties = *audioFileInfo->getAudioProperties();
+            }
+
+            _file->track = _metadataParser.parseTrackMetaData(*audioFileInfo->getTagReader());
 
             // We fill missing artist mbids with mbids found on other artist roles
             fillMissingMbids(_file->track);
 
             std::size_t index{};
-            audioFileInfo->getImageReader().visitImages([&](const audio::Image& image) {
+            audioFileInfo->getImageReader()->visitImages([&](const audio::Image& image) {
                 try
                 {
                     image::ImageProperties properties{ image::probeImage(image.data) };
@@ -539,7 +566,7 @@ namespace lms::scanner
                 index++;
             });
         }
-        catch (const audio::IOException& e)
+        catch (const audio::IOFileException& e)
         {
             addError<IOScanError>(getFilePath(), e.getErrorCode());
         }

@@ -47,7 +47,7 @@
 #include "core/ITraceLogger.hpp"
 #include "core/String.hpp"
 
-#include "audio/IAudioFileInfo.hpp"
+#include "audio/Exception.hpp"
 
 namespace lms::audio::taglib::utils
 {
@@ -89,15 +89,15 @@ namespace lms::audio::taglib::utils
         return std::span<const std::filesystem::path>{ supportedExtensions };
     }
 
-    TagLib::AudioProperties::ReadStyle readStyleToTagLibReadStyle(ParserOptions::ParserOptions::AudioPropertiesReadStyle readStyle)
+    TagLib::AudioProperties::ReadStyle readStyleToTagLibReadStyle(AudioFileInfoParseOptions::AudioPropertiesReadStyle readStyle)
     {
         switch (readStyle)
         {
-        case ParserOptions::AudioPropertiesReadStyle::Fast:
+        case AudioFileInfoParseOptions::AudioPropertiesReadStyle::Fast:
             return TagLib::AudioProperties::ReadStyle::Fast;
-        case ParserOptions::AudioPropertiesReadStyle::Average:
+        case AudioFileInfoParseOptions::AudioPropertiesReadStyle::Average:
             return TagLib::AudioProperties::ReadStyle::Average;
-        case ParserOptions::AudioPropertiesReadStyle::Accurate:
+        case AudioFileInfoParseOptions::AudioPropertiesReadStyle::Accurate:
             return TagLib::AudioProperties::ReadStyle::Accurate;
         }
 
@@ -111,7 +111,7 @@ namespace lms::audio::taglib::utils
         {
             const std::error_code ec{ errno, std::generic_category() };
             LMS_LOG(METADATA, DEBUG, "fopen failed for " << p << ": " << ec.message());
-            throw IOException{ "fopen failed", ec };
+            throw IOFileException{ "fopen failed", ec };
         }
 
         int fd{ ::fileno(file) };
@@ -119,7 +119,7 @@ namespace lms::audio::taglib::utils
         {
             const std::error_code ec{ errno, std::generic_category() };
             LMS_LOG(METADATA, DEBUG, "fileno failed for " << p << ": " << ec.message());
-            throw IOException{ "fileno failed", ec };
+            throw IOFileException{ "fileno failed", ec };
         }
 
         return TagLib::FileStream{ fd, true };
@@ -236,7 +236,7 @@ namespace lms::audio::taglib::utils
         return file;
     }
 
-    std::unique_ptr<TagLib::File> parseFile(const std::filesystem::path& p, ParserOptions::AudioPropertiesReadStyle readStyle)
+    std::unique_ptr<TagLib::File> parseFile(const std::filesystem::path& p, AudioFileInfoParseOptions::AudioPropertiesReadStyle readStyle)
     {
         LMS_SCOPED_TRACE_DETAILED("MetaData", "TagLibParseFile");
 
@@ -252,10 +252,7 @@ namespace lms::audio::taglib::utils
         }
 
         if (!file)
-            throw AudioFileParsingException{ "Parsing failed" };
-
-        if (!file->audioProperties())
-            throw AudioFileParsingException{ "No audio properties" };
+            throw Exception{ "Parsing failed" };
 
         return file;
     }

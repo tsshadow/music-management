@@ -720,6 +720,57 @@ namespace lms::scanner::tests
         EXPECT_EQ(track.artistDisplayName, "Artist1, Artist2"); // reconstruct the artist display name
     }
 
+    TEST(TrackMetadataParser, heterogeneousArtistMbids)
+    {
+        {
+            const TestTagReader testTags{
+                {
+                    { audio::TagType::Artists, { "MyArtist" } },
+                    { audio::TagType::MusicBrainzArtistID, { "970f720b-c955-4ae7-870e-3a3716577cbf", "58eea0c6-1327-4354-8438-13e581894f35" } },
+
+                    { audio::TagType::Album, { "MyAlbum" } },
+                    { audio::TagType::AlbumArtists, { "MyArtist" } },
+                    { audio::TagType::MusicBrainzReleaseArtistID, { "970f720b-c955-4ae7-870e-3a3716577cbf", "58eea0c6-1327-4354-8438-13e581894f35" } },
+                }
+            };
+            const Track track{ TrackMetadataParser{}.parseTrackMetaData(testTags) };
+
+            ASSERT_EQ(track.artists.size(), 1);
+            EXPECT_EQ(track.artists[0].name, "MyArtist");
+            EXPECT_EQ(track.artists[0].mbid, std::nullopt);
+
+            ASSERT_TRUE(track.medium.has_value());
+            ASSERT_TRUE(track.medium->release.has_value());
+            ASSERT_EQ(track.medium->release->artists.size(), 1);
+            EXPECT_EQ(track.medium->release->artists[0].name, "MyArtist");
+            EXPECT_EQ(track.medium->release->artists[0].mbid, std::nullopt);
+        }
+
+        {
+            const TestTagReader testTags{
+                {
+                    { audio::TagType::Artist, { "MyArtist" } },
+                    { audio::TagType::MusicBrainzArtistID, { "970f720b-c955-4ae7-870e-3a3716577cbf", "58eea0c6-1327-4354-8438-13e581894f35" } },
+
+                    { audio::TagType::Album, { "MyAlbum" } },
+                    { audio::TagType::AlbumArtist, { "MyArtist" } },
+                    { audio::TagType::MusicBrainzReleaseArtistID, { "970f720b-c955-4ae7-870e-3a3716577cbf", "58eea0c6-1327-4354-8438-13e581894f35" } },
+                }
+            };
+            const Track track{ TrackMetadataParser{}.parseTrackMetaData(testTags) };
+
+            ASSERT_EQ(track.artists.size(), 1);
+            EXPECT_EQ(track.artists[0].name, "MyArtist");
+            EXPECT_EQ(track.artists[0].mbid, std::nullopt);
+
+            ASSERT_TRUE(track.medium.has_value());
+            ASSERT_TRUE(track.medium->release.has_value());
+            ASSERT_EQ(track.medium->release->artists.size(), 1);
+            EXPECT_EQ(track.medium->release->artists[0].name, "MyArtist");
+            EXPECT_EQ(track.medium->release->artists[0].mbid, std::nullopt);
+        }
+    }
+
     TEST(TrackMetadataParser, release_sortNameFallback)
     {
         const TestTagReader testTags{

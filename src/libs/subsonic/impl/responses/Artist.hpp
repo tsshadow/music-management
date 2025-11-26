@@ -23,7 +23,7 @@
 #include <vector>
 
 #include "database/Object.hpp"
-#include "database/Types.hpp"
+#include "database/objects/Types.hpp"
 
 #include "SubsonicResponse.hpp"
 

@@ -183,7 +183,7 @@ namespace lms::api::subsonic
             return trackResponse;
 
         trackResponse.setAttribute("comment", track->getComment());
-        trackResponse.setAttribute("bitDepth", track->getBitsPerSample());
+        trackResponse.setAttribute("bitDepth", track->getBitsPerSample() ? *track->getBitsPerSample() : 0);
         trackResponse.setAttribute("samplingRate", track->getSampleRate());
         trackResponse.setAttribute("channelCount", track->getChannelCount());
 

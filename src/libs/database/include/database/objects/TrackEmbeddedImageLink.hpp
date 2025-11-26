@@ -25,9 +25,9 @@
 #include <Wt/Dbo/Field.h>
 
 #include "database/Object.hpp"
-#include "database/Types.hpp"
 #include "database/objects/TrackEmbeddedImageId.hpp"
 #include "database/objects/TrackEmbeddedImageLinkId.hpp"
+#include "database/objects/Types.hpp"
 
 namespace lms::db
 {

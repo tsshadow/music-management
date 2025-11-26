@@ -28,6 +28,7 @@
 #include "database/Types.hpp"
 #include "database/objects/RatedReleaseId.hpp"
 #include "database/objects/ReleaseId.hpp"
+#include "database/objects/Types.hpp"
 #include "database/objects/UserId.hpp"
 
 namespace lms::db

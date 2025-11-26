@@ -34,6 +34,7 @@
 #include "database/objects/ArtworkId.hpp"
 #include "database/objects/PodcastEpisodeId.hpp"
 #include "database/objects/PodcastId.hpp"
+#include "database/objects/Types.hpp"
 
 namespace lms::db
 {

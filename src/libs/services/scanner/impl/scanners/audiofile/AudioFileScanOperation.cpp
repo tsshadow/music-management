@@ -296,7 +296,7 @@ namespace lms::scanner
             return dbLyrics;
         }
 
-        db::ImageType convertImageType(audio::Image::Type type)
+        db::ImageType audioImageTypeToDbImageType(audio::Image::Type type)
         {
             switch (type)
             {
@@ -349,6 +349,92 @@ namespace lms::scanner
             return db::ImageType::Unknown;
         }
 
+        db::ContainerType audioContainerToDbContainer(audio::ContainerType type)
+        {
+            switch (type)
+            {
+            case audio::ContainerType::AIFF:
+                return db::ContainerType::AIFF;
+            case audio::ContainerType::APE:
+                return db::ContainerType::APE;
+            case audio::ContainerType::ASF:
+                return db::ContainerType::ASF;
+            case audio::ContainerType::DSF:
+                return db::ContainerType::DSF;
+            case audio::ContainerType::FLAC:
+                return db::ContainerType::FLAC;
+            case audio::ContainerType::MP4:
+                return db::ContainerType::MP4;
+            case audio::ContainerType::MPC:
+                return db::ContainerType::MPC;
+            case audio::ContainerType::MPEG:
+                return db::ContainerType::MPEG;
+            case audio::ContainerType::Shorten:
+                return db::ContainerType::Shorten;
+            case audio::ContainerType::Ogg:
+                return db::ContainerType::Ogg;
+            case audio::ContainerType::TrueAudio:
+                return db::ContainerType::TrueAudio;
+            case audio::ContainerType::WAV:
+                return db::ContainerType::WAV;
+            case audio::ContainerType::WavPack:
+                return db::ContainerType::WavPack;
+            }
+
+            return db::ContainerType::Unknown;
+        }
+
+        db::CodecType audioCodecToDbCodec(audio::CodecType type)
+        {
+            switch (type)
+            {
+            case audio::CodecType::AAC:
+                return db::CodecType::AAC;
+            case audio::CodecType::AC3:
+                return db::CodecType::AC3;
+            case audio::CodecType::ALAC:
+                return db::CodecType::ALAC;
+            case audio::CodecType::APE:
+                return db::CodecType::APE;
+            case audio::CodecType::DSD:
+                return db::CodecType::DSD;
+            case audio::CodecType::EAC3:
+                return db::CodecType::EAC3;
+            case audio::CodecType::FLAC:
+                return db::CodecType::FLAC;
+            case audio::CodecType::MP3:
+                return db::CodecType::MP3;
+            case audio::CodecType::MP4ALS:
+                return db::CodecType::MP4ALS;
+            case audio::CodecType::MPC7:
+                return db::CodecType::MPC7;
+            case audio::CodecType::MPC8:
+                return db::CodecType::MPC8;
+            case audio::CodecType::Opus:
+                return db::CodecType::Opus;
+            case audio::CodecType::PCM:
+                return db::CodecType::PCM;
+            case audio::CodecType::Shorten:
+                return db::CodecType::Shorten;
+            case audio::CodecType::TrueAudio:
+                return db::CodecType::TrueAudio;
+            case audio::CodecType::Vorbis:
+                return db::CodecType::Vorbis;
+            case audio::CodecType::WavPack:
+                return db::CodecType::WavPack;
+            case audio::CodecType::WMA1:
+                return db::CodecType::WMA1;
+            case audio::CodecType::WMA2:
+                return db::CodecType::WMA2;
+            case audio::CodecType::WMA9Pro:
+                return db::CodecType::WMA9Pro;
+            case audio::CodecType::WMA9Lossless:
+                return db::CodecType::WMA9Lossless;
+            }
+
+            return db::CodecType::Unknown;
+        }
+
         db::TrackEmbeddedImage::pointer getOrCreateTrackEmbeddedImage(db::Session& session, const ImageInfo& imageInfo)
         {
             db::TrackEmbeddedImage::pointer image{ db::TrackEmbeddedImage::find(session, imageInfo.size, db::ImageHashType{ imageInfo.hash }) };
@@ -372,7 +458,7 @@ namespace lms::scanner
             const db::TrackEmbeddedImage::pointer image{ getOrCreateTrackEmbeddedImage(session, imageInfo) };
             db::TrackEmbeddedImageLink::pointer imageLink{ session.create<db::TrackEmbeddedImageLink>(dbTrack, image) };
             imageLink.modify()->setIndex(imageInfo.index);
-            imageLink.modify()->setType(convertImageType(imageInfo.type));
+            imageLink.modify()->setType(audioImageTypeToDbImageType(imageInfo.type));
             imageLink.modify()->setDescription(imageInfo.description);
 
             return imageLink;
@@ -695,11 +781,13 @@ namespace lms::scanner
         track.modify()->setScanVersion(getScannerSettings().audioScanVersion);
 
         // Audio properties
-        track.modify()->setBitrate(_file->audioProperties.bitrate);
-        track.modify()->setBitsPerSample(_file->audioProperties.bitsPerSample ? *_file->audioProperties.bitsPerSample : 0);
-        track.modify()->setChannelCount(_file->audioProperties.channelCount);
         track.modify()->setDuration(_file->audioProperties.duration);
+        track.modify()->setContainer(audioContainerToDbContainer(_file->audioProperties.container));
+        track.modify()->setCodec(audioCodecToDbCodec(_file->audioProperties.codec));
+        track.modify()->setBitrate(_file->audioProperties.bitrate);
+        track.modify()->setChannelCount(_file->audioProperties.channelCount);
         track.modify()->setSampleRate(_file->audioProperties.sampleRate);
+        track.modify()->setBitsPerSample(_file->audioProperties.bitsPerSample);
 
         track.modify()->setFileSize(getFileSize());
         track.modify()->setLastWriteTime(getLastWriteTime());

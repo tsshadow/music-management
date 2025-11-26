@@ -28,8 +28,10 @@
 
 #include "core/EnumSet.hpp"
 #include "core/UUID.hpp"
+
 #include "database/Object.hpp"
 #include "database/Types.hpp"
+#include "database/objects/Types.hpp"
 #include "database/objects/UserId.hpp"
 
 namespace lms::db

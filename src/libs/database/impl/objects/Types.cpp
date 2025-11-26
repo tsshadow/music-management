@@ -17,9 +17,9 @@
  * along with LMS.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "database/Types.hpp"
+#include "database/objects/Types.hpp"
 
-#include <set>
+#include <unordered_set>
 
 namespace lms::db
 {
@@ -54,7 +54,7 @@ namespace lms::db
         return "unknown";
     }
 
-    static const std::set<Bitrate> allowedAudioBitrates{
+    static const std::unordered_set<Bitrate> allowedAudioBitrates{
         64000,
         96000,
         128000,

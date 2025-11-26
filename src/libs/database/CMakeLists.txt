@@ -29,6 +29,7 @@ add_library(lmsdatabase STATIC
 	impl/objects/TrackEmbeddedImage.cpp
 	impl/objects/TrackEmbeddedImageLink.cpp
 	impl/objects/TrackLyrics.cpp
+	impl/objects/Types.cpp
 	impl/objects/UIState.cpp
 	impl/objects/User.cpp
 	impl/Db.cpp
@@ -39,7 +40,6 @@ add_library(lmsdatabase STATIC
 	impl/Session.cpp
 	impl/SqlQuery.cpp
 	impl/Transaction.cpp
-	impl/Types.cpp
 	impl/Utils.cpp
 	)
 

@@ -33,6 +33,7 @@
 #include "database/objects/ArtworkId.hpp"
 #include "database/objects/MediumId.hpp"
 #include "database/objects/ReleaseId.hpp"
+#include "database/objects/Types.hpp"
 
 namespace lms::db
 {

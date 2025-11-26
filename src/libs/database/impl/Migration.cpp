@@ -34,7 +34,7 @@ namespace lms::db
 {
     namespace
     {
-        static constexpr Version LMS_DATABASE_VERSION{ 100 };
+        static constexpr Version LMS_DATABASE_VERSION{ 101 };
     }
 
     VersionInfo::VersionInfo()
@@ -1581,6 +1581,94 @@ FROM track)");
   constraint "fk_podcast_episode_podcast" foreign key ("podcast_id") references "podcast" ("id") on delete cascade deferrable initially deferred))");
     }
 
+    void migrateFromV100(Session& session)
+    {
+        // Add container and codec to track table + made bits_per_sample optional
+
+        utils::executeCommand(*session.getDboSession(), R"(CREATE TABLE IF NOT EXISTS "track_backup" (
+  "id" integer primary key autoincrement,
+  "version" integer not null,
+  "scan_version" integer not null,
+  "absolute_file_path" text not null,
+  "file_size" bigint not null,
+  "file_last_write" text,
+  "file_added" text,
+  "duration" integer,
+  "container" integer not null,
+  "codec" integer not null,
+  "bitrate" integer not null,
+  "channel_count" integer not null,
+  "sample_rate" integer not null,
+  "bits_per_sample" integer,
+  "replay_gain" real,
+  "track_number" integer,
+  "name" text not null,
+  "date" text,
+  "original_date" text,
+  "mbid" text not null,
+  "recording_mbid" text not null,
+  "copyright" text not null,
+  "copyright_url" text not null,
+  "artist_display_name" text not null,
+  "comment" text not null,
+  "advisory" integer not null,
+  "medium_id" bigint,
+  "release_id" bigint,
+  "media_library_id" bigint,
+  "directory_id" bigint,
+  "preferred_artwork_id" bigint,
+  "preferred_media_artwork_id" bigint,
+  constraint "fk_track_medium" foreign key ("medium_id") references "medium" ("id") on delete cascade deferrable initially deferred,
+  constraint "fk_track_release" foreign key ("release_id") references "release" ("id") on delete cascade deferrable initially deferred,
+  constraint "fk_track_media_library" foreign key ("media_library_id") references "media_library" ("id") on delete set null deferrable initially deferred,
+  constraint "fk_track_directory" foreign key ("directory_id") references "directory" ("id") on delete cascade deferrable initially deferred,
+  constraint "fk_track_preferred_artwork" foreign key ("preferred_artwork_id") references "artwork" ("id") on delete set null deferrable initially deferred,
+  constraint "fk_track_preferred_media_artwork" foreign key ("preferred_media_artwork_id") references "artwork" ("id") on delete set null deferrable initially deferred))");
+
+        // Copy data from track to track_backup
+        utils::executeCommand(*session.getDboSession(), R"(INSERT INTO track_backup
+  SELECT
+    id,
+    version,
+    scan_version,
+    absolute_file_path,
+    file_size,
+    file_last_write,
+    file_added,
+    duration,
+    0 as container,
+    0 as codec,
+    bitrate,
+    channel_count,
+    sample_rate,
+    CASE WHEN bits_per_sample = 0 THEN NULL ELSE bits_per_sample END as bits_per_sample,
+    replay_gain,
+    track_number,
+    name,
+    date,
+    original_date,
+    mbid,
+    recording_mbid,
+    copyright,
+    copyright_url,
+    artist_display_name,
+    comment,
+    advisory,
+    medium_id,
+    release_id,
+    media_library_id,
+    directory_id,
+    preferred_artwork_id,
+    preferred_media_artwork_id
+    FROM track)");
+
+        utils::executeCommand(*session.getDboSession(), "DROP TABLE track");
+        utils::executeCommand(*session.getDboSession(), "ALTER TABLE track_backup RENAME TO track");
+
+        // Just increment the scan version of the settings to make the next scan rescan all audio files
+        utils::executeCommand(*session.getDboSession(), "UPDATE scan_settings SET audio_scan_version = audio_scan_version + 1");
+    }
+
     bool doDbMigration(Session& session)
     {
         constexpr std::string_view outdatedMsg{ "Outdated database, please rebuild it (delete the .db file and restart)" };
@@ -1657,6 +1745,7 @@ FROM track)");
             { 97, migrateFromV97 },
             { 98, migrateFromV98 },
             { 99, migrateFromV99 },
+            { 100, migrateFromV100 },
         };
 
         bool migrationPerformed{};

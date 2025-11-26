@@ -34,6 +34,7 @@
 #include "core/EnumSet.hpp"
 #include "core/PartialDateTime.hpp"
 #include "core/UUID.hpp"
+
 #include "database/IdRange.hpp"
 #include "database/Object.hpp"
 #include "database/Types.hpp"
@@ -48,6 +49,7 @@
 #include "database/objects/TrackEmbeddedImageId.hpp"
 #include "database/objects/TrackId.hpp"
 #include "database/objects/TrackListId.hpp"
+#include "database/objects/Types.hpp"
 #include "database/objects/UserId.hpp"
 
 namespace lms::db
@@ -216,19 +218,28 @@ namespace lms::db
         static void updatePreferredArtwork(Session& session, TrackId trackId, ArtworkId artworkId);
         static void updatePreferredMediaArtwork(Session& session, TrackId trackId, ArtworkId artworkId);
 
-        // Accessors
+        // Setters
         void setScanVersion(std::size_t version) { _scanVersion = version; }
-        void setTrackNumber(std::optional<int> num) { _trackNumber = num; }
-        void setName(std::string_view name);
+
+        // File properties
         void setAbsoluteFilePath(const std::filesystem::path& filePath);
         void setFileSize(std::size_t fileSize) { _fileSize = fileSize; }
         void setLastWriteTime(const Wt::WDateTime& time) { _fileLastWrite = time; }
         void setAddedTime(const Wt::WDateTime& time) { _fileAdded = time; }
-        void setBitrate(std::size_t bitrate) { _bitrate = bitrate; }
-        void setBitsPerSample(std::size_t bitsPerSample) { _bitsPerSample = bitsPerSample; }
+
+        // Audio properties
         void setDuration(std::chrono::milliseconds duration) { _duration = duration; }
+        void setContainer(ContainerType container) { _container = container; }
+        void setCodec(CodecType codec) { _codec = codec; }
+        void setBitrate(std::size_t bitrate) { _bitrate = bitrate; }
         void setChannelCount(std::size_t channelCount) { _channelCount = channelCount; }
-        void setSampleRate(std::size_t channelCount) { _sampleRate = channelCount; }
+        void setSampleRate(std::size_t sampleRate) { _sampleRate = sampleRate; }
+        void setBitsPerSample(std::optional<std::size_t> bitsPerSample) { _bitsPerSample = bitsPerSample; }
+        void setReplayGain(std::optional<float> replayGain) { _replayGain = replayGain; }
+
+        // Metadata
+        void setTrackNumber(std::optional<int> num) { _trackNumber = num; }
+        void setName(std::string_view name);
         void setDate(const core::PartialDateTime& date) { _date = date; }
         void setOriginalDate(const core::PartialDateTime& date) { _originalDate = date; }
         void setTrackMBID(const std::optional<core::UUID>& MBID) { _trackMBID = MBID ? MBID->getAsString() : ""; }
@@ -236,7 +247,6 @@ namespace lms::db
         void setCopyright(std::string_view copyright);
         void setCopyrightURL(std::string_view copyrightURL);
         void setAdvisory(Advisory advisory) { _advisory = advisory; }
-        void setReplayGain(std::optional<float> replayGain) { _replayGain = replayGain; }
         void setArtistDisplayName(std::string_view name) { _artistDisplayName = name; }
         void setComment(std::string_view comment) { _comment = comment; }
         void clearArtistLinks();
@@ -254,32 +264,41 @@ namespace lms::db
         void setPreferredArtwork(ObjectPtr<Artwork> artwork);
         void setPreferredMediaArtwork(ObjectPtr<Artwork> artwork);
 
+        // Getters
         std::size_t getScanVersion() const { return _scanVersion; }
-        std::optional<std::size_t> getTrackNumber() const { return _trackNumber; }
-        std::string getName() const { return _name; }
+
+        // File properties
         const std::filesystem::path& getAbsoluteFilePath() const { return _absoluteFilePath; }
         long long getFileSize() const { return _fileSize; }
-        std::size_t getBitrate() const { return _bitrate; }
-        std::size_t getBitsPerSample() const { return _bitsPerSample; }
-        std::size_t getChannelCount() const { return _channelCount; }
-        std::chrono::milliseconds getDuration() const { return _duration; }
-        std::size_t getSampleRate() const { return _sampleRate; }
         const Wt::WDateTime& getLastWritten() const { return _fileLastWrite; }
+        const Wt::WDateTime& getAddedTime() const { return _fileAdded; }
+
+        // Audio properties
+        std::chrono::milliseconds getDuration() const { return _duration; }
+        ContainerType getContainer() const { return _container; }
+        CodecType getCodec() const { return _codec; }
+        std::size_t getBitrate() const { return _bitrate; }
+        std::size_t getChannelCount() const { return _channelCount; }
+        std::size_t getSampleRate() const { return _sampleRate; }
+        std::optional<std::size_t> getBitsPerSample() const { return _bitsPerSample; }
+        std::optional<float> getReplayGain() const { return _replayGain; }
+
+        // Metadata
+        std::optional<std::size_t> getTrackNumber() const { return _trackNumber; }
+        std::string getName() const { return _name; }
         const core::PartialDateTime& getDate() const { return _date; }
         std::optional<int> getYear() const;
         const core::PartialDateTime& getOriginalDate() const { return _originalDate; }
         std::optional<int> getOriginalYear() const;
         const Wt::WDateTime& getLastWriteTime() const { return _fileLastWrite; }
-        const Wt::WDateTime& getAddedTime() const { return _fileAdded; }
         bool hasLyrics() const;
         std::optional<core::UUID> getTrackMBID() const { return core::UUID::fromString(_trackMBID); }
         std::optional<core::UUID> getRecordingMBID() const { return core::UUID::fromString(_recordingMBID); }
         std::optional<std::string> getCopyright() const;
         std::optional<std::string> getCopyrightURL() const;
-        Advisory getAdvisory() const { return _advisory; }
-        std::optional<float> getReplayGain() const { return _replayGain; }
         std::string_view getArtistDisplayName() const { return _artistDisplayName; }
         std::string_view getComment() const { return _comment; }
+        Advisory getAdvisory() const { return _advisory; }
 
         // no artistLinkTypes means get all
         std::vector<ObjectPtr<Artist>> getArtists(core::EnumSet<TrackArtistLinkType> artistLinkTypes) const; // no type means all
@@ -304,27 +323,32 @@ namespace lms::db
         void persist(Action& a)
         {
             Wt::Dbo::field(a, _scanVersion, "scan_version");
-            Wt::Dbo::field(a, _trackNumber, "track_number");
-            Wt::Dbo::field(a, _name, "name");
-            Wt::Dbo::field(a, _duration, "duration");
-            Wt::Dbo::field(a, _bitrate, "bitrate");
-            Wt::Dbo::field(a, _bitsPerSample, "bits_per_sample");
-            Wt::Dbo::field(a, _channelCount, "channel_count");
-            Wt::Dbo::field(a, _sampleRate, "sample_rate");
-            Wt::Dbo::field(a, _date, "date");
-            Wt::Dbo::field(a, _originalDate, "original_date");
+
             Wt::Dbo::field(a, _absoluteFilePath, "absolute_file_path");
             Wt::Dbo::field(a, _fileSize, "file_size");
             Wt::Dbo::field(a, _fileLastWrite, "file_last_write");
             Wt::Dbo::field(a, _fileAdded, "file_added");
+
+            Wt::Dbo::field(a, _duration, "duration");
+            Wt::Dbo::field(a, _container, "container");
+            Wt::Dbo::field(a, _codec, "codec");
+            Wt::Dbo::field(a, _bitrate, "bitrate");
+            Wt::Dbo::field(a, _channelCount, "channel_count");
+            Wt::Dbo::field(a, _sampleRate, "sample_rate");
+            Wt::Dbo::field(a, _bitsPerSample, "bits_per_sample");
+            Wt::Dbo::field(a, _replayGain, "replay_gain");
+
+            Wt::Dbo::field(a, _trackNumber, "track_number");
+            Wt::Dbo::field(a, _name, "name");
+            Wt::Dbo::field(a, _date, "date");
+            Wt::Dbo::field(a, _originalDate, "original_date");
             Wt::Dbo::field(a, _trackMBID, "mbid");
             Wt::Dbo::field(a, _recordingMBID, "recording_mbid");
             Wt::Dbo::field(a, _copyright, "copyright");
             Wt::Dbo::field(a, _copyrightURL, "copyright_url");
-            Wt::Dbo::field(a, _advisory, "advisory");
-            Wt::Dbo::field(a, _replayGain, "replay_gain");
             Wt::Dbo::field(a, _artistDisplayName, "artist_display_name");
             Wt::Dbo::field(a, _comment, "comment"); // TODO: move in a dedicated table
+            Wt::Dbo::field(a, _advisory, "advisory");
 
             Wt::Dbo::belongsTo(a, _medium, "medium", Wt::Dbo::OnDeleteCascade);
             Wt::Dbo::belongsTo(a, _release, "release", Wt::Dbo::OnDeleteCascade);
@@ -347,27 +371,36 @@ namespace lms::db
         static constexpr std::size_t _maxCopyrightURLLength{ 512 };
 
         int _scanVersion{};
-        std::optional<int> _trackNumber;
-        std::string _name;
-        int _bitrate{}; // in bps
-        int _bitsPerSample{};
-        int _channelCount{};
-        std::chrono::duration<int, std::milli> _duration{};
-        int _sampleRate{};
-        core::PartialDateTime _date;
-        core::PartialDateTime _originalDate;
+
+        // File information
         std::filesystem::path _absoluteFilePath; // full path
         long long _fileSize{};
         Wt::WDateTime _fileLastWrite;
         Wt::WDateTime _fileAdded;
+
+        // Audio properties
+        std::chrono::duration<int, std::milli> _duration{};
+        ContainerType _container{ ContainerType::Unknown };
+        CodecType _codec{ CodecType::Unknown };
+        int _bitrate{}; // in bps
+        int _channelCount{};
+        int _sampleRate{};
+        std::optional<int> _bitsPerSample;
+        std::optional<float> _replayGain;
+
+        // Metadata
+        std::optional<int> _trackNumber;
+        std::string _name;
+        core::PartialDateTime _date;
+        core::PartialDateTime _originalDate;
         std::string _trackMBID;
         std::string _recordingMBID;
         std::string _copyright;
         std::string _copyrightURL;
-        Advisory _advisory{ Advisory::UnSet };
-        std::optional<float> _replayGain;
         std::string _artistDisplayName;
         std::string _comment;
+        Advisory _advisory{ Advisory::UnSet };
+
         Wt::Dbo::ptr<Medium> _medium;
         Wt::Dbo::ptr<Release> _release;
         Wt::Dbo::ptr<MediaLibrary> _mediaLibrary;

@@ -32,6 +32,7 @@
 #include "database/Object.hpp"
 #include "database/Types.hpp"
 #include "database/objects/TrackId.hpp"
+#include "database/objects/Types.hpp"
 
 LMS_DECLARE_IDTYPE(TrackLyricsId)
 

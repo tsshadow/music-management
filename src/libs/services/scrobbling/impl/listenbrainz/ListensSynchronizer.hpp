@@ -26,7 +26,7 @@
 #include <boost/asio/io_context_strand.hpp>
 #include <boost/asio/steady_timer.hpp>
 
-#include "database/Types.hpp"
+#include "database/objects/Types.hpp"
 #include "database/objects/UserId.hpp"
 
 #include "services/scrobbling/Listen.hpp"

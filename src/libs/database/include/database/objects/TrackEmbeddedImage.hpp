@@ -33,6 +33,7 @@
 #include "database/objects/TrackEmbeddedImageId.hpp"
 #include "database/objects/TrackId.hpp"
 #include "database/objects/TrackListId.hpp"
+#include "database/objects/Types.hpp"
 
 namespace lms::db
 {

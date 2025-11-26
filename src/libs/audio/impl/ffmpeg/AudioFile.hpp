@@ -47,7 +47,7 @@ namespace lms::audio::ffmpeg
         std::optional<ContainerType> container;
         std::string containerName;
 
-        std::size_t bitrate{};
+        std::optional<std::size_t> bitrate;
         std::chrono::milliseconds duration{};
     };
 

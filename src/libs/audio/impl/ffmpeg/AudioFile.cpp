@@ -32,6 +32,7 @@ extern "C"
 }
 
 #include "core/ILogger.hpp"
+#include "core/ITraceLogger.hpp"
 #include "core/String.hpp"
 
 #include "audio/AudioTypes.hpp"
@@ -189,7 +190,7 @@ namespace lms::audio::ffmpeg
             std::array<char, 256> buffer{ 0 };
             std::vsnprintf(buffer.data(), buffer.size(), fmt, vl);
 
-            LMS_LOG(AUDIO, DEBUG, "ffmpeg [" << avLogLevelToStr(level) << "] " << buffer.data());
+            LMS_LOG(AUDIO, DEBUG, "FFmpeg [" << avLogLevelToStr(level) << "] " << buffer.data());
         }
 
         class AvInitializer
@@ -205,6 +206,8 @@ namespace lms::audio::ffmpeg
     AudioFile::AudioFile(const std::filesystem::path& p)
         : _p{ p }
     {
+        LMS_SCOPED_TRACE_DETAILED("MetaData", "FFmpegParseFile");
+
         static AvInitializer init;
 
         int error{ avformat_open_input(&_context, _p.c_str(), nullptr, nullptr) };
@@ -240,7 +243,8 @@ namespace lms::audio::ffmpeg
         info.container = avdemuxerToContainerType(_context->iformat->name);
         info.containerName = _context->iformat->name;
 
-        info.bitrate = _context->bit_rate;
+        if (_context->bit_rate > 0)
+            info.bitrate = _context->bit_rate;
         info.duration = std::chrono::milliseconds{ _context->duration == AV_NOPTS_VALUE ? 0 : _context->duration / AV_TIME_BASE * 1'000 };
 
         return info;

@@ -19,6 +19,9 @@
 
 #include "AudioFileInfo.hpp"
 
+#include <filesystem>
+#include <system_error>
+
 #include "core/ILogger.hpp"
 
 #include "audio/AudioTypes.hpp"
@@ -44,6 +47,12 @@ namespace lms::audio::ffmpeg
                 return audioProperties;
             }
 
+            if (containerInfo.duration.count() == 0)
+            {
+                LMS_LOG(AUDIO, DEBUG, "Cannot determine duration in " << audioFile.getPath());
+                return audioProperties;
+            }
+
             if (!containerInfo.container)
             {
                 LMS_LOG(AUDIO, DEBUG, "Unhandled container '" << containerInfo.containerName << "' in " << audioFile.getPath());
@@ -53,12 +62,6 @@ namespace lms::audio::ffmpeg
             if (!bestStreamInfo->codec)
             {
                 LMS_LOG(AUDIO, DEBUG, "Unhandled codec '" << bestStreamInfo->codecName << "' in " << audioFile.getPath());
-                return audioProperties;
-            }
-
-            if (!bestStreamInfo->bitrate || *bestStreamInfo->bitrate == 0)
-            {
-                LMS_LOG(AUDIO, DEBUG, "Cannot determine bitrate in " << audioFile.getPath());
                 return audioProperties;
             }
 
@@ -79,7 +82,27 @@ namespace lms::audio::ffmpeg
             audioProperties->container = *containerInfo.container;
             audioProperties->duration = containerInfo.duration;
             audioProperties->codec = *bestStreamInfo->codec;
-            audioProperties->bitrate = *bestStreamInfo->bitrate;
+
+            if (bestStreamInfo->bitrate)
+                audioProperties->bitrate = *bestStreamInfo->bitrate;
+            else if (containerInfo.bitrate)
+                audioProperties->bitrate = *containerInfo.bitrate;
+            else // Fallback on a bitrate based on duration/size
+            {
+                std::error_code ec;
+                const auto fileSize{ std::filesystem::file_size(audioFile.getPath(), ec) };
+                if (ec)
+                {
+                    LMS_LOG(AUDIO, DEBUG, "Cannot determine file size for " << audioFile.getPath() << ": " << ec.message());
+                    audioProperties.reset();
+                    return audioProperties;
+                }
+
+                audioProperties->bitrate = static_cast<std::size_t>(std::chrono::duration_cast<std::chrono::duration<double>>(containerInfo.duration).count() / fileSize);
+                LMS_LOG(AUDIO, DEBUG, "Estimated bitrate from duration/size: " << audioProperties->bitrate << " bps in " << audioFile.getPath());
+            }
+            assert(audioProperties->bitrate > 0);
+
             audioProperties->channelCount = *bestStreamInfo->channelCount;
             audioProperties->sampleRate = *bestStreamInfo->sampleRate;
             audioProperties->bitsPerSample = bestStreamInfo->bitsPerSample;

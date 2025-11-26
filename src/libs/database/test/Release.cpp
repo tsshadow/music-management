@@ -1214,6 +1214,40 @@ namespace lms::db::tests
         checkExpectedBitrate(192); // 0 should not be taken into account
     }
 
+    TEST_F(DatabaseFixture, Release_codec)
+    {
+        ScopedRelease release1{ session, "MyRelease1" };
+        ScopedTrack track1{ session };
+        ScopedTrack track2{ session };
+        ScopedTrack track3{ session };
+        ScopedTrack track4{ session };
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            ASSERT_EQ(release1->getCodecs().size(), 0);
+        }
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            track1.get().modify()->setCodec(CodecType::FLAC);
+            track1.get().modify()->setRelease(release1.get());
+
+            track2.get().modify()->setCodec(CodecType::MP3);
+            track2.get().modify()->setRelease(release1.get());
+
+            track3.get().modify()->setCodec(CodecType::MP3);
+            track3.get().modify()->setRelease(release1.get());
+
+            track4.get().modify()->setCodec(CodecType::AAC);
+            track4.get().modify()->setRelease(release1.get());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(release1->getCodecs(), (std::vector<CodecType>{ CodecType::MP3, CodecType::FLAC, CodecType::AAC }));
+        }
+    }
+
     TEST_F(DatabaseFixture, Release_trackCount)
     {
         ScopedRelease release1{ session, "MyRelease1" };

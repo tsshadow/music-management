@@ -679,6 +679,14 @@ namespace lms::db
         return utils::fetchQuerySingleResult(session()->query<int>("SELECT COALESCE(AVG(t.bitrate), 0) FROM track t").where("release_id = ?").bind(getId()).where("bitrate > 0"));
     }
 
+    std::vector<CodecType> Release::getCodecs() const
+    {
+        assert(session());
+
+        // Get the codec ordered by frequency
+        return utils::fetchQueryResults(session()->query<CodecType>("SELECT t.codec FROM track t").where("release_id = ?").bind(getId()).groupBy("t.codec").orderBy("COUNT(t.id) DESC"));
+    }
+
     std::vector<Artist::pointer> Release::getArtists(TrackArtistLinkType linkType) const
     {
         assert(session());

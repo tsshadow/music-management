@@ -279,6 +279,7 @@ namespace lms::db
         std::optional<std::string> getCopyright() const;
         std::optional<std::string> getCopyrightURL() const;
         std::size_t getMeanBitrate() const;
+        std::vector<CodecType> getCodecs() const;
 
         // Accessors
         std::string_view getName() const { return _name; }

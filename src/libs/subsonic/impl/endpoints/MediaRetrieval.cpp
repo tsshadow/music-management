@@ -117,6 +117,7 @@ namespace lms::api::subsonic
         bool isOutputFormatCompatible(const std::filesystem::path& trackPath, audio::OutputFormat outputFormat)
         {
             // TODO: put this information in db during scan
+            // It is in base only for tracks, not yet for podcasts
             try
             {
                 const auto parser{ audio::createAudioFileInfoParser(audio::AudioFileInfoParserBackend::FFmpeg) };

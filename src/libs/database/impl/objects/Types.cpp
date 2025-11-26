@@ -73,4 +73,95 @@ namespace lms::db
         return allowedAudioBitrates.find(bitrate) != std::cend(allowedAudioBitrates);
     }
 
+    core::LiteralString containerTypeToString(ContainerType type)
+    {
+        switch (type)
+        {
+        case ContainerType::Unknown:
+            break;
+
+        case ContainerType::AIFF:
+            return "AIFF";
+        case ContainerType::APE:
+            return "APE";
+        case ContainerType::ASF:
+            return "ASF";
+        case ContainerType::DSF:
+            return "DSF";
+        case ContainerType::FLAC:
+            return "FLAC";
+        case ContainerType::MP4:
+            return "MP4";
+        case ContainerType::MPC:
+            return "MPC";
+        case ContainerType::MPEG:
+            return "MPEG";
+        case ContainerType::Ogg:
+            return "Ogg";
+        case ContainerType::Shorten:
+            return "Shorten";
+        case ContainerType::TrueAudio:
+            return "TrueAudio";
+        case ContainerType::WAV:
+            return "WAV";
+        case ContainerType::WavPack:
+            return "WavPack";
+        }
+
+        return "Unknown";
+    }
+
+    core::LiteralString codecTypeToString(CodecType type)
+    {
+        switch (type)
+        {
+        case CodecType::Unknown:
+            break;
+
+        case CodecType::AAC:
+            return "AAC";
+        case CodecType::AC3:
+            return "AC3";
+        case CodecType::ALAC:
+            return "ALAC";
+        case CodecType::APE:
+            return "APE";
+        case CodecType::DSD:
+            return "DSD";
+        case CodecType::EAC3:
+            return "EAC3";
+        case CodecType::FLAC:
+            return "FLAC";
+        case CodecType::MP3:
+            return "MP3";
+        case CodecType::MP4ALS:
+            return "MP4ALS";
+        case CodecType::MPC7:
+            return "MPC7";
+        case CodecType::MPC8:
+            return "MPC8";
+        case CodecType::Opus:
+            return "Opus";
+        case CodecType::PCM:
+            return "PCM";
+        case CodecType::Shorten:
+            return "Shorten";
+        case CodecType::TrueAudio:
+            return "TrueAudio";
+        case CodecType::Vorbis:
+            return "Vorbis";
+        case CodecType::WavPack:
+            return "WavPack";
+        case CodecType::WMA1:
+            return "WMA1";
+        case CodecType::WMA2:
+            return "WMA2";
+        case CodecType::WMA9Pro:
+            return "WMA9Pro";
+        case CodecType::WMA9Lossless:
+            return "WMA9Lossless";
+        }
+
+        return "Unknown";
+    }
 } // namespace lms::db

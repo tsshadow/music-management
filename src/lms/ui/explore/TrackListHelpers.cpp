@@ -25,10 +25,6 @@
 
 #include "core/Service.hpp"
 
-#include "audio/AudioTypes.hpp"
-#include "audio/Exception.hpp"
-#include "audio/IAudioFileInfo.hpp"
-#include "audio/IAudioFileInfoParser.hpp"
 #include "database/Session.hpp"
 #include "database/Types.hpp"
 #include "database/objects/Artist.hpp"
@@ -131,25 +127,8 @@ namespace lms::ui::TrackListHelpers
             }
         }
 
-        try
-        {
-            const auto parser{ audio::createAudioFileInfoParser(audio::AudioFileInfoParserBackend::FFmpeg) };
-
-            audio::AudioFileInfoParseOptions parseOptions;
-            parseOptions.audioPropertiesReadStyle = audio::AudioFileInfoParseOptions::AudioPropertiesReadStyle::Fast; // only coded needed
-            parseOptions.readImages = false;
-            parseOptions.readTags = false;
-            const auto audioFile{ parser->parse(track->getAbsoluteFilePath(), parseOptions) };
-
-            if (audioFile->getAudioProperties())
-            {
-                trackInfo->setCondition("if-has-codec", true);
-                trackInfo->bindString("codec", audio::codecTypeToString(audioFile->getAudioProperties()->codec).c_str(), Wt::TextFormat::Plain);
-            }
-        }
-        catch (const audio::Exception& e)
-        {
-        }
+        trackInfo->setCondition("if-has-codec", true);
+        trackInfo->bindString("codec", db::codecTypeToString(track->getCodec()).c_str(), Wt::TextFormat::Plain);
 
         trackInfo->bindString("duration", utils::durationToString(track->getDuration()));
         if (track->getBitrate())

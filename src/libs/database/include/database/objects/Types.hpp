@@ -286,6 +286,8 @@ namespace lms::db
         WavPack = 13,
     };
 
+    core::LiteralString containerTypeToString(ContainerType type);
+
     enum class CodecType
     {
         Unknown = 0,
@@ -312,4 +314,6 @@ namespace lms::db
         WMA9Pro = 20,
         WMA9Lossless = 21,
     };
+
+    core::LiteralString codecTypeToString(CodecType type);
 } // namespace lms::db

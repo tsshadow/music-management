@@ -19,20 +19,17 @@
 
 #include "ReleaseView.hpp"
 
-#include <Wt/WContainerWidget.h>
 #include <map>
+#include <string>
 
 #include <Wt/WAnchor.h>
+#include <Wt/WContainerWidget.h>
 #include <Wt/WImage.h>
 #include <Wt/WPushButton.h>
 #include <Wt/WTemplate.h>
 
 #include "core/String.hpp"
 
-#include "audio/AudioTypes.hpp"
-#include "audio/Exception.hpp"
-#include "audio/IAudioFileInfo.hpp"
-#include "audio/IAudioFileInfoParser.hpp"
 #include "database/Session.hpp"
 #include "database/Types.hpp"
 #include "database/objects/Artist.hpp"
@@ -142,28 +139,20 @@ namespace lms::ui
                 releaseInfo->bindString("release-labels", core::stringUtils::joinStrings(labels, " · "));
             }
 
-            // TODO: save in DB and aggregate all this
-            for (const db::Track::pointer& track : db::Track::find(LmsApp->getDbSession(), db::Track::FindParameters{}.setRelease(releaseId).setRange(db::Range{ 0, 1 })).results)
+            // Codecs
             {
-                try
+                std::string codecStr;
+                for (db::CodecType codec : release->getCodecs())
                 {
-                    const auto parser{ audio::createAudioFileInfoParser(audio::AudioFileInfoParserBackend::FFmpeg) };
-
-                    audio::AudioFileInfoParseOptions parseOptions;
-                    parseOptions.audioPropertiesReadStyle = audio::AudioFileInfoParseOptions::AudioPropertiesReadStyle::Fast; // only coded needed
-                    parseOptions.readImages = false;
-                    parseOptions.readTags = false;
-                    const auto audioFile{ parser->parse(track->getAbsoluteFilePath(), parseOptions) };
-
-                    if (audioFile->getAudioProperties())
-                    {
-                        releaseInfo->setCondition("if-has-codec", true);
-                        releaseInfo->bindString("codec", audio::codecTypeToString(audioFile->getAudioProperties()->codec).c_str(), Wt::TextFormat::Plain);
-                        break;
-                    }
+                    if (!codecStr.empty())
+                        codecStr += " · ";
+                    codecStr += db::codecTypeToString(codec).str();
                 }
-                catch (const audio::Exception& e)
+
+                if (!codecStr.empty())
                 {
+                    releaseInfo->setCondition("if-has-codec", true);
+                    releaseInfo->bindString("codec", codecStr, Wt::TextFormat::Plain);
                 }
             }
 

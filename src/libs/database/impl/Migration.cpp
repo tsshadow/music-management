@@ -24,6 +24,7 @@
 #include "core/Exception.hpp"
 #include "core/ILogger.hpp"
 #include "core/ITraceLogger.hpp"
+
 #include "database/Session.hpp"
 #include "database/objects/ScanSettings.hpp"
 
@@ -34,7 +35,7 @@ namespace lms::db
 {
     namespace
     {
-        static constexpr Version LMS_DATABASE_VERSION{ 101 };
+        static constexpr Version LMS_DATABASE_VERSION{ 102 };
     }
 
     VersionInfo::VersionInfo()
@@ -1669,6 +1670,17 @@ FROM track)");
         utils::executeCommand(*session.getDboSession(), "UPDATE scan_settings SET audio_scan_version = audio_scan_version + 1");
     }
 
+    void migrateFromV101(Session& session)
+    {
+        // Add audio properties for podcast episodes
+        utils::executeCommand(*session.getDboSession(), "ALTER TABLE podcast_episode ADD container INTEGER NOT NULL DEFAULT(0)"); // 0 means unknown
+        utils::executeCommand(*session.getDboSession(), "ALTER TABLE podcast_episode ADD codec INTEGER NOT NULL DEFAULT(0)");     // 0 means unknown
+        utils::executeCommand(*session.getDboSession(), "ALTER TABLE podcast_episode ADD bitrate INTEGER NOT NULL DEFAULT(0)");
+        utils::executeCommand(*session.getDboSession(), "ALTER TABLE podcast_episode ADD channel_count INTEGER NOT NULL DEFAULT(0)");
+        utils::executeCommand(*session.getDboSession(), "ALTER TABLE podcast_episode ADD sample_rate INTEGER NOT NULL DEFAULT(0)");
+        utils::executeCommand(*session.getDboSession(), "ALTER TABLE podcast_episode ADD bits_per_sample INTEGER");
+    }
+
     bool doDbMigration(Session& session)
     {
         constexpr std::string_view outdatedMsg{ "Outdated database, please rebuild it (delete the .db file and restart)" };
@@ -1746,6 +1758,7 @@ FROM track)");
             { 98, migrateFromV98 },
             { 99, migrateFromV99 },
             { 100, migrateFromV100 },
+            { 101, migrateFromV101 },
         };
 
         bool migrationPerformed{};

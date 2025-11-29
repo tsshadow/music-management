@@ -26,6 +26,10 @@
 #include "core/Service.hpp"
 #include "core/http/IClient.hpp"
 
+#include "audio/AudioTypes.hpp"
+#include "audio/Exception.hpp"
+#include "audio/IAudioFileInfo.hpp"
+#include "audio/IAudioFileInfoParser.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Podcast.hpp"
@@ -38,7 +42,93 @@ namespace lms::podcast
 {
     namespace
     {
-        void updateEpisode(db::Session& session, db::PodcastEpisodeId episodeId, const std::filesystem::path& relativeFilePath)
+        db::ContainerType audioContainerToDbContainer(audio::ContainerType type)
+        {
+            switch (type)
+            {
+            case audio::ContainerType::AIFF:
+                return db::ContainerType::AIFF;
+            case audio::ContainerType::APE:
+                return db::ContainerType::APE;
+            case audio::ContainerType::ASF:
+                return db::ContainerType::ASF;
+            case audio::ContainerType::DSF:
+                return db::ContainerType::DSF;
+            case audio::ContainerType::FLAC:
+                return db::ContainerType::FLAC;
+            case audio::ContainerType::MP4:
+                return db::ContainerType::MP4;
+            case audio::ContainerType::MPC:
+                return db::ContainerType::MPC;
+            case audio::ContainerType::MPEG:
+                return db::ContainerType::MPEG;
+            case audio::ContainerType::Shorten:
+                return db::ContainerType::Shorten;
+            case audio::ContainerType::Ogg:
+                return db::ContainerType::Ogg;
+            case audio::ContainerType::TrueAudio:
+                return db::ContainerType::TrueAudio;
+            case audio::ContainerType::WAV:
+                return db::ContainerType::WAV;
+            case audio::ContainerType::WavPack:
+                return db::ContainerType::WavPack;
+            }
+
+            return db::ContainerType::Unknown;
+        }
+
+        db::CodecType audioCodecToDbCodec(audio::CodecType type)
+        {
+            switch (type)
+            {
+            case audio::CodecType::AAC:
+                return db::CodecType::AAC;
+            case audio::CodecType::AC3:
+                return db::CodecType::AC3;
+            case audio::CodecType::ALAC:
+                return db::CodecType::ALAC;
+            case audio::CodecType::APE:
+                return db::CodecType::APE;
+            case audio::CodecType::DSD:
+                return db::CodecType::DSD;
+            case audio::CodecType::EAC3:
+                return db::CodecType::EAC3;
+            case audio::CodecType::FLAC:
+                return db::CodecType::FLAC;
+            case audio::CodecType::MP3:
+                return db::CodecType::MP3;
+            case audio::CodecType::MP4ALS:
+                return db::CodecType::MP4ALS;
+            case audio::CodecType::MPC7:
+                return db::CodecType::MPC7;
+            case audio::CodecType::MPC8:
+                return db::CodecType::MPC8;
+            case audio::CodecType::Opus:
+                return db::CodecType::Opus;
+            case audio::CodecType::PCM:
+                return db::CodecType::PCM;
+            case audio::CodecType::Shorten:
+                return db::CodecType::Shorten;
+            case audio::CodecType::TrueAudio:
+                return db::CodecType::TrueAudio;
+            case audio::CodecType::Vorbis:
+                return db::CodecType::Vorbis;
+            case audio::CodecType::WavPack:
+                return db::CodecType::WavPack;
+            case audio::CodecType::WMA1:
+                return db::CodecType::WMA1;
+            case audio::CodecType::WMA2:
+                return db::CodecType::WMA2;
+            case audio::CodecType::WMA9Pro:
+                return db::CodecType::WMA9Pro;
+            case audio::CodecType::WMA9Lossless:
+                return db::CodecType::WMA9Lossless;
+            }
+
+            return db::CodecType::Unknown;
+        }
+
+        void updateEpisode(db::Session& session, db::PodcastEpisodeId episodeId, const std::filesystem::path& relativeFilePath, const audio::AudioProperties& audioProperties)
         {
             auto transaction{ session.createWriteTransaction() };
 
@@ -47,6 +137,14 @@ namespace lms::podcast
                 return; // may have been deleted by admin
 
             dbEpisode.modify()->setAudioRelativeFilePath(relativeFilePath);
+
+            dbEpisode.modify()->setDuration(audioProperties.duration);
+            dbEpisode.modify()->setContainer(audioContainerToDbContainer(audioProperties.container));
+            dbEpisode.modify()->setCodec(audioCodecToDbCodec(audioProperties.codec));
+            dbEpisode.modify()->setBitrate(audioProperties.bitrate);
+            dbEpisode.modify()->setChannelCount(audioProperties.channelCount);
+            dbEpisode.modify()->setSampleRate(audioProperties.sampleRate);
+            dbEpisode.modify()->setBitsPerSample(audioProperties.bitsPerSample);
         }
     } // namespace
 
@@ -54,9 +152,11 @@ namespace lms::podcast
         : RefreshStep{ context, std::move(callback) }
         , _autoDownloadEpisodes{ core::Service<core::IConfig>::get()->getBool("podcast-auto-download-episodes", true) }
         , _autoDownloadEpisodesMaxAge{ core::Service<core::IConfig>::get()->getULong("podcast-auto-download-episodes-max-age-days", 30) }
-
+        , _audioFileInfoParser{ audio::createAudioFileInfoParser(audio::AudioFileInfoParserBackend::FFmpeg) }
     {
     }
+
+    DownloadEpisodesStep::~DownloadEpisodesStep() = default;
 
     core::LiteralString DownloadEpisodesStep::getName() const
     {
@@ -171,18 +271,40 @@ namespace lms::podcast
             assert(msg.body().empty());
             getExecutor().post([=, this] {
                 LMS_LOG(PODCAST, DEBUG, "Download episode from '" << url << "' complete");
-                LMS_LOG(PODCAST, DEBUG, "Renaming temp file " << tmpFilePath << " to " << finalFilePath);
 
-                std::error_code ec;
-                std::filesystem::rename(tmpFilePath, finalFilePath, ec);
-                if (ec)
-                    LMS_LOG(PODCAST, ERROR, "Failed to rename temp file " << tmpFilePath << " to " << finalFilePath << ": " << ec.message());
-                else
-                    updateEpisode(getDb().getTLSSession(), episodeId, randomName);
+                try
+                {
+                    audio::AudioFileInfoParseOptions options;
+                    options.audioPropertiesReadStyle = audio::AudioFileInfoParseOptions::AudioPropertiesReadStyle::Average;
+                    options.readImages = false;
+                    options.readTags = false;
 
-                // TODO: now the file is complete, should we attempt to read it and get the real information like duration and size?
+                    const auto audioFileInfo{ _audioFileInfoParser->parse(tmpFilePath, options) };
+                    const auto* audioProperties{ audioFileInfo->getAudioProperties() };
+                    if (audioProperties)
+                    {
+                        std::error_code ec;
+                        std::filesystem::rename(tmpFilePath, finalFilePath, ec);
+                        if (ec)
+                        {
+                            LMS_LOG(PODCAST, ERROR, "Failed to rename temp file " << tmpFilePath << " to " << finalFilePath << ": " << ec.message());
+                        }
+                        else
+                        {
+                            updateEpisode(getDb().getTLSSession(), episodeId, randomName, *audioProperties);
+                            LMS_LOG(PODCAST, INFO, "Downloaded episode '" << episode->getTitle() << "'");
+                        }
+                    }
+                    else
+                    {
+                        LMS_LOG(PODCAST, WARNING, "Failed to get audio properties from downloaded episode from '" << url << "'");
+                    }
+                }
+                catch (const audio::Exception& e)
+                {
+                    LMS_LOG(PODCAST, WARNING, "Failed to parse downloaded episode from '" << url << "': " << e.what());
+                }
 
-                LMS_LOG(PODCAST, INFO, "Downloaded episode '" << episode->getTitle() << "'");
                 processNext();
             });
         };

@@ -20,6 +20,7 @@
 #include "Common.hpp"
 
 #include "core/String.hpp"
+
 #include "database/objects/Artist.hpp"
 #include "database/objects/ArtistInfo.hpp"
 #include "database/objects/AuthToken.hpp"

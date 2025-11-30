@@ -51,31 +51,25 @@
 
 namespace lms::api::subsonic
 {
-    using namespace db;
-
     namespace
     {
-        std::string_view formatToSuffix(TranscodingOutputFormat format)
+        std::string_view formatToSuffix(db::TranscodingOutputFormat format)
         {
             switch (format)
             {
-            case TranscodingOutputFormat::MP3:
+            case db::TranscodingOutputFormat::MP3:
                 return "mp3";
-            case TranscodingOutputFormat::OGG_OPUS:
+            case db::TranscodingOutputFormat::OGG_OPUS:
                 return "opus";
-            case TranscodingOutputFormat::MATROSKA_OPUS:
-                return "mka";
-            case TranscodingOutputFormat::OGG_VORBIS:
+            case db::TranscodingOutputFormat::OGG_VORBIS:
                 return "ogg";
-            case TranscodingOutputFormat::WEBM_VORBIS:
-                return "webm";
             }
 
             return "";
         }
     } // namespace
 
-    Response::Node createSongNode(RequestContext& context, const Track::pointer& track, bool id3)
+    Response::Node createSongNode(RequestContext& context, const db::Track::pointer& track, bool id3)
     {
         LMS_SCOPED_TRACE_DETAILED("Subsonic", "CreateSong");
 
@@ -136,7 +130,7 @@ namespace lms::api::subsonic
             trackResponse.setAttribute("coverArt", idToString(coverArtId));
         }
 
-        const std::vector<Artist::pointer>& artists{ track->getArtists({ TrackArtistLinkType::Artist }) };
+        const std::vector<db::Artist::pointer>& artists{ track->getArtists({ db::TrackArtistLinkType::Artist }) };
         if (!artists.empty())
         {
             if (!track->getArtistDisplayName().empty())
@@ -148,7 +142,7 @@ namespace lms::api::subsonic
                 trackResponse.setAttribute("artistId", idToString(artists.front()->getId()));
         }
 
-        const Release::pointer release{ track->getRelease() };
+        const db::Release::pointer release{ track->getRelease() };
         if (release)
         {
             trackResponse.setAttribute("album", release->getName());
@@ -167,13 +161,13 @@ namespace lms::api::subsonic
             trackResponse.setAttribute("starred", core::stringUtils::toISO8601String(dateTime));
 
         // Report the first GENRE for this track
-        std::vector<Cluster::pointer> genres;
+        std::vector<db::Cluster::pointer> genres;
         {
-            Cluster::FindParameters params;
+            db::Cluster::FindParameters params;
             params.setTrack(track->getId());
             params.setClusterTypeName("GENRE");
 
-            genres = Cluster::find(context.getDbSession(), params).results;
+            genres = db::Cluster::find(context.getDbSession(), params).results;
             if (!genres.empty())
                 trackResponse.setAttribute("genre", genres.front()->getName());
         }
@@ -204,13 +198,13 @@ namespace lms::api::subsonic
             trackResponse.createEmptyArrayChild("artists");
             trackResponse.createEmptyArrayChild("contributors");
 
-            TrackArtistLink::find(context.getDbSession(), track->getId(), [&](const TrackArtistLink::pointer& link, const Artist::pointer& artist) {
+            db::TrackArtistLink::find(context.getDbSession(), track->getId(), [&](const db::TrackArtistLink::pointer& link, const db::Artist::pointer& artist) {
                 switch (link->getType())
                 {
-                case TrackArtistLinkType::Artist:
+                case db::TrackArtistLinkType::Artist:
                     trackResponse.addArrayChild("artists", createArtistNode(artist));
                     break;
-                case TrackArtistLinkType::ReleaseArtist:
+                case db::TrackArtistLinkType::ReleaseArtist:
                     trackResponse.addArrayChild("albumartists", createArtistNode(artist));
                     break;
                 default:
@@ -226,11 +220,11 @@ namespace lms::api::subsonic
         auto addClusters{ [&](Response::Node::Key field, std::string_view clusterTypeName) {
             trackResponse.createEmptyArrayValue(field);
 
-            Cluster::FindParameters params;
+            db::Cluster::FindParameters params;
             params.setTrack(track->getId());
             params.setClusterTypeName(clusterTypeName);
 
-            for (const auto& cluster : Cluster::find(context.getDbSession(), params).results)
+            for (const auto& cluster : db::Cluster::find(context.getDbSession(), params).results)
                 trackResponse.addArrayValue(field, cluster->getName());
         } };
 

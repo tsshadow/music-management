@@ -44,157 +44,157 @@ namespace lms::audio::taglib
 {
     namespace
     {
-        Image::Type imageTypeFromfromID3v2(TagLib::ID3v2::AttachedPictureFrame::Type type)
+        core::media::ImageType imageTypeFromfromID3v2(TagLib::ID3v2::AttachedPictureFrame::Type type)
         {
             switch (type)
             {
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::Other:
-                return Image::Type::Other;
+                return core::media::ImageType::Other;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::FileIcon:
-                return Image::Type::FileIcon;
+                return core::media::ImageType::FileIcon;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::OtherFileIcon:
-                return Image::Type::OtherFileIcon;
+                return core::media::ImageType::OtherFileIcon;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::FrontCover:
-                return Image::Type::FrontCover;
+                return core::media::ImageType::FrontCover;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::BackCover:
-                return Image::Type::BackCover;
+                return core::media::ImageType::BackCover;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::LeafletPage:
-                return Image::Type::LeafletPage;
+                return core::media::ImageType::LeafletPage;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::Media:
-                return Image::Type::Media;
+                return core::media::ImageType::Media;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::LeadArtist:
-                return Image::Type::LeadArtist;
+                return core::media::ImageType::LeadArtist;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::Artist:
-                return Image::Type::Artist;
+                return core::media::ImageType::Artist;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::Conductor:
-                return Image::Type::Conductor;
+                return core::media::ImageType::Conductor;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::Band:
-                return Image::Type::Band;
+                return core::media::ImageType::Band;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::Composer:
-                return Image::Type::Composer;
+                return core::media::ImageType::Composer;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::Lyricist:
-                return Image::Type::Lyricist;
+                return core::media::ImageType::Lyricist;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::RecordingLocation:
-                return Image::Type::RecordingLocation;
+                return core::media::ImageType::RecordingLocation;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::DuringRecording:
-                return Image::Type::DuringRecording;
+                return core::media::ImageType::DuringRecording;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::DuringPerformance:
-                return Image::Type::DuringPerformance;
+                return core::media::ImageType::DuringPerformance;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::MovieScreenCapture:
-                return Image::Type::MovieScreenCapture;
+                return core::media::ImageType::MovieScreenCapture;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::ColouredFish:
-                return Image::Type::ColouredFish;
+                return core::media::ImageType::ColouredFish;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::Illustration:
-                return Image::Type::Illustration;
+                return core::media::ImageType::Illustration;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::BandLogo:
-                return Image::Type::BandLogo;
+                return core::media::ImageType::BandLogo;
             case ::TagLib::ID3v2::AttachedPictureFrame::Type::PublisherLogo:
-                return Image::Type::PublisherLogo;
+                return core::media::ImageType::PublisherLogo;
             }
 
-            return Image::Type::Unknown;
+            return core::media::ImageType::Unknown;
         }
 
-        Image::Type imageTypeFromfromASF(TagLib::ASF::Picture::Type type)
+        core::media::ImageType imageTypeFromfromASF(TagLib::ASF::Picture::Type type)
         {
             switch (type)
             {
             case ::TagLib::ASF::Picture::Type::Other:
-                return Image::Type::Other;
+                return core::media::ImageType::Other;
             case ::TagLib::ASF::Picture::Type::FileIcon:
-                return Image::Type::FileIcon;
+                return core::media::ImageType::FileIcon;
             case ::TagLib::ASF::Picture::Type::OtherFileIcon:
-                return Image::Type::OtherFileIcon;
+                return core::media::ImageType::OtherFileIcon;
             case ::TagLib::ASF::Picture::Type::FrontCover:
-                return Image::Type::FrontCover;
+                return core::media::ImageType::FrontCover;
             case ::TagLib::ASF::Picture::Type::BackCover:
-                return Image::Type::BackCover;
+                return core::media::ImageType::BackCover;
             case ::TagLib::ASF::Picture::Type::LeafletPage:
-                return Image::Type::LeafletPage;
+                return core::media::ImageType::LeafletPage;
             case ::TagLib::ASF::Picture::Type::Media:
-                return Image::Type::Media;
+                return core::media::ImageType::Media;
             case ::TagLib::ASF::Picture::Type::LeadArtist:
-                return Image::Type::LeadArtist;
+                return core::media::ImageType::LeadArtist;
             case ::TagLib::ASF::Picture::Type::Artist:
-                return Image::Type::Artist;
+                return core::media::ImageType::Artist;
             case ::TagLib::ASF::Picture::Type::Conductor:
-                return Image::Type::Conductor;
+                return core::media::ImageType::Conductor;
             case ::TagLib::ASF::Picture::Type::Band:
-                return Image::Type::Band;
+                return core::media::ImageType::Band;
             case ::TagLib::ASF::Picture::Type::Composer:
-                return Image::Type::Composer;
+                return core::media::ImageType::Composer;
             case ::TagLib::ASF::Picture::Type::Lyricist:
-                return Image::Type::Lyricist;
+                return core::media::ImageType::Lyricist;
             case ::TagLib::ASF::Picture::Type::RecordingLocation:
-                return Image::Type::RecordingLocation;
+                return core::media::ImageType::RecordingLocation;
             case ::TagLib::ASF::Picture::Type::DuringRecording:
-                return Image::Type::DuringRecording;
+                return core::media::ImageType::DuringRecording;
             case ::TagLib::ASF::Picture::Type::DuringPerformance:
-                return Image::Type::DuringPerformance;
+                return core::media::ImageType::DuringPerformance;
             case ::TagLib::ASF::Picture::Type::MovieScreenCapture:
-                return Image::Type::MovieScreenCapture;
+                return core::media::ImageType::MovieScreenCapture;
             case ::TagLib::ASF::Picture::Type::ColouredFish:
-                return Image::Type::ColouredFish;
+                return core::media::ImageType::ColouredFish;
             case ::TagLib::ASF::Picture::Type::Illustration:
-                return Image::Type::Illustration;
+                return core::media::ImageType::Illustration;
             case ::TagLib::ASF::Picture::Type::BandLogo:
-                return Image::Type::BandLogo;
+                return core::media::ImageType::BandLogo;
             case ::TagLib::ASF::Picture::Type::PublisherLogo:
-                return Image::Type::PublisherLogo;
+                return core::media::ImageType::PublisherLogo;
             }
 
-            return Image::Type::Unknown;
+            return core::media::ImageType::Unknown;
         }
 
-        Image::Type imageTypeFromfromFLAC(TagLib::FLAC::Picture::Type type)
+        core::media::ImageType imageTypeFromfromFLAC(TagLib::FLAC::Picture::Type type)
         {
             switch (type)
             {
             case ::TagLib::FLAC::Picture::Type::Other:
-                return Image::Type::Other;
+                return core::media::ImageType::Other;
             case ::TagLib::FLAC::Picture::Type::FileIcon:
-                return Image::Type::FileIcon;
+                return core::media::ImageType::FileIcon;
             case ::TagLib::FLAC::Picture::Type::OtherFileIcon:
-                return Image::Type::OtherFileIcon;
+                return core::media::ImageType::OtherFileIcon;
             case ::TagLib::FLAC::Picture::Type::FrontCover:
-                return Image::Type::FrontCover;
+                return core::media::ImageType::FrontCover;
             case ::TagLib::FLAC::Picture::Type::BackCover:
-                return Image::Type::BackCover;
+                return core::media::ImageType::BackCover;
             case ::TagLib::FLAC::Picture::Type::LeafletPage:
-                return Image::Type::LeafletPage;
+                return core::media::ImageType::LeafletPage;
             case ::TagLib::FLAC::Picture::Type::Media:
-                return Image::Type::Media;
+                return core::media::ImageType::Media;
             case ::TagLib::FLAC::Picture::Type::LeadArtist:
-                return Image::Type::LeadArtist;
+                return core::media::ImageType::LeadArtist;
             case ::TagLib::FLAC::Picture::Type::Artist:
-                return Image::Type::Artist;
+                return core::media::ImageType::Artist;
             case ::TagLib::FLAC::Picture::Type::Conductor:
-                return Image::Type::Conductor;
+                return core::media::ImageType::Conductor;
             case ::TagLib::FLAC::Picture::Type::Band:
-                return Image::Type::Band;
+                return core::media::ImageType::Band;
             case ::TagLib::FLAC::Picture::Type::Composer:
-                return Image::Type::Composer;
+                return core::media::ImageType::Composer;
             case ::TagLib::FLAC::Picture::Type::Lyricist:
-                return Image::Type::Lyricist;
+                return core::media::ImageType::Lyricist;
             case ::TagLib::FLAC::Picture::Type::RecordingLocation:
-                return Image::Type::RecordingLocation;
+                return core::media::ImageType::RecordingLocation;
             case ::TagLib::FLAC::Picture::Type::DuringRecording:
-                return Image::Type::DuringRecording;
+                return core::media::ImageType::DuringRecording;
             case ::TagLib::FLAC::Picture::Type::DuringPerformance:
-                return Image::Type::DuringPerformance;
+                return core::media::ImageType::DuringPerformance;
             case ::TagLib::FLAC::Picture::Type::MovieScreenCapture:
-                return Image::Type::MovieScreenCapture;
+                return core::media::ImageType::MovieScreenCapture;
             case ::TagLib::FLAC::Picture::Type::ColouredFish:
-                return Image::Type::ColouredFish;
+                return core::media::ImageType::ColouredFish;
             case ::TagLib::FLAC::Picture::Type::Illustration:
-                return Image::Type::Illustration;
+                return core::media::ImageType::Illustration;
             case ::TagLib::FLAC::Picture::Type::BandLogo:
-                return Image::Type::BandLogo;
+                return core::media::ImageType::BandLogo;
             case ::TagLib::FLAC::Picture::Type::PublisherLogo:
-                return Image::Type::PublisherLogo;
+                return core::media::ImageType::PublisherLogo;
             }
 
-            return Image::Type::Unknown;
+            return core::media::ImageType::Unknown;
         }
 
         const char* mp4ImageFormatToMimeType(TagLib::MP4::CoverArt::Format format)
@@ -217,14 +217,14 @@ namespace lms::audio::taglib
         }
 
 #if LMS_TAGLIB_HAS_APE_COMPLEX_PROPERTIES
-        Image::Type imageTypeFromAPEPictureType(std::string_view pictureType)
+        core::media::ImageType imageTypeFromAPEPictureType(std::string_view pictureType)
         {
             if (core::stringUtils::stringCaseInsensitiveContains(pictureType, "front"))
-                return Image::Type::FrontCover;
+                return core::media::ImageType::FrontCover;
             if (core::stringUtils::stringCaseInsensitiveContains(pictureType, "back"))
-                return Image::Type::BackCover;
+                return core::media::ImageType::BackCover;
 
-            return Image::Type::Unknown;
+            return core::media::ImageType::Unknown;
         }
 #endif // LMS_TAGLIB_HAS_APE_COMPLEX_PROPERTIES
 
@@ -294,7 +294,7 @@ namespace lms::audio::taglib
                 image.data = pictureData;
 
                 // By convention, consider the first cover art as the front cover
-                image.type = firstCover ? Image::Type::FrontCover : Image::Type::Unknown;
+                image.type = firstCover ? core::media::ImageType::FrontCover : core::media::ImageType::Unknown;
                 firstCover = false;
 
                 visitor(image);

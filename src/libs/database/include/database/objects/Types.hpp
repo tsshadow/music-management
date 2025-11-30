@@ -155,32 +155,6 @@ namespace lms::db
         EmbeddedFirst,
     };
 
-    enum class ImageType
-    {
-        Unknown = 0,
-        Other = 1,
-        FileIcon = 2,
-        OtherFileIcon = 3,
-        FrontCover = 4,
-        BackCover = 5,
-        LeafletPage = 6,
-        Media = 7,
-        LeadArtist = 8,
-        Artist = 9,
-        Conductor = 10,
-        Band = 11,
-        Composer = 12,
-        Lyricist = 13,
-        RecordingLocation = 14,
-        DuringRecording = 15,
-        DuringPerformance = 16,
-        MovieScreenCapture = 17,
-        ColouredFish = 18,
-        Illustration = 19,
-        BandLogo = 20,
-        PublisherLogo = 21
-    };
-
     enum class TrackArtistLinkType
     {
         Artist = 0, // regular track artist
@@ -204,8 +178,8 @@ namespace lms::db
         MP3 = 1,
         OGG_OPUS = 2,
         OGG_VORBIS = 3,
-        WEBM_VORBIS = 4,
-        MATROSKA_OPUS = 5,
+        // WEBM_VORBIS = 4,
+        // MATROSKA_OPUS = 5,
     };
 
     using Bitrate = std::uint32_t;
@@ -266,54 +240,4 @@ namespace lms::db
         Clean = 2,
         Explicit = 3,
     };
-
-    enum class ContainerType
-    {
-        Unknown = 0,
-
-        AIFF = 1,
-        APE = 2,
-        ASF = 3,
-        DSF = 4,
-        FLAC = 5,
-        MP4 = 6,
-        MPC = 7,
-        MPEG = 8,
-        Ogg = 9,
-        Shorten = 10,
-        TrueAudio = 11,
-        WAV = 12,
-        WavPack = 13,
-    };
-
-    core::LiteralString containerTypeToString(ContainerType type);
-
-    enum class CodecType
-    {
-        Unknown = 0,
-
-        AAC = 1,
-        AC3 = 2,
-        ALAC = 3,
-        APE = 4,
-        DSD = 5,
-        EAC3 = 6,
-        FLAC = 7,
-        MP3 = 8,
-        MP4ALS = 9,
-        MPC7 = 10,
-        MPC8 = 11,
-        Opus = 12,
-        PCM = 13,
-        Shorten = 14,
-        TrueAudio = 15,
-        Vorbis = 16,
-        WavPack = 17,
-        WMA1 = 18,
-        WMA2 = 19,
-        WMA9Pro = 20,
-        WMA9Lossless = 21,
-    };
-
-    core::LiteralString codecTypeToString(CodecType type);
 } // namespace lms::db

@@ -26,8 +26,9 @@
 #include "core/ILogger.hpp"
 #include "core/IResourceHandler.hpp"
 #include "core/String.hpp"
+#include "core/media/MimeType.hpp"
 
-#include "audio/AudioTypes.hpp"
+#include "audio/AudioProperties.hpp"
 #include "audio/Exception.hpp"
 #include "audio/IAudioFileInfo.hpp"
 #include "audio/IAudioFileInfoParser.hpp"
@@ -37,6 +38,7 @@
 #include "database/objects/PodcastEpisodeId.hpp"
 #include "database/objects/Track.hpp"
 #include "database/objects/TrackLyrics.hpp"
+#include "database/objects/Types.hpp"
 #include "database/objects/User.hpp"
 
 #include "services/artwork/IArtworkService.hpp"
@@ -54,84 +56,73 @@ namespace lms::api::subsonic
 {
     namespace
     {
-        std::optional<audio::OutputFormat> subsonicStreamFormatToTranscodingOutputFormat(std::string_view format)
+        struct OutputFormat
         {
-            for (const auto& [str, avFormat] : std::initializer_list<std::pair<std::string_view, audio::OutputFormat>>{
-                     { "mp3", audio::OutputFormat::MP3 },
-                     { "opus", audio::OutputFormat::OGG_OPUS },
-                     { "vorbis", audio::OutputFormat::OGG_VORBIS },
-                 })
-            {
-                if (core::stringUtils::stringCaseInsensitiveEqual(str, format))
-                    return avFormat;
-            }
-            return std::nullopt;
+            std::string name;
+            core::media::ContainerType container;
+            core::media::CodecType codec;
+        };
+        constexpr std::array outputFormats{
+            OutputFormat{ "mp3", core::media::ContainerType::MPEG, core::media::CodecType::MP3 },
+            OutputFormat{ "opus", core::media::ContainerType::Ogg, core::media::CodecType::Opus },
+            OutputFormat{ "vorbis", core::media::ContainerType::Ogg, core::media::CodecType::Vorbis },
+        };
+
+        std::optional<OutputFormat> getOutputFormatByName(std::string_view format)
+        {
+            std::optional<OutputFormat> res;
+
+            const auto itFormat{ std::find_if(outputFormats.begin(), outputFormats.end(), [&format, &res](const OutputFormat& outputFormat) {
+                if (core::stringUtils::stringCaseInsensitiveEqual(format, outputFormat.name))
+                {
+                    res = outputFormat;
+                    return true;
+                }
+                return false;
+            }) };
+            if (itFormat != outputFormats.end())
+                res = *itFormat;
+
+            return res;
         }
 
-        audio::OutputFormat userTranscodeFormatToTranscodingFormat(db::TranscodingOutputFormat format)
+        std::optional<OutputFormat> userTranscodeFormatToOutputFormat(db::TranscodingOutputFormat format)
         {
+            std::optional<OutputFormat> res;
+
             switch (format)
             {
             case db::TranscodingOutputFormat::MP3:
-                return audio::OutputFormat::MP3;
+                res = getOutputFormatByName("mp3");
+                break;
             case db::TranscodingOutputFormat::OGG_OPUS:
-                return audio::OutputFormat::OGG_OPUS;
-            case db::TranscodingOutputFormat::MATROSKA_OPUS:
-                return audio::OutputFormat::MATROSKA_OPUS;
+                res = getOutputFormatByName("opus");
+                break;
             case db::TranscodingOutputFormat::OGG_VORBIS:
-                return audio::OutputFormat::OGG_VORBIS;
-            case db::TranscodingOutputFormat::WEBM_VORBIS:
-                return audio::OutputFormat::WEBM_VORBIS;
+                res = getOutputFormatByName("vorbis");
+                break;
             }
 
-            return audio::OutputFormat::OGG_OPUS;
+            return res;
         }
 
-        bool isCodecCompatibleWithOutputFormat(audio::CodecType codec, audio::OutputFormat outputFormat)
+        audio::AudioProperties getAudioProperties(const std::filesystem::path& trackPath)
         {
-            switch (outputFormat)
-            {
-            case audio::OutputFormat::MP3:
-                return codec == audio::CodecType::MP3;
-
-            case audio::OutputFormat::OGG_OPUS:
-            case audio::OutputFormat::MATROSKA_OPUS:
-                return codec == audio::CodecType::Opus;
-
-            case audio::OutputFormat::OGG_VORBIS:
-            case audio::OutputFormat::WEBM_VORBIS:
-                return codec == audio::CodecType::Vorbis;
-            }
-
-            return true;
-        }
-
-        struct StreamParameters
-        {
-            std::filesystem::path filePath;
-            std::string fileMimeType; // set if known
-            std::optional<audio::TranscodeParameters> transcodeParameters;
-            bool estimateContentLength{};
-        };
-
-        bool isOutputFormatCompatible(const std::filesystem::path& trackPath, audio::OutputFormat outputFormat)
-        {
-            // TODO: put this information in db during scan
-            // It is in base only for tracks, not yet for podcasts
             try
             {
                 const auto parser{ audio::createAudioFileInfoParser(audio::AudioFileInfoParserBackend::FFmpeg) };
 
                 audio::AudioFileInfoParseOptions parseOptions;
-                parseOptions.audioPropertiesReadStyle = audio::AudioFileInfoParseOptions::AudioPropertiesReadStyle::Fast; // only coded needed
+                parseOptions.audioPropertiesReadStyle = audio::AudioFileInfoParseOptions::AudioPropertiesReadStyle::Average;
                 parseOptions.readImages = false;
                 parseOptions.readTags = false;
                 const auto audioFile{ parser->parse(trackPath, parseOptions) };
 
-                if (!audioFile->getAudioProperties())
+                const audio::AudioProperties* properties{ audioFile->getAudioProperties() };
+                if (!properties)
                     throw RequestedDataNotFoundError{};
 
-                return isCodecCompatibleWithOutputFormat(audioFile->getAudioProperties()->codec, outputFormat);
+                return *properties;
             }
             catch (const audio::Exception& e)
             {
@@ -143,9 +134,7 @@ namespace lms::api::subsonic
         struct AudioFileInfo
         {
             std::filesystem::path path;
-            std::chrono::milliseconds duration{};
-            std::size_t bitrate{};
-            std::string mimeType; // set if known
+            audio::AudioProperties audioProperties;
         };
 
         AudioFileInfo getAudioFileInfo(db::Session& session, AudioFileId audioFileId)
@@ -161,8 +150,20 @@ namespace lms::api::subsonic
                     throw RequestedDataNotFoundError{};
 
                 res.path = track->getAbsoluteFilePath();
-                res.duration = track->getDuration();
-                res.bitrate = track->getBitrate();
+                if (track->getContainer() && track->getCodec())
+                {
+                    res.audioProperties.container = *track->getContainer();
+                    res.audioProperties.codec = *track->getCodec();
+                    res.audioProperties.duration = track->getDuration();
+                    res.audioProperties.bitrate = track->getBitrate();
+                    res.audioProperties.channelCount = track->getChannelCount();
+                    res.audioProperties.sampleRate = track->getSampleRate();
+                    res.audioProperties.bitsPerSample = track->getBitsPerSample();
+                }
+                else
+                {
+                    res.audioProperties = getAudioProperties(res.path);
+                }
             }
             else if (const db::PodcastEpisodeId * episodeId{ std::get_if<db::PodcastEpisodeId>(&audioFileId) })
             {
@@ -173,13 +174,32 @@ namespace lms::api::subsonic
                 std::filesystem::path podcastCachePath{ core::Service<podcast::IPodcastService>::get()->getCachePath() };
 
                 res.path = podcastCachePath / episode->getAudioRelativeFilePath();
-                res.duration = episode->getDuration();
-                res.bitrate = episode->getEnclosureLength() / std::chrono::duration_cast<std::chrono::seconds>(episode->getDuration()).count() * 8;
-                res.mimeType = episode->getEnclosureContentType();
+                if (episode->getContainer() && episode->getCodec())
+                {
+                    res.audioProperties.container = *episode->getContainer();
+                    res.audioProperties.codec = *episode->getCodec();
+                    res.audioProperties.duration = episode->getDuration();
+                    res.audioProperties.bitrate = episode->getBitrate();
+                    res.audioProperties.channelCount = episode->getChannelCount();
+                    res.audioProperties.sampleRate = episode->getSampleRate();
+                    res.audioProperties.bitsPerSample = episode->getBitsPerSample();
+                }
+                else
+                {
+                    res.audioProperties = getAudioProperties(res.path);
+                }
             }
 
             return res;
         }
+
+        struct StreamParameters
+        {
+            std::filesystem::path filePath;
+            audio::AudioProperties audioProperties;
+            std::optional<audio::TranscodeParameters> transcodeParameters;
+            bool estimateContentLength{};
+        };
 
         StreamParameters getStreamParameters(RequestContext& context)
         {
@@ -201,32 +221,31 @@ namespace lms::api::subsonic
 
             StreamParameters parameters;
             parameters.filePath = audioFileInfo.path;
-            parameters.fileMimeType = audioFileInfo.mimeType;
             parameters.estimateContentLength = estimateContentLength;
 
             if (format == "raw")   // raw => no transcoding
                 return parameters; // TODO: what if offset is not 0?
 
-            std::optional<audio::OutputFormat> requestedFormat{ subsonicStreamFormatToTranscodingOutputFormat(format) };
+            std::optional<OutputFormat> requestedFormat{ getOutputFormatByName(format) };
             if (!requestedFormat)
             {
                 if (context.getUser()->getSubsonicEnableTranscodingByDefault())
-                    requestedFormat = userTranscodeFormatToTranscodingFormat(context.getUser()->getSubsonicDefaultTranscodingOutputFormat());
+                    requestedFormat = userTranscodeFormatToOutputFormat(context.getUser()->getSubsonicDefaultTranscodingOutputFormat());
             }
 
-            if (!requestedFormat && (maxBitRate == 0 || audioFileInfo.bitrate <= maxBitRate))
+            if (!requestedFormat && (maxBitRate == 0 || audioFileInfo.audioProperties.bitrate <= maxBitRate))
             {
                 LMS_LOG(API_SUBSONIC, DEBUG, "File's bitrate is compatible with parameters => no transcoding");
                 return parameters; // no transcoding needed
             }
 
-            // scan the file to check if its format is compatible with the actual requested format
+            // Check if the input file is compatible with the actual requested format
             //  same codec => apply max bitrate
             //  otherwise => apply default bitrate (because we can't really compare bitrates between formats) + max bitrate)
             std::size_t bitrate{};
-            if (requestedFormat && isOutputFormatCompatible(audioFileInfo.path, *requestedFormat))
+            if (requestedFormat && requestedFormat->container == audioFileInfo.audioProperties.container && requestedFormat->codec == audioFileInfo.audioProperties.codec)
             {
-                if (maxBitRate == 0 || audioFileInfo.bitrate <= maxBitRate)
+                if (maxBitRate == 0 || audioFileInfo.audioProperties.bitrate <= maxBitRate)
                 {
                     LMS_LOG(API_SUBSONIC, DEBUG, "File's bitrate and format are compatible with parameters => no transcoding");
                     return parameters; // no transcoding needed
@@ -235,22 +254,24 @@ namespace lms::api::subsonic
             }
 
             // Need to transcode here
-            if (!requestedFormat)
-                requestedFormat = userTranscodeFormatToTranscodingFormat(context.getUser()->getSubsonicDefaultTranscodingOutputFormat());
-            if (!bitrate)
-                bitrate = context.getUser()->getSubsonicDefaultTranscodingOutputBitrate();
-            if (maxBitRate)
-                bitrate = std::min<std::size_t>(bitrate, maxBitRate);
-
             audio::TranscodeParameters& transcodeParameters{ parameters.transcodeParameters.emplace() };
 
+            if (!requestedFormat) // no format provided => use user's default
+                requestedFormat = userTranscodeFormatToOutputFormat(context.getUser()->getSubsonicDefaultTranscodingOutputFormat());
+            if (!bitrate) // no bitrate provided => use user's default
+                bitrate = context.getUser()->getSubsonicDefaultTranscodingOutputBitrate();
+            if (maxBitRate) // but still honor provided maxBitRate, if any
+                bitrate = std::min<std::size_t>(bitrate, maxBitRate);
+
             transcodeParameters.inputParameters.filePath = audioFileInfo.path;
-            transcodeParameters.inputParameters.duration = audioFileInfo.duration;
+            transcodeParameters.inputParameters.audioProperties = audioFileInfo.audioProperties;
             transcodeParameters.inputParameters.offset = std::chrono::seconds{ timeOffset };
-            ;
 
             transcodeParameters.outputParameters.bitrate = bitrate;
-            transcodeParameters.outputParameters.format = *requestedFormat;
+            transcodeParameters.outputParameters.format.emplace();
+            transcodeParameters.outputParameters.format->container = requestedFormat->container;
+            transcodeParameters.outputParameters.format->codec = requestedFormat->codec;
+
             transcodeParameters.outputParameters.stripMetadata = false; // We want clients to use metadata (offline use, replay gain, etc.)
 
             return parameters;
@@ -371,7 +392,7 @@ namespace lms::api::subsonic
                 if (streamParameters.transcodeParameters)
                     resourceHandler = core::Service<transcoding::ITranscodeService>::get()->createTranscodeResourceHandler(*streamParameters.transcodeParameters, streamParameters.estimateContentLength);
                 else
-                    resourceHandler = core::createFileResourceHandler(streamParameters.filePath, streamParameters.fileMimeType);
+                    resourceHandler = core::createFileResourceHandler(streamParameters.filePath, core::media::getMimeType(streamParameters.audioProperties.container, streamParameters.audioProperties.codec).str());
             }
             else
             {

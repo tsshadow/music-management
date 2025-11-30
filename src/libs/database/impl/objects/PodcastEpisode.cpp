@@ -27,6 +27,7 @@
 #include "database/objects/Podcast.hpp"
 
 #include "Utils.hpp"
+#include "detail/Types.hpp"
 #include "traits/IdTypeTraits.hpp"
 #include "traits/PathTraits.hpp"
 
@@ -98,6 +99,16 @@ namespace lms::db
         utils::forEachQueryRangeResult(query, params.range, func);
     }
 
+    std::optional<core::media::ContainerType> PodcastEpisode::getContainer() const
+    {
+        return detail::getMediaContainerType(_container);
+    }
+
+    std::optional<core::media::CodecType> PodcastEpisode::getCodec() const
+    {
+        return detail::getMediaCodecType(_codec);
+    }
+
     ObjectPtr<Artwork> PodcastEpisode::getArtwork() const
     {
         return _artwork;
@@ -106,6 +117,16 @@ namespace lms::db
     ArtworkId PodcastEpisode::getArtworkId() const
     {
         return _artwork.id();
+    }
+
+    void PodcastEpisode::setContainer(core::media::ContainerType container)
+    {
+        _container = detail::getDbContainerType(container);
+    }
+
+    void PodcastEpisode::setCodec(core::media::CodecType codec)
+    {
+        _codec = detail::getDbCodecType(codec);
     }
 
     void PodcastEpisode::setArtwork(ObjectPtr<Artwork> artwork)

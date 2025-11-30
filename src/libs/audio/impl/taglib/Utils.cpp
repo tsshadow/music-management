@@ -111,7 +111,7 @@ namespace lms::audio::taglib::utils
         {
             const std::error_code ec{ errno, std::generic_category() };
             LMS_LOG(METADATA, DEBUG, "fopen failed for " << p << ": " << ec.message());
-            throw IOFileException{ "fopen failed", ec };
+            throw IOFileException{ p, "fopen failed", ec };
         }
 
         int fd{ ::fileno(file) };
@@ -119,7 +119,7 @@ namespace lms::audio::taglib::utils
         {
             const std::error_code ec{ errno, std::generic_category() };
             LMS_LOG(METADATA, DEBUG, "fileno failed for " << p << ": " << ec.message());
-            throw IOFileException{ "fileno failed", ec };
+            throw IOFileException{ p, "fileno failed", ec };
         }
 
         return TagLib::FileStream{ fd, true };

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Emeric Poupon
+ * Copyright (C) 2025 Emeric Poupon
  *
  * This file is part of LMS.
  *
@@ -17,61 +17,60 @@
  * along with LMS.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "audio/IImageReader.hpp"
+#include "core/media/ImageType.hpp"
 
-namespace lms::audio
+namespace lms::core::media
 {
-    core::LiteralString imageTypeToString(Image::Type type)
+    core::LiteralString imageTypeToString(ImageType type)
     {
         switch (type)
         {
-        case Image::Type::Other:
+        case ImageType::Other:
             return "Other";
-        case Image::Type::FileIcon:
+        case ImageType::FileIcon:
             return "FileIcon";
-        case Image::Type::OtherFileIcon:
+        case ImageType::OtherFileIcon:
             return "OtherFileIcon";
-        case Image::Type::FrontCover:
+        case ImageType::FrontCover:
             return "FrontCover";
-        case Image::Type::BackCover:
+        case ImageType::BackCover:
             return "BackCover";
-        case Image::Type::LeafletPage:
+        case ImageType::LeafletPage:
             return "LeafletPage";
-        case Image::Type::Media:
+        case ImageType::Media:
             return "Media";
-        case Image::Type::LeadArtist:
+        case ImageType::LeadArtist:
             return "LeadArtist";
-        case Image::Type::Artist:
+        case ImageType::Artist:
             return "Artist";
-        case Image::Type::Conductor:
+        case ImageType::Conductor:
             return "Conductor";
-        case Image::Type::Band:
+        case ImageType::Band:
             return "Band";
-        case Image::Type::Composer:
+        case ImageType::Composer:
             return "Composer";
-        case Image::Type::Lyricist:
+        case ImageType::Lyricist:
             return "Lyricist";
-        case Image::Type::RecordingLocation:
+        case ImageType::RecordingLocation:
             return "RecordingLocation";
-        case Image::Type::DuringRecording:
+        case ImageType::DuringRecording:
             return "DuringRecording";
-        case Image::Type::DuringPerformance:
+        case ImageType::DuringPerformance:
             return "DuringPerformance";
-        case Image::Type::MovieScreenCapture:
+        case ImageType::MovieScreenCapture:
             return "MovieScreenCapture";
-        case Image::Type::ColouredFish:
+        case ImageType::ColouredFish:
             return "ColouredFish";
-        case Image::Type::Illustration:
+        case ImageType::Illustration:
             return "Illustration";
-        case Image::Type::BandLogo:
+        case ImageType::BandLogo:
             return "BandLogo";
-        case Image::Type::PublisherLogo:
+        case ImageType::PublisherLogo:
             return "PublisherLogo";
-        case Image::Type::Unknown:
+        case ImageType::Unknown:
             break;
         }
 
         return "Unknown";
     }
-
-} // namespace lms::audio
+} // namespace lms::core::media

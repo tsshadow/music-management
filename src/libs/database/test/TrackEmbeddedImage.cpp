@@ -130,7 +130,7 @@ namespace lms::db::tests
 
         {
             auto transaction{ session.createWriteTransaction() };
-            link.get().modify()->setType(ImageType::FrontCover);
+            link.get().modify()->setType(core::media::ImageType::FrontCover);
         }
 
         {
@@ -173,6 +173,30 @@ namespace lms::db::tests
             TrackEmbeddedImage::find(session, params, [&](const auto&) { visited = true; });
             EXPECT_TRUE(visited);
         }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            TrackEmbeddedImage::FindParameters params;
+            params.setTrack(track.getId());
+            params.setImageType(core::media::ImageType::FrontCover);
+
+            bool visited{};
+            TrackEmbeddedImage::find(session, params, [&](const auto&) { visited = true; });
+            EXPECT_TRUE(visited);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            TrackEmbeddedImage::FindParameters params;
+            params.setTrack(track.getId());
+            params.setImageType(core::media::ImageType::BackCover);
+
+            bool visited{};
+            TrackEmbeddedImage::find(session, params, [&](const auto&) { visited = true; });
+            EXPECT_FALSE(visited);
+        }
     }
 
     TEST_F(DatabaseFixture, TrackEmbeddedImage_findByParams_sorts)
@@ -200,18 +224,18 @@ namespace lms::db::tests
             track1.get().modify()->setMedium(medium1.get());
             track1.get().modify()->setTrackNumber(2);
 
-            link1.get().modify()->setType(ImageType::FrontCover);
+            link1.get().modify()->setType(core::media::ImageType::FrontCover);
             image1.get().modify()->setSize(750);
-            link2.get().modify()->setType(ImageType::Media);
+            link2.get().modify()->setType(core::media::ImageType::Media);
             image2.get().modify()->setSize(1000);
-            link3.get().modify()->setType(ImageType::Media);
+            link3.get().modify()->setType(core::media::ImageType::Media);
             image3.get().modify()->setSize(2000);
 
             track2.get().modify()->setRelease(release.get());
             track2.get().modify()->setMedium(medium2.get());
             track2.get().modify()->setTrackNumber(1);
 
-            link4.get().modify()->setType(ImageType::Media);
+            link4.get().modify()->setType(core::media::ImageType::Media);
             image4.get().modify()->setSize(1500);
         }
 
@@ -220,7 +244,7 @@ namespace lms::db::tests
 
             TrackEmbeddedImage::FindParameters params;
             params.setRelease(release.getId());
-            params.setImageType(ImageType::Media);
+            params.setImageType(core::media::ImageType::Media);
             params.setSortMethod(TrackEmbeddedImageSortMethod::SizeDesc);
 
             std::vector<TrackEmbeddedImageId> visitedIds;
@@ -236,7 +260,7 @@ namespace lms::db::tests
 
             TrackEmbeddedImage::FindParameters params;
             params.setMedium(medium1.getId());
-            params.setImageType(ImageType::Media);
+            params.setImageType(core::media::ImageType::Media);
             params.setSortMethod(TrackEmbeddedImageSortMethod::TrackNumberThenSizeDesc);
 
             std::vector<TrackEmbeddedImageId> visitedIds;
@@ -251,7 +275,7 @@ namespace lms::db::tests
 
             TrackEmbeddedImage::FindParameters params;
             params.setRelease(release.getId());
-            params.setImageType(ImageType::Media);
+            params.setImageType(core::media::ImageType::Media);
             params.setSortMethod(TrackEmbeddedImageSortMethod::DiscNumberThenTrackNumberThenSizeDesc);
 
             std::vector<TrackEmbeddedImageId> visitedIds;
@@ -267,7 +291,7 @@ namespace lms::db::tests
 
             TrackEmbeddedImage::FindParameters params;
             params.setRelease(release.getId());
-            params.setImageType(ImageType::BackCover);
+            params.setImageType(core::media::ImageType::BackCover);
             params.setSortMethod(TrackEmbeddedImageSortMethod::DiscNumberThenTrackNumberThenSizeDesc);
 
             std::vector<TrackEmbeddedImageId> visitedIds;
@@ -383,7 +407,7 @@ namespace lms::db::tests
             const TrackEmbeddedImageLink::pointer link{ TrackEmbeddedImageLink::find(session, imageLink.getId()) };
             ASSERT_NE(link, TrackEmbeddedImageLink::pointer{});
             EXPECT_EQ(link->getIndex(), 0);
-            EXPECT_EQ(link->getType(), ImageType::Unknown);
+            EXPECT_EQ(link->getType(), core::media::ImageType::Unknown);
             EXPECT_EQ(link->getDescription(), "");
             EXPECT_EQ(link->getTrack(), track.get());
             EXPECT_EQ(link->getImage(), image.get());
@@ -395,7 +419,7 @@ namespace lms::db::tests
             TrackEmbeddedImageLink::pointer link{ TrackEmbeddedImageLink::find(session, imageLink.getId()) };
             ASSERT_NE(link, TrackEmbeddedImage::pointer{});
             link.modify()->setIndex(2);
-            link.modify()->setType(ImageType::FrontCover);
+            link.modify()->setType(core::media::ImageType::FrontCover);
             link.modify()->setDescription("MyDesc");
         }
 
@@ -405,7 +429,7 @@ namespace lms::db::tests
             const TrackEmbeddedImageLink::pointer img{ TrackEmbeddedImageLink::find(session, imageLink.getId()) };
             ASSERT_NE(img, TrackEmbeddedImage::pointer{});
             EXPECT_EQ(img->getIndex(), 2);
-            EXPECT_EQ(img->getType(), ImageType::FrontCover);
+            EXPECT_EQ(img->getType(), core::media::ImageType::FrontCover);
             EXPECT_EQ(img->getDescription(), "MyDesc");
         }
 
@@ -415,7 +439,7 @@ namespace lms::db::tests
             bool visited{};
             TrackEmbeddedImageLink::find(session, image->getId(), [&](const TrackEmbeddedImageLink::pointer& link) {
                 EXPECT_EQ(link->getIndex(), 2);
-                EXPECT_EQ(link->getType(), ImageType::FrontCover);
+                EXPECT_EQ(link->getType(), core::media::ImageType::FrontCover);
                 EXPECT_EQ(link->getDescription(), "MyDesc");
                 EXPECT_EQ(link->getTrack(), track.get());
 

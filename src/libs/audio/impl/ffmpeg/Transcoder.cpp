@@ -19,13 +19,14 @@
 
 #include "Transcoder.hpp"
 
-#include <atomic>
+#include <filesystem>
 #include <iomanip>
 
 #include "core/IChildProcessManager.hpp"
 #include "core/IConfig.hpp"
 #include "core/ILogger.hpp"
 #include "core/Service.hpp"
+#include "core/media/MimeType.hpp"
 
 #include "audio/Exception.hpp"
 #include "audio/TranscodeTypes.hpp"
@@ -42,18 +43,29 @@ namespace lms::audio::ffmpeg
 {
 #define LOG(severity, message) LMS_LOG(TRANSCODING, severity, "[" << _debugId << "] - " << message)
 
-    static std::atomic<size_t> globalId{};
-    static std::filesystem::path ffmpegPath;
-
-    void Transcoder::init()
+    namespace
     {
-        ffmpegPath = core::Service<core::IConfig>::get()->getPath("ffmpeg-file", "/usr/bin/ffmpeg");
-        if (!std::filesystem::exists(ffmpegPath))
-            throw Exception{ "File '" + ffmpegPath.string() + "' does not exist!" };
-    }
+        class FFmpegPath
+        {
+        public:
+            FFmpegPath()
+            {
+                path = core::Service<core::IConfig>::get()->getPath("ffmpeg-file", "/usr/bin/ffmpeg");
+                if (!std::filesystem::exists(path))
+                    throw Exception{ "File '" + path.string() + "' does not exist!" };
+            }
+
+            const std::filesystem::path& get() const { return path; }
+
+        private:
+            std::filesystem::path path;
+        };
+    } // namespace
+
+    std::atomic<std::size_t> Transcoder::_nextDebugId;
 
     Transcoder::Transcoder(const TranscodeParameters& parameters)
-        : _debugId{ globalId++ }
+        : _debugId{ _nextDebugId++ }
         , _inputParams{ parameters.inputParameters }
         , _outputParams{ parameters.outputParameters }
     {
@@ -64,8 +76,7 @@ namespace lms::audio::ffmpeg
 
     void Transcoder::start()
     {
-        if (ffmpegPath.empty())
-            init();
+        static FFmpegPath ffmpegPath;
 
         try
         {
@@ -76,15 +87,16 @@ namespace lms::audio::ffmpeg
         }
         catch (const std::filesystem::filesystem_error& e)
         {
-            // TODO store/raise e.code()
-            throw Exception{ "File error '" + _inputParams.filePath.string() + "': " + e.what() };
+            throw IOFileException{ _inputParams.filePath, "Failed to test file existence", e.code() };
         }
 
         LOG(INFO, "Transcoding file " << _inputParams.filePath);
 
         std::vector<std::string> args;
 
-        args.emplace_back(ffmpegPath.string());
+        args.emplace_back(ffmpegPath.get().string());
+
+        // TODO some codecs have restrictions, take them into account (channel count, sample rate, etc.)
 
         // Make sure:
         // - we do not produce anything in the stderr output
@@ -114,7 +126,7 @@ namespace lms::audio::ffmpeg
             args.emplace_back("-1");
         }
 
-        // Skip video flows (including covers)
+        // Skip video flows (including covers!)
         args.emplace_back("-vn");
 
         // Output bitrates
@@ -124,63 +136,68 @@ namespace lms::audio::ffmpeg
             args.emplace_back(std::to_string(*_outputParams.bitrate));
         }
 
-        // Codecs and formats
         if (_outputParams.format)
         {
-            switch (*_outputParams.format)
+            args.emplace_back("-f");
+
+            switch (_outputParams.format->container)
             {
-            case OutputFormat::MP3:
-                args.emplace_back("-f");
+            case core::media::ContainerType::FLAC:
+                args.emplace_back("flac");
+                break;
+            case core::media::ContainerType::Ogg:
+                args.emplace_back("ogg");
+                break;
+            case core::media::ContainerType::MPEG:
                 args.emplace_back("mp3");
                 break;
 
-            case OutputFormat::OGG_OPUS:
-                args.emplace_back("-acodec");
+            default:
+                throw Exception{ "Unsupported container type " + std::string{ core::media::containerTypeToString(_outputParams.format->container).str() } };
+            }
+
+            args.emplace_back("-acodec");
+
+            switch (_outputParams.format->codec)
+            {
+            case core::media::CodecType::MP3:
+                args.emplace_back("libmp3lame");
+                break;
+
+            case core::media::CodecType::Opus:
                 args.emplace_back("libopus");
-                args.emplace_back("-f");
-                args.emplace_back("ogg");
                 break;
 
-            case OutputFormat::MATROSKA_OPUS:
-                args.emplace_back("-acodec");
-                args.emplace_back("libopus");
-                args.emplace_back("-f");
-                args.emplace_back("matroska");
-                break;
-
-            case OutputFormat::OGG_VORBIS:
-                args.emplace_back("-acodec");
+            case core::media::CodecType::Vorbis:
                 args.emplace_back("libvorbis");
-                args.emplace_back("-f");
-                args.emplace_back("ogg");
                 break;
 
-            case OutputFormat::WEBM_VORBIS:
-                args.emplace_back("-acodec");
-                args.emplace_back("libvorbis");
-                args.emplace_back("-f");
-                args.emplace_back("webm");
+            case core::media::CodecType::FLAC:
+                args.emplace_back("flac");
                 break;
 
             default:
-                throw Exception{ "Unhandled format (" + std::to_string(static_cast<int>(*_outputParams.format)) + ")" };
+                throw Exception{ "Unhandled codec type " + std::string{ codecTypeToString(_outputParams.format->codec).str() } };
             }
         }
 
         args.emplace_back("pipe:1");
 
-        LOG(DEBUG, "Dumping args (" << args.size() << ")");
-        for (const std::string& arg : args)
-            LOG(DEBUG, "Arg = '" << arg << "'");
+        if (core::Service<core::logging::ILogger>::get()->isSeverityActive(core::logging::Severity::DEBUG))
+        {
+            LOG(DEBUG, "Dumping args (" << args.size() << ")");
+            for (const std::string& arg : args)
+                LOG(DEBUG, "Arg = '" << arg << "'");
+        }
 
         // Caution: stdin must have been closed before
         try
         {
-            _childProcess = core::Service<core::IChildProcessManager>::get()->spawnChildProcess(ffmpegPath, args);
+            _childProcess = core::Service<core::IChildProcessManager>::get()->spawnChildProcess(ffmpegPath.get(), args);
         }
         catch (core::ChildProcessException& exception)
         {
-            throw Exception{ "Cannot execute '" + ffmpegPath.string() + "': " + exception.what() };
+            throw Exception{ "Cannot execute '" + ffmpegPath.get().string() + "': " + exception.what() };
         }
     }
 
@@ -202,25 +219,10 @@ namespace lms::audio::ffmpeg
 
     std::string_view Transcoder::getOutputMimeType() const
     {
-        // TODO: use input mime type
         if (_outputParams.format)
-        {
-            switch (*_outputParams.format)
-            {
-            case OutputFormat::MP3:
-                return "audio/mpeg";
-            case OutputFormat::OGG_OPUS:
-                return "audio/opus";
-            case OutputFormat::MATROSKA_OPUS:
-                return "audio/x-matroska";
-            case OutputFormat::OGG_VORBIS:
-                return "audio/ogg";
-            case OutputFormat::WEBM_VORBIS:
-                return "audio/webm";
-            }
-        }
+            return core::media::getMimeType(_outputParams.format->container, _outputParams.format->codec).str();
 
-        return "application/octet-stream"; // default, should not happen
+        return core::media::getMimeType(_inputParams.audioProperties.container, _inputParams.audioProperties.codec).str();
     }
 
     bool Transcoder::finished() const

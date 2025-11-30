@@ -28,6 +28,8 @@
 #include "database/objects/TrackEmbeddedImageLink.hpp"
 
 #include "Utils.hpp"
+#include "detail/Types.hpp"
+#include "objects/detail/Types.hpp"
 #include "traits/IdTypeTraits.hpp"
 #include "traits/ImageHashTypeTraits.hpp"
 
@@ -83,7 +85,7 @@ namespace lms::db
                 }
 
                 if (params.imageType.has_value())
-                    query.where("t_e_i_l.type = ?").bind(params.imageType.value());
+                    query.where("t_e_i_l.type = ?").bind(detail::getDbImageType(params.imageType.value()));
             }
 
             switch (params.sortMethod)

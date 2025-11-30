@@ -35,7 +35,6 @@ extern "C"
 #include "core/ITraceLogger.hpp"
 #include "core/String.hpp"
 
-#include "audio/AudioTypes.hpp"
 #include "audio/Exception.hpp"
 
 namespace lms::audio::ffmpeg
@@ -71,83 +70,83 @@ namespace lms::audio::ffmpeg
                 res[core::stringUtils::stringToUpper(tag->key)] = tag->value;
         }
 
-        std::optional<ContainerType> avdemuxerToContainerType(std::string_view name)
+        std::optional<core::media::ContainerType> avdemuxerToContainerType(std::string_view name)
         {
             if (name == "aiff")
-                return ContainerType::AIFF;
+                return core::media::ContainerType::AIFF;
             if (name == "ape")
-                return ContainerType::APE;
+                return core::media::ContainerType::APE;
             if (name.starts_with("asf"))
-                return ContainerType::ASF;
+                return core::media::ContainerType::ASF;
             if (name == "dsf")
-                return ContainerType::DSF;
+                return core::media::ContainerType::DSF;
             if (name == "flac")
-                return ContainerType::FLAC;
+                return core::media::ContainerType::FLAC;
             if (name.find("mp4") != std::string_view::npos)
-                return ContainerType::MP4;
+                return core::media::ContainerType::MP4;
             if (name.starts_with("mpc"))
-                return ContainerType::MPC;
+                return core::media::ContainerType::MPC;
             if (name == "mp3")
-                return ContainerType::MPEG;
+                return core::media::ContainerType::MPEG;
             if (name == "ogg")
-                return ContainerType::Ogg;
+                return core::media::ContainerType::Ogg;
             if (name == "shn")
-                return ContainerType::Shorten;
+                return core::media::ContainerType::Shorten;
             if (name == "tta")
-                return ContainerType::TrueAudio;
+                return core::media::ContainerType::TrueAudio;
             if (name == "wav")
-                return ContainerType::WAV;
+                return core::media::ContainerType::WAV;
             if (name == "wv")
-                return ContainerType::WavPack;
+                return core::media::ContainerType::WavPack;
 
             return std::nullopt;
         }
 
-        std::optional<CodecType> avcodecToCodecType(AVCodecID codec)
+        std::optional<core::media::CodecType> avcodecToCodecType(AVCodecID codec)
         {
             switch (codec)
             {
             case AV_CODEC_ID_AAC:
-                return CodecType::AAC;
+                return core::media::CodecType::AAC;
             case AV_CODEC_ID_AC3:
-                return CodecType::AC3;
+                return core::media::CodecType::AC3;
             case AV_CODEC_ID_ALAC:
-                return CodecType::ALAC;
+                return core::media::CodecType::ALAC;
             case AV_CODEC_ID_APE:
-                return CodecType::APE;
+                return core::media::CodecType::APE;
             case AV_CODEC_ID_DSD_LSBF:
             case AV_CODEC_ID_DSD_LSBF_PLANAR:
             case AV_CODEC_ID_DSD_MSBF:
             case AV_CODEC_ID_DSD_MSBF_PLANAR:
-                return CodecType::DSD;
+                return core::media::CodecType::DSD;
             case AV_CODEC_ID_EAC3:
-                return CodecType::EAC3;
+                return core::media::CodecType::EAC3;
             case AV_CODEC_ID_FLAC:
-                return CodecType::FLAC;
+                return core::media::CodecType::FLAC;
             case AV_CODEC_ID_MP3:
-                return CodecType::MP3;
+                return core::media::CodecType::MP3;
             case AV_CODEC_ID_MP4ALS:
-                return CodecType::MP4ALS;
+                return core::media::CodecType::MP4ALS;
             case AV_CODEC_ID_MUSEPACK7:
-                return CodecType::MPC7;
+                return core::media::CodecType::MPC7;
             case AV_CODEC_ID_MUSEPACK8:
-                return CodecType::MPC8;
+                return core::media::CodecType::MPC8;
             case AV_CODEC_ID_OPUS:
-                return CodecType::Opus;
+                return core::media::CodecType::Opus;
             case AV_CODEC_ID_SHORTEN:
-                return CodecType::Shorten;
+                return core::media::CodecType::Shorten;
             case AV_CODEC_ID_VORBIS:
-                return CodecType::Vorbis;
+                return core::media::CodecType::Vorbis;
             case AV_CODEC_ID_WAVPACK:
-                return CodecType::WavPack;
+                return core::media::CodecType::WavPack;
             case AV_CODEC_ID_WMALOSSLESS:
-                return CodecType::WMA9Lossless;
+                return core::media::CodecType::WMA9Lossless;
             case AV_CODEC_ID_WMAPRO:
-                return CodecType::WMA9Pro;
+                return core::media::CodecType::WMA9Pro;
             case AV_CODEC_ID_WMAV1:
-                return CodecType::WMA1;
+                return core::media::CodecType::WMA1;
             case AV_CODEC_ID_WMAV2:
-                return CodecType::WMA2;
+                return core::media::CodecType::WMA2;
 
             default:
                 return std::nullopt;

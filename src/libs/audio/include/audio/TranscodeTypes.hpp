@@ -23,28 +23,30 @@
 #include <filesystem>
 #include <optional>
 
+#include "core/media/CodecType.hpp"
+#include "core/media/ContainerType.hpp"
+
+#include "audio/AudioProperties.hpp"
+
 namespace lms::audio
 {
-    // TODO deprecate?
-    enum class OutputFormat
-    {
-        MP3,
-        OGG_OPUS,
-        MATROSKA_OPUS,
-        OGG_VORBIS,
-        WEBM_VORBIS,
-    };
-
     struct TranscodeInputParameters
     {
         std::filesystem::path filePath;
-        std::chrono::milliseconds duration{}; // Duration of the audio file
-        std::chrono::milliseconds offset{};   // Offset in the audio file to start transcoding from
+        AudioProperties audioProperties;    // properties of the audio file
+        std::chrono::milliseconds offset{}; // Offset in the audio file to start transcoding from
+    };
+
+    struct TranscodeOutputFormat
+    {
+        core::media::ContainerType container;
+        core::media::CodecType codec;
     };
 
     struct TranscodeOutputParameters
     {
-        std::optional<OutputFormat> format;
+        // Not setting a value here means to use the same value as the input
+        std::optional<TranscodeOutputFormat> format;
         std::optional<unsigned> bitrate;
         std::optional<unsigned> bitsPerSample;
         std::optional<unsigned> channelCount;

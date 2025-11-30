@@ -1,4 +1,5 @@
 add_library(lmsdatabase STATIC
+	impl/objects/detail/Types.cpp
 	impl/objects/Artist.cpp
 	impl/objects/ArtistInfo.cpp
 	impl/objects/Artwork.cpp

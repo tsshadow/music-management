@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <atomic>
+
 #include "audio/ITranscoder.hpp"
 
 namespace lms::core
@@ -47,7 +49,8 @@ namespace lms::audio::ffmpeg
         static void init();
         void start();
 
-        const std::size_t _debugId{};
+        static std::atomic<std::size_t> _nextDebugId;
+        const std::size_t _debugId;
         const TranscodeInputParameters _inputParams;
         const TranscodeOutputParameters _outputParams;
         std::unique_ptr<core::IChildProcess> _childProcess;

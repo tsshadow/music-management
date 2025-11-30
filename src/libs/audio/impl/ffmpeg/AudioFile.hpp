@@ -27,7 +27,8 @@
 #include <string>
 #include <vector>
 
-#include "audio/AudioTypes.hpp"
+#include "core/media/CodecType.hpp"
+#include "core/media/ContainerType.hpp"
 
 extern "C"
 {
@@ -44,7 +45,7 @@ namespace lms::audio::ffmpeg
 
     struct ContainerInfo
     {
-        std::optional<ContainerType> container;
+        std::optional<core::media::ContainerType> container;
         std::string containerName;
 
         std::optional<std::size_t> bitrate;
@@ -54,7 +55,7 @@ namespace lms::audio::ffmpeg
     struct StreamInfo
     {
         size_t index{};
-        std::optional<CodecType> codec;
+        std::optional<core::media::CodecType> codec;
         std::string codecName;
 
         std::optional<size_t> bitrate;

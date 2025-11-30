@@ -24,7 +24,7 @@
 
 #include "core/ILogger.hpp"
 
-#include "audio/AudioTypes.hpp"
+#include "audio/AudioProperties.hpp"
 #include "audio/IAudioFileInfo.hpp"
 
 #include "AudioFile.hpp"

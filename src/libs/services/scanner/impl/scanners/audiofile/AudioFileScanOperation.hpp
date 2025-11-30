@@ -21,8 +21,9 @@
 
 #include <vector>
 
-#include "audio/AudioTypes.hpp"
-#include "audio/IImageReader.hpp"
+#include "core/media/ImageType.hpp"
+
+#include "audio/AudioProperties.hpp"
 #include "image/Types.hpp"
 
 #include "scanners/FileScanOperationBase.hpp"
@@ -44,7 +45,7 @@ namespace lms::scanner
     struct ImageInfo
     {
         std::size_t index;
-        audio::Image::Type type{ audio::Image::Type::Unknown };
+        core::media::ImageType type{ core::media::ImageType::Unknown };
         std::uint64_t hash{};
         std::size_t size{};
         image::ImageProperties properties;

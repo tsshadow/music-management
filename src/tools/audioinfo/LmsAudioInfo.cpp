@@ -27,8 +27,9 @@
 
 #include "core/ILogger.hpp"
 #include "core/String.hpp"
+#include "core/media/MimeType.hpp"
 
-#include "audio/AudioTypes.hpp"
+#include "audio/AudioProperties.hpp"
 #include "audio/Exception.hpp"
 #include "audio/IAudioFileInfo.hpp"
 #include "audio/IAudioFileInfoParser.hpp"
@@ -39,14 +40,15 @@ namespace lms::audio
 {
     std::ostream& operator<<(std::ostream& os, const AudioProperties& audioProperties)
     {
-        os << "\tDuration: " << std::fixed << std::setprecision(2) << std::chrono::duration_cast<std::chrono::duration<float>>(audioProperties.duration) << std::endl;
-        os << "\tContainer: " << containerTypeToString(audioProperties.container) << std::endl;
-        os << "\tCodec: " << codecTypeToString(audioProperties.codec) << std::endl;
-        os << "\tBitrate: " << audioProperties.bitrate << " bps" << std::endl;
+        os << "\tDuration: " << std::fixed << std::setprecision(2) << std::chrono::duration_cast<std::chrono::duration<float>>(audioProperties.duration) << '\n';
+        os << "\tContainer: " << core::media::containerTypeToString(audioProperties.container) << '\n';
+        os << "\tCodec: " << core::media::codecTypeToString(audioProperties.codec) << '\n';
+        os << "\tMimeType: " << core::media::getMimeType(audioProperties.container, audioProperties.codec) << '\n';
+        os << "\tBitrate: " << audioProperties.bitrate << " bps" << '\n';
         if (audioProperties.bitsPerSample)
-            os << "\tBitsPerSample: " << *audioProperties.bitsPerSample << std::endl;
-        os << "\tChannelCount: " << audioProperties.channelCount << std::endl;
-        os << "\tSampleRate: " << audioProperties.sampleRate << std::endl;
+            os << "\tBitsPerSample: " << *audioProperties.bitsPerSample << '\n';
+        os << "\tChannelCount: " << audioProperties.channelCount << '\n';
+        os << "\tSampleRate: " << audioProperties.sampleRate << '\n';
 
         return os;
     }
@@ -115,7 +117,7 @@ namespace lms::audio
 
     std::ostream& operator<<(std::ostream& os, const Image& image)
     {
-        os << "\ttype = " << imageTypeToString(image.type) << std::endl;
+        os << "\ttype = " << core::media::imageTypeToString(image.type) << std::endl;
         if (!image.description.empty())
             os << "\tdesc: " << image.description << std::endl;
         os << "\tmimeType: " << image.mimeType << std::endl;

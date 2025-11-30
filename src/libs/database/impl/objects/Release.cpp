@@ -40,6 +40,7 @@
 
 #include "SqlQuery.hpp"
 #include "Utils.hpp"
+#include "detail/Types.hpp"
 #include "traits/EnumSetTraits.hpp"
 #include "traits/IdTypeTraits.hpp"
 #include "traits/PartialDateTimeTraits.hpp"
@@ -679,12 +680,20 @@ namespace lms::db
         return utils::fetchQuerySingleResult(session()->query<int>("SELECT COALESCE(AVG(t.bitrate), 0) FROM track t").where("release_id = ?").bind(getId()).where("bitrate > 0"));
     }
 
-    std::vector<CodecType> Release::getCodecs() const
+    std::vector<core::media::CodecType> Release::getCodecs() const
     {
         assert(session());
 
         // Get the codec ordered by frequency
-        return utils::fetchQueryResults(session()->query<CodecType>("SELECT t.codec FROM track t").where("release_id = ?").bind(getId()).groupBy("t.codec").orderBy("COUNT(t.id) DESC"));
+        auto query{ session()->query<detail::CodecType>("SELECT t.codec FROM track t").where("release_id = ?").bind(getId()).groupBy("t.codec").orderBy("COUNT(t.id) DESC") };
+
+        std::vector<core::media::CodecType> res;
+        utils::forEachQueryResult(query, [&](detail::CodecType codec) {
+            if (const auto mediaCodecType{ detail::getMediaCodecType(codec) })
+                res.push_back(*mediaCodecType);
+        });
+
+        return res;
     }
 
     std::vector<Artist::pointer> Release::getArtists(TrackArtistLinkType linkType) const

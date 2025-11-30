@@ -1229,22 +1229,22 @@ namespace lms::db::tests
 
         {
             auto transaction{ session.createWriteTransaction() };
-            track1.get().modify()->setCodec(CodecType::FLAC);
+            track1.get().modify()->setCodec(core::media::CodecType::FLAC);
             track1.get().modify()->setRelease(release1.get());
 
-            track2.get().modify()->setCodec(CodecType::MP3);
+            track2.get().modify()->setCodec(core::media::CodecType::MP3);
             track2.get().modify()->setRelease(release1.get());
 
-            track3.get().modify()->setCodec(CodecType::MP3);
+            track3.get().modify()->setCodec(core::media::CodecType::MP3);
             track3.get().modify()->setRelease(release1.get());
 
-            track4.get().modify()->setCodec(CodecType::AAC);
+            track4.get().modify()->setCodec(core::media::CodecType::AAC);
             track4.get().modify()->setRelease(release1.get());
         }
 
         {
             auto transaction{ session.createReadTransaction() };
-            EXPECT_EQ(release1->getCodecs(), (std::vector<CodecType>{ CodecType::MP3, CodecType::FLAC, CodecType::AAC }));
+            EXPECT_EQ(release1->getCodecs(), (std::vector<core::media::CodecType>{ core::media::CodecType::MP3, core::media::CodecType::FLAC, core::media::CodecType::AAC }));
         }
     }
 

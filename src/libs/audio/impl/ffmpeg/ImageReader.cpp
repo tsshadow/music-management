@@ -45,9 +45,9 @@ namespace lms::audio::ffmpeg
             image.data = picture.data;
             image.mimeType = picture.mimeType;
             if (metaDataHasKeyword(metaData, "front"))
-                image.type = Image::Type::FrontCover;
+                image.type = core::media::ImageType::FrontCover;
             else if (metaDataHasKeyword(metaData, "back"))
-                image.type = Image::Type::BackCover;
+                image.type = core::media::ImageType::BackCover;
 
             visitor(image);
         });

@@ -45,7 +45,7 @@
 
 #include "core/ILogger.hpp"
 
-#include "audio/AudioTypes.hpp"
+#include "audio/AudioProperties.hpp"
 #include "audio/IAudioFileInfo.hpp"
 #include "audio/IAudioFileInfoParser.hpp"
 
@@ -104,27 +104,27 @@ namespace lms::audio::taglib
             // Guess container from the file type
             if (const auto* apeFile{ dynamic_cast<const ::TagLib::APE::File*>(&file) })
             {
-                audioProperties.container = ContainerType::APE;
-                audioProperties.codec = CodecType::APE; // TODO version?
+                audioProperties.container = core::media::ContainerType::APE;
+                audioProperties.codec = core::media::CodecType::APE; // TODO version?
                 audioProperties.bitsPerSample = apeFile->audioProperties()->bitsPerSample();
             }
             else if (const auto* asfFile{ dynamic_cast<const ::TagLib::ASF::File*>(&file) })
             {
-                audioProperties.container = ContainerType::ASF;
+                audioProperties.container = core::media::ContainerType::ASF;
 
                 switch (asfFile->audioProperties()->codec())
                 {
                 case ::TagLib::ASF::Properties::Codec::WMA1:
-                    audioProperties.codec = CodecType::WMA1;
+                    audioProperties.codec = core::media::CodecType::WMA1;
                     break;
                 case ::TagLib::ASF::Properties::Codec::WMA2:
-                    audioProperties.codec = CodecType::WMA2;
+                    audioProperties.codec = core::media::CodecType::WMA2;
                     break;
                 case ::TagLib::ASF::Properties::Codec::WMA9Lossless:
-                    audioProperties.codec = CodecType::WMA9Lossless;
+                    audioProperties.codec = core::media::CodecType::WMA9Lossless;
                     break;
                 case ::TagLib::ASF::Properties::Codec::WMA9Pro:
-                    audioProperties.codec = CodecType::WMA9Pro;
+                    audioProperties.codec = core::media::CodecType::WMA9Pro;
                     break;
                 case ::TagLib::ASF::Properties::Codec::Unknown:
                     LMS_LOG(AUDIO, DEBUG, "Unhandled ASF codec in " << filePath);
@@ -136,27 +136,27 @@ namespace lms::audio::taglib
 #if LMS_TAGLIB_HAS_DSF
             else if (const auto* dsfFile{ dynamic_cast<const ::TagLib::DSF::File*>(&file) })
             {
-                audioProperties.container = ContainerType::DSF;
-                audioProperties.codec = CodecType::DSD;
+                audioProperties.container = core::media::ContainerType::DSF;
+                audioProperties.codec = core::media::CodecType::DSD;
                 audioProperties.bitsPerSample = dsfFile->audioProperties()->bitsPerSample();
             }
 #endif // LMS_TAGLIB_HAS_DSF
             else if (const auto* flacFile{ dynamic_cast<const ::TagLib::FLAC::File*>(&file) })
             {
-                audioProperties.container = ContainerType::FLAC;
-                audioProperties.codec = CodecType::FLAC;
+                audioProperties.container = core::media::ContainerType::FLAC;
+                audioProperties.codec = core::media::CodecType::FLAC;
                 audioProperties.bitsPerSample = flacFile->audioProperties()->bitsPerSample();
             }
             else if (const auto* mp4File{ dynamic_cast<const ::TagLib::MP4::File*>(&file) })
             {
-                audioProperties.container = ContainerType::MP4;
+                audioProperties.container = core::media::ContainerType::MP4;
                 switch (mp4File->audioProperties()->codec())
                 {
                 case ::TagLib::MP4::Properties::Codec::AAC:
-                    audioProperties.codec = CodecType::AAC;
+                    audioProperties.codec = core::media::CodecType::AAC;
                     break;
                 case ::TagLib::MP4::Properties::Codec::ALAC:
-                    audioProperties.codec = CodecType::ALAC;
+                    audioProperties.codec = core::media::CodecType::ALAC;
                     break;
                 case ::TagLib::MP4::Properties::Codec::Unknown:
                     LMS_LOG(AUDIO, DEBUG, "Unhandled MP4 codec in " << filePath);
@@ -167,15 +167,15 @@ namespace lms::audio::taglib
             }
             else if (const auto* mpcFile{ dynamic_cast<const ::TagLib::MPC::File*>(&file) })
             {
-                audioProperties.container = ContainerType::MPC;
+                audioProperties.container = core::media::ContainerType::MPC;
 
                 switch (mpcFile->audioProperties()->mpcVersion())
                 {
                 case 7:
-                    audioProperties.codec = CodecType::MPC7;
+                    audioProperties.codec = core::media::CodecType::MPC7;
                     break;
                 case 8:
-                    audioProperties.codec = CodecType::MPC8;
+                    audioProperties.codec = core::media::CodecType::MPC8;
                     break;
                 default:
                     LMS_LOG(AUDIO, DEBUG, "Unhandled MPC codec version " << mpcFile->audioProperties()->mpcVersion() << " in " << filePath);
@@ -186,13 +186,13 @@ namespace lms::audio::taglib
             {
                 const auto& properties{ *mpegFile->audioProperties() };
 
-                audioProperties.container = ContainerType::MPEG;
+                audioProperties.container = core::media::ContainerType::MPEG;
                 if ((properties.version() == TagLib::MPEG::Header::Version::Version1 || properties.version() == TagLib::MPEG::Header::Version::Version2 || properties.version() == TagLib::MPEG::Header::Version::Version2_5)
                     && mpegFile->audioProperties()->layer() == 3)
-                    audioProperties.codec = CodecType::MP3; // could be MPEG-1 layer 3 or MPEG-2(.5) layer 3
+                    audioProperties.codec = core::media::CodecType::MP3; // could be MPEG-1 layer 3 or MPEG-2(.5) layer 3
 #if LMS_TAGLIB_HAS_ADTS
                 else if (mpegFile->audioProperties()->isADTS()) // likely AAC
-                    audioProperties.codec = CodecType::AAC;
+                    audioProperties.codec = core::media::CodecType::AAC;
 #endif
                 else
                 {
@@ -202,44 +202,44 @@ namespace lms::audio::taglib
             }
             else if (dynamic_cast<const ::TagLib::Ogg::Opus::File*>(&file))
             {
-                audioProperties.container = ContainerType::Ogg;
-                audioProperties.codec = CodecType::Opus;
+                audioProperties.container = core::media::ContainerType::Ogg;
+                audioProperties.codec = core::media::CodecType::Opus;
             }
             else if (dynamic_cast<const ::TagLib::Ogg::Vorbis::File*>(&file))
             {
-                audioProperties.container = ContainerType::Ogg;
-                audioProperties.codec = CodecType::Vorbis;
+                audioProperties.container = core::media::ContainerType::Ogg;
+                audioProperties.codec = core::media::CodecType::Vorbis;
             }
             else if (const auto* aiffFile{ dynamic_cast<const ::TagLib::RIFF::AIFF::File*>(&file) })
             {
-                audioProperties.container = ContainerType::AIFF;
-                audioProperties.codec = CodecType::PCM;
+                audioProperties.container = core::media::ContainerType::AIFF;
+                audioProperties.codec = core::media::CodecType::PCM;
                 audioProperties.bitsPerSample = aiffFile->audioProperties()->bitsPerSample();
             }
             else if (const auto* wavFile{ dynamic_cast<const ::TagLib::RIFF::WAV::File*>(&file) })
             {
-                audioProperties.container = ContainerType::WAV;
-                audioProperties.codec = CodecType::PCM;
+                audioProperties.container = core::media::ContainerType::WAV;
+                audioProperties.codec = core::media::CodecType::PCM;
                 audioProperties.bitsPerSample = wavFile->audioProperties()->bitsPerSample();
             }
 #if LMS_TAGLIB_HAS_SHORTEN
             else if (const auto* shortenFile{ dynamic_cast<const ::TagLib::Shorten::File*>(&file) })
             {
-                audioProperties.container = ContainerType::Shorten;
-                audioProperties.codec = CodecType::Shorten;
+                audioProperties.container = core::media::ContainerType::Shorten;
+                audioProperties.codec = core::media::CodecType::Shorten;
                 audioProperties.bitsPerSample = shortenFile->audioProperties()->bitsPerSample();
             }
 #endif // LMS_TAGLIB_HAS_SHORTEN
             else if (const auto* trueAudioFile{ dynamic_cast<const ::TagLib::TrueAudio::File*>(&file) })
             {
-                audioProperties.container = ContainerType::TrueAudio;
-                audioProperties.codec = CodecType::TrueAudio;
+                audioProperties.container = core::media::ContainerType::TrueAudio;
+                audioProperties.codec = core::media::CodecType::TrueAudio;
                 audioProperties.bitsPerSample = trueAudioFile->audioProperties()->bitsPerSample();
             }
             else if (const auto* wavPackFile{ dynamic_cast<const ::TagLib::WavPack::File*>(&file) })
             {
-                audioProperties.container = ContainerType::WavPack;
-                audioProperties.codec = CodecType::WavPack;
+                audioProperties.container = core::media::ContainerType::WavPack;
+                audioProperties.codec = core::media::CodecType::WavPack;
                 audioProperties.bitsPerSample = wavPackFile->audioProperties()->bitsPerSample();
             }
             else

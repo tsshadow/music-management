@@ -370,11 +370,9 @@
 <message id="Lms.Settings.transcoding-mode.never">Jamais</message>
 <message id="Lms.Settings.transcoding-output-bitrate">Bitrate du transcodage</message>
 <message id="Lms.Settings.transcoding-output-format">Format du transcodage</message>
-<message id="Lms.Settings.transcoding-output-format.matroska_opus">Matroska/Opus</message>
 <message id="Lms.Settings.transcoding-output-format.mp3">MP3</message>
 <message id="Lms.Settings.transcoding-output-format.ogg_opus">Ogg/Opus</message>
 <message id="Lms.Settings.transcoding-output-format.ogg_vorbis">Ogg/Vorbis</message>
-<message id="Lms.Settings.transcoding-output-format.webm_vorbis">WebM/Vorbis</message>
 <message id="Lms.Settings.user-interface">Interface utilisateur</message>
 
 <!--Wt-->

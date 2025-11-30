@@ -17,45 +17,10 @@
  * along with LMS.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "audio/AudioTypes.hpp"
+#include "core/media/CodecType.hpp"
 
-namespace lms::audio
+namespace lms::core::media
 {
-    core::LiteralString containerTypeToString(ContainerType type)
-    {
-        switch (type)
-        {
-        case ContainerType::AIFF:
-            return "AIFF";
-        case ContainerType::APE:
-            return "APE";
-        case ContainerType::ASF:
-            return "ASF";
-        case ContainerType::DSF:
-            return "DSF";
-        case ContainerType::FLAC:
-            return "FLAC";
-        case ContainerType::MP4:
-            return "MP4";
-        case ContainerType::MPC:
-            return "MPC";
-        case ContainerType::MPEG:
-            return "MPEG";
-        case ContainerType::Ogg:
-            return "Ogg";
-        case ContainerType::Shorten:
-            return "Shorten";
-        case ContainerType::TrueAudio:
-            return "TrueAudio";
-        case ContainerType::WAV:
-            return "WAV";
-        case ContainerType::WavPack:
-            return "WavPack";
-        }
-
-        return "";
-    }
-
     core::LiteralString codecTypeToString(CodecType type)
     {
         switch (type)
@@ -104,6 +69,6 @@ namespace lms::audio
             return "WMA9Lossless";
         }
 
-        return "";
+        return "Unknown";
     }
-} // namespace lms::audio
+} // namespace lms::core::media

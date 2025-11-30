@@ -34,6 +34,8 @@
 #include "core/EnumSet.hpp"
 #include "core/PartialDateTime.hpp"
 #include "core/UUID.hpp"
+#include "core/media/CodecType.hpp"
+#include "core/media/ContainerType.hpp"
 
 #include "database/IdRange.hpp"
 #include "database/Object.hpp"
@@ -51,6 +53,7 @@
 #include "database/objects/TrackListId.hpp"
 #include "database/objects/Types.hpp"
 #include "database/objects/UserId.hpp"
+#include "database/objects/detail/Types.hpp"
 
 namespace lms::db
 {
@@ -229,8 +232,8 @@ namespace lms::db
 
         // Audio properties
         void setDuration(std::chrono::milliseconds duration) { _duration = duration; }
-        void setContainer(ContainerType container) { _container = container; }
-        void setCodec(CodecType codec) { _codec = codec; }
+        void setContainer(core::media::ContainerType container);
+        void setCodec(core::media::CodecType codec);
         void setBitrate(std::size_t bitrate) { _bitrate = bitrate; }
         void setChannelCount(std::size_t channelCount) { _channelCount = channelCount; }
         void setSampleRate(std::size_t sampleRate) { _sampleRate = sampleRate; }
@@ -275,8 +278,8 @@ namespace lms::db
 
         // Audio properties
         std::chrono::milliseconds getDuration() const { return _duration; }
-        ContainerType getContainer() const { return _container; }
-        CodecType getCodec() const { return _codec; }
+        std::optional<core::media::ContainerType> getContainer() const;
+        std::optional<core::media::CodecType> getCodec() const;
         std::size_t getBitrate() const { return _bitrate; }
         std::size_t getChannelCount() const { return _channelCount; }
         std::size_t getSampleRate() const { return _sampleRate; }
@@ -380,8 +383,8 @@ namespace lms::db
 
         // Audio properties
         std::chrono::duration<int, std::milli> _duration{};
-        ContainerType _container{ ContainerType::Unknown };
-        CodecType _codec{ CodecType::Unknown };
+        detail::ContainerType _container{ detail::ContainerType::Unknown };
+        detail::CodecType _codec{ detail::CodecType::Unknown };
         int _bitrate{}; // in bps
         int _channelCount{};
         int _sampleRate{};

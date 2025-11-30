@@ -26,7 +26,7 @@
 #include "core/Service.hpp"
 #include "core/http/IClient.hpp"
 
-#include "audio/AudioTypes.hpp"
+#include "audio/AudioProperties.hpp"
 #include "audio/Exception.hpp"
 #include "audio/IAudioFileInfo.hpp"
 #include "audio/IAudioFileInfoParser.hpp"
@@ -42,92 +42,6 @@ namespace lms::podcast
 {
     namespace
     {
-        db::ContainerType audioContainerToDbContainer(audio::ContainerType type)
-        {
-            switch (type)
-            {
-            case audio::ContainerType::AIFF:
-                return db::ContainerType::AIFF;
-            case audio::ContainerType::APE:
-                return db::ContainerType::APE;
-            case audio::ContainerType::ASF:
-                return db::ContainerType::ASF;
-            case audio::ContainerType::DSF:
-                return db::ContainerType::DSF;
-            case audio::ContainerType::FLAC:
-                return db::ContainerType::FLAC;
-            case audio::ContainerType::MP4:
-                return db::ContainerType::MP4;
-            case audio::ContainerType::MPC:
-                return db::ContainerType::MPC;
-            case audio::ContainerType::MPEG:
-                return db::ContainerType::MPEG;
-            case audio::ContainerType::Shorten:
-                return db::ContainerType::Shorten;
-            case audio::ContainerType::Ogg:
-                return db::ContainerType::Ogg;
-            case audio::ContainerType::TrueAudio:
-                return db::ContainerType::TrueAudio;
-            case audio::ContainerType::WAV:
-                return db::ContainerType::WAV;
-            case audio::ContainerType::WavPack:
-                return db::ContainerType::WavPack;
-            }
-
-            return db::ContainerType::Unknown;
-        }
-
-        db::CodecType audioCodecToDbCodec(audio::CodecType type)
-        {
-            switch (type)
-            {
-            case audio::CodecType::AAC:
-                return db::CodecType::AAC;
-            case audio::CodecType::AC3:
-                return db::CodecType::AC3;
-            case audio::CodecType::ALAC:
-                return db::CodecType::ALAC;
-            case audio::CodecType::APE:
-                return db::CodecType::APE;
-            case audio::CodecType::DSD:
-                return db::CodecType::DSD;
-            case audio::CodecType::EAC3:
-                return db::CodecType::EAC3;
-            case audio::CodecType::FLAC:
-                return db::CodecType::FLAC;
-            case audio::CodecType::MP3:
-                return db::CodecType::MP3;
-            case audio::CodecType::MP4ALS:
-                return db::CodecType::MP4ALS;
-            case audio::CodecType::MPC7:
-                return db::CodecType::MPC7;
-            case audio::CodecType::MPC8:
-                return db::CodecType::MPC8;
-            case audio::CodecType::Opus:
-                return db::CodecType::Opus;
-            case audio::CodecType::PCM:
-                return db::CodecType::PCM;
-            case audio::CodecType::Shorten:
-                return db::CodecType::Shorten;
-            case audio::CodecType::TrueAudio:
-                return db::CodecType::TrueAudio;
-            case audio::CodecType::Vorbis:
-                return db::CodecType::Vorbis;
-            case audio::CodecType::WavPack:
-                return db::CodecType::WavPack;
-            case audio::CodecType::WMA1:
-                return db::CodecType::WMA1;
-            case audio::CodecType::WMA2:
-                return db::CodecType::WMA2;
-            case audio::CodecType::WMA9Pro:
-                return db::CodecType::WMA9Pro;
-            case audio::CodecType::WMA9Lossless:
-                return db::CodecType::WMA9Lossless;
-            }
-
-            return db::CodecType::Unknown;
-        }
-
         void updateEpisode(db::Session& session, db::PodcastEpisodeId episodeId, const std::filesystem::path& relativeFilePath, const audio::AudioProperties& audioProperties)
         {
             auto transaction{ session.createWriteTransaction() };
@@ -139,8 +53,8 @@ namespace lms::podcast
             dbEpisode.modify()->setAudioRelativeFilePath(relativeFilePath);
 
             dbEpisode.modify()->setDuration(audioProperties.duration);
-            dbEpisode.modify()->setContainer(audioContainerToDbContainer(audioProperties.container));
-            dbEpisode.modify()->setCodec(audioCodecToDbCodec(audioProperties.codec));
+            dbEpisode.modify()->setContainer(audioProperties.container);
+            dbEpisode.modify()->setCodec(audioProperties.codec);
             dbEpisode.modify()->setBitrate(audioProperties.bitrate);
             dbEpisode.modify()->setChannelCount(audioProperties.channelCount);
             dbEpisode.modify()->setSampleRate(audioProperties.sampleRate);

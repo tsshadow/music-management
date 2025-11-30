@@ -27,6 +27,11 @@
 #include "core/IResourceHandler.hpp"
 #include "core/Service.hpp"
 #include "core/String.hpp"
+
+#include "audio/AudioProperties.hpp"
+#include "audio/Exception.hpp"
+#include "audio/IAudioFileInfo.hpp"
+#include "audio/IAudioFileInfoParser.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Track.hpp"
 #include "database/objects/User.hpp"
@@ -51,14 +56,8 @@ namespace lms::core::stringUtils
         switch (static_cast<db::TranscodingOutputFormat>(*encodedFormat))
         {
         case db::TranscodingOutputFormat::MP3:
-            [[fallthrough]];
         case db::TranscodingOutputFormat::OGG_OPUS:
-            [[fallthrough]];
-        case db::TranscodingOutputFormat::MATROSKA_OPUS:
-            [[fallthrough]];
         case db::TranscodingOutputFormat::OGG_VORBIS:
-            [[fallthrough]];
-        case db::TranscodingOutputFormat::WEBM_VORBIS:
             return format;
         }
 
@@ -72,20 +71,64 @@ namespace lms::ui
 {
     namespace
     {
-        std::optional<audio::OutputFormat> AudioFormatToTranscodingFormat(db::TranscodingOutputFormat format)
+        std::optional<audio::AudioProperties> getAudioProperties(const std::filesystem::path& trackPath)
+        {
+            std::optional<audio::AudioProperties> res;
+
+            try
+            {
+                const auto parser{ audio::createAudioFileInfoParser(audio::AudioFileInfoParserBackend::FFmpeg) };
+
+                audio::AudioFileInfoParseOptions parseOptions;
+                parseOptions.audioPropertiesReadStyle = audio::AudioFileInfoParseOptions::AudioPropertiesReadStyle::Average;
+                parseOptions.readImages = false;
+                parseOptions.readTags = false;
+                const auto audioFile{ parser->parse(trackPath, parseOptions) };
+
+                if (const audio::AudioProperties * properties{ audioFile->getAudioProperties() })
+                    res = *properties;
+            }
+            catch (const audio::Exception& e)
+            {
+                LMS_LOG(UI, DEBUG, "Cannot parse audio properties in " << trackPath << ": " << e.what());
+            }
+
+            return res;
+        }
+
+        std::optional<audio::AudioProperties> getAudioProperties(const db::Track::pointer& track)
+        {
+            std::optional<audio::AudioProperties> res;
+
+            if (track->getContainer() && track->getCodec())
+            {
+                res.emplace();
+                res->container = *track->getContainer();
+                res->codec = *track->getCodec();
+                res->duration = track->getDuration();
+                res->bitrate = track->getBitrate();
+                res->channelCount = track->getChannelCount();
+                res->sampleRate = track->getSampleRate();
+                res->bitsPerSample = track->getBitsPerSample();
+            }
+            else
+            {
+                res = getAudioProperties(track->getAbsoluteFilePath());
+            }
+
+            return res;
+        }
+
+        std::optional<audio::TranscodeOutputFormat> AudioFormatToTranscodingFormat(db::TranscodingOutputFormat format)
         {
             switch (format)
             {
             case db::TranscodingOutputFormat::MP3:
-                return audio::OutputFormat::MP3;
+                return audio::TranscodeOutputFormat{ core::media::ContainerType::MPEG, core::media::CodecType::MP3 };
             case db::TranscodingOutputFormat::OGG_OPUS:
-                return audio::OutputFormat::OGG_OPUS;
-            case db::TranscodingOutputFormat::MATROSKA_OPUS:
-                return audio::OutputFormat::MATROSKA_OPUS;
+                return audio::TranscodeOutputFormat{ core::media::ContainerType::Ogg, core::media::CodecType::Opus };
             case db::TranscodingOutputFormat::OGG_VORBIS:
-                return audio::OutputFormat::OGG_VORBIS;
-            case db::TranscodingOutputFormat::WEBM_VORBIS:
-                return audio::OutputFormat::WEBM_VORBIS;
+                return audio::TranscodeOutputFormat{ core::media::ContainerType::Ogg, core::media::CodecType::Vorbis };
             }
 
             TRANSCODE_LOG(ERROR, "Cannot convert from db audio format to transcoding format");
@@ -128,8 +171,8 @@ namespace lms::ui
                 return std::nullopt;
             }
 
-            const std::optional<audio::OutputFormat> avFormat{ AudioFormatToTranscodingFormat(*format) };
-            if (!avFormat)
+            const std::optional<audio::TranscodeOutputFormat> outputFormat{ AudioFormatToTranscodingFormat(*format) };
+            if (!outputFormat)
                 return std::nullopt;
 
             // optional parameter
@@ -145,12 +188,16 @@ namespace lms::ui
                     return std::nullopt;
 
                 parameters.inputParameters.filePath = track->getAbsoluteFilePath();
-                parameters.inputParameters.duration = track->getDuration();
+                const auto audioProperties{ getAudioProperties(track) };
+                if (!audioProperties)
+                    return std::nullopt;
+
+                parameters.inputParameters.audioProperties = *audioProperties;
             }
 
             parameters.inputParameters.offset = std::chrono::seconds{ offset };
             parameters.outputParameters.stripMetadata = true;
-            parameters.outputParameters.format = *avFormat;
+            parameters.outputParameters.format = *outputFormat;
             parameters.outputParameters.bitrate = *bitrate;
 
             return parameters;

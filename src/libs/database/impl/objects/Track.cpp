@@ -23,6 +23,7 @@
 #include <Wt/Dbo/WtSqlTraits.h>
 
 #include "core/ILogger.hpp"
+
 #include "database/Session.hpp"
 #include "database/Types.hpp"
 #include "database/objects/Artist.hpp"
@@ -41,6 +42,7 @@
 
 #include "SqlQuery.hpp"
 #include "Utils.hpp"
+#include "objects/detail/Types.hpp"
 #include "traits/IdTypeTraits.hpp"
 #include "traits/PartialDateTimeTraits.hpp"
 #include "traits/PathTraits.hpp"
@@ -523,6 +525,16 @@ namespace lms::db
         _absoluteFilePath = filePath;
     }
 
+    void Track::setContainer(core::media::ContainerType container)
+    {
+        _container = detail::getDbContainerType(container);
+    }
+
+    void Track::setCodec(core::media::CodecType codec)
+    {
+        _codec = detail::getDbCodecType(codec);
+    }
+
     void Track::setName(std::string_view name)
     {
         _name = std::string{ name, 0, _maxNameLength };
@@ -601,6 +613,16 @@ namespace lms::db
     void Track::setPreferredMediaArtwork(ObjectPtr<Artwork> artwork)
     {
         _preferredMediaArtwork = getDboPtr(artwork);
+    }
+
+    std::optional<core::media::ContainerType> Track::getContainer() const
+    {
+        return detail::getMediaContainerType(_container);
+    }
+
+    std::optional<core::media::CodecType> Track::getCodec() const
+    {
+        return detail::getMediaCodecType(_codec);
     }
 
     std::optional<int> Track::getYear() const

@@ -29,4 +29,6 @@ namespace lms::api::subsonic
     Response handleDeleteBookmark(RequestContext& context);
     Response handleGetPlayQueue(RequestContext& context);
     Response handleSavePlayQueue(RequestContext& context);
+    Response handleGetPlayQueueByIndex(RequestContext& context);
+    Response handleSavePlayQueueByIndex(RequestContext& context);
 } // namespace lms::api::subsonic

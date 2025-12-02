@@ -59,7 +59,8 @@ namespace lms::db
         // Get tracks, ordered by position
         std::vector<TrackId> getTrackIds() const;
         void visitTracks(const std::function<void(const ObjectPtr<Track>& track)>& visitor) const;
-        const Wt::WDateTime getLastModifiedDateTime() const { return _lastModifiedDateTime; }
+        Wt::WDateTime getLastModifiedDateTime() const { return _lastModifiedDateTime; }
+        bool isEmpty() const { return _tracks.empty(); }
 
         // Modifiers
         void setCurrentIndex(std::size_t index) { _currentIndex = index; }

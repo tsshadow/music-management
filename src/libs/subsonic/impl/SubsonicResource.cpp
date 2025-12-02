@@ -230,6 +230,8 @@ namespace lms::api::subsonic
             { "/deleteBookmark", { handleDeleteBookmark } },
             { "/getPlayQueue", { handleGetPlayQueue } },
             { "/savePlayQueue", { handleSavePlayQueue } },
+            { "/getPlayQueueByIndex", { handleGetPlayQueueByIndex } },
+            { "/savePlayQueueByIndex", { handleSavePlayQueueByIndex } },
 
             // Media library scanning
             { "/getScanStatus", { Scan::handleGetScanStatus } },

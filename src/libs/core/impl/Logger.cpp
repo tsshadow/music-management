@@ -144,33 +144,33 @@ namespace lms::core::logging
         {
         case core::logging::Severity::DEBUG:
             if (_logFileStream)
-                addOutputStream(*_logFileStream, { core::logging::Severity::DEBUG });
+                addOutputStream(*_logFileStream, core::logging::Severity::DEBUG);
             else
-                addOutputStream(std::cout, { core::logging::Severity::DEBUG });
+                addOutputStream(std::cout, core::logging::Severity::DEBUG);
             [[fallthrough]];
         case core::logging::Severity::INFO:
             if (_logFileStream)
-                addOutputStream(*_logFileStream, { core::logging::Severity::INFO });
+                addOutputStream(*_logFileStream, core::logging::Severity::INFO);
             else
-                addOutputStream(std::cout, { core::logging::Severity::INFO });
+                addOutputStream(std::cout, core::logging::Severity::INFO);
             [[fallthrough]];
         case core::logging::Severity::WARNING:
             if (_logFileStream)
-                addOutputStream(*_logFileStream, { core::logging::Severity::WARNING });
+                addOutputStream(*_logFileStream, core::logging::Severity::WARNING);
             else
-                addOutputStream(std::cerr, { core::logging::Severity::WARNING });
+                addOutputStream(std::cerr, core::logging::Severity::WARNING);
             [[fallthrough]];
         case core::logging::Severity::ERROR:
             if (_logFileStream)
-                addOutputStream(*_logFileStream, { core::logging::Severity::ERROR });
+                addOutputStream(*_logFileStream, core::logging::Severity::ERROR);
             else
-                addOutputStream(std::cerr, { core::logging::Severity::ERROR });
+                addOutputStream(std::cerr, core::logging::Severity::ERROR);
             [[fallthrough]];
         case core::logging::Severity::FATAL:
             if (_logFileStream)
-                addOutputStream(*_logFileStream, { core::logging::Severity::FATAL });
+                addOutputStream(*_logFileStream, core::logging::Severity::FATAL);
             else
-                addOutputStream(std::cerr, { core::logging::Severity::FATAL });
+                addOutputStream(std::cerr, core::logging::Severity::FATAL);
             break;
         }
     }
@@ -206,5 +206,4 @@ namespace lms::core::logging
         std::unique_lock lock{ outputStream->mutex };
         outputStream->stream << stringUtils::toISO8601String(now) << " " << std::this_thread::get_id() << " [" << getSeverityName(severity) << "] [" << getModuleName(module) << "] " << message << std::endl;
     }
-
 } // namespace lms::core::logging

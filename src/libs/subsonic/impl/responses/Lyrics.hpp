@@ -30,7 +30,7 @@ namespace lms::db
 
 namespace lms::api::subsonic
 {
-    struct RequestContext;
+    class RequestContext;
 
     Response::Node createLyricsNode(RequestContext& context, const db::ObjectPtr<db::TrackLyrics>& lyrics);
     Response::Node createStructuredLyricsNode(RequestContext& context, const db::ObjectPtr<db::TrackLyrics>& lyrics);

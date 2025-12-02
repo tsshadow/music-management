@@ -428,7 +428,7 @@ namespace lms
             core::Service<recommendation::IRecommendationService> recommendationService{ recommendation::createRecommendationService(*database) };
             core::Service<recommendation::IPlaylistGeneratorService> playlistGeneratorService{ recommendation::createPlaylistGeneratorService(*database, *recommendationService) };
             core::Service<scanner::IScannerService> scannerService{ scanner::createScannerService(*database, cachePath) };
-            core::Service<transcoding::ITranscodeService> transcodingService{ transcoding::createTranscodeService(*database, *childProcessManagerService) };
+            core::Service<transcoding::ITranscodeService> transcodingService{ transcoding::createTranscodeService() };
             core::Service<podcast::IPodcastService> podcastService{ podcast::createPodcastService(ioContext, *database, cachePath / "podcasts") };
 
             scannerService->getEvents().scanComplete.connect([&] {

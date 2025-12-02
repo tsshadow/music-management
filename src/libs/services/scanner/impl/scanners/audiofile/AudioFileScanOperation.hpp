@@ -39,7 +39,7 @@ namespace lms::db
 
 namespace lms::scanner
 {
-    class AudioFileInfoParserSet;
+    struct AudioFileInfoParserSet;
     class TrackMetadataParser;
 
     struct ImageInfo

@@ -30,7 +30,7 @@ namespace lms::db
 
 namespace lms::api::subsonic
 {
-    struct RequestContext;
+    class RequestContext;
 
     Response::Node createGenreNode(RequestContext& context, const db::ObjectPtr<db::Cluster>& cluster);
 } // namespace lms::api::subsonic

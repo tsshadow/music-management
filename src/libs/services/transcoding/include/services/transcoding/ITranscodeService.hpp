@@ -23,19 +23,10 @@
 
 #include "audio/TranscodeTypes.hpp"
 
-namespace lms
+namespace lms::core
 {
-    namespace core
-    {
-        class IChildProcessManager;
-        class IResourceHandler;
-    } // namespace core
-
-    namespace db
-    {
-        class IDb;
-    }
-} // namespace lms
+    class IResourceHandler;
+} // namespace lms::core
 
 namespace lms::transcoding
 {
@@ -47,5 +38,5 @@ namespace lms::transcoding
         virtual std::unique_ptr<core::IResourceHandler> createTranscodeResourceHandler(const audio::TranscodeParameters& parameters, bool estimateContentLength = false) = 0;
     };
 
-    std::unique_ptr<ITranscodeService> createTranscodeService(db::IDb& db, core::IChildProcessManager& childProcessManager);
+    std::unique_ptr<ITranscodeService> createTranscodeService();
 } // namespace lms::transcoding

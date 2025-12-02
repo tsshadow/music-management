@@ -39,7 +39,6 @@ namespace lms::audio::ffmpeg
         void visitPerformerTags(PerformerVisitor visitor) const override;
         void visitLyricsTags(LyricsVisitor visitor) const override;
 
-        const AudioFile& _audioFile;
         AudioFile::MetadataMap _metaDataMap;
     };
 } // namespace lms::audio::ffmpeg

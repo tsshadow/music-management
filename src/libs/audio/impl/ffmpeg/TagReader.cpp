@@ -144,8 +144,7 @@ namespace lms::audio::ffmpeg
     } // namespace
 
     TagReader::TagReader(const AudioFile& audioFile, bool enableExtraDebugLogs)
-        : _audioFile{ audioFile }
-        , _metaDataMap{ audioFile.extractMetaData() }
+        : _metaDataMap{ audioFile.extractMetaData() }
     {
         if (enableExtraDebugLogs && core::Service<core::logging::ILogger>::get()->isSeverityActive(core::logging::Severity::DEBUG))
         {

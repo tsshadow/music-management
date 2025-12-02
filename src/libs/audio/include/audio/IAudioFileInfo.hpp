@@ -21,7 +21,7 @@
 
 namespace lms::audio
 {
-    class AudioProperties;
+    struct AudioProperties;
     class IImageReader;
     class ITagReader;
 

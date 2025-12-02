@@ -34,14 +34,12 @@ namespace lms::transcoding
         }
     } // namespace
 
-    std::unique_ptr<ITranscodeService> createTranscodeService(db::IDb& db, core::IChildProcessManager& childProcessManager)
+    std::unique_ptr<ITranscodeService> createTranscodeService()
     {
-        return std::make_unique<TranscodeService>(db, childProcessManager);
+        return std::make_unique<TranscodeService>();
     }
 
-    TranscodeService::TranscodeService(db::IDb& db, core::IChildProcessManager& childProcessManager)
-        : _db{ db }
-        , _childProcessManager(childProcessManager)
+    TranscodeService::TranscodeService()
     {
         LMS_LOG(TRANSCODING, INFO, "Service started!");
     }

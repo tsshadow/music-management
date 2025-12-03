@@ -17,6 +17,8 @@
  * along with LMS.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <array>
+
 #include "endpoints/System.hpp"
 
 namespace lms::api::subsonic
@@ -42,40 +44,27 @@ namespace lms::api::subsonic
     {
         Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
 
+        struct Extension
         {
-            Response::Node& transcodeOffsetNode{ response.createArrayNode("openSubsonicExtensions") };
-            transcodeOffsetNode.setAttribute("name", "transcodeOffset");
-            transcodeOffsetNode.addArrayValue("versions", 1);
-        }
+            core::LiteralString name;
+            int version;
+        };
 
-        {
-            Response::Node& formPostNode{ response.createArrayNode("openSubsonicExtensions") };
-            formPostNode.setAttribute("name", "formPost");
-            formPostNode.addArrayValue("versions", 1);
-        }
+        constexpr std::array extensions{
+            Extension{ "apiKeyAuthentication", 1 },
+            Extension{ "getPodcastEpisode", 1 },
+            Extension{ "formPost", 1 },
+            Extension{ "indexBasedQueue", 1 },
+            Extension{ "songLyrics", 1 },
+            Extension{ "transcodeOffset", 1 },
+            Extension{ "transcoding", 1 },
+        };
 
+        for (const Extension& extension : extensions)
         {
-            Response::Node& songLyricsNode{ response.createArrayNode("openSubsonicExtensions") };
-            songLyricsNode.setAttribute("name", "songLyrics");
-            songLyricsNode.addArrayValue("versions", 1);
-        }
-
-        {
-            Response::Node& apiKeyAuthentication{ response.createArrayNode("openSubsonicExtensions") };
-            apiKeyAuthentication.setAttribute("name", "apiKeyAuthentication");
-            apiKeyAuthentication.addArrayValue("versions", 1);
-        }
-
-        {
-            Response::Node& apiKeyAuthentication{ response.createArrayNode("openSubsonicExtensions") };
-            apiKeyAuthentication.setAttribute("name", "getPodcastEpisode");
-            apiKeyAuthentication.addArrayValue("versions", 1);
-        }
-
-        {
-            Response::Node& apiKeyAuthentication{ response.createArrayNode("openSubsonicExtensions") };
-            apiKeyAuthentication.setAttribute("name", "indexBasedQueue");
-            apiKeyAuthentication.addArrayValue("versions", 1);
+            Response::Node& extensionNode{ response.createArrayNode("openSubsonicExtensions") };
+            extensionNode.setAttribute("name", extension.name.str());
+            extensionNode.addArrayValue("versions", extension.version);
         }
 
         return response;

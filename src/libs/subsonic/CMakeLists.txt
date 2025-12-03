@@ -1,5 +1,8 @@
 
 add_library(lmssubsonic STATIC
+	impl/endpoints/transcoding/AudioFileInfo.cpp
+	impl/endpoints/transcoding/TranscodeDecision.cpp
+	impl/endpoints/transcoding/TranscodeDecisionTracker.cpp
 	impl/endpoints/AlbumSongLists.cpp
 	impl/endpoints/Bookmarks.cpp
 	impl/endpoints/Browsing.cpp
@@ -10,7 +13,10 @@ add_library(lmssubsonic STATIC
 	impl/endpoints/Podcast.cpp
 	impl/endpoints/Searching.cpp
 	impl/endpoints/System.cpp
+	impl/endpoints/Transcoding.cpp
 	impl/endpoints/UserManagement.cpp
+	impl/payloads/ClientInfo.cpp
+	impl/payloads/StreamDetails.cpp
 	impl/responses/Album.cpp
 	impl/responses/AlbumInfo.cpp
 	impl/responses/Artist.cpp

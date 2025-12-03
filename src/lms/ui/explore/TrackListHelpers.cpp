@@ -299,8 +299,12 @@ namespace lms::ui::TrackListHelpers
             starBtn->clicked().connect([=] { toggle(); });
         }
 
-        entry->bindNew<Wt::WPushButton>("download", Wt::WString::tr("Lms.Explore.download"))
-            ->setLink(Wt::WLink{ std::make_unique<DownloadTrackResource>(trackId) });
+        if (LmsApp->areDownloadsEnabled())
+        {
+            entry->setCondition("if-has-download", true);
+            entry->bindNew<Wt::WPushButton>("download", Wt::WString::tr("Lms.Explore.download"))
+                ->setLink(Wt::WLink{ std::make_unique<DownloadTrackResource>(trackId) });
+        }
 
         entry->bindNew<Wt::WPushButton>("track-info", Wt::WString::tr("Lms.Explore.track-info"))
             ->clicked()

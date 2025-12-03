@@ -70,6 +70,8 @@ namespace lms::ui
         db::UserType getUserType() const;          // user must be logged in prior this call
         std::string_view getUserLoginName() const; // user must be logged in prior this call
 
+        bool areDownloadsEnabled() const;
+
         // Proxified scanner events
         scanner::Events& getScannerEvents() { return _scannerEvents; }
 
@@ -109,6 +111,7 @@ namespace lms::ui
         Wt::Signal<> _preQuit;
         LmsApplicationManager& _appManager;
         const AuthenticationBackend _authBackend;
+        const bool _areDownloadsEnabled;
         scanner::Events _scannerEvents;
         struct UserAuthInfo
         {

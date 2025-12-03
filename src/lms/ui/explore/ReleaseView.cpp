@@ -359,8 +359,12 @@ namespace lms::ui
                 _playQueueController.processCommand(PlayQueueController::Command::PlayOrAddLast, { _releaseId });
             });
 
-        bindNew<Wt::WPushButton>("download", Wt::WString::tr("Lms.Explore.download"))
-            ->setLink(Wt::WLink{ std::make_unique<DownloadReleaseResource>(_releaseId) });
+        if (LmsApp->areDownloadsEnabled())
+        {
+            setCondition("if-has-download", true);
+            bindNew<Wt::WPushButton>("download", Wt::WString::tr("Lms.Explore.download"))
+                ->setLink(Wt::WLink{ std::make_unique<DownloadReleaseResource>(_releaseId) });
+        }
 
         bindNew<Wt::WPushButton>("release-info", Wt::WString::tr("Lms.Explore.release-info"))
             ->clicked()
@@ -527,8 +531,12 @@ namespace lms::ui
                     starBtn->clicked().connect([=] { toggle(); });
                 }
 
-                entry->bindNew<Wt::WPushButton>("download", Wt::WString::tr("Lms.Explore.download"))
-                    ->setLink(Wt::WLink{ std::make_unique<DownloadTrackResource>(trackId) });
+                if (LmsApp->areDownloadsEnabled())
+                {
+                    entry->setCondition("if-has-download", true);
+                    entry->bindNew<Wt::WPushButton>("download", Wt::WString::tr("Lms.Explore.download"))
+                        ->setLink(Wt::WLink{ std::make_unique<DownloadTrackResource>(trackId) });
+                }
 
                 entry->bindNew<Wt::WPushButton>("track-info", Wt::WString::tr("Lms.Explore.track-info"))
                     ->clicked()

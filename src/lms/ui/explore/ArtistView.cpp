@@ -168,8 +168,13 @@ namespace lms::ui
             .connect([this] {
                 _playQueueController.processCommand(PlayQueueController::Command::PlayOrAddLast, { _artistId });
             });
-        bindNew<Wt::WPushButton>("download", Wt::WString::tr("Lms.Explore.download"))
-            ->setLink(Wt::WLink{ std::make_unique<DownloadArtistResource>(_artistId) });
+
+        if (LmsApp->areDownloadsEnabled())
+        {
+            setCondition("if-has-download", true);
+            bindNew<Wt::WPushButton>("download", Wt::WString::tr("Lms.Explore.download"))
+                ->setLink(Wt::WLink{ std::make_unique<DownloadArtistResource>(_artistId) });
+        }
 
         {
             auto isStarred{ [this] { return core::Service<feedback::IFeedbackService>::get()->isStarred(LmsApp->getUserId(), _artistId); } };

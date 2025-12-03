@@ -135,8 +135,12 @@ namespace lms::ui
                 _playQueueController.processCommand(PlayQueueController::Command::PlayOrAddLast, *trackListId);
             });
 
-        bindNew<Wt::WPushButton>("download", Wt::WString::tr("Lms.Explore.download"))
-            ->setLink(Wt::WLink{ std::make_unique<DownloadTrackListResource>(*trackListId) });
+        if (LmsApp->areDownloadsEnabled())
+        {
+            setCondition("if-has-download", true);
+            bindNew<Wt::WPushButton>("download", Wt::WString::tr("Lms.Explore.download"))
+                ->setLink(Wt::WLink{ std::make_unique<DownloadTrackListResource>(*trackListId) });
+        }
 
         if (trackList->getUserId() == LmsApp->getUserId())
         {

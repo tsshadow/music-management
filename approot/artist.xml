@@ -24,7 +24,9 @@
 					${<if-has-mbid>}
 					<li><a href="${mbid-link}" target="_blank" class="dropdown-item">${tr:Lms.Explore.musicbrainz-artist}</a></li>
 					${</if-has-mbid>}
+					${<if-has-download>}
 					<li>${download class="dropdown-item"}</li>
+					${</if-has-download>}
 				</ul>
 			</div>
 		</div>

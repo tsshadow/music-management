@@ -65,7 +65,9 @@
 				<ul class="dropdown-menu" aria-labelledby="${id:more-btn}">
 					<li>${play class="dropdown-item"}</li>
 					<li>${star class="dropdown-item"}</li>
+					${<if-has-download>}
 					<li>${download class="dropdown-item"}</li>
+					${</if-has-download>}
 				</ul>
 			</div>
 		</div>

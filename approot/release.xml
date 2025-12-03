@@ -27,7 +27,9 @@
 					${<if-has-mbid>}
 					<li><a href="${mbid-link}" target="_blank" class="dropdown-item">${tr:Lms.Explore.musicbrainz-release}</a></li>
 					${</if-has-mbid>}
+					${<if-has-download>}
 					<li>${download class="dropdown-item"}</li>
+					${</if-has-download>}
 					<li>${release-info class="dropdown-item"}</li>
 				</ul>
 			</div>
@@ -109,7 +111,9 @@
 					<li>${play-next class="dropdown-item"}</li>
 					<li>${play-last class="dropdown-item"}</li>
 					<li>${star class="dropdown-item"}</li>
+					${<if-has-download>}
 					<li>${download class="dropdown-item"}</li>
+					${</if-has-download>}
 					<li>${track-info class="dropdown-item"}</li>
 					${<if-has-lyrics>}<li>${track-lyrics class="dropdown-item"}</li>${</if-has-lyrics>}
 				</ul>

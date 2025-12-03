@@ -114,7 +114,7 @@ namespace lms::ui
 
     PlayQueue::PlayQueue()
         : Template{ Wt::WString::tr("Lms.PlayQueue.template") }
-        , _capacity{ core::Service<core::IConfig>::get()->getULong("playqueue-max-entry-count", 1000) }
+        , _capacity{ core::Service<core::IConfig>::get()->getULong("ui-playqueue-max-entry-count", 1000) }
     {
         initTrackLists();
 
@@ -578,8 +578,12 @@ namespace lms::ui
             }
         });
 
-        entry->bindNew<Wt::WPushButton>("download", Wt::WString::tr("Lms.Explore.download"))
-            ->setLink(Wt::WLink{ std::make_unique<DownloadTrackResource>(trackId) });
+        if (LmsApp->areDownloadsEnabled())
+        {
+            entry->setCondition("if-has-download", true);
+            entry->bindNew<Wt::WPushButton>("download", Wt::WString::tr("Lms.Explore.download"))
+                ->setLink(Wt::WLink{ std::make_unique<DownloadTrackResource>(trackId) });
+        }
     }
 
     void PlayQueue::enqueueRadioTracksIfNeeded()

@@ -197,6 +197,9 @@ namespace lms::db
                 query.where("t_e_i_l.track_embedded_image_id = ?").bind(params.embeddedImageId);
             }
 
+            if (params.filters.codec.has_value())
+                query.where("t.codec = ?").bind(detail::getDbCodecType(*params.filters.codec));
+
             switch (params.sortMethod)
             {
             case TrackSortMethod::None:

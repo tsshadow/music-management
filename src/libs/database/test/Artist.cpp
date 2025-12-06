@@ -518,6 +518,34 @@ namespace lms::db::tests
         }
     }
 
+    TEST_F(DatabaseFixture, Artist_findByCodec)
+    {
+        ScopedArtist artist1{ session, "A" };
+        ScopedArtist artist2{ session, "B" };
+        ScopedTrack track1{ session };
+        ScopedTrack track2{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            TrackArtistLink::create(session, track1.get(), artist1.get(), TrackArtistLinkType::Artist);
+            TrackArtistLink::create(session, track2.get(), artist2.get(), TrackArtistLinkType::Artist);
+
+            track1.get().modify()->setCodec(core::media::CodecType::MP3);
+            track2.get().modify()->setCodec(core::media::CodecType::FLAC);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Artist::FindParameters params;
+            params.setFilters(Filters{}.setCodec(core::media::CodecType::FLAC));
+
+            const auto artists{ Artist::find(session, params) };
+            ASSERT_EQ(artists.results.size(), 1);
+            EXPECT_EQ(artists.results.front()->getId(), artist2.getId());
+        }
+    }
+
     TEST_F(DatabaseFixture, Artist_findByName)
     {
         ScopedArtist artist{ session, "AAA" };

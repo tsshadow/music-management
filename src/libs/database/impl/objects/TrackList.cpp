@@ -31,6 +31,7 @@
 
 #include "SqlQuery.hpp"
 #include "Utils.hpp"
+#include "objects/detail/Types.hpp"
 #include "traits/IdTypeTraits.hpp"
 #include "traits/StringViewTraits.hpp"
 
@@ -49,6 +50,7 @@ namespace lms::db
             auto query{ session.getDboSession()->query<ResultType>("SELECT " + std::string{ itemToSelect } + " FROM tracklist t_l") };
 
             if (!params.filters.clusters.empty()
+                || params.filters.codec.has_value()
                 || params.filters.mediaLibrary.isValid()
                 || params.filters.label.isValid()
                 || params.filters.releaseType.isValid())
@@ -61,10 +63,14 @@ namespace lms::db
                 query.where("t_l.name LIKE ? ESCAPE '" ESCAPE_CHAR_STR "'").bind("%" + utils::escapeForLikeKeyword(keyword) + "%");
 
             if (params.filters.mediaLibrary.isValid()
+                || params.filters.codec.has_value()
                 || params.filters.label.isValid()
                 || params.filters.releaseType.isValid())
             {
                 query.join("track t ON t.id = t_l_e.track_id");
+
+                if (params.filters.codec.has_value())
+                    query.where("t.codec = ?").bind(detail::getDbCodecType(*params.filters.codec));
 
                 if (params.filters.mediaLibrary.isValid())
                     query.where("t.media_library_id = ?").bind(params.filters.mediaLibrary);

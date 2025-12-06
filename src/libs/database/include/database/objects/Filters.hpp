@@ -19,8 +19,11 @@
 
 #pragma once
 
+#include <optional>
 #include <span>
 #include <vector>
+
+#include "core/media/CodecType.hpp"
 
 #include "database/objects/ClusterId.hpp"
 #include "database/objects/LabelId.hpp"
@@ -31,10 +34,11 @@ namespace lms::db
 {
     struct Filters
     {
-        MediaLibraryId mediaLibrary;     // tracks that belongs to this library
-        std::vector<ClusterId> clusters; // tracks that belong to all these clusters
-        LabelId label;                   // tracks which release has this label
-        ReleaseTypeId releaseType;       // tracks which release has this type
+        MediaLibraryId mediaLibrary;                 // tracks that belongs to this library
+        std::vector<ClusterId> clusters;             // tracks that belong to *all* these clusters
+        LabelId label;                               // tracks which release has this label
+        ReleaseTypeId releaseType;                   // tracks which release has this type
+        std::optional<core::media::CodecType> codec; // tracks that match this codec
 
         Filters& setClusters(std::span<const ClusterId> _clusters)
         {
@@ -54,6 +58,11 @@ namespace lms::db
         Filters& setReleaseType(ReleaseTypeId _releaseType)
         {
             releaseType = _releaseType;
+            return *this;
+        }
+        Filters& setCodec(std::optional<core::media::CodecType> _codec)
+        {
+            codec = _codec;
             return *this;
         }
     };

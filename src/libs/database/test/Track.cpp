@@ -238,27 +238,26 @@ namespace lms::db::tests
         }
     }
 
-    TEST_F(DatabaseFixture, Track_findAbsoluteFilePath)
+    TEST_F(DatabaseFixture, Track_findByCodec)
     {
-        ScopedTrack track{ session };
-        const std::filesystem::path absoluteFilePath{ "/path/to/track.mp3" };
+        ScopedTrack track1{ session };
+        ScopedTrack track2{ session };
+
         {
             auto transaction{ session.createWriteTransaction() };
-            track.get().modify()->setAbsoluteFilePath(absoluteFilePath);
+            track1.get().modify()->setCodec(core::media::CodecType::MP3);
+            track2.get().modify()->setCodec(core::media::CodecType::FLAC);
         }
 
         {
             auto transaction{ session.createReadTransaction() };
 
-            TrackId lastRetrievedTrackId;
-            std::vector<std::pair<TrackId, std::filesystem::path>> visitedTracks;
-            Track::findAbsoluteFilePath(session, lastRetrievedTrackId, 10, [&](TrackId trackId, const std::filesystem::path& filePath) {
-                visitedTracks.emplace_back(trackId, filePath);
-            });
-            ASSERT_EQ(visitedTracks.size(), 1);
-            EXPECT_EQ(visitedTracks[0].first, track.getId());
-            EXPECT_EQ(visitedTracks[0].second, absoluteFilePath);
-            EXPECT_EQ(lastRetrievedTrackId, track.getId());
+            Track::FindParameters params;
+            params.setFilters(Filters{}.setCodec(core::media::CodecType::FLAC));
+
+            const auto tracks{ Track::find(session, params) };
+            ASSERT_EQ(tracks.results.size(), 1);
+            EXPECT_EQ(tracks.results[0]->getId(), track2.getId());
         }
     }
 

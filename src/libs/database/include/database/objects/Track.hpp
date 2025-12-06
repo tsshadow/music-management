@@ -350,7 +350,7 @@ namespace lms::db
             Wt::Dbo::field(a, _copyright, "copyright");
             Wt::Dbo::field(a, _copyrightURL, "copyright_url");
             Wt::Dbo::field(a, _artistDisplayName, "artist_display_name");
-            Wt::Dbo::field(a, _comment, "comment"); // TODO: move in a dedicated table
+            Wt::Dbo::field(a, _comment, "comment"); // TODO: move in a dedicated table?
             Wt::Dbo::field(a, _advisory, "advisory");
 
             Wt::Dbo::belongsTo(a, _medium, "medium", Wt::Dbo::OnDeleteCascade);

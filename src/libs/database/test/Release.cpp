@@ -1248,6 +1248,40 @@ namespace lms::db::tests
         }
     }
 
+    TEST_F(DatabaseFixture, Release_findBycodec)
+    {
+        ScopedRelease release1{ session, "MyRelease1" };
+        ScopedTrack track1{ session };
+
+        ScopedRelease release2{ session, "MyRelease2" };
+        ScopedTrack track2{ session };
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            ASSERT_EQ(release1->getCodecs().size(), 0);
+        }
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            track1.get().modify()->setCodec(core::media::CodecType::FLAC);
+            track1.get().modify()->setRelease(release1.get());
+
+            track2.get().modify()->setCodec(core::media::CodecType::MP3);
+            track2.get().modify()->setRelease(release2.get());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Release::FindParameters params;
+            params.setFilters(Filters{}.setCodec(core::media::CodecType::MP3));
+
+            auto releases{ Release::findIds(session, params) };
+            ASSERT_EQ(releases.results.size(), 1);
+            EXPECT_EQ(releases.results.front(), release2.getId());
+        }
+    }
+
     TEST_F(DatabaseFixture, Release_trackCount)
     {
         ScopedRelease release1{ session, "MyRelease1" };

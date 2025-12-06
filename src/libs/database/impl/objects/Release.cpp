@@ -75,6 +75,7 @@ namespace lms::db
                 || params.artist.isValid()
                 || params.filters.clusters.size() == 1
                 || params.filters.mediaLibrary.isValid()
+                || params.filters.codec.has_value()
                 || params.directory.isValid()
                 || params.parentDirectory.isValid())
             {
@@ -217,6 +218,9 @@ namespace lms::db
 
                 query.where(oss.str());
             }
+
+            if (params.filters.codec.has_value())
+                query.where("t.codec = ?").bind(detail::getDbCodecType(params.filters.codec.value()));
 
             if (params.releaseGroupMBID)
                 query.where("group_mbid = ?").bind(params.releaseGroupMBID->getAsString());

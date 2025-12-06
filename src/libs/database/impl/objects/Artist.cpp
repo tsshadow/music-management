@@ -34,6 +34,7 @@
 
 #include "SqlQuery.hpp"
 #include "Utils.hpp"
+#include "objects/detail/Types.hpp"
 #include "traits/IdTypeTraits.hpp"
 #include "traits/StringViewTraits.hpp"
 
@@ -56,6 +57,7 @@ namespace lms::db
                 || params.track.isValid()
                 || params.release.isValid()
                 || params.filters.clusters.size() == 1
+                || params.filters.codec.has_value()
                 || params.filters.mediaLibrary.isValid()
                 || params.filters.label.isValid()
                 || params.filters.releaseType.isValid())
@@ -67,6 +69,7 @@ namespace lms::db
                 || params.sortMethod == ArtistSortMethod::AddedDesc
                 || params.writtenAfter.isValid()
                 || params.release.isValid()
+                || params.filters.codec.has_value()
                 || params.filters.mediaLibrary.isValid()
                 || params.filters.label.isValid()
                 || params.filters.releaseType.isValid())
@@ -78,6 +81,9 @@ namespace lms::db
 
                 if (params.release.isValid())
                     query.where("t.release_id = ?").bind(params.release);
+
+                if (params.filters.codec.has_value())
+                    query.where("t.codec = ?").bind(detail::getDbCodecType(*params.filters.codec));
 
                 if (params.filters.mediaLibrary.isValid())
                     query.where("t.media_library_id = ?").bind(params.filters.mediaLibrary);

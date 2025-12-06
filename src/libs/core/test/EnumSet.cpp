@@ -32,8 +32,18 @@ namespace lms::core
         };
 
         {
+            constexpr EnumSet<Foo> test;
+
+            static_assert(test.size() == 0);
+            static_assert(test.empty());
+            static_assert(!test.contains(Foo::One));
+            static_assert(!test.contains(Foo::Two));
+        }
+
+        {
             constexpr EnumSet<Foo> test{ Foo::One };
 
+            static_assert(test.size() == 1);
             static_assert(!test.empty());
             static_assert(test.contains(Foo::One));
             static_assert(!test.contains(Foo::Two));
@@ -48,6 +58,8 @@ namespace lms::core
         {
             constexpr EnumSet<Foo> test{ Foo::One, Foo::Two };
             constexpr auto bitfield{ test.getBitfield() };
+
+            static_assert(test.size() == 2);
 
             EnumSet<Foo> test2;
             EXPECT_FALSE(test2.contains(Foo::One));

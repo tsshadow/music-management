@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <bit>
 #include <cassert>
 #include <cstdint>
 #include <initializer_list>
@@ -49,6 +50,11 @@ namespace lms::core
         constexpr EnumSet(It begin, It end)
         {
             assign(begin, end);
+        }
+
+        constexpr std::size_t size() const
+        {
+            return std::popcount(_bitfield);
         }
 
         template<typename It>

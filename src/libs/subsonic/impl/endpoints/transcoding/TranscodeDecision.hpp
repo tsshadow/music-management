@@ -33,7 +33,7 @@ namespace lms::api::subsonic
 {
     struct ClientInfo;
 
-    namespace details
+    namespace detail
     {
         enum class TranscodeReason
         {
@@ -72,5 +72,5 @@ namespace lms::api::subsonic
         TranscodeDecisionResult computeTranscodeDecision(const ClientInfo& clientInfo, const audio::AudioProperties& source);
 
         const audio::TranscodeOutputFormat* selectTranscodeOutputFormat(std::string_view containerName, std::string_view codecName);
-    } // namespace details
+    } // namespace detail
 } // namespace lms::api::subsonic

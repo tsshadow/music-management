@@ -32,7 +32,7 @@
 
 namespace lms::feedback::listenBrainz
 {
-    namespace details
+    namespace detail
     {
         template<typename StarredObjType>
         void onStarred(db::Session& session, typename StarredObjType::IdType id)
@@ -54,7 +54,7 @@ namespace lms::feedback::listenBrainz
             if (auto starredObj{ StarredObjType::find(session, id) })
                 starredObj.remove();
         }
-    } // namespace details
+    } // namespace detail
 
     ListenBrainzBackend::ListenBrainzBackend(boost::asio::io_context& ioContext, db::IDb& db)
         : _ioContext{ ioContext }
@@ -73,22 +73,22 @@ namespace lms::feedback::listenBrainz
 
     void ListenBrainzBackend::onStarred(db::StarredArtistId starredArtistId)
     {
-        details::onStarred<db::StarredArtist>(_db.getTLSSession(), starredArtistId);
+        detail::onStarred<db::StarredArtist>(_db.getTLSSession(), starredArtistId);
     }
 
     void ListenBrainzBackend::onUnstarred(db::StarredArtistId starredArtistId)
     {
-        details::onUnstarred<db::StarredArtist>(_db.getTLSSession(), starredArtistId);
+        detail::onUnstarred<db::StarredArtist>(_db.getTLSSession(), starredArtistId);
     }
 
     void ListenBrainzBackend::onStarred(db::StarredReleaseId starredReleaseId)
     {
-        details::onStarred<db::StarredRelease>(_db.getTLSSession(), starredReleaseId);
+        detail::onStarred<db::StarredRelease>(_db.getTLSSession(), starredReleaseId);
     }
 
     void ListenBrainzBackend::onUnstarred(db::StarredReleaseId starredReleaseId)
     {
-        details::onUnstarred<db::StarredRelease>(_db.getTLSSession(), starredReleaseId);
+        detail::onUnstarred<db::StarredRelease>(_db.getTLSSession(), starredReleaseId);
     }
 
     void ListenBrainzBackend::onStarred(db::StarredTrackId starredTrackId)

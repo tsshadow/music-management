@@ -27,12 +27,12 @@
 
 namespace lms::ui::state
 {
-    namespace details
+    namespace detail
     {
         std::optional<std::string> readValue(std::string_view item);
         void writeValue(std::string_view item, std::string_view value);
         void eraseValue(std::string_view item);
-    } // namespace details
+    } // namespace detail
 
     template<typename T>
     void writeValue(std::string_view item, std::optional<T> value)
@@ -40,18 +40,18 @@ namespace lms::ui::state
         if (value.has_value())
         {
             if constexpr (std::is_enum_v<T>)
-                details::writeValue(item, std::to_string(static_cast<std::underlying_type_t<T>>(*value)));
+                detail::writeValue(item, std::to_string(static_cast<std::underlying_type_t<T>>(*value)));
             else
-                details::writeValue(item, std::to_string(*value));
+                detail::writeValue(item, std::to_string(*value));
         }
         else
-            details::eraseValue(item);
+            detail::eraseValue(item);
     }
 
     template<typename T>
     std::optional<T> readValue(std::string_view item)
     {
-        if (std::optional<std::string> res{ details::readValue(item) })
+        if (std::optional<std::string> res{ detail::readValue(item) })
             return core::stringUtils::readAs<T>(*res);
 
         return std::nullopt;

@@ -31,7 +31,7 @@
 
 namespace lms::core::stringUtils
 {
-    namespace details
+    namespace detail
     {
         constexpr std::pair<char, std::string_view> jsEscapeChars[]{
             { '\\', "\\\\" },
@@ -203,7 +203,7 @@ namespace lms::core::stringUtils
 
             return std::distance(std::cbegin(months), str) + 1;
         }
-    } // namespace details
+    } // namespace detail
 
     template<>
     std::optional<std::string> readAs(std::string_view str)
@@ -240,32 +240,32 @@ namespace lms::core::stringUtils
 
     std::vector<std::string_view> splitString(std::string_view str, std::span<const std::string_view> separators)
     {
-        return details::splitString(str, separators);
+        return detail::splitString(str, separators);
     }
 
     std::vector<std::string_view> splitString(std::string_view str, std::span<const std::string> separators)
     {
-        return details::splitString(str, separators);
+        return detail::splitString(str, separators);
     }
 
     std::string joinStrings(std::span<const std::string_view> strings, std::string_view delimiter)
     {
-        return details::joinStrings(strings, delimiter);
+        return detail::joinStrings(strings, delimiter);
     }
 
     std::string joinStrings(std::span<const std::string> strings, std::string_view delimiter)
     {
-        return details::joinStrings(strings, delimiter);
+        return detail::joinStrings(strings, delimiter);
     }
 
     std::string joinStrings(std::span<const std::string> strings, char delimiter)
     {
-        return details::joinStrings(strings, std::string_view{ &delimiter, 1 });
+        return detail::joinStrings(strings, std::string_view{ &delimiter, 1 });
     }
 
     std::string joinStrings(std::span<const std::string_view> strings, char delimiter)
     {
-        return details::joinStrings(strings, std::string_view{ &delimiter, 1 });
+        return detail::joinStrings(strings, std::string_view{ &delimiter, 1 });
     }
 
     std::string escapeAndJoinStrings(std::span<const std::string_view> strings, char delimiter, char escapeChar)
@@ -434,32 +434,32 @@ namespace lms::core::stringUtils
 
     std::string jsEscape(std::string_view str)
     {
-        return details::escape(str, details::jsEscapeChars);
+        return detail::escape(str, detail::jsEscapeChars);
     }
 
     void writeJSEscapedString(std::ostream& os, std::string_view str)
     {
-        details::writeEscapedString(os, str, details::jsEscapeChars);
+        detail::writeEscapedString(os, str, detail::jsEscapeChars);
     }
 
     std::string jsonEscape(std::string_view str)
     {
-        return details::escape(str, details::jsonEscapeChars);
+        return detail::escape(str, detail::jsonEscapeChars);
     }
 
     void writeJsonEscapedString(std::ostream& os, std::string_view str)
     {
-        details::writeEscapedString(os, str, details::jsonEscapeChars);
+        detail::writeEscapedString(os, str, detail::jsonEscapeChars);
     }
 
     std::string xmlEscape(std::string_view str)
     {
-        return details::escape(str, details::xmlEscapeChars);
+        return detail::escape(str, detail::xmlEscapeChars);
     }
 
     void writeXmlEscapedString(std::ostream& os, std::string_view str)
     {
-        details::writeEscapedString(os, str, details::xmlEscapeChars);
+        detail::writeEscapedString(os, str, detail::xmlEscapeChars);
     }
 
     std::string escapeString(std::string_view str, std::string_view charsToEscape, char escapeChar)
@@ -611,11 +611,11 @@ namespace lms::core::stringUtils
             timeStr += ":00";
 
         // Normalize zone
-        const std::optional<std::chrono::minutes> offset{ details::getRFC822ZoneOffset(zoneStr) };
+        const std::optional<std::chrono::minutes> offset{ detail::getRFC822ZoneOffset(zoneStr) };
         if (!offset)
             return {};
 
-        std::optional<unsigned> month{ details::getRFC822Month(monthStr) };
+        std::optional<unsigned> month{ detail::getRFC822Month(monthStr) };
         if (!month)
             return {};
 

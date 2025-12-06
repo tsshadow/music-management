@@ -29,7 +29,7 @@
 #include "SubsonicResponse.hpp"
 #include "payloads/ClientInfo.hpp"
 
-namespace lms::api::subsonic::details
+namespace lms::api::subsonic::detail
 {
     namespace
     {
@@ -592,4 +592,4 @@ namespace lms::api::subsonic::details
 
         return FailureResult{ "No compatible direct play or transcoding profile found" };
     }
-} // namespace lms::api::subsonic::details
+} // namespace lms::api::subsonic::detail

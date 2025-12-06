@@ -30,14 +30,14 @@
 
 namespace lms::api::subsonic
 {
-    namespace details
+    namespace detail
     {
-        std::ostream& operator<<(std::ostream& os, const details::TranscodeDecisionResult& result)
+        std::ostream& operator<<(std::ostream& os, const detail::TranscodeDecisionResult& result)
         {
             std::visit(core::utils::overloads{
-                           [&](const details::DirectPlayResult&) { os << "direct play"; },
-                           [&](const details::FailureResult& res) { os << "failure: " << res.reason; },
-                           [&](const details::TranscodeResult& res) {
+                           [&](const detail::DirectPlayResult&) { os << "direct play"; },
+                           [&](const detail::FailureResult& res) { os << "failure: " << res.reason; },
+                           [&](const detail::TranscodeResult& res) {
                                os << "transcode: reasons = {";
 
                                bool firstReason{ true };
@@ -66,7 +66,7 @@ namespace lms::api::subsonic
 
             return os;
         } // namespace
-    }; // namespace details
+    }; // namespace detail
 
     namespace
     {
@@ -75,7 +75,7 @@ namespace lms::api::subsonic
             ClientInfo clientInfo;
             audio::AudioProperties source;
 
-            details::TranscodeDecisionResult expected;
+            detail::TranscodeDecisionResult expected;
         };
 
         void processTests(std::span<const TestCase> testCases)
@@ -83,7 +83,7 @@ namespace lms::api::subsonic
             for (std::size_t testCaseIndex{ 0 }; testCaseIndex < std::size(testCases); ++testCaseIndex)
             {
                 const auto& testCase{ testCases[testCaseIndex] };
-                const details::TranscodeDecisionResult decision{ details::computeTranscodeDecision(testCase.clientInfo, testCase.source) };
+                const detail::TranscodeDecisionResult decision{ detail::computeTranscodeDecision(testCase.clientInfo, testCase.source) };
 
                 EXPECT_EQ(testCase.expected, decision) << "testCaseIndex: " << testCaseIndex;
             }
@@ -120,7 +120,7 @@ namespace lms::api::subsonic
                     .bitsPerSample = std::nullopt,
                 },
 
-                .expected = { details::DirectPlayResult{} },
+                .expected = { detail::DirectPlayResult{} },
             },
 
             // Needs transcode due to codec limitation
@@ -150,7 +150,7 @@ namespace lms::api::subsonic
                     .bitsPerSample = std::nullopt,
                 },
 
-                .expected = { details::TranscodeResult{ .reasons = { details::TranscodeReason::AudioBitrateNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = std::nullopt, .audioBitrate = 96000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
+                .expected = { detail::TranscodeResult{ .reasons = { detail::TranscodeReason::AudioBitrateNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = std::nullopt, .audioBitrate = 96000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
             },
 
             // Needs transcode due to global limitation on the direct play bitrate
@@ -180,7 +180,7 @@ namespace lms::api::subsonic
                     .bitsPerSample = std::nullopt,
                 },
 
-                .expected = { details::TranscodeResult{ .reasons = { details::TranscodeReason::AudioBitrateNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = std::nullopt, .audioBitrate = 96000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
+                .expected = { detail::TranscodeResult{ .reasons = { detail::TranscodeReason::AudioBitrateNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = std::nullopt, .audioBitrate = 96000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
             },
 
             // Needs transcode due to codec limitation, but global limitation is even more restrictive
@@ -210,7 +210,7 @@ namespace lms::api::subsonic
                     .bitsPerSample = std::nullopt,
                 },
 
-                .expected = { details::TranscodeResult{ .reasons = { details::TranscodeReason::AudioBitrateNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = std::nullopt, .audioBitrate = 96'000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
+                .expected = { detail::TranscodeResult{ .reasons = { detail::TranscodeReason::AudioBitrateNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = std::nullopt, .audioBitrate = 96'000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
             },
 
             // Needs transcode due to max audio sample rate not handle by codec limitation
@@ -240,7 +240,7 @@ namespace lms::api::subsonic
                     .bitsPerSample = std::nullopt,
                 },
 
-                .expected = { details::TranscodeResult{ .reasons = { details::TranscodeReason::AudioSampleRateNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = std::nullopt, .audioBitrate = 192'000, .audioProfile = "", .audioSamplerate = 48'000, .audioBitdepth = std::nullopt } } },
+                .expected = { detail::TranscodeResult{ .reasons = { detail::TranscodeReason::AudioSampleRateNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = std::nullopt, .audioBitrate = 192'000, .audioProfile = "", .audioSamplerate = 48'000, .audioBitdepth = std::nullopt } } },
             },
 
             // Needs transcode due to max nb channels not handle by profile
@@ -264,7 +264,7 @@ namespace lms::api::subsonic
                     .bitsPerSample = std::nullopt,
                 },
 
-                .expected = { details::TranscodeResult{ .reasons = { details::TranscodeReason::AudioChannelsNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = 2, .audioBitrate = 192'000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
+                .expected = { detail::TranscodeResult{ .reasons = { detail::TranscodeReason::AudioChannelsNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = 2, .audioBitrate = 192'000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
             },
 
             // Needs transcode due to max nb channels not handle by codec. TODO take channel reduction into account for bitrate
@@ -292,7 +292,7 @@ namespace lms::api::subsonic
                     .bitsPerSample = std::nullopt,
                 },
 
-                .expected = { details::TranscodeResult{ .reasons = { details::TranscodeReason::AudioChannelsNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = 2, .audioBitrate = 192'000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
+                .expected = { detail::TranscodeResult{ .reasons = { detail::TranscodeReason::AudioChannelsNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = 2, .audioBitrate = 192'000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
             },
 
             // needs transcode because codec not handled
@@ -320,7 +320,7 @@ namespace lms::api::subsonic
                     .bitsPerSample = std::nullopt,
                 },
 
-                .expected = { details::TranscodeResult{ .reasons = { details::TranscodeReason::ContainerNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = std::nullopt, .audioBitrate = 128'000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
+                .expected = { detail::TranscodeResult{ .reasons = { detail::TranscodeReason::ContainerNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = std::nullopt, .audioBitrate = 128'000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
             },
 
             // needs transcode because codec not handled (lossless source => using max bitrate)
@@ -348,7 +348,7 @@ namespace lms::api::subsonic
                     .bitsPerSample = 16,
                 },
 
-                .expected = { details::TranscodeResult{ .reasons = { details::TranscodeReason::ContainerNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = std::nullopt, .audioBitrate = 320000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
+                .expected = { detail::TranscodeResult{ .reasons = { detail::TranscodeReason::ContainerNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = std::nullopt, .audioBitrate = 320000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
             },
 
             // needs transcode because codec not handled (lossless source => using a default good bitrate)
@@ -371,7 +371,7 @@ namespace lms::api::subsonic
                     .bitsPerSample = 16,
                 },
 
-                .expected = { details::TranscodeResult{ .reasons = { details::TranscodeReason::ContainerNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = std::nullopt, .audioBitrate = 256000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
+                .expected = { detail::TranscodeResult{ .reasons = { detail::TranscodeReason::ContainerNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = std::nullopt, .audioBitrate = 256000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
             },
 
             // check protocol * and codec * are properly handled
@@ -397,7 +397,7 @@ namespace lms::api::subsonic
                     .bitsPerSample = std::nullopt,
                 },
 
-                .expected = { details::DirectPlayResult{} },
+                .expected = { detail::DirectPlayResult{} },
             },
 
             // check container * is properly handled
@@ -423,7 +423,7 @@ namespace lms::api::subsonic
                     .bitsPerSample = std::nullopt,
                 },
 
-                .expected = { details::DirectPlayResult{} },
+                .expected = { detail::DirectPlayResult{} },
             },
 
             // want flac but bitrate too high
@@ -449,7 +449,7 @@ namespace lms::api::subsonic
                     .bitsPerSample = 16,
                 },
 
-                .expected = { details::TranscodeResult{ .reasons = { details::TranscodeReason::AudioBitrateNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "ogg", .codec = "opus", .audioChannels = std::nullopt, .audioBitrate = 320'000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
+                .expected = { detail::TranscodeResult{ .reasons = { detail::TranscodeReason::AudioBitrateNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "ogg", .codec = "opus", .audioChannels = std::nullopt, .audioBitrate = 320'000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
             },
 
             // want flac but source sample rate is too high
@@ -487,7 +487,7 @@ namespace lms::api::subsonic
                     .bitsPerSample = 24,
                 },
 
-                .expected = { details::TranscodeResult{ .reasons = { details::TranscodeReason::AudioSampleRateNotSupported, details::TranscodeReason::ContainerNotSupported, details::TranscodeReason::ContainerNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "flac", .codec = "flac", .audioChannels = std::nullopt, .audioBitrate = std::nullopt, .audioProfile = "", .audioSamplerate = 48'000, .audioBitdepth = std::nullopt } } },
+                .expected = { detail::TranscodeResult{ .reasons = { detail::TranscodeReason::AudioSampleRateNotSupported, detail::TranscodeReason::ContainerNotSupported, detail::TranscodeReason::ContainerNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "flac", .codec = "flac", .audioChannels = std::nullopt, .audioBitrate = std::nullopt, .audioProfile = "", .audioSamplerate = 48'000, .audioBitdepth = std::nullopt } } },
             },
 
             // want flac but source sample rate is too high, no max bitrate
@@ -526,7 +526,7 @@ namespace lms::api::subsonic
                     .bitsPerSample = 24,
                 },
 
-                .expected = { details::TranscodeResult{ .reasons = { details::TranscodeReason::AudioSampleRateNotSupported, details::TranscodeReason::ContainerNotSupported, details::TranscodeReason::ContainerNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "flac", .codec = "flac", .audioChannels = std::nullopt, .audioBitrate = std::nullopt, .audioProfile = "", .audioSamplerate = 48'000, .audioBitdepth = std::nullopt } } },
+                .expected = { detail::TranscodeResult{ .reasons = { detail::TranscodeReason::AudioSampleRateNotSupported, detail::TranscodeReason::ContainerNotSupported, detail::TranscodeReason::ContainerNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "flac", .codec = "flac", .audioChannels = std::nullopt, .audioBitrate = std::nullopt, .audioProfile = "", .audioSamplerate = 48'000, .audioBitdepth = std::nullopt } } },
             },
 
             // wants a lossy codec not handled -> transcode to lossy
@@ -564,7 +564,7 @@ namespace lms::api::subsonic
                     .bitsPerSample = 16,
                 },
 
-                .expected = { details::TranscodeResult{ .reasons = { details::TranscodeReason::ContainerNotSupported, details::TranscodeReason::ContainerNotSupported, details::TranscodeReason::ContainerNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = std::nullopt, .audioBitrate = 128000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
+                .expected = { detail::TranscodeResult{ .reasons = { detail::TranscodeReason::ContainerNotSupported, detail::TranscodeReason::ContainerNotSupported, detail::TranscodeReason::ContainerNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = std::nullopt, .audioBitrate = 128000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
             },
 
             // wants a lossless codec not handled -> transcode to lossless
@@ -602,7 +602,7 @@ namespace lms::api::subsonic
                     .bitsPerSample = 24,
                 },
 
-                .expected = { details::TranscodeResult{ .reasons = { details::TranscodeReason::ContainerNotSupported, details::TranscodeReason::ContainerNotSupported, details::TranscodeReason::ContainerNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "flac", .codec = "flac", .audioChannels = std::nullopt, .audioBitrate = std::nullopt, .audioProfile = "", .audioSamplerate = 48'000, .audioBitdepth = std::nullopt } } },
+                .expected = { detail::TranscodeResult{ .reasons = { detail::TranscodeReason::ContainerNotSupported, detail::TranscodeReason::ContainerNotSupported, detail::TranscodeReason::ContainerNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "flac", .codec = "flac", .audioChannels = std::nullopt, .audioBitrate = std::nullopt, .audioProfile = "", .audioSamplerate = 48'000, .audioBitdepth = std::nullopt } } },
             },
 
             // no protocol specified
@@ -632,7 +632,7 @@ namespace lms::api::subsonic
                     .bitsPerSample = std::nullopt,
                 },
 
-                .expected = { details::TranscodeResult{ .reasons = { details::TranscodeReason::AudioBitrateNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = std::nullopt, .audioBitrate = 96000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
+                .expected = { detail::TranscodeResult{ .reasons = { detail::TranscodeReason::AudioBitrateNotSupported }, .targetStreamInfo = { .protocol = "http", .container = "mp3", .codec = "mp3", .audioChannels = std::nullopt, .audioBitrate = 96000, .audioProfile = "", .audioSamplerate = std::nullopt, .audioBitdepth = std::nullopt } } },
             },
         };
 

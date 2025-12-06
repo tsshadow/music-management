@@ -92,25 +92,25 @@ namespace lms::api::subsonic
             transcodeNode.addChild("sourceStream", createStreamDetails(sourceStream));
         }
 
-        const details::TranscodeDecisionResult transcodeDecision{ details::computeTranscodeDecision(clientInfo, audioFileInfo.audioProperties) };
+        const detail::TranscodeDecisionResult transcodeDecision{ detail::computeTranscodeDecision(clientInfo, audioFileInfo.audioProperties) };
 
         std::visit(core::utils::overloads{
-                       [&](const details::DirectPlayResult&) {
+                       [&](const detail::DirectPlayResult&) {
                            transcodeNode.setAttribute("canDirectPlay", true);
                            transcodeNode.setAttribute("canTranscode", false);
                        },
-                       [&](const details::TranscodeResult& transcodeRes) {
+                       [&](const detail::TranscodeResult& transcodeRes) {
                            transcodeNode.setAttribute("canDirectPlay", false);
                            transcodeNode.setAttribute("canTranscode", true);
 
-                           for (details::TranscodeReason reason : transcodeRes.reasons)
+                           for (detail::TranscodeReason reason : transcodeRes.reasons)
                                transcodeNode.addArrayValue("transcodeReason", transcodeReasonToString(reason).str());
 
                            const core::UUID uuid{ getTranscodeDecisionTracker().add(audioFileId, transcodeRes.targetStreamInfo) };
                            transcodeNode.addChild("transcodeStream", createStreamDetails(transcodeRes.targetStreamInfo));
                            transcodeNode.setAttribute("transcodeParams", uuid.getAsString());
                        },
-                       [&](const details::FailureResult& failureRes) {
+                       [&](const detail::FailureResult& failureRes) {
                            transcodeNode.setAttribute("canDirectPlay", false);
                            transcodeNode.setAttribute("canTranscode", false);
                            transcodeNode.setAttribute("errorReason", failureRes.reason);
@@ -149,7 +149,7 @@ namespace lms::api::subsonic
 
         params.outputParameters.stripMetadata = false;
 
-        const audio::TranscodeOutputFormat* transcodeOutputFormat{ details::selectTranscodeOutputFormat(entry->targetStreamInfo.container, entry->targetStreamInfo.codec) };
+        const audio::TranscodeOutputFormat* transcodeOutputFormat{ detail::selectTranscodeOutputFormat(entry->targetStreamInfo.container, entry->targetStreamInfo.codec) };
         if (!transcodeOutputFormat)
             throw InternalErrorGenericError{ "Unsupported output format" };
 

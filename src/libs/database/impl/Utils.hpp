@@ -42,7 +42,7 @@ namespace lms::db::utils
 
     Wt::WDateTime normalizeDateTime(const Wt::WDateTime& dateTime);
 
-    namespace details
+    namespace detail
     {
         template<typename Query>
         void recordQueryPlanIfNeeded(const Query& query)
@@ -50,7 +50,7 @@ namespace lms::db::utils
             if (IQueryPlanRecorder * recorder{ core::Service<IQueryPlanRecorder>::get() })
                 static_cast<QueryPlanRecorder*>(recorder)->recordQueryPlanIfNeeded(query.session(), query.asString());
         }
-    } // namespace details
+    } // namespace detail
 
     template<typename Query>
     void applyRange(Query& query, std::optional<Range> range)
@@ -100,7 +100,7 @@ namespace lms::db::utils
     template<typename Query, typename UnaryFunc>
     void forEachQueryResult(const Query& query, UnaryFunc&& func)
     {
-        details::recordQueryPlanIfNeeded(query);
+        detail::recordQueryPlanIfNeeded(query);
 
         LMS_SCOPED_TRACE_DETAILED_WITH_ARG("Database", "ForEachQueryResult", "Query", query.asString());
 
@@ -110,7 +110,7 @@ namespace lms::db::utils
     template<typename T, typename Query>
     std::vector<T> fetchQueryResults(const Query& query)
     {
-        details::recordQueryPlanIfNeeded(query);
+        detail::recordQueryPlanIfNeeded(query);
 
         LMS_SCOPED_TRACE_DETAILED_WITH_ARG("Database", "FetchQueryResults", "Query", query.asString());
 
@@ -121,7 +121,7 @@ namespace lms::db::utils
     template<typename Query>
     std::vector<typename QueryResultType<Query>::type> fetchQueryResults(const Query& query)
     {
-        details::recordQueryPlanIfNeeded(query);
+        detail::recordQueryPlanIfNeeded(query);
 
         LMS_SCOPED_TRACE_DETAILED_WITH_ARG("Database", "FetchQueryResults", "Query", query.asString());
 
@@ -132,7 +132,7 @@ namespace lms::db::utils
     template<typename Query>
     auto fetchQuerySingleResult(const Query& query)
     {
-        details::recordQueryPlanIfNeeded(query);
+        detail::recordQueryPlanIfNeeded(query);
 
         LMS_SCOPED_TRACE_DETAILED_WITH_ARG("Database", "FetchQuerySingleResult", "Query", query.asString());
         return query.resultValue();

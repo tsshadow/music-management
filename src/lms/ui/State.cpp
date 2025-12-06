@@ -25,7 +25,7 @@
 
 #include "LmsApplication.hpp"
 
-namespace lms::ui::state::details
+namespace lms::ui::state::detail
 {
     void writeValue(std::string_view item, std::string_view value)
     {
@@ -81,5 +81,4 @@ namespace lms::ui::state::details
                 state.remove();
         }
     }
-
-} // namespace lms::ui::state::details
+} // namespace lms::ui::state::detail

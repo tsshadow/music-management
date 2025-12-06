@@ -23,7 +23,7 @@
 
 namespace lms::core
 {
-    namespace details
+    namespace detail
     {
         template<int... Is>
         struct Seq
@@ -45,11 +45,11 @@ namespace lms::core
         {
             auto l = { (f(std::get<Is>(t)), 0)... };
         }
-    } // namespace details
+    } // namespace detail
 
     template<typename... Ts, typename Func>
     void forEachTypeInTuple(std::tuple<Ts...> const& t, Func f)
     {
-        details::forEachTypeInTuple(t, f, details::GenSeq<sizeof...(Ts)>());
+        detail::forEachTypeInTuple(t, f, detail::GenSeq<sizeof...(Ts)>());
     }
 } // namespace lms::core

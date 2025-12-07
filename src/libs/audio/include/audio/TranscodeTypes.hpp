@@ -23,8 +23,8 @@
 #include <filesystem>
 #include <optional>
 
-#include "core/media/CodecType.hpp"
-#include "core/media/ContainerType.hpp"
+#include "core/media/Codec.hpp"
+#include "core/media/Container.hpp"
 
 #include "audio/AudioProperties.hpp"
 
@@ -39,8 +39,8 @@ namespace lms::audio
 
     struct TranscodeOutputFormat
     {
-        core::media::ContainerType container;
-        core::media::CodecType codec;
+        core::media::Container container;
+        core::media::Codec codec;
     };
 
     struct TranscodeOutputParameters

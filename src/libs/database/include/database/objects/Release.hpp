@@ -31,7 +31,7 @@
 #include "core/EnumSet.hpp"
 #include "core/PartialDateTime.hpp"
 #include "core/UUID.hpp"
-#include "core/media/CodecType.hpp"
+#include "core/media/Codec.hpp"
 
 #include "database/IdRange.hpp"
 #include "database/Object.hpp"
@@ -280,7 +280,7 @@ namespace lms::db
         std::optional<std::string> getCopyright() const;
         std::optional<std::string> getCopyrightURL() const;
         std::size_t getMeanBitrate() const;
-        std::vector<core::media::CodecType> getCodecs() const;
+        std::vector<core::media::Codec> getCodecs() const;
 
         // Accessors
         std::string_view getName() const { return _name; }

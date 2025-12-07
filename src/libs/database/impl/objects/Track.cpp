@@ -198,7 +198,7 @@ namespace lms::db
             }
 
             if (params.filters.codec.has_value())
-                query.where("t.codec = ?").bind(detail::getDbCodecType(*params.filters.codec));
+                query.where("t.codec = ?").bind(detail::getDbCodec(*params.filters.codec));
 
             switch (params.sortMethod)
             {
@@ -528,14 +528,14 @@ namespace lms::db
         _absoluteFilePath = filePath;
     }
 
-    void Track::setContainer(core::media::ContainerType container)
+    void Track::setContainer(core::media::Container container)
     {
-        _container = detail::getDbContainerType(container);
+        _container = detail::getDbContainer(container);
     }
 
-    void Track::setCodec(core::media::CodecType codec)
+    void Track::setCodec(core::media::Codec codec)
     {
-        _codec = detail::getDbCodecType(codec);
+        _codec = detail::getDbCodec(codec);
     }
 
     void Track::setName(std::string_view name)
@@ -618,12 +618,12 @@ namespace lms::db
         _preferredMediaArtwork = getDboPtr(artwork);
     }
 
-    std::optional<core::media::ContainerType> Track::getContainer() const
+    std::optional<core::media::Container> Track::getContainer() const
     {
         return detail::getMediaContainerType(_container);
     }
 
-    std::optional<core::media::CodecType> Track::getCodec() const
+    std::optional<core::media::Codec> Track::getCodec() const
     {
         return detail::getMediaCodecType(_codec);
     }

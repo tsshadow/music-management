@@ -245,15 +245,15 @@ namespace lms::db::tests
 
         {
             auto transaction{ session.createWriteTransaction() };
-            track1.get().modify()->setCodec(core::media::CodecType::MP3);
-            track2.get().modify()->setCodec(core::media::CodecType::FLAC);
+            track1.get().modify()->setCodec(core::media::Codec::MP3);
+            track2.get().modify()->setCodec(core::media::Codec::FLAC);
         }
 
         {
             auto transaction{ session.createReadTransaction() };
 
             Track::FindParameters params;
-            params.setFilters(Filters{}.setCodec(core::media::CodecType::FLAC));
+            params.setFilters(Filters{}.setCodec(core::media::Codec::FLAC));
 
             const auto tracks{ Track::find(session, params) };
             ASSERT_EQ(tracks.results.size(), 1);

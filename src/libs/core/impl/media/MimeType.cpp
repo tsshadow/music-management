@@ -21,57 +21,57 @@
 
 namespace lms::core::media
 {
-    core::LiteralString getMimeType(ContainerType container, CodecType codec)
+    core::LiteralString getMimeType(Container container, Codec codec)
     {
         switch (container)
         {
-        case ContainerType::AIFF:
+        case Container::AIFF:
             return "audio/x-aiff";
-        case ContainerType::APE:
+        case Container::APE:
             return "audio/x-monkeys-audio";
-        case ContainerType::ASF:
+        case Container::ASF:
             return "audio/x-ms-wma";
-        case ContainerType::DSF:
+        case Container::DSF:
             return "audio/x-dsd-dsf";
-        case ContainerType::FLAC:
+        case Container::FLAC:
             return "audio/flac";
-        case ContainerType::MP4:
+        case Container::MP4:
             switch (codec)
             {
-            case CodecType::AAC:
+            case Codec::AAC:
                 return "audio/mp4; codecs=\"mp4a.40.2\"";
-            case CodecType::ALAC:
+            case Codec::ALAC:
                 return "audio/mp4; codecs=\"alac\"";
-            case CodecType::MP4ALS:
+            case Codec::MP4ALS:
                 return "audio/mp4; codecs=\"mp4als\"";
             default:
                 return "audio/mp4";
             }
 
-        case ContainerType::MPC:
+        case Container::MPC:
             return "audio/x-musepack";
-        case ContainerType::MPEG:
+        case Container::MPEG:
             return "audio/mpeg";
-        case ContainerType::Ogg:
+        case Container::Ogg:
             switch (codec)
             {
-            case CodecType::Opus:
+            case Codec::Opus:
                 return "audio/opus";
-            case CodecType::Vorbis:
+            case Codec::Vorbis:
                 return "audio/ogg; codecs=\"vorbis\"";
-            case CodecType::FLAC:
+            case Codec::FLAC:
                 return "audio/ogg; codecs=\"flac\"";
             default:
                 return "audio/ogg";
             }
 
-        case ContainerType::Shorten:
+        case Container::Shorten:
             return "audio/x-shn";
-        case ContainerType::TrueAudio:
+        case Container::TrueAudio:
             return "audio/x-tta";
-        case ContainerType::WAV:
+        case Container::WAV:
             return "audio/wav";
-        case ContainerType::WavPack:
+        case Container::WavPack:
             return "audio/x-wavpack";
         }
 

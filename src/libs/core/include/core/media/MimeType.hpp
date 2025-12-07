@@ -20,10 +20,10 @@
 #pragma once
 
 #include "core/LiteralString.hpp"
-#include "core/media/CodecType.hpp"
-#include "core/media/ContainerType.hpp"
+#include "core/media/Codec.hpp"
+#include "core/media/Container.hpp"
 
 namespace lms::core::media
 {
-    core::LiteralString getMimeType(ContainerType container, CodecType codec);
+    core::LiteralString getMimeType(Container container, Codec codec);
 }

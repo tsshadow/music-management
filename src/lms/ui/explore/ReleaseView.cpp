@@ -142,11 +142,11 @@ namespace lms::ui
             // Codecs
             {
                 std::string codecStr;
-                for (core::media::CodecType codec : release->getCodecs())
+                for (core::media::Codec codec : release->getCodecs())
                 {
                     if (!codecStr.empty())
                         codecStr += " · ";
-                    codecStr += core::media::codecTypeToString(codec).str();
+                    codecStr += core::media::getCodecDesc(codec).name.str();
                 }
 
                 if (!codecStr.empty())

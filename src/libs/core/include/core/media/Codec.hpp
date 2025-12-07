@@ -19,11 +19,13 @@
 
 #pragma once
 
+#include <functional>
+
 #include "core/LiteralString.hpp"
 
 namespace lms::core::media
 {
-    enum class CodecType
+    enum class Codec
     {
         AAC,
         AC3,
@@ -48,7 +50,13 @@ namespace lms::core::media
         WMA9Lossless,
     };
 
-    core::LiteralString codecTypeToString(CodecType type);
-
-    bool isCodecLossless(CodecType type);
+    struct CodecDesc
+    {
+        Codec type;
+        core::LiteralString name;
+        core::LiteralString longName;
+        bool isLossless;
+    };
+    void visitCodecs(const std::function<void(const CodecDesc&)>& visitor);
+    const CodecDesc& getCodecDesc(Codec type);
 } // namespace lms::core::media

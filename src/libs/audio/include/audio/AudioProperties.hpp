@@ -22,15 +22,15 @@
 #include <chrono>
 #include <optional>
 
-#include "core/media/CodecType.hpp"
-#include "core/media/ContainerType.hpp"
+#include "core/media/Codec.hpp"
+#include "core/media/Container.hpp"
 
 namespace lms::audio
 {
     struct AudioProperties
     {
-        core::media::ContainerType container;
-        core::media::CodecType codec;
+        core::media::Container container;
+        core::media::Codec codec;
         std::chrono::milliseconds duration;
         unsigned bitrate;
         unsigned channelCount;

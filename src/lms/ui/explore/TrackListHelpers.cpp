@@ -130,7 +130,7 @@ namespace lms::ui::TrackListHelpers
         if (const auto codec{ track->getCodec() })
         {
             trackInfo->setCondition("if-has-codec", true);
-            trackInfo->bindString("codec", core::media::codecTypeToString(*codec).c_str(), Wt::TextFormat::Plain);
+            trackInfo->bindString("codec", core::media::getCodecDesc(*codec).name.c_str(), Wt::TextFormat::Plain);
         }
 
         trackInfo->bindString("duration", utils::durationToString(track->getDuration()));

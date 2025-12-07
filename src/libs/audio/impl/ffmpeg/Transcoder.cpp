@@ -161,42 +161,42 @@ namespace lms::audio::ffmpeg
 
             switch (_outputParams.format->container)
             {
-            case core::media::ContainerType::FLAC:
+            case core::media::Container::FLAC:
                 args.emplace_back("flac");
                 break;
-            case core::media::ContainerType::Ogg:
+            case core::media::Container::Ogg:
                 args.emplace_back("ogg");
                 break;
-            case core::media::ContainerType::MPEG:
+            case core::media::Container::MPEG:
                 args.emplace_back("mp3");
                 break;
 
             default:
-                throw Exception{ "Unsupported container type " + std::string{ core::media::containerTypeToString(_outputParams.format->container).str() } };
+                throw Exception{ "Unsupported container type " + std::string{ core::media::containerToString(_outputParams.format->container).str() } };
             }
 
             args.emplace_back("-acodec");
 
             switch (_outputParams.format->codec)
             {
-            case core::media::CodecType::MP3:
+            case core::media::Codec::MP3:
                 args.emplace_back("libmp3lame");
                 break;
 
-            case core::media::CodecType::Opus:
+            case core::media::Codec::Opus:
                 args.emplace_back("libopus");
                 break;
 
-            case core::media::CodecType::Vorbis:
+            case core::media::Codec::Vorbis:
                 args.emplace_back("libvorbis");
                 break;
 
-            case core::media::CodecType::FLAC:
+            case core::media::Codec::FLAC:
                 args.emplace_back("flac");
                 break;
 
             default:
-                throw Exception{ "Unhandled codec type " + std::string{ codecTypeToString(_outputParams.format->codec).str() } };
+                throw Exception{ "Unhandled codec type " + std::string{ core::media::getCodecDesc(_outputParams.format->codec).name.str() } };
             }
         }
 

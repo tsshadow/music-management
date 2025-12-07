@@ -41,8 +41,8 @@ namespace lms::audio
     std::ostream& operator<<(std::ostream& os, const AudioProperties& audioProperties)
     {
         os << "\tDuration: " << std::fixed << std::setprecision(2) << std::chrono::duration_cast<std::chrono::duration<float>>(audioProperties.duration) << '\n';
-        os << "\tContainer: " << core::media::containerTypeToString(audioProperties.container) << '\n';
-        os << "\tCodec: " << core::media::codecTypeToString(audioProperties.codec) << '\n';
+        os << "\tContainer: " << core::media::containerToString(audioProperties.container) << '\n';
+        os << "\tCodec: " << core::media::getCodecDesc(audioProperties.codec).name << '\n';
         os << "\tMimeType: " << core::media::getMimeType(audioProperties.container, audioProperties.codec) << '\n';
         os << "\tBitrate: " << audioProperties.bitrate << " bps" << '\n';
         if (audioProperties.bitsPerSample)

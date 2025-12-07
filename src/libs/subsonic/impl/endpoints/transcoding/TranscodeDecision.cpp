@@ -34,13 +34,13 @@ namespace lms::api::subsonic::detail
     namespace
     {
         constexpr std::array supportedTranscodeOutputFormats{
-            audio::TranscodeOutputFormat{ .container = core::media::ContainerType::MPEG, .codec = core::media::CodecType::MP3 },
-            audio::TranscodeOutputFormat{ .container = core::media::ContainerType::Ogg, .codec = core::media::CodecType::Vorbis },
-            audio::TranscodeOutputFormat{ .container = core::media::ContainerType::Ogg, .codec = core::media::CodecType::Opus },
-            audio::TranscodeOutputFormat{ .container = core::media::ContainerType::FLAC, .codec = core::media::CodecType::FLAC },
+            audio::TranscodeOutputFormat{ .container = core::media::Container::MPEG, .codec = core::media::Codec::MP3 },
+            audio::TranscodeOutputFormat{ .container = core::media::Container::Ogg, .codec = core::media::Codec::Vorbis },
+            audio::TranscodeOutputFormat{ .container = core::media::Container::Ogg, .codec = core::media::Codec::Opus },
+            audio::TranscodeOutputFormat{ .container = core::media::Container::FLAC, .codec = core::media::Codec::FLAC },
         };
 
-        bool isMatchingContainerName(core::media::ContainerType container, std::string_view containerStr)
+        bool isMatchingContainerName(core::media::Container container, std::string_view containerStr)
         {
             using namespace std::literals; // for "..."sv
 
@@ -62,43 +62,43 @@ namespace lms::api::subsonic::detail
 
             switch (container)
             {
-            case core::media::ContainerType::AIFF:
+            case core::media::Container::AIFF:
                 containerNames = aiffNames;
                 break;
-            case core::media::ContainerType::APE:
+            case core::media::Container::APE:
                 containerNames = apeNames;
                 break;
-            case core::media::ContainerType::ASF:
+            case core::media::Container::ASF:
                 containerNames = asfNames;
                 break;
-            case core::media::ContainerType::DSF:
+            case core::media::Container::DSF:
                 containerNames = dsfNames;
                 break;
-            case core::media::ContainerType::MPC:
+            case core::media::Container::MPC:
                 containerNames = mpcNames;
                 break;
-            case core::media::ContainerType::MPEG:
+            case core::media::Container::MPEG:
                 containerNames = mpegNames;
                 break;
-            case core::media::ContainerType::Ogg:
+            case core::media::Container::Ogg:
                 containerNames = oggNames;
                 break;
-            case core::media::ContainerType::FLAC:
+            case core::media::Container::FLAC:
                 containerNames = flacNames;
                 break;
-            case core::media::ContainerType::MP4:
+            case core::media::Container::MP4:
                 containerNames = mp4Names;
                 break;
-            case core::media::ContainerType::Shorten:
+            case core::media::Container::Shorten:
                 containerNames = shortenNames;
                 break;
-            case core::media::ContainerType::TrueAudio:
+            case core::media::Container::TrueAudio:
                 containerNames = trueAudioNames;
                 break;
-            case core::media::ContainerType::WAV:
+            case core::media::Container::WAV:
                 containerNames = wavNames;
                 break;
-            case core::media::ContainerType::WavPack:
+            case core::media::Container::WavPack:
                 containerNames = wavPackNames;
                 break;
             }
@@ -106,7 +106,7 @@ namespace lms::api::subsonic::detail
             return std::any_of(std::cbegin(containerNames), std::cend(containerNames), [&](std::string_view containerName) { return core::stringUtils::stringCaseInsensitiveEqual(containerName, containerStr); });
         }
 
-        bool isMatchingCodecName(core::media::CodecType codec, std::string_view codecStr)
+        bool isMatchingCodecName(core::media::Codec codec, std::string_view codecStr)
         {
             using namespace std::literals; // for "..."sv
 
@@ -135,67 +135,67 @@ namespace lms::api::subsonic::detail
             std::span<const std::string_view> codecNames;
             switch (codec)
             {
-            case core::media::CodecType::AAC:
+            case core::media::Codec::AAC:
                 codecNames = aacCodecNames;
                 break;
-            case core::media::CodecType::AC3:
+            case core::media::Codec::AC3:
                 codecNames = ac3CodecNames;
                 break;
-            case core::media::CodecType::ALAC:
+            case core::media::Codec::ALAC:
                 codecNames = alacCodecNames;
                 break;
-            case core::media::CodecType::APE:
+            case core::media::Codec::APE:
                 codecNames = apeCodecNames;
                 break;
-            case core::media::CodecType::DSD:
+            case core::media::Codec::DSD:
                 codecNames = dsdCodecNames;
                 break;
-            case core::media::CodecType::EAC3:
+            case core::media::Codec::EAC3:
                 codecNames = eac3CodecNames;
                 break;
-            case core::media::CodecType::FLAC:
+            case core::media::Codec::FLAC:
                 codecNames = flacCodecNames;
                 break;
-            case core::media::CodecType::MP3:
+            case core::media::Codec::MP3:
                 codecNames = mp3CodecNames;
                 break;
-            case core::media::CodecType::MP4ALS:
+            case core::media::Codec::MP4ALS:
                 codecNames = mp4alsCodecNames;
                 break;
-            case core::media::CodecType::MPC7:
+            case core::media::Codec::MPC7:
                 codecNames = mpc7CodecNames;
                 break;
-            case core::media::CodecType::MPC8:
+            case core::media::Codec::MPC8:
                 codecNames = mpc8CodecNames;
                 break;
-            case core::media::CodecType::Opus:
+            case core::media::Codec::Opus:
                 codecNames = opusCodecNames;
                 break;
-            case core::media::CodecType::PCM:
+            case core::media::Codec::PCM:
                 codecNames = pcmCodecNames;
                 break;
-            case core::media::CodecType::Shorten:
+            case core::media::Codec::Shorten:
                 codecNames = shortenCodecNames;
                 break;
-            case core::media::CodecType::TrueAudio:
+            case core::media::Codec::TrueAudio:
                 codecNames = trueAudioCodecNames;
                 break;
-            case core::media::CodecType::Vorbis:
+            case core::media::Codec::Vorbis:
                 codecNames = vorbisCodecNames;
                 break;
-            case core::media::CodecType::WavPack:
+            case core::media::Codec::WavPack:
                 codecNames = wavPackCodecNames;
                 break;
-            case core::media::CodecType::WMA1:
+            case core::media::Codec::WMA1:
                 codecNames = wma1CodecNames;
                 break;
-            case core::media::CodecType::WMA2:
+            case core::media::Codec::WMA2:
                 codecNames = wma2CodecNames;
                 break;
-            case core::media::CodecType::WMA9Lossless:
+            case core::media::Codec::WMA9Lossless:
                 codecNames = wma9LosslessCodecNames;
                 break;
-            case core::media::CodecType::WMA9Pro:
+            case core::media::Codec::WMA9Pro:
                 codecNames = wma9ProCodecNames;
                 break;
             }
@@ -343,7 +343,7 @@ namespace lms::api::subsonic::detail
             return adjustResult.type == AdjustResult::Type::None;
         }
 
-        const CodecProfile* getAudioCodecProfile(std::span<const CodecProfile> codecProfiles, core::media::CodecType codec)
+        const CodecProfile* getAudioCodecProfile(std::span<const CodecProfile> codecProfiles, core::media::Codec codec)
         {
             for (const CodecProfile& profile : codecProfiles)
             {
@@ -463,9 +463,9 @@ namespace lms::api::subsonic::detail
             transcodedStream.container = profile.container; // put back what was requested instead of our internal names
             transcodedStream.codec = profile.audioCodec;    // put back what was requested instead of our internal names
 
-            if (core::media::isCodecLossless(source.codec))
+            if (core::media::getCodecDesc(source.codec).isLossless)
             {
-                if (!core::media::isCodecLossless(transcodeFormat->codec))
+                if (!core::media::getCodecDesc(transcodeFormat->codec).isLossless)
                 {
                     // If coming from lossless source, maximize the bitrate if going to a non lossless source
                     // otherwise, pick a good enough value as we don't want to keep the original bitrate which does not make sense for lossy codecs
@@ -486,7 +486,7 @@ namespace lms::api::subsonic::detail
             {
                 // source is lossy
 
-                if (core::media::isCodecLossless(transcodeFormat->codec))
+                if (core::media::getCodecDesc(transcodeFormat->codec).isLossless)
                     return std::nullopt; // not compatible with lossless codecs
 
                 // let's pick the same bitrate as the lossy source
@@ -504,7 +504,7 @@ namespace lms::api::subsonic::detail
                 for (const Limitation& limitation : codecProfile->limitations)
                 {
                     const AdjustResult result{ applyLimitation(source, limitation, transcodedStream) };
-                    if (limitation.name == Limitation::Type::AudioBitrate && core::media::isCodecLossless(transcodeFormat->codec) && result.type == AdjustResult::Type::Adjusted)
+                    if (limitation.name == Limitation::Type::AudioBitrate && core::media::getCodecDesc(transcodeFormat->codec).isLossless && result.type == AdjustResult::Type::Adjusted)
                         return std::nullopt; // not compatible with lossless codecs
 
                     if (result.type == AdjustResult::Type::CannotAdjust)

@@ -23,7 +23,7 @@
 
 namespace lms::core::media
 {
-    enum class ContainerType
+    enum class Container
     {
         AIFF,
         APE, // Monkey's Audio
@@ -40,5 +40,5 @@ namespace lms::core::media
         WavPack,
     };
 
-    core::LiteralString containerTypeToString(ContainerType type);
+    core::LiteralString containerToString(Container type);
 } // namespace lms::core::media

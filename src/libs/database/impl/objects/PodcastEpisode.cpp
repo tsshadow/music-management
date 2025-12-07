@@ -99,12 +99,12 @@ namespace lms::db
         utils::forEachQueryRangeResult(query, params.range, func);
     }
 
-    std::optional<core::media::ContainerType> PodcastEpisode::getContainer() const
+    std::optional<core::media::Container> PodcastEpisode::getContainer() const
     {
         return detail::getMediaContainerType(_container);
     }
 
-    std::optional<core::media::CodecType> PodcastEpisode::getCodec() const
+    std::optional<core::media::Codec> PodcastEpisode::getCodec() const
     {
         return detail::getMediaCodecType(_codec);
     }
@@ -119,14 +119,14 @@ namespace lms::db
         return _artwork.id();
     }
 
-    void PodcastEpisode::setContainer(core::media::ContainerType container)
+    void PodcastEpisode::setContainer(core::media::Container container)
     {
-        _container = detail::getDbContainerType(container);
+        _container = detail::getDbContainer(container);
     }
 
-    void PodcastEpisode::setCodec(core::media::CodecType codec)
+    void PodcastEpisode::setCodec(core::media::Codec codec)
     {
-        _codec = detail::getDbCodecType(codec);
+        _codec = detail::getDbCodec(codec);
     }
 
     void PodcastEpisode::setArtwork(ObjectPtr<Artwork> artwork)

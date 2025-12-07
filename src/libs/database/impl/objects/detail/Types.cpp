@@ -21,182 +21,182 @@
 
 namespace lms::db::detail
 {
-    std::optional<core::media::ContainerType> getMediaContainerType(db::detail::ContainerType container)
+    std::optional<core::media::Container> getMediaContainerType(db::detail::Container container)
     {
         switch (container)
         {
-        case ContainerType::AIFF:
-            return core::media::ContainerType::AIFF;
-        case ContainerType::APE:
-            return core::media::ContainerType::APE;
-        case ContainerType::ASF:
-            return core::media::ContainerType::ASF;
-        case ContainerType::DSF:
-            return core::media::ContainerType::DSF;
-        case ContainerType::FLAC:
-            return core::media::ContainerType::FLAC;
-        case ContainerType::MP4:
-            return core::media::ContainerType::MP4;
-        case ContainerType::MPC:
-            return core::media::ContainerType::MPC;
-        case ContainerType::MPEG:
-            return core::media::ContainerType::MPEG;
-        case ContainerType::Ogg:
-            return core::media::ContainerType::Ogg;
-        case ContainerType::Shorten:
-            return core::media::ContainerType::Shorten;
-        case ContainerType::TrueAudio:
-            return core::media::ContainerType::TrueAudio;
-        case ContainerType::WAV:
-            return core::media::ContainerType::WAV;
-        case ContainerType::WavPack:
-            return core::media::ContainerType::WavPack;
+        case Container::AIFF:
+            return core::media::Container::AIFF;
+        case Container::APE:
+            return core::media::Container::APE;
+        case Container::ASF:
+            return core::media::Container::ASF;
+        case Container::DSF:
+            return core::media::Container::DSF;
+        case Container::FLAC:
+            return core::media::Container::FLAC;
+        case Container::MP4:
+            return core::media::Container::MP4;
+        case Container::MPC:
+            return core::media::Container::MPC;
+        case Container::MPEG:
+            return core::media::Container::MPEG;
+        case Container::Ogg:
+            return core::media::Container::Ogg;
+        case Container::Shorten:
+            return core::media::Container::Shorten;
+        case Container::TrueAudio:
+            return core::media::Container::TrueAudio;
+        case Container::WAV:
+            return core::media::Container::WAV;
+        case Container::WavPack:
+            return core::media::Container::WavPack;
 
-        case ContainerType::Unknown:
+        case Container::Unknown:
             break;
         }
 
         return std::nullopt;
     }
 
-    db::detail::ContainerType getDbContainerType(core::media::ContainerType container)
+    db::detail::Container getDbContainer(core::media::Container container)
     {
         switch (container)
         {
-        case core::media::ContainerType::AIFF:
-            return ContainerType::AIFF;
-        case core::media::ContainerType::APE:
-            return ContainerType::APE;
-        case core::media::ContainerType::ASF:
-            return ContainerType::ASF;
-        case core::media::ContainerType::DSF:
-            return ContainerType::DSF;
-        case core::media::ContainerType::FLAC:
-            return ContainerType::FLAC;
-        case core::media::ContainerType::MP4:
-            return ContainerType::MP4;
-        case core::media::ContainerType::MPC:
-            return ContainerType::MPC;
-        case core::media::ContainerType::MPEG:
-            return ContainerType::MPEG;
-        case core::media::ContainerType::Ogg:
-            return ContainerType::Ogg;
-        case core::media::ContainerType::Shorten:
-            return ContainerType::Shorten;
-        case core::media::ContainerType::TrueAudio:
-            return ContainerType::TrueAudio;
-        case core::media::ContainerType::WAV:
-            return ContainerType::WAV;
-        case core::media::ContainerType::WavPack:
-            return ContainerType::WavPack;
+        case core::media::Container::AIFF:
+            return Container::AIFF;
+        case core::media::Container::APE:
+            return Container::APE;
+        case core::media::Container::ASF:
+            return Container::ASF;
+        case core::media::Container::DSF:
+            return Container::DSF;
+        case core::media::Container::FLAC:
+            return Container::FLAC;
+        case core::media::Container::MP4:
+            return Container::MP4;
+        case core::media::Container::MPC:
+            return Container::MPC;
+        case core::media::Container::MPEG:
+            return Container::MPEG;
+        case core::media::Container::Ogg:
+            return Container::Ogg;
+        case core::media::Container::Shorten:
+            return Container::Shorten;
+        case core::media::Container::TrueAudio:
+            return Container::TrueAudio;
+        case core::media::Container::WAV:
+            return Container::WAV;
+        case core::media::Container::WavPack:
+            return Container::WavPack;
         }
 
-        return ContainerType::Unknown;
+        return Container::Unknown;
     }
 
-    std::optional<core::media::CodecType> getMediaCodecType(db::detail::CodecType codec)
+    std::optional<core::media::Codec> getMediaCodecType(db::detail::Codec codec)
     {
         switch (codec)
         {
-        case CodecType::AAC:
-            return core::media::CodecType::AAC;
-        case CodecType::AC3:
-            return core::media::CodecType::AC3;
-        case CodecType::ALAC:
-            return core::media::CodecType::ALAC;
-        case CodecType::APE:
-            return core::media::CodecType::APE;
-        case CodecType::DSD:
-            return core::media::CodecType::DSD;
-        case CodecType::EAC3:
-            return core::media::CodecType::EAC3;
-        case CodecType::FLAC:
-            return core::media::CodecType::FLAC;
-        case CodecType::MP3:
-            return core::media::CodecType::MP3;
-        case CodecType::MP4ALS:
-            return core::media::CodecType::MP4ALS;
-        case CodecType::MPC7:
-            return core::media::CodecType::MPC7;
-        case CodecType::MPC8:
-            return core::media::CodecType::MPC8;
-        case CodecType::Opus:
-            return core::media::CodecType::Opus;
-        case CodecType::PCM:
-            return core::media::CodecType::PCM;
-        case CodecType::Shorten:
-            return core::media::CodecType::Shorten;
-        case CodecType::TrueAudio:
-            return core::media::CodecType::TrueAudio;
-        case CodecType::Vorbis:
-            return core::media::CodecType::Vorbis;
-        case CodecType::WavPack:
-            return core::media::CodecType::WavPack;
-        case CodecType::WMA1:
-            return core::media::CodecType::WMA1;
-        case CodecType::WMA2:
-            return core::media::CodecType::WMA2;
-        case CodecType::WMA9Pro:
-            return core::media::CodecType::WMA9Pro;
-        case CodecType::WMA9Lossless:
-            return core::media::CodecType::WMA9Lossless;
+        case Codec::AAC:
+            return core::media::Codec::AAC;
+        case Codec::AC3:
+            return core::media::Codec::AC3;
+        case Codec::ALAC:
+            return core::media::Codec::ALAC;
+        case Codec::APE:
+            return core::media::Codec::APE;
+        case Codec::DSD:
+            return core::media::Codec::DSD;
+        case Codec::EAC3:
+            return core::media::Codec::EAC3;
+        case Codec::FLAC:
+            return core::media::Codec::FLAC;
+        case Codec::MP3:
+            return core::media::Codec::MP3;
+        case Codec::MP4ALS:
+            return core::media::Codec::MP4ALS;
+        case Codec::MPC7:
+            return core::media::Codec::MPC7;
+        case Codec::MPC8:
+            return core::media::Codec::MPC8;
+        case Codec::Opus:
+            return core::media::Codec::Opus;
+        case Codec::PCM:
+            return core::media::Codec::PCM;
+        case Codec::Shorten:
+            return core::media::Codec::Shorten;
+        case Codec::TrueAudio:
+            return core::media::Codec::TrueAudio;
+        case Codec::Vorbis:
+            return core::media::Codec::Vorbis;
+        case Codec::WavPack:
+            return core::media::Codec::WavPack;
+        case Codec::WMA1:
+            return core::media::Codec::WMA1;
+        case Codec::WMA2:
+            return core::media::Codec::WMA2;
+        case Codec::WMA9Pro:
+            return core::media::Codec::WMA9Pro;
+        case Codec::WMA9Lossless:
+            return core::media::Codec::WMA9Lossless;
 
-        case CodecType::Unknown:
+        case Codec::Unknown:
             break;
         }
 
         return std::nullopt;
     }
 
-    db::detail::CodecType getDbCodecType(core::media::CodecType codec)
+    db::detail::Codec getDbCodec(core::media::Codec codec)
     {
         switch (codec)
         {
-        case core::media::CodecType::AAC:
-            return CodecType::AAC;
-        case core::media::CodecType::AC3:
-            return CodecType::AC3;
-        case core::media::CodecType::ALAC:
-            return CodecType::ALAC;
-        case core::media::CodecType::APE:
-            return CodecType::APE;
-        case core::media::CodecType::DSD:
-            return CodecType::DSD;
-        case core::media::CodecType::EAC3:
-            return CodecType::EAC3;
-        case core::media::CodecType::FLAC:
-            return CodecType::FLAC;
-        case core::media::CodecType::MP3:
-            return CodecType::MP3;
-        case core::media::CodecType::MP4ALS:
-            return CodecType::MP4ALS;
-        case core::media::CodecType::MPC7:
-            return CodecType::MPC7;
-        case core::media::CodecType::MPC8:
-            return CodecType::MPC8;
-        case core::media::CodecType::Opus:
-            return CodecType::Opus;
-        case core::media::CodecType::PCM:
-            return CodecType::PCM;
-        case core::media::CodecType::Shorten:
-            return CodecType::Shorten;
-        case core::media::CodecType::TrueAudio:
-            return CodecType::TrueAudio;
-        case core::media::CodecType::Vorbis:
-            return CodecType::Vorbis;
-        case core::media::CodecType::WavPack:
-            return CodecType::WavPack;
-        case core::media::CodecType::WMA1:
-            return CodecType::WMA1;
-        case core::media::CodecType::WMA2:
-            return CodecType::WMA2;
-        case core::media::CodecType::WMA9Pro:
-            return CodecType::WMA9Pro;
-        case core::media::CodecType::WMA9Lossless:
-            return CodecType::WMA9Lossless;
+        case core::media::Codec::AAC:
+            return Codec::AAC;
+        case core::media::Codec::AC3:
+            return Codec::AC3;
+        case core::media::Codec::ALAC:
+            return Codec::ALAC;
+        case core::media::Codec::APE:
+            return Codec::APE;
+        case core::media::Codec::DSD:
+            return Codec::DSD;
+        case core::media::Codec::EAC3:
+            return Codec::EAC3;
+        case core::media::Codec::FLAC:
+            return Codec::FLAC;
+        case core::media::Codec::MP3:
+            return Codec::MP3;
+        case core::media::Codec::MP4ALS:
+            return Codec::MP4ALS;
+        case core::media::Codec::MPC7:
+            return Codec::MPC7;
+        case core::media::Codec::MPC8:
+            return Codec::MPC8;
+        case core::media::Codec::Opus:
+            return Codec::Opus;
+        case core::media::Codec::PCM:
+            return Codec::PCM;
+        case core::media::Codec::Shorten:
+            return Codec::Shorten;
+        case core::media::Codec::TrueAudio:
+            return Codec::TrueAudio;
+        case core::media::Codec::Vorbis:
+            return Codec::Vorbis;
+        case core::media::Codec::WavPack:
+            return Codec::WavPack;
+        case core::media::Codec::WMA1:
+            return Codec::WMA1;
+        case core::media::Codec::WMA2:
+            return Codec::WMA2;
+        case core::media::Codec::WMA9Pro:
+            return Codec::WMA9Pro;
+        case core::media::Codec::WMA9Lossless:
+            return Codec::WMA9Lossless;
         }
 
-        return CodecType::Unknown;
+        return Codec::Unknown;
     }
 
     core::media::ImageType getMediaImageType(db::detail::ImageType type)

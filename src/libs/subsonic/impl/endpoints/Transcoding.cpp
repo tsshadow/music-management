@@ -48,8 +48,8 @@ namespace lms::api::subsonic
         {
             StreamDetails res;
             res.protocol = "http";
-            res.container = core::media::containerTypeToString(audioProperties.container).str();
-            res.codec = core::media::codecTypeToString(audioProperties.codec).str();
+            res.container = core::media::containerToString(audioProperties.container).str();
+            res.codec = core::media::getCodecDesc(audioProperties.codec).name.str();
             res.audioChannels = audioProperties.channelCount;
             res.audioBitrate = audioProperties.bitrate;
             res.audioProfile = ""; // TODO

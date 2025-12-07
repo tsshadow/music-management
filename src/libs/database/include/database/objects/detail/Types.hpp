@@ -49,7 +49,7 @@ namespace lms::db::detail
         PublisherLogo = 21
     };
 
-    enum class ContainerType
+    enum class Container
     {
         Unknown = 0,
 
@@ -68,7 +68,7 @@ namespace lms::db::detail
         WavPack = 13,
     };
 
-    enum class CodecType
+    enum class Codec
     {
         Unknown = 0,
 

@@ -124,11 +124,11 @@ namespace lms::ui
             switch (format)
             {
             case db::TranscodingOutputFormat::MP3:
-                return audio::TranscodeOutputFormat{ core::media::ContainerType::MPEG, core::media::CodecType::MP3 };
+                return audio::TranscodeOutputFormat{ core::media::Container::MPEG, core::media::Codec::MP3 };
             case db::TranscodingOutputFormat::OGG_OPUS:
-                return audio::TranscodeOutputFormat{ core::media::ContainerType::Ogg, core::media::CodecType::Opus };
+                return audio::TranscodeOutputFormat{ core::media::Container::Ogg, core::media::Codec::Opus };
             case db::TranscodingOutputFormat::OGG_VORBIS:
-                return audio::TranscodeOutputFormat{ core::media::ContainerType::Ogg, core::media::CodecType::Vorbis };
+                return audio::TranscodeOutputFormat{ core::media::Container::Ogg, core::media::Codec::Vorbis };
             }
 
             TRANSCODE_LOG(ERROR, "Cannot convert from db audio format to transcoding format");

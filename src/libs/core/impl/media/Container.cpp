@@ -17,39 +17,39 @@
  * along with LMS.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "core/media/ContainerType.hpp"
+#include "core/media/Container.hpp"
 
 namespace lms::core::media
 {
-    core::LiteralString containerTypeToString(ContainerType type)
+    core::LiteralString containerToString(Container type)
     {
         switch (type)
         {
-        case ContainerType::AIFF:
+        case Container::AIFF:
             return "AIFF";
-        case ContainerType::APE:
+        case Container::APE:
             return "APE";
-        case ContainerType::ASF:
+        case Container::ASF:
             return "ASF";
-        case ContainerType::DSF:
+        case Container::DSF:
             return "DSF";
-        case ContainerType::FLAC:
+        case Container::FLAC:
             return "FLAC";
-        case ContainerType::MP4:
+        case Container::MP4:
             return "MP4";
-        case ContainerType::MPC:
+        case Container::MPC:
             return "MPC";
-        case ContainerType::MPEG:
+        case Container::MPEG:
             return "MPEG";
-        case ContainerType::Ogg:
+        case Container::Ogg:
             return "Ogg";
-        case ContainerType::Shorten:
+        case Container::Shorten:
             return "Shorten";
-        case ContainerType::TrueAudio:
+        case Container::TrueAudio:
             return "TrueAudio";
-        case ContainerType::WAV:
+        case Container::WAV:
             return "WAV";
-        case ContainerType::WavPack:
+        case Container::WavPack:
             return "WavPack";
         }
 

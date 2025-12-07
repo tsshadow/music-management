@@ -530,15 +530,15 @@ namespace lms::db::tests
             TrackArtistLink::create(session, track1.get(), artist1.get(), TrackArtistLinkType::Artist);
             TrackArtistLink::create(session, track2.get(), artist2.get(), TrackArtistLinkType::Artist);
 
-            track1.get().modify()->setCodec(core::media::CodecType::MP3);
-            track2.get().modify()->setCodec(core::media::CodecType::FLAC);
+            track1.get().modify()->setCodec(core::media::Codec::MP3);
+            track2.get().modify()->setCodec(core::media::Codec::FLAC);
         }
 
         {
             auto transaction{ session.createReadTransaction() };
 
             Artist::FindParameters params;
-            params.setFilters(Filters{}.setCodec(core::media::CodecType::FLAC));
+            params.setFilters(Filters{}.setCodec(core::media::Codec::FLAC));
 
             const auto artists{ Artist::find(session, params) };
             ASSERT_EQ(artists.results.size(), 1);

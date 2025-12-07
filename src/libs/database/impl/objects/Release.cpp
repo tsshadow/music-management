@@ -220,7 +220,7 @@ namespace lms::db
             }
 
             if (params.filters.codec.has_value())
-                query.where("t.codec = ?").bind(detail::getDbCodecType(params.filters.codec.value()));
+                query.where("t.codec = ?").bind(detail::getDbCodec(params.filters.codec.value()));
 
             if (params.releaseGroupMBID)
                 query.where("group_mbid = ?").bind(params.releaseGroupMBID->getAsString());
@@ -684,15 +684,15 @@ namespace lms::db
         return utils::fetchQuerySingleResult(session()->query<int>("SELECT COALESCE(AVG(t.bitrate), 0) FROM track t").where("release_id = ?").bind(getId()).where("bitrate > 0"));
     }
 
-    std::vector<core::media::CodecType> Release::getCodecs() const
+    std::vector<core::media::Codec> Release::getCodecs() const
     {
         assert(session());
 
         // Get the codec ordered by frequency
-        auto query{ session()->query<detail::CodecType>("SELECT t.codec FROM track t").where("release_id = ?").bind(getId()).groupBy("t.codec").orderBy("COUNT(t.id) DESC") };
+        auto query{ session()->query<detail::Codec>("SELECT t.codec FROM track t").where("release_id = ?").bind(getId()).groupBy("t.codec").orderBy("COUNT(t.id) DESC") };
 
-        std::vector<core::media::CodecType> res;
-        utils::forEachQueryResult(query, [&](detail::CodecType codec) {
+        std::vector<core::media::Codec> res;
+        utils::forEachQueryResult(query, [&](detail::Codec codec) {
             if (const auto mediaCodecType{ detail::getMediaCodecType(codec) })
                 res.push_back(*mediaCodecType);
         });

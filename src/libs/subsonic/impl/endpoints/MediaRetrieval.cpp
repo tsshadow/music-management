@@ -53,13 +53,13 @@ namespace lms::api::subsonic
         struct OutputFormat
         {
             std::string name;
-            core::media::ContainerType container;
-            core::media::CodecType codec;
+            core::media::Container container;
+            core::media::Codec codec;
         };
         constexpr std::array outputFormats{
-            OutputFormat{ "mp3", core::media::ContainerType::MPEG, core::media::CodecType::MP3 },
-            OutputFormat{ "opus", core::media::ContainerType::Ogg, core::media::CodecType::Opus },
-            OutputFormat{ "vorbis", core::media::ContainerType::Ogg, core::media::CodecType::Vorbis },
+            OutputFormat{ "mp3", core::media::Container::MPEG, core::media::Codec::MP3 },
+            OutputFormat{ "opus", core::media::Container::Ogg, core::media::Codec::Opus },
+            OutputFormat{ "vorbis", core::media::Container::Ogg, core::media::Codec::Vorbis },
         };
 
         std::optional<OutputFormat> getOutputFormatByName(std::string_view format)

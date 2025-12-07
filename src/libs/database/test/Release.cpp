@@ -1229,22 +1229,22 @@ namespace lms::db::tests
 
         {
             auto transaction{ session.createWriteTransaction() };
-            track1.get().modify()->setCodec(core::media::CodecType::FLAC);
+            track1.get().modify()->setCodec(core::media::Codec::FLAC);
             track1.get().modify()->setRelease(release1.get());
 
-            track2.get().modify()->setCodec(core::media::CodecType::MP3);
+            track2.get().modify()->setCodec(core::media::Codec::MP3);
             track2.get().modify()->setRelease(release1.get());
 
-            track3.get().modify()->setCodec(core::media::CodecType::MP3);
+            track3.get().modify()->setCodec(core::media::Codec::MP3);
             track3.get().modify()->setRelease(release1.get());
 
-            track4.get().modify()->setCodec(core::media::CodecType::AAC);
+            track4.get().modify()->setCodec(core::media::Codec::AAC);
             track4.get().modify()->setRelease(release1.get());
         }
 
         {
             auto transaction{ session.createReadTransaction() };
-            EXPECT_EQ(release1->getCodecs(), (std::vector<core::media::CodecType>{ core::media::CodecType::MP3, core::media::CodecType::FLAC, core::media::CodecType::AAC }));
+            EXPECT_EQ(release1->getCodecs(), (std::vector<core::media::Codec>{ core::media::Codec::MP3, core::media::Codec::FLAC, core::media::Codec::AAC }));
         }
     }
 
@@ -1263,10 +1263,10 @@ namespace lms::db::tests
 
         {
             auto transaction{ session.createWriteTransaction() };
-            track1.get().modify()->setCodec(core::media::CodecType::FLAC);
+            track1.get().modify()->setCodec(core::media::Codec::FLAC);
             track1.get().modify()->setRelease(release1.get());
 
-            track2.get().modify()->setCodec(core::media::CodecType::MP3);
+            track2.get().modify()->setCodec(core::media::Codec::MP3);
             track2.get().modify()->setRelease(release2.get());
         }
 
@@ -1274,7 +1274,7 @@ namespace lms::db::tests
             auto transaction{ session.createReadTransaction() };
 
             Release::FindParameters params;
-            params.setFilters(Filters{}.setCodec(core::media::CodecType::MP3));
+            params.setFilters(Filters{}.setCodec(core::media::Codec::MP3));
 
             auto releases{ Release::findIds(session, params) };
             ASSERT_EQ(releases.results.size(), 1);

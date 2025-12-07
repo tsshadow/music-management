@@ -21,19 +21,19 @@
 
 #include <optional>
 
-#include "core/media/CodecType.hpp"
-#include "core/media/ContainerType.hpp"
+#include "core/media/Codec.hpp"
+#include "core/media/Container.hpp"
 #include "core/media/ImageType.hpp"
 
 #include "database/objects/detail/Types.hpp"
 
 namespace lms::db::detail
 {
-    std::optional<core::media::ContainerType> getMediaContainerType(db::detail::ContainerType container);
-    db::detail::ContainerType getDbContainerType(core::media::ContainerType container);
+    std::optional<core::media::Container> getMediaContainerType(db::detail::Container container);
+    db::detail::Container getDbContainer(core::media::Container container);
 
-    std::optional<core::media::CodecType> getMediaCodecType(db::detail::CodecType codec);
-    db::detail::CodecType getDbCodecType(core::media::CodecType codec);
+    std::optional<core::media::Codec> getMediaCodecType(db::detail::Codec codec);
+    db::detail::Codec getDbCodec(core::media::Codec codec);
 
     core::media::ImageType getMediaImageType(db::detail::ImageType type);
     db::detail::ImageType getDbImageType(core::media::ImageType type);

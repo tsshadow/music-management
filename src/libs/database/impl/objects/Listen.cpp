@@ -57,7 +57,7 @@ namespace lms::db
                 query.join("track t ON t.id = t_a_l.track_id");
 
                 if (params.filters.codec.has_value())
-                    query.where("t.codec = ?").bind(detail::getDbCodecType(*params.filters.codec));
+                    query.where("t.codec = ?").bind(detail::getDbCodec(*params.filters.codec));
 
                 if (params.filters.mediaLibrary.isValid())
                     query.where("t.media_library_id = ?").bind(params.filters.mediaLibrary);

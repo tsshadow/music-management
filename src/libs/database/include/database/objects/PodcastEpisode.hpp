@@ -29,8 +29,8 @@
 #include <Wt/Dbo/collection.h>
 #include <Wt/WDateTime.h>
 
-#include "core/media/CodecType.hpp"
-#include "core/media/ContainerType.hpp"
+#include "core/media/Codec.hpp"
+#include "core/media/Container.hpp"
 
 #include "database/Object.hpp"
 #include "database/Types.hpp"
@@ -97,8 +97,8 @@ namespace lms::db
 
         // Audio properties
         std::chrono::milliseconds getDuration() const { return _duration; }
-        std::optional<core::media::ContainerType> getContainer() const;
-        std::optional<core::media::CodecType> getCodec() const;
+        std::optional<core::media::Container> getContainer() const;
+        std::optional<core::media::Codec> getCodec() const;
         std::size_t getBitrate() const { return _bitrate; }
         std::size_t getChannelCount() const { return _channelCount; }
         std::size_t getSampleRate() const { return _sampleRate; }
@@ -128,8 +128,8 @@ namespace lms::db
 
         // Audio properties
         void setDuration(std::chrono::milliseconds duration) { _duration = duration; }
-        void setContainer(core::media::ContainerType container);
-        void setCodec(core::media::CodecType codec);
+        void setContainer(core::media::Container container);
+        void setCodec(core::media::Codec codec);
         void setBitrate(std::size_t bitrate) { _bitrate = bitrate; }
         void setChannelCount(std::size_t channelCount) { _channelCount = channelCount; }
         void setSampleRate(std::size_t sampleRate) { _sampleRate = sampleRate; }
@@ -193,8 +193,8 @@ namespace lms::db
 
         // Audio properties
         std::chrono::duration<int, std::milli> _duration{ 0 };
-        detail::ContainerType _container{ detail::ContainerType::Unknown };
-        detail::CodecType _codec{ detail::CodecType::Unknown };
+        detail::Container _container{ detail::Container::Unknown };
+        detail::Codec _codec{ detail::Codec::Unknown };
         int _bitrate{}; // in bps
         int _channelCount{};
         int _sampleRate{};

@@ -23,6 +23,8 @@
 #include <Wt/WSignal.h>
 #include <Wt/WTemplate.h>
 
+#include "core/media/Codec.hpp"
+
 #include "database/objects/Filters.hpp"
 
 namespace lms::ui
@@ -43,12 +45,14 @@ namespace lms::ui
         void set(db::LabelId labelId);
         void set(db::MediaLibraryId mediaLibraryId);
         void set(db::ReleaseTypeId releaseTypeId);
+        void set(core::media::Codec codec);
         void emitFilterAddedNotification();
 
         Wt::WContainerWidget* _filters{};
         Wt::WInteractWidget* _mediaLibraryFilter{};
         Wt::WInteractWidget* _labelFilter{};
         Wt::WInteractWidget* _releaseTypeFilter{};
+        Wt::WInteractWidget* _codecFilter{};
 
         Wt::Signal<> _sigUpdated;
 

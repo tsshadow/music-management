@@ -87,7 +87,7 @@ namespace lms::audio::ffmpeg
         }
         catch (const std::filesystem::filesystem_error& e)
         {
-            throw IOFileException{ _inputParams.filePath, "Failed to test file existence", e.code() };
+            throw IOFileException{ _inputParams.filePath, "Failed to check if file exists", e.code() };
         }
 
         LOG(INFO, "Transcoding file " << _inputParams.filePath);
@@ -136,10 +136,11 @@ namespace lms::audio::ffmpeg
             args.emplace_back(std::to_string(*_outputParams.bitrate));
         }
 
-        if (_outputParams.channelCount)
+        // -ac doc says: "For output streams it is set by default to the number of input audio channels".
+        // But it looks like specifying it is required in case the original layout is not compatible with the output codec selected
         {
             args.emplace_back("-ac");
-            args.emplace_back(std::to_string(*_outputParams.channelCount));
+            args.emplace_back(std::to_string(_outputParams.channelCount ? *_outputParams.channelCount : _inputParams.audioProperties.channelCount));
         }
 
         if (_outputParams.sampleRate)

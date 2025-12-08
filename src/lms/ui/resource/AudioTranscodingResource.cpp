@@ -119,7 +119,7 @@ namespace lms::ui
             return res;
         }
 
-        std::optional<audio::TranscodeOutputFormat> AudioFormatToTranscodingFormat(db::TranscodingOutputFormat format)
+        std::optional<audio::TranscodeOutputFormat> audioFormatToTranscodingFormat(db::TranscodingOutputFormat format)
         {
             switch (format)
             {
@@ -171,7 +171,7 @@ namespace lms::ui
                 return std::nullopt;
             }
 
-            const std::optional<audio::TranscodeOutputFormat> outputFormat{ AudioFormatToTranscodingFormat(*format) };
+            const std::optional<audio::TranscodeOutputFormat> outputFormat{ audioFormatToTranscodingFormat(*format) };
             if (!outputFormat)
                 return std::nullopt;
 

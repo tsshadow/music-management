@@ -129,5 +129,4 @@ namespace lms::ui
         Wt::WAnchor* _artist{};
         Wt::WPushButton* _playQueue{};
     };
-
 } // namespace lms::ui

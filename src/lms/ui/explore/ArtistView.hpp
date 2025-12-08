@@ -76,6 +76,5 @@ namespace lms::ui
         ReleaseContainer _appearsOnReleaseContainer{};
         InfiniteScrollingContainer* _trackContainer{};
         db::ArtistId _artistId{};
-        bool _needForceRefresh{};
     };
 } // namespace lms::ui

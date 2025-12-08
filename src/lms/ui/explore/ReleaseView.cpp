@@ -255,11 +255,6 @@ namespace lms::ui
             refreshView();
         });
 
-        _filters.updated().connect([this] {
-            _needForceRefresh = true;
-            refreshView();
-        });
-
         refreshView();
     }
 
@@ -271,12 +266,11 @@ namespace lms::ui
         const auto releaseId{ extractReleaseIdFromInternalPath() };
 
         // consider everything is up to date is the same release is being rendered
-        if (!_needForceRefresh && releaseId && *releaseId == _releaseId)
+        if (releaseId && *releaseId == _releaseId)
             return;
 
         clear();
         _releaseId = {};
-        _needForceRefresh = false;
 
         if (!releaseId)
             throw ReleaseNotFoundException{};
@@ -451,7 +445,6 @@ namespace lms::ui
         db::Track::FindParameters params;
         params.setMedium(medium->getId());
         params.setSortMethod(db::TrackSortMethod::TrackNumber);
-        params.setFilters(_filters.getDbFilters()); // TODO: do we really want to hide all tracks when a release does not match the current label filter?
 
         db::Track::find(LmsApp->getDbSession(), params, [&](const db::Track::pointer& track) {
             const db::TrackId trackId{ track->getId() };

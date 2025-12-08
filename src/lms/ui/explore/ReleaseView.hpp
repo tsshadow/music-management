@@ -57,6 +57,5 @@ namespace lms::ui
         Filters& _filters;
         PlayQueueController& _playQueueController;
         db::ReleaseId _releaseId;
-        bool _needForceRefresh{};
     };
 } // namespace lms::ui

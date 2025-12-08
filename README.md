@@ -52,7 +52,7 @@ The folder must follow a structure defined by Kodi, as detailed [here](https://k
 __Note__: If no name is provided in the `artist.nfo` file, the name of the containing folder is used.
 
 ### Filtering
-It is possible to apply global filters on your collection using `genre`, `mood`, `grouping`, `language`, and by music library. More tags, including custom ones, can be added in the database administration settings.
+It is possible to apply global filters on your collection using `genre`, `mood`, `grouping`, `language`, `codec`, and by music library. More tags, including custom ones, can be added in the database administration settings.
 
 __Note__: You can use the `lms-audioinfo` tool to get an idea of the tags parsed by _LMS_.
 

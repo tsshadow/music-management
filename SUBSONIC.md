@@ -34,7 +34,9 @@ The following extra fields are implemented:
   * `musicBrainzId`
   * `originalReleaseDate`
   * `recordLabels`
+  * `releaseDate`
   * `releaseTypes`
+  * `sortName`
   * `userRating`
   * `version`
 * `Child` response:
@@ -64,5 +66,7 @@ The following extra fields are implemented:
 * [API Key Authentication](https://opensubsonic.netlify.app/docs/extensions/apikeyauth/)
 * [getPodcastEpisode](https://opensubsonic.netlify.app/docs/extensions/getpodcastepisode/)
 * [HTTP form POST](https://opensubsonic.netlify.app/docs/extensions/formpost/)
+* [Index based Queue](https://opensubsonic.netlify.app/docs/extensions/indexbasedqueue/)
 * [Transcode offset](https://opensubsonic.netlify.app/docs/extensions/transcodeoffset/)
 * [Song Lyrics](https://opensubsonic.netlify.app/docs/extensions/songlyrics/)
+* [Transcoding](https://opensubsonic.netlify.app/docs/extensions/transcoding/)

@@ -146,7 +146,7 @@ namespace lms::ui
                 {
                     if (!codecStr.empty())
                         codecStr += " · ";
-                    codecStr += core::media::getCodecDesc(codec).name.str();
+                    codecStr += core::media::getCodecDesc(codec).longName.str();
                 }
 
                 if (!codecStr.empty())

@@ -194,7 +194,7 @@ namespace lms::api::subsonic
         }
 
         {
-            trackResponse.createEmptyArrayChild("albumartists");
+            trackResponse.createEmptyArrayChild("albumArtists");
             trackResponse.createEmptyArrayChild("artists");
             trackResponse.createEmptyArrayChild("contributors");
 
@@ -205,7 +205,7 @@ namespace lms::api::subsonic
                     trackResponse.addArrayChild("artists", createArtistNode(artist));
                     break;
                 case db::TrackArtistLinkType::ReleaseArtist:
-                    trackResponse.addArrayChild("albumartists", createArtistNode(artist));
+                    trackResponse.addArrayChild("albumArtists", createArtistNode(artist));
                     break;
                 default:
                     trackResponse.addArrayChild("contributors", createContributorNode(link, artist));

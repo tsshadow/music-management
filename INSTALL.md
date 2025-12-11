@@ -102,10 +102,10 @@ If a setting is not present in the configuration file, a hardcoded default value
 ## Authentication backends
 You can define which authentication backend to be used thanks to the `authentication-backend` option:
 * `internal` (default): _LMS_ uses an internal database to store users and their associated passwords (salted and hashed using [Bcrypt](https://en.wikipedia.org/wiki/Bcrypt)). Only the admin user can create, edit or remove other users.
-* `PAM`: the user/password authentication request is forwarded to PAM (see the default [PAM configuration file](conf/pam/lms) provided).
+* `PAM`: the user/password authentication request is forwarded to PAM. A default example PAM configuration file is provided at [`conf/pam/lms`](conf/pam/lms), which demonstrates how to authenticate using system passwords. **Note:** this file is just a base example; depending on your PAM setup, you may need to adjust the service file or PAM rules to ensure proper privileges.
 * `http-headers`: _LMS_ uses a configurable HTTP header field, typically set by a reverse proxy to handle [SSO](https://en.wikipedia.org/wiki/Single_sign-on), to extract the login name. You can customize the field to be used using the `http-headers-login-field` option.
 __Note__: the first created user is the admin user.
-#### `internal` backend: reset admin password
+### `internal` backend: reset admin password
 Open the the database file located in `/var/lms/lms.db` using `sqlite3`:
 ```sh
 sqlite3 /var/lms/lms.db

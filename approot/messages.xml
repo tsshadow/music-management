@@ -200,8 +200,8 @@
 <message id="Lms.Explore.all">All</message>
 <message id="Lms.Explore.artists">Artists</message>
 <message id="Lms.Explore.bitrate">Bitrate</message>
-<message id="Lms.Explore.cover-art">Cover art</message>
 <message id="Lms.Explore.codec">Codec</message>
+<message id="Lms.Explore.cover-art">Cover art</message>
 <message id="Lms.Explore.download">Download</message>
 <message id="Lms.Explore.duration">Duration</message>
 <message id="Lms.Explore.filter-added">Filter added</message>
@@ -320,7 +320,6 @@
 <message id="Lms.Player.next">Next</message>
 <message id="Lms.Player.seek">Seek</message>
 <message id="Lms.Player.volume">Volume</message>
-
 
 <!--Playqueue-->
 <message id="Lms.PlayQueue.clear">Clear</message>

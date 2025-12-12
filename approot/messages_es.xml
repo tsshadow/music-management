@@ -9,12 +9,14 @@
 <message id="Lms.clusters">Etiquetas</message>
 <message id="Lms.create">Crear</message>
 <message id="Lms.delete">Eliminar</message>
+<message id="Lms.delete-item">Eliminar {1}</message>
 <message id="Lms.discard">Descartar</message>
 <message id="Lms.edit">Editar</message>
 <message id="Lms.field-must-be-in-upper-case">Este campo debe estar en mayúsculas</message>
 <message id="Lms.loading">Cargando...</message>
 <message id="Lms.login">Usuario</message>
 <message id="Lms.logout"><i class="fa fa-fw fa-sign-out" aria-hidden="true"></i> Salir</message>
+<message id="Lms.more">Más...</message>
 <message id="Lms.ok">Ok</message>
 <message id="Lms.password">Contraseña</message>
 <message id="Lms.password-bad-login-combination">Combinación incorrecta de usuario / contraseña</message>
@@ -25,6 +27,7 @@
 <message id="Lms.password-old">Contraseña antigua</message>
 <message id="Lms.password-too-weak">La contraseña es demasiado débil</message>
 <message id="Lms.passwords-dont-match">Las contraseñas no coinciden</message>
+<message id="Lms.play-item">Reproducir {1}</message>
 <message id="Lms.quit-other-session">Se ha abierto otra sesión. ¿Reabrir la actúal?</message>
 <message id="Lms.save">Guardar</message>
 <message id="Lms.settings-saved">¡Ajustes guardados!</message>
@@ -145,6 +148,7 @@
 <message id="Lms.Admin.ScannerController.step-checking-for-removed-files">Comprobando ficheros eliminados... {1}%</message>
 <message id="Lms.Admin.ScannerController.step-compact">Compactando la base de datos...</message>
 <message id="Lms.Admin.ScannerController.step-compute-cluster-stats">Calculando estadísticas... {1}%</message>
+<message id="Lms.Admin.ScannerController.step-discovering-files">Detectando archivos: {1} archivos</message>
 <message id="Lms.Admin.ScannerController.step-fetching-track-features">Accediendo a las características de la pista desde AcousticBrainz : {1}/{2} ficheros ({3}%)...</message>
 <message id="Lms.Admin.ScannerController.step-optimize">Optimizando la base de datos... {1}%...</message>
 <message id="Lms.Admin.ScannerController.step-reconciliate-artists">Reconciliando artistas: {1} entradas...</message>
@@ -197,6 +201,7 @@
 <message id="Lms.Explore.artists">Artistas</message>
 <message id="Lms.Explore.bitrate">Bitrate</message>
 <message id="Lms.Explore.codec">Codec</message>
+<message id="Lms.Explore.cover-art">Carátula</message>
 <message id="Lms.Explore.download">Descargar</message>
 <message id="Lms.Explore.duration">Duración</message>
 <message id="Lms.Explore.filter-added">Filtro añadido</message>
@@ -220,6 +225,7 @@
 <message id="Lms.Explore.releases">Álbumes</message>
 <message id="Lms.Explore.search">Buscar</message>
 <message id="Lms.Explore.star">Añadir a favoritos</message>
+<message id="Lms.Explore.star-item">Agregar {1} a favoritos</message>
 <message id="Lms.Explore.starred">Favoritos</message>
 <message id="Lms.Explore.track-info">Información sobre la pista</message>
 <message id="Lms.Explore.track-lyrics">Letras</message>
@@ -308,6 +314,12 @@
 
 <!--Player-->
 <message id="Lms.Player.transcoding-active">Transcodificación activa</message>
+<message id="Lms.Player.now-playing">Reproduciendo ahora</message>
+<message id="Lms.Player.previous">Anterior</message>
+<message id="Lms.Player.play-pause">Reproducir / pausar</message>
+<message id="Lms.Player.next">Siguiente</message>
+<message id="Lms.Player.seek">Búsqueda</message>
+<message id="Lms.Player.volume">Volumen</message>
 
 <!--Playqueue-->
 <message id="Lms.PlayQueue.clear">Vaciar la lista</message>

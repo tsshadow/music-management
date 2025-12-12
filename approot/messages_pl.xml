@@ -9,12 +9,14 @@
 <message id="Lms.clusters">Znaczniki</message>
 <message id="Lms.create">Utwórz</message>
 <message id="Lms.delete">Usuń</message>
+<message id="Lms.delete-item">Usuń {1}</message>
 <message id="Lms.discard">Odrzuć</message>
 <message id="Lms.edit">Zmień</message>
 <message id="Lms.field-must-be-in-upper-case">Wartość musi się zaczynać wielką literą</message>
 <message id="Lms.loading">Wczytywanie...</message>
 <message id="Lms.login">Login</message>
 <message id="Lms.logout"><i class="fa fa-fw fa-sign-out" aria-hidden="true"></i> Wyloguj</message>
+<message id="Lms.more">Więcej...</message>
 <message id="Lms.ok">Ok</message>
 <message id="Lms.password">Hasło</message>
 <message id="Lms.password-bad-login-combination">Błędny login lub hasło</message>
@@ -25,6 +27,7 @@
 <message id="Lms.password-old">Stare hasło</message>
 <message id="Lms.password-too-weak">Hasło zbyt słabe</message>
 <message id="Lms.passwords-dont-match">Hasła się nie zgadzają</message>
+<message id="Lms.play-item">Odtwórz {1}</message>
 <message id="Lms.quit-other-session">Rozpoczęto inną sesję. Odtworzyć tę?</message>
 <message id="Lms.save">Zapisz</message>
 <message id="Lms.settings-saved">Ustawienia zapisane!</message>
@@ -158,6 +161,7 @@
 <message id="Lms.Admin.ScannerController.step-checking-for-removed-files">Sprawdzanie plików... {1}%</message>
 <message id="Lms.Admin.ScannerController.step-compact">Prasowanie bazy danych...</message>
 <message id="Lms.Admin.ScannerController.step-compute-cluster-stats">Obliczanie statystyk... {1}%</message>
+<message id="Lms.Admin.ScannerController.step-discovering-files">Wykrywanie plików: {1} plików</message>
 <message id="Lms.Admin.ScannerController.step-fetching-track-features">Pobieranie danych o ścieżce z AcousticBrainz: {1}/{2} ścieżek ({3}%)...</message>
 <message id="Lms.Admin.ScannerController.step-optimize">Optymalizowanie bazy danych... {1}%...</message>
 <message id="Lms.Admin.ScannerController.step-reconciliate-artists">Uzgodnianie artystów: {1} wpisów...</message>
@@ -214,6 +218,7 @@
 <message id="Lms.Explore.artists">Artyści</message>
 <message id="Lms.Explore.bitrate">Przepływność</message>
 <message id="Lms.Explore.codec">Kodek</message>
+<message id="Lms.Explore.cover-art">Okładka</message>
 <message id="Lms.Explore.download">Pobierz</message>
 <message id="Lms.Explore.duration">Długość</message>
 <message id="Lms.Explore.filter-added">Filtr dodany</message>
@@ -237,6 +242,7 @@
 <message id="Lms.Explore.releases">Albumy</message>
 <message id="Lms.Explore.search">Szukaj</message>
 <message id="Lms.Explore.star">Wyróżnij</message>
+<message id="Lms.Explore.star-item">Dodaj {1} do ulubionych</message>
 <message id="Lms.Explore.starred">Wyróżnione</message>
 <message id="Lms.Explore.track-info">Informacje o ścieżce</message>
 <message id="Lms.Explore.track-lyrics">Tekst</message>
@@ -334,6 +340,12 @@
 
 <!--Player-->
 <message id="Lms.Player.transcoding-active">Transkodowanie włączone</message>
+<message id="Lms.Player.now-playing">Teraz odtwarzane</message>
+<message id="Lms.Player.previous">Poprzedni</message>
+<message id="Lms.Player.play-pause">Odtwarzaj / pauza</message>
+<message id="Lms.Player.next">Następny</message>
+<message id="Lms.Player.seek">Przewijanie</message>
+<message id="Lms.Player.volume">Głośność</message>
 
 <!--Playqueue-->
 <message id="Lms.PlayQueue.clear">Wyczyść</message>

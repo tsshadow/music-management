@@ -250,7 +250,7 @@ namespace lms::ui::TrackListHelpers
         entry->bindString("duration", utils::durationToString(track->getDuration()), Wt::TextFormat::Plain);
 
         Wt::WPushButton* playBtn{ entry->bindNew<Wt::WPushButton>("play-btn", Wt::WString::tr("Lms.template.play-btn"), Wt::TextFormat::XHTML) };
-        playBtn->setAttributeValue("aria-label", Wt::WString::tr("Lms.Explore.play-item").arg(track->getName()));
+        playBtn->setAttributeValue("aria-label", Wt::WString::tr("Lms.play-item").arg(track->getName()));
         playBtn->clicked().connect([trackId, &playQueueController] {
             playQueueController.processCommand(PlayQueueController::Command::Play, { trackId });
         });

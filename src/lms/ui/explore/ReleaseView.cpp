@@ -475,7 +475,7 @@ namespace lms::ui
             }
 
             Wt::WPushButton* playBtn{ entry->bindNew<Wt::WPushButton>("play-btn", Wt::WString::tr("Lms.template.play-btn"), Wt::TextFormat::XHTML) };
-            playBtn->setAttributeValue("aria-label", Wt::WString::tr("Lms.Explore.play-item").arg(track->getName()));
+            playBtn->setAttributeValue("aria-label", Wt::WString::tr("Lms.play-item").arg(track->getName()));
             playBtn->clicked().connect([this, trackId] {
                 _playQueueController.playTrackInRelease(trackId);
             });
@@ -678,7 +678,7 @@ namespace lms::ui
             disc_title = Wt::WString::fromUTF8(std::string{ medium->getName() });
         disc->bindNew<Wt::WText>("disc-title", disc_title, Wt::TextFormat::Plain);
         Wt::WPushButton* playBtn{ disc->bindNew<Wt::WPushButton>("play-btn", Wt::WString::tr("Lms.template.play-btn"), Wt::TextFormat::XHTML) };
-        playBtn->setAttributeValue("aria-label", Wt::WString::tr("Lms.Explore.play-item").arg(disc_title));
+        playBtn->setAttributeValue("aria-label", Wt::WString::tr("Lms.play-item").arg(disc_title));
         playBtn->clicked().connect([this, mediumId] {
             _playQueueController.processCommand(PlayQueueController::Command::Play, mediumId);
         });

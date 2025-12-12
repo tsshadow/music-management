@@ -9,6 +9,7 @@
 <message id="Lms.clusters">Tags</message>
 <message id="Lms.create">Create</message>
 <message id="Lms.delete">Delete</message>
+<message id="Lms.delete-item">Delete {1}</message>
 <message id="Lms.discard">Discard</message>
 <message id="Lms.edit">Edit</message>
 <message id="Lms.field-must-be-in-upper-case">This field must be in upper case</message>
@@ -26,6 +27,7 @@
 <message id="Lms.password-old">Old password</message>
 <message id="Lms.password-too-weak">Password too weak</message>
 <message id="Lms.passwords-dont-match">Passwords don't match</message>
+<message id="Lms.play-item">Play {1}</message>
 <message id="Lms.quit-other-session">Another session has been open. Reopen this one?</message>
 <message id="Lms.save">Save</message>
 <message id="Lms.settings-saved">Settings saved!</message>
@@ -209,7 +211,6 @@
 <message id="Lms.Explore.most-played">Most played</message>
 <message id="Lms.Explore.musicbrainz-artist">MusicBrainz Artist</message>
 <message id="Lms.Explore.musicbrainz-release">MusicBrainz Release</message>
-<message id="Lms.Explore.play-item">Play {1}</message>
 <message id="Lms.Explore.play">Play</message>
 <message id="Lms.Explore.play-last">Play last</message>
 <message id="Lms.Explore.play-next">Play next</message>

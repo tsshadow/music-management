@@ -651,10 +651,8 @@ namespace lms::ui
     }
 
     std::unique_ptr<Wt::WTemplate> Release::createDisc(const db::Medium::pointer& medium)
-
     {
         const db::MediumId mediumId{ medium->getId() };
-        Wt::WString disc_title;
 
         std::unique_ptr<Wt::WTemplate> disc{ std::make_unique<Template>(Wt::WString::tr("Lms.Explore.Release.template.entry-disc")) };
         disc->addFunction("id", &Wt::WTemplate::Functions::id);
@@ -672,13 +670,15 @@ namespace lms::ui
             disc->bindWidget<Wt::WImage>("artwork", std::move(image));
         }
 
+        Wt::WString discTitle;
         if (medium->getName().empty())
-            disc_title = Wt::WString::tr("Lms.Explore.Release.disc").arg(medium->getPosition() ? *medium->getPosition() : 1 /* TODO */);
+            discTitle = Wt::WString::tr("Lms.Explore.Release.disc").arg(medium->getPosition() ? *medium->getPosition() : 1 /* TODO */);
         else
-            disc_title = Wt::WString::fromUTF8(std::string{ medium->getName() });
-        disc->bindNew<Wt::WText>("disc-title", disc_title, Wt::TextFormat::Plain);
+            discTitle = Wt::WString::fromUTF8(std::string{ medium->getName() });
+        disc->bindNew<Wt::WText>("disc-title", discTitle, Wt::TextFormat::Plain);
+
         Wt::WPushButton* playBtn{ disc->bindNew<Wt::WPushButton>("play-btn", Wt::WString::tr("Lms.template.play-btn"), Wt::TextFormat::XHTML) };
-        playBtn->setAttributeValue("aria-label", Wt::WString::tr("Lms.play-item").arg(disc_title));
+        playBtn->setAttributeValue("aria-label", Wt::WString::tr("Lms.play-item").arg(discTitle));
         playBtn->clicked().connect([this, mediumId] {
             _playQueueController.processCommand(PlayQueueController::Command::Play, mediumId);
         });

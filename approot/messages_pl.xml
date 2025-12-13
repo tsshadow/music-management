@@ -161,8 +161,6 @@
 <message id="Lms.Admin.ScannerController.step-checking-for-removed-files">Sprawdzanie plików... {1}%</message>
 <message id="Lms.Admin.ScannerController.step-compact">Prasowanie bazy danych...</message>
 <message id="Lms.Admin.ScannerController.step-compute-cluster-stats">Obliczanie statystyk... {1}%</message>
-<message id="Lms.Admin.ScannerController.step-discovering-files">Wykrywanie plików: {1} plików</message>
-<message id="Lms.Admin.ScannerController.step-fetching-track-features">Pobieranie danych o ścieżce z AcousticBrainz: {1}/{2} ścieżek ({3}%)...</message>
 <message id="Lms.Admin.ScannerController.step-optimize">Optymalizowanie bazy danych... {1}%...</message>
 <message id="Lms.Admin.ScannerController.step-reconciliate-artists">Uzgodnianie artystów: {1} wpisów...</message>
 <message id="Lms.Admin.ScannerController.step-reloading-similarity-engine">Przeładowywanie silnika podobieństw: {1}%...</message>

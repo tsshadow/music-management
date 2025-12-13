@@ -148,8 +148,6 @@
 <message id="Lms.Admin.ScannerController.step-checking-for-removed-files">Checking for removed files... {1}%</message>
 <message id="Lms.Admin.ScannerController.step-compact">Compacting database...</message>
 <message id="Lms.Admin.ScannerController.step-compute-cluster-stats">Computing stats... {1}%</message>
-<message id="Lms.Admin.ScannerController.step-discovering-files">Discovering files: {1} files</message>
-<message id="Lms.Admin.ScannerController.step-fetching-track-features">Fetching track features from AcousticBrainz: {1}/{2} tracks ({3}%)...</message>
 <message id="Lms.Admin.ScannerController.step-optimize">Optimizing database... {1}%...</message>
 <message id="Lms.Admin.ScannerController.step-reconciliate-artists">Reconciliating artists: {1} entries...</message>
 <message id="Lms.Admin.ScannerController.step-reloading-similarity-engine">Reloading similarity engine: {1}%...</message>

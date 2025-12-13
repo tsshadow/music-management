@@ -146,8 +146,6 @@
 <message id="Lms.Admin.ScannerController.step-checking-for-removed-files">检查文件中... {1}%</message>
 <message id="Lms.Admin.ScannerController.step-compact">正在压缩数据库...</message>
 <message id="Lms.Admin.ScannerController.step-compute-cluster-stats">正在计算统计信息... {1}%</message>
-<message id="Lms.Admin.ScannerController.step-discovering-files">发现文件：{1} 个文件</message>
-<message id="Lms.Admin.ScannerController.step-fetching-track-features">从 AcousticBrainz 获取曲目特征：{1}/{2} 曲目（{3}%）...</message>
 <message id="Lms.Admin.ScannerController.step-optimize">正在优化数据库... {1}%...</message>
 <message id="Lms.Admin.ScannerController.step-reconciliate-artists">整理艺术家：{1} 条记录...</message>
 <message id="Lms.Admin.ScannerController.step-reloading-similarity-engine">重载相似引擎中 {1}%...</message>

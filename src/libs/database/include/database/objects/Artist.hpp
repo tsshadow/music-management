@@ -31,12 +31,12 @@
 
 #include "core/EnumSet.hpp"
 #include "core/UUID.hpp"
+
 #include "database/IdRange.hpp"
 #include "database/Object.hpp"
 #include "database/Types.hpp"
 #include "database/objects/ArtistId.hpp"
 #include "database/objects/ArtworkId.hpp"
-#include "database/objects/ClusterId.hpp"
 #include "database/objects/Filters.hpp"
 #include "database/objects/MediaLibraryId.hpp"
 #include "database/objects/ReleaseId.hpp"
@@ -51,9 +51,7 @@ namespace lms::db
     class ClusterType;
     class Release;
     class Session;
-    class StarredArtist;
     class Track;
-    class TrackArtistLink;
     class User;
 
     class Artist final : public Object<Artist, ArtistId>
@@ -149,7 +147,6 @@ namespace lms::db
         bool hasMBID() const;
         ObjectPtr<Artwork> getPreferredArtwork() const;
         ArtworkId getPreferredArtworkId() const;
-        void visitLinks(std::function<void(const ObjectPtr<TrackArtistLink>& link)> visitor) const;
 
         // No artistLinkTypes means get them all
         RangeResults<ArtistId> findSimilarArtistIds(core::EnumSet<TrackArtistLinkType> artistLinkTypes = {}, std::optional<Range> range = std::nullopt) const;
@@ -172,8 +169,6 @@ namespace lms::db
             Wt::Dbo::field(a, _mbid, "mbid");
 
             Wt::Dbo::belongsTo(a, _preferredArtwork, "preferred_artwork", Wt::Dbo::OnDeleteSetNull);
-            Wt::Dbo::hasMany(a, _trackArtistLinks, Wt::Dbo::ManyToOne, "artist");
-            Wt::Dbo::hasMany(a, _starredArtists, Wt::Dbo::ManyToMany, "user_starred_artists", "", Wt::Dbo::OnDeleteCascade);
         }
 
     private:
@@ -187,8 +182,5 @@ namespace lms::db
         std::string _mbid; // Musicbrainz Identifier
 
         Wt::Dbo::ptr<Artwork> _preferredArtwork;
-        Wt::Dbo::collection<Wt::Dbo::ptr<TrackArtistLink>> _trackArtistLinks; // Tracks involving this artist
-        Wt::Dbo::collection<Wt::Dbo::ptr<StarredArtist>> _starredArtists;     // starred entries for this artist
     };
-
 } // namespace lms::db

@@ -21,7 +21,7 @@
 
 #include <optional>
 
-#include "database/Types.hpp"
+#include "database/objects/Types.hpp"
 
 #include "DropDownMenuSelector.hpp"
 

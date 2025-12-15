@@ -27,9 +27,9 @@
 #include "database/objects/Cluster.hpp"
 #include "database/objects/Directory.hpp"
 #include "database/objects/Release.hpp"
-#include "database/objects/StarredArtist.hpp"
+// #include "database/objects/StarredArtist.hpp"
 #include "database/objects/Track.hpp"
-#include "database/objects/TrackArtistLink.hpp"
+// #include "database/objects/TrackArtistLink.hpp"
 #include "database/objects/User.hpp"
 
 #include "SqlQuery.hpp"

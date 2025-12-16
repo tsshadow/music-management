@@ -40,16 +40,21 @@ class YoutubeSongProcessor(PostProcessor):
         tagger_service = TaggerService()
         tagger_service.tag_file("youtube", path, info)
 
-        # Send notification for new downloads
+        # Send notification for new downloads with enriched metadata
         if is_new_download:
             try:
+                # Load the tagged file to get enriched metadata
+                from services.tagger.Song.YoutubeSong import YoutubeSong
+                song = YoutubeSong(path, info)
+
                 notify_service = NotifyService()
-                artist = info.get('artist') or info.get('uploader')
                 notify_service.notify_download(
                     source='youtube',
-                    title=title_for_archive or 'Unknown Title',
-                    artist=artist,
-                    account=account
+                    title=song.title() or title_for_archive or 'Unknown Title',
+                    artist=song.artist() or info.get('uploader'),
+                    account=account,
+                    genres=song.genres() if song.genres() else None,
+                    label=song.publisher() if song.publisher() else None
                 )
             except Exception as e:
                 logging.warning(f'Failed to send notification: {e}')

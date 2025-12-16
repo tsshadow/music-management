@@ -55,11 +55,21 @@ class TelegramDownloader:
                         if base_name.endswith('.bin'):
                             title = f'Message {msg.id}'
 
+                        # Try to get artist from message text/caption if available
+                        artist = None
+                        if hasattr(msg, 'text') and msg.text:
+                            # Try to extract artist from text (format: "Artist - Title")
+                            if ' - ' in msg.text:
+                                parts = msg.text.split(' - ', 1)
+                                artist = parts[0].strip()
+
                         notify_service.notify_download(
                             source='telegram',
                             title=title,
-                            artist=None,
-                            account=channel
+                            artist=artist,
+                            account=channel,
+                            genres=None,  # Not available until tagged
+                            label=None    # Not available until tagged
                         )
                     except Exception as e:
                         logging.warning(f'Failed to send notification: {e}')

@@ -48,17 +48,20 @@ class SoundcloudSongProcessor(PostProcessor):
         tagger_service = TaggerService()
         tagger_service.tag_file("soundcloud", path, enriched_info)
 
-        # Send notification for new downloads
+        # Send notification for new downloads with enriched metadata
         if is_new_download:
             try:
+                # Load the tagged file to get enriched metadata
+                song = SoundcloudSong(path, enriched_info)
+
                 notify_service = NotifyService()
-                artist = enriched_info.get('artist') or enriched_info.get('uploader')
-                title = enriched_info.get('title', 'Unknown Title')
                 notify_service.notify_download(
                     source='soundcloud',
-                    title=title,
-                    artist=artist,
-                    account=account_name
+                    title=song.title() or enriched_info.get('title', 'Unknown Title'),
+                    artist=song.artist() or enriched_info.get('uploader'),
+                    account=account_name,
+                    genres=song.genres() if song.genres() else None,
+                    label=song.publisher() if song.publisher() else None
                 )
             except Exception as e:
                 logging.warning(f'Failed to send notification: {e}')

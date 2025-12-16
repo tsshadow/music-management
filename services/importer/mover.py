@@ -7,6 +7,7 @@ from os.path import isfile, join
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.settings import Settings
 from services.tagger.Song.LabelSong import LabelSong
+from services.common.notify import NotifyService
 
 
 def get_cat_id(folder: str):
@@ -57,6 +58,8 @@ class Mover:
     def __init__(self):
         self.settings = Settings()
         self.db_connector = DatabaseConnector()
+        self.notify_service = NotifyService()
+        self.imported_count = 0
 
     def get_label(self, key) -> str | None:
         query = f'SELECT `label` FROM `catid_label` WHERE `catid` = %s'
@@ -89,7 +92,9 @@ class Mover:
         Move folders to categorized destinations based on their labels.
         """
         logging.info('Starting Move Step')
+        self.imported_count = 0  # Reset counter for this run
         only_folders = [f for f in listdir(self.settings.import_folder_path) if not isfile(join(self.settings.import_folder_path, f))]
+
         for folder in only_folders:
             cat_id = get_cat_id(folder)
             if cat_id:
@@ -104,6 +109,22 @@ class Mover:
                             shutil.move(src, dst)
                         logging.info(f'Moved: {src} -> {dst}')
                         post_processing_songs(dst)
+
+                        # Successfully imported, increment counter
+                        self.imported_count += 1
+
+                        # Send notification for imported release
+                        try:
+                            self.notify_service.send_notification(
+                                topic='music-management-importer',
+                                message=f'📦 {folder}\n🏷️ Label: {label}\n📁 CAT ID: {cat_id}',
+                                title='New Release Imported',
+                                priority='default',
+                                tags=['package']
+                            )
+                        except Exception as e:
+                            logging.warning(f'Failed to send notification for {folder}: {e}')
+
                     except FileExistsError:
                         logging.warning(f'Conflict: {dst} already exists. Removing {src}')
                         if not dry_run:
@@ -112,3 +133,16 @@ class Mover:
                         logging.error(f'Error moving {src} to {dst}: {e}')
             else:
                 logging.warning(f'No valid CAT ID found for folder: {folder}')
+
+        # Send summary notification if any releases were imported
+        if self.imported_count > 0:
+            try:
+                self.notify_service.send_notification(
+                    topic='music-management-importer',
+                    message=f'✅ Import completed\n📊 {self.imported_count} release{"s" if self.imported_count > 1 else ""} imported',
+                    title='Import Summary',
+                    priority='low',
+                    tags=['white_check_mark']
+                )
+            except Exception as e:
+                logging.warning(f'Failed to send summary notification: {e}')

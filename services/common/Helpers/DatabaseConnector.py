@@ -21,3 +21,24 @@ class DatabaseConnector:
         if not all([self.host, self.user, self.password, self.db, self.port]):
             raise RuntimeError('Database connection parameters are not fully configured')
         return pymysql.connect(host=self.host, port=self.port, user=self.user, password=self.password, db=self.db, connect_timeout=self.connect_timeout)
+
+    def verify_connection(self):
+        """
+        Verify that the database connection is working.
+
+        Raises:
+            RuntimeError: If database connection cannot be established
+        """
+        try:
+            connection = self.connect()
+            with connection.cursor() as cursor:
+                cursor.execute('SELECT 1')
+                cursor.fetchone()
+            connection.close()
+            logging.info('Database connection verified successfully')
+        except pymysql.Error as e:
+            logging.error('Database connection failed: %s', e)
+            raise RuntimeError(f'Cannot connect to database: {e}') from e
+        except Exception as e:
+            logging.error('Unexpected error during database connection verification: %s', e)
+            raise RuntimeError(f'Database connection verification failed: {e}') from e

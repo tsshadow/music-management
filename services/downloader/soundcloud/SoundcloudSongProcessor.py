@@ -7,6 +7,7 @@ from yt_dlp.postprocessor import PostProcessor
 from services.tagger.tagger_service import TaggerService
 from services.downloader.soundcloud.SoundcloudArchive import SoundcloudArchive
 from services.tagger.Song.SoundcloudSong import SoundcloudSong
+from services.common.notify import NotifyService
 
 class SoundcloudSongProcessor(PostProcessor):
     """
@@ -38,12 +39,30 @@ class SoundcloudSongProcessor(PostProcessor):
         account_name = self._extract_account_name_from_url(enriched_info.get('uploader_url'))
         account_id = enriched_info.get('channel_id') or enriched_info.get('uploader_id')
         video_id = enriched_info.get('id')
+        is_new_download = False
         if SoundcloudArchive.exists(account_id, video_id):
             logging.info(f'Track already in soundcloud_archive: {account_name}/{video_id} — skipping.')
         else:
             SoundcloudArchive.insert(account_name=account_name, account_id=account_id, video_id=video_id, path=path, url=enriched_info.get('original_url'), title=enriched_info.get('title'))
+            is_new_download = True
         tagger_service = TaggerService()
         tagger_service.tag_file("soundcloud", path, enriched_info)
+
+        # Send notification for new downloads
+        if is_new_download:
+            try:
+                notify_service = NotifyService()
+                artist = enriched_info.get('artist') or enriched_info.get('uploader')
+                title = enriched_info.get('title', 'Unknown Title')
+                notify_service.notify_download(
+                    source='soundcloud',
+                    title=title,
+                    artist=artist,
+                    account=account_name
+                )
+            except Exception as e:
+                logging.warning(f'Failed to send notification: {e}')
+
         return ([], info)
 
     @staticmethod

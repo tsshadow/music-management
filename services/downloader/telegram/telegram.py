@@ -3,6 +3,7 @@ import asyncio
 from pathlib import Path
 import logging
 from telethon import TelegramClient
+from services.common.notify import NotifyService
 
 class TelegramDownloader:
 
@@ -26,21 +27,42 @@ class TelegramDownloader:
         mime = getattr(getattr(message, 'file', None), 'mime_type', '')
         return bool(mime) and (mime.startswith('audio') or mime.startswith('video'))
 
-    async def _download_if_needed(self, client, msg, folder: str, semaphore: asyncio.Semaphore):
+    async def _download_if_needed(self, client, msg, folder: str, semaphore: asyncio.Semaphore, channel: str):
         base_name = msg.file.name or f'{msg.id}.bin'
         safe_path = os.path.join(folder, base_name)
         file_path = Path(safe_path)
         expected_size = getattr(msg.file, 'size', None)
+        is_new_download = False
         if file_path.exists():
             if expected_size is not None and file_path.stat().st_size == expected_size:
                 return
             else:
                 print(f'⚠️ Onvolledig of onbekend bestand gevonden, opnieuw downloaden: {safe_path}')
+                is_new_download = True
         else:
             print(f'⬇️ Downloaden: {safe_path}')
+            is_new_download = True
         async with semaphore:
             try:
                 await client.download_media(msg, file=safe_path)
+
+                # Send notification for new downloads
+                if is_new_download:
+                    try:
+                        notify_service = NotifyService()
+                        # Extract title from filename or message
+                        title = base_name
+                        if base_name.endswith('.bin'):
+                            title = f'Message {msg.id}'
+
+                        notify_service.notify_download(
+                            source='telegram',
+                            title=title,
+                            artist=None,
+                            account=channel
+                        )
+                    except Exception as e:
+                        logging.warning(f'Failed to send notification: {e}')
             except Exception as e:
                 print(f'❌ Fout bij downloaden van {safe_path}: {e}')
 
@@ -51,7 +73,7 @@ class TelegramDownloader:
         download_tasks = []
         async for msg in client.iter_messages(channel, limit=limit):
             if self._is_media(msg) and msg.file:
-                task = self._download_if_needed(client, msg, channel_folder, semaphore)
+                task = self._download_if_needed(client, msg, channel_folder, semaphore, channel)
                 download_tasks.append(task)
         await asyncio.gather(*download_tasks)
 

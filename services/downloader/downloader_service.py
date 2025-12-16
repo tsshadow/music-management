@@ -2,11 +2,13 @@ import argparse
 import logging
 import signal
 from time import sleep
+import subprocess
 
 import faulthandler
 
 from services.common.api import start_api_server
 from services.common.settings import Settings
+from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.downloader.youtube.youtube import YoutubeDownloader
 from soundcloud.soundcloud import SoundcloudDownloader
 from services.downloader.telegram.telegram import TelegramDownloader
@@ -57,26 +59,45 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
     )
 
+    parser.add_argument(
+        "--redownload",
+        help="Forces a redownload of all files, even if they already exist in the target folder.",
+        action="store_true",
+    )
+
     return parser.parse_args()
 
 
 class DownloaderService:
     def __init__(self) -> None:
         self.settings = Settings()
+
+        # Verify database connection before proceeding
+        db_connector = DatabaseConnector()
+        db_connector.verify_connection()
+
         start_api_server()
 
-    def download(self, source: str, account: str | None, break_on_existing: bool) -> None:
+    def download(self, source: str, account: str | None, break_on_existing: bool, redownload: bool) -> None:
         if source == "youtube":
+            try:
+                version = subprocess.check_output(["yt-dlp", "--version"], text=True).strip()
+                print(f"yt-dlp version: {version}")
+            except FileNotFoundError:
+                print("yt-dlp executable not found in system PATH.")
+            except subprocess.SubprocessError as e:
+                print(f"Error fetching yt-dlp version: {e}")
+            
             youtube_downloader = YoutubeDownloader(
                 break_on_existing=break_on_existing
             )
-            youtube_downloader.run(account=account)
+            youtube_downloader.run(account=account, redownload=redownload)
 
         elif source == "soundcloud":
             soundcloud_downloader = SoundcloudDownloader(
                 break_on_existing=break_on_existing,
             )
-            soundcloud_downloader.run(account=account)
+            soundcloud_downloader.run(account=account, redownload=redownload)
 
         elif source == "telegram":
             if not account:
@@ -104,12 +125,14 @@ def main() -> None:
     else:
         steps = {"youtube", "soundcloud", "telegram"}
 
+
     while True:
         if "youtube" in steps:
             downloader_service.download(
                 "youtube",
                 break_on_existing=args.break_on_existing,
                 account=args.account,
+                redownload=args.redownload
             )
 
         if "soundcloud" in steps:
@@ -117,6 +140,7 @@ def main() -> None:
                 "soundcloud",
                 break_on_existing=args.break_on_existing,
                 account=args.account,
+                redownload=args.redownload
             )
 
         if "telegram" in steps:
@@ -124,6 +148,7 @@ def main() -> None:
                 "telegram",
                 break_on_existing=args.break_on_existing,
                 account=args.account,
+                redownload=args.redownload
             )
 
         if not args.repeat:

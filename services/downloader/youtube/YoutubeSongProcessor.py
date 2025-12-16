@@ -11,6 +11,7 @@ from services.tagger.constants import TITLE
 from yt_dlp.utils import sanitize_filename
 
 from services.tagger.tagger_service import TaggerService
+from services.common.notify import NotifyService
 
 
 class YoutubeSongProcessor(PostProcessor):
@@ -30,12 +31,28 @@ class YoutubeSongProcessor(PostProcessor):
         title_for_archive = info.get('title')
         account = info.get('uploader_id') or info.get('channel_id') or info.get('uploader') or info.get('channel')
         video_id = info.get('id')
+        is_new_download = False
         if not YoutubeArchive.exists(account, video_id):
             YoutubeArchive.insert(account, video_id, path, url, title_for_archive)
+            is_new_download = True
         else:
             logging.info(f'Track already in youtube_archive: {account}/{video_id} — skipping insert.')
         tagger_service = TaggerService()
         tagger_service.tag_file("youtube", path, info)
+
+        # Send notification for new downloads
+        if is_new_download:
+            try:
+                notify_service = NotifyService()
+                artist = info.get('artist') or info.get('uploader')
+                notify_service.notify_download(
+                    source='youtube',
+                    title=title_for_archive or 'Unknown Title',
+                    artist=artist,
+                    account=account
+                )
+            except Exception as e:
+                logging.warning(f'Failed to send notification: {e}')
         # if corrected_title:
         #     try:
         #         song.tag_collection.set_item(TITLE, corrected_title)

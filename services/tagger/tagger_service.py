@@ -8,6 +8,7 @@ import faulthandler
 
 from services.common.api import start_api_server
 from services.common.settings import Settings
+from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.tagger.constants import SongTypeEnum
 from services.tagger.tagger import Tagger  # Adjust this import if your module path is different
 
@@ -71,6 +72,10 @@ class TaggerService:
     def __init__(self) -> None:
         # Load global settings (paths, configuration, etc.)
         self.settings = Settings()
+
+        # Verify database connection before proceeding
+        db_connector = DatabaseConnector()
+        db_connector.verify_connection()
 
         # Underlying Tagger instance that knows how to parse & tag files.
         self.tagger = Tagger()

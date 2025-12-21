@@ -23,6 +23,7 @@
 #include <Wt/Dbo/WtSqlTraits.h>
 
 #include "core/ILogger.hpp"
+
 #include "database/Session.hpp"
 #include "database/Types.hpp"
 #include "database/objects/Artist.hpp"
@@ -41,6 +42,7 @@
 
 #include "SqlQuery.hpp"
 #include "Utils.hpp"
+#include "objects/detail/Types.hpp"
 #include "traits/IdTypeTraits.hpp"
 #include "traits/PartialDateTimeTraits.hpp"
 #include "traits/PathTraits.hpp"
@@ -162,6 +164,7 @@ namespace lms::db
                 query.where("t.track_number = ?").bind(*params.trackNumber);
 
             if (params.sortMethod == TrackSortMethod::DateDescAndRelease
+                || params.sortMethod == TrackSortMethod::OriginalDateDescAndRelease
                 || params.sortMethod == TrackSortMethod::Release)
             {
                 query.join("medium m ON t.medium_id = m.id");
@@ -194,6 +197,9 @@ namespace lms::db
                 query.where("t_e_i_l.track_embedded_image_id = ?").bind(params.embeddedImageId);
             }
 
+            if (params.filters.codec.has_value())
+                query.where("t.codec = ?").bind(detail::getDbCodec(*params.filters.codec));
+
             switch (params.sortMethod)
             {
             case TrackSortMethod::None:
@@ -222,6 +228,9 @@ namespace lms::db
                 break;
             case TrackSortMethod::DateDescAndRelease:
                 query.orderBy("t.date DESC,t.release_id,m.position,t.track_number");
+                break;
+            case TrackSortMethod::OriginalDateDescAndRelease:
+                query.orderBy("COALESCE(t.original_date, t.date) DESC,t.release_id,m.position,t.track_number");
                 break;
             case TrackSortMethod::Release:
                 query.orderBy("m.position,t.track_number");
@@ -641,6 +650,16 @@ namespace lms::db
         _absoluteFilePath = filePath;
     }
 
+    void Track::setContainer(core::media::Container container)
+    {
+        _container = detail::getDbContainer(container);
+    }
+
+    void Track::setCodec(core::media::Codec codec)
+    {
+        _codec = detail::getDbCodec(codec);
+    }
+
     void Track::setName(std::string_view name)
     {
         _name = std::string{ name, 0, _maxNameLength };
@@ -719,6 +738,16 @@ namespace lms::db
     void Track::setPreferredMediaArtwork(ObjectPtr<Artwork> artwork)
     {
         _preferredMediaArtwork = getDboPtr(artwork);
+    }
+
+    std::optional<core::media::Container> Track::getContainer() const
+    {
+        return detail::getMediaContainerType(_container);
+    }
+
+    std::optional<core::media::Codec> Track::getCodec() const
+    {
+        return detail::getMediaCodecType(_codec);
     }
 
     std::optional<int> Track::getYear() const

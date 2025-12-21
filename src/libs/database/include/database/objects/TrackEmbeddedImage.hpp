@@ -26,6 +26,8 @@
 #include <Wt/Dbo/Field.h>
 #include <Wt/Dbo/collection.h>
 
+#include "core/media/ImageType.hpp"
+
 #include "database/Object.hpp"
 #include "database/Types.hpp"
 #include "database/objects/MediumId.hpp"
@@ -33,6 +35,7 @@
 #include "database/objects/TrackEmbeddedImageId.hpp"
 #include "database/objects/TrackId.hpp"
 #include "database/objects/TrackListId.hpp"
+#include "database/objects/Types.hpp"
 
 namespace lms::db
 {
@@ -52,7 +55,7 @@ namespace lms::db
             ReleaseId release;
             MediumId medium;
             TrackListId trackList;
-            std::optional<ImageType> imageType;
+            std::optional<core::media::ImageType> imageType;
             TrackEmbeddedImageSortMethod sortMethod{ TrackEmbeddedImageSortMethod::None };
 
             FindParameters& setRange(std::optional<Range> _range)
@@ -80,7 +83,7 @@ namespace lms::db
                 trackList = _trackList;
                 return *this;
             }
-            FindParameters& setImageType(std::optional<ImageType> _imageType)
+            FindParameters& setImageType(std::optional<core::media::ImageType> _imageType)
             {
                 imageType = _imageType;
                 return *this;

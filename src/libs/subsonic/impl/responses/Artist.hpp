@@ -23,7 +23,7 @@
 #include <vector>
 
 #include "database/Object.hpp"
-#include "database/Types.hpp"
+#include "database/objects/Types.hpp"
 
 #include "SubsonicResponse.hpp"
 
@@ -36,7 +36,7 @@ namespace lms::db
 
 namespace lms::api::subsonic
 {
-    struct RequestContext;
+    class RequestContext;
 
     namespace utils
     {

@@ -24,6 +24,7 @@ target_include_directories(lmspodcast PRIVATE
 
 target_link_libraries(lmspodcast PRIVATE
 	lmscore
+	lmsaudio
 	lmsimage
 	pugixml::pugixml
 	)

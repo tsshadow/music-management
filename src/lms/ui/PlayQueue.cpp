@@ -114,7 +114,7 @@ namespace lms::ui
 
     PlayQueue::PlayQueue()
         : Template{ Wt::WString::tr("Lms.PlayQueue.template") }
-        , _capacity{ core::Service<core::IConfig>::get()->getULong("playqueue-max-entry-count", 1000) }
+        , _capacity{ core::Service<core::IConfig>::get()->getULong("ui-playqueue-max-entry-count", 1000) }
     {
         initTrackLists();
 
@@ -520,6 +520,7 @@ namespace lms::ui
         entry->bindString("duration", utils::durationToString(track->getDuration()), Wt::TextFormat::Plain);
 
         Wt::WPushButton* playBtn{ entry->bindNew<Wt::WPushButton>("play-btn", Wt::WString::tr("Lms.template.play-btn"), Wt::TextFormat::XHTML) };
+        playBtn->setAttributeValue("aria-label", Wt::WString::tr("Lms.play-item").arg(track->getName()));
         playBtn->clicked().connect([this, entry] {
             const std::optional<std::size_t> pos{ _entriesContainer->getIndexOf(*entry) };
             if (pos)
@@ -527,6 +528,7 @@ namespace lms::ui
         });
 
         Wt::WPushButton* delBtn{ entry->bindNew<Wt::WPushButton>("del-btn", Wt::WString::tr("Lms.template.delete-btn"), Wt::TextFormat::XHTML) };
+        delBtn->setAttributeValue("aria-label", Wt::WString::tr("Lms.delete-item").arg(track->getName()));
         delBtn->setToolTip(Wt::WString::tr("Lms.delete"));
         delBtn->clicked().connect([this, tracklistEntryId, entry] {
             // Remove the entry n both the widget tree and the playqueue
@@ -578,8 +580,12 @@ namespace lms::ui
             }
         });
 
-        entry->bindNew<Wt::WPushButton>("download", Wt::WString::tr("Lms.Explore.download"))
-            ->setLink(Wt::WLink{ std::make_unique<DownloadTrackResource>(trackId) });
+        if (LmsApp->areDownloadsEnabled())
+        {
+            entry->setCondition("if-has-download", true);
+            entry->bindNew<Wt::WPushButton>("download", Wt::WString::tr("Lms.Explore.download"))
+                ->setLink(Wt::WLink{ std::make_unique<DownloadTrackResource>(trackId) });
+        }
     }
 
     void PlayQueue::enqueueRadioTracksIfNeeded()

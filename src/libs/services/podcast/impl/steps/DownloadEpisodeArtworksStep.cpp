@@ -112,7 +112,7 @@ namespace lms::podcast
         const std::string url{ episode->getImageUrl() };
         const std::filesystem::path finalFilePath{ getCachePath() / utils::generateRandomFileName() };
 
-        LMS_LOG(PODCAST, DEBUG, "Downloading episode artwork for episode '" << episode->getTitle() << "' from '" << url << "' in file '" << finalFilePath << "'");
+        LMS_LOG(PODCAST, DEBUG, "Downloading episode artwork for episode '" << episode->getTitle() << "' from '" << url << "' in file " << finalFilePath);
 
         core::http::ClientGETRequestParameters params;
         params.relativeUrl = episode->getImageUrl();

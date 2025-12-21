@@ -51,31 +51,25 @@
 
 namespace lms::api::subsonic
 {
-    using namespace db;
-
     namespace
     {
-        std::string_view formatToSuffix(TranscodingOutputFormat format)
+        std::string_view formatToSuffix(db::TranscodingOutputFormat format)
         {
             switch (format)
             {
-            case TranscodingOutputFormat::MP3:
+            case db::TranscodingOutputFormat::MP3:
                 return "mp3";
-            case TranscodingOutputFormat::OGG_OPUS:
+            case db::TranscodingOutputFormat::OGG_OPUS:
                 return "opus";
-            case TranscodingOutputFormat::MATROSKA_OPUS:
-                return "mka";
-            case TranscodingOutputFormat::OGG_VORBIS:
+            case db::TranscodingOutputFormat::OGG_VORBIS:
                 return "ogg";
-            case TranscodingOutputFormat::WEBM_VORBIS:
-                return "webm";
             }
 
             return "";
         }
     } // namespace
 
-    Response::Node createSongNode(RequestContext& context, const Track::pointer& track, bool id3)
+    Response::Node createSongNode(RequestContext& context, const db::Track::pointer& track, bool id3)
     {
         LMS_SCOPED_TRACE_DETAILED("Subsonic", "CreateSong");
 
@@ -87,9 +81,9 @@ namespace lms::api::subsonic
         {
             if (const auto directory{ track->getDirectory() })
                 trackResponse.setAttribute("parent", idToString(directory->getId()));
-            trackResponse.setAttribute("isDir", false);
         }
 
+        trackResponse.setAttribute("isDir", false);
         trackResponse.setAttribute("id", idToString(track->getId()));
         trackResponse.setAttribute("title", track->getName());
         if (track->getTrackNumber())
@@ -120,9 +114,9 @@ namespace lms::api::subsonic
             trackResponse.setAttribute("suffix", extension.string().substr(1) /* skip leading .*/);
         }
 
-        if (context.user->getSubsonicEnableTranscodingByDefault())
+        if (context.getUser()->getSubsonicEnableTranscodingByDefault())
         {
-            const std::string fileSuffix{ formatToSuffix(context.user->getSubsonicDefaultTranscodingOutputFormat()) };
+            const std::string fileSuffix{ formatToSuffix(context.getUser()->getSubsonicDefaultTranscodingOutputFormat()) };
             trackResponse.setAttribute("transcodedSuffix", fileSuffix);
             trackResponse.setAttribute("transcodedContentType", core::getMimeType(std::filesystem::path{ "." + fileSuffix }));
         }
@@ -137,7 +131,7 @@ namespace lms::api::subsonic
             trackResponse.setAttribute("coverArt", idToString(coverArtId));
         }
 
-        const std::vector<Artist::pointer>& artists{ track->getArtists({ TrackArtistLinkType::Artist }) };
+        const std::vector<db::Artist::pointer>& artists{ track->getArtists({ db::TrackArtistLinkType::Artist }) };
         if (!artists.empty())
         {
             if (!track->getArtistDisplayName().empty())
@@ -149,7 +143,7 @@ namespace lms::api::subsonic
                 trackResponse.setAttribute("artistId", idToString(artists.front()->getId()));
         }
 
-        const Release::pointer release{ track->getRelease() };
+        const db::Release::pointer release{ track->getRelease() };
         if (release)
         {
             trackResponse.setAttribute("album", release->getName());
@@ -161,37 +155,37 @@ namespace lms::api::subsonic
         trackResponse.setAttribute("type", "music");
         trackResponse.setAttribute("created", core::stringUtils::toISO8601String(track->getAddedTime()));
         trackResponse.setAttribute("contentType", core::getMimeType(track->getAbsoluteFilePath().extension()));
-        if (const auto rating{ core::Service<feedback::IFeedbackService>::get()->getRating(context.user->getId(), track->getId()) })
+        if (const auto rating{ core::Service<feedback::IFeedbackService>::get()->getRating(context.getUser()->getId(), track->getId()) })
             trackResponse.setAttribute("userRating", *rating);
 
-        if (const Wt::WDateTime dateTime{ core::Service<feedback::IFeedbackService>::get()->getStarredDateTime(context.user->getId(), track->getId()) }; dateTime.isValid())
+        if (const Wt::WDateTime dateTime{ core::Service<feedback::IFeedbackService>::get()->getStarredDateTime(context.getUser()->getId(), track->getId()) }; dateTime.isValid())
             trackResponse.setAttribute("starred", core::stringUtils::toISO8601String(dateTime));
 
         // Report the first GENRE for this track
-        std::vector<Cluster::pointer> genres;
+        std::vector<db::Cluster::pointer> genres;
         {
-            Cluster::FindParameters params;
+            db::Cluster::FindParameters params;
             params.setTrack(track->getId());
             params.setClusterTypeName("GENRE");
 
-            genres = Cluster::find(context.dbSession, params).results;
+            genres = db::Cluster::find(context.getDbSession(), params).results;
             if (!genres.empty())
                 trackResponse.setAttribute("genre", genres.front()->getName());
         }
 
         // OpenSubsonic specific fields (must always be set)
-        if (!context.enableOpenSubsonic)
+        if (!context.isOpenSubsonicEnabled())
             return trackResponse;
 
         trackResponse.setAttribute("comment", track->getComment());
-        trackResponse.setAttribute("bitDepth", track->getBitsPerSample());
+        trackResponse.setAttribute("bitDepth", track->getBitsPerSample() ? *track->getBitsPerSample() : 0);
         trackResponse.setAttribute("samplingRate", track->getSampleRate());
         trackResponse.setAttribute("channelCount", track->getChannelCount());
 
         trackResponse.setAttribute("mediaType", "song");
 
         {
-            const Wt::WDateTime dateTime{ core::Service<scrobbling::IScrobblingService>::get()->getLastListenDateTime(context.user->getId(), track->getId()) };
+            const Wt::WDateTime dateTime{ core::Service<scrobbling::IScrobblingService>::get()->getLastListenDateTime(context.getUser()->getId(), track->getId()) };
             trackResponse.setAttribute("played", dateTime.isValid() ? core::stringUtils::toISO8601String(dateTime) : "");
         }
 
@@ -201,18 +195,18 @@ namespace lms::api::subsonic
         }
 
         {
-            trackResponse.createEmptyArrayChild("albumartists");
+            trackResponse.createEmptyArrayChild("albumArtists");
             trackResponse.createEmptyArrayChild("artists");
             trackResponse.createEmptyArrayChild("contributors");
 
-            TrackArtistLink::find(context.dbSession, track->getId(), [&](const TrackArtistLink::pointer& link, const Artist::pointer& artist) {
+            db::TrackArtistLink::find(context.getDbSession(), track->getId(), [&](const db::TrackArtistLink::pointer& link, const db::Artist::pointer& artist) {
                 switch (link->getType())
                 {
-                case TrackArtistLinkType::Artist:
+                case db::TrackArtistLinkType::Artist:
                     trackResponse.addArrayChild("artists", createArtistNode(artist));
                     break;
-                case TrackArtistLinkType::ReleaseArtist:
-                    trackResponse.addArrayChild("albumartists", createArtistNode(artist));
+                case db::TrackArtistLinkType::ReleaseArtist:
+                    trackResponse.addArrayChild("albumArtists", createArtistNode(artist));
                     break;
                 default:
                     trackResponse.addArrayChild("contributors", createContributorNode(link, artist));
@@ -227,11 +221,11 @@ namespace lms::api::subsonic
         auto addClusters{ [&](Response::Node::Key field, std::string_view clusterTypeName) {
             trackResponse.createEmptyArrayValue(field);
 
-            Cluster::FindParameters params;
+            db::Cluster::FindParameters params;
             params.setTrack(track->getId());
             params.setClusterTypeName(clusterTypeName);
 
-            for (const auto& cluster : Cluster::find(context.dbSession, params).results)
+            for (const auto& cluster : db::Cluster::find(context.getDbSession(), params).results)
                 trackResponse.addArrayValue(field, cluster->getName());
         } };
 

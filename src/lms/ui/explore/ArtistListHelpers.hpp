@@ -23,9 +23,10 @@
 
 #include <Wt/WTemplate.h>
 
-#include "common/ValueStringModel.hpp"
 #include "database/Object.hpp"
-#include "database/Types.hpp"
+#include "database/objects/Types.hpp"
+
+#include "common/ValueStringModel.hpp"
 
 namespace lms::db
 {

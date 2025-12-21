@@ -31,7 +31,7 @@ namespace lms::db
 
 namespace lms::api::subsonic
 {
-    struct RequestContext;
+    class RequestContext;
 
     Response::Node createPodcastEpisodeNode(const db::ObjectPtr<db::PodcastEpisode>& episode);
     Response::Node createPodcastNode(RequestContext& context, const db::ObjectPtr<db::Podcast>& podcast, bool includeEpisodes);

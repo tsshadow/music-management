@@ -115,7 +115,7 @@ namespace lms::ui
         }
     } // namespace
 
-    namespace details
+    namespace detail
     {
         std::string getTrackPathName(const db::Track::pointer& track)
         {
@@ -165,7 +165,7 @@ namespace lms::ui
 
             return zip::createArchiveZipper(files);
         }
-    } // namespace details
+    } // namespace detail
 
     DownloadArtistResource::DownloadArtistResource(db::ArtistId artistId)
         : _artistId{ artistId }
@@ -182,7 +182,7 @@ namespace lms::ui
         auto transaction{ LmsApp->getDbSession().createReadTransaction() };
 
         const auto trackResults{ db::Track::find(LmsApp->getDbSession(), db::Track::FindParameters{}.setArtist(_artistId).setSortMethod(db::TrackSortMethod::DateDescAndRelease)) };
-        return details::createZipper(trackResults.results);
+        return detail::createZipper(trackResults.results);
     }
 
     DownloadReleaseResource::DownloadReleaseResource(db::ReleaseId releaseId)
@@ -200,7 +200,7 @@ namespace lms::ui
         auto transaction{ LmsApp->getDbSession().createReadTransaction() };
 
         auto tracks{ db::Track::find(LmsApp->getDbSession(), db::Track::FindParameters{}.setRelease(_releaseId).setSortMethod(db::TrackSortMethod::Release)) };
-        return details::createZipper(tracks.results);
+        return detail::createZipper(tracks.results);
     }
 
     DownloadTrackResource::DownloadTrackResource(db::TrackId trackId)
@@ -210,7 +210,7 @@ namespace lms::ui
 
         db::Track::pointer track{ db::Track::find(LmsApp->getDbSession(), trackId) };
         if (track)
-            suggestFileName(details::getTrackPathName(track) + ".zip");
+            suggestFileName(detail::getTrackPathName(track) + ".zip");
     }
 
     std::unique_ptr<zip::IZipper> DownloadTrackResource::createZipper()
@@ -224,7 +224,7 @@ namespace lms::ui
             return {};
         }
 
-        return details::createZipper({ track });
+        return detail::createZipper({ track });
     }
 
     DownloadTrackListResource::DownloadTrackListResource(db::TrackListId trackListId)
@@ -234,7 +234,7 @@ namespace lms::ui
 
         const db::TrackList::pointer trackList{ db::TrackList::find(LmsApp->getDbSession(), trackListId) };
         if (trackList)
-            suggestFileName(details::getTrackListPathName(trackList) + ".zip");
+            suggestFileName(detail::getTrackListPathName(trackList) + ".zip");
     }
 
     std::unique_ptr<zip::IZipper> DownloadTrackListResource::createZipper()
@@ -244,6 +244,6 @@ namespace lms::ui
         db::Track::FindParameters params;
         params.setTrackList(_trackListId);
         const auto tracks{ db::Track::find(LmsApp->getDbSession(), params) };
-        return details::createZipper(tracks.results);
+        return detail::createZipper(tracks.results);
     }
 } // namespace lms::ui

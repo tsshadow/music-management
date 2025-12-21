@@ -27,8 +27,8 @@
 #include <Wt/WTemplate.h>
 #include <Wt/WText.h>
 
-#include "database/Types.hpp"
 #include "database/objects/TrackId.hpp"
+#include "database/objects/Types.hpp"
 
 namespace lms::ui
 {
@@ -129,5 +129,4 @@ namespace lms::ui
         Wt::WAnchor* _artist{};
         Wt::WPushButton* _playQueue{};
     };
-
 } // namespace lms::ui

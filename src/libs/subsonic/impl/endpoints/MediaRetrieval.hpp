@@ -26,7 +26,7 @@
 
 namespace lms::api::subsonic
 {
-    struct RequestContext;
+    class RequestContext;
 
     Response handleGetLyrics(RequestContext& context);
     Response handleGetLyricsBySongId(RequestContext& context);

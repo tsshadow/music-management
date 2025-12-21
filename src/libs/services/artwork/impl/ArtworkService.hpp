@@ -28,14 +28,14 @@
 
 #include "ImageCache.hpp"
 
+namespace lms::audio
+{
+    class IAudioFileInfoParser;
+}
+
 namespace lms::db
 {
     class Session;
-}
-
-namespace lms::metadata
-{
-    class IAudioFileParser;
 }
 
 namespace lms::artwork
@@ -67,10 +67,10 @@ namespace lms::artwork
 
         db::IDb& _db;
 
-        std::unique_ptr<metadata::IAudioFileParser> _audioFileParser;
         ImageCache _cache;
         std::shared_ptr<image::IEncodedImage> _defaultReleaseCover;
         std::shared_ptr<image::IEncodedImage> _defaultArtistImage;
+        std::unique_ptr<audio::IAudioFileInfoParser> _audioFileInfoParser;
 
         static inline const std::vector<std::filesystem::path> _fileExtensions{ ".jpg", ".jpeg", ".png", ".bmp" }; // TODO parametrize
         unsigned _jpegQuality;

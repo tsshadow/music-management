@@ -23,11 +23,11 @@
 #include <Wt/Dbo/WtSqlTraits.h>
 
 #include "database/Session.hpp"
-#include "database/Types.hpp"
 #include "database/objects/Track.hpp"
 #include "database/objects/TrackEmbeddedImage.hpp"
 
 #include "Utils.hpp"
+#include "detail/Types.hpp"
 #include "traits/IdTypeTraits.hpp"
 #include "traits/ImageHashTypeTraits.hpp"
 
@@ -76,5 +76,15 @@ namespace lms::db
     ObjectPtr<TrackEmbeddedImage> TrackEmbeddedImageLink::getImage() const
     {
         return _image;
+    }
+
+    core::media::ImageType TrackEmbeddedImageLink::getType() const
+    {
+        return detail::getMediaImageType(_type);
+    }
+
+    void TrackEmbeddedImageLink::setType(core::media::ImageType type)
+    {
+        _type = detail::getDbImageType(type);
     }
 } // namespace lms::db

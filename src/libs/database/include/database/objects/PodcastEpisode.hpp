@@ -29,11 +29,16 @@
 #include <Wt/Dbo/collection.h>
 #include <Wt/WDateTime.h>
 
+#include "core/media/Codec.hpp"
+#include "core/media/Container.hpp"
+
 #include "database/Object.hpp"
 #include "database/Types.hpp"
 #include "database/objects/ArtworkId.hpp"
 #include "database/objects/PodcastEpisodeId.hpp"
 #include "database/objects/PodcastId.hpp"
+#include "database/objects/Types.hpp"
+#include "database/objects/detail/Types.hpp"
 
 namespace lms::db
 {
@@ -90,6 +95,15 @@ namespace lms::db
         ManualDownloadState getManualDownloadState() const { return _manualDownloadState; }
         const std::filesystem::path& getAudioRelativeFilePath() const { return _audioRelativeFilePath; }
 
+        // Audio properties
+        std::chrono::milliseconds getDuration() const { return _duration; }
+        std::optional<core::media::Container> getContainer() const;
+        std::optional<core::media::Codec> getCodec() const;
+        std::size_t getBitrate() const { return _bitrate; }
+        std::size_t getChannelCount() const { return _channelCount; }
+        std::size_t getSampleRate() const { return _sampleRate; }
+        std::optional<std::size_t> getBitsPerSample() const { return _bitsPerSample; }
+
         std::string_view getTitle() const { return _title; }
         std::string_view getLink() const { return _link; }
         std::string_view getDescription() const { return _description; }
@@ -103,7 +117,6 @@ namespace lms::db
         std::string_view getSubtitle() const { return _subtitle; }
         std::string_view getSummary() const { return _summary; }
         bool isExplicit() const { return _explicit; }
-        std::chrono::duration<int, std::milli> getDuration() const { return _duration; }
         ObjectPtr<Podcast> getPodcast() const { return _podcast; }
         PodcastId getPodcastId() const { return _podcast.id(); }
         ObjectPtr<Artwork> getArtwork() const;
@@ -112,6 +125,15 @@ namespace lms::db
         // setters
         void setManualDownloadState(ManualDownloadState state) { _manualDownloadState = state; }
         void setAudioRelativeFilePath(const std::filesystem::path& relativeFilePath) { _audioRelativeFilePath = relativeFilePath; }
+
+        // Audio properties
+        void setDuration(std::chrono::milliseconds duration) { _duration = duration; }
+        void setContainer(core::media::Container container);
+        void setCodec(core::media::Codec codec);
+        void setBitrate(std::size_t bitrate) { _bitrate = bitrate; }
+        void setChannelCount(std::size_t channelCount) { _channelCount = channelCount; }
+        void setSampleRate(std::size_t sampleRate) { _sampleRate = sampleRate; }
+        void setBitsPerSample(std::optional<std::size_t> bitsPerSample) { _bitsPerSample = bitsPerSample; }
 
         void setTitle(std::string_view title) { _title = title; }
         void setLink(std::string_view link) { _link = link; }
@@ -135,6 +157,14 @@ namespace lms::db
             Wt::Dbo::field(a, _manualDownloadState, "manual_download_state");
             Wt::Dbo::field(a, _audioRelativeFilePath, "audio_relative_file_path");
 
+            Wt::Dbo::field(a, _duration, "duration");
+            Wt::Dbo::field(a, _container, "container");
+            Wt::Dbo::field(a, _codec, "codec");
+            Wt::Dbo::field(a, _bitrate, "bitrate");
+            Wt::Dbo::field(a, _channelCount, "channel_count");
+            Wt::Dbo::field(a, _sampleRate, "sample_rate");
+            Wt::Dbo::field(a, _bitsPerSample, "bits_per_sample");
+
             Wt::Dbo::field(a, _title, "title");
             Wt::Dbo::field(a, _link, "link");
             Wt::Dbo::field(a, _description, "description");
@@ -148,7 +178,6 @@ namespace lms::db
             Wt::Dbo::field(a, _subtitle, "subtitle");
             Wt::Dbo::field(a, _summary, "summary");
             Wt::Dbo::field(a, _explicit, "explicit");
-            Wt::Dbo::field(a, _duration, "duration");
 
             Wt::Dbo::belongsTo(a, _artwork, "artwork", Wt::Dbo::OnDeleteSetNull);
             Wt::Dbo::belongsTo(a, _podcast, "podcast", Wt::Dbo::OnDeleteCascade);
@@ -161,6 +190,15 @@ namespace lms::db
 
         ManualDownloadState _manualDownloadState{ ManualDownloadState::None };
         std::filesystem::path _audioRelativeFilePath; // relative to cache dir, only set if downloaded
+
+        // Audio properties
+        std::chrono::duration<int, std::milli> _duration{ 0 };
+        detail::Container _container{ detail::Container::Unknown };
+        detail::Codec _codec{ detail::Codec::Unknown };
+        int _bitrate{}; // in bps
+        int _channelCount{};
+        int _sampleRate{};
+        std::optional<int> _bitsPerSample;
 
         std::string _url;
         std::string _title;
@@ -178,7 +216,6 @@ namespace lms::db
         std::string _subtitle;
         std::string _summary;
         bool _explicit{};
-        std::chrono::duration<int, std::milli> _duration{ 0 };
 
         Wt::Dbo::ptr<Artwork> _artwork;
         Wt::Dbo::ptr<Podcast> _podcast;

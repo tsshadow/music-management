@@ -41,6 +41,7 @@
 #include "database/objects/MediaLibraryId.hpp"
 #include "database/objects/ReleaseId.hpp"
 #include "database/objects/TrackId.hpp"
+#include "database/objects/Types.hpp"
 #include "database/objects/UserId.hpp"
 
 namespace lms::db
@@ -136,6 +137,7 @@ namespace lms::db
         static RangeResults<ArtistId> findIds(Session& session, const FindParameters& params);
         static RangeResults<ArtistId> findOrphanIds(Session& session, std::optional<Range> range = std::nullopt); // No track related
         static bool exists(Session& session, ArtistId id);
+        static RangeResults<pointer> findWithMBIDNameVariants(Session& session, ArtistId& lastRetrievedArtist, std::optional<Range> range = std::nullopt);
 
         // Updates
         static void updatePreferredArtwork(Session& session, ArtistId artistId, ArtworkId artworkId);

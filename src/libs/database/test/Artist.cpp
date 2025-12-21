@@ -518,6 +518,34 @@ namespace lms::db::tests
         }
     }
 
+    TEST_F(DatabaseFixture, Artist_findByCodec)
+    {
+        ScopedArtist artist1{ session, "A" };
+        ScopedArtist artist2{ session, "B" };
+        ScopedTrack track1{ session };
+        ScopedTrack track2{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            TrackArtistLink::create(session, track1.get(), artist1.get(), TrackArtistLinkType::Artist);
+            TrackArtistLink::create(session, track2.get(), artist2.get(), TrackArtistLinkType::Artist);
+
+            track1.get().modify()->setCodec(core::media::Codec::MP3);
+            track2.get().modify()->setCodec(core::media::Codec::FLAC);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Artist::FindParameters params;
+            params.setFilters(Filters{}.setCodec(core::media::Codec::FLAC));
+
+            const auto artists{ Artist::find(session, params) };
+            ASSERT_EQ(artists.results.size(), 1);
+            EXPECT_EQ(artists.results.front()->getId(), artist2.getId());
+        }
+    }
+
     TEST_F(DatabaseFixture, Artist_findByName)
     {
         ScopedArtist artist{ session, "AAA" };
@@ -932,6 +960,45 @@ namespace lms::db::tests
         {
             auto transaction{ session.createReadTransaction() };
             EXPECT_EQ(artist->getPreferredArtwork(), Artwork::pointer{});
+        }
+    }
+
+    TEST_F(DatabaseFixture, Artist_findWithMBIDNameVariants)
+    {
+        ScopedArtist artistA{ session, "ArtistA" };
+        ScopedArtist artistB{ session, "ArtistB" };
+
+        ScopedTrack trackA1{ session };
+        ScopedTrack trackA2{ session };
+        ScopedTrack trackB1{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+
+            {
+                auto link{ TrackArtistLink::create(session, trackA1.get(), artistA.get(), TrackArtistLinkType::Artist, true) };
+                link.modify()->setArtistName("ArtistA");
+            }
+            {
+                auto link{ TrackArtistLink::create(session, trackA2.get(), artistA.get(), TrackArtistLinkType::Artist, true) };
+                link.modify()->setArtistName("AlternateArtistA");
+            }
+
+            {
+                auto link{ TrackArtistLink::create(session, trackB1.get(), artistB.get(), TrackArtistLinkType::Artist, true) };
+                link.modify()->setArtistName("ArtistB");
+            }
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            ArtistId lastRetrievedArtist;
+            const auto results{ Artist::findWithMBIDNameVariants(session, lastRetrievedArtist) };
+
+            ASSERT_EQ(results.results.size(), 1);
+            EXPECT_EQ(results.results[0]->getId(), artistA.getId());
+            EXPECT_EQ(lastRetrievedArtist, artistA.getId());
         }
     }
 } // namespace lms::db::tests

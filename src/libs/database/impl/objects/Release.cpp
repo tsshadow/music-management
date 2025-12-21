@@ -40,6 +40,7 @@
 
 #include "SqlQuery.hpp"
 #include "Utils.hpp"
+#include "detail/Types.hpp"
 #include "traits/EnumSetTraits.hpp"
 #include "traits/IdTypeTraits.hpp"
 #include "traits/PartialDateTimeTraits.hpp"
@@ -74,6 +75,7 @@ namespace lms::db
                 || params.artist.isValid()
                 || params.filters.clusters.size() == 1
                 || params.filters.mediaLibrary.isValid()
+                || params.filters.codec.has_value()
                 || params.directory.isValid()
                 || params.parentDirectory.isValid())
             {
@@ -217,6 +219,9 @@ namespace lms::db
                 query.where(oss.str());
             }
 
+            if (params.filters.codec.has_value())
+                query.where("t.codec = ?").bind(detail::getDbCodec(params.filters.codec.value()));
+
             if (params.releaseGroupMBID)
                 query.where("group_mbid = ?").bind(params.releaseGroupMBID->getAsString());
 
@@ -289,7 +294,7 @@ namespace lms::db
     {
         // As we use the name to uniquely identoify release type, we must throw (and not truncate)
         if (name.size() > _maxNameLength)
-            throw Exception{ "Country name is too long: " + std::string{ name } + "'" };
+            throw Exception{ "Country name is too long: '" + std::string{ name } + "'" };
     }
 
     Country::pointer Country::create(Session& session, std::string_view name)
@@ -314,7 +319,7 @@ namespace lms::db
         session.checkReadTransaction();
 
         if (name.size() > _maxNameLength)
-            throw Exception{ "Requeted Country name is too long: " + std::string{ name } + "'" };
+            throw Exception{ "Country name is too long: '" + std::string{ name } + "'" };
 
         return utils::fetchQuerySingleResult(session.getDboSession()->query<Wt::Dbo::ptr<Country>>("SELECT c from country c").where("c.name = ?").bind(name));
     }
@@ -331,9 +336,9 @@ namespace lms::db
     Label::Label(std::string_view name)
         : _name{ name }
     {
-        // As we use the name to uniquely identoify release type, we must throw (and not truncate)
+        // As we use the name to uniquely identify this label, we must throw (and not truncate)
         if (name.size() > _maxNameLength)
-            throw Exception{ "Label name is too long: " + std::string{ name } + "'" };
+            throw Exception{ "Label name is too long: '" + std::string{ name } + "'" };
     }
 
     Label::pointer Label::create(Session& session, std::string_view name)
@@ -358,7 +363,7 @@ namespace lms::db
         session.checkReadTransaction();
 
         if (name.size() > _maxNameLength)
-            throw Exception{ "Requeted Label name is too long: " + std::string{ name } + "'" };
+            throw Exception{ "Label name is too long: '" + std::string{ name } + "'" };
 
         return utils::fetchQuerySingleResult(session.getDboSession()->query<Wt::Dbo::ptr<Label>>("SELECT l from label l").where("l.name = ?").bind(name));
     }
@@ -393,9 +398,9 @@ namespace lms::db
     ReleaseType::ReleaseType(std::string_view name)
         : _name{ name }
     {
-        // As we use the name to uniquely identoify release type, we must throw (and not truncate)
+        // As we use the name to uniquely identify release types, we must throw (and not truncate)
         if (name.size() > _maxNameLength)
-            throw Exception{ "ReleaseType name is too long: " + std::string{ name } + "'" };
+            throw Exception{ "ReleaseType is too long: '" + std::string{ name } + "'" };
     }
 
     ReleaseType::pointer ReleaseType::create(Session& session, std::string_view name)
@@ -420,7 +425,7 @@ namespace lms::db
         session.checkReadTransaction();
 
         if (name.size() > _maxNameLength)
-            throw Exception{ "Requeted ReleaseType name is too long: " + std::string{ name } + "'" };
+            throw Exception{ "ReleaseType is too long: '" + std::string{ name } + "'" };
 
         return utils::fetchQuerySingleResult(session.getDboSession()->query<Wt::Dbo::ptr<ReleaseType>>("SELECT r_t from release_type r_t").where("r_t.name = ?").bind(name));
     }
@@ -677,6 +682,22 @@ namespace lms::db
         assert(session());
 
         return utils::fetchQuerySingleResult(session()->query<int>("SELECT COALESCE(AVG(t.bitrate), 0) FROM track t").where("release_id = ?").bind(getId()).where("bitrate > 0"));
+    }
+
+    std::vector<core::media::Codec> Release::getCodecs() const
+    {
+        assert(session());
+
+        // Get the codec ordered by frequency
+        auto query{ session()->query<detail::Codec>("SELECT t.codec FROM track t").where("release_id = ?").bind(getId()).groupBy("t.codec").orderBy("COUNT(t.id) DESC") };
+
+        std::vector<core::media::Codec> res;
+        utils::forEachQueryResult(query, [&](detail::Codec codec) {
+            if (const auto mediaCodecType{ detail::getMediaCodecType(codec) })
+                res.push_back(*mediaCodecType);
+        });
+
+        return res;
     }
 
     std::vector<Artist::pointer> Release::getArtists(TrackArtistLinkType linkType) const

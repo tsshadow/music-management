@@ -98,12 +98,15 @@ namespace lms::core::stringUtils
     template<>
     [[nodiscard]] std::optional<bool> readAs(std::string_view str);
 
-    [[nodiscard]] std::string replaceInString(std::string_view str, const std::string& from, const std::string& to);
+    [[nodiscard]] std::string replaceInString(std::string_view str, std::string_view from, std::string_view to);
 
     [[nodiscard]] std::string jsEscape(std::string_view str);
     [[nodiscard]] std::string jsonEscape(std::string_view str);
     void writeJSEscapedString(std::ostream& os, std::string_view str);
     void writeJsonEscapedString(std::ostream& os, std::string_view str);
+
+    [[nodiscard]] std::string xmlEscape(std::string_view str);
+    void writeXmlEscapedString(std::ostream& os, std::string_view str);
 
     [[nodiscard]] std::string escapeString(std::string_view str, std::string_view charsToEscape, char escapeChar);
     [[nodiscard]] std::string unescapeString(std::string_view str, char escapeChar);

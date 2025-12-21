@@ -64,7 +64,7 @@ namespace lms::scanner
             {
                 db::TrackEmbeddedImage::FindParameters params;
                 params.setTrack(track->getId());
-                params.setImageType(db::ImageType::FrontCover);
+                params.setImageType(core::media::ImageType::FrontCover);
                 params.setSortMethod(db::TrackEmbeddedImageSortMethod::SizeDesc);
 
                 db::TrackEmbeddedImage::find(session, params, [&](const db::TrackEmbeddedImage::pointer& image) {
@@ -94,7 +94,7 @@ namespace lms::scanner
             {
                 db::TrackEmbeddedImage::FindParameters params;
                 params.setTrack(track->getId());
-                params.setImageType(db::ImageType::Media);
+                params.setImageType(core::media::ImageType::Media);
                 params.setSortMethod(db::TrackEmbeddedImageSortMethod::SizeDesc);
 
                 db::TrackEmbeddedImage::find(session, params, [&](const db::TrackEmbeddedImage::pointer& image) {

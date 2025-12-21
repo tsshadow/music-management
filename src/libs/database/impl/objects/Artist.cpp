@@ -34,6 +34,7 @@
 
 #include "SqlQuery.hpp"
 #include "Utils.hpp"
+#include "objects/detail/Types.hpp"
 #include "traits/IdTypeTraits.hpp"
 #include "traits/StringViewTraits.hpp"
 
@@ -56,6 +57,7 @@ namespace lms::db
                 || params.track.isValid()
                 || params.release.isValid()
                 || params.filters.clusters.size() == 1
+                || params.filters.codec.has_value()
                 || params.filters.mediaLibrary.isValid()
                 || params.filters.label.isValid()
                 || params.filters.releaseType.isValid())
@@ -67,6 +69,7 @@ namespace lms::db
                 || params.sortMethod == ArtistSortMethod::AddedDesc
                 || params.writtenAfter.isValid()
                 || params.release.isValid()
+                || params.filters.codec.has_value()
                 || params.filters.mediaLibrary.isValid()
                 || params.filters.label.isValid()
                 || params.filters.releaseType.isValid())
@@ -78,6 +81,9 @@ namespace lms::db
 
                 if (params.release.isValid())
                     query.where("t.release_id = ?").bind(params.release);
+
+                if (params.filters.codec.has_value())
+                    query.where("t.codec = ?").bind(detail::getDbCodec(*params.filters.codec));
 
                 if (params.filters.mediaLibrary.isValid())
                     query.where("t.media_library_id = ?").bind(params.filters.mediaLibrary);
@@ -332,6 +338,31 @@ AND NOT EXISTS (
     {
         session.checkReadTransaction();
         return utils::fetchQuerySingleResult(session.getDboSession()->query<int>("SELECT 1 FROM artist").where("id = ?").bind(id)) == 1;
+    }
+
+    RangeResults<Artist::pointer> Artist::findWithMBIDNameVariants(Session& session, ArtistId& lastRetrievedArtist, std::optional<Range> range)
+    {
+        session.checkReadTransaction();
+
+        auto query{ session.getDboSession()->query<Wt::Dbo::ptr<Artist>>(R"(
+        SELECT a FROM artist a 
+        WHERE a.id IN (
+            SELECT t_a_l.artist_id 
+            FROM track_artist_link t_a_l 
+            WHERE t_a_l.artist_mbid_matched = 1 
+            GROUP BY t_a_l.artist_id 
+            HAVING COUNT(DISTINCT t_a_l.artist_name) > 1
+        )
+        AND a.id > ?
+    )")
+                        .bind(lastRetrievedArtist) };
+
+        auto results{ utils::execRangeQuery<Artist::pointer>(query, range) };
+
+        if (!results.results.empty())
+            lastRetrievedArtist = results.results.back()->getId();
+
+        return results;
     }
 
     void Artist::updatePreferredArtwork(Session& session, ArtistId artistId, ArtworkId artworkId)

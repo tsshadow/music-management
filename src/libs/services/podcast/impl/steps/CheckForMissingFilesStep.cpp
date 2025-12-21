@@ -51,13 +51,7 @@ namespace lms::podcast
             assert(std::holds_alternative<db::ImageId>(artwork->getUnderlyingId())); // these artworks can only be an image
 
             const std::filesystem::path filePath{ artwork->getAbsoluteFilePath() };
-            if (!fileExists(filePath.string()))
-            {
-                LMS_LOG(PODCAST, DEBUG, "Artwork file is missing: " << filePath);
-                return false;
-            }
-
-            return true;
+            return fileExists(filePath.string());
         }
     } // namespace
 
@@ -86,7 +80,10 @@ namespace lms::podcast
                 if (const db::Artwork::pointer artwork{ podcast->getArtwork() })
                 {
                     if (!checkArtworkFile(artwork))
+                    {
+                        LMS_LOG(PODCAST, DEBUG, "Artwork file " << artwork->getAbsoluteFilePath() << " is missing for podcast '" << podcast->getTitle() << "'");
                         missingImages.push_back(artwork->getImageId());
+                    }
                 }
             });
 
@@ -94,7 +91,10 @@ namespace lms::podcast
                 if (const db::Artwork::pointer artwork{ episode->getArtwork() })
                 {
                     if (!checkArtworkFile(artwork))
+                    {
+                        LMS_LOG(PODCAST, DEBUG, "Artwork file " << artwork->getAbsoluteFilePath() << " is missing for podcast episode '" << episode->getTitle() << "'");
                         missingImages.push_back(artwork->getImageId());
+                    }
                 }
             });
         }

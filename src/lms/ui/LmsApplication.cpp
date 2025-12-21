@@ -26,9 +26,11 @@
 #include <Wt/WServer.h>
 #include <Wt/WStackedWidget.h>
 
+#include "core/IConfig.hpp"
 #include "core/ILogger.hpp"
 #include "core/ITraceLogger.hpp"
 #include "core/Service.hpp"
+
 #include "database/IDb.hpp"
 #include "database/IQueryPlanRecorder.hpp"
 #include "database/Session.hpp"
@@ -198,6 +200,31 @@ namespace lms::ui
         return static_cast<LmsApplication*>(Wt::WApplication::instance());
     }
 
+    LmsApplication::LmsApplication(const Wt::WEnvironment& env, db::IDb& db, LmsApplicationManager& appManager, AuthenticationBackend authBackend)
+        : Wt::WApplication{ env }
+        , _db{ db }
+        , _appManager{ appManager }
+        , _authBackend{ authBackend }
+        , _areDownloadsEnabled(core::Service<core::IConfig>::get()->getBool("ui-allow-downloads", true))
+    {
+        try
+        {
+            init();
+        }
+        catch (LmsApplicationException& e)
+        {
+            LMS_LOG(UI, WARNING, "Caught a LmsApplication exception: " << e.what());
+            handleException(e);
+        }
+        catch (std::exception& e)
+        {
+            LMS_LOG(UI, ERROR, "Caught exception: " << e.what());
+            throw core::LmsException{ "Internal error" }; // Do not put details here at it may appear on the user rendered html
+        }
+    }
+
+    LmsApplication::~LmsApplication() = default;
+
     db::IDb& LmsApplication::getDb()
     {
         return _db;
@@ -240,29 +267,10 @@ namespace lms::ui
         return _user->userLoginName;
     }
 
-    LmsApplication::LmsApplication(const Wt::WEnvironment& env, db::IDb& db, LmsApplicationManager& appManager, AuthenticationBackend authBackend)
-        : Wt::WApplication{ env }
-        , _db{ db }
-        , _appManager{ appManager }
-        , _authBackend{ authBackend }
+    bool LmsApplication::areDownloadsEnabled() const
     {
-        try
-        {
-            init();
-        }
-        catch (LmsApplicationException& e)
-        {
-            LMS_LOG(UI, WARNING, "Caught a LmsApplication exception: " << e.what());
-            handleException(e);
-        }
-        catch (std::exception& e)
-        {
-            LMS_LOG(UI, ERROR, "Caught exception: " << e.what());
-            throw core::LmsException{ "Internal error" }; // Do not put details here at it may appear on the user rendered html
-        }
+        return _areDownloadsEnabled;
     }
-
-    LmsApplication::~LmsApplication() = default;
 
     void LmsApplication::init()
     {
@@ -418,7 +426,7 @@ namespace lms::ui
 
         declareJavaScriptFunction("onLoadCover", "function(id) { id.className += \" Lms-cover-loaded\"}");
         declareJavaScriptFunction("updateActiveNav",
-            R"(function(current) {
+                                  R"(function(current) {
     const menuItems = document.querySelectorAll('.nav-item a[href]:not([href=""])');
     for (const menuItem of menuItems) {
         if (menuItem.getAttribute("href") === current) {
@@ -546,13 +554,13 @@ namespace lms::ui
         {
             _scannerEvents.scanComplete.connect([this](const scanner::ScanStats& stats) {
                 notifyMsg(Notification::Type::Info,
-                    Wt::WString::tr("Lms.Admin.Database.scan-complete")
-                        .arg(static_cast<unsigned>(stats.getTotalFileCount()))
-                        .arg(static_cast<unsigned>(stats.additions))
-                        .arg(static_cast<unsigned>(stats.updates))
-                        .arg(static_cast<unsigned>(stats.deletions))
-                        .arg(static_cast<unsigned>(stats.duplicates.size()))
-                        .arg(static_cast<unsigned>(stats.errorsCount)));
+                          Wt::WString::tr("Lms.Admin.Database.scan-complete")
+                              .arg(static_cast<unsigned>(stats.getTotalFileCount()))
+                              .arg(static_cast<unsigned>(stats.additions))
+                              .arg(static_cast<unsigned>(stats.updates))
+                              .arg(static_cast<unsigned>(stats.deletions))
+                              .arg(static_cast<unsigned>(stats.duplicates.size()))
+                              .arg(static_cast<unsigned>(stats.errorsCount)));
             });
         }
 

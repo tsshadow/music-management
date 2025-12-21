@@ -1,5 +1,8 @@
 
 add_library(lmssubsonic STATIC
+	impl/endpoints/transcoding/AudioFileInfo.cpp
+	impl/endpoints/transcoding/TranscodeDecision.cpp
+	impl/endpoints/transcoding/TranscodeDecisionTracker.cpp
 	impl/endpoints/AlbumSongLists.cpp
 	impl/endpoints/Bookmarks.cpp
 	impl/endpoints/Browsing.cpp
@@ -10,7 +13,10 @@ add_library(lmssubsonic STATIC
 	impl/endpoints/Podcast.cpp
 	impl/endpoints/Searching.cpp
 	impl/endpoints/System.cpp
+	impl/endpoints/Transcoding.cpp
 	impl/endpoints/UserManagement.cpp
+	impl/payloads/ClientInfo.cpp
+	impl/payloads/StreamDetails.cpp
 	impl/responses/Album.cpp
 	impl/responses/AlbumInfo.cpp
 	impl/responses/Artist.cpp
@@ -28,11 +34,13 @@ add_library(lmssubsonic STATIC
 	impl/responses/Song.cpp
 	impl/responses/User.cpp
 	impl/CoverArtId.cpp
+	impl/RequestContext.cpp
 	impl/ResponseFormat.cpp
 	impl/ProtocolVersion.cpp
 	impl/ParameterParsing.cpp
 	impl/SubsonicId.cpp
 	impl/SubsonicResource.cpp
+	impl/SubsonicResourceConfig.cpp
 	impl/SubsonicResponse.cpp
 		impl/endpoints/FestivalLineupRepository.cpp
 		impl/endpoints/FestivalLineupRepository.hpp
@@ -50,7 +58,7 @@ target_include_directories(lmssubsonic PRIVATE
 target_link_libraries(lmssubsonic PRIVATE
 	lmsartwork
 	lmsauth
-	lmsav
+	lmsaudio
 	lmsdatabase
 	lmsfeedback
 	lmspodcast
@@ -65,6 +73,10 @@ target_link_libraries(lmssubsonic PRIVATE
 target_link_libraries(lmssubsonic PUBLIC
 	Wt::Wt
 	)
+
+if(BUILD_TESTING)
+	add_subdirectory(test)
+endif()
 
 if (BUILD_BENCHMARKS)
        add_subdirectory(bench)

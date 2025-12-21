@@ -26,6 +26,7 @@
 #include "core/ITraceLogger.hpp"
 #include "core/Service.hpp"
 #include "core/http/IClient.hpp"
+
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Podcast.hpp"

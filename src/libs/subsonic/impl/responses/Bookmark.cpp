@@ -24,7 +24,7 @@
 
 namespace lms::api::subsonic
 {
-    static const std::string_view reportedDummyDate{ "2000-01-01T00:00:00" };
+    constexpr std::string_view reportedDummyDate{ "2000-01-01T00:00:00" };
 
     Response::Node createBookmarkNode(const db::ObjectPtr<db::TrackBookmark>& trackBookmark)
     {

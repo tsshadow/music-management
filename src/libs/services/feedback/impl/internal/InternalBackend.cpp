@@ -27,7 +27,7 @@
 
 namespace lms::feedback
 {
-    namespace details
+    namespace detail
     {
         template<typename StarredObjType>
         void onStarred(db::Session& session, typename StarredObjType::IdType id)
@@ -46,7 +46,7 @@ namespace lms::feedback
             if (auto starredObj{ StarredObjType::find(session, id) })
                 starredObj.remove();
         }
-    } // namespace details
+    } // namespace detail
 
     InternalBackend::InternalBackend(db::IDb& db)
         : _db{ db }
@@ -55,31 +55,31 @@ namespace lms::feedback
 
     void InternalBackend::onStarred(db::StarredArtistId artistId)
     {
-        details::onStarred<db::StarredArtist>(_db.getTLSSession(), artistId);
+        detail::onStarred<db::StarredArtist>(_db.getTLSSession(), artistId);
     }
 
     void InternalBackend::onUnstarred(db::StarredArtistId artistId)
     {
-        details::onUnstarred<db::StarredArtist>(_db.getTLSSession(), artistId);
+        detail::onUnstarred<db::StarredArtist>(_db.getTLSSession(), artistId);
     }
 
     void InternalBackend::onStarred(db::StarredReleaseId releaseId)
     {
-        details::onStarred<db::StarredRelease>(_db.getTLSSession(), releaseId);
+        detail::onStarred<db::StarredRelease>(_db.getTLSSession(), releaseId);
     }
 
     void InternalBackend::onUnstarred(db::StarredReleaseId releaseId)
     {
-        details::onUnstarred<db::StarredRelease>(_db.getTLSSession(), releaseId);
+        detail::onUnstarred<db::StarredRelease>(_db.getTLSSession(), releaseId);
     }
 
     void InternalBackend::onStarred(db::StarredTrackId trackId)
     {
-        details::onStarred<db::StarredTrack>(_db.getTLSSession(), trackId);
+        detail::onStarred<db::StarredTrack>(_db.getTLSSession(), trackId);
     }
 
     void InternalBackend::onUnstarred(db::StarredTrackId trackId)
     {
-        details::onUnstarred<db::StarredTrack>(_db.getTLSSession(), trackId);
+        detail::onUnstarred<db::StarredTrack>(_db.getTLSSession(), trackId);
     }
 } // namespace lms::feedback

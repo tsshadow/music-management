@@ -25,12 +25,18 @@
 
 #include "RefreshStep.hpp"
 
+namespace lms::audio
+{
+    class IAudioFileInfoParser;
+}
+
 namespace lms::podcast
 {
     class DownloadEpisodesStep : public RefreshStep
     {
     public:
         DownloadEpisodesStep(RefreshContext& context, OnDoneCallback callback);
+        ~DownloadEpisodesStep() override;
 
     private:
         core::LiteralString getName() const override;
@@ -43,6 +49,8 @@ namespace lms::podcast
 
         const bool _autoDownloadEpisodes;
         const std::chrono::days _autoDownloadEpisodesMaxAge;
+
+        const std::unique_ptr<audio::IAudioFileInfoParser> _audioFileInfoParser;
 
         std::deque<db::PodcastEpisodeId> _episodesToDownload;
     };

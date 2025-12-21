@@ -28,6 +28,7 @@
 #include "database/Types.hpp"
 #include "database/objects/RatedTrackId.hpp"
 #include "database/objects/TrackId.hpp"
+#include "database/objects/Types.hpp"
 #include "database/objects/UserId.hpp"
 
 namespace lms::db

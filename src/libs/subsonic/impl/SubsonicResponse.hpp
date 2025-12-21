@@ -57,6 +57,11 @@ namespace lms::api::subsonic
         Error(Code code)
             : _code{ code } {}
 
+        virtual ~Error() = default;
+
+        Error(const Error&) = delete;
+        Error& operator=(const Error&) = delete;
+
         virtual std::string getMessage() const = 0;
 
         Code getCode() const { return _code; }
@@ -214,13 +219,24 @@ namespace lms::api::subsonic
     class BadParameterGenericError : public GenericError
     {
     public:
-        BadParameterGenericError(const std::string& parameterName)
-            : _parameterName{ parameterName } {}
+        BadParameterGenericError(std::string_view parameterName, std::string_view details = {})
+            : _parameterName{ parameterName }
+            , _details{ details }
+        {
+        }
+
+        std::string_view getParameterName() const { return _parameterName; }
 
     private:
-        std::string getMessage() const override { return "Parameter '" + _parameterName + "': bad value"; }
+        std::string getMessage() const override
+        {
+            std::string res{ "Parameter '" + _parameterName + "': " };
+            res += _details.empty() ? "bad value" : _details;
+            return res;
+        }
 
         const std::string _parameterName;
+        const std::string _details;
     };
 
     class ParameterValueTooHighGenericError : public GenericError
@@ -330,8 +346,16 @@ namespace lms::api::subsonic
         {
         public:
             void serializeNode(std::ostream& os, const Node& node);
-            void serializeValue(std::ostream& os, const Node::ValueType& value);
-            void serializeEscapedString(std::ostream&, std::string_view str);
+            static void serializeValue(std::ostream& os, const Node::ValueType& value);
+            static void serializeEscapedString(std::ostream&, std::string_view str);
+        };
+
+        class XmlSerializer
+        {
+        public:
+            void serializeNode(std::ostream& os, const Node& node, std::string_view tagName);
+            static void serializeValue(std::ostream& os, const Node::ValueType& value);
+            static void serializeEscapedString(std::ostream&, std::string_view str);
         };
 
         void writeJSON(std::ostream& os) const;

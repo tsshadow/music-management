@@ -26,6 +26,9 @@
 #include <Wt/WPushButton.h>
 #include <Wt/WTemplate.h>
 
+#include "core/Utils.hpp"
+
+#include "core/media/Codec.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Cluster.hpp"
 #include "database/objects/LabelId.hpp"
@@ -55,7 +58,11 @@ namespace lms::ui
         {
         };
 
-        using TypeVariant = std::variant<db::ClusterTypeId, MediaLibraryTag, LabelTag, ReleaseTypeTag>;
+        struct CodecTag
+        {
+        };
+
+        using TypeVariant = std::variant<db::ClusterTypeId, MediaLibraryTag, LabelTag, ReleaseTypeTag, CodecTag>;
         using TypeModel = ValueStringModel<TypeVariant>;
 
         std::unique_ptr<TypeModel> createTypeModel()
@@ -72,11 +79,12 @@ namespace lms::ui
             typeModel->add(Wt::WString::tr("Lms.Explore.media-library"), MediaLibraryTag{});
             typeModel->add(Wt::WString::tr("Lms.Explore.label"), LabelTag{});
             typeModel->add(Wt::WString::tr("Lms.Explore.release-type"), ReleaseTypeTag{});
+            typeModel->add(Wt::WString::tr("Lms.Explore.codec"), CodecTag{});
 
             return typeModel;
         }
 
-        using ValueVariant = std::variant<db::ClusterId, db::MediaLibraryId, db::LabelId, db::ReleaseTypeId>;
+        using ValueVariant = std::variant<db::ClusterId, db::MediaLibraryId, db::LabelId, db::ReleaseTypeId, core::media::Codec>;
         using ValueModel = ValueStringModel<ValueVariant>;
 
         std::unique_ptr<ValueModel> createValueModel(TypeVariant type)
@@ -87,35 +95,37 @@ namespace lms::ui
 
             auto transaction{ session.createReadTransaction() };
 
-            if (std::holds_alternative<MediaLibraryTag>(type))
-            {
-                db::MediaLibrary::find(session, [&](const db::MediaLibrary::pointer& library) {
-                    valueModel->add(Wt::WString::fromUTF8(std::string{ library->getName() }), library->getId());
-                });
-            }
-            else if (std::holds_alternative<LabelTag>(type))
-            {
-                db::Label::find(session, db::LabelSortMethod::Name, [&](const db::Label::pointer& label) {
-                    valueModel->add(Wt::WString::fromUTF8(std::string{ label->getName() }), label->getId());
-                });
-            }
-            else if (std::holds_alternative<ReleaseTypeTag>(type))
-            {
-                db::ReleaseType::find(session, db::ReleaseTypeSortMethod::Name, [&](const db::ReleaseType::pointer& releaseType) {
-                    valueModel->add(Wt::WString::fromUTF8(std::string{ releaseType->getName() }), releaseType->getId());
-                });
-            }
-            else if (const db::ClusterTypeId * clusterTypeId{ std::get_if<db::ClusterTypeId>(&type) })
-            {
-                db::Cluster::FindParameters params;
-                params.setClusterType(*clusterTypeId);
-                params.setSortMethod(db::ClusterSortMethod::Name);
+            std::visit(core::utils::overloads{
+                           [&](const MediaLibraryTag&) {
+                               db::MediaLibrary::find(session, [&](const db::MediaLibrary::pointer& library) {
+                                   valueModel->add(Wt::WString::fromUTF8(std::string{ library->getName() }), library->getId());
+                               });
+                           },
+                           [&](const LabelTag&) {
+                               db::Label::find(session, db::LabelSortMethod::Name, [&](const db::Label::pointer& label) {
+                                   valueModel->add(Wt::WString::fromUTF8(std::string{ label->getName() }), label->getId());
+                               });
+                           },
+                           [&](const ReleaseTypeTag&) {
+                               db::ReleaseType::find(session, db::ReleaseTypeSortMethod::Name, [&](const db::ReleaseType::pointer& releaseType) {
+                                   valueModel->add(Wt::WString::fromUTF8(std::string{ releaseType->getName() }), releaseType->getId());
+                               });
+                           },
+                           [&](const CodecTag&) {
+                               core::media::visitCodecs([&](const core::media::CodecDesc& desc) {
+                                   valueModel->add(Wt::WString::fromUTF8(desc.longName.c_str()), desc.type);
+                               });
+                           },
+                           [&](db::ClusterTypeId clusterTypeId) {
+                               db::Cluster::FindParameters params;
+                               params.setClusterType(clusterTypeId);
+                               params.setSortMethod(db::ClusterSortMethod::Name);
 
-                db::Cluster::find(session, params, [&](const db::Cluster::pointer& cluster) {
-                    valueModel->add(Wt::WString::fromUTF8(std::string{ cluster->getName() }), cluster->getId());
-                });
-            }
-
+                               db::Cluster::find(session, params, [&](const db::Cluster::pointer& cluster) {
+                                   valueModel->add(Wt::WString::fromUTF8(std::string{ cluster->getName() }), cluster->getId());
+                               });
+                           } },
+                       type);
             return valueModel;
         }
     } // namespace
@@ -138,25 +148,28 @@ namespace lms::ui
             const auto valueModel{ std::static_pointer_cast<ValueModel>(valueCombo->model()) };
             const ValueVariant value{ valueModel->getValue(valueCombo->currentIndex()) };
 
-            if (const db::MediaLibraryId * mediaLibraryId{ std::get_if<db::MediaLibraryId>(&value) })
-            {
-                set(*mediaLibraryId);
-                state::writeValue<db::MediaLibraryId::ValueType>("filters_media_library_id", mediaLibraryId->getValue());
-            }
-            else if (const db::LabelId * labelId{ std::get_if<db::LabelId>(&value) })
-            {
-                set(*labelId);
-                state::writeValue<db::LabelId::ValueType>("filters_label_id", labelId->getValue());
-            }
-            else if (const db::ReleaseTypeId * releaseTypeId{ std::get_if<db::ReleaseTypeId>(&value) })
-            {
-                set(*releaseTypeId);
-                state::writeValue<db::ReleaseTypeId::ValueType>("filters_release_type_id", releaseTypeId->getValue());
-            }
-            else if (const db::ClusterId * clusterId{ std::get_if<db::ClusterId>(&value) })
-            {
-                add(*clusterId);
-            }
+            std::visit(core::utils::overloads{
+                           [&](db::MediaLibraryId mediaLibraryId) {
+                               set(mediaLibraryId);
+                               state::writeValue<db::MediaLibraryId::ValueType>("filters_media_library_id", mediaLibraryId.getValue());
+                           },
+                           [&](db::LabelId labelId) {
+                               set(labelId);
+                               state::writeValue<db::LabelId::ValueType>("filters_label_id", labelId.getValue());
+                           },
+                           [&](db::ReleaseTypeId releaseTypeId) {
+                               set(releaseTypeId);
+                               state::writeValue<db::ReleaseTypeId::ValueType>("filters_release_type_id", releaseTypeId.getValue());
+                           },
+                           [&](db::ClusterId clusterId) {
+                               add(clusterId);
+                           },
+                           [&](core::media::Codec codec) {
+                               set(codec);
+                               state::writeValue<core::media::Codec>("filters_codec", codec);
+                           },
+                       },
+                       value);
 
             // TODO
             LmsApp->getModalManager().dispose(dialogPtr);
@@ -197,6 +210,8 @@ namespace lms::ui
             set(db::LabelId{ *labelId });
         if (const std::optional<db::ReleaseTypeId::ValueType> releaseTypeId{ state::readValue<db::ReleaseTypeId::ValueType>("filters_release_type_id") })
             set(db::ReleaseTypeId{ *releaseTypeId });
+        if (const std::optional<core::media::Codec> codec{ state::readValue<core::media::Codec>("filters_codec") })
+            set(*codec);
     }
 
     void Filters::add(db::ClusterId clusterId)
@@ -319,6 +334,28 @@ namespace lms::ui
             _releaseTypeFilter = nullptr;
             _sigUpdated.emit();
             state::writeValue<db::LabelId::ValueType>("filters_release_type_id", std::nullopt);
+        });
+
+        emitFilterAddedNotification();
+    }
+
+    void Filters::set(core::media::Codec codec)
+    {
+        if (_codecFilter)
+        {
+            _filters->removeWidget(_codecFilter);
+            _codecFilter = nullptr;
+            _dbFilters.codec.reset();
+        }
+
+        _dbFilters.codec = codec;
+        _codecFilter = _filters->addWidget(utils::createFilter(Wt::WString::fromUTF8(core::media::getCodecDesc(codec).longName.c_str()), Wt::WString::tr("Lms.Explore.codec"), "bg-success", true));
+        _codecFilter->clicked().connect(_codecFilter, [this] {
+            _filters->removeWidget(_codecFilter);
+            _dbFilters.codec.reset();
+            _codecFilter = nullptr;
+            _sigUpdated.emit();
+            state::writeValue<db::LabelId::ValueType>("filters_codec", std::nullopt);
         });
 
         emitFilterAddedNotification();

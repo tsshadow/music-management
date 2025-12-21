@@ -101,9 +101,7 @@ namespace lms::ui
             {
             case MediaPlayer::Format::MP3:
             case MediaPlayer::Format::OGG_OPUS:
-            case MediaPlayer::Format::MATROSKA_OPUS:
             case MediaPlayer::Format::OGG_VORBIS:
-            case MediaPlayer::Format::WEBM_VORBIS:
                 return format;
             }
 

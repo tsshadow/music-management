@@ -7,7 +7,7 @@
 	<div class="d-flex justify-content-between align-items-start mb-3">
 		<div class="btn-group me-1">
 			${play-btn class="btn btn-primary"}
-			<button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false"/>
+			<button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" aria-label="${tr:Lms.more}"/>
 			<ul class="dropdown-menu">
 				<li>${play-next class="dropdown-item"}</li>
 				<li>${play-last class="dropdown-item"}</li>
@@ -65,7 +65,9 @@
 					<li>${play-next class="dropdown-item"}</li>
 					<li>${play-last class="dropdown-item"}</li>
 					<li>${star class="dropdown-item"}</li>
+					${<if-has-download>}
 					<li>${download class="dropdown-item"}</li>
+					${</if-has-download>}
 					<li>${track-info class="dropdown-item"}</li>
 					${<if-has-lyrics>}<li>${track-lyrics class="dropdown-item"}</li>${</if-has-lyrics>}
 				</ul>

@@ -28,6 +28,7 @@
 
 #include "SqlQuery.hpp"
 #include "Utils.hpp"
+#include "objects/detail/Types.hpp"
 #include "traits/IdTypeTraits.hpp"
 
 DBO_INSTANTIATE_TEMPLATES(lms::db::Listen)
@@ -49,10 +50,14 @@ namespace lms::db
             assert(!params.artist.isValid()); // poor check
 
             if (params.filters.mediaLibrary.isValid()
+                || params.filters.codec.has_value()
                 || params.filters.label.isValid()
                 || params.filters.releaseType.isValid())
             {
                 query.join("track t ON t.id = t_a_l.track_id");
+
+                if (params.filters.codec.has_value())
+                    query.where("t.codec = ?").bind(detail::getDbCodec(*params.filters.codec));
 
                 if (params.filters.mediaLibrary.isValid())
                     query.where("t.media_library_id = ?").bind(params.filters.mediaLibrary);

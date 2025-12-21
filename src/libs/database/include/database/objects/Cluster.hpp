@@ -33,6 +33,7 @@
 #include "database/objects/ClusterId.hpp"
 #include "database/objects/Release.hpp"
 #include "database/objects/TrackId.hpp"
+#include "database/objects/Types.hpp"
 
 namespace lms::db
 {

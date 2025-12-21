@@ -22,6 +22,7 @@
 #include "core/ITraceLogger.hpp"
 #include "core/Service.hpp"
 #include "core/String.hpp"
+
 #include "database/objects/Artist.hpp"
 #include "database/objects/Artwork.hpp"
 #include "database/objects/Release.hpp"
@@ -48,42 +49,16 @@ namespace lms::api::subsonic
             names.resize(artists.size());
 
             std::transform(std::cbegin(artists), std::cend(artists), std::begin(names),
-                [](const Artist::pointer& artist) {
-                    return artist->getName();
-                });
+                           [](const Artist::pointer& artist) {
+                               return artist->getName();
+                           });
 
             return core::stringUtils::joinStrings(names, ", ");
         }
 
         std::string_view toString(TrackArtistLinkType type)
         {
-            switch (type)
-            {
-            case TrackArtistLinkType::Arranger:
-                return "arranger";
-            case TrackArtistLinkType::Artist:
-                return "artist";
-            case TrackArtistLinkType::Composer:
-                return "composer";
-            case TrackArtistLinkType::Conductor:
-                return "conductor";
-            case TrackArtistLinkType::Lyricist:
-                return "lyricist";
-            case TrackArtistLinkType::Mixer:
-                return "mixer";
-            case TrackArtistLinkType::Performer:
-                return "performer";
-            case TrackArtistLinkType::Producer:
-                return "producer";
-            case TrackArtistLinkType::ReleaseArtist:
-                return "albumartist";
-            case TrackArtistLinkType::Remixer:
-                return "remixer";
-            case TrackArtistLinkType::Writer:
-                return "writer";
-            }
-
-            return "unknown";
+            return db::trackArtistLinkTypeToString(type).str();
         }
     } // namespace utils
 
@@ -101,17 +76,17 @@ namespace lms::api::subsonic
             artistNode.setAttribute("coverArt", idToString(coverArtId));
         }
 
-        const std::size_t count{ Release::getCount(context.dbSession, Release::FindParameters{}.setArtist(artist->getId())) };
+        const std::size_t count{ Release::getCount(context.getDbSession(), Release::FindParameters{}.setArtist(artist->getId())) };
         artistNode.setAttribute("albumCount", count);
 
-        if (const Wt::WDateTime dateTime{ core::Service<feedback::IFeedbackService>::get()->getStarredDateTime(context.user->getId(), artist->getId()) }; dateTime.isValid())
+        if (const Wt::WDateTime dateTime{ core::Service<feedback::IFeedbackService>::get()->getStarredDateTime(context.getUser()->getId(), artist->getId()) }; dateTime.isValid())
             artistNode.setAttribute("starred", core::stringUtils::toISO8601String(dateTime));
 
-        if (const auto rating{ core::Service<feedback::IFeedbackService>::get()->getRating(context.user->getId(), artist->getId()) })
+        if (const auto rating{ core::Service<feedback::IFeedbackService>::get()->getRating(context.getUser()->getId(), artist->getId()) })
             artistNode.setAttribute("userRating", *rating);
 
         // OpenSubsonic specific fields (must always be set)
-        if (context.enableOpenSubsonic)
+        if (context.isOpenSubsonicEnabled())
         {
             artistNode.setAttribute("mediaType", "artist");
 
@@ -125,7 +100,7 @@ namespace lms::api::subsonic
             // roles
             Response::Node roles;
             artistNode.createEmptyArrayValue("roles");
-            for (const TrackArtistLinkType linkType : TrackArtistLink::findUsedTypes(context.dbSession, artist->getId()))
+            for (const TrackArtistLinkType linkType : TrackArtistLink::findUsedTypes(context.getDbSession(), artist->getId()))
                 artistNode.addArrayValue("roles", utils::toString(linkType));
         }
 

@@ -31,6 +31,8 @@
 #include "core/EnumSet.hpp"
 #include "core/PartialDateTime.hpp"
 #include "core/UUID.hpp"
+#include "core/media/Codec.hpp"
+
 #include "database/IdRange.hpp"
 #include "database/Object.hpp"
 #include "database/Types.hpp"
@@ -43,6 +45,7 @@
 #include "database/objects/MediaLibraryId.hpp"
 #include "database/objects/ReleaseId.hpp"
 #include "database/objects/ReleaseTypeId.hpp"
+#include "database/objects/Types.hpp"
 #include "database/objects/UserId.hpp"
 
 namespace lms::db
@@ -78,7 +81,7 @@ namespace lms::db
         }
 
     private:
-        static constexpr std::size_t _maxNameLength{ 32 };
+        static constexpr std::size_t _maxNameLength{ 1024 };
 
         friend class Session;
         Country(std::string_view name);
@@ -110,7 +113,7 @@ namespace lms::db
         }
 
     private:
-        static constexpr std::size_t _maxNameLength{ 512 };
+        static constexpr std::size_t _maxNameLength{ 1024 };
 
         friend class Session;
         Label(std::string_view name);
@@ -142,7 +145,7 @@ namespace lms::db
         }
 
     private:
-        static constexpr std::size_t _maxNameLength{ 512 };
+        static constexpr std::size_t _maxNameLength{ 1024 };
 
         friend class Session;
         ReleaseType(std::string_view name);
@@ -277,6 +280,7 @@ namespace lms::db
         std::optional<std::string> getCopyright() const;
         std::optional<std::string> getCopyrightURL() const;
         std::size_t getMeanBitrate() const;
+        std::vector<core::media::Codec> getCodecs() const;
 
         // Accessors
         std::string_view getName() const { return _name; }

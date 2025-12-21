@@ -26,6 +26,7 @@
 #include "database/Types.hpp"
 #include "database/objects/ArtistId.hpp"
 #include "database/objects/StarredArtistId.hpp"
+#include "database/objects/Types.hpp"
 #include "database/objects/UserId.hpp"
 
 namespace lms::db

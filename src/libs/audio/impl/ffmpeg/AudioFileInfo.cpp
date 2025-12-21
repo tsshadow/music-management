@@ -1,0 +1,142 @@
+/*
+ * Copyright (C) 2015 Emeric Poupon
+ *
+ * This file is part of LMS.
+ *
+ * LMS is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * LMS is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with LMS.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "AudioFileInfo.hpp"
+
+#include <filesystem>
+#include <system_error>
+
+#include "core/ILogger.hpp"
+
+#include "audio/AudioProperties.hpp"
+#include "audio/IAudioFileInfo.hpp"
+
+#include "AudioFile.hpp"
+#include "ImageReader.hpp"
+#include "TagReader.hpp"
+
+namespace lms::audio::ffmpeg
+{
+    namespace
+    {
+        std::optional<AudioProperties> computeAudioProperties(const AudioFile& audioFile)
+        {
+            std::optional<AudioProperties> audioProperties;
+
+            const auto containerInfo{ audioFile.getContainerInfo() };
+            const auto bestStreamInfo{ audioFile.getBestStreamInfo() };
+            if (!bestStreamInfo)
+            {
+                LMS_LOG(AUDIO, DEBUG, "Cannot find best audio stream in " << audioFile.getPath());
+                return audioProperties;
+            }
+
+            if (containerInfo.duration.count() == 0)
+            {
+                LMS_LOG(AUDIO, DEBUG, "Cannot determine duration in " << audioFile.getPath());
+                return audioProperties;
+            }
+
+            if (!containerInfo.container)
+            {
+                LMS_LOG(AUDIO, DEBUG, "Unhandled container '" << containerInfo.containerName << "' in " << audioFile.getPath());
+                return audioProperties;
+            }
+
+            if (!bestStreamInfo->codec)
+            {
+                LMS_LOG(AUDIO, DEBUG, "Unhandled codec '" << bestStreamInfo->codecName << "' in " << audioFile.getPath());
+                return audioProperties;
+            }
+
+            if (!bestStreamInfo->channelCount || *bestStreamInfo->channelCount == 0)
+            {
+                LMS_LOG(AUDIO, DEBUG, "Cannot determine channel count in " << audioFile.getPath());
+                return audioProperties;
+            }
+
+            if (!bestStreamInfo->sampleRate || *bestStreamInfo->sampleRate == 0)
+            {
+                LMS_LOG(AUDIO, DEBUG, "Cannot determine sample rate in " << audioFile.getPath());
+                return audioProperties;
+            }
+
+            audioProperties.emplace();
+
+            audioProperties->container = *containerInfo.container;
+            audioProperties->duration = containerInfo.duration;
+            audioProperties->codec = *bestStreamInfo->codec;
+
+            if (bestStreamInfo->bitrate)
+                audioProperties->bitrate = *bestStreamInfo->bitrate;
+            else if (containerInfo.bitrate)
+                audioProperties->bitrate = *containerInfo.bitrate;
+            else // Fallback on a bitrate based on duration/size
+            {
+                std::error_code ec;
+                const auto fileSize{ std::filesystem::file_size(audioFile.getPath(), ec) };
+                if (ec)
+                {
+                    LMS_LOG(AUDIO, DEBUG, "Cannot determine file size for " << audioFile.getPath() << ": " << ec.message());
+                    audioProperties.reset();
+                    return audioProperties;
+                }
+
+                audioProperties->bitrate = static_cast<std::size_t>(std::chrono::duration_cast<std::chrono::duration<double>>(containerInfo.duration).count() / fileSize);
+                LMS_LOG(AUDIO, DEBUG, "Estimated bitrate from duration/size: " << audioProperties->bitrate << " bps in " << audioFile.getPath());
+            }
+            assert(audioProperties->bitrate > 0);
+
+            audioProperties->channelCount = *bestStreamInfo->channelCount;
+            audioProperties->sampleRate = *bestStreamInfo->sampleRate;
+            audioProperties->bitsPerSample = bestStreamInfo->bitsPerSample;
+
+            return audioProperties;
+        }
+    } // namespace
+
+    AudioFileInfo::AudioFileInfo(const std::filesystem::path& filePath, const AudioFileInfoParseOptions& parseOptions)
+        : _audioFile{ std::make_unique<AudioFile>(filePath) }
+        , _audioProperties{ computeAudioProperties(*_audioFile) }
+    {
+        if (parseOptions.readTags)
+            _tagReader = std::make_unique<TagReader>(*_audioFile, parseOptions.enableExtraDebugLogs);
+
+        if (parseOptions.readImages)
+            _imageReader = std::make_unique<ImageReader>(*_audioFile);
+    }
+
+    AudioFileInfo::~AudioFileInfo() = default;
+
+    const AudioProperties* AudioFileInfo::getAudioProperties() const
+    {
+        return _audioProperties.has_value() ? &_audioProperties.value() : nullptr;
+    }
+
+    const IImageReader* AudioFileInfo::getImageReader() const
+    {
+        return _imageReader.get();
+    }
+
+    const ITagReader* AudioFileInfo::getTagReader() const
+    {
+        return _tagReader.get();
+    }
+
+} // namespace lms::audio::ffmpeg

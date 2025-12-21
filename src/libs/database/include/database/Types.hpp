@@ -21,13 +21,10 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cstdint>
-#include <functional>
 
 #include <Wt/WDate.h>
 
 #include "core/Exception.hpp"
-#include "core/TaggedType.hpp"
 
 namespace lms::db
 {

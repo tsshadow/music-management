@@ -125,7 +125,7 @@ namespace lms::scanner
 
             db::TrackEmbeddedImage::FindParameters params;
             params.setMedium(medium->getId());
-            params.setImageType(db::ImageType::Media);
+            params.setImageType(core::media::ImageType::Media);
             params.setSortMethod(db::TrackEmbeddedImageSortMethod::TrackNumberThenSizeDesc);
 
             db::TrackEmbeddedImage::find(session, params, [&](const db::TrackEmbeddedImage::pointer& foundImage) {
@@ -175,10 +175,10 @@ namespace lms::scanner
             std::vector<std::string> res;
 
             core::Service<core::IConfig>::get()->visitStrings("medium-image-file-names",
-                [&res](std::string_view fileName) {
-                    res.emplace_back(fileName);
-                },
-                { "discsubtitle" });
+                                                              [&res](std::string_view fileName) {
+                                                                  res.emplace_back(fileName);
+                                                              },
+                                                              { "discsubtitle" });
 
             return res;
         }

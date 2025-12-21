@@ -26,6 +26,10 @@
 #include "core/Service.hpp"
 #include "core/http/IClient.hpp"
 
+#include "audio/AudioProperties.hpp"
+#include "audio/Exception.hpp"
+#include "audio/IAudioFileInfo.hpp"
+#include "audio/IAudioFileInfoParser.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Podcast.hpp"
@@ -38,7 +42,7 @@ namespace lms::podcast
 {
     namespace
     {
-        void updateEpisode(db::Session& session, db::PodcastEpisodeId episodeId, const std::filesystem::path& relativeFilePath)
+        void updateEpisode(db::Session& session, db::PodcastEpisodeId episodeId, const std::filesystem::path& relativeFilePath, const audio::AudioProperties& audioProperties)
         {
             auto transaction{ session.createWriteTransaction() };
 
@@ -47,6 +51,14 @@ namespace lms::podcast
                 return; // may have been deleted by admin
 
             dbEpisode.modify()->setAudioRelativeFilePath(relativeFilePath);
+
+            dbEpisode.modify()->setDuration(audioProperties.duration);
+            dbEpisode.modify()->setContainer(audioProperties.container);
+            dbEpisode.modify()->setCodec(audioProperties.codec);
+            dbEpisode.modify()->setBitrate(audioProperties.bitrate);
+            dbEpisode.modify()->setChannelCount(audioProperties.channelCount);
+            dbEpisode.modify()->setSampleRate(audioProperties.sampleRate);
+            dbEpisode.modify()->setBitsPerSample(audioProperties.bitsPerSample);
         }
     } // namespace
 
@@ -54,9 +66,11 @@ namespace lms::podcast
         : RefreshStep{ context, std::move(callback) }
         , _autoDownloadEpisodes{ core::Service<core::IConfig>::get()->getBool("podcast-auto-download-episodes", true) }
         , _autoDownloadEpisodesMaxAge{ core::Service<core::IConfig>::get()->getULong("podcast-auto-download-episodes-max-age-days", 30) }
-
+        , _audioFileInfoParser{ audio::createAudioFileInfoParser(audio::AudioFileInfoParserBackend::FFmpeg) }
     {
     }
+
+    DownloadEpisodesStep::~DownloadEpisodesStep() = default;
 
     core::LiteralString DownloadEpisodesStep::getName() const
     {
@@ -171,18 +185,40 @@ namespace lms::podcast
             assert(msg.body().empty());
             getExecutor().post([=, this] {
                 LMS_LOG(PODCAST, DEBUG, "Download episode from '" << url << "' complete");
-                LMS_LOG(PODCAST, DEBUG, "Renaming temp file " << tmpFilePath << " to " << finalFilePath);
 
-                std::error_code ec;
-                std::filesystem::rename(tmpFilePath, finalFilePath, ec);
-                if (ec)
-                    LMS_LOG(PODCAST, ERROR, "Failed to rename temp file " << tmpFilePath << " to " << finalFilePath << ": " << ec.message());
-                else
-                    updateEpisode(getDb().getTLSSession(), episodeId, randomName);
+                try
+                {
+                    audio::AudioFileInfoParseOptions options;
+                    options.audioPropertiesReadStyle = audio::AudioFileInfoParseOptions::AudioPropertiesReadStyle::Average;
+                    options.readImages = false;
+                    options.readTags = false;
 
-                // TODO: now the file is complete, should we attempt to read it and get the real information like duration and size?
+                    const auto audioFileInfo{ _audioFileInfoParser->parse(tmpFilePath, options) };
+                    const auto* audioProperties{ audioFileInfo->getAudioProperties() };
+                    if (audioProperties)
+                    {
+                        std::error_code ec;
+                        std::filesystem::rename(tmpFilePath, finalFilePath, ec);
+                        if (ec)
+                        {
+                            LMS_LOG(PODCAST, ERROR, "Failed to rename temp file " << tmpFilePath << " to " << finalFilePath << ": " << ec.message());
+                        }
+                        else
+                        {
+                            updateEpisode(getDb().getTLSSession(), episodeId, randomName, *audioProperties);
+                            LMS_LOG(PODCAST, INFO, "Downloaded episode '" << episode->getTitle() << "'");
+                        }
+                    }
+                    else
+                    {
+                        LMS_LOG(PODCAST, WARNING, "Failed to get audio properties from downloaded episode from '" << url << "'");
+                    }
+                }
+                catch (const audio::Exception& e)
+                {
+                    LMS_LOG(PODCAST, WARNING, "Failed to parse downloaded episode from '" << url << "': " << e.what());
+                }
 
-                LMS_LOG(PODCAST, INFO, "Downloaded episode '" << episode->getTitle() << "'");
                 processNext();
             });
         };

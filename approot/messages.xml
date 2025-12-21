@@ -9,12 +9,14 @@
 <message id="Lms.clusters">Tags</message>
 <message id="Lms.create">Create</message>
 <message id="Lms.delete">Delete</message>
+<message id="Lms.delete-item">Delete {1}</message>
 <message id="Lms.discard">Discard</message>
 <message id="Lms.edit">Edit</message>
 <message id="Lms.field-must-be-in-upper-case">This field must be in upper case</message>
 <message id="Lms.loading">Loading...</message>
 <message id="Lms.login">Login</message>
 <message id="Lms.logout"><i class="fa fa-fw fa-sign-out" aria-hidden="true"></i> Logout</message>
+<message id="Lms.more">More...</message>
 <message id="Lms.ok">Ok</message>
 <message id="Lms.password">Password</message>
 <message id="Lms.password-bad-login-combination">Bad login / password combination</message>
@@ -25,6 +27,7 @@
 <message id="Lms.password-old">Old password</message>
 <message id="Lms.password-too-weak">Password too weak</message>
 <message id="Lms.passwords-dont-match">Passwords don't match</message>
+<message id="Lms.play-item">Play {1}</message>
 <message id="Lms.quit-other-session">Another session has been open. Reopen this one?</message>
 <message id="Lms.save">Save</message>
 <message id="Lms.settings-saved">Settings saved!</message>
@@ -188,6 +191,7 @@
 <message id="Lms.Admin.InitWizard.header">Create administrator account</message>
 
 <!--Auth-->
+<message id="Lms.Auth.login">Log in</message>
 <message id="Lms.Auth.remember-me">Remember me</message>
 <message id="Lms.Auth.welcome">Welcome!</message>
 
@@ -197,6 +201,7 @@
 <message id="Lms.Explore.artists">Artists</message>
 <message id="Lms.Explore.bitrate">Bitrate</message>
 <message id="Lms.Explore.codec">Codec</message>
+<message id="Lms.Explore.cover-art">Cover art</message>
 <message id="Lms.Explore.download">Download</message>
 <message id="Lms.Explore.duration">Duration</message>
 <message id="Lms.Explore.rating">Rating</message>
@@ -222,6 +227,7 @@
 <message id="Lms.Explore.releases">Albums</message>
 <message id="Lms.Explore.search">Search</message>
 <message id="Lms.Explore.star">Star</message>
+<message id="Lms.Explore.star-item">Star {1}</message>
 <message id="Lms.Explore.starred">Starred</message>
 <message id="Lms.Explore.track-info">Track information</message>
 <message id="Lms.Explore.track-lyrics">Lyrics</message>
@@ -310,6 +316,12 @@
 
 <!--Player-->
 <message id="Lms.Player.transcoding-active">Transcoding active</message>
+<message id="Lms.Player.now-playing">Now playing</message>
+<message id="Lms.Player.previous">Previous</message>
+<message id="Lms.Player.play-pause">Play / pause</message>
+<message id="Lms.Player.next">Next</message>
+<message id="Lms.Player.seek">Seek</message>
+<message id="Lms.Player.volume">Volume</message>
 
 <!--Playqueue-->
 <message id="Lms.PlayQueue.clear">Clear</message>
@@ -372,11 +384,9 @@
 <message id="Lms.Settings.transcoding-mode.never">Never</message>
 <message id="Lms.Settings.transcoding-output-bitrate">Transcoding output bitrate</message>
 <message id="Lms.Settings.transcoding-output-format">Transcoding output format</message>
-<message id="Lms.Settings.transcoding-output-format.matroska_opus">Matroska/Opus</message>
 <message id="Lms.Settings.transcoding-output-format.mp3">MP3</message>
 <message id="Lms.Settings.transcoding-output-format.ogg_opus">Ogg/Opus</message>
 <message id="Lms.Settings.transcoding-output-format.ogg_vorbis">Ogg/Vorbis</message>
-<message id="Lms.Settings.transcoding-output-format.webm_vorbis">WebM/Vorbis</message>
 <message id="Lms.Settings.user-interface">User Interface</message>
 
 </messages>

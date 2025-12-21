@@ -29,6 +29,7 @@
 #include <Wt/Dbo/Field.h>
 
 #include "core/EnumSet.hpp"
+
 #include "database/Object.hpp"
 #include "database/Types.hpp"
 #include "database/objects/ArtistId.hpp"
@@ -36,6 +37,7 @@
 #include "database/objects/MediaLibraryId.hpp"
 #include "database/objects/MediumId.hpp"
 #include "database/objects/ReleaseId.hpp"
+#include "database/objects/Types.hpp"
 
 namespace lms::db
 {

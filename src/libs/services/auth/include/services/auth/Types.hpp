@@ -22,7 +22,8 @@
 #include <string>
 
 #include "core/Exception.hpp"
-#include "database/Types.hpp"
+
+#include "database/objects/Types.hpp"
 
 namespace lms::auth
 {

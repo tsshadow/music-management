@@ -27,10 +27,11 @@
 #include <Wt/WWidget.h>
 
 #include "core/EnumSet.hpp"
+
 #include "database/Object.hpp"
-#include "database/Types.hpp"
 #include "database/objects/ArtistId.hpp"
 #include "database/objects/TrackId.hpp"
+#include "database/objects/Types.hpp"
 
 namespace lms::db
 {

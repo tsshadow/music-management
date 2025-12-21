@@ -31,6 +31,7 @@
 #include "database/objects/Filters.hpp"
 #include "database/objects/ReleaseId.hpp"
 #include "database/objects/TrackId.hpp"
+#include "database/objects/Types.hpp"
 #include "services/scrobbling/Listen.hpp"
 
 namespace lms::db

@@ -1,5 +1,5 @@
 # Subsonic API
-The API version implemented is 1.16.0 and has been tested on _Android_ using _DSub_, _Subsonic Player_, _Symfonium_, _Tempo_ and  _Ultrasonic_.
+The API version implemented is 1.16.0 and has been tested on _Android_ using _DSub_, _Subsonic Player_, _Symfonium_, _Tempo_, [_Tempus_](https://github.com/eddyizm/tempus) and  _Ultrasonic_.
 
 Folder navigation commands are supported. However, since _LMS_ does not store information for each folder, it is not possible to star/unstar folders considered as artists.
 Given the API limitations of folder navigation commands, it is recommended to place all tracks of an album in the same folder and not to mix multiple albums in the same folder.
@@ -34,7 +34,9 @@ The following extra fields are implemented:
   * `musicBrainzId`
   * `originalReleaseDate`
   * `recordLabels`
+  * `releaseDate`
   * `releaseTypes`
+  * `sortName`
   * `userRating`
   * `version`
 * `Child` response:
@@ -64,5 +66,7 @@ The following extra fields are implemented:
 * [API Key Authentication](https://opensubsonic.netlify.app/docs/extensions/apikeyauth/)
 * [getPodcastEpisode](https://opensubsonic.netlify.app/docs/extensions/getpodcastepisode/)
 * [HTTP form POST](https://opensubsonic.netlify.app/docs/extensions/formpost/)
+* [Index based Queue](https://opensubsonic.netlify.app/docs/extensions/indexbasedqueue/)
 * [Transcode offset](https://opensubsonic.netlify.app/docs/extensions/transcodeoffset/)
 * [Song Lyrics](https://opensubsonic.netlify.app/docs/extensions/songlyrics/)
+* [Transcoding](https://opensubsonic.netlify.app/docs/extensions/transcoding/)

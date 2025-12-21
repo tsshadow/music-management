@@ -242,11 +242,8 @@ namespace lms::db
             case TrackSortMethod::TrackNumber:
                 query.orderBy("t.track_number");
                 break;
-            case TrackSortMethod::MostPlayed:
-                query.orderBy("t.play_count DESC");
-                break;
-            case TrackSortMethod::RecentlyPlayed:
-                query.orderBy("t.last_play DESC");
+            default:
+                query.orderBy(sortMethodToSQL(params.sortMethod));
                 break;
             }
             return query;

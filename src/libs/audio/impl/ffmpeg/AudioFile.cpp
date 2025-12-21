@@ -66,7 +66,7 @@ namespace lms::audio::ffmpeg
                 return;
 
             const AVDictionaryEntry* tag{ NULL };
-            while ((tag = av_dict_iterate(dictionnary, tag)))
+            while ((tag = av_dict_get(dictionnary, "", tag, AV_DICT_IGNORE_SUFFIX)))
                 res[core::stringUtils::stringToUpper(tag->key)] = tag->value;
         }
 

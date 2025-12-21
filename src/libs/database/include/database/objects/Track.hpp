@@ -403,9 +403,6 @@ namespace lms::db
         static constexpr std::size_t _maxCopyrightURLLength{ 512 };
 
         int _scanVersion{};
-        std::optional<int> _trackNumber{};
-        std::optional<int> _rating{};
-        std::string _name;
 
         // File information
         std::filesystem::path _absoluteFilePath; // full path
@@ -424,7 +421,8 @@ namespace lms::db
         std::optional<float> _replayGain;
 
         // Metadata
-        std::optional<int> _trackNumber;
+        std::optional<int> _trackNumber{};
+        std::optional<int> _rating{};
         std::string _name;
         core::PartialDateTime _date;
         core::PartialDateTime _originalDate;

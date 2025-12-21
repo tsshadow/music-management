@@ -61,6 +61,7 @@ namespace lms::scanner
     private:
         void processTags(const audio::ITagReader& reader, Track& track) const;
 
+        std::optional<int> getRating(const audio::ITagReader& tagReader) const;
         std::optional<Medium> getMedium(const audio::ITagReader& tagReader) const;
         std::optional<Release> getRelease(const audio::ITagReader& tagReader) const;
 

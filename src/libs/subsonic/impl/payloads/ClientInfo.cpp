@@ -48,23 +48,25 @@ namespace lms::api::subsonic
                 {
                     if (value.type() != Wt::Json::Type::Bool)
                         throw BadParameterGenericError{ entry, "field must be a boolean" };
+                    return static_cast<bool>(value);
                 }
                 else if constexpr (std::is_same_v<T, std::string>)
                 {
                     if (value.type() != Wt::Json::Type::String)
                         throw BadParameterGenericError{ entry, "field must be a string" };
+                    return static_cast<std::string>(value);
                 }
                 else if constexpr (std::is_integral_v<T>)
                 {
                     if (value.type() != Wt::Json::Type::Number)
                         throw BadParameterGenericError{ entry, "field must be a number" };
+                    return static_cast<T>(static_cast<double>(value));
                 }
                 else
                 {
-                    static_assert(false, "Unhandled type");
+                    // static_assert(false, "Unhandled type");
+                    return std::nullopt;
                 }
-
-                return static_cast<T>(value);
             }
             catch (const Wt::WException& e)
             {
@@ -92,23 +94,24 @@ namespace lms::api::subsonic
                     {
                         if (item.type() != Wt::Json::Type::Bool)
                             throw BadParameterGenericError{ entry, "array item must be a boolean" };
+                        res.emplace_back(static_cast<bool>(item));
                     }
                     else if constexpr (std::is_same_v<T, std::string>)
                     {
                         if (item.type() != Wt::Json::Type::String)
                             throw BadParameterGenericError{ entry, "array item must be a string" };
+                        res.emplace_back(static_cast<std::string>(item));
                     }
                     else if constexpr (std::is_integral_v<T>)
                     {
                         if (item.type() != Wt::Json::Type::Number)
                             throw BadParameterGenericError{ entry, "array item must be a number" };
+                        res.emplace_back(static_cast<T>(static_cast<double>(item)));
                     }
                     else
                     {
-                        static_assert(false, "Unhandled type");
+                        // static_assert(false, "Unhandled type");
                     }
-
-                    res.emplace_back(static_cast<T>(item));
                 }
             }
             catch (const Wt::WException& e)

@@ -146,6 +146,8 @@ namespace lms::db
         Release,   // order by disc/track number
         TrackList, // order by asc order in tracklist
         TrackNumber,
+        MostPlayed,
+        RecentlyPlayed,
     };
 
     enum class TrackLyricsSortMethod
@@ -185,6 +187,10 @@ namespace lms::db
     using Bitrate = std::uint32_t;
     void visitAllowedAudioBitrates(std::function<void(Bitrate)>);
     bool isAudioBitrateAllowed(Bitrate bitrate);
+
+    TrackSortMethod stringToSortMethod(const std::string& input);
+    std::string sortMethodToString(TrackSortMethod input);
+    std::string sortMethodToSQL(TrackSortMethod input);
 
     using Rating = int;
 

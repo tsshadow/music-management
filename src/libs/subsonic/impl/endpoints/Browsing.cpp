@@ -251,7 +251,7 @@ namespace lms::api::subsonic
     {
         // Optional params
         const MediaLibraryId mediaLibrary{
-            getParameterAs<MediaLibraryId>(context.parameters, "musicFolderId").value_or(MediaLibraryId{})
+            getParameterAs<MediaLibraryId>(context.getParameters(), "musicFolderId").value_or(MediaLibraryId{})
         };
 
         Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
@@ -314,10 +314,10 @@ namespace lms::api::subsonic
         {
             directoryNode.setAttribute("playCount",
                 core::Service<scrobbling::IScrobblingService>::get()->getCount(
-                    context.user->getId(), release->getId()));
+                    context.getUser()->getId(), release->getId()));
             if (const Wt::WDateTime dateTime{
                     core::Service<feedback::IFeedbackService>::get()->getStarredDateTime(
-                        context.user->getId(), release->getId()) };
+                        context.getUser()->getId(), release->getId()) };
                 dateTime.isValid())
                 directoryNode.setAttribute("starred", core::stringUtils::toISO8601String(dateTime));
         }
@@ -390,14 +390,14 @@ namespace lms::api::subsonic
 
     Response handleGetTagsRequest(RequestContext& context)
     {
-        Response response{ Response::createOkResponse(context.serverProtocolVersion) };
-        std::string name{ getMandatoryParameterAs<std::string>(context.parameters, "name") };
+        Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
+        std::string name{ getMandatoryParameterAs<std::string>(context.getParameters(), "name") };
 
         Response::Node& tagsNode{ response.createNode("tags") };
 
-        auto transaction{ context.dbSession.createReadTransaction() };
+        auto transaction{ context.getDbSession().createReadTransaction() };
 
-        const ClusterType::pointer clusterType{ ClusterType::find(context.dbSession, name) };
+        const ClusterType::pointer clusterType{ ClusterType::find(context.getDbSession(), name) };
         if (clusterType)
         {
             const auto clusters{ clusterType->getClusters() };
@@ -411,14 +411,14 @@ namespace lms::api::subsonic
 
     Response handleGetMoodRequest(RequestContext& context)
     {
-        Response response{ Response::createOkResponse(context.serverProtocolVersion) };
-        std::optional<int> year{ getParameterAs<int>(context.parameters, "year") };
+        Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
+        std::optional<int> year{ getParameterAs<int>(context.getParameters(), "year") };
 
         Response::Node& moodNode{ response.createNode("mood") };
 
-        auto transaction{ context.dbSession.createReadTransaction() };
+        auto transaction{ context.getDbSession().createReadTransaction() };
 
-        const ClusterType::pointer clusterType{ ClusterType::find(context.dbSession, "MOOD") };
+        const ClusterType::pointer clusterType{ ClusterType::find(context.getDbSession(), "MOOD") };
         if (clusterType)
         {
             const auto clusters{ clusterType->getClusters() };
@@ -433,13 +433,13 @@ namespace lms::api::subsonic
 
     Response handleGetYearsRequest(RequestContext& context)
     {
-        Response response{ Response::createOkResponse(context.serverProtocolVersion) };
+        Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
 
         Response::Node& yearsNode{ response.createNode("years") };
 
-        auto transaction{ context.dbSession.createReadTransaction() };
+        auto transaction{ context.getDbSession().createReadTransaction() };
 
-        const ClusterType::pointer clusterType{ ClusterType::find(context.dbSession, "YEAR") };
+        const ClusterType::pointer clusterType{ ClusterType::find(context.getDbSession(), "YEAR") };
         if (clusterType)
         {
             const auto clusters{ clusterType->getClusters() };
@@ -455,18 +455,18 @@ namespace lms::api::subsonic
     {
         // Optional params
         const MediaLibraryId mediaLibrary{
-            getParameterAs<MediaLibraryId>(context.parameters, "musicFolderId").value_or(MediaLibraryId{})
+            getParameterAs<MediaLibraryId>(context.getParameters(), "musicFolderId").value_or(MediaLibraryId{})
         };
 
         // offset + count to allow paging
         std::size_t offset{
-            getParameterAs<std::size_t>(context.parameters, "offset").value_or(0)
+            getParameterAs<std::size_t>(context.getParameters(), "offset").value_or(0)
         };
         std::size_t count{
-            getParameterAs<std::size_t>(context.parameters, "count").value_or(100)
+            getParameterAs<std::size_t>(context.getParameters(), "count").value_or(100)
         };
 
-        Response response{ Response::createOkResponse(context.serverProtocolVersion) };
+        Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
         Response::Node& artistsNode{ response.createNode("artists") };
         artistsNode.setAttribute("ignoredArticles", "");
         artistsNode.setAttribute("lastModified", reportedDummyDateULong); // TODO: proper lastModified?
@@ -476,7 +476,7 @@ namespace lms::api::subsonic
         parameters.setSortMethod(ArtistSortMethod::SortName);
         parameters.setRange(Range{ offset, count });
 
-        switch (context.user->getSubsonicArtistListMode())
+        switch (context.getUser()->getSubsonicArtistListMode())
         {
         case SubsonicArtistListMode::AllArtists:
             break;
@@ -488,8 +488,8 @@ namespace lms::api::subsonic
             break;
         }
 
-        auto transaction = context.dbSession.createReadTransaction();
-        const auto artists = Artist::find(context.dbSession, parameters);
+        auto transaction = context.getDbSession().createReadTransaction();
+        const auto artists = Artist::find(context.getDbSession(), parameters);
 
         // Sort by index
         std::map<char, std::vector<ArtistId>> artistsSortedByFirstChar;
@@ -539,12 +539,12 @@ namespace lms::api::subsonic
         Response::Node artistNode{ createArtistNode(context, artist) };
 
 
-        const auto releases{ Release::find(context.dbSession, Release::FindParameters{}.setArtist(artist->getId())) };
+        const auto releases{ Release::find(context.getDbSession(), Release::FindParameters{}.setArtist(artist->getId())) };
         for (const Release::pointer& release : releases.results)
             artistNode.addArrayChild("album", createAlbumNode(context, release, true /* id3 */));
 
         const auto nonReleaseTracks{ Track::find(
-            context.dbSession,
+            context.getDbSession(),
             Track::FindParameters {}
                 .setArtist(artist->getId())
                 .setSortMethod(TrackSortMethod::Name)
@@ -574,7 +574,7 @@ namespace lms::api::subsonic
                     lastWritten = track->getLastWritten();
                 }
 
-                virtualAlbum.addArrayChild("song", createSongNode(context, track, context.user));
+                virtualAlbum.addArrayChild("song", createSongNode(context, track, context.getUser()));
             }
 
             virtualAlbum.setAttribute(
@@ -605,7 +605,7 @@ namespace lms::api::subsonic
         Response::Node albumNode{ createAlbumNode(context, release, true /* id3 */) };
 
         const auto tracks{
-            Track::find(context.dbSession,
+            Track::find(context.getDbSession(),
                 Track::FindParameters{}.setRelease(id).setSortMethod(TrackSortMethod::Release))
         };
         for (const Track::pointer& track : tracks.results)
@@ -701,7 +701,7 @@ namespace lms::api::subsonic
     {
         const db::DirectoryId directoryId{ getMandatoryParameterAs<db::DirectoryId>(context.getParameters(), "id") };
 
-        Response response{ Response::createOkResponse(context.serverProtocolVersion) };
+        Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
         {
             auto transaction{ context.getDbSession().createReadTransaction() };
 
@@ -715,7 +715,7 @@ namespace lms::api::subsonic
     {
         const db::ReleaseId releaseId{ getMandatoryParameterAs<db::ReleaseId>(context.getParameters(), "id") };
 
-        Response response{ Response::createOkResponse(context.serverProtocolVersion) };
+        Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
         {
             auto transaction{ context.getDbSession().createReadTransaction() };
 
@@ -785,18 +785,18 @@ namespace lms::api::subsonic
     Response handleGetSinglesRequest(RequestContext& context)
     {
         // Mandatory params
-        ArtistId artistId{ getMandatoryParameterAs<ArtistId>(context.parameters, "artistId") };
+        ArtistId artistId{ getMandatoryParameterAs<ArtistId>(context.getParameters(), "artistId") };
 
-        auto transaction{ context.dbSession.createReadTransaction() };
+        auto transaction{ context.getDbSession().createReadTransaction() };
 
-        Response response{ Response::createOkResponse(context.serverProtocolVersion) };
+        Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
         Response::Node& songsNode{ response.createNode("songs") };
 
         Track::FindParameters params;
         params.setArtist(artistId);
         params.setSortMethod(TrackSortMethod::Name);
 
-        for (const Track::pointer& track : Track::find(context.dbSession, params).results)
+        for (const Track::pointer& track : Track::find(context.getDbSession(), params).results)
         {
             bool single{ false };
             if (const Release::pointer& release{ track->getRelease() })
@@ -808,7 +808,7 @@ namespace lms::api::subsonic
                 single = true;
 
             if (single)
-                songsNode.addArrayChild("song", createSongNode(context, track, context.user));
+                songsNode.addArrayChild("song", createSongNode(context, track, context.getUser()));
         }
 
         return response;

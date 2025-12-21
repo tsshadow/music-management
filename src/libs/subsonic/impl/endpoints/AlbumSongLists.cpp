@@ -263,7 +263,7 @@ namespace lms::api::subsonic
 
     ClusterId GetCluster(std::string value, std::string name, RequestContext& context)
     {
-        auto clusterType{ ClusterType::find(context.dbSession, name) };
+        auto clusterType{ ClusterType::find(context.getDbSession(), name) };
         if (!clusterType)
             throw RequestedDataNotFoundError{};
         auto cluster{ clusterType->getCluster(value) };

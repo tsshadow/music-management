@@ -58,4 +58,3 @@ std::set<std::string> FestivalLineupRepository::getAllLineups()
 
     return result;
 }
-

@@ -87,7 +87,7 @@ namespace lms::api::subsonic
         using IndexMap = std::map<char, std::vector<Directory::pointer>, IndexComparator>;
 
         void getIndexedChildDirectories(RequestContext& context, const Directory::pointer& parentDirectory,
-            IndexMap& res)
+                                        IndexMap& res)
         {
             Directory::FindParameters params;
             params.setParentDirectory(parentDirectory->getId());
@@ -313,8 +313,8 @@ namespace lms::api::subsonic
         if (const Release::pointer release{ getReleaseFromDirectory(context.getDbSession(), directoryId) })
         {
             directoryNode.setAttribute("playCount",
-                core::Service<scrobbling::IScrobblingService>::get()->getCount(
-                    context.getUser()->getId(), release->getId()));
+                                       core::Service<scrobbling::IScrobblingService>::get()->getCount(
+                                           context.getUser()->getId(), release->getId()));
             if (const Wt::WDateTime dateTime{
                     core::Service<feedback::IFeedbackService>::get()->getStarredDateTime(
                         context.getUser()->getId(), release->getId()) };
@@ -538,14 +538,13 @@ namespace lms::api::subsonic
         Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
         Response::Node artistNode{ createArtistNode(context, artist) };
 
-
         const auto releases{ Release::find(context.getDbSession(), Release::FindParameters{}.setArtist(artist->getId())) };
         for (const Release::pointer& release : releases.results)
             artistNode.addArrayChild("album", createAlbumNode(context, release, true /* id3 */));
 
         const auto nonReleaseTracks{ Track::find(
             context.getDbSession(),
-            Track::FindParameters {}
+            Track::FindParameters{}
                 .setArtist(artist->getId())
                 .setSortMethod(TrackSortMethod::Name)
                 .setNonRelease(true)) };
@@ -606,7 +605,7 @@ namespace lms::api::subsonic
 
         const auto tracks{
             Track::find(context.getDbSession(),
-                Track::FindParameters{}.setRelease(id).setSortMethod(TrackSortMethod::Release))
+                        Track::FindParameters{}.setRelease(id).setSortMethod(TrackSortMethod::Release))
         };
         for (const Track::pointer& track : tracks.results)
             albumNode.addArrayChild("song", createSongNode(context, track, true /* id3 */));
@@ -780,7 +779,7 @@ namespace lms::api::subsonic
             }
             return false;
         }
-    }
+    } // namespace
 
     Response handleGetSinglesRequest(RequestContext& context)
     {
@@ -799,7 +798,7 @@ namespace lms::api::subsonic
         for (const Track::pointer& track : Track::find(context.getDbSession(), params).results)
         {
             bool single{ false };
-            if (const Release::pointer& release{ track->getRelease() })
+            if (const Release::pointer & release{ track->getRelease() })
             {
                 if (!isRealAlbum(release))
                     single = true;

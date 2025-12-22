@@ -148,7 +148,7 @@ namespace lms::api::subsonic
             { "/getArtist", { handleGetArtistRequest } },
             { "/getAlbum", { handleGetAlbumRequest } },
             { "/getSong", { handleGetSongRequest } },
-            {"/getSingles",{ handleGetSinglesRequest }},
+            { "/getSingles", { handleGetSinglesRequest } },
             { "/getVideos", { handleNotImplemented } },
             { "/getArtistInfo", { handleNotImplemented } },
             { "/getArtistInfo2", { handleGetArtistInfo2Request } },
@@ -367,7 +367,9 @@ namespace lms::api::subsonic
         }
         catch (const Error& e)
         {
-            LMS_LOG(API_SUBSONIC, ERROR, "Error while processing request '" << requestPath << "'" << ", params = [" << parameterMapToDebugString(request.getParameterMap()) << "]" << ", code = " << static_cast<int>(e.getCode()) << ", msg = '" << e.getMessage() << "'");
+            LMS_LOG(API_SUBSONIC, ERROR, "Error while processing request '" << requestPath << "'"
+                                                                            << ", params = [" << parameterMapToDebugString(request.getParameterMap()) << "]"
+                                                                            << ", code = " << static_cast<int>(e.getCode()) << ", msg = '" << e.getMessage() << "'");
             Response resp{ Response::createFailedResponse(protocolVersion, e) };
             resp.write(response.out(), format);
             response.setMimeType(std::string{ ResponseFormatToMimeType(format) });

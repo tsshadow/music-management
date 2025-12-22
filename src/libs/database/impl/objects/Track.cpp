@@ -548,9 +548,11 @@ namespace lms::db
         }
 
         baseQuery += " WHERE 1=1";
-        if (!params.allowedArtists.empty()) {
+        if (!params.allowedArtists.empty())
+        {
             baseQuery += " AND LOWER(t.artist_display_name) IN (" + utils::createPlaceholders(params.allowedArtists.size()) + ")";
-            for (const auto& artist : params.allowedArtists) {
+            for (const auto& artist : params.allowedArtists)
+            {
                 bindFuncs.emplace_back([artist](auto& q) { q.bind(core::stringUtils::stringToLower(artist)); });
             }
         }

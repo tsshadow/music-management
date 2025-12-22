@@ -66,7 +66,7 @@ namespace lms::api::subsonic
 
             return os;
         } // namespace
-    }; // namespace detail
+    };    // namespace detail
 
     namespace
     {

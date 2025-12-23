@@ -479,7 +479,7 @@ namespace lms::scanner
                 _file->audioProperties = *audioFileInfo->getAudioProperties();
             }
 
-            _file->track = _metadataParser.parseTrackMetaData(*audioFileInfo->getTagReader());
+            _file->track = _metadataParser.parseTrackMetaData(*audioFileInfo->getTagReader(), audioFileInfo->getAudioProperties());
 
             // We fill missing artist mbids with mbids found on other artist roles
             fillMissingMbids(_file->track);

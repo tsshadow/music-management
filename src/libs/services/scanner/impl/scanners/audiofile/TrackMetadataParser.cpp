@@ -314,9 +314,12 @@ namespace lms::scanner
 
     TrackMetadataParser::~TrackMetadataParser() = default;
 
-    Track TrackMetadataParser::parseTrackMetaData(const audio::ITagReader& tagReader) const
+    Track TrackMetadataParser::parseTrackMetaData(const audio::ITagReader& tagReader, const audio::AudioProperties* audioProperties) const
     {
         Track track;
+        if (audioProperties)
+            track.audioProperties = *audioProperties;
+
         processTags(tagReader, track);
         return track;
     }
@@ -396,8 +399,23 @@ namespace lms::scanner
         {
             track.userExtraTags["YEAR"] = { std::to_string(track.date.getYear().value()) };
         }
-    }
 
+        if (track.audioProperties && track.audioProperties->duration > std::chrono::minutes(10))
+        {
+            track.userExtraTags["LENGTH"] = { "long" };
+        }
+        else
+        {
+            track.userExtraTags["LENGTH"] = { "short" };
+        }
+    }
+    /**
+     * This function gets the rating tag and will convert is to 0 to 5 starts
+     * for flac this means a value of 0 to 100, for mp3 it will be takenb from the popularity meter.
+     * But the popularity meter als has noname@email, so we need to strip that first.
+     * @param tagReader
+     * @return
+     */
     std::optional<int> TrackMetadataParser::getRating(const audio::ITagReader& tagReader) const
     {
         using namespace audio;

@@ -109,6 +109,10 @@ namespace lms::scanner::tests
         EXPECT_EQ(track.performerArtists.at("Roleb")[1].name, "MyPerformer2ForRoleB");
         ASSERT_TRUE(track.position.has_value());
         EXPECT_EQ(track.position.value(), 7);
+        ASSERT_TRUE(track.userExtraTags.contains("YEAR"));
+        EXPECT_EQ(track.userExtraTags.at("YEAR").front(), "2020");
+        ASSERT_TRUE(track.userExtraTags.contains("LENGTH"));
+        EXPECT_EQ(track.userExtraTags.at("LENGTH").front(), "short");
         ASSERT_EQ(track.producerArtists.size(), 2);
         EXPECT_EQ(track.producerArtists[0].name, "MyProducer1");
         EXPECT_EQ(track.producerArtists[1].name, "MyProducer2");
@@ -963,5 +967,33 @@ namespace lms::scanner::tests
         doTest("2020/01/03", core::PartialDateTime{ 2020, 01, 03 });
         doTest("2020/01", core::PartialDateTime{ 2020, 1 });
         doTest("2020", core::PartialDateTime{ 2020 });
+    }
+
+    TEST(TrackMetadataParser, lengthTag)
+    {
+        using namespace audio;
+        TestTagReader testTags{ {} };
+
+        {
+            AudioProperties props;
+            props.duration = std::chrono::minutes(5);
+            const Track track{ TrackMetadataParser{}.parseTrackMetaData(testTags, &props) };
+            ASSERT_TRUE(track.userExtraTags.contains("LENGTH"));
+            EXPECT_EQ(track.userExtraTags.at("LENGTH").front(), "short");
+        }
+
+        {
+            AudioProperties props;
+            props.duration = std::chrono::minutes(15);
+            const Track track{ TrackMetadataParser{}.parseTrackMetaData(testTags, &props) };
+            ASSERT_TRUE(track.userExtraTags.contains("LENGTH"));
+            EXPECT_EQ(track.userExtraTags.at("LENGTH").front(), "long");
+        }
+
+        {
+            const Track track{ TrackMetadataParser{}.parseTrackMetaData(testTags, nullptr) };
+            ASSERT_TRUE(track.userExtraTags.contains("LENGTH"));
+            EXPECT_EQ(track.userExtraTags.at("LENGTH").front(), "short");
+        }
     }
 } // namespace lms::scanner::tests

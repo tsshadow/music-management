@@ -25,6 +25,7 @@
 #include <string_view>
 #include <vector>
 
+#include "audio/AudioProperties.hpp"
 #include "core/PartialDateTime.hpp"
 #include "core/UUID.hpp"
 
@@ -100,6 +101,7 @@ namespace lms::scanner
             Clean,
         };
 
+        std::optional<audio::AudioProperties> audioProperties;
         std::optional<core::UUID> mbid;
         std::optional<core::UUID> recordingMBID;
         std::string title;

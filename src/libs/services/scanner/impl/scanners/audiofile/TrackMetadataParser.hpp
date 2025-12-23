@@ -22,6 +22,7 @@
 #include <set>
 #include <string>
 
+#include "audio/AudioProperties.hpp"
 #include "audio/IAudioFileInfo.hpp"
 #include "audio/ITagReader.hpp"
 
@@ -56,7 +57,7 @@ namespace lms::scanner
         TrackMetadataParser(const TrackMetadataParser&) = delete;
         TrackMetadataParser& operator=(const TrackMetadataParser&) = delete;
 
-        Track parseTrackMetaData(const audio::ITagReader& reader) const;
+        Track parseTrackMetaData(const audio::ITagReader& reader, const audio::AudioProperties* audioProperties = nullptr) const;
 
     private:
         void processTags(const audio::ITagReader& reader, Track& track) const;

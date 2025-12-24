@@ -261,6 +261,10 @@ namespace lms::db
             utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_sort_name_idx ON release(sort_name)");
             utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_sort_name_nocase_idx ON release(sort_name COLLATE NOCASE)");
 
+            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_artist_link_id_idx ON release_artist_link(id)");
+            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_artist_link_artist_idx ON release_artist_link(artist_id)");
+            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_artist_link_release_idx ON release_artist_link(release_id)");
+
             utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_type_id_idx ON release_type(id)");
             utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_type_name_idx ON release_type(name COLLATE NOCASE)");
 

@@ -36,7 +36,7 @@ namespace lms::db::tests
 
             auto transaction{ session.createWriteTransaction() };
 
-            TrackArtistLink::create(session, tracks.back().get(), artist.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(tracks.back().get(), artist.get(), TrackArtistLinkType::Artist);
             tracks.back().get().modify()->setRelease(release.get());
         }
 
@@ -49,7 +49,7 @@ namespace lms::db::tests
         {
             auto transaction{ session.createReadTransaction() };
 
-            auto releases{ Release::findIds(session, Release::FindParameters{}.setArtist(artist.getId())) };
+            auto releases{ Release::findIds(session, Release::FindParameters{}.setTrackArtist(artist.getId())) };
             ASSERT_EQ(releases.results.size(), 1);
             EXPECT_EQ(releases.results.front(), release.getId());
 
@@ -67,18 +67,18 @@ namespace lms::db::tests
         {
             auto transaction{ session.createWriteTransaction() };
 
-            auto trackArtistLink{ TrackArtistLink::create(session, track.get(), artist.get(), TrackArtistLinkType::Artist) };
+            auto trackArtistLink{ session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Artist) };
             track.get().modify()->setRelease(release.get());
         }
 
         {
             auto transaction{ session.createWriteTransaction() };
 
-            auto releases{ Release::findIds(session, Release::FindParameters{}.setArtist(artist.getId())) };
+            auto releases{ Release::findIds(session, Release::FindParameters{}.setTrackArtist(artist.getId())) };
             ASSERT_EQ(releases.results.size(), 1);
             EXPECT_EQ(releases.results.front(), release.getId());
 
-            auto artists{ release->getArtists() };
+            auto artists{ release->getTrackArtists() };
             ASSERT_EQ(artists.size(), 1);
             ASSERT_EQ(artists.front()->getId(), artist.getId());
         }

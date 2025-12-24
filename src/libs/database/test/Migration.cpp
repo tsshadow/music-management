@@ -34,6 +34,7 @@
 #include "database/objects/RatedArtist.hpp"
 #include "database/objects/RatedRelease.hpp"
 #include "database/objects/RatedTrack.hpp"
+#include "database/objects/ReleaseArtistLink.hpp"
 #include "database/objects/ScanSettings.hpp"
 #include "database/objects/StarredArtist.hpp"
 #include "database/objects/StarredRelease.hpp"
@@ -368,6 +369,7 @@ VALUES
             EXPECT_FALSE(RatedRelease::find(session, RatedReleaseId{}));
             EXPECT_FALSE(RatedTrack::find(session, RatedTrackId{}));
             EXPECT_FALSE(Release::find(session, ReleaseId{}));
+            EXPECT_FALSE(ReleaseArtistLink::find(session, ReleaseArtistLinkId{}));
             EXPECT_FALSE(ReleaseType::find(session, ReleaseTypeId{}));
             EXPECT_FALSE(ScanSettings::find(session, ScanSettingsId{}));
             EXPECT_FALSE(StarredArtist::find(session, StarredArtistId{}));

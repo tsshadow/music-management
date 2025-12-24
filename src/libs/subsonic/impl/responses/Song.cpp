@@ -27,6 +27,7 @@
 #include "core/MimeTypes.hpp"
 #include "core/Service.hpp"
 #include "core/String.hpp"
+
 #include "database/Types.hpp"
 #include "database/objects/Artist.hpp"
 #include "database/objects/Artwork.hpp"
@@ -35,6 +36,7 @@
 #include "database/objects/MediaLibrary.hpp"
 #include "database/objects/Medium.hpp"
 #include "database/objects/Release.hpp"
+#include "database/objects/ReleaseArtistLink.hpp"
 #include "database/objects/Track.hpp"
 #include "database/objects/TrackArtistLink.hpp"
 #include "database/objects/User.hpp"
@@ -198,19 +200,23 @@ namespace lms::api::subsonic
             trackResponse.createEmptyArrayChild("artists");
             trackResponse.createEmptyArrayChild("contributors");
 
-            db::TrackArtistLink::find(context.getDbSession(), track->getId(), [&](const db::TrackArtistLink::pointer& link, const db::Artist::pointer& artist) {
-                switch (link->getType())
+            track->visitArtistLinks([&](const db::TrackArtistLink::pointer& artistLink) {
+                switch (artistLink->getType())
                 {
                 case db::TrackArtistLinkType::Artist:
-                    trackResponse.addArrayChild("artists", createArtistNode(artist));
-                    break;
-                case db::TrackArtistLinkType::ReleaseArtist:
-                    trackResponse.addArrayChild("albumArtists", createArtistNode(artist));
+                    trackResponse.addArrayChild("artists", createMinimalArtistNode(artistLink));
                     break;
                 default:
-                    trackResponse.addArrayChild("contributors", createContributorNode(link, artist));
+                    trackResponse.addArrayChild("contributors", createContributorNode(artistLink));
                 }
             });
+
+            if (release)
+            {
+                release->visitArtistLinks([&](const db::ReleaseArtistLink::pointer& artistLink) {
+                    trackResponse.addArrayChild("albumArtists", createMinimalArtistNode(artistLink));
+                });
+            }
         }
 
         trackResponse.setAttribute("displayArtist", track->getArtistDisplayName());

@@ -42,6 +42,7 @@
 #include "database/objects/RatedRelease.hpp"
 #include "database/objects/RatedTrack.hpp"
 #include "database/objects/Release.hpp"
+#include "database/objects/ReleaseArtistLink.hpp"
 #include "database/objects/ScanSettings.hpp"
 #include "database/objects/StarredArtist.hpp"
 #include "database/objects/StarredRelease.hpp"
@@ -94,6 +95,7 @@ namespace lms::db
         _session.mapClass<RatedRelease>("rated_release");
         _session.mapClass<RatedTrack>("rated_track");
         _session.mapClass<Release>("release");
+        _session.mapClass<ReleaseArtistLink>("release_artist_link");
         _session.mapClass<ReleaseType>("release_type");
         _session.mapClass<ScanSettings>("scan_settings");
         _session.mapClass<StarredArtist>("starred_artist");

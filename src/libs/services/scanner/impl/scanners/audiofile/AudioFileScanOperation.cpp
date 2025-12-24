@@ -38,6 +38,7 @@
 #include "database/objects/MediaLibrary.hpp"
 #include "database/objects/Medium.hpp"
 #include "database/objects/Release.hpp"
+#include "database/objects/ReleaseArtistLink.hpp"
 #include "database/objects/Track.hpp"
 #include "database/objects/TrackArtistLink.hpp"
 #include "database/objects/TrackEmbeddedImage.hpp"
@@ -80,6 +81,20 @@ namespace lms::scanner
             createTrackArtistLinks(session, track, linkType, noRole, artists, allowArtistMBIDFallback);
         }
 
+        void createReleaseArtistLinks(db::Session& session, const db::Release::pointer& dbRelease, std::span<const Artist> artists, helpers::AllowFallbackOnMBIDEntry allowArtistMBIDFallback)
+        {
+            for (const Artist& artist : artists)
+            {
+                db::Artist::pointer dbArtist{ helpers::getOrCreateArtist(session, artist, allowArtistMBIDFallback) };
+
+                const bool matchedUsingMbid{ artist.mbid.has_value() && dbArtist->getMBID() == artist.mbid };
+                db::ReleaseArtistLink::pointer link{ session.create<db::ReleaseArtistLink>(dbRelease, dbArtist, matchedUsingMbid) };
+                link.modify()->setArtistName(artist.name);
+                if (artist.sortName)
+                    link.modify()->setArtistSortName(*artist.sortName);
+            }
+        }
+
         db::ReleaseType::pointer getOrCreateReleaseType(db::Session& session, std::string_view name)
         {
             db::ReleaseType::pointer releaseType{ db::ReleaseType::find(session, name) };
@@ -107,7 +122,46 @@ namespace lms::scanner
             return label;
         }
 
-        void updateReleaseIfNeeded(db::Session& session, db::Release::pointer dbRelease, const Release& release)
+        bool needUpdateReleaseArtists(const db::Release::pointer& dbRelease, const Release& release)
+        {
+            const std::vector<db::ReleaseArtistLink::pointer> dbArtistLinks{ dbRelease->getArtistLinks() };
+
+            if (dbArtistLinks.size() != release.artists.size())
+                return true;
+
+            // Must be in same order
+            for (std::size_t i{}; i < dbArtistLinks.size(); ++i)
+            {
+                const db::ReleaseArtistLink::pointer& dbArtistLink{ dbArtistLinks[i] };
+                const Artist& artist{ release.artists[i] };
+
+                if (dbArtistLink->getArtistName() != artist.name)
+                    return true;
+
+                if (dbArtistLink->getArtistSortName() != artist.sortName)
+                    return true;
+
+                if (!dbArtistLink->isArtistMBIDMatched() && artist.mbid)
+                    return true;
+
+                if (dbArtistLink->isArtistMBIDMatched() && !artist.mbid)
+                    return true;
+
+                if (artist.mbid)
+                {
+                    const db::Artist::pointer dbArtist{ dbArtistLink->getArtist() };
+                    if (!dbArtist)
+                        return true;
+
+                    if (dbArtistLink->getArtist()->getMBID() != artist.mbid)
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        void updateReleaseIfNeeded(db::Session& session, db::Release::pointer dbRelease, const Release& release, helpers::AllowFallbackOnMBIDEntry allowFallback)
         {
             if (dbRelease->getName() != release.name)
                 dbRelease.modify()->setName(release.name);
@@ -143,6 +197,11 @@ namespace lms::scanner
                 for (std::string_view label : release.labels)
                     dbRelease.modify()->addLabel(getOrCreateLabel(session, label));
             }
+            if (needUpdateReleaseArtists(dbRelease, release))
+            {
+                dbRelease.modify()->clearArtistLinks();
+                createReleaseArtistLinks(session, dbRelease, release.artists, allowFallback);
+            }
         }
 
         // Compare release level info
@@ -157,7 +216,7 @@ namespace lms::scanner
                 && dbCandidateRelease->getBarcode() == release.barcode;
         }
 
-        db::Release::pointer getOrCreateRelease(db::Session& session, const Release& release, const db::Directory::pointer& currentDirectory)
+        db::Release::pointer getOrCreateRelease(db::Session& session, const Release& release, const db::Directory::pointer& currentDirectory, helpers::AllowFallbackOnMBIDEntry allowFallback)
         {
             db::Release::pointer dbRelease;
 
@@ -224,7 +283,7 @@ namespace lms::scanner
             if (!dbRelease)
                 dbRelease = session.create<db::Release>(release.name);
 
-            updateReleaseIfNeeded(session, dbRelease, release);
+            updateReleaseIfNeeded(session, dbRelease, release, allowFallback);
             return dbRelease;
         }
 
@@ -671,13 +730,24 @@ namespace lms::scanner
         db::Directory::pointer directory{ utils::getOrCreateDirectory(dbSession, getFilePath().parent_path(), mediaLibrary) };
         track.modify()->setDirectory(directory);
 
-        track.modify()->clearArtistLinks();
-
         const helpers::AllowFallbackOnMBIDEntry allowFallback{ getScannerSettings().allowArtistMBIDFallback };
-        createTrackArtistLinks(dbSession, track, db::TrackArtistLinkType::Artist, _file->track.artists, allowFallback);
-        if (_file->track.medium && _file->track.medium->release)
-            createTrackArtistLinks(dbSession, track, db::TrackArtistLinkType::ReleaseArtist, _file->track.medium->release->artists, allowFallback);
 
+        // For now, alway tie a medium to a release, and a release mst have at least one medium, even if no disc number is set
+        if (_file->track.medium && _file->track.medium->release)
+        {
+            db::Release::pointer release{ getOrCreateRelease(dbSession, *_file->track.medium->release, directory, allowFallback) };
+            assert(release);
+            track.modify()->setRelease(release);
+            track.modify()->setMedium(getOrCreateMedium(dbSession, *_file->track.medium, release));
+        }
+        else
+        {
+            track.modify()->setRelease({});
+            track.modify()->setMedium({});
+        }
+
+        track.modify()->clearArtistLinks();
+        createTrackArtistLinks(dbSession, track, db::TrackArtistLinkType::Artist, _file->track.artists, allowFallback);
         createTrackArtistLinks(dbSession, track, db::TrackArtistLinkType::Conductor, _file->track.conductorArtists, allowFallback);
         createTrackArtistLinks(dbSession, track, db::TrackArtistLinkType::Composer, _file->track.composerArtists, allowFallback);
         createTrackArtistLinks(dbSession, track, db::TrackArtistLinkType::Lyricist, _file->track.lyricistArtists, allowFallback);
@@ -688,19 +758,6 @@ namespace lms::scanner
         for (const auto& [role, performers] : _file->track.performerArtists)
             createTrackArtistLinks(dbSession, track, db::TrackArtistLinkType::Performer, role, performers, allowFallback);
 
-        // For now, alway tie a medium to a release, and a release mst have at least one medium, even if no disc number is set
-        if (_file->track.medium && _file->track.medium->release)
-        {
-            db::Release::pointer release{ getOrCreateRelease(dbSession, *_file->track.medium->release, directory) };
-            assert(release);
-            track.modify()->setRelease(release);
-            track.modify()->setMedium(getOrCreateMedium(dbSession, *_file->track.medium, release));
-        }
-        else
-        {
-            track.modify()->setRelease({});
-            track.modify()->setMedium({});
-        }
         track.modify()->setClusters(getOrCreateClusters(dbSession, _file->track));
         track.modify()->setName(title);
         track.modify()->setTrackNumber(_file->track.position);

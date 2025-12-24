@@ -20,14 +20,16 @@
 #include "ArtistCollector.hpp"
 
 #include "core/Service.hpp"
+#include "core/Utils.hpp"
+
 #include "database/Session.hpp"
 #include "database/objects/Artist.hpp"
 #include "database/objects/TrackList.hpp"
+#include "database/objects/Types.hpp"
 #include "database/objects/User.hpp"
 #include "services/feedback/IFeedbackService.hpp"
 #include "services/scrobbling/IScrobblingService.hpp"
 
-#include "Filters.hpp"
 #include "LmsApplication.hpp"
 
 namespace lms::ui
@@ -53,9 +55,14 @@ namespace lms::ui
                 params.setFilters(getDbFilters());
                 params.setUser(LmsApp->getUserId());
                 params.setKeywords(getSearchKeywords());
-                params.setLinkType(_linkType);
                 params.setSortMethod(db::ArtistSortMethod::StarredDateDesc);
                 params.setRange(range);
+                std::visit(core::utils::overloads{
+                               [&](AllArtistsTag) {},
+                               [&](ReleaseArtistsTag) { params.setReleaseArtistsOnly(true); },
+                               [&](db::TrackArtistLinkType trackArtistLinkType) { params.setTrackArtistLinkType(trackArtistLinkType); } },
+                           _artistType);
+
                 artists = feedbackService.findStarredArtists(params);
                 break;
             }
@@ -66,8 +73,12 @@ namespace lms::ui
                 params.setUser(LmsApp->getUserId());
                 params.setFilters(getDbFilters());
                 params.setKeywords(getSearchKeywords());
-                params.setLinkType(_linkType);
                 params.setRange(range);
+                std::visit(core::utils::overloads{
+                               [&](AllArtistsTag) {},
+                               [&](ReleaseArtistsTag) { params.setReleaseArtistsOnly(true); },
+                               [&](db::TrackArtistLinkType trackArtistLinkType) { params.setTrackArtistLinkType(trackArtistLinkType); } },
+                           _artistType);
 
                 artists = scrobblingService.getRecentArtists(params);
                 break;
@@ -79,8 +90,12 @@ namespace lms::ui
                 params.setUser(LmsApp->getUserId());
                 params.setFilters(getDbFilters());
                 params.setKeywords(getSearchKeywords());
-                params.setLinkType(_linkType);
                 params.setRange(range);
+                std::visit(core::utils::overloads{
+                               [&](AllArtistsTag) {},
+                               [&](ReleaseArtistsTag) { params.setReleaseArtistsOnly(true); },
+                               [&](db::TrackArtistLinkType trackArtistLinkType) { params.setTrackArtistLinkType(trackArtistLinkType); } },
+                           _artistType);
 
                 artists = scrobblingService.getTopArtists(params);
                 break;
@@ -91,9 +106,13 @@ namespace lms::ui
                 db::Artist::FindParameters params;
                 params.setFilters(getDbFilters());
                 params.setKeywords(getSearchKeywords());
-                params.setLinkType(_linkType);
                 params.setSortMethod(db::ArtistSortMethod::AddedDesc);
                 params.setRange(range);
+                std::visit(core::utils::overloads{
+                               [&](AllArtistsTag) {},
+                               [&](ReleaseArtistsTag) { params.setReleaseArtistsOnly(true); },
+                               [&](db::TrackArtistLinkType trackArtistLinkType) { params.setTrackArtistLinkType(trackArtistLinkType); } },
+                           _artistType);
 
                 {
                     auto transaction{ LmsApp->getDbSession().createReadTransaction() };
@@ -107,9 +126,13 @@ namespace lms::ui
                 db::Artist::FindParameters params;
                 params.setFilters(getDbFilters());
                 params.setKeywords(getSearchKeywords());
-                params.setLinkType(_linkType);
                 params.setSortMethod(db::ArtistSortMethod::LastWrittenDesc);
                 params.setRange(range);
+                std::visit(core::utils::overloads{
+                               [&](AllArtistsTag) {},
+                               [&](ReleaseArtistsTag) { params.setReleaseArtistsOnly(true); },
+                               [&](db::TrackArtistLinkType trackArtistLinkType) { params.setTrackArtistLinkType(trackArtistLinkType); } },
+                           _artistType);
 
                 {
                     auto transaction{ LmsApp->getDbSession().createReadTransaction() };
@@ -123,9 +146,13 @@ namespace lms::ui
                 db::Artist::FindParameters params;
                 params.setFilters(getDbFilters());
                 params.setKeywords(getSearchKeywords());
-                params.setLinkType(_linkType);
                 params.setSortMethod(db::ArtistSortMethod::SortName);
                 params.setRange(range);
+                std::visit(core::utils::overloads{
+                               [&](AllArtistsTag) {},
+                               [&](ReleaseArtistsTag) { params.setReleaseArtistsOnly(true); },
+                               [&](db::TrackArtistLinkType trackArtistLinkType) { params.setTrackArtistLinkType(trackArtistLinkType); } },
+                           _artistType);
 
                 {
                     auto transaction{ LmsApp->getDbSession().createReadTransaction() };
@@ -150,9 +177,13 @@ namespace lms::ui
             db::Artist::FindParameters params;
             params.setFilters(getDbFilters());
             params.setKeywords(getSearchKeywords());
-            params.setLinkType(_linkType);
             params.setSortMethod(db::ArtistSortMethod::Random);
             params.setRange(db::Range{ 0, getMaxCount() });
+            std::visit(core::utils::overloads{
+                           [&](AllArtistsTag) {},
+                           [&](ReleaseArtistsTag) { params.setReleaseArtistsOnly(true); },
+                           [&](db::TrackArtistLinkType trackArtistLinkType) { params.setTrackArtistLinkType(trackArtistLinkType); } },
+                       _artistType);
 
             {
                 auto transaction{ LmsApp->getDbSession().createReadTransaction() };

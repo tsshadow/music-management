@@ -22,8 +22,8 @@
 #include <optional>
 
 #include "database/objects/ArtistId.hpp"
-#include "database/objects/Types.hpp"
 
+#include "ArtistType.hpp"
 #include "DatabaseCollectorBase.hpp"
 
 namespace lms::db
@@ -40,11 +40,11 @@ namespace lms::ui
 
         db::RangeResults<db::ArtistId> get(std::optional<db::Range> range = std::nullopt);
         void reset() { _randomArtists.reset(); }
-        void setArtistLinkType(std::optional<db::TrackArtistLinkType> linkType) { _linkType = linkType; }
+        void setArtistType(ArtistType artistType) { _artistType = artistType; }
 
     private:
         db::RangeResults<db::ArtistId> getRandomArtists(Range range);
         std::optional<db::RangeResults<db::ArtistId>> _randomArtists;
-        std::optional<db::TrackArtistLinkType> _linkType;
+        ArtistType _artistType;
     };
 } // namespace lms::ui

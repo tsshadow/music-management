@@ -47,58 +47,6 @@
 
 namespace lms::ui::TrackListHelpers
 {
-    std::map<Wt::WString, std::set<db::ArtistId>> getArtistsByRole(db::TrackId trackId, core::EnumSet<db::TrackArtistLinkType> artistLinkTypes)
-    {
-        std::map<Wt::WString, std::set<db::ArtistId>> artistMap;
-
-        auto addArtists = [&](db::TrackArtistLinkType linkType, const char* type) {
-            if (!artistLinkTypes.contains(linkType))
-                return;
-
-            db::Artist::FindParameters params;
-            params.setTrack(trackId);
-            params.setLinkType(linkType);
-            const auto artistIds{ db::Artist::findIds(LmsApp->getDbSession(), params) };
-            if (artistIds.results.empty())
-                return;
-
-            Wt::WString typeStr{ Wt::WString::trn(type, artistIds.results.size()) };
-
-            for (db::ArtistId artistId : artistIds.results)
-                artistMap[typeStr].insert(artistId);
-        };
-
-        auto addPerformerArtists = [&] {
-            if (!artistLinkTypes.contains(db::TrackArtistLinkType::Performer))
-                return;
-
-            db::TrackArtistLink::FindParameters params;
-            params.setTrack(trackId);
-            params.setLinkType(db::TrackArtistLinkType::Performer);
-
-            db::TrackArtistLink::find(LmsApp->getDbSession(), params, [&](const db::TrackArtistLink::pointer& link) {
-                artistMap[std::string{ link->getSubType() }].insert(link->getArtist()->getId());
-            });
-        };
-
-        addArtists(db::TrackArtistLinkType::Composer, "Lms.Explore.Artists.linktype-composer");
-        addArtists(db::TrackArtistLinkType::Conductor, "Lms.Explore.Artists.linktype-conductor");
-        addArtists(db::TrackArtistLinkType::Lyricist, "Lms.Explore.Artists.linktype-lyricist");
-        addArtists(db::TrackArtistLinkType::Mixer, "Lms.Explore.Artists.linktype-mixer");
-        addArtists(db::TrackArtistLinkType::Remixer, "Lms.Explore.Artists.linktype-remixer");
-        addArtists(db::TrackArtistLinkType::Producer, "Lms.Explore.Artists.linktype-producer");
-        addPerformerArtists();
-
-        if (auto itRolelessPerformers{ artistMap.find("") }; itRolelessPerformers != std::cend(artistMap))
-        {
-            Wt::WString performersStr{ Wt::WString::trn("Lms.Explore.Artists.linktype-performer", itRolelessPerformers->second.size()) };
-            artistMap[performersStr] = std::move(itRolelessPerformers->second);
-            artistMap.erase(itRolelessPerformers);
-        }
-
-        return artistMap;
-    }
-
     void showTrackInfoModal(db::TrackId trackId, Filters& filters)
     {
         auto transaction{ LmsApp->getDbSession().createReadTransaction() };
@@ -111,18 +59,18 @@ namespace lms::ui::TrackListHelpers
         Wt::WWidget* trackInfoPtr{ trackInfo.get() };
         trackInfo->addFunction("tr", &Wt::WTemplate::Functions::tr);
 
-        std::map<Wt::WString, std::set<db::ArtistId>> artistMap{ getArtistsByRole(trackId) };
-        if (!artistMap.empty())
+        const auto artistsByRole{ utils::getArtistsByRole(track) };
+        if (!artistsByRole.empty())
         {
             trackInfo->setCondition("if-has-artist", true);
             Wt::WContainerWidget* artistTable{ trackInfo->bindNew<Wt::WContainerWidget>("artist-table") };
 
-            for (const auto& [role, artistIds] : artistMap)
+            for (const auto& [role, artists] : artistsByRole)
             {
-                std::unique_ptr<Wt::WContainerWidget> artistContainer{ utils::createArtistAnchorList(std::vector(std::cbegin(artistIds), std::cend(artistIds))) };
                 auto artistsEntry{ std::make_unique<Template>(Wt::WString::tr("Lms.Explore.template.info.artists")) };
                 artistsEntry->bindString("type", role, Wt::TextFormat::Plain);
-                artistsEntry->bindWidget("artist-container", std::move(artistContainer));
+                artistsEntry->bindWidget("artist-container", utils::createArtistAnchorList(std::vector(std::cbegin(artists), std::cend(artists))));
+
                 artistTable->addWidget(std::move(artistsEntry));
             }
         }
@@ -216,12 +164,12 @@ namespace lms::ui::TrackListHelpers
         const db::Release::pointer release{ track->getRelease() };
         const db::TrackId trackId{ track->getId() };
 
-        const auto artists{ track->getArtistIds({ db::TrackArtistLinkType::Artist }) };
-        if (!artists.empty())
+        const auto artistDisplayInfo{ utils::computeArtistDisplayInfo(track, db::TrackArtistLinkType::Artist) };
+        if (!artistDisplayInfo.entries.empty())
         {
             entry->setCondition("if-has-artists", true);
-            entry->bindWidget("artists", utils::createArtistDisplayNameWithAnchors(track->getArtistDisplayName(), artists));
-            entry->bindWidget("artists-md", utils::createArtistDisplayNameWithAnchors(track->getArtistDisplayName(), artists));
+            entry->bindWidget("artists", utils::createArtistsAnchors(artistDisplayInfo));
+            entry->bindWidget("artists-md", utils::createArtistsAnchors(artistDisplayInfo));
         }
 
         std::unique_ptr<Wt::WImage> image;

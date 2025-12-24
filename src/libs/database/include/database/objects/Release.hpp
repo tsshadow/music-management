@@ -56,8 +56,10 @@ namespace lms::db
     class ClusterType;
     class Medium;
     class Release;
+    class ReleaseArtistLink;
     class Session;
     class Track;
+    class TrackArtistLink;
     class User;
 
     class Country final : public Object<Country, CountryId>
@@ -167,15 +169,15 @@ namespace lms::db
             std::optional<Range> range;
             Wt::WDateTime writtenAfter;
             std::optional<YearRange> dateRange;
-            UserId starringUser;                                             // only releases starred by this user
-            std::optional<FeedbackBackend> feedbackBackend;                  //    and for this backend
-            ArtistId artist;                                                 // only releases that involved this user
-            core::EnumSet<TrackArtistLinkType> trackArtistLinkTypes;         //    and for these link types
-            core::EnumSet<TrackArtistLinkType> excludedTrackArtistLinkTypes; //    but not for these link types
-            std::string releaseType;                                         // If set, releases that has this release type
-            std::optional<core::UUID> releaseGroupMBID;                      // If set, releases that belong to this release group
-            DirectoryId directory;                                           // if set, releases in this directory (cannot be set with parent directory)
-            DirectoryId parentDirectory;                                     // if set, releases in this parent directory (cannot be set with directory)
+            UserId starringUser;                                     // only releases starred by this user
+            std::optional<FeedbackBackend> feedbackBackend;          //    and for this backend
+            ArtistId artist;                                         // only releases by this release artist
+            ArtistId trackArtist;                                    // only releases that involved this track artist
+            core::EnumSet<TrackArtistLinkType> trackArtistLinkTypes; //    and for these link types, if set
+            std::string releaseType;                                 // If set, releases that has this release type
+            std::optional<core::UUID> releaseGroupMBID;              // If set, releases that belong to this release group
+            DirectoryId directory;                                   // if set, releases in this directory (cannot be set with parent directory)
+            DirectoryId parentDirectory;                             // if set, releases in this parent directory (cannot be set with directory)
 
             FindParameters& setFilters(const Filters& _filters)
             {
@@ -218,11 +220,15 @@ namespace lms::db
                 feedbackBackend = _feedbackBackend;
                 return *this;
             }
-            FindParameters& setArtist(ArtistId _artist, core::EnumSet<TrackArtistLinkType> _trackArtistLinkTypes = {}, core::EnumSet<TrackArtistLinkType> _excludedTrackArtistLinkTypes = {})
+            FindParameters& setArtist(ArtistId _artist)
             {
                 artist = _artist;
+                return *this;
+            }
+            FindParameters& setTrackArtist(ArtistId _trackArtist, core::EnumSet<TrackArtistLinkType> _trackArtistLinkTypes = {})
+            {
+                trackArtist = _trackArtist;
                 trackArtistLinkTypes = _trackArtistLinkTypes;
-                excludedTrackArtistLinkTypes = _excludedTrackArtistLinkTypes;
                 return *this;
             }
             FindParameters& setReleaseType(std::string_view _releaseType)
@@ -305,6 +311,9 @@ namespace lms::db
         ObjectPtr<Artwork> getPreferredArtwork() const;
         ArtworkId getPreferredArtworkId() const;
         std::vector<ObjectPtr<Medium>> getMediums() const;
+        std::vector<ObjectPtr<ReleaseArtistLink>> getArtistLinks() const;
+        void visitArtistLinks(const std::function<void(const ObjectPtr<ReleaseArtistLink>& artistLink)>& visitor) const;
+        void visitTrackArtistLinks(TrackArtistLinkType linkType, const std::function<void(const ObjectPtr<TrackArtistLink>& artistLink)>& visitor) const;
 
         // Setters
         void setName(std::string_view name) { _name = name; }
@@ -313,6 +322,8 @@ namespace lms::db
         void setGroupMBID(const std::optional<core::UUID>& mbid) { _groupMBID = mbid ? mbid->getAsString() : ""; }
         void setTotalDisc(std::optional<int> totalDisc) { _totalDisc = totalDisc; }
         void setArtistDisplayName(std::string_view name) { _artistDisplayName = name; }
+        void clearArtistLinks();
+        void addArtistLink(const ObjectPtr<ReleaseArtistLink>& artistLink);
         void setCompilation(bool value) { _isCompilation = value; }
         void clearLabels();
         void clearCountries();
@@ -325,9 +336,11 @@ namespace lms::db
         void setPreferredArtwork(ObjectPtr<Artwork> artwork);
 
         // Get the artists of this release
-        std::vector<ObjectPtr<Artist>> getArtists(TrackArtistLinkType type = TrackArtistLinkType::Artist) const;
-        std::vector<ArtistId> getArtistIds(TrackArtistLinkType type = TrackArtistLinkType::Artist) const;
-        std::vector<ObjectPtr<Artist>> getReleaseArtists() const { return getArtists(TrackArtistLinkType::ReleaseArtist); }
+        std::vector<ObjectPtr<Artist>> getArtists() const;
+        bool hasArtist(ArtistId artistId) const;
+        std::vector<ObjectPtr<Artist>> getTrackArtists(TrackArtistLinkType type = TrackArtistLinkType::Artist) const;
+        void visitTrackArtists(TrackArtistLinkType type, std::function<void(const ObjectPtr<Artist>&)> visitor) const;
+        std::vector<ArtistId> getTrackArtistIds(TrackArtistLinkType type = TrackArtistLinkType::Artist) const;
         bool hasVariousArtists() const;
         std::vector<pointer> getSimilarReleases(std::optional<std::size_t> offset = {}, std::optional<std::size_t> count = {}) const;
 
@@ -345,6 +358,7 @@ namespace lms::db
             Wt::Dbo::field(a, _comment, "comment");
 
             Wt::Dbo::hasMany(a, _tracks, Wt::Dbo::ManyToOne, "release");
+            Wt::Dbo::hasMany(a, _releaseArtistLinks, Wt::Dbo::ManyToOne, "release");
             Wt::Dbo::belongsTo(a, _preferredArtwork, "preferred_artwork", Wt::Dbo::OnDeleteSetNull);
             Wt::Dbo::hasMany(a, _labels, Wt::Dbo::ManyToMany, "release_label", "", Wt::Dbo::OnDeleteCascade);
             Wt::Dbo::hasMany(a, _releaseTypes, Wt::Dbo::ManyToMany, "release_release_type", "", Wt::Dbo::OnDeleteCascade);
@@ -372,6 +386,7 @@ namespace lms::db
         std::string _comment;
 
         Wt::Dbo::collection<Wt::Dbo::ptr<Track>> _tracks;
+        Wt::Dbo::collection<Wt::Dbo::ptr<ReleaseArtistLink>> _releaseArtistLinks;
         Wt::Dbo::ptr<Artwork> _preferredArtwork;
         Wt::Dbo::collection<Wt::Dbo::ptr<Label>> _labels;
         Wt::Dbo::collection<Wt::Dbo::ptr<ReleaseType>> _releaseTypes;

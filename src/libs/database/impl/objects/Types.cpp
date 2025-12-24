@@ -43,8 +43,6 @@ namespace lms::db
             return "performer";
         case TrackArtistLinkType::Producer:
             return "producer";
-        case TrackArtistLinkType::ReleaseArtist:
-            return "albumartist";
         case TrackArtistLinkType::Remixer:
             return "remixer";
         case TrackArtistLinkType::Writer:

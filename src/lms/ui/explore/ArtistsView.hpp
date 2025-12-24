@@ -19,14 +19,11 @@
 
 #pragma once
 
-#include <optional>
-
 #include <Wt/WComboBox.h>
 #include <Wt/WTemplate.h>
 
-#include "database/Types.hpp"
-
 #include "ArtistCollector.hpp"
+#include "ArtistType.hpp"
 #include "common/Template.hpp"
 
 namespace lms::ui
@@ -42,7 +39,7 @@ namespace lms::ui
     private:
         void refreshView();
         void refreshView(ArtistCollector::Mode mode);
-        void refreshView(std::optional<db::TrackArtistLinkType> linkType);
+        void refreshView(ArtistType artistType);
         void refreshView(const Wt::WString& searchText);
         void addSome();
 
@@ -53,5 +50,6 @@ namespace lms::ui
         InfiniteScrollingContainer* _container{};
         ArtistCollector _artistCollector;
         static constexpr ArtistCollector::Mode _defaultSortMode{ ArtistCollector::Mode::Random };
+        static constexpr ArtistType _defaultArtistType{ ReleaseArtistsTag{} };
     };
 } // namespace lms::ui

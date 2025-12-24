@@ -240,42 +240,42 @@
 <message id="Lms.Explore.Artist.similar-artists">Artisti simili</message>
 
 <!--Explore:Artists-->
-<message id="Lms.Explore.Artists.linktype-all">Tutti gli artisti</message>
-<message id="Lms.Explore.Artists.linktype-artist">
-	<plural case="0">Artista della traccia</plural>
-	<plural case="1">Artisti della traccia</plural>
-</message>
-<message id="Lms.Explore.Artists.linktype-composer">
+<message id="Lms.Explore.Artists.all">Tutti gli artisti</message>
+<message id="Lms.Explore.Artists.composer">
 	<plural case="0">Compositore</plural>
 	<plural case="1">Compositori</plural>
 </message>
-<message id="Lms.Explore.Artists.linktype-conductor">
+<message id="Lms.Explore.Artists.conductor">
 	<plural case="0">Direttore d'orchestra</plural>
 	<plural case="1">Direttori d'orchestra</plural>
 </message>
-<message id="Lms.Explore.Artists.linktype-lyricist">
+<message id="Lms.Explore.Artists.lyricist">
 	<plural case="0">Paroliere</plural>
 	<plural case="1">Parolieri</plural>
 </message>
-<message id="Lms.Explore.Artists.linktype-mixer">
+<message id="Lms.Explore.Artists.mixer">
 	<plural case="0">Tecnico del mixaggio</plural>
 	<plural case="1">Tecnici del mixaggio</plural>
 </message>
-<message id="Lms.Explore.Artists.linktype-performer">
+<message id="Lms.Explore.Artists.performer">
 	<plural case="0">Interprete</plural>
 	<plural case="1">Interpreti</plural>
 </message>
-<message id="Lms.Explore.Artists.linktype-producer">
+<message id="Lms.Explore.Artists.producer">
 	<plural case="0">Produttore</plural>
 	<plural case="1">Produttori</plural>
 </message>
-<message id="Lms.Explore.Artists.linktype-releaseartist">
+<message id="Lms.Explore.Artists.release-artist">
 	<plural case="0">Artista dell'album</plural>
 	<plural case="1">Artisti dell'album</plural>
 </message>
-<message id="Lms.Explore.Artists.linktype-remixer">
+<message id="Lms.Explore.Artists.remixer">
 	<plural case="0">Remixer</plural>
 	<plural case="1">Remixers</plural>
+</message>
+<message id="Lms.Explore.Artists.track-artist">
+	<plural case="0">Artista della traccia</plural>
+	<plural case="1">Artisti della traccia</plural>
 </message>
 
 <!--Explore:Release-->

@@ -122,7 +122,7 @@ namespace lms::ui
             for (const db::ReleaseId releaseId : releaseIds.results)
             {
                 if (const db::Release::pointer release{ db::Release::find(LmsApp->getDbSession(), releaseId) })
-                    _container->add(releaseListHelpers::createEntry(release));
+                    _container->add(releaseListHelpers::createEntry(release, { releaseListHelpers::DisplayOptions::ShowArtist }));
             }
         }
 

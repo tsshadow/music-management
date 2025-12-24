@@ -81,12 +81,18 @@ namespace lms::feedback
         // Artists
         struct ArtistFindParameters : public FindParameters
         {
-            std::optional<db::TrackArtistLinkType> linkType; // if set, only artists that have produced at least one track with this link type
+            std::optional<db::TrackArtistLinkType> trackArtistLinkType; // if set, only artists that have produced at least one track with this link type
             db::ArtistSortMethod sortMethod{ db::ArtistSortMethod::None };
+            std::optional<bool> releaseArtistsOnly;
 
-            ArtistFindParameters& setLinkType(std::optional<db::TrackArtistLinkType> _linkType)
+            ArtistFindParameters& setReleaseArtistsOnly(std::optional<bool> _releaseArtistsOnly)
             {
-                linkType = _linkType;
+                releaseArtistsOnly = _releaseArtistsOnly;
+                return *this;
+            }
+            ArtistFindParameters& setTrackArtistLinkType(std::optional<db::TrackArtistLinkType> _trackArtistLinkType)
+            {
+                trackArtistLinkType = _trackArtistLinkType;
                 return *this;
             }
             ArtistFindParameters& setSortMethod(db::ArtistSortMethod _sortMethod)

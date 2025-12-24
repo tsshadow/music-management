@@ -27,10 +27,12 @@
 			</div>
 			<div class="flex-fill text-center text-truncate">
 				${title class="d-block text-truncate"}
-				${artist class="d-inline text-decoration-none text-truncate link-success"}
+				<span>
+				${artist class="d-inline text-decoration-none text-truncate"}
 				<span class="d-none d-md-inline">
 					${separator}
 					${release class="text-decoration-none text-truncate link-success"}
+				</span>
 				</span>
 			</div>
 			<div class="p-2 d-none d-sm-block text-muted text-nowrap">

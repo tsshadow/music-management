@@ -51,7 +51,8 @@ namespace lms::scrobbling
 
         db::Listen::ArtistStatsFindParameters convertToListenFindParameters(const ScrobblingService::ArtistFindParameters& params)
         {
-            return db::Listen::ArtistStatsFindParameters{ convertToListenFindParameters(static_cast<const ScrobblingService::FindParameters&>(params)), params.linkType };
+            db::Listen::ArtistStatsFindParameters listenFindParams{ convertToListenFindParameters(static_cast<const ScrobblingService::FindParameters&>(params)), params.linkType, params.releaseArtistsOnly };
+            return listenFindParams;
         }
     } // namespace
 

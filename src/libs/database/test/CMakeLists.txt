@@ -18,6 +18,7 @@ add_executable(test-database
 	RatedRelease.cpp
 	RatedTrack.cpp
 	Release.cpp
+	ReleaseArtistLink.cpp
 	ScanSettings.cpp
 	StarredArtist.cpp
 	StarredRelease.cpp

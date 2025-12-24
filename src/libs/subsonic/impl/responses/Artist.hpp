@@ -30,6 +30,8 @@
 namespace lms::db
 {
     class Artist;
+    class ReleaseArtistLink;
+    class TrackArtistLink;
     class User;
     class Session;
 } // namespace lms::db
@@ -45,5 +47,7 @@ namespace lms::api::subsonic
     } // namespace utils
 
     Response::Node createArtistNode(RequestContext& context, const db::ObjectPtr<db::Artist>& artist);
-    Response::Node createArtistNode(const db::ObjectPtr<db::Artist>& artist); // only minimal info
+    Response::Node createMinimalArtistNode(const db::ObjectPtr<db::Artist>& artist);                // only minimal info
+    Response::Node createMinimalArtistNode(const db::ObjectPtr<db::ReleaseArtistLink>& artistLink); // only minimal info
+    Response::Node createMinimalArtistNode(const db::ObjectPtr<db::TrackArtistLink>& artistLink);   // only minimal info
 } // namespace lms::api::subsonic

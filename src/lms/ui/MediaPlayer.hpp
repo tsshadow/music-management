@@ -22,6 +22,7 @@
 #include <optional>
 
 #include <Wt/WAnchor.h>
+#include <Wt/WContainerWidget.h>
 #include <Wt/WJavaScript.h>
 #include <Wt/WPushButton.h>
 #include <Wt/WTemplate.h>
@@ -126,7 +127,7 @@ namespace lms::ui
         Wt::WText* _title{};
         Wt::WAnchor* _release{};
         Wt::WText* _separator{};
-        Wt::WAnchor* _artist{};
+        Wt::WContainerWidget* _artists{};
         Wt::WPushButton* _playQueue{};
     };
 } // namespace lms::ui

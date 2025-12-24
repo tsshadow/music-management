@@ -19,6 +19,7 @@
 
 #include "Utils.hpp"
 
+#include <algorithm>
 #include <iomanip>
 #include <sstream>
 
@@ -30,8 +31,10 @@
 #include "database/objects/Cluster.hpp"
 #include "database/objects/Image.hpp"
 #include "database/objects/Release.hpp"
+#include "database/objects/ReleaseArtistLink.hpp"
 #include "database/objects/ScanSettings.hpp"
 #include "database/objects/Track.hpp"
+#include "database/objects/TrackArtistLink.hpp"
 #include "database/objects/TrackList.hpp"
 
 #include "LmsApplication.hpp"
@@ -50,6 +53,28 @@ namespace lms::ui::utils
             image->setAlternateText(Wt::WString::tr("Lms.Explore.cover-art"));
 
             return image;
+        }
+
+        Wt::WLink createArtistLink(db::Artist::pointer artist)
+        {
+            if (const auto mbid{ artist->getMBID() })
+                return Wt::WLink{ Wt::LinkType::InternalPath, "/artist/mbid/" + std::string{ mbid->getAsString() } };
+            else
+                return Wt::WLink{ Wt::LinkType::InternalPath, "/artist/" + artist->getId().toString() };
+        }
+
+        std::unique_ptr<Wt::WAnchor> createArtistAnchor(db::Artist::pointer artist, std::string_view displayName, bool setText)
+        {
+            auto res{ std::make_unique<Wt::WAnchor>(createArtistLink(artist)) };
+
+            if (setText)
+            {
+                res->setTextFormat(Wt::TextFormat::Plain);
+                res->setText(Wt::WString::fromUTF8(std::string{ displayName }));
+                res->setToolTip(Wt::WString::fromUTF8(std::string{ displayName }), Wt::TextFormat::Plain);
+            }
+
+            return res;
         }
     } // namespace
 
@@ -174,138 +199,38 @@ namespace lms::ui::utils
         return clusterContainer;
     }
 
-    std::unique_ptr<Wt::WContainerWidget> createArtistAnchorList(const std::vector<db::ArtistId>& artistIds, std::string_view cssAnchorClass)
+    std::unique_ptr<Wt::WContainerWidget> createArtistAnchorList(const std::vector<db::Artist::pointer>& artists, std::string_view cssAnchorClass)
     {
-        using namespace db;
-
         std::unique_ptr<Wt::WContainerWidget> artistContainer{ std::make_unique<Wt::WContainerWidget>() };
 
         bool firstArtist{ true };
 
-        auto transaction{ LmsApp->getDbSession().createReadTransaction() };
-        for (const ArtistId artistId : artistIds)
+        for (const auto& artist : artists)
         {
-            const Artist::pointer artist{ Artist::find(LmsApp->getDbSession(), artistId) };
-            if (!artist)
-                continue;
-
             if (!firstArtist)
                 artistContainer->addNew<Wt::WText>(" · ");
+            firstArtist = false;
 
             auto anchor{ createArtistAnchor(artist) };
             anchor->addStyleClass("text-decoration-none"); // hack
             anchor->addStyleClass(std::string{ cssAnchorClass });
             artistContainer->addWidget(std::move(anchor));
-            firstArtist = false;
         }
 
         return artistContainer;
     }
 
-    std::unique_ptr<Wt::WContainerWidget> createArtistDisplayNameWithAnchors(std::string_view displayName, const std::vector<db::ArtistId>& artistIds, std::string_view cssAnchorClass)
-    {
-        using namespace db;
-
-        std::size_t matchCount{};
-        std::string_view::size_type currentOffset{};
-
-        auto result{ std::make_unique<Wt::WContainerWidget>() };
-        auto transaction{ LmsApp->getDbSession().createReadTransaction() };
-
-        // consider order is guaranteed + we will likely succeed
-        for (const ArtistId artistId : artistIds)
-        {
-            const Artist::pointer artist{ Artist::find(LmsApp->getDbSession(), artistId) };
-            if (!artist)
-                break;
-
-            const auto pos{ displayName.find(artist->getName(), currentOffset) };
-            if (pos == std::string_view::npos)
-                break;
-
-            assert(pos >= currentOffset);
-            if (pos != currentOffset)
-                result->addNew<Wt::WText>(std::string{ displayName.substr(currentOffset, pos - currentOffset) }, Wt::TextFormat::Plain);
-
-            auto anchor{ createArtistAnchor(artist) };
-            anchor->addStyleClass("text-decoration-none");        // hack
-            anchor->addStyleClass(std::string{ cssAnchorClass }); // hack
-            result->addWidget(std::move(anchor));
-            currentOffset = pos + artist->getName().size();
-            matchCount += 1;
-        }
-
-        if (matchCount == artistIds.size())
-        {
-            const std::string_view remainingStr{ displayName.substr(currentOffset) };
-            if (!remainingStr.empty())
-                result->addNew<Wt::WText>(std::string{ remainingStr }, Wt::TextFormat::Plain);
-        }
-        else
-            result = createArtistAnchorList(artistIds, cssAnchorClass);
-
-        return result;
-    }
-
-    std::unique_ptr<Wt::WContainerWidget> createArtistsAnchorsForRelease(db::ObjectPtr<db::Release> release, db::ArtistId omitIfMatchThisArtist, std::string_view cssAnchorClass)
-    {
-        using namespace db;
-
-        if (const std::vector<ArtistId> releaseArtists{ release->getArtistIds(TrackArtistLinkType::ReleaseArtist) }; !releaseArtists.empty())
-        {
-            if (releaseArtists.size() == 1 && releaseArtists.front() == omitIfMatchThisArtist)
-                return {};
-
-            return createArtistDisplayNameWithAnchors(release->getArtistDisplayName(), releaseArtists, cssAnchorClass);
-        }
-
-        const auto artists{ release->getArtistIds(TrackArtistLinkType::Artist) };
-        if (artists.size() == 1)
-        {
-            if (artists.front() == omitIfMatchThisArtist)
-                return {};
-
-            return createArtistAnchorList({ artists.front() }, cssAnchorClass);
-        }
-
-        if (artists.size() > 1)
-        {
-            auto res{ std::make_unique<Wt::WContainerWidget>() };
-            res->addNew<Wt::WText>(Wt::WString::tr("Lms.Explore.various-artists"));
-            return res;
-        }
-
-        return {};
-    }
-
-    Wt::WLink createArtistLink(db::Artist::pointer artist)
-    {
-        if (const auto mbid{ artist->getMBID() })
-            return Wt::WLink{ Wt::LinkType::InternalPath, "/artist/mbid/" + std::string{ mbid->getAsString() } };
-        else
-            return Wt::WLink{ Wt::LinkType::InternalPath, "/artist/" + artist->getId().toString() };
-    }
-
     std::unique_ptr<Wt::WAnchor> createArtistAnchor(db::Artist::pointer artist, bool setText)
     {
-        auto res = std::make_unique<Wt::WAnchor>(createArtistLink(artist));
-
-        if (setText)
-        {
-            res->setTextFormat(Wt::TextFormat::Plain);
-            res->setText(Wt::WString::fromUTF8(artist->getName()));
-            res->setToolTip(Wt::WString::fromUTF8(artist->getName()), Wt::TextFormat::Plain);
-        }
-
-        return res;
+        return createArtistAnchor(artist, artist->getName(), setText);
     }
 
     Wt::WLink createReleaseLink(db::Release::pointer release)
     {
         if (const auto mbid{ release->getMBID() })
             return Wt::WLink{ Wt::LinkType::InternalPath, "/release/mbid/" + std::string{ mbid->getAsString() } };
-        else
-            return Wt::WLink{ Wt::LinkType::InternalPath, "/release/" + release->getId().toString() };
+
+        return Wt::WLink{ Wt::LinkType::InternalPath, "/release/" + release->getId().toString() };
     }
 
     std::unique_ptr<Wt::WAnchor> createReleaseAnchor(db::Release::pointer release, bool setText)
@@ -343,5 +268,210 @@ namespace lms::ui::utils
         }
 
         return res;
+    }
+
+    ArtistDisplayInfo computeArtistDisplayInfo(db::ObjectPtr<db::Release> release)
+    {
+        ArtistDisplayInfo res;
+
+        res.displayName = release->getArtistDisplayName();
+        release->visitArtistLinks([&res](const db::ObjectPtr<db::ReleaseArtistLink>& artistLink) {
+            res.entries.emplace_back(ArtistDisplayInfo::Entry{ .displayName = std::string{ artistLink->getArtistName() }, .artist = artistLink->getArtist() });
+        });
+
+        // If no release artists, fallback on track artists, only if there are only 1 artist, otherwise just put various-artists
+        if (res.entries.empty())
+        {
+            res.displayName.clear();
+
+            const auto trackArtists{ release->getTrackArtists(db::TrackArtistLinkType::Artist) };
+
+            if (trackArtists.size() > 1)
+                res.displayName = Wt::WString::tr("Lms.Explore.various-artists").toUTF8();
+            else
+                res.entries.emplace_back(ArtistDisplayInfo::Entry{ .displayName = std::string{ trackArtists[0]->getName() }, .artist = trackArtists[0] });
+        }
+
+        return res;
+    }
+
+    ArtistDisplayInfo computeArtistDisplayInfo(db::ObjectPtr<db::Track> track, db::TrackArtistLinkType linkType)
+    {
+        ArtistDisplayInfo res;
+
+        res.displayName = track->getArtistDisplayName();
+        track->visitArtistLinks(linkType, [&res](const db::ObjectPtr<db::TrackArtistLink>& artistLink) {
+            res.entries.emplace_back(ArtistDisplayInfo::Entry{ .displayName = std::string{ artistLink->getArtistName() }, .artist = artistLink->getArtist() });
+        });
+
+        return res;
+    }
+
+    std::unique_ptr<Wt::WContainerWidget> createArtistsAnchors(const ArtistDisplayInfo& artistDisplayInfo, std::string_view cssAnchorClass)
+    {
+        auto result{ std::make_unique<Wt::WContainerWidget>() };
+        result->setInline(true); // TODO: use a template for that?
+
+        std::size_t matchCount{};
+        std::string_view::size_type currentOffset{};
+
+        if (artistDisplayInfo.entries.empty())
+        {
+            if (!artistDisplayInfo.displayName.empty())
+                result->addNew<Wt::WText>(std::string{ artistDisplayInfo.displayName }, Wt::TextFormat::Plain);
+
+            return result;
+        }
+
+        // consider order is guaranteed + we will likely succeed
+        for (const ArtistDisplayInfo::Entry& entry : artistDisplayInfo.entries)
+        {
+            const auto pos{ artistDisplayInfo.displayName.find(entry.displayName, currentOffset) };
+            if (pos == std::string_view::npos)
+                break;
+
+            assert(pos >= currentOffset);
+            if (pos != currentOffset)
+                result->addNew<Wt::WText>(std::string{ artistDisplayInfo.displayName.substr(currentOffset, pos - currentOffset) }, Wt::TextFormat::Plain);
+
+            auto anchor{ createArtistAnchor(entry.artist, entry.displayName, true) };
+            anchor->addStyleClass("text-decoration-none");        // hack
+            anchor->addStyleClass(std::string{ cssAnchorClass }); // hack
+            result->addWidget(std::move(anchor));
+
+            currentOffset = pos + entry.displayName.size();
+            matchCount += 1;
+        }
+
+        if (matchCount == artistDisplayInfo.entries.size())
+        {
+            const std::string_view remainingStr{ artistDisplayInfo.displayName.substr(currentOffset) };
+            if (!remainingStr.empty())
+                result->addNew<Wt::WText>(std::string{ remainingStr }, Wt::TextFormat::Plain);
+        }
+        else
+        {
+            std::vector<db::Artist::pointer> artists;
+            std::transform(std::cbegin(artistDisplayInfo.entries), std::cend(artistDisplayInfo.entries), std::back_inserter(artists), [](const ArtistDisplayInfo::Entry& entry) {
+                return entry.artist;
+            });
+
+            result = createArtistAnchorList(artists, cssAnchorClass);
+        }
+
+        return result;
+    }
+
+    std::unique_ptr<Wt::WContainerWidget> createArtistsAnchors(db::ObjectPtr<db::Track> track, db::TrackArtistLinkType linkType, std::string_view cssAnchorClass)
+    {
+        const auto computeArtistDisplayInfo{ utils::computeArtistDisplayInfo(track, linkType) };
+        return utils::createArtistsAnchors(computeArtistDisplayInfo, cssAnchorClass);
+    }
+
+    std::unique_ptr<Wt::WContainerWidget> createArtistsAnchors(db::ObjectPtr<db::Release> release, std::string_view cssAnchorClass)
+    {
+        const auto computeArtistDisplayInfo{ utils::computeArtistDisplayInfo(release) };
+        return utils::createArtistsAnchors(computeArtistDisplayInfo, cssAnchorClass);
+    }
+
+    std::map<Wt::WString, std::vector<db::ObjectPtr<db::Artist>>> getArtistsByRole(db::ObjectPtr<db::Track> track, core::EnumSet<db::TrackArtistLinkType> artistLinkTypes)
+    {
+        std::map<Wt::WString, std::vector<db::Artist::pointer>> artistMap;
+
+        auto addArtists = [&](db::TrackArtistLinkType linkType, const char* type) {
+            if (!artistLinkTypes.empty() && !artistLinkTypes.contains(linkType))
+                return;
+
+            std::vector<db::Artist::pointer> artists;
+            track->visitArtistLinks(linkType, [&](const auto& link) {
+                artists.push_back(link->getArtist());
+            });
+
+            if (artists.empty())
+                return;
+
+            Wt::WString typeStr{ Wt::WString::trn(type, artists.size()) };
+            artistMap[typeStr] = std::move(artists);
+        };
+
+        std::vector<db::ObjectPtr<db::Artist>> rolelessPerformers;
+        auto addPerformerArtists = [&] {
+            if (!artistLinkTypes.empty() && !artistLinkTypes.contains(db::TrackArtistLinkType::Performer))
+                return;
+
+            track->visitArtistLinks(db::TrackArtistLinkType::Performer, [&](const auto& link) {
+                if (link->getSubType().empty())
+                    rolelessPerformers.push_back(link->getArtist());
+                else
+                    artistMap[std::string{ link->getSubType() }].push_back(link->getArtist());
+            });
+        };
+
+        addArtists(db::TrackArtistLinkType::Composer, "Lms.Explore.Artists.composer");
+        addArtists(db::TrackArtistLinkType::Conductor, "Lms.Explore.Artists.conductor");
+        addArtists(db::TrackArtistLinkType::Lyricist, "Lms.Explore.Artists.lyricist");
+        addArtists(db::TrackArtistLinkType::Mixer, "Lms.Explore.Artists.mixer");
+        addArtists(db::TrackArtistLinkType::Remixer, "Lms.Explore.Artists.remixer");
+        addArtists(db::TrackArtistLinkType::Producer, "Lms.Explore.Artists.producer");
+        addPerformerArtists();
+
+        if (!rolelessPerformers.empty())
+        {
+            Wt::WString performersStr{ Wt::WString::trn("Lms.Explore.Artists.performer", rolelessPerformers.size()) };
+            artistMap[performersStr] = std::move(rolelessPerformers);
+        }
+
+        return artistMap;
+    }
+
+    std::map<Wt::WString, std::vector<db::ObjectPtr<db::Artist>>> getTrackArtistsByRole(db::ObjectPtr<db::Release> release)
+    {
+        std::map<Wt::WString, std::vector<db::Artist::pointer>> artistMap;
+
+        auto addArtists = [&](db::TrackArtistLinkType linkType, const char* type) {
+            std::vector<db::Artist::pointer> artists;
+            release->visitTrackArtists(linkType, [&](const auto& artist) {
+                artists.push_back(artist);
+            });
+
+            if (artists.empty())
+                return;
+
+            Wt::WString typeStr{ Wt::WString::trn(type, artists.size()) };
+            artistMap[typeStr] = std::move(artists);
+        };
+
+        std::vector<db::ObjectPtr<db::Artist>> rolelessPerformers;
+        auto addPerformerArtists = [&] {
+            release->visitTrackArtistLinks(db::TrackArtistLinkType::Performer, [&](const db::TrackArtistLink::pointer& link) {
+                if (link->getSubType().empty())
+                {
+                    if (std::find(std::cbegin(rolelessPerformers), std::cend(rolelessPerformers), link->getArtist()) == std::cend(rolelessPerformers))
+                        rolelessPerformers.push_back(link->getArtist());
+                }
+                else
+                {
+                    auto& artists{ artistMap[std::string{ link->getSubType() }] };
+                    if (std::find(std::cbegin(artists), std::cend(artists), link->getArtist()) == std::cend(artists))
+                        artists.push_back(link->getArtist());
+                }
+            });
+        };
+
+        addArtists(db::TrackArtistLinkType::Composer, "Lms.Explore.Artists.composer");
+        addArtists(db::TrackArtistLinkType::Conductor, "Lms.Explore.Artists.conductor");
+        addArtists(db::TrackArtistLinkType::Lyricist, "Lms.Explore.Artists.lyricist");
+        addArtists(db::TrackArtistLinkType::Mixer, "Lms.Explore.Artists.mixer");
+        addArtists(db::TrackArtistLinkType::Remixer, "Lms.Explore.Artists.remixer");
+        addArtists(db::TrackArtistLinkType::Producer, "Lms.Explore.Artists.producer");
+        addPerformerArtists();
+
+        if (!rolelessPerformers.empty())
+        {
+            Wt::WString performersStr{ Wt::WString::trn("Lms.Explore.Artists.performer", rolelessPerformers.size()) };
+            artistMap[performersStr] = std::move(rolelessPerformers);
+        }
+
+        return artistMap;
     }
 } // namespace lms::ui::utils

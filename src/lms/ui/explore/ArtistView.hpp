@@ -21,11 +21,14 @@
 
 #include <map>
 
+#include "core/EnumSet.hpp"
+
 #include "database/Object.hpp"
 #include "database/objects/ArtistId.hpp"
 #include "database/objects/ArtworkId.hpp"
 #include "database/objects/ReleaseId.hpp"
 
+#include "ReleaseHelpers.hpp"
 #include "ReleaseTypes.hpp"
 #include "common/Template.hpp"
 
@@ -57,7 +60,7 @@ namespace lms::ui
         void refreshLinks(const db::ObjectPtr<db::Artist>& artist);
 
         struct ReleaseContainer;
-        void addSomeReleases(ReleaseContainer& releaseContainer);
+        void addSomeReleases(ReleaseContainer& releaseContainer, core::EnumSet<releaseListHelpers::DisplayOptions> displayOptions);
         bool addSomeNonReleaseTracks();
         static constexpr std::size_t _releasesBatchSize{ 6 };
         static constexpr std::size_t _tracksBatchSize{ 6 };
@@ -76,5 +79,6 @@ namespace lms::ui
         ReleaseContainer _appearsOnReleaseContainer{};
         InfiniteScrollingContainer* _trackContainer{};
         db::ArtistId _artistId{};
+        std::string _artistName;
     };
 } // namespace lms::ui

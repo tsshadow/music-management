@@ -37,6 +37,7 @@ add_executable(lms
 	ui/common/UUIDValidator.cpp
 	ui/explore/ArtistCollector.cpp
 	ui/explore/ArtistListHelpers.cpp
+	ui/explore/ArtistType.cpp
 	ui/explore/ArtistView.cpp
 	ui/explore/ArtistsView.cpp
 	ui/explore/DatabaseCollectorBase.cpp

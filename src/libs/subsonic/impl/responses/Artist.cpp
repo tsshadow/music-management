@@ -26,6 +26,7 @@
 #include "database/objects/Artist.hpp"
 #include "database/objects/Artwork.hpp"
 #include "database/objects/Release.hpp"
+#include "database/objects/ReleaseArtistLink.hpp"
 #include "database/objects/TrackArtistLink.hpp"
 #include "database/objects/User.hpp"
 #include "services/feedback/IFeedbackService.hpp"
@@ -66,18 +67,25 @@ namespace lms::api::subsonic
     {
         LMS_SCOPED_TRACE_DETAILED("Subsonic", "CreateArtist");
 
-        Response::Node artistNode{ createArtistNode(artist) };
+        Response::Node artistNode{ createMinimalArtistNode(artist) };
 
-        artistNode.setAttribute("id", idToString(artist->getId()));
-        artistNode.setAttribute("name", artist->getName());
         if (const auto artwork{ artist->getPreferredArtwork() })
         {
             CoverArtId coverArtId{ artwork->getId(), artwork->getLastWrittenTime().toTime_t() };
             artistNode.setAttribute("coverArt", idToString(coverArtId));
         }
 
-        const std::size_t count{ Release::getCount(context.getDbSession(), Release::FindParameters{}.setArtist(artist->getId())) };
-        artistNode.setAttribute("albumCount", count);
+        {
+            std::size_t count{ Release::getCount(context.getDbSession(), Release::FindParameters{}.setArtist(artist->getId())) };
+
+            // TODO: not very efficient
+            Release::find(context.getDbSession(), Release::FindParameters{}.setTrackArtist(artist->getId()), [&](const db::Release::pointer& release) {
+                if (!release->hasArtist(artist->getId()))
+                    count++;
+            });
+
+            artistNode.setAttribute("albumCount", count);
+        }
 
         if (const Wt::WDateTime dateTime{ core::Service<feedback::IFeedbackService>::get()->getStarredDateTime(context.getUser()->getId(), artist->getId()) }; dateTime.isValid())
             artistNode.setAttribute("starred", core::stringUtils::toISO8601String(dateTime));
@@ -107,12 +115,32 @@ namespace lms::api::subsonic
         return artistNode;
     }
 
-    Response::Node createArtistNode(const Artist::pointer& artist)
+    Response::Node createMinimalArtistNode(const Artist::pointer& artist)
     {
         Response::Node artistNode;
 
         artistNode.setAttribute("id", idToString(artist->getId()));
         artistNode.setAttribute("name", artist->getName());
+
+        return artistNode;
+    }
+
+    Response::Node createMinimalArtistNode(const db::ObjectPtr<db::ReleaseArtistLink>& artistLink)
+    {
+        Response::Node artistNode;
+
+        artistNode.setAttribute("id", idToString(artistLink->getArtistId()));
+        artistNode.setAttribute("name", artistLink->getArtistName());
+
+        return artistNode;
+    }
+
+    Response::Node createMinimalArtistNode(const db::ObjectPtr<db::TrackArtistLink>& artistLink)
+    {
+        Response::Node artistNode;
+
+        artistNode.setAttribute("id", idToString(artistLink->getArtistId()));
+        artistNode.setAttribute("name", artistLink->getArtistName());
 
         return artistNode;
     }

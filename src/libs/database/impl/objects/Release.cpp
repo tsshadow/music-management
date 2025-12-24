@@ -31,6 +31,7 @@
 #include "database/objects/Directory.hpp"
 #include "database/objects/MediaLibrary.hpp"
 #include "database/objects/Medium.hpp"
+#include "database/objects/ReleaseArtistLink.hpp"
 #include "database/objects/Track.hpp"
 #include "database/objects/TrackArtistLink.hpp"
 #include "database/objects/TrackEmbeddedImage.hpp"
@@ -72,7 +73,7 @@ namespace lms::db
                 || params.sortMethod == ReleaseSortMethod::OriginalDateDesc
                 || params.writtenAfter.isValid()
                 || params.dateRange
-                || params.artist.isValid()
+                || params.trackArtist.isValid()
                 || params.filters.clusters.size() == 1
                 || params.filters.mediaLibrary.isValid()
                 || params.filters.codec.has_value()
@@ -141,13 +142,22 @@ namespace lms::db
                     .bind(SyncState::PendingRemove);
             }
 
-            if (params.artist.isValid()
+            if (params.artist.isValid())
+            {
+                assert(!params.trackArtist.isValid());
+                query.join("release_artist_link r_a_l ON r_a_l.release_id = r.id");
+                query.where("r_a_l.artist_id = ?").bind(params.artist);
+            }
+
+            if (params.trackArtist.isValid()
                 || params.sortMethod == ReleaseSortMethod::ArtistNameThenName)
             {
+                assert(!params.artist.isValid());
+
                 query.join("track_artist_link t_a_l ON t_a_l.track_id = t.id");
 
-                if (params.artist.isValid())
-                    query.where("t_a_l.artist_id = ?").bind(params.artist);
+                if (params.trackArtist.isValid())
+                    query.where("t_a_l.artist_id = ?").bind(params.trackArtist);
 
                 if (params.sortMethod == ReleaseSortMethod::ArtistNameThenName)
                     query.join("artist a ON a.id = t_a_l.artist_id");
@@ -166,30 +176,6 @@ namespace lms::db
 
                         first = false;
                     }
-                    query.where(oss.str());
-                }
-
-                if (!params.excludedTrackArtistLinkTypes.empty())
-                {
-                    std::ostringstream oss;
-                    oss << "r.id NOT IN (SELECT DISTINCT r.id FROM release r"
-                           " INNER JOIN track_artist_link t_a_l ON t_a_l.track_id = t.id"
-                           " INNER JOIN track t ON t.release_id = r.id"
-                           " WHERE (t_a_l.artist_id = ? AND (";
-
-                    query.bind(params.artist);
-
-                    bool first{ true };
-                    for (const TrackArtistLinkType linkType : params.excludedTrackArtistLinkTypes)
-                    {
-                        if (!first)
-                            oss << " OR ";
-                        oss << "t_a_l.type = ?";
-                        query.bind(linkType);
-
-                        first = false;
-                    }
-                    oss << ")))";
                     query.where(oss.str());
                 }
             }
@@ -272,7 +258,7 @@ namespace lms::db
         }
 
         template<typename ResultType>
-        Wt::Dbo::Query<ResultType> createArtistQuery(Wt::Dbo::Session& session, std::string_view itemToSelect, ReleaseId releaseId, TrackArtistLinkType linkType)
+        Wt::Dbo::Query<ResultType> createTrackArtistQuery(Wt::Dbo::Session& session, std::string_view itemToSelect, ReleaseId releaseId, TrackArtistLinkType linkType)
         {
             auto query{ session.query<ResultType>("SELECT " + std::string{ itemToSelect } + " from artist a")
                             .join("track_artist_link t_a_l ON t_a_l.artist_id = a.id")
@@ -700,19 +686,50 @@ namespace lms::db
         return res;
     }
 
-    std::vector<Artist::pointer> Release::getArtists(TrackArtistLinkType linkType) const
+    std::vector<ObjectPtr<Artist>> Release::getArtists() const
     {
         assert(session());
 
-        const auto query{ createArtistQuery<Wt::Dbo::ptr<Artist>>(*session(), "a", getId(), linkType) };
+        auto query{ session()->query<Wt::Dbo::ptr<Artist>>("SELECT a from artist a") };
+        query.join("release_artist_link r_a_l ON r_a_l.artist_id = a.id");
+        query.where("r_a_l.release_id = ?").bind(getId());
+        query.groupBy("a.id");
+
         return utils::fetchQueryResults<Artist::pointer>(query);
     }
 
-    std::vector<ArtistId> Release::getArtistIds(TrackArtistLinkType linkType) const
+    bool Release::hasArtist(ArtistId artistId) const
     {
         assert(session());
 
-        const auto query{ createArtistQuery<ArtistId>(*session(), "a.id", getId(), linkType) };
+        auto query{ session()->query<int>("SELECT COUNT(1) FROM release_artist_link r_a_l") };
+        query.where("r_a_l.release_id = ?").bind(getId());
+        query.where("r_a_l.artist_id = ?").bind(artistId);
+
+        return utils::fetchQuerySingleResult(query) > 0;
+    }
+
+    std::vector<Artist::pointer> Release::getTrackArtists(TrackArtistLinkType type) const
+    {
+        assert(session());
+
+        const auto query{ createTrackArtistQuery<Wt::Dbo::ptr<Artist>>(*session(), "a", getId(), type) };
+        return utils::fetchQueryResults<Artist::pointer>(query);
+    }
+
+    void Release::visitTrackArtists(TrackArtistLinkType type, std::function<void(const ObjectPtr<Artist>&)> visitor) const
+    {
+        assert(session());
+
+        const auto query{ createTrackArtistQuery<Wt::Dbo::ptr<Artist>>(*session(), "a", getId(), type) };
+        return utils::forEachQueryResult(query, visitor);
+    }
+
+    std::vector<ArtistId> Release::getTrackArtistIds(TrackArtistLinkType linkType) const
+    {
+        assert(session());
+
+        const auto query{ createTrackArtistQuery<ArtistId>(*session(), "a.id", getId(), linkType) };
         return utils::fetchQueryResults(query);
     }
 
@@ -765,6 +782,36 @@ namespace lms::db
         return utils::fetchQueryResults<Medium::pointer>(query);
     }
 
+    std::vector<ObjectPtr<ReleaseArtistLink>> Release::getArtistLinks() const
+    {
+        return utils::fetchQueryResults<ReleaseArtistLink::pointer>(_releaseArtistLinks.find());
+    }
+
+    void Release::visitArtistLinks(const std::function<void(const ReleaseArtistLink::pointer& artistLink)>& visitor) const
+    {
+        return utils::forEachQueryResult(_releaseArtistLinks.find(), visitor);
+    }
+
+    void Release::visitTrackArtistLinks(TrackArtistLinkType linkType, const std::function<void(const ObjectPtr<TrackArtistLink>& artistLink)>& visitor) const
+    {
+        auto query{ session()->query<Wt::Dbo::ptr<TrackArtistLink>>("SELECT t_a_l from track_artist_link t_a_l") };
+        query.join("track t ON t.id = t_a_l.track_id");
+        query.where("t.release_id = ?").bind(getId());
+        query.where("t_a_l.type = ?").bind(linkType);
+
+        utils::forEachQueryResult(query, visitor);
+    }
+
+    void Release::clearArtistLinks()
+    {
+        _releaseArtistLinks.clear();
+    }
+
+    void Release::addArtistLink(const ObjectPtr<ReleaseArtistLink>& artistLink)
+    {
+        _releaseArtistLinks.insert(getDboPtr(artistLink));
+    }
+
     void Release::clearLabels()
     {
         _labels.clear();
@@ -803,7 +850,7 @@ namespace lms::db
     bool Release::hasVariousArtists() const
     {
         // TODO optimize
-        return getArtists().size() > 1;
+        return getTrackArtists().size() > 1;
     }
 
     std::size_t Release::getTrackCount() const

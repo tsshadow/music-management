@@ -238,17 +238,16 @@
 <message id="Lms.Explore.Artist.similar-artists">相似歌手</message>
 
 <!--Explore:Artists-->
-<message id="Lms.Explore.Artists.linktype-all">所有艺术家</message>
-<message id="Lms.Explore.Artists.linktype-artist">曲目艺术家</message>
-<message id="Lms.Explore.Artists.linktype-composer">作曲者</message>
-<message id="Lms.Explore.Artists.linktype-conductor">指挥</message>
-<message id="Lms.Explore.Artists.linktype-lyricist">作词者</message>
-<message id="Lms.Explore.Artists.linktype-mixer">混音师</message>
-<message id="Lms.Explore.Artists.linktype-performer">表演者</message>
-<message id="Lms.Explore.Artists.linktype-producer">制作人</message>
-<message id="Lms.Explore.Artists.linktype-releaseartist">专辑艺术家</message>
-<message id="Lms.Explore.Artists.linktype-remixer">混音师</message>
-
+<message id="Lms.Explore.Artists.all">所有艺术家</message>
+<message id="Lms.Explore.Artists.composer">作曲者</message>
+<message id="Lms.Explore.Artists.conductor">指挥</message>
+<message id="Lms.Explore.Artists.lyricist">作词者</message>
+<message id="Lms.Explore.Artists.mixer">混音师</message>
+<message id="Lms.Explore.Artists.performer">表演者</message>
+<message id="Lms.Explore.Artists.producer">制作人</message>
+<message id="Lms.Explore.Artists.release-artist">专辑艺术家</message>
+<message id="Lms.Explore.Artists.remixer">混音师</message>
+<message id="Lms.Explore.Artists.track-artist">曲目艺术家</message>
 
 <!--Explore:Release-->
 <message id="Lms.Explore.Release.copyright">版权所有</message>

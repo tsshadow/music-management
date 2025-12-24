@@ -62,15 +62,15 @@ namespace lms::db
         struct FindParameters
         {
             Filters filters;
-            std::vector<std::string_view> keywords;      // if non empty, name must match all of these keywords (on either name field OR sort name field)
-            std::optional<TrackArtistLinkType> linkType; // if set, only artists that have produced at least one track with this link type
+            std::vector<std::string_view> keywords;                 // if non empty, name must match all of these keywords (on either name field OR sort name field)
+            bool releaseArtistsOnly{};                              // if set, only release artists
+            std::optional<TrackArtistLinkType> trackArtistLinkType; // if set, only artists that have produced at least one track with this link type
             ArtistSortMethod sortMethod{ ArtistSortMethod::None };
             std::optional<Range> range;
             Wt::WDateTime writtenAfter;
             UserId starringUser;                            // only artists starred by this user
             std::optional<FeedbackBackend> feedbackBackend; // and for this feedback backend
             TrackId track;                                  // artists involved in this track
-            ReleaseId release;                              // artists involved in this release
 
             FindParameters& setFilters(const Filters& _filters)
             {
@@ -82,9 +82,14 @@ namespace lms::db
                 keywords = _keywords;
                 return *this;
             }
-            FindParameters& setLinkType(std::optional<TrackArtistLinkType> _linkType)
+            FindParameters& setReleaseArtistsOnly(bool _releaseArtistsOnly)
             {
-                linkType = _linkType;
+                releaseArtistsOnly = _releaseArtistsOnly;
+                return *this;
+            }
+            FindParameters& setTrackArtistLinkType(std::optional<TrackArtistLinkType> _trackArtistLinkType)
+            {
+                trackArtistLinkType = _trackArtistLinkType;
                 return *this;
             }
             FindParameters& setSortMethod(ArtistSortMethod _sortMethod)
@@ -111,11 +116,6 @@ namespace lms::db
             FindParameters& setTrack(TrackId _track)
             {
                 track = _track;
-                return *this;
-            }
-            FindParameters& setRelease(ReleaseId _release)
-            {
-                release = _release;
                 return *this;
             }
         };

@@ -109,7 +109,7 @@ namespace lms::api::subsonic
         {
             // API says: "Returns a random collection of songs from the given artist and similar artists"
             const std::size_t similarArtistCount{ count / 5 };
-            std::vector<ArtistId> artistIds{ core::Service<recommendation::IRecommendationService>::get()->getSimilarArtists(artistId, { TrackArtistLinkType::Artist, TrackArtistLinkType::ReleaseArtist }, similarArtistCount) };
+            std::vector<ArtistId> artistIds{ core::Service<recommendation::IRecommendationService>::get()->getSimilarArtists(artistId, { TrackArtistLinkType::Artist }, similarArtistCount) };
             artistIds.push_back(artistId);
 
             const std::size_t meanTrackCountPerArtist{ (count / artistIds.size()) + 1 };
@@ -392,16 +392,16 @@ namespace lms::api::subsonic
             case SubsonicArtistListMode::AllArtists:
                 break;
             case SubsonicArtistListMode::ReleaseArtists:
-                parameters.setLinkType(TrackArtistLinkType::ReleaseArtist);
+                parameters.setReleaseArtistsOnly(true);
                 break;
             case SubsonicArtistListMode::TrackArtists:
-                parameters.setLinkType(TrackArtistLinkType::Artist);
+                parameters.setTrackArtistLinkType(TrackArtistLinkType::Artist);
                 break;
             }
         }
         parameters.filters.setMediaLibrary(mediaLibrary);
 
-        // This endpoint does not scale: make sort lived transactions in order not to block the whole application
+        // This endpoint does not scale: make short lived transactions in order not to block the whole application
 
         // first pass: dispatch the artists by first letter
         LMS_LOG(API_SUBSONIC, DEBUG, "GetArtists: fetching all artists...");
@@ -419,12 +419,7 @@ namespace lms::api::subsonic
             {
                 std::string_view sortName{ artist->getSortName() };
 
-                char sortChar;
-                if (sortName.empty() || !std::isalpha(sortName[0]))
-                    sortChar = '#';
-                else
-                    sortChar = std::toupper(sortName[0]);
-
+                const char sortChar{ (sortName.empty() || !std::isalpha(sortName[0])) ? '#' : static_cast<char>(std::toupper(sortName[0])) };
                 artistsSortedByFirstChar[sortChar].push_back(artist->getId());
             }
 
@@ -465,9 +460,18 @@ namespace lms::api::subsonic
         Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
         Response::Node artistNode{ createArtistNode(context, artist) };
 
-        const auto releases{ Release::find(context.getDbSession(), Release::FindParameters{}.setArtist(artist->getId())) };
-        for (const Release::pointer& release : releases.results)
+        auto addRelease{ [&](const Release::pointer& release) {
             artistNode.addArrayChild("album", createAlbumNode(context, release, true /* id3 */));
+        } };
+
+        Release::find(context.getDbSession(), Release::FindParameters{}.setArtist(artist->getId()), [&](const db::Release::pointer& release) {
+            addRelease(release);
+        });
+
+        Release::find(context.getDbSession(), Release::FindParameters{}.setTrackArtist(artist->getId()), [&](const db::Release::pointer& release) {
+            if (!release->hasArtist(id))
+                addRelease(release);
+        });
 
         response.addNode("artist", std::move(artistNode));
 
@@ -561,7 +565,7 @@ namespace lms::api::subsonic
             });
         }
 
-        auto similarArtistsId{ core::Service<recommendation::IRecommendationService>::get()->getSimilarArtists(id, { TrackArtistLinkType::Artist, TrackArtistLinkType::ReleaseArtist }, count) };
+        auto similarArtistsId{ core::Service<recommendation::IRecommendationService>::get()->getSimilarArtists(id, { TrackArtistLinkType::Artist }, count) };
 
         {
             auto transaction{ context.getDbSession().createReadTransaction() };

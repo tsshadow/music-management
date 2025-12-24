@@ -36,6 +36,7 @@
 #include "database/objects/Listen.hpp"
 #include "database/objects/Release.hpp"
 #include "database/objects/Track.hpp"
+#include "database/objects/TrackArtistLink.hpp"
 #include "database/objects/User.hpp"
 #include "services/scrobbling/Exception.hpp"
 
@@ -46,6 +47,27 @@ namespace lms::scrobbling::listenBrainz
 {
     namespace
     {
+        struct Artist
+        {
+            std::string name;
+            std::optional<core::UUID> mbid;
+        };
+        std::vector<Artist> getTrackArtists(const db::Track::pointer& track)
+        {
+            std::vector<Artist> artists;
+
+            for (const db::TrackArtistLink::pointer& trackArtistLink : track->getArtistLinks(db::TrackArtistLinkType::Artist))
+            {
+                const auto trackArtist{ trackArtistLink->getArtist() };
+                if (!trackArtist)
+                    continue;
+
+                artists.emplace_back(Artist{ std::string{ trackArtistLink->getArtistName() }, trackArtist->getMBID() });
+            }
+
+            return artists;
+        }
+
         std::optional<Wt::Json::Object> listenToJsonPayload(db::Session& session, const scrobbling::Listen& listen, const Wt::WDateTime& timePoint)
         {
             auto transaction{ session.createReadTransaction() };
@@ -54,10 +76,7 @@ namespace lms::scrobbling::listenBrainz
             if (!track)
                 return std::nullopt;
 
-            auto artists{ track->getArtists({ db::TrackArtistLinkType::Artist }) };
-            if (artists.empty())
-                artists = track->getArtists({ db::TrackArtistLinkType::ReleaseArtist });
-
+            const std::vector<Artist> artists{ getTrackArtists(track) };
             if (artists.empty())
             {
                 LOG(DEBUG, "Track cannot be scrobbled since it does not have any artist");
@@ -77,10 +96,10 @@ namespace lms::scrobbling::listenBrainz
 
             {
                 Wt::Json::Array artistMBIDs;
-                for (const db::Artist::pointer& artist : artists)
+                for (const Artist& artist : artists)
                 {
-                    if (auto MBID{ artist->getMBID() })
-                        artistMBIDs.push_back(Wt::Json::Value{ std::string{ MBID->getAsString() } });
+                    if (artist.mbid)
+                        artistMBIDs.push_back(Wt::Json::Value{ std::string{ artist.mbid->getAsString() } });
                 }
 
                 if (!artistMBIDs.empty())

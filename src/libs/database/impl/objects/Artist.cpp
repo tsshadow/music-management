@@ -27,9 +27,7 @@
 #include "database/objects/Cluster.hpp"
 #include "database/objects/Directory.hpp"
 #include "database/objects/Release.hpp"
-// #include "database/objects/StarredArtist.hpp"
 #include "database/objects/Track.hpp"
-// #include "database/objects/TrackArtistLink.hpp"
 #include "database/objects/User.hpp"
 
 #include "SqlQuery.hpp"
@@ -53,9 +51,8 @@ namespace lms::db
             if (params.sortMethod == ArtistSortMethod::LastWrittenDesc
                 || params.sortMethod == ArtistSortMethod::AddedDesc
                 || params.writtenAfter.isValid()
-                || params.linkType
+                || params.trackArtistLinkType.has_value()
                 || params.track.isValid()
-                || params.release.isValid()
                 || params.filters.clusters.size() == 1
                 || params.filters.codec.has_value()
                 || params.filters.mediaLibrary.isValid()
@@ -68,7 +65,6 @@ namespace lms::db
             if (params.sortMethod == ArtistSortMethod::LastWrittenDesc
                 || params.sortMethod == ArtistSortMethod::AddedDesc
                 || params.writtenAfter.isValid()
-                || params.release.isValid()
                 || params.filters.codec.has_value()
                 || params.filters.mediaLibrary.isValid()
                 || params.filters.label.isValid()
@@ -78,9 +74,6 @@ namespace lms::db
 
                 if (params.writtenAfter.isValid())
                     query.where("t.file_last_write > ?").bind(params.writtenAfter);
-
-                if (params.release.isValid())
-                    query.where("t.release_id = ?").bind(params.release);
 
                 if (params.filters.codec.has_value())
                     query.where("t.codec = ?").bind(detail::getDbCodec(*params.filters.codec));
@@ -101,8 +94,11 @@ namespace lms::db
                 }
             }
 
-            if (params.linkType)
-                query.where("+t_a_l.type = ?").bind(*params.linkType); // Exclude this since the query planner does not do a good job when db is not analyzed
+            if (params.releaseArtistsOnly)
+                query.join("release_artist_link r_a_l ON r_a_l.artist_id = a.id");
+
+            if (params.trackArtistLinkType.has_value())
+                query.where("+t_a_l.type = ?").bind(*params.trackArtistLinkType); // Exclude this since the query planner does not do a good job when db is not analyzed
 
             if (!params.keywords.empty())
             {
@@ -318,6 +314,7 @@ namespace lms::db
 
     RangeResults<ArtistId> Artist::findOrphanIds(Session& session, std::optional<Range> range)
     {
+        // TODO extend with release artists
         session.checkReadTransaction();
         auto query{ session.getDboSession()->query<ArtistId>(R"(SELECT DISTINCT a.id FROM artist a 
 WHERE NOT EXISTS (
@@ -327,6 +324,12 @@ WHERE NOT EXISTS (
     ON t_a_l.artist_id = a.id 
     WHERE t.id = t_a_l.track_id
 )
+AND NOT EXISTS (
+    SELECT 1 
+    FROM release r 
+    INNER JOIN release_artist_link r_a_l 
+    ON r_a_l.artist_id = a.id 
+    WHERE r.id = r_a_l.release_id)
 AND NOT EXISTS (
     SELECT 1 
     FROM artist_info ai 

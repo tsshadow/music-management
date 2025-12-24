@@ -39,6 +39,7 @@
 #include "database/objects/MediaLibrary.hpp"
 #include "database/objects/Medium.hpp"
 #include "database/objects/Release.hpp"
+#include "database/objects/ReleaseArtistLink.hpp"
 #include "database/objects/Track.hpp"
 #include "database/objects/TrackArtistLink.hpp"
 #include "database/objects/TrackEmbeddedImage.hpp"
@@ -118,8 +119,8 @@ namespace lms
             if (mediaLibrary)
                 track.modify()->setMediaLibrary(mediaLibrary);
 
-            TrackArtistLink::create(context.session, track, artist, TrackArtistLinkType::Artist);
-            TrackArtistLink::create(context.session, track, artist, TrackArtistLinkType::ReleaseArtist);
+            context.session.create<TrackArtistLink>(track, artist, TrackArtistLinkType::Artist);
+            context.session.create<ReleaseArtistLink>(release, artist, false);
 
             if (!trackEmbeddedImages.empty())
                 context.session.create<TrackEmbeddedImageLink>(track, *core::random::pickRandom(trackEmbeddedImages));

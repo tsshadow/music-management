@@ -97,8 +97,14 @@ namespace lms::scrobbling
         {
             std::optional<db::TrackArtistLinkType> linkType; // if set, only artists that have produced at least one track with this link type
             db::ArtistSortMethod sortMethod{ db::ArtistSortMethod::None };
+            bool releaseArtistsOnly;
 
-            ArtistFindParameters& setLinkType(std::optional<db::TrackArtistLinkType> _linkType)
+            ArtistFindParameters& setReleaseArtistsOnly(bool _releaseArtistsOnly)
+            {
+                releaseArtistsOnly = _releaseArtistsOnly;
+                return *this;
+            }
+            ArtistFindParameters& setTrackArtistLinkType(std::optional<db::TrackArtistLinkType> _linkType)
             {
                 linkType = _linkType;
                 return *this;

@@ -42,7 +42,8 @@ namespace lms::db
             for (std::string_view keyword : params.keywords)
                 query.where("d.name LIKE ? ESCAPE '" ESCAPE_CHAR_STR "'").bind("%" + utils::escapeForLikeKeyword(keyword) + "%");
 
-            if (params.artist.isValid()
+            if (params.trackArtist.isValid()
+                || params.releaseArtist.isValid()
                 || params.release.isValid()
                 || params.medium.isValid())
             {
@@ -62,12 +63,24 @@ namespace lms::db
             if (params.release.isValid())
                 query.where("t.release_id = ?").bind(params.release);
 
-            if (params.artist.isValid())
+            if (params.releaseArtist.isValid())
             {
+                assert(!params.trackArtist.isValid());
+
+                query.join("artist a ON a.id = r_a_l.artist_id")
+                    .join("release_artist_link r_a_l ON r_a_l.release_id = t.release_id")
+                    .where("a.id = ?")
+                    .bind(params.releaseArtist);
+            }
+
+            if (params.trackArtist.isValid())
+            {
+                assert(!params.releaseArtist.isValid());
+
                 query.join("artist a ON a.id = t_a_l.artist_id")
                     .join("track_artist_link t_a_l ON t_a_l.track_id = t.id")
                     .where("a.id = ?")
-                    .bind(params.artist);
+                    .bind(params.trackArtist);
 
                 if (!params.trackArtistLinkTypes.empty())
                 {

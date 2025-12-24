@@ -728,6 +728,27 @@ namespace lms::db
         return utils::fetchQueryResults<TrackArtistLink::pointer>(_trackArtistLinks.find());
     }
 
+    void Track::visitArtistLinks(const std::function<void(const ObjectPtr<TrackArtistLink>& artistLink)>& visitor) const
+    {
+        utils::forEachQueryResult(_trackArtistLinks.find(), visitor);
+    }
+
+    std::vector<ObjectPtr<TrackArtistLink>> Track::getArtistLinks(TrackArtistLinkType type) const
+    {
+        std::vector<ObjectPtr<TrackArtistLink>> links;
+        visitArtistLinks(type, [&links](const ObjectPtr<TrackArtistLink>& artistLink) { links.push_back(artistLink); });
+        return links;
+    }
+
+    void Track::visitArtistLinks(TrackArtistLinkType type, const std::function<void(const ObjectPtr<TrackArtistLink>& artistLink)>& visitor) const
+    {
+        auto query{ session()->query<Wt::Dbo::ptr<TrackArtistLink>>("SELECT t_a_l from track_artist_link t_a_l") };
+        query.where("t_a_l.track_id = ?").bind(getId());
+        query.where("t_a_l.type = ?").bind(type);
+
+        return utils::forEachQueryResult(query, visitor);
+    }
+
     std::vector<std::vector<Cluster::pointer>> Track::getClusterGroups(const std::vector<ClusterTypeId>& clusterTypeIds, std::size_t size) const
     {
         assert(self());

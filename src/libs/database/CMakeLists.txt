@@ -14,9 +14,7 @@ add_library(lmsdatabase STATIC
 	impl/objects/PlayQueue.cpp
 	impl/objects/Podcast.cpp
 	impl/objects/PodcastEpisode.cpp
-	impl/objects/TrackArtistLink.cpp
-	impl/objects/TrackFeatures.cpp
-	impl/objects/TrackList.cpp
+	impl/objects/ReleaseArtistLink.cpp
 	impl/objects/RatedArtist.cpp
 	impl/objects/RatedRelease.cpp
 	impl/objects/RatedTrack.cpp
@@ -26,9 +24,12 @@ add_library(lmsdatabase STATIC
 	impl/objects/StarredRelease.cpp
 	impl/objects/StarredTrack.cpp
 	impl/objects/Track.cpp
+	impl/objects/TrackArtistLink.cpp
 	impl/objects/TrackBookmark.cpp
 	impl/objects/TrackEmbeddedImage.cpp
 	impl/objects/TrackEmbeddedImageLink.cpp
+	impl/objects/TrackFeatures.cpp
+	impl/objects/TrackList.cpp
 	impl/objects/TrackLyrics.cpp
 	impl/objects/Types.cpp
 	impl/objects/UIState.cpp

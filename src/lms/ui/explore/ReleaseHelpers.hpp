@@ -38,9 +38,14 @@ namespace lms::db
 
 namespace lms::ui::releaseListHelpers
 {
-    std::unique_ptr<Wt::WTemplate> createEntry(const db::ObjectPtr<db::Release>& release);
-    std::unique_ptr<Wt::WTemplate> createEntryForArtist(const db::ObjectPtr<db::Release>& release, const db::ObjectPtr<db::Artist>& artist);
-    std::unique_ptr<Wt::WTemplate> createEntryForOtherVersions(const db::ObjectPtr<db::Release>& release);
+    enum class DisplayOptions
+    {
+        ShowArtist,
+        ShowYearAndOriginalYear,
+        ShowYear,
+    };
+
+    std::unique_ptr<Wt::WTemplate> createEntry(const db::ObjectPtr<db::Release>& release, core::EnumSet<DisplayOptions> options);
 } // namespace lms::ui::releaseListHelpers
 
 namespace lms::ui::releaseHelpers

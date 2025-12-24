@@ -86,6 +86,12 @@ namespace lms::db
         PubDateDesc,
     };
 
+    enum class ReleaseArtistLinkSortMethod
+    {
+        None,
+        OriginalDateDesc,
+    };
+
     enum class ReleaseSortMethod
     {
         None,
@@ -165,7 +171,7 @@ namespace lms::db
         Mixer = 5,
         Performer = 6,
         Producer = 7,
-        ReleaseArtist = 8,
+        // ReleaseArtist = 8,
         Remixer = 9,
         Writer = 10,
     };

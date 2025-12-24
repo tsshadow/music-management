@@ -35,6 +35,7 @@
 #include "database/objects/Release.hpp"
 #include "database/objects/Track.hpp"
 #include "database/objects/TrackList.hpp"
+#include "database/objects/Types.hpp"
 #include "database/objects/User.hpp"
 
 #include "LmsApplication.hpp"
@@ -194,7 +195,7 @@ namespace lms::ui
         _audioFileResource = std::make_unique<AudioFileResource>();
 
         _title = bindNew<Wt::WText>("title");
-        _artist = bindNew<Wt::WAnchor>("artist");
+        _artists = bindNew<Wt::WContainerWidget>("artist");
         _release = bindNew<Wt::WAnchor>("release");
         _separator = bindNew<Wt::WText>("separator");
         _playQueue = bindNew<Wt::WPushButton>("playqueue-btn", Wt::WString::tr("Lms.MediaPlayer.template.playqueue-btn").arg(0), Wt::TextFormat::XHTML);
@@ -237,10 +238,12 @@ namespace lms::ui
             if (!track)
                 return;
 
+            const auto release{ track->getRelease() };
+
             const std::string transcodingResource{ _audioTranscodingResource->getUrl(trackId) };
             const std::string nativeResource{ _audioFileResource->getUrl(trackId) };
 
-            const auto artists{ track->getArtists({ db::TrackArtistLinkType::Artist }) };
+            const auto artistDisplayInfo{ utils::computeArtistDisplayInfo(track, db::TrackArtistLinkType::Artist) };
 
             oss
                 << "var params = {"
@@ -250,8 +253,8 @@ namespace lms::ui
                 << " duration: " << std::chrono::duration_cast<std::chrono::duration<float>>(track->getDuration()).count() << ","
                 << " replayGain: " << replayGain << ","
                 << " title: \"" << core::stringUtils::jsEscape(track->getName()) << "\","
-                << " artist: \"" << (!artists.empty() ? core::stringUtils::jsEscape(track->getArtistDisplayName()) : "") << "\","
-                << " release: \"" << (track->getRelease() ? core::stringUtils::jsEscape(track->getRelease()->getName()) : "") << "\",";
+                << " artist: \"" << (!artistDisplayInfo.displayName.empty() ? core::stringUtils::jsEscape(track->getArtistDisplayName()) : "") << "\","
+                << " release: \"" << (release ? core::stringUtils::jsEscape(release->getName()) : "") << "\",";
 
             db::ArtworkId artworkId{ track->getPreferredMediaArtworkId() };
             if (!artworkId.isValid())
@@ -281,22 +284,12 @@ namespace lms::ui
             _title->setTextFormat(Wt::TextFormat::Plain);
             _title->setText(Wt::WString::fromUTF8(track->getName()));
 
-            bool needSeparator{ true };
+            _artists->clear();
+            _artists->addWidget(utils::createArtistsAnchors(artistDisplayInfo));
 
-            if (!artists.empty())
-            {
-                _artist->setTextFormat(Wt::TextFormat::Plain);
-                _artist->setText(Wt::WString::fromUTF8(artists.front()->getName()));
-                _artist->setLink(utils::createArtistLink(artists.front()));
-            }
-            else
-            {
-                _artist->setText("");
-                _artist->setLink({});
-                needSeparator = false;
-            }
+            bool needSeparator{ !artistDisplayInfo.displayName.empty() };
 
-            if (const db::Release::pointer release{ track->getRelease() })
+            if (release)
             {
                 _release->setTextFormat(Wt::TextFormat::Plain);
                 _release->setText(Wt::WString::fromUTF8(std::string{ release->getName() }));

@@ -21,6 +21,7 @@
 
 #include "database/objects/Artwork.hpp"
 #include "database/objects/Image.hpp"
+#include "database/objects/ReleaseArtistLink.hpp"
 
 namespace lms::db::tests
 {
@@ -98,10 +99,10 @@ namespace lms::db::tests
             auto transaction{ session.createWriteTransaction() };
             track2a.get().modify()->setMediaLibrary(library.get());
             track2b.get().modify()->setMediaLibrary(library.get());
-            TrackArtistLink::create(session, track1.get(), artist1.get(), TrackArtistLinkType::Artist);
-            TrackArtistLink::create(session, track2a.get(), artist2.get(), TrackArtistLinkType::Artist);
-            TrackArtistLink::create(session, track2b.get(), artist2.get(), TrackArtistLinkType::Artist);
-            TrackArtistLink::create(session, track3.get(), artist3.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track1.get(), artist1.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track2a.get(), artist2.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track2b.get(), artist2.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track3.get(), artist3.get(), TrackArtistLinkType::Artist);
         }
 
         {
@@ -243,7 +244,7 @@ namespace lms::db::tests
             auto transaction{ session.createWriteTransaction() };
 
             track.get().modify()->setName("MyTrackName");
-            TrackArtistLink::create(session, track.get(), artist.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Artist);
         }
 
         {
@@ -258,13 +259,39 @@ namespace lms::db::tests
             ASSERT_EQ(artists.size(), 1);
             EXPECT_EQ(artists.front()->getId(), artist.getId());
 
+            {
+                bool visited{};
+                track->visitArtistLinks([&](const db::TrackArtistLink::pointer& artistLink) {
+                    visited = true;
+                    EXPECT_EQ(artistLink->getArtistId(), artist.getId());
+                });
+                EXPECT_TRUE(visited);
+            }
+
+            {
+                bool visited{};
+                track->visitArtistLinks(TrackArtistLinkType::Artist, [&](const db::TrackArtistLink::pointer& artistLink) {
+                    visited = true;
+                    EXPECT_EQ(artistLink->getArtistId(), artist.getId());
+                });
+                EXPECT_TRUE(visited);
+            }
+
+            {
+                bool visited{};
+                track->visitArtistLinks(TrackArtistLinkType::Conductor, [&](const db::TrackArtistLink::pointer&) {
+                    visited = true;
+                });
+                EXPECT_FALSE(visited);
+            }
+
             ASSERT_EQ(track->getArtistLinks().size(), 1);
             auto artistLink{ track->getArtistLinks().front() };
             EXPECT_EQ(artistLink->getTrack()->getId(), track.getId());
             EXPECT_EQ(artistLink->getArtist()->getId(), artist.getId());
 
             ASSERT_EQ(track->getArtists({ TrackArtistLinkType::Artist }).size(), 1);
-            EXPECT_EQ(track->getArtists({ TrackArtistLinkType::ReleaseArtist }).size(), 0);
+            EXPECT_EQ(track->getArtists({ TrackArtistLinkType::Composer }).size(), 0);
             EXPECT_EQ(track->getArtists({}).size(), 1);
         }
 
@@ -276,7 +303,7 @@ namespace lms::db::tests
             EXPECT_EQ(artists.front(), artist.getId());
 
             ASSERT_EQ(track->getArtistIds({ TrackArtistLinkType::Artist }).size(), 1);
-            EXPECT_EQ(track->getArtistIds({ TrackArtistLinkType::ReleaseArtist }).size(), 0);
+            EXPECT_EQ(track->getArtistIds({ TrackArtistLinkType::Composer }).size(), 0);
             EXPECT_EQ(track->getArtistIds({}).size(), 1);
         }
 
@@ -302,6 +329,32 @@ namespace lms::db::tests
             ASSERT_EQ(artists.results.size(), 1);
             EXPECT_EQ(artists.results.front(), artist.getId());
         }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(Artist::find(session, Artist::FindParameters{}.setReleaseArtistsOnly(true)).results.size(), 0);
+        }
+    }
+
+    TEST_F(DatabaseFixture, Artist_singleRelease)
+    {
+        ScopedRelease release{ session, "MyRelease" };
+        ScopedArtist artist{ session, "MyArtist" };
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(Artist::findOrphanIds(session).results, std::vector<db::ArtistId>{ artist.getId() });
+        }
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.create<ReleaseArtistLink>(release.get(), artist.get(), false);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(Artist::findOrphanIds(session).results.size(), 0);
+        }
     }
 
     TEST_F(DatabaseFixture, Artist_singleTrack_mediaLibrary)
@@ -315,7 +368,7 @@ namespace lms::db::tests
             auto transaction{ session.createWriteTransaction() };
 
             track.get().modify()->setName("MyTrackName");
-            TrackArtistLink::create(session, track.get(), artist.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Artist);
             track.get().modify()->setMediaLibrary(library.get());
         }
         {
@@ -344,9 +397,9 @@ namespace lms::db::tests
         {
             auto transaction{ session.createWriteTransaction() };
 
-            TrackArtistLink::create(session, track.get(), artist.get(), TrackArtistLinkType::Artist);
-            TrackArtistLink::create(session, track.get(), artist.get(), TrackArtistLinkType::ReleaseArtist);
-            TrackArtistLink::create(session, track.get(), artist.get(), TrackArtistLinkType::Writer);
+            session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Producer);
+            session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Writer);
         }
 
         {
@@ -357,10 +410,12 @@ namespace lms::db::tests
         {
             auto transaction{ session.createReadTransaction() };
             EXPECT_EQ(Artist::findIds(session, Artist::FindParameters{}).results.size(), 1);
-            EXPECT_EQ(Artist::findIds(session, Artist::FindParameters{}.setLinkType(TrackArtistLinkType::Artist)).results.size(), 1);
-            EXPECT_EQ(Artist::findIds(session, Artist::FindParameters{}.setLinkType(TrackArtistLinkType::ReleaseArtist)).results.size(), 1);
-            EXPECT_EQ(Artist::findIds(session, Artist::FindParameters{}.setLinkType(TrackArtistLinkType::Writer)).results.size(), 1);
-            EXPECT_EQ(Artist::findIds(session, Artist::FindParameters{}.setLinkType(TrackArtistLinkType::Composer)).results.size(), 0);
+            EXPECT_EQ(Artist::findIds(session, Artist::FindParameters{}.setTrackArtistLinkType(TrackArtistLinkType::Artist)).results.size(), 1);
+            EXPECT_EQ(Artist::findIds(session, Artist::FindParameters{}.setTrackArtistLinkType(TrackArtistLinkType::Producer)).results.size(), 1);
+            EXPECT_EQ(Artist::findIds(session, Artist::FindParameters{}.setTrackArtistLinkType(TrackArtistLinkType::Writer)).results.size(), 1);
+            EXPECT_EQ(Artist::findIds(session, Artist::FindParameters{}.setTrackArtistLinkType(TrackArtistLinkType::Composer)).results.size(), 0);
+
+            EXPECT_EQ(Artist::findIds(session, Artist::FindParameters{}.setReleaseArtistsOnly(true)).results.size(), 0);
         }
 
         {
@@ -370,7 +425,7 @@ namespace lms::db::tests
             ASSERT_EQ(artists.size(), 1);
             EXPECT_EQ(artists.front()->getId(), artist.getId());
 
-            artists = track->getArtists({ TrackArtistLinkType::ReleaseArtist });
+            artists = track->getArtists({ TrackArtistLinkType::Producer });
             ASSERT_EQ(artists.size(), 1);
             EXPECT_EQ(artists.front()->getId(), artist.getId());
 
@@ -379,7 +434,7 @@ namespace lms::db::tests
             auto tracks{ Track::findIds(session, Track::FindParameters{}.setArtist(artist.getId())) };
             EXPECT_EQ(tracks.results.size(), 1);
 
-            tracks = Track::findIds(session, Track::FindParameters{}.setArtist(artist.getId(), { TrackArtistLinkType::ReleaseArtist }));
+            tracks = Track::findIds(session, Track::FindParameters{}.setArtist(artist.getId(), { TrackArtistLinkType::Producer }));
             EXPECT_EQ(tracks.results.size(), 1);
             tracks = Track::findIds(session, Track::FindParameters{}.setArtist(artist.getId(), { TrackArtistLinkType::Artist }));
             EXPECT_EQ(tracks.results.size(), 1);
@@ -393,7 +448,7 @@ namespace lms::db::tests
         {
             auto transaction{ session.createReadTransaction() };
             core::EnumSet<TrackArtistLinkType> types{ TrackArtistLink::findUsedTypes(session, artist.getId()) };
-            EXPECT_TRUE(types.contains(TrackArtistLinkType::ReleaseArtist));
+            EXPECT_TRUE(types.contains(TrackArtistLinkType::Producer));
             EXPECT_TRUE(types.contains(TrackArtistLinkType::Artist));
             EXPECT_TRUE(types.contains(TrackArtistLinkType::Writer));
             EXPECT_FALSE(types.contains(TrackArtistLinkType::Composer));
@@ -416,7 +471,7 @@ namespace lms::db::tests
             };
 
             EXPECT_TRUE(containsType(TrackArtistLinkType::Artist));
-            EXPECT_TRUE(containsType(TrackArtistLinkType::ReleaseArtist));
+            EXPECT_TRUE(containsType(TrackArtistLinkType::Producer));
             EXPECT_TRUE(containsType(TrackArtistLinkType::Writer));
         }
     }
@@ -431,8 +486,8 @@ namespace lms::db::tests
         {
             auto transaction{ session.createWriteTransaction() };
 
-            TrackArtistLink::create(session, track.get(), artist1.get(), TrackArtistLinkType::Artist);
-            TrackArtistLink::create(session, track.get(), artist2.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track.get(), artist1.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track.get(), artist2.get(), TrackArtistLinkType::Artist);
         }
 
         {
@@ -450,7 +505,7 @@ namespace lms::db::tests
 
             EXPECT_EQ(track->getArtists({}).size(), 2);
             EXPECT_EQ(track->getArtists({ TrackArtistLinkType::Artist }).size(), 2);
-            EXPECT_EQ(track->getArtists({ TrackArtistLinkType::ReleaseArtist }).size(), 0);
+            EXPECT_EQ(track->getArtists({ TrackArtistLinkType::Arranger }).size(), 0);
             EXPECT_EQ(Artist::findIds(session, Artist::FindParameters{}).results.size(), 2);
             EXPECT_EQ(Artist::findIds(session, Artist::FindParameters{}.setSortMethod(ArtistSortMethod::Random)).results.size(), 2);
         }
@@ -466,13 +521,13 @@ namespace lms::db::tests
             ASSERT_EQ(tracks.results.size(), 1);
             EXPECT_EQ(tracks.results.front(), track->getId());
 
-            tracks = Track::findIds(session, Track::FindParameters{}.setArtist(artist1->getId(), { TrackArtistLinkType::ReleaseArtist }));
+            tracks = Track::findIds(session, Track::FindParameters{}.setArtist(artist1->getId(), { TrackArtistLinkType::Arranger }));
             EXPECT_EQ(tracks.results.size(), 0);
 
             tracks = Track::findIds(session, Track::FindParameters{}.setArtist(artist1->getId(), { TrackArtistLinkType::Artist }));
             EXPECT_EQ(tracks.results.size(), 1);
 
-            tracks = Track::findIds(session, Track::FindParameters{}.setArtist(artist2->getId(), { TrackArtistLinkType::ReleaseArtist }));
+            tracks = Track::findIds(session, Track::FindParameters{}.setArtist(artist2->getId(), { TrackArtistLinkType::Arranger }));
             EXPECT_EQ(tracks.results.size(), 0);
 
             tracks = Track::findIds(session, Track::FindParameters{}.setArtist(artist2->getId(), { TrackArtistLinkType::Artist }));
@@ -518,6 +573,27 @@ namespace lms::db::tests
         }
     }
 
+    TEST_F(DatabaseFixture, Artist_findByReleaseArtistLinks)
+    {
+        ScopedRelease release{ session, "release" };
+        ScopedArtist artist{ session, "artist" };
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(Artist::find(session, Artist::FindParameters{}.setReleaseArtistsOnly(true)).results.size(), 0);
+        }
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.create<ReleaseArtistLink>(release.get(), artist.get(), false);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(Artist::find(session, Artist::FindParameters{}.setReleaseArtistsOnly(true)).results.size(), 1);
+        }
+    }
+
     TEST_F(DatabaseFixture, Artist_findByCodec)
     {
         ScopedArtist artist1{ session, "A" };
@@ -527,8 +603,8 @@ namespace lms::db::tests
 
         {
             auto transaction{ session.createWriteTransaction() };
-            TrackArtistLink::create(session, track1.get(), artist1.get(), TrackArtistLinkType::Artist);
-            TrackArtistLink::create(session, track2.get(), artist2.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track1.get(), artist1.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track2.get(), artist2.get(), TrackArtistLinkType::Artist);
 
             track1.get().modify()->setCodec(core::media::Codec::MP3);
             track2.get().modify()->setCodec(core::media::Codec::FLAC);
@@ -554,7 +630,7 @@ namespace lms::db::tests
         {
             auto transaction{ session.createWriteTransaction() };
             artist.get().modify()->setSortName("ZZZ");
-            TrackArtistLink::create(session, track.get(), artist.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Artist);
         }
 
         {
@@ -768,8 +844,8 @@ namespace lms::db::tests
         {
             auto transaction{ session.createWriteTransaction() };
 
-            TrackArtistLink::create(session, track1.get(), artist.get(), TrackArtistLinkType::Artist);
-            TrackArtistLink::create(session, track2.get(), artist.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track1.get(), artist.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track2.get(), artist.get(), TrackArtistLinkType::Artist);
 
             track1.get().modify()->setRelease(release.get());
         }
@@ -780,51 +856,6 @@ namespace lms::db::tests
             const auto tracks{ Track::findIds(session, Track::FindParameters{}.setArtist(artist.getId()).setNonRelease(true)) };
             ASSERT_EQ(tracks.results.size(), 1);
             EXPECT_EQ(tracks.results.front(), track2.getId());
-        }
-    }
-
-    TEST_F(DatabaseFixture, Artist_findByRelease)
-    {
-        ScopedArtist artist{ session, "artist" };
-        ScopedTrack track1{ session };
-        ScopedTrack track2{ session };
-        ScopedRelease release{ session, "MyRelease" };
-
-        {
-            auto transaction{ session.createReadTransaction() };
-            const auto artists{ Artist::findIds(session, Artist::FindParameters{}.setRelease(release.getId())) };
-            EXPECT_EQ(artists.results.size(), 0);
-        }
-
-        {
-            auto transaction{ session.createWriteTransaction() };
-            TrackArtistLink::create(session, track1.get(), artist.get(), TrackArtistLinkType::Artist);
-            TrackArtistLink::create(session, track2.get(), artist.get(), TrackArtistLinkType::Artist);
-        }
-
-        {
-            auto transaction{ session.createReadTransaction() };
-            const auto artists{ Artist::findIds(session, Artist::FindParameters{}.setRelease(release.getId())) };
-            EXPECT_EQ(artists.results.size(), 0);
-        }
-
-        {
-            auto transaction{ session.createWriteTransaction() };
-            track1.get().modify()->setRelease(release.get());
-            track2.get().modify()->setRelease(release.get());
-        }
-
-        {
-            auto transaction{ session.createReadTransaction() };
-            const auto artists{ Artist::findIds(session, Artist::FindParameters{}.setRelease(release.getId())) };
-            ASSERT_EQ(artists.results.size(), 1);
-            EXPECT_EQ(artists.results.front(), artist.getId());
-        }
-
-        {
-            auto transaction{ session.createReadTransaction() };
-            const std::size_t count{ Release::getCount(session, Release::FindParameters{}.setArtist(artist.getId())) };
-            EXPECT_EQ(count, 1);
         }
     }
 
@@ -875,11 +906,11 @@ namespace lms::db::tests
             trackD1.get().modify()->setAddedTime(Wt::WDateTime{ Wt::WDate{ 2021, 1, 3 } });
             trackA2.get().modify()->setAddedTime(Wt::WDateTime{ Wt::WDate{ 2021, 1, 4 } });
 
-            TrackArtistLink::create(session, trackA1.get(), artistA.get(), TrackArtistLinkType::Artist);
-            TrackArtistLink::create(session, trackA2.get(), artistA.get(), TrackArtistLinkType::Producer);
-            TrackArtistLink::create(session, trackB1.get(), artistB.get(), TrackArtistLinkType::Artist);
-            TrackArtistLink::create(session, trackC1.get(), artistC.get(), TrackArtistLinkType::Artist);
-            TrackArtistLink::create(session, trackD1.get(), artistD.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(trackA1.get(), artistA.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(trackA2.get(), artistA.get(), TrackArtistLinkType::Producer);
+            session.create<TrackArtistLink>(trackB1.get(), artistB.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(trackC1.get(), artistC.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(trackD1.get(), artistD.get(), TrackArtistLinkType::Artist);
         }
 
         {
@@ -915,11 +946,11 @@ namespace lms::db::tests
             trackD1.get().modify()->setLastWriteTime(Wt::WDateTime{ Wt::WDate{ 2021, 1, 3 } });
             trackA2.get().modify()->setLastWriteTime(Wt::WDateTime{ Wt::WDate{ 2021, 1, 4 } });
 
-            TrackArtistLink::create(session, trackA1.get(), artistA.get(), TrackArtistLinkType::Artist);
-            TrackArtistLink::create(session, trackA2.get(), artistA.get(), TrackArtistLinkType::Producer);
-            TrackArtistLink::create(session, trackB1.get(), artistB.get(), TrackArtistLinkType::Artist);
-            TrackArtistLink::create(session, trackC1.get(), artistC.get(), TrackArtistLinkType::Artist);
-            TrackArtistLink::create(session, trackD1.get(), artistD.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(trackA1.get(), artistA.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(trackA2.get(), artistA.get(), TrackArtistLinkType::Producer);
+            session.create<TrackArtistLink>(trackB1.get(), artistB.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(trackC1.get(), artistC.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(trackD1.get(), artistD.get(), TrackArtistLinkType::Artist);
         }
 
         {
@@ -976,16 +1007,16 @@ namespace lms::db::tests
             auto transaction{ session.createWriteTransaction() };
 
             {
-                auto link{ TrackArtistLink::create(session, trackA1.get(), artistA.get(), TrackArtistLinkType::Artist, true) };
+                auto link{ session.create<TrackArtistLink>(trackA1.get(), artistA.get(), TrackArtistLinkType::Artist, true) };
                 link.modify()->setArtistName("ArtistA");
             }
             {
-                auto link{ TrackArtistLink::create(session, trackA2.get(), artistA.get(), TrackArtistLinkType::Artist, true) };
+                auto link{ session.create<TrackArtistLink>(trackA2.get(), artistA.get(), TrackArtistLinkType::Artist, true) };
                 link.modify()->setArtistName("AlternateArtistA");
             }
 
             {
-                auto link{ TrackArtistLink::create(session, trackB1.get(), artistB.get(), TrackArtistLinkType::Artist, true) };
+                auto link{ session.create<TrackArtistLink>(trackB1.get(), artistB.get(), TrackArtistLinkType::Artist, true) };
                 link.modify()->setArtistName("ArtistB");
             }
         }

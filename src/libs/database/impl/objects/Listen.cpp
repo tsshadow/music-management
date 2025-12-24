@@ -52,7 +52,8 @@ namespace lms::db
             if (params.filters.mediaLibrary.isValid()
                 || params.filters.codec.has_value()
                 || params.filters.label.isValid()
-                || params.filters.releaseType.isValid())
+                || params.filters.releaseType.isValid()
+                || params.trackArtistLinkType.has_value())
             {
                 query.join("track t ON t.id = t_a_l.track_id");
 
@@ -75,8 +76,11 @@ namespace lms::db
                 }
             }
 
-            if (params.linkType)
-                query.where("t_a_l.type = ?").bind(*params.linkType);
+            if (params.releaseArtistsOnly)
+                query.join("release_artist_link r_a_l ON r_a_l.artist_id = a.id");
+
+            if (params.trackArtistLinkType.has_value())
+                query.where("t_a_l.type = ?").bind(params.trackArtistLinkType.value());
 
             if (!params.filters.clusters.empty())
             {

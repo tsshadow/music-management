@@ -88,10 +88,12 @@ namespace lms::db
     {
         session.checkWriteTransaction();
 
-        TrackArtistLink::pointer res{ session.getDboSession()->add(std::make_unique<TrackArtistLink>(track, artist, type, subType, artistMBIDMatched)) };
-        session.getDboSession()->flush();
+        return session.getDboSession()->add(std::make_unique<TrackArtistLink>(track, artist, type, subType, artistMBIDMatched));
+    }
 
-        return res;
+    TrackArtistLink::pointer TrackArtistLink::create(Session& session, const ObjectPtr<Track>& track, const ObjectPtr<Artist>& artist, TrackArtistLinkType type, bool artistMBIDMatched)
+    {
+        return create(session, track, artist, type, std::string_view{}, artistMBIDMatched);
     }
 
     std::size_t TrackArtistLink::getCount(Session& session)
@@ -99,11 +101,6 @@ namespace lms::db
         session.checkReadTransaction();
 
         return utils::fetchQuerySingleResult(session.getDboSession()->query<int>("SELECT COUNT(*) FROM track_artist_link"));
-    }
-
-    TrackArtistLink::pointer TrackArtistLink::create(Session& session, const ObjectPtr<Track>& track, const ObjectPtr<Artist>& artist, TrackArtistLinkType type, bool artistMBIDMatched)
-    {
-        return create(session, track, artist, type, std::string_view{}, artistMBIDMatched);
     }
 
     TrackArtistLink::pointer TrackArtistLink::find(Session& session, TrackArtistLinkId id)
@@ -125,10 +122,10 @@ namespace lms::db
         });
     }
 
-    void TrackArtistLink::find(Session& session, const FindParameters& parameters, const std::function<void(const TrackArtistLink::pointer&)>& func)
+    void TrackArtistLink::find(Session& session, const FindParameters& params, const std::function<void(const TrackArtistLink::pointer&)>& func)
     {
-        auto query{ createQuery(session, parameters) };
-        utils::forEachQueryRangeResult(query, parameters.range, func);
+        auto query{ createQuery(session, params) };
+        utils::forEachQueryRangeResult(query, params.range, func);
     }
 
     core::EnumSet<TrackArtistLinkType> TrackArtistLink::findUsedTypes(Session& session, ArtistId artistId)

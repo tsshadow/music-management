@@ -307,6 +307,10 @@ namespace lms::db
         std::vector<ObjectPtr<Artist>> getArtists(core::EnumSet<TrackArtistLinkType> artistLinkTypes) const; // no type means all
         std::vector<ArtistId> getArtistIds(core::EnumSet<TrackArtistLinkType> artistLinkTypes) const;        // no type means all
         std::vector<ObjectPtr<TrackArtistLink>> getArtistLinks() const;
+        void visitArtistLinks(const std::function<void(const ObjectPtr<TrackArtistLink>& artistLink)>& visitor) const;
+        std::vector<ObjectPtr<TrackArtistLink>> getArtistLinks(TrackArtistLinkType type) const;
+        void visitArtistLinks(TrackArtistLinkType type, const std::function<void(const ObjectPtr<TrackArtistLink>& artistLink)>& visitor) const;
+
         ReleaseId getReleaseId() const { return _release.id(); }
         ObjectPtr<Release> getRelease() const { return _release; }
         MediumId getMediumId() const { return _medium.id(); }
@@ -320,7 +324,7 @@ namespace lms::db
         ObjectPtr<Artwork> getPreferredMediaArtwork() const;
         ArtworkId getPreferredMediaArtworkId() const;
 
-        std::vector<std::vector<ObjectPtr<Cluster>>> getClusterGroups(const std::vector<ClusterTypeId>& clusterTypes, std::size_t size) const;
+        std::vector<std::vector<ObjectPtr<Cluster>>> getClusterGroups(const std::vector<ClusterTypeId>& clusterTypeIds, std::size_t size) const;
 
         template<class Action>
         void persist(Action& a)

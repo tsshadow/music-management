@@ -4,7 +4,7 @@
 
 <message id="Lms.Explore.Artists.template">
 	<div class="d-flex justify-content-between align-items-center mb-3">
-		${link-type class="me-1"}
+		${artist-type class="me-1"}
 		<div class="d-flex">
 			${search class="form-control form-control-sm me-1" type="search"}
 			${sort-mode}
@@ -29,22 +29,24 @@
 	${loading-indicator}
 </message>
 
-<message id="Lms.Explore.Artists.template.track-artist-link-type-selector">
+<message id="Lms.Explore.Artists.template.artist-type-selector">
 	<div class="dropdown">
 		<button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
 			${selected-item}
 		</button>
 		<ul class="dropdown-menu">
-			<li>${link-type-all class="dropdown-item"}</li>
-			<li>${link-type-artist class="dropdown-item"}</li>
-			<li>${link-type-releaseartist class="dropdown-item"}</li>
-			<li>${link-type-composer class="dropdown-item"}</li>
-			<li>${link-type-conductor class="dropdown-item"}</li>
-			<li>${link-type-lyricist class="dropdown-item"}</li>
-			<li>${link-type-mixer class="dropdown-item"}</li>
-			<li>${link-type-performer class="dropdown-item"}</li>
-			<li>${link-type-producer class="dropdown-item"}</li>
-			<li>${link-type-remixer class="dropdown-item"}</li>
+			<li>${artist-type-all class="dropdown-item"}</li>
+			<li class="dropdown-divider"></li>
+			<li>${artist-type-release-artist class="dropdown-item"}</li>
+			<li class="dropdown-divider"></li>
+			<li>${artist-type-track-artist class="dropdown-item"}</li>
+			<li>${artist-type-composer class="dropdown-item"}</li>
+			<li>${artist-type-conductor class="dropdown-item"}</li>
+			<li>${artist-type-lyricist class="dropdown-item"}</li>
+			<li>${artist-type-mixer class="dropdown-item"}</li>
+			<li>${artist-type-performer class="dropdown-item"}</li>
+			<li>${artist-type-producer class="dropdown-item"}</li>
+			<li>${artist-type-remixer class="dropdown-item"}</li>
 		</ul>
 	</div>
 </message>

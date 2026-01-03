@@ -33,6 +33,10 @@
 	</div>
 	${release-containers}
 	${appears-on-releases}
+	${<if-has-all-tracks>}
+	<h3>${tr:Lms.Explore.all-tracks}</h3>
+	${all-tracks class="mb-3"}
+	${</if-has-all-tracks>}
 	${<if-has-non-release-tracks>}
 	<h3>${tr:Lms.Explore.tracks}</h3>
 	${tracks class="mb-3"}

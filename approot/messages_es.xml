@@ -231,7 +231,8 @@
 <message id="Lms.Explore.track-info">Información sobre la pista</message>
 <message id="Lms.Explore.track-lyrics">Letras</message>
 <message id="Lms.Explore.tracklists">Listas de reproducción</message>
-<message id="Lms.Explore.tracks">Pistas</message>
+	<message id="Lms.Explore.tracks">Pistas</message>
+	<message id="Lms.Explore.all-tracks">Todas las pistas</message>
 <message id="Lms.Explore.type">Type</message>
 <message id="Lms.Explore.unstar">Eliminar de favoritos</message>
 <message id="Lms.Explore.value">Valor</message>

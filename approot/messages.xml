@@ -232,7 +232,8 @@
 <message id="Lms.Explore.track-info">Track information</message>
 <message id="Lms.Explore.track-lyrics">Lyrics</message>
 <message id="Lms.Explore.tracklists">Playlists</message>
-<message id="Lms.Explore.tracks">Tracks</message>
+	<message id="Lms.Explore.tracks">Tracks</message>
+	<message id="Lms.Explore.all-tracks">All tracks</message>
 <message id="Lms.Explore.type">Type</message>
 <message id="Lms.Explore.unstar">Unstar</message>
 <message id="Lms.Explore.value">Value</message>

@@ -97,6 +97,7 @@ namespace lms::ui
         clear();
         _artistId = {};
         _trackContainer = nullptr;
+        _allTracksContainer = nullptr;
 
         if (!artistId)
             throw ArtistNotFoundException{};
@@ -117,6 +118,7 @@ namespace lms::ui
         refreshReleases();
         refreshAppearsOnReleases();
         refreshNonReleaseTracks();
+        refreshAllTracks();
         refreshLinks(artist);
         refreshSimilarArtists(similarArtistIds);
 
@@ -315,6 +317,18 @@ namespace lms::ui
         setCondition("if-has-non-release-tracks", added);
     }
 
+    void Artist::refreshAllTracks()
+    {
+        setCondition("if-has-all-tracks", true);
+        _allTracksContainer = bindNew<InfiniteScrollingContainer>("all-tracks");
+        _allTracksContainer->onRequestElements.connect(this, [this] {
+            addSomeAllTracks();
+        });
+
+        const bool added{ addSomeAllTracks() };
+        setCondition("if-has-all-tracks", added);
+    }
+
     void Artist::refreshSimilarArtists(const std::vector<db::ArtistId>& similarArtistsId)
     {
         if (similarArtistsId.empty())
@@ -387,6 +401,37 @@ namespace lms::ui
         }
 
         _trackContainer->setHasMore(tracks.moreResults);
+
+        return areTracksAdded;
+    }
+
+    bool Artist::addSomeAllTracks()
+    {
+        bool areTracksAdded{};
+
+        const db::Range range{ static_cast<std::size_t>(_allTracksContainer->getCount()), _tracksBatchSize };
+
+        db::Track::FindParameters params;
+        params.setFilters(_filters.getDbFilters());
+        params.setArtist(_artistId);
+        params.setRange(range);
+        params.setSortMethod(db::TrackSortMethod::Name);
+
+        auto transaction{ LmsApp->getDbSession().createReadTransaction() };
+
+        const auto tracks{ db::Track::find(LmsApp->getDbSession(), params) };
+        for (const db::Track::pointer& track : tracks.results)
+        {
+            // TODO handle this with range
+            if (_allTracksContainer->getCount() == _tracksMaxCount)
+                break;
+
+            _allTracksContainer->add(TrackListHelpers::createEntry(track, _playQueueController, _filters));
+
+            areTracksAdded = true;
+        }
+
+        _allTracksContainer->setHasMore(tracks.moreResults);
 
         return areTracksAdded;
     }

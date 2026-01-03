@@ -229,7 +229,8 @@
 <message id="Lms.Explore.track-info">曲目信息</message>
 <message id="Lms.Explore.track-lyrics">歌词</message>
 <message id="Lms.Explore.tracklists">播放列表</message>
-<message id="Lms.Explore.tracks">音轨</message>
+	<message id="Lms.Explore.tracks">音轨</message>
+	<message id="Lms.Explore.all-tracks">所有音轨</message>
 <message id="Lms.Explore.type">类型</message>
 <message id="Lms.Explore.unstar">取消收藏</message>
 <message id="Lms.Explore.value">值</message>

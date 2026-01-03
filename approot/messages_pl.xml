@@ -248,7 +248,8 @@
 <message id="Lms.Explore.track-info">Informacje o ścieżce</message>
 <message id="Lms.Explore.track-lyrics">Tekst</message>
 <message id="Lms.Explore.tracklists">Listy odtwarzania</message>
-<message id="Lms.Explore.tracks">Ścieżki</message>
+	<message id="Lms.Explore.tracks">Ścieżki</message>
+	<message id="Lms.Explore.all-tracks">Wszystkie ścieżki</message>
 <message id="Lms.Explore.type">Rodzaj</message>
 <message id="Lms.Explore.unstar">Przestań wyróżniać</message>
 <message id="Lms.Explore.value">Wartość</message>

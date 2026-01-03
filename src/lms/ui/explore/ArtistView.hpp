@@ -53,12 +53,14 @@ namespace lms::ui
         void refreshReleases();
         void refreshAppearsOnReleases();
         void refreshNonReleaseTracks();
+        void refreshAllTracks();
         void refreshSimilarArtists(const std::vector<db::ArtistId>& similarArtistsId);
         void refreshLinks(const db::ObjectPtr<db::Artist>& artist);
 
         struct ReleaseContainer;
         void addSomeReleases(ReleaseContainer& releaseContainer);
         bool addSomeNonReleaseTracks();
+        bool addSomeAllTracks();
         static constexpr std::size_t _releasesBatchSize{ 6 };
         static constexpr std::size_t _tracksBatchSize{ 6 };
         static constexpr std::size_t _tracksMaxCount{ 160 };
@@ -75,6 +77,7 @@ namespace lms::ui
         std::map<ReleaseType, ReleaseContainer> _releaseContainers;
         ReleaseContainer _appearsOnReleaseContainer{};
         InfiniteScrollingContainer* _trackContainer{};
+        InfiniteScrollingContainer* _allTracksContainer{};
         db::ArtistId _artistId{};
     };
 } // namespace lms::ui

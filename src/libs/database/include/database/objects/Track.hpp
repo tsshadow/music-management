@@ -371,6 +371,7 @@ namespace lms::db
             Wt::Dbo::field(a, _replayGain, "replay_gain");
 
             Wt::Dbo::field(a, _trackNumber, "track_number");
+            Wt::Dbo::field(a, _rating, "rating");
             Wt::Dbo::field(a, _name, "name");
             Wt::Dbo::field(a, _date, "date");
             Wt::Dbo::field(a, _originalDate, "original_date");

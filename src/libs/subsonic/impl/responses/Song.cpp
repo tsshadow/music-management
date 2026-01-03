@@ -144,11 +144,8 @@ namespace lms::api::subsonic
         }
 
         const db::Release::pointer release{ track->getRelease() };
-        if (release)
-        {
-            trackResponse.setAttribute("album", release->getName());
-            trackResponse.setAttribute("albumId", idToString(release->getId()));
-        }
+        trackResponse.setAttribute("album", release ? release->getName() : "");
+        trackResponse.setAttribute("albumId", release ? idToString(release->getId()) : "");
 
         trackResponse.setAttribute("duration", std::chrono::duration_cast<std::chrono::seconds>(track->getDuration()).count());
         trackResponse.setAttribute("bitRate", (track->getBitrate() / 1000));

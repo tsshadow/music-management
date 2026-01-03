@@ -270,7 +270,7 @@ namespace lms::api::subsonic
             params.setDirectory(rootdirectory->getId());
 
             Track::find(context.getDbSession(), params, [&](const Track::pointer& track) {
-                indexesNode.addArrayChild("child", createSongNode(context, track, context.getUser()));
+                indexesNode.addArrayChild("child", createSongNode(context, track, false /* id3 */));
             });
 
             getIndexedChildDirectories(context, rootdirectory, indexedDirectories);
@@ -361,7 +361,7 @@ namespace lms::api::subsonic
             params.setSortMethod(TrackSortMethod::AbsoluteFilePath);
 
             Track::find(context.getDbSession(), params, [&](const Track::pointer& track) {
-                directoryNode.addArrayChild("child", createSongNode(context, track, context.getUser()));
+                directoryNode.addArrayChild("child", createSongNode(context, track, false /* id3 */));
             });
         }
 

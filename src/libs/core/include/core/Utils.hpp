@@ -36,4 +36,10 @@ namespace lms::core::utils
     {
         using Ts::operator()...;
     };
+
+    template<class... Ts>
+    overloads(Ts...) -> overloads<Ts...>;
+
+    template<typename>
+    constexpr bool dependent_false_v{};
 } // namespace lms::core::utils

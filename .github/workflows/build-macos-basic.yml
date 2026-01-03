@@ -1,0 +1,51 @@
+name: Basic Build (macOS)
+
+on: [pull_request]
+
+jobs:
+  build-macos:
+    runs-on: macos-14
+    env:
+      PKG_CONFIG_PATH: /opt/homebrew/lib/pkgconfig:/opt/homebrew/share/pkgconfig
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew update
+          brew install pkg-config cmake boost ffmpeg libconfig taglib libarchive xxhash pugixml googletest openssl git
+
+      - name: Build and install Wt
+        run: |
+          WT_VERSION=4.12.1
+          git clone https://github.com/emweb/wt.git /tmp/wt
+          cd /tmp/wt
+          git checkout ${WT_VERSION}
+          cmake -B build -S . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DBUILD_EXAMPLES=OFF \
+            -DENABLE_LIBWTTEST=OFF \
+            -DCONNECTOR_FCGI=OFF
+          cmake --build build --parallel 2
+          sudo cmake --install build
+
+      - name: Install Stb headers
+        run: |
+          git clone https://github.com/nothings/stb.git /opt/homebrew/include/stb
+
+      - name: Configure LMS
+        run: |
+          export PKG_CONFIG_PATH="$(brew --prefix libarchive)/lib/pkgconfig:$PKG_CONFIG_PATH"
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_UNITY_BUILD=ON \
+            -DBUILD_TESTING=ON \
+            -DSTB_IMAGE_INCLUDE_DIR=/opt/homebrew/include/stb
+
+      - name: Build LMS
+        run: cmake --build build --parallel 2
+
+      - name: Test LMS
+        run: ctest --test-dir build --output-on-failure

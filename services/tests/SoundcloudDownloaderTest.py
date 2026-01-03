@@ -3,6 +3,8 @@ import types
 import unittest
 import os
 import tempfile
+orig_yt_dlp = sys.modules.get('yt_dlp')
+orig_yt_dlp_pp = sys.modules.get('yt_dlp.postprocessor')
 yt_dlp_mod = types.ModuleType('yt_dlp')
 yt_dlp_mod.YoutubeDL = lambda *a, **k: None
 postproc_module = types.ModuleType('yt_dlp.postprocessor')
@@ -14,6 +16,8 @@ class DummyPP:
 postproc_module.PostProcessor = DummyPP
 sys.modules['yt_dlp'] = yt_dlp_mod
 sys.modules['yt_dlp.postprocessor'] = postproc_module
+
+orig_db_connector = sys.modules.get('postprocessing.Song.Helpers.DatabaseConnector')
 mock_db = types.ModuleType('postprocessing.Song.Helpers.DatabaseConnector')
 
 class DummyConnector:
@@ -41,16 +45,12 @@ class DummyConnector:
         return Conn()
 mock_db.DatabaseConnector = DummyConnector
 sys.modules['postprocessing.Song.Helpers.DatabaseConnector'] = mock_db
-sys.modules['numpy'] = types.ModuleType('numpy')
-numpy_testing = types.ModuleType('numpy.testing')
-numpy_testing.print_coercion_tables = lambda *a, **k: None
-sys.modules['numpy.testing'] = numpy_testing
-pc = types.ModuleType('numpy.testing.print_coercion_tables')
-pc.print_new_cast_table = lambda *a, **k: None
-sys.modules['numpy.testing.print_coercion_tables'] = pc
+
+orig_sc_song = sys.modules.get('postprocessing.Song.SoundcloudSong')
 sc_song_mod = types.ModuleType('postprocessing.Song.SoundcloudSong')
 sc_song_mod.SoundcloudSong = lambda *a, **k: None
 sys.modules['postprocessing.Song.SoundcloudSong'] = sc_song_mod
+
 orig_archive = sys.modules.get('soundcloud.SoundcloudArchive')
 sc_archive_mod = types.ModuleType('soundcloud.SoundcloudArchive')
 
@@ -65,7 +65,21 @@ class DummyArchive:
         pass
 sc_archive_mod.SoundcloudArchive = DummyArchive
 sys.modules['soundcloud.SoundcloudArchive'] = sc_archive_mod
-from downloader.soundcloud import SoundcloudDownloader
+
+try:
+    from services.downloader.soundcloud.soundcloud import SoundcloudDownloader
+finally:
+    # Restore modules after import so they don't leak into other tests during collection
+    if orig_yt_dlp: sys.modules['yt_dlp'] = orig_yt_dlp
+    else: sys.modules.pop('yt_dlp', None)
+    if orig_yt_dlp_pp: sys.modules['yt_dlp.postprocessor'] = orig_yt_dlp_pp
+    else: sys.modules.pop('yt_dlp.postprocessor', None)
+    if orig_db_connector: sys.modules['postprocessing.Song.Helpers.DatabaseConnector'] = orig_db_connector
+    else: sys.modules.pop('postprocessing.Song.Helpers.DatabaseConnector', None)
+    if orig_sc_song: sys.modules['postprocessing.Song.SoundcloudSong'] = orig_sc_song
+    else: sys.modules.pop('postprocessing.Song.SoundcloudSong', None)
+    if orig_archive: sys.modules['soundcloud.SoundcloudArchive'] = orig_archive
+    else: sys.modules.pop('soundcloud.SoundcloudArchive', None)
 
 class SoundcloudDownloaderTest(unittest.TestCase):
 

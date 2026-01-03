@@ -1,13 +1,14 @@
 import sys
 import types
 import unittest
-sys.modules['numpy'] = types.ModuleType('numpy')
-numpy_testing = types.ModuleType('numpy.testing')
-numpy_testing.print_coercion_tables = lambda *a, **k: None
-sys.modules['numpy.testing'] = numpy_testing
-pc = types.ModuleType('numpy.testing.print_coercion_tables')
-pc.print_new_cast_table = lambda *a, **k: None
-sys.modules['numpy.testing.print_coercion_tables'] = pc
+# sys.modules['numpy'] = types.ModuleType('numpy')
+# numpy_testing = types.ModuleType('numpy.testing')
+# numpy_testing.print_coercion_tables = lambda *a, **k: None
+# sys.modules['numpy.testing'] = numpy_testing
+# pc = types.ModuleType('numpy.testing.print_coercion_tables')
+# pc.print_new_cast_table = lambda *a, **k: None
+# sys.modules['numpy.testing.print_coercion_tables'] = pc
+orig_db_connector = sys.modules.get('postprocessing.Song.Helpers.DatabaseConnector')
 db_module = types.ModuleType('postprocessing.Song.Helpers.DatabaseConnector')
 
 class DummyConnector:
@@ -35,6 +36,9 @@ class DummyConnector:
         return Conn()
 db_module.DatabaseConnector = DummyConnector
 sys.modules['postprocessing.Song.Helpers.DatabaseConnector'] = db_module
+
+orig_yt_dlp = sys.modules.get('yt_dlp')
+orig_yt_dlp_pp = sys.modules.get('yt_dlp.postprocessor')
 postproc_module = types.ModuleType('yt_dlp.postprocessor')
 
 class DummyPP:
@@ -43,19 +47,28 @@ postproc_module.PostProcessor = DummyPP
 sys.modules['yt_dlp'] = types.ModuleType('yt_dlp')
 sys.modules['yt_dlp'].postprocessor = postproc_module
 sys.modules['yt_dlp.postprocessor'] = postproc_module
-orig_song_module = sys.modules.get('postprocessing.Song.SoundcloudSong')
+
+orig_sc_song = sys.modules.get('postprocessing.Song.SoundcloudSong')
 sc_song_mod = types.ModuleType('postprocessing.Song.SoundcloudSong')
 sc_song_mod.SoundcloudSong = lambda *a, **k: None
 sys.modules['postprocessing.Song.SoundcloudSong'] = sc_song_mod
-from downloader.SoundcloudProcessor import SoundcloudSongProcessor
+
+try:
+    from services.downloader.soundcloud.SoundcloudSongProcessor import SoundcloudSongProcessor
+finally:
+    if orig_db_connector: sys.modules['postprocessing.Song.Helpers.DatabaseConnector'] = orig_db_connector
+    else: sys.modules.pop('postprocessing.Song.Helpers.DatabaseConnector', None)
+    if orig_yt_dlp: sys.modules['yt_dlp'] = orig_yt_dlp
+    else: sys.modules.pop('yt_dlp', None)
+    if orig_yt_dlp_pp: sys.modules['yt_dlp.postprocessor'] = orig_yt_dlp_pp
+    else: sys.modules.pop('yt_dlp.postprocessor', None)
+    if orig_sc_song: sys.modules['postprocessing.Song.SoundcloudSong'] = orig_sc_song
+    else: sys.modules.pop('postprocessing.Song.SoundcloudSong', None)
 
 class SoundcloudProcessorTest(unittest.TestCase):
 
     def tearDown(self):
-        if orig_song_module is not None:
-            sys.modules['postprocessing.Song.SoundcloudSong'] = orig_song_module
-        else:
-            sys.modules.pop('postprocessing.Song.SoundcloudSong', None)
+        pass
 
     def test_extract_account_name_from_url(self):
         url = 'https://soundcloud.com/testuser/track-name'

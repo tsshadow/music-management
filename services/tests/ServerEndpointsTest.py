@@ -39,11 +39,11 @@ class ServerEndpointsTest(unittest.TestCase):
                     setattr(mod, cls, StubTagger)
                 else:
                     attrs = {'__init__': lambda self, *a, **k: None, 'run': lambda self, *a, **k: None}
-                    if module_name == 'soundcloud.youtube and cls == 'YoutubeDownloader':
+                    if module_name == 'soundcloud.youtube' and cls == 'YoutubeDownloader':
                         attrs['download_link'] = lambda self, *a, **k: None
                     setattr(mod, cls, type(cls, (), attrs))
             return mod
-        modules_to_stub = {'soundcloud.youtube: ['YoutubeDownloader'], 'soundcloud.soundcloud': ['SoundcloudDownloader'], 'soundcloud.telegram': ['TelegramDownloader'], 'processing.converter': ['Converter'], 'processing.epsflattener': ['EpsFlattener'], 'processing.extractor': ['Extractor'], 'processing.mover': ['Mover'], 'processing.renamer': ['Renamer'], 'postprocessing.repair': ['FileRepair'], 'postprocessing.sanitizer': ['Sanitizer'], 'postprocessing.tagger': ['Tagger'], 'postprocessing.analyze': ['Analyze'], 'postprocessing.artistfixer': ['ArtistFixer']}
+        modules_to_stub = {'soundcloud.youtube': ['YoutubeDownloader'], 'soundcloud.soundcloud': ['SoundcloudDownloader'], 'soundcloud.telegram': ['TelegramDownloader'], 'processing.converter': ['Converter'], 'processing.epsflattener': ['EpsFlattener'], 'processing.extractor': ['Extractor'], 'processing.mover': ['Mover'], 'processing.renamer': ['Renamer'], 'postprocessing.repair': ['FileRepair'], 'postprocessing.sanitizer': ['Sanitizer'], 'postprocessing.tagger': ['Tagger'], 'postprocessing.analyze': ['Analyze'], 'postprocessing.artistfixer': ['ArtistFixer']}
         for mod_name in set((m.split('.')[0] for m in modules_to_stub)):
             if mod_name not in sys.modules:
                 self.original_modules[mod_name] = None
@@ -51,21 +51,21 @@ class ServerEndpointsTest(unittest.TestCase):
         for full_name, classes in modules_to_stub.items():
             self.original_modules[full_name] = sys.modules.get(full_name)
             sys.modules[full_name] = _make_stub_module(full_name, classes)
-        import api.db_init as db_init
+        import services.common.api.db_init as db_init
         self._orig_ensure_tables = db_init.ensure_tables_exist
         db_init.ensure_tables_exist = lambda: None
-        from step import Step as RealStep
+        from services.common.api.step import Step as RealStep
         self.original_modules['main'] = sys.modules.get('main')
         main_mod = types.ModuleType('main')
         main_mod.Step = RealStep
         sys.modules['main'] = main_mod
-        import api.server as server_module
+        import services.common.api.server as server_module
         self.server = importlib.reload(server_module)
         self.Step = RealStep
         self.server.jobs.clear()
 
     def tearDown(self):
-        import api.db_init as db_init
+        import services.common.api.db_init as db_init
         db_init.ensure_tables_exist = self._orig_ensure_tables
         for name, mod in self.original_modules.items():
             if mod is None:
@@ -79,8 +79,8 @@ class ServerEndpointsTest(unittest.TestCase):
             self.assertEqual(resp.status_code, 200)
             steps = resp.json()['steps']
             self.assertIn('tag', steps)
-            self.assertIn('import', steps)
-            self.assertIn('manual-youtube, steps)
+            self.assertIn('youtube', steps)
+            self.assertIn('manual-youtube', steps)
             job_id = '123'
             self.server.jobs[job_id] = {'id': job_id, 'step': 'dummy', 'status': 'running', 'log': []}
             jobs_resp = client.get('/api/jobs')
@@ -90,10 +90,10 @@ class ServerEndpointsTest(unittest.TestCase):
 
     def test_run_manual_youtube(self):
         with TestClient(self.server.app) as client:
-            resp = client.post('/api/run/manual-youtube, json={'url': 'http://example.com'})
+            resp = client.post('/api/run/manual-youtube', json={'url': 'http://example.com'})
             self.assertEqual(resp.status_code, 200)
             data = resp.json()
-            self.assertEqual(data['step'], 'manual-youtube)
+            self.assertEqual(data['step'], 'manual-youtube')
             self.assertIn('id', data)
 if __name__ == '__main__':
     unittest.main()

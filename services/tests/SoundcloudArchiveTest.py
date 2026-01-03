@@ -1,13 +1,13 @@
 import sys
 import types
 import unittest
-sys.modules['numpy'] = types.ModuleType('numpy')
-sub_testing = types.ModuleType('numpy.testing')
-sub_testing.print_coercion_tables = lambda *args, **kwargs: None
-sys.modules['numpy.testing'] = sub_testing
-pc = types.ModuleType('numpy.testing.print_coercion_tables')
-pc.print_new_cast_table = lambda *a, **k: None
-sys.modules['numpy.testing.print_coercion_tables'] = pc
+# sys.modules['numpy'] = types.ModuleType('numpy')
+# sub_testing = types.ModuleType('numpy.testing')
+# sub_testing.print_coercion_tables = lambda *args, **kwargs: None
+# sys.modules['numpy.testing'] = sub_testing
+# pc = types.ModuleType('numpy.testing.print_coercion_tables')
+# pc.print_new_cast_table = lambda *a, **k: None
+# sys.modules['numpy.testing.print_coercion_tables'] = pc
 mock_db = types.ModuleType('postprocessing.Song.Helpers.DatabaseConnector')
 
 class DummyConnector:
@@ -35,7 +35,7 @@ class DummyConnector:
         return DummyConn()
 mock_db.DatabaseConnector = DummyConnector
 sys.modules['postprocessing.Song.Helpers.DatabaseConnector'] = mock_db
-from downloader.SoundcloudArchive import SoundcloudArchive
+from services.downloader.soundcloud.SoundcloudArchive import SoundcloudArchive
 
 class SoundcloudArchiveTest(unittest.TestCase):
 

@@ -31,7 +31,7 @@ class DummyConnector:
         return DummyConn()
 mock_db.DatabaseConnector = DummyConnector
 sys.modules['postprocessing.Song.Helpers.DatabaseConnector'] = mock_db
-from downloader.YoutubeArchive import YoutubeArchive
+from services.downloader.youtube.YoutubeArchive import YoutubeArchive
 
 class YoutubeArchiveTest(unittest.TestCase):
 

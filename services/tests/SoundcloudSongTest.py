@@ -14,19 +14,19 @@ os.environ.setdefault('DB_PASS', '')
 os.environ.setdefault('DB_DB', 'db')
 sys.modules['dotenv'] = types.ModuleType('dotenv')
 sys.modules['dotenv'].load_dotenv = lambda *a, **k: None
-cache_mod = types.ModuleType('postprocessing.Song.Helpers.Cache')
+cache_mod = types.ModuleType('services.common.Helpers.Cache')
 cache_mod.databaseHelpers = {'artists': MagicMock(), 'ignored_artists': MagicMock(), 'genres': MagicMock(), 'ignored_genres': MagicMock(), 'artistGenreHelper': MagicMock(), 'subgenreHelper': MagicMock()}
-sys.modules['postprocessing.Song.Helpers.Cache'] = cache_mod
-sys.modules.pop('postprocessing.Song.SoundcloudSong', None)
+sys.modules['services.common.Helpers.Cache'] = cache_mod
+sys.modules.pop('services.tagger.Song.SoundcloudSong', None)
 from services.tagger.constants import ALBUM
 from services.tagger.Song.SoundcloudSong import SoundcloudSong
 
 class SoundcloudSongTest(unittest.TestCase):
 
-    @patch('postprocessing.Song.BaseSong.BaseSong.parse')
-    @patch('postprocessing.Song.BaseSong.TagCollection')
-    @patch('postprocessing.Song.BaseSong.EasyID3')
-    @patch('postprocessing.Song.BaseSong.MP3')
+    @patch('services.tagger.Song.BaseSong.BaseSong.parse')
+    @patch('services.tagger.Song.BaseSong.TagCollection')
+    @patch('services.tagger.Song.BaseSong.EasyID3')
+    @patch('services.tagger.Song.BaseSong.MP3')
     def test_album_set_to_soundcloud_uploader(self, mock_mp3, mock_easyid3, mock_tag_collection_cls, mock_base_parse):
         mock_file = MagicMock()
         mock_file.tags = {}

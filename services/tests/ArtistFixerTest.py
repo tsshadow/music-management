@@ -8,15 +8,30 @@ from unittest.mock import MagicMock, patch
 os.environ.setdefault('import_folder_path', '/tmp')
 os.environ.setdefault('eps_folder_path', '/tmp')
 os.environ.setdefault('delimiter', '/')
+orig_dotenv = sys.modules.get('dotenv')
 sys.modules['dotenv'] = types.ModuleType('dotenv')
 sys.modules['dotenv'].load_dotenv = lambda *a, **k: None
+
+orig_requests = sys.modules.get('requests')
 sys.modules.setdefault('requests', types.ModuleType('requests'))
-mutagen_mod = sys.modules.setdefault('mutagen', types.ModuleType('mutagen'))
-setattr(mutagen_mod, 'MutagenError', Exception)
+
+orig_cache = sys.modules.get('postprocessing.Song.Helpers.Cache')
 cache_mod = types.ModuleType('postprocessing.Song.Helpers.Cache')
 cache_mod.databaseHelpers = {'artists': MagicMock()}
 sys.modules['postprocessing.Song.Helpers.Cache'] = cache_mod
+
 import importlib
+try:
+    from services.other import artistfixer
+    from services.tagger.Song.rules.TagResult import TagResult, TagResultType
+    from services.tagger.Song.BaseSong import BaseSong, ExtensionNotSupportedException
+finally:
+    if orig_dotenv: sys.modules['dotenv'] = orig_dotenv
+    else: sys.modules.pop('dotenv', None)
+    if orig_requests: sys.modules['requests'] = orig_requests
+    else: sys.modules.pop('requests', None)
+    if orig_cache: sys.modules['postprocessing.Song.Helpers.Cache'] = orig_cache
+    else: sys.modules.pop('postprocessing.Song.Helpers.Cache', None)
 
 class ArtistFixerTest(unittest.TestCase):
 

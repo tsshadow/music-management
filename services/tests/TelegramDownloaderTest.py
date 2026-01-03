@@ -3,6 +3,7 @@ import types
 import unittest
 import os
 import tempfile
+orig_telethon = sys.modules.get('telethon')
 telethon_mod = types.ModuleType('telethon')
 
 class DummyClient:
@@ -24,7 +25,11 @@ class DummyClient:
         pass
 telethon_mod.TelegramClient = DummyClient
 sys.modules['telethon'] = telethon_mod
-from downloader.telegram import TelegramDownloader
+try:
+    from services.downloader.telegram.telegram import TelegramDownloader
+finally:
+    if orig_telethon: sys.modules['telethon'] = orig_telethon
+    else: sys.modules.pop('telethon', None)
 
 class TelegramDownloaderTest(unittest.TestCase):
 

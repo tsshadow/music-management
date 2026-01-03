@@ -11,11 +11,11 @@ class Step:
         if condition_keys is not None:
             self.condition_keys = set(condition_keys)
         else:
-            self.condition_keys = None
+            self.condition_keys = {name.lower()}
         self.action = action
 
     def should_run(self, steps):
-        return self.condition_keys is None or bool(self.condition_keys.intersection(steps)) or 'all' in steps
+        return bool(self.condition_keys.intersection(steps)) or 'all' in steps
 
     def run(self, steps, **kwargs):
         if self.should_run(steps):

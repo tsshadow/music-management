@@ -16,7 +16,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlparse
-from . import job_manager
+from .job_manager import job_manager
 try:
     from .server import app
 except Exception:

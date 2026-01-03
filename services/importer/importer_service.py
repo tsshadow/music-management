@@ -85,9 +85,10 @@ class ImporterService:
         of the pipeline if needed.
         """
         logging.info("Starting importer pipeline...")
+        step_keys = {step.name.lower() for step in self.steps}
         for step in self.steps:
             logging.info("Running step: %s", step.name)
-            step.run(self.steps)
+            step.run(step_keys)
         logging.info("Importer pipeline completed.")
 
 

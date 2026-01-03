@@ -36,7 +36,7 @@ class SoundcloudSong(BaseSong):
             if self.calculate_copyright():
                 self.tag_collection.set_item(COPYRIGHT, self.calculate_copyright())
         self.tag_collection.set_item(PUBLISHER, self._publisher)
-        self.rules.append(InferArtistFromTitleRule(artist_db=databaseHelpers['artists'], ignored_db=databaseHelpers['ignored_artists'], genre_db=databaseHelpers['genres']))
+        self.rules.append(InferArtistFromTitleRule(artist_db=databaseHelpers['artists'], ignored_db=databaseHelpers['ignored_artists'], genre_db=databaseHelpers['genres'], force=True))
         self.rules.append(InferRemixerFromTitleRule(artist_db=databaseHelpers['artists'], ignored_db=databaseHelpers['ignored_artists']))
         self.rules.append(CleanTagsRule())
         self.rules.append(InferGenreFromArtistRule(helper=databaseHelpers['artistGenreHelper']))

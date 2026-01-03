@@ -35,7 +35,7 @@ def set_cleaned_artist(song, artists: str | list[str], artist_db=None) -> bool:
 
 class InferArtistFromTitleRule(TagRule):
 
-    def __init__(self, artist_db=None, ignored_db: FilterTableHelper=None, genre_db: FilterTableHelper=None):
+    def __init__(self, artist_db=None, ignored_db: FilterTableHelper=None, genre_db: FilterTableHelper=None, force: bool=False):
         self.artist_db = artist_db or TableHelper('artists', 'name')
         all_names = self.artist_db.get_all_values()
         artist_names = set((name.lower() for name in all_names if name))
@@ -47,15 +47,19 @@ class InferArtistFromTitleRule(TagRule):
         all_genres.add('friday')
         all_genres.add('mainstage')
         ignored_db = ignored_db or []
+        self.force = force
         self.rules = [InferArtistFromPresentsOrColonRule(self.artist_db), InferArtistFromTitleAtRule(ignored_db.get_all(), self.artist_db), InferArtistFromTitleByRule(artist_names, self.artist_db), InferArtistFromTitleDotRule(artist_names, self.artist_db), InferArtistFromTitleSingleDashRule(artist_names, self.artist_db), InferArtistFromTitleMultiDashRule(artist_names, self.artist_db, all_genres), InferArtistFromFirstSegmentFallbackRule(self.artist_db), InferArtistFromTitleFallbackRule(ignored_db.get_all())]
 
     def apply(self, song):
+        if not self.force and song.tag_collection.has_item(ARTIST) and song.tag_collection.get_item_as_string(ARTIST):
+            return False
         if not song.tag_collection.has_item(ORIGINAL_TITLE):
             song.tag_collection.set_item(ORIGINAL_TITLE, song.tag_collection.get_item_as_string(TITLE))
         for rule in self.rules:
             if rule.apply(song):
                 print(f"[InferArtistFromTitle] Applied rule: {rule.__class__.__name__} on '{song.path()}'")
-                return
+                return True
+        return False
 
 class InferArtistFromTitleDotRule(TagRule):
 
@@ -131,8 +135,15 @@ class InferArtistFromTitleSingleDashRule(TagRule):
         if not title or title.count(' - ') != 1:
             return False
         left, right = [s.strip() for s in title.split(' - ', 1)]
+        
+        # Check for exact matches
         matches_left = [a for a in extract_artists_from_string(left) if a.lower() in self.artist_names]
         matches_right = [a for a in extract_artists_from_string(right) if a.lower() in self.artist_names]
+        
+        # For SoundCloud, if uploader matches one side, we assume the OTHER side is the artist
+        # But here we don't have easy access to uploader unless we check folder name or similar.
+        # However, if we found a match in our artist_db, that's already strong evidence.
+        
         if matches_left:
             set_cleaned_artist(song, extract_artists_from_string(left), self.artist_db)
             song.tag_collection.set_item(TITLE, right)
@@ -141,6 +152,8 @@ class InferArtistFromTitleSingleDashRule(TagRule):
             set_cleaned_artist(song, extract_artists_from_string(right), self.artist_db)
             song.tag_collection.set_item(TITLE, left)
             return True
+            
+        # Fuzzy matches
         fuzzy_left = extract_artists_from_string(left)
         fuzzy_right = extract_artists_from_string(right)
         fuzzy_match_left = [a for a in fuzzy_left if get_close_matches(a.lower(), self.artist_names, n=1, cutoff=0.75)]
@@ -153,6 +166,12 @@ class InferArtistFromTitleSingleDashRule(TagRule):
             set_cleaned_artist(song, fuzzy_match_right, self.artist_db)
             song.tag_collection.set_item(TITLE, left)
             return True
+            
+        # Special case for SoundCloud: if the uploader (often in path) is on one side, the other side is likely the artist
+        # "Revised Records - KNTRLVRLST - Public Enemy" (This would be MultiDash)
+        # "KNTRLVRLST - Public Enemy" (This is SingleDash)
+        # In SingleDash, if it's "Artist - Title", we should just try it if it looks plausible.
+        
         return False
 
 class InferArtistFromTitleMultiDashRule(TagRule):

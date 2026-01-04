@@ -56,7 +56,7 @@ namespace lms::core::media
             switch (codec)
             {
             case Codec::Opus:
-                return "audio/opus";
+                return "audio/ogg; codecs=\"opus\"";
             case Codec::Vorbis:
                 return "audio/ogg; codecs=\"vorbis\"";
             case Codec::FLAC:

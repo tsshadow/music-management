@@ -55,7 +55,7 @@ namespace lms::ui::utils
             return image;
         }
 
-        Wt::WLink createArtistLink(db::Artist::pointer artist)
+        Wt::WLink createArtistLink(const db::Artist::pointer& artist)
         {
             if (const auto mbid{ artist->getMBID() })
                 return Wt::WLink{ Wt::LinkType::InternalPath, "/artist/mbid/" + std::string{ mbid->getAsString() } };
@@ -63,7 +63,7 @@ namespace lms::ui::utils
                 return Wt::WLink{ Wt::LinkType::InternalPath, "/artist/" + artist->getId().toString() };
         }
 
-        std::unique_ptr<Wt::WAnchor> createArtistAnchor(db::Artist::pointer artist, std::string_view displayName, bool setText)
+        std::unique_ptr<Wt::WAnchor> createArtistAnchor(const db::Artist::pointer& artist, std::string_view displayName, bool setText)
         {
             auto res{ std::make_unique<Wt::WAnchor>(createArtistLink(artist)) };
 
@@ -71,7 +71,7 @@ namespace lms::ui::utils
             {
                 res->setTextFormat(Wt::TextFormat::Plain);
                 res->setText(Wt::WString::fromUTF8(std::string{ displayName }));
-                res->setToolTip(Wt::WString::fromUTF8(std::string{ displayName }), Wt::TextFormat::Plain);
+                res->setToolTip(Wt::WString::fromUTF8(std::string{ artist->getName() }), Wt::TextFormat::Plain);
             }
 
             return res;

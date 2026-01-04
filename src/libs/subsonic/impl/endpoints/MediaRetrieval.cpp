@@ -155,10 +155,14 @@ namespace lms::api::subsonic
                     requestedFormat = userTranscodeFormatToOutputFormat(context.getUser()->getSubsonicDefaultTranscodingOutputFormat());
             }
 
+            // Extra checks when requesting a lossless format
             if (requestedFormat && core::media::getCodecDesc(requestedFormat->codec).isLossless)
             {
-                if (maxBitRate > 0)
-                    throw BadParameterGenericError{ "maxBitRate", "Cannot limit bitrate when requesting a lossless format" };
+                if (!core::media::getCodecDesc(audioFileInfo.audioProperties.codec).isLossless && maxBitRate > 0)
+                    throw BadParameterGenericError{ "maxBitRate", "Cannot limit bitrate when requesting a lossless format from a lossy source" };
+
+                if (core::media::getCodecDesc(audioFileInfo.audioProperties.codec).isLossless && maxBitRate > 0 && audioFileInfo.audioProperties.bitrate > maxBitRate)
+                    throw BadParameterGenericError{ "maxBitRate", "Cannot honor maxBitRate, source is lossless with higher bitrate (" + std::to_string(audioFileInfo.audioProperties.bitrate) + " bps)" };
 
                 // we accept to transcode from a lossy format to a lossless one
             }

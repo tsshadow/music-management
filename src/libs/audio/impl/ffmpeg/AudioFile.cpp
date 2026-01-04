@@ -37,13 +37,15 @@ extern "C"
 
 #include "audio/Exception.hpp"
 
+#define LMS_FFMPEG_HAS_AV_DICT_ITERATE (LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(57, 37, 100))
+
 namespace lms::audio::ffmpeg
 {
     namespace
     {
         std::string averror_to_string(int error)
         {
-            std::array<char, 128> buf = { 0 };
+            std::array<char, 128> buf{ 0 };
 
             if (::av_strerror(error, buf.data(), buf.size()) == 0)
                 return buf.data();
@@ -65,9 +67,16 @@ namespace lms::audio::ffmpeg
             if (!dictionnary)
                 return;
 
+#if LMS_FFMPEG_HAS_AV_DICT_ITERATE
             const AVDictionaryEntry* tag{ NULL };
             while ((tag = av_dict_iterate(dictionnary, tag)))
                 res[core::stringUtils::stringToUpper(tag->key)] = tag->value;
+#else
+            AVDictionaryEntry* tag{};
+            while ((tag = av_dict_get(dictionnary, "", tag, AV_DICT_IGNORE_SUFFIX)))
+                res[core::stringUtils::stringToUpper(tag->key)] = tag->value;
+
+#endif // LMS_FFMPEG_HAS_AV_DICT_ITERATE
         }
 
         std::optional<core::media::Container> avdemuxerToContainerType(std::string_view name)

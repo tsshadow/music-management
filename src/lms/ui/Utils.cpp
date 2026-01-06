@@ -288,7 +288,7 @@ namespace lms::ui::utils
 
             if (trackArtists.size() > 1)
                 res.displayName = Wt::WString::tr("Lms.Explore.various-artists").toUTF8();
-            else
+            else if (trackArtists.size() == 1)
                 res.entries.emplace_back(ArtistDisplayInfo::Entry{ .displayName = std::string{ trackArtists[0]->getName() }, .artist = trackArtists[0] });
         }
 

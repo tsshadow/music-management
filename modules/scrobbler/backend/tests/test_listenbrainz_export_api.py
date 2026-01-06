@@ -1,6 +1,6 @@
 from __future__ import annotations
 import pytest
-from backend.app.main import app
+from app.main import app
 
 class DummyExportService:
 

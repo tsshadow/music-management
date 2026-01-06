@@ -170,7 +170,7 @@ class ListenBrainzImportService:
         if not cleaned:
             return None
         lowered = cleaned.casefold()
-        if 'soundcloud' in lowered or 'youtube in lowered:
+        if 'soundcloud' in lowered or 'youtube' in lowered:
             if ')' in cleaned:
                 cleaned = cleaned[:cleaned.index(')') + 1].strip()
             else:

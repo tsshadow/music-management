@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Any
 import httpx
 import pytest
-from backend.app.services.listenbrainz_export_service import ListenBrainzExportService
+from app.services.listenbrainz_export_service import ListenBrainzExportService
 
 class DummyAdapter:
 

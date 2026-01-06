@@ -1,7 +1,7 @@
 from __future__ import annotations
 from types import SimpleNamespace
 import pytest
-import services.analyzer_service.analyzer.api.router as analyzer_router
+import services.analyzer.analyzer.api.router as analyzer_router
 
 class DummyQueue:
 

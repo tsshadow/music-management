@@ -6,10 +6,18 @@ from pathlib import Path
 from typing import Any
 import pytest
 from httpx import ASGITransport, AsyncClient
-os.environ.setdefault('SCROBBLER_DB_DSN', 'sqlite+aiosqlite:///:memory:')
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
+# Ensure root and app path are in sys.path BEFORE imports
 if str(ROOT) not in sys.path:
-    sys.path.append(str(ROOT))
+    sys.path.insert(0, str(ROOT))
+APP_PATH = str(ROOT / 'modules' / 'scrobbler' / 'backend')
+if APP_PATH not in sys.path:
+    sys.path.insert(0, APP_PATH)
+
+from app.core.settings import get_settings
+# Import app later or inside fixtures if it still fails due to environment
+from app.main import app
+os.environ.setdefault('SCROBBLER_DB_DSN', 'sqlite+aiosqlite:///:memory:')
 get_settings.cache_clear()
 
 class DummyEnrichmentQueueService:

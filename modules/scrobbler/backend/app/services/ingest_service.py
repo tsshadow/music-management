@@ -1,5 +1,5 @@
 from __future__ import annotations
-from services.analyzer_service.analyzer.matching.uid import make_track_uid
+from services.analyzer.analyzer.matching.uid import make_track_uid
 from ..db.adapter import DatabaseAdapter
 from ..schemas.common import ScrobblePayload
 

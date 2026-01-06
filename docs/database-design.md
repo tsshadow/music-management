@@ -190,7 +190,7 @@ databases.
 When schemas are provided, the bootstrapper:
 
 1. Creates or attaches the configured schemas (MariaDB issues `CREATE SCHEMA IF NOT EXISTS`, SQLite uses `ATTACH DATABASE`).
-2. Calls `metadata.create_all` so every table defined in `backend.app.models` exists in the selected schema(s).
+2. Calls `metadata.create_all` so every table defined in `app.models` exists in the selected schema(s).
 
 Existing single-schema deployments should migrate historical tables manually before enabling the split.
 

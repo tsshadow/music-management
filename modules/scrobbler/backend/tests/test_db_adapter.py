@@ -1,11 +1,11 @@
 from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 import pytest
-from services.analyzer_service.analyzer.matching.normalizer import normalize_text
-from services.analyzer_service.analyzer.matching.uid import make_track_uid
-from backend.app.core.startup import init_database
-from backend.app.db.sqlite_test import create_sqlite_memory_adapter
-from backend.app.models import release_groups, artists, genres, metadata, track_artists, track_genres, tracks
+from services.analyzer.analyzer.matching.normalizer import normalize_text
+from services.analyzer.analyzer.matching.uid import make_track_uid
+from app.core.startup import init_database
+from app.db.sqlite_test import create_sqlite_memory_adapter
+from app.models import release_groups, artists, genres, metadata, track_artists, track_genres, tracks
 from sqlalchemy import insert, select
 
 async def add_artist(adapter, name: str, mbid: str | None=None) -> int:

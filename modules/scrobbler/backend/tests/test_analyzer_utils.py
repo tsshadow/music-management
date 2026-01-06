@@ -1,5 +1,5 @@
-from services.analyzer_service.analyzer.matching.normalizer import normalize_text, duration_bucket
-from services.analyzer_service.analyzer.matching.uid import make_track_uid
+from services.analyzer.analyzer.matching.normalizer import normalize_text, duration_bucket
+from services.analyzer.analyzer.matching.uid import make_track_uid
 
 def test_normalize_text_removes_diacritics_and_punctuation():
     assert normalize_text('Beyoncé - Halo (Official Video)') == 'beyonce halo official video'

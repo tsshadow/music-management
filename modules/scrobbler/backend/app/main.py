@@ -5,10 +5,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from services.analyzer_service.analyzer.db.repo import AnalyzerRepository
-from services.analyzer_service.analyzer.services.library_admin_service import AnalyzerLibraryAdminService
-from services.analyzer_service.analyzer.services.library_stats_service import AnalyzerLibraryStatsService
-from services.analyzer_service.analyzer.services.summary_service import AnalyzerSummaryService
+from services.analyzer.analyzer.db.repo import AnalyzerRepository
+from services.analyzer.analyzer.services.library_admin_service import AnalyzerLibraryAdminService
+from services.analyzer.analyzer.services.library_stats_service import AnalyzerLibraryStatsService
+from services.analyzer.analyzer.services.summary_service import AnalyzerSummaryService
 from .api import routes_analyzer, routes_analyzer_summary, routes_config, routes_enrichment, routes_export, routes_import, routes_library, routes_listens, routes_scrobble, routes_stats, routes_subsonic
 from .core.settings import get_settings
 from .core.startup import build_engine, init_database

@@ -1,5 +1,6 @@
 from .step import Step
 from .run_tagger import run_tagger
+from .run_analyzer import run_analyzer_scan, run_analyzer_enrich
 from services.downloader.youtube.youtube import YoutubeDownloader
 from services.downloader.soundcloud.soundcloud import SoundcloudDownloader
 from services.downloader.telegram.telegram import TelegramDownloader
@@ -46,6 +47,8 @@ steps_to_run = [
     Step('import', run_import),
     Step('repair', run_repair),
     Step('sanitizer', run_sanitizer),
+    Step('analyzer-scan', run_analyzer_scan),
+    Step('analyzer-enrich', run_analyzer_enrich),
 ]
 
 step_map = {s.name: s for s in steps_to_run}

@@ -6,7 +6,7 @@ from services.common.settings import Settings
 from services.other.repair import FileRepair
 from services.other.sanitizer import Sanitizer
 from services.tagger.tagger import Tagger
-from services.analyzer_service.analyzer import Analyze
+from services.analyzer.analyzer import Analyze
 from services.other.artistfixer import ArtistFixer
 from services.other.converter import Converter
 from services.other.epsflattener import EpsFlattener

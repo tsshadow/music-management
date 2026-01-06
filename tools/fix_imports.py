@@ -9,8 +9,8 @@ MODULE_MAP = {
     # constants / top-level
     "postprocessing.constants": "services.tagger.constants",
     "postprocessing.tagger": "services.tagger.tagger",
-    "postprocessing.analyze": "services.analyzer_service.analyzer",  # evt. handmatig checken
-    "postprocessing.analyzer": "services.analyzer_service.analyzer",
+    "postprocessing.analyze": "services.analyzer.analyzer",  # evt. handmatig checken
+    "postprocessing.analyzer": "services.analyzer.analyzer",
     "postprocessing.sanitizer": "services.other.sanitizer",
     "postprocessing.artistfixer": "services.other.artistfixer",
     "postprocessing.repair": "services.other.repair",
@@ -73,22 +73,22 @@ MODULE_MAP = {
     # ---------- analyzer.* ----------
 
     # db / matching
-    "analyzer.db.repo": "services.analyzer_service.analyzer.db.repo",
-    "analyzer.matching.uid": "services.analyzer_service.analyzer.matching.uid",
-    "analyzer.matching.normalizer": "services.analyzer_service.analyzer.matching.normalizer",
+    "analyzer.db.repo": "services.analyzer.analyzer.db.repo",
+    "analyzer.matching.uid": "services.analyzer.analyzer.matching.uid",
+    "analyzer.matching.normalizer": "services.analyzer.analyzer.matching.normalizer",
 
     # services
-    "analyzer.services.library_admin_service": "services.analyzer_service.analyzer.services.library_admin_service",
-    "analyzer.services.library_stats_service": "services.analyzer_service.analyzer.services.library_stats_service",
-    "analyzer.services.summary_service": "services.analyzer_service.analyzer.services.summary_service",
-    "analyzer.services.library_service": "services.analyzer_service.analyzer.services.library_service",
-    "analyzer.services.match_service": "services.analyzer_service.analyzer.services.match_service",
-    "analyzer.services.enrich_service": "services.analyzer_service.analyzer.services.enrich_service",
+    "analyzer.services.library_admin_service": "services.analyzer.analyzer.services.library_admin_service",
+    "analyzer.services.library_stats_service": "services.analyzer.analyzer.services.library_stats_service",
+    "analyzer.services.summary_service": "services.analyzer.analyzer.services.summary_service",
+    "analyzer.services.library_service": "services.analyzer.analyzer.services.library_service",
+    "analyzer.services.match_service": "services.analyzer.analyzer.services.match_service",
+    "analyzer.services.enrich_service": "services.analyzer.analyzer.services.enrich_service",
 
     # api / jobs / ingestion
-    "analyzer.api.router": "services.analyzer_service.analyzer.api.router",
-    "analyzer.jobs.queue": "services.analyzer_service.analyzer.jobs.queue",
-    "analyzer.ingestion.filesystem": "services.analyzer_service.analyzer.ingestion.filesystem",
+    "analyzer.api.router": "services.analyzer.analyzer.api.router",
+    "analyzer.jobs.queue": "services.analyzer.analyzer.jobs.queue",
+    "analyzer.ingestion.filesystem": "services.analyzer.analyzer.ingestion.filesystem",
 }
 
 

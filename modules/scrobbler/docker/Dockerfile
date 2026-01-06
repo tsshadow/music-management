@@ -21,7 +21,7 @@ COPY --from=frontend /app/frontend/dist ./backend/app/static
 FROM base AS backend
 ENV SCROBBLER_DB_DSN="sqlite+aiosqlite:///./data/scrobbler.db"
 EXPOSE 8080
-CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
 
 # Analyzer worker stage
 FROM base AS analyzer-worker

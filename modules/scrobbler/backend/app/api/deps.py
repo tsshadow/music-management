@@ -1,9 +1,9 @@
 from __future__ import annotations
 'Dependency providers for FastAPI route handlers.'
 from fastapi import Header, HTTPException, Request, status
-from services.analyzer_service.analyzer.services.library_admin_service import AnalyzerLibraryAdminService
-from services.analyzer_service.analyzer.services.library_stats_service import AnalyzerLibraryStatsService
-from services.analyzer_service.analyzer.services.summary_service import AnalyzerSummaryService
+from services.analyzer.analyzer.services.library_admin_service import AnalyzerLibraryAdminService
+from services.analyzer.analyzer.services.library_stats_service import AnalyzerLibraryStatsService
+from services.analyzer.analyzer.services.summary_service import AnalyzerSummaryService
 from ..core.settings import get_settings
 from ..services.deduplication_service import DeduplicationService
 from ..services.enrichment_queue_service import EnrichmentQueueService

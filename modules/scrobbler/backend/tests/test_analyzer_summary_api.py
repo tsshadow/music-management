@@ -2,9 +2,9 @@
 from __future__ import annotations
 from datetime import datetime, timezone
 import pytest
-from services.analyzer_service.analyzer.db.repo import AnalyzerRepository
-from backend.app.main import app
-from backend.tests.fixtures import seed_dataset
+from services.analyzer.analyzer.db.repo import AnalyzerRepository
+from app.main import app
+from tests.fixtures import seed_dataset
 
 @pytest.mark.asyncio
 async def test_analyzer_summary_endpoint(client):

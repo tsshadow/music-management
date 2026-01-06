@@ -1,7 +1,7 @@
 from __future__ import annotations
 from types import SimpleNamespace
 import pytest
-from backend.app.services.listenbrainz_service import ListenBrainzImportService
+from app.services.listenbrainz_service import ListenBrainzImportService
 
 def build_listen(**extra):
     listen = {'track_metadata': {'track_name': 'Example', 'artist_name': 'Artist', 'additional_info': {}}, 'listened_at': 1700000000}

@@ -3,11 +3,11 @@ from datetime import datetime, timezone
 from typing import Any
 import httpx
 import pytest
-from services.analyzer_service.analyzer.db.repo import AnalyzerRepository
-from services.analyzer_service.analyzer.matching.normalizer import normalize_text
-from services.analyzer_service.analyzer.matching.uid import make_track_uid
-from backend.app.main import app
-from backend.app.services.listenbrainz_service import ListenBrainzImportService
+from services.analyzer.analyzer.db.repo import AnalyzerRepository
+from services.analyzer.analyzer.matching.normalizer import normalize_text
+from services.analyzer.analyzer.matching.uid import make_track_uid
+from app.main import app
+from app.services.listenbrainz_service import ListenBrainzImportService
 
 def build_listen(ts: int, title: str, artist: str) -> dict[str, Any]:
     return {'listened_at': ts, 'recording_msid': f'msid-{title}', 'track_metadata': {'track_name': title, 'artist_name': artist, 'release_name': f'Album {title}', 'additional_info': {'duration': 180, 'tracknumber': '1', 'discnumber': '1'}}}

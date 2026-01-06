@@ -1,15 +1,15 @@
 from __future__ import annotations
 from datetime import datetime, timezone
 import pytest
-from services.analyzer_service.analyzer.db.repo import AnalyzerRepository
-from services.analyzer_service.analyzer.matching.normalizer import normalize_text
-from services.analyzer_service.analyzer.matching.uid import make_track_uid
-from backend.app.core.startup import init_database
-from backend.app.db.sqlite_test import create_sqlite_memory_adapter
-from backend.app.models import artists, genres, listen_artists, listen_genres, listens, listens_raw, metadata, track_artists, track_genres, tracks
-from backend.app.schemas.common import ArtistInput, ScrobblePayload, TrackInput
-from backend.app.services.deduplication_service import DeduplicationService
-from backend.app.services.ingest_service import IngestService
+from services.analyzer.analyzer.db.repo import AnalyzerRepository
+from services.analyzer.analyzer.matching.normalizer import normalize_text
+from services.analyzer.analyzer.matching.uid import make_track_uid
+from app.core.startup import init_database
+from app.db.sqlite_test import create_sqlite_memory_adapter
+from app.models import artists, genres, listen_artists, listen_genres, listens, listens_raw, metadata, track_artists, track_genres, tracks
+from app.schemas.common import ArtistInput, ScrobblePayload, TrackInput
+from app.services.deduplication_service import DeduplicationService
+from app.services.ingest_service import IngestService
 from sqlalchemy import func, insert, select
 pytestmark = pytest.mark.integration
 

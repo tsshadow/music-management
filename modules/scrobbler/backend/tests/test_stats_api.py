@@ -1,6 +1,6 @@
 from __future__ import annotations
 import pytest
-from backend.tests.fixtures import seed_dataset
+from tests.fixtures import seed_dataset
 
 @pytest.mark.asyncio
 async def test_stats_endpoints(client):

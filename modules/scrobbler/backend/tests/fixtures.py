@@ -2,10 +2,10 @@ from __future__ import annotations
 'Helper utilities for populating test data.'
 from datetime import datetime, timezone
 from httpx import AsyncClient
-from services.analyzer_service.analyzer.db.repo import AnalyzerRepository
-from services.analyzer_service.analyzer.matching.normalizer import normalize_text
-from services.analyzer_service.analyzer.matching.uid import make_track_uid
-from backend.app.main import app
+from services.analyzer.analyzer.db.repo import AnalyzerRepository
+from services.analyzer.analyzer.matching.normalizer import normalize_text
+from services.analyzer.analyzer.matching.uid import make_track_uid
+from app.main import app
 
 def iso(dt: datetime) -> str:
     """Return an ISO formatted timestamp in UTC."""

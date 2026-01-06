@@ -7,7 +7,7 @@ from typing import Any, Iterable, Mapping
 from sqlalchemy import Integer, and_, cast, case, delete, func, insert, or_, select, true, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
-from services.analyzer_service.analyzer.matching.normalizer import normalize_text
+from services.analyzer.analyzer.matching.normalizer import normalize_text
 from .adapter import DatabaseAdapter
 from ..models import release_groups, artists, config, genres, listen_artists, listen_genres, listens, listens_raw, track_artists, track_genres, tracks, users
 

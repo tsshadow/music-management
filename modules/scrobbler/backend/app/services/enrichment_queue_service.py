@@ -2,7 +2,7 @@
 from __future__ import annotations
 from datetime import datetime
 from typing import Any
-from services.analyzer_service.analyzer.jobs.queue import get_queue
+from services.analyzer.analyzer.jobs.queue import get_queue
 from ..core.settings import AppSettings
 
 class EnrichmentQueueService:

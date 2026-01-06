@@ -1,7 +1,7 @@
 from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
-from services.analyzer_service.analyzer.services.library_admin_service import AnalyzerLibraryAdminService
-from services.analyzer_service.analyzer.services.library_stats_service import AnalyzerLibraryStatsService
+from services.analyzer.analyzer.services.library_admin_service import AnalyzerLibraryAdminService
+from services.analyzer.analyzer.services.library_stats_service import AnalyzerLibraryStatsService
 from ..db.adapter import DatabaseAdapter
 from .deps import get_adapter, get_analyzer_library_admin_service, get_analyzer_library_stats_service, verify_api_key
 router = APIRouter(prefix='/library', tags=['library'], dependencies=[Depends(verify_api_key)])

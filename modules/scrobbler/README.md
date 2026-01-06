@@ -33,7 +33,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install poetry
 poetry install
-uvicorn backend.app.main:app --reload
+uvicorn app.main:app --reload
 ```
 
 Set `SCROBBLER_DB_DSN` to point to your MariaDB instance, e.g. `mysql+asyncmy://user:pass@localhost:3306/music-scrobbler`. By default the app uses SQLite (`sqlite+aiosqlite:///./scrobbler.db`).

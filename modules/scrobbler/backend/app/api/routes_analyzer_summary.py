@@ -1,7 +1,7 @@
 """Expose analyzer summary endpoints for the Scrobbler application."""
 from __future__ import annotations
 from fastapi import APIRouter, Depends
-from services.analyzer_service.analyzer.services.summary_service import AnalyzerSummaryService
+from services.analyzer.analyzer.services.summary_service import AnalyzerSummaryService
 from .deps import get_analyzer_summary_service
 router = APIRouter(prefix='/analyzer', tags=['analyzer'])
 

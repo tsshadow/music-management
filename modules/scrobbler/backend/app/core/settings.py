@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings
 
 class AppSettings(BaseSettings):
     """Runtime configuration loaded from environment variables or .env."""
-    model_config = ConfigDict(env_file='.env', env_file_encoding='utf-8', populate_by_name=True)
+    model_config = ConfigDict(env_file='.env', env_file_encoding='utf-8', populate_by_name=True, extra='ignore')
     app_name: str = 'Scrobbler'
     api_prefix: str = '/api/v1'
     db_dsn: str = Field(default='sqlite+aiosqlite:///./scrobbler.db', alias='SCROBBLER_DB_DSN')

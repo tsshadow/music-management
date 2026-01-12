@@ -296,6 +296,41 @@ namespace lms::api::subsonic
         return response;
     }
 
+    Response handleGetNowPlayingRequest(RequestContext& context)
+    {
+        Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
+        Response::Node& nowPlayingNode{ response.createNode("nowPlaying") };
+
+        scrobbling::IScrobblingService& scrobblingService{ *core::Service<scrobbling::IScrobblingService>::get() };
+
+        const auto now{ scrobbling::IScrobblingService::Clock::now() };
+
+        scrobblingService.visitNowPlayingListens([&](scrobbling::IScrobblingService::Clock::time_point startedAt, const scrobbling::Listen& listen) {
+            auto transaction{ context.getDbSession().createReadTransaction() };
+
+            // A regular user can only see his own now playing entry
+            if (!context.getUser()->isAdmin() && listen.userId != context.getUser()->getId())
+                return;
+
+            const User::pointer user{ User::find(context.getDbSession(), listen.userId) };
+            if (!user)
+                return;
+
+            const Track::pointer track{ Track::find(context.getDbSession(), listen.trackId) };
+            if (!track)
+                return;
+
+            auto NowPlayingEntryNode{ createSongNode(context, track, context.getUser()) };
+            NowPlayingEntryNode.setAttribute("username", user->getLoginName());
+            NowPlayingEntryNode.setAttribute("minutesAgo", static_cast<int>(std::chrono::duration_cast<std::chrono::minutes>(now - startedAt).count()));
+            NowPlayingEntryNode.setAttribute("playerId", user->getId().getValue()); // not sure what to put here
+
+            nowPlayingNode.addArrayChild("song", std::move(NowPlayingEntryNode));
+        });
+
+        return response;
+    }
+
     Response handleGetStarredRequest(RequestContext& context)
     {
         return handleGetStarredRequestCommon(context, false /* no id3 */);

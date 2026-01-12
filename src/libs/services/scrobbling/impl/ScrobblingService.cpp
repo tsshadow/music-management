@@ -77,6 +77,8 @@ namespace lms::scrobbling
 
     void ScrobblingService::listenStarted(const Listen& listen)
     {
+        insertNowPlayingEntry(listen);
+
         if (std::optional<ScrobblingBackend> backend{ getUserBackend(listen.userId) })
             _scrobblingBackends[*backend]->listenStarted(listen);
     }
@@ -91,6 +93,24 @@ namespace lms::scrobbling
     {
         if (std::optional<ScrobblingBackend> backend{ getUserBackend(listen.userId) })
             _scrobblingBackends[*backend]->addTimedListen(listen);
+    }
+
+    void ScrobblingService::visitNowPlayingListens(const std::function<void(Clock::time_point startedAt, const Listen&)>& visitor, db::UserId userId)
+    {
+        const Clock::time_point now{ Clock::now() };
+
+        std::shared_lock lock{ _nowPlayingEntriesMutex };
+
+        for (const auto& [entryUserId, entry] : _nowPlayingEntries)
+        {
+            if (userId.isValid() && entryUserId != userId)
+                continue;
+
+            if (entry.expiryAt <= now)
+                continue;
+
+            visitor(entry.startedAt, Listen{ .userId = entryUserId, .trackId = entry.trackId });
+        }
     }
 
     std::optional<ScrobblingBackend> ScrobblingService::getUserBackend(UserId userId)
@@ -252,5 +272,21 @@ namespace lms::scrobbling
 
         res = db::Listen::getTopTracks(session, listenFindParams);
         return res;
+    }
+
+    void ScrobblingService::insertNowPlayingEntry(const Listen& listen)
+    {
+        Session& session{ _db.getTLSSession() };
+        auto transaction{ session.createReadTransaction() };
+
+        if (const db::Track::pointer track{ db::Track::find(session, listen.trackId) })
+        {
+            const Clock::time_point now{ Clock::now() };
+
+            std::unique_lock lock{ _nowPlayingEntriesMutex };
+
+            // Add an extra delay to ensure the listen is not purged too early
+            _nowPlayingEntries.insert_or_assign(listen.userId, NowPlayingEntry{ .startedAt = now, .expiryAt = now + track->getDuration() + std::chrono::seconds{ 5 }, .trackId = listen.trackId });
+        }
     }
 } // namespace lms::scrobbling

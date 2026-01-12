@@ -159,7 +159,7 @@ namespace lms::api::subsonic
             { "/getAlbumList2", { handleGetAlbumList2Request } },
             { "/getRandomSongs", { handleGetRandomSongsRequest } },
             { "/getSongsByGenre", { handleGetSongsByGenreRequest } },
-            { "/getNowPlaying", { handleNotImplemented } },
+            { "/getNowPlaying", { handleGetNowPlayingRequest } },
             { "/getStarred", { handleGetStarredRequest } },
             { "/getStarred2", { handleGetStarred2Request } },
 

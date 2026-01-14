@@ -212,12 +212,14 @@ namespace lms::audio::taglib
             }
             else if (const auto* aiffFile{ dynamic_cast<const ::TagLib::RIFF::AIFF::File*>(&file) })
             {
+                // We don't check for potential Aiff-C format here, we considerer it PCM for now
                 audioProperties.container = core::media::Container::AIFF;
                 audioProperties.codec = core::media::Codec::PCM;
                 audioProperties.bitsPerSample = aiffFile->audioProperties()->bitsPerSample();
             }
             else if (const auto* wavFile{ dynamic_cast<const ::TagLib::RIFF::WAV::File*>(&file) })
             {
+                // We don't check for format here, we considerer it PCM for now
                 audioProperties.container = core::media::Container::WAV;
                 audioProperties.codec = core::media::Codec::PCM;
                 audioProperties.bitsPerSample = wavFile->audioProperties()->bitsPerSample();

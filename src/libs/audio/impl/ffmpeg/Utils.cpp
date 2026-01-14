@@ -24,10 +24,11 @@ namespace lms::audio::ffmpeg::utils
     std::span<const std::filesystem::path> getSupportedExtensions()
     {
         // TODO: list demuxers to retrieve supported formats
-        static const std::array<std::filesystem::path, 18> fileExtensions{
+        static const std::array<std::filesystem::path, 19> fileExtensions{
             ".aac",
             ".alac",
             ".aif",
+            ".aifc",
             ".aiff",
             ".ape",
             ".dsf",

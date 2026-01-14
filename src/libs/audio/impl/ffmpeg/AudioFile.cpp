@@ -81,7 +81,7 @@ namespace lms::audio::ffmpeg
 
         std::optional<core::media::Container> avdemuxerToContainerType(std::string_view name)
         {
-            if (name == "aiff")
+            if (name == "aiff" || name == "aifc" || name == "aif")
                 return core::media::Container::AIFF;
             if (name == "ape")
                 return core::media::Container::APE;
@@ -142,6 +142,39 @@ namespace lms::audio::ffmpeg
                 return core::media::Codec::MPC8;
             case AV_CODEC_ID_OPUS:
                 return core::media::Codec::Opus;
+            case AV_CODEC_ID_PCM_S16LE:
+            case AV_CODEC_ID_PCM_S16BE:
+            case AV_CODEC_ID_PCM_U16LE:
+            case AV_CODEC_ID_PCM_U16BE:
+            case AV_CODEC_ID_PCM_S8:
+            case AV_CODEC_ID_PCM_U8:
+            case AV_CODEC_ID_PCM_S32LE:
+            case AV_CODEC_ID_PCM_S32BE:
+            case AV_CODEC_ID_PCM_U32LE:
+            case AV_CODEC_ID_PCM_U32BE:
+            case AV_CODEC_ID_PCM_S24LE:
+            case AV_CODEC_ID_PCM_S24BE:
+            case AV_CODEC_ID_PCM_U24LE:
+            case AV_CODEC_ID_PCM_U24BE:
+            case AV_CODEC_ID_PCM_S16LE_PLANAR:
+            case AV_CODEC_ID_PCM_F32BE:
+            case AV_CODEC_ID_PCM_F32LE:
+            case AV_CODEC_ID_PCM_F64BE:
+            case AV_CODEC_ID_PCM_F64LE:
+            case AV_CODEC_ID_PCM_S8_PLANAR:
+            case AV_CODEC_ID_PCM_S24LE_PLANAR:
+            case AV_CODEC_ID_PCM_S32LE_PLANAR:
+            case AV_CODEC_ID_PCM_S16BE_PLANAR:
+            case AV_CODEC_ID_PCM_S64LE:
+            case AV_CODEC_ID_PCM_S64BE:
+            case AV_CODEC_ID_PCM_F16LE:
+            case AV_CODEC_ID_PCM_F24LE:
+            case AV_CODEC_ID_PCM_MULAW:
+            case AV_CODEC_ID_PCM_ALAW:
+            case AV_CODEC_ID_ADPCM_G726:
+            case AV_CODEC_ID_ADPCM_G722:
+            case AV_CODEC_ID_ADPCM_G726LE:
+                return core::media::Codec::PCM;
             case AV_CODEC_ID_SHORTEN:
                 return core::media::Codec::Shorten;
             case AV_CODEC_ID_VORBIS:

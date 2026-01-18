@@ -24,5 +24,7 @@
 
 namespace lms::audio::ffmpeg::utils
 {
+    std::string averrorToString(int error);
+
     std::span<const std::filesystem::path> getSupportedExtensions();
 } // namespace lms::audio::ffmpeg::utils

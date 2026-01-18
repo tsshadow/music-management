@@ -1,11 +1,13 @@
-pkg_check_modules(LIBAV IMPORTED_TARGET libavcodec libavutil libavformat)
+pkg_check_modules(LIBAV IMPORTED_TARGET libavcodec libavutil libavformat libswresample)
 pkg_check_modules(Taglib REQUIRED IMPORTED_TARGET taglib)
 
 add_library(lmsaudio STATIC
 	impl/ffmpeg/AudioFile.cpp
 	impl/ffmpeg/AudioFileInfo.cpp
 	impl/ffmpeg/AudioFileInfoParser.cpp
+	impl/ffmpeg/FFmpegTypes.cpp
 	impl/ffmpeg/ImageReader.cpp
+	impl/ffmpeg/PcmDecoder.cpp
 	impl/ffmpeg/TagReader.cpp
 	impl/ffmpeg/Transcoder.cpp
 	impl/ffmpeg/Utils.cpp

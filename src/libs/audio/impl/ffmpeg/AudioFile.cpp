@@ -27,7 +27,6 @@ extern "C"
 {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
-#include <libavutil/error.h>
 #include <libavutil/log.h>
 }
 
@@ -35,7 +34,8 @@ extern "C"
 #include "core/ITraceLogger.hpp"
 #include "core/String.hpp"
 
-#include "audio/Exception.hpp"
+#include "Exception.hpp"
+#include "Utils.hpp"
 
 #define LMS_FFMPEG_HAS_AV_DICT_ITERATE (LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(57, 37, 100))
 
@@ -43,25 +43,6 @@ namespace lms::audio::ffmpeg
 {
     namespace
     {
-        std::string averror_to_string(int error)
-        {
-            std::array<char, 128> buf{ 0 };
-
-            if (::av_strerror(error, buf.data(), buf.size()) == 0)
-                return buf.data();
-
-            return "Unknown error";
-        }
-
-        class AvException : public Exception
-        {
-        public:
-            AvException(int avError)
-                : Exception{ averror_to_string(avError) }
-            {
-            }
-        };
-
         void extractMetaDataFromDictionnary(AVDictionary* dictionnary, AudioFile::MetadataMap& res)
         {
             if (!dictionnary)
@@ -75,7 +56,6 @@ namespace lms::audio::ffmpeg
             AVDictionaryEntry* tag{};
             while ((tag = av_dict_get(dictionnary, "", tag, AV_DICT_IGNORE_SUFFIX)))
                 res[core::stringUtils::stringToUpper(tag->key)] = tag->value;
-
 #endif // LMS_FFMPEG_HAS_AV_DICT_ITERATE
         }
 
@@ -249,21 +229,22 @@ namespace lms::audio::ffmpeg
     {
         LMS_SCOPED_TRACE_DETAILED("MetaData", "FFmpegParseFile");
 
+        // TODO move this
         static AvInitializer init;
 
         int error{ avformat_open_input(&_context, _p.c_str(), nullptr, nullptr) };
         if (error < 0)
         {
-            LMS_LOG(AUDIO, ERROR, "Cannot open " << _p << ": " << averror_to_string(error));
-            throw AvException{ error };
+            LMS_LOG(AUDIO, ERROR, "Cannot open " << _p << ": " << utils::averrorToString(error));
+            throw FFmpegException{ "Cannot open '" + _p.string() + "'", error };
         }
 
         error = avformat_find_stream_info(_context, nullptr);
         if (error < 0)
         {
-            LMS_LOG(AUDIO, ERROR, "Cannot find stream information on " << _p << ": " << averror_to_string(error));
+            LMS_LOG(AUDIO, ERROR, "Cannot find stream information in " << _p << ": " << utils::averrorToString(error));
             avformat_close_input(&_context);
-            throw AvException{ error };
+            throw FFmpegException{ "Cannot find stream information in '" + _p.string() + "'", error };
         }
     }
 

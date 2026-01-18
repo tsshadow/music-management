@@ -19,8 +19,23 @@
 
 #include "Utils.hpp"
 
+extern "C"
+{
+#include <libavutil/error.h>
+}
+
 namespace lms::audio::ffmpeg::utils
 {
+    std::string averrorToString(int error)
+    {
+        std::array<char, 128> buf{ 0 };
+
+        if (::av_strerror(error, buf.data(), buf.size()) == 0)
+            return buf.data();
+
+        return "Unknown error";
+    }
+
     std::span<const std::filesystem::path> getSupportedExtensions()
     {
         // TODO: list demuxers to retrieve supported formats

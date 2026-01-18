@@ -1,0 +1,56 @@
+/*
+ * Copyright (C) 2026 Emeric Poupon
+ *
+ * This file is part of LMS.
+ *
+ * LMS is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * LMS is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with LMS.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include "audio/IPcmDecoder.hpp"
+
+#include "FFmpegTypes.hpp"
+
+namespace lms::audio::ffmpeg
+{
+    class PcmDecoder : public IPcmDecoder
+    {
+    public:
+        PcmDecoder(const std::filesystem::path& filePath, const PcmDecoderParameters& parameters);
+        ~PcmDecoder() override;
+
+        PcmDecoder(const PcmDecoder&) = delete;
+        PcmDecoder& operator=(const PcmDecoder&) = delete;
+
+    private:
+        std::size_t readSamples(std::span<WritableBuffer> outputChannelBuffers, std::size_t maxSamplesPerChannel) override;
+        bool finished() const override;
+
+        void feedDecoder();
+
+        const PcmDecoderParameters _parameters;
+
+        bool _finished{};
+        bool _eof{};
+        bool _draining{};
+
+        AVFormatContextPtr _context;
+        int _inputStreamIndex{};
+        AVCodecContextPtr _decoderContext;
+        AVFramePtr _decodedFrame;
+        AVPacketPtr _inputPacket;
+        SwrContextPtr _resampleContext;
+    };
+} // namespace lms::audio::ffmpeg

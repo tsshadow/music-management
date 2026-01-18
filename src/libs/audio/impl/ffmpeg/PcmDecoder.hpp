@@ -35,10 +35,13 @@ namespace lms::audio::ffmpeg
         PcmDecoder& operator=(const PcmDecoder&) = delete;
 
     private:
-        std::size_t readSamples(std::span<WritableBuffer> outputChannelBuffers, std::size_t maxSamplesPerChannel) override;
+        std::size_t readSamples(std::span<WritableBuffer> outputChannelBuffers) override;
         bool finished() const override;
 
+        std::size_t computeSampleCountPerChannel(std::span<WritableBuffer> outputChannelBuffers) const;
         void feedDecoder();
+        std::size_t drainResampler(std::span<WritableBuffer> outputChannelBuffers, std::size_t maxSamplesPerChannel);
+        std::size_t getEstimatedResamplerAvailableSamples() const;
 
         const PcmDecoderParameters _parameters;
 

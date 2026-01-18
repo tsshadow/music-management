@@ -89,7 +89,7 @@ int main(int argc, char* argv[])
                     std::span<std::byte>{ channelBuffers[0].data(), channelBuffers[0].size() },
                     std::span<std::byte>{ channelBuffers[1].data(), channelBuffers[1].size() }
                 };
-                const std::size_t sampleCount{ decoder->readSamples(outputBuffers, sampleCountPerChannel) };
+                const std::size_t sampleCount{ decoder->readSamples(outputBuffers) };
                 totalSampleCount += sampleCount;
             }
 

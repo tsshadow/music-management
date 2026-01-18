@@ -19,6 +19,7 @@
 
 #include "PcmDecoder.hpp"
 
+#include <algorithm>
 #include <array>
 
 extern "C"
@@ -166,27 +167,15 @@ namespace lms::audio::ffmpeg
 
     PcmDecoder::~PcmDecoder() = default;
 
-    std::size_t PcmDecoder::readSamples(std::span<WritableBuffer> outputChannelBuffers, std::size_t maxSamplesPerChannel)
+    std::size_t PcmDecoder::readSamples(std::span<WritableBuffer> outputChannelBuffers)
     {
-        assert(outputChannelBuffers.size() <= AV_NUM_DATA_POINTERS);
-
         if (_finished)
             return 0;
 
-        if (_parameters.planar)
-        {
-            if (outputChannelBuffers.size() != _parameters.channelCount)
-                throw Exception{ "Expected " + std::to_string(_parameters.channelCount) + " buffers for planar output" };
-        }
-        else
-        {
-            if (outputChannelBuffers.size() != 1)
-                throw Exception{ "Expected a single buffer for interleaved output" };
-        }
+        const std::size_t maxSamplesPerChannel{ computeSampleCountPerChannel(outputChannelBuffers) };
 
-        std::array<uint8_t*, AV_NUM_DATA_POINTERS> outData{};
-        for (size_t i = 0; i < outputChannelBuffers.size(); ++i)
-            outData[i] = reinterpret_cast<uint8_t*>(outputChannelBuffers[i].data());
+        if (getEstimatedResamplerAvailableSamples() >= maxSamplesPerChannel)
+            return drainResampler(outputChannelBuffers, maxSamplesPerChannel);
 
         while (true)
         {
@@ -212,6 +201,10 @@ namespace lms::audio::ffmpeg
             }
             else
             {
+                std::array<uint8_t*, AV_NUM_DATA_POINTERS> outData{};
+                for (size_t i = 0; i < outputChannelBuffers.size(); ++i)
+                    outData[i] = reinterpret_cast<uint8_t*>(outputChannelBuffers[i].data());
+
                 // Resample decoded audio
                 const int outSampleCount{ ::swr_convert(
                     _resampleContext.get(),
@@ -233,20 +226,12 @@ namespace lms::audio::ffmpeg
             // Drain resampler once decoder is drained
             if (_draining)
             {
-                const int outSampleCount = ::swr_convert(_resampleContext.get(),
-                                                         outData.data(),
-                                                         static_cast<int>(maxSamplesPerChannel),
-                                                         nullptr,
-                                                         0);
-
-                if (outSampleCount < 0)
-                    throw FFmpegException{ "swr_convert (drain) failed", outSampleCount };
-
+                const std::size_t outSampleCount{ drainResampler(outputChannelBuffers, maxSamplesPerChannel) };
                 if (outSampleCount > 0)
                     return outSampleCount;
 
                 _finished = true;
-                return 0;
+                break;
             }
         }
 
@@ -256,6 +241,39 @@ namespace lms::audio::ffmpeg
     bool PcmDecoder::finished() const
     {
         return _finished;
+    }
+
+    std::size_t PcmDecoder::computeSampleCountPerChannel(std::span<WritableBuffer> outputChannelBuffers) const
+    {
+        if (_parameters.planar)
+        {
+            if (outputChannelBuffers.size() != _parameters.channelCount)
+                throw Exception{ "Expected " + std::to_string(_parameters.channelCount) + " buffers for planar output" };
+
+            // Each planar buffer holds samples for one channel only
+            const int bytesPerSample{ av_get_bytes_per_sample(toAvSampleFormat(_parameters.sampleType, true)) };
+            if (bytesPerSample <= 0)
+                throw Exception{ "Invalid bytes per sample for output format" };
+
+            const std::size_t sampleCount{ outputChannelBuffers[0].size() / bytesPerSample };
+            if (!std::all_of(std::cbegin(outputChannelBuffers), std::cend(outputChannelBuffers), [&](const WritableBuffer& buffer) { return buffer.size() == outputChannelBuffers[0].size(); }))
+                throw Exception{ "All planar channel buffers must have the same size" };
+
+            return sampleCount;
+        }
+
+        // interleaved
+        if (outputChannelBuffers.size() != 1)
+            throw Exception{ "Expected a single buffer for interleaved output" };
+
+        const int bytesPerSample = av_get_bytes_per_sample(toAvSampleFormat(_parameters.sampleType, false));
+        if (bytesPerSample <= 0)
+            throw Exception{ "Invalid bytes per sample for output format" };
+
+        // Divide by (bytes per sample * number of channels) for interleaved
+        const std::size_t sampleCount = outputChannelBuffers[0].size() / (bytesPerSample * _parameters.channelCount);
+
+        return sampleCount;
     }
 
     void PcmDecoder::feedDecoder()
@@ -285,5 +303,31 @@ namespace lms::audio::ffmpeg
             else
                 ::av_packet_unref(_inputPacket.get());
         }
+    }
+
+    std::size_t PcmDecoder::drainResampler(std::span<WritableBuffer> outputChannelBuffers, std::size_t maxSamplesPerChannel)
+    {
+        std::array<uint8_t*, AV_NUM_DATA_POINTERS> outData{};
+        for (size_t i = 0; i < outputChannelBuffers.size(); ++i)
+            outData[i] = reinterpret_cast<uint8_t*>(outputChannelBuffers[i].data());
+
+        const int outSampleCount{ ::swr_convert(_resampleContext.get(),
+                                                outData.data(),
+                                                static_cast<int>(maxSamplesPerChannel),
+                                                nullptr,
+                                                0) };
+
+        if (outSampleCount < 0)
+            throw FFmpegException{ "swr_convert (drain) failed", outSampleCount };
+
+        return outSampleCount;
+    }
+
+    std::size_t PcmDecoder::getEstimatedResamplerAvailableSamples() const
+    {
+        const int64_t delayedInputSampleCount{ ::swr_get_delay(_resampleContext.get(), _decoderContext->sample_rate) };
+        const int64_t sampleCount{ av_rescale_rnd(delayedInputSampleCount, _parameters.sampleRate, _decoderContext->sample_rate, AV_ROUND_UP) };
+
+        return sampleCount;
     }
 } // namespace lms::audio::ffmpeg

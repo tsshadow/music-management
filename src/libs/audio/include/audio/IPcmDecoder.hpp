@@ -53,7 +53,10 @@ namespace lms::audio
 
         // Returns the number of samples written per channel. Returns 0 only once all remaining samples are drained.
         // Provide one buffer per channel if planar, or a single buffer containing all channels interleaved
-        virtual std::size_t readSamples(std::span<WritableBuffer> outputChannelBuffers, std::size_t maxSamplesPerChannel) = 0;
+        // Each buffer must be sized to hold an integer number of samples according to the requested sample type.
+        // For example, for Float32 planar output, each buffer size must be divisible by sizeof(float).
+        // The decoder will use the buffer sizes to determine the maximum number of samples it can write.
+        virtual std::size_t readSamples(std::span<WritableBuffer> outputChannelBuffers) = 0;
         virtual bool finished() const = 0;
     };
 

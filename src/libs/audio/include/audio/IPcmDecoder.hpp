@@ -35,7 +35,7 @@ namespace lms::audio
         Float64,
     };
 
-    struct PcmDecoderParameters
+    struct PcmOutputParameters
     {
         unsigned channelCount;
         unsigned sampleRate;
@@ -61,5 +61,5 @@ namespace lms::audio
     };
 
     // Throw on error
-    std::unique_ptr<IPcmDecoder> createPcmDecoder(const std::filesystem::path& filePath, const PcmDecoderParameters& parameters);
+    std::unique_ptr<IPcmDecoder> createPcmDecoder(const std::filesystem::path& filePath, const PcmOutputParameters& parameters);
 } // namespace lms::audio

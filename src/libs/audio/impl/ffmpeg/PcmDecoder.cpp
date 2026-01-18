@@ -41,7 +41,7 @@ extern "C"
 
 namespace lms::audio
 {
-    std::unique_ptr<IPcmDecoder> createPcmDecoder(const std::filesystem::path& filePath, const PcmDecoderParameters& parameters)
+    std::unique_ptr<IPcmDecoder> createPcmDecoder(const std::filesystem::path& filePath, const PcmOutputParameters& parameters)
     {
         return std::make_unique<ffmpeg::PcmDecoder>(filePath, parameters);
     }
@@ -69,7 +69,7 @@ namespace lms::audio::ffmpeg
         }
     } // namespace
 
-    PcmDecoder::PcmDecoder(const std::filesystem::path& filePath, const PcmDecoderParameters& parameters)
+    PcmDecoder::PcmDecoder(const std::filesystem::path& filePath, const PcmOutputParameters& parameters)
         : _parameters{ parameters }
     {
         if (_parameters.channelCount > AV_NUM_DATA_POINTERS)

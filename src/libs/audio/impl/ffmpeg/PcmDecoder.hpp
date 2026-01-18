@@ -28,7 +28,7 @@ namespace lms::audio::ffmpeg
     class PcmDecoder : public IPcmDecoder
     {
     public:
-        PcmDecoder(const std::filesystem::path& filePath, const PcmOutputParameters& parameters);
+        PcmDecoder(const std::filesystem::path& filePath, const PcmParameters& parameters);
         ~PcmDecoder() override;
 
         PcmDecoder(const PcmDecoder&) = delete;
@@ -43,7 +43,7 @@ namespace lms::audio::ffmpeg
         std::size_t drainResampler(std::span<WritableBuffer> outputChannelBuffers, std::size_t maxSamplesPerChannel);
         std::size_t getEstimatedResamplerAvailableSamples() const;
 
-        const PcmOutputParameters _parameters;
+        const PcmParameters _parameters;
 
         bool _finished{};
         bool _eof{};

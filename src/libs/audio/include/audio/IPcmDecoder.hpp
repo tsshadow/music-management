@@ -19,31 +19,15 @@
 
 #pragma once
 
-#include <bit>
 #include <cstddef>
 #include <filesystem>
 #include <memory>
 #include <span>
 
+#include "audio/PcmTypes.hpp"
+
 namespace lms::audio
 {
-    enum class PcmDecodeSampleType
-    {
-        Signed16,
-        Signed32,
-        Float32,
-        Float64,
-    };
-
-    struct PcmOutputParameters
-    {
-        unsigned channelCount;
-        unsigned sampleRate;
-        PcmDecodeSampleType sampleType;
-        std::endian byteOrder;
-        bool planar;
-    };
-
     class IPcmDecoder
     {
     public:
@@ -61,5 +45,5 @@ namespace lms::audio
     };
 
     // Throw on error
-    std::unique_ptr<IPcmDecoder> createPcmDecoder(const std::filesystem::path& filePath, const PcmOutputParameters& parameters);
+    std::unique_ptr<IPcmDecoder> createPcmDecoder(const std::filesystem::path& filePath, const PcmParameters& parameters);
 } // namespace lms::audio

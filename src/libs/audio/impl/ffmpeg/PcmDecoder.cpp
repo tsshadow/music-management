@@ -41,7 +41,7 @@ extern "C"
 
 namespace lms::audio
 {
-    std::unique_ptr<IPcmDecoder> createPcmDecoder(const std::filesystem::path& filePath, const PcmOutputParameters& parameters)
+    std::unique_ptr<IPcmDecoder> createPcmDecoder(const std::filesystem::path& filePath, const PcmParameters& parameters)
     {
         return std::make_unique<ffmpeg::PcmDecoder>(filePath, parameters);
     }
@@ -51,25 +51,25 @@ namespace lms::audio::ffmpeg
 {
     namespace
     {
-        ::AVSampleFormat toAvSampleFormat(PcmDecodeSampleType type, bool planar)
+        ::AVSampleFormat toAvSampleFormat(PcmSampleType type, bool planar)
         {
             switch (type)
             {
-            case PcmDecodeSampleType::Signed16:
+            case PcmSampleType::Signed16:
                 return planar ? AV_SAMPLE_FMT_S16P : AV_SAMPLE_FMT_S16;
-            case PcmDecodeSampleType::Signed32:
+            case PcmSampleType::Signed32:
                 return planar ? AV_SAMPLE_FMT_S32P : AV_SAMPLE_FMT_S32;
-            case PcmDecodeSampleType::Float32:
+            case PcmSampleType::Float32:
                 return planar ? AV_SAMPLE_FMT_FLTP : AV_SAMPLE_FMT_FLT;
-            case PcmDecodeSampleType::Float64:
+            case PcmSampleType::Float64:
                 return planar ? AV_SAMPLE_FMT_DBLP : AV_SAMPLE_FMT_DBL;
             }
 
-            throw Exception("Unsupported PcmDecodeSampleType");
+            throw Exception("Unsupported PcmSampleType");
         }
     } // namespace
 
-    PcmDecoder::PcmDecoder(const std::filesystem::path& filePath, const PcmOutputParameters& parameters)
+    PcmDecoder::PcmDecoder(const std::filesystem::path& filePath, const PcmParameters& parameters)
         : _parameters{ parameters }
     {
         if (_parameters.channelCount > AV_NUM_DATA_POINTERS)

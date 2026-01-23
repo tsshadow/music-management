@@ -29,6 +29,7 @@ class Settings(metaclass=SingletonMeta):
         self.eps_folder_path = os.getenv('eps_folder_path', '')
         self.music_folder_path = os.getenv('music_folder_path', '')
         self.delimiter = os.getenv('delimiter', os.sep)
+        self.youtube_video_folder = os.getenv('youtube_video_folder', '')
         logging.info('import_folder_path = %s', self.import_folder_path)
         logging.info('music_folder_path = %s', self.music_folder_path)
         logging.info('eps_folder_path = %s', self.eps_folder_path)

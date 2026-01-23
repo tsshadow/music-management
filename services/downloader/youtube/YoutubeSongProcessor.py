@@ -37,24 +37,40 @@ class YoutubeSongProcessor(PostProcessor):
             is_new_download = True
         else:
             logging.info(f'Track already in youtube_archive: {account}/{video_id} — skipping insert.')
-        tagger_service = TaggerService()
-        tagger_service.tag_file("youtube", path, info)
+
+        # Skip tagging for video files as they are likely livesets and normal audio tagging might fail or be unwanted
+        is_video = info.get('ext') in ('mp4', 'mkv', 'webm') or info.get('vcodec') != 'none'
+        if is_video:
+            logging.info(f'Skipping audio tagging for video file: {path}')
+        else:
+            tagger_service = TaggerService()
+            tagger_service.tag_file("youtube", path, info)
 
         # Send notification for new downloads with enriched metadata
         if is_new_download:
             try:
-                # Load the tagged file to get enriched metadata
-                from services.tagger.Song.YoutubeSong import YoutubeSong
-                song = YoutubeSong(path, info)
+                # Load the tagged file to get enriched metadata if it's audio
+                if not is_video:
+                    from services.tagger.Song.YoutubeSong import YoutubeSong
+                    song = YoutubeSong(path, info)
+                    title = song.title() or title_for_archive or 'Unknown Title'
+                    artist = song.artist() or info.get('uploader')
+                    genres = song.genres() if song.genres() else None
+                    label = song.publisher() if song.publisher() else None
+                else:
+                    title = title_for_archive or 'Unknown Title'
+                    artist = info.get('uploader')
+                    genres = None
+                    label = 'Youtube (Video)'
 
                 notify_service = NotifyService()
                 notify_service.notify_download(
                     source='youtube',
-                    title=song.title() or title_for_archive or 'Unknown Title',
-                    artist=song.artist() or info.get('uploader'),
+                    title=title,
+                    artist=artist,
                     account=account,
-                    genres=song.genres() if song.genres() else None,
-                    label=song.publisher() if song.publisher() else None
+                    genres=genres,
+                    label=label
                 )
             except Exception as e:
                 logging.warning(f'Failed to send notification: {e}')

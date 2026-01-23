@@ -25,6 +25,7 @@ class YoutubeDownloader:
             socket_timeout (int): Timeout value (in seconds) for network connections.
         """
         self.output_folder = os.getenv('youtube_folder')
+        self.video_folder = os.getenv('youtube_video_folder')
         self.archive_dir = os.getenv('youtube_archive')
         self.ffmpeg_location = os.getenv('ffmpeg-location', 'usr/bin/local')
         self.max_workers = max_workers
@@ -33,14 +34,16 @@ class YoutubeDownloader:
         self.max_pause = max_pause
         self.socket_timeout = socket_timeout
         self.default_break_on_existing = break_on_existing
-        if not self.output_folder or not self.archive_dir:
+        if not self.output_folder or not self.video_folder or not self.archive_dir:
             logging.warning(
-                'Missing required environment variables for youtube_folder or youtube_archive. YouTube downloads will be disabled.')
+                'Missing required environment variables for youtube_folder, youtube_video_folder or youtube_archive. YouTube downloads will be disabled.')
             self.output_folder = None
+            self.video_folder = None
             self.archive_dir = None
             self.enabled = False
         else:
             os.makedirs(self.output_folder, exist_ok=True)
+            os.makedirs(self.video_folder, exist_ok=True)
             os.makedirs(self.archive_dir, exist_ok=True)
             self.enabled = True
         self.cookies_file = os.getenv('YT_COOKIES')
@@ -48,10 +51,7 @@ class YoutubeDownloader:
         if not self.enabled:
             self._base_ydl_opts = {}
             return
-        self._base_ydl_opts = {'outtmpl': f'{self.output_folder}/%(uploader)s/%(title)s.%(ext)s',
-                               'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'm4a'},
-                                                  {'key': 'EmbedThumbnail'}, {'key': 'FFmpegMetadata'}],
-                               'compat_opts': ['filename'], 'nooverwrites': True, 'keepvideo': False,
+        self._base_ydl_opts = {'compat_opts': ['filename'], 'nooverwrites': True,
                                'ffmpeg_location': self.ffmpeg_location, 'match_filter': self._match_filter,
                                'socket_timeout': self.socket_timeout,
                                'extractor_args': {
@@ -85,7 +85,9 @@ class YoutubeDownloader:
         logging.info('Using cookiesfrombrowser=firefox (no YT_COOKIES file).')
         return opts
 
-    def _build_ydl_opts(self, archive_file: str, break_on_existing: bool = True, redownload: bool = False) -> dict:
+    def _build_ydl_opts(self, archive_file: str, break_on_existing: bool = True, redownload: bool = False,
+                        download_type: str = 'audio', min_duration: int = 60,
+                        output_folder_override: Optional[str] = None) -> dict:
         """
         Constructs yt-dlp options based on the given download requirements.
     
@@ -93,14 +95,29 @@ class YoutubeDownloader:
             archive_file (str): Path to the archive file for already downloaded videos.
             break_on_existing (bool): Whether to stop processing if an existing video is detected.
             redownload (bool): Whether to force redownload of archived content.
+            download_type (str): 'audio' or 'video'.
+            min_duration (int): Minimum duration in seconds.
+            output_folder_override (str): Optional custom output folder.
     
         Returns:
             dict: A dictionary containing yt-dlp configuration options.
         """
         opts = {**self._base_ydl_opts}
-        if 'postprocessors' in self._base_ydl_opts:
-            opts['postprocessors'] = [pp.copy() if isinstance(pp, dict) else pp for pp in
-                                      self._base_ydl_opts['postprocessors']]
+        opts['min_duration_limit'] = min_duration  # Used in _match_filter
+
+        base_folder = output_folder_override or (self.video_folder if download_type == 'video' else self.output_folder)
+
+        if download_type == 'video':
+            opts['outtmpl'] = f'{base_folder}/%(uploader)s/%(title)s.%(ext)s'
+            opts['postprocessors'] = [{'key': 'EmbedThumbnail'}, {'key': 'FFmpegMetadata'}]
+            opts['keepvideo'] = True
+            opts['format'] = 'bestvideo+bestaudio/best'
+        else:
+            opts['outtmpl'] = f'{base_folder}/%(uploader)s/%(title)s.%(ext)s'
+            opts['postprocessors'] = [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'm4a'},
+                                      {'key': 'EmbedThumbnail'}, {'key': 'FFmpegMetadata'}]
+            opts['keepvideo'] = False
+
         if not redownload:
             opts['download_archive'] = archive_file
         else:
@@ -137,24 +154,44 @@ class YoutubeDownloader:
         """
         duration = info.get('duration')
         title = info.get('title', 'unknown')
-        if not duration or duration < 60 or duration > 36000:
-            logging.info(f"Skipping video '{title}' (duration: {duration}s)")
+        min_duration = info.get('min_duration_limit', 60)
+        if not duration or duration < min_duration or duration > 36000:
+            logging.info(f"Skipping video '{title}' (duration: {duration}s, min required: {min_duration}s)")
             return 'Outside allowed duration range'
         return None
 
-    def download_account(self, name: str, ydl_opts: dict = None):
+    def download_account(self, name: str, download_type: str = 'audio', break_on_existing: Optional[bool] = None, 
+                         redownload: bool = False, min_duration: int = 60, 
+                         output_folder_override: Optional[str] = None, ydl_opts: dict = None):
         """
         Downloads videos from a specific YouTube account.
     
         Args:
             name (str): The name or username of the account.
+            download_type (str): 'audio' or 'video'.
+            break_on_existing (bool, optional): Overrides default break_on_existing.
+            redownload (bool): Force redownload.
+            min_duration (int): Minimum duration.
+            output_folder_override (str): Optional output folder override.
             ydl_opts (dict, optional): Specific YouTubeDL configuration options.
     
         Retries the download process up to 3 times in case of errors.
         """
         link = f'http://www.youtube.com/{name}'
-        archive_file = os.path.join(self.archive_dir, f'{name}.txt')
-        opts_template = ydl_opts or self._build_ydl_opts(archive_file, break_on_existing=self.default_break_on_existing)
+        archive_dir = os.path.join(self.archive_dir, download_type)
+        os.makedirs(archive_dir, exist_ok=True)
+        archive_file = os.path.join(archive_dir, f'{name}.txt')
+        
+        effective_break = self.default_break_on_existing if break_on_existing is None else break_on_existing
+        
+        opts_template = ydl_opts or self._build_ydl_opts(
+            archive_file, 
+            break_on_existing=effective_break,
+            redownload=redownload,
+            download_type=download_type,
+            min_duration=min_duration,
+            output_folder_override=output_folder_override
+        )
         for attempt in range(1, 4):
             try:
                 opts = dict(opts_template)
@@ -191,21 +228,25 @@ class YoutubeDownloader:
                     time.sleep(5 * attempt)
         logging.error(f'YouTube download failed for {name} after 3 attempts.')
 
-    def download_link(self, url: str, breakOnExisting: bool = True, redownload: bool = False):
+    def download_link(self, url: str, download_type: str = 'audio', breakOnExisting: bool = True, redownload: bool = False):
         """
         Download a single video using a direct URL.
     
         Args:
             url (str): The URL of the video to download.
+            download_type (str): 'audio' or 'video'.
             breakOnExisting (bool): Whether to skip download if the video already exists.
             redownload (bool): Whether to force redownloading of existing content.
     
         Logs errors if the download fails.
         """
         """Download a single video using a direct URL."""
-        archive_file = os.path.join(self.archive_dir, 'manual.txt')
+        archive_dir = os.path.join(self.archive_dir, download_type)
+        os.makedirs(archive_dir, exist_ok=True)
+        archive_file = os.path.join(archive_dir, 'manual.txt')
         try:
-            opts = self._build_ydl_opts(archive_file, break_on_existing=breakOnExisting, redownload=redownload)
+            opts = self._build_ydl_opts(archive_file, break_on_existing=breakOnExisting, redownload=redownload,
+                                        download_type=download_type)
             with self._create_ydl(opts) as ydl:
                 logging.info(f'Downloading from url: {url}')
                 ydl.download([url])
@@ -215,16 +256,23 @@ class YoutubeDownloader:
 
     def get_accounts_from_db(self):
         """
-        Fetches a list of YouTube account names from the database.
+        Fetches a list of YouTube accounts with their settings from the database.
     
         Returns:
-            list: A list of account names, or an empty list if the query fails.
+            list: A list of dicts with account settings.
         """
         try:
             db = DatabaseConnector().connect()
             with db.cursor() as cursor:
-                cursor.execute('SELECT name FROM youtube_accounts')
-                accounts = [row[0] for row in cursor.fetchall()]
+                cursor.execute('SELECT name, download_type, min_duration, output_folder_override FROM youtube_accounts')
+                accounts = []
+                for row in cursor.fetchall():
+                    accounts.append({
+                        'name': row[0],
+                        'download_type': row[1] or 'audio',
+                        'min_duration': row[2] or 60,
+                        'output_folder_override': row[3]
+                    })
             return accounts
         except Exception as e:
             logging.error(f'Failed to fetch Youtube accounts from DB: {e}')
@@ -246,7 +294,13 @@ class YoutubeDownloader:
             return
         try:
             if account:
-                accounts = [account]
+                # If a specific account name is provided, we still need its settings from DB
+                all_accounts = self.get_accounts_from_db()
+                accounts = [acc for acc in all_accounts if acc['name'] == account]
+                if not accounts:
+                    # Fallback if account not in DB (e.g. manual override)
+                    accounts = [{'name': account, 'download_type': 'audio', 'min_duration': 60,
+                                 'output_folder_override': None}]
             else:
                 accounts = self.get_accounts_from_db()
         except Exception as e:
@@ -256,7 +310,7 @@ class YoutubeDownloader:
             logging.warning('No YouTube accounts found in the database.')
             return
         total_accounts = len(accounts)
-        accounts.sort()
+        accounts.sort(key=lambda x: x['name'])
         total_batches = (total_accounts + self.burst_size - 1) // self.burst_size
         for i in range(0, total_accounts, self.burst_size):
             batch = accounts[i:i + self.burst_size]
@@ -264,12 +318,19 @@ class YoutubeDownloader:
             logging.info('Processing YouTube batch %s of %s', batch_index, total_batches)
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
                 futures = {}
-                for acc in batch:
-                    account_archive = os.path.join(self.archive_dir, f'{acc}.txt')
+                for acc_settings in batch:
+                    acc_name = acc_settings['name']
                     effective_break = self.default_break_on_existing if breakOnExisting is None else breakOnExisting
-                    ydl_opts = self._build_ydl_opts(account_archive, break_on_existing=effective_break,
-                                                    redownload=redownload)
-                    futures[executor.submit(self.download_account, acc, ydl_opts)] = acc
+                    
+                    futures[executor.submit(
+                        self.download_account, 
+                        acc_name, 
+                        download_type=acc_settings['download_type'],
+                        break_on_existing=effective_break,
+                        redownload=redownload,
+                        min_duration=acc_settings['min_duration'],
+                        output_folder_override=acc_settings['output_folder_override']
+                    )] = acc_name
                 for future in concurrent.futures.as_completed(futures):
                     acc = futures[future]
                     try:

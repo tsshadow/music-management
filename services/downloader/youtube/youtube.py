@@ -27,7 +27,7 @@ class YoutubeDownloader:
         self.output_folder = os.getenv('youtube_folder')
         self.video_folder = os.getenv('youtube_video_folder')
         self.archive_dir = os.getenv('youtube_archive')
-        self.ffmpeg_location = os.getenv('ffmpeg-location', 'usr/bin/local')
+        self.ffmpeg_location = os.getenv('ffmpeg-location', '/usr/bin')
         self.max_workers = max_workers
         self.burst_size = burst_size
         self.min_pause = min_pause
@@ -114,6 +114,7 @@ class YoutubeDownloader:
             opts['format'] = 'bestvideo+bestaudio/best'
         else:
             opts['outtmpl'] = f'{base_folder}/%(uploader)s/%(title)s.%(ext)s'
+            opts['format'] = 'bestaudio/best'
             opts['postprocessors'] = [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'm4a'},
                                       {'key': 'EmbedThumbnail'}, {'key': 'FFmpegMetadata'}]
             opts['keepvideo'] = False
@@ -221,6 +222,9 @@ class YoutubeDownloader:
                 elif 'premieres in' in msg.lower():
                     logging.warning(f'Premieres in {name}. Skipping.')
                     return
+                elif "the downloaded file is empty" in msg.lower():
+                    logging.warning(f"The downloaded file for {name} is empty. Possibly a live stream that hasn't finished or is restricted. Skipping.")
+                    return
                 elif 'This channel does not have a streams tab' in msg.lower():
                     return
                 else:
@@ -278,7 +282,7 @@ class YoutubeDownloader:
             logging.error(f'Failed to fetch Youtube accounts from DB: {e}')
             return []
 
-    def run(self, breakOnExisting: Optional[bool] = None, redownload: bool = False, account: str = ''):
+    def run(self, breakOnExisting: Optional[bool] = None, redownload: bool = False, account: str = '', **kwargs):
         """
         Executes the downloading process for YouTube accounts.
     
@@ -286,12 +290,14 @@ class YoutubeDownloader:
             breakOnExisting (Optional[bool]): Overrides the instance's setting to stop on existing content.
             redownload (bool): Enforce redownloading of videos.
             account (str): Specific YouTube account to process (defaults to all accounts).
+            **kwargs: Additional arguments such as download_type.
     
         Processes accounts in batches and allows throttling between batches.
         """
         if not getattr(self, 'enabled', True):
-            logging.warning('YouTube soundcloud is not configured; skipping run().')
+            logging.warning('YouTube downloader is not configured; skipping run().')
             return
+        download_type = kwargs.get('download_type')
         try:
             if account:
                 # If a specific account name is provided, we still need its settings from DB
@@ -306,6 +312,8 @@ class YoutubeDownloader:
         except Exception as e:
             logging.error(f'Database error while fetching YouTube accounts: {e}')
             return
+        if download_type:
+            accounts = [acc for acc in accounts if acc["download_type"] == download_type]
         if not accounts:
             logging.warning('No YouTube accounts found in the database.')
             return

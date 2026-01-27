@@ -85,9 +85,9 @@ class SoundcloudDownloader:
                     time.sleep(5 * attempt)
         logging.error(f'SoundCloud download failed for {name} after 3 attempts.')
 
-    def run(self, account: str='', download: bool=True, breakOnExisting: Optional[bool]=None, redownload: bool=False):
+    def run(self, account: str='', download: bool=True, breakOnExisting: Optional[bool]=None, redownload: bool=False, **kwargs):
         if not getattr(self, 'enabled', True):
-            logging.warning('SoundCloud soundcloud is not configured; skipping run().')
+            logging.warning('SoundCloud downloader is not configured; skipping run().')
             return
         if not account:
             accounts = get_accounts_from_db()
@@ -118,9 +118,10 @@ class SoundcloudDownloader:
                             ydl_opts['download_archive'] = str(self.archive_file)
                             logging.info(f'Using shared archive: {self.archive_file}')
                         else:
-                            account_archive = Path(self.archive_dir) / f'{acc}.txt'
-                            ydl_opts['download_archive'] = str(account_archive)
-                            logging.info(f'Using per-account archive: {account_archive} for {acc}')
+                            if self.archive_dir:
+                                account_archive = Path(self.archive_dir) / f'{acc}.txt'
+                                ydl_opts['download_archive'] = str(account_archive)
+                                logging.info(f'Using per-account archive: {account_archive} for {acc}')
                     else:
                         ydl_opts.pop('download_archive', None)
                         logging.info(f'Redownload enabled — skipping archive for {acc}.')
@@ -139,7 +140,7 @@ class SoundcloudDownloader:
         self.output_folder = values.get('soundcloud_folder') or None
         self.archive_dir = values.get('soundcloud_archive') or None
         self.cookies_file = values.get('soundcloud_cookies') or 'soundcloud.com_cookies.txt'
-        self.ffmpeg_location = values.get('ffmpeg_location') or 'usr/bin/local'
+        self.ffmpeg_location = values.get('ffmpeg_location') or '/usr/bin'
         if not self.output_folder or not self.archive_dir:
             if getattr(self, 'enabled', True):
                 logging.warning('Missing required configuration for SoundCloud downloads. SoundCloud downloads will be disabled.')

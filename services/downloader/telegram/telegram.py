@@ -87,9 +87,9 @@ class TelegramDownloader:
                 download_tasks.append(task)
         await asyncio.gather(*download_tasks)
 
-    def run(self, channel: str, limit: int | None=None):
+    def run(self, channel: str, limit: int | None=None, **kwargs):
         if not self.output_folder or not self.api_id or (not self.api_hash):
-            logging.warning('Telegram soundcloud is not configured; skipping run().')
+            logging.warning('Telegram downloader is not configured; skipping run().')
             return
         if not channel:
             raise ValueError('Channel must be provided')

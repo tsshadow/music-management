@@ -18,8 +18,8 @@ class DatabaseConnector:
         self.connect_timeout = int(os.getenv('DB_CONNECT_TIMEOUT', '5'))
 
     def connect(self):
-        if not all([self.host, self.user, self.password, self.db, self.port]):
-            raise RuntimeError('Database connection parameters are not fully configured')
+        if not all([self.host, self.user, self.db, self.port]):
+            raise RuntimeError('Database connection parameters are not fully configured (host, user, db, port are required)')
         return pymysql.connect(host=self.host, port=self.port, user=self.user, password=self.password, db=self.db, connect_timeout=self.connect_timeout)
 
     def verify_connection(self):

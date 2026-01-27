@@ -10,7 +10,7 @@ from services.common.api import start_api_server
 from services.common.settings import Settings
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.downloader.youtube.youtube import YoutubeDownloader
-from soundcloud.soundcloud import SoundcloudDownloader
+from services.downloader.soundcloud.soundcloud import SoundcloudDownloader
 from services.downloader.telegram.telegram import TelegramDownloader
 
 faulthandler.register(signal.SIGUSR1)
@@ -38,6 +38,11 @@ def parse_args() -> argparse.Namespace:
         help="Time in seconds to sleep between repeating steps (default: 300)",
     )
 
+    parser.add_argument(
+        "--download-type",
+        help="Limit YouTube downloads to specific type (audio, video)",
+        default=None,
+    )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--break-on-existing",
@@ -78,7 +83,7 @@ class DownloaderService:
 
         start_api_server()
 
-    def download(self, source: str, account: str | None, break_on_existing: bool, redownload: bool) -> None:
+    def download(self, source: str, account: str | None, break_on_existing: bool, redownload: bool, **kwargs) -> None:
         if source == "youtube":
             try:
                 version = subprocess.check_output(["yt-dlp", "--version"], text=True).strip()
@@ -91,13 +96,13 @@ class DownloaderService:
             youtube_downloader = YoutubeDownloader(
                 break_on_existing=break_on_existing
             )
-            youtube_downloader.run(account=account, redownload=redownload)
+            youtube_downloader.run(account=account, redownload=redownload, **kwargs)
 
         elif source == "soundcloud":
             soundcloud_downloader = SoundcloudDownloader(
                 break_on_existing=break_on_existing,
             )
-            soundcloud_downloader.run(account=account, redownload=redownload)
+            soundcloud_downloader.run(account=account, redownload=redownload, **kwargs)
 
         elif source == "telegram":
             if not account:
@@ -132,7 +137,7 @@ def main() -> None:
                 "youtube",
                 break_on_existing=args.break_on_existing,
                 account=args.account,
-                redownload=args.redownload
+                redownload=args.redownload, download_type=args.download_type
             )
 
         if "soundcloud" in steps:
@@ -140,7 +145,7 @@ def main() -> None:
                 "soundcloud",
                 break_on_existing=args.break_on_existing,
                 account=args.account,
-                redownload=args.redownload
+                redownload=args.redownload, download_type=args.download_type
             )
 
         if "telegram" in steps:
@@ -148,7 +153,7 @@ def main() -> None:
                 "telegram",
                 break_on_existing=args.break_on_existing,
                 account=args.account,
-                redownload=args.redownload
+                redownload=args.redownload, download_type=args.download_type
             )
 
         if not args.repeat:

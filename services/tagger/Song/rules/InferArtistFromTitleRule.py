@@ -131,8 +131,16 @@ class InferArtistFromTitleSingleDashRule(TagRule):
 
     def apply(self, song):
         title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
+        if not title:
+            return False
         title = title.replace('|', '-')
-        if not title or title.count(' - ') != 1:
+
+        # New logic to handle [CATID] prefix
+        catid_match = re.match(r'^\[[A-Z0-9-]+\]\s+(.*)', title, re.IGNORECASE)
+        if catid_match:
+            title = catid_match.group(1).strip()
+
+        if title.count(' - ') != 1:
             return False
         left, right = [s.strip() for s in title.split(' - ', 1)]
         

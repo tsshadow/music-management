@@ -167,6 +167,11 @@ namespace lms::audio::ffmpeg
 
     PcmDecoder::~PcmDecoder() = default;
 
+    const PcmParameters& PcmDecoder::getParameters() const
+    {
+        return _parameters;
+    }
+
     std::size_t PcmDecoder::readSamples(std::span<WritableBuffer> outputChannelBuffers)
     {
         if (_finished)

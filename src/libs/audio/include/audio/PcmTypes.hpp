@@ -31,6 +31,8 @@ namespace lms::audio
         Float64,
     };
 
+    std::size_t getSampleSize(PcmSampleType type);
+
     struct PcmParameters
     {
         unsigned channelCount;

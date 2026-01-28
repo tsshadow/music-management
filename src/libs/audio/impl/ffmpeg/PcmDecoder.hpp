@@ -35,6 +35,8 @@ namespace lms::audio::ffmpeg
         PcmDecoder& operator=(const PcmDecoder&) = delete;
 
     private:
+        const PcmParameters& getParameters() const;
+
         std::size_t readSamples(std::span<WritableBuffer> outputChannelBuffers) override;
         bool finished() const override;
 

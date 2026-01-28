@@ -35,6 +35,8 @@ namespace lms::audio
 
         using WritableBuffer = std::span<std::byte>;
 
+        virtual const PcmParameters& getParameters() const = 0;
+
         // Returns the number of samples written per channel. Returns 0 only once all remaining samples are drained.
         // Provide one buffer per channel if planar, or a single buffer containing all channels interleaved
         // Each buffer must be sized to hold an integer number of samples according to the requested sample type.

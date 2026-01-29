@@ -19,15 +19,11 @@
 
 #include <bit>
 #include <chrono>
-#include <format>
 #include <iostream>
 
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/post.hpp>
 #include <boost/program_options.hpp>
-#include <pulse/def.h>
-#include <pulse/error.h>
-#include <pulse/sample.h>
-#include <pulse/simple.h>
 
 #include "core/ILogger.hpp"
 
@@ -79,9 +75,8 @@ namespace lms
             const audio::PcmParameters& pcmParams{ getPcmParameters() };
             _sampleCountPerBuffer = static_cast<std::size_t>(std::chrono::duration_cast<std::chrono::microseconds>(bufferDuration).count() * pcmParams.sampleRate / std::chrono::microseconds::period::den);
             const std::size_t bufferSize{ sampleCountToByteCount(_sampleCountPerBuffer) };
-            std::cout << "Using buffer size = " << bufferSize << ", " << _sampleCountPerBuffer << " samples per channel" << std::endl;
 
-            _buffers.resize(4); // TODO parametrize?
+            _buffers.resize(bufferCount);
             for (BufferDesc& bufferDesc : _buffers)
                 bufferDesc.buffer.resize(bufferSize);
         }
@@ -100,12 +95,10 @@ namespace lms
 
                 std::span<std::byte> buffer{ bufferDesc.buffer };
                 const std::size_t sampleCount{ readSamples(buffer) };
-                if (sampleCount == 0)
+                if (sampleCount == 0) // EOF
                 {
-                    // EOF
-                    std::cout << "EOF: draining!" << std::endl;
                     _draining = true;
-                    _outputStream->asyncDrain([this] { std::cout << "Drain complete!!" << std::endl; });
+                    _outputStream->asyncDrain([this] {});
                     break;
                 }
 
@@ -116,9 +109,7 @@ namespace lms
                     onBufferWriteComplete(bufferIndex);
                 });
 
-                std::cout << "Playback time = " << std::format("{:%T}", std::chrono::duration_cast<std ::chrono::milliseconds>(_outputStream->getPlaybackTime())) << std::endl;
-
-                // TODO, reschedule instead of looping?
+                boost::asio::post(_ioContext, [this] { decodeSome(); });
             }
         }
 
@@ -167,6 +158,7 @@ namespace lms
             Buffer buffer;
             bool isInWrite{};
         };
+        static constexpr std::size_t bufferCount{ 4 };
         std::vector<BufferDesc> _buffers;
         std::size_t _nextBufferIndex{};
         std::size_t _sampleCountPerBuffer;
@@ -204,7 +196,7 @@ int main(int argc, char* argv[])
         if (!std::filesystem::exists(inputPath))
             throw std::runtime_error{ "File '" + inputPath.string() + "' does not exist!" };
 
-        core::Service<core::logging::ILogger> logger{ core::logging::createLogger(core::logging::Severity::DEBUG) };
+        core::Service<core::logging::ILogger> logger{ core::logging::createLogger(core::logging::Severity::INFO) };
 
         try
         {
@@ -218,9 +210,7 @@ int main(int argc, char* argv[])
             boost::asio::io_context context;
             FilePlayer filePlayer{ context, inputPath, decoderParams };
 
-            std::cout << "Running..." << std::endl;
             context.run();
-            std::cout << "Running DONE..." << std::endl;
         }
         catch (audio::Exception& e)
         {

@@ -64,12 +64,12 @@ int main(int argc, char* argv[])
 
         try
         {
-            audio::PcmDecoderParameters decoderParams;
+            audio::PcmParameters decoderParams;
             decoderParams.byteOrder = std::endian::little;
             decoderParams.channelCount = 2;
             decoderParams.sampleRate = 48000;
             decoderParams.planar = true;
-            decoderParams.sampleType = audio::PcmDecodeSampleType::Float32;
+            decoderParams.sampleType = audio::PcmSampleType::Float32;
 
             auto decoder{ audio::createPcmDecoder(inputPath, decoderParams) };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 Emeric Poupon
+ * Copyright (C) 2026 Emeric Poupon
  *
  * This file is part of LMS.
  *
@@ -78,7 +78,7 @@ namespace lms::audio::pulseaudio
         boost::asio::io_context& _ioContext;
         pa_context* _context;
         pa_threaded_mainloop* _mainLoop;
-        const PcmParameters& _outputParameters;
+        const PcmParameters _outputParameters;
         PaStreamPtr _stream;
 
         WaitReadyCallback _waitReadyCallback;

@@ -26,6 +26,7 @@
 #include <boost/program_options.hpp>
 
 #include "core/ILogger.hpp"
+#include "core/String.hpp"
 
 #include "audio/Exception.hpp"
 #include "audio/IAudioOutput.hpp"
@@ -37,12 +38,12 @@ namespace lms
     class FilePlayer
     {
     public:
-        FilePlayer(boost::asio::io_context& ioContext, const std::filesystem::path& filePath, const audio::PcmParameters& params)
+        FilePlayer(boost::asio::io_context& ioContext, audio::IAudioOutputContext& context, const std::filesystem::path& filePath, const audio::PcmParameters& params)
             : _ioContext{ ioContext }
+            , _context{ context }
             , _pcmDecoder{ audio::createPcmDecoder(filePath, params) }
-            , _context{ audio::createAudioOutputContext(_ioContext, "LMS") }
         {
-            _context->asyncWaitReady([this] {
+            _context.asyncWaitReady([this] {
                 createStream();
             });
         }
@@ -58,7 +59,7 @@ namespace lms
 
         void createStream()
         {
-            _outputStream = _context->createOutputStream("LMS-player", getPcmParameters());
+            _outputStream = _context.createOutputStream("LMS-player", getPcmParameters());
 
             prepareBuffers();
             decodeSome();
@@ -87,7 +88,7 @@ namespace lms
             {
                 BufferDesc& bufferDesc{ _buffers[_nextBufferIndex] };
                 if (bufferDesc.isInWrite)
-                    return;
+                    break;
 
                 const std::size_t bufferIndex{ _nextBufferIndex };
                 if (++_nextBufferIndex >= _buffers.size())
@@ -148,8 +149,8 @@ namespace lms
         }
 
         boost::asio::io_context& _ioContext;
+        audio::IAudioOutputContext& _context;
         std::unique_ptr<audio::IPcmDecoder> _pcmDecoder;
-        std::unique_ptr<audio::IAudioOutputContext> _context;
         std::unique_ptr<audio::IAudioOutputStream> _outputStream;
 
         struct BufferDesc
@@ -161,7 +162,7 @@ namespace lms
         static constexpr std::size_t bufferCount{ 4 };
         std::vector<BufferDesc> _buffers;
         std::size_t _nextBufferIndex{};
-        std::size_t _sampleCountPerBuffer;
+        std::size_t _sampleCountPerBuffer{};
         bool _draining{};
     };
 } // namespace lms
@@ -177,7 +178,8 @@ int main(int argc, char* argv[])
         // clang-format off
         options.add_options()
             ("help,h", "Display this help message")
-            ("input",program_options::value<std::string>()->required(), "Input audio file path");
+            ("input",program_options::value<std::string>()->required(), "Input audio file path")
+            ("backend", program_options::value<std::string>()->default_value(std::string{ "auto" }, "auto"), "Backend to be used (value can be \"alsa\", \"pulseaudio\")");
         // clang-format on
 
         program_options::variables_map vm;
@@ -196,6 +198,24 @@ int main(int argc, char* argv[])
         if (!std::filesystem::exists(inputPath))
             throw std::runtime_error{ "File '" + inputPath.string() + "' does not exist!" };
 
+        audio::AudioOutputBackend outputBackend;
+        if (core::stringUtils::stringCaseInsensitiveEqual(vm["backend"].as<std::string>(), "alsa"))
+            outputBackend = audio::AudioOutputBackend::ALSA;
+        else if (core::stringUtils::stringCaseInsensitiveEqual(vm["backend"].as<std::string>(), "pulseaudio"))
+            outputBackend = audio::AudioOutputBackend::PulseAudio;
+        else if (core::stringUtils::stringCaseInsensitiveEqual(vm["backend"].as<std::string>(), "auto"))
+        {
+            const auto backends{ audio::getAudioOutputBackends() };
+            if (backends.contains(audio::AudioOutputBackend::PulseAudio))
+                outputBackend = audio::AudioOutputBackend::PulseAudio;
+            else if (backends.contains(audio::AudioOutputBackend::ALSA))
+                outputBackend = audio::AudioOutputBackend::ALSA;
+            else
+                throw std::runtime_error{ "No audio output backend available!" };
+        }
+        else
+            throw program_options::validation_error{ program_options::validation_error::invalid_option_value, "backend" };
+
         core::Service<core::logging::ILogger> logger{ core::logging::createLogger(core::logging::Severity::INFO) };
 
         try
@@ -203,12 +223,18 @@ int main(int argc, char* argv[])
             audio::PcmParameters decoderParams;
             decoderParams.byteOrder = std::endian::little;
             decoderParams.channelCount = 2;
-            decoderParams.sampleRate = 48000;
+            decoderParams.sampleRate = 44100;
             decoderParams.planar = false;
-            decoderParams.sampleType = audio::PcmSampleType::Float32;
+            decoderParams.sampleType = audio::PcmSampleType::Signed16;
+
+            const auto availableBackends{ audio::getAudioOutputBackends() };
+            if (availableBackends.empty())
+                throw std::runtime_error{ "No audio output backend available" };
 
             boost::asio::io_context context;
-            FilePlayer filePlayer{ context, inputPath, decoderParams };
+            auto audioOutputContext{ audio::createAudioOutputContext(context, "LMS", outputBackend) };
+
+            FilePlayer filePlayer{ context, *audioOutputContext, inputPath, decoderParams };
 
             context.run();
         }

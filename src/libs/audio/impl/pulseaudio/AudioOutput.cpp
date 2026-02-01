@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 Emeric Poupon
+ * Copyright (C) 2026 Emeric Poupon
  *
  * This file is part of LMS.
  *
@@ -33,14 +33,6 @@
 #include "AudioOutputStream.hpp"
 #include "Exception.hpp"
 #include "MainLoopScopedLock.hpp"
-
-namespace lms::audio
-{
-    std::unique_ptr<IAudioOutputContext> createAudioOutputContext(boost::asio::io_context& ioContext, std::string_view name)
-    {
-        return std::make_unique<pulseaudio::AudioOutputContext>(ioContext, name);
-    }
-} // namespace lms::audio
 
 namespace lms::audio::pulseaudio
 {

@@ -1,6 +1,13 @@
 pkg_check_modules(LIBAV IMPORTED_TARGET libavcodec libavutil libavformat libswresample)
 pkg_check_modules(Taglib REQUIRED IMPORTED_TARGET taglib)
-pkg_check_modules(PulseAudio REQUIRED IMPORTED_TARGET libpulse)
+pkg_check_modules(PulseAudio IMPORTED_TARGET libpulse)
+pkg_check_modules(ALSA IMPORTED_TARGET alsa)
+
+if (PulseAudio_FOUND OR ALSA_FOUND)
+    message(STATUS "Audio output available (PulseAudio=${PulseAudio_FOUND}, ALSA=${ALSA_FOUND})")
+else()
+    message(STATUS "No audio output backend found")
+endif()
 
 add_library(lmsaudio STATIC
 	impl/ffmpeg/AudioFile.cpp
@@ -12,16 +19,13 @@ add_library(lmsaudio STATIC
 	impl/ffmpeg/TagReader.cpp
 	impl/ffmpeg/Transcoder.cpp
 	impl/ffmpeg/Utils.cpp
-	impl/pulseaudio/AudioOutput.cpp
-	impl/pulseaudio/AudioOutputStream.cpp
-	impl/pulseaudio/Exception.cpp
-	impl/pulseaudio/MainLoopScopedLock.cpp
 	impl/taglib/AudioFileInfo.cpp
 	impl/taglib/AudioFileInfoParser.cpp
 	impl/taglib/ImageReader.cpp
 	impl/taglib/TagReader.cpp
 	impl/taglib/Utils.cpp
 	impl/AudioFileInfoParser.cpp
+	impl/AudioOutput.cpp
 	impl/PcmTypes.cpp
 	impl/TagReader.cpp
 	)
@@ -45,5 +49,34 @@ target_link_libraries(lmsaudio PUBLIC
 target_link_libraries(lmsaudio PRIVATE
 	PkgConfig::LIBAV
 	PkgConfig::Taglib
-	PkgConfig::PulseAudio
 	)
+
+target_compile_definitions(lmsaudio PRIVATE
+    $<$<BOOL:${PulseAudio_FOUND}>:LMS_HAVE_PULSEAUDIO>
+    $<$<BOOL:${ALSA_FOUND}>:LMS_HAVE_ALSA>
+	)
+
+if (PulseAudio_FOUND)
+    target_sources(lmsaudio PRIVATE
+		impl/pulseaudio/AudioOutput.cpp
+		impl/pulseaudio/AudioOutputStream.cpp
+		impl/pulseaudio/Exception.cpp
+		impl/pulseaudio/MainLoopScopedLock.cpp
+	)
+
+    target_link_libraries(lmsaudio PRIVATE
+        PkgConfig::PulseAudio
+    )
+endif()
+
+if (ALSA_FOUND)
+    target_sources(lmsaudio PRIVATE
+		impl/alsa/AudioOutput.cpp
+		impl/alsa/AudioOutputStream.cpp
+	)
+
+    target_link_libraries(lmsaudio PRIVATE
+        PkgConfig::ALSA
+    )
+endif()
+

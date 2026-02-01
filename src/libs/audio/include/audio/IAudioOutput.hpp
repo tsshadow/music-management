@@ -26,6 +26,8 @@
 
 #include <boost/asio/io_context.hpp>
 
+#include "core/EnumSet.hpp"
+
 #include "audio/PcmTypes.hpp"
 
 namespace lms::audio
@@ -63,10 +65,16 @@ namespace lms::audio
         virtual void asyncWaitReady(WaitReadyCallback cb) = 0;
 
         // Must be called once output context is ready
-        // the created stream is in pause state
-        // planar format is not accepted!
+        // The created stream is in pause state; you must call resume() to start it
+        // Planar format is not accepted!
         [[nodiscard]] virtual std::unique_ptr<IAudioOutputStream> createOutputStream(std::string_view name, const PcmParameters& pcmParameters) = 0;
     };
 
-    std::unique_ptr<IAudioOutputContext> createAudioOutputContext(boost::asio::io_context& ioContext, std::string_view name);
+    enum class AudioOutputBackend
+    {
+        ALSA,
+        PulseAudio,
+    };
+    core::EnumSet<AudioOutputBackend> getAudioOutputBackends();
+    std::unique_ptr<IAudioOutputContext> createAudioOutputContext(boost::asio::io_context& ioContext, std::string_view name, AudioOutputBackend backend);
 } // namespace lms::audio

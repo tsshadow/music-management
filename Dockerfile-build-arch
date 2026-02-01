@@ -2,14 +2,15 @@ FROM archlinux:latest
 
 ARG BUILD_PACKAGES="\
 	benchmark \
+	boost \
 	clang \
 	cmake \
-	boost \
 	ffmpeg \
 	gtest \
 	graphicsmagick \
 	libarchive \
 	libconfig \
+	libpulse \
 	make \
 	pkgconfig \
 	pugixml \

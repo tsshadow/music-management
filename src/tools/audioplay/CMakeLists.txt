@@ -8,3 +8,5 @@ target_link_libraries(lms-audioplay PRIVATE
 	lmscore
 	Boost::program_options
 	)
+
+install(TARGETS lms-audioplay DESTINATION bin)

@@ -14,17 +14,19 @@ RUN	apk add --no-cache ${BUILD_PACKAGES}
 ARG	LMS_BUILD_PACKAGES=" \
 	gcc \
 	g++ \
-	musl-dev \
+	alsa-lib-dev \
 	benchmark-dev \
 	boost-dev \
 	ffmpeg-dev \
+	gtest-dev \
 	libarchive-dev \
 	libconfig-dev \
+	musl-dev \
 	pugixml-dev \
-	taglib-dev \
+	pulseaudio-dev \
 	stb \
+	taglib-dev \
 	wt-dev \
-	gtest-dev \
 	xxhash-dev"
 
 COPY --from=xx / /

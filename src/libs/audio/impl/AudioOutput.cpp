@@ -45,7 +45,7 @@ namespace lms::audio
         return buildAudioOutputBackends();
     }
 
-    std::unique_ptr<IAudioOutputContext> createAudioOutputContext(boost::asio::io_context& ioContext, std::string_view name, AudioOutputBackend backend)
+    std::unique_ptr<IAudioOutputContext> createAudioOutputContext([[maybe_unused]] boost::asio::io_context& ioContext, [[maybe_unused]] std::string_view name, AudioOutputBackend backend)
     {
         std::unique_ptr<IAudioOutputContext> context;
 

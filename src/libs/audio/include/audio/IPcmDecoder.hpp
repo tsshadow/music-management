@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <cstddef>
 #include <filesystem>
 #include <memory>
@@ -47,5 +48,5 @@ namespace lms::audio
     };
 
     // Throw on error
-    std::unique_ptr<IPcmDecoder> createPcmDecoder(const std::filesystem::path& filePath, const PcmParameters& parameters);
+    std::unique_ptr<IPcmDecoder> createPcmDecoder(const std::filesystem::path& filePath, std::chrono::microseconds offset, const PcmParameters& parameters);
 } // namespace lms::audio

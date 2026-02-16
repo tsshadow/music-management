@@ -68,18 +68,19 @@ target_link_libraries(lms PRIVATE
 	Boost::iostreams
 	Wt::Wt
 	Wt::HTTP
+	lmsartwork
 	lmsaudio
 	lmsauth
+	lmscore
 	lmsdatabase
 	lmsfeedback
+	lmsjukebox
+	lmspodcast
 	lmsrecommendation
 	lmsscanner
 	lmsscrobbling
-	lmspodcast
-	lmsartwork
 	lmssubsonic
 	lmstranscoding
-	lmscore
 	)
 
 install(TARGETS lms DESTINATION bin)

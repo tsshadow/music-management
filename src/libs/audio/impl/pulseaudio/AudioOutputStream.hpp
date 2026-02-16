@@ -67,6 +67,9 @@ namespace lms::audio::pulseaudio
         bool isPaused() const override;
 
         std::chrono::microseconds getPlaybackTime() const override;
+        std::chrono::microseconds getLatency() const override;
+
+        void flush() override;
 
         void connect();
         void onStateChanged();
@@ -98,8 +101,11 @@ namespace lms::audio::pulseaudio
         std::size_t _ongoingWriteOperationCount{};
 
         WriteOperation* acquireWriteOperation();
+        void releaseWriteOperation(WriteOperation* operation);
+
         void onWriteOperationComplete(WriteOperation* operation);
         void onPartialWriteOperationComplete(WriteOperation* operation);
+        void onWriteOperationCancelled(WriteOperation* operation);
 
         bool _drainRequested{};
         bool _drainDone{};

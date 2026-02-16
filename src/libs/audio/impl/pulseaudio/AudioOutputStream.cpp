@@ -84,7 +84,6 @@ namespace lms::audio::pulseaudio
 
     void PaStreamDeleter::operator()(pa_stream* stream) const noexcept
     {
-        LMS_LOG(AUDIO, DEBUG, "Unref stream " << stream);
         ::pa_stream_unref(stream);
     }
 
@@ -102,7 +101,7 @@ namespace lms::audio::pulseaudio
         specs.format = toPaSampleFormat(_outputParameters.sampleType, _outputParameters.byteOrder);
         specs.rate = _outputParameters.sampleRate;
 
-        LMS_LOG(AUDIO, DEBUG, "channels = " << (int)specs.channels << ", format = " << specs.format << ", rate = " << specs.rate);
+        LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "channels = " << (int)specs.channels << ", format = " << specs.format << ", rate = " << specs.rate);
         PaPropListPtr props{ ::pa_proplist_new() };
 
         if (::pa_proplist_sets(props.get(), PA_PROP_MEDIA_ROLE, "music") != 0)
@@ -115,16 +114,18 @@ namespace lms::audio::pulseaudio
         ::pa_stream_set_state_callback(_stream.get(), [](pa_stream*, void* userdata) { static_cast<AudioOutputStream*>(userdata)->onStateChanged(); }, this);
         ::pa_stream_set_write_callback(_stream.get(), [](pa_stream*, std::size_t nbytes, void* userdata) { static_cast<AudioOutputStream*>(userdata)->onWriteRequested(nbytes); }, this);
 
-        ::pa_stream_set_started_callback(_stream.get(), [](pa_stream*, void*) { LMS_LOG(AUDIO, DEBUG, "Stream started!"); }, nullptr);
-        ::pa_stream_set_overflow_callback(_stream.get(), [](pa_stream*, void*) { LMS_LOG(AUDIO, DEBUG, "Stream overflow!"); }, nullptr);
-        ::pa_stream_set_underflow_callback(_stream.get(), [](pa_stream*, void*) { LMS_LOG(AUDIO, WARNING, "Stream underflow!"); }, nullptr);
+        ::pa_stream_set_started_callback(_stream.get(), [](pa_stream*, void*) { LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "Stream started!"); }, nullptr);
+        ::pa_stream_set_overflow_callback(_stream.get(), [](pa_stream*, void*) { LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "Stream overflow!"); }, nullptr);
+        ::pa_stream_set_underflow_callback(_stream.get(), [](pa_stream*, void*) { LMS_LOG(AUDIO_OUTPUT_STREAM, WARNING, "Stream underflow!"); }, nullptr);
 
         connect();
     };
 
     AudioOutputStream::~AudioOutputStream()
     {
-        LMS_LOG(AUDIO, DEBUG, "~AudioOutputStream()");
+        assert(_pendingWriteOperations.empty());
+        assert(_ongoingWriteOperationCount == 0);
+
         // We don't want to be notified for termination as this holder class will be destroyed
         ::pa_stream_set_state_callback(_stream.get(), NULL, NULL);
     }
@@ -170,14 +171,14 @@ namespace lms::audio::pulseaudio
         _pendingWriteOperations.push_back(operation);
         if (_pendingWriteOperations.size() == 1 && _ongoingWriteOperationCount == 0 && ::pa_stream_get_state(_stream.get()) == PA_STREAM_READY)
         {
-            LMS_LOG(AUDIO, DEBUG, "Audio buffer shortage? immediate write!");
+            LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "Audio buffer shortage? immediate write!");
             writeSome(pa_stream_writable_size(_stream.get()));
         }
     }
 
     void AudioOutputStream::asyncDrain(DrainCompletionCallback cb)
     {
-        LMS_LOG(AUDIO, DEBUG, "asyncDrain called...");
+        LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "asyncDrain called...");
 
         MainLoopScopedLock lock{ _mainLoop };
 
@@ -189,14 +190,14 @@ namespace lms::audio::pulseaudio
         _drainCallback = std::move(cb);
         if (_pendingWriteOperations.empty() && ::pa_stream_get_state(_stream.get()) == PA_STREAM_READY)
         {
-            LMS_LOG(AUDIO, DEBUG, "audio buffer shortage? immediate drain");
+            LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "audio buffer shortage? immediate drain");
             drain();
         }
     }
 
     void AudioOutputStream::pause()
     {
-        LMS_LOG(AUDIO, DEBUG, "Pausing stream");
+        LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "Pausing stream");
 
         MainLoopScopedLock lock{ _mainLoop };
 
@@ -209,7 +210,7 @@ namespace lms::audio::pulseaudio
 
     void AudioOutputStream::resume()
     {
-        LMS_LOG(AUDIO, DEBUG, "Resuming stream");
+        LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "Resuming stream");
 
         MainLoopScopedLock lock{ _mainLoop };
 
@@ -244,6 +245,40 @@ namespace lms::audio::pulseaudio
         return std::chrono::microseconds{ duration };
     }
 
+    std::chrono::microseconds AudioOutputStream::getLatency() const
+    {
+        pa_usec_t latency{};
+        int negative{};
+        if (::pa_stream_get_latency(_stream.get(), &latency, &negative) == -PA_ERR_NODATA)
+            latency = 0;
+
+        return std::chrono::microseconds{ latency };
+    }
+
+    void AudioOutputStream::flush()
+    {
+        MainLoopScopedLock lock{ _mainLoop };
+
+        assert(_stream);
+
+        {
+            pa_operation* op{ ::pa_stream_flush(_stream.get(), nullptr, nullptr) };
+            if (!op)
+                throw PaException("pa_stream_flush failed", pa_context_errno(_context));
+
+            ::pa_operation_unref(op);
+        }
+
+        // post all pending writes
+        while (!_pendingWriteOperations.empty())
+        {
+            WriteOperation* writeOperation{ _pendingWriteOperations.front() };
+            _pendingWriteOperations.pop_front();
+
+            onWriteOperationCancelled(writeOperation);
+        }
+    }
+
     void AudioOutputStream::connect()
     {
         constexpr pa_stream_flags_t flags{ static_cast<pa_stream_flags_t>(
@@ -260,7 +295,7 @@ namespace lms::audio::pulseaudio
 
         if (error != 0)
         {
-            LMS_LOG(AUDIO, DEBUG, "pa_stream_connect_playback failed: " << pa_strerror(error));
+            LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "pa_stream_connect_playback failed: " << pa_strerror(error));
             throw PaException{ "pa_stream_connect_playback failed", error };
         }
     }
@@ -268,12 +303,12 @@ namespace lms::audio::pulseaudio
     void AudioOutputStream::onStateChanged()
     {
         const pa_stream_state_t state{ pa_stream_get_state(_stream.get()) };
-        LMS_LOG(AUDIO, DEBUG, "Stream state changed to '" << streamStateToString(state) << "'");
+        LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "Stream state changed to '" << streamStateToString(state) << "'");
 
         switch (state)
         {
         case PA_STREAM_READY:
-            LMS_LOG(AUDIO, INFO, "Stream connected to device '" << pa_stream_get_device_name(_stream.get()) << "'");
+            LMS_LOG(AUDIO_OUTPUT_STREAM, INFO, "Stream connected to device '" << pa_stream_get_device_name(_stream.get()) << "'");
 
             if (_waitReadyCallback)
             {
@@ -323,7 +358,7 @@ namespace lms::audio::pulseaudio
                 writeOperation->buffer = std::span<const std::byte>(buffer.data() + byteCountToWrite, buffer.size() - byteCountToWrite);
             }
 
-            LMS_LOG(AUDIO, DEBUG, "Operation ID " << writeOperation->id << ", writing " << byteCountToWrite << " bytes");
+            LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "Operation ID " << writeOperation->id << ", writing " << byteCountToWrite << " bytes");
 
             _ongoingWriteOperationCount++;
             const int error{
@@ -348,8 +383,12 @@ namespace lms::audio::pulseaudio
         assert(_pendingWriteOperations.empty());
         assert(!_drainDone);
 
-        LMS_LOG(AUDIO, DEBUG, "Draining stream...");
+        LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "Draining stream...");
         _drainDone = true;
+
+        // We still receive underflow notifications while draining => discarding
+        ::pa_stream_set_underflow_callback(_stream.get(), nullptr, nullptr);
+
         ::pa_operation* op{ ::pa_stream_drain(_stream.get(), [](pa_stream*, int success, void* userdata) { static_cast<AudioOutputStream*>(userdata)->onDrainComplete(success); }, this) };
         if (!op)
             throw PaException("pa_stream_drain failed", pa_context_errno(_context));
@@ -365,7 +404,7 @@ namespace lms::audio::pulseaudio
                 throw PaException{ "pa_stream_disconnect failed", error };
         }
 
-        LMS_LOG(AUDIO, DEBUG, "AudioOutputStream::onDrainComplete, success = " << success << ", posting CB");
+        LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "AudioOutputStream::onDrainComplete, success = " << success << ", posting CB");
         boost::asio::post(_ioContext, std::move(_drainCallback));
         _ioContext.get_executor().on_work_finished();
     }
@@ -386,22 +425,38 @@ namespace lms::audio::pulseaudio
         return operation;
     }
 
+    void AudioOutputStream::releaseWriteOperation(WriteOperation* operation)
+    {
+        _freeOperations.push_back(operation);
+    }
+
     void AudioOutputStream::onWriteOperationComplete(WriteOperation* operation)
     {
-        LMS_LOG(AUDIO, DEBUG, "Operation ID " << operation->id << ", onWriteOperationComplete");
+        LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "Operation ID " << operation->id << ", onWriteOperationComplete");
 
         assert(_ongoingWriteOperationCount > 0);
         _ongoingWriteOperationCount -= 1;
 
         boost::asio::post(_ioContext, std::move(operation->callback));
-        _freeOperations.push_back(operation);
         _ioContext.get_executor().on_work_finished();
+
+        releaseWriteOperation(operation);
     }
 
     void AudioOutputStream::onPartialWriteOperationComplete(WriteOperation* operation)
     {
-        LMS_LOG(AUDIO, DEBUG, "Operation ID " << operation->id << ", onPartialWriteOperationComplete");
+        LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "Operation ID " << operation->id << ", onPartialWriteOperationComplete");
         assert(_ongoingWriteOperationCount > 0);
         _ongoingWriteOperationCount -= 1;
+    }
+
+    void AudioOutputStream::onWriteOperationCancelled(WriteOperation* operation)
+    {
+        LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "Operation ID " << operation->id << ", onWriteOperationCancelled");
+
+        boost::asio::post(_ioContext, std::move(operation->callback));
+        _ioContext.get_executor().on_work_finished();
+
+        releaseWriteOperation(operation);
     }
 } // namespace lms::audio::pulseaudio

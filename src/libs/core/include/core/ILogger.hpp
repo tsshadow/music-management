@@ -37,10 +37,12 @@ namespace lms::core::logging
         DEBUG,
     };
 
+    // TODO remove this and make each module define its name
     enum class Module
     {
         API_SUBSONIC,
         AUDIO,
+        AUDIO_OUTPUT_STREAM,
         AUTH,
         CHILDPROCESS,
         COVER,
@@ -48,6 +50,7 @@ namespace lms::core::logging
         DBUPDATER,
         FEATURE,
         FEEDBACK,
+        JUKEBOX,
         HTTP,
         MAIN,
         METADATA,

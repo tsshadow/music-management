@@ -41,9 +41,9 @@ extern "C"
 
 namespace lms::audio
 {
-    std::unique_ptr<IPcmDecoder> createPcmDecoder(const std::filesystem::path& filePath, const PcmParameters& parameters)
+    std::unique_ptr<IPcmDecoder> createPcmDecoder(const std::filesystem::path& filePath, std::chrono::microseconds offset, const PcmParameters& parameters)
     {
-        return std::make_unique<ffmpeg::PcmDecoder>(filePath, parameters);
+        return std::make_unique<ffmpeg::PcmDecoder>(filePath, offset, parameters);
     }
 } // namespace lms::audio
 
@@ -69,12 +69,15 @@ namespace lms::audio::ffmpeg
         }
     } // namespace
 
-    PcmDecoder::PcmDecoder(const std::filesystem::path& filePath, const PcmParameters& parameters)
+    PcmDecoder::PcmDecoder(const std::filesystem::path& filePath, std::chrono::microseconds offset, const PcmParameters& parameters)
         : _parameters{ parameters }
     {
         if (_parameters.channelCount > AV_NUM_DATA_POINTERS)
             throw Exception("Channel count exceeds maximum supported channels");
 
+        utils::init();
+
+        // TODO: use AudioFile wrapper?
         {
             ::AVFormatContext* context{};
             int error{ ::avformat_open_input(&context, filePath.c_str(), nullptr, nullptr) };
@@ -107,6 +110,21 @@ namespace lms::audio::ffmpeg
         {
             LMS_LOG(AUDIO, ERROR, "Cannot find best audio stream in " << filePath << ": " << utils::averrorToString(_inputStreamIndex));
             throw FFmpegException{ "Cannot find best audio stream in '" + filePath.string() + "'", _inputStreamIndex };
+        }
+
+        if (offset.count() > 0)
+        {
+            const AVStream* stream{ _context->streams[_inputStreamIndex] };
+
+            using OffsetPeriod = decltype(offset)::period;
+            constexpr AVRational offsetTimebase{ static_cast<int>(OffsetPeriod::num), static_cast<int>(OffsetPeriod::den) };
+
+            const int64_t targetTimestamp{ static_cast<int64_t>(av_rescale_q(offset.count(), offsetTimebase, stream->time_base)) };
+            const int seekError{ ::av_seek_frame(_context.get(), _inputStreamIndex, targetTimestamp, AVSEEK_FLAG_BACKWARD) };
+            if (seekError < 0)
+            {
+                LMS_LOG(AUDIO, WARNING, "Failed to seek to offset: " << utils::averrorToString(seekError));
+            }
         }
 
         _decoderContext = AVCodecContextPtr{ ::avcodec_alloc_context3(decoder) };

@@ -259,14 +259,14 @@ namespace lms::audio::taglib
 
     AudioFileInfo::AudioFileInfo(const std::filesystem::path& filePath, const AudioFileInfoParseOptions& parseOptions)
         : _filePath{ filePath }
-        , _file{ utils::parseFile(filePath, parseOptions.audioPropertiesReadStyle) }
-        , _audioProperties{ computeAudioProperties(*_file, filePath) }
+        , _fileDesc{ utils::parseFile(filePath, parseOptions.audioPropertiesReadStyle) }
+        , _audioProperties{ computeAudioProperties(*_fileDesc.file, filePath) }
     {
         if (parseOptions.readTags)
-            _tagReader = std::make_unique<TagReader>(*_file, parseOptions.enableExtraDebugLogs);
+            _tagReader = std::make_unique<TagReader>(*_fileDesc.file, parseOptions.enableExtraDebugLogs);
 
         if (parseOptions.readImages)
-            _imageReader = std::make_unique<ImageReader>(*_file);
+            _imageReader = std::make_unique<ImageReader>(*_fileDesc.file);
     }
 
     AudioFileInfo::~AudioFileInfo() = default;

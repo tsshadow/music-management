@@ -104,7 +104,7 @@ namespace lms::audio::taglib::utils
         throw Exception{ "Cannot convert read style" };
     }
 
-    TagLib::FileStream createFileStream(const std::filesystem::path& p)
+    std::unique_ptr<TagLib::FileStream> createFileStream(const std::filesystem::path& p)
     {
         FILE* file{ std::fopen(p.c_str(), "r") };
         if (!file)
@@ -122,7 +122,7 @@ namespace lms::audio::taglib::utils
             throw IOFileException{ p, "fileno failed", ec };
         }
 
-        return TagLib::FileStream{ fd, true };
+        return std::make_unique<TagLib::FileStream>(fd, true);
     }
 
     std::unique_ptr<TagLib::File> parseFileByExtension(TagLib::FileStream* stream, const std::filesystem::path& extension, TagLib::AudioProperties::ReadStyle audioPropertiesStyle)
@@ -236,17 +236,19 @@ namespace lms::audio::taglib::utils
         return file;
     }
 
-    std::unique_ptr<TagLib::File> parseFile(const std::filesystem::path& p, AudioFileInfoParseOptions::AudioPropertiesReadStyle readStyle)
+    FileDesc parseFile(const std::filesystem::path& p, AudioFileInfoParseOptions::AudioPropertiesReadStyle readStyle)
     {
         LMS_SCOPED_TRACE_DETAILED("MetaData", "TagLibParseFile");
 
         const ::TagLib::AudioProperties::ReadStyle tagLibReadStyle{ readStyleToTagLibReadStyle(readStyle) };
-        TagLib::FileStream fileStream{ createFileStream(p) };
-        std::unique_ptr<TagLib::File> file{ parseFileByExtension(&fileStream, p.extension(), tagLibReadStyle) };
+
+        std::unique_ptr<TagLib::FileStream> fileStream{ createFileStream(p) };
+        assert(fileStream);
+        std::unique_ptr<TagLib::File> file{ parseFileByExtension(fileStream.get(), p.extension(), tagLibReadStyle) };
         if (!file)
         {
             LMS_LOG(METADATA, DEBUG, "File " << p << ": failed to parse by extension");
-            file = parseFileByContent(&fileStream, tagLibReadStyle);
+            file = parseFileByContent(fileStream.get(), tagLibReadStyle);
             if (!file)
                 LMS_LOG(METADATA, DEBUG, "File " << p << ": failed to parse by content");
         }
@@ -254,6 +256,6 @@ namespace lms::audio::taglib::utils
         if (!file)
             throw Exception{ "Parsing failed" };
 
-        return file;
+        return FileDesc{ .fileStream = std::move(fileStream), .file = std::move(file) };
     }
 } // namespace lms::audio::taglib::utils

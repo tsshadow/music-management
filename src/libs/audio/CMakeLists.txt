@@ -24,6 +24,7 @@ add_library(lmsaudio STATIC
 	impl/taglib/ImageReader.cpp
 	impl/taglib/TagReader.cpp
 	impl/taglib/Utils.cpp
+	impl/utils/PcmDecodeStreamer.cpp
 	impl/AudioFileInfoParser.cpp
 	impl/AudioOutput.cpp
 	impl/PcmTypes.cpp

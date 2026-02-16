@@ -17,12 +17,12 @@
  * along with LMS.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <bit>
 #include <chrono>
 #include <iostream>
 
 #include <boost/asio/io_context.hpp>
-#include <boost/asio/post.hpp>
+#include <boost/asio/signal_set.hpp>
+#include <boost/asio/steady_timer.hpp>
 #include <boost/program_options.hpp>
 
 #include "core/ILogger.hpp"
@@ -30,140 +30,93 @@
 
 #include "audio/Exception.hpp"
 #include "audio/IAudioOutput.hpp"
-#include "audio/IPcmDecoder.hpp"
 #include "audio/PcmTypes.hpp"
+#include "audio/utils/IPcmDecodeStreamer.hpp"
 
 namespace lms
 {
-    class FilePlayer
+    class Player
     {
     public:
-        FilePlayer(boost::asio::io_context& ioContext, audio::IAudioOutputContext& context, const std::filesystem::path& filePath, const audio::PcmParameters& params)
+        Player(boost::asio::io_context& ioContext, audio::IAudioOutputContext& context, const std::filesystem::path& filePath, std::chrono::microseconds offset, const audio::PcmParameters& pcmParams)
             : _ioContext{ ioContext }
             , _context{ context }
-            , _pcmDecoder{ audio::createPcmDecoder(filePath, params) }
+            , _filePath{ filePath }
+            , _offset{ offset }
+            , _pcmParams{ pcmParams }
+        {
+        }
+
+        ~Player() = default;
+        Player(const Player&) = delete;
+        Player& operator=(const Player&) = delete;
+
+        void start()
         {
             _context.asyncWaitReady([this] {
                 createStream();
             });
         }
-        ~FilePlayer() = default;
-        FilePlayer(const FilePlayer&) = delete;
-        FilePlayer& operator=(const FilePlayer&) = delete;
 
     private:
-        const audio::PcmParameters& getPcmParameters() const
-        {
-            return _pcmDecoder->getParameters();
-        }
-
         void createStream()
         {
-            _outputStream = _context.createOutputStream("LMS-player", getPcmParameters());
-
-            prepareBuffers();
-            decodeSome();
+            _outputStream = _context.createOutputStream("LMS-player", _pcmParams);
 
             _outputStream->asyncWaitReady([this] {
+                startDecodeAndPlay();
+            });
+        }
+
+        void startDecodeAndPlay()
+        {
+            audio::utils::PcmDecodeStreamerParameters params{
+                .outputStream = *_outputStream,
+                .file = _filePath,
+                .offset = _offset,
+                .pcmParameters = _pcmParams,
+            };
+
+            _fileStreamer = audio::utils::createPcmDecodeStreamer(_ioContext, params);
+            _fileStreamer->start([this](bool aborted) {
+                if (aborted)
+                    std::cerr << "Playback aborted!" << std::endl;
+
+                _outputStream->asyncDrain([] {});
+                _sigInt.cancel();
+                _playTimer.cancel();
+            });
+
+            _sigInt.async_wait([this](const boost::system::error_code& ec, [[maybe_unused]] int sigNumber) {
+                if (ec)
+                    return;
+
+                assert(sigNumber == SIGINT);
+
+                _fileStreamer->abort();
+                _playTimer.cancel();
+            });
+
+            // Gives some time for the buffer to fill in
+            _playTimer.expires_from_now(std::chrono::milliseconds{ 50 });
+            _playTimer.async_wait([this](const boost::system::error_code& ec) {
+                if (ec)
+                    return;
+
                 _outputStream->resume();
             });
         }
 
-        void prepareBuffers()
-        {
-            constexpr std::chrono::milliseconds bufferDuration{ 100 };
-
-            const audio::PcmParameters& pcmParams{ getPcmParameters() };
-            _sampleCountPerBuffer = static_cast<std::size_t>(std::chrono::duration_cast<std::chrono::microseconds>(bufferDuration).count() * pcmParams.sampleRate / std::chrono::microseconds::period::den);
-            const std::size_t bufferSize{ sampleCountToByteCount(_sampleCountPerBuffer) };
-
-            _buffers.resize(bufferCount);
-            for (BufferDesc& bufferDesc : _buffers)
-                bufferDesc.buffer.resize(bufferSize);
-        }
-
-        void decodeSome()
-        {
-            while (!_draining)
-            {
-                BufferDesc& bufferDesc{ _buffers[_nextBufferIndex] };
-                if (bufferDesc.isInWrite)
-                    break;
-
-                const std::size_t bufferIndex{ _nextBufferIndex };
-                if (++_nextBufferIndex >= _buffers.size())
-                    _nextBufferIndex = 0;
-
-                std::span<std::byte> buffer{ bufferDesc.buffer };
-                const std::size_t sampleCount{ readSamples(buffer) };
-                if (sampleCount == 0) // EOF
-                {
-                    _draining = true;
-                    _outputStream->asyncDrain([this] {});
-                    break;
-                }
-
-                bufferDesc.isInWrite = true;
-                buffer = { buffer.data(), sampleCountToByteCount(sampleCount) };
-
-                _outputStream->asyncWrite(buffer, [this, bufferIndex] {
-                    onBufferWriteComplete(bufferIndex);
-                });
-
-                boost::asio::post(_ioContext, [this] { decodeSome(); });
-            }
-        }
-
-        std::size_t readSamples(std::span<std::byte> buffer)
-        {
-            std::size_t totalSampleCount{};
-            while (totalSampleCount < _sampleCountPerBuffer)
-            {
-                std::array outputBuffers{ audio::IPcmDecoder::WritableBuffer{ buffer } };
-                const std::size_t sampleCount{ _pcmDecoder->readSamples(outputBuffers) };
-                if (sampleCount == 0)
-                    break;
-
-                const std::size_t offset{ sampleCountToByteCount(sampleCount) };
-                buffer = std::span<std::byte>{ buffer.data() + offset, buffer.size() - offset };
-
-                totalSampleCount += sampleCount;
-            }
-
-            return totalSampleCount;
-        }
-
-        void onBufferWriteComplete(std::size_t bufferIndex)
-        {
-            BufferDesc& bufferDesc{ _buffers[bufferIndex] };
-
-            assert(bufferDesc.isInWrite);
-            bufferDesc.isInWrite = false;
-
-            decodeSome();
-        }
-
-        std::size_t sampleCountToByteCount(std::size_t sampleCount) const
-        {
-            return sampleCount * audio::getSampleSize(getPcmParameters().sampleType) * getPcmParameters().channelCount;
-        }
-
         boost::asio::io_context& _ioContext;
         audio::IAudioOutputContext& _context;
-        std::unique_ptr<audio::IPcmDecoder> _pcmDecoder;
-        std::unique_ptr<audio::IAudioOutputStream> _outputStream;
+        const std::filesystem::path _filePath;
+        const std::chrono::microseconds _offset;
+        const audio::PcmParameters _pcmParams;
+        boost::asio::signal_set _sigInt{ _ioContext, SIGINT };
+        boost::asio::steady_timer _playTimer{ _ioContext };
 
-        struct BufferDesc
-        {
-            using Buffer = std::vector<std::byte>;
-            Buffer buffer;
-            bool isInWrite{};
-        };
-        static constexpr std::size_t bufferCount{ 4 };
-        std::vector<BufferDesc> _buffers;
-        std::size_t _nextBufferIndex{};
-        std::size_t _sampleCountPerBuffer{};
-        bool _draining{};
+        std::unique_ptr<audio::IAudioOutputStream> _outputStream;
+        std::shared_ptr<audio::utils::IPcmDecodeStreamer> _fileStreamer;
     };
 } // namespace lms
 
@@ -179,7 +132,8 @@ int main(int argc, char* argv[])
         options.add_options()
             ("help,h", "Display this help message")
             ("input",program_options::value<std::string>()->required(), "Input audio file path")
-            ("backend", program_options::value<std::string>()->default_value(std::string{ "auto" }, "auto"), "Backend to be used (value can be \"alsa\", \"pulseaudio\")");
+            ("offset",program_options::value<std::size_t>()->default_value(0), "Input audio offset, in seconds")
+            ("backend", program_options::value<std::string>()->default_value(std::string{ "auto" }, "auto"), "Backend to be used (value can be \"auto\", \"alsa\" or \"pulseaudio\")");
         // clang-format on
 
         program_options::variables_map vm;
@@ -194,9 +148,11 @@ int main(int argc, char* argv[])
         // notify required params
         program_options::notify(vm);
 
-        std::filesystem::path inputPath{ vm["input"].as<std::string>() };
+        const std::filesystem::path inputPath{ vm["input"].as<std::string>() };
         if (!std::filesystem::exists(inputPath))
             throw std::runtime_error{ "File '" + inputPath.string() + "' does not exist!" };
+
+        const std::chrono::seconds offset{ vm["offset"].as<std::size_t>() };
 
         audio::AudioOutputBackend outputBackend;
         if (core::stringUtils::stringCaseInsensitiveEqual(vm["backend"].as<std::string>(), "alsa"))
@@ -204,39 +160,32 @@ int main(int argc, char* argv[])
         else if (core::stringUtils::stringCaseInsensitiveEqual(vm["backend"].as<std::string>(), "pulseaudio"))
             outputBackend = audio::AudioOutputBackend::PulseAudio;
         else if (core::stringUtils::stringCaseInsensitiveEqual(vm["backend"].as<std::string>(), "auto"))
-        {
-            const auto backends{ audio::getAudioOutputBackends() };
-            if (backends.contains(audio::AudioOutputBackend::PulseAudio))
-                outputBackend = audio::AudioOutputBackend::PulseAudio;
-            else if (backends.contains(audio::AudioOutputBackend::ALSA))
-                outputBackend = audio::AudioOutputBackend::ALSA;
-            else
-                throw std::runtime_error{ "No audio output backend available!" };
-        }
+            outputBackend = audio::AudioOutputBackend::Auto;
         else
             throw program_options::validation_error{ program_options::validation_error::invalid_option_value, "backend" };
 
-        core::Service<core::logging::ILogger> logger{ core::logging::createLogger(core::logging::Severity::INFO) };
+        core::Service<core::logging::ILogger> logger{ core::logging::createLogger(core::logging::Severity::DEBUG) };
 
         try
         {
-            audio::PcmParameters decoderParams;
-            decoderParams.byteOrder = std::endian::little;
-            decoderParams.channelCount = 2;
-            decoderParams.sampleRate = 44100;
-            decoderParams.planar = false;
-            decoderParams.sampleType = audio::PcmSampleType::Signed16;
+            const audio::PcmParameters decoderParams{
+                .channelCount = 2,
+                .sampleRate = 44'100,
+                .sampleType = audio::PcmSampleType::Signed16,
+                .byteOrder = std::endian::little,
+                .planar = false,
+            };
 
-            const auto availableBackends{ audio::getAudioOutputBackends() };
-            if (availableBackends.empty())
-                throw std::runtime_error{ "No audio output backend available" };
+            boost::asio::io_context ioContext;
 
-            boost::asio::io_context context;
-            auto audioOutputContext{ audio::createAudioOutputContext(context, "LMS", outputBackend) };
+            auto audioOutputContext{ audio::createAudioOutputContext(ioContext, "LMS-audioplay", outputBackend) };
+            if (!audioOutputContext)
+                throw std::runtime_error{ "Audio output backend not available" };
 
-            FilePlayer filePlayer{ context, *audioOutputContext, inputPath, decoderParams };
+            Player player{ ioContext, *audioOutputContext, inputPath, offset, decoderParams };
+            player.start();
 
-            context.run();
+            ioContext.run();
         }
         catch (audio::Exception& e)
         {

@@ -42,6 +42,7 @@
 #include "endpoints/AlbumSongLists.hpp"
 #include "endpoints/Bookmarks.hpp"
 #include "endpoints/Browsing.hpp"
+#include "endpoints/Jukebox.hpp"
 #include "endpoints/MediaAnnotation.hpp"
 #include "endpoints/MediaLibraryScanning.hpp"
 #include "endpoints/MediaRetrieval.hpp"
@@ -208,7 +209,7 @@ namespace lms::api::subsonic
             { "/getPodcastEpisode", { handleGetPodcastEpisode } },
 
             // Jukebox
-            { "/jukeboxControl", { handleNotImplemented } },
+            { "/jukeboxControl", { handleJukeboxControl } },
 
             // Internet radio
             { "/getInternetRadioStations", { handleNotImplemented } },

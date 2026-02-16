@@ -22,6 +22,7 @@
 #include <filesystem>
 #include <optional>
 
+#include "Utils.hpp"
 #include "audio/AudioProperties.hpp"
 #include "audio/IAudioFileInfo.hpp"
 #include "audio/IAudioFileInfoParser.hpp"
@@ -53,7 +54,7 @@ namespace lms::audio::taglib
         const ITagReader* getTagReader() const override;
 
         const std::filesystem::path _filePath;
-        std::unique_ptr<::TagLib::File> _file;
+        utils::FileDesc _fileDesc;
         std::optional<AudioProperties> _audioProperties;
         std::unique_ptr<TagReader> _tagReader;
         std::unique_ptr<ImageReader> _imageReader;

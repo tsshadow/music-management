@@ -37,10 +37,14 @@ __Notes__:
 * a C++20 compiler is needed
 * ffmpeg version 4 minimum is required
 ```sh
-apt-get install build-essential cmake libboost-program-options-dev libboost-system-dev libavutil-dev libavformat-dev libswresample-dev ffmpeg libconfig++-dev libstb-dev libtag-dev libpam0g-dev libpugixml-dev libgtest-dev libarchive-dev libxxhash-dev libssl-dev
+apt-get install build-essential cmake libboost-program-options-dev libboost-system-dev libavutil-dev libavformat-dev libswresample-dev ffmpeg libconfig++-dev libstb-dev libtag-dev libpugixml-dev libgtest-dev libarchive-dev libxxhash-dev libssl-dev
 ```
+__Optional dependencies__:
+* libpam0g-dev, used to handle PAM authentication
+* libpulse-dev, used to output audio using PulseAudio
+* libasound2-dev, used to output audio using ALSA
+
 __Notes__:
-* libpam0g-dev is optional (only for using PAM authentication)
 * libstb-dev can be replaced by libgraphicsmagick++1-dev (the latter will likely use more RAM)
 You also need _Wt4_, which is not packaged on _Debian_. See [installation instructions](https://www.webtoolkit.eu/wt/doc/reference/html/InstallationUnix.html).</br>
 ### Build
@@ -164,7 +168,7 @@ __Note__: to mitigate brute force login attempts, _LMS_ uses an internal login t
 ```sh
 systemctl start lms
 ```
-Log traces can be accessed using journactl:
+Log traces can be accessed using journalctl:
 ```sh
 journalctl -u lms.service
 ```

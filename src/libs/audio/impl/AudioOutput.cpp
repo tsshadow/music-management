@@ -28,29 +28,20 @@
 
 namespace lms::audio
 {
-    consteval core::EnumSet<AudioOutputBackend> buildAudioOutputBackends()
-    {
-        core::EnumSet<AudioOutputBackend> res;
-#if LMS_HAVE_ALSA
-        res.insert(AudioOutputBackend::ALSA);
-#endif
-#if LMS_HAVE_PULSEAUDIO
-        res.insert(AudioOutputBackend::PulseAudio);
-#endif
-        return res;
-    }
-
-    core::EnumSet<AudioOutputBackend> getAudioOutputBackends()
-    {
-        return buildAudioOutputBackends();
-    }
-
     std::unique_ptr<IAudioOutputContext> createAudioOutputContext([[maybe_unused]] boost::asio::io_context& ioContext, [[maybe_unused]] std::string_view name, AudioOutputBackend backend)
     {
         std::unique_ptr<IAudioOutputContext> context;
 
         switch (backend)
         {
+        case AudioOutputBackend::Auto:
+#if LMS_HAVE_PULSEAUDIO
+            context = std::make_unique<pulseaudio::AudioOutputContext>(ioContext, name);
+#elif LMS_HAVE_ALSA
+            context = std::make_unique<alsa::AudioOutputContext>(ioContext, name);
+#endif
+            break;
+
         case AudioOutputBackend::ALSA:
 #if LMS_HAVE_ALSA
             context = std::make_unique<alsa::AudioOutputContext>(ioContext, name);

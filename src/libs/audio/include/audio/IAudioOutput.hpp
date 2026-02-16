@@ -47,9 +47,15 @@ namespace lms::audio
         virtual void asyncWrite(std::span<const std::byte> buffer, WriteCompletionCallback cb) = 0;
 
         using DrainCompletionCallback = std::function<void()>;
-        virtual void asyncDrain(DrainCompletionCallback cb) = 0; // can be called only once
+        virtual void asyncDrain(DrainCompletionCallback cb) = 0; // can be called only once, no other write can be done after
 
+        // Get playback time since first resume
         virtual std::chrono::microseconds getPlaybackTime() const = 0;
+
+        virtual std::chrono::microseconds getLatency() const = 0;
+
+        // Discard all buffered writes (write callbacks will be called asap)
+        virtual void flush() = 0;
 
         virtual void pause() = 0;
         virtual void resume() = 0;
@@ -72,9 +78,9 @@ namespace lms::audio
 
     enum class AudioOutputBackend
     {
+        Auto,
         ALSA,
         PulseAudio,
     };
-    core::EnumSet<AudioOutputBackend> getAudioOutputBackends();
     std::unique_ptr<IAudioOutputContext> createAudioOutputContext(boost::asio::io_context& ioContext, std::string_view name, AudioOutputBackend backend);
 } // namespace lms::audio

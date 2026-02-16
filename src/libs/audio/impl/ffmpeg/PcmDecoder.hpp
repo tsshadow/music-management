@@ -28,14 +28,14 @@ namespace lms::audio::ffmpeg
     class PcmDecoder : public IPcmDecoder
     {
     public:
-        PcmDecoder(const std::filesystem::path& filePath, const PcmParameters& parameters);
+        PcmDecoder(const std::filesystem::path& filePath, std::chrono::microseconds offset, const PcmParameters& parameters);
         ~PcmDecoder() override;
 
         PcmDecoder(const PcmDecoder&) = delete;
         PcmDecoder& operator=(const PcmDecoder&) = delete;
 
     private:
-        const PcmParameters& getParameters() const;
+        const PcmParameters& getParameters() const override;
 
         std::size_t readSamples(std::span<WritableBuffer> outputChannelBuffers) override;
         bool finished() const override;

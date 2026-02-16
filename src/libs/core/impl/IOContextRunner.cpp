@@ -27,10 +27,11 @@
 namespace lms::core
 {
     IOContextRunner::IOContextRunner(boost::asio::io_context& ioContext, std::size_t threadCount, std::string_view name)
-        : _ioContext{ ioContext }
+        : _name{ name }
+        , _ioContext{ ioContext }
         , _work{ boost::asio::make_work_guard(ioContext) }
     {
-        LMS_LOG(UTILS, INFO, "Starting IO context with " << threadCount << " threads...");
+        LMS_LOG(UTILS, INFO, "Starting IO context '" << _name << "' with " << threadCount << " threads...");
 
         for (std::size_t i{}; i < threadCount; ++i)
         {
@@ -61,12 +62,9 @@ namespace lms::core
         }
     }
 
-    void IOContextRunner::stop()
+    IOContextRunner::~IOContextRunner()
     {
-        LMS_LOG(UTILS, DEBUG, "Stopping IO context...");
-        _work.reset();
-        _ioContext.stop();
-        LMS_LOG(UTILS, DEBUG, "IO context stopped!");
+        wait();
     }
 
     std::size_t IOContextRunner::getThreadCount() const
@@ -74,11 +72,17 @@ namespace lms::core
         return _threads.size();
     }
 
-    IOContextRunner::~IOContextRunner()
+    void IOContextRunner::wait()
     {
-        stop();
+        if (_threads.empty())
+            return;
 
+        LMS_LOG(UTILS, DEBUG, "Waiting IO context '" << _name << "'...");
+        _work.reset();
         for (std::thread& t : _threads)
             t.join();
+        LMS_LOG(UTILS, DEBUG, "IO context '" << _name << "' waited!...");
+
+        _threads.clear();
     }
 } // namespace lms::core

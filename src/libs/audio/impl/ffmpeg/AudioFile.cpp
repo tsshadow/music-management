@@ -19,7 +19,6 @@
 
 #include "AudioFile.hpp"
 
-#include <array>
 #include <cstdio>
 #include <unordered_map>
 
@@ -27,7 +26,6 @@ extern "C"
 {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
-#include <libavutil/log.h>
 }
 
 #include "core/ILogger.hpp"
@@ -174,54 +172,6 @@ namespace lms::audio::ffmpeg
                 return std::nullopt;
             }
         }
-
-        core::LiteralString avLogLevelToStr(int level)
-        {
-            switch (level)
-            {
-            case AV_LOG_TRACE:
-                return "trace";
-            case AV_LOG_DEBUG:
-                return "debug";
-            case AV_LOG_VERBOSE:
-                return "verbose";
-            case AV_LOG_INFO:
-                return "info";
-            case AV_LOG_WARNING:
-                return "warning";
-            case AV_LOG_ERROR:
-                return "error";
-            case AV_LOG_FATAL:
-                return "fatal";
-            case AV_LOG_PANIC:
-                return "panic";
-            default:
-                return "unknown";
-            }
-        }
-
-        void avLogCallback(void*, int level, const char* fmt, va_list vl)
-        {
-            if (!core::Service<core::logging::ILogger>::get()->isSeverityActive(core::logging::Severity::DEBUG))
-                return;
-
-            if (level > AV_LOG_WARNING)
-                return;
-
-            std::array<char, 256> buffer{ 0 };
-            std::vsnprintf(buffer.data(), buffer.size(), fmt, vl);
-
-            LMS_LOG(AUDIO, DEBUG, "FFmpeg [" << avLogLevelToStr(level) << "] " << buffer.data());
-        }
-
-        class AvInitializer
-        {
-        public:
-            AvInitializer()
-            {
-                ::av_log_set_callback(avLogCallback);
-            }
-        };
     } // namespace
 
     AudioFile::AudioFile(const std::filesystem::path& p)
@@ -229,8 +179,7 @@ namespace lms::audio::ffmpeg
     {
         LMS_SCOPED_TRACE_DETAILED("MetaData", "FFmpegParseFile");
 
-        // TODO move this
-        static AvInitializer init;
+        utils::init();
 
         int error{ avformat_open_input(&_context, _p.c_str(), nullptr, nullptr) };
         if (error < 0)

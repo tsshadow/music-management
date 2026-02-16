@@ -57,7 +57,10 @@ namespace lms::audio::alsa
     void SndPcmDeleter::operator()(snd_pcm_t* pcm) const noexcept
     {
         const int error{ ::snd_pcm_close(pcm) };
-        LMS_LOG_IF(AUDIO, ERROR, error != 0, "snd_pcm_close failed: " << ::snd_strerror(error));
+        LMS_LOG_IF(AUDIO_OUTPUT_STREAM, ERROR, error != 0, "snd_pcm_close failed: " << ::snd_strerror(error));
+
+        // TODO move this
+        ::snd_config_update_free_global();
     }
 
     class AlsaException : public Exception
@@ -106,7 +109,7 @@ namespace lms::audio::alsa
                 if (error < 0)
                     throw AlsaException{ "snd_pcm_hw_params_set_buffer_size failed", error };
 
-                LMS_LOG(AUDIO, DEBUG, ::snd_pcm_name(_pcm.get()) << ", buffer time set to " << bufferDuration << " mus");
+                LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, ::snd_pcm_name(_pcm.get()) << ", buffer time set to " << bufferDuration << " mus");
             }
 
             {
@@ -117,7 +120,7 @@ namespace lms::audio::alsa
                 if (error < 0)
                     throw AlsaException{ "snd_pcm_hw_params_set_period_size failed", error };
 
-                LMS_LOG(AUDIO, DEBUG, ::snd_pcm_name(_pcm.get()) << ", period time set to " << periodDuration << " mus");
+                LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, ::snd_pcm_name(_pcm.get()) << ", period time set to " << periodDuration << " mus");
             }
 
             const int error{ ::snd_pcm_hw_params(_pcm.get(), hw_params) };
@@ -242,7 +245,7 @@ namespace lms::audio::alsa
         const int error{ ::snd_pcm_delay(_pcm.get(), &delayFrames) };
         if (error != 0)
         {
-            LMS_LOG(AUDIO, WARNING, "snd_pcm_delay failed: " << snd_strerror(error));
+            LMS_LOG(AUDIO_OUTPUT_STREAM, WARNING, "snd_pcm_delay failed: " << snd_strerror(error));
             delayFrames = 0;
         }
 
@@ -250,6 +253,54 @@ namespace lms::audio::alsa
         const snd_pcm_sframes_t playedFrameCount{ static_cast<snd_pcm_sframes_t>(_totalWrittenFrameCount) - delayFrames };
 
         return std::chrono::microseconds{ playedFrameCount * std::chrono::microseconds::period::den / _outputParameters.sampleRate };
+    }
+
+    std::chrono::microseconds AudioOutputStream::getLatency() const
+    {
+        ::snd_pcm_sframes_t delayFrames{};
+
+        const int error{ ::snd_pcm_delay(_pcm.get(), &delayFrames) };
+        if (error != 0)
+        {
+            LMS_LOG(AUDIO_OUTPUT_STREAM, WARNING, "snd_pcm_delay failed: " << snd_strerror(error));
+            delayFrames = 0;
+        }
+
+        return std::chrono::microseconds{ delayFrames * std::chrono::microseconds::period::den / _outputParameters.sampleRate };
+    }
+
+    void AudioOutputStream::flush()
+    {
+        boost::asio::post(_strand, [this] {
+            assert(_strand.running_in_this_thread());
+
+            LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "Flushing output");
+
+            if (_drainRequested)
+                throw Exception{ "asyncDrain already called!" };
+#if 0
+            {
+                const int error{ ::snd_pcm_drop(_pcm.get()) };
+                if (error < 0)
+                    throw AlsaException{ "snd_pcm_drop failed", error };
+            }
+
+            {
+                const int error{ ::snd_pcm_prepare(_pcm.get()) };
+                if (error < 0)
+                    throw AlsaException{ "snd_pcm_prepare failed", error };
+            }
+#endif
+            while (!_operations.empty())
+            {
+                WriteOperation& operation{ _operations.front() };
+
+                boost::asio::post(_ioContext, std::move(operation.callback));
+                _ioContext.get_executor().on_work_finished();
+
+                _operations.pop_front();
+            }
+        });
     }
 
     void AudioOutputStream::stop()
@@ -298,7 +349,7 @@ namespace lms::audio::alsa
 
         for (std::size_t i{}; i < _fileDescriptors.size(); ++i)
         {
-            if (_fileDescriptors[i].events & (POLLOUT || POLLIN))
+            if (_fileDescriptors[i].events & (POLLOUT | POLLIN))
                 _streamDescriptors[i].cancel();
         }
     }
@@ -313,14 +364,14 @@ namespace lms::audio::alsa
 
             if (ec)
             {
-                LMS_LOG(AUDIO, ERROR, "Poll failed: " << ec);
+                LMS_LOG(AUDIO_OUTPUT_STREAM, ERROR, "Poll failed: " << ec);
                 throw Exception{ "poll failed: " + ec.message() };
             }
 
             unsigned short revents{};
             ::snd_pcm_poll_descriptors_revents(_pcm.get(), _fileDescriptors.data(), _fileDescriptors.size(), &revents);
             if (revents & POLLERR)
-                LMS_LOG(AUDIO, ERROR, "ERROR");
+                LMS_LOG(AUDIO_OUTPUT_STREAM, ERROR, "snd_pcm_poll_descriptors_revents raied error!");
             if (revents & POLLOUT)
                 writeSomeFrames();
 
@@ -360,7 +411,7 @@ namespace lms::audio::alsa
             const ::snd_pcm_sframes_t writtenFrameCount{ ::snd_pcm_writei(_pcm.get(), operation.buffer.data(), frameCount) };
             if (writtenFrameCount < 0)
             {
-                LMS_LOG(AUDIO, WARNING, ::snd_pcm_name(_pcm.get()) << ", recovery needed! error = " << snd_strerror(writtenFrameCount) << ", pcm state = " << ::snd_pcm_state_name(::snd_pcm_state(_pcm.get())));
+                LMS_LOG(AUDIO_OUTPUT_STREAM, WARNING, ::snd_pcm_name(_pcm.get()) << ", recovery needed! error = " << snd_strerror(writtenFrameCount) << ", pcm state = " << ::snd_pcm_state_name(::snd_pcm_state(_pcm.get())));
                 const int error{ ::snd_pcm_recover(_pcm.get(), static_cast<int>(writtenFrameCount), 1) };
                 if (error)
                     throw AlsaException{ "Unrecoverable error", error };

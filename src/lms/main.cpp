@@ -33,6 +33,8 @@
 #include "core/Service.hpp"
 #include "core/String.hpp"
 #include "core/SystemPaths.hpp"
+
+#include "audio/IAudioOutput.hpp"
 #include "database/IDb.hpp"
 #include "database/IQueryPlanRecorder.hpp"
 #include "database/Session.hpp"
@@ -42,6 +44,7 @@
 #include "services/auth/IEnvService.hpp"
 #include "services/auth/IPasswordService.hpp"
 #include "services/feedback/IFeedbackService.hpp"
+#include "services/jukebox//IJukeboxService.hpp"
 #include "services/podcast/IPodcastService.hpp"
 #include "services/recommendation/IPlaylistGeneratorService.hpp"
 #include "services/recommendation/IRecommendationService.hpp"
@@ -85,12 +88,28 @@ namespace lms
 
             if (tracingLevel == "disabled")
                 return std::nullopt;
-            else if (tracingLevel == "overview")
+            if (tracingLevel == "overview")
                 return core::tracing::Level::Overview;
-            else if (tracingLevel == "detailed")
+            if (tracingLevel == "detailed")
                 return core::tracing::Level::Detailed;
 
             throw core::LmsException{ "Invalid config value for 'tracing-level'" };
+        }
+
+        std::optional<audio::AudioOutputBackend> getJukeboxAudioOutputBackend()
+        {
+            std::string_view backend{ core::Service<core::IConfig>::get()->getString("jukebox-audio-backend", "auto") };
+
+            if (backend == "alsa")
+                return audio::AudioOutputBackend::ALSA;
+            if (backend == "pulseaudio")
+                return audio::AudioOutputBackend::PulseAudio;
+            if (backend == "auto")
+                return audio::AudioOutputBackend::Auto;
+            if (backend == "none")
+                return std::nullopt;
+
+            throw core::LmsException{ "Invalid config value for 'jukebox-audio-backend'" };
         }
 
         std::vector<std::string> generateWtConfig(std::string execPath)
@@ -423,6 +442,7 @@ namespace lms
                 break;
             }
 
+            // TODO audio init here
             image::init(argv[0]);
             core::Service<artwork::IArtworkService> artworkService{ artwork::createArtworkService(*database, server.appRoot() + "/images/unknown-cover.svg", server.appRoot() + "/images/unknown-artist.svg") };
             core::Service<recommendation::IRecommendationService> recommendationService{ recommendation::createRecommendationService(*database) };
@@ -430,6 +450,9 @@ namespace lms
             core::Service<scanner::IScannerService> scannerService{ scanner::createScannerService(*database, cachePath) };
             core::Service<transcoding::ITranscodeService> transcodingService{ transcoding::createTranscodeService() };
             core::Service<podcast::IPodcastService> podcastService{ podcast::createPodcastService(ioContext, *database, cachePath / "podcasts") };
+
+            const auto jukeboxAudioBackend{ getJukeboxAudioOutputBackend() };
+            core::Service<jukebox::IJukeboxService> jukeboxService{ jukeboxAudioBackend ? jukebox::createJukeboxService(*database, *jukeboxAudioBackend) : nullptr };
 
             scannerService->getEvents().scanComplete.connect([&] {
                 // Flush cover cache even if no changes:

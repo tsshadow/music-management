@@ -57,6 +57,9 @@ namespace lms::audio::alsa
         bool isPaused() const override;
 
         std::chrono::microseconds getPlaybackTime() const override;
+        std::chrono::microseconds getLatency() const override;
+
+        void flush() override;
 
         void stop();
         void setupAllDescriptors();

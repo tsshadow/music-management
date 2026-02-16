@@ -72,13 +72,12 @@ namespace lms
         {
             audio::utils::PcmDecodeStreamerParameters params{
                 .outputStream = *_outputStream,
-                .file = _filePath,
-                .offset = _offset,
-                .pcmParameters = _pcmParams,
+                .bufferCount = 2,
+                .bufferDuration = std::chrono::milliseconds{ 100 },
             };
 
             _fileStreamer = audio::utils::createPcmDecodeStreamer(_ioContext, params);
-            _fileStreamer->start([this](bool aborted) {
+            _fileStreamer->start(_filePath, _offset, [this](bool aborted) {
                 if (aborted)
                     std::cerr << "Playback aborted!" << std::endl;
 
@@ -98,7 +97,7 @@ namespace lms
             });
 
             // Gives some time for the buffer to fill in
-            _playTimer.expires_from_now(std::chrono::milliseconds{ 50 });
+            _playTimer.expires_after(std::chrono::milliseconds{ 50 });
             _playTimer.async_wait([this](const boost::system::error_code& ec) {
                 if (ec)
                     return;

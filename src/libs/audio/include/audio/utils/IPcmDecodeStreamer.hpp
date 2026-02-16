@@ -33,22 +33,26 @@ namespace lms::audio
 
 namespace lms::audio::utils
 {
+    // helper class to decode files to PCM samples, fed into the provided output stream
     class IPcmDecodeStreamer
     {
     public:
         virtual ~IPcmDecodeStreamer() = default;
 
         using DecodeCompleteCallback = std::function<void(bool aborted)>;
-        virtual void start(DecodeCompleteCallback cb) = 0;
-        virtual void abort() = 0; // will call DecodeCompleteCallback once done
+
+        // DecodeCompleteCallback is fired once the file has been fully decoded (but still buffered in output)
+        // You can start a new file only if the previous one is finished (i.e. once the callback is fired)
+        virtual void start(const std::filesystem::path& path, std::chrono::microseconds offset, DecodeCompleteCallback cb) = 0;
+        virtual void abort() = 0; // will call DecodeCompleteCallback once aborted
+        virtual bool isComplete() const = 0;
     };
 
     struct PcmDecodeStreamerParameters
     {
         audio::IAudioOutputStream& outputStream;
-        std::filesystem::path file;
-        std::chrono::microseconds offset;
-        audio::PcmParameters pcmParameters;
+        std::size_t bufferCount;
+        std::chrono::milliseconds bufferDuration;
     };
-    std::shared_ptr<IPcmDecodeStreamer> createPcmDecodeStreamer(boost::asio::io_context& ioContext, const PcmDecodeStreamerParameters& params);
+    std::unique_ptr<IPcmDecodeStreamer> createPcmDecodeStreamer(boost::asio::io_context& ioContext, const PcmDecodeStreamerParameters& parameters);
 } // namespace lms::audio::utils

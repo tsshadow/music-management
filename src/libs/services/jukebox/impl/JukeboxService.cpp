@@ -20,7 +20,9 @@
 #include "JukeboxService.hpp"
 
 #include <chrono>
+#include <cstdlib>
 #include <format>
+#include <thread>
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/post.hpp>
@@ -59,9 +61,6 @@ namespace lms::jukebox
         if (_decoder)
             _decoder->abort();
 
-        if (_outputStream)
-            _outputStream->flush();
-
         _ioContextRunner.wait();
         LMS_LOG(JUKEBOX, INFO, "Service stopped!");
     }
@@ -72,7 +71,6 @@ namespace lms::jukebox
 
         std::unique_lock lock{ _mutex };
 
-        deleteDecoder();
         if (trackIndex >= _tracks.size())
         {
             LMS_LOG(JUKEBOX, INFO, "Requested track index out of bound: stopping");
@@ -80,12 +78,15 @@ namespace lms::jukebox
             return;
         }
 
-        if (createDecoder(trackIndex, offset))
+        if (!_outputStream)
+            return;
+
+        abortDecoder();
+        if (startDecoder(trackIndex, offset))
         {
             _currentTrackIndex = trackIndex;
             _currentTrackPlaybackTimeOffset = _outputStream->getPlaybackTime();
             _currentTrackStartTimeOffset = offset;
-            startDecoder();
             _outputStream->resume();
         }
         // TODO if failure, switch to the next song?
@@ -202,10 +203,20 @@ namespace lms::jukebox
 
     void JukeboxService::onStreamReady()
     {
+        audio::utils::PcmDecodeStreamerParameters params{
+            .outputStream = *_outputStream,
+            .bufferCount = 50,
+            .bufferDuration = std::chrono::milliseconds{ 1000 },
+        };
+
+        _decoder = audio::utils::createPcmDecodeStreamer(_ioContext, params);
     }
 
-    bool JukeboxService::createDecoder(std::size_t trackIndex, std::chrono::microseconds offset)
+    bool JukeboxService::startDecoder(std::size_t trackIndex, std::chrono::microseconds offset)
     {
+        if (!_decoder)
+            return false;
+
         std::filesystem::path trackPath;
         {
             auto& session{ _db.getTLSSession() };
@@ -223,48 +234,42 @@ namespace lms::jukebox
 
         try
         {
-            audio::utils::PcmDecodeStreamerParameters params{
-                .outputStream = *_outputStream,
-                .file = trackPath,
-                .offset = offset,
-                .pcmParameters = _pcmParams,
-            };
-
-            _decoder = audio::utils::createPcmDecodeStreamer(_ioContext, params);
+            _decoder->start(trackPath, offset, [this](bool aborted) {
+                onDecodeFinished(aborted);
+            });
         }
         catch (const audio::Exception& e)
         {
-            LMS_LOG(JUKEBOX, ERROR, "Failed to create PCM decoder for track " << trackPath);
+            LMS_LOG(JUKEBOX, ERROR, "Failed to start PCM decoder for track " << trackPath);
             return false;
         }
 
         return true;
     }
 
-    void JukeboxService::deleteDecoder()
+    void JukeboxService::abortDecoder()
     {
+        // Must not be called from within owned io_context
         if (_decoder)
         {
             _decoder->abort();
-            _decoder.reset();
-        }
-    }
 
-    void JukeboxService::startDecoder()
-    {
-        _decoder->start([this](bool aborted) {
-            onDecodeFinished(aborted);
-        });
+            // Should be hopefully short since flushing/aborting
+            while (!_decoder->isComplete())
+                std::this_thread::yield(); // TODO: execute some io_context stuff?
+        }
     }
 
     void JukeboxService::onDecodeFinished(bool aborted)
     {
         if (aborted)
-            return; // already setup to play next song
+            return; // already setup to play next song, if needed
 
         std::unique_lock lock{ _mutex };
 
-        _decoder.reset();
+        _currentTrackPlaybackTimeOffset = {};
+        _currentTrackStartTimeOffset = {};
+
         if (!_currentTrackIndex)
         {
             _outputStream->pause();
@@ -274,14 +279,18 @@ namespace lms::jukebox
         if (++(*_currentTrackIndex) >= _tracks.size())
         {
             _currentTrackIndex.reset();
+            // let the output stream run out of data
             return;
         }
 
-        if (createDecoder(*_currentTrackIndex))
+        if (startDecoder(*_currentTrackIndex))
         {
-            startDecoder();
             _currentTrackPlaybackTimeOffset = _outputStream->getPlaybackTime() + _outputStream->getLatency();
             _currentTrackStartTimeOffset = {};
+        }
+        else
+        {
+            _currentTrackIndex.reset();
         }
         // TODO if failure, switch to the next song?
     }

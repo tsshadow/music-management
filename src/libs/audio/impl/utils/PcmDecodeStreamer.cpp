@@ -21,26 +21,25 @@
 
 #include <boost/asio/post.hpp>
 
-#include "audio/Exception.hpp"
 #include "core/ILogger.hpp"
 
+#include "audio/Exception.hpp"
 #include "audio/IAudioOutput.hpp"
 #include "audio/IPcmDecoder.hpp"
 
 namespace lms::audio::utils
 {
-    std::shared_ptr<IPcmDecodeStreamer> createPcmDecodeStreamer(boost::asio::io_context& ioContext, const PcmDecodeStreamerParameters& parameters)
+    std::unique_ptr<IPcmDecodeStreamer> createPcmDecodeStreamer(boost::asio::io_context& ioContext, const PcmDecodeStreamerParameters& parameters)
     {
-        return std::make_shared<PcmDecodeStreamer>(ioContext, parameters);
+        return std::make_unique<PcmDecodeStreamer>(ioContext, parameters);
     }
 
     PcmDecodeStreamer::PcmDecodeStreamer(boost::asio::io_context& ioContext, const PcmDecodeStreamerParameters& parameters)
         : _ioContext{ ioContext }
         , _strand{ _ioContext }
         , _outputStream{ parameters.outputStream }
-        , _pcmDecoder{ audio::createPcmDecoder(parameters.file, parameters.offset, parameters.pcmParameters) }
     {
-        prepareBuffers();
+        prepareBuffers(parameters.bufferCount, parameters.bufferDuration);
     }
 
     PcmDecodeStreamer::~PcmDecodeStreamer()
@@ -48,42 +47,51 @@ namespace lms::audio::utils
         assert(!isWritePending());
     }
 
-    void PcmDecodeStreamer::start(DecodeCompleteCallback cb)
+    void PcmDecodeStreamer::start(const std::filesystem::path& path, std::chrono::microseconds offset, DecodeCompleteCallback cb)
     {
         assert(cb);
-        assert(!_decodeCompleteCallback);
+        assert(isComplete()); // previous job must be finished or cancelled
+
+        _pcmDecoder = audio::createPcmDecoder(path, offset, getPcmParameters()); // may throw
+        _aborted = false;
+        _eofReached = false;
 
         _ioContext.get_executor().on_work_started();
         _decodeCompleteCallback = std::move(cb);
 
-        boost::asio::post(_strand, [self = shared_from_this()] {
-            self->decodeSome();
+        boost::asio::post(_strand, [this] {
+            decodeSome();
         });
     }
 
     void PcmDecodeStreamer::abort()
     {
-        boost::asio::post(_strand, [self = shared_from_this()] {
-            LMS_LOG(AUDIO, DEBUG, "Processing abort");
-            self->_aborted = true;
-            self->_outputStream.flush();
+        if (isComplete())
+            return;
 
-            if (!self->isWritePending())
-                self->notifyDecodeComplete();
+        boost::asio::post(_strand, [this] {
+            LMS_LOG(AUDIO, DEBUG, "Processing abort");
+            _aborted = true;
+            _outputStream.flush();
+
+            if (!isWritePending())
+                notifyDecodeComplete();
         });
+    }
+
+    bool PcmDecodeStreamer::isComplete() const
+    {
+        return !_pcmDecoder;
     }
 
     const audio::PcmParameters& PcmDecodeStreamer::getPcmParameters() const
     {
-        return _pcmDecoder->getParameters();
+        return _outputStream.getParameters();
     }
 
-    void PcmDecodeStreamer::prepareBuffers()
+    void PcmDecodeStreamer::prepareBuffers(std::size_t bufferCount, std::chrono::microseconds bufferDuration)
     {
-        constexpr std::chrono::milliseconds bufferDuration{ 100 };
-
-        const audio::PcmParameters& pcmParams{ getPcmParameters() };
-        std::size_t sampleCountPerBuffer{ static_cast<std::size_t>(std::chrono::duration_cast<std::chrono::microseconds>(bufferDuration).count() * pcmParams.sampleRate / std::chrono::microseconds::period::den) };
+        const std::size_t sampleCountPerBuffer{ static_cast<std::size_t>(std::chrono::duration_cast<std::chrono::microseconds>(bufferDuration).count() * getPcmParameters().sampleRate / std::chrono::microseconds::period::den) };
         const std::size_t bufferSize{ sampleCountToByteCount(sampleCountPerBuffer) };
 
         _buffers.resize(bufferCount);
@@ -127,11 +135,11 @@ namespace lms::audio::utils
             bufferDesc.isWritePending = true;
             buffer = { buffer.data(), sampleCountToByteCount(sampleCount) };
 
-            _outputStream.asyncWrite(buffer, [self = shared_from_this(), bufferIndex] {
-                boost::asio::post(self->_strand, [self, bufferIndex] { self->onBufferWriteComplete(bufferIndex); });
+            _outputStream.asyncWrite(buffer, [this, bufferIndex] {
+                boost::asio::post(_strand, [this, bufferIndex] { onBufferWriteComplete(bufferIndex); });
             });
 
-            boost::asio::post(_strand, [self = shared_from_this()] { self->decodeSome(); });
+            boost::asio::post(_strand, [this] { decodeSome(); });
         }
     }
 
@@ -185,10 +193,12 @@ namespace lms::audio::utils
 
     void PcmDecodeStreamer::notifyDecodeComplete()
     {
-        boost::asio::post(_ioContext, [self = shared_from_this(), cb = std::move(_decodeCompleteCallback)] {
-            LMS_LOG(AUDIO, DEBUG, "Decode complete notification");
-            cb(self->_aborted);
-            self->_ioContext.get_executor().on_work_finished();
+        LMS_LOG(AUDIO, DEBUG, "Decode complete notification");
+
+        boost::asio::post(_ioContext, [this, cb = std::move(_decodeCompleteCallback)] {
+            _pcmDecoder.reset();
+            cb(_aborted);
+            _ioContext.get_executor().on_work_finished();
         });
     }
 

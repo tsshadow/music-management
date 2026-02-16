@@ -19,14 +19,12 @@
 
 #pragma once
 
-#include <filesystem>
-#include <memory>
+#include <cstddef>
 #include <vector>
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/io_context_strand.hpp>
 
-#include "audio/PcmTypes.hpp"
 #include "audio/utils/IPcmDecodeStreamer.hpp"
 
 namespace lms::audio
@@ -37,7 +35,7 @@ namespace lms::audio
 
 namespace lms::audio::utils
 {
-    class PcmDecodeStreamer : public IPcmDecodeStreamer, public std::enable_shared_from_this<PcmDecodeStreamer>
+    class PcmDecodeStreamer : public IPcmDecodeStreamer
     {
     public:
         PcmDecodeStreamer(boost::asio::io_context& ioContext, const PcmDecodeStreamerParameters& parameters);
@@ -47,12 +45,13 @@ namespace lms::audio::utils
         PcmDecodeStreamer& operator=(const PcmDecodeStreamer&) = delete;
 
     private:
-        void start(DecodeCompleteCallback cb) override;
-        void abort() override; // will call DecodeCompleteCallback once done
+        void start(const std::filesystem::path& path, std::chrono::microseconds offset, DecodeCompleteCallback cb) override;
+        void abort() override;
+        bool isComplete() const override;
 
         const audio::PcmParameters& getPcmParameters() const;
 
-        void prepareBuffers();
+        void prepareBuffers(std::size_t bufferCount, std::chrono::microseconds bufferDuration);
         bool isWritePending() const;
         void decodeSome();
         std::size_t readSamples(std::span<std::byte> buffer);
@@ -72,7 +71,6 @@ namespace lms::audio::utils
         audio::IAudioOutputStream& _outputStream;
         std::unique_ptr<audio::IPcmDecoder> _pcmDecoder;
 
-        static constexpr std::size_t bufferCount{ 4 };
         std::vector<BufferDesc> _buffers;
         std::size_t _nextBufferIndex{};
         bool _eofReached{};

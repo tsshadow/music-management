@@ -64,9 +64,8 @@ namespace lms::jukebox
         void onContextReady();
         void onStreamReady();
 
-        bool createDecoder(std::size_t trackIndex, std::chrono::microseconds offset = {});
-        void deleteDecoder();
-        void startDecoder();
+        bool startDecoder(std::size_t trackIndex, std::chrono::microseconds offset = {});
+        void abortDecoder();
         void onDecodeFinished(bool aborted);
 
         // TODO: make configurable or use detected output params
@@ -91,6 +90,6 @@ namespace lms::jukebox
         std::unique_ptr<audio::IAudioOutputContext> _outputContext;
         std::unique_ptr<audio::IAudioOutputStream> _outputStream;
 
-        std::shared_ptr<audio::utils::IPcmDecodeStreamer> _decoder;
+        std::unique_ptr<audio::utils::IPcmDecodeStreamer> _decoder;
     };
 } // namespace lms::jukebox

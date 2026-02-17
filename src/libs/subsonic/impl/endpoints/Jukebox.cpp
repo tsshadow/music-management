@@ -44,7 +44,7 @@ namespace lms::api::subsonic
             statusNode.setAttribute("currentIndex", jukeboxService.getCurrentTrackIndex() ? *jukeboxService.getCurrentTrackIndex() : -1); // required
             statusNode.setAttribute("playing", !jukeboxService.isPaused());                                                               // required
             statusNode.setAttribute("position", std::chrono::duration_cast<std::chrono::seconds>(jukeboxService.getPlaybackTrackTime()).count());
-            statusNode.setAttribute("gain", 1.f);
+            statusNode.setAttribute("gain", jukeboxService.getVolume());
 
             return statusNode;
         }
@@ -158,6 +158,19 @@ namespace lms::api::subsonic
             return response;
         }
 
+        Response handleJukeboxSetGain(RequestContext& context, jukebox::IJukeboxService& jukeboxService)
+        {
+            const auto gain{ getMandatoryParameterAs<float>(context.getParameters(), "gain") };
+            if (gain < 0 || gain > 1)
+                throw BadParameterGenericError{ "gain", "gain must be between 0.0 and 1.0" };
+
+            jukeboxService.setVolume(gain); // consider gain is linear
+
+            Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
+            response.addNode("jukeboxStatus", createJukeboxStatusNode(jukeboxService));
+            return response;
+        }
+
         using Actionhandler = std::function<Response(RequestContext& context, jukebox::IJukeboxService& jukeboxService)>;
         static const std::unordered_map<std::string, Actionhandler> actionHandlers{
             { "get", detail::handleJukeboxGet },
@@ -170,7 +183,7 @@ namespace lms::api::subsonic
             { "clear", detail::handleJukeboxClear },
             { "remove", detail::handleJukeboxRemove },
             { "shuffle", detail::handleJukeboxShuffle },
-            { "setGain", detail::handleJukeboxStatus }, // not implemented
+            { "setGain", detail::handleJukeboxSetGain },
         };
 
     } // namespace detail

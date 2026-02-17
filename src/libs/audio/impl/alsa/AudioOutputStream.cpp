@@ -238,6 +238,15 @@ namespace lms::audio::alsa
         return ::snd_pcm_state(_pcm.get()) == SND_PCM_STATE_PAUSED;
     }
 
+    void AudioOutputStream::setVolume(float)
+    {
+    }
+
+    float AudioOutputStream::getVolume() const
+    {
+        return 1.F;
+    }
+
     std::chrono::microseconds AudioOutputStream::getPlaybackTime() const
     {
         ::snd_pcm_sframes_t delayFrames{};

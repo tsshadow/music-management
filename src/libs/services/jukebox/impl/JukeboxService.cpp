@@ -118,6 +118,20 @@ namespace lms::jukebox
         return _outputStream->isPaused();
     }
 
+    void JukeboxService::setVolume(float volume)
+    {
+        std::unique_lock lock{ _mutex };
+
+        _outputStream->setVolume(volume);
+    }
+
+    float JukeboxService::getVolume() const
+    {
+        std::shared_lock lock{ _mutex };
+
+        return _outputStream->getVolume();
+    }
+
     std::optional<std::size_t> JukeboxService::getCurrentTrackIndex() const
     {
         std::shared_lock lock{ _mutex };

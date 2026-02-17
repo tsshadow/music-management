@@ -19,10 +19,13 @@
 
 #include "AudioOutputStream.hpp"
 
+#include <algorithm>
+
 #include <boost/asio/post.hpp>
 #include <pulse/context.h>
 #include <pulse/def.h>
 #include <pulse/error.h>
+#include <pulse/introspect.h>
 #include <pulse/operation.h>
 #include <pulse/proplist.h>
 #include <pulse/stream.h>
@@ -195,47 +198,6 @@ namespace lms::audio::pulseaudio
         }
     }
 
-    void AudioOutputStream::pause()
-    {
-        LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "Pausing stream");
-
-        MainLoopScopedLock lock{ _mainLoop };
-
-        pa_operation* op{ ::pa_stream_cork(_stream.get(), 1, nullptr, nullptr) };
-        if (!op)
-            throw PaException("pa_stream_cork (pause) failed", pa_context_errno(_context));
-
-        ::pa_operation_unref(op);
-    }
-
-    void AudioOutputStream::resume()
-    {
-        LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "Resuming stream");
-
-        MainLoopScopedLock lock{ _mainLoop };
-
-        {
-            pa_operation* op{ ::pa_stream_cork(_stream.get(), 0, nullptr, nullptr) };
-            if (!op)
-                throw PaException("pa_stream_cork (resume) failed", pa_context_errno(_context));
-            ::pa_operation_unref(op);
-        }
-
-        {
-            pa_operation* op{ ::pa_stream_trigger(_stream.get(), NULL, NULL) };
-            if (!op)
-                throw PaException("pa_stream_trigger failed", pa_context_errno(_context));
-            ::pa_operation_unref(op);
-        }
-    }
-
-    bool AudioOutputStream::isPaused() const
-    {
-        MainLoopScopedLock lock{ _mainLoop };
-
-        return pa_stream_is_corked(_stream.get());
-    }
-
     std::chrono::microseconds AudioOutputStream::getPlaybackTime() const
     {
         pa_usec_t duration{};
@@ -277,6 +239,78 @@ namespace lms::audio::pulseaudio
 
             onWriteOperationCancelled(writeOperation);
         }
+    }
+
+    void AudioOutputStream::pause()
+    {
+        LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "Pausing stream");
+
+        MainLoopScopedLock lock{ _mainLoop };
+
+        pa_operation* op{ ::pa_stream_cork(_stream.get(), 1, nullptr, nullptr) };
+        if (!op)
+            throw PaException("pa_stream_cork (pause) failed", pa_context_errno(_context));
+
+        ::pa_operation_unref(op);
+    }
+
+    void AudioOutputStream::resume()
+    {
+        LMS_LOG(AUDIO_OUTPUT_STREAM, DEBUG, "Resuming stream");
+
+        MainLoopScopedLock lock{ _mainLoop };
+
+        {
+            pa_operation* op{ ::pa_stream_cork(_stream.get(), 0, nullptr, nullptr) };
+            if (!op)
+                throw PaException("pa_stream_cork (resume) failed", pa_context_errno(_context));
+            ::pa_operation_unref(op);
+        }
+
+        {
+            pa_operation* op{ ::pa_stream_trigger(_stream.get(), NULL, NULL) };
+            if (!op)
+                throw PaException("pa_stream_trigger failed", pa_context_errno(_context));
+            ::pa_operation_unref(op);
+        }
+    }
+
+    bool AudioOutputStream::isPaused() const
+    {
+        MainLoopScopedLock lock{ _mainLoop };
+
+        return pa_stream_is_corked(_stream.get());
+    }
+
+    void AudioOutputStream::setVolume(float volume)
+    {
+        MainLoopScopedLock lock{ _mainLoop };
+
+        if (volume < 0.F || volume > 1.F)
+            throw Exception{ "Volume must be in range 0-1" };
+
+        const pa_volume_t paVol{ pa_sw_volume_from_linear(volume) };
+
+        pa_cvolume paChanVol;
+        pa_cvolume_set(&paChanVol, _outputParameters.channelCount, paVol);
+
+        pa_operation* op{ ::pa_context_set_sink_input_volume(
+            _context,
+            pa_stream_get_index(_stream.get()),
+            &paChanVol,
+            nullptr,
+            nullptr) };
+        if (!op)
+            throw PaException("pa_context_set_sink_input_volume failed", pa_context_errno(_context));
+
+        ::pa_operation_unref(op);
+
+        _currentVolume = volume;
+    }
+
+    float AudioOutputStream::getVolume() const
+    {
+        return _currentVolume;
     }
 
     void AudioOutputStream::connect()

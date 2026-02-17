@@ -62,14 +62,17 @@ namespace lms::audio::pulseaudio
         void asyncWrite(std::span<const std::byte> buffer, WriteCompletionCallback cb) override;
         void asyncDrain(DrainCompletionCallback cb) override;
 
-        void pause() override;
-        void resume() override;
-        bool isPaused() const override;
-
         std::chrono::microseconds getPlaybackTime() const override;
         std::chrono::microseconds getLatency() const override;
 
         void flush() override;
+
+        void pause() override;
+        void resume() override;
+        bool isPaused() const override;
+
+        void setVolume(float volume) override;
+        float getVolume() const override;
 
         void connect();
         void onStateChanged();
@@ -83,6 +86,7 @@ namespace lms::audio::pulseaudio
         pa_threaded_mainloop* _mainLoop;
         const PcmParameters _outputParameters;
         PaStreamPtr _stream;
+        float _currentVolume{ 1.F };
 
         WaitReadyCallback _waitReadyCallback;
 

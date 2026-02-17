@@ -48,6 +48,9 @@ namespace lms::jukebox
         virtual void resume() = 0;
         virtual bool isPaused() const = 0;
 
+        virtual void setVolume(float volume) = 0; // from 0 to 1
+        virtual float getVolume() const = 0;
+
         virtual std::optional<std::size_t> getCurrentTrackIndex() const = 0; // may be unset if queue is cleared while playing
         virtual std::chrono::microseconds getPlaybackTrackTime() const = 0;
 

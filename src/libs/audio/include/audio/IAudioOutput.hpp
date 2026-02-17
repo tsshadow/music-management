@@ -60,6 +60,9 @@ namespace lms::audio
         virtual void pause() = 0;
         virtual void resume() = 0;
         virtual bool isPaused() const = 0;
+
+        virtual void setVolume(float volume) = 0;
+        virtual float getVolume() const = 0;
     };
 
     class IAudioOutputContext

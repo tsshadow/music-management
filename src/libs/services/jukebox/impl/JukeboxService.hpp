@@ -51,6 +51,9 @@ namespace lms::jukebox
         void resume() override;
         bool isPaused() const override;
 
+        void setVolume(float volume) override;
+        float getVolume() const override;
+
         std::optional<std::size_t> getCurrentTrackIndex() const override;
         std::chrono::microseconds getPlaybackTrackTime() const override;
 

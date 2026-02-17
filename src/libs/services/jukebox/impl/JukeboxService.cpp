@@ -205,8 +205,8 @@ namespace lms::jukebox
     {
         audio::utils::PcmDecodeStreamerParameters params{
             .outputStream = *_outputStream,
-            .bufferCount = 50,
-            .bufferDuration = std::chrono::milliseconds{ 1000 },
+            .bufferCount = 3,
+            .bufferDuration = std::chrono::milliseconds{ 100 },
         };
 
         _decoder = audio::utils::createPcmDecodeStreamer(_ioContext, params);

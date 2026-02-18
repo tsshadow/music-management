@@ -100,8 +100,6 @@ namespace lms
         {
             std::string_view backend{ core::Service<core::IConfig>::get()->getString("jukebox-audio-backend", "auto") };
 
-            if (backend == "alsa")
-                return audio::AudioOutputBackend::ALSA;
             if (backend == "pulseaudio")
                 return audio::AudioOutputBackend::PulseAudio;
             if (backend == "auto")

@@ -37,8 +37,6 @@ namespace lms::audio
         case AudioOutputBackend::Auto:
 #if LMS_HAVE_PULSEAUDIO
             context = std::make_unique<pulseaudio::AudioOutputContext>(ioContext, name);
-#elif LMS_HAVE_ALSA
-            context = std::make_unique<alsa::AudioOutputContext>(ioContext, name);
 #endif
             break;
 

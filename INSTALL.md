@@ -40,12 +40,11 @@ __Notes__:
 apt-get install build-essential cmake libboost-program-options-dev libboost-system-dev libavutil-dev libavformat-dev libswresample-dev ffmpeg libconfig++-dev libstb-dev libtag-dev libpugixml-dev libgtest-dev libarchive-dev libxxhash-dev libssl-dev
 ```
 __Optional dependencies__:
-* libpam0g-dev, used to handle PAM authentication
-* libpulse-dev, used to output audio using PulseAudio
-* libasound2-dev, used to output audio using ALSA
+* `libpam0g-dev`: used to handle PAM authentication
+* `libpulse-dev`: used to output audio via PulseAudio in jukebox mode
 
 __Notes__:
-* libstb-dev can be replaced by libgraphicsmagick++1-dev (the latter will likely use more RAM)
+* `libstb-dev` can be replaced by `libgraphicsmagick++1-dev` (the latter will likely use more RAM)
 You also need _Wt4_, which is not packaged on _Debian_. See [installation instructions](https://www.webtoolkit.eu/wt/doc/reference/html/InstallationUnix.html).</br>
 ### Build
 Get the latest stable release and build it:

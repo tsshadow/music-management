@@ -22,11 +22,10 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <span>
 #include <string_view>
 
 #include <boost/asio/io_context.hpp>
-
-#include "core/EnumSet.hpp"
 
 #include "audio/PcmTypes.hpp"
 

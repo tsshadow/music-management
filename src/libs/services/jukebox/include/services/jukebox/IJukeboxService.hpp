@@ -37,11 +37,23 @@ namespace lms
 
 namespace lms::jukebox
 {
+    enum class ServiceState
+    {
+        Uninitialized, // init not attempted
+        Initializing,  // init in progress
+        Ready,         // init done
+        Failed,        // unrecoverable
+    };
+
     class IJukeboxService
     {
     public:
         virtual ~IJukeboxService() = default;
 
+        virtual void startInit() = 0; // can be called only if state is Uninitialized
+        virtual ServiceState getState() const = 0;
+
+        // Can call all methods below only if ready!
         virtual void play(std::size_t trackIndex, std::chrono::microseconds offset) = 0;
 
         virtual void pause() = 0;

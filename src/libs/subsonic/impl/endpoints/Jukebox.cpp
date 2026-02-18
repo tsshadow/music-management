@@ -20,23 +20,43 @@
 #include "Jukebox.hpp"
 
 #include <functional>
+#include <thread>
 
 #include "core/Service.hpp"
 
 #include "database/Session.hpp"
 #include "database/objects/Track.hpp"
 #include "database/objects/User.hpp"
-#include "responses/Song.hpp"
-#include "services/jukebox/IJukeboxService.hpp"
 
 #include "ParameterParsing.hpp"
 #include "SubsonicId.hpp"
 #include "SubsonicResponse.hpp"
+#include "responses/Song.hpp"
+#include "services/jukebox/IJukeboxService.hpp"
 
 namespace lms::api::subsonic
 {
     namespace detail
     {
+        void initJukeboxIfNeeded(jukebox::IJukeboxService& jukeboxService)
+        {
+            switch (jukeboxService.getState())
+            {
+            case jukebox::ServiceState::Uninitialized:
+                jukeboxService.startInit();
+                [[fallthrough]];
+
+            case jukebox::ServiceState::Initializing:
+                while (jukeboxService.getState() == jukebox::ServiceState::Initializing)
+                    std::this_thread::yield(); // should be hopefully quite fast
+                break;
+
+            case jukebox::ServiceState::Failed:
+            case jukebox::ServiceState::Ready:
+                break;
+            }
+        }
+
         Response::Node createJukeboxStatusNode(const jukebox::IJukeboxService& jukeboxService)
         {
             Response::Node statusNode;
@@ -194,10 +214,24 @@ namespace lms::api::subsonic
 
         jukebox::IJukeboxService* jukeboxService{ core::Service<jukebox::IJukeboxService>::get() };
         if (!jukeboxService)
-            throw InternalErrorGenericError{ "Jukebox not available!" };
+            throw InternalErrorGenericError{ "Jukebox service disabled" };
 
         if (!context.getUser()->isAdmin())
             throw UserNotAuthorizedError{};
+
+        detail::initJukeboxIfNeeded(*jukeboxService);
+
+        switch (jukeboxService->getState())
+        {
+        case jukebox::ServiceState::Failed:
+            throw InternalErrorGenericError{ "Jukebox service failed" };
+
+        case jukebox::ServiceState::Ready:
+            break;
+
+        default:
+            throw InternalErrorGenericError{ "Bad jukebox state" };
+        }
 
         auto itActionHandler{ detail::actionHandlers.find(action) };
         if (itActionHandler == std::end(detail::actionHandlers))

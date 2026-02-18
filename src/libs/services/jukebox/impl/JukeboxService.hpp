@@ -45,6 +45,9 @@ namespace lms::jukebox
         JukeboxService& operator=(const JukeboxService&) = delete;
 
     private:
+        void startInit() override;
+        ServiceState getState() const override;
+
         void play(std::size_t trackIndex, std::chrono::microseconds offset) override;
 
         void pause() override;
@@ -64,6 +67,8 @@ namespace lms::jukebox
         void shuffleTracks() override;
         std::vector<db::TrackId> getTracks() const override;
 
+        void checkState(ServiceState state) const;
+
         void onContextReady();
         void onStreamReady();
 
@@ -81,6 +86,9 @@ namespace lms::jukebox
         };
 
         mutable std::shared_mutex _mutex;
+
+        const audio::AudioOutputBackend _backend;
+        ServiceState _state;
 
         std::vector<db::TrackId> _tracks;              // protected by mutex
         std::optional<std::size_t> _currentTrackIndex; // protected by mutex

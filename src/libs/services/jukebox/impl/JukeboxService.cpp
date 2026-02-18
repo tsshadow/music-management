@@ -27,6 +27,7 @@
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/post.hpp>
 
+#include "core/Exception.hpp"
 #include "core/ILogger.hpp"
 #include "core/Random.hpp"
 
@@ -45,14 +46,12 @@ namespace lms::jukebox
     }
 
     JukeboxService::JukeboxService(db::IDb& db, audio::AudioOutputBackend backend)
-        : _ioContextRunner{ _ioContext, 1, "Jukebox" }
+        : _backend{ backend }
+        , _state{ ServiceState::Uninitialized }
+        , _ioContextRunner{ _ioContext, 1, "Jukebox" }
         , _db{ db }
-        , _outputContext{ audio::createAudioOutputContext(_ioContext, "LMS-Jukebox", backend) }
     {
         LMS_LOG(JUKEBOX, INFO, "Starting service...");
-
-        // TODO create a context and an output stream only if a song is actually played
-        _outputContext->asyncWaitReady([this] { onContextReady(); });
     }
 
     JukeboxService::~JukeboxService()
@@ -65,11 +64,43 @@ namespace lms::jukebox
         LMS_LOG(JUKEBOX, INFO, "Service stopped!");
     }
 
+    void JukeboxService::startInit()
+    {
+        try
+        {
+            std::unique_lock lock{ _mutex };
+
+            checkState(ServiceState::Uninitialized);
+
+            LMS_LOG(JUKEBOX, INFO, "Starting audio initialization...");
+
+            _outputContext = audio::createAudioOutputContext(_ioContext, "LMS-Jukebox", _backend);
+            _state = ServiceState::Initializing;
+
+            // TODO create a context and an output stream only if a song is actually played
+            _outputContext->asyncWaitReady([this] { onContextReady(); });
+        }
+        catch (const audio::Exception& e)
+        {
+            LMS_LOG(JUKEBOX, ERROR, "Cannot create audio context: " << e.what());
+            _state = ServiceState::Failed;
+        }
+    }
+
+    ServiceState JukeboxService::getState() const
+    {
+        std::unique_lock lock{ _mutex };
+
+        return _state;
+    }
+
     void JukeboxService::play(std::size_t trackIndex, std::chrono::microseconds offset)
     {
-        LMS_LOG(JUKEBOX, INFO, "Playing track index " << trackIndex << " at offset " << std::format("{:%T}", offset));
+        LMS_LOG(JUKEBOX, DEBUG, "Playing track index " << trackIndex << " at offset " << std::format("{:%T}", offset));
 
         std::unique_lock lock{ _mutex };
+
+        checkState(ServiceState::Ready);
 
         if (trackIndex >= _tracks.size())
         {
@@ -77,9 +108,6 @@ namespace lms::jukebox
             _currentTrackIndex.reset();
             return;
         }
-
-        if (!_outputStream)
-            return;
 
         abortDecoder();
         if (startDecoder(trackIndex, offset))
@@ -96,24 +124,25 @@ namespace lms::jukebox
     {
         std::unique_lock lock{ _mutex };
 
-        if (_outputStream)
-            _outputStream->pause();
+        checkState(ServiceState::Ready);
+
+        _outputStream->pause();
     }
 
     void JukeboxService::resume()
     {
         std::unique_lock lock{ _mutex };
 
-        if (_outputStream)
-            _outputStream->resume();
+        checkState(ServiceState::Ready);
+
+        _outputStream->resume();
     }
 
     bool JukeboxService::isPaused() const
     {
         std::shared_lock lock{ _mutex };
 
-        if (!_outputStream)
-            return true;
+        checkState(ServiceState::Ready);
 
         return _outputStream->isPaused();
     }
@@ -122,12 +151,16 @@ namespace lms::jukebox
     {
         std::unique_lock lock{ _mutex };
 
+        checkState(ServiceState::Ready);
+
         _outputStream->setVolume(volume);
     }
 
     float JukeboxService::getVolume() const
     {
         std::shared_lock lock{ _mutex };
+
+        checkState(ServiceState::Ready);
 
         return _outputStream->getVolume();
     }
@@ -136,6 +169,8 @@ namespace lms::jukebox
     {
         std::shared_lock lock{ _mutex };
 
+        checkState(ServiceState::Ready);
+
         return _currentTrackIndex;
     }
 
@@ -143,8 +178,7 @@ namespace lms::jukebox
     {
         std::shared_lock lock{ _mutex };
 
-        if (!_outputStream)
-            return {};
+        checkState(ServiceState::Ready);
 
         const auto playbackTime{ _outputStream->getPlaybackTime() };
 
@@ -161,6 +195,8 @@ namespace lms::jukebox
     {
         std::unique_lock lock{ _mutex };
 
+        checkState(ServiceState::Ready);
+
         _tracks.clear();
         _currentTrackIndex.reset();
     }
@@ -168,6 +204,8 @@ namespace lms::jukebox
     void JukeboxService::removeTrack(std::size_t index)
     {
         std::unique_lock lock{ _mutex };
+
+        checkState(ServiceState::Ready);
 
         if (index >= _tracks.size())
             return;
@@ -185,9 +223,9 @@ namespace lms::jukebox
 
     void JukeboxService::appendTracks(std::span<const db::TrackId> tracks)
     {
-        LMS_LOG(JUKEBOX, INFO, "Appending " << tracks.size() << " tracks");
-
         std::unique_lock lock{ _mutex };
+
+        checkState(ServiceState::Ready);
 
         _tracks.insert(std::end(_tracks), std::cbegin(tracks), std::cend(tracks));
     }
@@ -195,6 +233,8 @@ namespace lms::jukebox
     void JukeboxService::shuffleTracks()
     {
         std::unique_lock lock{ _mutex };
+
+        checkState(ServiceState::Ready);
 
         core::random::shuffleContainer(_tracks);
 
@@ -206,31 +246,51 @@ namespace lms::jukebox
     {
         std::shared_lock lock{ _mutex };
 
+        checkState(ServiceState::Ready);
+
         return _tracks;
+    }
+
+    void JukeboxService::checkState(ServiceState state) const
+    {
+        if (_state != state)
+            throw core::LmsException{ "Unexpected jukebox state!" };
     }
 
     void JukeboxService::onContextReady()
     {
-        _outputStream = _outputContext->createOutputStream("LMS-jukebox", _pcmParams);
-        _outputStream->asyncWaitReady([this] { onStreamReady(); });
+        std::unique_lock lock{ _mutex };
+
+        try
+        {
+            _outputStream = _outputContext->createOutputStream("LMS-jukebox", _pcmParams);
+            _outputStream->asyncWaitReady([this] { onStreamReady(); });
+        }
+        catch (const audio::Exception& e)
+        {
+            LMS_LOG(JUKEBOX, ERROR, "Cannot create audio context: " << e.what());
+            _state = ServiceState::Failed;
+        }
     }
 
     void JukeboxService::onStreamReady()
     {
+        LMS_LOG(JUKEBOX, INFO, "Audio initialization complete!");
+
         audio::utils::PcmDecodeStreamerParameters params{
             .outputStream = *_outputStream,
             .bufferCount = 3,
             .bufferDuration = std::chrono::milliseconds{ 100 },
         };
 
+        std::unique_lock lock{ _mutex };
+
         _decoder = audio::utils::createPcmDecodeStreamer(_ioContext, params);
+        _state = ServiceState::Ready;
     }
 
     bool JukeboxService::startDecoder(std::size_t trackIndex, std::chrono::microseconds offset)
     {
-        if (!_decoder)
-            return false;
-
         std::filesystem::path trackPath;
         {
             auto& session{ _db.getTLSSession() };
@@ -264,14 +324,11 @@ namespace lms::jukebox
     void JukeboxService::abortDecoder()
     {
         // Must not be called from within owned io_context
-        if (_decoder)
-        {
-            _decoder->abort();
+        _decoder->abort();
 
-            // Should be hopefully short since flushing/aborting
-            while (!_decoder->isComplete())
-                std::this_thread::yield(); // TODO: execute some io_context stuff?
-        }
+        // Should be hopefully short since flushing/aborting
+        while (!_decoder->isComplete())
+            std::this_thread::yield(); // TODO: execute some io_context stuff?
     }
 
     void JukeboxService::onDecodeFinished(bool aborted)

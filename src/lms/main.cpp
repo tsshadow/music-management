@@ -440,7 +440,6 @@ namespace lms
                 break;
             }
 
-            // TODO audio init here
             image::init(argv[0]);
             core::Service<artwork::IArtworkService> artworkService{ artwork::createArtworkService(*database, server.appRoot() + "/images/unknown-cover.svg", server.appRoot() + "/images/unknown-artist.svg") };
             core::Service<recommendation::IRecommendationService> recommendationService{ recommendation::createRecommendationService(*database) };

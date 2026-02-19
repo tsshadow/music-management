@@ -77,7 +77,6 @@ namespace lms::jukebox
             _outputContext = audio::createAudioOutputContext(_ioContext, "LMS-Jukebox", _backend);
             _state = ServiceState::Initializing;
 
-            // TODO create a context and an output stream only if a song is actually played
             _outputContext->asyncWaitReady([this] { onContextReady(); });
         }
         catch (const audio::Exception& e)

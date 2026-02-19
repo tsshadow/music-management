@@ -44,7 +44,7 @@ namespace lms::api::subsonic
         void handleRequest(const Wt::Http::Request& request, Wt::Http::Response& response) override;
 
         using MediaRetrievalHandlerFunc = std::function<void(RequestContext&, const Wt::Http::Request&, Wt::Http::Response&)>;
-        void handleMediaRetrievalRequest(MediaRetrievalHandlerFunc handler, const Wt::Http::Request& request, Wt::Http::Response& response);
+        void handleMediaRetrievalRequest(const MediaRetrievalHandlerFunc& handler, RequestContext& requestContext, const Wt::Http::Request& request, Wt::Http::Response& response);
 
         db::UserId authenticateUser(const Wt::Http::Request& request);
 

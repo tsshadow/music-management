@@ -43,10 +43,9 @@ namespace lms::api::subsonic
         }
     } // namespace
 
-    RequestContext::RequestContext(const Wt::Http::Request& request, db::Session& dbSession, db::ObjectPtr<db::User> user, const SubsonicResourceConfig& config)
+    RequestContext::RequestContext(const Wt::Http::Request& request, db::Session& dbSession, const SubsonicResourceConfig& config)
         : _request{ request }
         , _dbSession{ dbSession }
-        , _user{ user }
         , _config{ config }
         , _clientName{ getMandatoryParameterAs<std::string>(_request.getParameterMap(), "c") }
         , _clientProtocolVersion{ getMandatoryParameterAs<ProtocolVersion>(_request.getParameterMap(), "v") }
@@ -72,6 +71,11 @@ namespace lms::api::subsonic
     db::Session& RequestContext::getDbSession()
     {
         return _dbSession;
+    }
+
+    void RequestContext::setUser(const db::ObjectPtr<db::User>& user)
+    {
+        _user = user;
     }
 
     db::ObjectPtr<db::User> RequestContext::getUser() const

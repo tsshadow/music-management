@@ -297,6 +297,8 @@ namespace lms::api::subsonic
         if (core::stringUtils::stringEndsWith(requestPath, ".view"))
             requestPath.resize(requestPath.length() - 5);
 
+        RequestContext requestContext{ request, _db.getTLSSession(), _config };
+
         // First check for media retrieval endpoints
         auto itStreamHandler{ mediaRetrievalHandlers.find(requestPath) };
         if (itStreamHandler != mediaRetrievalHandlers.end())
@@ -304,7 +306,7 @@ namespace lms::api::subsonic
             try
             {
                 LMS_SCOPED_TRACE_OVERVIEW("Subsonic", itStreamHandler->first);
-                handleMediaRetrievalRequest(itStreamHandler->second, request, response);
+                handleMediaRetrievalRequest(itStreamHandler->second, requestContext, request, response);
                 LMS_LOG(API_SUBSONIC, DEBUG, "Request " << requestId << " '" << requestPath << "' handled!");
             }
             catch (const Error& e)
@@ -315,11 +317,7 @@ namespace lms::api::subsonic
             return;
         }
 
-        // Optional parameters
-        const ResponseFormat format{ getParameterAs<std::string>(request.getParameterMap(), "f").value_or("xml") == "json" ? ResponseFormat::json : ResponseFormat::xml };
-
-        ProtocolVersion protocolVersion{ defaultServerProtocolVersion };
-
+        // Now check other endpoints
         try
         {
             if (auto itEntryPoint{ requestEntryPoints.find(requestPath) }; itEntryPoint != requestEntryPoints.end())
@@ -331,10 +329,8 @@ namespace lms::api::subsonic
                 {
                     user = getUserFromUserId(_db.getTLSSession(), authenticateUser(request));
                     checkUserTypeIsAllowed(user, itEntryPoint->second.allowedUserTypes);
+                    requestContext.setUser(user);
                 }
-
-                RequestContext requestContext{ request, _db.getTLSSession(), user, _config };
-                protocolVersion = requestContext.getServerProtocolVersion();
 
                 const Response resp{ [&] {
                     LMS_SCOPED_TRACE_DETAILED("Subsonic", "HandleRequest");
@@ -344,8 +340,8 @@ namespace lms::api::subsonic
                 {
                     LMS_SCOPED_TRACE_DETAILED("Subsonic", "WriteResponse");
 
-                    resp.write(response.out(), format);
-                    response.setMimeType(std::string{ ResponseFormatToMimeType(format) });
+                    resp.write(response.out(), requestContext.getResponseFormat());
+                    response.setMimeType(std::string{ ResponseFormatToMimeType(requestContext.getResponseFormat()) });
                 }
 
                 LMS_LOG(API_SUBSONIC, DEBUG, "Request " << requestId << " '" << requestPath << "' handled!");
@@ -361,13 +357,13 @@ namespace lms::api::subsonic
         catch (const Error& e)
         {
             LMS_LOG(API_SUBSONIC, ERROR, "Error while processing request '" << requestPath << "'" << ", params = [" << parameterMapToDebugString(request.getParameterMap()) << "]" << ", code = " << static_cast<int>(e.getCode()) << ", msg = '" << e.getMessage() << "'");
-            Response resp{ Response::createFailedResponse(protocolVersion, e) };
-            resp.write(response.out(), format);
-            response.setMimeType(std::string{ ResponseFormatToMimeType(format) });
+            Response resp{ Response::createFailedResponse(requestContext.getServerProtocolVersion(), e) };
+            resp.write(response.out(), requestContext.getResponseFormat());
+            response.setMimeType(std::string{ ResponseFormatToMimeType(requestContext.getResponseFormat()) });
         }
     }
 
-    void SubsonicResource::handleMediaRetrievalRequest(MediaRetrievalHandlerFunc handler, const Wt::Http::Request& request, Wt::Http::Response& response)
+    void SubsonicResource::handleMediaRetrievalRequest(const MediaRetrievalHandlerFunc& handler, RequestContext& requestContext, const Wt::Http::Request& request, Wt::Http::Response& response)
     {
         try
         {
@@ -377,7 +373,7 @@ namespace lms::api::subsonic
             if (!request.continuation())
                 user = getUserFromUserId(_db.getTLSSession(), authenticateUser(request));
 
-            RequestContext requestContext{ request, _db.getTLSSession(), user, _config };
+            requestContext.setUser(user);
 
             handler(requestContext, request, response);
         }

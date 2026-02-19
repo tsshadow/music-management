@@ -42,7 +42,7 @@ namespace lms::api::subsonic
     class RequestContext
     {
     public:
-        RequestContext(const Wt::Http::Request& request, db::Session& dbSession, db::ObjectPtr<db::User> user, const SubsonicResourceConfig& config);
+        RequestContext(const Wt::Http::Request& request, db::Session& dbSession, const SubsonicResourceConfig& config);
         ~RequestContext();
         RequestContext(const RequestContext&) = delete;
         RequestContext& operator=(const RequestContext&) = delete;
@@ -53,6 +53,8 @@ namespace lms::api::subsonic
         std::istream& getBody() const;
 
         db::Session& getDbSession();
+
+        void setUser(const db::ObjectPtr<db::User>& user);
         db::ObjectPtr<db::User> getUser() const;
 
         std::string getClientIpAddr() const;

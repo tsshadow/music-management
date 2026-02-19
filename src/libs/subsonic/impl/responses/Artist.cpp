@@ -75,8 +75,10 @@ namespace lms::api::subsonic
             artistNode.setAttribute("coverArt", idToString(coverArtId));
         }
 
+        bool hasAlbums{};
         {
             std::size_t count{ Release::getCount(context.getDbSession(), Release::FindParameters{}.setArtist(artist->getId())) };
+            hasAlbums = count > 0;
 
             // TODO: not very efficient
             Release::find(context.getDbSession(), Release::FindParameters{}.setTrackArtist(artist->getId()), [&](const db::Release::pointer& release) {
@@ -105,11 +107,13 @@ namespace lms::api::subsonic
 
             artistNode.setAttribute("sortName", artist->getSortName());
 
-            // roles
             Response::Node roles;
             artistNode.createEmptyArrayValue("roles");
             for (const TrackArtistLinkType linkType : TrackArtistLink::findUsedTypes(context.getDbSession(), artist->getId()))
                 artistNode.addArrayValue("roles", utils::toString(linkType));
+
+            if (hasAlbums)
+                artistNode.addArrayValue("roles", "albumartist");
         }
 
         return artistNode;

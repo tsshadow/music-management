@@ -607,6 +607,60 @@ namespace lms::db::tests
         }
     }
 
+    TEST_F(DatabaseFixture, MultiTracksSingleReleaseOriginalDate)
+    {
+        ScopedRelease release1{ session, "MyRelease1" };
+        ScopedRelease release2{ session, "MyRelease2" };
+
+        const core::PartialDateTime release1Date{ 1994, 2, 3 };
+        const core::PartialDateTime release1OriginalDate{ 1993, 4, 5 };
+
+        ScopedTrack track1A{ session };
+        ScopedTrack track1B{ session };
+        ScopedTrack track2A{ session };
+        ScopedTrack track2B{ session };
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            const auto releases{ Release::findIds(session, Release::FindParameters{}.setOriginalDateRange(YearRange{ -3000, 3000 })) };
+            EXPECT_EQ(releases.results.size(), 0);
+        }
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+
+            track1A.get().modify()->setRelease(release1.get());
+            track1B.get().modify()->setRelease(release1.get());
+            track2A.get().modify()->setRelease(release2.get());
+            track2B.get().modify()->setRelease(release2.get());
+
+            track1A.get().modify()->setDate(release1Date);
+            track1B.get().modify()->setDate(release1Date);
+
+            track1A.get().modify()->setOriginalDate(release1OriginalDate);
+            track1B.get().modify()->setOriginalDate(release1OriginalDate);
+
+            EXPECT_EQ(release1.get()->getOriginalDate(), release1OriginalDate);
+            EXPECT_EQ(release1.get()->getOriginalYear(), release1OriginalDate.getYear());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            auto releases = Release::findIds(session, Release::FindParameters{}.setOriginalDateRange(YearRange{ 1950, 2000 }));
+            ASSERT_EQ(releases.results.size(), 1);
+            EXPECT_EQ(releases.results.front(), release1.getId());
+
+            releases = Release::findIds(session, Release::FindParameters{}.setOriginalDateRange(YearRange{ 1993, 1993 }));
+            ASSERT_EQ(releases.results.size(), 1);
+            EXPECT_EQ(releases.results.front(), release1.getId());
+
+            releases = Release::findIds(session, Release::FindParameters{}.setOriginalDateRange(YearRange{ 1994, 1994 }));
+            ASSERT_EQ(releases.results.size(), 0);
+        }
+    }
+
     TEST_F(DatabaseFixture, MultiTracksSingleReleaseYear)
     {
         ScopedRelease release1{ session, "MyRelease1" };

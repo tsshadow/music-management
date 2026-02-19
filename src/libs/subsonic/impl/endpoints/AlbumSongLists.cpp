@@ -107,9 +107,9 @@ namespace lms::api::subsonic
                 const int toYear{ getMandatoryParameterAs<int>(context.getParameters(), "toYear") };
 
                 Release::FindParameters params;
-                params.setSortMethod(fromYear > toYear ? ReleaseSortMethod::DateDesc : ReleaseSortMethod::DateAsc);
+                params.setSortMethod(fromYear > toYear ? ReleaseSortMethod::OriginalDateDesc : ReleaseSortMethod::OriginalDate);
                 params.setRange(range);
-                params.setDateRange(YearRange{ std::min(fromYear, toYear), std::max(fromYear, toYear) });
+                params.setOriginalDateRange(YearRange{ std::min(fromYear, toYear), std::max(fromYear, toYear) });
                 params.filters.setMediaLibrary(mediaLibraryId);
 
                 releases = Release::findIds(context.getDbSession(), params);

@@ -73,6 +73,7 @@ namespace lms::db
                 || params.sortMethod == ReleaseSortMethod::OriginalDateDesc
                 || params.writtenAfter.isValid()
                 || params.dateRange
+                || params.originalDateRange
                 || params.trackArtist.isValid()
                 || params.filters.clusters.size() == 1
                 || params.filters.mediaLibrary.isValid()
@@ -120,8 +121,16 @@ namespace lms::db
 
             if (params.dateRange)
             {
+                assert(!params.originalDateRange);
                 query.where("CAST(SUBSTR(t.date, 1, 4) AS INTEGER) >= ?").bind(params.dateRange->begin);
                 query.where("CAST(SUBSTR(t.date, 1, 4) AS INTEGER) <= ?").bind(params.dateRange->end);
+            }
+
+            if (params.originalDateRange)
+            {
+                assert(!params.dateRange);
+                query.where("CAST(SUBSTR(COALESCE(t.original_date, t.date), 1, 4) AS INTEGER) >= ?").bind(params.originalDateRange->begin);
+                query.where("CAST(SUBSTR(COALESCE(t.original_date, t.date), 1, 4) AS INTEGER) <= ?").bind(params.originalDateRange->end);
             }
 
             if (!params.name.empty())

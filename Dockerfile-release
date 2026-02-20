@@ -1,4 +1,4 @@
-FROM	alpine:3.22 AS build
+FROM	alpine:3.23 AS build
 
 WORKDIR	/tmp/workdir
 
@@ -93,7 +93,7 @@ RUN \
 	make -j$(nproc) install 
 
 # STB
-ARG	STB_VERSION=5c205738c191bcb0abc65c4febfa9bd25ff35234
+ARG	STB_VERSION=f1c79c02822848a9bed4315b12c8c8f3761e1296
 RUN \
 	DIR=/tmp/stb && mkdir -p ${DIR} && cd ${DIR} && \
 	curl -sLO https://github.com/nothings/stb/archive/${STB_VERSION}.tar.gz && \
@@ -146,7 +146,7 @@ RUN \
 	rm -rf /tmp/fakeroot/share/Wt/resources/themes
 
 ## Release Stage
-FROM		alpine:3.22 AS release
+FROM		alpine:3.23 AS release
 LABEL		maintainer="Emeric Poupon <itmfr@yahoo.fr>"
 
 ARG	RUNTIME_PACKAGES=" \

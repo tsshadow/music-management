@@ -63,8 +63,9 @@ _LMS_ works best when using the default [Picard](https://picard.musicbrainz.org/
 ### Multiple album artists
 While _LMS_ can manage multiple album artists using the `albumartist` tag, it works better when using the custom `albumartists` and `albumartistssort` tags, similar to how it handles regular artist tags.
 
-__Note__: if you use Picard, add the following script to include these tags:
+__Note__: if you use Picard, add this script to set up both artist and album artist tags:
 ```
+$setmulti(artistssort,%_artists_sort%)
 $setmulti(albumartists,%_albumartists%)
 $setmulti(albumartistssort,%_albumartists_sort%)
 ```

@@ -61,6 +61,8 @@ The following extra fields are implemented:
   * `musicBrainzId`
   * `sortName`
   * `roles`
+* `Playlist` response:
+  * `readonly`
 
 ## Supported extensions
 * [API Key Authentication](https://opensubsonic.netlify.app/docs/extensions/apikeyauth/)

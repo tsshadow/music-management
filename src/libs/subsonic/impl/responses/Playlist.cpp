@@ -43,8 +43,10 @@ namespace lms::api::subsonic
         playlistNode.setAttribute("public", tracklist->getVisibility() == db::TrackList::Visibility::Public);
         playlistNode.setAttribute("changed", core::stringUtils::toISO8601String(tracklist->getLastModifiedDateTime()));
         playlistNode.setAttribute("created", core::stringUtils::toISO8601String(tracklist->getCreationDateTime()));
-        if (const db::User::pointer user{ tracklist->getUser() })
-            playlistNode.setAttribute("owner", user->getLoginName());
+
+        const db::User::pointer trackListUser{ tracklist->getUser() };
+        if (trackListUser)
+            playlistNode.setAttribute("owner", trackListUser->getLoginName());
 
         if (const db::ArtworkId artworkId{ core::Service<artwork::IArtworkService>::get()->findTrackListImage(tracklist->getId()) }; artworkId.isValid())
         {
@@ -53,6 +55,12 @@ namespace lms::api::subsonic
                 CoverArtId coverArtId{ artwork->getId(), artwork->getLastWrittenTime().toTime_t() };
                 playlistNode.setAttribute("coverArt", idToString(coverArtId));
             }
+        }
+
+        if (context.isOpenSubsonicEnabled())
+        {
+            // A playlist with no owner is always read only, and only the owner of a tracklist can modify it
+            playlistNode.setAttribute("readonly", !trackListUser || trackListUser != context.getUser());
         }
 
         return playlistNode;

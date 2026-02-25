@@ -55,7 +55,6 @@ namespace lms::db
                 || params.track.isValid()
                 || params.filters.clusters.size() == 1
                 || params.filters.codec.has_value()
-                || params.filters.mediaLibrary.isValid()
                 || params.filters.label.isValid()
                 || params.filters.releaseType.isValid())
             {
@@ -66,7 +65,6 @@ namespace lms::db
                 || params.sortMethod == ArtistSortMethod::AddedDesc
                 || params.writtenAfter.isValid()
                 || params.filters.codec.has_value()
-                || params.filters.mediaLibrary.isValid()
                 || params.filters.label.isValid()
                 || params.filters.releaseType.isValid())
             {
@@ -77,9 +75,6 @@ namespace lms::db
 
                 if (params.filters.codec.has_value())
                     query.where("t.codec = ?").bind(detail::getDbCodec(*params.filters.codec));
-
-                if (params.filters.mediaLibrary.isValid())
-                    query.where("t.media_library_id = ?").bind(params.filters.mediaLibrary);
 
                 if (params.filters.label.isValid())
                 {
@@ -96,6 +91,15 @@ namespace lms::db
 
             if (params.releaseArtistsOnly)
                 query.join("release_artist_link r_a_l ON r_a_l.artist_id = a.id");
+
+            if (params.filters.mediaLibrary.isValid())
+            {
+                query.where(
+                         "EXISTS (SELECT 1 FROM track_artist_link t_a_l JOIN track t ON t.id = t_a_l.track_id WHERE t_a_l.artist_id = a.id AND t.media_library_id = ?)"
+                         " OR EXISTS (SELECT 1 FROM release_artist_link r_a_l JOIN release r ON r.id = r_a_l.release_id JOIN track t ON t.release_id = r.id WHERE r_a_l.artist_id = a.id AND t.media_library_id = ?)")
+                    .bind(params.filters.mediaLibrary)
+                    .bind(params.filters.mediaLibrary);
+            }
 
             if (params.trackArtistLinkType.has_value())
                 query.where("+t_a_l.type = ?").bind(*params.trackArtistLinkType); // Exclude this since the query planner does not do a good job when db is not analyzed

@@ -390,6 +390,123 @@ namespace lms::db::tests
         }
     }
 
+    TEST_F(DatabaseFixture, Artist_singleTrack_singleRelease_mediaLibrary)
+    {
+        ScopedTrack track1{ session };
+        ScopedTrack track2{ session };
+        ScopedArtist artist{ session, "MyArtist" };
+        ScopedRelease release2{ session, "MyRelease" };
+        ScopedMediaLibrary library1{ session, "Library1", "/root1" };
+        ScopedMediaLibrary library2{ session, "Library2", "/root2" };
+        ScopedMediaLibrary otherLibrary{ session, "OtherLibrary", "/otherRoot" };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+
+            track1.get().modify()->setName("Track1");
+            session.create<TrackArtistLink>(track1.get(), artist.get(), TrackArtistLinkType::Artist);
+            track1.get().modify()->setMediaLibrary(library1.get());
+
+            track2.get().modify()->setName("Track2");
+            track2.get().modify()->setRelease(release2.get());
+            session.create<ReleaseArtistLink>(release2.get(), artist.get(), false);
+            track2.get().modify()->setMediaLibrary(library2.get());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            auto artists{ Artist::findIds(session, Artist::FindParameters{}) };
+            ASSERT_EQ(artists.results.size(), 1);
+            EXPECT_EQ(artists.results.front(), artist.getId());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            auto artists{ Artist::findIds(session, Artist::FindParameters{}.setFilters(Filters{}.setMediaLibrary(library1->getId()))) };
+            ASSERT_EQ(artists.results.size(), 1);
+            EXPECT_EQ(artists.results.front(), artist.getId());
+        }
+        {
+            auto transaction{ session.createReadTransaction() };
+            auto artists{ Artist::findIds(session, Artist::FindParameters{}.setFilters(Filters{}.setMediaLibrary(library2->getId()))) };
+            ASSERT_EQ(artists.results.size(), 1);
+            EXPECT_EQ(artists.results.front(), artist.getId());
+        }
+        {
+            auto transaction{ session.createReadTransaction() };
+            auto artists{ Artist::findIds(session, Artist::FindParameters{}.setFilters(Filters{}.setMediaLibrary(otherLibrary->getId()))) };
+            EXPECT_EQ(artists.results.size(), 0);
+        }
+    }
+
+    TEST_F(DatabaseFixture, Artist_singleTrack_singleRelease_single_mediaLibrary)
+    {
+        ScopedTrack track{ session };
+        ScopedArtist artist{ session, "MyArtist" };
+        ScopedRelease release{ session, "MyRelease" };
+        ScopedMediaLibrary library{ session, "Library1", "/root1" };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+
+            track.get().modify()->setName("Track1");
+            track.get().modify()->setRelease(release.get());
+            track.get().modify()->setMediaLibrary(library.get());
+
+            session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Artist);
+            session.create<ReleaseArtistLink>(release.get(), artist.get(), false);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            auto artists{ Artist::findIds(session, Artist::FindParameters{}) };
+            ASSERT_EQ(artists.results.size(), 1);
+            EXPECT_EQ(artists.results.front(), artist.getId());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            auto artists{ Artist::findIds(session, Artist::FindParameters{}.setFilters(Filters{}.setMediaLibrary(library->getId()))) };
+            ASSERT_EQ(artists.results.size(), 1);
+            EXPECT_EQ(artists.results.front(), artist.getId());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Artist::FindParameters params;
+            params.setTrackArtistLinkType(TrackArtistLinkType::Artist);
+            params.setFilters(Filters{}.setMediaLibrary(library.getId()));
+
+            auto artists{ Artist::findIds(session, params) };
+            ASSERT_EQ(artists.results.size(), 1);
+            EXPECT_EQ(artists.results.front(), artist.getId());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Artist::FindParameters params;
+            params.setTrackArtistLinkType(TrackArtistLinkType::Performer);
+            params.setFilters(Filters{}.setMediaLibrary(library.getId()));
+
+            auto artists{ Artist::findIds(session, params) };
+            EXPECT_EQ(artists.results.size(), 0);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Artist::FindParameters params;
+            params.setReleaseArtistsOnly(true);
+            params.setFilters(Filters{}.setMediaLibrary(library.getId()));
+
+            auto artists{ Artist::findIds(session, params) };
+            EXPECT_EQ(artists.results.size(), 1);
+            EXPECT_EQ(artists.results.front(), artist.getId());
+        }
+    }
+
     TEST_F(DatabaseFixture, Artist_singleTracktMultiRoles)
     {
         ScopedTrack track{ session };

@@ -197,6 +197,7 @@
 <message id="Lms.Explore.artists">歌手</message>
 <message id="Lms.Explore.bitrate">比特率</message>
 <message id="Lms.Explore.codec">编码器</message>
+<message id="Lms.Explore.copyright">版权所有</message>
 <message id="Lms.Explore.cover-art">封面</message>
 <message id="Lms.Explore.download">下载</message>
 <message id="Lms.Explore.duration">时长</message>
@@ -231,6 +232,7 @@
 <message id="Lms.Explore.unstar">取消收藏</message>
 <message id="Lms.Explore.value">值</message>
 <message id="Lms.Explore.various-artists">群星</message>
+<message id="Lms.Explore.various-copyrights">部分权利保留。请查看单曲以获取版权信息</message>
 
 <!--Explore:Artist-->
 <message id="Lms.Explore.Artist.appears-on">出现于</message>

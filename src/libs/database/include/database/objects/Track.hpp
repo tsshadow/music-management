@@ -297,8 +297,8 @@ namespace lms::db
         bool hasLyrics() const;
         std::optional<core::UUID> getTrackMBID() const { return core::UUID::fromString(_trackMBID); }
         std::optional<core::UUID> getRecordingMBID() const { return core::UUID::fromString(_recordingMBID); }
-        std::optional<std::string> getCopyright() const;
-        std::optional<std::string> getCopyrightURL() const;
+        std::string_view getCopyright() const;
+        std::string_view getCopyrightURL() const;
         std::string_view getArtistDisplayName() const { return _artistDisplayName; }
         std::string_view getComment() const { return _comment; }
         Advisory getAdvisory() const { return _advisory; }

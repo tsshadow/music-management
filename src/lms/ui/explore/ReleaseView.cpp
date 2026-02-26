@@ -522,29 +522,24 @@ namespace lms::ui
 
     void Release::refreshCopyright(const db::Release::pointer& release)
     {
-        std::optional<std::string> copyright{ release->getCopyright() };
-        std::optional<std::string> copyrightURL{ release->getCopyrightURL() };
+        std::optional<std::string> copyright;
+        std::optional<std::string> copyrightURL;
 
-        if (!copyright && !copyrightURL)
-            return;
-
-        setCondition("if-has-copyright", true);
-
-        std::string copyrightText{ copyright ? *copyright : "" };
-        if (copyrightText.empty() && copyrightURL)
-            copyrightText = *copyrightURL;
-
-        if (copyrightURL)
+        if (release->hasVariousCopyrights())
         {
-            Wt::WLink link{ *copyrightURL };
-            link.setTarget(Wt::LinkTarget::NewWindow);
-
-            Wt::WAnchor* anchor{ bindNew<Wt::WAnchor>("copyright", link) };
-            anchor->setTextFormat(Wt::TextFormat::Plain);
-            anchor->setText(Wt::WString::fromUTF8(copyrightText));
+            copyright = Wt::WString::tr("Lms.Explore.various-copyrights").toUTF8();
         }
         else
-            bindString("copyright", Wt::WString::fromUTF8(*copyright), Wt::TextFormat::Plain);
+        {
+            copyright = release->getCopyright();
+            copyrightURL = release->getCopyrightURL();
+        }
+
+        if (auto copyrightWidget{ utils::createCopyright(copyright ? *copyright : "", copyrightURL ? *copyrightURL : "") })
+        {
+            setCondition("if-has-copyright", true);
+            bindWidget("copyright", std::move(copyrightWidget));
+        }
     }
 
     void Release::refreshLinks(const db::Release::pointer& release)

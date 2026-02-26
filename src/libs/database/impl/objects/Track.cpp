@@ -643,14 +643,14 @@ namespace lms::db
         return !_trackLyrics.empty();
     }
 
-    std::optional<std::string> Track::getCopyright() const
+    std::string_view Track::getCopyright() const
     {
-        return _copyright != "" ? std::make_optional<std::string>(_copyright) : std::nullopt;
+        return _copyright;
     }
 
-    std::optional<std::string> Track::getCopyrightURL() const
+    std::string_view Track::getCopyrightURL() const
     {
-        return _copyrightURL != "" ? std::make_optional<std::string>(_copyrightURL) : std::nullopt;
+        return _copyrightURL;
     }
 
     std::vector<Artist::pointer> Track::getArtists(core::EnumSet<TrackArtistLinkType> linkTypes) const

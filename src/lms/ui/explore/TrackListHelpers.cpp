@@ -96,6 +96,12 @@ namespace lms::ui::TrackListHelpers
             trackInfo->bindString("comment", Wt::WString::fromUTF8(std::string{ comment }), Wt::TextFormat::Plain);
         }
 
+        if (auto copyrightWidget{ utils::createCopyright(track->getCopyright(), track->getCopyrightURL()) })
+        {
+            trackInfo->setCondition("if-has-copyright", true);
+            trackInfo->bindWidget("copyright", std::move(copyrightWidget));
+        }
+
         Wt::WContainerWidget* clusterContainer{ trackInfo->bindWidget("clusters", utils::createFilterClustersForTrack(track, filters)) };
         if (clusterContainer->count() > 0)
             trackInfo->setCondition("if-has-clusters", true);

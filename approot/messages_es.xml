@@ -199,6 +199,7 @@
 <message id="Lms.Explore.artists">Artistas</message>
 <message id="Lms.Explore.bitrate">Bitrate</message>
 <message id="Lms.Explore.codec">Codec</message>
+<message id="Lms.Explore.copyright">Derechos de autor</message>
 <message id="Lms.Explore.cover-art">Carátula</message>
 <message id="Lms.Explore.download">Descargar</message>
 <message id="Lms.Explore.duration">Duración</message>
@@ -233,6 +234,7 @@
 <message id="Lms.Explore.unstar">Eliminar de favoritos</message>
 <message id="Lms.Explore.value">Valor</message>
 <message id="Lms.Explore.various-artists">Varios artistas</message>
+<message id="Lms.Explore.various-copyrights">Algunos derechos reservados. Consulte las pistas para información sobre copyright</message>
 
 <!--Explore:Artist-->
 <message id="Lms.Explore.Artist.appears-on">Aparece en</message>

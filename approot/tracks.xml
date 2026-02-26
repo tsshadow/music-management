@@ -129,6 +129,16 @@
 								${playcount}
 							</div>
 						</div>
+						${<if-has-copyright>}
+						<div class="row align-items-center">
+							<div class="col-4">
+								${tr:Lms.Explore.copyright}
+							</div>
+							<div class="col">
+								${copyright}
+							</div>
+						</div>
+						${</if-has-copyright>}
 						${<if-has-comment>}
 						<hr/>
 						<pre>${comment}</pre>
@@ -142,7 +152,6 @@
 		</div>
 	</div>
 </message>
-
 
 <message id="Lms.Explore.Tracks.template.track-lyrics">
 	<div class="modal fade" tabindex="-1">

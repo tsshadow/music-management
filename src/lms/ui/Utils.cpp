@@ -474,4 +474,31 @@ namespace lms::ui::utils
 
         return artistMap;
     }
+
+    std::unique_ptr<Wt::WInteractWidget> createCopyright(std::string_view copyright, std::string_view copyrightURL)
+    {
+        std::unique_ptr<Wt::WInteractWidget> res;
+
+        if (copyright.empty() && copyrightURL.empty())
+            return res;
+
+        if (copyright.empty() && !copyrightURL.empty())
+            copyright = copyrightURL;
+
+        if (!copyrightURL.empty())
+        {
+            Wt::WLink link{ std::string{ copyrightURL } };
+            link.setTarget(Wt::LinkTarget::NewWindow);
+
+            auto anchor{ std::make_unique<Wt::WAnchor>(link) };
+            anchor->setTextFormat(Wt::TextFormat::Plain);
+            anchor->setText(Wt::WString::fromUTF8(std::string{ copyright }));
+
+            res = std::move(anchor);
+        }
+        else
+            res = std::make_unique<Wt::WText>(Wt::WString::fromUTF8(std::string{ copyright }), Wt::TextFormat::Plain);
+
+        return res;
+    }
 } // namespace lms::ui::utils

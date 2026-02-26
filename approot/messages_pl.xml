@@ -216,6 +216,7 @@
 <message id="Lms.Explore.artists">Artyści</message>
 <message id="Lms.Explore.bitrate">Przepływność</message>
 <message id="Lms.Explore.codec">Kodek</message>
+<message id="Lms.Explore.copyright">Prawa autorskie</message>
 <message id="Lms.Explore.cover-art">Okładka</message>
 <message id="Lms.Explore.download">Pobierz</message>
 <message id="Lms.Explore.duration">Długość</message>
@@ -250,6 +251,7 @@
 <message id="Lms.Explore.unstar">Przestań wyróżniać</message>
 <message id="Lms.Explore.value">Wartość</message>
 <message id="Lms.Explore.various-artists">Różni artyści</message>
+<message id="Lms.Explore.various-copyrights">Niektóre prawa zastrzeżone. Sprawdź poszczególne utwory, aby uzyskać informacje o prawach autorskich</message>
 
 <!--Explore:Artist-->
 <message id="Lms.Explore.Artist.appears-on">Pojawia się na</message>

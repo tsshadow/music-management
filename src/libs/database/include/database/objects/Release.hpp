@@ -289,6 +289,7 @@ namespace lms::db
         std::optional<int> getYear() const;
         core::PartialDateTime getOriginalDate() const;
         std::optional<int> getOriginalYear() const;
+        bool hasVariousCopyrights() const;
         std::optional<std::string> getCopyright() const;
         std::optional<std::string> getCopyrightURL() const;
         std::size_t getMeanBitrate() const;

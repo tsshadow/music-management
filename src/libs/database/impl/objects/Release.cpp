@@ -642,13 +642,20 @@ namespace lms::db
         return *year;
     }
 
+    bool Release::hasVariousCopyrights() const
+    {
+        assert(session());
+
+        return utils::fetchQuerySingleResult(session()->query<int>("SELECT COUNT(DISTINCT copyright) FROM track t").where("t.release_id = ?").bind(getId())) > 1;
+    }
+
     std::optional<std::string> Release::getCopyright() const
     {
         assert(session());
 
         auto query{ session()->query<std::string>("SELECT copyright FROM track t INNER JOIN release r ON r.id = t.release_id").where("r.id = ?").groupBy("copyright").bind(getId()) };
 
-        const auto copyrights{ utils::fetchQueryResults(query) };
+        auto copyrights{ utils::fetchQueryResults(query) };
 
         // various copyrights => no copyright
         if (copyrights.empty() || copyrights.size() > 1 || copyrights.front().empty())
@@ -663,7 +670,7 @@ namespace lms::db
 
         const auto query{ session()->query<std::string>("SELECT copyright_url FROM track t INNER JOIN release r ON r.id = t.release_id").where("r.id = ?").bind(getId()).groupBy("copyright_url") };
 
-        const auto copyrights{ utils::fetchQueryResults(query) };
+        auto copyrights{ utils::fetchQueryResults(query) };
 
         // various copyright URLs => no copyright URL
         if (copyrights.empty() || copyrights.size() > 1 || copyrights.front().empty())

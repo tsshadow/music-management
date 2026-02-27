@@ -24,6 +24,7 @@ A [demo instance](http://lms-demo.poupon.dev) is available. Note the administrat
 * Podcasts support
 * Playlists support
 * Lyrics support
+* [Jukebox](SUBSONIC.md#jukebox-support) support
 
 ## Music discovery
 _LMS_ provides several ways to help you find the music you like:

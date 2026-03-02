@@ -55,7 +55,6 @@ target_include_directories(lmssubsonic PRIVATE
 	)
 
 target_link_libraries(lmssubsonic PRIVATE
-	std::filesystem
 	lmsartwork
 	lmsaudio
 	lmsauth

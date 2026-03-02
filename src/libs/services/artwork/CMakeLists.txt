@@ -22,5 +22,4 @@ target_link_libraries(lmsartwork PUBLIC
 	lmsdatabase
 	lmsimage
 	lmscore
-	std::filesystem
 	)

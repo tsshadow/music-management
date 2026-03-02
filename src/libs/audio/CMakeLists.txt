@@ -44,7 +44,6 @@ target_include_directories(lmsaudio PRIVATE
 
 target_link_libraries(lmsaudio PUBLIC
 	lmscore
-	std::filesystem
 	)
 
 target_link_libraries(lmsaudio PRIVATE

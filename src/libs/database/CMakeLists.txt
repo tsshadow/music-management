@@ -64,7 +64,6 @@ target_link_libraries(lmsdatabase PRIVATE
 
 target_link_libraries(lmsdatabase PUBLIC
 	lmscore
-	std::filesystem
 	Wt::Dbo
 	)
 

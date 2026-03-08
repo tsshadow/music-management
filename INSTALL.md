@@ -45,7 +45,7 @@ __Optional dependencies__:
 
 __Notes__:
 * `libstb-dev` can be replaced by `libgraphicsmagick++1-dev` (the latter will likely use more RAM)
-You also need _Wt4_, which is not packaged on _Debian_. See [installation instructions](https://www.webtoolkit.eu/wt/doc/reference/html/InstallationUnix.html).</br>
+You also need _Wt4_, which is not packaged on _Debian_. See [installation instructions](https://www.webtoolkit.eu/wt/doc/reference/html/InstallationUnix.html).
 ### Build
 Get the latest stable release and build it:
 ```sh
@@ -99,9 +99,9 @@ systemctl restart lms
 # Deployment
 __Note__: don't forget to give the _lms_ user read access to the music directory you want to scan.
 ## Configuration
-_LMS_ uses a configuration file, installed by default in `/etc/lms.conf`. It is recommended to edit this file and change relevant settings (listen address, listen port, working directory, Subsonic API activation, deployment path, ...).
-All other settings are set using the web interface (user management, scan settings, transcode settings, ...).
-If a setting is not present in the configuration file, a hardcoded default value is used (the same as in the [default configuration file](conf/lms.conf))
+_LMS_ uses a configuration file installed by default at `/etc/lms.conf`. It is recommended to edit this file and adjust the relevant settings like the working directory, Wt resources path, listen address, listen port, etc.
+All other settings are configured through the web interface (user management, scan settings, transcode settings, etc.).
+If a setting is not present in the configuration file, a hardcoded default value is used (the same as in the [default configuration file](conf/lms.conf)).
 ## Authentication backends
 You can define which authentication backend to be used thanks to the `authentication-backend` option:
 * `internal` (default): _LMS_ uses an internal database to store users and their associated passwords (salted and hashed using [Bcrypt](https://en.wikipedia.org/wiki/Bcrypt)). Only the admin user can create, edit or remove other users.

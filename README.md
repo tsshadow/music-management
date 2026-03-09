@@ -74,7 +74,8 @@ $setmulti(albumartistssort,%_albumartists_sort%)
 ### Extended artist and MusicBrainz ID support
 _LMS_ supports several non-standard tags to allow more accurate artist identification:
 **MusicBrainz identifiers** for artist relationships:
-* `musicbrainz_arrangerid`, `musicbrainz_composerid`, `musicbrainz_conductorid`, `musicbrainz_lyricistid`, `musicbrainz_mixerid`, `musicbrainz_producerid`, `musicbrainz_remixerid`, 
+* `musicbrainz_arrangerid`, `musicbrainz_composerid`, `musicbrainz_conductorid`, `musicbrainz_lyricistid`, `musicbrainz_mixerid`, `musicbrainz_producerid`, `musicbrainz_remixerid`
+
 **Sort order variants**:
 * `conductorssort`, `producerssort`, `mixerssort`, `remixerssort`, `lyricistssort`, `albumartistssort`
 

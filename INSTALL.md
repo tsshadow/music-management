@@ -99,7 +99,7 @@ systemctl restart lms
 # Deployment
 __Note__: don't forget to give the _lms_ user read access to the music directory you want to scan.
 ## Configuration
-_LMS_ uses a configuration file installed by default at `/etc/lms.conf`. It is recommended to edit this file and adjust the relevant settings like the working directory, Wt resources path, listen address, listen port, etc.
+_LMS_ uses a configuration file installed by default at `/etc/lms.conf`. It is recommended to edit this file and adjust relevant settings such as the working directory, Wt resources path, listen address, listen port, etc.
 All other settings are configured through the web interface (user management, scan settings, transcode settings, etc.).
 If a setting is not present in the configuration file, a hardcoded default value is used (the same as in the [default configuration file](conf/lms.conf)).
 ## Authentication backends

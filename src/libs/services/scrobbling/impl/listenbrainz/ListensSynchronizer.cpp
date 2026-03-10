@@ -291,34 +291,32 @@ namespace lms::scrobbling::listenBrainz
             return;
         }
 
-        const std::optional<core::UUID> listenBrainzToken{ utils::getListenBrainzToken(_db.getTLSSession(), listen.userId) };
-        if (!listenBrainzToken)
+        const std::string listenBrainzToken{ utils::getListenBrainzToken(_db.getTLSSession(), listen.userId) };
+        if (listenBrainzToken.empty())
         {
             LOG(DEBUG, "No listenbrainz token found: skipping");
             return;
         }
 
         request.message.addBodyText(bodyText);
-        request.message.addHeader("Authorization", "Token " + std::string{ listenBrainzToken->getAsString() });
+        request.message.addHeader("Authorization", "Token " + listenBrainzToken);
         request.message.addHeader("Content-Type", "application/json");
         _client.sendPOSTRequest(std::move(request));
     }
 
     bool ListensSynchronizer::saveListen(const TimedListen& listen, db::SyncState scrobblingState)
     {
-        using namespace db;
-
-        Session& session{ _db.getTLSSession() };
+        db::Session& session{ _db.getTLSSession() };
         auto transaction{ session.createWriteTransaction() }; // TODO: unique only if needed
 
         db::Listen::pointer dbListen{ db::Listen::find(session, listen.userId, listen.trackId, db::ScrobblingBackend::ListenBrainz, listen.listenedAt) };
         if (!dbListen)
         {
-            const User::pointer user{ User::find(session, listen.userId) };
+            const db::User::pointer user{ db::User::find(session, listen.userId) };
             if (!user)
                 return false;
 
-            const Track::pointer track{ Track::find(session, listen.trackId) };
+            const db::Track::pointer track{ db::Track::find(session, listen.trackId) };
             if (!track)
                 return false;
 
@@ -464,8 +462,8 @@ namespace lms::scrobbling::listenBrainz
     {
         assert(context.listenBrainzUserName.empty());
 
-        const std::optional<core::UUID> listenBrainzToken{ utils::getListenBrainzToken(_db.getTLSSession(), context.userId) };
-        if (!listenBrainzToken)
+        const std::string listenBrainzToken{ utils::getListenBrainzToken(_db.getTLSSession(), context.userId) };
+        if (listenBrainzToken.empty())
         {
             onSyncEnded(context);
             return;
@@ -474,7 +472,7 @@ namespace lms::scrobbling::listenBrainz
         core::http::ClientGETRequestParameters request;
         request.priority = core::http::ClientRequestParameters::Priority::Low;
         request.relativeUrl = "/1/validate-token";
-        request.headers = { { "Authorization", "Token " + std::string{ listenBrainzToken->getAsString() } } };
+        request.headers = { { "Authorization", "Token " + listenBrainzToken } };
         request.onSuccessFunc = [this, &context](const Wt::Http::Message& msg) {
             context.listenBrainzUserName = utils::parseValidateToken(msg.body());
             if (context.listenBrainzUserName.empty())

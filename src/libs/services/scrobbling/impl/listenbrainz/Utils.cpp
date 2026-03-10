@@ -27,15 +27,18 @@
 
 namespace lms::scrobbling::listenBrainz::utils
 {
-    std::optional<core::UUID> getListenBrainzToken(db::Session& session, db::UserId userId)
+    std::string getListenBrainzToken(db::Session& session, db::UserId userId)
     {
-        auto transaction{ session.createReadTransaction() };
+        std::string res;
 
-        const db::User::pointer user{ db::User::find(session, userId) };
-        if (!user)
-            return std::nullopt;
+        {
+            auto transaction{ session.createReadTransaction() };
 
-        return user->getListenBrainzToken();
+            if (const db::User::pointer user{ db::User::find(session, userId) })
+                res = user->getListenBrainzToken();
+        }
+
+        return res;
     }
 
     std::string parseValidateToken(std::string_view msgBody)

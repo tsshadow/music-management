@@ -32,6 +32,8 @@
 #include "core/IConfig.hpp"
 #include "core/Service.hpp"
 #include "core/String.hpp"
+#include "core/UUID.hpp"
+
 #include "database/Session.hpp"
 #include "database/Types.hpp"
 #include "database/objects/User.hpp"
@@ -144,7 +146,7 @@ namespace lms::ui
             addField(ListenBrainzTokenField);
 
             setValidator(SubsonicTokenField, createUUIDValidator());
-            setValidator(ListenBrainzTokenField, createUUIDValidator());
+            setValidator(ListenBrainzTokenField, createMandatoryValidator());
 
             if (_authPasswordService)
             {
@@ -284,14 +286,14 @@ namespace lms::ui
                 if (auto feedbackBackendRow{ _feedbackBackendModel->getRowFromString(valueText(FeedbackBackendField)) })
                     user.modify()->setFeedbackBackend(_feedbackBackendModel->getValue(*feedbackBackendRow));
 
-                user.modify()->setListenBrainzToken(core::UUID::fromString(Wt::asString(value(ListenBrainzTokenField)).toUTF8()));
+                user.modify()->setListenBrainzToken(Wt::asString(value(ListenBrainzTokenField)).toUTF8());
             }
 
             {
                 if (auto scrobblingBackendRow{ _scrobblingBackendModel->getRowFromString(valueText(ScrobblingBackendField)) })
                     user.modify()->setScrobblingBackend(_scrobblingBackendModel->getValue(*scrobblingBackendRow));
 
-                user.modify()->setListenBrainzToken(core::UUID::fromString(Wt::asString(value(ListenBrainzTokenField)).toUTF8()));
+                user.modify()->setListenBrainzToken(Wt::asString(value(ListenBrainzTokenField)).toUTF8());
             }
 
             if (_authPasswordService && !valueText(PasswordField).empty())
@@ -390,8 +392,8 @@ namespace lms::ui
                 if (auto scrobblingBackendRow{ _scrobblingBackendModel->getRowFromValue(user->getScrobblingBackend()) })
                     setValue(ScrobblingBackendField, _scrobblingBackendModel->getString(*scrobblingBackendRow));
 
-                if (auto listenBrainzToken{ user->getListenBrainzToken() })
-                    setValue(ListenBrainzTokenField, Wt::WString::fromUTF8(std::string{ listenBrainzToken->getAsString() }));
+                if (const auto listenBrainzToken{ user->getListenBrainzToken() }; !listenBrainzToken.empty())
+                    setValue(ListenBrainzTokenField, Wt::WString::fromUTF8(std::string{ listenBrainzToken }));
 
                 {
                     const bool usesListenBrainz{ user->getScrobblingBackend() == db::ScrobblingBackend::ListenBrainz || user->getFeedbackBackend() == db::FeedbackBackend::ListenBrainz };

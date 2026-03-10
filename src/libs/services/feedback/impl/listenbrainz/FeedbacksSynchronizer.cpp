@@ -118,13 +118,13 @@ namespace lms::feedback::listenBrainz
                 return;
             }
 
-            const std::optional<core::UUID> listenBrainzToken{ starredTrack->getUser()->getListenBrainzToken() };
-            if (!listenBrainzToken)
+            const std::string listenBrainzToken{ starredTrack->getUser()->getListenBrainzToken() };
+            if (listenBrainzToken.empty())
                 return;
 
             core::http::ClientPOSTRequestParameters request;
             request.relativeUrl = "/1/feedback/recording-feedback";
-            request.message.addHeader("Authorization", "Token " + std::string{ listenBrainzToken->getAsString() });
+            request.message.addHeader("Authorization", "Token " + listenBrainzToken);
 
             Wt::Json::Object root;
             root["recording_mbid"] = Wt::Json::Value{ std::string{ recordingMBID->getAsString() } };
@@ -310,8 +310,8 @@ namespace lms::feedback::listenBrainz
     {
         assert(context.listenBrainzUserName.empty());
 
-        const std::optional<core::UUID> listenBrainzToken{ utils::getListenBrainzToken(_db.getTLSSession(), context.userId) };
-        if (!listenBrainzToken)
+        const std::string listenBrainzToken{ utils::getListenBrainzToken(_db.getTLSSession(), context.userId) };
+        if (listenBrainzToken.empty())
         {
             onSyncEnded(context);
             return;
@@ -320,7 +320,7 @@ namespace lms::feedback::listenBrainz
         core::http::ClientGETRequestParameters request;
         request.priority = core::http::ClientRequestParameters::Priority::Low;
         request.relativeUrl = "/1/validate-token";
-        request.headers = { { "Authorization", "Token " + std::string{ listenBrainzToken->getAsString() } } };
+        request.headers = { { "Authorization", "Token " + listenBrainzToken } };
         request.onSuccessFunc = [this, &context](const Wt::Http::Message& msg) {
             context.listenBrainzUserName = utils::parseValidateToken(msg.body());
             if (context.listenBrainzUserName.empty())

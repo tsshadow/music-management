@@ -27,7 +27,6 @@
 #include <Wt/WDateTime.h>
 
 #include "core/EnumSet.hpp"
-#include "core/UUID.hpp"
 
 #include "database/Object.hpp"
 #include "database/Types.hpp"
@@ -118,7 +117,7 @@ namespace lms::db
         void setSubsonicArtistListMode(SubsonicArtistListMode mode) { _subsonicArtistListMode = mode; }
         void setFeedbackBackend(FeedbackBackend feedbackBackend) { _feedbackBackend = feedbackBackend; }
         void setScrobblingBackend(ScrobblingBackend scrobblingBackend) { _scrobblingBackend = scrobblingBackend; }
-        void setListenBrainzToken(const std::optional<core::UUID>& MBID) { _listenbrainzToken = MBID ? MBID->getAsString() : ""; }
+        void setListenBrainzToken(std::string_view token) { _listenbrainzToken = token; }
 
         // read
         bool isAdmin() const { return _type == UserType::ADMIN; }
@@ -134,7 +133,7 @@ namespace lms::db
         SubsonicArtistListMode getSubsonicArtistListMode() const { return _subsonicArtistListMode; }
         FeedbackBackend getFeedbackBackend() const { return _feedbackBackend; }
         ScrobblingBackend getScrobblingBackend() const { return _scrobblingBackend; }
-        std::optional<core::UUID> getListenBrainzToken() const { return core::UUID::fromString(_listenbrainzToken); }
+        std::string_view getListenBrainzToken() const { return _listenbrainzToken; }
 
         template<class Action>
         void persist(Action& a)

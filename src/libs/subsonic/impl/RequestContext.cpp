@@ -107,5 +107,4 @@ namespace lms::api::subsonic
     {
         return _isOpenSubsonicEnabled;
     }
-
 } // namespace lms::api::subsonic

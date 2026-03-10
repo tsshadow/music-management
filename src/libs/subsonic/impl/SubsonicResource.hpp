@@ -18,6 +18,8 @@
  */
 #pragma once
 
+#include <string>
+
 #include <Wt/Http/Request.h>
 #include <Wt/Http/Response.h>
 #include <Wt/WResource.h>
@@ -43,8 +45,8 @@ namespace lms::api::subsonic
     private:
         void handleRequest(const Wt::Http::Request& request, Wt::Http::Response& response) override;
 
-        using MediaRetrievalHandlerFunc = std::function<void(RequestContext&, const Wt::Http::Request&, Wt::Http::Response&)>;
-        void handleMediaRetrievalRequest(const MediaRetrievalHandlerFunc& handler, RequestContext& requestContext, const Wt::Http::Request& request, Wt::Http::Response& response);
+        bool handleMediaRetrievalRequest(const std::string& requestPath, const Wt::Http::Request& request, Wt::Http::Response& response);
+        void handleRequest(const std::string& requestPath, const Wt::Http::Request& request, Wt::Http::Response& response);
 
         db::UserId authenticateUser(const Wt::Http::Request& request);
 

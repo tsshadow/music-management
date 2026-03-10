@@ -36,7 +36,6 @@
 #include "services/auth/IPasswordService.hpp"
 
 #include "ParameterParsing.hpp"
-#include "ProtocolVersion.hpp"
 #include "RequestContext.hpp"
 #include "SubsonicResponse.hpp"
 #include "endpoints/AlbumSongLists.hpp"
@@ -291,91 +290,48 @@ namespace lms::api::subsonic
         const std::size_t requestId{ curRequestId++ };
         TLSMonotonicMemoryResourceCleaner memoryResourceCleaner;
 
-        LMS_LOG(API_SUBSONIC, DEBUG, "Handling request " << requestId << " '" << request.pathInfo() << "', continuation = " << (request.continuation() ? "true" : "false") << ", params = " << parameterMapToDebugString(request.getParameterMap()));
-
+        constexpr std::string_view optionalSuffix{ ".view" };
         std::string requestPath{ request.pathInfo() };
-        if (core::stringUtils::stringEndsWith(requestPath, ".view"))
-            requestPath.resize(requestPath.length() - 5);
+        if (core::stringUtils::stringEndsWith(requestPath, optionalSuffix))
+            requestPath.resize(requestPath.length() - optionalSuffix.size());
 
-        RequestContext requestContext{ request, _db.getTLSSession(), _config };
+        LMS_LOG(API_SUBSONIC, DEBUG, "Handling request " << requestId << " to '" << requestPath << " with params = " << parameterMapToDebugString(request.getParameterMap()) << "', continuation = " << (request.continuation() ? "true" : "false"));
 
-        // First check for media retrieval endpoints
-        auto itStreamHandler{ mediaRetrievalHandlers.find(requestPath) };
-        if (itStreamHandler != mediaRetrievalHandlers.end())
-        {
-            try
-            {
-                LMS_SCOPED_TRACE_OVERVIEW("Subsonic", itStreamHandler->first);
-                handleMediaRetrievalRequest(itStreamHandler->second, requestContext, request, response);
-                LMS_LOG(API_SUBSONIC, DEBUG, "Request " << requestId << " '" << requestPath << "' handled!");
-            }
-            catch (const Error& e)
-            {
-                LMS_LOG(API_SUBSONIC, ERROR, "Error while processing request '" << requestId << "', code = " << static_cast<int>(e.getCode()) << ", msg = '" << e.getMessage() << "'");
-            }
-
-            return;
-        }
-
-        // Now check other endpoints
         try
         {
-            if (auto itEntryPoint{ requestEntryPoints.find(requestPath) }; itEntryPoint != requestEntryPoints.end())
-            {
-                LMS_SCOPED_TRACE_OVERVIEW("Subsonic", itEntryPoint->first);
+            if (!handleMediaRetrievalRequest(requestPath, request, response))
+                handleRequest(requestPath, request, response);
 
-                db::User::pointer user;
-                if (itEntryPoint->second.authMode == AuthenticationMode::Authenticated)
-                {
-                    user = getUserFromUserId(_db.getTLSSession(), authenticateUser(request));
-                    checkUserTypeIsAllowed(user, itEntryPoint->second.allowedUserTypes);
-                    requestContext.setUser(user);
-                }
-
-                const Response resp{ [&] {
-                    LMS_SCOPED_TRACE_DETAILED("Subsonic", "HandleRequest");
-                    return itEntryPoint->second.func(requestContext);
-                }() };
-
-                {
-                    LMS_SCOPED_TRACE_DETAILED("Subsonic", "WriteResponse");
-
-                    resp.write(response.out(), requestContext.getResponseFormat());
-                    response.setMimeType(std::string{ ResponseFormatToMimeType(requestContext.getResponseFormat()) });
-                }
-
-                LMS_LOG(API_SUBSONIC, DEBUG, "Request " << requestId << " '" << requestPath << "' handled!");
-                return;
-            }
-
-            // do not disclose unhandled commands for unauthenticated users
-            authenticateUser(request);
-
-            LMS_LOG(API_SUBSONIC, ERROR, "Unhandled command '" << requestPath << "'");
-            throw UnknownEntryPointGenericError{};
+            LMS_LOG(API_SUBSONIC, DEBUG, "Request " << requestId << " to '" << requestPath << "' handled!");
         }
         catch (const Error& e)
         {
-            LMS_LOG(API_SUBSONIC, ERROR, "Error while processing request '" << requestPath << "'" << ", params = [" << parameterMapToDebugString(request.getParameterMap()) << "]" << ", code = " << static_cast<int>(e.getCode()) << ", msg = '" << e.getMessage() << "'");
-            Response resp{ Response::createFailedResponse(requestContext.getServerProtocolVersion(), e) };
-            resp.write(response.out(), requestContext.getResponseFormat());
-            response.setMimeType(std::string{ ResponseFormatToMimeType(requestContext.getResponseFormat()) });
+            LMS_LOG(API_SUBSONIC, ERROR, "Error while processing request " << requestId << " to '" << requestPath << "' with params = " << parameterMapToDebugString(request.getParameterMap()) << ": code = " << static_cast<int>(e.getCode()) << ", msg = '" << e.getMessage() << "'");
         }
     }
 
-    void SubsonicResource::handleMediaRetrievalRequest(const MediaRetrievalHandlerFunc& handler, RequestContext& requestContext, const Wt::Http::Request& request, Wt::Http::Response& response)
+    bool SubsonicResource::handleMediaRetrievalRequest(const std::string& requestPath, const Wt::Http::Request& request, Wt::Http::Response& response)
     {
+        auto itStreamHandler{ mediaRetrievalHandlers.find(requestPath) };
+        if (itStreamHandler == mediaRetrievalHandlers.end())
+            return false;
+
+        LMS_SCOPED_TRACE_OVERVIEW("Subsonic", itStreamHandler->first);
+
         try
         {
-            // Media retrieval endpoints are always authenticated
-            // Optimization: no need to reauth user for each continuation
+            RequestContext requestContext{ request, _db.getTLSSession(), _config };
+
+            // Media retrieval endpoints are always authenticated but we don't reauth user for a continuation
             db::User::pointer user;
             if (!request.continuation())
                 user = getUserFromUserId(_db.getTLSSession(), authenticateUser(request));
 
             requestContext.setUser(user);
 
-            handler(requestContext, request, response);
+            itStreamHandler->second(requestContext, request, response);
+
+            return true;
         }
         catch (const UserNotAuthorizedError&)
         {
@@ -405,6 +361,61 @@ namespace lms::api::subsonic
         catch (const Error&)
         {
             response.setStatus(400); // Assume bad request
+            throw;
+        }
+    }
+
+    void SubsonicResource::handleRequest(const std::string& requestPath, const Wt::Http::Request& request, Wt::Http::Response& response)
+    {
+        auto writeResponse{ [&](const Response& resp, ResponseFormat format) {
+            LMS_SCOPED_TRACE_DETAILED("Subsonic", "WriteResponse");
+            resp.write(response.out(), format);
+            response.setMimeType(std::string{ ResponseFormatToMimeType(format) });
+        } };
+
+        std::optional<RequestContext> requestContext;
+        try
+        {
+            requestContext.emplace(request, _db.getTLSSession(), _config);
+        }
+        catch (const Error& e)
+        {
+            writeResponse(Response::createFailedResponse(defaultServerProtocolVersion, e), ResponseFormat::xml);
+            throw;
+        }
+
+        try
+        {
+            if (auto itEntryPoint{ requestEntryPoints.find(requestPath) }; itEntryPoint != requestEntryPoints.end())
+            {
+                LMS_SCOPED_TRACE_OVERVIEW("Subsonic", itEntryPoint->first);
+
+                db::User::pointer user;
+                if (itEntryPoint->second.authMode == AuthenticationMode::Authenticated)
+                {
+                    user = getUserFromUserId(_db.getTLSSession(), authenticateUser(request));
+                    checkUserTypeIsAllowed(user, itEntryPoint->second.allowedUserTypes);
+                    requestContext->setUser(user);
+                }
+
+                const Response resp{ [&] {
+                    LMS_SCOPED_TRACE_DETAILED("Subsonic", "HandleRequest");
+                    return itEntryPoint->second.func(*requestContext);
+                }() };
+
+                writeResponse(resp, requestContext->getResponseFormat());
+                return;
+            }
+            // do not disclose unhandled commands for unauthenticated users
+            authenticateUser(request);
+
+            LMS_LOG(API_SUBSONIC, ERROR, "Unhandled command '" << requestPath << "'");
+            throw UnknownEntryPointGenericError{};
+        }
+        catch (const Error& e)
+        {
+            Response resp{ Response::createFailedResponse(requestContext->getServerProtocolVersion(), e) };
+            writeResponse(resp, requestContext->getResponseFormat());
             throw;
         }
     }

@@ -77,5 +77,4 @@ namespace lms::api::subsonic
         const ProtocolVersion _serverProtocolVersion;
         const bool _isOpenSubsonicEnabled;
     };
-
 } // namespace lms::api::subsonic

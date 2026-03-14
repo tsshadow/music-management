@@ -20,6 +20,7 @@
 #pragma once
 
 #include <map>
+#include <optional>
 
 #include "core/EnumSet.hpp"
 
@@ -31,6 +32,7 @@
 #include "ReleaseHelpers.hpp"
 #include "ReleaseTypes.hpp"
 #include "common/Template.hpp"
+#include "database/objects/Types.hpp"
 
 namespace lms::db
 {
@@ -76,7 +78,8 @@ namespace lms::ui
             std::vector<db::ReleaseId> releases;
         };
         std::map<ReleaseType, ReleaseContainer> _releaseContainers;
-        ReleaseContainer _appearsOnReleaseContainer{};
+        std::map<std::optional<db::TrackArtistLinkType>, std::vector<db::ReleaseId>> _appearsOnReleases;
+        ReleaseContainer _appearsOnReleaseContainer;
         InfiniteScrollingContainer* _trackContainer{};
         db::ArtistId _artistId{};
         std::string _artistName;

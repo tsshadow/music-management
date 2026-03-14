@@ -459,13 +459,13 @@ namespace lms::ui
             _artistReleaseSortMethodModel->add(Wt::WString::tr("Lms.Settings.name"), db::ReleaseSortMethod::Name);
 
             _artistRelationshipsModel = std::make_shared<ArtistRelationshipsModel>();
-            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.Artists.composer", 2), db::TrackArtistLinkType::Composer);
-            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.Artists.conductor", 2), db::TrackArtistLinkType::Conductor);
-            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.Artists.lyricist", 2), db::TrackArtistLinkType::Lyricist);
-            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.Artists.mixer", 2), db::TrackArtistLinkType::Mixer);
-            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.Artists.performer", 2), db::TrackArtistLinkType::Performer);
-            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.Artists.producer", 2), db::TrackArtistLinkType::Producer);
-            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.Artists.remixer", 2), db::TrackArtistLinkType::Remixer);
+            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.composer", 2), db::TrackArtistLinkType::Composer);
+            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.conductor", 2), db::TrackArtistLinkType::Conductor);
+            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.lyricist", 2), db::TrackArtistLinkType::Lyricist);
+            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.mixer", 2), db::TrackArtistLinkType::Mixer);
+            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.performer", 2), db::TrackArtistLinkType::Performer);
+            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.producer", 2), db::TrackArtistLinkType::Producer);
+            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.remixer", 2), db::TrackArtistLinkType::Remixer);
 
             _transcodingModeModeModel = std::make_shared<TranscodingModeModel>();
             _transcodingModeModeModel->add(Wt::WString::tr("Lms.Settings.transcoding-mode.always"), MediaPlayer::Settings::Transcoding::Mode::Always);

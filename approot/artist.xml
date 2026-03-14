@@ -50,4 +50,32 @@
 	</div>
 </message>
 
+<message id="Lms.Explore.Artist.template.appears-on-container">
+	<div class="mb-3">
+		<h3>${tr:Lms.Explore.Artist.appears-on}${artist-type class="ms-2 d-inline-block"}</h3>
+		${releases}
+	</div>
+</message>
+
+<message id="Lms.Explore.Artist.template.track-artist-type-selector">
+	<div class="dropdown">
+		<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+			${selected-item}
+		</button>
+		<ul class="dropdown-menu">
+			<li>${artist-type-all class="dropdown-item"}</li>
+			<li class="dropdown-divider"></li>
+			${<if-has-track-artist>}<li>${artist-type-track-artist class="dropdown-item"}</li>${</if-has-track-artist>}
+			${<if-has-composer>}<li>${artist-type-composer class="dropdown-item"}</li>${</if-has-composer>}
+			${<if-has-conductor>}<li>${artist-type-conductor class="dropdown-item"}</li>${</if-has-conductor>}
+			${<if-has-lyricist>}<li>${artist-type-lyricist class="dropdown-item"}</li>${</if-has-lyricist>}
+			${<if-has-mixer>}<li>${artist-type-mixer class="dropdown-item"}</li>${</if-has-mixer>}
+			${<if-has-performer>}<li>${artist-type-performer class="dropdown-item"}</li>${</if-has-performer>}
+			${<if-has-producer>}<li>${artist-type-producer class="dropdown-item"}</li>${</if-has-producer>}
+			${<if-has-remixer>}<li>${artist-type-remixer class="dropdown-item"}</li>${</if-has-remixer>}
+		</ul>
+	</div>
+</message>
+
+
 </messages>

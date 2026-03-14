@@ -196,9 +196,19 @@
 <!--Explore-->
 <message id="Lms.Explore.add-filter">Ajouter filtre</message>
 <message id="Lms.Explore.all">Tous</message>
+<message id="Lms.Explore.all-artists">Tous les artistes</message>
+<message id="Lms.Explore.all-roles">Tous les rôles</message>
 <message id="Lms.Explore.artists">Artistes</message>
 <message id="Lms.Explore.bitrate">Bitrate</message>
 <message id="Lms.Explore.codec">Codec</message>
+<message id="Lms.Explore.composer">
+	<plural case="0">Compositeur</plural>
+	<plural case="1">Compositeurs</plural>
+</message>
+<message id="Lms.Explore.conductor">
+	<plural case="0">Chef d'orchestre</plural>
+	<plural case="1">Chefs d'orchestre</plural>
+</message>
 <message id="Lms.Explore.copyright">Droits d'auteur</message>
 <message id="Lms.Explore.cover-art">Pochette</message>
 <message id="Lms.Explore.download">Télécharger</message>
@@ -206,26 +216,54 @@
 <message id="Lms.Explore.filter-added">Filtre ajouté</message>
 <message id="Lms.Explore.filters">Filtres</message>
 <message id="Lms.Explore.label">Label</message>
+<message id="Lms.Explore.lyricist">
+	<plural case="0">Parolier</plural>
+	<plural case="1">Paroliers</plural>
+</message>
 <message id="Lms.Explore.media-library">Bibliothèque musicale</message>
+<message id="Lms.Explore.mixer">
+	<plural case="0">Mixeur</plural>
+	<plural case="1">Mixeurs</plural>
+</message>
 <message id="Lms.Explore.most-played">Plus joués</message>
 <message id="Lms.Explore.musicbrainz-artist">MusicBrainz Artist</message>
 <message id="Lms.Explore.musicbrainz-release">MusicBrainz Release</message>
+<message id="Lms.Explore.performer">
+	<plural case="0">Interprète</plural>
+	<plural case="1">Interprètes</plural>
+</message>
 <message id="Lms.Explore.play">Jouer</message>
 <message id="Lms.Explore.play-last">Jouer en dernier</message>
 <message id="Lms.Explore.play-next">Jouer ensuite</message>
 <message id="Lms.Explore.play-shuffled">Jouer aléatoirement</message>
 <message id="Lms.Explore.playcount">Nombre d'écoutes</message>
+<message id="Lms.Explore.producer">
+	<plural case="0">Producteur</plural>
+	<plural case="1">Producteurs</plural>
+</message>
 <message id="Lms.Explore.random">Aléatoire</message>
 <message id="Lms.Explore.recently-added">Ajoutés récemment</message>
 <message id="Lms.Explore.recently-modified">Modifiés récemment</message>
 <message id="Lms.Explore.recently-played">Joués récemment</message>
+<message id="Lms.Explore.release-artist">
+	<plural case="0">Artiste d'album</plural>
+	<plural case="1">Artistes d'album</plural>
+</message>
 <message id="Lms.Explore.release-info">Informations sur l'album</message>
 <message id="Lms.Explore.release-type">Type de publication</message>
 <message id="Lms.Explore.releases">Albums</message>
+<message id="Lms.Explore.remixer">
+	<plural case="0">Remixeur</plural>
+	<plural case="1">Remixeurs</plural>
+</message>
 <message id="Lms.Explore.search">Rechercher</message>
 <message id="Lms.Explore.star">Ajouter aux favoris</message>
 <message id="Lms.Explore.star-item">Ajouter {1} aux favoris</message>
 <message id="Lms.Explore.starred">Favoris</message>
+<message id="Lms.Explore.track-artist">
+	<plural case="0">Artiste de piste</plural>
+	<plural case="1">Artistes de piste</plural>
+</message>
 <message id="Lms.Explore.track-info">Informations sur la piste</message>
 <message id="Lms.Explore.track-lyrics">Paroles</message>
 <message id="Lms.Explore.tracklists">Playlists</message>
@@ -240,45 +278,6 @@
 <message id="Lms.Explore.Artist.appears-on">Apparaît dans</message>
 <message id="Lms.Explore.Artist.biography">Biographie</message>
 <message id="Lms.Explore.Artist.similar-artists">Artistes similaires</message>
-
-<!--Explore:Artists-->
-<message id="Lms.Explore.Artists.all">Tous les artistes</message>
-<message id="Lms.Explore.Artists.composer">
-	<plural case="0">Compositeur</plural>
-	<plural case="1">Compositeurs</plural>
-</message>
-<message id="Lms.Explore.Artists.conductor">
-	<plural case="0">Chef d'orchestre</plural>
-	<plural case="1">Chefs d'orchestre</plural>
-</message>
-<message id="Lms.Explore.Artists.lyricist">
-	<plural case="0">Parolier</plural>
-	<plural case="1">Paroliers</plural>
-</message>
-<message id="Lms.Explore.Artists.mixer">
-	<plural case="0">Mixeur</plural>
-	<plural case="1">Mixeurs</plural>
-</message>
-<message id="Lms.Explore.Artists.performer">
-	<plural case="0">Interprète</plural>
-	<plural case="1">Interprètes</plural>
-</message>
-<message id="Lms.Explore.Artists.producer">
-	<plural case="0">Producteur</plural>
-	<plural case="1">Producteurs</plural>
-</message>
-<message id="Lms.Explore.Artists.release-artist">
-	<plural case="0">Artiste d'album</plural>
-	<plural case="1">Artistes d'album</plural>
-</message>
-<message id="Lms.Explore.Artists.remixer">
-	<plural case="0">Remixeur</plural>
-	<plural case="1">Remixeurs</plural>
-</message>
-<message id="Lms.Explore.Artists.track-artist">
-	<plural case="0">Artiste de piste</plural>
-	<plural case="1">Artistes de piste</plural>
-</message>
 
 <!--Explore:Release-->
 <message id="Lms.Explore.Release.copyright">Copyright</message>

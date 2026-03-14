@@ -49,6 +49,7 @@ add_executable(lms
 	ui/explore/ReleasesView.cpp
 	ui/explore/ReleaseView.cpp
 	ui/explore/ReleaseTypes.cpp
+	ui/explore/TrackArtistTypeSelector.cpp
 	ui/explore/TrackCollector.cpp
 	ui/explore/TrackListHelpers.cpp
 	ui/explore/TrackListView.cpp

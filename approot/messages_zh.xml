@@ -194,9 +194,13 @@
 <!--Explore-->
 <message id="Lms.Explore.add-filter">添加过滤器</message>
 <message id="Lms.Explore.all">全部</message>
+<message id="Lms.Explore.all-artists">所有艺术家</message>
+<message id="Lms.Explore.all-roles">所有角色</message>
 <message id="Lms.Explore.artists">歌手</message>
 <message id="Lms.Explore.bitrate">比特率</message>
 <message id="Lms.Explore.codec">编码器</message>
+<message id="Lms.Explore.composer">作曲者</message>
+<message id="Lms.Explore.conductor">指挥</message>
 <message id="Lms.Explore.copyright">版权所有</message>
 <message id="Lms.Explore.cover-art">封面</message>
 <message id="Lms.Explore.download">下载</message>
@@ -204,26 +208,33 @@
 <message id="Lms.Explore.filter-added">过滤器已添加</message>
 <message id="Lms.Explore.filters">过滤器</message>
 <message id="Lms.Explore.label">厂牌</message>
+<message id="Lms.Explore.lyricist">作词者</message>
 <message id="Lms.Explore.media-library">音乐库</message>
+<message id="Lms.Explore.mixer">混音师</message>
 <message id="Lms.Explore.most-played">播放最多</message>
 <message id="Lms.Explore.musicbrainz-artist">MusicBrainz 歌手</message>
 <message id="Lms.Explore.musicbrainz-release">MusicBrainz 专辑</message>
+<message id="Lms.Explore.performer">表演者</message>
 <message id="Lms.Explore.play">播放</message>
 <message id="Lms.Explore.play-last">最后播放</message>
 <message id="Lms.Explore.play-next">下一首播放</message>
 <message id="Lms.Explore.play-shuffled">随机播放</message>
 <message id="Lms.Explore.playcount">播放次数</message>
+<message id="Lms.Explore.producer">制作人</message>
 <message id="Lms.Explore.random">随机</message>
 <message id="Lms.Explore.recently-added">最近添加</message>
 <message id="Lms.Explore.recently-modified">最近更改</message>
 <message id="Lms.Explore.recently-played">最近播放</message>
+<message id="Lms.Explore.release-artist">专辑艺术家</message>
 <message id="Lms.Explore.release-info">专辑信息</message>
 <message id="Lms.Explore.release-type">专辑类型</message>
 <message id="Lms.Explore.releases">专辑</message>
+<message id="Lms.Explore.remixer">混音师</message>
 <message id="Lms.Explore.search">搜索</message>
 <message id="Lms.Explore.star">收藏</message>
 <message id="Lms.Explore.star-item">将 {1} 加入收藏</message>
 <message id="Lms.Explore.starred">已收藏</message>
+<message id="Lms.Explore.track-artist">曲目艺术家</message>
 <message id="Lms.Explore.track-info">曲目信息</message>
 <message id="Lms.Explore.track-lyrics">歌词</message>
 <message id="Lms.Explore.tracklists">播放列表</message>
@@ -238,18 +249,6 @@
 <message id="Lms.Explore.Artist.appears-on">出现于</message>
 <message id="Lms.Explore.Artist.biography">简介</message>
 <message id="Lms.Explore.Artist.similar-artists">相似歌手</message>
-
-<!--Explore:Artists-->
-<message id="Lms.Explore.Artists.all">所有艺术家</message>
-<message id="Lms.Explore.Artists.composer">作曲者</message>
-<message id="Lms.Explore.Artists.conductor">指挥</message>
-<message id="Lms.Explore.Artists.lyricist">作词者</message>
-<message id="Lms.Explore.Artists.mixer">混音师</message>
-<message id="Lms.Explore.Artists.performer">表演者</message>
-<message id="Lms.Explore.Artists.producer">制作人</message>
-<message id="Lms.Explore.Artists.release-artist">专辑艺术家</message>
-<message id="Lms.Explore.Artists.remixer">混音师</message>
-<message id="Lms.Explore.Artists.track-artist">曲目艺术家</message>
 
 <!--Explore:Release-->
 <message id="Lms.Explore.Release.copyright">版权所有</message>

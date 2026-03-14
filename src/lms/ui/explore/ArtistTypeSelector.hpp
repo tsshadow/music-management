@@ -30,16 +30,16 @@ namespace lms::ui
         ArtistTypeSelector(ArtistType defaultArtistType)
             : DropDownMenuSelector{ Wt::WString::tr("Lms.Explore.Artists.template.artist-type-selector"), defaultArtistType }
         {
-            bindItem("artist-type-all", Wt::WString::tr("Lms.Explore.Artists.all"), AllArtistsTag{});
-            bindItem("artist-type-release-artist", Wt::WString::trn("Lms.Explore.Artists.release-artist", 2), ReleaseArtistsTag{});
-            bindItem("artist-type-track-artist", Wt::WString::trn("Lms.Explore.Artists.track-artist", 2), db::TrackArtistLinkType::Artist);
-            bindItem("artist-type-composer", Wt::WString::trn("Lms.Explore.Artists.composer", 2), db::TrackArtistLinkType::Composer);
-            bindItem("artist-type-conductor", Wt::WString::trn("Lms.Explore.Artists.conductor", 2), db::TrackArtistLinkType::Conductor);
-            bindItem("artist-type-lyricist", Wt::WString::trn("Lms.Explore.Artists.lyricist", 2), db::TrackArtistLinkType::Lyricist);
-            bindItem("artist-type-mixer", Wt::WString::trn("Lms.Explore.Artists.mixer", 2), db::TrackArtistLinkType::Mixer);
-            bindItem("artist-type-performer", Wt::WString::trn("Lms.Explore.Artists.performer", 2), db::TrackArtistLinkType::Performer);
-            bindItem("artist-type-producer", Wt::WString::trn("Lms.Explore.Artists.producer", 2), db::TrackArtistLinkType::Producer);
-            bindItem("artist-type-remixer", Wt::WString::trn("Lms.Explore.Artists.remixer", 2), db::TrackArtistLinkType::Remixer);
+            bindItem("artist-type-all", Wt::WString::tr("Lms.Explore.all-artists"), AllArtistsTag{});
+            bindItem("artist-type-release-artist", Wt::WString::trn("Lms.Explore.release-artist", 2), ReleaseArtistsTag{});
+            bindItem("artist-type-track-artist", Wt::WString::trn("Lms.Explore.track-artist", 2), db::TrackArtistLinkType::Artist);
+            bindItem("artist-type-composer", Wt::WString::trn("Lms.Explore.composer", 2), db::TrackArtistLinkType::Composer);
+            bindItem("artist-type-conductor", Wt::WString::trn("Lms.Explore.conductor", 2), db::TrackArtistLinkType::Conductor);
+            bindItem("artist-type-lyricist", Wt::WString::trn("Lms.Explore.lyricist", 2), db::TrackArtistLinkType::Lyricist);
+            bindItem("artist-type-mixer", Wt::WString::trn("Lms.Explore.mixer", 2), db::TrackArtistLinkType::Mixer);
+            bindItem("artist-type-performer", Wt::WString::trn("Lms.Explore.performer", 2), db::TrackArtistLinkType::Performer);
+            bindItem("artist-type-producer", Wt::WString::trn("Lms.Explore.producer", 2), db::TrackArtistLinkType::Producer);
+            bindItem("artist-type-remixer", Wt::WString::trn("Lms.Explore.remixer", 2), db::TrackArtistLinkType::Remixer);
         }
     };
 } // namespace lms::ui

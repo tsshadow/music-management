@@ -407,17 +407,17 @@ namespace lms::ui::utils
             });
         };
 
-        addArtists(db::TrackArtistLinkType::Composer, "Lms.Explore.Artists.composer");
-        addArtists(db::TrackArtistLinkType::Conductor, "Lms.Explore.Artists.conductor");
-        addArtists(db::TrackArtistLinkType::Lyricist, "Lms.Explore.Artists.lyricist");
-        addArtists(db::TrackArtistLinkType::Mixer, "Lms.Explore.Artists.mixer");
-        addArtists(db::TrackArtistLinkType::Remixer, "Lms.Explore.Artists.remixer");
-        addArtists(db::TrackArtistLinkType::Producer, "Lms.Explore.Artists.producer");
+        addArtists(db::TrackArtistLinkType::Composer, "Lms.Explore.composer");
+        addArtists(db::TrackArtistLinkType::Conductor, "Lms.Explore.conductor");
+        addArtists(db::TrackArtistLinkType::Lyricist, "Lms.Explore.lyricist");
+        addArtists(db::TrackArtistLinkType::Mixer, "Lms.Explore.mixer");
+        addArtists(db::TrackArtistLinkType::Remixer, "Lms.Explore.remixer");
+        addArtists(db::TrackArtistLinkType::Producer, "Lms.Explore.producer");
         addPerformerArtists();
 
         if (!rolelessPerformers.empty())
         {
-            Wt::WString performersStr{ Wt::WString::trn("Lms.Explore.Artists.performer", rolelessPerformers.size()) };
+            Wt::WString performersStr{ Wt::WString::trn("Lms.Explore.performer", rolelessPerformers.size()) };
             artistMap[performersStr] = std::move(rolelessPerformers);
         }
 
@@ -458,17 +458,17 @@ namespace lms::ui::utils
             });
         };
 
-        addArtists(db::TrackArtistLinkType::Composer, "Lms.Explore.Artists.composer");
-        addArtists(db::TrackArtistLinkType::Conductor, "Lms.Explore.Artists.conductor");
-        addArtists(db::TrackArtistLinkType::Lyricist, "Lms.Explore.Artists.lyricist");
-        addArtists(db::TrackArtistLinkType::Mixer, "Lms.Explore.Artists.mixer");
-        addArtists(db::TrackArtistLinkType::Remixer, "Lms.Explore.Artists.remixer");
-        addArtists(db::TrackArtistLinkType::Producer, "Lms.Explore.Artists.producer");
+        addArtists(db::TrackArtistLinkType::Composer, "Lms.Explore.composer");
+        addArtists(db::TrackArtistLinkType::Conductor, "Lms.Explore.conductor");
+        addArtists(db::TrackArtistLinkType::Lyricist, "Lms.Explore.lyricist");
+        addArtists(db::TrackArtistLinkType::Mixer, "Lms.Explore.mixer");
+        addArtists(db::TrackArtistLinkType::Remixer, "Lms.Explore.remixer");
+        addArtists(db::TrackArtistLinkType::Producer, "Lms.Explore.producer");
         addPerformerArtists();
 
         if (!rolelessPerformers.empty())
         {
-            Wt::WString performersStr{ Wt::WString::trn("Lms.Explore.Artists.performer", rolelessPerformers.size()) };
+            Wt::WString performersStr{ Wt::WString::trn("Lms.Explore.performer", rolelessPerformers.size()) };
             artistMap[performersStr] = std::move(rolelessPerformers);
         }
 

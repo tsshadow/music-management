@@ -73,8 +73,8 @@ $setmulti(albumartistssort,%_albumartists_sort%)
 
 ### Extended artist and MusicBrainz ID support
 _LMS_ supports several non-standard tags to allow more accurate artist identification:
-* **MusicBrainz identifiers** for artist relationships: `musicbrainz_arrangerid`, `musicbrainz_composerid`, `musicbrainz_conductorid`, `musicbrainz_lyricistid`, `musicbrainz_mixerid`, `musicbrainz_producerid`, `musicbrainz_remixerid`
-* **Sort order variants**: `conductorssort`, `producerssort`, `mixerssort`, `remixerssort`, `lyricistssort`, `albumartistssort`
+* **MusicBrainz identifiers** for artist relationships: `musicbrainz_composerid`, `musicbrainz_conductorid`, `musicbrainz_lyricistid`, `musicbrainz_mixerid`, `musicbrainz_producerid`, `musicbrainz_remixerid`
+* **Sort order variants**: , `albumartistssort`, `composerssort`, `conductorssort`, `lyricistssort`, `mixerssort`, `producerssort`, `remixerssort`. Singular forms of these tags are also accepted (e.g., `conductorsort`, `lyricistsort`, etc.)
 
 ### Album track grouping
 The recommended way to group tracks within an album is to use the `musicbrainz_albumid` tag.

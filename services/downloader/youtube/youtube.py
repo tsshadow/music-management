@@ -54,6 +54,12 @@ class YoutubeDownloader:
                                'compat_opts': ['filename'], 'nooverwrites': True, 'keepvideo': False,
                                'ffmpeg_location': self.ffmpeg_location, 'match_filter': self._match_filter,
                                'socket_timeout': self.socket_timeout,
+                               'sleep_interval': 10,
+                               'max_sleep_interval': 60,
+                               'sleep_requests': 1,
+                               'ratelimit': 1024 * 1024,  # Limit to 1MB/s
+                               'playlist_random': True,
+                               'http_chunk_size': 10 * 1024 * 1024,  # 10MB chunks (YouTube throttling bypass)
                                'extractor_args': {
                                    'youtubetab': {
                                        'skip': ['authcheck'],
@@ -244,6 +250,12 @@ class YoutubeDownloader:
         if not getattr(self, 'enabled', True):
             logging.warning('YouTube soundcloud is not configured; skipping run().')
             return
+
+        # Defensive: initial wait up to 1 minute
+        init_wait = random.randint(5, 60)
+        logging.info(f'Defensive start: waiting {init_wait}s before first download...')
+        time.sleep(init_wait)
+
         try:
             if account:
                 accounts = [account]

@@ -103,23 +103,31 @@ class TaggerService:
 
         return mapping[normalized]
 
-    def tag(self, tag_type: str, folder: str | Path, extra_info) -> None:
+    def tag(self, tag_type: str, path: str | Path, extra_info=None) -> None:
         """
-        Tag a specific folder for a single source type.
+        Tag a specific folder or file for a single source type.
 
         Args:
             tag_type: One of 'label', 'soundcloud', 'youtube', 'generic', 'telegram'.
-            folder:  Folder path to process.
+            path:  Folder or file path to process.
+            extra_info: Optional metadata from the downloader.
         """
         song_type = self._map_tag_type(tag_type)
-        path = Path(folder)
+        path = Path(path)
 
-        if not path.exists() or not path.is_dir():
-            raise ValueError(f"Folder does not exist or is not a directory: {path}")
+        if not path.exists():
+            raise ValueError(f"Path does not exist: {path}")
 
-        logging.info("Tagging folder '%s' as type '%s'", path, song_type.name)
-        self.tagger.parse_folder(path, song_type,extra_info)
-        logging.info("Finished tagging folder '%s' (%s)", path, song_type.name)
+        if path.is_file():
+            logging.info("Tagging file '%s' as type '%s'", path, song_type.name)
+            self.tagger.parse_song(path, song_type, extra_info=extra_info)
+            logging.info("Finished tagging file '%s' (%s)", path, song_type.name)
+        elif path.is_dir():
+            logging.info("Tagging folder '%s' as type '%s'", path, song_type.name)
+            self.tagger.parse_folder(path, song_type, extra_info=extra_info)
+            logging.info("Finished tagging folder '%s' (%s)", path, song_type.name)
+        else:
+            raise ValueError(f"Path is neither a file nor a directory: {path}")
 
     def run_full(
         self,

@@ -1,0 +1,68 @@
+# syntax=docker/dockerfile:1
+
+FROM python:3.13-slim-trixie AS builder
+
+RUN apt-get update && apt-get install -y \
+    gcc wget curl gnupg bash git ca-certificates \
+    unzip p7zip-full \
+    build-essential yasm nasm pkg-config \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g pnpm \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+ARG FFMPEG_VERSION=6.1.2
+RUN set -eux; \
+    curl -L "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" -o /tmp/ffmpeg.tar.xz; \
+    tar -xJf /tmp/ffmpeg.tar.xz -C /tmp; \
+    cd "/tmp/ffmpeg-${FFMPEG_VERSION}"; \
+    ./configure --prefix=/usr/local --disable-debug --disable-doc --disable-ffplay; \
+    make -j"$(nproc)"; \
+    make install; \
+    rm -rf /tmp/ffmpeg*
+
+COPY modules/music-importer/requirements.txt /app/requirements.txt
+RUN pip3 install --no-cache-dir -r /app/requirements.txt
+
+COPY frontend/importer/frontend/pnpm-lock.yaml /app/frontend/pnpm-lock.yaml
+COPY frontend/importer/frontend/package.json /app/frontend/package.json
+RUN cd /app/frontend && pnpm install
+
+COPY frontend/importer/frontend/ /app/frontend/
+RUN cd /app/frontend && pnpm build
+
+COPY modules/music-importer/ /app/
+COPY services/ /app/services/
+RUN rm -f /app/sitecustomize.py
+RUN rm -rf \
+    /app/tests \
+    /app/frontend/node_modules \
+    /app/frontend/.svelte-kit \
+    /app/frontend/.vite \
+    /app/frontend/src \
+    /app/frontend/static \
+    /app/frontend/tsconfig.json \
+    /app/frontend/vite.config.ts \
+    /app/frontend/svelte.config.js \
+    /app/frontend/eslint.config.js \
+    /app/frontend/package.json \
+    /app/frontend/pnpm-lock.yaml \
+    /app/frontend/README.md \
+    /app/frontend/vitest-setup-client.ts
+
+FROM python:3.13-slim-trixie
+
+WORKDIR /app
+
+COPY --from=builder /usr/local /usr/local
+COPY --from=builder /app /app
+
+ARG PORT=8001
+ENV PORT=${PORT}
+EXPOSE ${PORT}
+
+RUN chmod +x entrypoint.sh
+
+CMD ["bash", "./entrypoint.sh"]

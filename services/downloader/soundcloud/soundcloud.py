@@ -89,6 +89,12 @@ class SoundcloudDownloader:
         if not getattr(self, 'enabled', True):
             logging.warning('SoundCloud soundcloud is not configured; skipping run().')
             return
+        
+        # Defensive: initial wait up to 1 minute
+        init_wait = random.randint(5, 60)
+        logging.info(f'Defensive start: waiting {init_wait}s before first download...')
+        time.sleep(init_wait)
+
         if not account:
             accounts = get_accounts_from_db()
             if not accounts:
@@ -150,34 +156,25 @@ class SoundcloudDownloader:
             os.makedirs(self.archive_dir, exist_ok=True)
             self.archive_file = None
         self.enabled = True
-        self.ydl_opts = {'http_headers': {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}, 'outtmpl': f'{self.output_folder}/%(uploader)s/%(title)s.%(ext)s', 'compat_opts': ['filename'], 'nooverwrites': False, 'no_part': True, 'format': 'bestaudio[ext=mp3]', 'match_filter': self._match_filter, 'quiet': False, 'set_file_timestamp': True, 'cookies': self.cookies_file, 'ffmpeg_location': self.ffmpeg_location}
-        if self.default_break_on_existing:
-            self.ydl_opts['break_on_existing'] = True
-            if i + self.burst_size < total_accounts:
-                pause = random.randint(self.min_pause, self.max_pause)
-                logging.info(f'Throttling pause: sleeping {pause} seconds...')
-                time.sleep(pause)
-
-    def _apply_config(self) -> None:
-        values = self._config.get_many(['soundcloud_folder', 'soundcloud_archive', 'soundcloud_cookies', 'ffmpeg_location'])
-        self.output_folder = values.get('soundcloud_folder') or None
-        self.archive_dir = values.get('soundcloud_archive') or None
-        self.cookies_file = values.get('soundcloud_cookies') or 'soundcloud.com_cookies.txt'
-        self.ffmpeg_location = values.get('ffmpeg_location') or 'usr/bin/local'
-        if not self.output_folder or not self.archive_dir:
-            if getattr(self, 'enabled', True):
-                logging.warning('Missing required configuration for SoundCloud downloads. SoundCloud downloads will be disabled.')
-            self.enabled = False
-            self.ydl_opts = {}
-            self.archive_file = None
-            return
-        os.makedirs(self.output_folder, exist_ok=True)
-        if os.path.isfile(self.archive_dir):
-            self.archive_file = self.archive_dir
-        else:
-            os.makedirs(self.archive_dir, exist_ok=True)
-            self.archive_file = None
-        self.enabled = True
-        self.ydl_opts = {'http_headers': {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}, 'outtmpl': f'{self.output_folder}/%(uploader)s/%(title)s.%(ext)s', 'compat_opts': ['filename'], 'nooverwrites': False, 'no_part': True, 'format': 'bestaudio[ext=mp3]', 'match_filter': self._match_filter, 'quiet': False, 'set_file_timestamp': True, 'cookies': self.cookies_file, 'ffmpeg_location': self.ffmpeg_location}
+        self.ydl_opts = {
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            },
+            'outtmpl': f'{self.output_folder}/%(uploader)s/%(title)s.%(ext)s',
+            'compat_opts': ['filename'],
+            'nooverwrites': False,
+            'no_part': True,
+            'format': 'bestaudio[ext=mp3]',
+            'match_filter': self._match_filter,
+            'quiet': False,
+            'set_file_timestamp': True,
+            'cookies': self.cookies_file,
+            'ffmpeg_location': self.ffmpeg_location,
+            'sleep_interval': 10,
+            'max_sleep_interval': 60,
+            'sleep_requests': 1,
+            'ratelimit': 1024 * 1024,  # Limit to 1MB/s
+            'playlist_random': True,
+        }
         if self.default_break_on_existing:
             self.ydl_opts['break_on_existing'] = True

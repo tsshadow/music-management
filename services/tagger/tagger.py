@@ -105,6 +105,10 @@ class Tagger:
         @param song_type: Enum to define tag strategy
         @param extra_info:
         """
+        if folder.is_file():
+            self._try_parse(folder, song_type, extra_info)
+            return
+
         if '@eaDir' in str(folder):
             return
         extensions = {'mp3': parse_mp3, 'flac': parse_flac, 'wav': parse_wav, 'm4a': parse_m4a, 'aac': parse_aac}
@@ -115,7 +119,7 @@ class Tagger:
                     files.extend(folder.glob(f'*.{ext}'))
             if self.parallel and files:
                 with ThreadPoolExecutor(max_workers=16) as executor:
-                    futures = [executor.submit(Tagger._parse_worker, str(file), song_type.name) for file in files]
+                    futures = [executor.submit(Tagger._parse_worker, str(file), song_type.name, None, extra_info) for file in files]
                     for future in as_completed(futures):
                         path, status = future.result()
                         if status != 'OK':
@@ -124,7 +128,7 @@ class Tagger:
                 for file in files:
                     self._try_parse(file, song_type, extra_info)
             for subfolder in [f for f in folder.iterdir() if f.is_dir() and (not f.name.startswith('_'))]:
-                self.parse_folder(subfolder, song_type)
+                self.parse_folder(subfolder, song_type, extra_info)
         except Exception as e:
             logging.error(f'Error parsing folder {folder}: {e}', exc_info=True)
 
@@ -153,9 +157,9 @@ class Tagger:
         if song_type == SongTypeEnum.LABEL:
             song = LabelSong(str(path))
         elif song_type == SongTypeEnum.YOUTUBE:
-            song = YoutubeSong(str(path),extra_info)
+            song = YoutubeSong(str(path), extra_info)
         elif song_type == SongTypeEnum.SOUNDCLOUD:
-            song = SoundcloudSong(str(path,),extra_info)
+            song = SoundcloudSong(str(path), extra_info)
         elif song_type == SongTypeEnum.TELEGRAM:
             song = TelegramSong(str(path))
         elif song_type == SongTypeEnum.GENERIC:
@@ -168,10 +172,10 @@ class Tagger:
                 song.save_file()
 
     @staticmethod
-    def _parse_worker(file: str, song_type_str: str, manual_tags: dict[str, str] | None=None):
+    def _parse_worker(file: str, song_type_str: str, manual_tags: dict[str, str] | None=None, extra_info=None):
         try:
             song_type = SongTypeEnum[song_type_str]
-            Tagger.parse_song(Path(file), song_type, manual_tags)
+            Tagger.parse_song(Path(file), song_type, manual_tags, extra_info)
             return (file, 'OK')
         except Exception as e:
             return (file, f'{type(e).__name__}: {e}')

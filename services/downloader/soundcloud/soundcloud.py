@@ -71,14 +71,20 @@ class SoundcloudDownloader:
                 return
             except Exception as e:
                 msg = str(e)
-                if '403' in msg:
-                    wait_time = random.randint(60, 300)
+                if '429' in msg:
+                    wait_time = random.randint(3600, 7200)
+                    logging.warning(f'HTTP Error 429: Too Many Requests for {name}. Extremely long pause for {wait_time}s...')
+                    time.sleep(wait_time)
+                elif '403' in msg:
+                    wait_time = random.randint(60, 600)
                     logging.warning(f'403 Forbidden for {name}. Pausing {wait_time}s before retry...')
                     time.sleep(wait_time)
                 elif '404' in msg:
                     logging.info(f'Got 404 for {name} — skip song.')
                 elif 'already in the archive' in msg:
+                    wait_time = random.randint(10, 30)
                     logging.info(f'All tracks for {name} already in archive — skipping.')
+                    time.sleep(wait_time)
                     return
                 else:
                     logging.warning(f'Attempt {attempt} failed for {name}: {e}', exc_info=True)
@@ -110,9 +116,14 @@ class SoundcloudDownloader:
             batch = accounts[i:i + self.burst_size]
             batch_num = i // self.burst_size + 1
             logging.info(f'Processing batch {batch_num} of {total_batches}')
-            with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
+            # Reduced max_workers to avoid hitting rate limits too fast
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
                 futures = {}
                 for acc in batch:
+                    # Add a small delay between starting account downloads to spread requests
+                    if futures:
+                        time.sleep(random.randint(2, 10))
+                    
                     ydl_opts = self.ydl_opts.copy()
                     effective_break = self.default_break_on_existing if breakOnExisting is None else breakOnExisting
                     if effective_break:

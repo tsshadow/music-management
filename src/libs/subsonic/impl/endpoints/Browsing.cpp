@@ -472,38 +472,49 @@ namespace lms::api::subsonic
         artistsNode.setAttribute("lastModified", reportedDummyDateULong); // TODO: proper lastModified?
 
         Artist::FindParameters parameters;
+        {
+            auto transaction{ context.getDbSession().createReadTransaction() };
+
+            parameters.setSortMethod(ArtistSortMethod::SortName);
+            switch (context.getUser()->getSubsonicArtistListMode())
+            {
+            case SubsonicArtistListMode::AllArtists:
+                break;
+            case SubsonicArtistListMode::ReleaseArtists:
+                parameters.setLinkType(TrackArtistLinkType::ReleaseArtist);
+                break;
+            case SubsonicArtistListMode::TrackArtists:
+                parameters.setLinkType(TrackArtistLinkType::Artist);
+                break;
+            }
+        }
         parameters.filters.setMediaLibrary(mediaLibrary);
-        parameters.setSortMethod(ArtistSortMethod::SortName);
         parameters.setRange(Range{ offset, count });
 
-        switch (context.getUser()->getSubsonicArtistListMode())
-        {
-        case SubsonicArtistListMode::AllArtists:
-            break;
-        case SubsonicArtistListMode::ReleaseArtists:
-            parameters.setLinkType(TrackArtistLinkType::ReleaseArtist);
-            break;
-        case SubsonicArtistListMode::TrackArtists:
-            parameters.setLinkType(TrackArtistLinkType::Artist);
-            break;
-        }
+        // This endpoint does not scale: make short lived transactions in order not to block the whole application
 
-        auto transaction = context.getDbSession().createReadTransaction();
-        const auto artists = Artist::find(context.getDbSession(), parameters);
-
-        // Sort by index
+        // first pass: dispatch the artists by first letter
+        LMS_LOG(API_SUBSONIC, DEBUG, "GetArtists: fetching all artists...");
         std::map<char, std::vector<ArtistId>> artistsSortedByFirstChar;
-        for (const Artist::pointer& artist : artists.results)
+        std::size_t currentArtistOffset{ 0 };
+        constexpr std::size_t batchSize{ 100 };
+        bool hasMoreArtists{ true };
+        while (hasMoreArtists)
         {
-            std::string_view sortName{ artist->getSortName() };
+            auto transaction{ context.getDbSession().createReadTransaction() };
 
-            char sortChar;
-            if (sortName.empty() || !std::isalpha(sortName[0]))
-                sortChar = '#';
-            else
-                sortChar = std::toupper(sortName[0]);
+            parameters.setRange(Range{ currentArtistOffset, batchSize });
+            const auto artists{ Artist::find(context.getDbSession(), parameters) };
+            for (const Artist::pointer& artist : artists.results)
+            {
+                std::string_view sortName{ artist->getSortName() };
 
-            artistsSortedByFirstChar[sortChar].push_back(artist->getId());
+                const char sortChar{ (sortName.empty() || !std::isalpha(sortName[0])) ? '#' : static_cast<char>(std::toupper(sortName[0])) };
+                artistsSortedByFirstChar[sortChar].push_back(artist->getId());
+            }
+
+            hasMoreArtists = artists.moreResults;
+            currentArtistOffset += artists.results.size();
         }
 
         // Group by index
@@ -538,9 +549,18 @@ namespace lms::api::subsonic
         Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
         Response::Node artistNode{ createArtistNode(context, artist) };
 
-        const auto releases{ Release::find(context.getDbSession(), Release::FindParameters{}.setArtist(artist->getId())) };
-        for (const Release::pointer& release : releases.results)
+        auto addRelease{ [&](const Release::pointer& release) {
             artistNode.addArrayChild("album", createAlbumNode(context, release, true /* id3 */));
+        } };
+
+        Release::find(context.getDbSession(), Release::FindParameters{}.setArtist(artist->getId()), [&](const db::Release::pointer& release) {
+            addRelease(release);
+        });
+
+        Release::find(context.getDbSession(), Release::FindParameters{}.setTrackArtist(artist->getId()), [&](const db::Release::pointer& release) {
+            if (!release->hasArtist(id))
+                addRelease(release);
+        });
 
         const auto nonReleaseTracks{ Track::find(
             context.getDbSession(),

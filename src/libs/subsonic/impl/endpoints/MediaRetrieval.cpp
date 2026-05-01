@@ -26,6 +26,7 @@
 #include "core/ILogger.hpp"
 #include "core/IResourceHandler.hpp"
 #include "core/String.hpp"
+#include "core/media/Codec.hpp"
 #include "core/media/MimeType.hpp"
 
 #include "database/Session.hpp"
@@ -52,14 +53,15 @@ namespace lms::api::subsonic
     {
         struct OutputFormat
         {
-            std::string name;
+            std::string_view name;
             core::media::Container container;
             core::media::Codec codec;
         };
         constexpr std::array outputFormats{
-            OutputFormat{ "mp3", core::media::Container::MPEG, core::media::Codec::MP3 },
-            OutputFormat{ "opus", core::media::Container::Ogg, core::media::Codec::Opus },
-            OutputFormat{ "vorbis", core::media::Container::Ogg, core::media::Codec::Vorbis },
+            OutputFormat{ .name = "mp3", .container = core::media::Container::MPEG, .codec = core::media::Codec::MP3 },
+            OutputFormat{ .name = "opus", .container = core::media::Container::Ogg, .codec = core::media::Codec::Opus },
+            OutputFormat{ .name = "vorbis", .container = core::media::Container::Ogg, .codec = core::media::Codec::Vorbis },
+            OutputFormat{ .name = "flac", .container = core::media::Container::FLAC, .codec = core::media::Codec::FLAC },
         };
 
         std::optional<OutputFormat> getOutputFormatByName(std::string_view format)
@@ -80,7 +82,7 @@ namespace lms::api::subsonic
             return res;
         }
 
-        std::optional<OutputFormat> userTranscodeFormatToOutputFormat(db::TranscodingOutputFormat format)
+        OutputFormat userTranscodeFormatToOutputFormat(db::TranscodingOutputFormat format)
         {
             std::optional<OutputFormat> res;
 
@@ -97,7 +99,11 @@ namespace lms::api::subsonic
                 break;
             }
 
-            return res;
+            if (!res)
+                throw InternalErrorGenericError{ "User's default transcoding format is invalid" };
+
+            LMS_LOG(API_SUBSONIC, DEBUG, "Using user's default transcoding format: " << res->name);
+            return *res;
         }
 
         struct StreamParameters
@@ -119,44 +125,67 @@ namespace lms::api::subsonic
             const AudioFileId audioId{ trackId ? AudioFileId{ *trackId } : AudioFileId{ *podcastEpisodeId } };
 
             // Optional params
-            std::size_t maxBitRate{ getParameterAs<std::size_t>(context.getParameters(), "maxBitRate").value_or(0) * 1000 }; // "If set to zero, no limit is imposed", given in kpbs
+            const std::size_t maxBitRate{ getParameterAs<std::size_t>(context.getParameters(), "maxBitRate").value_or(0) * 1000 }; // "If set to zero, no limit is imposed", given in kpbs
             const std::string format{ getParameterAs<std::string>(context.getParameters(), "format").value_or("") };
-            std::size_t timeOffset{ getParameterAs<std::size_t>(context.getParameters(), "timeOffset").value_or(0) };
-            bool estimateContentLength{ getParameterAs<bool>(context.getParameters(), "estimateContentLength").value_or(false) };
+            const std::size_t timeOffset{ getParameterAs<std::size_t>(context.getParameters(), "timeOffset").value_or(0) };
+            const bool estimateContentLength{ getParameterAs<bool>(context.getParameters(), "estimateContentLength").value_or(false) };
 
             const AudioFileInfo audioFileInfo{ getAudioFileInfo(context.getDbSession(), audioId) };
 
             StreamParameters parameters;
+            parameters.audioProperties = audioFileInfo.audioProperties;
             parameters.filePath = audioFileInfo.path;
             parameters.estimateContentLength = estimateContentLength;
 
             if (format == "raw")   // raw => no transcoding
                 return parameters; // TODO: what if offset is not 0?
 
-            std::optional<OutputFormat> requestedFormat{ getOutputFormatByName(format) };
+            std::optional<OutputFormat> requestedFormat;
+
+            if (!format.empty())
+            {
+                requestedFormat = getOutputFormatByName(format);
+                if (!requestedFormat)
+                    LMS_LOG(API_SUBSONIC, ERROR, "Format '" << format << "' is not recognized: ignoring");
+            }
+
             if (!requestedFormat)
             {
                 if (context.getUser()->getSubsonicEnableTranscodingByDefault())
                     requestedFormat = userTranscodeFormatToOutputFormat(context.getUser()->getSubsonicDefaultTranscodingOutputFormat());
             }
 
+            // Extra checks when requesting a lossless format
+            if (requestedFormat && core::media::getCodecDesc(requestedFormat->codec).isLossless)
+            {
+                if (!core::media::getCodecDesc(audioFileInfo.audioProperties.codec).isLossless && maxBitRate > 0)
+                    throw BadParameterGenericError{ "maxBitRate", "Cannot limit bitrate when requesting a lossless format from a lossy source" };
+
+                if (core::media::getCodecDesc(audioFileInfo.audioProperties.codec).isLossless && maxBitRate > 0 && audioFileInfo.audioProperties.bitrate > maxBitRate)
+                    throw BadParameterGenericError{ "maxBitRate", "Cannot honor maxBitRate, source is lossless with higher bitrate (" + std::to_string(audioFileInfo.audioProperties.bitrate) + " bps)" };
+
+                // we accept to transcode from a lossy format to a lossless one
+            }
+
             if (!requestedFormat && (maxBitRate == 0 || audioFileInfo.audioProperties.bitrate <= maxBitRate))
             {
-                LMS_LOG(API_SUBSONIC, DEBUG, "File's bitrate is compatible with parameters => no transcoding");
+                LMS_LOG(API_SUBSONIC, DEBUG, "File's bitrate (" << audioFileInfo.audioProperties.bitrate << " bps) is compatible with parameters => no transcoding");
                 return parameters; // no transcoding needed
             }
 
-            // Check if the input file is compatible with the actual requested format
-            //  same codec => apply max bitrate
-            //  otherwise => apply default bitrate (because we can't really compare bitrates between formats) + max bitrate)
-            std::size_t bitrate{};
+            // Check if the input file is compatible with the requested format
+            std::optional<std::size_t> bitrate;
             if (requestedFormat && requestedFormat->container == audioFileInfo.audioProperties.container && requestedFormat->codec == audioFileInfo.audioProperties.codec)
             {
+                //  same codec => check if compatible with max bitrate
                 if (maxBitRate == 0 || audioFileInfo.audioProperties.bitrate <= maxBitRate)
                 {
-                    LMS_LOG(API_SUBSONIC, DEBUG, "File's bitrate and format are compatible with parameters => no transcoding");
+                    LMS_LOG(API_SUBSONIC, DEBUG, "File's bitrate (" << audioFileInfo.audioProperties.bitrate << " bps) and format are compatible with parameters => no transcoding");
                     return parameters; // no transcoding needed
                 }
+
+                // otherwise => apply requested bitrate
+                assert(maxBitRate > 0);
                 bitrate = maxBitRate;
             }
 
@@ -165,10 +194,26 @@ namespace lms::api::subsonic
 
             if (!requestedFormat) // no format provided => use user's default
                 requestedFormat = userTranscodeFormatToOutputFormat(context.getUser()->getSubsonicDefaultTranscodingOutputFormat());
-            if (!bitrate) // no bitrate provided => use user's default
-                bitrate = context.getUser()->getSubsonicDefaultTranscodingOutputBitrate();
-            if (maxBitRate) // but still honor provided maxBitRate, if any
-                bitrate = std::min<std::size_t>(bitrate, maxBitRate);
+
+            assert(requestedFormat);
+            if (!core::media::getCodecDesc(requestedFormat->codec).isLossless)
+            {
+                // Try to keep a bitrate as close as possible to the source one
+                // If the source is lossless, we need to pick a default bitrate
+                if (core::media::getCodecDesc(audioFileInfo.audioProperties.codec).isLossless)
+                {
+                    bitrate = context.getUser()->getSubsonicDefaultTranscodingOutputBitrate();
+                    LMS_LOG(API_SUBSONIC, DEBUG, "Source is lossless, selecting user's default transcoding bitrate (" << *bitrate << " bps) for transcoding");
+                }
+                else
+                {
+                    bitrate = audioFileInfo.audioProperties.bitrate;
+                    LMS_LOG(API_SUBSONIC, DEBUG, "Source is lossy, selecting source bitrate (" << *bitrate << " bps) for transcoding");
+                }
+
+                if (maxBitRate > 0) // Honor provided maxBitRate, if any
+                    bitrate = std::min<std::size_t>(*bitrate, maxBitRate);
+            }
 
             transcodeParameters.inputParameters.filePath = audioFileInfo.path;
             transcodeParameters.inputParameters.audioProperties = audioFileInfo.audioProperties;
@@ -180,6 +225,8 @@ namespace lms::api::subsonic
             transcodeParameters.outputParameters.format->codec = requestedFormat->codec;
 
             transcodeParameters.outputParameters.stripMetadata = false; // We want clients to use metadata (offline use, replay gain, etc.)
+
+            LMS_LOG(API_SUBSONIC, DEBUG, "Transcoding to format '" << requestedFormat->name << "'" << (bitrate ? (" with bitrate " + std::to_string(*bitrate) + " bps") : ""));
 
             return parameters;
         }

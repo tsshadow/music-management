@@ -212,12 +212,14 @@ namespace lms::audio::taglib
             }
             else if (const auto* aiffFile{ dynamic_cast<const ::TagLib::RIFF::AIFF::File*>(&file) })
             {
+                // We don't check for potential Aiff-C format here, we considerer it PCM for now
                 audioProperties.container = core::media::Container::AIFF;
                 audioProperties.codec = core::media::Codec::PCM;
                 audioProperties.bitsPerSample = aiffFile->audioProperties()->bitsPerSample();
             }
             else if (const auto* wavFile{ dynamic_cast<const ::TagLib::RIFF::WAV::File*>(&file) })
             {
+                // We don't check for format here, we considerer it PCM for now
                 audioProperties.container = core::media::Container::WAV;
                 audioProperties.codec = core::media::Codec::PCM;
                 audioProperties.bitsPerSample = wavFile->audioProperties()->bitsPerSample();
@@ -257,14 +259,14 @@ namespace lms::audio::taglib
 
     AudioFileInfo::AudioFileInfo(const std::filesystem::path& filePath, const AudioFileInfoParseOptions& parseOptions)
         : _filePath{ filePath }
-        , _file{ utils::parseFile(filePath, parseOptions.audioPropertiesReadStyle) }
-        , _audioProperties{ computeAudioProperties(*_file, filePath) }
+        , _fileDesc{ utils::parseFile(filePath, parseOptions.audioPropertiesReadStyle) }
+        , _audioProperties{ computeAudioProperties(*_fileDesc.file, filePath) }
     {
         if (parseOptions.readTags)
-            _tagReader = std::make_unique<TagReader>(*_file, parseOptions.enableExtraDebugLogs);
+            _tagReader = std::make_unique<TagReader>(*_fileDesc.file, parseOptions.enableExtraDebugLogs);
 
         if (parseOptions.readImages)
-            _imageReader = std::make_unique<ImageReader>(*_file);
+            _imageReader = std::make_unique<ImageReader>(*_fileDesc.file);
     }
 
     AudioFileInfo::~AudioFileInfo() = default;

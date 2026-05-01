@@ -42,7 +42,7 @@ namespace lms::api::subsonic
         userNode.setAttribute("commentRole", false);           // Whether the user is allowed to create and edit comments and ratings
         userNode.setAttribute("podcastRole", user->isAdmin()); // Whether the user is allowed to administrate Podcasts
         userNode.setAttribute("streamRole", true);             // Whether the user is allowed to play files
-        userNode.setAttribute("jukeboxRole", false);           // not supported
+        userNode.setAttribute("jukeboxRole", user->isAdmin()); // Whether the user is allowed to control the jukebox
         userNode.setAttribute("shareRole", false);             // not supported
 
         // users can access all libraries

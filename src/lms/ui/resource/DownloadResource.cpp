@@ -32,7 +32,7 @@
 
 #include "LmsApplication.hpp"
 
-#define DL_RESOURCE_LOG(severity, message) LMS_LOG(UI, severity, "Download resource: " << message)
+#define LMS_DL_RESOURCE_LOG(severity, message) LMS_LOG(UI, severity, "Download resource: " << message)
 
 namespace lms::ui
 {
@@ -72,7 +72,7 @@ namespace lms::ui
         }
         catch (zip::Exception& exception)
         {
-            DL_RESOURCE_LOG(ERROR, "Zipper exception: " << exception.what());
+            LMS_DL_RESOURCE_LOG(ERROR, "Zipper exception: " << exception.what());
         }
     }
 
@@ -89,9 +89,9 @@ namespace lms::ui
 
             std::vector<db::ObjectPtr<db::Artist>> artists;
 
-            artists = release->getReleaseArtists();
+            artists = release->getArtists();
             if (artists.empty())
-                artists = release->getArtists();
+                artists = release->getTrackArtists();
 
             if (artists.size() > 1)
                 releaseArtistName = Wt::WString::tr("Lms.Explore.various-artists").toUTF8();
@@ -220,7 +220,7 @@ namespace lms::ui
         const db::Track::pointer track{ db::Track::find(LmsApp->getDbSession(), _trackId) };
         if (!track)
         {
-            DL_RESOURCE_LOG(DEBUG, "Cannot find track");
+            LMS_DL_RESOURCE_LOG(DEBUG, "Cannot find track");
             return {};
         }
 
@@ -247,3 +247,5 @@ namespace lms::ui
         return detail::createZipper(tracks.results);
     }
 } // namespace lms::ui
+
+#undef LMS_DL_RESOURCE_LOG

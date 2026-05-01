@@ -39,6 +39,8 @@ namespace lms::core::logging
             return "API_SUBSONIC";
         case Module::AUDIO:
             return "AUDIO";
+        case Module::AUDIO_OUTPUT_STREAM:
+            return "AUDIO_OS";
         case Module::AUTH:
             return "AUTH";
         case Module::CHILDPROCESS:
@@ -55,6 +57,8 @@ namespace lms::core::logging
             return "FEEDBACK";
         case Module::HTTP:
             return "HTTP";
+        case Module::JUKEBOX:
+            return "JUKEBOX";
         case Module::MAIN:
             return "MAIN";
         case Module::METADATA:

@@ -46,17 +46,6 @@ namespace lms::ui
 
 namespace lms::ui::TrackListHelpers
 {
-    inline constexpr core::EnumSet<db::TrackArtistLinkType> AllArtistRoles{
-        db::TrackArtistLinkType::Composer,
-        db::TrackArtistLinkType::Conductor,
-        db::TrackArtistLinkType::Lyricist,
-        db::TrackArtistLinkType::Mixer,
-        db::TrackArtistLinkType::Remixer,
-        db::TrackArtistLinkType::Performer,
-        db::TrackArtistLinkType::Producer,
-    };
-
-    std::map<Wt::WString, std::set<db::ArtistId>> getArtistsByRole(db::TrackId trackId, core::EnumSet<db::TrackArtistLinkType> artistLinkTypes = AllArtistRoles);
     void showTrackInfoModal(db::TrackId trackId, Filters& filters);
     void showTrackLyricsModal(db::TrackId trackId);
     std::unique_ptr<Wt::WWidget> createEntry(const db::ObjectPtr<db::Track>& track, PlayQueueController& playQueueController, Filters& filters);

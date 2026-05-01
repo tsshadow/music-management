@@ -124,11 +124,17 @@ namespace lms::db
 
         struct ArtistStatsFindParameters : public StatsFindParameters
         {
-            std::optional<TrackArtistLinkType> linkType; // if set, only artists that have produced at least one track with this link type
+            std::optional<TrackArtistLinkType> trackArtistLinkType; // if set, only artists that have produced at least one track with this link type
+            bool releaseArtistsOnly{};
 
-            ArtistStatsFindParameters& setLinkType(std::optional<TrackArtistLinkType> _linkType)
+            ArtistStatsFindParameters& setReleaseArtistsOnly(bool _releaseArtistsOnly)
             {
-                linkType = _linkType;
+                releaseArtistsOnly = _releaseArtistsOnly;
+                return *this;
+            }
+            ArtistStatsFindParameters& setTrackArtistLinkType(std::optional<TrackArtistLinkType> _trackArtistLinkType)
+            {
+                trackArtistLinkType = _trackArtistLinkType;
                 return *this;
             }
         };

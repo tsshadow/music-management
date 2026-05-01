@@ -18,6 +18,7 @@
  */
 
 #include "database/objects/Listen.hpp"
+#include "database/objects/ReleaseArtistLink.hpp"
 
 #include "Common.hpp"
 
@@ -170,7 +171,7 @@ namespace lms::db::tests
         {
             auto transaction{ session.createWriteTransaction() };
 
-            TrackArtistLink::create(session, track2.get(), artist1.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track2.get(), artist1.get(), TrackArtistLinkType::Artist);
         }
 
         {
@@ -200,7 +201,7 @@ namespace lms::db::tests
             Listen::ArtistStatsFindParameters params;
             params.setUser(user->getId());
             params.setScrobblingBackend(ScrobblingBackend::ListenBrainz);
-            params.setLinkType(TrackArtistLinkType::Producer);
+            params.setTrackArtistLinkType(TrackArtistLinkType::Producer);
 
             auto artists{ Listen::getTopArtists(session, params) };
             EXPECT_EQ(artists.results.size(), 0);
@@ -235,8 +236,8 @@ namespace lms::db::tests
 
         {
             auto transaction{ session.createWriteTransaction() };
-            TrackArtistLink::create(session, track1.get(), artist1.get(), TrackArtistLinkType::Artist);
-            TrackArtistLink::create(session, track2.get(), artist2.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track1.get(), artist1.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track2.get(), artist2.get(), TrackArtistLinkType::Artist);
         }
 
         {
@@ -304,7 +305,7 @@ namespace lms::db::tests
 
         {
             auto transaction{ session.createWriteTransaction() };
-            TrackArtistLink::create(session, track.get(), artist.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Artist);
         }
 
         {
@@ -362,7 +363,7 @@ namespace lms::db::tests
         {
             auto transaction{ session.createWriteTransaction() };
 
-            TrackArtistLink::create(session, track.get(), artist.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Artist);
             track.get().modify()->setMediaLibrary(library.get());
         }
 
@@ -695,7 +696,7 @@ namespace lms::db::tests
 
         {
             auto transaction{ session.createWriteTransaction() };
-            TrackArtistLink::create(session, track.get(), artist.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Artist);
         }
 
         {
@@ -859,7 +860,50 @@ namespace lms::db::tests
         }
     }
 
-    TEST_F(DatabaseFixture, Listen_getRecentArtists)
+    TEST_F(DatabaseFixture, Listen_getRecentReleaseArtists)
+    {
+        ScopedTrack track{ session };
+        ScopedUser user{ session, "MyUser" };
+        ScopedArtist artist{ session, "MyArtist" };
+        ScopedRelease release{ session, "MyRelease" };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Artist);
+            session.create<ReleaseArtistLink>(release.get(), artist.get(), false);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Listen::ArtistStatsFindParameters params;
+            params.setUser(user->getId());
+            params.setScrobblingBackend(ScrobblingBackend::Internal);
+            params.setReleaseArtistsOnly(true);
+
+            auto artists{ Listen::getRecentArtists(session, params) };
+            EXPECT_EQ(artists.results.size(), 0);
+            EXPECT_EQ(artists.moreResults, false);
+        }
+
+        const Wt::WDateTime dateTime{ Wt::WDate{ 2000, 1, 2 }, Wt::WTime{ 12, 0, 1 } };
+        ScopedListen listen1{ session, user.lockAndGet(), track.lockAndGet(), ScrobblingBackend::Internal, dateTime };
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Listen::ArtistStatsFindParameters params;
+            params.setUser(user->getId());
+            params.setScrobblingBackend(ScrobblingBackend::Internal);
+            params.setReleaseArtistsOnly(true);
+
+            auto artists{ Listen::getRecentArtists(session, params) };
+            ASSERT_EQ(artists.results.size(), 1);
+            EXPECT_EQ(artists.results[0], artist->getId());
+        }
+    }
+
+    TEST_F(DatabaseFixture, Listen_getRecentTrackArtists)
     {
         ScopedTrack track{ session };
         ScopedUser user{ session, "MyUser" };
@@ -867,7 +911,7 @@ namespace lms::db::tests
 
         {
             auto transaction{ session.createWriteTransaction() };
-            TrackArtistLink::create(session, track.get(), artist.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Artist);
         }
 
         {
@@ -896,6 +940,20 @@ namespace lms::db::tests
             ASSERT_EQ(artists.results.size(), 1);
             EXPECT_EQ(artists.results[0], artist->getId());
         }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Listen::ArtistStatsFindParameters params;
+            params.setUser(user->getId());
+            params.setScrobblingBackend(ScrobblingBackend::Internal);
+            params.setReleaseArtistsOnly(true);
+
+            auto artists{ Listen::getRecentArtists(session, params) };
+            EXPECT_EQ(artists.results.size(), 0);
+            EXPECT_EQ(artists.moreResults, false);
+        }
+
         {
             auto transaction{ session.createReadTransaction() };
 
@@ -912,7 +970,7 @@ namespace lms::db::tests
             Listen::ArtistStatsFindParameters params;
             params.setUser(user->getId());
             params.setScrobblingBackend(ScrobblingBackend::Internal);
-            params.setLinkType(TrackArtistLinkType::Producer);
+            params.setTrackArtistLinkType(TrackArtistLinkType::Producer);
 
             auto artists{ Listen::getRecentArtists(session, params) };
             EXPECT_EQ(artists.results.size(), 0);
@@ -935,7 +993,7 @@ namespace lms::db::tests
         }
     }
 
-    TEST_F(DatabaseFixture, Listen_getRecentArtists_multi)
+    TEST_F(DatabaseFixture, Listen_getRecentTrackArtists_multi)
     {
         ScopedUser user{ session, "MyUser" };
         ScopedTrack track1{ session };
@@ -946,8 +1004,8 @@ namespace lms::db::tests
 
         {
             auto transaction{ session.createWriteTransaction() };
-            TrackArtistLink::create(session, track1.get(), artist1.get(), TrackArtistLinkType::Artist);
-            TrackArtistLink::create(session, track2.get(), artist2.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track1.get(), artist1.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track2.get(), artist2.get(), TrackArtistLinkType::Artist);
         }
 
         {
@@ -1014,7 +1072,7 @@ namespace lms::db::tests
 
         {
             auto transaction{ session.createWriteTransaction() };
-            TrackArtistLink::create(session, track.get(), artist.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Artist);
         }
 
         {
@@ -1056,7 +1114,7 @@ namespace lms::db::tests
 
         {
             auto transaction{ session.createWriteTransaction() };
-            TrackArtistLink::create(session, track.get(), artist.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Artist);
             track.get().modify()->setMediaLibrary(library.get());
         }
 

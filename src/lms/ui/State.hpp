@@ -35,7 +35,7 @@ namespace lms::ui::state
     } // namespace detail
 
     template<typename T>
-    void writeValue(std::string_view item, std::optional<T> value)
+    void writeValue(std::string_view item, const std::optional<T>& value)
     {
         if (value.has_value())
         {

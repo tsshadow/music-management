@@ -37,12 +37,15 @@ __Notes__:
 * a C++20 compiler is needed
 * ffmpeg version 4 minimum is required
 ```sh
-apt-get install build-essential cmake libboost-program-options-dev libboost-system-dev libavutil-dev libavformat-dev libstb-dev libconfig++-dev ffmpeg libtag-dev libpam0g-dev libpugixml-dev libgtest-dev libarchive-dev libxxhash-dev libssl-dev
+apt-get install build-essential cmake libboost-program-options-dev libboost-system-dev libavutil-dev libavformat-dev libswresample-dev ffmpeg libconfig++-dev libstb-dev libtag-dev libpugixml-dev libgtest-dev libarchive-dev libxxhash-dev libssl-dev
 ```
+__Optional dependencies__:
+* `libpam0g-dev`: used to handle PAM authentication
+* `libpulse-dev`: used to output audio via PulseAudio in jukebox mode
+
 __Notes__:
-* libpam0g-dev is optional (only for using PAM authentication)
-* libstb-dev can be replaced by libgraphicsmagick++1-dev (the latter will likely use more RAM)
-You also need _Wt4_, which is not packaged on _Debian_. See [installation instructions](https://www.webtoolkit.eu/wt/doc/reference/html/InstallationUnix.html).</br>
+* `libstb-dev` can be replaced by `libgraphicsmagick++1-dev` (the latter will likely use more RAM)
+You also need _Wt4_, which is not packaged on _Debian_. See [installation instructions](https://www.webtoolkit.eu/wt/doc/reference/html/InstallationUnix.html).
 ### Build
 Get the latest stable release and build it:
 ```sh
@@ -96,9 +99,9 @@ systemctl restart lms
 # Deployment
 __Note__: don't forget to give the _lms_ user read access to the music directory you want to scan.
 ## Configuration
-_LMS_ uses a configuration file, installed by default in `/etc/lms.conf`. It is recommended to edit this file and change relevant settings (listen address, listen port, working directory, Subsonic API activation, deployment path, ...).
-All other settings are set using the web interface (user management, scan settings, transcode settings, ...).
-If a setting is not present in the configuration file, a hardcoded default value is used (the same as in the [default configuration file](conf/lms.conf))
+_LMS_ uses a configuration file installed by default at `/etc/lms.conf`. It is recommended to edit this file and adjust relevant settings such as the working directory, Wt resources path, listen address, listen port, etc.
+All other settings are configured through the web interface (user management, scan settings, transcode settings, etc.).
+If a setting is not present in the configuration file, a hardcoded default value is used (the same as in the [default configuration file](conf/lms.conf)).
 ## Authentication backends
 You can define which authentication backend to be used thanks to the `authentication-backend` option:
 * `internal` (default): _LMS_ uses an internal database to store users and their associated passwords (salted and hashed using [Bcrypt](https://en.wikipedia.org/wiki/Bcrypt)). Only the admin user can create, edit or remove other users.
@@ -164,7 +167,7 @@ __Note__: to mitigate brute force login attempts, _LMS_ uses an internal login t
 ```sh
 systemctl start lms
 ```
-Log traces can be accessed using journactl:
+Log traces can be accessed using journalctl:
 ```sh
 journalctl -u lms.service
 ```

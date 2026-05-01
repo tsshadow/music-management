@@ -34,80 +34,53 @@
 
 namespace lms::ui::releaseListHelpers
 {
-    namespace
+    std::unique_ptr<Wt::WTemplate> createEntry(const db::Release::pointer& release, core::EnumSet<DisplayOptions> options)
     {
-        enum class ReleaseOptions
+        auto entry{ std::make_unique<Wt::WTemplate>(Wt::WString::tr("Lms.Explore.Releases.template.entry-grid")) };
+
+        entry->bindWidget("release-name", utils::createReleaseAnchor(release));
+        entry->addFunction("tr", &Wt::WTemplate::Functions::tr);
+
         {
-            ShowArtist,
-            ShowYearAndOriginalYear,
-            ShowYear,
-        };
+            Wt::WAnchor* anchor{ entry->bindWidget("cover", utils::createReleaseAnchor(release, false)) };
 
-        std::unique_ptr<Wt::WTemplate> createEntryInternal(const db::Release::pointer& release, const db::Artist::pointer& artist, core::EnumSet<ReleaseOptions> options)
-        {
-            auto entry{ std::make_unique<Wt::WTemplate>(Wt::WString::tr("Lms.Explore.Releases.template.entry-grid")) };
+            std::unique_ptr<Wt::WImage> image;
+            if (release->getPreferredArtworkId().isValid())
+                image = utils::createArtworkImage(release->getPreferredArtworkId(), ArtworkResource::DefaultArtworkType::Release, ArtworkResource::Size::Large);
+            else
+                image = utils::createDefaultArtworkImage(ArtworkResource::DefaultArtworkType::Release);
 
-            entry->bindWidget("release-name", utils::createReleaseAnchor(release));
-            entry->addFunction("tr", &Wt::WTemplate::Functions::tr);
-
-            {
-                Wt::WAnchor* anchor{ entry->bindWidget("cover", utils::createReleaseAnchor(release, false)) };
-
-                std::unique_ptr<Wt::WImage> image;
-                if (release->getPreferredArtworkId().isValid())
-                    image = utils::createArtworkImage(release->getPreferredArtworkId(), ArtworkResource::DefaultArtworkType::Release, ArtworkResource::Size::Large);
-                else
-                    image = utils::createDefaultArtworkImage(ArtworkResource::DefaultArtworkType::Release);
-
-                image->addStyleClass("Lms-cover-release Lms-cover-anchor rounded"); // hack
-                anchor->setImage(std::move(image));
-            }
-
-            if (options.contains(ReleaseOptions::ShowArtist))
-            {
-                auto artistAnchors{ utils::createArtistsAnchorsForRelease(release, artist ? artist->getId() : db::ArtistId{}, "link-secondary") };
-                if (artistAnchors)
-                {
-                    entry->setCondition("if-has-artist", true);
-                    entry->bindWidget("artist-name", std::move(artistAnchors));
-                }
-            }
-
-            if (options.contains(ReleaseOptions::ShowYearAndOriginalYear))
-            {
-                Wt::WString year{ releaseHelpers::buildReleaseYearString(release->getYear(), release->getOriginalYear()) };
-                if (!year.empty())
-                {
-                    entry->setCondition("if-has-year", true);
-                    entry->bindString("year", year, Wt::TextFormat::Plain);
-                }
-            }
-            else if (options.contains(ReleaseOptions::ShowYear))
-            {
-                if (release->getYear())
-                {
-                    entry->setCondition("if-has-year", true);
-                    entry->bindInt("year", *release->getYear());
-                }
-            }
-
-            return entry;
+            image->addStyleClass("Lms-cover-release Lms-cover-anchor rounded"); // hack
+            anchor->setImage(std::move(image));
         }
-    } // namespace
 
-    std::unique_ptr<Wt::WTemplate> createEntry(const db::Release::pointer& release)
-    {
-        return createEntryInternal(release, db::Artist::pointer{}, core::EnumSet<ReleaseOptions>{ ReleaseOptions::ShowArtist });
-    }
+        if (options.contains(DisplayOptions::ShowArtist))
+        {
+            utils::ArtistDisplayInfo artistDisplayInfo{ utils::computeArtistDisplayInfo(release) };
 
-    std::unique_ptr<Wt::WTemplate> createEntryForArtist(const db::Release::pointer& release, const db::Artist::pointer& artist)
-    {
-        return createEntryInternal(release, artist, core::EnumSet<ReleaseOptions>{ ReleaseOptions::ShowArtist, ReleaseOptions::ShowYearAndOriginalYear });
-    }
+            entry->setCondition("if-has-artist", true);
+            entry->bindWidget("artist-name", utils::createArtistsAnchors(artistDisplayInfo, "link-secondary"));
+        }
 
-    std::unique_ptr<Wt::WTemplate> createEntryForOtherVersions(const db::ObjectPtr<db::Release>& release)
-    {
-        return createEntryInternal(release, db::Artist::pointer{}, core::EnumSet<ReleaseOptions>{ ReleaseOptions::ShowYear });
+        if (options.contains(DisplayOptions::ShowYearAndOriginalYear))
+        {
+            Wt::WString year{ releaseHelpers::buildReleaseYearString(release->getYear(), release->getOriginalYear()) };
+            if (!year.empty())
+            {
+                entry->setCondition("if-has-year", true);
+                entry->bindString("year", year, Wt::TextFormat::Plain);
+            }
+        }
+        else if (options.contains(DisplayOptions::ShowYear))
+        {
+            if (release->getYear())
+            {
+                entry->setCondition("if-has-year", true);
+                entry->bindInt("year", *release->getYear());
+            }
+        }
+
+        return entry;
     }
 } // namespace lms::ui::releaseListHelpers
 

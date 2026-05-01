@@ -146,8 +146,6 @@
 <message id="Lms.Admin.ScannerController.step-checking-for-removed-files">检查文件中... {1}%</message>
 <message id="Lms.Admin.ScannerController.step-compact">正在压缩数据库...</message>
 <message id="Lms.Admin.ScannerController.step-compute-cluster-stats">正在计算统计信息... {1}%</message>
-<message id="Lms.Admin.ScannerController.step-discovering-files">发现文件：{1} 个文件</message>
-<message id="Lms.Admin.ScannerController.step-fetching-track-features">从 AcousticBrainz 获取曲目特征：{1}/{2} 曲目（{3}%）...</message>
 <message id="Lms.Admin.ScannerController.step-optimize">正在优化数据库... {1}%...</message>
 <message id="Lms.Admin.ScannerController.step-reconciliate-artists">整理艺术家：{1} 条记录...</message>
 <message id="Lms.Admin.ScannerController.step-reloading-similarity-engine">重载相似引擎中 {1}%...</message>
@@ -196,36 +194,48 @@
 <!--Explore-->
 <message id="Lms.Explore.add-filter">添加过滤器</message>
 <message id="Lms.Explore.all">全部</message>
+<message id="Lms.Explore.all-artists">所有艺术家</message>
+<message id="Lms.Explore.all-roles">所有角色</message>
 <message id="Lms.Explore.artists">歌手</message>
 <message id="Lms.Explore.bitrate">比特率</message>
 <message id="Lms.Explore.codec">编码器</message>
+<message id="Lms.Explore.composer">作曲者</message>
+<message id="Lms.Explore.conductor">指挥</message>
+<message id="Lms.Explore.copyright">版权所有</message>
 <message id="Lms.Explore.cover-art">封面</message>
 <message id="Lms.Explore.download">下载</message>
 <message id="Lms.Explore.duration">时长</message>
 <message id="Lms.Explore.filter-added">过滤器已添加</message>
 <message id="Lms.Explore.filters">过滤器</message>
 <message id="Lms.Explore.label">厂牌</message>
+<message id="Lms.Explore.lyricist">作词者</message>
 <message id="Lms.Explore.media-library">音乐库</message>
+<message id="Lms.Explore.mixer">混音师</message>
 <message id="Lms.Explore.most-played">播放最多</message>
 <message id="Lms.Explore.musicbrainz-artist">MusicBrainz 歌手</message>
 <message id="Lms.Explore.musicbrainz-release">MusicBrainz 专辑</message>
+<message id="Lms.Explore.performer">表演者</message>
 <message id="Lms.Explore.play">播放</message>
 <message id="Lms.Explore.play-last">最后播放</message>
 <message id="Lms.Explore.play-next">下一首播放</message>
 <message id="Lms.Explore.play-shuffled">随机播放</message>
 <message id="Lms.Explore.playcount">播放次数</message>
+<message id="Lms.Explore.producer">制作人</message>
 <message id="Lms.Explore.random">随机</message>
 <message id="Lms.Explore.recently-added">最近添加</message>
 <message id="Lms.Explore.recently-modified">最近更改</message>
 <message id="Lms.Explore.release-date">发行日期</message>
 <message id="Lms.Explore.recently-played">最近播放</message>
+<message id="Lms.Explore.release-artist">专辑艺术家</message>
 <message id="Lms.Explore.release-info">专辑信息</message>
 <message id="Lms.Explore.release-type">专辑类型</message>
 <message id="Lms.Explore.releases">专辑</message>
+<message id="Lms.Explore.remixer">混音师</message>
 <message id="Lms.Explore.search">搜索</message>
 <message id="Lms.Explore.star">收藏</message>
 <message id="Lms.Explore.star-item">将 {1} 加入收藏</message>
 <message id="Lms.Explore.starred">已收藏</message>
+<message id="Lms.Explore.track-artist">曲目艺术家</message>
 <message id="Lms.Explore.track-info">曲目信息</message>
 <message id="Lms.Explore.track-lyrics">歌词</message>
 <message id="Lms.Explore.tracklists">播放列表</message>
@@ -235,24 +245,12 @@
 <message id="Lms.Explore.unstar">取消收藏</message>
 <message id="Lms.Explore.value">值</message>
 <message id="Lms.Explore.various-artists">群星</message>
+<message id="Lms.Explore.various-copyrights">部分权利保留。请查看单曲以获取版权信息</message>
 
 <!--Explore:Artist-->
 <message id="Lms.Explore.Artist.appears-on">出现于</message>
 <message id="Lms.Explore.Artist.biography">简介</message>
 <message id="Lms.Explore.Artist.similar-artists">相似歌手</message>
-
-<!--Explore:Artists-->
-<message id="Lms.Explore.Artists.linktype-all">所有艺术家</message>
-<message id="Lms.Explore.Artists.linktype-artist">曲目艺术家</message>
-<message id="Lms.Explore.Artists.linktype-composer">作曲者</message>
-<message id="Lms.Explore.Artists.linktype-conductor">指挥</message>
-<message id="Lms.Explore.Artists.linktype-lyricist">作词者</message>
-<message id="Lms.Explore.Artists.linktype-mixer">混音师</message>
-<message id="Lms.Explore.Artists.linktype-performer">表演者</message>
-<message id="Lms.Explore.Artists.linktype-producer">制作人</message>
-<message id="Lms.Explore.Artists.linktype-releaseartist">专辑艺术家</message>
-<message id="Lms.Explore.Artists.linktype-remixer">混音师</message>
-
 
 <!--Explore:Release-->
 <message id="Lms.Explore.Release.copyright">版权所有</message>

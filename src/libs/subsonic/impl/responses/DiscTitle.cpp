@@ -19,7 +19,10 @@
 
 #include "responses/DiscTitle.hpp"
 
+#include "database/objects/Artwork.hpp"
 #include "database/objects/Medium.hpp"
+
+#include "CoverArtId.hpp"
 
 namespace lms::api::subsonic
 {
@@ -29,6 +32,11 @@ namespace lms::api::subsonic
 
         discTitleNode.setAttribute("disc", medium->getPosition() ? *medium->getPosition() : 0);
         discTitleNode.setAttribute("title", medium->getName());
+        if (const auto artwork{ medium->getPreferredArtwork() })
+        {
+            CoverArtId coverArtId{ artwork->getId(), artwork->getLastWrittenTime().toTime_t() };
+            discTitleNode.setAttribute("coverArt", idToString(coverArtId));
+        }
 
         return discTitleNode;
     }

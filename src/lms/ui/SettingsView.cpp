@@ -32,6 +32,8 @@
 #include "core/IConfig.hpp"
 #include "core/Service.hpp"
 #include "core/String.hpp"
+#include "core/UUID.hpp"
+
 #include "database/Session.hpp"
 #include "database/Types.hpp"
 #include "database/objects/User.hpp"
@@ -144,7 +146,7 @@ namespace lms::ui
             addField(ListenBrainzTokenField);
 
             setValidator(SubsonicTokenField, createUUIDValidator());
-            setValidator(ListenBrainzTokenField, createUUIDValidator());
+            setValidator(ListenBrainzTokenField, createMandatoryValidator());
 
             if (_authPasswordService)
             {
@@ -284,14 +286,14 @@ namespace lms::ui
                 if (auto feedbackBackendRow{ _feedbackBackendModel->getRowFromString(valueText(FeedbackBackendField)) })
                     user.modify()->setFeedbackBackend(_feedbackBackendModel->getValue(*feedbackBackendRow));
 
-                user.modify()->setListenBrainzToken(core::UUID::fromString(Wt::asString(value(ListenBrainzTokenField)).toUTF8()));
+                user.modify()->setListenBrainzToken(Wt::asString(value(ListenBrainzTokenField)).toUTF8());
             }
 
             {
                 if (auto scrobblingBackendRow{ _scrobblingBackendModel->getRowFromString(valueText(ScrobblingBackendField)) })
                     user.modify()->setScrobblingBackend(_scrobblingBackendModel->getValue(*scrobblingBackendRow));
 
-                user.modify()->setListenBrainzToken(core::UUID::fromString(Wt::asString(value(ListenBrainzTokenField)).toUTF8()));
+                user.modify()->setListenBrainzToken(Wt::asString(value(ListenBrainzTokenField)).toUTF8());
             }
 
             if (_authPasswordService && !valueText(PasswordField).empty())
@@ -390,8 +392,8 @@ namespace lms::ui
                 if (auto scrobblingBackendRow{ _scrobblingBackendModel->getRowFromValue(user->getScrobblingBackend()) })
                     setValue(ScrobblingBackendField, _scrobblingBackendModel->getString(*scrobblingBackendRow));
 
-                if (auto listenBrainzToken{ user->getListenBrainzToken() })
-                    setValue(ListenBrainzTokenField, Wt::WString::fromUTF8(std::string{ listenBrainzToken->getAsString() }));
+                if (const auto listenBrainzToken{ user->getListenBrainzToken() }; !listenBrainzToken.empty())
+                    setValue(ListenBrainzTokenField, Wt::WString::fromUTF8(std::string{ listenBrainzToken }));
 
                 {
                     const bool usesListenBrainz{ user->getScrobblingBackend() == db::ScrobblingBackend::ListenBrainz || user->getFeedbackBackend() == db::FeedbackBackend::ListenBrainz };
@@ -457,13 +459,13 @@ namespace lms::ui
             _artistReleaseSortMethodModel->add(Wt::WString::tr("Lms.Settings.name"), db::ReleaseSortMethod::Name);
 
             _artistRelationshipsModel = std::make_shared<ArtistRelationshipsModel>();
-            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.Artists.linktype-composer", 2), db::TrackArtistLinkType::Composer);
-            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.Artists.linktype-conductor", 2), db::TrackArtistLinkType::Conductor);
-            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.Artists.linktype-lyricist", 2), db::TrackArtistLinkType::Lyricist);
-            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.Artists.linktype-mixer", 2), db::TrackArtistLinkType::Mixer);
-            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.Artists.linktype-performer", 2), db::TrackArtistLinkType::Performer);
-            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.Artists.linktype-producer", 2), db::TrackArtistLinkType::Producer);
-            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.Artists.linktype-remixer", 2), db::TrackArtistLinkType::Remixer);
+            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.composer", 2), db::TrackArtistLinkType::Composer);
+            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.conductor", 2), db::TrackArtistLinkType::Conductor);
+            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.lyricist", 2), db::TrackArtistLinkType::Lyricist);
+            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.mixer", 2), db::TrackArtistLinkType::Mixer);
+            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.performer", 2), db::TrackArtistLinkType::Performer);
+            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.producer", 2), db::TrackArtistLinkType::Producer);
+            _artistRelationshipsModel->add(Wt::WString::trn("Lms.Explore.remixer", 2), db::TrackArtistLinkType::Remixer);
 
             _transcodingModeModeModel = std::make_shared<TranscodingModeModel>();
             _transcodingModeModeModel->add(Wt::WString::tr("Lms.Settings.transcoding-mode.always"), MediaPlayer::Settings::Transcoding::Mode::Always);

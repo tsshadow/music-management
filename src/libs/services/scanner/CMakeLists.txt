@@ -57,7 +57,6 @@ target_link_libraries(lmsscanner PRIVATE
 
 target_link_libraries(lmsscanner PUBLIC
 	lmsdatabase
-	std::filesystem
 	Wt::Wt
 	)
 

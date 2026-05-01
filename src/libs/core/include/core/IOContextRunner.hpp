@@ -20,6 +20,7 @@
 #pragma once
 
 #include <thread>
+#include <vector>
 
 #include <boost/asio/executor_work_guard.hpp>
 #include <boost/asio/io_context.hpp>
@@ -34,10 +35,11 @@ namespace lms::core
         IOContextRunner(const IOContextRunner&) = delete;
         IOContextRunner& operator=(const IOContextRunner&) = delete;
 
-        void stop();
+        void wait();
         std::size_t getThreadCount() const;
 
     private:
+        const std::string _name;
         boost::asio::io_context& _ioContext;
         boost::asio::executor_work_guard<boost::asio::io_context::executor_type> _work;
         std::vector<std::thread> _threads;

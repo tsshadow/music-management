@@ -97,11 +97,9 @@ namespace lms::db
         TrackArtistLink(const ObjectPtr<Track>& track, const ObjectPtr<Artist>& artist, TrackArtistLinkType type, std::string_view subType, bool artistMBIDMatched);
 
         static void find(Session& session, TrackId trackId, const std::function<void(const pointer&, const ObjectPtr<Artist>&)>& func);
-        static void find(Session& session, const FindParameters& parameters, const std::function<void(const pointer&)>& func);
+        static void find(Session& session, const FindParameters& params, const std::function<void(const pointer&)>& func);
         static pointer find(Session& session, TrackArtistLinkId linkId);
         static std::size_t getCount(Session& session);
-        static pointer create(Session& session, const ObjectPtr<Track>& track, const ObjectPtr<Artist>& artist, TrackArtistLinkType type, std::string_view subType, bool artistMBIDMatched = false);
-        static pointer create(Session& session, const ObjectPtr<Track>& track, const ObjectPtr<Artist>& artist, TrackArtistLinkType type, bool artistMBIDMatched = false);
         static core::EnumSet<TrackArtistLinkType> findUsedTypes(Session& session, ArtistId _artist);
         static void findArtistNameNoLongerMatch(Session& session, std::optional<Range> range, const std::function<void(const pointer&)>& func);
         static void findWithArtistNameAmbiguity(Session& session, std::optional<Range> range, bool allowArtistMBIDFallback, const std::function<void(const pointer&)>& func);
@@ -109,6 +107,7 @@ namespace lms::db
         // accessors
         ObjectPtr<Track> getTrack() const { return _track; }
         ObjectPtr<Artist> getArtist() const { return _artist; }
+        ArtistId getArtistId() const { return _artist.id(); }
         TrackArtistLinkType getType() const { return _type; }
         std::string_view getSubType() const { return _subType; }
         std::string_view getArtistName() const { return _artistName; }
@@ -134,6 +133,10 @@ namespace lms::db
         }
 
     private:
+        friend class Session;
+        static pointer create(Session& session, const ObjectPtr<Track>& track, const ObjectPtr<Artist>& artist, TrackArtistLinkType type, std::string_view subType, bool artistMBIDMatched = false);
+        static pointer create(Session& session, const ObjectPtr<Track>& track, const ObjectPtr<Artist>& artist, TrackArtistLinkType type, bool artistMBIDMatched = false);
+
         TrackArtistLinkType _type{ TrackArtistLinkType::Artist };
         std::string _subType;
         std::string _artistName;     // as it was in the tags

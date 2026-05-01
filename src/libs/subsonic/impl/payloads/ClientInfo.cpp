@@ -26,6 +26,7 @@
 #include <Wt/Json/Parser.h>
 
 #include "core/String.hpp"
+#include "core/Utils.hpp"
 
 #include "SubsonicResponse.hpp"
 
@@ -64,8 +65,7 @@ namespace lms::api::subsonic
                 }
                 else
                 {
-                    // static_assert(false, "Unhandled type");
-                    return std::nullopt;
+                    static_assert(core::utils::dependent_false_v<T>, "Unhandled type");
                 }
             }
             catch (const Wt::WException& e)
@@ -110,7 +110,7 @@ namespace lms::api::subsonic
                     }
                     else
                     {
-                        // static_assert(false, "Unhandled type");
+                        static_assert(core::utils::dependent_false_v<T>, "Unhandled type");
                     }
                 }
             }

@@ -17,6 +17,7 @@
  * along with LMS.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <filesystem>
 #include <thread>
 
 #include <Wt/WApplication.h>
@@ -33,6 +34,8 @@
 #include "core/Service.hpp"
 #include "core/String.hpp"
 #include "core/SystemPaths.hpp"
+
+#include "audio/IAudioOutput.hpp"
 #include "database/IDb.hpp"
 #include "database/IQueryPlanRecorder.hpp"
 #include "database/Session.hpp"
@@ -42,6 +45,7 @@
 #include "services/auth/IEnvService.hpp"
 #include "services/auth/IPasswordService.hpp"
 #include "services/feedback/IFeedbackService.hpp"
+#include "services/jukebox//IJukeboxService.hpp"
 #include "services/podcast/IPodcastService.hpp"
 #include "services/recommendation/IPlaylistGeneratorService.hpp"
 #include "services/recommendation/IRecommendationService.hpp"
@@ -85,27 +89,80 @@ namespace lms
 
             if (tracingLevel == "disabled")
                 return std::nullopt;
-            else if (tracingLevel == "overview")
+            if (tracingLevel == "overview")
                 return core::tracing::Level::Overview;
-            else if (tracingLevel == "detailed")
+            if (tracingLevel == "detailed")
                 return core::tracing::Level::Detailed;
 
             throw core::LmsException{ "Invalid config value for 'tracing-level'" };
         }
 
-        std::vector<std::string> generateWtConfig(std::string execPath)
+        std::optional<audio::AudioOutputBackend> getJukeboxAudioOutputBackend()
+        {
+            std::string_view backend{ core::Service<core::IConfig>::get()->getString("jukebox-audio-backend", "auto") };
+
+            if (backend == "pulseaudio")
+                return audio::AudioOutputBackend::PulseAudio;
+            if (backend == "auto")
+                return audio::AudioOutputBackend::Auto;
+            if (backend == "none")
+                return std::nullopt;
+
+            throw core::LmsException{ "Invalid config value for 'jukebox-audio-backend'" };
+        }
+
+        std::error_code checkDirectoryAccessible(const std::filesystem::path& dir)
+        {
+            std::error_code ec;
+
+            const std::filesystem::file_status status{ std::filesystem::status(dir, ec) };
+            if (ec)
+                return ec;
+
+            if (status.type() != std::filesystem::file_type::directory)
+                return std::make_error_code(std::errc::not_a_directory);
+
+            const std::filesystem::directory_iterator it{ dir, ec };
+            if (ec)
+                return ec;
+
+            if (it != std::filesystem::directory_iterator{})
+            {
+                it->status(ec);
+                if (ec)
+                    return ec;
+            }
+
+            return {};
+        }
+
+        std::vector<std::string> generateWtConfig(const std::string& execPath)
         {
             core::IConfig& config{ *core::Service<core::IConfig>::get() };
 
             std::vector<std::string> args;
 
-            const std::filesystem::path wtConfigPath{ config.getPath("working-dir", "/var/lms") / "wt_config.xml" };
+            const std::filesystem::path workingDirectoryPath{ config.getPath("working-dir", "/var/lms") };
+            const std::filesystem::path wtConfigPath{ workingDirectoryPath / "wt_config.xml" };
             const std::filesystem::path wtResourcesPath{ config.getPath("wt-resources", "/usr/share/Wt/resources") };
+            const std::filesystem::path appRootPath{ config.getString("approot", "/usr/share/lms/approot") };
+
+            auto checkDirectoryExists{ [](const std::filesystem::path& directory, std::string_view settingName) {
+                std::string error;
+
+                const std::error_code ec{ checkDirectoryAccessible(directory) };
+                if (ec)
+                    throw core::LmsException{ "Cannot access directory '" + directory.string() + "' specified in setting '" + std::string{ settingName } + "': " + ec.message() };
+            } };
+
+            checkDirectoryExists(workingDirectoryPath, "working-dir");
+            checkDirectoryExists(wtResourcesPath, "wt-resources");
+            checkDirectoryExists(appRootPath, "approot");
 
             args.push_back(execPath);
             args.push_back("--config=" + wtConfigPath.string());
             args.push_back("--docroot=" + std::string{ config.getString("docroot", "/usr/share/lms/docroot/;/resources,/css,/images,/js,/favicon.ico") });
-            args.push_back("--approot=" + std::string{ config.getString("approot", "/usr/share/lms/approot") });
+            args.push_back("--approot=" + appRootPath.string());
             args.push_back("--deploy-path=" + std::string{ config.getString("deploy-path", "/") });
             if (!wtResourcesPath.empty())
                 args.push_back("--resources-dir=" + wtResourcesPath.string());
@@ -430,6 +487,9 @@ namespace lms
             core::Service<scanner::IScannerService> scannerService{ scanner::createScannerService(*database, cachePath) };
             core::Service<transcoding::ITranscodeService> transcodingService{ transcoding::createTranscodeService() };
             core::Service<podcast::IPodcastService> podcastService{ podcast::createPodcastService(ioContext, *database, cachePath / "podcasts") };
+
+            const auto jukeboxAudioBackend{ getJukeboxAudioOutputBackend() };
+            core::Service<jukebox::IJukeboxService> jukeboxService{ jukeboxAudioBackend ? jukebox::createJukeboxService(*database, *jukeboxAudioBackend) : nullptr };
 
             scannerService->getEvents().scanComplete.connect([&] {
                 // Flush cover cache even if no changes:

@@ -20,14 +20,19 @@
 #pragma once
 
 #include <map>
+#include <optional>
+
+#include "core/EnumSet.hpp"
 
 #include "database/Object.hpp"
 #include "database/objects/ArtistId.hpp"
 #include "database/objects/ArtworkId.hpp"
 #include "database/objects/ReleaseId.hpp"
 
+#include "ReleaseHelpers.hpp"
 #include "ReleaseTypes.hpp"
 #include "common/Template.hpp"
+#include "database/objects/Types.hpp"
 
 namespace lms::db
 {
@@ -58,7 +63,7 @@ namespace lms::ui
         void refreshLinks(const db::ObjectPtr<db::Artist>& artist);
 
         struct ReleaseContainer;
-        void addSomeReleases(ReleaseContainer& releaseContainer);
+        void addSomeReleases(ReleaseContainer& releaseContainer, core::EnumSet<releaseListHelpers::DisplayOptions> displayOptions);
         bool addSomeNonReleaseTracks();
         bool addSomeAllTracks();
         static constexpr std::size_t _releasesBatchSize{ 6 };
@@ -75,9 +80,11 @@ namespace lms::ui
             std::vector<db::ReleaseId> releases;
         };
         std::map<ReleaseType, ReleaseContainer> _releaseContainers;
-        ReleaseContainer _appearsOnReleaseContainer{};
+        std::map<std::optional<db::TrackArtistLinkType>, std::vector<db::ReleaseId>> _appearsOnReleases;
+        ReleaseContainer _appearsOnReleaseContainer;
         InfiniteScrollingContainer* _trackContainer{};
         InfiniteScrollingContainer* _allTracksContainer{};
         db::ArtistId _artistId{};
+        std::string _artistName;
     };
 } // namespace lms::ui

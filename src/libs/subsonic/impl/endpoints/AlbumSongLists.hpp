@@ -28,6 +28,7 @@ namespace lms::api::subsonic
     Response handleGetAlbumList2Request(RequestContext& context);
     Response handleGetRandomSongsRequest(RequestContext& context);
     Response handleGetSongsByGenreRequest(RequestContext& context);
+    Response handleGetNowPlayingRequest(RequestContext& context);
     Response handleGetSongs(RequestContext& context);
     Response handleGetSongSortMethods(RequestContext& context);
     Response handleGetLineups(RequestContext& context);

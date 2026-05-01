@@ -30,6 +30,8 @@
 #include "core/IConfig.hpp"
 #include "core/Service.hpp"
 #include "core/String.hpp"
+#include "core/UUID.hpp"
+
 #include "database/Session.hpp"
 #include "database/objects/User.hpp"
 #include "services/auth/IAuthTokenService.hpp"

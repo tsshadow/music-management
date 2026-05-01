@@ -31,12 +31,12 @@
 
 #include "core/EnumSet.hpp"
 #include "core/UUID.hpp"
+
 #include "database/IdRange.hpp"
 #include "database/Object.hpp"
 #include "database/Types.hpp"
 #include "database/objects/ArtistId.hpp"
 #include "database/objects/ArtworkId.hpp"
-#include "database/objects/ClusterId.hpp"
 #include "database/objects/Filters.hpp"
 #include "database/objects/MediaLibraryId.hpp"
 #include "database/objects/ReleaseId.hpp"
@@ -51,9 +51,7 @@ namespace lms::db
     class ClusterType;
     class Release;
     class Session;
-    class StarredArtist;
     class Track;
-    class TrackArtistLink;
     class User;
 
     class Artist final : public Object<Artist, ArtistId>
@@ -64,15 +62,15 @@ namespace lms::db
         struct FindParameters
         {
             Filters filters;
-            std::vector<std::string_view> keywords;      // if non empty, name must match all of these keywords (on either name field OR sort name field)
-            std::optional<TrackArtistLinkType> linkType; // if set, only artists that have produced at least one track with this link type
+            std::vector<std::string_view> keywords;                 // if non empty, name must match all of these keywords (on either name field OR sort name field)
+            bool releaseArtistsOnly{};                              // if set, only release artists
+            std::optional<TrackArtistLinkType> trackArtistLinkType; // if set, only artists that have produced at least one track with this link type
             ArtistSortMethod sortMethod{ ArtistSortMethod::None };
             std::optional<Range> range;
             Wt::WDateTime writtenAfter;
             UserId starringUser;                            // only artists starred by this user
             std::optional<FeedbackBackend> feedbackBackend; // and for this feedback backend
             TrackId track;                                  // artists involved in this track
-            ReleaseId release;                              // artists involved in this release
 
             FindParameters& setFilters(const Filters& _filters)
             {
@@ -84,9 +82,14 @@ namespace lms::db
                 keywords = _keywords;
                 return *this;
             }
-            FindParameters& setLinkType(std::optional<TrackArtistLinkType> _linkType)
+            FindParameters& setReleaseArtistsOnly(bool _releaseArtistsOnly)
             {
-                linkType = _linkType;
+                releaseArtistsOnly = _releaseArtistsOnly;
+                return *this;
+            }
+            FindParameters& setTrackArtistLinkType(std::optional<TrackArtistLinkType> _trackArtistLinkType)
+            {
+                trackArtistLinkType = _trackArtistLinkType;
                 return *this;
             }
             FindParameters& setSortMethod(ArtistSortMethod _sortMethod)
@@ -113,11 +116,6 @@ namespace lms::db
             FindParameters& setTrack(TrackId _track)
             {
                 track = _track;
-                return *this;
-            }
-            FindParameters& setRelease(ReleaseId _release)
-            {
-                release = _release;
                 return *this;
             }
         };
@@ -149,7 +147,6 @@ namespace lms::db
         bool hasMBID() const;
         ObjectPtr<Artwork> getPreferredArtwork() const;
         ArtworkId getPreferredArtworkId() const;
-        void visitLinks(std::function<void(const ObjectPtr<TrackArtistLink>& link)> visitor) const;
 
         // No artistLinkTypes means get them all
         RangeResults<ArtistId> findSimilarArtistIds(core::EnumSet<TrackArtistLinkType> artistLinkTypes = {}, std::optional<Range> range = std::nullopt) const;
@@ -172,8 +169,6 @@ namespace lms::db
             Wt::Dbo::field(a, _mbid, "mbid");
 
             Wt::Dbo::belongsTo(a, _preferredArtwork, "preferred_artwork", Wt::Dbo::OnDeleteSetNull);
-            Wt::Dbo::hasMany(a, _trackArtistLinks, Wt::Dbo::ManyToOne, "artist");
-            Wt::Dbo::hasMany(a, _starredArtists, Wt::Dbo::ManyToMany, "user_starred_artists", "", Wt::Dbo::OnDeleteCascade);
         }
 
     private:
@@ -187,8 +182,5 @@ namespace lms::db
         std::string _mbid; // Musicbrainz Identifier
 
         Wt::Dbo::ptr<Artwork> _preferredArtwork;
-        Wt::Dbo::collection<Wt::Dbo::ptr<TrackArtistLink>> _trackArtistLinks; // Tracks involving this artist
-        Wt::Dbo::collection<Wt::Dbo::ptr<StarredArtist>> _starredArtists;     // starred entries for this artist
     };
-
 } // namespace lms::db

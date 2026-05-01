@@ -138,5 +138,4 @@ namespace lms::audio::ffmpeg
     {
         return _tagReader.get();
     }
-
 } // namespace lms::audio::ffmpeg

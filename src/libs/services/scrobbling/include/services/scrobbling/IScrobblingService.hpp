@@ -32,6 +32,7 @@
 #include "database/objects/ReleaseId.hpp"
 #include "database/objects/TrackId.hpp"
 #include "database/objects/Types.hpp"
+#include "database/objects/UserId.hpp"
 #include "services/scrobbling/Listen.hpp"
 
 namespace lms::db
@@ -46,11 +47,21 @@ namespace lms::scrobbling
     public:
         virtual ~IScrobblingService() = default;
 
+        using Clock = std::chrono::steady_clock;
+
         // Scrobbling
+
+        // Notify that a listen has started (for now-playing purposes)
         virtual void listenStarted(const Listen& listen) = 0;
+
+        // Notify that a listen has finished (for scrobbling purposes)
         virtual void listenFinished(const Listen& listen, std::optional<std::chrono::seconds> playedDuration = std::nullopt) = 0;
 
+        // Used to add listens afterwards (after some offline listening for example)
         virtual void addTimedListen(const TimedListen& listen) = 0;
+
+        // Visit all now-playing listens
+        virtual void visitNowPlayingListens(const std::function<void(Clock::time_point startedAt, const Listen&)>& visitor, db::UserId userId = {}) = 0;
 
         // Stats
         using ArtistContainer = db::RangeResults<db::ArtistId>;
@@ -97,8 +108,14 @@ namespace lms::scrobbling
         {
             std::optional<db::TrackArtistLinkType> linkType; // if set, only artists that have produced at least one track with this link type
             db::ArtistSortMethod sortMethod{ db::ArtistSortMethod::None };
+            bool releaseArtistsOnly;
 
-            ArtistFindParameters& setLinkType(std::optional<db::TrackArtistLinkType> _linkType)
+            ArtistFindParameters& setReleaseArtistsOnly(bool _releaseArtistsOnly)
+            {
+                releaseArtistsOnly = _releaseArtistsOnly;
+                return *this;
+            }
+            ArtistFindParameters& setTrackArtistLinkType(std::optional<db::TrackArtistLinkType> _linkType)
             {
                 linkType = _linkType;
                 return *this;

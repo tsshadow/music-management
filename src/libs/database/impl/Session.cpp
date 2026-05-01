@@ -42,6 +42,7 @@
 #include "database/objects/RatedRelease.hpp"
 #include "database/objects/RatedTrack.hpp"
 #include "database/objects/Release.hpp"
+#include "database/objects/ReleaseArtistLink.hpp"
 #include "database/objects/ScanSettings.hpp"
 #include "database/objects/StarredArtist.hpp"
 #include "database/objects/StarredRelease.hpp"
@@ -94,6 +95,7 @@ namespace lms::db
         _session.mapClass<RatedRelease>("rated_release");
         _session.mapClass<RatedTrack>("rated_track");
         _session.mapClass<Release>("release");
+        _session.mapClass<ReleaseArtistLink>("release_artist_link");
         _session.mapClass<ReleaseType>("release_type");
         _session.mapClass<ScanSettings>("scan_settings");
         _session.mapClass<StarredArtist>("starred_artist");
@@ -258,6 +260,10 @@ namespace lms::db
             utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_name_nocase_idx ON release(name COLLATE NOCASE)");
             utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_sort_name_idx ON release(sort_name)");
             utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_sort_name_nocase_idx ON release(sort_name COLLATE NOCASE)");
+
+            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_artist_link_id_idx ON release_artist_link(id)");
+            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_artist_link_artist_idx ON release_artist_link(artist_id)");
+            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_artist_link_release_idx ON release_artist_link(release_id)");
 
             utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_type_id_idx ON release_type(id)");
             utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_type_name_idx ON release_type(name COLLATE NOCASE)");

@@ -39,6 +39,7 @@
 #include "database/objects/MediaLibrary.hpp"
 #include "database/objects/Medium.hpp"
 #include "database/objects/Release.hpp"
+#include "database/objects/ReleaseArtistLink.hpp"
 #include "database/objects/Track.hpp"
 #include "database/objects/TrackArtistLink.hpp"
 #include "database/objects/TrackEmbeddedImage.hpp"
@@ -118,8 +119,8 @@ namespace lms
             if (mediaLibrary)
                 track.modify()->setMediaLibrary(mediaLibrary);
 
-            TrackArtistLink::create(context.session, track, artist, TrackArtistLinkType::Artist);
-            TrackArtistLink::create(context.session, track, artist, TrackArtistLinkType::ReleaseArtist);
+            context.session.create<TrackArtistLink>(track, artist, TrackArtistLinkType::Artist);
+            context.session.create<ReleaseArtistLink>(release, artist, false);
 
             if (!trackEmbeddedImages.empty())
                 context.session.create<TrackEmbeddedImageLink>(track, *core::random::pickRandom(trackEmbeddedImages));
@@ -199,7 +200,10 @@ int main(int argc, char* argv[])
         ("track-count-per-release", program_options::value<unsigned>()->default_value(defaultParams.trackCountPerRelease), "Number of tracks per release")
         ("track-embedded-image-count",program_options::value<unsigned>()->default_value(defaultParams.trackEmbeddedImagePerRelease), "Number of different embedded track images for the whole release (each track has one different embedded image)")
         ("compilation-ratio",program_options::value<float>()->default_value(defaultParams.compilationRatio), "Compilation ratio (compilation means all tracks have a different artist)")
-        ("track-path",program_options::value<std::string>()->required(), "Path of a valid track file, that will be used for all generated tracks")("genre-count", program_options::value<unsigned>()->default_value(defaultParams.genreCount), "Number of genres to generate")("genre-count-per-track", program_options::value<unsigned>()->default_value(defaultParams.genreCountPerTrack), "Number of genres to assign to each track")("mood-count", program_options::value<unsigned>()->default_value(defaultParams.moodCount), "Number of moods to generate")
+        ("track-path",program_options::value<std::string>()->required(), "Path of a valid track file, that will be used for all generated tracks")
+        ("genre-count", program_options::value<unsigned>()->default_value(defaultParams.genreCount), "Number of genres to generate")
+        ("genre-count-per-track", program_options::value<unsigned>()->default_value(defaultParams.genreCountPerTrack), "Number of genres to assign to each track")
+        ("mood-count", program_options::value<unsigned>()->default_value(defaultParams.moodCount), "Number of moods to generate")
         ("mood-count-per-track", program_options::value<unsigned>()->default_value(defaultParams.moodCountPerTrack), "Number of moods to assign to each track")("help,h", "produce help message");
         // clang-format on
 

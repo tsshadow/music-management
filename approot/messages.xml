@@ -148,8 +148,6 @@
 <message id="Lms.Admin.ScannerController.step-checking-for-removed-files">Checking for removed files... {1}%</message>
 <message id="Lms.Admin.ScannerController.step-compact">Compacting database...</message>
 <message id="Lms.Admin.ScannerController.step-compute-cluster-stats">Computing stats... {1}%</message>
-<message id="Lms.Admin.ScannerController.step-discovering-files">Discovering files: {1} files</message>
-<message id="Lms.Admin.ScannerController.step-fetching-track-features">Fetching track features from AcousticBrainz: {1}/{2} tracks ({3}%)...</message>
 <message id="Lms.Admin.ScannerController.step-optimize">Optimizing database... {1}%...</message>
 <message id="Lms.Admin.ScannerController.step-reconciliate-artists">Reconciliating artists: {1} entries...</message>
 <message id="Lms.Admin.ScannerController.step-reloading-similarity-engine">Reloading similarity engine: {1}%...</message>
@@ -198,9 +196,20 @@
 <!--Explore-->
 <message id="Lms.Explore.add-filter">Add filter</message>
 <message id="Lms.Explore.all">All</message>
+<message id="Lms.Explore.all-artists">All artists</message>
+<message id="Lms.Explore.all-roles">All roles</message>
 <message id="Lms.Explore.artists">Artists</message>
 <message id="Lms.Explore.bitrate">Bitrate</message>
 <message id="Lms.Explore.codec">Codec</message>
+<message id="Lms.Explore.composer">
+	<plural case="0">Composer</plural>
+	<plural case="1">Composers</plural>
+</message>
+<message id="Lms.Explore.conductor">
+	<plural case="0">Conductor</plural>
+	<plural case="1">Conductors</plural>
+</message>
+<message id="Lms.Explore.copyright">Copyright</message>
 <message id="Lms.Explore.cover-art">Cover art</message>
 <message id="Lms.Explore.download">Download</message>
 <message id="Lms.Explore.duration">Duration</message>
@@ -208,27 +217,55 @@
 <message id="Lms.Explore.filter-added">Filter added</message>
 <message id="Lms.Explore.filters">Filters</message>
 <message id="Lms.Explore.label">Label</message>
+<message id="Lms.Explore.lyricist">
+	<plural case="0">Lyricist</plural>
+	<plural case="1">Lyricists</plural>
+</message>
 <message id="Lms.Explore.media-library">Music Library</message>
+<message id="Lms.Explore.mixer">
+	<plural case="0">Mixer</plural>
+	<plural case="1">Mixers</plural>
+</message>
 <message id="Lms.Explore.most-played">Most played</message>
 <message id="Lms.Explore.musicbrainz-artist">MusicBrainz Artist</message>
 <message id="Lms.Explore.musicbrainz-release">MusicBrainz Release</message>
+<message id="Lms.Explore.performer">
+	<plural case="0">Performer</plural>
+	<plural case="1">Performers</plural>
+</message>
 <message id="Lms.Explore.play">Play</message>
 <message id="Lms.Explore.play-last">Play last</message>
 <message id="Lms.Explore.play-next">Play next</message>
 <message id="Lms.Explore.play-shuffled">Play shuffled</message>
 <message id="Lms.Explore.playcount">Play count</message>
+<message id="Lms.Explore.producer">
+	<plural case="0">Producer</plural>
+	<plural case="1">Producers</plural>
+</message>
 <message id="Lms.Explore.random">Random</message>
 <message id="Lms.Explore.recently-added">Recently added</message>
 <message id="Lms.Explore.recently-modified">Recently modified</message>
 <message id="Lms.Explore.release-date">Release date</message>
 <message id="Lms.Explore.recently-played">Recently played</message>
+<message id="Lms.Explore.release-artist">
+	<plural case="0">Album artist</plural>
+	<plural case="1">Album artists</plural>
+</message>
 <message id="Lms.Explore.release-info">Release information</message>
 <message id="Lms.Explore.release-type">Release type</message>
 <message id="Lms.Explore.releases">Albums</message>
+<message id="Lms.Explore.remixer">
+	<plural case="0">Remixer</plural>
+	<plural case="1">Remixers</plural>
+</message>
 <message id="Lms.Explore.search">Search</message>
 <message id="Lms.Explore.star">Star</message>
 <message id="Lms.Explore.star-item">Star {1}</message>
 <message id="Lms.Explore.starred">Starred</message>
+<message id="Lms.Explore.track-artist">
+	<plural case="0">Track artist</plural>
+	<plural case="1">Track artists</plural>
+</message>
 <message id="Lms.Explore.track-info">Track information</message>
 <message id="Lms.Explore.track-lyrics">Lyrics</message>
 <message id="Lms.Explore.tracklists">Playlists</message>
@@ -238,50 +275,12 @@
 <message id="Lms.Explore.unstar">Unstar</message>
 <message id="Lms.Explore.value">Value</message>
 <message id="Lms.Explore.various-artists">Various artists</message>
+<message id="Lms.Explore.various-copyrights">Some rights reserved. Please refer to individual tracks for copyright info</message>
 
 <!--Explore:Artist-->
 <message id="Lms.Explore.Artist.appears-on">Appears on</message>
 <message id="Lms.Explore.Artist.biography">Biography</message>
 <message id="Lms.Explore.Artist.similar-artists">Similar artists</message>
-
-<!--Explore:Artists-->
-<message id="Lms.Explore.Artists.linktype-all">All artists</message>
-<message id="Lms.Explore.Artists.linktype-artist">
-	<plural case="0">Track artist</plural>
-	<plural case="1">Track artists</plural>
-</message>
-<message id="Lms.Explore.Artists.linktype-composer">
-	<plural case="0">Composer</plural>
-	<plural case="1">Composers</plural>
-</message>
-<message id="Lms.Explore.Artists.linktype-conductor">
-	<plural case="0">Conductor</plural>
-	<plural case="1">Conductors</plural>
-</message>
-<message id="Lms.Explore.Artists.linktype-lyricist">
-	<plural case="0">Lyricist</plural>
-	<plural case="1">Lyricists</plural>
-</message>
-<message id="Lms.Explore.Artists.linktype-mixer">
-	<plural case="0">Mixer</plural>
-	<plural case="1">Mixers</plural>
-</message>
-<message id="Lms.Explore.Artists.linktype-performer">
-	<plural case="0">Performer</plural>
-	<plural case="1">Performers</plural>
-</message>
-<message id="Lms.Explore.Artists.linktype-producer">
-	<plural case="0">Producer</plural>
-	<plural case="1">Producers</plural>
-</message>
-<message id="Lms.Explore.Artists.linktype-releaseartist">
-	<plural case="0">Album artist</plural>
-	<plural case="1">Album artists</plural>
-</message>
-<message id="Lms.Explore.Artists.linktype-remixer">
-	<plural case="0">Remixer</plural>
-	<plural case="1">Remixers</plural>
-</message>
 
 <!--Explore:Release-->
 <message id="Lms.Explore.Release.copyright">Copyright</message>

@@ -100,7 +100,7 @@ namespace lms::feedback
         searchParams.setFilters(params.filters);
         searchParams.setStarringUser(params.user, *backend);
         searchParams.setKeywords(params.keywords);
-        searchParams.setLinkType(params.linkType);
+        searchParams.setTrackArtistLinkType(params.trackArtistLinkType);
         searchParams.setSortMethod(params.sortMethod);
         searchParams.setRange(params.range);
 

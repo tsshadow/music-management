@@ -21,6 +21,7 @@
 
 #include <memory>
 #include <optional>
+#include <shared_mutex>
 #include <unordered_map>
 
 #include "services/scrobbling/IScrobblingService.hpp"
@@ -33,12 +34,16 @@ namespace lms::scrobbling
     {
     public:
         ScrobblingService(boost::asio::io_context& ioContext, db::IDb& db);
-        ~ScrobblingService();
+        ~ScrobblingService() override;
+
+        ScrobblingService(const ScrobblingService&) = delete;
+        ScrobblingService& operator=(const ScrobblingService&) = delete;
 
     private:
         void listenStarted(const Listen& listen) override;
         void listenFinished(const Listen& listen, std::optional<std::chrono::seconds> duration) override;
         void addTimedListen(const TimedListen& listen) override;
+        void visitNowPlayingListens(const std::function<void(Clock::time_point startedAt, const Listen&)>& visitor, db::UserId userId) override;
 
         ArtistContainer getRecentArtists(const ArtistFindParameters& params) override;
         ReleaseContainer getRecentReleases(const FindParameters& params) override;
@@ -56,8 +61,18 @@ namespace lms::scrobbling
 
         std::optional<db::ScrobblingBackend> getUserBackend(db::UserId userId);
 
+        void insertNowPlayingEntry(const Listen& listen);
+
         db::IDb& _db;
         std::unordered_map<db::ScrobblingBackend, std::unique_ptr<IScrobblingBackend>> _scrobblingBackends;
-    };
 
+        std::shared_mutex _nowPlayingEntriesMutex;
+        struct NowPlayingEntry
+        {
+            Clock::time_point startedAt;
+            Clock::time_point expiryAt;
+            db::TrackId trackId;
+        };
+        std::unordered_map<db::UserId, NowPlayingEntry> _nowPlayingEntries;
+    };
 } // namespace lms::scrobbling

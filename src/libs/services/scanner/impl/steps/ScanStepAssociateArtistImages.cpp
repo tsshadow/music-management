@@ -126,7 +126,7 @@ namespace lms::scanner
 
             std::set<std::filesystem::path> releasePaths;
             db::Directory::FindParameters params;
-            params.setArtist(artistId, { db::TrackArtistLinkType::ReleaseArtist });
+            params.setReleaseArtist(artistId);
 
             db::Directory::find(session, params, [&](const db::Directory::pointer& directory) {
                 releasePaths.insert(directory->getAbsolutePath());
@@ -176,7 +176,7 @@ namespace lms::scanner
             db::Artwork::pointer artwork;
 
             db::Release::FindParameters params;
-            params.setArtist(artist->getId(), { db::TrackArtistLinkType::ReleaseArtist });
+            params.setArtist(artist->getId());
             params.setSortMethod(db::ReleaseSortMethod::OriginalDate);
 
             db::Release::find(session, params, [&](const db::Release::pointer& release) {

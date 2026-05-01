@@ -113,7 +113,7 @@ namespace lms
             };
 
             std::cout << "Processing artist '" << artistToString(artistId) << "'" << std::endl;
-            for (ArtistId similarArtistId : recommendationService.getSimilarArtists(artistId, { TrackArtistLinkType::Artist, TrackArtistLinkType::ReleaseArtist }, maxSimilarityCount))
+            for (ArtistId similarArtistId : recommendationService.getSimilarArtists(artistId, { TrackArtistLinkType::Artist }, maxSimilarityCount))
             {
                 std::cout << "\t- Similar artist '" << artistToString(similarArtistId) << "'" << std::endl;
             }

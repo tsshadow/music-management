@@ -6,6 +6,7 @@ add_library(lmssubsonic STATIC
 	impl/endpoints/AlbumSongLists.cpp
 	impl/endpoints/Bookmarks.cpp
 	impl/endpoints/Browsing.cpp
+	impl/endpoints/Jukebox.cpp
 	impl/endpoints/MediaAnnotation.cpp
 	impl/endpoints/MediaLibraryScanning.cpp
 	impl/endpoints/MediaRetrieval.cpp
@@ -57,17 +58,17 @@ target_include_directories(lmssubsonic PRIVATE
 
 target_link_libraries(lmssubsonic PRIVATE
 	lmsartwork
-	lmsauth
 	lmsaudio
+	lmsauth
+	lmscore
 	lmsdatabase
 	lmsfeedback
+	lmsjukebox
 	lmspodcast
 	lmsrecommendation
 	lmsscanner
 	lmsscrobbling
 	lmstranscoding
-	lmscore
-	std::filesystem
 	)
 
 target_link_libraries(lmssubsonic PUBLIC

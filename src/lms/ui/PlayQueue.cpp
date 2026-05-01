@@ -487,8 +487,8 @@ namespace lms::ui
         if (!artists.empty())
         {
             entry->setCondition("if-has-artists", true);
-            entry->bindWidget("artists", utils::createArtistAnchorList(artists));
-            entry->bindWidget("artists-md", utils::createArtistAnchorList(artists));
+            entry->bindWidget("artists", utils::createArtistsAnchors(track, db::TrackArtistLinkType::Artist));
+            entry->bindWidget("artists-md", utils::createArtistsAnchors(track, db::TrackArtistLinkType::Artist));
         }
 
         db::ArtworkId artworkId{ track->getPreferredMediaArtworkId() };

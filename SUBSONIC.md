@@ -6,6 +6,12 @@ Given the API limitations of folder navigation commands, it is recommended to pl
 
 The Subsonic API is enabled by default.
 
+## Jukebox support
+The jukebox‑control subset of the API is implemented through the `jukeboxControl` endpoint. Only the administrator may execute these actions and the service can be
+enabled or disabled with the `jukebox-audio-backend` configuration option in `lms.conf`. When the PulseAudio backend is selected, _LMS_ uses the normal system‑wide environment variables (`PULSE_SERVER`, `PULSE_SINK`, `PULSE_SOURCE`, etc.) to determine where audio is sent.
+
+__Note__: the jukebox play queue is kept entirely in memory by the service and is not persisted.
+
 # OpenSubsonic API
 OpenSubsonic is an initiative to patch and extend the legacy Subsonic API. You'll find more details in the [official documentation](https://opensubsonic.netlify.app/)
 
@@ -61,6 +67,8 @@ The following extra fields are implemented:
   * `musicBrainzId`
   * `sortName`
   * `roles`
+* `Playlist` response:
+  * `readonly`
 
 ## Supported extensions
 * [API Key Authentication](https://opensubsonic.netlify.app/docs/extensions/apikeyauth/)

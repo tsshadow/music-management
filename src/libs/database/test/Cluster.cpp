@@ -445,7 +445,7 @@ namespace lms::db::tests
         {
             auto transaction{ session.createWriteTransaction() };
 
-            auto trackArtistLink{ TrackArtistLink::create(session, track.get(), artist.get(), TrackArtistLinkType::Artist) };
+            auto trackArtistLink{ session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Artist) };
             cluster1.get().modify()->addTrack(track.get());
         }
 
@@ -505,8 +505,8 @@ namespace lms::db::tests
         {
             auto transaction{ session.createWriteTransaction() };
 
-            TrackArtistLink::create(session, track.get(), artist.get(), TrackArtistLinkType::Artist);
-            TrackArtistLink::create(session, track.get(), artist.get(), TrackArtistLinkType::ReleaseArtist);
+            session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Mixer);
             cluster.get().modify()->addTrack(track.get());
         }
 
@@ -544,7 +544,7 @@ namespace lms::db::tests
             tracks.emplace_back(session);
 
             auto transaction{ session.createWriteTransaction() };
-            TrackArtistLink::create(session, tracks.back().get(), artist.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(tracks.back().get(), artist.get(), TrackArtistLinkType::Artist);
 
             for (auto& cluster : clusters)
                 cluster.get().modify()->addTrack(tracks.back().get());
@@ -654,7 +654,7 @@ namespace lms::db::tests
         {
             auto transaction{ session.createWriteTransaction() };
 
-            TrackArtistLink::create(session, track.get(), artist.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Artist);
             track.get().modify()->setRelease(release.get());
             cluster.get().modify()->addTrack(track.get());
         }
@@ -675,11 +675,11 @@ namespace lms::db::tests
             ASSERT_EQ(artists.results.size(), 1);
             EXPECT_EQ(artists.results.front(), artist.getId());
 
-            auto releases{ Release::findIds(session, Release::FindParameters{}.setArtist(artist.getId())) };
+            auto releases{ Release::findIds(session, Release::FindParameters{}.setTrackArtist(artist.getId())) };
             ASSERT_EQ(releases.results.size(), 1);
             EXPECT_EQ(releases.results.front(), release.getId());
 
-            releases = Release::findIds(session, Release::FindParameters{}.setArtist(artist.getId()).setFilters(Filters{}.setClusters(std::initializer_list<ClusterId>{ cluster.getId() })));
+            releases = Release::findIds(session, Release::FindParameters{}.setTrackArtist(artist.getId()).setFilters(Filters{}.setClusters(std::initializer_list<ClusterId>{ cluster.getId() })));
             ASSERT_EQ(releases.results.size(), 1);
             EXPECT_EQ(releases.results.front(), release.getId());
         }
@@ -697,7 +697,7 @@ namespace lms::db::tests
         {
             auto transaction{ session.createWriteTransaction() };
 
-            auto trackArtistLink{ TrackArtistLink::create(session, track.get(), artist.get(), TrackArtistLinkType::Artist) };
+            auto trackArtistLink{ session.create<TrackArtistLink>(track.get(), artist.get(), TrackArtistLinkType::Artist) };
             track.get().modify()->setRelease(release.get());
             cluster1.get().modify()->addTrack(track.get());
             cluster2.get().modify()->addTrack(track.get());
@@ -706,11 +706,11 @@ namespace lms::db::tests
         {
             auto transaction{ session.createReadTransaction() };
 
-            auto releases{ Release::findIds(session, Release::FindParameters{}.setArtist(artist.getId())) };
+            auto releases{ Release::findIds(session, Release::FindParameters{}.setTrackArtist(artist.getId())) };
             ASSERT_EQ(releases.results.size(), 1);
             EXPECT_EQ(releases.results.front(), release.getId());
 
-            releases = Release::findIds(session, Release::FindParameters{}.setArtist(artist.getId()).setFilters(Filters{}.setClusters(std::initializer_list<ClusterId>{ cluster1.getId(), cluster2.getId() })));
+            releases = Release::findIds(session, Release::FindParameters{}.setTrackArtist(artist.getId()).setFilters(Filters{}.setClusters(std::initializer_list<ClusterId>{ cluster1.getId(), cluster2.getId() })));
             ASSERT_EQ(releases.results.size(), 1);
             EXPECT_EQ(releases.results.front(), release.getId());
         }
@@ -822,10 +822,10 @@ namespace lms::db::tests
             auto transaction{ session.createWriteTransaction() };
 
             if (i < 5)
-                TrackArtistLink::create(session, tracks.back().get(), artist1.get(), TrackArtistLinkType::Artist);
+                session.create<TrackArtistLink>(tracks.back().get(), artist1.get(), TrackArtistLinkType::Artist);
             else
             {
-                TrackArtistLink::create(session, tracks.back().get(), artist2.get(), TrackArtistLinkType::Artist);
+                session.create<TrackArtistLink>(tracks.back().get(), artist2.get(), TrackArtistLinkType::Artist);
                 cluster2.get().modify()->addTrack(tracks.back().get());
             }
 
@@ -835,7 +835,7 @@ namespace lms::db::tests
         tracks.emplace_back(session);
         {
             auto transaction{ session.createWriteTransaction() };
-            TrackArtistLink::create(session, tracks.back().get(), artist3.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(tracks.back().get(), artist3.get(), TrackArtistLinkType::Artist);
             cluster2.get().modify()->addTrack(tracks.back().get());
         }
 
@@ -855,12 +855,12 @@ namespace lms::db::tests
             }
 
             {
-                auto artists{ artist1->findSimilarArtistIds({ TrackArtistLinkType::ReleaseArtist }) };
+                auto artists{ artist1->findSimilarArtistIds({ TrackArtistLinkType::Lyricist }) };
                 EXPECT_EQ(artists.results.size(), 0);
             }
 
             {
-                auto artists{ artist1->findSimilarArtistIds({ TrackArtistLinkType::Artist, TrackArtistLinkType::ReleaseArtist }) };
+                auto artists{ artist1->findSimilarArtistIds({ TrackArtistLinkType::Artist, TrackArtistLinkType::Lyricist }) };
                 ASSERT_EQ(artists.results.size(), 1);
                 EXPECT_EQ(artists.results.front(), artist2.getId());
             }

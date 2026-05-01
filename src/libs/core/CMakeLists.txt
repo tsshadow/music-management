@@ -54,7 +54,6 @@ target_link_libraries(lmscore PRIVATE
 	)
 
 target_link_libraries(lmscore PUBLIC
-	std::filesystem
 	Wt::Wt
 	)
 

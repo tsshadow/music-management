@@ -31,5 +31,5 @@ namespace lms::db
 
 namespace lms::api::subsonic
 {
-    Response::Node createContributorNode(const db::ObjectPtr<db::TrackArtistLink>& trackArtistLink, const db::ObjectPtr<db::Artist>& artist);
+    Response::Node createContributorNode(const db::ObjectPtr<db::TrackArtistLink>& trackArtistLink);
 }

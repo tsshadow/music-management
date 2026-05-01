@@ -35,7 +35,7 @@ namespace lms::db
 {
     namespace
     {
-        static constexpr Version LMS_DATABASE_VERSION{ 103 };
+        static constexpr Version LMS_DATABASE_VERSION{ 104 };
     }
 
     VersionInfo::VersionInfo()
@@ -1713,6 +1713,31 @@ FROM track)");
 
     void migrateFromV102(Session& session)
     {
+        // New link to artists from releases
+        utils::executeCommand(*session.getDboSession(), R"(CREATE TABLE IF NOT EXISTS "release_artist_link" (
+  "id" integer primary key autoincrement,
+  "version" integer not null,
+  "artist_name" text not null,
+  "artist_sort_name" text not null,
+  "artist_mbid_matched" boolean not null,
+  "release_id" bigint,
+  "artist_id" bigint,
+  constraint "fk_release_artist_link_release" foreign key ("release_id") references "release" ("id") on delete cascade deferrable initially deferred,
+  constraint "fk_release_artist_link_artist" foreign key ("artist_id") references "artist" ("id") on delete cascade deferrable initially deferred
+    ))");
+
+        // Remove all artist links where the link type is TrackArtistLinkType::ReleaseArtist = 8
+        utils::executeCommand(*session.getDboSession(), R"(DELETE FROM track_artist_link WHERE type = 8)");
+
+        // Remove outdated UI state entries
+        utils::executeCommand(*session.getDboSession(), R"(DELETE FROM ui_state WHERE item = 'artists_link_type')");
+
+        // Just increment the scan version of the settings to make the next scan rescan all audio files
+        utils::executeCommand(*session.getDboSession(), "UPDATE scan_settings SET audio_scan_version = audio_scan_version + 1");
+    }
+
+    void migrateFromV103(Session& session)
+    {
         // Add rating for tracks
         utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD rating INTEGER");
     }
@@ -1796,6 +1821,7 @@ FROM track)");
             { 100, migrateFromV100 },
             { 101, migrateFromV101 },
             { 102, migrateFromV102 },
+            { 103, migrateFromV103 },
         };
 
         bool migrationPerformed{};

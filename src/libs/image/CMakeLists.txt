@@ -14,7 +14,6 @@ target_include_directories(lmsimage PRIVATE
 
 target_link_libraries(lmsimage PUBLIC
 	lmscore
-	std::filesystem
 	)
 
 set(LMS_IMAGE_BACKEND "stb" CACHE STRING "Image library")

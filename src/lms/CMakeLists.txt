@@ -37,6 +37,7 @@ add_executable(lms
 	ui/common/UUIDValidator.cpp
 	ui/explore/ArtistCollector.cpp
 	ui/explore/ArtistListHelpers.cpp
+	ui/explore/ArtistType.cpp
 	ui/explore/ArtistView.cpp
 	ui/explore/ArtistsView.cpp
 	ui/explore/DatabaseCollectorBase.cpp
@@ -48,6 +49,7 @@ add_executable(lms
 	ui/explore/ReleasesView.cpp
 	ui/explore/ReleaseView.cpp
 	ui/explore/ReleaseTypes.cpp
+	ui/explore/TrackArtistTypeSelector.cpp
 	ui/explore/TrackCollector.cpp
 	ui/explore/TrackListHelpers.cpp
 	ui/explore/TrackListView.cpp
@@ -67,18 +69,19 @@ target_link_libraries(lms PRIVATE
 	Boost::iostreams
 	Wt::Wt
 	Wt::HTTP
+	lmsartwork
 	lmsaudio
 	lmsauth
+	lmscore
 	lmsdatabase
 	lmsfeedback
+	lmsjukebox
+	lmspodcast
 	lmsrecommendation
 	lmsscanner
 	lmsscrobbling
-	lmspodcast
-	lmsartwork
 	lmssubsonic
 	lmstranscoding
-	lmscore
 	)
 
 install(TARGETS lms DESTINATION bin)

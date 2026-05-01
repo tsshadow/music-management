@@ -27,12 +27,14 @@
 #include "database/objects/TrackArtistLink.hpp"
 
 #include "ArtistListHelpers.hpp"
+#include "ArtistTypeSelector.hpp"
 #include "Filters.hpp"
 #include "LmsApplication.hpp"
 #include "SortModeSelector.hpp"
 #include "State.hpp"
-#include "TrackArtistLinkTypeSelector.hpp"
 #include "common/InfiniteScrollingContainer.hpp"
+#include "database/objects/Types.hpp"
+#include "explore/ArtistType.hpp"
 
 namespace lms::ui
 {
@@ -61,13 +63,13 @@ namespace lms::ui
         }
 
         {
-            const std::optional<db::TrackArtistLinkType> linkType{ state::readValue<db::TrackArtistLinkType>("artists_link_type") };
-            _artistCollector.setArtistLinkType(linkType);
+            ArtistType artistType{ state::readValue<ArtistType>("artists_type").value_or(_defaultArtistType) };
+            _artistCollector.setArtistType(artistType);
 
-            TrackArtistLinkTypeSelector* linkTypeSelector{ bindNew<TrackArtistLinkTypeSelector>("link-type", linkType) };
-            linkTypeSelector->itemSelected.connect([this](std::optional<db::TrackArtistLinkType> newLinkType) {
-                state::writeValue<db::TrackArtistLinkType>("artists_link_type", newLinkType);
-                refreshView(newLinkType);
+            ArtistTypeSelector* artistTypeSelector{ bindNew<ArtistTypeSelector>("artist-type", artistType) };
+            artistTypeSelector->itemSelected.connect([this](ArtistType newArtistType) {
+                state::writeValue<ArtistType>("artists_type", newArtistType);
+                refreshView(newArtistType);
             });
         }
 
@@ -95,9 +97,9 @@ namespace lms::ui
         refreshView();
     }
 
-    void Artists::refreshView(std::optional<db::TrackArtistLinkType> linkType)
+    void Artists::refreshView(ArtistType artistType)
     {
-        _artistCollector.setArtistLinkType(linkType);
+        _artistCollector.setArtistType(artistType);
         refreshView();
     }
 

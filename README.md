@@ -24,6 +24,7 @@ A [demo instance](http://lms-demo.poupon.dev) is available. Note the administrat
 * Podcasts support
 * Playlists support
 * Lyrics support
+* [Jukebox](SUBSONIC.md#jukebox-support) support
 
 ## Music discovery
 _LMS_ provides several ways to help you find the music you like:
@@ -49,7 +50,8 @@ _LMS_ supports an Artist information folder to manage metadata and images for ar
 
 The folder must follow a structure defined by Kodi, as detailed [here](https://kodi.wiki/view/Artist_information_folder). `artist.nfo` files are used to define additional artist information such as biography, sort name, and MusicBrainz ArtistID. See the format [here](https://kodi.wiki/view/NFO_files/Artists).
 
-__Note__: If no name is provided in the `artist.nfo` file, the name of the containing folder is used.
+The canonical artist name used by _LMS_ is the one specified in the `artist.nfo` file; If an `artist.nfo` exists but does not provide a name, the name of the containing folder is used.
+If no artist info file is provided, _LMS_ will pick the artist name found on the latest release.
 
 ### Filtering
 It is possible to apply global filters on your collection using `genre`, `mood`, `grouping`, `language`, `codec`, and by music library. More tags, including custom ones, can be added in the database administration settings.
@@ -62,14 +64,20 @@ _LMS_ works best when using the default [Picard](https://picard.musicbrainz.org/
 ### Multiple album artists
 While _LMS_ can manage multiple album artists using the `albumartist` tag, it works better when using the custom `albumartists` and `albumartistssort` tags, similar to how it handles regular artist tags.
 
-__Note__: if you use Picard, add the following script to include these tags:
+__Note__: if you use Picard, add this script to set up both artist and album artist tags:
 ```
+$setmulti(artistssort,%_artists_sort%)
 $setmulti(albumartists,%_albumartists%)
 $setmulti(albumartistssort,%_albumartists_sort%)
 ```
 
+### Extended artist and MusicBrainz ID support
+_LMS_ supports several non-standard tags to allow more accurate artist identification:
+* **MusicBrainz identifiers** for artist relationships: `musicbrainz_composerid`, `musicbrainz_conductorid`, `musicbrainz_lyricistid`, `musicbrainz_mixerid`, `musicbrainz_producerid`, `musicbrainz_remixerid`
+* **Sort order variants**: , `albumartistssort`, `composerssort`, `conductorssort`, `lyricistssort`, `mixerssort`, `producerssort`, `remixerssort`. Singular forms of these tags are also accepted (e.g., `conductorsort`, `lyricistsort`, etc.)
+
 ### Album track grouping
-The recommended way to group tracks within an album is to use the `MUSICBRAINZ_ALBUMID` tag.
+The recommended way to group tracks within an album is to use the `musicbrainz_albumid` tag.
 
 When this tag is not present, _LMS_ will attempt to group them as best as possible: if the analyzed file contains a disc number and the total number of discs is greater than 1, sibling directories are also scanned to find a matching album.
 Otherwise, _LMS_ will only consider albums within the current directory.  

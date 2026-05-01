@@ -55,7 +55,7 @@ namespace lms::scrobbling::listenBrainz
 
     private:
         void enqueListen(const Listen& listen, const Wt::WDateTime& timePoint);
-        bool saveListen(const TimedListen& listen, db::SyncState scrobblinState);
+        bool saveListen(const TimedListen& listen, db::SyncState scrobblingState);
 
         void enquePendingListens();
 

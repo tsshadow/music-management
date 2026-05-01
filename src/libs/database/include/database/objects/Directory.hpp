@@ -53,10 +53,11 @@ namespace lms::db
         {
             std::optional<Range> range;
             std::vector<std::string_view> keywords;                  // if non empty, name must match all of these keywords
-            ArtistId artist;                                         // only directoies that involve this artist
+            ArtistId trackArtist;                                    // only directories that involve this track artist
+            core::EnumSet<TrackArtistLinkType> trackArtistLinkTypes; // and for these link types
             MediumId medium;                                         // only directories that involve this medium
             ReleaseId release;                                       // only directories that involve this release
-            core::EnumSet<TrackArtistLinkType> trackArtistLinkTypes; // and for these link types
+            ArtistId releaseArtist;                                  // only directories that involve this release artist
             DirectoryId parentDirectory;                             // If set, directories that have this parent
             bool withNoTrack{};                                      // If set, directories that do not contain any track
             MediaLibraryId mediaLibrary;                             // If set, directories in this library
@@ -72,12 +73,18 @@ namespace lms::db
                 keywords = _keywords;
                 return *this;
             }
-            FindParameters& setArtist(ArtistId _artist, core::EnumSet<TrackArtistLinkType> _trackArtistLinkTypes = {})
+            FindParameters& setTrackArtist(ArtistId _artist, core::EnumSet<TrackArtistLinkType> _trackArtistLinkTypes = {})
             {
-                artist = _artist;
+                trackArtist = _artist;
                 trackArtistLinkTypes = _trackArtistLinkTypes;
                 return *this;
             }
+            FindParameters& setReleaseArtist(ArtistId _artist)
+            {
+                releaseArtist = _artist;
+                return *this;
+            }
+
             FindParameters& setMedium(MediumId _medium)
             {
                 medium = _medium;

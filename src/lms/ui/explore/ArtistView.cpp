@@ -19,7 +19,10 @@
 
 #include "ArtistView.hpp"
 
+#include <array>
+
 #include <Wt/WPushButton.h>
+#include <Wt/WStackedWidget.h>
 
 #include "core/String.hpp"
 #include "database/Session.hpp"
@@ -30,6 +33,8 @@
 #include "database/objects/Release.hpp"
 #include "database/objects/ScanSettings.hpp"
 #include "database/objects/Track.hpp"
+#include "database/objects/TrackArtistLink.hpp"
+#include "database/objects/Types.hpp"
 #include "database/objects/User.hpp"
 #include "services/feedback/IFeedbackService.hpp"
 #include "services/recommendation/IRecommendationService.hpp"
@@ -40,6 +45,7 @@
 #include "LmsApplicationException.hpp"
 #include "PlayQueueController.hpp"
 #include "ReleaseHelpers.hpp"
+#include "TrackArtistTypeSelector.hpp"
 #include "TrackListHelpers.hpp"
 #include "Utils.hpp"
 #include "common/InfiniteScrollingContainer.hpp"
@@ -98,11 +104,12 @@ namespace lms::ui
         _artistId = {};
         _trackContainer = nullptr;
         _allTracksContainer = nullptr;
+        _artistName = {};
 
         if (!artistId)
             throw ArtistNotFoundException{};
 
-        const auto similarArtistIds{ core::Service<recommendation::IRecommendationService>::get()->getSimilarArtists(*artistId, { db::TrackArtistLinkType::Artist, db::TrackArtistLinkType::ReleaseArtist }, 6) };
+        const auto similarArtistIds{ core::Service<recommendation::IRecommendationService>::get()->getSimilarArtists(*artistId, { db::TrackArtistLinkType::Artist }, 6) };
 
         auto transaction{ LmsApp->getDbSession().createReadTransaction() };
 
@@ -112,6 +119,7 @@ namespace lms::ui
 
         LmsApp->setTitle(artist->getName());
         _artistId = *artistId;
+        _artistName = artist->getName();
 
         refreshArtwork(artist->getPreferredArtworkId());
         refreshArtistInfo();
@@ -141,7 +149,7 @@ namespace lms::ui
             }
         }
 
-        bindString("name", Wt::WString::fromUTF8(artist->getName()), Wt::TextFormat::Plain);
+        bindString("name", Wt::WString::fromUTF8(_artistName), Wt::TextFormat::Plain);
 
         bindNew<Wt::WPushButton>("play-btn", Wt::WString::tr("Lms.Explore.play"), Wt::TextFormat::XHTML)
             ->clicked()
@@ -232,20 +240,24 @@ namespace lms::ui
         _releaseContainers.clear();
 
         db::Release::FindParameters params;
-        params.setArtist(_artistId, { db::TrackArtistLinkType::ReleaseArtist }, {});
+        params.setArtist(_artistId);
         params.setSortMethod(LmsApp->getUser()->getUIArtistReleaseSortMethod());
 
-        const auto releases{ db::Release::findIds(LmsApp->getDbSession(), params) };
-        if (!releases.results.empty())
-        {
-            // first pass: gather all ids and sort by release type
-            for (const db::ReleaseId releaseId : releases.results)
-            {
-                const db::Release::pointer release{ db::Release::find(LmsApp->getDbSession(), releaseId) };
+        // first pass: gather all ids and sort by release type
+        bool hasReleaseWithDifferentName{};
+        db::Release::find(LmsApp->getDbSession(), params, [&](const db::Release::pointer& release) {
+            ReleaseType releaseType{ parseReleaseType(release->getReleaseTypeNames()) };
+            _releaseContainers[releaseType].releases.push_back(release->getId());
 
-                ReleaseType releaseType{ parseReleaseType(release->getReleaseTypeNames()) };
-                _releaseContainers[releaseType].releases.push_back(releaseId);
-            }
+            if (release->getArtistDisplayName() != _artistName)
+                hasReleaseWithDifferentName = true;
+        });
+
+        if (!_releaseContainers.empty())
+        {
+            core::EnumSet displayOptions{ releaseListHelpers::DisplayOptions::ShowYearAndOriginalYear };
+            if (hasReleaseWithDifferentName)
+                displayOptions.insert(releaseListHelpers::DisplayOptions::ShowArtist);
 
             // second pass: construct widgets
             Wt::WContainerWidget* releaseContainers{ bindNew<Wt::WContainerWidget>("release-containers") };
@@ -255,8 +267,8 @@ namespace lms::ui
 
                 releaseContainer->bindString("release-type", releaseHelpers::buildReleaseTypeString(releaseType));
                 releases.container = releaseContainer->bindNew<InfiniteScrollingContainer>("releases", Wt::WString::tr("Lms.Explore.Releases.template.container"));
-                releases.container->onRequestElements.connect(this, [this, &releases = releases] {
-                    addSomeReleases(releases);
+                releases.container->onRequestElements.connect(this, [&, displayOptions] {
+                    addSomeReleases(releases, displayOptions);
                 });
             }
         }
@@ -268,9 +280,34 @@ namespace lms::ui
 
     void Artist::refreshAppearsOnReleases()
     {
-        constexpr core::EnumSet<db::TrackArtistLinkType> types{
+        _appearsOnReleases.clear();
+        _appearsOnReleaseContainer = {};
+
+        auto addToReleaseContainer = [&](std::optional<db::TrackArtistLinkType> linkType) -> bool {
+            db::Release::FindParameters params;
+
+            core::EnumSet<db::TrackArtistLinkType> linkTypes;
+            if (linkType)
+                linkTypes.insert(*linkType);
+
+            params.setTrackArtist(_artistId, linkTypes);
+            params.setSortMethod(db::ReleaseSortMethod::OriginalDateDesc);
+
+            bool found{};
+            db::Release::find(LmsApp->getDbSession(), params, [&](const db::Release::pointer& release) {
+                if (release->hasArtist(_artistId))
+                    return;
+
+                _appearsOnReleases[linkType].push_back(release->getId());
+                found = true;
+            });
+
+            return found;
+        };
+
+        constexpr std::array<std::optional<db::TrackArtistLinkType>, 9> types{
+            std::nullopt,
             db::TrackArtistLinkType::Artist,
-            db::TrackArtistLinkType::Arranger,
             db::TrackArtistLinkType::Composer,
             db::TrackArtistLinkType::Conductor,
             db::TrackArtistLinkType::Lyricist,
@@ -278,31 +315,42 @@ namespace lms::ui
             db::TrackArtistLinkType::Performer,
             db::TrackArtistLinkType::Producer,
             db::TrackArtistLinkType::Remixer,
-            db::TrackArtistLinkType::Writer,
         };
 
-        _appearsOnReleaseContainer = {};
-
-        db::Release::FindParameters params;
-        params.setFilters(_filters.getDbFilters());
-        params.setArtist(_artistId, types, { db::TrackArtistLinkType::ReleaseArtist });
-        params.setSortMethod(db::ReleaseSortMethod::OriginalDateDesc);
-
-        const auto releases{ db::Release::findIds(LmsApp->getDbSession(), params) };
-        if (!releases.results.empty())
+        core::EnumSet<db::TrackArtistLinkType> foundTypes;
+        for (const auto type : types)
         {
-            Wt::WTemplate* releaseContainer{ bindNew<Wt::WTemplate>("appears-on-releases", Wt::WString::tr("Lms.Explore.Artist.template.release-container")) };
-            releaseContainer->bindString("release-type", Wt::WString::tr("Lms.Explore.Artist.appears-on"));
-            _appearsOnReleaseContainer.releases = releases.results;
-            _appearsOnReleaseContainer.container = releaseContainer->bindNew<InfiniteScrollingContainer>("releases", Wt::WString::tr("Lms.Explore.Releases.template.container"));
-            _appearsOnReleaseContainer.container->onRequestElements.connect(this, [this] {
-                addSomeReleases(_appearsOnReleaseContainer);
+            if (addToReleaseContainer(type) && type)
+                foundTypes.insert(*type);
+        }
+
+        if (!_appearsOnReleases.empty())
+        {
+            std::optional<db::TrackArtistLinkType> defaultType{ std::nullopt };
+            if (_appearsOnReleases.size() == 2)
+            {
+                auto it{ std::find_if(std::cbegin(_appearsOnReleases), std::cend(_appearsOnReleases), [=](const auto& entry) { return entry.first != defaultType; }) };
+                if (it != std::cend(_appearsOnReleases))
+                    defaultType = it->first;
+            }
+
+            Wt::WTemplate* appearsOnContainer{ bindNew<Wt::WTemplate>("appears-on-releases", Wt::WString::tr("Lms.Explore.Artist.template.appears-on-container")) };
+            appearsOnContainer->addFunction("tr", &Wt::WTemplate::Functions::tr);
+
+            _appearsOnReleaseContainer.container = appearsOnContainer->bindNew<InfiniteScrollingContainer>("releases", Wt::WString::tr("Lms.Explore.Releases.template.container"));
+            _appearsOnReleaseContainer.releases = _appearsOnReleases[defaultType];
+            _appearsOnReleaseContainer.container->onRequestElements.connect(this, [&] {
+                addSomeReleases(_appearsOnReleaseContainer, { releaseListHelpers::DisplayOptions::ShowYearAndOriginalYear, releaseListHelpers::DisplayOptions::ShowArtist });
+            });
+
+            TrackArtistTypeSelector* trackArtistTypeSelector{ appearsOnContainer->bindNew<TrackArtistTypeSelector>("artist-type", defaultType, foundTypes) };
+            trackArtistTypeSelector->itemSelected.connect([this](std::optional<db::TrackArtistLinkType> newArtistLinkType) {
+                _appearsOnReleaseContainer.releases = _appearsOnReleases[newArtistLinkType];
+                _appearsOnReleaseContainer.container->reset();
             });
         }
         else
-        {
             bindEmpty("appears-on-releases");
-        }
     }
 
     void Artist::refreshNonReleaseTracks()
@@ -357,7 +405,7 @@ namespace lms::ui
         }
     }
 
-    void Artist::addSomeReleases(ReleaseContainer& releaseContainer)
+    void Artist::addSomeReleases(ReleaseContainer& releaseContainer, core::EnumSet<releaseListHelpers::DisplayOptions> displayOptions)
     {
         auto transaction{ LmsApp->getDbSession().createReadTransaction() };
 
@@ -366,7 +414,7 @@ namespace lms::ui
             for (std::size_t i{ static_cast<std::size_t>(releaseContainer.container->getCount()) }; i < releaseContainer.releases.size(); ++i)
             {
                 const db::Release::pointer release{ db::Release::find(LmsApp->getDbSession(), releaseContainer.releases[i]) };
-                releaseContainer.container->add(releaseListHelpers::createEntryForArtist(release, artist));
+                releaseContainer.container->add(releaseListHelpers::createEntry(release, displayOptions));
             }
         }
 
@@ -380,7 +428,6 @@ namespace lms::ui
         const db::Range range{ static_cast<std::size_t>(_trackContainer->getCount()), _tracksBatchSize };
 
         db::Track::FindParameters params;
-        params.setFilters(_filters.getDbFilters());
         params.setArtist(_artistId);
         params.setRange(range);
         params.setSortMethod(db::TrackSortMethod::Name);
@@ -404,7 +451,6 @@ namespace lms::ui
 
         return areTracksAdded;
     }
-
     bool Artist::addSomeAllTracks()
     {
         bool areTracksAdded{};
@@ -435,5 +481,4 @@ namespace lms::ui
 
         return areTracksAdded;
     }
-
 } // namespace lms::ui

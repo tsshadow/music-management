@@ -29,6 +29,7 @@
 #include "database/objects/Directory.hpp"
 #include "database/objects/Medium.hpp"
 #include "database/objects/Release.hpp"
+#include "database/objects/ReleaseArtistLink.hpp"
 #include "database/objects/Track.hpp"
 #include "database/objects/User.hpp"
 #include "services/feedback/IFeedbackService.hpp"
@@ -99,21 +100,36 @@ namespace lms::api::subsonic
         else if (const auto year{ release->getYear() })
             albumNode.setAttribute("year", *year);
 
-        auto artists{ release->getReleaseArtists() };
-        if (artists.empty())
-            artists = release->getArtists();
-
-        if (!artists.empty())
+        struct Artist
         {
-            if (!release->getArtistDisplayName().empty())
-                albumNode.setAttribute("artist", release->getArtistDisplayName());
-            else
-                albumNode.setAttribute("artist", utils::joinArtistNames(artists));
+            std::string name;
+            std::string id;
+        };
+        std::optional<Artist> artist;
 
-            if (artists.size() == 1)
+        const auto artistLinks{ release->getArtistLinks() };
+        if (!artistLinks.empty())
+        {
+            artist = Artist{ .name = std::string{ release->getArtistDisplayName() }, .id = {} };
+            if (artistLinks.size() == 1)
+                artist->id = idToString(artistLinks.front()->getArtistId());
+        }
+        else
+        {
+            if (const auto trackArtists{ release->getTrackArtists(TrackArtistLinkType::Artist) }; !trackArtists.empty())
             {
-                albumNode.setAttribute("artistId", idToString(artists.front()->getId()));
+                if (trackArtists.size() > 1)
+                    artist = Artist{ .name = "Various Artists", .id = {} };
+                else if (trackArtists.size() == 1)
+                    artist = Artist{ .name = trackArtists.front()->getName(), .id = idToString(trackArtists.front()->getId()) };
             }
+        }
+
+        if (artist)
+        {
+            albumNode.setAttribute("artist", artist->name);
+            if (!artist->id.empty())
+                albumNode.setAttribute("artistId", artist->id);
         }
 
         albumNode.setAttribute("playCount", core::Service<scrobbling::IScrobblingService>::get()->getCount(context.getUser()->getId(), release->getId()));
@@ -182,16 +198,16 @@ namespace lms::api::subsonic
         if (id3)
         {
             albumNode.createEmptyArrayChild("artists");
-            for (const Artist::pointer& artist : release->getReleaseArtists())
-                albumNode.addArrayChild("artists", createArtistNode(artist));
+            for (const db::ReleaseArtistLink::pointer& artistLink : artistLinks)
+                albumNode.addArrayChild("artists", createMinimalArtistNode(artistLink));
 
             albumNode.setAttribute("displayArtist", release->getArtistDisplayName());
         }
         else
         {
             albumNode.createEmptyArrayChild("albumArtists");
-            for (const Artist::pointer& artist : release->getReleaseArtists())
-                albumNode.addArrayChild("albumArtists", createArtistNode(artist));
+            for (const db::ReleaseArtistLink::pointer& artistLink : artistLinks)
+                albumNode.addArrayChild("albumArtists", createMinimalArtistNode(artistLink));
 
             albumNode.setAttribute("displayAlbumArtist", release->getArtistDisplayName());
 

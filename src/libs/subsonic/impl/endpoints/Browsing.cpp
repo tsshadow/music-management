@@ -113,7 +113,7 @@ namespace lms::api::subsonic
             const std::size_t similarArtistCount{ count / 5 };
             std::vector<ArtistId> artistIds{
                 core::Service<recommendation::IRecommendationService>::get()->getSimilarArtists(
-                    artistId, { TrackArtistLinkType::Artist, TrackArtistLinkType::ReleaseArtist }, similarArtistCount)
+                    artistId, { TrackArtistLinkType::Artist }, similarArtistCount)
             };
             artistIds.push_back(artistId);
 
@@ -481,10 +481,10 @@ namespace lms::api::subsonic
             case SubsonicArtistListMode::AllArtists:
                 break;
             case SubsonicArtistListMode::ReleaseArtists:
-                parameters.setLinkType(TrackArtistLinkType::ReleaseArtist);
+                parameters.setReleaseArtistsOnly(true);
                 break;
             case SubsonicArtistListMode::TrackArtists:
-                parameters.setLinkType(TrackArtistLinkType::Artist);
+                parameters.setTrackArtistLinkType(TrackArtistLinkType::Artist);
                 break;
             }
         }
@@ -700,7 +700,7 @@ namespace lms::api::subsonic
 
         auto similarArtistsId{
             core::Service<recommendation::IRecommendationService>::get()->getSimilarArtists(
-                id, { TrackArtistLinkType::Artist, TrackArtistLinkType::ReleaseArtist }, count)
+                id, { TrackArtistLinkType::Artist }, count)
         };
         {
             auto transaction{ context.getDbSession().createReadTransaction() };

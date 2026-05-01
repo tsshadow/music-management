@@ -65,9 +65,9 @@ Step 21/41 : RUN        DIR=/tmp/taglib && mkdir -p ${DIR} && cd ${DIR} &&     C
  ---> Using cache
  ---> 7d372f2f1c1e
 Step 22/41 : COPY . /tmp/lms/
- ---> 78ed419bb136
+ ---> aea5ea31c332
 Step 23/41 : RUN        DIR=/tmp/lms/build && mkdir -p ${DIR} && cd ${DIR} &&  PKG_CONFIG_PATH=/tmp/install/lib/pkgconfig CXXFLAGS="-I${PREFIX}/include" LDFLAGS="-L${PREFIX}/lib -Wl,--rpath-link=${PREFIX}/lib" cmake /tmp/lms/ -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=TRUE -DCMAKE_UNITY_BUILD=ON -DCMAKE_INSTALL_PREFIX=${PREFIX} -DCMAKE_PREFIX_PATH=${PREFIX} &&         LD_LIBRARY_PATH=${PREFIX}/lib make -j$(nproc) install &&        LD_LIBRARY_PATH=${PREFIX}/lib make test &&      mkdir -p ${PREFIX}/etc/ &&      cp /tmp/lms/conf/lms.conf ${PREFIX}/etc
- ---> Running in 154d5cdd569c
+ ---> Running in 4b8d684e9daa
 -- The C compiler identification is GNU 15.2.0
 -- The CXX compiler identification is GNU 15.2.0
 -- Detecting C compiler ABI info
@@ -117,34 +117,34 @@ This warning is for project developers.  Use -Wno-dev to suppress it.
 --   Found libxxhash, version 0.8.3
 -- Found StbImage: /tmp/install/include/stb
 -- Using stb (resize version 2)
+-- NOT using PAM authentication backend
 CMake Warning at src/libs/services/auth/CMakeLists.txt:32 (message):
   PAM library not found: disabling
--- NOT using PAM authentication backend
 -- Configuring done (0.8s)
 -- Generating done (0.1s)
 -- Build files have been written to: /tmp/lms/build
-[  1%] Building CXX object src/libs/core/CMakeFiles/lmscore.dir/Unity/unity_3_cxx.cxx.o
 [  2%] Building CXX object src/libs/core/CMakeFiles/lmscore.dir/Unity/unity_2_cxx.cxx.o
+[  2%] Building CXX object src/libs/core/CMakeFiles/lmscore.dir/Unity/unity_3_cxx.cxx.o
 [  3%] Building CXX object src/libs/core/CMakeFiles/lmscore.dir/Unity/unity_1_cxx.cxx.o
 [  4%] Building CXX object src/libs/core/CMakeFiles/lmscore.dir/Unity/unity_0_cxx.cxx.o
 [  5%] Linking CXX static library liblmscore.a
 [  5%] Built target lmscore
-[  6%] Building CXX object src/libs/audio/CMakeFiles/lmsaudio.dir/Unity/unity_1_cxx.cxx.o
-[  8%] Building CXX object src/libs/core/test/CMakeFiles/test-core.dir/Unity/unity_1_cxx.cxx.o
-[  8%] Building CXX object src/libs/audio/CMakeFiles/lmsaudio.dir/Unity/unity_0_cxx.cxx.o
-[ 10%] Building CXX object src/libs/audio/CMakeFiles/lmsaudio.dir/Unity/unity_2_cxx.cxx.o
-[ 11%] Building CXX object src/libs/core/test/CMakeFiles/test-core.dir/Unity/unity_0_cxx.cxx.o
-[ 12%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_4_cxx.cxx.o
-[ 13%] Building CXX object src/libs/som/CMakeFiles/lmssom.dir/Unity/unity_0_cxx.cxx.o
-[ 14%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_5_cxx.cxx.o
+[  7%] Building CXX object src/libs/core/test/CMakeFiles/test-core.dir/Unity/unity_1_cxx.cxx.o
+[  7%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_5_cxx.cxx.o
+[  8%] Building CXX object src/libs/audio/CMakeFiles/lmsaudio.dir/Unity/unity_1_cxx.cxx.o
+[ 13%] Building CXX object src/libs/core/test/CMakeFiles/test-core.dir/Unity/unity_0_cxx.cxx.o
+[ 13%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_3_cxx.cxx.o
+[ 15%] Building CXX object src/libs/image/CMakeFiles/lmsimage.dir/impl/stb/StbImage.cpp.o
 [ 15%] Building CXX object src/libs/image/CMakeFiles/lmsimage.dir/Unity/unity_0_cxx.cxx.o
-[ 16%] Building CXX object src/libs/image/CMakeFiles/lmsimage.dir/impl/stb/StbImage.cpp.o
-[ 17%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_3_cxx.cxx.o
-[ 20%] Building CXX object src/libs/image/CMakeFiles/lmsimage.dir/impl/stb/StbImageWrite.cpp.o
-[ 20%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_2_cxx.cxx.o
-[ 21%] Building CXX object src/libs/image/CMakeFiles/lmsimage.dir/impl/stb/StbImageResize.cpp.o
-[ 22%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_0_cxx.cxx.o
-[ 23%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_1_cxx.cxx.o
+[ 15%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_4_cxx.cxx.o
+[ 15%] Building CXX object src/libs/audio/CMakeFiles/lmsaudio.dir/Unity/unity_2_cxx.cxx.o
+[ 16%] Building CXX object src/libs/image/CMakeFiles/lmsimage.dir/impl/stb/StbImageResize.cpp.o
+[ 17%] Building CXX object src/libs/audio/CMakeFiles/lmsaudio.dir/Unity/unity_0_cxx.cxx.o
+[ 19%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_2_cxx.cxx.o
+[ 21%] Building CXX object src/libs/som/CMakeFiles/lmssom.dir/Unity/unity_0_cxx.cxx.o
+[ 21%] Building CXX object src/libs/image/CMakeFiles/lmsimage.dir/impl/stb/StbImageWrite.cpp.o
+[ 22%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_1_cxx.cxx.o
+[ 23%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_0_cxx.cxx.o
 In file included from /tmp/lms/src/libs/image/impl/stb/StbImageWrite.hpp:21,
                  from /tmp/lms/src/libs/image/impl/stb/StbImageWrite.cpp:21:
 /tmp/install/include/stb/stb_image_write.h: In function 'int stbi_write_bmp_to_func(void (*)(void*, void*, int), void*, int, int, int, const void*)':
@@ -219,8 +219,8 @@ In file included from /tmp/lms/build/src/libs/database/CMakeFiles/lmsdatabase.di
 [ 29%] Linking CXX executable test-core
 [ 30%] Linking CXX static library liblmsaudio.a
 [ 30%] Built target lmsaudio
-[ 31%] Building CXX object src/tools/audioinfo/CMakeFiles/lms-audioinfo.dir/Unity/unity_0_cxx.cxx.o
-[ 32%] Building CXX object src/tools/audioplay/CMakeFiles/lms-audioplay.dir/Unity/unity_0_cxx.cxx.o
+[ 31%] Building CXX object src/tools/audioplay/CMakeFiles/lms-audioplay.dir/Unity/unity_0_cxx.cxx.o
+[ 32%] Building CXX object src/tools/audioinfo/CMakeFiles/lms-audioinfo.dir/Unity/unity_0_cxx.cxx.o
 [ 32%] Built target test-som
 [ 32%] Built target test-core
 [ 33%] Linking CXX executable lms-audioinfo
@@ -229,20 +229,20 @@ In file included from /tmp/lms/build/src/libs/database/CMakeFiles/lmsdatabase.di
 [ 34%] Built target lms-audioplay
 [ 35%] Linking CXX static library liblmsdatabase.a
 [ 35%] Built target lmsdatabase
-[ 38%] Building CXX object src/libs/services/auth/CMakeFiles/lmsauth.dir/Unity/unity_0_cxx.cxx.o
-[ 38%] Building CXX object src/libs/database/test/CMakeFiles/test-database.dir/Unity/unity_2_cxx.cxx.o
-[ 39%] Building CXX object src/libs/database/test/CMakeFiles/test-database.dir/Unity/unity_3_cxx.cxx.o
-[ 41%] Building CXX object src/libs/database/test/CMakeFiles/test-database.dir/Unity/unity_0_cxx.cxx.o
-[ 41%] Building CXX object src/libs/services/jukebox/CMakeFiles/lmsjukebox.dir/Unity/unity_0_cxx.cxx.o
-[ 42%] Building CXX object src/libs/services/artwork/CMakeFiles/lmsartwork.dir/Unity/unity_0_cxx.cxx.o
-[ 43%] Building CXX object src/libs/services/scrobbling/CMakeFiles/lmsscrobbling.dir/Unity/unity_0_cxx.cxx.o
+[ 37%] Building CXX object src/libs/services/artwork/CMakeFiles/lmsartwork.dir/Unity/unity_0_cxx.cxx.o
+[ 40%] Building CXX object src/libs/services/recommendation/CMakeFiles/lmsrecommendation.dir/Unity/unity_1_cxx.cxx.o
+[ 40%] Building CXX object src/libs/database/test/CMakeFiles/test-database.dir/Unity/unity_3_cxx.cxx.o
+[ 40%] Building CXX object src/libs/services/podcast/CMakeFiles/lmspodcast.dir/Unity/unity_0_cxx.cxx.o
+[ 44%] Building CXX object src/libs/database/test/CMakeFiles/test-database.dir/Unity/unity_1_cxx.cxx.o
+[ 43%] Building CXX object src/libs/services/jukebox/CMakeFiles/lmsjukebox.dir/Unity/unity_0_cxx.cxx.o
 [ 44%] Building CXX object src/libs/services/feedback/CMakeFiles/lmsfeedback.dir/Unity/unity_0_cxx.cxx.o
-[ 46%] Building CXX object src/libs/database/test/CMakeFiles/test-database.dir/Unity/unity_1_cxx.cxx.o
-[ 47%] Building CXX object src/libs/services/podcast/CMakeFiles/lmspodcast.dir/Unity/unity_0_cxx.cxx.o
-[ 48%] Building CXX object src/libs/services/podcast/CMakeFiles/lmspodcast.dir/Unity/unity_1_cxx.cxx.o
-[ 49%] Building CXX object src/libs/services/transcoding/CMakeFiles/lmstranscoding.dir/Unity/unity_0_cxx.cxx.o
-[ 50%] Building CXX object src/libs/services/recommendation/CMakeFiles/lmsrecommendation.dir/Unity/unity_0_cxx.cxx.o
-[ 51%] Building CXX object src/libs/services/recommendation/CMakeFiles/lmsrecommendation.dir/Unity/unity_1_cxx.cxx.o
+[ 44%] Building CXX object src/libs/services/podcast/CMakeFiles/lmspodcast.dir/Unity/unity_1_cxx.cxx.o
+[ 46%] Building CXX object src/libs/services/recommendation/CMakeFiles/lmsrecommendation.dir/Unity/unity_0_cxx.cxx.o
+[ 47%] Building CXX object src/libs/database/test/CMakeFiles/test-database.dir/Unity/unity_2_cxx.cxx.o
+[ 48%] Building CXX object src/libs/database/test/CMakeFiles/test-database.dir/Unity/unity_0_cxx.cxx.o
+[ 49%] Building CXX object src/libs/services/auth/CMakeFiles/lmsauth.dir/Unity/unity_0_cxx.cxx.o
+[ 50%] Building CXX object src/libs/services/transcoding/CMakeFiles/lmstranscoding.dir/Unity/unity_0_cxx.cxx.o
+[ 51%] Building CXX object src/libs/services/scrobbling/CMakeFiles/lmsscrobbling.dir/Unity/unity_0_cxx.cxx.o
 [ 52%] Building CXX object src/tools/db-generator/CMakeFiles/lms-db-generator.dir/Unity/unity_0_cxx.cxx.o
 [ 53%] Linking CXX static library liblmstranscoding.a
 [ 53%] Built target lmstranscoding
@@ -250,8 +250,8 @@ In file included from /tmp/lms/build/src/libs/database/CMakeFiles/lmsdatabase.di
 [ 55%] Built target lmsartwork
 [ 56%] Linking CXX static library liblmsauth.a
 [ 56%] Built target lmsauth
-[ 57%] Linking CXX static library liblmsjukebox.a
-[ 58%] Linking CXX executable lms-db-generator
+[ 57%] Linking CXX executable lms-db-generator
+[ 58%] Linking CXX static library liblmsjukebox.a
 [ 58%] Built target lmsjukebox
 [ 59%] Linking CXX static library liblmspodcast.a
 [ 59%] Built target lmspodcast
@@ -283,10 +283,9 @@ In file included from /tmp/lms/build/src/libs/database/CMakeFiles/lmsdatabase.di
 [ 80%] Building CXX object src/libs/subsonic/CMakeFiles/lmssubsonic.dir/Unity/unity_4_cxx.cxx.o
 [ 82%] Building CXX object src/libs/subsonic/CMakeFiles/lmssubsonic.dir/Unity/unity_3_cxx.cxx.o
 [ 83%] Building CXX object src/libs/subsonic/CMakeFiles/lmssubsonic.dir/Unity/unity_2_cxx.cxx.o
-[ 83%] Built target test-database
 [ 84%] Building CXX object src/libs/subsonic/CMakeFiles/lmssubsonic.dir/Unity/unity_1_cxx.cxx.o
-[ 85%] Linking CXX executable test-scanner
-[ 86%] Building CXX object src/libs/subsonic/CMakeFiles/lmssubsonic.dir/Unity/unity_0_cxx.cxx.o
+[ 85%] Building CXX object src/libs/subsonic/CMakeFiles/lmssubsonic.dir/Unity/unity_0_cxx.cxx.o
+[ 85%] Built target test-database
 In file included from /tmp/lms/build/src/libs/subsonic/CMakeFiles/lmssubsonic.dir/Unity/unity_1_cxx.cxx:10:
 /tmp/lms/src/libs/subsonic/impl/endpoints/Playlists.cpp: In function 'lms::api::subsonic::Response lms::api::subsonic::handleGetPlaylistRequest(RequestContext&)':
 /tmp/lms/src/libs/subsonic/impl/endpoints/Playlists.cpp:102:57: error: too many arguments to function 'lms::api::subsonic::Response lms::api::subsonic::handleGetSpotifyPlaylist(RequestContext&)'
@@ -318,15 +317,12 @@ In file included from /tmp/lms/build/src/libs/subsonic/CMakeFiles/lmssubsonic.di
 /tmp/lms/src/libs/subsonic/impl/endpoints/Spotify.cpp:117:93: error: 'lms::api::subsonic::Response::Error' has not been declared
   117 |              return Response::createErrorResponse(ctx.getServerProtocolVersion(), Response::Error::Generic, "Unknown spotify playlist id");
       |                                                                                             ^~~~~
-/tmp/lms/src/libs/subsonic/impl/endpoints/Spotify.cpp: In function 'lms::api::subsonic::Response lms::api::subsonic::handleGetSpotifyTracks(RequestContext&)':
-/tmp/lms/src/libs/subsonic/impl/endpoints/Spotify.cpp:158:59: error: 'AddedDateDesc' is not a member of 'lms::db::TrackSortMethod'; did you mean 'AddedDesc'?
-  158 |                 params.setSortMethod(db::TrackSortMethod::AddedDateDesc);
-      |                                                           ^~~~~~~~~~~~~
-      |                                                           AddedDesc
-[ 86%] Built target lms-recommendation
+[ 86%] Linking CXX executable test-scanner
 make[2]: *** [src/libs/subsonic/CMakeFiles/lmssubsonic.dir/build.make:135: src/libs/subsonic/CMakeFiles/lmssubsonic.dir/Unity/unity_1_cxx.cxx.o] Error 1
 make[2]: *** Waiting for unfinished jobs....
-[ 86%] Built target test-scanner
+[ 86%] Built target lms-recommendation
 make[1]: *** [CMakeFiles/Makefile2:2384: src/libs/subsonic/CMakeFiles/lmssubsonic.dir/all] Error 2
+make[1]: *** Waiting for unfinished jobs....
+[ 86%] Built target test-scanner
 make: *** [Makefile:146: all] Error 2
 The command '/bin/sh -c DIR=/tmp/lms/build && mkdir -p ${DIR} && cd ${DIR} &&  PKG_CONFIG_PATH=/tmp/install/lib/pkgconfig CXXFLAGS="-I${PREFIX}/include" LDFLAGS="-L${PREFIX}/lib -Wl,--rpath-link=${PREFIX}/lib" cmake /tmp/lms/ -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=TRUE -DCMAKE_UNITY_BUILD=ON -DCMAKE_INSTALL_PREFIX=${PREFIX} -DCMAKE_PREFIX_PATH=${PREFIX} &&         LD_LIBRARY_PATH=${PREFIX}/lib make -j$(nproc) install &&        LD_LIBRARY_PATH=${PREFIX}/lib make test &&      mkdir -p ${PREFIX}/etc/ &&      cp /tmp/lms/conf/lms.conf ${PREFIX}/etc' returned a non-zero code: 2

@@ -221,7 +221,7 @@ namespace lms::api::subsonic
 
             // Spotify extensions
             { "/getSpotifyCuratedPlaylists", { handleGetSpotifyCuratedPlaylists } },
-            { "/getSpotifyPlaylist", { handleGetSpotifyPlaylist } },
+            { "/getSpotifyPlaylist", { handleGetPlaylistRequest } },
             { "/getSpotifyTracks", { handleGetSpotifyTracks } },
 
             // Internet radio

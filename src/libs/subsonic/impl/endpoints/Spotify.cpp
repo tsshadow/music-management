@@ -68,11 +68,10 @@ namespace lms::api::subsonic
         return response;
     }
 
-    Response handleGetSpotifyPlaylist(RequestContext& ctx)
+    std::optional<Response> handleGetSpotifyPlaylist(RequestContext& ctx, const std::string& id)
     {
-        auto id = getParameterAs<std::string>(ctx.getParameters(), "id");
-        if (!id || !id->starts_with("spotify:"))
-             return Response::createErrorResponse(ctx.getServerProtocolVersion(), Response::Error::Generic, "Invalid spotify playlist id");
+        if (!id.starts_with("spotify:"))
+             return std::nullopt;
 
         auto& session{ ctx.getDbSession() };
         auto transaction{ session.createReadTransaction() };
@@ -81,14 +80,14 @@ namespace lms::api::subsonic
         std::string name;
         std::string description;
 
-        if (*id == "spotify:release_radar")
+        if (id == "spotify:release_radar")
         {
             name = "Release Radar";
             description = "Recent releases and new discoveries.";
             params.setSortMethod(db::TrackSortMethod::OriginalDateDescAndRelease);
             params.range = db::Range{ 0, 50 };
         }
-        else if (*id == "spotify:sets")
+        else if (id == "spotify:sets")
         {
             name = "Sets & Mixes";
             description = "Long tracks (> 10 minutes)";
@@ -96,9 +95,9 @@ namespace lms::api::subsonic
             params.setSortMethod(db::TrackSortMethod::Random);
             params.range = db::Range{ 0, 50 };
         }
-        else if (id->starts_with("spotify:genre:"))
+        else if (id.starts_with("spotify:genre:"))
         {
-            std::string genreName = id->substr(std::string("spotify:genre:").length());
+            std::string genreName = id.substr(std::string("spotify:genre:").length());
             name = genreName;
             description = "Curated " + genreName + " tracks.";
 
@@ -114,12 +113,12 @@ namespace lms::api::subsonic
         }
         else
         {
-             return Response::createErrorResponse(ctx.getServerProtocolVersion(), Response::Error::Generic, "Unknown spotify playlist id");
+             return std::nullopt;
         }
 
         Response response{ Response::createOkResponse(ctx.getServerProtocolVersion()) };
         auto& playlistNode = response.createNode("playlist");
-        playlistNode.setAttribute("id", *id);
+        playlistNode.setAttribute("id", id);
         playlistNode.setAttribute("name", name);
         playlistNode.setAttribute("comment", description);
         playlistNode.setAttribute("owner", "LMS");

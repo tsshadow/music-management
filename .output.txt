@@ -9,10 +9,10 @@ Step 2/41 : WORKDIR     /app
  ---> Using cache
  ---> cb83aeb3a55e
 Step 3/41 : COPY        src/lms/ui/spotify-ui /app
- ---> 34aaa79f24ee
+ ---> c3373e47cf1b
 Step 4/41 : RUN npm install && npm run build
- ---> Running in 85c1fa3b7999
-added 7 packages, and audited 69 packages in 839ms
+ ---> Running in 260d6e788647
+added 7 packages, and audited 69 packages in 813ms
 17 packages are looking for funding
   run `npm fund` for details
 found 0 vulnerabilities
@@ -24,7 +24,7 @@ npm notice
 > spotify-ui@0.0.0 build
 > vite build
 vite v8.0.10 building client environment for production...
-transforming...9:30:43 PM [vite-plugin-svelte] src/lib/Player.svelte:26:6 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+transforming...9:32:33 PM [vite-plugin-svelte] src/lib/Player.svelte:26:6 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
 https://svelte.dev/e/a11y_consider_explicit_label
 24:   <div class="controls">
 25:     <div class="buttons">
@@ -32,7 +32,7 @@ https://svelte.dev/e/a11y_consider_explicit_label
                    ^
 27:         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
 28:             <path d="M4.5 6.307a.75.75 0 1 1 0-1.5 5.862 5.862 0 0 1 4.671 2.382l.66.883 5.03 6.717a4.362 4.362 0 0 0 3.471 1.769h1.918a.75.75 0 1 1 0 1.5h-1.918a5.862 5.862 0 0 1-4.671-2.381l-.66-.883-5.03-6.717a4.362 4.362 0 0 0-3.471-1.77H4.5zM14.862 8.567l.66-.883A5.862 5.862 0 0 1 20.193 5.3h1.057a.75.75 0 1 1 0 1.5h-1.057a4.362 4.362 0 0 0-3.471 1.768l-.66.883-.16-.214-.132-.176-.908-1.213-.01.014zM4.5 19.193a.75.75 0 1 0 0-1.5h1.057a4.362 4.362 0 0 0 3.471-1.768l.66-.883.908 1.213.14.186.124.166.01-.013.66.883A5.862 5.862 0 0 1 16.208 20.193H4.5z"></path>
-9:30:43 PM [vite-plugin-svelte] src/lib/Player.svelte:31:6 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+9:32:33 PM [vite-plugin-svelte] src/lib/Player.svelte:31:6 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
 https://svelte.dev/e/a11y_consider_explicit_label
 29:         </svg>
 30:       </button>
@@ -40,7 +40,7 @@ https://svelte.dev/e/a11y_consider_explicit_label
                    ^
 32:         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
 33:             <path d="M11.838 12.767a1 1 0 0 0 0-1.534L4.513 5.32a.6.6 0 0 0-.913.434v12.492a.6.6 0 0 0 .913.434l7.325-5.913zM20.5 5.754a.6.6 0 0 0-.913-.434l-7.325 5.913a1 1 0 0 0 0 1.534l7.325 5.913a.6.6 0 0 0 .913-.434V5.754z"></path>
-9:30:43 PM [vite-plugin-svelte] src/lib/Player.svelte:47:6 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+9:32:33 PM [vite-plugin-svelte] src/lib/Player.svelte:47:6 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
 https://svelte.dev/e/a11y_consider_explicit_label
 45:         {/if}
 46:       </button>
@@ -48,7 +48,7 @@ https://svelte.dev/e/a11y_consider_explicit_label
                    ^
 48:         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
 49:             <path d="M11.162 12.767a1 1 0 0 1 0-1.534l7.325-5.913a.6.6 0 0 1 .913.434v12.492a.6.6 0 0 1-.913.434l-7.325-5.913zM2.5 5.754a.6.6 0 0 1 .913-.434l7.325 5.913a1 1 0 0 1 0 1.534l-7.325 5.913a.6.6 0 0 1-.913-.434V5.754z"></path>
-9:30:43 PM [vite-plugin-svelte] src/lib/Player.svelte:52:6 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+9:32:33 PM [vite-plugin-svelte] src/lib/Player.svelte:52:6 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
 https://svelte.dev/e/a11y_consider_explicit_label
 50:         </svg>
 51:       </button>
@@ -56,31 +56,7 @@ https://svelte.dev/e/a11y_consider_explicit_label
                    ^
 53:         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
 54:             <path d="M4.5 12.2a.75.75 0 0 1 .75-.75h14a.75.75 0 0 1 .75.75v1.25a3.25 3.25 0 0 1-3.25 3.25H7.75a.75.75 0 0 1 0-1.5h8.25a1.75 1.75 0 0 0 1.75-1.75v-.5H5.25a.75.75 0 0 1-.75-.75v-1.25zM19.5 11.8a.75.75 0 0 1-.75.75h-14a.75.75 0 0 1-.75-.75v-1.25a3.25 3.25 0 0 1 3.25-3.25h8.5a.75.75 0 0 1 0 1.5h-8.5a1.75 1.75 0 0 0-1.75 1.75v.5h13.25a.75.75 0 0 1 .75.75v1.25z"></path>
-9:30:43 PM [vite-plugin-svelte] src/lib/TrackCard.svelte:14:0 Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
-https://svelte.dev/e/a11y_click_events_have_key_events
-12: </script>
-13:
-14: <div class="card" on:click={play}>
-          ^
-15:   <div class="cover-wrapper">
-16:     <img src={coverUrl} alt={track.title} />
-9:30:43 PM [vite-plugin-svelte] src/lib/TrackCard.svelte:14:0 `<div>` with a click handler must have an ARIA role
-https://svelte.dev/e/a11y_no_static_element_interactions
-12: </script>
-13:
-14: <div class="card" on:click={play}>
-          ^
-15:   <div class="cover-wrapper">
-16:     <img src={coverUrl} alt={track.title} />
-9:30:43 PM [vite-plugin-svelte] src/lib/TrackCard.svelte:17:4 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
-https://svelte.dev/e/a11y_consider_explicit_label
-15:   <div class="cover-wrapper">
-16:     <img src={coverUrl} alt={track.title} />
-17:     <button class="play-btn">
-                 ^
-18:       <svg viewBox="0 0 24 24" width="24" height="24" fill="black">
-19:         <path d="M7 6v12l10-6z"></path>
-9:30:43 PM [vite-plugin-svelte] src/lib/TrackList.svelte:38:12 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+9:32:34 PM [vite-plugin-svelte] src/lib/TrackList.svelte:38:12 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
 https://svelte.dev/e/a11y_consider_explicit_label
 36:         <td class="col-index">
 37:             <span class="index-num">{i + 1}</span>
@@ -88,15 +64,39 @@ https://svelte.dev/e/a11y_consider_explicit_label
                          ^
 39:                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
 40:                     <path d="M7 6v12l10-6z"></path>
+9:32:34 PM [vite-plugin-svelte] src/lib/TrackCard.svelte:14:0 Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events
+12: </script>
+13:
+14: <div class="card" on:click={play}>
+          ^
+15:   <div class="cover-wrapper">
+16:     <img src={coverUrl} alt={track.title} />
+9:32:34 PM [vite-plugin-svelte] src/lib/TrackCard.svelte:14:0 `<div>` with a click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions
+12: </script>
+13:
+14: <div class="card" on:click={play}>
+          ^
+15:   <div class="cover-wrapper">
+16:     <img src={coverUrl} alt={track.title} />
+9:32:34 PM [vite-plugin-svelte] src/lib/TrackCard.svelte:17:4 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+15:   <div class="cover-wrapper">
+16:     <img src={coverUrl} alt={track.title} />
+17:     <button class="play-btn">
+                 ^
+18:       <svg viewBox="0 0 24 24" width="24" height="24" fill="black">
+19:         <path d="M7 6v12l10-6z"></path>
 ✓ 125 modules transformed.
 rendering chunks...
 computing gzip size...
 dist/index.html                  0.48 kB │ gzip:  0.30 kB
 dist/assets/index-BRYh0ip4.css  21.65 kB │ gzip:  5.08 kB
-dist/assets/index-ILl8bI-Y.js   57.89 kB │ gzip: 21.60 kB
-✓ built in 688ms
-Removing intermediate container 85c1fa3b7999
- ---> 1cebe3d08bfc
+dist/assets/index-BMDzqmQC.js   57.90 kB │ gzip: 21.61 kB
+✓ built in 678ms
+Removing intermediate container 260d6e788647
+ ---> e52881ed5225
 Step 5/41 : FROM        alpine:3.23 AS build
  ---> 3cb067eab609
 Step 6/41 : WORKDIR     /tmp/workdir
@@ -148,9 +148,9 @@ Step 21/41 : RUN        DIR=/tmp/taglib && mkdir -p ${DIR} && cd ${DIR} &&     C
  ---> Using cache
  ---> 7d372f2f1c1e
 Step 22/41 : COPY . /tmp/lms/
- ---> 45d1978f5bf2
+ ---> 4ab77b0011be
 Step 23/41 : RUN        DIR=/tmp/lms/build && mkdir -p ${DIR} && cd ${DIR} &&  PKG_CONFIG_PATH=/tmp/install/lib/pkgconfig CXXFLAGS="-I${PREFIX}/include" LDFLAGS="-L${PREFIX}/lib -Wl,--rpath-link=${PREFIX}/lib" cmake /tmp/lms/ -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=TRUE -DCMAKE_UNITY_BUILD=ON -DCMAKE_INSTALL_PREFIX=${PREFIX} -DCMAKE_PREFIX_PATH=${PREFIX} &&         LD_LIBRARY_PATH=${PREFIX}/lib make -j$(nproc) install &&        LD_LIBRARY_PATH=${PREFIX}/lib make test &&      mkdir -p ${PREFIX}/etc/ &&      cp /tmp/lms/conf/lms.conf ${PREFIX}/etc
- ---> Running in 7d2017076362
+ ---> Running in 314b55f7f067
 -- The C compiler identification is GNU 15.2.0
 -- The CXX compiler identification is GNU 15.2.0
 -- Detecting C compiler ABI info
@@ -200,33 +200,33 @@ This warning is for project developers.  Use -Wno-dev to suppress it.
 --   Found libxxhash, version 0.8.3
 -- Found StbImage: /tmp/install/include/stb
 -- Using stb (resize version 2)
--- NOT using PAM authentication backend
 CMake Warning at src/libs/services/auth/CMakeLists.txt:32 (message):
   PAM library not found: disabling
+-- NOT using PAM authentication backend
 -- Configuring done (0.8s)
--- Generating done (0.2s)
+-- Generating done (0.1s)
 -- Build files have been written to: /tmp/lms/build
 [  1%] Building CXX object src/libs/core/CMakeFiles/lmscore.dir/Unity/unity_3_cxx.cxx.o
-[  3%] Building CXX object src/libs/core/CMakeFiles/lmscore.dir/Unity/unity_2_cxx.cxx.o
 [  3%] Building CXX object src/libs/core/CMakeFiles/lmscore.dir/Unity/unity_1_cxx.cxx.o
+[  3%] Building CXX object src/libs/core/CMakeFiles/lmscore.dir/Unity/unity_2_cxx.cxx.o
 [  4%] Building CXX object src/libs/core/CMakeFiles/lmscore.dir/Unity/unity_0_cxx.cxx.o
 [  5%] Linking CXX static library liblmscore.a
 [  5%] Built target lmscore
-[  6%] Building CXX object src/libs/core/test/CMakeFiles/test-core.dir/Unity/unity_1_cxx.cxx.o
+[ 10%] Building CXX object src/libs/core/test/CMakeFiles/test-core.dir/Unity/unity_1_cxx.cxx.o
 [ 10%] Building CXX object src/libs/core/test/CMakeFiles/test-core.dir/Unity/unity_0_cxx.cxx.o
-[ 10%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_5_cxx.cxx.o
-[ 11%] Building CXX object src/libs/audio/CMakeFiles/lmsaudio.dir/Unity/unity_2_cxx.cxx.o
-[ 11%] Building CXX object src/libs/audio/CMakeFiles/lmsaudio.dir/Unity/unity_1_cxx.cxx.o
-[ 12%] Building CXX object src/libs/audio/CMakeFiles/lmsaudio.dir/Unity/unity_0_cxx.cxx.o
-[ 13%] Building CXX object src/libs/som/CMakeFiles/lmssom.dir/Unity/unity_0_cxx.cxx.o
-[ 14%] Building CXX object src/libs/image/CMakeFiles/lmsimage.dir/Unity/unity_0_cxx.cxx.o
-[ 16%] Building CXX object src/libs/image/CMakeFiles/lmsimage.dir/impl/stb/StbImageResize.cpp.o
-[ 16%] Building CXX object src/libs/image/CMakeFiles/lmsimage.dir/impl/stb/StbImage.cpp.o
-[ 17%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_4_cxx.cxx.o
+[ 10%] Building CXX object src/libs/audio/CMakeFiles/lmsaudio.dir/Unity/unity_2_cxx.cxx.o
+[ 10%] Building CXX object src/libs/audio/CMakeFiles/lmsaudio.dir/Unity/unity_1_cxx.cxx.o
+[ 11%] Building CXX object src/libs/audio/CMakeFiles/lmsaudio.dir/Unity/unity_0_cxx.cxx.o
+[ 13%] Building CXX object src/libs/image/CMakeFiles/lmsimage.dir/Unity/unity_0_cxx.cxx.o
+[ 13%] Building CXX object src/libs/image/CMakeFiles/lmsimage.dir/impl/stb/StbImage.cpp.o
+[ 16%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_3_cxx.cxx.o
+[ 16%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_4_cxx.cxx.o
+[ 16%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_5_cxx.cxx.o
+[ 17%] Building CXX object src/libs/image/CMakeFiles/lmsimage.dir/impl/stb/StbImageWrite.cpp.o
+[ 19%] Building CXX object src/libs/image/CMakeFiles/lmsimage.dir/impl/stb/StbImageResize.cpp.o
 [ 20%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_1_cxx.cxx.o
-[ 20%] Building CXX object src/libs/image/CMakeFiles/lmsimage.dir/impl/stb/StbImageWrite.cpp.o
-[ 21%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_2_cxx.cxx.o
-[ 23%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_3_cxx.cxx.o
+[ 21%] Building CXX object src/libs/som/CMakeFiles/lmssom.dir/Unity/unity_0_cxx.cxx.o
+[ 22%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_2_cxx.cxx.o
 [ 23%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_0_cxx.cxx.o
 In file included from /tmp/lms/src/libs/image/impl/stb/StbImageWrite.hpp:21,
                  from /tmp/lms/src/libs/image/impl/stb/StbImageWrite.cpp:21:
@@ -302,7 +302,7 @@ In file included from /tmp/lms/build/src/libs/database/CMakeFiles/lmsdatabase.di
 [ 29%] Linking CXX executable test-core
 [ 30%] Linking CXX static library liblmsaudio.a
 [ 30%] Built target lmsaudio
-[ 31%] Building CXX object src/tools/audioplay/CMakeFiles/lms-audioplay.dir/Unity/unity_0_cxx.cxx.o
+[ 32%] Building CXX object src/tools/audioplay/CMakeFiles/lms-audioplay.dir/Unity/unity_0_cxx.cxx.o
 [ 32%] Building CXX object src/tools/audioinfo/CMakeFiles/lms-audioinfo.dir/Unity/unity_0_cxx.cxx.o
 [ 32%] Built target test-som
 [ 32%] Built target test-core
@@ -312,20 +312,20 @@ In file included from /tmp/lms/build/src/libs/database/CMakeFiles/lmsdatabase.di
 [ 34%] Built target lms-audioplay
 [ 35%] Linking CXX static library liblmsdatabase.a
 [ 35%] Built target lmsdatabase
-[ 37%] Building CXX object src/libs/services/artwork/CMakeFiles/lmsartwork.dir/Unity/unity_0_cxx.cxx.o
-[ 38%] Building CXX object src/libs/database/test/CMakeFiles/test-database.dir/Unity/unity_3_cxx.cxx.o
+[ 39%] Building CXX object src/libs/services/auth/CMakeFiles/lmsauth.dir/Unity/unity_0_cxx.cxx.o
 [ 39%] Building CXX object src/libs/database/test/CMakeFiles/test-database.dir/Unity/unity_2_cxx.cxx.o
-[ 41%] Building CXX object src/libs/services/feedback/CMakeFiles/lmsfeedback.dir/Unity/unity_0_cxx.cxx.o
-[ 41%] Building CXX object src/libs/database/test/CMakeFiles/test-database.dir/Unity/unity_1_cxx.cxx.o
-[ 42%] Building CXX object src/libs/services/auth/CMakeFiles/lmsauth.dir/Unity/unity_0_cxx.cxx.o
-[ 44%] Building CXX object src/libs/services/jukebox/CMakeFiles/lmsjukebox.dir/Unity/unity_0_cxx.cxx.o
-[ 44%] Building CXX object src/libs/database/test/CMakeFiles/test-database.dir/Unity/unity_0_cxx.cxx.o
-[ 46%] Building CXX object src/libs/services/podcast/CMakeFiles/lmspodcast.dir/Unity/unity_1_cxx.cxx.o
-[ 47%] Building CXX object src/libs/services/podcast/CMakeFiles/lmspodcast.dir/Unity/unity_0_cxx.cxx.o
-[ 48%] Building CXX object src/libs/services/scrobbling/CMakeFiles/lmsscrobbling.dir/Unity/unity_0_cxx.cxx.o
-[ 49%] Building CXX object src/libs/services/transcoding/CMakeFiles/lmstranscoding.dir/Unity/unity_0_cxx.cxx.o
-[ 50%] Building CXX object src/libs/services/recommendation/CMakeFiles/lmsrecommendation.dir/Unity/unity_1_cxx.cxx.o
-[ 51%] Building CXX object src/tools/db-generator/CMakeFiles/lms-db-generator.dir/Unity/unity_0_cxx.cxx.o
+[ 39%] Building CXX object src/libs/database/test/CMakeFiles/test-database.dir/Unity/unity_3_cxx.cxx.o
+[ 41%] Building CXX object src/libs/services/jukebox/CMakeFiles/lmsjukebox.dir/Unity/unity_0_cxx.cxx.o
+[ 41%] Building CXX object src/libs/services/scrobbling/CMakeFiles/lmsscrobbling.dir/Unity/unity_0_cxx.cxx.o
+[ 42%] Building CXX object src/libs/database/test/CMakeFiles/test-database.dir/Unity/unity_1_cxx.cxx.o
+[ 43%] Building CXX object src/tools/db-generator/CMakeFiles/lms-db-generator.dir/Unity/unity_0_cxx.cxx.o
+[ 46%] Building CXX object src/libs/services/transcoding/CMakeFiles/lmstranscoding.dir/Unity/unity_0_cxx.cxx.o
+[ 46%] Building CXX object src/libs/services/recommendation/CMakeFiles/lmsrecommendation.dir/Unity/unity_1_cxx.cxx.o
+[ 47%] Building CXX object src/libs/database/test/CMakeFiles/test-database.dir/Unity/unity_0_cxx.cxx.o
+[ 49%] Building CXX object src/libs/services/podcast/CMakeFiles/lmspodcast.dir/Unity/unity_0_cxx.cxx.o
+[ 49%] Building CXX object src/libs/services/feedback/CMakeFiles/lmsfeedback.dir/Unity/unity_0_cxx.cxx.o
+[ 50%] Building CXX object src/libs/services/podcast/CMakeFiles/lmspodcast.dir/Unity/unity_1_cxx.cxx.o
+[ 51%] Building CXX object src/libs/services/artwork/CMakeFiles/lmsartwork.dir/Unity/unity_0_cxx.cxx.o
 [ 52%] Building CXX object src/libs/services/recommendation/CMakeFiles/lmsrecommendation.dir/Unity/unity_0_cxx.cxx.o
 [ 53%] Linking CXX static library liblmstranscoding.a
 [ 53%] Built target lmstranscoding
@@ -333,9 +333,9 @@ In file included from /tmp/lms/build/src/libs/database/CMakeFiles/lmsdatabase.di
 [ 55%] Built target lmsartwork
 [ 56%] Linking CXX static library liblmsauth.a
 [ 56%] Built target lmsauth
-[ 57%] Linking CXX static library liblmsjukebox.a
-[ 57%] Built target lmsjukebox
-[ 58%] Linking CXX executable lms-db-generator
+[ 57%] Linking CXX executable lms-db-generator
+[ 58%] Linking CXX static library liblmsjukebox.a
+[ 58%] Built target lmsjukebox
 [ 59%] Linking CXX static library liblmspodcast.a
 [ 59%] Built target lmspodcast
 [ 60%] Building CXX object src/libs/services/podcast/test/CMakeFiles/test-podcast.dir/Unity/unity_0_cxx.cxx.o
@@ -344,12 +344,12 @@ In file included from /tmp/lms/build/src/libs/database/CMakeFiles/lmsdatabase.di
 [ 62%] Linking CXX static library liblmsscrobbling.a
 [ 62%] Built target lmsscrobbling
 [ 64%] Building CXX object src/libs/services/scrobbling/test/CMakeFiles/test-scrobbling.dir/Unity/unity_0_cxx.cxx.o
-[ 65%] Linking CXX executable test-database
-[ 66%] Linking CXX executable test-podcast
+[ 65%] Linking CXX executable test-podcast
+[ 66%] Linking CXX executable test-database
 [ 67%] Linking CXX static library liblmsrecommendation.a
-[ 67%] Built target lmsrecommendation
-[ 68%] Building CXX object src/libs/services/scanner/CMakeFiles/lmsscanner.dir/Unity/unity_4_cxx.cxx.o
-[ 69%] Linking CXX executable test-scrobbling
+[ 68%] Linking CXX executable test-scrobbling
+[ 68%] Built target lmsrecommendation
+[ 69%] Building CXX object src/libs/services/scanner/CMakeFiles/lmsscanner.dir/Unity/unity_4_cxx.cxx.o
 [ 70%] Building CXX object src/libs/services/scanner/CMakeFiles/lmsscanner.dir/Unity/unity_3_cxx.cxx.o
 [ 71%] Building CXX object src/libs/services/scanner/CMakeFiles/lmsscanner.dir/Unity/unity_2_cxx.cxx.o
 [ 73%] Building CXX object src/libs/services/scanner/CMakeFiles/lmsscanner.dir/Unity/unity_1_cxx.cxx.o
@@ -368,8 +368,6 @@ In file included from /tmp/lms/build/src/libs/database/CMakeFiles/lmsdatabase.di
 [ 83%] Building CXX object src/libs/subsonic/CMakeFiles/lmssubsonic.dir/Unity/unity_2_cxx.cxx.o
 [ 84%] Building CXX object src/libs/subsonic/CMakeFiles/lmssubsonic.dir/Unity/unity_1_cxx.cxx.o
 [ 85%] Building CXX object src/libs/subsonic/CMakeFiles/lmssubsonic.dir/Unity/unity_0_cxx.cxx.o
-[ 86%] Linking CXX executable test-scanner
-[ 86%] Built target test-database
 In file included from /tmp/lms/build/src/libs/subsonic/CMakeFiles/lmssubsonic.dir/Unity/unity_1_cxx.cxx:10:
 /tmp/lms/src/libs/subsonic/impl/endpoints/Playlists.cpp: In function 'lms::api::subsonic::Response lms::api::subsonic::handleGetPlaylistRequest(RequestContext&)':
 /tmp/lms/src/libs/subsonic/impl/endpoints/Playlists.cpp:102:57: error: too many arguments to function 'lms::api::subsonic::Response lms::api::subsonic::handleGetSpotifyPlaylist(RequestContext&)'
@@ -387,6 +385,8 @@ In file included from /tmp/lms/src/libs/subsonic/impl/endpoints/Playlists.cpp:21
 /tmp/lms/src/libs/subsonic/impl/endpoints/Playlists.cpp:103:34: error: no match for 'operator*' (operand type is 'lms::api::subsonic::Response')
   103 |                 return std::move(*response);
       |                                  ^~~~~~~~~
+[ 86%] Linking CXX executable test-scanner
+[ 86%] Built target test-database
 In file included from /tmp/lms/build/src/libs/subsonic/CMakeFiles/lmssubsonic.dir/Unity/unity_1_cxx.cxx:19:
 /tmp/lms/src/libs/subsonic/impl/endpoints/Spotify.cpp: In function 'lms::api::subsonic::Response lms::api::subsonic::handleGetSpotifyPlaylist(RequestContext&)':
 /tmp/lms/src/libs/subsonic/impl/endpoints/Spotify.cpp:72:23: error: 'class lms::api::subsonic::RequestContext' has no member named 'getQueryParameter'; did you mean 'getParameters'?
@@ -428,21 +428,9 @@ In file included from /tmp/lms/build/src/libs/subsonic/CMakeFiles/lmssubsonic.di
 /tmp/lms/src/libs/subsonic/impl/endpoints/Spotify.cpp:172:25: error: 'class lms::api::subsonic::RequestContext' has no member named 'getQueryParameterAsInt'
   172 |         int count = ctx.getQueryParameterAsInt("count", 50);
       |                         ^~~~~~~~~~~~~~~~~~~~~~
-/tmp/lms/src/libs/subsonic/impl/endpoints/Spotify.cpp: In lambda function:
-/tmp/lms/src/libs/subsonic/impl/endpoints/Spotify.cpp:179:32: error: no matching function for call to 'lms::api::subsonic::Response::Node::addChild(lms::api::subsonic::Response::Node)'
-  179 |             tracksNode.addChild(createSongNode(ctx, track, ctx.getUser()));
-      |             ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/tmp/lms/src/libs/subsonic/impl/endpoints/Spotify.cpp:179:32: note: there is 1 candidate
-In file included from /tmp/lms/src/libs/subsonic/impl/endpoints/MediaLibraryScanning.hpp:23,
-                 from /tmp/lms/src/libs/subsonic/impl/endpoints/MediaLibraryScanning.cpp:20,
-                 from /tmp/lms/build/src/libs/subsonic/CMakeFiles/lmssubsonic.dir/Unity/unity_1_cxx.cxx:4:
-/tmp/lms/src/libs/subsonic/impl/SubsonicResponse.hpp:297:18: note: candidate 1: 'void lms::api::subsonic::Response::Node::addChild(Key, lms::api::subsonic::Response::Node&&)'
-  297 |             void addChild(Key key, Node&& node);
-      |                  ^~~~~~~~
-/tmp/lms/src/libs/subsonic/impl/SubsonicResponse.hpp:297:18: note: candidate expects 2 arguments, 1 provided
-[ 86%] Built target lms-recommendation
 make[2]: *** [src/libs/subsonic/CMakeFiles/lmssubsonic.dir/build.make:135: src/libs/subsonic/CMakeFiles/lmssubsonic.dir/Unity/unity_1_cxx.cxx.o] Error 1
 make[2]: *** Waiting for unfinished jobs....
+[ 86%] Built target lms-recommendation
 [ 86%] Built target test-scanner
 make[1]: *** [CMakeFiles/Makefile2:2384: src/libs/subsonic/CMakeFiles/lmssubsonic.dir/all] Error 2
 make: *** [Makefile:146: all] Error 2

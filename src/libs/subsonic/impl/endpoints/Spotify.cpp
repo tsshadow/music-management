@@ -23,6 +23,7 @@
 #include "database/objects/Cluster.hpp"
 #include "database/objects/Track.hpp"
 #include "../RequestContext.hpp"
+#include "../ParameterParsing.hpp"
 #include "responses/Song.hpp"
 #include "responses/Playlist.hpp"
 
@@ -69,7 +70,7 @@ namespace lms::api::subsonic
 
     Response handleGetSpotifyPlaylist(RequestContext& ctx)
     {
-        auto id = ctx.getQueryParameter("id");
+        auto id = getParameterAs<std::string>(ctx.getParameters(), "id");
         if (!id || !id->starts_with("spotify:"))
              return Response::createErrorResponse(ctx.getServerProtocolVersion(), Response::Error::Generic, "Invalid spotify playlist id");
 
@@ -138,7 +139,7 @@ namespace lms::api::subsonic
 
         db::Track::FindParameters params;
 
-        if (auto genre = ctx.getQueryParameter("genre"))
+        if (auto genre = getParameterAs<std::string>(ctx.getParameters(), "genre"))
         {
             if (auto genreType = db::ClusterType::find(session, "genre"))
             {
@@ -149,7 +150,7 @@ namespace lms::api::subsonic
             }
         }
 
-        if (auto sort = ctx.getQueryParameter("sort"))
+        if (auto sort = getParameterAs<std::string>(ctx.getParameters(), "sort"))
         {
             if (*sort == "recent")
                 params.setSortMethod(db::TrackSortMethod::OriginalDateDescAndRelease);
@@ -161,15 +162,13 @@ namespace lms::api::subsonic
                 params.setSortMethod(db::TrackSortMethod::Name);
         }
 
-        if (auto minDuration = ctx.getQueryParameter("minDuration"))
+        if (auto minDuration = getParameterAs<int>(ctx.getParameters(), "minDuration"))
         {
-            try {
-                params.minDuration = std::chrono::minutes(std::stoi(*minDuration));
-            } catch (...) {}
+            params.minDuration = std::chrono::minutes(*minDuration);
         }
 
-        int offset = ctx.getQueryParameterAsInt("offset", 0);
-        int count = ctx.getQueryParameterAsInt("count", 50);
+        int offset = getParameterAs<int>(ctx.getParameters(), "offset").value_or(0);
+        int count = getParameterAs<int>(ctx.getParameters(), "count").value_or(50);
         params.range = db::Range{ static_cast<std::size_t>(offset), static_cast<std::size_t>(count) };
 
         Response response{ Response::createOkResponse(ctx.getServerProtocolVersion()) };

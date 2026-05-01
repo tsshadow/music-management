@@ -3,6 +3,7 @@
   import TrackCard from './TrackCard.svelte';
   import TrackList from './TrackList.svelte';
   import FilterBar from './FilterBar.svelte';
+  import { authParams } from './store.js';
 
   export let activeView = 'home';
 
@@ -23,10 +24,10 @@
 
   async function fetchTracks(endpoint) {
     try {
-        const response = await fetch(`/rest/spotify/${endpoint}`);
+        const response = await fetch(`/rest/spotify/${endpoint}?${$authParams}`);
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
-        return data.tracks || [];
+        return data.tracks?.track || [];
     } catch (e) {
         console.error(`Failed to fetch ${endpoint}:`, e);
         return [];
@@ -36,7 +37,7 @@
   async function loadAllTracks() {
     isLoading = true;
     try {
-      let url = `/rest/getSpotifyTracks?sort=${currentSort}`;
+      let url = `/rest/getSpotifyTracks?sort=${currentSort}&${$authParams}`;
       if (currentGenre) url += `&genre=${encodeURIComponent(currentGenre)}`;
       if (activeView === 'sets') url += `&minDuration=10`;
 
@@ -52,7 +53,7 @@
 
   async function loadAlbums() {
     try {
-      const response = await fetch('/rest/getAlbumList2?type=newest&size=50');
+      const response = await fetch(`/rest/getAlbumList2?type=newest&size=50&${$authParams}`);
       const data = await response.json();
       albums = data.albumList2?.album || [];
     } catch (e) { console.error(e); }
@@ -60,7 +61,7 @@
 
   async function loadArtists() {
     try {
-      const response = await fetch('/rest/getArtists');
+      const response = await fetch(`/rest/getArtists?${$authParams}`);
       const data = await response.json();
       // Subsonic artists zijn gegroepeerd per index (A, B, C...)
       const indexes = data.artists?.index || [];
@@ -70,7 +71,7 @@
 
   async function loadPlaylists() {
     try {
-      const response = await fetch('/rest/getPlaylists');
+      const response = await fetch(`/rest/getPlaylists?${$authParams}`);
       const data = await response.json();
       playlists = data.playlists?.playlist || [];
     } catch (e) { console.error(e); }

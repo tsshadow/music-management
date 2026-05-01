@@ -1,11 +1,12 @@
 <script>
-  import { currentTrack, playerState } from './store.js';
+  import { currentTrack, playerState, authParams, playlist } from './store.js';
 
   export let tracks = [];
 
-  function playTrack(track) {
+  function playTrack(track, index) {
     currentTrack.set(track);
-    playerState.set({ playing: true });
+    playlist.set(tracks);
+    playerState.update(s => ({ ...s, playing: true }));
   }
 
   function formatTime(ms) {
@@ -44,7 +45,7 @@
         <td class="col-title">
           <div class="title-container">
             {#if track.coverArt}
-              <img src="/rest/getCoverArt?id={track.coverArt}&size=40" alt="" />
+              <img src="/rest/getCoverArt?id={track.coverArt}&size=40&{$authParams}" alt="" />
             {/if}
             <div class="info">
               <span class="name">{track.title}</span>

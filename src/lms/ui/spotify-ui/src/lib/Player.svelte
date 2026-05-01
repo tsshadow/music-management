@@ -1,14 +1,87 @@
 <script>
-  import { currentTrack, playerState } from './store.js';
+  import { onMount } from 'svelte';
+  import { currentTrack, playerState, audio, authParams, credentials } from './store.js';
+
+  let audioElement;
 
   function togglePlay() {
-    playerState.update(s => ({ ...s, playing: !s.playing }));
+    if (audioElement.paused) {
+      audioElement.play().catch(e => console.error("Playback failed", e));
+    } else {
+      audioElement.pause();
+    }
+  }
+
+  function handleTimeUpdate() {
+    playerState.update(s => ({ ...s, progress: audioElement.currentTime }));
+  }
+
+  function handleLoadedMetadata() {
+    playerState.update(s => ({ ...s, duration: audioElement.duration }));
+  }
+
+  function handlePlay() {
+    playerState.update(s => ({ ...s, playing: true }));
+  }
+
+  function handlePause() {
+    playerState.update(s => ({ ...s, playing: false }));
+  }
+
+  function handleVolumeChange() {
+    playerState.update(s => ({ ...s, volume: audioElement.volume * 100 }));
+  }
+
+  function seek(e) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percentage = x / rect.width;
+    audioElement.currentTime = percentage * audioElement.duration;
+  }
+
+  function changeVolume(e) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const vol = Math.max(0, Math.min(1, x / rect.width));
+      audioElement.volume = vol;
+  }
+
+  function formatTime(seconds) {
+    if (isNaN(seconds)) return "0:00";
+    const min = Math.floor(seconds / 60);
+    const sec = Math.floor(seconds % 60);
+    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
   }
 
   $: track = $currentTrack;
   $: playing = $playerState.playing;
-  $: coverUrl = track?.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=100` : '/spotify/default-cover.png';
+  $: progress = $playerState.progress;
+  $: duration = $playerState.duration;
+  $: volume = $playerState.volume;
+  $: coverUrl = track?.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}` : '/spotify/default-cover.png';
+  $: streamUrl = track?.id ? `/rest/stream?id=${track.id}&${$authParams}` : '';
+
+  $: if (audioElement && track) {
+      // Audio element source will update via streamUrl
+      // We might want to auto-play when track changes
+      audioElement.play().catch(() => {});
+  }
+
+  onMount(() => {
+    audio.set(audioElement);
+    audioElement.volume = volume / 100;
+  });
 </script>
+
+<audio
+  bind:this={audioElement}
+  src={streamUrl}
+  on:timeupdate={handleTimeUpdate}
+  on:loadedmetadata={handleLoadedMetadata}
+  on:play={handlePlay}
+  on:pause={handlePause}
+  on:volumechange={handleVolumeChange}
+></audio>
 
 <footer class="player">
   <div class="current-track">
@@ -56,9 +129,11 @@
       </button>
     </div>
     <div class="progress-bar">
-      <span>0:00</span>
-      <div class="slider"><div class="fill"></div></div>
-      <span>0:00</span>
+      <span>{formatTime(progress)}</span>
+      <div class="slider" on:click={seek}>
+          <div class="fill" style="width: {(progress/duration)*100}%"></div>
+      </div>
+      <span>{formatTime(duration)}</span>
     </div>
   </div>
 
@@ -66,7 +141,9 @@
     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
         <path d="M12.944 3.32a.75.75 0 0 0-1.06 0L5.321 9.882H2.25a.75.75 0 0 0-.75.75v2.736a.75.75 0 0 0 .75.75h3.07l6.564 6.564a.75.75 0 0 0 1.06 0V3.32zM15.422 7.078a.75.75 0 0 1 1.06 0 7 7 0 0 1 0 9.9 1 1 0 0 1-1.06 0 .75.75 0 0 1 0-1.061 5.5 5.5 0 0 0 0-7.778.75.75 0 0 1 0-1.061z"></path>
     </svg>
-    <div class="volume-slider"><div class="fill"></div></div>
+    <div class="volume-slider" on:click={changeVolume}>
+        <div class="fill" style="width: {volume}%"></div>
+    </div>
   </div>
 </footer>
 

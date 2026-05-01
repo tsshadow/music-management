@@ -3,6 +3,7 @@
   import Sidebar from './lib/Sidebar.svelte';
   import Player from './lib/Player.svelte';
   import Dashboard from './lib/Dashboard.svelte';
+  import AuthOverlay from './lib/AuthOverlay.svelte';
   import { currentTrack, playerState } from './lib/store.js';
 
   let greeting = "";
@@ -19,6 +20,7 @@
 </script>
 
 <main class="spotify-layout">
+  <AuthOverlay />
   <div class="sidebar-container">
     <Sidebar {activeView} on:navigate={(e) => handleNavigate(e.detail)} />
   </div>

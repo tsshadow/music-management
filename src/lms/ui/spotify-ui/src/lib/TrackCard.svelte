@@ -1,5 +1,5 @@
 <script>
-  import { currentTrack, playerState } from './store.js';
+  import { currentTrack, playerState, authParams } from './store.js';
 
   export let track;
 
@@ -8,7 +8,7 @@
     playerState.update(s => ({ ...s, playing: true }));
   }
 
-  $: coverUrl = track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=300` : '/spotify/default-cover.png';
+  $: coverUrl = track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=300&${$authParams}` : '/spotify/default-cover.png';
 </script>
 
 <div class="card" on:click={play}>

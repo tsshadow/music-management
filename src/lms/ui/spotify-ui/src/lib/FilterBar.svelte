@@ -1,5 +1,6 @@
 <script>
   import { onMount, createEventDispatcher } from 'svelte';
+  import { authParams } from './store.js';
   const dispatch = createEventDispatcher();
 
   export let genre = '';
@@ -9,7 +10,7 @@
 
   onMount(async () => {
     try {
-        const response = await fetch('/rest/getGenres');
+        const response = await fetch(`/rest/getGenres?${$authParams}`);
         if (response.ok) {
             const data = await response.json();
             genres = data.genres?.genre || [];

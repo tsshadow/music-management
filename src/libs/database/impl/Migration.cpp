@@ -35,7 +35,7 @@ namespace lms::db
 {
     namespace
     {
-        static constexpr Version LMS_DATABASE_VERSION{ 104 };
+        static constexpr Version LMS_DATABASE_VERSION{ 108 };
     }
 
     VersionInfo::VersionInfo()
@@ -1726,6 +1726,17 @@ FROM track)");
   constraint "fk_release_artist_link_artist" foreign key ("artist_id") references "artist" ("id") on delete cascade deferrable initially deferred
     ))");
 
+        try
+        {
+            utils::executeCommand(*session.getDboSession(), "CREATE INDEX IF NOT EXISTS release_artist_link_id_idx ON release_artist_link(id)");
+            utils::executeCommand(*session.getDboSession(), "CREATE INDEX IF NOT EXISTS release_artist_link_artist_idx ON release_artist_link(artist_id)");
+            utils::executeCommand(*session.getDboSession(), "CREATE INDEX IF NOT EXISTS release_artist_link_release_idx ON release_artist_link(release_id)");
+        }
+        catch (const std::exception& e)
+        {
+            LMS_LOG(DB, INFO, "Could not create release_artist_link indexes: " << e.what());
+        }
+
         // Remove all artist links where the link type is TrackArtistLinkType::ReleaseArtist = 8
         utils::executeCommand(*session.getDboSession(), R"(DELETE FROM track_artist_link WHERE type = 8)");
 
@@ -1739,7 +1750,64 @@ FROM track)");
     void migrateFromV103(Session& session)
     {
         // Add rating for tracks
-        utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD rating INTEGER");
+        try
+        {
+            utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD rating INTEGER");
+        }
+        catch (const std::exception& e)
+        {
+            LMS_LOG(DB, INFO, "Could not add rating column (it might already exist): " << e.what());
+        }
+    }
+
+    void migrateFromV104(Session& session)
+    {
+        // Upstream now also added rating, but we might already have it from our own V103
+        try
+        {
+            utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD rating INTEGER");
+        }
+        catch (const std::exception& e)
+        {
+            LMS_LOG(DB, INFO, "Could not add rating column (it might already exist): " << e.what());
+        }
+    }
+
+    void migrateFromV105(Session& session)
+    {
+        // Upstream now also added rating, but we might already have it from our own V103
+    }
+
+    void migrateFromV106(Session& session)
+    {
+        // Placeholder for future migrations
+    }
+
+    void migrateFromV107(Session& session)
+    {
+        // Ensure release_artist_link exists (it might be missing if previous migrations were skipped or failed)
+        utils::executeCommand(*session.getDboSession(), R"(CREATE TABLE IF NOT EXISTS "release_artist_link" (
+  "id" integer primary key autoincrement,
+  "version" integer not null,
+  "artist_name" text not null,
+  "artist_sort_name" text not null,
+  "artist_mbid_matched" boolean not null,
+  "release_id" bigint,
+  "artist_id" bigint,
+  constraint "fk_release_artist_link_release" foreign key ("release_id") references "release" ("id") on delete cascade deferrable initially deferred,
+  constraint "fk_release_artist_link_artist" foreign key ("artist_id") references "artist" ("id") on delete cascade deferrable initially deferred
+    ))");
+
+        try
+        {
+            utils::executeCommand(*session.getDboSession(), "CREATE INDEX IF NOT EXISTS release_artist_link_id_idx ON release_artist_link(id)");
+            utils::executeCommand(*session.getDboSession(), "CREATE INDEX IF NOT EXISTS release_artist_link_artist_idx ON release_artist_link(artist_id)");
+            utils::executeCommand(*session.getDboSession(), "CREATE INDEX IF NOT EXISTS release_artist_link_release_idx ON release_artist_link(release_id)");
+        }
+        catch (const std::exception& e)
+        {
+            LMS_LOG(DB, INFO, "Could not create release_artist_link indexes in V107: " << e.what());
+        }
     }
 
     bool doDbMigration(Session& session)
@@ -1822,6 +1890,10 @@ FROM track)");
             { 101, migrateFromV101 },
             { 102, migrateFromV102 },
             { 103, migrateFromV103 },
+            { 104, migrateFromV104 },
+            { 105, migrateFromV105 },
+            { 106, migrateFromV106 },
+            { 107, migrateFromV107 },
         };
 
         bool migrationPerformed{};

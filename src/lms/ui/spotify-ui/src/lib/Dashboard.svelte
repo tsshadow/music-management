@@ -1,63 +1,109 @@
 <script>
-  import { view, curatedPlaylists, currentPlaylist } from './store.js';
-  import PlaylistView from './PlaylistView.svelte';
+  import { onMount } from 'svelte';
+  import TrackCard from './TrackCard.svelte';
 
-  function getGreeting() {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Goedemorgen";
-    if (hour < 18) return "Goedemiddag";
-    return "Goedenavond";
+  export let activeView = 'home';
+
+  let sections = [
+    { title: 'Release Radar', endpoint: 'releaseRadar', tracks: [] },
+    { title: 'Recent Raw Hardstyle', endpoint: 'genre/raw%20hardstyle', tracks: [] },
+    { title: 'Recent Hardcore', endpoint: 'genre/hardcore', tracks: [] },
+    { title: 'Sets (>10m)', endpoint: 'sets', tracks: [] }
+  ];
+
+  async function fetchTracks(endpoint) {
+    try {
+        // We gebruiken de nieuwe Spotify endpoints die ik in de backend heb toegevoegd
+        const response = await fetch(`/rest/spotify/${endpoint}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        return data.tracks || [];
+    } catch (e) {
+        console.error(`Failed to fetch ${endpoint}:`, e);
+        return [];
+    }
   }
+
+  onMount(async () => {
+    // In een echte app zouden we dit doen, maar voor nu vullen we wat mock data
+    // als de API nog niet helemaal live is of als we in dev mode zijn.
+    for (let section of sections) {
+        section.tracks = await fetchTracks(section.endpoint);
+    }
+    sections = [...sections];
+  });
 </script>
 
-<div class="p-8">
-  {#if $view === 'home'}
-    <header class="flex justify-between items-center mb-8">
-      <h1 class="text-3xl font-bold">{getGreeting()}</h1>
-    </header>
-
-    <section>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-        {#each $curatedPlaylists.slice(0, 6) as playlist}
-          <button 
-            on:click={() => { currentPlaylist.set(playlist); view.set('playlist'); }}
-            class="bg-spotify-light/40 hover:bg-spotify-light transition rounded-md flex items-center gap-4 overflow-hidden group shadow-lg"
-          >
-            <div class="w-20 h-20 bg-spotify-light flex-shrink-0 shadow-xl flex items-center justify-center">
-               <span class="text-2xl">🎵</span>
-            </div>
-            <span class="font-bold truncate">{playlist.name}</span>
-            <div class="ml-auto mr-4 opacity-0 group-hover:opacity-100 transition translate-y-2 group-hover:translate-y-0">
-               <div class="bg-spotify-green text-black w-10 h-10 rounded-full flex items-center justify-center shadow-2xl">▶</div>
-            </div>
-          </button>
-        {/each}
-      </div>
-
-      <h2 class="text-2xl font-bold mb-4 hover:underline cursor-pointer">Speciaal voor jou gecureerd</h2>
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-        {#each $curatedPlaylists as playlist}
-          <div 
-            on:click={() => { currentPlaylist.set(playlist); view.set('playlist'); }}
-            class="bg-spotify-dark p-4 rounded-lg hover:bg-spotify-light/20 transition cursor-pointer group shadow-xl"
-          >
-            <div class="aspect-square bg-spotify-light rounded-md mb-4 shadow-lg relative overflow-hidden flex items-center justify-center">
-                <span class="text-5xl">💿</span>
-                <div class="absolute inset-0 bg-gradient-to-br from-spotify-green/20 to-black/20"></div>
-                <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition translate-y-2 group-hover:translate-y-0">
-                   <div class="bg-spotify-green text-black w-12 h-12 rounded-full flex items-center justify-center shadow-2xl">▶</div>
-                </div>
-            </div>
-            <div class="font-bold mb-1 truncate">{playlist.name}</div>
-            <div class="text-spotify-text text-sm line-clamp-2">{playlist.comment}</div>
-          </div>
-        {/each}
-      </div>
-    </section>
-  {:else if $view === 'playlist'}
-    <PlaylistView />
-  {:else if $view === 'search'}
-     <h1 class="text-3xl font-bold">Zoeken</h1>
-     <input type="text" placeholder="Wat wil je luisteren?" class="w-full max-w-md mt-4 p-3 rounded-full bg-white text-black font-medium focus:outline-none" />
+<div class="dashboard">
+  {#if activeView === 'home'}
+    {#each sections as section}
+      <section class="row">
+        <div class="row-header">
+          <h2>{section.title}</h2>
+          <button class="show-all">Alles tonen</button>
+        </div>
+        <div class="grid">
+          {#each section.tracks.slice(0, 6) as track}
+            <TrackCard {track} />
+          {/each}
+          {#if section.tracks.length === 0}
+            <p class="empty-msg">Geen tracks gevonden in deze categorie.</p>
+          {/if}
+        </div>
+      </section>
+    {/each}
+  {:else if activeView === 'songs'}
+    <h2>Alle Nummers</h2>
+    <!-- Implementatie voor alle nummers -->
+  {:else if activeView === 'sets'}
+    <h2>Sets (> 10 minuten)</h2>
+    <!-- Implementatie voor sets -->
   {/if}
 </div>
+
+<style>
+  .dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .row-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 16px;
+  }
+
+  h2 {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .show-all {
+    background: none;
+    border: none;
+    color: #b3b3b3;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .show-all:hover {
+    text-decoration: underline;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 24px;
+  }
+
+  .empty-msg {
+    color: #b3b3b3;
+    grid-column: 1 / -1;
+  }
+</style>

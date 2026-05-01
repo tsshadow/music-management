@@ -1,89 +1,91 @@
 <script>
-  import svelteLogo from './assets/svelte.svg'
-  import viteLogo from './assets/vite.svg'
-  import heroImg from './assets/hero.png'
-  import Counter from './lib/Counter.svelte'
+  import { onMount } from 'svelte';
+  import Sidebar from './lib/Sidebar.svelte';
+  import Player from './lib/Player.svelte';
+  import Dashboard from './lib/Dashboard.svelte';
+  import { currentTrack, playerState } from './lib/store.js';
+
+  let greeting = "";
+  const hours = new Date().getHours();
+  if (hours < 12) greeting = "Goedemorgen";
+  else if (hours < 18) greeting = "Goedemiddag";
+  else greeting = "Goedenavond";
+
+  let activeView = 'home'; // 'home', 'songs', 'sets', 'playlists'
+
+  function handleNavigate(view) {
+    activeView = view;
+  }
 </script>
 
-<section id="center">
-  <div class="hero">
-    <img src={heroImg} class="base" width="170" height="179" alt="" />
-    <img src={svelteLogo} class="framework" alt="Svelte logo" />
-    <img src={viteLogo} class="vite" alt="Vite logo" />
+<main class="spotify-layout">
+  <div class="sidebar-container">
+    <Sidebar {activeView} on:navigate={(e) => handleNavigate(e.detail)} />
   </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/App.svelte</code> and save to test <code>HMR</code></p>
-  </div>
-  <Counter />
-</section>
+  
+  <div class="main-view">
+    <header>
+      <h1>{greeting}</h1>
+    </header>
 
-<div class="ticks"></div>
-
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true">
-      <use href="/icons.svg#documentation-icon"></use>
-    </svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank" rel="noreferrer">
-          <img class="logo" src={viteLogo} alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://svelte.dev/" target="_blank" rel="noreferrer">
-          <img class="button-icon" src={svelteLogo} alt="" />
-          Learn more
-        </a>
-      </li>
-    </ul>
+    <div class="content-area">
+      <Dashboard {activeView} />
+    </div>
   </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true">
-      <use href="/icons.svg#social-icon"></use>
-    </svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li>
-        <a href="https://github.com/vitejs/vite" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#github-icon"></use>
-          </svg>
-          GitHub
-        </a>
-      </li>
-      <li>
-        <a href="https://chat.vite.dev/" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#discord-icon"></use>
-          </svg>
-          Discord
-        </a>
-      </li>
-      <li>
-        <a href="https://x.com/vite_js" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#x-icon"></use>
-          </svg>
-          X.com
-        </a>
-      </li>
-      <li>
-        <a href="https://bsky.app/profile/vite.dev" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#bluesky-icon"></use>
-          </svg>
-          Bluesky
-        </a>
-      </li>
-    </ul>
-  </div>
-</section>
 
-<div class="ticks"></div>
-<section id="spacer"></section>
+  <div class="player-container">
+    <Player />
+  </div>
+</main>
+
+<style>
+  :global(body) {
+    margin: 0;
+    padding: 0;
+    background-color: #000;
+    color: #fff;
+    font-family: 'Circular Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    overflow: hidden;
+  }
+
+  .spotify-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    grid-template-rows: 1fr 90px;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  .sidebar-container {
+    background-color: #000;
+    grid-row: 1 / 2;
+  }
+
+  .main-view {
+    background: linear-gradient(to bottom, #121212, #121212);
+    grid-row: 1 / 2;
+    overflow-y: auto;
+    padding: 20px 32px;
+    position: relative;
+  }
+
+  header {
+    margin-bottom: 24px;
+  }
+
+  h1 {
+    font-size: 32px;
+    font-weight: 700;
+  }
+
+  .player-container {
+    background-color: #181818;
+    grid-column: 1 / 3;
+    grid-row: 2 / 3;
+    border-top: 1px solid #282828;
+  }
+
+  .content-area {
+    padding-bottom: 32px;
+  }
+</style>

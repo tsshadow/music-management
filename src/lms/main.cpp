@@ -18,11 +18,13 @@
  */
 
 #include <filesystem>
+#include <fstream>
 #include <thread>
 
 #include <Wt/WApplication.h>
 #include <Wt/WLogSink.h>
 #include <Wt/WServer.h>
+#include <Wt/Http/Response.h>
 #include <boost/asio/io_context.hpp>
 #include <boost/property_tree/xml_parser.hpp>
 
@@ -346,6 +348,80 @@ namespace lms
             core::logging::ILogger& _logger;
         };
 
+        class SpotifyResource : public Wt::WResource
+        {
+        public:
+            SpotifyResource(const std::string& docRoot)
+                : _docRoot{ docRoot }
+            {
+            }
+
+            void handleRequest(const Wt::Http::Request& request, Wt::Http::Response& response) override
+            {
+                std::string pathInfo = request.pathInfo();
+                std::string docRoot = _docRoot;
+                size_t semiColonPos = docRoot.find(';');
+                if (semiColonPos != std::string::npos)
+                    docRoot = docRoot.substr(0, semiColonPos);
+
+                std::filesystem::path filePath = std::filesystem::path(docRoot) / "spotify";
+
+                if (pathInfo.empty() || pathInfo == "/")
+                    filePath /= "index.html";
+                else
+                    filePath /= pathInfo.substr(1);
+
+                if (!std::filesystem::exists(filePath) || std::filesystem::is_directory(filePath))
+                {
+                    // Only fallback to index.html if it doesn't look like a static asset request
+                    if (!filePath.has_extension())
+                        filePath = std::filesystem::path(docRoot) / "spotify" / "index.html";
+                    else
+                    {
+                        response.setStatus(404);
+                        response.out() << "File not found";
+                        return;
+                    }
+                }
+
+                std::ifstream ifs{ filePath, std::ios::binary };
+                if (ifs)
+                {
+                    std::string extension = filePath.extension().string();
+                    if (extension == ".html")
+                        response.setMimeType("text/html");
+                    else if (extension == ".js" || extension == ".mjs")
+                        response.setMimeType("text/javascript");
+                    else if (extension == ".css")
+                        response.setMimeType("text/css");
+                    else if (extension == ".svg")
+                        response.setMimeType("image/svg+xml");
+                    else if (extension == ".png")
+                        response.setMimeType("image/png");
+                    else if (extension == ".jpg" || extension == ".jpeg")
+                        response.setMimeType("image/jpeg");
+                    else if (extension == ".woff")
+                        response.setMimeType("font/woff");
+                    else if (extension == ".woff2")
+                        response.setMimeType("font/woff2");
+                    else if (extension == ".ttf")
+                        response.setMimeType("font/ttf");
+                    else if (extension == ".ico")
+                        response.setMimeType("image/x-icon");
+
+                    response.out() << ifs.rdbuf();
+                }
+                else
+                {
+                    response.setStatus(404);
+                    response.out() << "File not found";
+                }
+            }
+
+        private:
+            std::string _docRoot;
+        };
+
     } // namespace
 
     int main(int argc, char* argv[])
@@ -506,12 +582,17 @@ namespace lms
             server.removeEntryPoint("");
 
             std::unique_ptr<Wt::WResource> subsonicResource;
+            std::unique_ptr<Wt::WResource> spotifyResource;
+
             // bind API resources
             if (config->getBool("api-subsonic", true))
             {
                 subsonicResource = api::subsonic::createSubsonicResource(*database);
                 server.addResource(subsonicResource.get(), "/rest");
             }
+
+            spotifyResource = std::make_unique<SpotifyResource>(server.docRoot());
+            server.addResource(spotifyResource.get(), "/spotify");
 
             // bind UI entry point
             server.addEntryPoint(Wt::EntryPointType::Application,

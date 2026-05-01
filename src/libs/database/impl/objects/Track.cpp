@@ -191,6 +191,12 @@ namespace lms::db
             if (params.fileSize.has_value())
                 query.where("t.file_size = ?").bind(static_cast<long long>(params.fileSize.value()));
 
+            if (params.minDuration.has_value())
+                query.where("t.duration >= ?").bind(static_cast<long long>(params.minDuration->count()));
+
+            if (params.maxDuration.has_value())
+                query.where("t.duration <= ?").bind(static_cast<long long>(params.maxDuration->count()));
+
             if (params.embeddedImageId.isValid())
             {
                 query.join("track_embedded_image_link t_e_i_l ON t_e_i_l.track_id = t.id");
@@ -588,6 +594,18 @@ namespace lms::db
         {
             baseQuery += " AND (t.rating IS NULL OR t.rating <= ?)";
             bindFuncs.emplace_back([&params](auto& q) { q.bind(params.maxRating.value()); });
+        }
+
+        if (params.minDuration.has_value())
+        {
+            baseQuery += " AND t.duration >= ?";
+            bindFuncs.emplace_back([&params](auto& q) { q.bind(static_cast<long long>(params.minDuration->count())); });
+        }
+
+        if (params.maxDuration.has_value())
+        {
+            baseQuery += " AND t.duration <= ?";
+            bindFuncs.emplace_back([&params](auto& q) { q.bind(static_cast<long long>(params.maxDuration->count())); });
         }
 
         if (params.filters.mediaLibrary.isValid())

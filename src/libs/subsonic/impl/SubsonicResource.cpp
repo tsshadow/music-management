@@ -48,6 +48,7 @@
 #include "endpoints/Playlists.hpp"
 #include "endpoints/Podcast.hpp"
 #include "endpoints/Searching.hpp"
+#include "endpoints/Spotify.hpp"
 #include "endpoints/System.hpp"
 #include "endpoints/Transcoding.hpp"
 #include "endpoints/UserManagement.hpp"
@@ -217,6 +218,9 @@ namespace lms::api::subsonic
 
             // Jukebox
             { "/jukeboxControl", { handleJukeboxControl } },
+
+            // Spotify extensions
+            { "/getSpotifyCuratedPlaylists", { handleGetSpotifyCuratedPlaylists } },
 
             // Internet radio
             { "/getInternetRadioStations", { handleNotImplemented } },

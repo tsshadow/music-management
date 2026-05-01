@@ -18,6 +18,7 @@
  */
 
 #include "Playlists.hpp"
+#include "Spotify.hpp"
 
 #include "database/Session.hpp"
 #include "database/objects/Track.hpp"
@@ -92,6 +93,16 @@ namespace lms::api::subsonic
     Response handleGetPlaylistRequest(RequestContext& context)
     {
         // Mandatory params
+        const auto id{ getParameterAs<std::string>(context.getParameters(), "id") };
+        if (!id)
+            throw RequiredParameterMissingError{ "id" };
+
+        if (id->starts_with("spotify:"))
+        {
+            if (auto response = handleGetSpotifyPlaylist(context, *id))
+                return std::move(*response);
+        }
+
         TrackListId trackListId{ getMandatoryParameterAs<TrackListId>(context.getParameters(), "id") };
 
         auto transaction{ context.getDbSession().createReadTransaction() };

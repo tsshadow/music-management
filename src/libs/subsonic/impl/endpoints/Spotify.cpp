@@ -155,7 +155,7 @@ namespace lms::api::subsonic
             if (*sort == "recent")
                 params.setSortMethod(db::TrackSortMethod::OriginalDateDescAndRelease);
             else if (*sort == "added")
-                params.setSortMethod(db::TrackSortMethod::AddedDateDesc);
+                params.setSortMethod(db::TrackSortMethod::AddedDesc);
             else if (*sort == "random")
                 params.setSortMethod(db::TrackSortMethod::Random);
             else if (*sort == "alpha")

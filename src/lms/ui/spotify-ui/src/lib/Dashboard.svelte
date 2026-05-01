@@ -1,6 +1,8 @@
 <script>
   import { onMount } from 'svelte';
   import TrackCard from './TrackCard.svelte';
+  import TrackList from './TrackList.svelte';
+  import FilterBar from './FilterBar.svelte';
 
   export let activeView = 'home';
 
@@ -11,9 +13,16 @@
     { title: 'Sets (>10m)', endpoint: 'sets', tracks: [] }
   ];
 
+  let tracks = [];
+  let albums = [];
+  let artists = [];
+  let playlists = [];
+  let currentGenre = '';
+  let currentSort = 'recent';
+  let isLoading = false;
+
   async function fetchTracks(endpoint) {
     try {
-        // We gebruiken de nieuwe Spotify endpoints die ik in de backend heb toegevoegd
         const response = await fetch(`/rest/spotify/${endpoint}`);
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
@@ -24,14 +33,71 @@
     }
   }
 
+  async function loadAllTracks() {
+    isLoading = true;
+    try {
+      let url = `/rest/getSpotifyTracks?sort=${currentSort}`;
+      if (currentGenre) url += `&genre=${encodeURIComponent(currentGenre)}`;
+      if (activeView === 'sets') url += `&minDuration=10`;
+
+      const response = await fetch(url);
+      const data = await response.json();
+      tracks = data.tracks || [];
+    } catch (e) {
+      console.error("Failed to load tracks:", e);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  async function loadAlbums() {
+    try {
+      const response = await fetch('/rest/getAlbumList2?type=newest&size=50');
+      const data = await response.json();
+      albums = data.albumList2?.album || [];
+    } catch (e) { console.error(e); }
+  }
+
+  async function loadArtists() {
+    try {
+      const response = await fetch('/rest/getArtists');
+      const data = await response.json();
+      // Subsonic artists zijn gegroepeerd per index (A, B, C...)
+      const indexes = data.artists?.index || [];
+      artists = indexes.flatMap(idx => idx.artist || []);
+    } catch (e) { console.error(e); }
+  }
+
+  async function loadPlaylists() {
+    try {
+      const response = await fetch('/rest/getPlaylists');
+      const data = await response.json();
+      playlists = data.playlists?.playlist || [];
+    } catch (e) { console.error(e); }
+  }
+
+  function handleFilterChange(e) {
+    currentGenre = e.detail.genre;
+    currentSort = e.detail.sort;
+    loadAllTracks();
+  }
+
   onMount(async () => {
-    // In een echte app zouden we dit doen, maar voor nu vullen we wat mock data
-    // als de API nog niet helemaal live is of als we in dev mode zijn.
     for (let section of sections) {
         section.tracks = await fetchTracks(section.endpoint);
     }
     sections = [...sections];
   });
+
+  $: if (activeView === 'songs' || activeView === 'sets') {
+    loadAllTracks();
+  } else if (activeView === 'albums') {
+    loadAlbums();
+  } else if (activeView === 'artists') {
+    loadArtists();
+  } else if (activeView === 'playlists') {
+    loadPlaylists();
+  }
 </script>
 
 <div class="dashboard">
@@ -52,12 +118,49 @@
         </div>
       </section>
     {/each}
-  {:else if activeView === 'songs'}
-    <h2>Alle Nummers</h2>
-    <!-- Implementatie voor alle nummers -->
-  {:else if activeView === 'sets'}
-    <h2>Sets (> 10 minuten)</h2>
-    <!-- Implementatie voor sets -->
+  {:else if activeView === 'songs' || activeView === 'sets'}
+    <div class="view-header">
+        <h2>{activeView === 'songs' ? 'Alle Nummers' : 'Sets (> 10 minuten)'}</h2>
+        <FilterBar genre={currentGenre} sort={currentSort} on:change={handleFilterChange} />
+    </div>
+    {#if isLoading}
+        <p>Laden...</p>
+    {:else}
+        <TrackList {tracks} />
+    {/if}
+  {:else if activeView === 'albums'}
+    <h2>Albums</h2>
+    <div class="grid">
+        {#each albums as album}
+            <div class="card">
+                <img src="/rest/getCoverArt?id={album.coverArt}&size=300" alt={album.name} />
+                <span class="title">{album.name}</span>
+                <span class="artist">{album.artist}</span>
+            </div>
+        {/each}
+    </div>
+  {:else if activeView === 'artists'}
+    <h2>Artiesten</h2>
+    <div class="grid">
+        {#each artists as artist}
+            <div class="card artist-card">
+                <img src="/rest/getCoverArt?id={artist.coverArt}&size=300" alt={artist.name} />
+                <span class="title">{artist.name}</span>
+                <span class="artist">Artiest</span>
+            </div>
+        {/each}
+    </div>
+  {:else if activeView === 'playlists'}
+    <h2>Afspeellijsten</h2>
+    <div class="grid">
+        {#each playlists as playlist}
+            <div class="card">
+                <img src="/rest/getCoverArt?id={playlist.coverArt}&size=300" alt={playlist.name} />
+                <span class="title">{playlist.name}</span>
+                <span class="artist">{playlist.owner}</span>
+            </div>
+        {/each}
+    </div>
   {/if}
 </div>
 
@@ -66,6 +169,13 @@
     display: flex;
     flex-direction: column;
     gap: 32px;
+  }
+
+  .view-header {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 24px;
   }
 
   .row-header {
@@ -100,6 +210,45 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 24px;
+  }
+
+  .card {
+    background-color: #181818;
+    padding: 16px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+
+  .card:hover {
+    background-color: #282828;
+  }
+
+  .card img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+
+  .artist-card img {
+    border-radius: 50%;
+  }
+
+  .card .title {
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card .artist {
+    font-size: 14px;
+    color: #b3b3b3;
   }
 
   .empty-msg {

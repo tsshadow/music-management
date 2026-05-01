@@ -21,5 +21,5 @@ export const audio = writable(null);
 
 export const authParams = derived(credentials, ($c) => {
     if (!$c.username || !$c.password) return '';
-    return `u=${encodeURIComponent($c.username)}&p=${encodeURIComponent($c.password)}&v=1.12.0&c=spotify-ui`;
+    return `u=${encodeURIComponent($c.username)}&p=${encodeURIComponent($c.password)}&v=1.12.0&c=spotify-ui&f=json`;
 });

@@ -27,5 +27,6 @@ namespace lms::api::subsonic
 
     Response handleGetSpotifyCuratedPlaylists(RequestContext& ctx);
     std::optional<Response> handleGetSpotifyPlaylist(RequestContext& ctx, const std::string& id);
+    Response handleGetSpotifyPlaylistRequest(RequestContext& ctx);
     Response handleGetSpotifyTracks(RequestContext& ctx);
 } // namespace lms::api::subsonic

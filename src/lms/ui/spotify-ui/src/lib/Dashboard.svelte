@@ -8,10 +8,10 @@
   export let activeView = 'home';
 
   let sections = [
-    { title: 'Release Radar', endpoint: 'releaseRadar', tracks: [] },
-    { title: 'Recent Raw Hardstyle', endpoint: 'genre/raw%20hardstyle', tracks: [] },
-    { title: 'Recent Hardcore', endpoint: 'genre/hardcore', tracks: [] },
-    { title: 'Sets (>10m)', endpoint: 'sets', tracks: [] }
+    { title: 'Release Radar', id: 'spotify:release_radar', tracks: [] },
+    { title: 'Recent Raw Hardstyle', id: 'spotify:genre:raw hardstyle', tracks: [] },
+    { title: 'Recent Hardcore', id: 'spotify:genre:hardcore', tracks: [] },
+    { title: 'Sets (>10m)', id: 'spotify:sets', tracks: [] }
   ];
 
   let tracks = [];
@@ -22,14 +22,14 @@
   let currentSort = 'recent';
   let isLoading = false;
 
-  async function fetchTracks(endpoint) {
+  async function fetchTracks(id) {
     try {
-        const response = await fetch(`/rest/spotify/${endpoint}?${$authParams}`);
+        const response = await fetch(`/rest/getSpotifyPlaylist?id=${encodeURIComponent(id)}&${$authParams}`);
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
-        return data.tracks?.track || [];
+        return data.playlist?.entry || [];
     } catch (e) {
-        console.error(`Failed to fetch ${endpoint}:`, e);
+        console.error(`Failed to fetch ${id}:`, e);
         return [];
     }
   }
@@ -85,7 +85,7 @@
 
   onMount(async () => {
     for (let section of sections) {
-        section.tracks = await fetchTracks(section.endpoint);
+        section.tracks = await fetchTracks(section.id);
     }
     sections = [...sections];
   });

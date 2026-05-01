@@ -131,6 +131,19 @@ namespace lms::api::subsonic
         return response;
     }
 
+    Response handleGetSpotifyPlaylistRequest(RequestContext& ctx)
+    {
+        auto id = getParameterAs<std::string>(ctx.getParameters(), "id");
+        if (!id)
+            throw RequiredParameterMissingError{ "id" };
+
+        auto response = handleGetSpotifyPlaylist(ctx, *id);
+        if (!response)
+            throw RequestedDataNotFoundError{};
+
+        return *response;
+    }
+
     Response handleGetSpotifyTracks(RequestContext& ctx)
     {
         auto& session{ ctx.getDbSession() };

@@ -173,10 +173,10 @@ namespace lms::api::subsonic
         params.range = db::Range{ static_cast<std::size_t>(offset), static_cast<std::size_t>(count) };
 
         Response response{ Response::createOkResponse(ctx.getServerProtocolVersion()) };
-        auto& tracksNode = response.createArrayNode("tracks");
+        auto& tracksNode = response.createNode("tracks");
 
         db::Track::find(session, params, [&](const db::Track::pointer& track) {
-            tracksNode.addChild(createSongNode(ctx, track, ctx.getUser()));
+            tracksNode.addArrayChild("track", createSongNode(ctx, track, ctx.getUser()));
         });
 
         return response;

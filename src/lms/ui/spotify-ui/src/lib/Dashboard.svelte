@@ -42,7 +42,7 @@
 
       const response = await fetch(url);
       const data = await response.json();
-      tracks = data.tracks || [];
+      tracks = data.tracks?.track || [];
     } catch (e) {
       console.error("Failed to load tracks:", e);
     } finally {

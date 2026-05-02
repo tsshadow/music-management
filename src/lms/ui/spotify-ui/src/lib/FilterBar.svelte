@@ -8,17 +8,22 @@
 
   let genres = [];
 
-  onMount(async () => {
+  async function loadGenres() {
+    if (!$authParams) return;
     try {
         const response = await fetch(`/rest/getGenres?${$authParams}`);
         if (response.ok) {
             const data = await response.json();
-            genres = data.genres?.genre || [];
+            genres = data['subsonic-response']?.genres?.genre || [];
         }
     } catch (e) {
         console.error("Failed to fetch genres:", e);
     }
-  });
+  }
+
+  $: if ($authParams) {
+    loadGenres();
+  }
 
   function handleChange() {
     dispatch('change', { genre, sort });

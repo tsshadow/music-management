@@ -23,11 +23,12 @@
   let isLoading = false;
 
   async function fetchTracks(id) {
+    if (!$authParams) return [];
     try {
         const response = await fetch(`/rest/getSpotifyPlaylist?id=${encodeURIComponent(id)}&${$authParams}`);
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
-        return data.playlist?.entry || [];
+        return data['subsonic-response']?.playlist?.entry || [];
     } catch (e) {
         console.error(`Failed to fetch ${id}:`, e);
         return [];
@@ -35,6 +36,7 @@
   }
 
   async function loadAllTracks() {
+    if (!$authParams) return;
     isLoading = true;
     try {
       let url = `/rest/getSpotifyTracks?sort=${currentSort}&${$authParams}`;
@@ -43,7 +45,7 @@
 
       const response = await fetch(url);
       const data = await response.json();
-      tracks = data.tracks?.track || [];
+      tracks = data['subsonic-response']?.tracks?.track || [];
     } catch (e) {
       console.error("Failed to load tracks:", e);
     } finally {
@@ -52,28 +54,31 @@
   }
 
   async function loadAlbums() {
+    if (!$authParams) return;
     try {
       const response = await fetch(`/rest/getAlbumList2?type=newest&size=50&${$authParams}`);
       const data = await response.json();
-      albums = data.albumList2?.album || [];
+      albums = data['subsonic-response']?.albumList2?.album || [];
     } catch (e) { console.error(e); }
   }
 
   async function loadArtists() {
+    if (!$authParams) return;
     try {
       const response = await fetch(`/rest/getArtists?${$authParams}`);
       const data = await response.json();
       // Subsonic artists zijn gegroepeerd per index (A, B, C...)
-      const indexes = data.artists?.index || [];
+      const indexes = data['subsonic-response']?.artists?.index || [];
       artists = indexes.flatMap(idx => idx.artist || []);
     } catch (e) { console.error(e); }
   }
 
   async function loadPlaylists() {
+    if (!$authParams) return;
     try {
       const response = await fetch(`/rest/getPlaylists?${$authParams}`);
       const data = await response.json();
-      playlists = data.playlists?.playlist || [];
+      playlists = data['subsonic-response']?.playlists?.playlist || [];
     } catch (e) { console.error(e); }
   }
 
@@ -83,21 +88,25 @@
     loadAllTracks();
   }
 
-  onMount(async () => {
+  async function loadCurated() {
     for (let section of sections) {
         section.tracks = await fetchTracks(section.id);
     }
     sections = [...sections];
-  });
+  }
 
-  $: if (activeView === 'songs' || activeView === 'sets') {
-    loadAllTracks();
-  } else if (activeView === 'albums') {
-    loadAlbums();
-  } else if (activeView === 'artists') {
-    loadArtists();
-  } else if (activeView === 'playlists') {
-    loadPlaylists();
+  $: if ($authParams) {
+    if (activeView === 'home') {
+        loadCurated();
+    } else if (activeView === 'songs' || activeView === 'sets') {
+        loadAllTracks();
+    } else if (activeView === 'albums') {
+        loadAlbums();
+    } else if (activeView === 'artists') {
+        loadArtists();
+    } else if (activeView === 'playlists') {
+        loadPlaylists();
+    }
   }
 </script>
 

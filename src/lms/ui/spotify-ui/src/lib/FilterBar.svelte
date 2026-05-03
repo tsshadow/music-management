@@ -10,11 +10,16 @@
 
   async function loadGenres() {
     if (!$authParams) return;
+    console.log("Loading genres...");
     try {
         const response = await fetch(`/rest/getGenres?${$authParams}`);
         if (response.ok) {
             const data = await response.json();
-            genres = data['subsonic-response']?.genres?.genre || [];
+            console.log("Genres received:", data);
+            const result = data['subsonic-response']?.genres?.genre || [];
+            genres = Array.isArray(result) ? result : [result];
+        } else {
+            console.error("Failed to load genres, response not ok");
         }
     } catch (e) {
         console.error("Failed to fetch genres:", e);

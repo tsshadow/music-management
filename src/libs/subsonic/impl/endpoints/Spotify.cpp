@@ -125,7 +125,7 @@ namespace lms::api::subsonic
         playlistNode.setAttribute("public", true);
 
         db::Track::find(session, params, [&](const db::Track::pointer& track) {
-            playlistNode.addArrayChild("entry", createSongNode(ctx, track, ctx.getUser()));
+            playlistNode.addArrayChild("entry", createSongNode(ctx, track, true));
         });
 
         return response;
@@ -141,7 +141,7 @@ namespace lms::api::subsonic
         if (!response)
             throw RequestedDataNotFoundError{};
 
-        return *response;
+        return std::move(*response);
     }
 
     Response handleGetSpotifyTracks(RequestContext& ctx)
@@ -187,7 +187,7 @@ namespace lms::api::subsonic
         auto& tracksNode = response.createNode("tracks");
 
         db::Track::find(session, params, [&](const db::Track::pointer& track) {
-            tracksNode.addArrayChild("track", createSongNode(ctx, track, ctx.getUser()));
+            tracksNode.addArrayChild("track", createSongNode(ctx, track, true));
         });
 
         return response;

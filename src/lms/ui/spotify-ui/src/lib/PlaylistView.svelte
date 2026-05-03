@@ -1,21 +1,22 @@
 <script>
-  import { currentPlaylist, currentTrack, isPlaying } from './store.js';
+  import { currentPlaylist, currentTrack, isPlaying, authParams } from './store.js';
 
   let tracks = [];
   let apiBase = '/rest';
 
   async function fetchTracks(id) {
-    if (!id) return;
+    if (!id || !$authParams) return;
     try {
-      const resp = await fetch(`${apiBase}/getPlaylist?id=${encodeURIComponent(id)}&u=admin&t=admin&s=salt&v=1.16.1&c=spotify-ui&f=json`);
+      const resp = await fetch(`${apiBase}/getPlaylist?id=${encodeURIComponent(id)}&${$authParams}`);
       const data = await resp.json();
-      tracks = data['subsonic-response'].playlist.entry || [];
+      const result = data['subsonic-response']?.playlist?.entry || [];
+      tracks = Array.isArray(result) ? result : [result];
     } catch (e) {
       console.error("Failed to fetch tracks", e);
     }
   }
 
-  $: if ($currentPlaylist) {
+  $: if ($currentPlaylist && $authParams) {
     fetchTracks($currentPlaylist.id);
   }
 
@@ -69,7 +70,7 @@
                <td class="py-2">
                  <div class="flex items-center gap-3">
                    <div class="w-10 h-10 bg-spotify-light flex-shrink-0">
-                      <img src="/rest/getCoverArt?id={track.coverArt}&u=admin&t=admin&s=salt&v=1.16.1&c=spotify-ui&size=40" alt="" class="w-full h-full" />
+                      <img src="/rest/getCoverArt?id={track.coverArt}&${$authParams}&size=40" alt="" class="w-full h-full" />
                    </div>
                    <div>
                      <div class="text-white font-medium truncate max-w-xs">{track.title}</div>

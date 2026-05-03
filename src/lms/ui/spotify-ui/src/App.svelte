@@ -31,7 +31,7 @@
     </header>
 
     <div class="content-area">
-      <Dashboard {activeView} />
+      <Dashboard bind:activeView />
     </div>
   </div>
 

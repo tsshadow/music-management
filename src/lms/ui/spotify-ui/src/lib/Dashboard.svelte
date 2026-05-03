@@ -3,7 +3,8 @@
   import TrackCard from './TrackCard.svelte';
   import TrackList from './TrackList.svelte';
   import FilterBar from './FilterBar.svelte';
-  import { authParams } from './store.js';
+  import PlaylistView from './PlaylistView.svelte';
+  import { authParams, currentPlaylist } from './store.js';
 
   export let activeView = 'home';
 
@@ -24,11 +25,14 @@
 
   async function fetchTracks(id) {
     if (!$authParams) return [];
+    console.log(`Fetching tracks for curated playlist: ${id}`);
     try {
         const response = await fetch(`/rest/getSpotifyPlaylist?id=${encodeURIComponent(id)}&${$authParams}`);
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
-        return data['subsonic-response']?.playlist?.entry || [];
+        console.log(`Data for ${id}:`, data);
+        const result = data['subsonic-response']?.playlist?.entry || [];
+        return Array.isArray(result) ? result : [result];
     } catch (e) {
         console.error(`Failed to fetch ${id}:`, e);
         return [];
@@ -37,15 +41,19 @@
 
   async function loadAllTracks() {
     if (!$authParams) return;
+    console.log(`Loading all tracks, activeView=${activeView}, genre=${currentGenre}, sort=${currentSort}`);
     isLoading = true;
     try {
       let url = `/rest/getSpotifyTracks?sort=${currentSort}&${$authParams}`;
       if (currentGenre) url += `&genre=${encodeURIComponent(currentGenre)}`;
       if (activeView === 'sets') url += `&minDuration=10`;
 
+      console.log(`Fetching: ${url}`);
       const response = await fetch(url);
       const data = await response.json();
-      tracks = data['subsonic-response']?.tracks?.track || [];
+      console.log("Track data received:", data);
+      const result = data['subsonic-response']?.tracks?.track || [];
+      tracks = Array.isArray(result) ? result : [result];
     } catch (e) {
       console.error("Failed to load tracks:", e);
     } finally {
@@ -82,10 +90,9 @@
     } catch (e) { console.error(e); }
   }
 
-  function handleFilterChange(e) {
-    currentGenre = e.detail.genre;
-    currentSort = e.detail.sort;
-    loadAllTracks();
+  function openPlaylist(playlist) {
+    currentPlaylist.set(playlist);
+    activeView = 'playlist-detail';
   }
 
   async function loadCurated() {
@@ -164,13 +171,15 @@
     <h2>Afspeellijsten</h2>
     <div class="grid">
         {#each playlists as playlist}
-            <div class="card">
-                <img src="/rest/getCoverArt?id={playlist.coverArt}&size=300" alt={playlist.name} />
+            <div class="card" on:click={() => openPlaylist(playlist)}>
+                <img src="/rest/getCoverArt?id={playlist.coverArt}&${$authParams}&size=300" alt={playlist.name} />
                 <span class="title">{playlist.name}</span>
                 <span class="artist">{playlist.owner}</span>
             </div>
         {/each}
     </div>
+  {:else if activeView === 'playlist-detail'}
+    <PlaylistView />
   {/if}
 </div>
 

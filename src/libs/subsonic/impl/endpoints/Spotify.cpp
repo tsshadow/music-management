@@ -102,7 +102,7 @@ namespace lms::api::subsonic
             name = genreName;
             description = "Curated " + genreName + " tracks.";
 
-            if (auto genreType = db::ClusterType::find(session, "genre"))
+            if (auto genreType = db::ClusterType::find(session, "GENRE"))
             {
                 if (auto cluster = genreType->getCluster(genreName))
                 {
@@ -155,9 +155,20 @@ namespace lms::api::subsonic
 
         if (auto genre = getParameterAs<std::string>(ctx.getParameters(), "genre"))
         {
-            if (auto genreType = db::ClusterType::find(session, "genre"))
+            if (auto genreType = db::ClusterType::find(session, "GENRE"))
             {
                 if (auto cluster = genreType->getCluster(*genre))
+                {
+                    params.filters.clusters.push_back(cluster->getId());
+                }
+            }
+        }
+
+        if (auto year = getParameterAs<std::string>(ctx.getParameters(), "year"))
+        {
+            if (auto yearType = db::ClusterType::find(session, "YEAR"))
+            {
+                if (auto cluster = yearType->getCluster(*year))
                 {
                     params.filters.clusters.push_back(cluster->getId());
                 }

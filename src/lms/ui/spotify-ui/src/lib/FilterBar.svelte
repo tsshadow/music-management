@@ -5,8 +5,10 @@
 
   export let genre = '';
   export let sort = 'recent';
+  export let year = '';
 
   let genres = [];
+  let years = [];
 
   async function loadGenres() {
     if (!$authParams) return;
@@ -26,12 +28,33 @@
     }
   }
 
+  async function loadYears() {
+    if (!$authParams) return;
+    console.log("Loading years...");
+    try {
+        const response = await fetch(`/rest/getYears?${$authParams}`);
+        if (response.ok) {
+            const data = await response.json();
+            console.log("Years received:", data);
+            const result = data['subsonic-response']?.years?.year || [];
+            years = Array.isArray(result) ? result : [result];
+            // Sorteer jaren aflopend
+            years.sort((a, b) => b.value.localeCompare(a.value));
+        } else {
+            console.error("Failed to load years, response not ok");
+        }
+    } catch (e) {
+        console.error("Failed to fetch years:", e);
+    }
+  }
+
   $: if ($authParams) {
     loadGenres();
+    loadYears();
   }
 
   function handleChange() {
-    dispatch('change', { genre, sort });
+    dispatch('change', { genre, sort, year });
   }
 </script>
 
@@ -42,6 +65,16 @@
       <option value="">Alle Genres</option>
       {#each genres as g}
         <option value={g.value}>{g.value} ({g.songCount})</option>
+      {/each}
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label for="year">Jaar:</label>
+    <select id="year" bind:value={year} on:change={handleChange}>
+      <option value="">Alle Jaren</option>
+      {#each years as y}
+        <option value={y.value}>{y.value}</option>
       {/each}
     </select>
   </div>

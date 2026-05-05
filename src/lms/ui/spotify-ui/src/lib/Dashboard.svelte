@@ -21,6 +21,7 @@
   let playlists = [];
   let currentGenre = '';
   let currentSort = 'recent';
+  let currentYear = '';
   let isLoading = false;
 
   async function fetchTracks(id) {
@@ -41,7 +42,7 @@
 
   async function loadAllTracks() {
     if (!$authParams) return;
-    console.log(`Loading all tracks, activeView=${activeView}, genre=${currentGenre}, sort=${currentSort}`);
+    console.log(`Loading all tracks, activeView=${activeView}, genre=${currentGenre}, sort=${currentSort}, year=${currentYear}`);
     isLoading = true;
     try {
       let url = `/rest/getSpotifyTracks?sort=${currentSort}&${$authParams}`;
@@ -50,6 +51,9 @@
           const genreName = activeView.split(':')[1];
           url += `&genre=${encodeURIComponent(genreName)}`;
       }
+      
+      if (currentYear) url += `&year=${encodeURIComponent(currentYear)}`;
+
       if (activeView === 'sets') url += `&minDuration=10`;
 
       console.log(`Fetching: ${url}`);
@@ -104,9 +108,10 @@
   }
 
   function handleFilterChange(e) {
-      const { genre, sort } = e.detail;
+      const { genre, sort, year } = e.detail;
       currentGenre = genre;
       currentSort = sort;
+      currentYear = year;
       loadAllTracks();
   }
 
@@ -157,7 +162,7 @@
         <h2>
             {#if activeView === 'songs'}Alle Nummers{:else if activeView === 'sets'}Sets{:else}{activeView.split(':')[1]}{/if}
         </h2>
-        <FilterBar genre={currentGenre} sort={currentSort} on:change={handleFilterChange} />
+        <FilterBar genre={currentGenre} sort={currentSort} year={currentYear} on:change={handleFilterChange} />
     </div>
     {#if isLoading}
         <p>Laden...</p>
@@ -169,7 +174,7 @@
     <div class="grid">
         {#each albums as album}
             <div class="card">
-                <img src="/rest/getCoverArt?id={album.coverArt}&size=300" alt={album.name} />
+                <img src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/unknown-cover.svg'} alt={album.name} />
                 <span class="title">{album.name}</span>
                 <span class="artist">{album.artist}</span>
             </div>
@@ -180,7 +185,7 @@
     <div class="grid">
         {#each artists as artist}
             <div class="card artist-card">
-                <img src="/rest/getCoverArt?id={artist.coverArt}&size=300" alt={artist.name} />
+                <img src={artist.coverArt ? `/rest/getCoverArt?id=${artist.coverArt}&size=300&${$authParams}` : '/images/unknown-artist.svg'} alt={artist.name} />
                 <span class="title">{artist.name}</span>
                 <span class="artist">Artiest</span>
             </div>
@@ -191,7 +196,7 @@
     <div class="grid">
         {#each playlists as playlist}
             <div class="card" on:click={() => openPlaylist(playlist)}>
-                <img src="/rest/getCoverArt?id={playlist.coverArt}&${$authParams}&size=300" alt={playlist.name} />
+                <img src={playlist.coverArt ? `/rest/getCoverArt?id=${playlist.coverArt}&size=300&${$authParams}` : '/images/unknown-cover.svg'} alt={playlist.name} />
                 <span class="title">{playlist.name}</span>
                 <span class="artist">{playlist.owner}</span>
             </div>

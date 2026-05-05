@@ -70,9 +70,7 @@
         </td>
         <td class="col-title">
           <div class="title-container">
-            {#if track.coverArt}
-              <img src="/rest/getCoverArt?id={track.coverArt}&size=40&{$authParams}" alt="" />
-            {/if}
+            <img src={track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=40&${$authParams}` : '/images/unknown-cover.svg'} alt="" />
             <div class="info">
               <span class="name">{track.title}</span>
               <span class="artist">{track.artist}</span>

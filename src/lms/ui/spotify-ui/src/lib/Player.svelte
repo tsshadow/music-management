@@ -130,14 +130,18 @@
   $: volume = $playerState.volume;
   $: repeatMode = $playerState.repeat;
   $: shuffleMode = $playerState.shuffle;
-  $: coverUrl = track?.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}` : 'https://www.scdn.co/mirror/static/images/fallback/type/track/300.png';
+  $: coverUrl = track?.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}` : '/images/unknown-cover.svg';
   $: streamUrl = track?.id ? `/rest/stream?id=${track.id}&${$authParams}` : '';
 
   let lastTrackId = null;
   $: if (audioElement && track && track.id !== lastTrackId) {
       lastTrackId = track.id;
       audioElement.src = streamUrl;
-      audioElement.play().catch(e => console.error("Auto-play failed", e));
+      audioElement.play().catch(e => {
+          if (e.name !== 'AbortError') {
+              console.error("Auto-play failed", e);
+          }
+      });
   }
 
   onMount(() => {
@@ -148,7 +152,6 @@
 
 <audio
   bind:this={audioElement}
-  src={streamUrl}
   on:timeupdate={handleTimeUpdate}
   on:loadedmetadata={handleLoadedMetadata}
   on:play={handlePlay}

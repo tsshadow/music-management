@@ -54,7 +54,7 @@ namespace lms::api::subsonic
         // 2. Genre Playlists
         const std::vector<std::string> genres = {
             "mainstream hardstyle", "raw hardstyle", "mainstream hardcore", "uptempo hardcore",
-            "zaagtempi", "krach", "industrial hardcore", "hardcore", "hardstyle",
+            "zaagtempo", "krach", "industrial hardcore", "hardcore", "hardstyle", "frenchcore"
             "euphoric frenchcore", "euphoric hardstyle", "terror"
         };
 

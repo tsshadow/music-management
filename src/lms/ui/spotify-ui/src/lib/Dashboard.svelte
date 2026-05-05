@@ -13,8 +13,7 @@
 
   let sections = [
     { title: 'Release Radar', id: 'spotify:release_radar', tracks: [] },
-    { title: 'Recent Raw Hardstyle', id: 'spotify:genre:raw hardstyle', tracks: [] },
-    { title: 'Recent Hardcore', id: 'spotify:genre:hardcore', tracks: [] },
+    { title: 'Songs', id: 'spotify:songs', tracks: [] },
     { title: 'Sets', id: 'spotify:sets', tracks: [] }
   ];
 

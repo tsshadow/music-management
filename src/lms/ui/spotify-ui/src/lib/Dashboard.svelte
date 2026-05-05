@@ -83,6 +83,8 @@
 
       if (activeView === 'sets') {
           url += `&minDuration=10`;
+      } else {
+          url += `&maxDuration=10`;
       }
 
       console.log(`Fetching: ${url}`);

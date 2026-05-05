@@ -85,6 +85,7 @@ namespace lms::api::subsonic
         {
             name = "Release Radar";
             description = "Recent releases and new discoveries.";
+            params.maxDuration = std::chrono::minutes(10);
             params.setSortMethod(db::TrackSortMethod::OriginalDateDescAndRelease);
             params.range = db::Range{ 0, 50 };
         }
@@ -109,6 +110,7 @@ namespace lms::api::subsonic
                     params.filters.clusters.push_back(cluster->getId());
                 }
             }
+            params.maxDuration = std::chrono::minutes(10);
             params.setSortMethod(db::TrackSortMethod::Random);
             params.range = db::Range{ 0, 50 };
         }

@@ -9,8 +9,13 @@
     try {
       const resp = await fetch(`${apiBase}/getPlaylist?id=${encodeURIComponent(id)}&${$authParams}`);
       const data = await resp.json();
-      const result = data['subsonic-response']?.playlist?.entry || [];
+      const playlistData = data['subsonic-response']?.playlist;
+      const result = playlistData?.entry || [];
       tracks = Array.isArray(result) ? result : [result];
+
+      if (playlistData && (!$currentPlaylist.name || $currentPlaylist.id !== playlistData.id)) {
+        currentPlaylist.set(playlistData);
+      }
     } catch (e) {
       console.error("Failed to fetch tracks", e);
     }

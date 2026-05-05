@@ -165,7 +165,7 @@ namespace lms
             args.push_back("--config=" + wtConfigPath.string());
             args.push_back("--docroot=" + std::string{ config.getString("docroot", "/usr/share/lms/docroot/;/resources,/css,/images,/js,/favicon.ico") });
             args.push_back("--approot=" + appRootPath.string());
-            args.push_back("--deploy-path=" + std::string{ config.getString("deploy-path", "/legacy") });
+            args.push_back("--deploy-path=" + std::string{ config.getString("deploy-path", "/") });
             if (!wtResourcesPath.empty())
                 args.push_back("--resources-dir=" + wtResourcesPath.string());
 
@@ -374,7 +374,7 @@ namespace lms
                 if (!std::filesystem::exists(filePath) || std::filesystem::is_directory(filePath))
                 {
                     // Only fallback to index.html if it doesn't look like a static asset request
-                    if (!filePath.has_extension())
+                    if (!filePath.has_extension() || filePath.extension() == ".html")
                         filePath = std::filesystem::path(docRoot) / "spotify" / "index.html";
                     else
                     {
@@ -495,7 +495,7 @@ namespace lms
             server.addEntryPoint(Wt::EntryPointType::Application,
                                  [&](const Wt::WEnvironment& env) {
                                      return ui::LmsInitApplication::create(env);
-                                 }, "");
+                                 });
 
             LMS_LOG(MAIN, INFO, "Starting init web server...");
             server.start();
@@ -592,14 +592,23 @@ namespace lms
             }
 
             spotifyResource = std::make_unique<SpotifyResource>(server.docRoot());
-            server.addResource(spotifyResource.get(), "/");
+            server.addResource(spotifyResource.get(), "/spotify");
+
+            // Redirect root to spotify
+            server.addEntryPoint(Wt::EntryPointType::Application,
+                                 [](const Wt::WEnvironment& env) {
+                                     auto app = std::make_unique<Wt::WApplication>(env);
+                                     app->redirect("/spotify/");
+                                     return app;
+                                 },
+                                 "/");
 
             // bind UI entry point
             server.addEntryPoint(Wt::EntryPointType::Application,
                                  [&database, &appManager, uiAuthenticationBackend](const Wt::WEnvironment& env) {
                                      return ui::LmsApplication::create(env, *database, appManager, uiAuthenticationBackend);
                                  },
-                                 "");
+                                 "/legacy");
 
             proxyScannerEventsToApplication(*scannerService, server);
 

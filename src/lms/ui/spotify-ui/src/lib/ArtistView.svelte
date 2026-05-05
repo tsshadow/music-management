@@ -64,7 +64,9 @@
     }
   }
 
-  onMount(loadArtist);
+  $: if (artistId && $authParams) {
+    loadArtist();
+  }
 
   function openAlbum(id) {
     onNavigate(`album:${id}`);

@@ -5,7 +5,7 @@
   import Dashboard from './lib/Dashboard.svelte';
   import AuthOverlay from './lib/AuthOverlay.svelte';
   import TrackList from './lib/TrackList.svelte';
-  import { currentTrack, playerState, playlist, activeView } from './lib/store.js';
+  import { currentTrack, playerState, playlist, activeView, currentPlaylist } from './lib/store.js';
 
   let greeting = "";
   const hours = new Date().getHours();
@@ -14,6 +14,70 @@
   else greeting = "Goedenavond";
 
   let showQueue = false;
+  let isMounted = false;
+
+  const base = '/spotify';
+
+  function viewToPath(view, playlistObj) {
+    if (view === 'home') return base + '/';
+    if (view === 'songs') return base + '/songs';
+    if (view === 'sets') return base + '/sets';
+    if (view === 'albums') return base + '/albums';
+    if (view === 'artists') return base + '/artists';
+    if (view === 'playlists') return base + '/playlists';
+    if (view.startsWith('genre:')) return base + '/genre/' + view.split(':')[1];
+    if (view.startsWith('artist:')) return base + '/artist/' + view.split(':')[1];
+    if (view.startsWith('album:')) return base + '/album/' + view.split(':')[1];
+    if (view === 'playlist-detail' && playlistObj) return base + '/playlist/' + playlistObj.id;
+    return null;
+  }
+
+  function pathToView(path) {
+    if (path === base || path === base + '/') return 'home';
+    if (path === base + '/songs') return 'songs';
+    if (path === base + '/sets') return 'sets';
+    if (path === base + '/albums') return 'albums';
+    if (path === base + '/artists') return 'artists';
+    if (path === base + '/playlists') return 'playlists';
+    if (path.startsWith(base + '/genre/')) return 'genre:' + decodeURIComponent(path.substring((base + '/genre/').length));
+    if (path.startsWith(base + '/artist/')) return 'artist:' + path.substring((base + '/artist/').length);
+    if (path.startsWith(base + '/album/')) return 'album:' + path.substring((base + '/album/').length);
+    if (path.startsWith(base + '/playlist/')) {
+        const id = path.substring((base + '/playlist/').length);
+        return { view: 'playlist-detail', id };
+    }
+    return 'home';
+  }
+
+  onMount(() => {
+    isMounted = true;
+    const initialView = pathToView(window.location.pathname);
+    if (typeof initialView === 'object') {
+        currentPlaylist.set({ id: initialView.id });
+        activeView.set(initialView.view);
+    } else {
+        activeView.set(initialView);
+    }
+
+    window.onpopstate = () => {
+        const view = pathToView(window.location.pathname);
+        if (typeof view === 'object') {
+            currentPlaylist.set({ id: view.id });
+            activeView.set(view.view);
+        } else {
+            activeView.set(view);
+        }
+    };
+  });
+
+  $: {
+    if (isMounted) {
+        const path = viewToPath($activeView, $currentPlaylist);
+        if (path && path !== window.location.pathname) {
+            window.history.pushState({}, '', path);
+        }
+    }
+  }
 
   function handleNavigate(view) {
     activeView.set(view);

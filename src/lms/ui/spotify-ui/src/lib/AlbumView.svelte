@@ -42,7 +42,9 @@
     }
   }
 
-  onMount(loadAlbum);
+  $: if (albumId && $authParams) {
+    loadAlbum();
+  }
 
   function openArtist() {
      const id_to_use = album.artistId || (tracks.length > 0 ? tracks[0].artistId : null);

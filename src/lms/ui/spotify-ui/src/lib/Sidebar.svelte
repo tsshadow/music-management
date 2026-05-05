@@ -1,5 +1,6 @@
 <script>
   import { createEventDispatcher } from 'svelte';
+  import { credentials } from './store.js';
   const dispatch = createEventDispatcher();
 
   export let activeView = 'home';
@@ -13,6 +14,12 @@
 
   function navigate(id) {
     dispatch('navigate', id);
+  }
+
+  function logout() {
+    credentials.set({ url: window.location.origin, username: '', password: '' });
+    localStorage.removeItem('lms_username');
+    localStorage.removeItem('lms_password');
   }
 </script>
 
@@ -60,8 +67,14 @@
 
   <div class="divider"></div>
 
-  <div class="legacy-nav">
-    <a href="/legacy" class="legacy-button">
+  <div class="extra-nav">
+    <button class="nav-extra-button logout" on:click={logout}>
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+        <path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
+      </svg>
+      Uitloggen
+    </button>
+    <a href="/legacy" class="nav-extra-button legacy">
       <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
         <path d="M13 3L16.29 6.29L13.6 8.99L15.01 10.4L17.71 7.71L21 11V3H13M3 21H11V13H3V21M5 15H9V19H5V15M3 11H11V3H3V11M5 5H9V9H5V5M13 21H21V13H13V21M15 15H19V19H15V15Z"/>
       </svg>
@@ -159,12 +172,15 @@
     color: #fff;
   }
 
-  .legacy-nav {
+  .extra-nav {
     padding: 0 12px;
     margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
 
-  .legacy-button {
+  .nav-extra-button {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -174,9 +190,14 @@
     font-weight: 600;
     padding: 10px 0;
     transition: color 0.2s;
+    background: none;
+    border: none;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
   }
 
-  .legacy-button:hover {
+  .nav-extra-button:hover {
     color: #fff;
   }
 </style>

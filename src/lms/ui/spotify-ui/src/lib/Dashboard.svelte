@@ -12,7 +12,7 @@
     { title: 'Release Radar', id: 'spotify:release_radar', tracks: [] },
     { title: 'Recent Raw Hardstyle', id: 'spotify:genre:raw hardstyle', tracks: [] },
     { title: 'Recent Hardcore', id: 'spotify:genre:hardcore', tracks: [] },
-    { title: 'Sets (>10m)', id: 'spotify:sets', tracks: [] }
+    { title: 'Sets', id: 'spotify:sets', tracks: [] }
   ];
 
   let tracks = [];
@@ -46,6 +46,10 @@
     try {
       let url = `/rest/getSpotifyTracks?sort=${currentSort}&${$authParams}`;
       if (currentGenre) url += `&genre=${encodeURIComponent(currentGenre)}`;
+      else if (activeView.startsWith('genre:')) {
+          const genreName = activeView.split(':')[1];
+          url += `&genre=${encodeURIComponent(genreName)}`;
+      }
       if (activeView === 'sets') url += `&minDuration=10`;
 
       console.log(`Fetching: ${url}`);
@@ -90,9 +94,20 @@
     } catch (e) { console.error(e); }
   }
 
+  function openRadar() {
+      openPlaylist({ id: 'spotify:release_radar', name: 'Release Radar', coverArt: 'spotify:release_radar' });
+  }
+
   function openPlaylist(playlist) {
     currentPlaylist.set(playlist);
     activeView = 'playlist-detail';
+  }
+
+  function handleFilterChange(e) {
+      const { genre, sort } = e.detail;
+      currentGenre = genre;
+      currentSort = sort;
+      loadAllTracks();
   }
 
   async function loadCurated() {
@@ -105,8 +120,10 @@
   $: if ($authParams) {
     if (activeView === 'home') {
         loadCurated();
-    } else if (activeView === 'songs' || activeView === 'sets') {
+    } else if (activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:')) {
         loadAllTracks();
+    } else if (activeView === 'radar') {
+        openRadar();
     } else if (activeView === 'albums') {
         loadAlbums();
     } else if (activeView === 'artists') {
@@ -135,9 +152,11 @@
         </div>
       </section>
     {/each}
-  {:else if activeView === 'songs' || activeView === 'sets'}
+  {:else if activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:')}
     <div class="view-header">
-        <h2>{activeView === 'songs' ? 'Alle Nummers' : 'Sets (> 10 minuten)'}</h2>
+        <h2>
+            {#if activeView === 'songs'}Alle Nummers{:else if activeView === 'sets'}Sets{:else}{activeView.split(':')[1]}{/if}
+        </h2>
         <FilterBar genre={currentGenre} sort={currentSort} on:change={handleFilterChange} />
     </div>
     {#if isLoading}

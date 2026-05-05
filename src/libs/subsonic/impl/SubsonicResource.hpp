@@ -18,7 +18,10 @@
  */
 #pragma once
 
+#include <chrono>
+#include <mutex>
 #include <string>
+#include <unordered_map>
 
 #include <Wt/Http/Request.h>
 #include <Wt/Http/Response.h>
@@ -43,6 +46,12 @@ namespace lms::api::subsonic
         SubsonicResource(db::IDb& db);
 
     private:
+        struct AuthCacheEntry
+        {
+            db::UserId userId;
+            std::chrono::steady_clock::time_point expiry;
+        };
+
         void handleRequest(const Wt::Http::Request& request, Wt::Http::Response& response) override;
 
         bool handleMediaRetrievalRequest(const std::string& requestPath, const Wt::Http::Request& request, Wt::Http::Response& response);
@@ -52,5 +61,8 @@ namespace lms::api::subsonic
 
         const SubsonicResourceConfig _config;
         db::IDb& _db;
+
+        std::mutex _authCacheMutex;
+        std::unordered_map<std::string, AuthCacheEntry> _authCache;
     };
 } // namespace lms::api::subsonic

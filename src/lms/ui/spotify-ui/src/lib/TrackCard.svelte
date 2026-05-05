@@ -8,7 +8,7 @@
     playerState.update(s => ({ ...s, playing: true }));
   }
 
-  $: coverUrl = track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=300&${$authParams}` : '/spotify/default-cover.png';
+  $: coverUrl = track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=300&${$authParams}` : 'https://www.scdn.co/mirror/static/images/fallback/type/track/300.png';
 </script>
 
 <div class="card" on:click={play}>

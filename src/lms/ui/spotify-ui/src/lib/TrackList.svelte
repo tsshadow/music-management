@@ -2,11 +2,34 @@
   import { currentTrack, playerState, authParams, playlist } from './store.js';
 
   export let tracks = [];
+  export let isQueue = false;
 
   function playTrack(track, index) {
     currentTrack.set(track);
-    playlist.set(tracks);
+    if (!isQueue) {
+        playlist.set(tracks);
+    }
     playerState.update(s => ({ ...s, playing: true }));
+  }
+
+  function removeTrack(e, index) {
+      e.stopPropagation();
+      playlist.update(p => {
+          const newP = [...p];
+          newP.splice(index, 1);
+          return newP;
+      });
+  }
+
+  function moveTrack(e, index, direction) {
+      e.stopPropagation();
+      playlist.update(p => {
+          const newP = [...p];
+          const newIndex = index + direction;
+          if (newIndex < 0 || newIndex >= newP.length) return newP;
+          [newP[index], newP[newIndex]] = [newP[newIndex], newP[index]];
+          return newP;
+      });
   }
 
   function formatTime(ms) {
@@ -29,6 +52,9 @@
           <path d="M8 4a.5.5 0 01.5.5v3h3a.5.5 0 010 1H8a.5.5 0 01-.5-.5v-4A.5.5 0 018 4z"></path>
         </svg>
       </th>
+      {#if isQueue}
+        <th class="col-actions"></th>
+      {/if}
     </tr>
   </thead>
   <tbody>
@@ -55,6 +81,27 @@
         </td>
         <td class="col-album">{track.album || ''}</td>
         <td class="col-duration">{formatTime(track.duration * 1000)}</td>
+        {#if isQueue}
+          <td class="col-actions">
+            <div class="action-buttons">
+                <button class="action-btn" on:click={(e) => moveTrack(e, i, -1)} disabled={i === 0}>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                        <path d="M7 14l5-5 5 5z"></path>
+                    </svg>
+                </button>
+                <button class="action-btn" on:click={(e) => moveTrack(e, i, 1)} disabled={i === tracks.length - 1}>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                        <path d="M7 10l5 5 5-5z"></path>
+                    </svg>
+                </button>
+                <button class="action-btn remove" on:click={(e) => removeTrack(e, i)}>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
+                    </svg>
+                </button>
+            </div>
+          </td>
+        {/if}
       </tr>
     {/each}
   </tbody>
@@ -157,5 +204,48 @@
   .col-duration {
     text-align: right;
     width: 100px;
+  }
+
+  .col-actions {
+      width: 100px;
+      text-align: center;
+  }
+
+  .action-buttons {
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s;
+  }
+
+  tr:hover .action-buttons {
+      opacity: 1;
+  }
+
+  .action-btn {
+      background: none;
+      border: none;
+      color: #b3b3b3;
+      cursor: pointer;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+  }
+
+  .action-btn:hover:not(:disabled) {
+      background-color: #333;
+      color: #fff;
+  }
+
+  .action-btn:disabled {
+      color: #555;
+      cursor: not-allowed;
+  }
+
+  .action-btn.remove:hover {
+      color: #e91e63;
   }
 </style>

@@ -479,27 +479,75 @@ namespace lms::api::subsonic
             throw RequiredParameterMissingError{ "apiKey" };
 
         const auto clientAddress{ boost::asio::ip::make_address(request.clientAddress()) };
+
+        const std::string cacheKey{ (user ? *user : "") + ":" + (password ? *password : "") + ":" + (apiKey ? *apiKey : "") + ":" + clientAddress.to_string() };
+        {
+            std::lock_guard lock{ _authCacheMutex };
+            if (auto it{ _authCache.find(cacheKey) }; it != _authCache.end())
+            {
+                if (it->second.expiry > std::chrono::steady_clock::now())
+                    return it->second.userId;
+            }
+        }
+
+        auto onAuthSuccess{ [&](db::UserId userId) {
+            std::lock_guard lock{ _authCacheMutex };
+
+            static int cleanupCounter = 0;
+            if (++cleanupCounter >= 100)
+            {
+                cleanupCounter = 0;
+                auto now{ std::chrono::steady_clock::now() };
+                for (auto it{ _authCache.begin() }; it != _authCache.end();)
+                {
+                    if (it->second.expiry <= now)
+                        it = _authCache.erase(it);
+                    else
+                        ++it;
+                }
+            }
+
+            _authCache[cacheKey] = { userId, std::chrono::steady_clock::now() + std::chrono::minutes{ 5 } };
+            return userId;
+        } };
+
         const std::string authToken{ apiKey ? *apiKey : decodePasswordIfNeeded(*password) };
 
-        const auto authResult{ core::Service<auth::IAuthTokenService>::get()->processAuthToken("subsonic", clientAddress, authToken) };
-        switch (authResult.state)
+        if (apiKey)
         {
-        case auth::IAuthTokenService::AuthTokenProcessResult::State::Granted:
-            if (user)
+            const auto authResult{ core::Service<auth::IAuthTokenService>::get()->processAuthToken("subsonic", clientAddress, authToken) };
+            if (authResult.state == auth::IAuthTokenService::AuthTokenProcessResult::State::Granted)
+                return onAuthSuccess(authResult.authTokenInfo->userId);
+
+            if (authResult.state == auth::IAuthTokenService::AuthTokenProcessResult::State::Throttled)
+                throw LoginThrottledGenericError{};
+
+            throw InvalidAPIkeyError{};
+        }
+
+        if (user)
+        {
+            if (auto passwordService{ core::Service<auth::IPasswordService>::get() })
+            {
+                const auto passwordResult{ passwordService->checkUserPassword(clientAddress, *user, authToken) };
+                if (passwordResult.state == auth::IPasswordService::CheckResult::State::Granted)
+                    return onAuthSuccess(passwordResult.userId);
+
+                if (passwordResult.state == auth::IPasswordService::CheckResult::State::Throttled)
+                    throw LoginThrottledGenericError{};
+            }
+
+            // Fallback: check if the password is actually an API Key
+            const auto authResult{ core::Service<auth::IAuthTokenService>::get()->processAuthToken("subsonic", clientAddress, authToken) };
+            if (authResult.state == auth::IAuthTokenService::AuthTokenProcessResult::State::Granted)
             {
                 const auto authenticatedUser{ getUserFromUserId(_db.getTLSSession(), authResult.authTokenInfo->userId) };
-                if (!authenticatedUser || authenticatedUser->getLoginName() != *user)
-                    throw WrongUsernameOrPasswordError{};
+                if (authenticatedUser->getLoginName() == *user)
+                    return onAuthSuccess(authResult.authTokenInfo->userId);
             }
-            return authResult.authTokenInfo->userId;
-        case auth::IAuthTokenService::AuthTokenProcessResult::State::Denied:
-            if (apiKey)
-                throw InvalidAPIkeyError{};
-            else
-                throw WrongUsernameOrPasswordError{};
-        case auth::IAuthTokenService::AuthTokenProcessResult::State::Throttled:
-            throw LoginThrottledGenericError{};
         }
+
+        throw WrongUsernameOrPasswordError{};
 
         throw InternalErrorGenericError{ "Cannot authenticate user" };
     }

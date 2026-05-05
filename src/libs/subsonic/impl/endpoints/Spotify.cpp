@@ -63,7 +63,7 @@ namespace lms::api::subsonic
         }
         
         // 3. Sets
-        addPlaylist("spotify:sets", "Sets & Mixes", "Long tracks (> 10 minutes)");
+        addPlaylist("spotify:sets", "Sets & Mixes", "Sets and mixes");
 
         return response;
     }
@@ -86,11 +86,12 @@ namespace lms::api::subsonic
             description = "Recent releases and new discoveries.";
             params.setSortMethod(db::TrackSortMethod::OriginalDateDescAndRelease);
             params.range = db::Range{ 0, 50 };
+            params.maxDuration = std::chrono::minutes(10);
         }
         else if (id == "spotify:sets")
         {
             name = "Sets & Mixes";
-            description = "Long tracks (> 10 minutes)";
+            description = "Sets and mixes";
             params.minDuration = std::chrono::minutes(10);
             params.setSortMethod(db::TrackSortMethod::Random);
             params.range = db::Range{ 0, 50 };
@@ -110,6 +111,7 @@ namespace lms::api::subsonic
             }
             params.setSortMethod(db::TrackSortMethod::Random);
             params.range = db::Range{ 0, 50 };
+            params.maxDuration = std::chrono::minutes(10);
         }
         else
         {
@@ -177,6 +179,10 @@ namespace lms::api::subsonic
         if (auto minDuration = getParameterAs<int>(ctx.getParameters(), "minDuration"))
         {
             params.minDuration = std::chrono::minutes(*minDuration);
+        }
+        else
+        {
+            params.maxDuration = std::chrono::minutes(10);
         }
 
         int offset = getParameterAs<int>(ctx.getParameters(), "offset").value_or(0);

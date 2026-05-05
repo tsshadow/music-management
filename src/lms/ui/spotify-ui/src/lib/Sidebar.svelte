@@ -6,8 +6,9 @@
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: 'M12.5 3.5a.5.5 0 0 1 .5 0l9 5.25a.5.5 0 0 1 .25.433V20.5a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5v-5a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 0-.5.5v5a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5V9.183a.5.5 0 0 1 .25-.433z' },
+    { id: 'radar', label: 'Release Radar', icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm4.59-12.42L10 14.17l-2.59-2.58L6 13l4 4 8-8-1.41-1.42z' },
     { id: 'songs', label: 'Songs', icon: 'M15.5 2.157a.5.5 0 0 0-.707 0l-12 12A.5.5 0 0 0 3 15h3v5.5a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5V15h3a.5.5 0 0 0 .207-.843l-12-12z' },
-    { id: 'sets', label: 'Sets (>10m)', icon: 'M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm1-13h-2v6h6v-2h-4z' },
+    { id: 'sets', label: 'Sets', icon: 'M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm1-13h-2v6h6v-2h-4z' },
   ];
 
   function navigate(id) {
@@ -44,6 +45,16 @@
       <li><button on:click={() => navigate('playlists')}>Afspeellijsten</button></li>
       <li><button on:click={() => navigate('artists')}>Artiesten</button></li>
       <li><button on:click={() => navigate('albums')}>Albums</button></li>
+    </ul>
+  </div>
+
+  <div class="genres">
+    <h3>GENRES</h3>
+    <ul>
+      <li><button on:click={() => navigate('genre:Hardcore')}>Hardcore</button></li>
+      <li><button on:click={() => navigate('genre:Raw Hardstyle')}>Raw Hardstyle</button></li>
+      <li><button on:click={() => navigate('genre:Frenchcore')}>Frenchcore</button></li>
+      <li><button on:click={() => navigate('genre:Uptempo')}>Uptempo</button></li>
     </ul>
   </div>
 </nav>
@@ -106,7 +117,7 @@
     margin: 0 12px;
   }
 
-  .library h3 {
+  .library h3, .genres h3 {
     padding: 0 12px;
     font-size: 12px;
     color: #b3b3b3;
@@ -114,13 +125,13 @@
     margin-bottom: 12px;
   }
 
-  .library ul {
+  .library ul, .genres ul {
     list-style: none;
     padding: 0;
     margin: 0;
   }
 
-  .library li button {
+  .library li button, .genres li button {
     width: 100%;
     padding: 8px 12px;
     background: none;

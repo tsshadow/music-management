@@ -5,7 +5,7 @@
   import Dashboard from './lib/Dashboard.svelte';
   import AuthOverlay from './lib/AuthOverlay.svelte';
   import TrackList from './lib/TrackList.svelte';
-  import { currentTrack, playerState, playlist } from './lib/store.js';
+  import { currentTrack, playerState, playlist, activeView } from './lib/store.js';
 
   let greeting = "";
   const hours = new Date().getHours();
@@ -13,11 +13,10 @@
   else if (hours < 18) greeting = "Goedemiddag";
   else greeting = "Goedenavond";
 
-  let activeView = 'home'; // 'home', 'songs', 'sets', 'playlists'
   let showQueue = false;
 
   function handleNavigate(view) {
-    activeView = view;
+    activeView.set(view);
   }
 
   function clearQueue() {
@@ -39,7 +38,7 @@
 <main class="spotify-layout">
   <AuthOverlay />
   <div class="sidebar-container">
-    <Sidebar {activeView} on:navigate={(e) => handleNavigate(e.detail)} />
+    <Sidebar activeView={$activeView} on:navigate={(e) => handleNavigate(e.detail)} />
   </div>
   
   <div class="main-view">
@@ -48,7 +47,7 @@
     </header>
 
     <div class="content-area">
-      <Dashboard bind:activeView />
+      <Dashboard bind:activeView={$activeView} />
     </div>
   </div>
 
@@ -69,7 +68,7 @@
               <button class="close-btn" on:click={() => showQueue = false}>&times;</button>
           </div>
       </header>
-      <TrackList tracks={$playlist} isQueue={true} />
+      <TrackList tracks={$playlist} isQueue={true} on:navigate={(e) => activeView.set(e.detail)} />
   </div>
 
   <div class="player-container">

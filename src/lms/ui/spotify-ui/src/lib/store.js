@@ -20,6 +20,7 @@ export const playerState = writable({
 export const audio = writable(null);
 export const currentPlaylist = writable(null);
 export const isPlaying = writable(false);
+export const activeView = writable('home');
 
 export const authParams = derived(credentials, ($c) => {
     if (!$c.username || !$c.password) return '';

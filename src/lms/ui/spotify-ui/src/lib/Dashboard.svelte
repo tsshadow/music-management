@@ -4,6 +4,8 @@
   import TrackList from './TrackList.svelte';
   import FilterBar from './FilterBar.svelte';
   import PlaylistView from './PlaylistView.svelte';
+  import ArtistView from './ArtistView.svelte';
+  import AlbumView from './AlbumView.svelte';
   import { authParams, currentPlaylist } from './store.js';
 
   export let activeView = 'home';
@@ -19,6 +21,13 @@
   let albums = [];
   let artists = [];
   let playlists = [];
+  let tracksOffset = 0;
+  let tracksHasMore = true;
+  let albumsOffset = 0;
+  let albumsHasMore = true;
+  let artistsOffset = 0;
+  let artistsHasMore = true;
+  const pageSize = 50;
   let currentGenre = '';
   let currentSort = 'recent';
   let currentYear = '';
@@ -40,12 +49,18 @@
     }
   }
 
-  async function loadAllTracks() {
+  async function loadAllTracks(append = false) {
     if (!$authParams) return;
-    console.log(`Loading all tracks, activeView=${activeView}, genre=${currentGenre}, sort=${currentSort}, year=${currentYear}`);
+    if (!append) {
+      tracksOffset = 0;
+      tracksHasMore = true;
+    }
+    if (!tracksHasMore) return;
+
+    console.log(`Loading all tracks, activeView=${activeView}, genre=${currentGenre}, sort=${currentSort}, year=${currentYear}, offset=${tracksOffset}`);
     isLoading = true;
     try {
-      let url = `/rest/getSpotifyTracks?sort=${currentSort}&${$authParams}`;
+      let url = `/rest/getSpotifyTracks?sort=${currentSort}&offset=${tracksOffset}&count=${pageSize}&${$authParams}`;
       if (currentGenre) url += `&genre=${encodeURIComponent(currentGenre)}`;
       else if (activeView.startsWith('genre:')) {
           const genreName = activeView.split(':')[1];
@@ -61,7 +76,16 @@
       const data = await response.json();
       console.log("Track data received:", data);
       const result = data['subsonic-response']?.tracks?.track || [];
-      tracks = Array.isArray(result) ? result : [result];
+      const newTracks = Array.isArray(result) ? result : [result];
+      
+      if (append) {
+        tracks = [...tracks, ...newTracks];
+      } else {
+        tracks = newTracks;
+      }
+      
+      tracksOffset += newTracks.length;
+      tracksHasMore = newTracks.length === pageSize;
     } catch (e) {
       console.error("Failed to load tracks:", e);
     } finally {
@@ -69,23 +93,53 @@
     }
   }
 
-  async function loadAlbums() {
+  async function loadAlbums(append = false) {
     if (!$authParams) return;
+    if (!append) {
+      albumsOffset = 0;
+      albumsHasMore = true;
+    }
+    if (!albumsHasMore) return;
+
     try {
-      const response = await fetch(`/rest/getAlbumList2?type=newest&size=50&${$authParams}`);
+      const response = await fetch(`/rest/getAlbumList2?type=newest&size=${pageSize}&offset=${albumsOffset}&${$authParams}`);
       const data = await response.json();
-      albums = data['subsonic-response']?.albumList2?.album || [];
+      const newAlbums = data['subsonic-response']?.albumList2?.album || [];
+      
+      if (append) {
+        albums = [...albums, ...newAlbums];
+      } else {
+        albums = newAlbums;
+      }
+      
+      albumsOffset += newAlbums.length;
+      albumsHasMore = newAlbums.length === pageSize;
     } catch (e) { console.error(e); }
   }
 
-  async function loadArtists() {
+  async function loadArtists(append = false) {
     if (!$authParams) return;
+    if (!append) {
+      artistsOffset = 0;
+      artistsHasMore = true;
+    }
+    if (!artistsHasMore) return;
+
     try {
-      const response = await fetch(`/rest/getArtists?${$authParams}`);
+      const response = await fetch(`/rest/getArtists?offset=${artistsOffset}&count=${pageSize}&${$authParams}`);
       const data = await response.json();
       // Subsonic artists zijn gegroepeerd per index (A, B, C...)
       const indexes = data['subsonic-response']?.artists?.index || [];
-      artists = indexes.flatMap(idx => idx.artist || []);
+      const newArtists = indexes.flatMap(idx => idx.artist || []);
+      
+      if (append) {
+        artists = [...artists, ...newArtists];
+      } else {
+        artists = newArtists;
+      }
+      
+      artistsOffset += newArtists.length;
+      artistsHasMore = newArtists.length === pageSize;
     } catch (e) { console.error(e); }
   }
 
@@ -105,6 +159,10 @@
   function openPlaylist(playlist) {
     currentPlaylist.set(playlist);
     activeView = 'playlist-detail';
+  }
+
+  function handleNavigate(view) {
+    activeView = view;
   }
 
   function handleFilterChange(e) {
@@ -149,7 +207,7 @@
         </div>
         <div class="grid">
           {#each section.tracks.slice(0, 6) as track}
-            <TrackCard {track} />
+            <TrackCard {track} on:navigate={(e) => activeView = e.detail} />
           {/each}
           {#if section.tracks.length === 0}
             <p class="empty-msg">Geen tracks gevonden in deze categorie.</p>
@@ -164,46 +222,72 @@
         </h2>
         <FilterBar genre={currentGenre} sort={currentSort} year={currentYear} on:change={handleFilterChange} />
     </div>
-    {#if isLoading}
+    {#if isLoading && tracks.length === 0}
         <p>Laden...</p>
     {:else}
-        <TrackList {tracks} />
+        <TrackList {tracks} on:navigate={(e) => activeView = e.detail} />
+        {#if tracksHasMore}
+            <div class="load-more">
+                <button on:click={() => loadAllTracks(true)}>Meer laden</button>
+            </div>
+        {/if}
     {/if}
   {:else if activeView === 'albums'}
     <h2>Albums</h2>
     <div class="grid">
         {#each albums as album}
-            <div class="card">
-                <img src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/unknown-cover.svg'} alt={album.name} />
+            <div class="card" on:click={() => activeView = `album:${album.id}`}>
+                <img 
+                  src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
+                  alt={album.name} 
+                  on:error={(e) => e.target.src = '/images/spotify-fallback.svg'}
+                />
                 <span class="title">{album.name}</span>
                 <span class="artist">{album.artist}</span>
             </div>
         {/each}
     </div>
+    {#if albumsHasMore}
+        <div class="load-more">
+            <button on:click={() => loadAlbums(true)}>Meer laden</button>
+        </div>
+    {/if}
   {:else if activeView === 'artists'}
     <h2>Artiesten</h2>
     <div class="grid">
         {#each artists as artist}
-            <div class="card artist-card">
+            <div class="card artist-card" on:click={() => activeView = `artist:${artist.id}`}>
                 <img src={artist.coverArt ? `/rest/getCoverArt?id=${artist.coverArt}&size=300&${$authParams}` : '/images/unknown-artist.svg'} alt={artist.name} />
                 <span class="title">{artist.name}</span>
                 <span class="artist">Artiest</span>
             </div>
         {/each}
     </div>
+    {#if artistsHasMore}
+        <div class="load-more">
+            <button on:click={() => loadArtists(true)}>Meer laden</button>
+        </div>
+    {/if}
   {:else if activeView === 'playlists'}
     <h2>Afspeellijsten</h2>
     <div class="grid">
         {#each playlists as playlist}
             <div class="card" on:click={() => openPlaylist(playlist)}>
-                <img src={playlist.coverArt ? `/rest/getCoverArt?id=${playlist.coverArt}&size=300&${$authParams}` : '/images/unknown-cover.svg'} alt={playlist.name} />
+                <img 
+                  src={playlist.coverArt ? `/rest/getCoverArt?id=${playlist.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
+                  alt={playlist.name} 
+                  on:error={(e) => e.target.src = '/images/spotify-fallback.svg'}
+                />
                 <span class="title">{playlist.name}</span>
-                <span class="artist">{playlist.owner}</span>
             </div>
         {/each}
     </div>
   {:else if activeView === 'playlist-detail'}
     <PlaylistView />
+  {:else if activeView.startsWith('artist:')}
+    <ArtistView artistId={activeView.split(':')[1]} onNavigate={handleNavigate} />
+  {:else if activeView.startsWith('album:')}
+    <AlbumView albumId={activeView.split(':')[1]} onNavigate={handleNavigate} />
   {/if}
 </div>
 
@@ -292,6 +376,31 @@
   .card .artist {
     font-size: 14px;
     color: #b3b3b3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .load-more {
+    display: flex;
+    justify-content: center;
+    padding: 24px 0;
+  }
+
+  .load-more button {
+    background-color: transparent;
+    border: 1px solid #727272;
+    color: white;
+    padding: 8px 32px;
+    border-radius: 24px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .load-more button:hover {
+    border-color: white;
+    transform: scale(1.04);
   }
 
   .empty-msg {

@@ -130,7 +130,7 @@
   $: volume = $playerState.volume;
   $: repeatMode = $playerState.repeat;
   $: shuffleMode = $playerState.shuffle;
-  $: coverUrl = track?.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}` : '/images/unknown-cover.svg';
+  $: coverUrl = track?.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}` : '/images/spotify-fallback.svg';
   $: streamUrl = track?.id ? `/rest/stream?id=${track.id}&${$authParams}` : '';
 
   let lastTrackId = null;
@@ -163,7 +163,7 @@
 <footer class="player">
   <div class="current-track">
     {#if track}
-      <img src={coverUrl} alt={track.title} />
+      <img src={coverUrl} alt={track.title} on:error={(e) => e.target.src = '/images/spotify-fallback.svg'} />
       <div class="track-info">
         <div class="name">{track.title}</div>
         <div class="artist">{track.artist}</div>

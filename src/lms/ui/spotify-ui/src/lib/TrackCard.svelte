@@ -1,5 +1,8 @@
 <script>
   import { currentTrack, playerState, authParams } from './store.js';
+  import { createEventDispatcher } from 'svelte';
+
+  const dispatch = createEventDispatcher();
 
   export let track;
 
@@ -8,12 +11,16 @@
     playerState.update(s => ({ ...s, playing: true }));
   }
 
-  $: coverUrl = track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=300&${$authParams}` : '/images/unknown-cover.svg';
+  $: coverUrl = track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg';
 </script>
 
 <div class="card" on:click={play}>
   <div class="cover-wrapper">
-    <img src={coverUrl} alt={track.title} />
+    <img 
+      src={coverUrl} 
+      alt={track.title} 
+      on:error={(e) => e.target.src = '/images/spotify-fallback.svg'}
+    />
     <button class="play-btn">
       <svg viewBox="0 0 24 24" width="24" height="24" fill="black">
         <path d="M7 6v12l10-6z"></path>
@@ -22,7 +29,7 @@
   </div>
   <div class="info">
     <span class="title">{track.title || track.name}</span>
-    <span class="artist">{track.artist}</span>
+    <span class="artist hover:underline" on:click={(e) => { e.stopPropagation(); dispatch('navigate', `artist:${track.artistId}`); }}>{track.artist}</span>
   </div>
 </div>
 

@@ -494,16 +494,17 @@ namespace lms::api::subsonic
         // This endpoint does not scale: make short lived transactions in order not to block the whole application
 
         // first pass: dispatch the artists by first letter
-        LMS_LOG(API_SUBSONIC, DEBUG, "GetArtists: fetching all artists...");
+        LMS_LOG(API_SUBSONIC, DEBUG, "GetArtists: fetching artists with offset " << offset << " and count " << count);
         std::map<char, std::vector<ArtistId>> artistsSortedByFirstChar;
-        std::size_t currentArtistOffset{ 0 };
+        std::size_t currentArtistOffset{ offset };
+        std::size_t remainingCount{ count };
         constexpr std::size_t batchSize{ 100 };
         bool hasMoreArtists{ true };
-        while (hasMoreArtists)
+        while (hasMoreArtists && remainingCount > 0)
         {
             auto transaction{ context.getDbSession().createReadTransaction() };
 
-            parameters.setRange(Range{ currentArtistOffset, batchSize });
+            parameters.setRange(Range{ currentArtistOffset, std::min(batchSize, remainingCount) });
             const auto artists{ Artist::find(context.getDbSession(), parameters) };
             for (const Artist::pointer& artist : artists.results)
             {
@@ -515,6 +516,10 @@ namespace lms::api::subsonic
 
             hasMoreArtists = artists.moreResults;
             currentArtistOffset += artists.results.size();
+            if (remainingCount > artists.results.size())
+                remainingCount -= artists.results.size();
+            else
+                remainingCount = 0;
         }
 
         // Group by index

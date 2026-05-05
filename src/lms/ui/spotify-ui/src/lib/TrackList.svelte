@@ -1,5 +1,8 @@
 <script>
   import { currentTrack, playerState, authParams, playlist } from './store.js';
+  import { createEventDispatcher } from 'svelte';
+
+  const dispatch = createEventDispatcher();
 
   export let tracks = [];
   export let isQueue = false;
@@ -70,14 +73,20 @@
         </td>
         <td class="col-title">
           <div class="title-container">
-            <img src={track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=40&${$authParams}` : '/images/unknown-cover.svg'} alt="" />
+            <img 
+              src={track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=40&${$authParams}` : '/images/spotify-fallback.svg'} 
+              alt="" 
+              on:error={(e) => e.target.src = '/images/spotify-fallback.svg'}
+            />
             <div class="info">
               <span class="name">{track.title}</span>
-              <span class="artist">{track.artist}</span>
+              <span class="artist hover:underline cursor-pointer" on:click={() => dispatch('navigate', `artist:${track.artistId}`)}>{track.artist}</span>
             </div>
           </div>
         </td>
-        <td class="col-album">{track.album || ''}</td>
+        <td class="col-album">
+          <span class="hover:underline cursor-pointer" on:click={() => dispatch('navigate', `album:${track.albumId}`)}>{track.album || ''}</span>
+        </td>
         <td class="col-duration">{formatTime(track.duration * 1000)}</td>
         {#if isQueue}
           <td class="col-actions">

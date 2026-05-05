@@ -57,6 +57,17 @@
       <li><button on:click={() => navigate('genre:Uptempo')}>Uptempo</button></li>
     </ul>
   </div>
+
+  <div class="divider"></div>
+
+  <div class="legacy-nav">
+    <a href="/legacy" class="legacy-button">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+        <path d="M13 3L16.29 6.29L13.6 8.99L15.01 10.4L17.71 7.71L21 11V3H13M3 21H11V13H3V21M5 15H9V19H5V15M3 11H11V3H3V11M5 5H9V9H5V5M13 21H21V13H13V21M15 15H19V19H15V15Z"/>
+      </svg>
+      Oude UI (Legacy)
+    </a>
+  </div>
 </nav>
 
 <style>
@@ -145,6 +156,27 @@
   }
 
   .library li button:hover {
+    color: #fff;
+  }
+
+  .legacy-nav {
+    padding: 0 12px;
+    margin-top: auto;
+  }
+
+  .legacy-button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #b3b3b3;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 0;
+    transition: color 0.2s;
+  }
+
+  .legacy-button:hover {
     color: #fff;
   }
 </style>

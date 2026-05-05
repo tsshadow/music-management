@@ -1,5 +1,5 @@
 <script>
-  import { currentPlaylist, currentTrack, isPlaying, authParams } from './store.js';
+  import { currentPlaylist, currentTrack, isPlaying, authParams, activeView } from './store.js';
 
   let tracks = [];
   let apiBase = '/rest';
@@ -29,8 +29,17 @@
 {#if $currentPlaylist}
   <div class="flex flex-col">
     <header class="flex items-end gap-6 mb-8">
-      <div class="w-52 h-52 bg-spotify-light shadow-2xl flex items-center justify-center text-6xl flex-shrink-0">
-        💿
+      <div class="w-52 h-52 bg-spotify-light shadow-2xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+        {#if $currentPlaylist.coverArt}
+          <img 
+            src="/rest/getCoverArt?id={$currentPlaylist.coverArt}&{$authParams}&size=300" 
+            alt="" 
+            class="w-full h-full object-cover" 
+            on:error={(e) => e.target.src = '/images/spotify-fallback.svg'}
+          />
+        {:else}
+          <img src="/images/spotify-fallback.svg" alt="" class="w-24 h-24 opacity-20" />
+        {/if}
       </div>
       <div>
         <div class="text-xs font-bold uppercase">Playlist</div>
@@ -68,18 +77,23 @@
                  <span class="hidden group-hover:inline text-white">▶</span>
                </td>
                <td class="py-2">
-                 <div class="flex items-center gap-3">
-                   <div class="w-10 h-10 bg-spotify-light flex-shrink-0">
-                      <img src="/rest/getCoverArt?id={track.coverArt}&${$authParams}&size=40" alt="" class="w-full h-full" />
-                   </div>
-                   <div>
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 bg-spotify-light flex-shrink-0 overflow-hidden">
+                     <img 
+                       src={track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&${$authParams}&size=40` : '/images/spotify-fallback.svg'} 
+                       alt="" 
+                       class="w-full h-full object-cover" 
+                       on:error={(e) => e.target.src = '/images/spotify-fallback.svg'}
+                     />
+                  </div>
+                  <div>
                      <div class="text-white font-medium truncate max-w-xs">{track.title}</div>
-                     <div class="hover:underline text-xs text-spotify-text">{track.artist}</div>
+                     <div class="hover:underline text-xs text-spotify-text" on:click={() => activeView.set(`artist:${track.artistId}`)}>{track.artist}</div>
                    </div>
                  </div>
                </td>
                <td class="py-2 truncate max-w-xs">
-                 <span class="hover:underline hover:text-white">{track.album}</span>
+                 <span class="hover:underline hover:text-white" on:click={() => activeView.set(`album:${track.albumId}`)}>{track.album}</span>
                </td>
                <td class="py-2 text-right pr-4 font-mono">
                  {Math.floor(track.duration / 60)}:{(track.duration % 60).toString().padStart(2, '0')}

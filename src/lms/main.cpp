@@ -165,7 +165,7 @@ namespace lms
             args.push_back("--config=" + wtConfigPath.string());
             args.push_back("--docroot=" + std::string{ config.getString("docroot", "/usr/share/lms/docroot/;/resources,/css,/images,/js,/favicon.ico") });
             args.push_back("--approot=" + appRootPath.string());
-            args.push_back("--deploy-path=" + std::string{ config.getString("deploy-path", "/") });
+            args.push_back("--deploy-path=" + std::string{ config.getString("deploy-path", "/legacy") });
             if (!wtResourcesPath.empty())
                 args.push_back("--resources-dir=" + wtResourcesPath.string());
 
@@ -495,7 +495,7 @@ namespace lms
             server.addEntryPoint(Wt::EntryPointType::Application,
                                  [&](const Wt::WEnvironment& env) {
                                      return ui::LmsInitApplication::create(env);
-                                 });
+                                 }, "");
 
             LMS_LOG(MAIN, INFO, "Starting init web server...");
             server.start();
@@ -592,13 +592,14 @@ namespace lms
             }
 
             spotifyResource = std::make_unique<SpotifyResource>(server.docRoot());
-            server.addResource(spotifyResource.get(), "/spotify");
+            server.addResource(spotifyResource.get(), "/");
 
             // bind UI entry point
             server.addEntryPoint(Wt::EntryPointType::Application,
                                  [&database, &appManager, uiAuthenticationBackend](const Wt::WEnvironment& env) {
                                      return ui::LmsApplication::create(env, *database, appManager, uiAuthenticationBackend);
-                                 });
+                                 },
+                                 "");
 
             proxyScannerEventsToApplication(*scannerService, server);
 

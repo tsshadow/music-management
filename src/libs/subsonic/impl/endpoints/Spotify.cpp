@@ -177,7 +177,7 @@ namespace lms::api::subsonic
 
         if (auto sort = getParameterAs<std::string>(ctx.getParameters(), "sort"))
         {
-            if (*sort == "recent")
+            if (*sort == "recent" || *sort == "releasedate")
                 params.setSortMethod(db::TrackSortMethod::OriginalDateDescAndRelease);
             else if (*sort == "added")
                 params.setSortMethod(db::TrackSortMethod::AddedDesc);

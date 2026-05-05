@@ -83,6 +83,7 @@
     <label for="sort">Sorteer op:</label>
     <select id="sort" bind:value={sort} on:change={handleChange}>
       <option value="recent">Recent uitgebracht</option>
+      <option value="releasedate">Release datum</option>
       <option value="added">Recent toegevoegd</option>
       <option value="alpha">Alfabetisch</option>
       <option value="random">Willekeurig</option>

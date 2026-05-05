@@ -56,32 +56,40 @@ namespace lms::api::subsonic
             const MediaLibraryId mediaLibraryId{ getParameterAs<MediaLibraryId>(context.getParameters(), "musicFolderId").value_or(MediaLibraryId{}) };
             const std::size_t size{ getParameterAs<std::size_t>(context.getParameters(), "size").value_or(10) };
             const std::size_t offset{ getParameterAs<std::size_t>(context.getParameters(), "offset").value_or(0) };
+            const std::string query{ getParameterAs<std::string>(context.getParameters(), "query").value_or("") };
             if (size > defaultMaxCountSize)
                 throw ParameterValueTooHighGenericError{ "size", defaultMaxCountSize };
 
             const Range range{ offset, size };
 
+            std::vector<std::string_view> keywords;
+            if (!query.empty())
+                keywords.push_back(query);
+
             RangeResults<ReleaseId> releases;
+            scrobbling::IScrobblingService::ArtistFindParameters artistFindParams; // Dummy for now, but maybe use keywords there too?
             scrobbling::IScrobblingService& scrobblingService{ *core::Service<scrobbling::IScrobblingService>::get() };
             feedback::IFeedbackService& feedbackService{ *core::Service<feedback::IFeedbackService>::get() };
 
             auto transaction{ context.getDbSession().createReadTransaction() };
 
-            if (type == "alphabeticalByName")
+            if (type == "alphabeticalByName" || type == "alphabetical")
             {
                 Release::FindParameters params;
                 params.setSortMethod(ReleaseSortMethod::Name);
                 params.setRange(range);
                 params.filters.setMediaLibrary(mediaLibraryId);
+                params.setKeywords(keywords);
 
                 releases = Release::findIds(context.getDbSession(), params);
             }
-            else if (type == "alphabeticalByArtist")
+            else if (type == "alphabeticalByArtist" || type == "byArtist")
             {
                 Release::FindParameters params;
                 params.setSortMethod(ReleaseSortMethod::ArtistNameThenName);
                 params.setRange(range);
                 params.filters.setMediaLibrary(mediaLibraryId);
+                params.setKeywords(keywords);
 
                 releases = Release::findIds(context.getDbSession(), params);
             }
@@ -99,21 +107,30 @@ namespace lms::api::subsonic
                         params.filters.setClusters(std::initializer_list<ClusterId>{ cluster->getId() });
                         params.setSortMethod(ReleaseSortMethod::Name);
                         params.setRange(range);
+                        params.setKeywords(keywords);
 
                         releases = Release::findIds(context.getDbSession(), params);
                     }
                 }
             }
-            else if (type == "byYear")
+            else if (type == "byYear" || type == "year")
             {
-                const int fromYear{ getMandatoryParameterAs<int>(context.getParameters(), "fromYear") };
-                const int toYear{ getMandatoryParameterAs<int>(context.getParameters(), "toYear") };
+                const std::optional<int> fromYear{ getParameterAs<int>(context.getParameters(), "fromYear") };
+                const std::optional<int> toYear{ getParameterAs<int>(context.getParameters(), "toYear") };
 
                 Release::FindParameters params;
-                params.setSortMethod(fromYear > toYear ? ReleaseSortMethod::OriginalDateDesc : ReleaseSortMethod::OriginalDate);
+                if (fromYear && toYear)
+                {
+                    params.setSortMethod(*fromYear > *toYear ? ReleaseSortMethod::OriginalDateDesc : ReleaseSortMethod::OriginalDate);
+                    params.setOriginalDateRange(YearRange{ std::min(*fromYear, *toYear), std::max(*fromYear, *toYear) });
+                }
+                else
+                {
+                    params.setSortMethod(ReleaseSortMethod::OriginalDateDesc);
+                }
                 params.setRange(range);
-                params.setOriginalDateRange(YearRange{ std::min(fromYear, toYear), std::max(fromYear, toYear) });
                 params.filters.setMediaLibrary(mediaLibraryId);
+                params.setKeywords(keywords);
 
                 releases = Release::findIds(context.getDbSession(), params);
             }
@@ -123,6 +140,7 @@ namespace lms::api::subsonic
                 params.setUser(context.getUser()->getId());
                 params.setRange(range);
                 params.filters.setMediaLibrary(mediaLibraryId);
+                params.setKeywords(keywords);
 
                 releases = scrobblingService.getTopReleases(params);
             }
@@ -132,6 +150,7 @@ namespace lms::api::subsonic
                 params.setSortMethod(ReleaseSortMethod::AddedDesc);
                 params.setRange(range);
                 params.filters.setMediaLibrary(mediaLibraryId);
+                params.setKeywords(keywords);
 
                 releases = Release::findIds(context.getDbSession(), params);
             }
@@ -143,6 +162,7 @@ namespace lms::api::subsonic
                 params.setSortMethod(ReleaseSortMethod::Random);
                 params.setRange(Range{ 0, size });
                 params.filters.setMediaLibrary(mediaLibraryId);
+                params.setKeywords(keywords);
 
                 releases = Release::findIds(context.getDbSession(), params);
             }
@@ -152,6 +172,7 @@ namespace lms::api::subsonic
                 params.setUser(context.getUser()->getId());
                 params.setRange(range);
                 params.filters.setMediaLibrary(mediaLibraryId);
+                params.setKeywords(keywords);
 
                 releases = scrobblingService.getRecentReleases(params);
             }
@@ -161,6 +182,7 @@ namespace lms::api::subsonic
                 params.setUser(context.getUser()->getId());
                 params.setRange(range);
                 params.filters.setMediaLibrary(mediaLibraryId);
+                params.setKeywords(keywords);
 
                 releases = feedbackService.findStarredReleases(params);
             }

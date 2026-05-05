@@ -63,7 +63,17 @@ namespace lms::db
 
             assert(params.keywords.empty() || params.name.empty());
             for (std::string_view keyword : params.keywords)
-                query.where("t.name LIKE ? ESCAPE '" ESCAPE_CHAR_STR "'").bind("%" + utils::escapeForLikeKeyword(keyword) + "%");
+            {
+                std::string escaped = "%" + utils::escapeForLikeKeyword(keyword) + "%";
+                query.where("(LOWER(t.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "'"
+                            " OR EXISTS (SELECT 1 FROM track_artist_link t_a_l JOIN artist a ON a.id = t_a_l.artist_id WHERE t_a_l.track_id = t.id AND (LOWER(a.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' OR LOWER(a.sort_name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "'))"
+                            " OR EXISTS (SELECT 1 FROM release r WHERE r.id = t.release_id AND (LOWER(r.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' OR LOWER(r.sort_name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "')))")
+                    .bind(escaped)
+                    .bind(escaped)
+                    .bind(escaped)
+                    .bind(escaped)
+                    .bind(escaped);
+            }
 
             if (!params.name.empty())
                 query.where("t.name = ?").bind(params.name);
@@ -206,7 +216,11 @@ namespace lms::db
             if (params.filters.codec.has_value())
                 query.where("t.codec = ?").bind(detail::getDbCodec(*params.filters.codec));
 
-            switch (params.sortMethod)
+            TrackSortMethod sortMethod = params.sortMethod;
+            if (sortMethod == TrackSortMethod::None && !params.keywords.empty())
+                sortMethod = TrackSortMethod::Relevance;
+
+            switch (sortMethod)
             {
             case TrackSortMethod::None:
                 break;
@@ -248,8 +262,36 @@ namespace lms::db
             case TrackSortMethod::TrackNumber:
                 query.orderBy("t.track_number");
                 break;
+            case TrackSortMethod::Relevance:
+            // {
+            //     std::ostringstream oss;
+            //     oss << "(";
+            //     bool first = true;
+            //     for (std::string_view keyword : params.keywords)
+            //     {
+            //         if (!first)
+            //             oss << " + ";
+            //         std::string escaped = utils::escapeForLikeKeyword(keyword);
+            //         oss << "(CASE WHEN LOWER(t.name) = LOWER(?) THEN 100 ELSE 0 END) + "
+            //                "(CASE WHEN LOWER(t.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' THEN 50 ELSE 0 END) + "
+            //                "(CASE WHEN LOWER(t.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' THEN 10 ELSE 0 END) + "
+            //                "(CASE WHEN LOWER(a.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' THEN 20 ELSE 0 END) + "
+            //                "(CASE WHEN LOWER(r.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' THEN 5 ELSE 0 END)";
+            //         query.bind(keyword);
+            //         query.bind(escaped + "%");
+            //         query.bind("%" + escaped + "%");
+            //         query.bind("%" + escaped + "%");
+            //         query.bind("%" + escaped + "%");
+            //         first = false;
+            //     }
+            //     if (params.keywords.empty())
+            //         oss << "0";
+            //     oss << ") DESC, t.name COLLATE NOCASE";
+            //     query.orderBy(oss.str());
+            //     break;
+            // }
             default:
-                query.orderBy(sortMethodToSQL(params.sortMethod));
+                query.orderBy(sortMethodToSQL(sortMethod));
                 break;
             }
             return query;

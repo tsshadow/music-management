@@ -141,8 +141,11 @@ namespace lms::api::subsonic
             else
                 trackResponse.setAttribute("artist", utils::joinArtistNames(artists));
 
-            if (artists.size() == 1)
-                trackResponse.setAttribute("artistId", idToString(artists.front()->getId()));
+            trackResponse.setAttribute("artistId", idToString(artists.front()->getId()));
+
+            trackResponse.createEmptyArrayChild("artists");
+            for (const auto& artist : artists)
+                trackResponse.addArrayChild("artists", createMinimalArtistNode(artist));
         }
 
         const db::Release::pointer release{ track->getRelease() };

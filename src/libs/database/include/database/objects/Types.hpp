@@ -51,6 +51,8 @@ namespace lms::db
         LastWrittenDesc,
         AddedDesc,
         StarredDateDesc,
+        TrackCountDesc,
+        Relevance,
     };
 
     enum class ClusterSortMethod
@@ -107,6 +109,7 @@ namespace lms::db
         LastWrittenDesc,
         AddedDesc,
         StarredDateDesc,
+        Relevance,
     };
 
     enum class ReleaseTypeSortMethod
@@ -154,6 +157,7 @@ namespace lms::db
         TrackNumber,
         MostPlayed,
         RecentlyPlayed,
+        Relevance,
     };
 
     enum class TrackLyricsSortMethod

@@ -146,6 +146,7 @@ namespace lms::api::subsonic
             { "/getMoods", { handleGetMoodRequest } },
             { "/getYears", { handleGetYearsRequest } },
             { "/getArtists", { handleGetArtistsRequest } },
+            { "/getArtistList", { handleGetArtistListRequest } },
             { "/getArtist", { handleGetArtistRequest } },
             { "/getAlbum", { handleGetAlbumRequest } },
             { "/getSong", { handleGetSongRequest } },

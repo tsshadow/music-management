@@ -26,6 +26,7 @@
 #include "../ParameterParsing.hpp"
 #include "responses/Song.hpp"
 #include "responses/Playlist.hpp"
+#include "core/String.hpp"
 
 namespace lms::api::subsonic
 {
@@ -86,7 +87,6 @@ namespace lms::api::subsonic
             description = "Recent releases and new discoveries.";
             params.setSortMethod(db::TrackSortMethod::OriginalDateDescAndRelease);
             params.range = db::Range{ 0, 50 };
-            params.maxDuration = std::chrono::minutes(10);
         }
         else if (id == "spotify:sets")
         {
@@ -111,7 +111,6 @@ namespace lms::api::subsonic
             }
             params.setSortMethod(db::TrackSortMethod::Random);
             params.range = db::Range{ 0, 50 };
-            params.maxDuration = std::chrono::minutes(10);
         }
         else
         {
@@ -183,17 +182,26 @@ namespace lms::api::subsonic
                 params.setSortMethod(db::TrackSortMethod::AddedDesc);
             else if (*sort == "random")
                 params.setSortMethod(db::TrackSortMethod::Random);
-            else if (*sort == "alpha")
+            else if (*sort == "alpha" || *sort == "alphabetical")
                 params.setSortMethod(db::TrackSortMethod::Name);
+            else if (*sort == "starred")
+                params.setStarringUser(ctx.getUser()->getId(), db::FeedbackBackend::Internal);
+        }
+
+        auto query = getParameterAs<std::string>(ctx.getParameters(), "query");
+        if (query && !query->empty())
+        {
+            params.setKeywords(core::stringUtils::splitString(*query, ' '));
         }
 
         if (auto minDuration = getParameterAs<int>(ctx.getParameters(), "minDuration"))
         {
             params.minDuration = std::chrono::minutes(*minDuration);
         }
-        else
+
+        if (auto maxDuration = getParameterAs<int>(ctx.getParameters(), "maxDuration"))
         {
-            params.maxDuration = std::chrono::minutes(10);
+            params.maxDuration = std::chrono::minutes(*maxDuration);
         }
 
         int offset = getParameterAs<int>(ctx.getParameters(), "offset").value_or(0);

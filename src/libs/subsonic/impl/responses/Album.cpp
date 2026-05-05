@@ -110,9 +110,11 @@ namespace lms::api::subsonic
         const auto artistLinks{ release->getArtistLinks() };
         if (!artistLinks.empty())
         {
-            artist = Artist{ .name = std::string{ release->getArtistDisplayName() }, .id = {} };
-            if (artistLinks.size() == 1)
-                artist->id = idToString(artistLinks.front()->getArtistId());
+            artist = Artist{ .name = std::string{ release->getArtistDisplayName() }, .id = idToString(artistLinks.front()->getArtistId()) };
+
+            albumNode.createEmptyArrayChild("albumArtists");
+            for (const auto& artistLink : artistLinks)
+                albumNode.addArrayChild("albumArtists", createMinimalArtistNode(artistLink));
         }
         else
         {

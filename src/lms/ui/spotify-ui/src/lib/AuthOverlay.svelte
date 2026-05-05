@@ -30,21 +30,14 @@
 
   function save() {
     credentials.update(c => ({ ...c, username, password }));
-    // Store in localStorage for persistence
-    localStorage.setItem('lms_username', username);
-    localStorage.setItem('lms_password', password);
   }
 
-  // Load from localStorage on init
+  // Load from store on init
   import { onMount } from 'svelte';
   onMount(() => {
-    const u = localStorage.getItem('lms_username');
-    const p = localStorage.getItem('lms_password');
-    if (u && p) {
-      username = u;
-      password = p;
-      // We assume saved credentials are correct, or they will fail later
-      credentials.update(c => ({ ...c, username, password }));
+    if ($credentials.username) {
+        username = $credentials.username;
+        password = $credentials.password;
     }
   });
 </script>

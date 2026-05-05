@@ -6,6 +6,7 @@
   import PlaylistView from './PlaylistView.svelte';
   import ArtistView from './ArtistView.svelte';
   import AlbumView from './AlbumView.svelte';
+  import ArtistList from './ArtistList.svelte';
   import { authParams, currentPlaylist } from './store.js';
 
   export let activeView = 'home';
@@ -31,6 +32,16 @@
   let currentGenre = '';
   let currentSort = 'recent';
   let currentYear = '';
+  let currentTrackSearch = '';
+
+  let currentArtistSort = 'alphabetical';
+  let currentArtistRole = 'all';
+  let currentArtistSearch = '';
+
+  let currentAlbumSort = 'newest';
+  let currentAlbumGenre = '';
+  let currentAlbumSearch = '';
+
   let isLoading = false;
 
   async function fetchTracks(id) {
@@ -61,6 +72,7 @@
     isLoading = true;
     try {
       let url = `/rest/getSpotifyTracks?sort=${currentSort}&offset=${tracksOffset}&count=${pageSize}&${$authParams}`;
+      if (currentTrackSearch) url += `&query=${encodeURIComponent(currentTrackSearch)}`;
       if (currentGenre) url += `&genre=${encodeURIComponent(currentGenre)}`;
       else if (activeView.startsWith('genre:')) {
           const genreName = activeView.split(':')[1];
@@ -69,7 +81,9 @@
       
       if (currentYear) url += `&year=${encodeURIComponent(currentYear)}`;
 
-      if (activeView === 'sets') url += `&minDuration=10`;
+      if (activeView === 'sets') {
+          url += `&minDuration=10`;
+      }
 
       console.log(`Fetching: ${url}`);
       const response = await fetch(url);
@@ -102,9 +116,14 @@
     if (!albumsHasMore) return;
 
     try {
-      const response = await fetch(`/rest/getAlbumList2?type=newest&size=${pageSize}&offset=${albumsOffset}&${$authParams}`);
+      let url = `/rest/getAlbumList2?type=${currentAlbumSort}&size=${pageSize}&offset=${albumsOffset}&${$authParams}`;
+      if (currentAlbumGenre) url += `&genre=${encodeURIComponent(currentAlbumGenre)}`;
+      if (currentAlbumSearch) url += `&query=${encodeURIComponent(currentAlbumSearch)}`;
+
+      const response = await fetch(url);
       const data = await response.json();
-      const newAlbums = data['subsonic-response']?.albumList2?.album || [];
+      const result = data['subsonic-response']?.albumList2?.album || [];
+      const newAlbums = Array.isArray(result) ? result : [result];
       
       if (append) {
         albums = [...albums, ...newAlbums];
@@ -126,11 +145,13 @@
     if (!artistsHasMore) return;
 
     try {
-      const response = await fetch(`/rest/getArtists?offset=${artistsOffset}&count=${pageSize}&${$authParams}`);
+      let url = `/rest/getArtistList?type=${currentArtistSort}&role=${currentArtistRole}&size=${pageSize}&offset=${artistsOffset}&${$authParams}`;
+      if (currentArtistSearch) url += `&query=${encodeURIComponent(currentArtistSearch)}`;
+      
+      const response = await fetch(url);
       const data = await response.json();
-      // Subsonic artists zijn gegroepeerd per index (A, B, C...)
-      const indexes = data['subsonic-response']?.artists?.index || [];
-      const newArtists = indexes.flatMap(idx => idx.artist || []);
+      const result = data['subsonic-response']?.artistList?.artist || [];
+      const newArtists = Array.isArray(result) ? result : [result];
       
       if (append) {
         artists = [...artists, ...newArtists];
@@ -166,11 +187,24 @@
   }
 
   function handleFilterChange(e) {
-      const { genre, sort, year } = e.detail;
-      currentGenre = genre;
-      currentSort = sort;
-      currentYear = year;
-      loadAllTracks();
+      const { genre, sort, year, search, role } = e.detail;
+      if (activeView === 'artists') {
+          currentArtistSort = sort;
+          currentArtistRole = role;
+          currentArtistSearch = search;
+          loadArtists();
+      } else if (activeView === 'albums') {
+          currentAlbumSort = sort;
+          currentAlbumGenre = genre;
+          currentAlbumSearch = search;
+          loadAlbums();
+      } else {
+          currentGenre = genre;
+          currentSort = sort;
+          currentYear = year;
+          currentTrackSearch = search;
+          loadAllTracks();
+      }
   }
 
   async function loadCurated() {
@@ -220,7 +254,7 @@
         <h2>
             {#if activeView === 'songs'}Alle Nummers{:else if activeView === 'sets'}Sets{:else}{activeView.split(':')[1]}{/if}
         </h2>
-        <FilterBar genre={currentGenre} sort={currentSort} year={currentYear} on:change={handleFilterChange} />
+        <FilterBar view="songs" genre={currentGenre} sort={currentSort} year={currentYear} search={currentTrackSearch} on:change={handleFilterChange} />
     </div>
     {#if isLoading && tracks.length === 0}
         <p>Laden...</p>
@@ -233,7 +267,10 @@
         {/if}
     {/if}
   {:else if activeView === 'albums'}
-    <h2>Albums</h2>
+    <div class="view-header">
+      <h2>Albums</h2>
+      <FilterBar view="albums" genre={currentAlbumGenre} sort={currentAlbumSort} search={currentAlbumSearch} on:change={handleFilterChange} />
+    </div>
     <div class="grid">
         {#each albums as album}
             <div class="card" on:click={() => activeView = `album:${album.id}`}>
@@ -243,7 +280,12 @@
                   on:error={(e) => e.target.src = '/images/spotify-fallback.svg'}
                 />
                 <span class="title">{album.name}</span>
-                <span class="artist">{album.artist}</span>
+                <ArtistList 
+                  artist={album.artist} 
+                  artistId={album.artistId} 
+                  artists={album.albumArtists} 
+                  on:navigate={(e) => activeView = e.detail} 
+                />
             </div>
         {/each}
     </div>
@@ -253,7 +295,10 @@
         </div>
     {/if}
   {:else if activeView === 'artists'}
-    <h2>Artiesten</h2>
+    <div class="view-header">
+      <h2>Artiesten</h2>
+      <FilterBar view="artists" sort={currentArtistSort} role={currentArtistRole} search={currentArtistSearch} on:change={handleFilterChange} />
+    </div>
     <div class="grid">
         {#each artists as artist}
             <div class="card artist-card" on:click={() => activeView = `artist:${artist.id}`}>

@@ -1,6 +1,7 @@
 <script>
   import { currentTrack, playerState, authParams } from './store.js';
   import { createEventDispatcher } from 'svelte';
+  import ArtistList from './ArtistList.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -29,7 +30,7 @@
   </div>
   <div class="info">
     <span class="title">{track.title || track.name}</span>
-    <span class="artist hover:underline" on:click={(e) => { e.stopPropagation(); dispatch('navigate', `artist:${track.artistId}`); }}>{track.artist}</span>
+    <ArtistList artist={track.artist} artistId={track.artistId} artists={track.artists} on:navigate />
   </div>
 </div>
 

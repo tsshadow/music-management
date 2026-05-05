@@ -50,6 +50,7 @@ namespace lms::db
             auto query{ session.getDboSession()->query<ResultType>("SELECT " + std::string{ itemToSelect } + " FROM artist a") };
             if (params.sortMethod == ArtistSortMethod::LastWrittenDesc
                 || params.sortMethod == ArtistSortMethod::AddedDesc
+                || params.sortMethod == ArtistSortMethod::TrackCountDesc
                 || params.writtenAfter.isValid()
                 || params.trackArtistLinkType.has_value()
                 || params.track.isValid()
@@ -106,22 +107,13 @@ namespace lms::db
 
             if (!params.keywords.empty())
             {
-                std::vector<std::string> clauses;
-                std::vector<std::string> sortClauses;
-
-                for (const std::string_view keyword : params.keywords)
+                for (std::string_view keyword : params.keywords)
                 {
-                    clauses.push_back("a.name LIKE ? ESCAPE '" ESCAPE_CHAR_STR "'");
-                    query.bind("%" + utils::escapeForLikeKeyword(keyword) + "%");
+                    std::string escaped = "%" + utils::escapeForLikeKeyword(keyword) + "%";
+                    query.where("(LOWER(a.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' OR LOWER(a.sort_name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "')")
+                        .bind(escaped)
+                        .bind(escaped);
                 }
-
-                for (const std::string_view keyword : params.keywords)
-                {
-                    sortClauses.push_back("a.sort_name LIKE ? ESCAPE '" ESCAPE_CHAR_STR "'");
-                    query.bind("%" + utils::escapeForLikeKeyword(keyword) + "%");
-                }
-
-                query.where("(" + core::stringUtils::joinStrings(clauses, " AND ") + ") OR (" + core::stringUtils::joinStrings(sortClauses, " AND ") + ")");
             }
 
             if (params.starringUser.isValid())
@@ -164,7 +156,11 @@ namespace lms::db
             if (params.track.isValid())
                 query.where("t_a_l.track_id = ?").bind(params.track);
 
-            switch (params.sortMethod)
+            ArtistSortMethod sortMethod = params.sortMethod;
+            if (sortMethod == ArtistSortMethod::None && !params.keywords.empty())
+                sortMethod = ArtistSortMethod::Relevance;
+
+            switch (sortMethod)
             {
             case ArtistSortMethod::None:
                 break;
@@ -186,10 +182,37 @@ namespace lms::db
             case ArtistSortMethod::AddedDesc:
                 query.orderBy("MIN(t.file_added) DESC, a.sort_name");
                 break;
+            case ArtistSortMethod::TrackCountDesc:
+                query.orderBy("track_count DESC");
+                break;
             case ArtistSortMethod::StarredDateDesc:
                 assert(params.starringUser.isValid());
                 query.orderBy("s_a.date_time DESC");
                 break;
+            case ArtistSortMethod::Relevance:
+            {
+                std::ostringstream oss;
+                oss << "(";
+                bool first = true;
+                for (std::string_view keyword : params.keywords)
+                {
+                    if (!first)
+                        oss << " + ";
+                    std::string escaped = utils::escapeForLikeKeyword(keyword);
+                    oss << "(CASE WHEN LOWER(a.name) = LOWER(?) THEN 100 ELSE 0 END) + "
+                           "(CASE WHEN LOWER(a.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' THEN 50 ELSE 0 END) + "
+                           "(CASE WHEN LOWER(a.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' THEN 10 ELSE 0 END)";
+                    query.bind(keyword);
+                    query.bind(escaped + "%");
+                    query.bind("%" + escaped + "%");
+                    first = false;
+                }
+                if (params.keywords.empty())
+                    oss << "0";
+                oss << ") DESC, a.name COLLATE NOCASE";
+                query.orderBy(oss.str());
+                break;
+            }
             }
 
             query.groupBy("a.id");

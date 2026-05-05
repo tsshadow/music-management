@@ -1,6 +1,7 @@
 <script>
   import { createEventDispatcher, onMount } from 'svelte';
   import { currentTrack, playerState, audio, authParams, credentials, playlist } from './store.js';
+  import ArtistList from './ArtistList.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -49,6 +50,10 @@
   }
 
   function handleEnded() {
+      if (!hasScrobbledFinished) {
+          scrobble(true);
+          hasScrobbledFinished = true;
+      }
       if ($playerState.repeat === 'one') {
           audioElement.currentTime = 0;
           audioElement.play();
@@ -69,14 +74,29 @@
 
   function handleTimeUpdate() {
     playerState.update(s => ({ ...s, progress: audioElement.currentTime }));
+    if (!hasScrobbledFinished && track) {
+        const threshold = Math.min(240, audioElement.duration / 2);
+        if (audioElement.currentTime > threshold && audioElement.duration > 0) {
+            scrobble(true);
+            hasScrobbledFinished = true;
+        }
+    }
   }
 
   function handleLoadedMetadata() {
     playerState.update(s => ({ ...s, duration: audioElement.duration }));
+    if (!initialized && track) {
+        audioElement.currentTime = $playerState.progress || 0;
+        initialized = true;
+    }
   }
 
   function handlePlay() {
     playerState.update(s => ({ ...s, playing: true }));
+    if (!hasScrobbledStarted) {
+        scrobble(false);
+        hasScrobbledStarted = true;
+    }
   }
 
   function handlePause() {
@@ -134,19 +154,46 @@
   $: streamUrl = track?.id ? `/rest/stream?id=${track.id}&${$authParams}` : '';
 
   let lastTrackId = null;
-  $: if (audioElement && track && track.id !== lastTrackId) {
+  let hasScrobbledStarted = false;
+  let hasScrobbledFinished = false;
+  let initialized = false;
+
+  async function scrobble(submission = true) {
+    if (!track || !$credentials.username) return;
+    const params = $authParams;
+    const url = `${$credentials.url}/rest/scrobble?id=${track.id}&submission=${submission}&${params}`;
+    try {
+      await fetch(url);
+    } catch (e) {
+      console.error("Scrobble failed", e);
+    }
+  }
+
+  $: if (track && track.id !== lastTrackId) {
+      const isInitialLoad = !lastTrackId && !initialized;
       lastTrackId = track.id;
-      audioElement.src = streamUrl;
-      audioElement.play().catch(e => {
-          if (e.name !== 'AbortError') {
-              console.error("Auto-play failed", e);
+      hasScrobbledStarted = false;
+      hasScrobbledFinished = false;
+      if (audioElement) {
+          audioElement.src = streamUrl;
+          if (!isInitialLoad) {
+              audioElement.play().catch(e => {
+                  if (e.name !== 'AbortError') {
+                      console.error("Auto-play failed", e);
+                  }
+              });
           }
-      });
+      }
   }
 
   onMount(() => {
     audio.set(audioElement);
     audioElement.volume = volume / 100;
+
+    if (track && !initialized) {
+        audioElement.src = streamUrl;
+        // currentTime will be set in handleLoadedMetadata
+    }
   });
 </script>
 
@@ -166,7 +213,12 @@
       <img src={coverUrl} alt={track.title} on:error={(e) => e.target.src = '/images/spotify-fallback.svg'} />
       <div class="track-info">
         <div class="name">{track.title}</div>
-        <div class="artist">{track.artist}</div>
+        <ArtistList 
+          artist={track.artist} 
+          artistId={track.artistId} 
+          artists={track.artists} 
+          on:navigate={(e) => dispatch('navigate', e.detail)} 
+        />
       </div>
     {/if}
   </div>

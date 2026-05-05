@@ -20,6 +20,7 @@
 #include "Common.hpp"
 
 #include <algorithm>
+#include <iostream>
 
 #include "database/objects/Artwork.hpp"
 #include "database/objects/Image.hpp"

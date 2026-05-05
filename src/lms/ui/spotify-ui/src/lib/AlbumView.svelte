@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { authParams } from './store.js';
   import TrackList from './TrackList.svelte';
+  import ArtistList from './ArtistList.svelte';
 
   export let albumId;
   export let onNavigate;
@@ -66,7 +67,12 @@
          <div class="type uppercase text-xs font-bold">Album</div>
          <h1>{album.name}</h1>
          <div class="meta flex items-center gap-1 font-bold">
-            <span class="artist-link cursor-pointer hover:underline" on:click={openArtist}>{album.artist}</span>
+            <ArtistList 
+              artist={album.artist} 
+              artistId={album.artistId} 
+              artists={album.albumArtists} 
+              on:navigate={(e) => onNavigate(e.detail)} 
+            />
             {#if album.year} <span class="text-spotify-text">•</span> {album.year}{/if}
             {#if tracks.length > 0} <span class="text-spotify-text">•</span> {tracks.length} nummers{/if}
          </div>

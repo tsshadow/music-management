@@ -1,6 +1,7 @@
 <script>
   import { currentTrack, playerState, authParams, playlist } from './store.js';
   import { createEventDispatcher } from 'svelte';
+  import ArtistList from './ArtistList.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -49,6 +50,7 @@
       <th class="col-index">#</th>
       <th class="col-title">Titel</th>
       <th class="col-album">Album</th>
+      <th class="col-date">Datum</th>
       <th class="col-duration">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
           <path d="M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM0 8a8 8 0 1116 0A8 8 0 010 8z"></path>
@@ -80,13 +82,19 @@
             />
             <div class="info">
               <span class="name">{track.title}</span>
-              <span class="artist hover:underline cursor-pointer" on:click={() => dispatch('navigate', `artist:${track.artistId}`)}>{track.artist}</span>
+              <ArtistList 
+                artist={track.artist} 
+                artistId={track.artistId} 
+                artists={track.artists} 
+                on:navigate={(e) => dispatch('navigate', e.detail)} 
+              />
             </div>
           </div>
         </td>
         <td class="col-album">
           <span class="hover:underline cursor-pointer" on:click={() => dispatch('navigate', `album:${track.albumId}`)}>{track.album || ''}</span>
         </td>
+        <td class="col-date">{track.year || ''}</td>
         <td class="col-duration">{formatTime(track.duration * 1000)}</td>
         {#if isQueue}
           <td class="col-actions">
@@ -211,6 +219,10 @@
   .col-duration {
     text-align: right;
     width: 100px;
+  }
+
+  .col-date {
+    width: 80px;
   }
 
   .col-actions {

@@ -540,6 +540,77 @@ namespace lms::api::subsonic
         return response;
     }
 
+    Response handleGetArtistListRequest(RequestContext& context)
+    {
+        const std::string query{ getParameterAs<std::string>(context.getParameters(), "query").value_or("") };
+        const std::string type{ getParameterAs<std::string>(context.getParameters(), "type").value_or(query.empty() ? "alphabetical" : "trackCount") };
+        const MediaLibraryId mediaLibrary{ getParameterAs<MediaLibraryId>(context.getParameters(), "musicFolderId").value_or(MediaLibraryId{}) };
+        const std::size_t offset{ getParameterAs<std::size_t>(context.getParameters(), "offset").value_or(0) };
+        const std::size_t count{ getParameterAs<std::size_t>(context.getParameters(), "size").value_or(getParameterAs<std::size_t>(context.getParameters(), "count").value_or(100)) };
+        const std::string role{ getParameterAs<std::string>(context.getParameters(), "role").value_or("all") };
+
+        Artist::FindParameters params;
+        params.filters.setMediaLibrary(mediaLibrary);
+        params.setRange(Range{ offset, count });
+
+        std::vector<std::string_view> keywords;
+        if (!query.empty())
+        {
+            keywords.push_back(query);
+            params.setKeywords(keywords);
+        }
+
+        if (role == "release")
+            params.setReleaseArtistsOnly(true);
+        else if (role == "track")
+            params.setTrackArtistLinkType(TrackArtistLinkType::Artist);
+        else if (role == "composer")
+            params.setTrackArtistLinkType(TrackArtistLinkType::Composer);
+        else if (role == "conductor")
+            params.setTrackArtistLinkType(TrackArtistLinkType::Conductor);
+        else if (role == "lyricist")
+            params.setTrackArtistLinkType(TrackArtistLinkType::Lyricist);
+        else if (role == "mixer")
+            params.setTrackArtistLinkType(TrackArtistLinkType::Mixer);
+        else if (role == "performer")
+            params.setTrackArtistLinkType(TrackArtistLinkType::Performer);
+        else if (role == "producer")
+            params.setTrackArtistLinkType(TrackArtistLinkType::Producer);
+        else if (role == "remixer")
+            params.setTrackArtistLinkType(TrackArtistLinkType::Remixer);
+        else if (role == "writer")
+            params.setTrackArtistLinkType(TrackArtistLinkType::Writer);
+
+        if (type == "newest")
+            params.setSortMethod(ArtistSortMethod::AddedDesc);
+        else if (type == "recent" || type == "updated")
+            params.setSortMethod(ArtistSortMethod::LastWrittenDesc);
+        else if (type == "random")
+            params.setSortMethod(ArtistSortMethod::Random);
+        else if (type == "alphabetical")
+            params.setSortMethod(ArtistSortMethod::SortName);
+        else if (type == "trackCount")
+            params.setSortMethod(ArtistSortMethod::TrackCountDesc);
+        else if (type == "starred")
+            params.setStarringUser(context.getUser()->getId(), FeedbackBackend::Internal);
+        else
+            params.setSortMethod(ArtistSortMethod::SortName);
+
+        auto transaction{ context.getDbSession().createReadTransaction() };
+        const auto artists = Artist::findIds(context.getDbSession(), params);
+
+        Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
+        Response::Node& artistListNode{ response.createNode("artistList") };
+
+        for (const ArtistId artistId : artists.results)
+        {
+            if (const auto artist{ Artist::find(context.getDbSession(), artistId) })
+                artistListNode.addArrayChild("artist", createArtistNode(context, artist));
+        }
+
+        return response;
+    }
+
     Response handleGetArtistRequest(RequestContext& context)
     {
         // Mandatory params

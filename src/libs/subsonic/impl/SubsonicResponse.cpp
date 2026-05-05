@@ -59,7 +59,7 @@ namespace lms::api::subsonic
     {
         assert(!_value);
         assert(_children.find(key) == std::cend(_children));
-        _childrenArrays.emplace(key, vector<Node>{});
+        _childrenArrays[key].clear();
     }
 
     void Response::Node::addArrayChild(Key key, Node&& node)

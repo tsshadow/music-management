@@ -4,6 +4,7 @@
   const dispatch = createEventDispatcher();
 
   export let activeView = 'home';
+  let genres = ['Euphoric Hardstyle', 'Hardstyle', 'Mainstream Hardstyle', 'Raw Hardstyle', 'Hardcore', 'Mainstream Hardcore', 'Industrial Hardcore', 'Uptempo Hardcore', 'Terror', 'Zaagtempo']
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: 'M12.5 3.5a.5.5 0 0 1 .5 0l9 5.25a.5.5 0 0 1 .25.433V20.5a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5v-5a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 0-.5.5v5a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5V9.183a.5.5 0 0 1 .25-.433z' },
@@ -18,8 +19,6 @@
 
   function logout() {
     credentials.set({ url: window.location.origin, username: '', password: '' });
-    localStorage.removeItem('lms_username');
-    localStorage.removeItem('lms_password');
   }
 </script>
 
@@ -58,10 +57,11 @@
   <div class="genres">
     <h3>GENRES</h3>
     <ul>
-      <li><button on:click={() => navigate('genre:Hardcore')}>Hardcore</button></li>
-      <li><button on:click={() => navigate('genre:Raw Hardstyle')}>Raw Hardstyle</button></li>
-      <li><button on:click={() => navigate('genre:Frenchcore')}>Frenchcore</button></li>
-      <li><button on:click={() => navigate('genre:Uptempo')}>Uptempo</button></li>
+      {#each genres as genre}
+        <li>
+          <button on:click={() => navigate(`genre:${genre}`)}>{genre}</button>
+        </li>
+      {/each}
     </ul>
   </div>
 

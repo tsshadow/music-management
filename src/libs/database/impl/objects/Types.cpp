@@ -87,6 +87,7 @@ namespace lms::db
         if (input == "RecentlyPlayed") return TrackSortMethod::RecentlyPlayed;
         if (input == "TrackNumber") return TrackSortMethod::TrackNumber;
         if (input == "AbsoluteFilePath") return TrackSortMethod::AbsoluteFilePath;
+        if (input == "Relevance") return TrackSortMethod::Relevance;
 
         return TrackSortMethod::Name; // fallback
     }
@@ -123,6 +124,8 @@ namespace lms::db
             return "TrackNumber";
         case TrackSortMethod::AbsoluteFilePath:
             return "AbsoluteFilePath";
+        case TrackSortMethod::Relevance:
+            return "Relevance";
         default:
             return "Unknown";
         }
@@ -160,6 +163,8 @@ namespace lms::db
             return "t.play_count DESC, t.last_play DESC";
         case TrackSortMethod::RecentlyPlayed:
             return "t.last_play DESC";
+        case TrackSortMethod::Relevance:
+            return "t.id";
 
         default:
             return "t.id";

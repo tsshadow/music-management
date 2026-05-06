@@ -77,7 +77,7 @@ namespace lms::api::subsonic
     {
         std::string username{ getMandatoryParameterAs<std::string>(context.getParameters(), "username") };
         std::string password{ getMandatoryParameterAs<std::string>(context.getParameters(), "password") };
-        bool isAdmin{ getOptionalParameterAs<bool>(context.getParameters(), "adminRole").value_or(false) };
+        bool isAdmin{ getParameterAs<bool>(context.getParameters(), "adminRole").value_or(false) };
 
         {
             auto transaction{ context.getDbSession().createWriteTransaction() };
@@ -99,9 +99,8 @@ namespace lms::api::subsonic
         std::string username{ getMandatoryParameterAs<std::string>(context.getParameters(), "username") };
         checkUserIsMySelfOrAdmin(context, username);
 
-        auto password{ getOptionalParameterAs<std::string>(context.getParameters(), "password") };
-        auto isAdmin{ getOptionalParameterAs<bool>(context.getParameters(), "adminRole") };
-        auto scrobblingEnabled{ getOptionalParameterAs<bool>(context.getParameters(), "scrobblingEnabled") };
+        auto password{ getParameterAs<std::string>(context.getParameters(), "password") };
+        auto isAdmin{ getParameterAs<bool>(context.getParameters(), "adminRole") };
 
         {
             auto transaction{ context.getDbSession().createWriteTransaction() };
@@ -111,9 +110,6 @@ namespace lms::api::subsonic
 
             if (isAdmin && context.getUser()->isAdmin())
                 user.modify()->setType(*isAdmin ? UserType::ADMIN : UserType::REGULAR);
-
-            if (scrobblingEnabled)
-                user.modify()->setScrobblingBackend(*scrobblingEnabled ? ScrobblingBackend::Internal : ScrobblingBackend::None);
 
             if (password)
             {

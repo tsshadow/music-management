@@ -27,6 +27,7 @@
 #include "database/Session.hpp"
 #include "database/objects/ScanSettings.hpp"
 #include "database/objects/User.hpp"
+#include "ParameterParsing.hpp"
 
 namespace lms::api::subsonic::Scan
 {
@@ -99,10 +100,10 @@ namespace lms::api::subsonic::Scan
                     settingsNode.setAttribute("allowMBIDArtistMerge", settings->getAllowMBIDArtistMerge());
                     settingsNode.setAttribute("artistImageFallbackToRelease", settings->getArtistImageFallbackToReleaseField());
 
-                    auto addArray = [&](const std::string& name, const auto& values) {
+                    auto addArray = [&](Response::Node::Key name, const auto& values) {
                         Response::Node& node{ settingsNode.createChild(name) };
                         for (const auto& value : values)
-                            node.createChild("value").setText(std::string{ value });
+                            node.createChild("value").setValue(std::string_view{ value });
                     };
 
                     addArray("extraTagsToScan", settings->getExtraTagsToScan());
@@ -129,11 +130,11 @@ namespace lms::api::subsonic::Scan
         if (context.getUser()->isAdmin())
         {
             scanner::ScanOptions scanOptions;
-            if (auto fullScan = context.getOptionalParameter("fullScan"))
+            if (auto fullScan = getParameterAs<std::string>(context.getParameters(), "fullScan"))
                 scanOptions.fullScan = (*fullScan == "true");
-            if (auto forceOptimize = context.getOptionalParameter("forceOptimize"))
+            if (auto forceOptimize = getParameterAs<std::string>(context.getParameters(), "forceOptimize"))
                 scanOptions.forceOptimize = (*forceOptimize == "true");
-            if (auto compact = context.getOptionalParameter("compact"))
+            if (auto compact = getParameterAs<std::string>(context.getParameters(), "compact"))
                 scanOptions.compact = (*compact == "true");
 
             core::Service<IScannerService>::get()->requestImmediateScan(scanOptions);
@@ -152,27 +153,27 @@ namespace lms::api::subsonic::Scan
             auto transaction{ context.getDbSession().createWriteTransaction() };
             db::ScanSettings::pointer settings{ db::ScanSettings::find(context.getDbSession()) };
 
-            if (auto period = context.getOptionalParameter("updatePeriod"))
+            if (auto period = getParameterAs<std::string>(context.getParameters(), "updatePeriod"))
                 settings.modify()->setUpdatePeriod(static_cast<db::ScanSettings::UpdatePeriod>(std::stoi(*period)));
 
-            if (auto startTime = context.getOptionalParameter("updateStartTime"))
-                settings.modify()->setUpdateStartTime(Wt::WTime::fromISO8601(*startTime));
+            if (auto startTime = getParameterAs<std::string>(context.getParameters(), "updateStartTime"))
+                settings.modify()->setUpdateStartTime(Wt::WTime::fromString(*startTime, "HH:mm:ss"));
 
-            if (auto similarity = context.getOptionalParameter("similarityEngineType"))
+            if (auto similarity = getParameterAs<std::string>(context.getParameters(), "similarityEngineType"))
                 settings.modify()->setSimilarityEngineType(static_cast<db::ScanSettings::SimilarityEngineType>(std::stoi(*similarity)));
 
-            if (auto skip = context.getOptionalParameter("skipSingleReleasePlayLists"))
+            if (auto skip = getParameterAs<std::string>(context.getParameters(), "skipSingleReleasePlayLists"))
                 settings.modify()->setSkipSingleReleasePlayLists(*skip == "true");
 
-            if (auto merge = context.getOptionalParameter("allowMBIDArtistMerge"))
+            if (auto merge = getParameterAs<std::string>(context.getParameters(), "allowMBIDArtistMerge"))
                 settings.modify()->setAllowMBIDArtistMerge(*merge == "true");
 
-            if (auto fallback = context.getOptionalParameter("artistImageFallbackToRelease"))
+            if (auto fallback = getParameterAs<std::string>(context.getParameters(), "artistImageFallbackToRelease"))
                 settings.modify()->setArtistImageFallbackToReleaseField(*fallback == "true");
 
             auto getArray = [&](const std::string& name) {
                 std::vector<std::string_view> result;
-                if (auto value = context.getOptionalParameter(name))
+                if (auto value = getParameterAs<std::string>(context.getParameters(), name))
                 {
                     std::vector<std::string_view> tokens{ core::stringUtils::splitString(*value, '|') };
                     for (auto token : tokens)
@@ -182,25 +183,25 @@ namespace lms::api::subsonic::Scan
                 return result;
             };
 
-            if (context.getOptionalParameter("extraTagsToScan"))
+            if (getParameterAs<std::string>(context.getParameters(), "extraTagsToScan"))
             {
                 auto tags = getArray("extraTagsToScan");
                 settings.modify()->setExtraTagsToScan(tags);
             }
 
-            if (context.getOptionalParameter("artistTagDelimiters"))
+            if (getParameterAs<std::string>(context.getParameters(), "artistTagDelimiters"))
             {
                 auto delimiters = getArray("artistTagDelimiters");
                 settings.modify()->setArtistTagDelimiters(delimiters);
             }
 
-            if (context.getOptionalParameter("defaultTagDelimiters"))
+            if (getParameterAs<std::string>(context.getParameters(), "defaultTagDelimiters"))
             {
                 auto delimiters = getArray("defaultTagDelimiters");
                 settings.modify()->setDefaultTagDelimiters(delimiters);
             }
 
-            if (context.getOptionalParameter("artistsToNotSplit"))
+            if (getParameterAs<std::string>(context.getParameters(), "artistsToNotSplit"))
             {
                 auto artists = getArray("artistsToNotSplit");
                 settings.modify()->setArtistsToNotSplit(artists);

@@ -24,6 +24,7 @@
 
 #include "database/Session.hpp"
 #include "database/objects/ScanSettings.hpp"
+#include "database/objects/User.hpp"
 
 namespace lms::api::subsonic::Scan
 {

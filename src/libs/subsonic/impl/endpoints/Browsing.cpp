@@ -242,6 +242,7 @@ namespace lms::api::subsonic
 
             musicFolderNode.setAttribute("id", library->getId().getValue());
             musicFolderNode.setAttribute("name", library->getName());
+            musicFolderNode.setAttribute("path", library->getPath().string());
         });
 
         return response;

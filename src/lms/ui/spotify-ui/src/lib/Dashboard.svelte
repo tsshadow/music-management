@@ -7,6 +7,7 @@
   import ArtistView from './ArtistView.svelte';
   import AlbumView from './AlbumView.svelte';
   import ArtistList from './ArtistList.svelte';
+  import Settings from './Settings.svelte';
   import { authParams, currentPlaylist } from './store.js';
 
   export let activeView = 'home';
@@ -355,6 +356,8 @@
     <ArtistView artistId={activeView.split(':')[1]} onNavigate={handleNavigate} />
   {:else if activeView.startsWith('album:')}
     <AlbumView albumId={activeView.split(':')[1]} onNavigate={handleNavigate} />
+  {:else if activeView === 'settings'}
+    <Settings />
   {/if}
 </div>
 

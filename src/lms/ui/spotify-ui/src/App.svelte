@@ -4,6 +4,7 @@
   import Player from './lib/Player.svelte';
   import Dashboard from './lib/Dashboard.svelte';
   import AuthOverlay from './lib/AuthOverlay.svelte';
+  import TopBar from './lib/TopBar.svelte';
   import TrackList from './lib/TrackList.svelte';
   import { playlist, activeView, currentPlaylist } from './lib/store.js';
 
@@ -51,7 +52,7 @@
     if (view.startsWith('genre:')) return base + '/genre/' + view.split(':')[1];
     if (view.startsWith('artist:')) return base + '/artist/' + view.split(':')[1];
     if (view.startsWith('album:')) return base + '/album/' + view.split(':')[1];
-    if (view === 'playlist-detail' && playlistObj) return base + '/playlist/' + playlistObj.id;
+    if (view === 'settings') return base + '/settings';
     return null;
   }
 
@@ -69,6 +70,7 @@
         const id = path.slice((base + '/playlist/').length);
         return { view: 'playlist-detail', id };
     }
+    if (path === base + '/settings') return 'settings';
     return 'home';
   }
 
@@ -130,9 +132,7 @@
   </div>
   
   <div class="bg-linear-to-b from-[#121212] to-[#121212] row-start-1 row-end-2 col-start-2 col-end-3 overflow-y-auto p-5 md:p-8 relative">
-    <header class="mb-6">
-      <h1 class="text-3xl font-bold">{greeting}</h1>
-    </header>
+    <TopBar {greeting} />
 
     <div class="content-area">
       <Dashboard bind:activeView={$activeView} />

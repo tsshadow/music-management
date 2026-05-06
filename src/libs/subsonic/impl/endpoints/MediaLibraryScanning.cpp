@@ -22,13 +22,16 @@
 #include "core/Service.hpp"
 #include "services/scanner/IScannerService.hpp"
 
+#include "database/Session.hpp"
+#include "database/objects/ScanSettings.hpp"
+
 namespace lms::api::subsonic::Scan
 {
     using namespace scanner;
 
     namespace
     {
-        Response::Node createStatusResponseNode()
+        Response::Node createStatusResponseNode(RequestContext& context)
         {
             Response::Node statusResponse;
 
@@ -45,6 +48,18 @@ namespace lms::api::subsonic::Scan
                 statusResponse.setAttribute("count", count);
             }
 
+            // Add some settings to the response if the user is an admin
+            if (context.getUser()->isAdmin())
+            {
+                auto transaction{ context.getDbSession().createReadTransaction() };
+                if (const db::ScanSettings::pointer settings{ db::ScanSettings::find(context.getDbSession()) })
+                {
+                    Response::Node& settingsNode{ statusResponse.createChild("scanSettings") };
+                    settingsNode.setAttribute("updatePeriod", static_cast<int>(settings->getUpdatePeriod()));
+                    settingsNode.setAttribute("similarityEngineType", static_cast<int>(settings->getSimilarityEngineType()));
+                }
+            }
+
             return statusResponse;
         }
     } // namespace
@@ -52,17 +67,18 @@ namespace lms::api::subsonic::Scan
     Response handleGetScanStatus(RequestContext& context)
     {
         Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
-        response.addNode("scanStatus", createStatusResponseNode());
+        response.addNode("scanStatus", createStatusResponseNode(context));
 
         return response;
     }
 
     Response handleStartScan(RequestContext& context)
     {
-        core::Service<IScannerService>::get()->requestImmediateScan();
+        if (context.getUser()->isAdmin())
+            core::Service<IScannerService>::get()->requestImmediateScan();
 
         Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
-        response.addNode("scanStatus", createStatusResponseNode());
+        response.addNode("scanStatus", createStatusResponseNode(context));
 
         return response;
     }

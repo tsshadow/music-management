@@ -81,20 +81,21 @@
   }
 </script>
 
-<div class="filter-bar">
-  <div class="search-group">
+<div class="flex flex-wrap gap-4 mb-6 bg-[#181818] p-3 md:p-4 rounded-lg items-center">
+  <div class="flex-1 min-w-[200px]">
     <input 
       type="text" 
       placeholder="Zoeken..." 
+      class="w-full bg-[#282828] text-white border-none px-4 py-2 rounded-[20px] text-sm focus:outline focus:outline-1 focus:outline-spotify-green focus:bg-[#333]"
       bind:value={search} 
       on:input={handleSearchInput}
     />
   </div>
 
   {#if view === 'songs' || view === 'albums'}
-    <div class="filter-group">
-      <label for="genre">Genre:</label>
-      <select id="genre" bind:value={genre} on:change={handleChange}>
+    <div class="flex items-center gap-2">
+      <label for="genre" class="text-[12px] font-bold text-[#b3b3b3] uppercase">Genre:</label>
+      <select id="genre" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-spotify-green" bind:value={genre} on:change={handleChange}>
         <option value="">Alle Genres</option>
         {#each genres as g}
           <option value={g.value}>{g.value} ({g.songCount})</option>
@@ -104,9 +105,9 @@
   {/if}
 
   {#if view === 'songs'}
-    <div class="filter-group">
-      <label for="year">Jaar:</label>
-      <select id="year" bind:value={year} on:change={handleChange}>
+    <div class="flex items-center gap-2">
+      <label for="year" class="text-[12px] font-bold text-[#b3b3b3] uppercase">Jaar:</label>
+      <select id="year" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-spotify-green" bind:value={year} on:change={handleChange}>
         <option value="">Alle Jaren</option>
         {#each years as y}
           <option value={y.value}>{y.value}</option>
@@ -116,9 +117,9 @@
   {/if}
 
   {#if view === 'artists'}
-    <div class="filter-group">
-      <label for="role">Rol:</label>
-      <select id="role" bind:value={role} on:change={handleChange}>
+    <div class="flex items-center gap-2">
+      <label for="role" class="text-[12px] font-bold text-[#b3b3b3] uppercase">Rol:</label>
+      <select id="role" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-spotify-green" bind:value={role} on:change={handleChange}>
         {#each roles as r}
           <option value={r.value}>{r.label}</option>
         {/each}
@@ -126,9 +127,9 @@
     </div>
   {/if}
 
-  <div class="filter-group">
-    <label for="sort">Sorteer op:</label>
-    <select id="sort" bind:value={sort} on:change={handleChange}>
+  <div class="flex items-center gap-2">
+    <label for="sort" class="text-[12px] font-bold text-[#b3b3b3] uppercase">Sorteer op:</label>
+    <select id="sort" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-spotify-green" bind:value={sort} on:change={handleChange}>
       {#if view === 'songs'}
         <option value="recent">Recent uitgebracht</option>
         <option value="releasedate">Release datum</option>
@@ -155,61 +156,4 @@
 </div>
 
 <style>
-  .filter-bar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    margin-bottom: 24px;
-    background-color: #181818;
-    padding: 12px 16px;
-    border-radius: 8px;
-    align-items: center;
-  }
-
-  .search-group {
-    flex: 1;
-    min-width: 200px;
-  }
-
-  .search-group input {
-    width: 100%;
-    background-color: #282828;
-    color: #fff;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 14px;
-  }
-
-  .search-group input:focus {
-    outline: 1px solid #1db954;
-    background-color: #333;
-  }
-
-  .filter-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  label {
-    font-size: 12px;
-    font-weight: 700;
-    color: #b3b3b3;
-    text-transform: uppercase;
-  }
-
-  select {
-    background-color: #282828;
-    color: #fff;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 4px;
-    font-size: 14px;
-    cursor: pointer;
-  }
-
-  select:focus {
-    outline: 1px solid #1db954;
-  }
 </style>

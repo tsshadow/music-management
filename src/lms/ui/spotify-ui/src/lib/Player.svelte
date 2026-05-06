@@ -207,12 +207,12 @@
   on:ended={handleEnded}
 ></audio>
 
-<footer class="player">
-  <div class="current-track">
+<footer class="flex justify-between items-center h-full px-4">
+  <div class="w-[30%] flex items-center gap-3">
     {#if track}
-      <img src={coverUrl} alt={track.title} on:error={(e) => e.target.src = '/images/spotify-fallback.svg'} />
+      <img src={coverUrl} alt={track.title} class="w-14 h-14 rounded" on:error={(e) => e.target.src = '/images/spotify-fallback.svg'} />
       <div class="track-info">
-        <div class="name">{track.title}</div>
+        <div class="text-sm font-medium">{track.title}</div>
         <ArtistList 
           artist={track.artist} 
           artistId={track.artistId} 
@@ -223,19 +223,19 @@
     {/if}
   </div>
 
-  <div class="controls">
-    <div class="buttons">
-      <button class="shuffle" class:active={shuffleMode} on:click={toggleShuffleMode}>
+  <div class="w-[40%] max-w-[600px] flex flex-col items-center gap-2">
+    <div class="flex items-center gap-6">
+      <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white {shuffleMode ? 'text-spotify-green' : 'text-[#b3b3b3]'}" on:click={toggleShuffleMode}>
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path d="M4.5 6.307a.75.75 0 1 1 0-1.5 5.862 5.862 0 0 1 4.671 2.382l.66.883 5.03 6.717a4.362 4.362 0 0 0 3.471 1.769h1.918a.75.75 0 1 1 0 1.5h-1.918a5.862 5.862 0 0 1-4.671-2.381l-.66-.883-5.03-6.717a4.362 4.362 0 0 0-3.471-1.77H4.5zM14.862 8.567l.66-.883A5.862 5.862 0 0 1 20.193 5.3h1.057a.75.75 0 1 1 0 1.5h-1.057a4.362 4.362 0 0 0-3.471 1.768l-.66.883-.16-.214-.132-.176-.908-1.213-.01.014zM4.5 19.193a.75.75 0 1 0 0-1.5h1.057a4.362 4.362 0 0 0 3.471-1.768l.66-.883.908 1.213.14.186.124.166.01-.013.66.883A5.862 5.862 0 0 1 16.208 20.193H4.5z"></path>
         </svg>
       </button>
-      <button class="prev" on:click={playPrev}>
+      <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" on:click={playPrev}>
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path d="M11.838 12.767a1 1 0 0 0 0-1.534L4.513 5.32a.6.6 0 0 0-.913.434v12.492a.6.6 0 0 0 .913.434l7.325-5.913zM20.5 5.754a.6.6 0 0 0-.913-.434l-7.325 5.913a1 1 0 0 0 0 1.534l7.325 5.913a.6.6 0 0 0 .913-.434V5.754z"></path>
         </svg>
       </button>
-      <button class="play-pause" on:click={togglePlay}>
+      <button class="w-8 h-8 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105" on:click={togglePlay}>
         {#if playing}
             <svg viewBox="0 0 24 24" width="24" height="24" fill="black">
                 <path d="M9 19H7V5h2v14zm8-14h-2v14h2V5z"></path>
@@ -246,36 +246,36 @@
             </svg>
         {/if}
       </button>
-      <button class="next" on:click={playNext}>
+      <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" on:click={playNext}>
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path d="M11.162 12.767a1 1 0 0 1 0-1.534l7.325-5.913a.6.6 0 0 1 .913.434v12.492a.6.6 0 0 1-.913.434l-7.325-5.913zM2.5 5.754a.6.6 0 0 1 .913-.434l7.325 5.913a1 1 0 0 1 0 1.534l-7.325 5.913a.6.6 0 0 1-.913-.434V5.754z"></path>
         </svg>
       </button>
-      <button class="repeat" class:active={repeatMode !== 'none'} on:click={toggleRepeat}>
+      <button class="relative bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white {repeatMode !== 'none' ? 'text-spotify-green' : 'text-[#b3b3b3]'}" on:click={toggleRepeat}>
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path d="M4.5 12.2a.75.75 0 0 1 .75-.75h14a.75.75 0 0 1 .75.75v1.25a3.25 3.25 0 0 1-3.25 3.25H7.75a.75.75 0 0 1 0-1.5h8.25a1.75 1.75 0 0 0 1.75-1.75v-.5H5.25a.75.75 0 0 1-.75-.75v-1.25zM19.5 11.8a.75.75 0 0 1-.75.75h-14a.75.75 0 0 1-.75-.75v-1.25a3.25 3.25 0 0 1 3.25-3.25h8.5a.75.75 0 0 1 0 1.5h-8.5a1.75 1.75 0 0 0-1.75 1.75v.5h13.25a.75.75 0 0 1 .75.75v1.25z"></path>
         </svg>
         {#if repeatMode === 'one'}
-            <span class="repeat-one">1</span>
+            <span class="absolute text-[8px] font-bold top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-spotify-green bg-[#181818] px-[1px]">1</span>
         {/if}
       </button>
     </div>
-    <div class="progress-bar">
+    <div class="w-full flex items-center gap-2 text-[11px] text-[#b3b3b3]">
       <span>{formatTime(progress)}</span>
-      <div class="slider" on:click={seek}>
-          <div class="fill" style="width: {(progress/duration)*100}%"></div>
+      <div class="flex-1 h-1 bg-[#4d4d4d] rounded-sm cursor-pointer" on:click={seek}>
+          <div class="h-full bg-white rounded-sm" style="width: {(progress/duration)*100}%"></div>
       </div>
       <span>{formatTime(duration)}</span>
     </div>
   </div>
 
-  <div class="volume">
-    <button class="queue-btn" on:click={() => dispatch('toggleQueue')}>
+  <div class="w-[30%] flex justify-end items-center gap-3">
+    <button class="mr-2 bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" on:click={() => dispatch('toggleQueue')}>
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path d="M15 15H3v-1.5h12V15zm0-4.5H3V9h12v1.5zm0-4.5H3V4.5h12V6zm7 12l-4.5-4.5L13 18h9z"></path>
         </svg>
     </button>
-    <button on:click={toggleMute}>
+    <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" on:click={toggleMute}>
         {#if muted || volume === 0}
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                 <path d="M16.107 2.493a.75.75 0 0 0-1.06 0l-7.057 7.057H2.25a.75.75 0 0 0-.75.75v3.314a.75.75 0 0 0 .75.75h5.74l7.057 7.057a.75.75 0 0 0 1.28-.53V3.023a.75.75 0 0 0-.22-.53zM14.607 18.66l-5.914-5.914a.75.75 0 0 0-.53-.22H3v-1.814h5.163a.75.75 0 0 0 .53-.22l5.914-5.914V18.66z"></path>
@@ -286,145 +286,11 @@
             </svg>
         {/if}
     </button>
-    <div class="volume-slider" on:click={changeVolume}>
-        <div class="fill" style="width: {volume}%"></div>
+    <div class="w-[100px] h-1 bg-[#4d4d4d] rounded-sm cursor-pointer" on:click={changeVolume}>
+        <div class="h-full bg-white rounded-sm" style="width: {volume}%"></div>
     </div>
   </div>
 </footer>
 
 <style>
-  .player {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    height: 100%;
-    padding: 0 16px;
-  }
-
-  .current-track {
-    width: 30%;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .current-track img {
-    width: 56px;
-    height: 56px;
-    border-radius: 4px;
-  }
-
-  .track-info .name {
-    font-size: 14px;
-    font-weight: 500;
-  }
-
-  .track-info .artist {
-    font-size: 11px;
-    color: #b3b3b3;
-  }
-
-  .controls {
-    width: 40%;
-    max-width: 600px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .buttons {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-  }
-
-  button {
-    background: none;
-    border: none;
-    color: #b3b3b3;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  button:hover {
-    color: #fff;
-  }
-
-  button.active {
-      color: #1db954;
-  }
-
-  .repeat {
-      position: relative;
-  }
-
-  .repeat-one {
-      position: absolute;
-      font-size: 8px;
-      font-weight: 700;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: #1db954;
-      background-color: #181818;
-      padding: 0 1px;
-  }
-
-  .play-pause {
-    width: 32px;
-    height: 32px;
-    background-color: #fff;
-    border-radius: 50%;
-    color: #000;
-  }
-
-  .play-pause:hover {
-    transform: scale(1.05);
-    background-color: #f6f6f6;
-  }
-
-  .progress-bar {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 11px;
-    color: #b3b3b3;
-  }
-
-  .slider {
-    flex: 1;
-    height: 4px;
-    background-color: #4d4d4d;
-    border-radius: 2px;
-  }
-
-  .fill {
-    height: 100%;
-    width: 30%;
-    background-color: #fff;
-    border-radius: 2px;
-  }
-
-  .volume {
-    width: 30%;
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .queue-btn {
-      margin-right: 8px;
-  }
-
-  .volume-slider {
-    width: 100px;
-    height: 4px;
-    background-color: #4d4d4d;
-    border-radius: 2px;
-  }
 </style>

@@ -80,49 +80,50 @@
 {#if isLoading}
   <div class="p-8">Laden...</div>
 {:else if artist}
-  <div class="artist-view">
-    <header class="artist-header">
-       <div class="cover-wrapper">
+  <div class="flex flex-col">
+    <header class="h-[340px] flex items-end p-6 md:p-8 bg-linear-to-b from-transparent to-black/50 relative gap-6">
+       <div class="w-[232px] h-[232px] flex-shrink-0">
          {#if artist.coverArt}
-           <img src="/rest/getCoverArt?id={artist.coverArt}&size=300&${$authParams}" alt={artist.name} />
+           <img src="/rest/getCoverArt?id={artist.coverArt}&size=300&${$authParams}" alt={artist.name} class="w-full h-full object-cover rounded-full shadow-[0_4px_60px_rgba(0,0,0,0.5)]" />
          {:else}
-           <div class="fallback">
+           <div class="w-full h-full bg-[#282828] rounded-full flex items-center justify-center shadow-[0_4px_60px_rgba(0,0,0,0.5)]">
              <img src="/images/spotify-fallback.svg" alt="" class="w-24 h-24 opacity-20" />
            </div>
          {/if}
        </div>
-       <div class="info">
-         <div class="verified">
+       <div class="flex flex-col">
+         <div class="flex items-center gap-2 text-sm font-bold mb-2">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="#3d91f4">
                 <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zM10 17l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path>
             </svg>
             Geverifieerde artiest
          </div>
-         <h1>{artist.name}</h1>
+         <h1 class="text-6xl md:text-8xl lg:text-9xl font-black m-0 leading-none">{artist.name}</h1>
        </div>
     </header>
 
-    <div class="content p-8">
+    <div class="p-6 md:p-8 flex flex-col gap-8">
         {#if tracks.length > 0}
-            <section class="mb-8">
+            <section>
                 <h2 class="text-2xl font-bold mb-4">Populair</h2>
                 <TrackList {tracks} on:navigate={(e) => onNavigate(e.detail)} />
             </section>
         {/if}
 
         {#if albums.length > 0}
-            <section class="mb-8">
+            <section>
                 <h2 class="text-2xl font-bold mb-4">Discografie</h2>
-                <div class="grid">
+                <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-6">
                     {#each albums as album}
-                        <div class="card" on:click={() => openAlbum(album.id)}>
+                        <div class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]" on:click={() => openAlbum(album.id)}>
                             <img 
                               src={album.coverArt ? `/rest/getCoverArt?id=${album.id}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
                               alt={album.name} 
+                              class="w-full aspect-square object-cover mb-4 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                               on:error={(e) => e.target.src = '/images/spotify-fallback.svg'}
                             />
-                            <span class="title">{album.name}</span>
-                            <span class="artist">{album.year || ''} • Album</span>
+                            <span class="block font-bold mb-1 whitespace-nowrap overflow-hidden text-ellipsis">{album.name}</span>
+                            <span class="text-sm text-[#b3b3b3]">{album.year || ''} • Album</span>
                         </div>
                     {/each}
                 </div>
@@ -130,18 +131,19 @@
         {/if}
 
         {#if appearsOn.length > 0}
-            <section class="mb-8">
+            <section>
                 <h2 class="text-2xl font-bold mb-4">Komt voor op</h2>
-                <div class="grid">
+                <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-6">
                     {#each appearsOn as album}
-                        <div class="card" on:click={() => openAlbum(album.id)}>
+                        <div class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]" on:click={() => openAlbum(album.id)}>
                             <img 
                               src={album.coverArt ? `/rest/getCoverArt?id=${album.id}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
                               alt={album.name} 
+                              class="w-full aspect-square object-cover mb-4 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                               on:error={(e) => e.target.src = '/images/spotify-fallback.svg'}
                             />
-                            <span class="title">{album.name}</span>
-                            <span class="artist">{album.artist}</span>
+                            <span class="block font-bold mb-1 whitespace-nowrap overflow-hidden text-ellipsis">{album.name}</span>
+                            <span class="text-sm text-[#b3b3b3]">{album.artist}</span>
                         </div>
                     {/each}
                 </div>
@@ -149,20 +151,21 @@
         {/if}
 
         {#if similarArtists.length > 0}
-            <section class="mb-8">
+            <section>
                 <h2 class="text-2xl font-bold mb-4">Fans vinden dit ook leuk</h2>
-                <div class="grid">
+                <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-6">
                     {#each similarArtists as similar}
-                        <div class="card artist-card" on:click={() => openArtist(similar.id)}>
-                            <div class="img-wrapper">
+                        <div class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]" on:click={() => openArtist(similar.id)}>
+                            <div class="mb-4">
                                 <img 
                                   src={similar.coverArt ? `/rest/getCoverArt?id=${similar.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
                                   alt={similar.name} 
+                                  class="w-full aspect-square object-cover rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                                   on:error={(e) => e.target.src = '/images/spotify-fallback.svg'}
                                 />
                             </div>
-                            <span class="title">{similar.name}</span>
-                            <span class="artist">Artiest</span>
+                            <span class="block font-bold mb-1 whitespace-nowrap overflow-hidden text-ellipsis">{similar.name}</span>
+                            <span class="text-sm text-[#b3b3b3]">Artiest</span>
                         </div>
                     {/each}
                 </div>
@@ -173,83 +176,4 @@
 {/if}
 
 <style>
-  .artist-header {
-    height: 340px;
-    display: flex;
-    align-items: flex-end;
-    padding: 24px 32px;
-    background: linear-gradient(transparent, rgba(0,0,0,0.5));
-    position: relative;
-    gap: 24px;
-  }
-  .cover-wrapper {
-    width: 232px;
-    height: 232px;
-    flex-shrink: 0;
-  }
-  .cover-wrapper img, .cover-wrapper .fallback {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 50%;
-    box-shadow: 0 4px 60px rgba(0,0,0,.5);
-  }
-  .cover-wrapper .fallback {
-      background-color: #282828;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-  }
-  .info .verified {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 14px;
-      font-weight: 700;
-      margin-bottom: 8px;
-  }
-  h1 {
-    font-size: 96px;
-    font-weight: 900;
-    margin: 0;
-    line-height: 1;
-  }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 24px;
-  }
-  .card {
-    background: #181818;
-    padding: 16px;
-    border-radius: 8px;
-    transition: background 0.3s;
-    cursor: pointer;
-  }
-  .card:hover {
-    background: #282828;
-  }
-  .card img {
-    width: 100%;
-    aspect-ratio: 1/1;
-    object-fit: cover;
-    margin-bottom: 16px;
-    border-radius: 4px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-  }
-  .artist-card .img-wrapper img {
-      border-radius: 50%;
-  }
-  .card .title {
-    display: block;
-    font-weight: 700;
-    margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .card .artist {
-    font-size: 14px;
-    color: #b3b3b3;
-  }
 </style>

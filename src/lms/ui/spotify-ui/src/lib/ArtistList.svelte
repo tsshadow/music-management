@@ -23,21 +23,11 @@
   }
 </script>
 
-<span class="artist-list">
+<span class="text-[#b3b3b3] text-sm">
   {#each displayArtists as a, i}
-    <span class="artist-item {a.id ? 'hover:underline cursor-pointer' : ''}" on:click|stopPropagation={() => { if (a.id) dispatch('navigate', `artist:${a.id}`); }}>{a.name}</span>{#if i < displayArtists.length - 1}, {/if}
+    <span class="text-inherit hover:text-white {a.id ? 'hover:underline cursor-pointer' : ''}" on:click|stopPropagation={() => { if (a.id) dispatch('navigate', `artist:${a.id}`); }}>{a.name}</span>{#if i < displayArtists.length - 1}, {/if}
   {/each}
 </span>
 
 <style>
-  .artist-list {
-    color: #b3b3b3;
-    font-size: 14px;
-  }
-  .artist-item {
-    color: inherit;
-  }
-  .artist-item:hover {
-    color: #fff;
-  }
 </style>

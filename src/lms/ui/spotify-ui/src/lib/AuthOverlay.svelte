@@ -43,24 +43,24 @@
 </script>
 
 {#if !$credentials.username}
-<div class="overlay">
-  <div class="modal">
-    <h2>LMS Inloggen</h2>
-    <p>Voer je Subsonic inloggegevens in om muziek te kunnen streamen.</p>
+<div class="fixed inset-0 w-screen h-screen bg-black/80 flex justify-center items-center z-[1000]">
+  <div class="bg-[#282828] p-8 rounded-lg w-[400px] flex flex-col gap-5">
+    <h2 class="m-0">LMS Inloggen</h2>
+    <p class="text-sm">Voer je Subsonic inloggegevens in om muziek te kunnen streamen.</p>
     
     {#if error}
-      <div class="error-message">{error}</div>
+      <div class="bg-[#e91429] text-white p-2.5 rounded text-sm">{error}</div>
     {/if}
 
-    <div class="input-group">
-      <label>Gebruikersnaam</label>
-      <input type="text" bind:value={username} placeholder="Username" disabled={isLoading} />
+    <div class="flex flex-col gap-2">
+      <label class="text-[12px] font-bold text-[#b3b3b3] uppercase">Gebruikersnaam</label>
+      <input type="text" bind:value={username} placeholder="Username" class="bg-[#3e3e3e] border border-transparent rounded p-3 text-white text-sm focus:outline-none focus:border-spotify-green disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading} />
     </div>
-    <div class="input-group">
-      <label>Wachtwoord</label>
-      <input type="password" bind:value={password} placeholder="Password" disabled={isLoading} on:keydown={(e) => e.key === 'Enter' && verifyLogin()} />
+    <div class="flex flex-col gap-2">
+      <label class="text-[12px] font-bold text-[#b3b3b3] uppercase">Wachtwoord</label>
+      <input type="password" bind:value={password} placeholder="Password" class="bg-[#3e3e3e] border border-transparent rounded p-3 text-white text-sm focus:outline-none focus:border-spotify-green disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading} on:keydown={(e) => e.key === 'Enter' && verifyLogin()} />
     </div>
-    <button on:click={verifyLogin} disabled={isLoading}>
+    <button class="bg-spotify-green text-black border-none rounded-[500px] p-3.5 text-base font-bold cursor-pointer transition-transform hover:scale-[1.04] disabled:bg-spotify-green/50 disabled:cursor-not-allowed disabled:transform-none" on:click={verifyLogin} disabled={isLoading}>
       {isLoading ? 'Verificeren...' : 'Verbinden'}
     </button>
   </div>
@@ -68,90 +68,4 @@
 {/if}
 
 <style>
-  .overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0,0,0,0.8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-  }
-
-  .modal {
-    background: #282828;
-    padding: 32px;
-    border-radius: 8px;
-    width: 400px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-
-  h2 { margin: 0; }
-
-  .error-message {
-    background-color: #e91429;
-    color: white;
-    padding: 10px;
-    border-radius: 4px;
-    font-size: 14px;
-  }
-
-  .input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  label {
-    font-size: 12px;
-    font-weight: 700;
-    color: #b3b3b3;
-    text-transform: uppercase;
-  }
-
-  input {
-    background: #3e3e3e;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    padding: 12px;
-    color: #fff;
-    font-size: 14px;
-  }
-
-  input:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  input:focus {
-    outline: none;
-    border-color: #1db954;
-  }
-
-  button {
-    background-color: #1db954;
-    color: #000;
-    border: none;
-    border-radius: 500px;
-    padding: 14px;
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: transform 0.2s;
-  }
-
-  button:disabled {
-    background-color: #1ed76080;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  button:not(:disabled):hover {
-    transform: scale(1.04);
-  }
 </style>

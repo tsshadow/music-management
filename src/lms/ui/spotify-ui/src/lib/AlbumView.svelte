@@ -56,43 +56,44 @@
 {#if isLoading}
   <div class="p-8">Laden...</div>
 {:else if album}
-  <div class="album-view">
-    <header class="album-header">
+  <div class="flex flex-col">
+    <header class="h-[340px] flex items-end p-6 md:p-8 bg-linear-to-b from-transparent to-black/50 relative gap-6">
        <img 
          src="/rest/getCoverArt?id={album.id}&size=300&${$authParams}" 
          alt={album.name} 
+         class="w-[232px] h-[232px] object-cover shadow-[0_4px_60px_rgba(0,0,0,0.5)]"
          on:error={(e) => e.target.src = '/images/spotify-fallback.svg'}
        />
-       <div class="info">
-         <div class="type uppercase text-xs font-bold">Album</div>
-         <h1>{album.name}</h1>
-         <div class="meta flex items-center gap-1 font-bold">
+       <div class="flex flex-col">
+         <div class="uppercase text-xs font-bold">Album</div>
+         <h1 class="text-5xl md:text-7xl font-black my-2 leading-none">{album.name}</h1>
+         <div class="flex items-center gap-1 font-bold">
             <ArtistList 
               artist={album.artist} 
               artistId={album.artistId} 
               artists={album.albumArtists} 
               on:navigate={(e) => onNavigate(e.detail)} 
             />
-            {#if album.year} <span class="text-spotify-text">•</span> {album.year}{/if}
-            {#if tracks.length > 0} <span class="text-spotify-text">•</span> {tracks.length} nummers{/if}
+            {#if album.year} <span class="text-[#b3b3b3]">•</span> {album.year}{/if}
+            {#if tracks.length > 0} <span class="text-[#b3b3b3]">•</span> {tracks.length} nummers{/if}
          </div>
        </div>
     </header>
 
-    <div class="tracklist-container p-8 pt-0">
+    <div class="p-6 md:p-8 pt-0">
       <TrackList {tracks} on:navigate={(e) => onNavigate(e.detail)} />
       
       {#if album.genre || album.created}
-        <div class="footer-meta text-spotify-text text-sm mt-8 space-y-1">
+        <div class="text-[#b3b3b3] text-sm mt-8 space-y-1">
             {#if album.genre}<div>Genre: {album.genre}</div>{/if}
             {#if album.created}<div>Toegevoegd op {new Date(album.created).toLocaleDateString()}</div>{/if}
         </div>
       {/if}
 
       {#if albumInfo && albumInfo.notes}
-        <div class="extra-info mt-8 border-t border-spotify-light pt-8">
+        <div class="mt-8 border-t border-[#282828] pt-8">
             <h3 class="text-xl font-bold mb-4">Over dit album</h3>
-            <p class="text-spotify-text whitespace-pre-wrap">{albumInfo.notes}</p>
+            <p class="text-[#b3b3b3] whitespace-pre-wrap">{albumInfo.notes}</p>
         </div>
       {/if}
     </div>
@@ -100,24 +101,4 @@
 {/if}
 
 <style>
-  .album-header {
-    height: 340px;
-    display: flex;
-    align-items: flex-end;
-    padding: 24px 32px;
-    background: linear-gradient(transparent, rgba(0,0,0,0.5));
-    gap: 24px;
-  }
-  .album-header img {
-    width: 232px;
-    height: 232px;
-    box-shadow: 0 4px 60px rgba(0,0,0,.5);
-    object-fit: cover;
-  }
-  h1 {
-    font-size: 72px;
-    margin: 8px 0;
-    font-weight: 900;
-    line-height: 1;
-  }
 </style>

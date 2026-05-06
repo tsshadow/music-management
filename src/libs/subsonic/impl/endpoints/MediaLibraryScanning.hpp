@@ -26,4 +26,5 @@ namespace lms::api::subsonic::Scan
 {
     Response handleGetScanStatus(RequestContext& context);
     Response handleStartScan(RequestContext& context);
+    Response handleUpdateScanSettings(RequestContext& context);
 } // namespace lms::api::subsonic::Scan

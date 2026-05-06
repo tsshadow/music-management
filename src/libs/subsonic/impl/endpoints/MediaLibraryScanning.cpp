@@ -20,7 +20,9 @@
 #include "MediaLibraryScanning.hpp"
 
 #include "core/Service.hpp"
+#include "core/String.hpp"
 #include "services/scanner/IScannerService.hpp"
+#include "services/recommendation/IRecommendationService.hpp"
 
 #include "database/Session.hpp"
 #include "database/objects/ScanSettings.hpp"
@@ -32,6 +34,29 @@ namespace lms::api::subsonic::Scan
 
     namespace
     {
+        std::string scanStepToString(ScanStep step)
+        {
+            switch (step)
+            {
+            case ScanStep::AssociateArtistImages: return "AssociateArtistImages";
+            case ScanStep::AssociateExternalLyrics: return "AssociateExternalLyrics";
+            case ScanStep::AssociatePlayListTracks: return "AssociatePlayListTracks";
+            case ScanStep::AssociateReleaseImages: return "AssociateReleaseImages";
+            case ScanStep::AssociateTrackImages: return "AssociateTrackImages";
+            case ScanStep::CheckForDuplicatedFiles: return "CheckForDuplicatedFiles";
+            case ScanStep::CheckForRemovedFiles: return "CheckForRemovedFiles";
+            case ScanStep::Compact: return "Compact";
+            case ScanStep::ComputeClusterStats: return "ComputeClusterStats";
+            case ScanStep::Optimize: return "Optimize";
+            case ScanStep::ReconciliateArtists: return "ReconciliateArtists";
+            case ScanStep::RemoveOrphanedDbEntries: return "RemoveOrphanedDbEntries";
+            case ScanStep::ReloadSimilarityEngine: return "ReloadSimilarityEngine";
+            case ScanStep::ScanFiles: return "ScanFiles";
+            case ScanStep::UpdateLibraryFields: return "UpdateLibraryFields";
+            }
+            return "Unknown";
+        }
+
         Response::Node createStatusResponseNode(RequestContext& context)
         {
             Response::Node statusResponse;
@@ -41,12 +66,23 @@ namespace lms::api::subsonic::Scan
             statusResponse.setAttribute("scanning", scanStatus.currentState == IScannerService::State::InProgress);
             if (scanStatus.currentState == IScannerService::State::InProgress)
             {
-                std::size_t count{};
+                if (scanStatus.currentScanStepStats)
+                {
+                    statusResponse.setAttribute("step", scanStepToString(scanStatus.currentScanStepStats->currentStep));
+                    statusResponse.setAttribute("stepIndex", scanStatus.currentScanStepStats->stepIndex);
+                    statusResponse.setAttribute("stepCount", scanStatus.currentScanStepStats->stepCount);
+                    statusResponse.setAttribute("count", scanStatus.currentScanStepStats->processedElems);
+                    statusResponse.setAttribute("totalCount", scanStatus.currentScanStepStats->totalElems);
+                }
+            }
 
-                if (scanStatus.currentScanStepStats && scanStatus.currentScanStepStats->currentStep == ScanStep::ScanFiles)
-                    count = scanStatus.currentScanStepStats->processedElems;
-
-                statusResponse.setAttribute("count", count);
+            if (scanStatus.lastCompleteScanStats)
+            {
+                Response::Node& lastScanNode{ statusResponse.createChild("lastScan") };
+                lastScanNode.setAttribute("startTime", scanStatus.lastCompleteScanStats->startTime.toString().toUTF8());
+                lastScanNode.setAttribute("stopTime", scanStatus.lastCompleteScanStats->stopTime.toString().toUTF8());
+                lastScanNode.setAttribute("count", scanStatus.lastCompleteScanStats->getTotalFileCount());
+                lastScanNode.setAttribute("errors", scanStatus.lastCompleteScanStats->errorsCount);
             }
 
             // Add some settings to the response if the user is an admin
@@ -57,7 +93,22 @@ namespace lms::api::subsonic::Scan
                 {
                     Response::Node& settingsNode{ statusResponse.createChild("scanSettings") };
                     settingsNode.setAttribute("updatePeriod", static_cast<int>(settings->getUpdatePeriod()));
+                    settingsNode.setAttribute("updateStartTime", settings->getUpdateStartTime().toString().toUTF8());
                     settingsNode.setAttribute("similarityEngineType", static_cast<int>(settings->getSimilarityEngineType()));
+                    settingsNode.setAttribute("skipSingleReleasePlayLists", settings->getSkipSingleReleasePlayLists());
+                    settingsNode.setAttribute("allowMBIDArtistMerge", settings->getAllowMBIDArtistMerge());
+                    settingsNode.setAttribute("artistImageFallbackToRelease", settings->getArtistImageFallbackToReleaseField());
+
+                    auto addArray = [&](const std::string& name, const auto& values) {
+                        Response::Node& node{ settingsNode.createChild(name) };
+                        for (const auto& value : values)
+                            node.createChild("value").setText(std::string{ value });
+                    };
+
+                    addArray("extraTagsToScan", settings->getExtraTagsToScan());
+                    addArray("artistTagDelimiters", settings->getArtistTagDelimiters());
+                    addArray("defaultTagDelimiters", settings->getDefaultTagDelimiters());
+                    addArray("artistsToNotSplit", settings->getArtistsToNotSplit());
                 }
             }
 
@@ -76,11 +127,89 @@ namespace lms::api::subsonic::Scan
     Response handleStartScan(RequestContext& context)
     {
         if (context.getUser()->isAdmin())
-            core::Service<IScannerService>::get()->requestImmediateScan();
+        {
+            scanner::ScanOptions scanOptions;
+            if (auto fullScan = context.getOptionalParameter("fullScan"))
+                scanOptions.fullScan = (*fullScan == "true");
+            if (auto forceOptimize = context.getOptionalParameter("forceOptimize"))
+                scanOptions.forceOptimize = (*forceOptimize == "true");
+            if (auto compact = context.getOptionalParameter("compact"))
+                scanOptions.compact = (*compact == "true");
+
+            core::Service<IScannerService>::get()->requestImmediateScan(scanOptions);
+        }
 
         Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
         response.addNode("scanStatus", createStatusResponseNode(context));
 
         return response;
+    }
+
+    Response handleUpdateScanSettings(RequestContext& context)
+    {
+        if (context.getUser()->isAdmin())
+        {
+            auto transaction{ context.getDbSession().createWriteTransaction() };
+            db::ScanSettings::pointer settings{ db::ScanSettings::find(context.getDbSession()) };
+
+            if (auto period = context.getOptionalParameter("updatePeriod"))
+                settings.modify()->setUpdatePeriod(static_cast<db::ScanSettings::UpdatePeriod>(std::stoi(*period)));
+
+            if (auto startTime = context.getOptionalParameter("updateStartTime"))
+                settings.modify()->setUpdateStartTime(Wt::WTime::fromISO8601(*startTime));
+
+            if (auto similarity = context.getOptionalParameter("similarityEngineType"))
+                settings.modify()->setSimilarityEngineType(static_cast<db::ScanSettings::SimilarityEngineType>(std::stoi(*similarity)));
+
+            if (auto skip = context.getOptionalParameter("skipSingleReleasePlayLists"))
+                settings.modify()->setSkipSingleReleasePlayLists(*skip == "true");
+
+            if (auto merge = context.getOptionalParameter("allowMBIDArtistMerge"))
+                settings.modify()->setAllowMBIDArtistMerge(*merge == "true");
+
+            if (auto fallback = context.getOptionalParameter("artistImageFallbackToRelease"))
+                settings.modify()->setArtistImageFallbackToReleaseField(*fallback == "true");
+
+            auto getArray = [&](const std::string& name) {
+                std::vector<std::string_view> result;
+                if (auto value = context.getOptionalParameter(name))
+                {
+                    std::vector<std::string_view> tokens{ core::stringUtils::splitString(*value, '|') };
+                    for (auto token : tokens)
+                        if (!token.empty())
+                            result.push_back(token);
+                }
+                return result;
+            };
+
+            if (context.getOptionalParameter("extraTagsToScan"))
+            {
+                auto tags = getArray("extraTagsToScan");
+                settings.modify()->setExtraTagsToScan(tags);
+            }
+
+            if (context.getOptionalParameter("artistTagDelimiters"))
+            {
+                auto delimiters = getArray("artistTagDelimiters");
+                settings.modify()->setArtistTagDelimiters(delimiters);
+            }
+
+            if (context.getOptionalParameter("defaultTagDelimiters"))
+            {
+                auto delimiters = getArray("defaultTagDelimiters");
+                settings.modify()->setDefaultTagDelimiters(delimiters);
+            }
+
+            if (context.getOptionalParameter("artistsToNotSplit"))
+            {
+                auto artists = getArray("artistsToNotSplit");
+                settings.modify()->setArtistsToNotSplit(artists);
+            }
+
+            core::Service<recommendation::IRecommendationService>::get()->load();
+            core::Service<scanner::IScannerService>::get()->requestReload();
+        }
+
+        return handleGetScanStatus(context);
     }
 } // namespace lms::api::subsonic::Scan

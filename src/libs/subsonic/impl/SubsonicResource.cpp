@@ -238,10 +238,10 @@ namespace lms::api::subsonic
             // User management
             { "/getUser", { handleGetUserRequest } },
             { "/getUsers", { handleGetUsersRequest, AuthenticationMode::Authenticated, { db::UserType::ADMIN } } },
-            { "/createUser", { handleNotImplemented } },
-            { "/updateUser", { handleNotImplemented } },
-            { "/deleteUser", { handleNotImplemented } },
-            { "/changePassword", { handleNotImplemented } },
+            { "/createUser", { handleCreateUserRequest, AuthenticationMode::Authenticated, { db::UserType::ADMIN } } },
+            { "/updateUser", { handleUpdateUserRequest } },
+            { "/deleteUser", { handleDeleteUserRequest, AuthenticationMode::Authenticated, { db::UserType::ADMIN } } },
+            { "/changePassword", { handleChangePassword } },
 
             // Bookmarks
             { "/getBookmarks", { handleGetBookmarks } },
@@ -255,6 +255,7 @@ namespace lms::api::subsonic
             // Media library scanning
             { "/getScanStatus", { Scan::handleGetScanStatus } },
             { "/startScan", { Scan::handleStartScan, AuthenticationMode::Authenticated, { db::UserType::ADMIN } } },
+            { "/updateScanSettings", { Scan::handleUpdateScanSettings, AuthenticationMode::Authenticated, { db::UserType::ADMIN } } },
         };
 
         using MediaRetrievalHandlerFunc = std::function<void(RequestContext&, const Wt::Http::Request&, Wt::Http::Response&)>;

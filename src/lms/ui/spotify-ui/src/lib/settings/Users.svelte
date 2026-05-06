@@ -1,11 +1,15 @@
 <script>
   import { onMount } from 'svelte';
   import { authParams } from '../store.js';
+  import UserEditor from './UserEditor.svelte';
 
-  let users = [];
-  let isLoading = true;
+  let users = $state([]);
+  let isLoading = $state(true);
+  let editingUser = $state(null);
+  let showCreateModal = $state(false);
 
   async function loadUsers() {
+    isLoading = true;
     try {
       const response = await fetch(`/rest/getUsers?${$authParams}`);
       const data = await response.json();
@@ -34,19 +38,33 @@
     }
     return colors[Math.abs(hash) % colors.length];
   }
+
+  function handleEdit(user) {
+    editingUser = user;
+  }
+
+  function handleCreate() {
+    showCreateModal = true;
+  }
+
+  function handleSave() {
+    editingUser = null;
+    showCreateModal = false;
+    loadUsers();
+  }
 </script>
 
 <section>
-  <h3 class="text-2xl font-bold mb-6">Users</h3>
+  <h3 class="text-2xl font-bold mb-6 text-white">Users</h3>
   
-  {#if isLoading}
+  {#if isLoading && users.length === 0}
     <div class="text-[#b3b3b3]">Laden...</div>
   {:else}
     <div class="grid gap-4">
       {#each users as user (user.username)}
-        <div class="bg-[#181818] p-4 rounded-lg flex justify-between items-center hover:bg-[#282828] transition-colors">
+        <div class="bg-[#181818] p-4 rounded-lg flex justify-between items-center hover:bg-[#282828] transition-colors group">
             <div class="flex items-center gap-4">
-                <div class="w-10 h-10 {getAvatarColor(user.username)} rounded-full flex items-center justify-center font-bold text-white">
+                <div class="w-10 h-10 {getAvatarColor(user.username)} rounded-full flex items-center justify-center font-bold text-white shadow-md">
                     {getInitials(user.username)}
                 </div>
                 <div>
@@ -57,13 +75,36 @@
                     </p>
                 </div>
             </div>
-            <button class="text-[#b3b3b3] hover:text-white cursor-pointer border-none bg-transparent font-medium">Manage</button>
+            <button 
+                onclick={() => handleEdit(user)}
+                class="text-[#b3b3b3] hover:text-white cursor-pointer border-none bg-transparent font-medium py-2 px-4 rounded-full hover:bg-[#333] transition-all"
+            >
+                Manage
+            </button>
         </div>
       {/each}
     </div>
 
-    <button class="mt-8 bg-white text-black px-8 py-3 rounded-full font-bold hover:scale-105 transition-transform cursor-pointer border-none">
+    <button 
+        onclick={handleCreate}
+        class="mt-8 bg-white text-black px-8 py-3 rounded-full font-bold hover:scale-105 transition-transform cursor-pointer border-none shadow-lg active:scale-95"
+    >
         Create New User
     </button>
+  {/if}
+
+  {#if editingUser}
+    <UserEditor 
+        user={editingUser} 
+        onclose={() => editingUser = null} 
+        onsave={handleSave} 
+    />
+  {/if}
+
+  {#if showCreateModal}
+    <UserEditor 
+        onclose={() => showCreateModal = false} 
+        onsave={handleSave} 
+    />
   {/if}
 </section>

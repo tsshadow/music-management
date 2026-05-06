@@ -19,8 +19,12 @@
 
 #include "UserManagement.hpp"
 
+#include "core/Service.hpp"
+#include "core/UUID.hpp"
 #include "database/Session.hpp"
 #include "database/objects/User.hpp"
+#include "services/auth/IAuthTokenService.hpp"
+#include "services/auth/IPasswordService.hpp"
 
 #include "ParameterParsing.hpp"
 #include "responses/User.hpp"
@@ -67,5 +71,99 @@ namespace lms::api::subsonic
         });
 
         return response;
+    }
+
+    Response handleCreateUserRequest(RequestContext& context)
+    {
+        std::string username{ getMandatoryParameterAs<std::string>(context.getParameters(), "username") };
+        std::string password{ getMandatoryParameterAs<std::string>(context.getParameters(), "password") };
+        bool isAdmin{ getOptionalParameterAs<bool>(context.getParameters(), "adminRole").value_or(false) };
+
+        {
+            auto transaction{ context.getDbSession().createWriteTransaction() };
+            if (User::find(context.getDbSession(), username))
+                throw InternalErrorGenericError{ "User already exists" };
+
+            User::pointer user{ context.getDbSession().create<User>(username) };
+            user.modify()->setType(isAdmin ? UserType::ADMIN : UserType::REGULAR);
+
+            if (auto* passwordService{ core::Service<auth::IPasswordService>::get() })
+                passwordService->setPassword(user->getId(), password);
+        }
+
+        return Response::createOkResponse(context.getServerProtocolVersion());
+    }
+
+    Response handleUpdateUserRequest(RequestContext& context)
+    {
+        std::string username{ getMandatoryParameterAs<std::string>(context.getParameters(), "username") };
+        checkUserIsMySelfOrAdmin(context, username);
+
+        auto password{ getOptionalParameterAs<std::string>(context.getParameters(), "password") };
+        auto isAdmin{ getOptionalParameterAs<bool>(context.getParameters(), "adminRole") };
+        auto scrobblingEnabled{ getOptionalParameterAs<bool>(context.getParameters(), "scrobblingEnabled") };
+
+        {
+            auto transaction{ context.getDbSession().createWriteTransaction() };
+            User::pointer user{ User::find(context.getDbSession(), username) };
+            if (!user)
+                throw RequestedDataNotFoundError{};
+
+            if (isAdmin && context.getUser()->isAdmin())
+                user.modify()->setType(*isAdmin ? UserType::ADMIN : UserType::REGULAR);
+
+            if (scrobblingEnabled)
+                user.modify()->setScrobblingBackend(*scrobblingEnabled ? ScrobblingBackend::Internal : ScrobblingBackend::None);
+
+            if (password)
+            {
+                if (auto* passwordService{ core::Service<auth::IPasswordService>::get() })
+                {
+                    passwordService->setPassword(user->getId(), *password);
+                    core::Service<auth::IAuthTokenService>::get()->clearAuthTokens("ui", user->getId());
+                }
+            }
+        }
+
+        return Response::createOkResponse(context.getServerProtocolVersion());
+    }
+
+    Response handleDeleteUserRequest(RequestContext& context)
+    {
+        std::string username{ getMandatoryParameterAs<std::string>(context.getParameters(), "username") };
+
+        {
+            auto transaction{ context.getDbSession().createWriteTransaction() };
+            User::pointer user{ User::find(context.getDbSession(), username) };
+            if (!user)
+                throw RequestedDataNotFoundError{};
+
+            if (user->getId() == context.getUser()->getId())
+                throw InternalErrorGenericError{ "Cannot delete yourself" };
+
+            user.remove();
+        }
+
+        return Response::createOkResponse(context.getServerProtocolVersion());
+    }
+
+    Response handleChangePassword(RequestContext& context)
+    {
+        std::string password{ getMandatoryParameterAs<std::string>(context.getParameters(), "password") };
+
+        {
+            auto transaction{ context.getDbSession().createWriteTransaction() };
+            User::pointer user{ User::find(context.getDbSession(), context.getUser()->getId()) };
+            if (!user)
+                throw RequestedDataNotFoundError{};
+
+            if (auto* passwordService{ core::Service<auth::IPasswordService>::get() })
+            {
+                passwordService->setPassword(user->getId(), password);
+                core::Service<auth::IAuthTokenService>::get()->clearAuthTokens("ui", user->getId());
+            }
+        }
+
+        return Response::createOkResponse(context.getServerProtocolVersion());
     }
 } // namespace lms::api::subsonic

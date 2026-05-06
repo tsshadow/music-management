@@ -4,7 +4,7 @@
   const dispatch = createEventDispatcher();
 
   export let activeView = 'home';
-  let genres = ['Euphoric Hardstyle', 'Hardstyle', 'Mainstream Hardstyle', 'Raw Hardstyle', "Hard Techno", 'Hardcore', 'Mainstream Hardcore', "Frenchcore", 'Industrial Hardcore', 'Uptempo Hardcore', 'Terror', 'Zaagtempo']
+  const genres = ['Euphoric Hardstyle', 'Hardstyle', 'Mainstream Hardstyle', 'Raw Hardstyle', "Hard Techno", 'Hardcore', 'Mainstream Hardcore', "Frenchcore", 'Industrial Hardcore', 'Uptempo Hardcore', 'Terror', 'Zaagtempo']
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: 'M12.5 3.5a.5.5 0 0 1 .5 0l9 5.25a.5.5 0 0 1 .25.433V20.5a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5v-5a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 0-.5.5v5a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5V9.183a.5.5 0 0 1 .25-.433z' },
@@ -31,7 +31,7 @@
   </div>
 
   <ul class="list-none p-0 m-0">
-    {#each menuItems as item}
+    {#each menuItems as item (item.id)}
       <li class="mb-1 {activeView === item.id ? 'text-white' : 'text-[#b3b3b3]'}">
         <button 
           class="flex items-center gap-4 w-full px-3 py-2 bg-transparent border-none font-bold text-sm cursor-pointer transition-colors hover:text-white text-left"
@@ -60,7 +60,7 @@
   <div class="genres overflow-y-auto scrollbar-hide">
     <h3 class="px-3 text-[12px] text-[#b3b3b3] tracking-[1.5px] mb-3">GENRES</h3>
     <ul class="list-none p-0 m-0">
-      {#each genres as genre}
+      {#each genres as genre (genre)}
         <li>
           <button class="w-full px-3 py-2 bg-transparent border-none text-[#b3b3b3] text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" on:click={() => navigate(`genre:${genre}`)}>{genre}</button>
         </li>

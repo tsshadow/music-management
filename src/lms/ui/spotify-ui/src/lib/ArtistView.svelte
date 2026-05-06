@@ -1,5 +1,4 @@
 <script>
-  import { onMount } from 'svelte';
   import { authParams } from './store.js';
   import TrackList from './TrackList.svelte';
 
@@ -114,8 +113,14 @@
             <section>
                 <h2 class="text-2xl font-bold mb-4">Discografie</h2>
                 <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-6">
-                    {#each albums as album}
-                        <div class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]" on:click={() => openAlbum(album.id)}>
+                    {#each albums as album (album.id)}
+                        <div 
+                          role="button"
+                          tabindex="0"
+                          class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]" 
+                          on:click={() => openAlbum(album.id)}
+                          on:keydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
+                        >
                             <img 
                               src={album.coverArt ? `/rest/getCoverArt?id=${album.id}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
                               alt={album.name} 
@@ -134,8 +139,14 @@
             <section>
                 <h2 class="text-2xl font-bold mb-4">Komt voor op</h2>
                 <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-6">
-                    {#each appearsOn as album}
-                        <div class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]" on:click={() => openAlbum(album.id)}>
+                    {#each appearsOn as album (album.id)}
+                        <div 
+                          role="button"
+                          tabindex="0"
+                          class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]" 
+                          on:click={() => openAlbum(album.id)}
+                          on:keydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
+                        >
                             <img 
                               src={album.coverArt ? `/rest/getCoverArt?id=${album.id}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
                               alt={album.name} 
@@ -154,8 +165,14 @@
             <section>
                 <h2 class="text-2xl font-bold mb-4">Fans vinden dit ook leuk</h2>
                 <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-6">
-                    {#each similarArtists as similar}
-                        <div class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]" on:click={() => openArtist(similar.id)}>
+                    {#each similarArtists as similar (similar.id)}
+                        <div 
+                          role="button"
+                          tabindex="0"
+                          class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]" 
+                          on:click={() => openArtist(similar.id)}
+                          on:keydown={(e) => e.key === 'Enter' && openArtist(similar.id)}
+                        >
                             <div class="mb-4">
                                 <img 
                                   src={similar.coverArt ? `/rest/getCoverArt?id=${similar.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 

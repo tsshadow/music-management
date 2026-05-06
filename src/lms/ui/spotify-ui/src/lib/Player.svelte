@@ -225,12 +225,12 @@
 
   <div class="w-[40%] max-w-[600px] flex flex-col items-center gap-2">
     <div class="flex items-center gap-6">
-      <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white {shuffleMode ? 'text-spotify-green' : 'text-[#b3b3b3]'}" on:click={toggleShuffleMode}>
+      <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white {shuffleMode ? 'text-spotify-green' : 'text-[#b3b3b3]'}" on:click={toggleShuffleMode} aria-label="Shuffle">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path d="M4.5 6.307a.75.75 0 1 1 0-1.5 5.862 5.862 0 0 1 4.671 2.382l.66.883 5.03 6.717a4.362 4.362 0 0 0 3.471 1.769h1.918a.75.75 0 1 1 0 1.5h-1.918a5.862 5.862 0 0 1-4.671-2.381l-.66-.883-5.03-6.717a4.362 4.362 0 0 0-3.471-1.77H4.5zM14.862 8.567l.66-.883A5.862 5.862 0 0 1 20.193 5.3h1.057a.75.75 0 1 1 0 1.5h-1.057a4.362 4.362 0 0 0-3.471 1.768l-.66.883-.16-.214-.132-.176-.908-1.213-.01.014zM4.5 19.193a.75.75 0 1 0 0-1.5h1.057a4.362 4.362 0 0 0 3.471-1.768l.66-.883.908 1.213.14.186.124.166.01-.013.66.883A5.862 5.862 0 0 1 16.208 20.193H4.5z"></path>
         </svg>
       </button>
-      <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" on:click={playPrev}>
+      <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" on:click={playPrev} aria-label="Vorige">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path d="M11.838 12.767a1 1 0 0 0 0-1.534L4.513 5.32a.6.6 0 0 0-.913.434v12.492a.6.6 0 0 0 .913.434l7.325-5.913zM20.5 5.754a.6.6 0 0 0-.913-.434l-7.325 5.913a1 1 0 0 0 0 1.534l7.325 5.913a.6.6 0 0 0 .913-.434V5.754z"></path>
         </svg>
@@ -246,12 +246,12 @@
             </svg>
         {/if}
       </button>
-      <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" on:click={playNext}>
+      <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" on:click={playNext} aria-label="Volgende">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path d="M11.162 12.767a1 1 0 0 1 0-1.534l7.325-5.913a.6.6 0 0 1 .913.434v12.492a.6.6 0 0 1-.913.434l-7.325-5.913zM2.5 5.754a.6.6 0 0 1 .913-.434l7.325 5.913a1 1 0 0 1 0 1.534l-7.325 5.913a.6.6 0 0 1-.913-.434V5.754z"></path>
         </svg>
       </button>
-      <button class="relative bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white {repeatMode !== 'none' ? 'text-spotify-green' : 'text-[#b3b3b3]'}" on:click={toggleRepeat}>
+      <button class="relative bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white {repeatMode !== 'none' ? 'text-spotify-green' : 'text-[#b3b3b3]'}" on:click={toggleRepeat} aria-label="Herhalen">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path d="M4.5 12.2a.75.75 0 0 1 .75-.75h14a.75.75 0 0 1 .75.75v1.25a3.25 3.25 0 0 1-3.25 3.25H7.75a.75.75 0 0 1 0-1.5h8.25a1.75 1.75 0 0 0 1.75-1.75v-.5H5.25a.75.75 0 0 1-.75-.75v-1.25zM19.5 11.8a.75.75 0 0 1-.75.75h-14a.75.75 0 0 1-.75-.75v-1.25a3.25 3.25 0 0 1 3.25-3.25h8.5a.75.75 0 0 1 0 1.5h-8.5a1.75 1.75 0 0 0-1.75 1.75v.5h13.25a.75.75 0 0 1 .75.75v1.25z"></path>
         </svg>
@@ -262,7 +262,14 @@
     </div>
     <div class="w-full flex items-center gap-2 text-[11px] text-[#b3b3b3]">
       <span>{formatTime(progress)}</span>
-      <div class="flex-1 h-1 bg-[#4d4d4d] rounded-sm cursor-pointer" on:click={seek}>
+      <div 
+        role="button"
+        tabindex="0"
+        class="flex-1 h-1 bg-[#4d4d4d] rounded-sm cursor-pointer" 
+        on:click={seek}
+        on:keydown={(e) => e.key === 'Enter' && seek(e)}
+        aria-label="Seek track"
+      >
           <div class="h-full bg-white rounded-sm" style="width: {(progress/duration)*100}%"></div>
       </div>
       <span>{formatTime(duration)}</span>
@@ -270,7 +277,7 @@
   </div>
 
   <div class="w-[30%] flex justify-end items-center gap-3">
-    <button class="mr-2 bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" on:click={() => dispatch('toggleQueue')}>
+    <button class="mr-2 bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" on:click={() => dispatch('toggleQueue')} aria-label="Wachtrij">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path d="M15 15H3v-1.5h12V15zm0-4.5H3V9h12v1.5zm0-4.5H3V4.5h12V6zm7 12l-4.5-4.5L13 18h9z"></path>
         </svg>
@@ -286,7 +293,14 @@
             </svg>
         {/if}
     </button>
-    <div class="w-[100px] h-1 bg-[#4d4d4d] rounded-sm cursor-pointer" on:click={changeVolume}>
+    <div 
+        role="button"
+        tabindex="0"
+        class="w-[100px] h-1 bg-[#4d4d4d] rounded-sm cursor-pointer" 
+        on:click={changeVolume}
+        on:keydown={(e) => e.key === 'Enter' && changeVolume(e)}
+        aria-label="Volume"
+      >
         <div class="h-full bg-white rounded-sm" style="width: {volume}%"></div>
     </div>
   </div>

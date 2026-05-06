@@ -2,7 +2,7 @@
   import { currentPlaylist, currentTrack, isPlaying, authParams, activeView } from './store.js';
 
   let tracks = [];
-  let apiBase = '/rest';
+  const apiBase = '/rest';
 
   async function fetchTracks(id) {
     if (!id || !$authParams) return;
@@ -72,9 +72,12 @@
            </tr>
          </thead>
          <tbody class="before:block before:h-4">
-           {#each tracks as track, i}
+           {#each tracks as track, i (track.id)}
              <tr 
+               role="button"
+               tabindex="0"
                on:dblclick={() => playTrack(track)}
+               on:keydown={(e) => e.key === 'Enter' && playTrack(track)}
                class="hover:bg-[#282828]/50 group transition cursor-pointer rounded-md h-14"
              >
                <td class="w-10 pl-4">
@@ -93,13 +96,25 @@
                   </div>
                   <div class="flex flex-col">
                      <div class="text-white font-medium truncate max-w-xs">{track.title}</div>
-                     <div class="hover:underline text-xs text-[#b3b3b3]" on:click|stopPropagation={() => activeView.set(`artist:${track.artistId}`)}>{track.artist}</div>
+                     <div 
+                        role="link"
+                        tabindex="0"
+                        class="hover:underline text-xs text-[#b3b3b3]" 
+                        on:click|stopPropagation={() => activeView.set(`artist:${track.artistId}`)}
+                        on:keydown|stopPropagation={(e) => e.key === 'Enter' && activeView.set(`artist:${track.artistId}`)}
+                      >{track.artist}</div>
                    </div>
                  </div>
                </td>
                <td class="truncate max-w-xs">
-                 <span class="hover:underline hover:text-white" on:click|stopPropagation={() => activeView.set(`album:${track.albumId}`)}>{track.album}</span>
-               </td>
+                <span 
+                  role="link"
+                  tabindex="0"
+                  class="hover:underline hover:text-white" 
+                  on:click|stopPropagation={() => activeView.set(`album:${track.albumId}`)}
+                  on:keydown|stopPropagation={(e) => e.key === 'Enter' && activeView.set(`album:${track.albumId}`)}
+                >{track.album}</span>
+              </td>
                <td class="text-right pr-4 font-mono">
                  {Math.floor(track.duration / 60)}:{(track.duration % 60).toString().padStart(2, '0')}
                </td>

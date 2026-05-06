@@ -1,10 +1,11 @@
 <script>
-  import { onMount, createEventDispatcher } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
   import { authParams } from './store.js';
   const dispatch = createEventDispatcher();
 
   export let view = 'songs';
   export let genre = '';
+  export let showGenre = true;
   export let sort = 'recent';
   export let year = '';
   export let search = '';
@@ -66,8 +67,7 @@
   }
 
   $: if ($authParams) {
-    loadGenres();
-    loadYears();
+    void Promise.all([loadGenres(), loadYears()]);
   }
 
   function handleChange() {
@@ -92,12 +92,12 @@
     />
   </div>
 
-  {#if view === 'songs' || view === 'albums'}
+  {#if (view === 'songs' || view === 'albums') && showGenre}
     <div class="flex items-center gap-2">
       <label for="genre" class="text-[12px] font-bold text-[#b3b3b3] uppercase">Genre:</label>
       <select id="genre" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-spotify-green" bind:value={genre} on:change={handleChange}>
         <option value="">Alle Genres</option>
-        {#each genres as g}
+        {#each genres as g (g.value)}
           <option value={g.value}>{g.value} ({g.songCount})</option>
         {/each}
       </select>
@@ -109,7 +109,7 @@
       <label for="year" class="text-[12px] font-bold text-[#b3b3b3] uppercase">Jaar:</label>
       <select id="year" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-spotify-green" bind:value={year} on:change={handleChange}>
         <option value="">Alle Jaren</option>
-        {#each years as y}
+        {#each years as y (y.value)}
           <option value={y.value}>{y.value}</option>
         {/each}
       </select>
@@ -120,7 +120,7 @@
     <div class="flex items-center gap-2">
       <label for="role" class="text-[12px] font-bold text-[#b3b3b3] uppercase">Rol:</label>
       <select id="role" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-spotify-green" bind:value={role} on:change={handleChange}>
-        {#each roles as r}
+        {#each roles as r (r.value)}
           <option value={r.value}>{r.label}</option>
         {/each}
       </select>

@@ -24,8 +24,14 @@
 </script>
 
 <span class="text-[#b3b3b3] text-sm">
-  {#each displayArtists as a, i}
-    <span class="text-inherit hover:text-white {a.id ? 'hover:underline cursor-pointer' : ''}" on:click|stopPropagation={() => { if (a.id) dispatch('navigate', `artist:${a.id}`); }}>{a.name}</span>{#if i < displayArtists.length - 1}, {/if}
+  {#each displayArtists as a, i (a.id || i)}
+    <span 
+      role="link"
+      tabindex={a.id ? 0 : -1}
+      class="text-inherit hover:text-white {a.id ? 'hover:underline cursor-pointer' : ''}" 
+      on:click|stopPropagation={() => { if (a.id) dispatch('navigate', `artist:${a.id}`); }}
+      on:keydown|stopPropagation={(e) => { if (a.id && (e.key === 'Enter' || e.key === ' ')) dispatch('navigate', `artist:${a.id}`); }}
+    >{a.name}</span>{#if i < displayArtists.length - 1}, {/if}
   {/each}
 </span>
 

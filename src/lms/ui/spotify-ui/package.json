@@ -7,19 +7,29 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "oxlint .",
+    "lint": "oxlint . && eslint .",
+    "check": "svelte-check",
     "format": "oxfmt --write .",
-    "format:check": "oxfmt --check ."
+    "format:check": "oxfmt --check .",
+    "lint:fix": "oxlint --fix . && eslint --fix ."
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "@tailwindcss/postcss": "^4.2.4",
     "autoprefixer": "^10.5.0",
+    "eslint": "^10.3.0",
+    "eslint-plugin-svelte": "^3.17.1",
+    "globals": "^17.6.0",
     "oxfmt": "^0.48.0",
     "oxlint": "^1.63.0",
     "postcss": "^8.5.13",
     "svelte": "^5.55.4",
+    "svelte-check": "^4.4.8",
+    "svelte-eslint-parser": "^1.6.1",
     "tailwindcss": "^4.2.4",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.2",
     "vite": "^8.0.10"
   }
 }

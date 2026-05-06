@@ -2,12 +2,20 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["typescript", "unicorn", "oxc"],
   "categories": {
-    "correctness": "error"
+    "correctness": "error",
+    "suspicious": "warn",
+    "pedantic": "warn",
+    "perf": "warn"
   },
   "rules": {
-    "no-unassigned-vars": "off"
+    "no-unassigned-vars": "off",
+    "unicorn/filename-case": "off",
+    "typescript/no-explicit-any": "warn",
+    "eslint/no-inline-comments": "off",
+    "unicorn/prefer-top-level-await": "off"
   },
   "env": {
-    "builtin": true
+    "builtin": true,
+    "browser": true
   }
 }

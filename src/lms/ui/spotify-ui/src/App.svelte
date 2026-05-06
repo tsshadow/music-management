@@ -5,7 +5,7 @@
   import Dashboard from './lib/Dashboard.svelte';
   import AuthOverlay from './lib/AuthOverlay.svelte';
   import TrackList from './lib/TrackList.svelte';
-  import { currentTrack, playerState, playlist, activeView, currentPlaylist } from './lib/store.js';
+  import { playlist, activeView, currentPlaylist } from './lib/store.js';
 
   let greeting = "";
   const hours = new Date().getHours();
@@ -62,11 +62,11 @@
     if (path === base + '/albums') return 'albums';
     if (path === base + '/artists') return 'artists';
     if (path === base + '/playlists') return 'playlists';
-    if (path.startsWith(base + '/genre/')) return 'genre:' + decodeURIComponent(path.substring((base + '/genre/').length));
-    if (path.startsWith(base + '/artist/')) return 'artist:' + path.substring((base + '/artist/').length);
-    if (path.startsWith(base + '/album/')) return 'album:' + path.substring((base + '/album/').length);
+    if (path.startsWith(base + '/genre/')) return 'genre:' + decodeURIComponent(path.slice((base + '/genre/').length));
+    if (path.startsWith(base + '/artist/')) return 'artist:' + path.slice((base + '/artist/').length);
+    if (path.startsWith(base + '/album/')) return 'album:' + path.slice((base + '/album/').length);
     if (path.startsWith(base + '/playlist/')) {
-        const id = path.substring((base + '/playlist/').length);
+        const id = path.slice((base + '/playlist/').length);
         return { view: 'playlist-detail', id };
     }
     return 'home';
@@ -82,7 +82,7 @@
         activeView.set(initialView);
     }
 
-    window.onpopstate = () => {
+    window.addEventListener('popstate', () => {
         const view = pathToView(window.location.pathname);
         if (typeof view === 'object') {
             currentPlaylist.set({ id: view.id });
@@ -90,7 +90,7 @@
         } else {
             activeView.set(view);
         }
-    };
+    });
   });
 
   $: {
@@ -142,13 +142,11 @@
   {#if showQueue}
     <div class="relative row-start-1 row-end-2 col-start-3 col-end-4 flex">
       <!-- Resize Handle -->
-      <div 
-        role="separator"
-        tabindex="0"
-        aria-orientation="vertical"
-        class="w-1 cursor-col-resize hover:bg-spotify-green transition-colors z-10"
+      <button 
+        aria-label="Wachtrij resizen"
+        class="w-1 bg-transparent border-none cursor-col-resize hover:bg-spotify-green transition-colors z-10 p-0"
         on:mousedown={startResizing}
-      ></div>
+      ></button>
       
       <div 
         class="bg-[#121212] border-l border-[#282828] overflow-y-auto p-5"

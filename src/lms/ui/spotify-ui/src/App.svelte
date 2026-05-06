@@ -132,7 +132,7 @@
     {#if $activeView === 'settings'}
       <SettingsSidebar />
     {:else}
-      <Sidebar activeView={$activeView} on:navigate={(e) => handleNavigate(e.detail)} />
+      <Sidebar activeView={$activeView} onnavigate={handleNavigate} />
     {/if}
   </div>
   

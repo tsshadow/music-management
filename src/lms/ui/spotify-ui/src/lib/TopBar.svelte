@@ -2,7 +2,7 @@
   import ProfileButton from './ProfileButton.svelte';
   import { activeView } from './store.js';
 
-  export let greeting = "";
+  const { greeting = "" } = $props();
 
   function handleNavigate(view) {
     activeView.set(view);

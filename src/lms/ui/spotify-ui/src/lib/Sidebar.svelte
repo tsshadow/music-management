@@ -1,9 +1,5 @@
 <script>
-  import { createEventDispatcher } from 'svelte';
-  import { credentials } from './store.js';
-  const dispatch = createEventDispatcher();
-
-  export let activeView = 'home';
+  const { activeView = 'home', onnavigate } = $props();
   const genres = ['Euphoric Hardstyle', 'Hardstyle', 'Mainstream Hardstyle', 'Raw Hardstyle', "Hard Techno", 'Hardcore', 'Mainstream Hardcore', "Frenchcore", 'Industrial Hardcore', 'Uptempo Hardcore', 'Terror', 'Zaagtempo']
 
   const menuItems = [
@@ -14,11 +10,7 @@
   ];
 
   function navigate(id) {
-    dispatch('navigate', id);
-  }
-
-  function logout() {
-    credentials.set({ url: window.location.origin, username: '', password: '' });
+    if (onnavigate) onnavigate(id);
   }
 </script>
 
@@ -35,7 +27,7 @@
       <li class="mb-1 {activeView === item.id ? 'text-white' : 'text-[#b3b3b3]'}">
         <button 
           class="flex items-center gap-4 w-full px-3 py-2 bg-transparent border-none font-bold text-sm cursor-pointer transition-colors hover:text-white text-left"
-          on:click={() => navigate(item.id)}
+          onclick={() => navigate(item.id)}
         >
           <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
             <path d={item.icon}></path>
@@ -51,9 +43,9 @@
   <div class="library">
     <h3 class="px-3 text-[12px] text-[#b3b3b3] tracking-[1.5px] mb-3">JOUW BIBLIOTHEEK</h3>
     <ul class="list-none p-0 m-0">
-      <li><button class="w-full px-3 py-2 bg-transparent border-none text-[#b3b3b3] text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" on:click={() => navigate('playlists')}>Afspeellijsten</button></li>
-      <li><button class="w-full px-3 py-2 bg-transparent border-none text-[#b3b3b3] text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" on:click={() => navigate('artists')}>Artiesten</button></li>
-      <li><button class="w-full px-3 py-2 bg-transparent border-none text-[#b3b3b3] text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" on:click={() => navigate('albums')}>Albums</button></li>
+      <li><button class="w-full px-3 py-2 bg-transparent border-none text-[#b3b3b3] text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate('playlists')}>Afspeellijsten</button></li>
+      <li><button class="w-full px-3 py-2 bg-transparent border-none text-[#b3b3b3] text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate('artists')}>Artiesten</button></li>
+      <li><button class="w-full px-3 py-2 bg-transparent border-none text-[#b3b3b3] text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate('albums')}>Albums</button></li>
     </ul>
   </div>
 
@@ -62,27 +54,10 @@
     <ul class="list-none p-0 m-0">
       {#each genres as genre (genre)}
         <li>
-          <button class="w-full px-3 py-2 bg-transparent border-none text-[#b3b3b3] text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" on:click={() => navigate(`genre:${genre}`)}>{genre}</button>
+          <button class="w-full px-3 py-2 bg-transparent border-none text-[#b3b3b3] text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate(`genre:${genre}`)}>{genre}</button>
         </li>
       {/each}
     </ul>
-  </div>
-
-  <div class="h-px bg-[#282828] mx-3"></div>
-
-  <div class="px-3 mt-auto flex flex-col gap-1">
-    <button class="flex items-center gap-3 text-[#b3b3b3] no-underline text-sm font-semibold py-2.5 transition-colors hover:text-white bg-transparent border-none cursor-pointer w-full text-left" on:click={logout}>
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-        <path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
-      </svg>
-      Uitloggen
-    </button>
-    <a href="/legacy" class="flex items-center gap-3 text-[#b3b3b3] no-underline text-sm font-semibold py-2.5 transition-colors hover:text-white bg-transparent border-none cursor-pointer w-full text-left">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-        <path d="M13 3L16.29 6.29L13.6 8.99L15.01 10.4L17.71 7.71L21 11V3H13M3 21H11V13H3V21M5 15H9V19H5V15M3 11H11V3H3V11M5 5H9V9H5V5M13 21H21V13H13V21M15 15H19V19H15V15Z"/>
-      </svg>
-      Oude UI (Legacy)
-    </a>
   </div>
 </nav>
 

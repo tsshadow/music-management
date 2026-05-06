@@ -1,17 +1,22 @@
 {
   "name": "spotify-ui",
-  "private": true,
   "version": "0.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "oxlint .",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check ."
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "@tailwindcss/postcss": "^4.2.4",
     "autoprefixer": "^10.5.0",
+    "oxfmt": "^0.48.0",
+    "oxlint": "^1.63.0",
     "postcss": "^8.5.13",
     "svelte": "^5.55.4",
     "tailwindcss": "^4.2.4",

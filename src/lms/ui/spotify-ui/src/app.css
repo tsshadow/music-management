@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 @theme {
-  --color-spotify-green: #1DB954;
+  --color-spotify-green: #1db954;
   --color-spotify-black: #191414;
   --color-spotify-dark: #121212;
   --color-spotify-light: #282828;
-  --color-spotify-text: #B3B3B3;
+  --color-spotify-text: #b3b3b3;
 }
 
 :root {
@@ -25,6 +25,6 @@ body {
 
 /* Hide scrollbar for IE, Edge and Firefox */
 .scrollbar-hide {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }

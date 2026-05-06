@@ -52,6 +52,9 @@ export const isPlaying = writable(false);
 export const activeView = writable("home");
 persist("lms_active_view", activeView);
 
+export const activeSettingsTab = writable("libraries");
+persist("lms_active_settings_tab", activeSettingsTab);
+
 export const authParams = derived(credentials, ($c) => {
   if (!$c.username || !$c.password) return "";
   return `u=${encodeURIComponent($c.username)}&p=${encodeURIComponent($c.password)}&v=1.12.0&c=spotify-ui&f=json`;

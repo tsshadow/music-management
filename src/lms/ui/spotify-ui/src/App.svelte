@@ -6,6 +6,7 @@
   import AuthOverlay from './lib/AuthOverlay.svelte';
   import TopBar from './lib/TopBar.svelte';
   import TrackList from './lib/TrackList.svelte';
+  import SettingsSidebar from './lib/SettingsSidebar.svelte';
   import { playlist, activeView, currentPlaylist } from './lib/store.js';
 
   let greeting = "";
@@ -128,7 +129,11 @@
   <AuthOverlay />
   
   <div class="bg-black row-start-1 row-end-2 col-start-1 col-end-2 overflow-y-auto">
-    <Sidebar activeView={$activeView} on:navigate={(e) => handleNavigate(e.detail)} />
+    {#if $activeView === 'settings'}
+      <SettingsSidebar />
+    {:else}
+      <Sidebar activeView={$activeView} on:navigate={(e) => handleNavigate(e.detail)} />
+    {/if}
   </div>
   
   <div class="bg-linear-to-b from-[#121212] to-[#121212] row-start-1 row-end-2 col-start-2 col-end-3 overflow-y-auto p-5 md:p-8 relative">

@@ -82,10 +82,6 @@
           </div>
       </div>
 
-      <div class="p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg text-sm text-blue-200">
-        <p><strong>Note:</strong> Changes are currently read-only in this interface. Use the legacy Wt UI for advanced configuration.</p>
-      </div>
-
       <div class="flex justify-end gap-4 mt-4">
         <button class="px-6 py-2 rounded-full font-bold text-white hover:scale-105 transition-transform cursor-pointer border-none bg-transparent">Discard</button>
         <button class="bg-spotify-green text-black px-8 py-2 rounded-full font-bold hover:scale-105 transition-transform cursor-pointer border-none opacity-50 cursor-not-allowed">Save Changes</button>

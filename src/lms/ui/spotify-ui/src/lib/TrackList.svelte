@@ -47,6 +47,7 @@
       <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em]">Titel</th>
       {#if !isQueue}
         <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em]">Album</th>
+        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em]">Genre</th>
         <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-20">Datum</th>
       {/if}
       <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[100px] text-right">
@@ -111,6 +112,7 @@
               onkeydown={(e) => e.key === 'Enter' && onnavigate && onnavigate(`album:${track.albumId}`)}
             >{track.album || ''}</span>
           </td>
+          <td class="p-2 px-4 text-xs italic opacity-80 max-w-[150px] truncate" title={track.genre || ''}>{track.genre || ''}</td>
           <td class="p-2 px-4">{track.year || ''}</td>
         {/if}
         <td class="p-2 px-4 text-right">{formatTime(track.duration * 1000)}</td>

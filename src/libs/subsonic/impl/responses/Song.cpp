@@ -163,7 +163,7 @@ namespace lms::api::subsonic
         if (const Wt::WDateTime dateTime{ core::Service<feedback::IFeedbackService>::get()->getStarredDateTime(context.getUser()->getId(), track->getId()) }; dateTime.isValid())
             trackResponse.setAttribute("starred", core::stringUtils::toISO8601String(dateTime));
 
-        // Report the first GENRE for this track
+        // Report genres for this track
         std::vector<db::Cluster::pointer> genres;
         {
             db::Cluster::FindParameters params;
@@ -172,7 +172,12 @@ namespace lms::api::subsonic
 
             genres = db::Cluster::find(context.getDbSession(), params).results;
             if (!genres.empty())
-                trackResponse.setAttribute("genre", genres.front()->getName());
+            {
+                std::vector<std::string_view> names;
+                for (const auto& genre : genres)
+                    names.push_back(genre->getName());
+                trackResponse.setAttribute("genre", core::stringUtils::joinStrings(names, ", "));
+            }
         }
 
         // OpenSubsonic specific fields (must always be set)

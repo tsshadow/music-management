@@ -1,4 +1,5 @@
 <script>
+  import { untrack } from 'svelte';
   import { authParams } from './store.js';
   import TrackList from './TrackList.svelte';
   import ArtistList from './ArtistList.svelte';
@@ -42,8 +43,10 @@
   }
 
   $effect(() => {
-    if (albumId && $authParams) {
-      loadAlbum();
+    const id = albumId;
+    const auth = $authParams;
+    if (id && auth) {
+      untrack(() => loadAlbum());
     }
   });
 

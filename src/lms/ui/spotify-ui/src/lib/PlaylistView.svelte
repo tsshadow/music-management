@@ -1,4 +1,5 @@
 <script>
+  import { untrack } from 'svelte';
   import { currentPlaylist, authParams } from './store.js';
   import TrackList from './TrackList.svelte';
 
@@ -24,8 +25,10 @@
   }
 
   $effect(() => {
-    if ($currentPlaylist?.id && $authParams) {
-      fetchTracks($currentPlaylist.id);
+    const id = $currentPlaylist?.id;
+    const auth = $authParams;
+    if (id && auth) {
+      untrack(() => fetchTracks(id));
     }
   });
 </script>

@@ -1,4 +1,5 @@
 <script>
+  import { untrack } from 'svelte';
   import TrackCard from './TrackCard.svelte';
   import TrackList from './TrackList.svelte';
   import FilterBar from './FilterBar.svelte';
@@ -213,20 +214,25 @@
   }
 
   $effect(() => {
-    if ($authParams) {
-      if (activeView === 'home') {
-          loadCurated();
-      } else if (activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:')) {
-          loadAllTracks();
-      } else if (activeView === 'radar') {
-          openRadar();
-      } else if (activeView === 'albums') {
-          loadAlbums();
-      } else if (activeView === 'artists') {
-          loadArtists();
-      } else if (activeView === 'playlists') {
-          loadPlaylists();
-      }
+    const view = activeView;
+    const auth = $authParams;
+
+    if (auth) {
+      untrack(() => {
+        if (view === 'home') {
+            loadCurated();
+        } else if (view === 'songs' || view === 'sets' || view.startsWith('genre:')) {
+            loadAllTracks();
+        } else if (view === 'radar') {
+            openRadar();
+        } else if (view === 'albums') {
+            loadAlbums();
+        } else if (view === 'artists') {
+            loadArtists();
+        } else if (view === 'playlists') {
+            loadPlaylists();
+        }
+      });
     }
   });
 </script>

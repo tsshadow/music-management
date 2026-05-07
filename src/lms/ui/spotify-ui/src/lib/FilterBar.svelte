@@ -132,7 +132,6 @@
     <select id="sort" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-spotify-green" bind:value={sort} on:change={handleChange}>
       {#if view === 'songs'}
         <option value="recent">Recent uitgebracht</option>
-        <option value="releasedate">Release datum</option>
         <option value="added">Recent toegevoegd</option>
         <option value="alpha">Alfabetisch</option>
         <option value="random">Willekeurig</option>

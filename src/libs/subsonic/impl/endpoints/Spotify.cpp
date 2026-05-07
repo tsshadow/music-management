@@ -24,6 +24,7 @@
 #include "database/objects/Track.hpp"
 #include "../RequestContext.hpp"
 #include "../ParameterParsing.hpp"
+#include "../SubsonicId.hpp"
 #include "responses/Song.hpp"
 #include "responses/Playlist.hpp"
 #include "core/String.hpp"
@@ -159,9 +160,9 @@ namespace lms::api::subsonic
             params.setArtistName(*artist, { db::TrackArtistLinkType::Artist });
         }
 
-        if (auto artistId = getParameterAs<std::string>(ctx.getParameters(), "artistId"))
+        if (auto artistId = getParameterAs<db::ArtistId>(ctx.getParameters(), "artistId"))
         {
-            params.setArtist(db::ArtistId{ std::stoll(*artistId) }, { db::TrackArtistLinkType::Artist });
+            params.setArtist(*artistId, { db::TrackArtistLinkType::Artist });
         }
 
         if (auto genre = getParameterAs<std::string>(ctx.getParameters(), "genre"))

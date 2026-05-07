@@ -1,14 +1,13 @@
 <script>
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { onMount } from 'svelte';
   import { currentTrack, playerState, audio, authParams, credentials, playlist } from './store.js';
   import ArtistList from './ArtistList.svelte';
 
-  const dispatch = createEventDispatcher();
+  const { onnavigate, ontoggleQueue } = $props();
 
   let audioElement;
-
-  let muted = false;
-  let lastVolume = 50;
+  let muted = $state(false);
+  let lastVolume = $state(50);
 
   function togglePlay() {
     if (!audioElement) return;
@@ -163,34 +162,38 @@
       playerState.update(s => ({ ...s, shuffle: !s.shuffle }));
   }
 
-  $: track = $currentTrack;
-  $: playing = $playerState.playing;
-  $: progress = track ? $playerState.progress : 0;
-  $: duration = track ? $playerState.duration : 0;
-  $: volume = $playerState.volume;
-  $: repeatMode = $playerState.repeat;
-  $: shuffleMode = $playerState.shuffle;
-  $: coverUrl = track?.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}` : '/images/spotify-fallback.svg';
-  $: streamUrl = track?.id ? `/rest/stream?id=${track.id}&${$authParams}` : '';
+  const track = $derived($currentTrack);
+  const playing = $derived($playerState.playing);
+  const progress = $derived(track ? $playerState.progress : 0);
+  const duration = $derived(track ? $playerState.duration : 0);
+  const volume = $derived($playerState.volume);
+  const repeatMode = $derived($playerState.repeat);
+  const shuffleMode = $derived($playerState.shuffle);
+  const coverUrl = $derived(track?.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}` : '/images/spotify-fallback.svg');
+  const streamUrl = $derived(track?.id ? `/rest/stream?id=${track.id}&${$authParams}` : '');
 
-  $: if (typeof navigator !== 'undefined' && 'mediaSession' in navigator && track) {
-    const artUrl = track.coverArt
-      ? `${$credentials.url}/rest/getCoverArt?id=${track.coverArt}&size=512&${$authParams}`
-      : window.location.origin + '/images/spotify-fallback.svg';
+  $effect(() => {
+    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator && track) {
+      const artUrl = track.coverArt
+        ? `${$credentials.url}/rest/getCoverArt?id=${track.coverArt}&size=512&${$authParams}`
+        : window.location.origin + '/images/spotify-fallback.svg';
 
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: track.title || 'Onbekend nummer',
-      artist: track.artist || 'Onbekende artiest',
-      album: track.album || 'Onbekend album',
-      artwork: [
-        { src: artUrl, sizes: '512x512', type: 'image/jpeg' }
-      ]
-    });
-  }
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: track.title || 'Onbekend nummer',
+        artist: track.artist || 'Onbekende artiest',
+        album: track.album || 'Onbekend album',
+        artwork: [
+          { src: artUrl, sizes: '512x512', type: 'image/jpeg' }
+        ]
+      });
+    }
+  });
 
-  $: if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
-    navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
-  }
+  $effect(() => {
+    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
+    }
+  });
 
   let lastTrackId = null;
   let hasScrobbledStarted = false;
@@ -208,22 +211,24 @@
     }
   }
 
-  $: if (track && track.id !== lastTrackId) {
-      const isInitialLoad = !lastTrackId && !initialized;
-      lastTrackId = track.id;
-      hasScrobbledStarted = false;
-      hasScrobbledFinished = false;
-      if (audioElement) {
-          audioElement.src = streamUrl;
-          if (!isInitialLoad) {
-              audioElement.play().catch(e => {
-                  if (e.name !== 'AbortError') {
-                      console.error("Auto-play failed", e);
-                  }
-              });
-          }
-      }
-  }
+  $effect(() => {
+    if (track && track.id !== lastTrackId) {
+        const isInitialLoad = !lastTrackId && !initialized;
+        lastTrackId = track.id;
+        hasScrobbledStarted = false;
+        hasScrobbledFinished = false;
+        if (audioElement) {
+            audioElement.src = streamUrl;
+            if (!isInitialLoad) {
+                audioElement.play().catch(e => {
+                    if (e.name !== 'AbortError') {
+                        console.error("Auto-play failed", e);
+                    }
+                });
+            }
+        }
+    }
+  });
 
   onMount(() => {
     audio.set(audioElement);
@@ -254,25 +259,25 @@
 
 <audio
   bind:this={audioElement}
-  on:timeupdate={handleTimeUpdate}
-  on:loadedmetadata={handleLoadedMetadata}
-  on:play={handlePlay}
-  on:pause={handlePause}
-  on:volumechange={handleVolumeChange}
-  on:ended={handleEnded}
+  ontimeupdate={handleTimeUpdate}
+  onloadedmetadata={handleLoadedMetadata}
+  onplay={handlePlay}
+  onpause={handlePause}
+  onvolumechange={handleVolumeChange}
+  onended={handleEnded}
 ></audio>
 
 <footer class="flex justify-between items-center h-full px-4">
   <div class="w-[30%] flex items-center gap-3">
     {#if track}
-      <img src={coverUrl} alt={track.title} class="w-14 h-14 rounded" on:error={(e) => e.target.src = '/images/spotify-fallback.svg'} />
+      <img src={coverUrl} alt={track.title} class="w-14 h-14 rounded" onerror={(e) => e.target.src = '/images/spotify-fallback.svg'} />
       <div class="track-info">
         <div class="text-sm font-medium">{track.title}</div>
         <ArtistList 
           artist={track.artist} 
           artistId={track.artistId} 
           artists={track.artists} 
-          on:navigate={(e) => dispatch('navigate', e.detail)} 
+          onnavigate={onnavigate} 
         />
       </div>
     {/if}
@@ -280,17 +285,17 @@
 
   <div class="w-[40%] max-w-[600px] flex flex-col items-center gap-2">
     <div class="flex items-center gap-6">
-      <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white {shuffleMode ? 'text-spotify-green' : 'text-[#b3b3b3]'}" on:click={toggleShuffleMode} aria-label="Shuffle">
+      <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white {shuffleMode ? 'text-spotify-green' : 'text-[#b3b3b3]'}" onclick={toggleShuffleMode} aria-label="Shuffle">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path d="M4.5 6.307a.75.75 0 1 1 0-1.5 5.862 5.862 0 0 1 4.671 2.382l.66.883 5.03 6.717a4.362 4.362 0 0 0 3.471 1.769h1.918a.75.75 0 1 1 0 1.5h-1.918a5.862 5.862 0 0 1-4.671-2.381l-.66-.883-5.03-6.717a4.362 4.362 0 0 0-3.471-1.77H4.5zM14.862 8.567l.66-.883A5.862 5.862 0 0 1 20.193 5.3h1.057a.75.75 0 1 1 0 1.5h-1.057a4.362 4.362 0 0 0-3.471 1.768l-.66.883-.16-.214-.132-.176-.908-1.213-.01.014zM4.5 19.193a.75.75 0 1 0 0-1.5h1.057a4.362 4.362 0 0 0 3.471-1.768l.66-.883.908 1.213.14.186.124.166.01-.013.66.883A5.862 5.862 0 0 1 16.208 20.193H4.5z"></path>
         </svg>
       </button>
-      <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" on:click={playPrev} aria-label="Vorige">
+      <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" onclick={playPrev} aria-label="Vorige">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path d="M11.838 12.767a1 1 0 0 0 0-1.534L4.513 5.32a.6.6 0 0 0-.913.434v12.492a.6.6 0 0 0 .913.434l7.325-5.913zM20.5 5.754a.6.6 0 0 0-.913-.434l-7.325 5.913a1 1 0 0 0 0 1.534l7.325 5.913a.6.6 0 0 0 .913-.434V5.754z"></path>
         </svg>
       </button>
-      <button class="w-8 h-8 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105" on:click={togglePlay}>
+      <button class="w-8 h-8 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105" onclick={togglePlay}>
         {#if playing}
             <svg viewBox="0 0 24 24" width="24" height="24" fill="black">
                 <path d="M9 19H7V5h2v14zm8-14h-2v14h2V5z"></path>
@@ -301,12 +306,12 @@
             </svg>
         {/if}
       </button>
-      <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" on:click={playNext} aria-label="Volgende">
+      <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" onclick={playNext} aria-label="Volgende">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path d="M11.162 12.767a1 1 0 0 1 0-1.534l7.325-5.913a.6.6 0 0 1 .913.434v12.492a.6.6 0 0 1-.913.434l-7.325-5.913zM2.5 5.754a.6.6 0 0 1 .913-.434l7.325 5.913a1 1 0 0 1 0 1.534l-7.325 5.913a.6.6 0 0 1-.913-.434V5.754z"></path>
         </svg>
       </button>
-      <button class="relative bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white {repeatMode !== 'none' ? 'text-spotify-green' : 'text-[#b3b3b3]'}" on:click={toggleRepeat} aria-label="Herhalen">
+      <button class="relative bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white {repeatMode !== 'none' ? 'text-spotify-green' : 'text-[#b3b3b3]'}" onclick={toggleRepeat} aria-label="Herhalen">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path d="M4.5 12.2a.75.75 0 0 1 .75-.75h14a.75.75 0 0 1 .75.75v1.25a3.25 3.25 0 0 1-3.25 3.25H7.75a.75.75 0 0 1 0-1.5h8.25a1.75 1.75 0 0 0 1.75-1.75v-.5H5.25a.75.75 0 0 1-.75-.75v-1.25zM19.5 11.8a.75.75 0 0 1-.75.75h-14a.75.75 0 0 1-.75-.75v-1.25a3.25 3.25 0 0 1 3.25-3.25h8.5a.75.75 0 0 1 0 1.5h-8.5a1.75 1.75 0 0 0-1.75 1.75v.5h13.25a.75.75 0 0 1 .75.75v1.25z"></path>
         </svg>
@@ -321,8 +326,8 @@
         role="button"
         tabindex="0"
         class="flex-1 h-1 bg-[#4d4d4d] rounded-sm cursor-pointer" 
-        on:click={seek}
-        on:keydown={(e) => e.key === 'Enter' && seek(e)}
+        onclick={seek}
+        onkeydown={(e) => e.key === 'Enter' && seek(e)}
         aria-label="Seek track"
       >
           <div class="h-full bg-white rounded-sm" style="width: {(progress/duration)*100}%"></div>
@@ -332,12 +337,12 @@
   </div>
 
   <div class="w-[30%] flex justify-end items-center gap-3">
-    <button class="mr-2 bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" on:click={() => dispatch('toggleQueue')} aria-label="Wachtrij">
+    <button class="mr-2 bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" onclick={ontoggleQueue} aria-label="Wachtrij">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path d="M15 15H3v-1.5h12V15zm0-4.5H3V9h12v1.5zm0-4.5H3V4.5h12V6zm7 12l-4.5-4.5L13 18h9z"></path>
         </svg>
     </button>
-    <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" on:click={toggleMute}>
+    <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" onclick={toggleMute}>
         {#if muted || volume === 0}
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                 <path d="M16.107 2.493a.75.75 0 0 0-1.06 0l-7.057 7.057H2.25a.75.75 0 0 0-.75.75v3.314a.75.75 0 0 0 .75.75h5.74l7.057 7.057a.75.75 0 0 0 1.28-.53V3.023a.75.75 0 0 0-.22-.53zM14.607 18.66l-5.914-5.914a.75.75 0 0 0-.53-.22H3v-1.814h5.163a.75.75 0 0 0 .53-.22l5.914-5.914V18.66z"></path>
@@ -352,8 +357,8 @@
         role="button"
         tabindex="0"
         class="w-[100px] h-1 bg-[#4d4d4d] rounded-sm cursor-pointer" 
-        on:click={changeVolume}
-        on:keydown={(e) => e.key === 'Enter' && changeVolume(e)}
+        onclick={changeVolume}
+        onkeydown={(e) => e.key === 'Enter' && changeVolume(e)}
         aria-label="Volume"
       >
         <div class="h-full bg-white rounded-sm" style="width: {volume}%"></div>

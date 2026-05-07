@@ -1,5 +1,4 @@
 <script>
-  import { onMount } from 'svelte';
   import TrackCard from './TrackCard.svelte';
   import TrackList from './TrackList.svelte';
   import FilterBar from './FilterBar.svelte';
@@ -10,39 +9,39 @@
   import Settings from './Settings.svelte';
   import { authParams, currentPlaylist } from './store.js';
 
-  export let activeView = 'home';
+  let { activeView = $bindable('home') } = $props();
 
-  let sections = [
+  let sections = $state([
     { title: 'Release Radar', id: 'spotify:release_radar', tracks: [] },
     { title: 'Songs', id: 'spotify:songs', tracks: [] },
     { title: 'Sets', id: 'spotify:sets', tracks: [] }
-  ];
+  ]);
 
-  let tracks = [];
-  let albums = [];
-  let artists = [];
-  let playlists = [];
-  let tracksOffset = 0;
-  let tracksHasMore = true;
-  let albumsOffset = 0;
-  let albumsHasMore = true;
-  let artistsOffset = 0;
-  let artistsHasMore = true;
+  let tracks = $state([]);
+  let albums = $state([]);
+  let artists = $state([]);
+  let playlists = $state([]);
+  let tracksOffset = $state(0);
+  let tracksHasMore = $state(true);
+  let albumsOffset = $state(0);
+  let albumsHasMore = $state(true);
+  let artistsOffset = $state(0);
+  let artistsHasMore = $state(true);
   const pageSize = 50;
-  let currentGenre = '';
-  let currentSort = 'recent';
-  let currentYear = '';
-  let currentTrackSearch = '';
+  let currentGenre = $state('');
+  let currentSort = $state('recent');
+  let currentYear = $state('');
+  let currentTrackSearch = $state('');
 
-  let currentArtistSort = 'alphabetical';
-  let currentArtistRole = 'all';
-  let currentArtistSearch = '';
+  let currentArtistSort = $state('alphabetical');
+  let currentArtistRole = $state('all');
+  let currentArtistSearch = $state('');
 
-  let currentAlbumSort = 'newest';
-  let currentAlbumGenre = '';
-  let currentAlbumSearch = '';
+  let currentAlbumSort = $state('newest');
+  let currentAlbumGenre = $state('');
+  let currentAlbumSearch = $state('');
 
-  let isLoading = false;
+  let isLoading = $state(false);
 
   async function fetchTracks(id) {
     if (!$authParams) return [];
@@ -184,12 +183,8 @@
     activeView = 'playlist-detail';
   }
 
-  function handleNavigate(view) {
-    activeView = view;
-  }
-
-  function handleFilterChange(e) {
-      const { genre, sort, year, search, role } = e.detail;
+  function handleFilterChange(params) {
+      const { genre, sort, year, search, role } = params;
       if (activeView === 'artists') {
           currentArtistSort = sort;
           currentArtistRole = role;
@@ -217,21 +212,23 @@
     });
   }
 
-  $: if ($authParams) {
-    if (activeView === 'home') {
-        loadCurated();
-    } else if (activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:')) {
-        loadAllTracks();
-    } else if (activeView === 'radar') {
-        openRadar();
-    } else if (activeView === 'albums') {
-        loadAlbums();
-    } else if (activeView === 'artists') {
-        loadArtists();
-    } else if (activeView === 'playlists') {
-        loadPlaylists();
+  $effect(() => {
+    if ($authParams) {
+      if (activeView === 'home') {
+          loadCurated();
+      } else if (activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:')) {
+          loadAllTracks();
+      } else if (activeView === 'radar') {
+          openRadar();
+      } else if (activeView === 'albums') {
+          loadAlbums();
+      } else if (activeView === 'artists') {
+          loadArtists();
+      } else if (activeView === 'playlists') {
+          loadPlaylists();
+      }
     }
-  }
+  });
 </script>
 
 <div class="flex flex-col gap-8">
@@ -244,7 +241,7 @@
         </div>
         <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-6">
           {#each section.tracks.slice(0, 6) as track (track.id)}
-            <TrackCard {track} on:navigate={(e) => activeView = e.detail} />
+            <TrackCard {track} onnavigate={(v) => activeView = v} />
           {/each}
           {#if section.tracks.length === 0}
             <p class="text-[#b3b3b3] col-span-full">Geen tracks gevonden in deze categorie.</p>
@@ -257,22 +254,22 @@
         <h2 class="text-2xl font-bold m-0">
             {#if activeView === 'songs'}Alle Nummers{:else if activeView === 'sets'}Sets{:else}{activeView.split(':')[1]}{/if}
         </h2>
-        <FilterBar view="songs" genre={currentGenre} sort={currentSort} year={currentYear} search={currentTrackSearch} showGenre={!activeView.startsWith('genre:')} on:change={handleFilterChange} />
+        <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} showGenre={!activeView.startsWith('genre:')} onchange={handleFilterChange} />
     </div>
     {#if isLoading && tracks.length === 0}
         <p>Laden...</p>
     {:else}
-        <TrackList {tracks} on:navigate={(e) => activeView = e.detail} />
+        <TrackList {tracks} onnavigate={(v) => activeView = v} />
         {#if tracksHasMore}
             <div class="flex justify-center py-6">
-                <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" on:click={() => loadAllTracks(true)}>Meer laden</button>
+                <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAllTracks(true)}>Meer laden</button>
             </div>
         {/if}
     {/if}
   {:else if activeView === 'albums'}
     <div class="flex flex-col gap-4 mb-6">
       <h2 class="text-2xl font-bold m-0">Albums</h2>
-      <FilterBar view="albums" genre={currentAlbumGenre} sort={currentAlbumSort} search={currentAlbumSearch} on:change={handleFilterChange} />
+      <FilterBar view="albums" bind:genre={currentAlbumGenre} bind:sort={currentAlbumSort} bind:search={currentAlbumSearch} onchange={handleFilterChange} />
     </div>
     <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-6">
         {#each albums as album (album.id)}
@@ -280,34 +277,34 @@
               role="button"
               tabindex="0"
               class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]" 
-              on:click={() => activeView = `album:${album.id}`}
-              on:keydown={(e) => e.key === 'Enter' && (activeView = `album:${album.id}`)}
+              onclick={() => activeView = `album:${album.id}`}
+              onkeydown={(e) => e.key === 'Enter' && (activeView = `album:${album.id}`)}
             >
                 <img 
                   src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
                   alt={album.name} 
                   class="w-full aspect-square object-cover rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
-                  on:error={(e) => e.target.src = '/images/spotify-fallback.svg'}
+                  onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
                 />
                 <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{album.name}</span>
                 <ArtistList 
                   artist={album.artist} 
                   artistId={album.artistId} 
                   artists={album.albumArtists} 
-                  on:navigate={(e) => activeView = e.detail} 
+                  onnavigate={(v) => activeView = v} 
                 />
             </div>
         {/each}
     </div>
     {#if albumsHasMore}
         <div class="flex justify-center py-6">
-            <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" on:click={() => loadAlbums(true)}>Meer laden</button>
+            <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAlbums(true)}>Meer laden</button>
         </div>
     {/if}
   {:else if activeView === 'artists'}
     <div class="flex flex-col gap-4 mb-6">
       <h2 class="text-2xl font-bold m-0">Artiesten</h2>
-      <FilterBar view="artists" sort={currentArtistSort} role={currentArtistRole} search={currentArtistSearch} on:change={handleFilterChange} />
+      <FilterBar view="artists" bind:sort={currentArtistSort} bind:role={currentArtistRole} bind:search={currentArtistSearch} onchange={handleFilterChange} />
     </div>
     <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-6">
         {#each artists as artist (artist.id)}
@@ -315,8 +312,8 @@
               role="button"
               tabindex="0"
               class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]" 
-              on:click={() => activeView = `artist:${artist.id}`}
-              on:keydown={(e) => e.key === 'Enter' && (activeView = `artist:${artist.id}`)}
+              onclick={() => activeView = `artist:${artist.id}`}
+              onkeydown={(e) => e.key === 'Enter' && (activeView = `artist:${artist.id}`)}
             >
                 <img src={artist.coverArt ? `/rest/getCoverArt?id=${artist.coverArt}&size=300&${$authParams}` : '/images/unknown-artist.svg'} alt={artist.name} class="w-full aspect-square object-cover rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.5)]" />
                 <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{artist.name}</span>
@@ -326,7 +323,7 @@
     </div>
     {#if artistsHasMore}
         <div class="flex justify-center py-6">
-            <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" on:click={() => loadArtists(true)}>Meer laden</button>
+            <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadArtists(true)}>Meer laden</button>
         </div>
     {/if}
   {:else if activeView === 'playlists'}
@@ -337,25 +334,25 @@
               role="button"
               tabindex="0"
               class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]" 
-              on:click={() => openPlaylist(playlist)}
-              on:keydown={(e) => e.key === 'Enter' && openPlaylist(playlist)}
+              onclick={() => openPlaylist(playlist)}
+              onkeydown={(e) => e.key === 'Enter' && openPlaylist(playlist)}
             >
                 <img 
                   src={playlist.coverArt ? `/rest/getCoverArt?id=${playlist.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
                   alt={playlist.name} 
                   class="w-full aspect-square object-cover rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
-                  on:error={(e) => e.target.src = '/images/spotify-fallback.svg'}
+                  onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
                 />
                 <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{playlist.name}</span>
             </div>
         {/each}
     </div>
   {:else if activeView === 'playlist-detail'}
-    <PlaylistView />
+    <PlaylistView onnavigate={(v) => activeView = v} />
   {:else if activeView.startsWith('artist:')}
-    <ArtistView artistId={activeView.split(':')[1]} onNavigate={handleNavigate} />
+    <ArtistView artistId={activeView.split(':')[1]} onnavigate={(v) => activeView = v} />
   {:else if activeView.startsWith('album:')}
-    <AlbumView albumId={activeView.split(':')[1]} onNavigate={handleNavigate} />
+    <AlbumView albumId={activeView.split(':')[1]} onnavigate={(v) => activeView = v} />
   {:else if activeView === 'settings'}
     <Settings />
   {/if}

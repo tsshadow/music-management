@@ -2,15 +2,14 @@
   import { authParams } from './store.js';
   import TrackList from './TrackList.svelte';
 
-  export let artistId;
-  export let onNavigate;
+  const { artistId, onnavigate } = $props();
 
-  let artist = null;
-  let albums = [];
-  let appearsOn = [];
-  let tracks = [];
-  let similarArtists = [];
-  let isLoading = true;
+  let artist = $state(null);
+  let albums = $state([]);
+  let appearsOn = $state([]);
+  let tracks = $state([]);
+  let similarArtists = $state([]);
+  let isLoading = $state(true);
 
   async function loadArtist() {
     if (!$authParams) return;
@@ -23,9 +22,6 @@
         artist = artistData;
         const allAlbums = Array.isArray(artistData.album) ? artistData.album : (artistData.album ? [artistData.album] : []);
         
-        // In Subsonic getArtist, "album" array contains both main albums and albums where artist appears.
-        // We try to distinguish them if possible. 
-        // Simple heuristic: if album.artist === artist.name, it's a main album.
         albums = allAlbums.filter(a => a.artist === artist.name);
         appearsOn = allAlbums.filter(a => a.artist !== artist.name);
         
@@ -63,16 +59,18 @@
     }
   }
 
-  $: if (artistId && $authParams) {
-    loadArtist();
-  }
+  $effect(() => {
+    if (artistId && $authParams) {
+      loadArtist();
+    }
+  });
 
   function openAlbum(id) {
-    onNavigate(`album:${id}`);
+    if (onnavigate) onnavigate(`album:${id}`);
   }
 
   function openArtist(id) {
-    onNavigate(`artist:${id}`);
+    if (onnavigate) onnavigate(`artist:${id}`);
   }
 </script>
 
@@ -105,7 +103,7 @@
         {#if tracks.length > 0}
             <section>
                 <h2 class="text-2xl font-bold mb-4">Populair</h2>
-                <TrackList {tracks} on:navigate={(e) => onNavigate(e.detail)} />
+                <TrackList {tracks} onnavigate={onnavigate} />
             </section>
         {/if}
 
@@ -118,14 +116,14 @@
                           role="button"
                           tabindex="0"
                           class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]" 
-                          on:click={() => openAlbum(album.id)}
-                          on:keydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
+                          onclick={() => openAlbum(album.id)}
+                          onkeydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
                         >
                             <img 
                               src={album.coverArt ? `/rest/getCoverArt?id=${album.id}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
                               alt={album.name} 
                               class="w-full aspect-square object-cover mb-4 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
-                              on:error={(e) => e.target.src = '/images/spotify-fallback.svg'}
+                              onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
                             />
                             <span class="block font-bold mb-1 whitespace-nowrap overflow-hidden text-ellipsis">{album.name}</span>
                             <span class="text-sm text-[#b3b3b3]">{album.year || ''} • Album</span>
@@ -144,14 +142,14 @@
                           role="button"
                           tabindex="0"
                           class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]" 
-                          on:click={() => openAlbum(album.id)}
-                          on:keydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
+                          onclick={() => openAlbum(album.id)}
+                          onkeydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
                         >
                             <img 
                               src={album.coverArt ? `/rest/getCoverArt?id=${album.id}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
                               alt={album.name} 
                               class="w-full aspect-square object-cover mb-4 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
-                              on:error={(e) => e.target.src = '/images/spotify-fallback.svg'}
+                              onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
                             />
                             <span class="block font-bold mb-1 whitespace-nowrap overflow-hidden text-ellipsis">{album.name}</span>
                             <span class="text-sm text-[#b3b3b3]">{album.artist}</span>
@@ -170,15 +168,15 @@
                           role="button"
                           tabindex="0"
                           class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]" 
-                          on:click={() => openArtist(similar.id)}
-                          on:keydown={(e) => e.key === 'Enter' && openArtist(similar.id)}
+                          onclick={() => openArtist(similar.id)}
+                          onkeydown={(e) => e.key === 'Enter' && openArtist(similar.id)}
                         >
                             <div class="mb-4">
                                 <img 
                                   src={similar.coverArt ? `/rest/getCoverArt?id=${similar.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
                                   alt={similar.name} 
                                   class="w-full aspect-square object-cover rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
-                                  on:error={(e) => e.target.src = '/images/spotify-fallback.svg'}
+                                  onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
                                 />
                             </div>
                             <span class="block font-bold mb-1 whitespace-nowrap overflow-hidden text-ellipsis">{similar.name}</span>

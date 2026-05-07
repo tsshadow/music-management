@@ -1,16 +1,14 @@
 <script>
-  import { onMount } from 'svelte';
   import { authParams } from './store.js';
   import TrackList from './TrackList.svelte';
   import ArtistList from './ArtistList.svelte';
 
-  export let albumId;
-  export let onNavigate;
+  const { albumId, onnavigate } = $props();
 
-  let album = null;
-  let tracks = [];
-  let albumInfo = null;
-  let isLoading = true;
+  let album = $state(null);
+  let tracks = $state([]);
+  let albumInfo = $state(null);
+  let isLoading = $state(true);
 
   async function loadAlbum() {
     if (!$authParams) return;
@@ -43,13 +41,15 @@
     }
   }
 
-  $: if (albumId && $authParams) {
-    loadAlbum();
-  }
+  $effect(() => {
+    if (albumId && $authParams) {
+      loadAlbum();
+    }
+  });
 
   function openArtist() {
      const id_to_use = album.artistId || (tracks.length > 0 ? tracks[0].artistId : null);
-     if (id_to_use) onNavigate(`artist:${id_to_use}`);
+     if (id_to_use && onnavigate) onnavigate(`artist:${id_to_use}`);
   }
 </script>
 
@@ -62,7 +62,7 @@
          src="/rest/getCoverArt?id={album.id}&size=300&${$authParams}" 
          alt={album.name} 
          class="w-[232px] h-[232px] object-cover shadow-[0_4px_60px_rgba(0,0,0,0.5)]"
-         on:error={(e) => e.target.src = '/images/spotify-fallback.svg'}
+         onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
        />
        <div class="flex flex-col">
          <div class="uppercase text-xs font-bold">Album</div>
@@ -72,7 +72,7 @@
               artist={album.artist} 
               artistId={album.artistId} 
               artists={album.albumArtists} 
-              on:navigate={(e) => onNavigate(e.detail)} 
+              onnavigate={onnavigate} 
             />
             {#if album.year} <span class="text-[#b3b3b3]">•</span> {album.year}{/if}
             {#if tracks.length > 0} <span class="text-[#b3b3b3]">•</span> {tracks.length} nummers{/if}
@@ -81,7 +81,7 @@
     </header>
 
     <div class="p-6 md:p-8 pt-0">
-      <TrackList {tracks} on:navigate={(e) => onNavigate(e.detail)} />
+      <TrackList {tracks} onnavigate={onnavigate} />
       
       {#if album.genre || album.created}
         <div class="text-[#b3b3b3] text-sm mt-8 space-y-1">

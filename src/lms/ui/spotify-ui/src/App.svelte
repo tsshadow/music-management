@@ -19,7 +19,7 @@
   let queueWidth = 350;
   let isResizing = false;
 
-  function startResizing(e) {
+  function startResizing(_e) {
     isResizing = true;
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', stopResizing);
@@ -43,7 +43,7 @@
 
   const base = '/spotify';
 
-  function viewToPath(view, playlistObj) {
+  function viewToPath(view, _playlistObj) {
     if (view === 'home') return base + '/';
     if (view === 'songs') return base + '/songs';
     if (view === 'sets') return base + '/sets';
@@ -173,13 +173,16 @@
                   <button class="bg-none border-none text-[#b3b3b3] text-2xl cursor-pointer px-2" on:click={() => showQueue = false}>&times;</button>
               </div>
           </header>
-          <TrackList tracks={$playlist} isQueue={true} on:navigate={(e) => activeView.set(e.detail)} />
+          <TrackList tracks={$playlist} isQueue={true} onnavigate={handleNavigate} />
       </div>
     </div>
   {/if}
 
   <div class="bg-[#181818] col-start-1 col-end-4 row-start-2 row-end-3 border-t border-[#282828] z-20">
-    <Player on:toggleQueue={() => showQueue = !showQueue} />
+    <Player 
+      ontoggleQueue={() => showQueue = !showQueue} 
+      onnavigate={handleNavigate}
+    />
   </div>
 </main>
 

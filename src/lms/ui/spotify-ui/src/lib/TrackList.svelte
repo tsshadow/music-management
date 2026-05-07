@@ -1,12 +1,8 @@
 <script>
   import { currentTrack, playerState, authParams, playlist } from './store.js';
-  import { createEventDispatcher } from 'svelte';
   import ArtistList from './ArtistList.svelte';
 
-  const dispatch = createEventDispatcher();
-
-  export let tracks = [];
-  export let isQueue = false;
+  const { tracks = [], isQueue = false, onnavigate } = $props();
 
   function playTrack(track, index) {
     currentTrack.set(track);
@@ -70,15 +66,15 @@
         role="button"
         tabindex="0"
         class="group hover:bg-white/10 hover:text-white h-14 {$currentTrack?.id === track.id ? 'text-spotify-green' : ''}" 
-        on:dblclick={() => playTrack(track)}
-        on:keydown={(e) => e.key === 'Enter' && playTrack(track)}
+        ondblclick={() => playTrack(track)}
+        onkeydown={(e) => e.key === 'Enter' && playTrack(track)}
       >
         <td class="p-2 px-4 text-right relative">
             <span class="block group-hover:hidden">{i + 1}</span>
             <button 
               aria-label="Afspelen"
               class="hidden group-hover:block bg-transparent border-none text-white cursor-pointer p-0 absolute right-4 top-1/2 -translate-y-1/2" 
-              on:click={() => playTrack(track)}
+              onclick={() => playTrack(track)}
             >
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                     <path d="M7 6v12l10-6z"></path>
@@ -91,7 +87,7 @@
               src={track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=40&${$authParams}` : '/images/spotify-fallback.svg'} 
               alt="" 
               class="w-10 h-10 rounded"
-              on:error={(e) => e.target.src = '/images/spotify-fallback.svg'}
+              onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
             />
             <div class="flex flex-col">
               <span class="text-base font-medium {$currentTrack?.id === track.id ? 'text-spotify-green' : 'text-white'}">{track.title}</span>
@@ -100,7 +96,7 @@
                 artistId={track.artistId} 
                 artists={track.artists} 
                 active={$currentTrack?.id === track.id}
-                on:navigate={(e) => dispatch('navigate', e.detail)} 
+                onnavigate={onnavigate} 
               />
             </div>
           </div>
@@ -111,8 +107,8 @@
               role="link"
               tabindex="0"
               class="hover:underline cursor-pointer" 
-              on:click={() => dispatch('navigate', `album:${track.albumId}`)}
-              on:keydown={(e) => e.key === 'Enter' && dispatch('navigate', `album:${track.albumId}`)}
+              onclick={() => onnavigate && onnavigate(`album:${track.albumId}`)}
+              onkeydown={(e) => e.key === 'Enter' && onnavigate && onnavigate(`album:${track.albumId}`)}
             >{track.album || ''}</span>
           </td>
           <td class="p-2 px-4">{track.year || ''}</td>
@@ -124,7 +120,7 @@
                 <button 
                   aria-label="Omhoog"
                   class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed" 
-                  on:click={(e) => moveTrack(e, i, -1)} 
+                  onclick={(e) => moveTrack(e, i, -1)} 
                   disabled={i === 0}
                 >
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -134,7 +130,7 @@
                 <button 
                   aria-label="Omlaag"
                   class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed" 
-                  on:click={(e) => moveTrack(e, i, 1)} 
+                  onclick={(e) => moveTrack(e, i, 1)} 
                   disabled={i === tracks.length - 1}
                 >
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -144,7 +140,7 @@
                 <button 
                   aria-label="Verwijderen"
                   class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white hover:text-pink-500" 
-                  on:click={(e) => removeTrack(e, i)}
+                  onclick={(e) => removeTrack(e, i)}
                 >
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                         <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>

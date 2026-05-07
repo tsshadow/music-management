@@ -16,7 +16,6 @@
   let allSetsHasMore = $state(false);
   let similarArtists = $state([]);
   let isLoading = $state(true);
-  const pageSize = 100;
 
   async function loadArtist() {
     if (!$authParams) return;
@@ -48,8 +47,9 @@
         allTracksOffset = 0;
         allTracksHasMore = false;
     }
+    const count = append ? 100 : 25;
     try {
-      const response = await fetch(`/rest/getSpotifyTracks?artistId=${artistId}&offset=${allTracksOffset}&count=${pageSize}&maxDuration=10&sort=recent&${$authParams}`);
+      const response = await fetch(`/rest/getSpotifyTracks?artistId=${artistId}&offset=${allTracksOffset}&count=${count}&maxDuration=10&sort=recent&${$authParams}`);
       const data = await response.json();
       const tracksNode = data['subsonic-response']?.tracks;
       const result = tracksNode?.track || [];
@@ -73,8 +73,9 @@
         allSetsOffset = 0;
         allSetsHasMore = false;
     }
+    const count = append ? 100 : 25;
     try {
-      const response = await fetch(`/rest/getSpotifyTracks?artistId=${artistId}&offset=${allSetsOffset}&count=${pageSize}&minDuration=10&sort=recent&${$authParams}`);
+      const response = await fetch(`/rest/getSpotifyTracks?artistId=${artistId}&offset=${allSetsOffset}&count=${count}&minDuration=10&sort=recent&${$authParams}`);
       const data = await response.json();
       const tracksNode = data['subsonic-response']?.tracks;
       const result = tracksNode?.track || [];

@@ -8,6 +8,11 @@
     { id: 'playlists', label: 'Bibliotheek', icon: 'M3 22a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h15a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H3zm13-2V4H4v16h12z' }
   ];
 
+  /**
+   * Triggers navigation to a specific view.
+   * 
+   * @param {string} id - The view identifier.
+   */
   function navigate(id) {
     if (onnavigate) onnavigate(id);
   }

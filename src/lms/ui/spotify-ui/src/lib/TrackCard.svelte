@@ -4,6 +4,9 @@
 
   const { track, onnavigate } = $props();
 
+  /**
+   * Starts playback of the current track.
+   */
   function play() {
     currentTrack.set(track);
     playerState.update(s => ({ ...s, playing: true }));

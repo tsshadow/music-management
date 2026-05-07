@@ -11,6 +11,9 @@
   let albumInfo = $state(null);
   let isLoading = $state(true);
 
+  /**
+   * Loads the album's details and its tracks.
+   */
   async function loadAlbum() {
     if (!$authParams) return;
     isLoading = true;
@@ -32,6 +35,9 @@
     }
   }
 
+  /**
+   * Loads additional album information, such as notes/descriptions.
+   */
   async function loadAlbumInfo() {
     try {
       const response = await fetch(`/rest/getAlbumInfo2?id=${albumId}&${$authParams}`);
@@ -50,6 +56,9 @@
     }
   });
 
+  /**
+   * Navigates to the artist detail view for the album's primary artist.
+   */
   function openArtist() {
      const id_to_use = album.artistId || (tracks.length > 0 ? tracks[0].artistId : null);
      if (id_to_use && onnavigate) onnavigate(`artist:${id_to_use}`);

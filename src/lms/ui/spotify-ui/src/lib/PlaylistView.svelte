@@ -7,6 +7,11 @@
   let tracks = $state([]);
   const apiBase = '/rest';
 
+  /**
+   * Fetches the tracks for a specific playlist.
+   * 
+   * @param {string} id - The Subsonic playlist ID.
+   */
   async function fetchTracks(id) {
     if (!id || !$authParams) return;
     try {

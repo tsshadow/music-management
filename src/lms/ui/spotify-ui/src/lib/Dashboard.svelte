@@ -44,6 +44,12 @@
 
   let isLoading = $state(false);
 
+  /**
+   * Fetches tracks for a specific curated playlist.
+   * 
+   * @param {string} id - The Subsonic ID of the curated playlist.
+   * @returns {Promise<Object[]>} A promise that resolves to an array of tracks.
+   */
   async function fetchTracks(id) {
     if (!$authParams) return [];
     console.log(`Fetching tracks for curated playlist: ${id}`);
@@ -60,6 +66,11 @@
     }
   }
 
+  /**
+   * Loads tracks for the 'songs', 'sets', or 'genre' views with pagination.
+   * 
+   * @param {boolean} [append=false] - Whether to append new results to the existing tracks.
+   */
   async function loadAllTracks(append = false) {
     if (!$authParams) return;
     if (!append) {
@@ -109,6 +120,11 @@
     }
   }
 
+  /**
+   * Loads a list of albums with sorting, filtering, and pagination.
+   * 
+   * @param {boolean} [append=false] - Whether to append new results to the existing albums.
+   */
   async function loadAlbums(append = false) {
     if (!$authParams) return;
     if (!append) {
@@ -138,6 +154,11 @@
     } catch (e) { console.error(e); }
   }
 
+  /**
+   * Loads a list of artists with sorting, filtering, and pagination.
+   * 
+   * @param {boolean} [append=false] - Whether to append new results to the existing artists.
+   */
   async function loadArtists(append = false) {
     if (!$authParams) return;
     if (!append) {
@@ -166,6 +187,9 @@
     } catch (e) { console.error(e); }
   }
 
+  /**
+   * Loads all user playlists from the server.
+   */
   async function loadPlaylists() {
     if (!$authParams) return;
     try {
@@ -175,15 +199,28 @@
     } catch (e) { console.error(e); }
   }
 
+  /**
+   * Opens the "Release Radar" curated playlist.
+   */
   function openRadar() {
       openPlaylist({ id: 'spotify:release_radar', name: 'Release Radar', coverArt: 'spotify:release_radar' });
   }
 
+  /**
+   * Switches the view to the details of a specific playlist.
+   * 
+   * @param {Object} playlist - The playlist object.
+   */
   function openPlaylist(playlist) {
     currentPlaylist.set(playlist);
     activeView = 'playlist-detail';
   }
 
+  /**
+   * Handles changes from the FilterBar and reloads the appropriate data.
+   * 
+   * @param {Object} params - The filter and sort parameters.
+   */
   function handleFilterChange(params) {
       const { genre, sort, year, search, role } = params;
       if (activeView === 'artists') {
@@ -205,6 +242,9 @@
       }
   }
 
+  /**
+   * Loads all curated sections (Release Radar, Songs, Sets) for the home view.
+   */
   async function loadCurated() {
     const results = await Promise.all(sections.map(section => fetchTracks(section.id)));
     sections = sections.map((section, index) => {

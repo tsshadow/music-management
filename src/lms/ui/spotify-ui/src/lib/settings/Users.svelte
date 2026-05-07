@@ -8,6 +8,9 @@
   let editingUser = $state(null);
   let showCreateModal = $state(false);
 
+  /**
+   * Fetches the list of all users from the server.
+   */
   async function loadUsers() {
     isLoading = true;
     try {
@@ -26,10 +29,22 @@
 
   onMount(loadUsers);
 
+  /**
+   * Returns the first character of a username as initials.
+   * 
+   * @param {string} name - The username.
+   * @returns {string} The first character capitalized.
+   */
   function getInitials(name) {
     return name ? name.charAt(0).toUpperCase() : '?';
   }
 
+  /**
+   * Generates a consistent background color for a user's avatar based on their name.
+   * 
+   * @param {string} name - The username.
+   * @returns {string} Tailwind CSS class for background color.
+   */
   function getAvatarColor(name) {
     const colors = ['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-red-500', 'bg-yellow-500', 'bg-indigo-500'];
     let hash = 0;
@@ -39,14 +54,25 @@
     return colors[Math.abs(hash) % colors.length];
   }
 
+  /**
+   * Opens the user editor for a specific user.
+   * 
+   * @param {Object} user - The user object to edit.
+   */
   function handleEdit(user) {
     editingUser = user;
   }
 
+  /**
+   * Opens the user editor to create a new user.
+   */
   function handleCreate() {
     showCreateModal = true;
   }
 
+  /**
+   * Closes the editor and refreshes the user list after a successful save.
+   */
   function handleSave() {
     editingUser = null;
     showCreateModal = false;

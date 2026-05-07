@@ -20,12 +20,22 @@
   let queueWidth = 350;
   let isResizing = false;
 
+  /**
+   * Starts the resizing process for the queue sidebar.
+   * 
+   * @param {MouseEvent} _e - The mouse event.
+   */
   function startResizing(_e) {
     isResizing = true;
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', stopResizing);
   }
 
+  /**
+   * Handles the mouse move event to update the queue sidebar width.
+   * 
+   * @param {MouseEvent} e - The mouse event.
+   */
   function handleMouseMove(e) {
     if (!isResizing) return;
     const newWidth = window.innerWidth - e.clientX;
@@ -34,6 +44,9 @@
     }
   }
 
+  /**
+   * Stops the resizing process and cleans up event listeners.
+   */
   function stopResizing() {
     isResizing = false;
     document.removeEventListener('mousemove', handleMouseMove);
@@ -44,6 +57,13 @@
 
   const base = '/spotify';
 
+  /**
+   * Maps a view name and optional playlist object to a URL path.
+   * 
+   * @param {string} view - The name of the active view.
+   * @param {Object} [_playlistObj] - Optional playlist metadata.
+   * @returns {string|null} The URL path.
+   */
   function viewToPath(view, _playlistObj) {
     if (view === 'home') return base + '/';
     if (view === 'songs') return base + '/songs';
@@ -58,6 +78,12 @@
     return null;
   }
 
+  /**
+   * Maps a URL path back to a view name or view object.
+   * 
+   * @param {string} path - The URL path.
+   * @returns {string|Object} The view identifier.
+   */
   function pathToView(path) {
     if (path === base || path === base + '/') return 'home';
     if (path === base + '/songs') return 'songs';
@@ -113,14 +139,25 @@
     }
   }
 
+  /**
+   * Updates the active view state.
+   * 
+   * @param {string|Object} view - The new view identifier.
+   */
   function handleNavigate(view) {
     activeView.set(view);
   }
 
+  /**
+   * Clears all tracks from the global playlist/queue.
+   */
   function clearQueue() {
       playlist.set([]);
   }
 
+  /**
+   * Shuffles the global playlist/queue randomly.
+   */
   function shuffleQueue() {
       playlist.update(p => {
           const newP = [...p];

@@ -30,6 +30,9 @@
     { value: 'writer', label: 'Schrijvers' }
   ];
 
+  /**
+   * Fetches the list of all available genres from the server.
+   */
   async function loadGenres() {
     if (!$authParams) return;
     try {
@@ -44,6 +47,9 @@
     }
   }
 
+  /**
+   * Fetches the list of all available release years from the server.
+   */
   async function loadYears() {
     if (!$authParams) return;
     try {
@@ -66,11 +72,17 @@
     }
   });
 
+  /**
+   * Notifies the parent component of filter/sort changes.
+   */
   function handleChange() {
     if (onchange) onchange({ genre, sort, year, search, role });
   }
 
   let searchTimeout;
+  /**
+   * Handles search input with a debounced notification to the parent.
+   */
   function handleSearchInput() {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(handleChange, 500);

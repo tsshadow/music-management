@@ -8,6 +8,10 @@
   let isSaving = false;
   let message = '';
 
+  /**
+   * Loads the scanner settings from the server.
+   * Normalizes list-based settings into arrays.
+   */
   async function loadSettings() {
     try {
       const response = await fetch(`/rest/getScanStatus?${$authParams}`);
@@ -32,6 +36,10 @@
     }
   }
 
+  /**
+   * Saves the current settings to the server.
+   * Joins array-based settings with pipes before sending.
+   */
   async function saveSettings() {
     isSaving = true;
     message = '';
@@ -63,6 +71,9 @@
     }
   }
 
+  /**
+   * Discards all unsaved changes and restores settings from original data.
+   */
   function discardChanges() {
     settings = JSON.parse(JSON.stringify(originalSettings));
   }
@@ -83,10 +94,21 @@
 
   const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00:00`);
 
+  /**
+   * Adds an empty entry to a list-based setting.
+   * 
+   * @param {string} key - The key of the setting to modify.
+   */
   function addToList(key) {
       settings[key] = [...settings[key], ''];
   }
 
+  /**
+   * Removes an entry from a list-based setting by index.
+   * 
+   * @param {string} key - The key of the setting to modify.
+   * @param {number} index - The index of the item to remove.
+   */
   function removeFromList(key, index) {
       settings[key] = settings[key].filter((_, i) => i !== index);
   }

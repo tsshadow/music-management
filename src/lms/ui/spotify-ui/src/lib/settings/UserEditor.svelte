@@ -14,6 +14,11 @@
   let error = $state('');
   let isSaving = $state(false);
 
+  /**
+   * Handles the form submission to create or update a user.
+   * 
+   * @param {Event} e - The form submission event.
+   */
   async function handleSubmit(e) {
     e.preventDefault();
     isSaving = true;
@@ -44,6 +49,9 @@
     }
   }
 
+  /**
+   * Deletes the user after confirmation.
+   */
   async function handleDelete() {
     if (!confirm(`Weet je zeker dat je gebruiker ${username} wilt verwijderen?`)) return;
     

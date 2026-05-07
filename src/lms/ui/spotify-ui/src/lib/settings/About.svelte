@@ -6,6 +6,9 @@
   let serverType = '...';
   let isLoading = true;
 
+  /**
+   * Fetches server version and metadata.
+   */
   async function loadInfo() {
     try {
       const response = await fetch(`/rest/ping?${$authParams}`);

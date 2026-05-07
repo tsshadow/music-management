@@ -4,7 +4,13 @@
 
   const { tracks = [], isQueue = false, onnavigate } = $props();
 
-  function playTrack(track, index) {
+  /**
+   * Sets the current track and starts playback.
+   * If not in queue mode, also updates the global playlist.
+   * 
+   * @param {Object} track - The track object to play.
+   */
+  function playTrack(track) {
     currentTrack.set(track);
     if (!isQueue) {
         playlist.set(tracks);
@@ -12,6 +18,12 @@
     playerState.update(s => ({ ...s, playing: true }));
   }
 
+  /**
+   * Removes a track from the playlist by its index.
+   * 
+   * @param {Event} e - The click event.
+   * @param {number} index - The index of the track in the playlist.
+   */
   function removeTrack(e, index) {
       e.stopPropagation();
       playlist.update(p => {
@@ -21,6 +33,13 @@
       });
   }
 
+  /**
+   * Moves a track up or down in the playlist.
+   * 
+   * @param {Event} e - The click event.
+   * @param {number} index - The current index of the track.
+   * @param {number} direction - The direction to move (-1 for up, 1 for down).
+   */
   function moveTrack(e, index, direction) {
       e.stopPropagation();
       playlist.update(p => {
@@ -32,6 +51,12 @@
       });
   }
 
+  /**
+   * Formats milliseconds into a "M:SS" string.
+   * 
+   * @param {number} ms - Time in milliseconds.
+   * @returns {string} Formatted time string.
+   */
   function formatTime(ms) {
     if (!ms) return "0:00";
     const minutes = Math.floor(ms / 60000);
@@ -39,6 +64,12 @@
     return minutes + ":" + (seconds < 10 ? '0' : '') + seconds;
   }
 
+  /**
+   * Formats an ISO date string (YYYY-MM-DD) into DD-MM-YYYY.
+   * 
+   * @param {string} dateStr - The date string from the backend.
+   * @returns {string|null} Formatted date or null if invalid.
+   */
   function formatDate(dateStr) {
     if (!dateStr) return null;
     const parts = dateStr.split('T')[0].split('-');

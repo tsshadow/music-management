@@ -1,6 +1,15 @@
 import { writable, derived } from "svelte/store";
 
 // Helper to persist store to localStorage
+/**
+ * Persists a Svelte store to localStorage.
+ * Automatically loads the value on initialization and subscribes to changes.
+ * 
+ * @param {string} key - The localStorage key to use.
+ * @param {import('svelte/store').Writable} store - The store to persist.
+ * @param {Object} [options] - Optional configuration.
+ * @param {function(any): any} [options.onLoad] - Transformation function applied to the loaded value.
+ */
 function persist(key, store, options = {}) {
   const json = localStorage.getItem(key);
   if (json) {
@@ -60,6 +69,10 @@ persist("lms_active_settings_tab", activeSettingsTab);
 
 export const isMobile = writable(false);
 
+/**
+ * Derived store that computes Subsonic authentication parameters.
+ * Returns a query string with username, password, and client info.
+ */
 export const authParams = derived(credentials, ($c) => {
   if (!$c.username || !$c.password) return "";
   return `u=${encodeURIComponent($c.username)}&p=${encodeURIComponent($c.password)}&v=1.12.0&c=spotify-ui&f=json`;

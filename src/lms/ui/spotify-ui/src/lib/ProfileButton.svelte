@@ -7,11 +7,21 @@
   let isOpen = $state(false);
   const displayUsername = $derived($credentials.username || 'Gebruiker');
 
+  /**
+   * Toggles the visibility of the profile dropdown menu.
+   * 
+   * @param {Event} event - The click event.
+   */
   function toggleDropdown(event) {
     event.stopPropagation();
     isOpen = !isOpen;
   }
 
+  /**
+   * Logs out the user by clearing credentials and reloading the page.
+   * 
+   * @param {Event} [event] - Optional click event.
+   */
   function handleLogout(event) {
     if (event) {
       event.preventDefault();
@@ -31,6 +41,11 @@
   }
 
   // Sluit dropdown bij klikken buiten
+  /**
+   * Closes the dropdown if a click occurs outside of the component.
+   * 
+   * @param {Event} event - The click event.
+   */
   function handleClickOutside(event) {
     if (isOpen && !event.target.closest('.profile-menu-container')) {
       isOpen = false;

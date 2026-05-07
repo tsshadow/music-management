@@ -6,6 +6,9 @@
   let error = '';
   let isLoading = false;
 
+  /**
+   * Verifies the provided credentials by pinging the Subsonic API.
+   */
   async function verifyLogin() {
     error = '';
     isLoading = true;
@@ -28,6 +31,9 @@
     }
   }
 
+  /**
+   * Saves the verified credentials to the global store.
+   */
   function save() {
     credentials.update(c => ({ ...c, username, password }));
   }

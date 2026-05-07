@@ -17,6 +17,9 @@
   let similarArtists = $state([]);
   let isLoading = $state(true);
 
+  /**
+   * Loads the artist's basic data and triggers related content loading.
+   */
   async function loadArtist() {
     if (!$authParams) return;
     isLoading = true;
@@ -42,6 +45,11 @@
     }
   }
 
+  /**
+   * Loads all tracks by the artist, filtered by duration (tracks < 10 min).
+   * 
+   * @param {boolean} [append=false] - Whether to append new results to the existing tracks.
+   */
   async function loadAllTracks(append = false) {
     if (!append) {
         allTracksOffset = 0;
@@ -68,6 +76,11 @@
     }
   }
 
+  /**
+   * Loads all sets by the artist, filtered by duration (sets > 10 min).
+   * 
+   * @param {boolean} [append=false] - Whether to append new results to the existing sets.
+   */
   async function loadAllSets(append = false) {
     if (!append) {
         allSetsOffset = 0;
@@ -94,6 +107,9 @@
     }
   }
 
+  /**
+   * Loads additional artist information, such as similar artists.
+   */
   async function loadArtistInfo() {
     try {
       const response = await fetch(`/rest/getArtistInfo2?id=${artistId}&${$authParams}`);
@@ -115,10 +131,20 @@
     }
   });
 
+  /**
+   * Navigates to a specific album detail view.
+   * 
+   * @param {string} id - The Subsonic album ID.
+   */
   function openAlbum(id) {
     if (onnavigate) onnavigate(`album:${id}`);
   }
 
+  /**
+   * Navigates to a specific artist detail view.
+   * 
+   * @param {string} id - The Subsonic artist ID.
+   */
   function openArtist(id) {
     if (onnavigate) onnavigate(`artist:${id}`);
   }

@@ -5,6 +5,9 @@
   let libraries = [];
   let isLoading = true;
 
+  /**
+   * Loads the list of configured music folders/libraries from the server.
+   */
   async function loadLibraries() {
     try {
       const response = await fetch(`/rest/getMusicFolders?${$authParams}`);

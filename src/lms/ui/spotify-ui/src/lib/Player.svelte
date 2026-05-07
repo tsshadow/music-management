@@ -9,6 +9,9 @@
   let muted = $state(false);
   let lastVolume = $state(50);
 
+  /**
+   * Toggles between play and pause states.
+   */
   function togglePlay() {
     if (!audioElement) return;
     if (audioElement.paused) {
@@ -18,6 +21,10 @@
     }
   }
 
+  /**
+   * Plays the next track in the playlist.
+   * Handles repeat logic if at the end of the playlist.
+   */
   function playNext() {
       const p = $playlist;
       if (p.length === 0) return;
@@ -33,6 +40,10 @@
       currentTrack.set(p[nextIndex]);
   }
 
+  /**
+   * Plays the previous track in the playlist.
+   * Handles repeat logic if at the beginning of the playlist.
+   */
   function playPrev() {
       const p = $playlist;
       if (p.length === 0) return;
@@ -48,6 +59,10 @@
       currentTrack.set(p[prevIndex]);
   }
 
+  /**
+   * Handles the 'ended' event of the audio element.
+   * Triggers scrobbling and plays the next track or repeats.
+   */
   function handleEnded() {
       if (!hasScrobbledFinished) {
           scrobble(true);
@@ -61,6 +76,9 @@
       }
   }
 
+  /**
+   * Toggles the mute state and manages volume transitions.
+   */
   function toggleMute() {
     muted = !muted;
     if (muted) {
@@ -71,6 +89,10 @@
     }
   }
 
+  /**
+   * Handles time updates from the audio element.
+   * Updates global player state, saves progress periodically, and handles mid-track scrobbling.
+   */
   function handleTimeUpdate() {
     playerState.update(s => ({ ...s, progress: audioElement.currentTime }));
     updatePositionState();
@@ -91,6 +113,10 @@
     }
   }
 
+  /**
+   * Handles the 'loadedmetadata' event.
+   * Sets track duration and restores saved progress if available.
+   */
   function handleLoadedMetadata() {
     playerState.update(s => ({ ...s, duration: audioElement.duration }));
     updatePositionState();
@@ -106,6 +132,10 @@
     }
   }
 
+  /**
+   * Handles the 'play' event.
+   * Updates playing state and triggers initial scrobble.
+   */
   function handlePlay() {
     playerState.update(s => ({ ...s, playing: true }));
     if (!hasScrobbledStarted) {
@@ -114,14 +144,27 @@
     }
   }
 
+  /**
+   * Handles the 'pause' event.
+   * Updates playing state.
+   */
   function handlePause() {
     playerState.update(s => ({ ...s, playing: false }));
   }
 
+  /**
+   * Handles the 'volumechange' event.
+   * Updates global player volume state.
+   */
   function handleVolumeChange() {
     playerState.update(s => ({ ...s, volume: audioElement.volume * 100 }));
   }
 
+  /**
+   * Seeks to a specific position in the track based on a click event on the progress bar.
+   * 
+   * @param {MouseEvent} e - The click event.
+   */
   function seek(e) {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -129,6 +172,11 @@
     audioElement.currentTime = percentage * audioElement.duration;
   }
 
+  /**
+   * Changes the volume based on a click event on the volume bar.
+   * 
+   * @param {MouseEvent} e - The click event.
+   */
   function changeVolume(e) {
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -137,6 +185,12 @@
       muted = (vol === 0);
   }
 
+  /**
+   * Formats seconds into a "M:SS" string.
+   * 
+   * @param {number} seconds - Time in seconds.
+   * @returns {string} Formatted time string.
+   */
   function formatTime(seconds) {
     if (isNaN(seconds)) return "0:00";
     const min = Math.floor(seconds / 60);
@@ -144,6 +198,9 @@
     return `${min}:${sec < 10 ? '0' : ''}${sec}`;
   }
 
+  /**
+   * Updates the Media Session API position state for OS integration.
+   */
   function updatePositionState() {
     if ('mediaSession' in navigator &&
         'setPositionState' in navigator.mediaSession &&
@@ -162,6 +219,9 @@
     }
   }
 
+  /**
+   * Cycles through repeat modes: none -> all -> one -> none.
+   */
   function toggleRepeat() {
       playerState.update(s => {
           let next;
@@ -172,6 +232,9 @@
       });
   }
 
+  /**
+   * Toggles the shuffle mode.
+   */
   function toggleShuffleMode() {
       playerState.update(s => ({ ...s, shuffle: !s.shuffle }));
   }
@@ -215,6 +278,11 @@
   let hasScrobbledFinished = false;
   let initialized = false;
 
+  /**
+   * Sends a scrobble request to the server.
+   * 
+   * @param {boolean} [submission=true] - Whether this is a final submission or just a "now playing" notification.
+   */
   async function scrobble(submission = true) {
     if (!track || !$credentials.username) return;
     const params = $authParams;

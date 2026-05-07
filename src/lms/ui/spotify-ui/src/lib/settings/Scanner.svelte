@@ -10,6 +10,9 @@
   let forceOptimize = false;
   let compact = false;
 
+  /**
+   * Fetches the current scanner status from the server.
+   */
   async function loadStatus() {
     try {
       const response = await fetch(`/rest/getScanStatus?${$authParams}`);
@@ -25,6 +28,9 @@
     }
   }
 
+  /**
+   * Initiates a new media library scan with the selected options.
+   */
   async function startScan() {
     try {
       let query = $authParams.toString();
@@ -43,6 +49,12 @@
     }
   }
 
+  /**
+   * Formats an ISO date string into a localized human-readable format.
+   * 
+   * @param {string} isoString - The ISO date string.
+   * @returns {string} Formatted date and time.
+   */
   function formatDateTime(isoString) {
     if (!isoString) return 'N/A';
     try {
@@ -52,6 +64,12 @@
     }
   }
 
+  /**
+   * Translates a technical scan step identifier into a user-friendly label.
+   * 
+   * @param {string} step - The technical step identifier.
+   * @returns {string} User-friendly step label.
+   */
   function getStepLabel(step) {
     const labels = {
       'AssociateArtistImages': 'Associating artist images',

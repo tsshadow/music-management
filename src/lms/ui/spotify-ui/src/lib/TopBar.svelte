@@ -4,6 +4,11 @@
 
   const { greeting = "" } = $props();
 
+  /**
+   * Updates the global active view state.
+   * 
+   * @param {string} view - The view identifier.
+   */
   function handleNavigate(view) {
     activeView.set(view);
   }

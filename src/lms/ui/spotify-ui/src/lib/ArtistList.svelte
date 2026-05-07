@@ -5,6 +5,7 @@
   export let artist = '';
   export let artistId = '';
   export let artists = [];
+  export let active = false;
 
   let displayArtists = [];
 
@@ -23,7 +24,7 @@
   }
 </script>
 
-<span class="text-[#b3b3b3] text-sm">
+<span class="text-sm {active ? 'text-spotify-green' : 'text-[#b3b3b3]'}">
   {#each displayArtists as a, i (a.id || i)}
     <span 
       role="link"

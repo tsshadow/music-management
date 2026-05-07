@@ -128,7 +128,7 @@
 <main class="grid grid-cols-[240px_1fr_auto] grid-rows-[1fr_90px] h-screen w-screen overflow-hidden bg-black text-white">
   <AuthOverlay />
   
-  <div class="bg-black row-start-1 row-end-2 col-start-1 col-end-2 overflow-y-auto">
+  <div class="bg-black row-start-1 row-end-2 col-start-1 col-end-2 overflow-y-auto min-h-0">
     {#if $activeView === 'settings'}
       <SettingsSidebar />
     {:else}
@@ -136,7 +136,7 @@
     {/if}
   </div>
   
-  <div class="bg-linear-to-b from-[#121212] to-[#121212] row-start-1 row-end-2 col-start-2 col-end-3 overflow-y-auto p-5 md:p-8 relative">
+  <div class="bg-linear-to-b from-[#121212] to-[#121212] row-start-1 row-end-2 col-start-2 col-end-3 overflow-y-auto p-5 md:p-8 relative min-h-0 min-w-0">
     <TopBar {greeting} />
 
     <div class="content-area">
@@ -145,7 +145,7 @@
   </div>
 
   {#if showQueue}
-    <div class="relative row-start-1 row-end-2 col-start-3 col-end-4 flex">
+    <div class="relative row-start-1 row-end-2 col-start-3 col-end-4 flex min-h-0">
       <!-- Resize Handle -->
       <button 
         aria-label="Wachtrij resizen"
@@ -154,7 +154,7 @@
       ></button>
       
       <div 
-        class="bg-[#121212] border-l border-[#282828] overflow-y-auto p-5"
+        class="bg-[#121212] border-l border-[#282828] overflow-y-auto p-5 min-h-0"
         style="width: {queueWidth}px"
       >
           <header class="flex justify-between items-center mb-5">

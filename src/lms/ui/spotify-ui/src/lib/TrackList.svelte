@@ -38,6 +38,16 @@
     const seconds = ((ms % 60000) / 1000).toFixed(0);
     return minutes + ":" + (seconds < 10 ? '0' : '') + seconds;
   }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return null;
+    const parts = dateStr.split('T')[0].split('-');
+    if (parts.length === 3) {
+      // YYYY-MM-DD -> DD-MM-YYYY
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return null;
+  }
 </script>
 
 <table class="w-full border-collapse text-[#b3b3b3] text-sm">
@@ -113,7 +123,7 @@
             >{track.album || ''}</span>
           </td>
           <td class="p-2 px-4 text-xs italic opacity-80 max-w-[150px] truncate" title={track.genre || ''}>{track.genre || ''}</td>
-          <td class="p-2 px-4">{track.year || ''}</td>
+          <td class="p-2 px-4">{formatDate(track.date) || track.year || ''}</td>
         {/if}
         <td class="p-2 px-4 text-right">{formatTime(track.duration * 1000)}</td>
         {#if isQueue}

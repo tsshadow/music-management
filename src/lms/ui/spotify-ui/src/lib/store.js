@@ -46,6 +46,9 @@ persist("lms_player_state", playerState, {
   onLoad: (value) => ({ ...value, playing: false }), // Always start paused
 });
 
+export const trackProgress = writable({});
+persist("lms_track_progress", trackProgress);
+
 export const audio = writable(null);
 export const currentPlaylist = writable(null);
 export const isPlaying = writable(false);

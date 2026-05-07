@@ -24,6 +24,7 @@
 #include <chrono>
 #include <cstring>
 #include <iomanip>
+#include <sstream>
 #include <utility>
 
 #include <Wt/WDate.h>
@@ -444,12 +445,49 @@ namespace lms::core::stringUtils
 
     std::string jsonEscape(std::string_view str)
     {
-        return detail::escape(str, detail::jsonEscapeChars);
+        std::string res;
+        res.reserve(str.size());
+
+        for (const char c : str)
+        {
+            auto it{ std::find_if(std::cbegin(detail::jsonEscapeChars), std::cend(detail::jsonEscapeChars), [c](const auto& entry) { return entry.first == c; }) };
+            if (it != std::cend(detail::jsonEscapeChars))
+            {
+                res += it->second;
+            }
+            else if (static_cast<unsigned char>(c) < 0x20)
+            {
+                std::ostringstream oss;
+                oss << "\\u" << std::setfill('0') << std::setw(4) << std::hex << static_cast<int>(static_cast<unsigned char>(c)) << std::dec;
+                res += oss.str();
+            }
+            else
+            {
+                res += c;
+            }
+        }
+
+        return res;
     }
 
     void writeJsonEscapedString(std::ostream& os, std::string_view str)
     {
-        detail::writeEscapedString(os, str, detail::jsonEscapeChars);
+        for (const char c : str)
+        {
+            auto itEntry{ std::find_if(std::cbegin(detail::jsonEscapeChars), std::cend(detail::jsonEscapeChars), [=](const auto& entry) { return entry.first == c; }) };
+            if (itEntry != std::cend(detail::jsonEscapeChars))
+            {
+                os << itEntry->second;
+            }
+            else if (static_cast<unsigned char>(c) < 0x20)
+            {
+                os << "\\u" << std::setfill('0') << std::setw(4) << std::hex << static_cast<int>(static_cast<unsigned char>(c)) << std::dec;
+            }
+            else
+            {
+                os << c;
+            }
+        }
     }
 
     std::string xmlEscape(std::string_view str)

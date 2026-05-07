@@ -8,10 +8,15 @@
   let artist = $state(null);
   let albums = $state([]);
   let appearsOn = $state([]);
-  let tracks = $state([]);
   let allTracks = $state([]);
+  let allTracksOffset = $state(0);
+  let allTracksHasMore = $state(false);
+  let allSets = $state([]);
+  let allSetsOffset = $state(0);
+  let allSetsHasMore = $state(false);
   let similarArtists = $state([]);
   let isLoading = $state(true);
+  const pageSize = 100;
 
   async function loadArtist() {
     if (!$authParams) return;
@@ -27,8 +32,8 @@
         albums = allAlbums.filter(a => a.artist === artist.name);
         appearsOn = allAlbums.filter(a => a.artist !== artist.name);
         
-        loadTopTracks();
         loadAllTracks();
+        loadAllSets();
         loadArtistInfo();
       }
     } catch (e) {
@@ -38,23 +43,51 @@
     }
   }
 
-  async function loadTopTracks() {
+  async function loadAllTracks(append = false) {
+    if (!append) {
+        allTracksOffset = 0;
+        allTracksHasMore = false;
+    }
     try {
-      const response = await fetch(`/rest/getTopSongs?artist=${encodeURIComponent(artist.name)}&count=5&${$authParams}`);
+      const response = await fetch(`/rest/getSpotifyTracks?artistId=${artistId}&offset=${allTracksOffset}&count=${pageSize}&maxDuration=10&sort=recent&${$authParams}`);
       const data = await response.json();
-      const result = data['subsonic-response']?.topSongs?.song || [];
-      tracks = Array.isArray(result) ? result : [result];
+      const tracksNode = data['subsonic-response']?.tracks;
+      const result = tracksNode?.track || [];
+      const newTracks = Array.isArray(result) ? result : [result];
+      
+      if (append) {
+          allTracks = [...allTracks, ...newTracks];
+      } else {
+          allTracks = newTracks;
+      }
+      
+      allTracksOffset += newTracks.length;
+      allTracksHasMore = tracksNode?.moreResults === true || tracksNode?.moreResults === "true";
     } catch (e) {
       console.error(e);
     }
   }
 
-  async function loadAllTracks() {
+  async function loadAllSets(append = false) {
+    if (!append) {
+        allSetsOffset = 0;
+        allSetsHasMore = false;
+    }
     try {
-      const response = await fetch(`/rest/getSpotifyTracks?artistId=${artistId}&count=50&sort=recent&${$authParams}`);
+      const response = await fetch(`/rest/getSpotifyTracks?artistId=${artistId}&offset=${allSetsOffset}&count=${pageSize}&minDuration=10&sort=recent&${$authParams}`);
       const data = await response.json();
-      const result = data['subsonic-response']?.tracks?.track || [];
-      allTracks = Array.isArray(result) ? result : [result];
+      const tracksNode = data['subsonic-response']?.tracks;
+      const result = tracksNode?.track || [];
+      const newTracks = Array.isArray(result) ? result : [result];
+
+      if (append) {
+          allSets = [...allSets, ...newTracks];
+      } else {
+          allSets = newTracks;
+      }
+
+      allSetsOffset += newTracks.length;
+      allSetsHasMore = tracksNode?.moreResults === true || tracksNode?.moreResults === "true";
     } catch (e) {
       console.error(e);
     }
@@ -116,17 +149,27 @@
     </header>
 
     <div class="p-6 md:p-8 flex flex-col gap-8">
-        {#if tracks.length > 0}
-            <section>
-                <h2 class="text-2xl font-bold mb-4">Populair</h2>
-                <TrackList {tracks} onnavigate={onnavigate} />
-            </section>
-        {/if}
-
         {#if allTracks.length > 0}
             <section>
                 <h2 class="text-2xl font-bold mb-4">Alle nummers</h2>
                 <TrackList tracks={allTracks} onnavigate={onnavigate} />
+                {#if allTracksHasMore}
+                    <div class="flex justify-center py-4">
+                        <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAllTracks(true)}>Meer laden</button>
+                    </div>
+                {/if}
+            </section>
+        {/if}
+
+        {#if allSets.length > 0}
+            <section>
+                <h2 class="text-2xl font-bold mb-4">Alle sets</h2>
+                <TrackList tracks={allSets} onnavigate={onnavigate} />
+                {#if allSetsHasMore}
+                    <div class="flex justify-center py-4">
+                        <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAllSets(true)}>Meer laden</button>
+                    </div>
+                {/if}
             </section>
         {/if}
 

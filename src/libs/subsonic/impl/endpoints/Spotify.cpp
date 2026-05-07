@@ -224,9 +224,12 @@ namespace lms::api::subsonic
         Response response{ Response::createOkResponse(ctx.getServerProtocolVersion()) };
         auto& tracksNode = response.createNode("tracks");
 
-        db::Track::find(session, params, [&](const db::Track::pointer& track) {
+        bool moreResults = false;
+        db::Track::find(session, params, moreResults, [&](const db::Track::pointer& track) {
             tracksNode.addArrayChild("track", createSongNode(ctx, track, true));
         });
+
+        tracksNode.setAttribute("moreResults", moreResults);
 
         return response;
     }

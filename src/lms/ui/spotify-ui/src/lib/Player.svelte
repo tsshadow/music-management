@@ -289,14 +289,25 @@
 ></audio>
 
 <footer class="flex items-center h-full px-2 md:px-4 relative">
-  {#if $isMobile && track}
+  {#if $isMobile}
     <!-- Mobile Mini Player -->
-    <div class="flex flex-1 items-center gap-3 min-w-0 py-2">
-      <img src={coverUrl} alt={track.title} class="w-11 h-11 rounded shadow-lg" onerror={(e) => e.target.src = '/images/spotify-fallback.svg'} />
-      <div class="flex-1 min-w-0">
-        <div class="text-[13px] font-bold text-white truncate">{track.title}</div>
-        <div class="text-[11px] text-[#b3b3b3] truncate">{track.artist}</div>
-      </div>
+    <div class="flex flex-1 items-center gap-3 min-w-0 py-2 h-full">
+      {#if track}
+        <img src={coverUrl} alt={track.title} class="w-11 h-11 rounded shadow-lg" onerror={(e) => e.target.src = '/images/spotify-fallback.svg'} />
+        <div class="flex-1 min-w-0">
+          <div class="text-[13px] font-bold text-white truncate">{track.title}</div>
+          <div class="text-[11px] text-[#b3b3b3] truncate">{track.artist}</div>
+        </div>
+      {:else}
+        <div class="flex-1 flex items-center gap-3 min-w-0">
+          <div class="w-11 h-11 bg-white/5 rounded flex items-center justify-center">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="#535353">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zm0-7c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5z"></path>
+            </svg>
+          </div>
+          <div class="text-[13px] text-[#b3b3b3] italic font-medium">Niets aan het afspelen</div>
+        </div>
+      {/if}
       <div class="flex items-center gap-4 px-2">
         <button class="bg-transparent border-none p-0 text-white" onclick={togglePlay} aria-label={playing ? "Pauze" : "Afspelen"}>
           {#if playing}
@@ -312,9 +323,11 @@
       </div>
     </div>
     <!-- Progress bar for mobile -->
-    <div class="absolute top-0 left-0 w-full h-[2px] bg-white/10">
-      <div class="h-full bg-white transition-all duration-100" style="width: {(progress/duration)*100}%"></div>
-    </div>
+    {#if track}
+      <div class="absolute top-0 left-0 w-full h-[2px] bg-white/10">
+        <div class="h-full bg-white transition-all duration-100" style="width: {(progress/duration)*100}%"></div>
+      </div>
+    {/if}
   {:else}
     <!-- Desktop Player -->
     <div class="w-[30%] hidden md:flex items-center gap-3">

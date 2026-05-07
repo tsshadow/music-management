@@ -133,7 +133,7 @@
   }
 </script>
 
-<main class="grid grid-cols-1 md:grid-cols-[240px_1fr_auto] grid-rows-[1fr_auto_auto] md:grid-rows-[1fr_90px] h-screen w-screen overflow-hidden bg-black text-white">
+<main class="grid grid-cols-1 md:grid-cols-[240px_1fr_auto] grid-rows-[1fr_auto_auto] md:grid-rows-[1fr_90px] h-dvh w-screen overflow-hidden bg-black text-white">
   <AuthOverlay />
   
   <div class="bg-black row-start-1 row-end-2 col-start-1 col-end-2 overflow-y-auto min-h-0 hidden md:block">
@@ -186,7 +186,7 @@
     </div>
   {/if}
 
-  <div class="bg-[#181818] col-start-1 col-end-2 md:col-end-4 row-start-2 row-end-3 border-t border-[#282828] z-20">
+  <div class="bg-[#181818] col-start-1 col-end-2 md:col-end-4 row-start-2 row-end-3 border-t border-[#282828] z-20 min-h-[64px] md:min-h-0">
     <Player 
       ontoggleQueue={() => showQueue = !showQueue} 
       onnavigate={handleNavigate}

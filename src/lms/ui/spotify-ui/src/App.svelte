@@ -6,8 +6,9 @@
   import AuthOverlay from './lib/AuthOverlay.svelte';
   import TopBar from './lib/TopBar.svelte';
   import TrackList from './lib/TrackList.svelte';
+  import MobileNav from './lib/MobileNav.svelte';
   import SettingsSidebar from './lib/SettingsSidebar.svelte';
-  import { playlist, activeView, currentPlaylist } from './lib/store.js';
+  import { playlist, activeView, currentPlaylist, isMobile } from './lib/store.js';
 
   let greeting = "";
   const hours = new Date().getHours();
@@ -77,6 +78,13 @@
 
   onMount(() => {
     isMounted = true;
+    
+    const updateMobile = () => {
+      isMobile.set(window.innerWidth < 768);
+    };
+    updateMobile();
+    window.addEventListener('resize', updateMobile);
+
     const initialView = pathToView(window.location.pathname);
     if (typeof initialView === 'object') {
         currentPlaylist.set({ id: initialView.id });
@@ -125,10 +133,10 @@
   }
 </script>
 
-<main class="grid grid-cols-[240px_1fr_auto] grid-rows-[1fr_90px] h-screen w-screen overflow-hidden bg-black text-white">
+<main class="grid grid-cols-1 md:grid-cols-[240px_1fr_auto] grid-rows-[1fr_auto_auto] md:grid-rows-[1fr_90px] h-screen w-screen overflow-hidden bg-black text-white">
   <AuthOverlay />
   
-  <div class="bg-black row-start-1 row-end-2 col-start-1 col-end-2 overflow-y-auto min-h-0">
+  <div class="bg-black row-start-1 row-end-2 col-start-1 col-end-2 overflow-y-auto min-h-0 hidden md:block">
     {#if $activeView === 'settings'}
       <SettingsSidebar />
     {:else}
@@ -136,7 +144,7 @@
     {/if}
   </div>
   
-  <div class="bg-linear-to-b from-[#121212] to-[#121212] row-start-1 row-end-2 col-start-2 col-end-3 overflow-y-auto p-5 md:p-8 relative min-h-0 min-w-0">
+  <div class="bg-linear-to-b from-[#121212] to-[#121212] row-start-1 row-end-2 col-start-1 md:col-start-2 col-end-2 md:col-end-3 overflow-y-auto p-4 md:p-8 relative min-h-0 min-w-0">
     <TopBar {greeting} />
 
     <div class="content-area">
@@ -144,8 +152,8 @@
     </div>
   </div>
 
-  {#if showQueue}
-    <div class="relative row-start-1 row-end-2 col-start-3 col-end-4 flex min-h-0">
+  {#if showQueue && !$isMobile}
+    <div class="relative row-start-1 row-end-2 col-start-3 col-end-4 flex min-h-0 hidden md:flex">
       <!-- Resize Handle -->
       <button 
         aria-label="Wachtrij resizen"
@@ -178,11 +186,15 @@
     </div>
   {/if}
 
-  <div class="bg-[#181818] col-start-1 col-end-4 row-start-2 row-end-3 border-t border-[#282828] z-20">
+  <div class="bg-[#181818] col-start-1 col-end-2 md:col-end-4 row-start-2 row-end-3 border-t border-[#282828] z-20">
     <Player 
       ontoggleQueue={() => showQueue = !showQueue} 
       onnavigate={handleNavigate}
     />
+  </div>
+
+  <div class="row-start-3 row-end-4 md:hidden z-20">
+    <MobileNav activeView={$activeView} onnavigate={handleNavigate} />
   </div>
 </main>
 

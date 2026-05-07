@@ -128,24 +128,24 @@
   <div class="p-8">Laden...</div>
 {:else if artist}
   <div class="flex flex-col">
-    <header class="h-[340px] flex items-end p-6 md:p-8 bg-linear-to-b from-transparent to-black/50 relative gap-6">
-       <div class="w-[232px] h-[232px] flex-shrink-0">
+    <header class="h-auto md:h-[340px] flex flex-col md:flex-row items-center md:items-end p-6 md:p-8 bg-linear-to-b from-transparent to-black/50 relative gap-6 text-center md:text-left">
+       <div class="w-[160px] h-[160px] md:w-[232px] md:h-[232px] flex-shrink-0">
          {#if artist.coverArt}
            <img src="/rest/getCoverArt?id={artist.coverArt}&size=300&${$authParams}" alt={artist.name} class="w-full h-full object-cover rounded-full shadow-[0_4px_60px_rgba(0,0,0,0.5)]" />
          {:else}
            <div class="w-full h-full bg-[#282828] rounded-full flex items-center justify-center shadow-[0_4px_60px_rgba(0,0,0,0.5)]">
-             <img src="/images/spotify-fallback.svg" alt="" class="w-24 h-24 opacity-20" />
+             <img src="/images/spotify-fallback.svg" alt="" class="w-16 h-16 md:w-24 md:h-24 opacity-20" />
            </div>
          {/if}
        </div>
        <div class="flex flex-col">
-         <div class="flex items-center gap-2 text-sm font-bold mb-2">
+         <div class="flex items-center justify-center md:justify-start gap-2 text-sm font-bold mb-2">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="#3d91f4">
                 <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zM10 17l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path>
             </svg>
             Geverifieerde artiest
          </div>
-         <h1 class="text-6xl md:text-8xl lg:text-9xl font-black m-0 leading-none">{artist.name}</h1>
+         <h1 class="text-4xl md:text-7xl lg:text-9xl font-black m-0 leading-tight md:leading-none">{artist.name}</h1>
        </div>
     </header>
 
@@ -177,7 +177,7 @@
         {#if albums.length > 0}
             <section>
                 <h2 class="text-2xl font-bold mb-4">Discografie</h2>
-                <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-6">
+                <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
                     {#each albums as album (album.id)}
                         <div 
                           role="button"
@@ -203,7 +203,7 @@
         {#if appearsOn.length > 0}
             <section>
                 <h2 class="text-2xl font-bold mb-4">Komt voor op</h2>
-                <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-6">
+                <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
                     {#each appearsOn as album (album.id)}
                         <div 
                           role="button"
@@ -229,7 +229,7 @@
         {#if similarArtists.length > 0}
             <section>
                 <h2 class="text-2xl font-bold mb-4">Fans vinden dit ook leuk</h2>
-                <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-6">
+                <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
                     {#each similarArtists as similar (similar.id)}
                         <div 
                           role="button"

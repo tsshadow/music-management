@@ -35,8 +35,8 @@
 
 {#if $currentPlaylist}
   <div class="flex flex-col">
-    <header class="flex items-end gap-6 mb-8">
-      <div class="w-52 h-52 bg-[#282828] shadow-2xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+    <header class="flex flex-col md:flex-row items-center md:items-end gap-6 mb-8 text-center md:text-left">
+      <div class="w-40 h-40 md:w-52 md:h-52 bg-[#282828] shadow-2xl flex items-center justify-center flex-shrink-0 overflow-hidden">
         {#if $currentPlaylist.coverArt}
           <img 
             src="/rest/getCoverArt?id={$currentPlaylist.coverArt}&{$authParams}&size=300" 
@@ -45,12 +45,12 @@
             onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
           />
         {:else}
-          <img src="/images/spotify-fallback.svg" alt="" class="w-24 h-24 opacity-20" />
+          <img src="/images/spotify-fallback.svg" alt="" class="w-20 h-20 md:w-24 md:h-24 opacity-20" />
         {/if}
       </div>
       <div>
         <div class="text-xs font-bold uppercase">Playlist</div>
-        <h1 class="text-5xl md:text-7xl font-bold mb-4">{$currentPlaylist.name}</h1>
+        <h1 class="text-4xl md:text-7xl font-bold mb-4">{$currentPlaylist.name}</h1>
         <div class="text-[#b3b3b3] text-sm">{$currentPlaylist.comment || ''}</div>
       </div>
     </header>

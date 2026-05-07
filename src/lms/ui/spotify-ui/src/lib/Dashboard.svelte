@@ -245,7 +245,7 @@
           <h2 class="text-2xl font-bold m-0">{section.title}</h2>
           <button class="bg-transparent border-none text-[#b3b3b3] text-[12px] font-bold cursor-pointer uppercase tracking-[0.1em] hover:underline">Alles tonen</button>
         </div>
-        <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-6">
+        <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
           {#each section.tracks.slice(0, 6) as track (track.id)}
             <TrackCard {track} onnavigate={(v) => activeView = v} />
           {/each}
@@ -277,7 +277,7 @@
       <h2 class="text-2xl font-bold m-0">Albums</h2>
       <FilterBar view="albums" bind:genre={currentAlbumGenre} bind:sort={currentAlbumSort} bind:search={currentAlbumSearch} onchange={handleFilterChange} />
     </div>
-    <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-6">
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
         {#each albums as album (album.id)}
             <div 
               role="button"
@@ -312,7 +312,7 @@
       <h2 class="text-2xl font-bold m-0">Artiesten</h2>
       <FilterBar view="artists" bind:sort={currentArtistSort} bind:role={currentArtistRole} bind:search={currentArtistSearch} onchange={handleFilterChange} />
     </div>
-    <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-6">
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
         {#each artists as artist (artist.id)}
             <div 
               role="button"
@@ -334,7 +334,7 @@
     {/if}
   {:else if activeView === 'playlists'}
     <h2 class="text-2xl font-bold m-0 mb-6">Afspeellijsten</h2>
-    <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-6">
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
         {#each playlists as playlist (playlist.id)}
             <div 
               role="button"

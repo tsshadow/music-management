@@ -60,24 +60,24 @@
   <div class="p-8">Laden...</div>
 {:else if album}
   <div class="flex flex-col">
-    <header class="h-[340px] flex items-end p-6 md:p-8 bg-linear-to-b from-transparent to-black/50 relative gap-6">
+    <header class="h-auto md:h-[340px] flex flex-col md:flex-row items-center md:items-end p-6 md:p-8 bg-linear-to-b from-transparent to-black/50 relative gap-6 text-center md:text-left">
        <img 
          src="/rest/getCoverArt?id={album.id}&size=300&${$authParams}" 
          alt={album.name} 
-         class="w-[232px] h-[232px] object-cover shadow-[0_4px_60px_rgba(0,0,0,0.5)]"
+         class="w-[160px] h-[160px] md:w-[232px] md:h-[232px] object-cover shadow-[0_4px_60px_rgba(0,0,0,0.5)]"
          onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
        />
        <div class="flex flex-col">
          <div class="uppercase text-xs font-bold">Album</div>
-         <h1 class="text-5xl md:text-7xl font-black my-2 leading-none">{album.name}</h1>
-         <div class="flex items-center gap-1 font-bold">
+         <h1 class="text-3xl md:text-5xl lg:text-7xl font-black my-2 leading-tight md:leading-none">{album.name}</h1>
+         <div class="flex flex-wrap items-center justify-center md:justify-start gap-1 font-bold">
             <ArtistList 
               artist={album.artist} 
               artistId={album.artistId} 
               artists={album.albumArtists} 
               onnavigate={onnavigate} 
             />
-            {#if album.year} <span class="text-[#b3b3b3]">•</span> {album.year}{/if}
+            {#if album.year} <span class="text-[#b3b3b3] hidden md:inline">•</span> {album.year}{/if}
             {#if tracks.length > 0} <span class="text-[#b3b3b3]">•</span> {tracks.length} nummers{/if}
          </div>
        </div>

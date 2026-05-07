@@ -183,7 +183,7 @@ namespace lms::db
                 query.orderBy("MIN(t.file_added) DESC, a.sort_name");
                 break;
             case ArtistSortMethod::TrackCountDesc:
-                query.orderBy("track_count DESC");
+                query.orderBy("COUNT(t_a_l.track_id) DESC, a.sort_name");
                 break;
             case ArtistSortMethod::StarredDateDesc:
                 assert(params.starringUser.isValid());

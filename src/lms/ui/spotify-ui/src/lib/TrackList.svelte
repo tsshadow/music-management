@@ -1,5 +1,5 @@
 <script>
-  import { currentTrack, playerState, authParams, playlist } from './store.js';
+  import { currentTrack, playerState, authParams, playlist, isMobile } from './store.js';
   import ArtistList from './ArtistList.svelte';
 
   const { tracks = [], isQueue = false, onnavigate } = $props();
@@ -53,14 +53,14 @@
 <table class="w-full border-collapse text-[#b3b3b3] text-sm">
   <thead class="border-b border-white/10">
     <tr>
-      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[50px] text-right">#</th>
+      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[50px] text-right hidden md:table-cell">#</th>
       <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em]">Titel</th>
       {#if !isQueue}
-        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em]">Album</th>
-        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em]">Genre</th>
-        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-20">Datum</th>
+        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] hidden md:table-cell">Album</th>
+        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] hidden md:table-cell">Genre</th>
+        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-20 hidden md:table-cell">Datum</th>
       {/if}
-      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[100px] text-right">
+      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[80px] md:w-[100px] text-right">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="inline">
           <path d="M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM0 8a8 8 0 1116 0A8 8 0 010 8z"></path>
           <path d="M8 4a.5.5 0 01.5.5v3h3a.5.5 0 010 1H8a.5.5 0 01-.5-.5v-4A.5.5 0 018 4z"></path>
@@ -76,11 +76,12 @@
       <tr 
         role="button"
         tabindex="0"
-        class="group hover:bg-white/10 hover:text-white h-14 {$currentTrack?.id === track.id ? 'text-spotify-green' : ''}" 
-        ondblclick={() => playTrack(track)}
+        class="group hover:bg-white/10 hover:text-white h-14 md:h-16 {$currentTrack?.id === track.id ? 'text-spotify-green' : ''}" 
+        onclick={(e) => $isMobile && playTrack(track)}
+        ondblclick={() => !$isMobile && playTrack(track)}
         onkeydown={(e) => e.key === 'Enter' && playTrack(track)}
       >
-        <td class="p-2 px-4 text-right relative">
+        <td class="p-2 px-4 text-right relative hidden md:table-cell">
             <span class="block group-hover:hidden">{i + 1}</span>
             <button 
               aria-label="Afspelen"
@@ -95,13 +96,13 @@
         <td class="p-2 px-4">
           <div class="flex items-center gap-3">
             <img 
-              src={track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=40&${$authParams}` : '/images/spotify-fallback.svg'} 
+              src={track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=48&${$authParams}` : '/images/spotify-fallback.svg'} 
               alt="" 
-              class="w-10 h-10 rounded"
+              class="w-10 h-10 md:w-12 md:h-12 rounded shadow"
               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
             />
-            <div class="flex flex-col">
-              <span class="text-base font-medium {$currentTrack?.id === track.id ? 'text-spotify-green' : 'text-white'}">{track.title}</span>
+            <div class="flex flex-col min-w-0">
+              <span class="text-sm md:text-base font-medium truncate {$currentTrack?.id === track.id ? 'text-spotify-green' : 'text-white'}">{track.title}</span>
               <ArtistList 
                 artist={track.artist} 
                 artistId={track.artistId} 
@@ -113,7 +114,7 @@
           </div>
         </td>
         {#if !isQueue}
-          <td class="p-2 px-4">
+          <td class="p-2 px-4 hidden md:table-cell">
             <span 
               role="link"
               tabindex="0"
@@ -122,10 +123,10 @@
               onkeydown={(e) => e.key === 'Enter' && onnavigate && onnavigate(`album:${track.albumId}`)}
             >{track.album || ''}</span>
           </td>
-          <td class="p-2 px-4 text-xs italic opacity-80 max-w-[150px] truncate" title={track.genre || ''}>{track.genre || ''}</td>
-          <td class="p-2 px-4">{formatDate(track.date) || track.year || ''}</td>
+          <td class="p-2 px-4 text-xs italic opacity-80 max-w-[150px] truncate hidden md:table-cell" title={track.genre || ''}>{track.genre || ''}</td>
+          <td class="p-2 px-4 hidden md:table-cell">{formatDate(track.date) || track.year || ''}</td>
         {/if}
-        <td class="p-2 px-4 text-right">{formatTime(track.duration * 1000)}</td>
+        <td class="p-2 px-4 text-right text-xs md:text-sm">{formatTime(track.duration * 1000)}</td>
         {#if isQueue}
           <td class="p-2 px-4 text-center">
             <div class="flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity">

@@ -74,6 +74,7 @@
 
   function handleTimeUpdate() {
     playerState.update(s => ({ ...s, progress: audioElement.currentTime }));
+    updatePositionState();
     if (!hasScrobbledFinished && track) {
         const threshold = Math.min(240, audioElement.duration / 2);
         if (audioElement.currentTime > threshold && audioElement.duration > 0) {
@@ -85,6 +86,7 @@
 
   function handleLoadedMetadata() {
     playerState.update(s => ({ ...s, duration: audioElement.duration }));
+    updatePositionState();
     if (!initialized && track) {
         audioElement.currentTime = $playerState.progress || 0;
         initialized = true;
@@ -129,6 +131,24 @@
     return `${min}:${sec < 10 ? '0' : ''}${sec}`;
   }
 
+  function updatePositionState() {
+    if ('mediaSession' in navigator &&
+        'setPositionState' in navigator.mediaSession &&
+        audioElement &&
+        !isNaN(audioElement.duration) &&
+        isFinite(audioElement.duration)) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: Math.max(0, audioElement.duration),
+          playbackRate: audioElement.playbackRate || 1,
+          position: Math.max(0, Math.min(audioElement.currentTime, audioElement.duration))
+        });
+      } catch (e) {
+        console.error("Failed to set position state", e);
+      }
+    }
+  }
+
   function toggleRepeat() {
       playerState.update(s => {
           let next;
@@ -152,6 +172,25 @@
   $: shuffleMode = $playerState.shuffle;
   $: coverUrl = track?.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}` : '/images/spotify-fallback.svg';
   $: streamUrl = track?.id ? `/rest/stream?id=${track.id}&${$authParams}` : '';
+
+  $: if (typeof navigator !== 'undefined' && 'mediaSession' in navigator && track) {
+    const artUrl = track.coverArt
+      ? `${$credentials.url}/rest/getCoverArt?id=${track.coverArt}&size=512&${$authParams}`
+      : window.location.origin + '/images/spotify-fallback.svg';
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track.title || 'Onbekend nummer',
+      artist: track.artist || 'Onbekende artiest',
+      album: track.album || 'Onbekend album',
+      artwork: [
+        { src: artUrl, sizes: '512x512', type: 'image/jpeg' }
+      ]
+    });
+  }
+
+  $: if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+    navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
+  }
 
   let lastTrackId = null;
   let hasScrobbledStarted = false;
@@ -193,6 +232,22 @@
     if (track && !initialized) {
         audioElement.src = streamUrl;
         // currentTime will be set in handleLoadedMetadata
+    }
+
+    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+      navigator.mediaSession.setActionHandler('play', () => togglePlay());
+      navigator.mediaSession.setActionHandler('pause', () => togglePlay());
+      navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
+      navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
+      try {
+        navigator.mediaSession.setActionHandler('seekto', (details) => {
+          if (details.seekTime !== undefined && audioElement) {
+            audioElement.currentTime = details.seekTime;
+          }
+        });
+      } catch (e) {
+        console.warn("MediaSession seekto not supported", e);
+      }
     }
   });
 </script>

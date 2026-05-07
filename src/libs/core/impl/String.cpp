@@ -435,12 +435,49 @@ namespace lms::core::stringUtils
 
     std::string jsEscape(std::string_view str)
     {
-        return detail::escape(str, detail::jsEscapeChars);
+        std::string res;
+        res.reserve(str.size());
+
+        for (const char c : str)
+        {
+            auto it{ std::find_if(std::cbegin(detail::jsEscapeChars), std::cend(detail::jsEscapeChars), [c](const auto& entry) { return entry.first == c; }) };
+            if (it != std::cend(detail::jsEscapeChars))
+            {
+                res += it->second;
+            }
+            else if (static_cast<unsigned char>(c) < 0x20)
+            {
+                std::ostringstream oss;
+                oss << "\\u" << std::setfill('0') << std::setw(4) << std::hex << static_cast<int>(static_cast<unsigned char>(c)) << std::dec;
+                res += oss.str();
+            }
+            else
+            {
+                res += c;
+            }
+        }
+
+        return res;
     }
 
     void writeJSEscapedString(std::ostream& os, std::string_view str)
     {
-        detail::writeEscapedString(os, str, detail::jsEscapeChars);
+        for (const char c : str)
+        {
+            auto itEntry{ std::find_if(std::cbegin(detail::jsEscapeChars), std::cend(detail::jsEscapeChars), [=](const auto& entry) { return entry.first == c; }) };
+            if (itEntry != std::cend(detail::jsEscapeChars))
+            {
+                os << itEntry->second;
+            }
+            else if (static_cast<unsigned char>(c) < 0x20)
+            {
+                os << "\\u" << std::setfill('0') << std::setw(4) << std::hex << static_cast<int>(static_cast<unsigned char>(c)) << std::dec;
+            }
+            else
+            {
+                os << c;
+            }
+        }
     }
 
     std::string jsonEscape(std::string_view str)

@@ -76,9 +76,9 @@
       <tr 
         role="button"
         tabindex="0"
-        class="group hover:bg-white/10 hover:text-white h-14 md:h-16 {$currentTrack?.id === track.id ? 'text-spotify-green' : ''}" 
-        onclick={(e) => $isMobile && playTrack(track)}
-        ondblclick={() => !$isMobile && playTrack(track)}
+        class="group hover:bg-white/10 active:bg-white/5 hover:text-white h-14 md:h-16 cursor-pointer select-none {$currentTrack?.id === track.id ? 'text-spotify-green' : ''}" 
+        onclick={() => { if ($isMobile) playTrack(track); }}
+        ondblclick={() => { if (!$isMobile) playTrack(track); }}
         onkeydown={(e) => e.key === 'Enter' && playTrack(track)}
       >
         <td class="p-2 px-4 text-right relative hidden md:table-cell">

@@ -80,7 +80,7 @@
     isMounted = true;
     
     const updateMobile = () => {
-      isMobile.set(window.innerWidth < 768);
+      isMobile.set(window.innerWidth < 1024 || window.matchMedia("(pointer: coarse)").matches);
     };
     updateMobile();
     window.addEventListener('resize', updateMobile);

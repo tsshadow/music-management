@@ -154,6 +154,16 @@ namespace lms::api::subsonic
 
         db::Track::FindParameters params;
 
+        if (auto artist = getParameterAs<std::string>(ctx.getParameters(), "artist"))
+        {
+            params.setArtistName(*artist, { db::TrackArtistLinkType::Artist });
+        }
+
+        if (auto artistId = getParameterAs<std::string>(ctx.getParameters(), "artistId"))
+        {
+            params.setArtist(db::ArtistId{ std::stoll(*artistId) }, { db::TrackArtistLinkType::Artist });
+        }
+
         if (auto genre = getParameterAs<std::string>(ctx.getParameters(), "genre"))
         {
             if (auto genreType = db::ClusterType::find(session, "GENRE"))

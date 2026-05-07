@@ -9,6 +9,7 @@
   let albums = $state([]);
   let appearsOn = $state([]);
   let tracks = $state([]);
+  let allTracks = $state([]);
   let similarArtists = $state([]);
   let isLoading = $state(true);
 
@@ -27,6 +28,7 @@
         appearsOn = allAlbums.filter(a => a.artist !== artist.name);
         
         loadTopTracks();
+        loadAllTracks();
         loadArtistInfo();
       }
     } catch (e) {
@@ -42,6 +44,17 @@
       const data = await response.json();
       const result = data['subsonic-response']?.topSongs?.song || [];
       tracks = Array.isArray(result) ? result : [result];
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function loadAllTracks() {
+    try {
+      const response = await fetch(`/rest/getSpotifyTracks?artistId=${artistId}&count=50&sort=recent&${$authParams}`);
+      const data = await response.json();
+      const result = data['subsonic-response']?.tracks?.track || [];
+      allTracks = Array.isArray(result) ? result : [result];
     } catch (e) {
       console.error(e);
     }
@@ -107,6 +120,13 @@
             <section>
                 <h2 class="text-2xl font-bold mb-4">Populair</h2>
                 <TrackList {tracks} onnavigate={onnavigate} />
+            </section>
+        {/if}
+
+        {#if allTracks.length > 0}
+            <section>
+                <h2 class="text-2xl font-bold mb-4">Alle nummers</h2>
+                <TrackList tracks={allTracks} onnavigate={onnavigate} />
             </section>
         {/if}
 

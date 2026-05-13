@@ -54,7 +54,7 @@ class TrackAnalyzer:
         rms = librosa.feature.rms(y=y)[0]
         
         features = {
-            "tempo": float(tempo),
+            "tempo": float(np.mean(tempo)),
             "duration": float(librosa.get_duration(y=y, sr=sr)),
             "mean_spectral_centroid": float(np.mean(spectral_centroids)),
             "mean_rms": float(np.mean(rms))

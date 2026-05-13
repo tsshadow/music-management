@@ -32,10 +32,18 @@ De analyzer haalt momenteel de volgende kenmerken uit je muziek:
     *   *Opmerking*: De analyzer is geoptimaliseerd voor snellere muziek (150+ BPM) om te voorkomen dat het tempo per ongeluk op de helft wordt gedetecteerd.
 2.  **Duration**: De lengte van het bestand.
     *   *ML nut*: Helpt bij het filteren van korte samples of radio edits vs extended mixes.
-3.  **Mean Spectral Centroid**: De "helderheid" of het "timbre" van het geluid. 
+3.  **Spectral Centroid**: De "helderheid" of het "timbre" van het geluid. 
     *   *ML nut*: Hardere stijlen met veel vervorming (distorted kicks/leads) hebben vaak een hogere waarde.
-4.  **Mean RMS**: De gemiddelde luidheid (energie).
+4.  **Spectral Rolloff**: De frequentie waaronder een bepaald percentage (bijv. 85%) van de spectrale energie ligt.
+    *   *ML nut*: Helpt bij het onderscheiden van dof vs. helder geluid.
+5.  **RMS**: De gemiddelde luidheid (energie).
     *   *ML nut*: Geeft een indicatie van de intensiteit en compressie van de track.
+6.  **Zero Crossing Rate (ZCR)**: Hoe vaak het signaal de nul-as passeert.
+    *   *ML nut*: Een indicator voor percussiviteit en ruis (noise). Hardcore kicks hebben vaak een unieke ZCR-signatuur.
+7.  **MFCCs (Mel-frequency cepstral coefficients)**: Een compacte representatie van de spectrale vorm.
+    *   *ML nut*: Dit is de "gouden standaard" voor timbre-herkenning en genreclassificatie.
+8.  **Chroma Features**: De verdeling van harmonische energie over de 12 toonhoogteklassen.
+    *   *ML nut*: Helpt bij het herkennen van toonsoort en melodische patronen.
 
 ## 🚀 Usage
 
@@ -48,13 +56,19 @@ Build and start:
 docker-compose up -d ml-analyzer
 ```
 
-Manually analyze a track or folder:
+Manually analyze a track, folder, or the entire collection:
 ```bash
 # Enkele track
 docker exec -it muma-ml-analyzer python analyzer.py /mnt/music/path/to/track.mp3
 
 # Hele map en opslaan in database
 docker exec -it muma-ml-analyzer python analyzer.py /mnt/music/path/to/folder --save
+
+# Parallelle analyse van een map (sneller)
+docker exec -it muma-ml-analyzer python analyzer.py /mnt/music/path/to/folder --save --parallel
+
+# VOLLEDIGE COLLECTIE (net als de tagger)
+docker exec -it muma-ml-analyzer python analyzer.py --all --save --parallel
 ```
 
 ### Local (Native Python)
@@ -90,6 +104,11 @@ python analyzer.py /path/to/your/music/file.mp3
 Analyseer een map en sla op in DB:
 ```bash
 python analyzer.py /path/to/folder --save
+```
+
+Analyseer de volledige muziekcollectie parallel (zoals geconfigureerd in `.env`):
+```bash
+python analyzer.py --all --save --parallel
 ```
 
 ## 📅 Future Roadmap (as per machine-learning.md)

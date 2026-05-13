@@ -21,7 +21,15 @@ CREATE TABLE IF NOT EXISTS track_audio_features (
     tempo FLOAT,
     duration FLOAT,
     mean_spectral_centroid FLOAT,
+    mean_spectral_rolloff FLOAT,
     mean_rms FLOAT,
+    mean_zcr FLOAT,
+    mfcc_1 FLOAT,
+    mfcc_2 FLOAT,
+    mfcc_3 FLOAT,
+    mfcc_4 FLOAT,
+    mfcc_5 FLOAT,
+    mean_chroma FLOAT,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY (track_id)
 );

@@ -1,0 +1,12 @@
+torchaudio
+librosa
+essentia-tensorflow
+pandas
+numpy
+scipy
+scikit-learn
+sqlalchemy
+mysql-connector-python
+python-dotenv
+tqdm
+matplotlib

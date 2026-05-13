@@ -29,6 +29,7 @@ De analyzer haalt momenteel de volgende kenmerken uit je muziek:
 
 1.  **Tempo (BPM)**: De snelheid van de track. 
     *   *ML nut*: Helpt bij het onderscheiden van genres (bijv. Hardcore > 160 vs Hardstyle ~150).
+    *   *Opmerking*: De analyzer is geoptimaliseerd voor snellere muziek (150+ BPM) om te voorkomen dat het tempo per ongeluk op de helft wordt gedetecteerd.
 2.  **Duration**: De lengte van het bestand.
     *   *ML nut*: Helpt bij het filteren van korte samples of radio edits vs extended mixes.
 3.  **Mean Spectral Centroid**: De "helderheid" of het "timbre" van het geluid. 

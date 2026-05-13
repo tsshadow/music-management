@@ -68,14 +68,19 @@ class TrackAnalyzer:
             print("Geen database verbinding beschikbaar om features op te slaan.")
             return False
 
-        from sqlalchemy import Table, MetaData, select
+        from sqlalchemy import Table, MetaData, Column, Float, String
         from sqlalchemy.dialects.mysql import insert
 
         metadata = MetaData()
-        # We definiëren de tabel reflectief of handmatig
+        # Handmatige definitie voor robuustheid (overeenkomstig met db_init.sql)
         track_audio_features = Table(
             'track_audio_features', metadata,
-            autoload_with=self.engine
+            Column('track_id', String(255), primary_key=True),
+            Column('tempo', Float),
+            Column('duration', Float),
+            Column('mean_spectral_centroid', Float),
+            Column('mean_rms', Float),
+            extend_existing=True
         )
 
         with self.engine.begin() as conn:

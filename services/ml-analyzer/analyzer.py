@@ -45,7 +45,9 @@ class TrackAnalyzer:
             return None
 
         print("Extracting features...")
-        tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
+        # Gebruik een hogere start_bpm (150 ipv default 120) omdat veel muziek in deze collectie 
+        # sneller is (Hardcore/Uptempo). Dit helpt bij het voorkomen van 'half-tempo' fouten.
+        tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr, start_bpm=150)
         
         # Spectrale kenmerken
         spectral_centroids = librosa.feature.spectral_centroid(y=y, sr=sr)[0]
@@ -128,6 +130,20 @@ class TrackAnalyzer:
             print(f"Fout bij opzoeken track_id: {e}")
             
         return path_hash
+
+    def analyze_track(self, file_path, save=False):
+        """Voer volledige analyse uit op een track."""
+        y, sr = self.load_audio(file_path)
+        if y is None:
+            return None
+            
+        features = self.extract_basic_features(y, sr)
+        
+        if save and features:
+            track_id = self.get_track_id(file_path)
+            self.save_features(track_id, features)
+            
+        return features
 
     def analyze_folder(self, folder_path, save=False):
         """Analyseer alle ondersteunde audiobestanden in een map."""

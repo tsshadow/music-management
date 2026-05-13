@@ -6,14 +6,17 @@ import torch
 import torchaudio
 from sqlalchemy import create_engine
 from dotenv import load_dotenv
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
 load_dotenv()
 
 class TrackAnalyzer:
-    def __init__(self):
+    def __init__(self, max_workers=4):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Using device: {self.device}")
         self.engine = self._get_db_engine()
+        self.max_workers = max_workers
 
     def _get_db_engine(self):
         host = os.getenv("DB_HOST", "db")
@@ -40,7 +43,7 @@ class TrackAnalyzer:
             return None, None
 
     def extract_basic_features(self, y, sr):
-        """Extraheer basis muziekelementen."""
+        """Extraheer uitgebreide muziekelementen."""
         if y is None:
             return None
 
@@ -51,15 +54,31 @@ class TrackAnalyzer:
         
         # Spectrale kenmerken
         spectral_centroids = librosa.feature.spectral_centroid(y=y, sr=sr)[0]
+        spectral_rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr)[0]
         
-        # Gemiddelde loudness (RMS)
+        # Tijdsdomein kenmerken
         rms = librosa.feature.rms(y=y)[0]
+        zcr = librosa.feature.zero_crossing_rate(y=y)[0]
+        
+        # Timbre (MFCCs) - we nemen de eerste 5 voor een compact overzicht
+        mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=5)
+        
+        # Harmonische inhoud (Chroma)
+        chroma = librosa.feature.chroma_stft(y=y, sr=sr)
         
         features = {
             "tempo": float(np.mean(tempo)),
             "duration": float(librosa.get_duration(y=y, sr=sr)),
             "mean_spectral_centroid": float(np.mean(spectral_centroids)),
-            "mean_rms": float(np.mean(rms))
+            "mean_spectral_rolloff": float(np.mean(spectral_rolloff)),
+            "mean_rms": float(np.mean(rms)),
+            "mean_zcr": float(np.mean(zcr)),
+            "mfcc_1": float(np.mean(mfccs[0])),
+            "mfcc_2": float(np.mean(mfccs[1])),
+            "mfcc_3": float(np.mean(mfccs[2])),
+            "mfcc_4": float(np.mean(mfccs[3])),
+            "mfcc_5": float(np.mean(mfccs[4])),
+            "mean_chroma": float(np.mean(chroma))
         }
         
         return features
@@ -81,7 +100,15 @@ class TrackAnalyzer:
             Column('tempo', Float),
             Column('duration', Float),
             Column('mean_spectral_centroid', Float),
+            Column('mean_spectral_rolloff', Float),
             Column('mean_rms', Float),
+            Column('mean_zcr', Float),
+            Column('mfcc_1', Float),
+            Column('mfcc_2', Float),
+            Column('mfcc_3', Float),
+            Column('mfcc_4', Float),
+            Column('mfcc_5', Float),
+            Column('mean_chroma', Float),
             extend_existing=True
         )
 
@@ -91,14 +118,30 @@ class TrackAnalyzer:
                 tempo=features['tempo'],
                 duration=features['duration'],
                 mean_spectral_centroid=features['mean_spectral_centroid'],
-                mean_rms=features['mean_rms']
+                mean_spectral_rolloff=features['mean_spectral_rolloff'],
+                mean_rms=features['mean_rms'],
+                mean_zcr=features['mean_zcr'],
+                mfcc_1=features['mfcc_1'],
+                mfcc_2=features['mfcc_2'],
+                mfcc_3=features['mfcc_3'],
+                mfcc_4=features['mfcc_4'],
+                mfcc_5=features['mfcc_5'],
+                mean_chroma=features['mean_chroma']
             )
             # Update bij duplicate key (track_id)
             on_duplicate_stmt = stmt.on_duplicate_key_update(
                 tempo=stmt.inserted.tempo,
                 duration=stmt.inserted.duration,
                 mean_spectral_centroid=stmt.inserted.mean_spectral_centroid,
-                mean_rms=stmt.inserted.mean_rms
+                mean_spectral_rolloff=stmt.inserted.mean_spectral_rolloff,
+                mean_rms=stmt.inserted.mean_rms,
+                mean_zcr=stmt.inserted.mean_zcr,
+                mfcc_1=stmt.inserted.mfcc_1,
+                mfcc_2=stmt.inserted.mfcc_2,
+                mfcc_3=stmt.inserted.mfcc_3,
+                mfcc_4=stmt.inserted.mfcc_4,
+                mfcc_5=stmt.inserted.mfcc_5,
+                mean_chroma=stmt.inserted.mean_chroma
             )
             conn.execute(on_duplicate_stmt)
             
@@ -145,39 +188,108 @@ class TrackAnalyzer:
             
         return features
 
-    def analyze_folder(self, folder_path, save=False):
+    def analyze_folder(self, folder_path, save=False, parallel=False):
         """Analyseer alle ondersteunde audiobestanden in een map."""
         supported_extensions = ('.mp3', '.flac', '.wav', '.m4a', '.ogg')
+        files_to_analyze = []
+        
         for root, dirs, files in os.walk(folder_path):
+            # Skip @eaDir (Synology metadata)
+            if '@eaDir' in root:
+                continue
             for file in files:
                 if file.lower().endswith(supported_extensions):
-                    file_path = os.path.join(root, file)
-                    print(f"\n--- Analysing: {file} ---")
-                    self.analyze_track(file_path, save=save)
+                    files_to_analyze.append(os.path.join(root, file))
+
+        if not files_to_analyze:
+            print(f"Geen ondersteunde bestanden gevonden in {folder_path}")
+            return
+
+        print(f"Gevonden: {len(files_to_analyze)} bestanden in {folder_path}")
+
+        if parallel and len(files_to_analyze) > 1:
+            print(f"Start parallelle analyse met {self.max_workers} workers...")
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                futures = {executor.submit(self.analyze_track, f, save): f for f in files_to_analyze}
+                for future in as_completed(futures):
+                    f = futures[future]
+                    try:
+                        future.result()
+                    except Exception as e:
+                        print(f"Fout bij analyseren van {f}: {e}")
+        else:
+            for file_path in files_to_analyze:
+                print(f"\n--- Analysing: {os.path.basename(file_path)} ---")
+                self.analyze_track(file_path, save=save)
+
+    def run_full_scan(self, save=False, parallel=False):
+        """Voer een volledige scan uit op de muziekcollectie (vergelijkbaar met tagger)."""
+        music_path = os.getenv("MUSIC_PATH", "/mnt/music")
+        eps_path = os.getenv("EPS_PATH", os.path.join(music_path, "EPs"))
+        
+        folders_to_scan = []
+        
+        # 1. EPs / Labels
+        if os.path.exists(eps_path):
+            folders_to_scan.append(eps_path)
+            
+        # 2. Platform mappen
+        for platform in ['Soundcloud', 'Youtube', 'Telegram']:
+            p_path = os.path.join(music_path, platform)
+            if os.path.exists(p_path):
+                folders_to_scan.append(p_path)
+                
+        # 3. Generieke mappen
+        generic_folders = ['Livesets', 'Podcasts', 'Top 100', 'Warm Up Mixes']
+        for gf in generic_folders:
+            gf_path = os.path.join(music_path, gf)
+            if os.path.exists(gf_path):
+                folders_to_scan.append(gf_path)
+        
+        if not folders_to_scan:
+            print(f"Geen mappen gevonden om te scannen in {music_path}")
+            # Val terug op het hoofdpad als er niets specifieks gevonden is
+            if os.path.exists(music_path):
+                folders_to_scan = [music_path]
+            else:
+                return
+
+        print(f"Start volledige scan op {len(folders_to_scan)} hoofdmappen...")
+        for folder in folders_to_scan:
+            print(f"\n>>> Scannen van map: {folder}")
+            self.analyze_folder(folder, save=save, parallel=parallel)
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Gebruik: python analyzer.py <path_to_audio_file_or_folder> [--save]")
+        print("Gebruik: python analyzer.py <path_to_audio_file_or_folder> [--save] [--parallel] [--all]")
         sys.exit(1)
 
-    path = sys.argv[1]
+    path = sys.argv[1] if len(sys.argv) > 1 else None
     save_to_db = "--save" in sys.argv
+    parallel_mode = "--parallel" in sys.argv
+    full_scan = "--all" in sys.argv
     
-    # Zoek het argument dat het pad is
-    for arg in sys.argv[1:]:
-        if arg != "--save":
-            path = arg
-            break
-
-    analyzer = TrackAnalyzer()
+    # Zoek het argument dat het pad is (als niet --all)
+    if not full_scan:
+        for arg in sys.argv[1:]:
+            if not arg.startswith("--"):
+                path = arg
+                break
     
-    if os.path.isdir(path):
-        analyzer.analyze_folder(path, save=save_to_db)
-    else:
-        results = analyzer.analyze_track(path, save=save_to_db)
-        if results:
-            print("\nAnalyse resultaten:")
-            for k, v in results.items():
-                print(f"  {k}: {v}")
+    analyzer = TrackAnalyzer(max_workers=4)
+    
+    if full_scan:
+        analyzer.run_full_scan(save=save_to_db, parallel=parallel_mode)
+    elif path:
+        if os.path.isdir(path):
+            analyzer.analyze_folder(path, save=save_to_db, parallel=parallel_mode)
         else:
-            print("Analyse mislukt.")
+            results = analyzer.analyze_track(path, save=save_to_db)
+            if results:
+                print("\nAnalyse resultaten:")
+                for k, v in results.items():
+                    print(f"  {k}: {v}")
+            else:
+                print("Analyse mislukt.")
+    else:
+        print("Geen pad opgegeven en --all niet gebruikt.")

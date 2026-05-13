@@ -1,6 +1,6 @@
-# 🎼 Tagging Rules – MusicImporter
+# 🎼 Tagging Rules – MusicManagement
 
-This folder contains all **tagging rules** used in the `BaseSong` subclasses of the MusicImporter project. Each rule implements the `TagRule` interface and applies automatic metadata corrections, cleanup, or enrichment based on audio file tags.
+This folder contains all **tagging rules** used in the `BaseSong` subclasses of the MusicManagement project. Each rule implements the `TagRule` interface and applies automatic metadata corrections, cleanup, or enrichment based on audio file tags.
 
 ## 📦 Contents
 

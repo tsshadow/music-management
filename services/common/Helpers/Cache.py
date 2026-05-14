@@ -8,4 +8,5 @@ databaseHelpers = {'artists': TableHelper('artists', 'name'),
                    'ignored_genres': FilterTableHelper('ignored_genres', 'name', 'corrected_name'),
                    'artistGenreHelper': LookupTableHelper('artist_genre', 'artist', 'genre'),
                    'labelGenreHelper': LookupTableHelper('label_genre', 'label', 'genre'),
-                   'subgenreHelper': LookupTableHelper('subgenre_genre', 'subgenre', 'genre')}
+                   'subgenreHelper': LookupTableHelper('subgenre_genre', 'subgenre', 'genre'),
+                   'genre_backlog': TableHelper('genre_backlog', 'genre')}

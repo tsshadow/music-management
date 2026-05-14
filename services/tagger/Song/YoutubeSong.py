@@ -1,5 +1,6 @@
 from services.common.settings import Settings
 from services.tagger.Song.BaseSong import BaseSong
+from services.tagger.Song.rules.AddMissingGenreToDatabaseRule import AddMissingGenreToDatabaseRule
 from services.tagger.Song.rules.CleanAndFilterGenreRule import CleanAndFilterGenreRule
 from services.tagger.Song.rules.CleanTagsRule import CleanTagsRule
 from services.tagger.Song.rules.InferFestivalFromTitleRule import InferFestivalFromTitleRule
@@ -43,7 +44,9 @@ class YoutubeSong(BaseSong):
         self.rules.append(InferGenreFromAlbumArtistRule())
         self.rules.append(InferGenreFromSubgenreRule())
         self.rules.append(CleanTagsRule())
-        self.rules.append(CleanAndFilterGenreRule())
+        from services.common.Helpers.Cache import databaseHelpers
+        self.rules.append(AddMissingGenreToDatabaseRule(genre_db=databaseHelpers['genres'], ignored_db=databaseHelpers['ignored_genres']))
+        self.rules.append(CleanAndFilterGenreRule(databaseHelpers['genres'], databaseHelpers.get('genre_backlog')))
         self.rules.append(ReplaceInvalidUnicodeRule())
         super().parse()
 

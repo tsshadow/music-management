@@ -64,7 +64,7 @@ def verify_api_key(x_api_key: Optional[str]=Header(default=None)) -> None:
     """Simple optional API key check."""
     if API_KEY and x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail='Invalid API key')
-default_origins = 'http://192.168.1.4:8001,https://music-importer.teunschriks.nl'
+default_origins = 'http://192.168.1.4:8001,https://music-management.teunschriks.nl'
 trusted_origins = os.getenv('CORS_ORIGINS', default_origins).split(',')
 app.add_middleware(CORSMiddleware, allow_origins=[origin.strip() for origin in trusted_origins if origin.strip()], allow_credentials=True, allow_methods=['*'], allow_headers=['*'])
 jobs: Dict[str, Dict] = {}

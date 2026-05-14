@@ -1,1 +1,11 @@
 docker-compose.yml
+work-context/
+/docker-compose.tools.yml
+/.env
+*.sql
+*.log
+.output.txt
+venv/
+__pycache__/
+.idea/
+services/ml-analyzer/.env

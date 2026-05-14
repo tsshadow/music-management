@@ -8,6 +8,7 @@ from sqlalchemy import create_engine
 from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from tqdm import tqdm
 
 load_dotenv()
 
@@ -17,6 +18,7 @@ class TrackAnalyzer:
         print(f"Using device: {self.device}")
         self.engine = self._get_db_engine()
         self.max_workers = max_workers
+        self.verbose = True
 
     def _get_db_engine(self):
         host = os.getenv("DB_HOST", "db")
@@ -33,7 +35,8 @@ class TrackAnalyzer:
 
     def load_audio(self, file_path):
         """Laad audio bestand in."""
-        print(f"Loading track: {file_path}")
+        if self.verbose:
+            print(f"Loading track: {file_path}")
         try:
             # Librosa voor basis analyse
             y, sr = librosa.load(file_path, sr=None)
@@ -47,7 +50,8 @@ class TrackAnalyzer:
         if y is None:
             return None
 
-        print("Extracting features...")
+        if self.verbose:
+            print("Extracting features...")
         # Gebruik een hogere start_bpm (150 ipv default 120) omdat veel muziek in deze collectie 
         # sneller is (Hardcore/Uptempo). Dit helpt bij het voorkomen van 'half-tempo' fouten.
         tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr, start_bpm=150)
@@ -83,13 +87,14 @@ class TrackAnalyzer:
         
         return features
 
-    def save_features(self, track_id, features):
+    def save_features(self, track_id, features, internal_track_id=None):
         """Sla de geëxtraheerde features op in de database."""
         if self.engine is None:
-            print("Geen database verbinding beschikbaar om features op te slaan.")
+            if self.verbose:
+                print("Geen database verbinding beschikbaar om features op te slaan.")
             return False
 
-        from sqlalchemy import Table, MetaData, Column, Float, String
+        from sqlalchemy import Table, MetaData, Column, Float, String, Integer
         from sqlalchemy.dialects.mysql import insert
 
         metadata = MetaData()
@@ -97,6 +102,7 @@ class TrackAnalyzer:
         track_audio_features = Table(
             'track_audio_features', metadata,
             Column('track_id', String(255), primary_key=True),
+            Column('internal_track_id', Integer),
             Column('tempo', Float),
             Column('duration', Float),
             Column('mean_spectral_centroid', Float),
@@ -115,6 +121,7 @@ class TrackAnalyzer:
         with self.engine.begin() as conn:
             stmt = insert(track_audio_features).values(
                 track_id=track_id,
+                internal_track_id=internal_track_id,
                 tempo=features['tempo'],
                 duration=features['duration'],
                 mean_spectral_centroid=features['mean_spectral_centroid'],
@@ -129,53 +136,126 @@ class TrackAnalyzer:
                 mean_chroma=features['mean_chroma']
             )
             # Update bij duplicate key (track_id)
-            on_duplicate_stmt = stmt.on_duplicate_key_update(
-                tempo=stmt.inserted.tempo,
-                duration=stmt.inserted.duration,
-                mean_spectral_centroid=stmt.inserted.mean_spectral_centroid,
-                mean_spectral_rolloff=stmt.inserted.mean_spectral_rolloff,
-                mean_rms=stmt.inserted.mean_rms,
-                mean_zcr=stmt.inserted.mean_zcr,
-                mfcc_1=stmt.inserted.mfcc_1,
-                mfcc_2=stmt.inserted.mfcc_2,
-                mfcc_3=stmt.inserted.mfcc_3,
-                mfcc_4=stmt.inserted.mfcc_4,
-                mfcc_5=stmt.inserted.mfcc_5,
-                mean_chroma=stmt.inserted.mean_chroma
-            )
+            update_dict = {
+                'tempo': stmt.inserted.tempo,
+                'duration': stmt.inserted.duration,
+                'mean_spectral_centroid': stmt.inserted.mean_spectral_centroid,
+                'mean_spectral_rolloff': stmt.inserted.mean_spectral_rolloff,
+                'mean_rms': stmt.inserted.mean_rms,
+                'mean_zcr': stmt.inserted.mean_zcr,
+                'mfcc_1': stmt.inserted.mfcc_1,
+                'mfcc_2': stmt.inserted.mfcc_2,
+                'mfcc_3': stmt.inserted.mfcc_3,
+                'mfcc_4': stmt.inserted.mfcc_4,
+                'mfcc_5': stmt.inserted.mfcc_5,
+                'mean_chroma': stmt.inserted.mean_chroma
+            }
+            if internal_track_id is not None:
+                update_dict['internal_track_id'] = stmt.inserted.internal_track_id
+                
+            on_duplicate_stmt = stmt.on_duplicate_key_update(**update_dict)
             conn.execute(on_duplicate_stmt)
             
-        print(f"Features opgeslagen voor track_id: {track_id}")
+        if self.verbose:
+            print(f"Features opgeslagen voor track_id: {track_id} (internal: {internal_track_id})")
         return True
 
-    def get_track_id(self, file_path):
-        """Probeer een track_id te vinden voor het gegeven bestandspad."""
-        # Voor nu gebruiken we een hash van het pad als we geen match vinden in de media_library
-        # Maar we kunnen proberen in de 'media_files' tabel te kijken als die bestaat
+    def is_already_analyzed(self, track_id):
+        """Check of een track al geanalyseerd is."""
+        if self.engine is None:
+            return False
+            
+        from sqlalchemy import text
+        try:
+            with self.engine.connect() as conn:
+                result = conn.execute(
+                    text("SELECT 1 FROM track_audio_features WHERE track_id = :id"),
+                    {"id": track_id}
+                ).fetchone()
+                return result is not None
+        except Exception:
+            return False
+
+    def get_track_info(self, file_path):
+        """Probeer track informatie (internal_id en legacy hash) te vinden."""
         import hashlib
         path_hash = hashlib.sha256(file_path.encode()).hexdigest()
         
         if self.engine is None:
-            return path_hash
+            return path_hash, None
 
         from sqlalchemy import text
         try:
             with self.engine.connect() as conn:
-                # Probeer track_id uit media_files te halen
+                # 1. Zoek in media_files
                 result = conn.execute(
-                    text("SELECT track_id FROM media_files WHERE file_path = :path OR file_path_hash = :hash"),
-                    {"path": file_path, "hash": path_hash}
+                    text("SELECT track_id, id FROM media_files WHERE file_path_hash = :hash OR file_path = :path"),
+                    {"hash": path_hash, "path": file_path}
                 ).fetchone()
                 
-                if result and result[0]:
-                    return str(result[0])
+                if result:
+                    internal_track_id = result[0]
+                    media_file_id = result[1]
+                    
+                    # Als er geen track_id is, maak er een aan
+                    if internal_track_id is None:
+                        # Probeer een titel te extraheren uit het pad voor de tracks tabel
+                        title = Path(file_path).stem
+                        res = conn.execute(
+                            text("INSERT INTO tracks (title, track_uid) VALUES (:title, :uid)"),
+                            {"title": title, "uid": path_hash}
+                        )
+                        # internal_track_id = res.lastrowid # Afhankelijk van driver
+                        # Veiligere manier:
+                        internal_track_id = conn.execute(text("SELECT LAST_INSERT_ID()")).scalar()
+                        
+                        # Update media_files koppeling
+                        conn.execute(
+                            text("UPDATE media_files SET track_id = :tid WHERE id = :mid"),
+                            {"tid": internal_track_id, "mid": media_file_id}
+                        )
+                        conn.commit()
+                        
+                    return path_hash, internal_track_id
+                else:
+                    # Bestand onbekend in media_files, voeg toe
+                    title = Path(file_path).stem
+                    # Maak track aan
+                    conn.execute(
+                        text("INSERT INTO tracks (title, track_uid) VALUES (:title, :uid)"),
+                        {"title": title, "uid": path_hash}
+                    )
+                    internal_track_id = conn.execute(text("SELECT LAST_INSERT_ID()")).scalar()
+                    
+                    # Voeg media_file toe
+                    file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
+                    file_mtime = os.path.getmtime(file_path) if os.path.exists(file_path) else 0
+                    
+                    conn.execute(
+                        text("INSERT INTO media_files (file_path, file_path_hash, track_id, file_size, file_mtime) VALUES (:path, :hash, :tid, :size, :mtime)"),
+                        {"path": file_path, "hash": path_hash, "tid": internal_track_id, "size": file_size, "mtime": file_mtime}
+                    )
+                    conn.commit()
+                    return path_hash, internal_track_id
+                    
         except Exception as e:
-            print(f"Fout bij opzoeken track_id: {e}")
+            if self.verbose:
+                print(f"Fout bij opzoeken/aanmaken track info: {e}")
             
-        return path_hash
+        return path_hash, None
 
-    def analyze_track(self, file_path, save=False):
+    def analyze_track(self, file_path, save=False, skip_existing=False):
         """Voer volledige analyse uit op een track."""
+        track_hash, internal_id = self.get_track_info(file_path)
+        
+        # Gebruik de internal_id als hoofd-ID voor checks als die er is, anders de hash
+        id_for_check = str(internal_id) if internal_id else track_hash
+        
+        if skip_existing and self.is_already_analyzed(id_for_check):
+            if self.verbose:
+                print(f"Skipping already analyzed track: {file_path}")
+            return None
+
         y, sr = self.load_audio(file_path)
         if y is None:
             return None
@@ -183,16 +263,16 @@ class TrackAnalyzer:
         features = self.extract_basic_features(y, sr)
         
         if save and features:
-            track_id = self.get_track_id(file_path)
-            self.save_features(track_id, features)
+            self.save_features(track_hash, features, internal_track_id=internal_id)
             
         return features
 
-    def analyze_folder(self, folder_path, save=False, parallel=False):
+    def analyze_folder(self, folder_path, save=False, parallel=False, skip_existing=True):
         """Analyseer alle ondersteunde audiobestanden in een map."""
         supported_extensions = ('.mp3', '.flac', '.wav', '.m4a', '.ogg')
         files_to_analyze = []
         
+        print(f"Zoeken naar bestanden in {folder_path}...")
         for root, dirs, files in os.walk(folder_path):
             # Skip @eaDir (Synology metadata)
             if '@eaDir' in root:
@@ -200,27 +280,38 @@ class TrackAnalyzer:
             for file in files:
                 if file.lower().endswith(supported_extensions):
                     files_to_analyze.append(os.path.join(root, file))
+            
+            # Feedback tijdens scannen
+            if len(files_to_analyze) > 0 and len(files_to_analyze) % 500 == 0:
+                print(f"  ... {len(files_to_analyze)} bestanden gevonden ...", end='\r', flush=True)
 
         if not files_to_analyze:
             print(f"Geen ondersteunde bestanden gevonden in {folder_path}")
             return
 
-        print(f"Gevonden: {len(files_to_analyze)} bestanden in {folder_path}")
+        print(f"\nGevonden: {len(files_to_analyze)} bestanden in {folder_path}")
+        
+        # Zet verbose uit als we tqdm gebruiken om output clean te houden
+        original_verbose = self.verbose
+        self.verbose = not (parallel or len(files_to_analyze) > 10)
 
         if parallel and len(files_to_analyze) > 1:
             print(f"Start parallelle analyse met {self.max_workers} workers...")
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                futures = {executor.submit(self.analyze_track, f, save): f for f in files_to_analyze}
-                for future in as_completed(futures):
+                futures = {executor.submit(self.analyze_track, f, save, skip_existing): f for f in files_to_analyze}
+                for future in tqdm(as_completed(futures), total=len(files_to_analyze), desc="Analyzing"):
                     f = futures[future]
                     try:
                         future.result()
                     except Exception as e:
                         print(f"Fout bij analyseren van {f}: {e}")
         else:
-            for file_path in files_to_analyze:
-                print(f"\n--- Analysing: {os.path.basename(file_path)} ---")
-                self.analyze_track(file_path, save=save)
+            for file_path in tqdm(files_to_analyze, desc="Analyzing"):
+                if self.verbose:
+                    print(f"\n--- Analysing: {os.path.basename(file_path)} ---")
+                self.analyze_track(file_path, save=save, skip_existing=skip_existing)
+        
+        self.verbose = original_verbose
 
     def run_full_scan(self, save=False, parallel=False):
         """Voer een volledige scan uit op de muziekcollectie (vergelijkbaar met tagger)."""

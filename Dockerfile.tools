@@ -1,0 +1,20 @@
+# Gebruik een lichte Python base image
+FROM python:3.11-slim
+
+# Zet de werkmap in de container
+WORKDIR /app
+
+# Kopieer requirements (indien aanwezig in de root of specifieke module)
+# We gaan ervan uit dat we de requirements uit modules/music-management nodig hebben
+COPY modules/music-management/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Kopieer de rest van de applicatie
+# We kopiëren alles omdat de tool afhankelijk is van de services/ map
+COPY . .
+
+# Set PYTHONPATH zodat de tool de services kan vinden
+ENV PYTHONPATH=/app
+
+# Standaard commando (kan overschreven worden in docker-compose)
+CMD ["python", "tools/process_genres.py", "--run", "--interactive"]

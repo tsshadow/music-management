@@ -1,0 +1,16 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.sql
+backup_full.sql
+backup.sql
+.git/
+.idea/
+/mnt/music/
+/docker/
+node_modules/
+frontend/music-management/frontend/node_modules/
+frontend/music-management/frontend/.svelte-kit/
+frontend/music-management/frontend/.vite/
+frontend/music-management/frontend/dist/

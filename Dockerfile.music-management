@@ -23,17 +23,17 @@ RUN set -eux; \
     make install; \
     rm -rf /tmp/ffmpeg*
 
-COPY modules/music-importer/requirements.txt /app/requirements.txt
+COPY modules/music-management/requirements.txt /app/requirements.txt
 RUN pip3 install --no-cache-dir -r /app/requirements.txt
 
-COPY frontend/importer/frontend/pnpm-lock.yaml /app/frontend/pnpm-lock.yaml
-COPY frontend/importer/frontend/package.json /app/frontend/package.json
+COPY frontend/music-management/frontend/pnpm-lock.yaml /app/frontend/pnpm-lock.yaml
+COPY frontend/music-management/frontend/package.json /app/frontend/package.json
 RUN cd /app/frontend && pnpm install
 
-COPY frontend/importer/frontend/ /app/frontend/
+COPY frontend/music-management/frontend/ /app/frontend/
 RUN cd /app/frontend && pnpm build
 
-COPY modules/music-importer/ /app/
+COPY modules/music-management/ /app/
 COPY services/ /app/services/
 RUN rm -f /app/sitecustomize.py
 RUN rm -rf \

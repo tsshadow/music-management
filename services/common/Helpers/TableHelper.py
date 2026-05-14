@@ -61,7 +61,7 @@ class TableHelper:
         if self.cache_enabled:
             self._values.add(key)
             self._canonical_map[key.lower()] = key
-        query = f'INSERT INTO {self.table_name} ({self.column_name}) VALUES (%s)'
+        query = f'INSERT INTO {self.table_name} ({self.column_name}) VALUES (%s) ON DUPLICATE KEY UPDATE {self.column_name} = VALUES({self.column_name})'
         connection = self.db_connector.connect()
         try:
             with connection.cursor() as cursor:
@@ -70,6 +70,24 @@ class TableHelper:
             return True
         except Exception as e:
             logging.error(f'Error inserting into {self.table_name}: {e}')
+            connection.rollback()
+            return False
+        finally:
+            connection.close()
+
+    def delete(self, key: str) -> bool:
+        if self.cache_enabled:
+            self._values.discard(key)
+            self._canonical_map.pop(key.lower(), None)
+        query = f'DELETE FROM {self.table_name} WHERE {self.column_name} = %s'
+        connection = self.db_connector.connect()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query, (key,))
+            connection.commit()
+            return True
+        except Exception as e:
+            logging.error(f'Error deleting from {self.table_name}: {e}')
             connection.rollback()
             return False
         finally:

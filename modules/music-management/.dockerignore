@@ -36,5 +36,5 @@ coverage/
 analysis_output.json
 result.json
 broken-files.log
-music-importer.session
+music-management.session
 

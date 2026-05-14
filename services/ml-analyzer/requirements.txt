@@ -1,0 +1,12 @@
+torchaudio
+librosa
+essentia-tensorflow  # Large package (~300MB), optional for basic analyzer.py
+pandas
+numpy
+scipy
+scikit-learn
+sqlalchemy
+mysql-connector-python
+python-dotenv
+tqdm
+matplotlib

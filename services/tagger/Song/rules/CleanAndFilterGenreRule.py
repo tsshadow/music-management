@@ -5,9 +5,11 @@ from services.tagger.constants import GENRE
 class CleanAndFilterGenreRule(TagRule):
     """Cleans and filters genre tag using the genre filter table."""
 
-    def __init__(self, genre_filter_helper=None):
+    def __init__(self, genre_filter_helper=None, backlog_helper=None):
         from services.common.Helpers.FilterTableHelper import FilterTableHelper
+        from services.common.Helpers.TableHelper import TableHelper
         self.helper = genre_filter_helper or FilterTableHelper('genres', 'genre', 'corrected_genre')
+        self.backlog_helper = backlog_helper or TableHelper('genre_backlog', 'genre')
 
     def apply(self, song, filter_genres=True):
         if not song.tag_collection.has_item(GENRE):
@@ -24,6 +26,9 @@ class CleanAndFilterGenreRule(TagRule):
                 corrected = self.helper.get_corrected_or_exists(genre)
                 if isinstance(corrected, str) and corrected.strip():
                     valid_genres.append(corrected)
+                elif self.backlog_helper.exists(genre):
+                    # Keep genre if it's in the backlog, to avoid destructive behavior
+                    valid_genres.append(genre)
             valid_genres.sort()
             if valid_genres != genres:
                 print(f'changed genres from {genres} to {valid_genres} for {song.path()}')

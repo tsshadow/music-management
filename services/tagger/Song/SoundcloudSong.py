@@ -44,7 +44,7 @@ class SoundcloudSong(BaseSong):
         self.rules.append(CleanTagsRule())
         self.rules.append(AddMissingArtistToDatabaseRule(artist_db=databaseHelpers['artists'], ignored_db=databaseHelpers['ignored_artists']))
         self.rules.append(AddMissingGenreToDatabaseRule(genre_db=databaseHelpers['genres'], ignored_db=databaseHelpers['ignored_genres']))
-        self.rules.append(CleanAndFilterGenreRule(databaseHelpers['genres']))
+        self.rules.append(CleanAndFilterGenreRule(databaseHelpers['genres'], databaseHelpers.get('genre_backlog')))
         self.rules.append(CleanTagsRule())
         self.rules.append(CheckArtistRule(artist_db=databaseHelpers['artists'], ignored_db=databaseHelpers['ignored_artists']))
         self.rules.append(ReplaceInvalidUnicodeRule())

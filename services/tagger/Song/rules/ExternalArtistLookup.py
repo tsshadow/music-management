@@ -33,7 +33,7 @@ class MusicBrainzLookup:
 
     def is_known_artist(self, name: str) -> bool:
         try:
-            response = requests.get(self.API_URL, params={'query': name, 'fmt': 'json', 'limit': 1}, headers={'User-Agent': 'MusicImporter/1.0 (codex@example.com)'}, timeout=5)
+            response = requests.get(self.API_URL, params={'query': name, 'fmt': 'json', 'limit': 1}, headers={'User-Agent': 'MusicManagement/1.0 (codex@example.com)'}, timeout=5)
             if response.status_code != 200:
                 return False
             data = response.json()

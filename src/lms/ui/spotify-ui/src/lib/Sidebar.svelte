@@ -48,9 +48,10 @@
   <div class="library">
     <h3 class="px-3 text-[12px] text-[#b3b3b3] tracking-[1.5px] mb-3">JOUW BIBLIOTHEEK</h3>
     <ul class="list-none p-0 m-0">
-      <li><button class="w-full px-3 py-2 bg-transparent border-none text-[#b3b3b3] text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate('playlists')}>Afspeellijsten</button></li>
-      <li><button class="w-full px-3 py-2 bg-transparent border-none text-[#b3b3b3] text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate('artists')}>Artiesten</button></li>
-      <li><button class="w-full px-3 py-2 bg-transparent border-none text-[#b3b3b3] text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate('albums')}>Albums</button></li>
+      <li><button class="w-full px-3 py-2 bg-transparent border-none {activeView === 'playlists' ? 'text-white' : 'text-[#b3b3b3]'} text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate('playlists')}>Afspeellijsten</button></li>
+      <li><button class="w-full px-3 py-2 bg-transparent border-none {activeView === 'artists' ? 'text-white' : 'text-[#b3b3b3]'} text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate('artists')}>Artiesten</button></li>
+      <li><button class="w-full px-3 py-2 bg-transparent border-none {activeView === 'albums' ? 'text-white' : 'text-[#b3b3b3]'} text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate('albums')}>Albums</button></li>
+      <li><button class="w-full px-3 py-2 bg-transparent border-none {activeView === 'genres' ? 'text-white' : 'text-[#b3b3b3]'} text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate('genres')}>Genres</button></li>
     </ul>
   </div>
 
@@ -59,7 +60,7 @@
     <ul class="list-none p-0 m-0">
       {#each genres as genre (genre)}
         <li>
-          <button class="w-full px-3 py-2 bg-transparent border-none text-[#b3b3b3] text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate(`genre:${genre}`)}>{genre}</button>
+          <button class="w-full px-3 py-2 bg-transparent border-none {activeView === `genre:${genre}` ? 'text-white' : 'text-[#b3b3b3]'} text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate(`genre:${genre}`)}>{genre}</button>
         </li>
       {/each}
     </ul>

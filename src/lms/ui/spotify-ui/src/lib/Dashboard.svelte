@@ -7,7 +7,7 @@
   import ArtistView from './ArtistView.svelte';
   import AlbumView from './AlbumView.svelte';
   import ArtistList from './ArtistList.svelte';
-  import Settings from './Settings.svelte';
+  import { getArtistImageUrl } from './utils.js';
   import { authParams, currentPlaylist } from './store.js';
 
   let { activeView = $bindable('home') } = $props();
@@ -361,7 +361,12 @@
               onclick={() => activeView = `artist:${artist.id}`}
               onkeydown={(e) => e.key === 'Enter' && (activeView = `artist:${artist.id}`)}
             >
-                <img src={artist.coverArt ? `/rest/getCoverArt?id=${artist.coverArt}&size=300&${$authParams}` : '/images/unknown-artist.svg'} alt={artist.name} class="w-full aspect-square object-cover rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.5)]" />
+                <img 
+                  src={getArtistImageUrl(artist, $authParams)} 
+                  alt={artist.name} 
+                  class="w-full aspect-square object-cover rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.5)]" 
+                  onerror={(e) => e.target.src = '/images/unknown-artist.svg'}
+                />
                 <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{artist.name}</span>
                 <span class="text-sm text-[#b3b3b3] whitespace-nowrap overflow-hidden text-ellipsis">Artiest</span>
             </div>

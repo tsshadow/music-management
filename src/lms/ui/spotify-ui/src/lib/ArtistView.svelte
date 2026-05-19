@@ -1,6 +1,7 @@
 <script>
   import { untrack } from 'svelte';
   import { authParams } from './store.js';
+  import { getArtistImageUrl } from './utils.js';
   import TrackList from './TrackList.svelte';
 
   const { artistId, onnavigate } = $props();
@@ -156,13 +157,12 @@
   <div class="flex flex-col">
     <header class="h-auto md:h-[340px] flex flex-col md:flex-row items-center md:items-end p-6 md:p-8 bg-linear-to-b from-transparent to-black/50 relative gap-6 text-center md:text-left">
        <div class="w-[160px] h-[160px] md:w-[232px] md:h-[232px] flex-shrink-0">
-         {#if artist.coverArt}
-           <img src="/rest/getCoverArt?id={artist.coverArt}&size=300&${$authParams}" alt={artist.name} class="w-full h-full object-cover rounded-full shadow-[0_4px_60px_rgba(0,0,0,0.5)]" />
-         {:else}
-           <div class="w-full h-full bg-[#282828] rounded-full flex items-center justify-center shadow-[0_4px_60px_rgba(0,0,0,0.5)]">
-             <img src="/images/spotify-fallback.svg" alt="" class="w-16 h-16 md:w-24 md:h-24 opacity-20" />
-           </div>
-         {/if}
+         <img 
+           src={getArtistImageUrl(artist, $authParams)} 
+           alt={artist.name} 
+           class="w-full h-full object-cover rounded-full shadow-[0_4px_60px_rgba(0,0,0,0.5)]"
+           onerror={(e) => e.target.src = '/images/unknown-artist.svg'}
+         />
        </div>
        <div class="flex flex-col">
          <div class="flex items-center justify-center md:justify-start gap-2 text-sm font-bold mb-2">

@@ -21,7 +21,7 @@
 <nav class="flex justify-around items-center bg-black border-t border-[#282828] pb-safe pt-2">
   {#each navItems as item (item.id)}
     <button 
-      class="flex flex-col items-center gap-1 bg-transparent border-none py-2 px-4 cursor-pointer transition-colors {activeView === item.id || (item.id === 'playlists' && ['playlists', 'artists', 'albums'].includes(activeView)) ? 'text-white' : 'text-[#b3b3b3]'}"
+      class="flex flex-col items-center gap-1 bg-transparent border-none py-2 px-4 cursor-pointer transition-colors {activeView === item.id || (item.id === 'playlists' && ['playlists', 'artists', 'albums', 'genres'].includes(activeView)) ? 'text-white' : 'text-[#b3b3b3]'}"
       onclick={() => navigate(item.id)}
     >
       <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">

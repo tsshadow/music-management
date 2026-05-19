@@ -69,6 +69,7 @@
     if (view === 'songs') return base + '/songs';
     if (view === 'sets') return base + '/sets';
     if (view === 'albums') return base + '/albums';
+    if (view === 'genres') return base + '/genres';
     if (view === 'artists') return base + '/artists';
     if (view === 'playlists') return base + '/playlists';
     if (view.startsWith('genre:')) return base + '/genre/' + view.split(':')[1];
@@ -89,6 +90,7 @@
     if (path === base + '/songs') return 'songs';
     if (path === base + '/sets') return 'sets';
     if (path === base + '/albums') return 'albums';
+    if (path === base + '/genres') return 'genres';
     if (path === base + '/artists') return 'artists';
     if (path === base + '/playlists') return 'playlists';
     if (path.startsWith(base + '/genre/')) return 'genre:' + decodeURIComponent(path.slice((base + '/genre/').length));

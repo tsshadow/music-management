@@ -154,7 +154,17 @@
               onkeydown={(e) => e.key === 'Enter' && onnavigate && onnavigate(`album:${track.albumId}`)}
             >{track.album || ''}</span>
           </td>
-          <td class="p-2 px-4 text-xs italic opacity-80 max-w-[150px] truncate hidden md:table-cell" title={track.genre || ''}>{track.genre || ''}</td>
+          <td class="p-2 px-4 text-xs italic opacity-80 max-w-[150px] truncate hidden md:table-cell" title={track.genre || ''}>
+            {#if track.genre}
+              <span 
+                role="link"
+                tabindex="0"
+                class="hover:underline cursor-pointer" 
+                onclick={(e) => { e.stopPropagation(); onnavigate && onnavigate(`genre:${track.genre}`); }}
+                onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onnavigate && onnavigate(`genre:${track.genre}`); } }}
+              >{track.genre}</span>
+            {/if}
+          </td>
           <td class="p-2 px-4 hidden md:table-cell">{formatDate(track.date) || track.year || ''}</td>
         {/if}
         <td class="p-2 px-4 text-right text-xs md:text-sm">{formatTime(track.duration * 1000)}</td>

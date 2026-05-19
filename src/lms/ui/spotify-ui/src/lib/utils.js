@@ -22,3 +22,20 @@ export function formatArtistList(artists) {
   const rest = artists.slice(0, artists.length - 1);
   return rest.join(", ") + " and " + last;
 }
+
+/**
+ * Returns the URL for an artist image.
+ * 
+ * @param {Object} artist - The artist object.
+ * @param {string} authParams - Subsonic auth parameters.
+ * @returns {string} The image URL.
+ */
+export function getArtistImageUrl(artist, authParams) {
+  if (artist && artist.coverArt) {
+    return `/rest/getCoverArt?id=${artist.coverArt}&size=300&${authParams}`;
+  }
+  if (artist && artist.id) {
+    return `/media/artist-images/${artist.id}/primary.jpg`;
+  }
+  return '/images/unknown-artist.svg';
+}

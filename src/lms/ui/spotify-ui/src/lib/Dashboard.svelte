@@ -21,6 +21,7 @@
   let tracks = $state([]);
   let albums = $state([]);
   let artists = $state([]);
+  let allGenres = $state([]);
   let playlists = $state([]);
   let tracksOffset = $state(0);
   let tracksHasMore = $state(true);
@@ -200,6 +201,27 @@
   }
 
   /**
+   * Loads all genres from the server.
+   */
+  async function loadAllGenres() {
+    if (!$authParams) return;
+    isLoading = true;
+    console.log("Fetching all genres...");
+    try {
+      const response = await fetch(`/rest/getGenres?${$authParams}`);
+      const data = await response.json();
+      console.log("Genres response:", data);
+      const result = data['subsonic-response']?.genres?.genre || [];
+      allGenres = Array.isArray(result) ? result : [result];
+      console.log(`Loaded ${allGenres.length} genres`);
+    } catch (e) { 
+      console.error("Failed to load genres:", e); 
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  /**
    * Opens the "Release Radar" curated playlist.
    */
   function openRadar() {
@@ -267,6 +289,8 @@
             openRadar();
         } else if (view === 'albums') {
             loadAlbums();
+        } else if (view === 'genres') {
+            loadAllGenres();
         } else if (view === 'artists') {
             loadArtists();
         } else if (view === 'playlists') {
@@ -345,6 +369,35 @@
     {#if albumsHasMore}
         <div class="flex justify-center py-6">
             <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAlbums(true)}>Meer laden</button>
+        </div>
+    {/if}
+  {:else if activeView === 'genres'}
+    <div class="flex flex-col gap-4 mb-6">
+      <h2 class="text-2xl font-bold m-0">Genres</h2>
+    </div>
+    {#if isLoading && allGenres.length === 0}
+        <p>Laden...</p>
+    {:else if allGenres.length === 0}
+        <p class="text-[#b3b3b3]">Geen genres gevonden in je bibliotheek.</p>
+    {:else}
+        <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+            {#each allGenres as g}
+                <div 
+                  role="button"
+                  tabindex="0"
+                  class="bg-[#181818] p-6 rounded-lg flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors hover:bg-[#282828] aspect-square" 
+                  onclick={() => activeView = `genre:${g.value}`}
+                  onkeydown={(e) => e.key === 'Enter' && (activeView = `genre:${g.value}`)}
+                >
+                    <div class="w-16 h-16 rounded-full bg-spotify-green flex items-center justify-center text-black mb-2 shadow-lg">
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+                            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"></path>
+                        </svg>
+                    </div>
+                    <span class="font-bold text-center break-words w-full">{g.value}</span>
+                    <span class="text-xs text-[#b3b3b3]">{g.songCount} nummers</span>
+                </div>
+            {/each}
         </div>
     {/if}
   {:else if activeView === 'artists'}

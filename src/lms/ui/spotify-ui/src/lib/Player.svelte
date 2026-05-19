@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { currentTrack, playerState, audio, authParams, credentials, playlist, trackProgress, isMobile } from './store.js';
+  import { currentTrack, playerState, audio, authParams, credentials, playlist, isMobile } from './store.js';
   import ArtistList from './ArtistList.svelte';
 
   const { onnavigate, ontoggleQueue } = $props();
@@ -97,13 +97,6 @@
     playerState.update(s => ({ ...s, progress: audioElement.currentTime }));
     updatePositionState();
 
-    // Save progress periodically (every 5 seconds)
-    const now = Date.now();
-    if (track && now - lastProgressUpdate > 5000) {
-      trackProgress.update(p => ({ ...p, [track.id]: audioElement.currentTime }));
-      lastProgressUpdate = now;
-    }
-
     if (!hasScrobbledFinished && track) {
         const threshold = Math.min(240, audioElement.duration / 2);
         if (audioElement.currentTime > threshold && audioElement.duration > 0) {
@@ -121,13 +114,7 @@
     playerState.update(s => ({ ...s, duration: audioElement.duration }));
     updatePositionState();
     if (!initialized && track) {
-        // Restore progress if it exists for this track
-        const savedProgress = $trackProgress[track.id];
-        if (savedProgress) {
-            audioElement.currentTime = savedProgress;
-        } else {
-            audioElement.currentTime = $playerState.progress || 0;
-        }
+        audioElement.currentTime = $playerState.progress || 0;
         initialized = true;
     }
   }
@@ -272,7 +259,6 @@
     }
   });
 
-  let lastProgressUpdate = 0;
   let lastTrackId = null;
   let hasScrobbledStarted = false;
   let hasScrobbledFinished = false;
@@ -303,12 +289,6 @@
         if (audioElement) {
             audioElement.src = streamUrl;
             if (!isInitialLoad) {
-                // Check if we have saved progress for this track
-                const savedProgress = $trackProgress[track.id];
-                if (savedProgress) {
-                    audioElement.currentTime = savedProgress;
-                }
-                
                 audioElement.play().catch(e => {
                     if (e.name !== 'AbortError') {
                         console.error("Auto-play failed", e);

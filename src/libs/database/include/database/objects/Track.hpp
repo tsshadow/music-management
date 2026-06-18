@@ -324,6 +324,7 @@ namespace lms::db
         std::optional<int> getYear() const;
 
         std::optional<int> getRating() const;
+        void setRating(std::optional<int> rating);
         const core::PartialDateTime& getOriginalDate() const { return _originalDate; }
         std::optional<int> getOriginalYear() const;
         const Wt::WDateTime& getLastWriteTime() const { return _fileLastWrite; }

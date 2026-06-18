@@ -61,6 +61,22 @@ namespace lms::db
 
             auto query{ session.getDboSession()->query<ResultType>("SELECT " + std::string{ itemToSelect } + " FROM track t") };
 
+
+            if (params.ratingUser.isValid())
+            {
+                if (params.includeUnrated)
+                {
+                    query.leftJoin("rated_track r_t ON r_t.track_id = t.id AND r_t.user_id = ?")
+                        .bind(params.ratingUser);
+                }
+                else
+                {
+                    query.join("rated_track r_t ON r_t.track_id = t.id")
+                        .where("r_t.user_id = ?")
+                        .bind(params.ratingUser);
+                }
+            }
+
             assert(params.keywords.empty() || params.name.empty());
             for (std::string_view keyword : params.keywords)
             {
@@ -207,20 +223,6 @@ namespace lms::db
             if (params.maxDuration.has_value())
                 query.where("t.duration <= ?").bind(static_cast<long long>(params.maxDuration->count()));
 
-            if (params.ratingUser.isValid())
-            {
-                if (params.includeUnrated)
-                {
-                    query.leftJoin("rated_track r_t ON r_t.track_id = t.id AND r_t.user_id = ?")
-                        .bind(params.ratingUser);
-                }
-                else
-                {
-                    query.join("rated_track r_t ON r_t.track_id = t.id")
-                        .where("r_t.user_id = ?")
-                        .bind(params.ratingUser);
-                }
-            }
 
             if (params.minRating)
             {
@@ -867,6 +869,11 @@ namespace lms::db
     std::optional<int> Track::getRating() const
     {
         return _rating;
+    }
+
+    void Track::setRating(std::optional<int> rating)
+    {
+        _rating = rating;
     }
 
     std::optional<int> Track::getOriginalYear() const

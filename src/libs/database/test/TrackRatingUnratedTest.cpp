@@ -1,7 +1,9 @@
 
 #include "Common.hpp"
+#include <Wt/Dbo/Call.h>
 #include "database/objects/Track.hpp"
 #include "database/objects/User.hpp"
+#include "database/objects/RatedTrack.hpp"
 
 namespace lms::db::tests
 {
@@ -19,14 +21,9 @@ namespace lms::db::tests
             auto transaction{ session.createWriteTransaction() };
             
             // Set ratings in the track table (global)
-            track1Star.get().modify()->persist(transaction); // ensure persisted
-            utils::executeCommand(*session.getDboSession(), "UPDATE track SET rating = 1 WHERE id = ?", track1Star.getId());
-            
-            track2Stars.get().modify()->persist(transaction);
-            utils::executeCommand(*session.getDboSession(), "UPDATE track SET rating = 2 WHERE id = ?", track2Stars.getId());
-
-            track0Star.get().modify()->persist(transaction);
-            utils::executeCommand(*session.getDboSession(), "UPDATE track SET rating = 0 WHERE id = ?", track0Star.getId());
+            track1Star.get().modify()->setRating(1);
+            track2Stars.get().modify()->setRating(2);
+            track0Star.get().modify()->setRating(0);
         }
 
         {
@@ -52,9 +49,9 @@ namespace lms::db::tests
         {
             auto transaction{ session.createWriteTransaction() };
             // Rate tracks for our user
-            utils::executeCommand(*session.getDboSession(), "INSERT INTO rated_track (track_id, user_id, rating) VALUES (?, ?, 1)", track1Star.getId(), user.getId());
-            utils::executeCommand(*session.getDboSession(), "INSERT INTO rated_track (track_id, user_id, rating) VALUES (?, ?, 2)", track2Stars.getId(), user.getId());
-            utils::executeCommand(*session.getDboSession(), "INSERT INTO rated_track (track_id, user_id, rating) VALUES (?, ?, 0)", track0Star.getId(), user.getId());
+            session.create<RatedTrack>(track1Star.get(), user.get()).modify()->setRating(1);
+            session.create<RatedTrack>(track2Stars.get(), user.get()).modify()->setRating(2);
+            session.create<RatedTrack>(track0Star.get(), user.get()).modify()->setRating(0);
         }
         
         {

@@ -1,0 +1,38 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v19.1.0
+    hooks:
+      - id: clang-format
+        types_or: [c++, c]
+
+  - repo: https://github.com/oxc-project/oxlint-pre-commit
+    rev: v0.15.5
+    hooks:
+      - id: oxlint
+        args: [--deny-warnings]
+        files: ^src/lms/ui/spotify-ui/
+
+  - repo: local
+    hooks:
+      - id: oxfmt
+        name: oxfmt
+        entry: bash -c "cd src/lms/ui/spotify-ui && npx oxfmt --write \"$@\"" --
+        language: system
+        files: ^src/lms/ui/spotify-ui/
+        types_or: [javascript, ts, svelte]
+
+      - id: clang-tidy
+        name: clang-tidy
+        entry: clang-tidy
+        language: system
+        types: [c++]
+        args: ["-p=build", "--quiet"]
+        exclude: ".*rapidjson/.*"

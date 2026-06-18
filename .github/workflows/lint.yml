@@ -1,0 +1,51 @@
+name: Lint and Format
+
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master, develop ]
+
+jobs:
+  frontend:
+    name: Frontend Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: src/lms/ui/spotify-ui/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd src/lms/ui/spotify-ui
+          npm ci
+
+      - name: Run oxlint
+        run: |
+          cd src/lms/ui/spotify-ui
+          npx oxlint .
+
+      - name: Run oxfmt check
+        run: |
+          cd src/lms/ui/spotify-ui
+          npm run format:check
+
+  backend:
+    name: Backend Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format-19
+
+      - name: Check clang-format
+        run: |
+          find src \( -name "*.cpp" -o -name "*.hpp" \) -not -path "*/rapidjson/*" -print0 | xargs -r -0 clang-format-19 --dry-run --Werror

@@ -1,21 +1,23 @@
 {
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "unicorn", "oxc"],
-  "categories": {
-    "correctness": "error",
-    "suspicious": "warn",
-    "pedantic": "warn",
-    "perf": "warn"
-  },
+  "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/crates/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "svelte",
+    "import",
+    "unicorn"
+  ],
   "rules": {
-    "no-unassigned-vars": "off",
-    "unicorn/filename-case": "off",
-    "typescript/no-explicit-any": "warn",
-    "eslint/no-inline-comments": "off",
-    "unicorn/prefer-top-level-await": "off"
-  },
-  "env": {
-    "builtin": true,
-    "browser": true
+    "no-debugger": "error",
+    "no-console": [
+      "warn",
+      {
+        "allow": [
+          "warn",
+          "error"
+        ]
+      }
+    ],
+    "prefer-const": "error",
+    "no-var": "error"
   }
 }

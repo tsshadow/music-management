@@ -123,6 +123,8 @@ _LMS_ supports lyrics in `lrc` files, `txt` files, and embedded track metadata. 
 See [INSTALL.md](INSTALL.md) file.
 
 ## Contributing
+Zie [CODE_QUALITY.md](CODE_QUALITY.md) voor onze richtlijnen met betrekking tot codekwaliteit en testen.
+
 Any feedback is welcome:
 * feel free to participate in [discussions](https://github.com/epoupon/lms/discussions) if you have questions,
 * report any bug or request for new features in the [issue tracker](https://github.com/epoupon/lms/issues),

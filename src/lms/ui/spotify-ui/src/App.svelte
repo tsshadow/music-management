@@ -8,7 +8,8 @@
   import TrackList from './lib/TrackList.svelte';
   import MobileNav from './lib/MobileNav.svelte';
   import SettingsSidebar from './lib/SettingsSidebar.svelte';
-  import { playlist, activeView, currentPlaylist, isMobile } from './lib/store.js';
+  import { playlist, activeView, currentPlaylist, isMobile, authParams } from './lib/store.js';
+  import { get } from 'svelte/store';
 
   let greeting = "";
   const hours = new Date().getHours();
@@ -20,22 +21,12 @@
   let queueWidth = 350;
   let isResizing = false;
 
-  /**
-   * Starts the resizing process for the queue sidebar.
-   * 
-   * @param {MouseEvent} _e - The mouse event.
-   */
   function startResizing(_e) {
     isResizing = true;
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', stopResizing);
   }
 
-  /**
-   * Handles the mouse move event to update the queue sidebar width.
-   * 
-   * @param {MouseEvent} e - The mouse event.
-   */
   function handleMouseMove(e) {
     if (!isResizing) return;
     const newWidth = window.innerWidth - e.clientX;
@@ -44,9 +35,6 @@
     }
   }
 
-  /**
-   * Stops the resizing process and cleans up event listeners.
-   */
   function stopResizing() {
     isResizing = false;
     document.removeEventListener('mousemove', handleMouseMove);
@@ -54,16 +42,8 @@
   }
 
   let isMounted = false;
-
   const base = '/spotify';
 
-  /**
-   * Maps a view name and optional playlist object to a URL path.
-   * 
-   * @param {string} view - The name of the active view.
-   * @param {Object} [_playlistObj] - Optional playlist metadata.
-   * @returns {string|null} The URL path.
-   */
   function viewToPath(view, _playlistObj) {
     if (view === 'home') return base + '/';
     if (view === 'songs') return base + '/songs';
@@ -79,12 +59,6 @@
     return null;
   }
 
-  /**
-   * Maps a URL path back to a view name or view object.
-   * 
-   * @param {string} path - The URL path.
-   * @returns {string|Object} The view identifier.
-   */
   function pathToView(path) {
     if (path === base || path === base + '/') return 'home';
     if (path === base + '/songs') return 'songs';
@@ -106,7 +80,6 @@
 
   onMount(() => {
     isMounted = true;
-    
     const updateMobile = () => {
       isMobile.set(window.innerWidth < 1024 || window.matchMedia("(pointer: coarse)").matches);
     };
@@ -141,25 +114,31 @@
     }
   }
 
-  /**
-   * Updates the active view state.
-   * 
-   * @param {string|Object} view - The new view identifier.
-   */
   function handleNavigate(view) {
     activeView.set(view);
   }
 
-  /**
-   * Clears all tracks from the global playlist/queue.
-   */
+  async function saveQueueAsPlaylist() {
+      const tracks = get(playlist);
+      if (tracks.length === 0) return;
+      const name = prompt("Geef een naam voor de nieuwe afspeellijst:");
+      if (!name) return;
+      try {
+          const songIds = tracks.map(t => t.id).join('&songId=');
+          const auth = get(authParams);
+          const resp = await fetch(`/rest/createPlaylist?name=${encodeURIComponent(name)}&songId=${songIds}&${auth}`);
+          if (resp.ok) alert("Afspeellijst opgeslagen!");
+          else throw new Error("Failed");
+      } catch (e) {
+          console.error(e);
+          alert("Fout bij het opslaan.");
+      }
+  }
+
   function clearQueue() {
       playlist.set([]);
   }
 
-  /**
-   * Shuffles the global playlist/queue randomly.
-   */
   function shuffleQueue() {
       playlist.update(p => {
           const newP = [...p];
@@ -185,7 +164,6 @@
   
   <div class="bg-linear-to-b from-[#121212] to-[#121212] row-start-1 row-end-2 col-start-1 md:col-start-2 col-end-2 md:col-end-3 overflow-y-auto p-4 md:p-8 relative min-h-0 min-w-0">
     <TopBar {greeting} />
-
     <div class="content-area">
       <Dashboard bind:activeView={$activeView} />
     </div>
@@ -193,11 +171,10 @@
 
   {#if showQueue && !$isMobile}
     <div class="relative row-start-1 row-end-2 col-start-3 col-end-4 flex min-h-0 hidden md:flex">
-      <!-- Resize Handle -->
       <button 
         aria-label="Wachtrij resizen"
         class="w-1 bg-transparent border-none cursor-col-resize hover:bg-spotify-green transition-colors z-10 p-0"
-        on:mousedown={startResizing}
+        onmousedown={startResizing}
       ></button>
       
       <div 
@@ -207,17 +184,22 @@
           <header class="flex justify-between items-center mb-5">
               <h2 class="text-lg font-bold m-0">Wachtrij</h2>
               <div class="flex items-center gap-3">
-                  <button class="flex items-center justify-center w-8 h-8 rounded-full bg-transparent text-[#b3b3b3] hover:bg-[#282828] hover:text-white transition-all cursor-pointer" on:click={shuffleQueue} title="Shuffle">
+                  <button class="flex items-center justify-center w-8 h-8 rounded-full bg-transparent text-[#b3b3b3] hover:bg-[#282828] hover:text-white transition-all cursor-pointer" onclick={saveQueueAsPlaylist} title="Opslaan als afspeellijst">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                          <path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2v9.67z"></path>
+                      </svg>
+                  </button>
+                  <button class="flex items-center justify-center w-8 h-8 rounded-full bg-transparent text-[#b3b3b3] hover:bg-[#282828] hover:text-white transition-all cursor-pointer" onclick={shuffleQueue} title="Shuffle">
                       <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                           <path d="M4.5 6.307a.75.75 0 1 1 0-1.5 5.862 5.862 0 0 1 4.671 2.382l.66.883 5.03 6.717a4.362 4.362 0 0 0 3.471 1.769h1.918a.75.75 0 1 1 0 1.5h-1.918a5.862 5.862 0 0 1-4.671-2.381l-.66-.883-5.03-6.717a4.362 4.362 0 0 0-3.471-1.77H4.5zM14.862 8.567l.66-.883A5.862 5.862 0 0 1 20.193 5.3h1.057a.75.75 0 1 1 0 1.5h-1.057a4.362 4.362 0 0 0-3.471 1.768l-.66.883-.16-.214-.132-.176-.908-1.213-.01.014zM4.5 19.193a.75.75 0 1 0 0-1.5h1.057a4.362 4.362 0 0 0 3.471-1.768l.66-.883.908 1.213.14.186.124.166.01-.013.66.883A5.862 5.862 0 0 1 16.208 20.193H4.5z"></path>
                       </svg>
                   </button>
-                  <button class="flex items-center justify-center w-8 h-8 rounded-full bg-transparent text-[#b3b3b3] hover:bg-[#282828] hover:text-white transition-all cursor-pointer" on:click={clearQueue} title="Lijst leegmaken">
+                  <button class="flex items-center justify-center w-8 h-8 rounded-full bg-transparent text-[#b3b3b3] hover:bg-[#282828] hover:text-white transition-all cursor-pointer" onclick={clearQueue} title="Lijst leegmaken">
                       <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                           <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
                       </svg>
                   </button>
-                  <button class="bg-none border-none text-[#b3b3b3] text-2xl cursor-pointer px-2" on:click={() => showQueue = false}>&times;</button>
+                  <button class="bg-none border-none text-[#b3b3b3] text-2xl cursor-pointer px-2" onclick={() => showQueue = false}>&times;</button>
               </div>
           </header>
           <TrackList tracks={$playlist} isQueue={true} onnavigate={handleNavigate} />

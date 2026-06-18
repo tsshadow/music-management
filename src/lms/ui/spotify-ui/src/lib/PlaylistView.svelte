@@ -1,6 +1,6 @@
 <script>
   import { untrack } from 'svelte';
-  import { currentPlaylist, authParams } from './store.js';
+  import { currentPlaylist, authParams, playlist, currentTrack, playerState } from './store.js';
   import TrackList from './TrackList.svelte';
 
   const { onnavigate } = $props();
@@ -36,6 +36,16 @@
       untrack(() => fetchTracks(id));
     }
   });
+  /**
+   * Loads all tracks of the current playlist into the global queue and starts playback.
+   */
+  function playAll() {
+    if (tracks.length > 0) {
+      playlist.set(tracks);
+      currentTrack.set(tracks[0]);
+      playerState.update(s => ({ ...s, playing: true }));
+    }
+  }
 </script>
 
 {#if $currentPlaylist}
@@ -62,7 +72,10 @@
 
     <div class="bg-black/20 -mx-8 px-8 py-6">
        <div class="flex items-center gap-8 mb-8">
-         <button class="bg-spotify-green text-black w-14 h-14 rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition cursor-pointer">
+         <button 
+           class="bg-spotify-green text-black w-14 h-14 rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition cursor-pointer"
+           onclick={playAll}
+         >
            <span class="text-2xl ml-1">▶</span>
          </button>
          <button class="text-[#b3b3b3] hover:text-white text-3xl transition cursor-pointer bg-transparent border-none">❤</button>

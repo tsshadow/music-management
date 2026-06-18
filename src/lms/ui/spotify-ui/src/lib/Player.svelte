@@ -539,21 +539,21 @@
         </div>
       {/if}
       <div class="flex items-center gap-3 px-2">
-        <button class="bg-transparent border-none p-0 text-white" onclick={togglePlay} aria-label={playing ? "Pauze" : "Afspelen"}>
+        <button class="bg-transparent border-none p-0 text-white hover:scale-105 transition-transform" onclick={togglePlay} aria-label={playing ? "Pauze" : "Afspelen"}>
           {#if playing}
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-              <path d="M9 19H7V5h2v14zm8-14h-2v14h2V5z"></path>
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+              <path d="M5.7 3a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7H5.7zm10 0a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7h-2.6z"></path>
             </svg>
           {:else}
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-              <path d="M7 6v12l10-6z"></path>
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+              <path d="M7.05 3.606l13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path>
             </svg>
           {/if}
         </button>
         {#if track}
-          <button class="bg-transparent border-none p-0 text-white" onclick={playNext} aria-label="Volgende">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                <path d="M11.162 12.767a1 1 0 0 1 0-1.534l7.325-5.913a.6.6 0 0 1 .913.434v12.492a.6.6 0 0 1-.913.434l-7.325-5.913zM2.5 5.754a.6.6 0 0 1 .913-.434l7.325 5.913a1 1 0 0 1 0 1.534l-7.325 5.913a.6.6 0 0 1-.913-.434V5.754z"></path>
+          <button class="bg-transparent border-none p-0 text-[#b3b3b3] hover:text-white transition-colors" onclick={playNext} aria-label="Volgende">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+              <path d="M16.7 3.3a.7.7 0 0 0-.7.7v6.85L6.05 4.806A.7.7 0 0 0 5 5.412v13.175a.7.7 0 0 0 1.05.607L16 13.15v6.85a.7.7 0 0 0 .7.7h1.6a.7.7 0 0 0 .7-.7V4a.7.7 0 0 0-.7-.7h-1.6z"></path>
             </svg>
           </button>
         {/if}
@@ -584,38 +584,44 @@
 
     <div class="flex-1 md:w-[40%] max-w-[600px] flex flex-col items-center gap-2">
       <div class="flex items-center gap-4 md:gap-6">
-        <button class="hidden md:flex bg-transparent border-none p-0 items-center justify-center cursor-pointer transition-colors hover:text-white {shuffleMode ? 'text-brand' : 'text-[#b3b3b3]'}" onclick={toggleShuffleMode} aria-label="Shuffle">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path d="M4.5 6.307a.75.75 0 1 1 0-1.5 5.862 5.862 0 0 1 4.671 2.382l.66.883 5.03 6.717a4.362 4.362 0 0 0 3.471 1.769h1.918a.75.75 0 1 1 0 1.5h-1.918a5.862 5.862 0 0 1-4.671-2.381l-.66-.883-5.03-6.717a4.362 4.362 0 0 0-3.471-1.77H4.5zM14.862 8.567l.66-.883A5.862 5.862 0 0 1 20.193 5.3h1.057a.75.75 0 1 1 0 1.5h-1.057a4.362 4.362 0 0 0-3.471 1.768l-.66.883-.16-.214-.132-.176-.908-1.213-.01.014zM4.5 19.193a.75.75 0 1 0 0-1.5h1.057a4.362 4.362 0 0 0 3.471-1.768l.66-.883.908 1.213.14.186.124.166.01-.013.66.883A5.862 5.862 0 0 1 16.208 20.193H4.5z"></path>
+        <button class="hidden md:flex flex-col items-center bg-transparent border-none p-0 cursor-pointer transition-colors hover:text-white {shuffleMode ? 'text-brand' : 'text-[#b3b3b3]'}" onclick={toggleShuffleMode} aria-label="Shuffle">
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+            <path d="M13.151.922a.75.75 0 1 0-1.06 1.06L13.109 3H10.3a5 5 0 0 0-4.054 2.115L2.615 10H1.25a.75.75 0 0 0 0 1.5h2.185a5 5 0 0 0 4.054-2.115L11.121 5H13.11l-1.019 1.017a.75.75 0 1 0 1.06 1.06L15.424 4.8a.75.75 0 0 0 0-1.06L13.15 1.472a.75.75 0 0 0-.001-.55zM13.151 9.922a.75.75 0 1 0-1.06 1.06L13.109 12H11.12l-1.144-1.636a.75.75 0 1 0-1.232.862l1.378 1.968A5 5 0 0 0 14.176 13.5h.194l-1.269 1.271a.75.75 0 1 0 1.06 1.06L16.43 13.56a.75.75 0 0 0 0-1.06l-2.274-2.273a.75.75 0 0 0-1.005-.305zM5.185 3.5h1.077L7.406 5.137a.75.75 0 0 0 1.232-.863l-1.378-1.967A5 5 0 0 0 3.235 1.5H1.25a.75.75 0 0 0 0 1.5h2.185a3.5 3.5 0 0 1 2.838 1.48L5.185 3.5z"></path>
           </svg>
+          {#if shuffleMode}
+            <div class="w-1 h-1 bg-brand rounded-full mt-0.5"></div>
+          {/if}
         </button>
         <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" onclick={playPrev} aria-label="Vorige">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path d="M11.838 12.767a1 1 0 0 0 0-1.534L4.513 5.32a.6.6 0 0 0-.913.434v12.492a.6.6 0 0 0 .913.434l7.325-5.913zM20.5 5.754a.6.6 0 0 0-.913-.434l-7.325 5.913a1 1 0 0 0 0 1.534l7.325 5.913a.6.6 0 0 0 .913-.434V5.754z"></path>
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+            <path d="M3.3 1a.7.7 0 0 1 .7.7v5.15l9.95-5.744a.7.7 0 0 1 1.05.606v12.575a.7.7 0 0 1-1.05.607L4 9.15v5.15a.7.7 0 0 1-.7.7H1.7a.7.7 0 0 1-.7-.7V1.7a.7.7 0 0 1 .7-.7h1.6z"></path>
           </svg>
         </button>
-        <button class="w-8 h-8 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105" onclick={togglePlay}>
+        <button class="w-9 h-9 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105" onclick={togglePlay}>
           {#if playing}
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="black">
-                  <path d="M9 19H7V5h2v14zm8-14h-2v14h2V5z"></path>
-              </svg>
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="black">
+              <path d="M2.7 1a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7H2.7zm7.43 0a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7h-2.6z"></path>
+            </svg>
           {:else}
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="black">
-                  <path d="M7 6v12l10-6z"></path>
-              </svg>
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="black">
+              <path d="M3 1.713a.7.7 0 0 1 1.05-.607l10.89 6.288a.7.7 0 0 1 0 1.212L4.05 14.894A.7.7 0 0 1 3 14.288V1.713z"></path>
+            </svg>
           {/if}
         </button>
         <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" onclick={playNext} aria-label="Volgende">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path d="M11.162 12.767a1 1 0 0 1 0-1.534l7.325-5.913a.6.6 0 0 1 .913.434v12.492a.6.6 0 0 1-.913.434l-7.325-5.913zM2.5 5.754a.6.6 0 0 1 .913-.434l7.325 5.913a1 1 0 0 1 0 1.534l-7.325 5.913a.6.6 0 0 1-.913-.434V5.754z"></path>
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+            <path d="M12.7 1a.7.7 0 0 0-.7.7v5.15L2.05 1.106A.7.7 0 0 0 1 1.712v12.575a.7.7 0 0 0 1.05.607L12 9.15v5.15a.7.7 0 0 0 .7.7h1.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7h-1.6z"></path>
           </svg>
         </button>
-        <button class="hidden md:flex relative bg-transparent border-none p-0 items-center justify-center cursor-pointer transition-colors hover:text-white {repeatMode !== 'none' ? 'text-brand' : 'text-[#b3b3b3]'}" onclick={toggleRepeat} aria-label="Herhalen">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path d="M4.5 12.2a.75.75 0 0 1 .75-.75h14a.75.75 0 0 1 .75.75v1.25a3.25 3.25 0 0 1-3.25 3.25H7.75a.75.75 0 0 1 0-1.5h8.25a1.75 1.75 0 0 0 1.75-1.75v-.5H5.25a.75.75 0 0 1-.75-.75v-1.25zM19.5 11.8a.75.75 0 0 1-.75.75h-14a.75.75 0 0 1-.75-.75v-1.25a3.25 3.25 0 0 1 3.25-3.25h8.5a.75.75 0 0 1 0 1.5h-8.5a1.75 1.75 0 0 0-1.75 1.75v.5h13.25a.75.75 0 0 1 .75.75v1.25z"></path>
+        <button class="hidden md:flex flex-col items-center relative bg-transparent border-none p-0 cursor-pointer transition-colors hover:text-white {repeatMode !== 'none' ? 'text-brand' : 'text-[#b3b3b3]'}" onclick={toggleRepeat} aria-label="Herhalen">
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+            <path d="M0 4.75A3.75 3.75 0 0 1 3.75 1h8.5A3.75 3.75 0 0 1 16 4.75v5a3.75 3.75 0 0 1-3.75 3.75H9.81l1.018 1.018a.75.75 0 1 1-1.06 1.06L6.939 12.75l2.829-2.828a.75.75 0 1 1 1.06 1.06L9.811 12h2.439a2.25 2.25 0 0 0 2.25-2.25v-5a2.25 2.25 0 0 0-2.25-2.25h-8.5A2.25 2.25 0 0 0 1.5 4.75v5A2.25 2.25 0 0 0 3.75 12H5v1.5H3.75A3.75 3.75 0 0 1 0 9.75v-5z"></path>
           </svg>
           {#if repeatMode === 'one'}
-              <span class="absolute text-[8px] font-bold top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-brand bg-[#181818] px-[1px]">1</span>
+            <span class="absolute text-[7px] font-bold top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60%] text-brand">1</span>
+          {/if}
+          {#if repeatMode !== 'none'}
+            <div class="w-1 h-1 bg-brand rounded-full mt-0.5"></div>
           {/if}
         </button>
       </div>
@@ -652,8 +658,7 @@
         </div>
       {/if}
       <button 
-        class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white" 
-        style:color={isRadioActive ? '#1ed760' : '#b3b3b3'}
+        class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors {isRadioActive ? 'text-brand' : 'text-[#b3b3b3] hover:text-white'}" 
         onclick={toggleRadioMode} 
         title="Radio Mode (Sync)"
       >

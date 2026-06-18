@@ -1,15 +1,26 @@
 <script>
   import { untrack } from 'svelte';
-  import { authParams } from './store.js';
+  import { authParams, viewMode } from './store.js';
   import TrackList from './TrackList.svelte';
   import ArtistList from './ArtistList.svelte';
 
   const { albumId, onnavigate } = $props();
 
   let album = $state(null);
-  let tracks = $state([]);
+  let allTracks = $state([]);
   let albumInfo = $state(null);
   let isLoading = $state(true);
+
+  /**
+   * Filtered tracks based on viewMode (songs vs sets).
+   */
+  const tracks = $derived.by(() => {
+    if ($viewMode === 'sets') {
+      return allTracks.filter(t => t.duration >= 600);
+    } else {
+      return allTracks.filter(t => t.duration < 600);
+    }
+  });
 
   /**
    * Loads the album's details and its tracks.
@@ -24,7 +35,7 @@
       if (albumData) {
         album = albumData;
         const result = albumData.song || [];
-        tracks = Array.isArray(result) ? result : [result];
+        allTracks = Array.isArray(result) ? result : [result];
         
         loadAlbumInfo();
       }
@@ -93,7 +104,14 @@
     </header>
 
     <div class="p-6 md:p-8 pt-0">
-      <TrackList {tracks} onnavigate={onnavigate} />
+      {#if tracks.length > 0}
+        <TrackList {tracks} onnavigate={onnavigate} />
+      {:else}
+        <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
+          <p class="text-xl font-bold mb-2 text-white">Geen {$viewMode === 'sets' ? 'sets' : 'nummers'} gevonden</p>
+          <p class="text-sm opacity-60">Dit album bevat geen items die overeenkomen met de huidige {$viewMode === 'sets' ? 'sets' : 'nummers'} weergave.</p>
+        </div>
+      {/if}
       
       {#if album.genre || album.created}
         <div class="text-[#b3b3b3] text-sm mt-8 space-y-1">

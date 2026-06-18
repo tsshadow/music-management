@@ -68,6 +68,9 @@ namespace lms::api::subsonic
         // 3. Sets
         addPlaylist("spotify:sets", "Sets & Mixes", "Sets and mixes");
 
+        // 4. Songs
+        addPlaylist("spotify:songs", "Songs", "All songs");
+
         return response;
     }
 
@@ -96,6 +99,14 @@ namespace lms::api::subsonic
             name = "Sets & Mixes";
             description = "Sets and mixes";
             params.minDuration = std::chrono::minutes(10);
+            params.setSortMethod(db::TrackSortMethod::Random);
+            params.range = db::Range{ 0, 50 };
+        }
+        else if (id == "spotify:songs")
+        {
+            name = "Songs";
+            description = "All songs";
+            params.maxDuration = std::chrono::minutes(10);
             params.setSortMethod(db::TrackSortMethod::Random);
             params.range = db::Range{ 0, 50 };
         }

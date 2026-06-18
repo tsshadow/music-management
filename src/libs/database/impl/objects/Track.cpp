@@ -209,25 +209,53 @@ namespace lms::db
 
             if (params.ratingUser.isValid())
             {
-                query.join("rated_track r_t ON r_t.track_id = t.id")
-                    .where("r_t.user_id = ?")
-                    .bind(params.ratingUser);
+                if (params.includeUnrated)
+                {
+                    query.leftJoin("rated_track r_t ON r_t.track_id = t.id AND r_t.user_id = ?")
+                        .bind(params.ratingUser);
+                }
+                else
+                {
+                    query.join("rated_track r_t ON r_t.track_id = t.id")
+                        .where("r_t.user_id = ?")
+                        .bind(params.ratingUser);
+                }
             }
 
             if (params.minRating)
             {
                 if (params.ratingUser.isValid())
-                    query.where("r_t.rating >= ?").bind(*params.minRating);
+                {
+                    if (params.includeUnrated)
+                        query.where("(r_t.rating IS NULL OR r_t.rating >= ?)").bind(*params.minRating);
+                    else
+                        query.where("r_t.rating >= ?").bind(*params.minRating);
+                }
                 else
-                    query.where("t.rating >= ?").bind(*params.minRating);
+                {
+                    if (params.includeUnrated)
+                        query.where("(t.rating IS NULL OR t.rating >= ?)").bind(*params.minRating);
+                    else
+                        query.where("t.rating >= ?").bind(*params.minRating);
+                }
             }
 
             if (params.maxRating)
             {
                 if (params.ratingUser.isValid())
-                    query.where("r_t.rating <= ?").bind(*params.maxRating);
+                {
+                    if (params.includeUnrated)
+                        query.where("(r_t.rating IS NULL OR r_t.rating <= ?)").bind(*params.maxRating);
+                    else
+                        query.where("r_t.rating <= ?").bind(*params.maxRating);
+                }
                 else
-                    query.where("t.rating <= ?").bind(*params.maxRating);
+                {
+                    if (params.includeUnrated)
+                        query.where("(t.rating IS NULL OR t.rating <= ?)").bind(*params.maxRating);
+                    else
+                        query.where("t.rating <= ?").bind(*params.maxRating);
+                }
             }
 
             if (params.embeddedImageId.isValid())

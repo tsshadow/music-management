@@ -101,6 +101,7 @@ namespace lms::db
             TrackEmbeddedImageId embeddedImageId;                    // if set, tracks that have this embedded image
             std::optional<int> minRating;
             std::optional<int> maxRating;
+            bool includeUnrated{};
             std::optional<std::chrono::milliseconds> minDuration;
             std::optional<std::chrono::milliseconds> maxDuration;
             std::set<std::string> allowedArtists;

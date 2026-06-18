@@ -223,6 +223,11 @@ namespace lms::api::subsonic
             params.ratingUser = ctx.getUser()->getId();
         }
 
+        if (auto includeUnrated = getParameterAs<bool>(ctx.getParameters(), "includeUnrated"))
+        {
+            params.includeUnrated = *includeUnrated;
+        }
+
         if (auto maxRating = getParameterAs<int>(ctx.getParameters(), "maxRating"))
         {
             params.maxRating = *maxRating;

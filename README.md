@@ -16,6 +16,7 @@ A [demo instance](http://lms-demo.poupon.dev) is available. Note the administrat
 * [ListenBrainz](https://listenbrainz.org) support for:
   * Scrobbling and synchronizing listens
   * Synchronizing 'love' feedbacks
+* External Rating Synchronization support to forward rating events to external tools (e.g. for writing tags back to files). See [details](src/libs/services/feedback/impl/musicmanagement/README.md).
 * Recommendation engine
 * Multi-library support
 * ReplayGain support

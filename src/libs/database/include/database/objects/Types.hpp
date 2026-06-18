@@ -214,6 +214,7 @@ namespace lms::db
     {
         Internal = 0,
         ListenBrainz = 1,
+        MusicManagement = 2,
     };
 
     enum class SyncState

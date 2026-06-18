@@ -44,6 +44,10 @@ namespace lms::feedback
         void onStarred(db::StarredTrackId trackId) override;
         void onUnstarred(db::StarredTrackId trackId) override;
 
+        void onRatingChanged(db::RatedArtistId artistId) override;
+        void onRatingChanged(db::RatedReleaseId releaseId) override;
+        void onRatingChanged(db::RatedTrackId trackId) override;
+
         db::IDb& _db;
     };
 } // namespace lms::feedback

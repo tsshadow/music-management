@@ -207,6 +207,29 @@ namespace lms::db
             if (params.maxDuration.has_value())
                 query.where("t.duration <= ?").bind(static_cast<long long>(params.maxDuration->count()));
 
+            if (params.ratingUser.isValid())
+            {
+                query.join("rated_track r_t ON r_t.track_id = t.id")
+                    .where("r_t.user_id = ?")
+                    .bind(params.ratingUser);
+            }
+
+            if (params.minRating)
+            {
+                if (params.ratingUser.isValid())
+                    query.where("r_t.rating >= ?").bind(*params.minRating);
+                else
+                    query.where("t.rating >= ?").bind(*params.minRating);
+            }
+
+            if (params.maxRating)
+            {
+                if (params.ratingUser.isValid())
+                    query.where("r_t.rating <= ?").bind(*params.maxRating);
+                else
+                    query.where("t.rating <= ?").bind(*params.maxRating);
+            }
+
             if (params.embeddedImageId.isValid())
             {
                 query.join("track_embedded_image_link t_e_i_l ON t_e_i_l.track_id = t.id");

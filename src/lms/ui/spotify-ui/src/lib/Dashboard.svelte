@@ -7,6 +7,7 @@
   import ArtistView from './ArtistView.svelte';
   import AlbumView from './AlbumView.svelte';
   import ArtistList from './ArtistList.svelte';
+  import Settings from './Settings.svelte';
   import { getArtistImageUrl } from './utils.js';
   import { authParams, currentPlaylist } from './store.js';
 
@@ -34,6 +35,7 @@
   let currentSort = $state('recent');
   let currentYear = $state('');
   let currentTrackSearch = $state('');
+  let currentMinRating = $state('0');
 
   let currentArtistSort = $state('alphabetical');
   let currentArtistRole = $state('all');
@@ -80,7 +82,7 @@
     }
     if (!tracksHasMore) return;
 
-    console.log(`Loading all tracks, activeView=${activeView}, genre=${currentGenre}, sort=${currentSort}, year=${currentYear}, offset=${tracksOffset}`);
+    console.log(`Loading all tracks, activeView=${activeView}, genre=${currentGenre}, sort=${currentSort}, year=${currentYear}, minRating=${currentMinRating}, offset=${tracksOffset}`);
     isLoading = true;
     try {
       let url = `/rest/getSpotifyTracks?sort=${currentSort}&offset=${tracksOffset}&count=${pageSize}&${$authParams}`;
@@ -92,6 +94,7 @@
       }
       
       if (currentYear) url += `&year=${encodeURIComponent(currentYear)}`;
+      if (currentMinRating !== '0') url += `&minRating=${currentMinRating}`;
 
       if (activeView === 'sets') {
           url += `&minDuration=10`;
@@ -244,7 +247,7 @@
    * @param {Object} params - The filter and sort parameters.
    */
   function handleFilterChange(params) {
-      const { genre, sort, year, search, role } = params;
+      const { genre, sort, year, search, role, minRating } = params;
       if (activeView === 'artists') {
           currentArtistSort = sort;
           currentArtistRole = role;
@@ -260,6 +263,7 @@
           currentSort = sort;
           currentYear = year;
           currentTrackSearch = search;
+          currentMinRating = minRating || '0';
           loadAllTracks();
       }
   }
@@ -324,7 +328,7 @@
         <h2 class="text-2xl font-bold m-0">
             {#if activeView === 'songs'}Alle Nummers{:else if activeView === 'sets'}Sets{:else}{activeView.split(':')[1]}{/if}
         </h2>
-        <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} showGenre={!activeView.startsWith('genre:')} onchange={handleFilterChange} />
+        <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} showGenre={!activeView.startsWith('genre:')} onchange={handleFilterChange} />
     </div>
     {#if isLoading && tracks.length === 0}
         <p>Laden...</p>

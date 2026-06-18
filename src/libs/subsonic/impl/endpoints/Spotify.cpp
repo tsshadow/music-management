@@ -217,6 +217,18 @@ namespace lms::api::subsonic
             params.maxDuration = std::chrono::minutes(*maxDuration);
         }
 
+        if (auto minRating = getParameterAs<int>(ctx.getParameters(), "minRating"))
+        {
+            params.minRating = *minRating;
+            params.ratingUser = ctx.getUser()->getId();
+        }
+
+        if (auto maxRating = getParameterAs<int>(ctx.getParameters(), "maxRating"))
+        {
+            params.maxRating = *maxRating;
+            params.ratingUser = ctx.getUser()->getId();
+        }
+
         int offset = getParameterAs<int>(ctx.getParameters(), "offset").value_or(0);
         int count = getParameterAs<int>(ctx.getParameters(), "count").value_or(50);
         params.range = db::Range{ static_cast<std::size_t>(offset), static_cast<std::size_t>(count) };

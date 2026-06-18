@@ -65,6 +65,8 @@ export const activeSettingsTab = writable("libraries");
 persist("lms_active_settings_tab", activeSettingsTab);
 
 export const isMobile = writable(false);
+export const radioMode = writable(false);
+persist("lms_radio_mode", radioMode);
 
 /**
  * Derived store that computes Subsonic authentication parameters.

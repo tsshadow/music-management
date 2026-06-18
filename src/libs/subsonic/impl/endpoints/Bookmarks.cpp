@@ -145,6 +145,7 @@ namespace lms::api::subsonic
                 playQueueNode.setAttribute("current", idToString(currentTrack->getId()));
 
             playQueueNode.setAttribute("position", std::chrono::duration_cast<std::chrono::milliseconds>(playQueue->getCurrentPositionInTrack()).count());
+            playQueueNode.setAttribute("playing", playQueue->isPlaying());
 
             playQueue->visitTracks([&](const db::Track::pointer& track) {
                 playQueueNode.addArrayChild("entry", createSongNode(context, track, true /* id3 */));
@@ -169,7 +170,8 @@ namespace lms::api::subsonic
         std::vector<db::TrackId> trackIds{ getMultiParametersAs<db::TrackId>(context.getParameters(), "id") };
         const std::optional<db::TrackId> currentTrackId{ byIndex ? std::nullopt : getParameterAs<db::TrackId>(context.getParameters(), "current") };
         const std::optional<std::size_t> currentIndex{ byIndex ? getParameterAs<std::size_t>(context.getParameters(), "currentIndex") : std::nullopt };
-        const std::chrono::milliseconds currentPositionInTrack{ getParameterAs<std::size_t>(context.getParameters(), "current").value_or(0) };
+        const std::chrono::milliseconds currentPositionInTrack{ getParameterAs<std::size_t>(context.getParameters(), "position").value_or(0) };
+        const bool isPlaying{ getParameterAs<bool>(context.getParameters(), "playing").value_or(false) };
 
         db::PlayQueue::pointer playQueue{ getOrCreatePlayQueue(context) };
         assert(playQueue);
@@ -201,6 +203,7 @@ namespace lms::api::subsonic
             }
 
             playQueue.modify()->setCurrentPositionInTrack(currentPositionInTrack);
+            playQueue.modify()->setIsPlaying(isPlaying);
             playQueue.modify()->setLastModifiedDateTime(Wt::WDateTime::currentDateTime());
         }
 

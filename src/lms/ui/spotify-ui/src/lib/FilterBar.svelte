@@ -7,6 +7,7 @@
     sort = $bindable('recent'), 
     year = $bindable(''), 
     search = $bindable(''), 
+    minRating = $bindable('0'),
     role = $bindable('all'),
     view = 'songs',
     showGenre = true,
@@ -76,7 +77,7 @@
    * Notifies the parent component of filter/sort changes.
    */
   function handleChange() {
-    if (onchange) onchange({ genre, sort, year, search, role });
+    if (onchange) onchange({ genre, sort, year, search, role, minRating });
   }
 
   let searchTimeout;
@@ -131,6 +132,20 @@
         {#each roles as r (r.value)}
           <option value={r.value}>{r.label}</option>
         {/each}
+      </select>
+    </div>
+  {/if}
+
+  {#if view === 'songs'}
+    <div class="flex items-center gap-2">
+      <label for="minRating" class="text-[12px] font-bold text-[#b3b3b3] uppercase">Rating:</label>
+      <select id="minRating" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-spotify-green" bind:value={minRating} onchange={handleChange}>
+        <option value="0">Alle</option>
+        <option value="1">1+ sterren</option>
+        <option value="2">2+ sterren</option>
+        <option value="3">3+ sterren</option>
+        <option value="4">4+ sterren</option>
+        <option value="5">5 sterren</option>
       </select>
     </div>
   {/if}

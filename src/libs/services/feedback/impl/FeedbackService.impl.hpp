@@ -105,31 +105,45 @@ namespace lms::feedback
     template<typename ObjType, typename ObjIdType, typename RatedObjType>
     void FeedbackService::setRating(db::UserId userId, ObjIdType objectId, std::optional<db::Rating> rating)
     {
-        Session& session{ _db.getTLSSession() };
-        auto transaction{ session.createWriteTransaction() };
+        const auto backend{ getUserFeedbackBackend(userId) };
+        if (!backend)
+            return;
 
-        typename RatedObjType::pointer ratedObject{ RatedObjType::find(session, objectId, userId) };
-        if (rating)
+        typename RatedObjType::IdType ratedObjectId;
         {
-            if (!ratedObject)
+            Session& session{ _db.getTLSSession() };
+            auto transaction{ session.createWriteTransaction() };
+
+            typename RatedObjType::pointer ratedObject{ RatedObjType::find(session, objectId, userId) };
+            if (rating)
             {
-                typename ObjType::pointer obj{ ObjType::find(session, objectId) };
-                const User::pointer user{ User::find(session, userId) };
+                if (!ratedObject)
+                {
+                    typename ObjType::pointer obj{ ObjType::find(session, objectId) };
+                    const User::pointer user{ User::find(session, userId) };
 
-                if (!obj || !user)
-                    return;
+                    if (!obj || !user)
+                        return;
 
-                ratedObject = session.create<RatedObjType>(obj, user);
+                    ratedObject = session.create<RatedObjType>(obj, user);
+                }
+
+                ratedObject.modify()->setRating(*rating);
+                ratedObject.modify()->setLastUpdated(Wt::WDateTime::currentDateTime());
+                ratedObjectId = ratedObject->getId();
             }
+            else
+            {
+                if (ratedObject)
+                {
+                    ratedObjectId = ratedObject->getId();
+                    ratedObject.remove();
+                }
+            }
+        }
 
-            ratedObject.modify()->setRating(*rating);
-            ratedObject.modify()->setLastUpdated(Wt::WDateTime::currentDateTime());
-        }
-        else
-        {
-            if (ratedObject)
-                ratedObject.remove();
-        }
+        if (ratedObjectId)
+            _backends[*backend]->onRatingChanged(ratedObjectId);
     }
 
     template<typename ObjType, typename ObjIdType, typename RatedObjType>

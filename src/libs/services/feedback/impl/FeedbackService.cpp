@@ -36,6 +36,7 @@
 
 #include "internal/InternalBackend.hpp"
 #include "listenbrainz/ListenBrainzBackend.hpp"
+#include "musicmanagement/MusicManagementBackend.hpp"
 
 namespace lms::feedback
 {
@@ -50,6 +51,7 @@ namespace lms::feedback
         LMS_LOG(SCROBBLING, INFO, "Starting service...");
         _backends.emplace(db::FeedbackBackend::Internal, std::make_unique<InternalBackend>(_db));
         _backends.emplace(db::FeedbackBackend::ListenBrainz, std::make_unique<listenBrainz::ListenBrainzBackend>(ioContext, _db));
+        _backends.emplace(db::FeedbackBackend::MusicManagement, std::make_unique<musicManagement::MusicManagementBackend>(ioContext, _db));
         LMS_LOG(SCROBBLING, INFO, "Service started!");
     }
 

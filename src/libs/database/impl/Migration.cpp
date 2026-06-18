@@ -35,7 +35,7 @@ namespace lms::db
 {
     namespace
     {
-        static constexpr Version LMS_DATABASE_VERSION{ 108 };
+        static constexpr Version LMS_DATABASE_VERSION{ 109 };
     }
 
     VersionInfo::VersionInfo()
@@ -1809,6 +1809,11 @@ FROM track)");
             LMS_LOG(DB, INFO, "Could not create release_artist_link indexes in V107: " << e.what());
         }
     }
+    
+    void migrateFromV108(Session& session)
+    {
+        utils::executeCommand(*session.getDboSession(), "ALTER TABLE playqueue ADD COLUMN is_playing INTEGER NOT NULL DEFAULT(0)");
+    }
 
     bool doDbMigration(Session& session)
     {
@@ -1894,6 +1899,7 @@ FROM track)");
             { 105, migrateFromV105 },
             { 106, migrateFromV106 },
             { 107, migrateFromV107 },
+            { 108, migrateFromV108 },
         };
 
         bool migrationPerformed{};

@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { currentTrack, playerState, audio, authParams, credentials, playlist, isMobile } from './store.js';
+  import { currentTrack, playerState, audio, authParams, credentials, playlist, isMobile, radioMode } from './store.js';
   import ArtistList from './ArtistList.svelte';
 
   const { onnavigate, ontoggleQueue } = $props();
@@ -8,6 +8,83 @@
   let audioElement;
   let muted = $state(false);
   let lastVolume = $state(50);
+  let lastSyncTime = null;
+  let isSyncing = false;
+
+  /**
+   * Sends the current player state to the server if radio mode is active.
+   */
+  async function pushRadioState() {
+    if (!$radioMode || isSyncing || !$credentials.username) return;
+    try {
+        const params = $authParams;
+        const trackIds = $playlist.map(t => `id=${t.id}`).join('&');
+        const currentId = track?.id || '';
+        const position = audioElement ? Math.floor(audioElement.currentTime * 1000) : 0;
+        const isPlaying = audioElement ? !audioElement.paused : false;
+
+        const url = `${$credentials.url}/rest/savePlayQueue?${trackIds}&current=${currentId}&position=${position}&playing=${isPlaying}&${params}`;
+        await fetch(url);
+    } catch (e) {
+        console.error("Radio push failed", e);
+    }
+  }
+
+  /**
+   * Fetches the player state from the server and synchronizes the local player.
+   */
+  async function syncRadio() {
+    if (!$radioMode || isSyncing || !$credentials.username || !audioElement) return;
+    isSyncing = true;
+    try {
+      const params = $authParams;
+      const response = await fetch(`${$credentials.url}/rest/getPlayQueue?${params}`);
+      const data = await response.json();
+      const playQueue = data['subsonic-response']?.playQueue;
+
+      if (playQueue) {
+        const serverChanged = playQueue.changed;
+        if (serverChanged !== lastSyncTime) {
+          if (playQueue.entry) {
+            const tracks = Array.isArray(playQueue.entry) ? playQueue.entry : [playQueue.entry];
+            
+            // Sync playlist
+            if (JSON.stringify(tracks.map(t => t.id)) !== JSON.stringify($playlist.map(t => t.id))) {
+                playlist.set(tracks);
+            }
+            
+            // Sync current track
+            const currentTrackId = playQueue.current;
+            const serverTrack = tracks.find(t => t.id === currentTrackId);
+            if (serverTrack && $currentTrack?.id !== serverTrack.id) {
+                currentTrack.set(serverTrack);
+            }
+
+            const serverPos = (playQueue.position || 0) / 1000;
+            const serverPlaying = playQueue.playing === "true" || playQueue.playing === true;
+
+            // Sync position if difference > 3 seconds
+            if (Math.abs(audioElement.currentTime - serverPos) > 3) {
+                audioElement.currentTime = serverPos;
+            }
+
+            // Sync play/pause
+            if (serverPlaying && audioElement.paused) {
+                audioElement.play().catch(() => {});
+            } else if (!serverPlaying && !audioElement.paused) {
+                audioElement.pause();
+            }
+            
+            lastSyncTime = serverChanged;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Radio sync failed", e);
+    } finally {
+      isSyncing = false;
+    }
+  }
 
   /**
    * Toggles between play and pause states.
@@ -23,40 +100,91 @@
 
   /**
    * Plays the next track in the playlist.
-   * Handles repeat logic if at the end of the playlist.
+   * Handles shuffle and repeat logic.
    */
   function playNext() {
       const p = $playlist;
       if (p.length === 0) return;
       const currentIndex = p.findIndex(t => t.id === $currentTrack?.id);
-      let nextIndex = currentIndex + 1;
-      if (nextIndex >= p.length) {
-          if ($playerState.repeat === 'all') {
-              nextIndex = 0;
+      
+      let nextIndex;
+      if ($playerState.shuffle) {
+          if (p.length > 1) {
+              // Pick a random track that is not the current one
+              do {
+                  nextIndex = Math.floor(Math.random() * p.length);
+              } while (nextIndex === currentIndex);
           } else {
-              return;
+              nextIndex = 0;
+          }
+      } else {
+          nextIndex = currentIndex + 1;
+          if (nextIndex >= p.length) {
+              if ($playerState.repeat === 'all') {
+                  nextIndex = 0;
+              } else {
+                  return;
+              }
           }
       }
-      currentTrack.set(p[nextIndex]);
+      
+      const nextTrack = p[nextIndex];
+      if (nextTrack) {
+          // If it's the same track (e.g. single track playlist), restart it manually
+          // because the $effect that watches currentTrack might not trigger on same ID
+          if ($currentTrack?.id === nextTrack.id && audioElement) {
+              audioElement.currentTime = 0;
+              audioElement.play().catch(() => {});
+          }
+          currentTrack.set(nextTrack);
+      }
   }
 
   /**
    * Plays the previous track in the playlist.
-   * Handles repeat logic if at the beginning of the playlist.
+   * Restarts the current track if it has played for more than 3 seconds.
+   * Handles shuffle and repeat logic.
    */
   function playPrev() {
+      // If more than 3 seconds into the track, restart it
+      if (audioElement && audioElement.currentTime > 3) {
+          audioElement.currentTime = 0;
+          return;
+      }
+
       const p = $playlist;
       if (p.length === 0) return;
       const currentIndex = p.findIndex(t => t.id === $currentTrack?.id);
-      let prevIndex = currentIndex - 1;
-      if (prevIndex < 0) {
-          if ($playerState.repeat === 'all') {
-              prevIndex = p.length - 1;
+      
+      let prevIndex;
+      if ($playerState.shuffle) {
+          if (p.length > 1) {
+              // In shuffle mode without history, pick another random track
+              do {
+                  prevIndex = Math.floor(Math.random() * p.length);
+              } while (prevIndex === currentIndex);
           } else {
               prevIndex = 0;
           }
+      } else {
+          prevIndex = currentIndex - 1;
+          if (prevIndex < 0) {
+              if ($playerState.repeat === 'all') {
+                  prevIndex = p.length - 1;
+              } else {
+                  prevIndex = 0;
+              }
+          }
       }
-      currentTrack.set(p[prevIndex]);
+
+      const prevTrack = p[prevIndex];
+      if (prevTrack) {
+          if ($currentTrack?.id === prevTrack.id && audioElement) {
+              audioElement.currentTime = 0;
+              audioElement.play().catch(() => {});
+          }
+          currentTrack.set(prevTrack);
+      }
   }
 
   /**
@@ -226,6 +354,13 @@
       playerState.update(s => ({ ...s, shuffle: !s.shuffle }));
   }
 
+  /**
+   * Toggles the radio mode.
+   */
+  function toggleRadioMode() {
+      radioMode.update(r => !r);
+  }
+
   const track = $derived($currentTrack);
   const playing = $derived($playerState.playing);
   const progress = $derived(track ? $playerState.progress : 0);
@@ -233,6 +368,7 @@
   const volume = $derived($playerState.volume);
   const repeatMode = $derived($playerState.repeat);
   const shuffleMode = $derived($playerState.shuffle);
+  const isRadioActive = $derived($radioMode);
   const coverUrl = $derived(track?.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}` : '/images/spotify-fallback.svg');
   const streamUrl = $derived(track?.id ? `/rest/stream?id=${track.id}&${$authParams}` : '');
 
@@ -259,6 +395,28 @@
     }
   });
 
+  $effect(() => {
+    let interval;
+    if ($radioMode) {
+        interval = setInterval(syncRadio, 4000);
+        syncRadio();
+    }
+    return () => {
+        if (interval) clearInterval(interval);
+    };
+  });
+
+  $effect(() => {
+    // Explicitly depend on state that should trigger a sync
+    const _p = $playlist;
+    const _t = track;
+    const _pl = playing;
+
+    if (isRadioActive && !isSyncing) {
+        pushRadioState();
+    }
+  });
+
   let lastTrackId = null;
   let hasScrobbledStarted = false;
   let hasScrobbledFinished = false;
@@ -277,6 +435,28 @@
       await fetch(url);
     } catch (e) {
       console.error("Scrobble failed", e);
+    }
+  }
+
+  /**
+   * Updates the rating of the current track.
+   * 
+   * @param {number} rating - The new rating (1-5).
+   */
+  async function updateRating(rating) {
+    if (!track) return;
+    const newRating = track.userRating === rating ? 0 : rating;
+    const oldRating = track.userRating;
+    
+    // Optimistic update
+    track.userRating = newRating;
+    
+    try {
+      const response = await fetch(`${$credentials.url}/rest/setRating?id=${track.id}&rating=${newRating}&${$authParams}`);
+      if (!response.ok) throw new Error('Failed to update rating');
+    } catch (e) {
+      console.error("Failed to update rating:", e);
+      track.userRating = oldRating;
     }
   }
 
@@ -356,7 +536,7 @@
           <div class="text-[13px] text-[#b3b3b3] italic font-medium">Niets aan het afspelen</div>
         </div>
       {/if}
-      <div class="flex items-center gap-4 px-2">
+      <div class="flex items-center gap-3 px-2">
         <button class="bg-transparent border-none p-0 text-white" onclick={togglePlay} aria-label={playing ? "Pauze" : "Afspelen"}>
           {#if playing}
             <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
@@ -368,6 +548,13 @@
             </svg>
           {/if}
         </button>
+        {#if track}
+          <button class="bg-transparent border-none p-0 text-white" onclick={playNext} aria-label="Volgende">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <path d="M11.162 12.767a1 1 0 0 1 0-1.534l7.325-5.913a.6.6 0 0 1 .913.434v12.492a.6.6 0 0 1-.913.434l-7.325-5.913zM2.5 5.754a.6.6 0 0 1 .913-.434l7.325 5.913a1 1 0 0 1 0 1.534l-7.325 5.913a.6.6 0 0 1-.913-.434V5.754z"></path>
+            </svg>
+          </button>
+        {/if}
       </div>
     </div>
     <!-- Progress bar for mobile -->
@@ -447,6 +634,31 @@
     </div>
 
     <div class="w-[30%] hidden md:flex justify-end items-center gap-3">
+      {#if track}
+        <div class="flex gap-0.5 mr-2">
+          {#each [1, 2, 3, 4, 5] as star}
+            <button 
+              aria-label="{star} sterren"
+              class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { (track?.userRating || 0) >= star ? 'text-spotify-green' : 'text-white/10 hover:text-white/30' }"
+              onclick={() => updateRating(star)}
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+              </svg>
+            </button>
+          {/each}
+        </div>
+      {/if}
+      <button 
+        class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white" 
+        style:color={isRadioActive ? '#1ed760' : '#b3b3b3'}
+        onclick={toggleRadioMode} 
+        title="Radio Mode (Sync)"
+      >
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.5-8c0 3.03 2.47 5.5 5.5 5.5s5.5-2.47 5.5-5.5-2.47-5.5-5.5-5.5-5.5 2.47-5.5 5.5z"></path>
+          </svg>
+      </button>
       <button class="mr-2 bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" onclick={ontoggleQueue} aria-label="Wachtrij">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
               <path d="M15 15H3v-1.5h12V15zm0-4.5H3V9h12v1.5zm0-4.5H3V4.5h12V6zm7 12l-4.5-4.5L13 18h9z"></path>

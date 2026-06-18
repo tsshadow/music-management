@@ -6,6 +6,7 @@ add_library(lmsfeedback STATIC
 	impl/listenbrainz/FeedbackTypes.cpp
 	impl/listenbrainz/ListenBrainzBackend.cpp
 	impl/listenbrainz/Utils.cpp
+	impl/musicmanagement/MusicManagementBackend.cpp
 	impl/FeedbackService.cpp
 	)
 

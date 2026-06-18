@@ -5,6 +5,28 @@
   const { tracks = [], isQueue = false, onnavigate } = $props();
 
   /**
+   * Updates the rating of a track.
+   * 
+   * @param {Object} track - The track object.
+   * @param {number} rating - The new rating (1-5).
+   */
+  async function updateRating(track, rating) {
+    const newRating = track.userRating === rating ? 0 : rating;
+    const oldRating = track.userRating;
+    
+    // Optimistic update
+    track.userRating = newRating;
+    
+    try {
+      const response = await fetch(`/rest/setRating?id=${track.id}&rating=${newRating}&${$authParams}`);
+      if (!response.ok) throw new Error('Failed to update rating');
+    } catch (e) {
+      console.error("Failed to update rating:", e);
+      track.userRating = oldRating;
+    }
+  }
+
+  /**
    * Sets the current track and starts playback.
    * If not in queue mode, also updates the global playlist.
    * 
@@ -90,6 +112,7 @@
         <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] hidden md:table-cell">Album</th>
         <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] hidden md:table-cell">Genre</th>
         <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-20 hidden md:table-cell">Datum</th>
+        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-32 hidden lg:table-cell text-center">Rating</th>
       {/if}
       <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[80px] md:w-[100px] text-right">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="inline">
@@ -166,6 +189,21 @@
             {/if}
           </td>
           <td class="p-2 px-4 hidden md:table-cell">{formatDate(track.date) || track.year || ''}</td>
+          <td class="p-2 px-4 hidden lg:table-cell">
+            <div class="flex gap-0.5 justify-center">
+              {#each [1, 2, 3, 4, 5] as star}
+                <button 
+                  aria-label="{star} sterren"
+                  class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { (track.userRating || 0) >= star ? 'text-spotify-green' : 'text-white/10 hover:text-white/30' }"
+                  onclick={(e) => { e.stopPropagation(); updateRating(track, star); }}
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+                  </svg>
+                </button>
+              {/each}
+            </div>
+          </td>
         {/if}
         <td class="p-2 px-4 text-right text-xs md:text-sm">{formatTime(track.duration * 1000)}</td>
         {#if isQueue}

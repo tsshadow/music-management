@@ -84,6 +84,7 @@ namespace lms::db
             std::optional<Range> range;
             Wt::WDateTime writtenAfter;
             UserId starringUser;                                     // only tracks starred by this user
+            UserId ratingUser;                                       // only tracks rated by this user
             std::optional<FeedbackBackend> feedbackBackend;          // and for this feedback backend
             ArtistId artist;                                         // only tracks that involve this artist
             std::string artistName;                                  // only tracks that involve this artist name

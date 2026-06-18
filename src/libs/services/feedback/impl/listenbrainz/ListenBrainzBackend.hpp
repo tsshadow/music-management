@@ -50,6 +50,10 @@ namespace lms::feedback::listenBrainz
         void onStarred(db::StarredTrackId starredTrackId) override;
         void onUnstarred(db::StarredTrackId starredTrackId) override;
 
+        void onRatingChanged(db::RatedArtistId artistId) override;
+        void onRatingChanged(db::RatedReleaseId releaseId) override;
+        void onRatingChanged(db::RatedTrackId trackId) override;
+
         boost::asio::io_context& _ioContext;
         db::IDb& _db;
         std::string _baseAPIUrl;

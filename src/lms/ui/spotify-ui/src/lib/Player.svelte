@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { currentTrack, playerState, audio, authParams, credentials, playlist, isMobile, radioMode } from './store.js';
+  import { currentTrack, playerState, audio, authParams, credentials, playlist, isMobile, radioMode, highlightedTrackId } from './store.js';
   import ArtistList from './ArtistList.svelte';
 
   const { onnavigate, ontoggleQueue } = $props();
@@ -363,6 +363,16 @@
       radioMode.update(r => !r);
   }
 
+  /**
+   * Navigates to the album of the current track and highlights it.
+   */
+  function goToAlbum() {
+    if (track && track.albumId) {
+      highlightedTrackId.set(track.id);
+      onnavigate(`album:${track.albumId}`);
+    }
+  }
+
   const track = $derived($currentTrack);
   const playing = $derived($playerState.playing);
   const progress = $derived(track ? $playerState.progress : 0);
@@ -524,7 +534,7 @@
     <div class="flex flex-1 items-center gap-3 min-w-0 py-2 h-full">
       {#if track}
         <img src={coverUrl} alt={track.title} class="w-11 h-11 rounded shadow-lg" onerror={(e) => e.target.src = '/images/spotify-fallback.svg'} />
-        <div class="flex-1 min-w-0">
+        <div class="flex-1 min-w-0 cursor-pointer" onclick={goToAlbum} role="button" tabindex="0" onkeydown={(e) => e.key === 'Enter' && goToAlbum()}>
           <div class="text-[13px] font-bold text-white truncate">{track.title}</div>
           <div class="text-[11px] text-[#b3b3b3] truncate">{track.artist}</div>
         </div>
@@ -571,7 +581,13 @@
       {#if track}
         <img src={coverUrl} alt={track.title} class="w-14 h-14 rounded" onerror={(e) => e.target.src = '/images/spotify-fallback.svg'} />
         <div class="track-info min-w-0">
-          <div class="text-sm font-medium truncate">{track.title}</div>
+          <div 
+            role="button"
+            tabindex="0"
+            class="text-sm font-medium truncate hover:underline cursor-pointer" 
+            onclick={goToAlbum}
+            onkeydown={(e) => e.key === 'Enter' && goToAlbum()}
+          >{track.title}</div>
           <ArtistList 
             artist={track.artist} 
             artistId={track.artistId} 

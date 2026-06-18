@@ -1,5 +1,5 @@
 <script>
-  import { currentTrack, playerState, authParams, playlist, isMobile } from './store.js';
+  import { currentTrack, playerState, authParams, playlist, isMobile, highlightedTrackId } from './store.js';
   import ArtistList from './ArtistList.svelte';
 
   const { tracks = [], isQueue = false, playlistId = null, onremove = null, onnavigate } = $props();
@@ -137,6 +137,20 @@
     }
     return null;
   }
+
+  $effect(() => {
+    if ($highlightedTrackId) {
+      // Use a small timeout to ensure the DOM is updated if tracks just loaded
+      setTimeout(() => {
+        const element = document.querySelector(`[data-track-id="${$highlightedTrackId}"]`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Clear highlight after 3 seconds
+          setTimeout(() => highlightedTrackId.set(null), 3000);
+        }
+      }, 100);
+    }
+  });
 </script>
 
 <table class="w-full border-collapse text-[#b3b3b3] text-sm">
@@ -164,7 +178,8 @@
       <tr 
         role="button"
         tabindex="0"
-        class="group hover:bg-white/10 active:bg-white/5 hover:text-white h-14 md:h-16 cursor-pointer select-none {String($currentTrack?.id) === String(track.id) ? 'text-brand' : ''}" 
+        data-track-id={track.id}
+        class="group hover:bg-white/10 active:bg-white/5 hover:text-white h-14 md:h-16 cursor-pointer select-none {String($currentTrack?.id) === String(track.id) ? 'text-brand' : ''} {String($highlightedTrackId) === String(track.id) ? 'bg-brand/20 text-white' : ''}" 
         onclick={() => { if ($isMobile) playTrack(track); }}
         ondblclick={() => { if (!$isMobile) playTrack(track); }}
         onkeydown={(e) => e.key === 'Enter' && playTrack(track)}

@@ -71,6 +71,8 @@ export const isMobile = writable(false);
 export const radioMode = writable(false);
 persist("lms_radio_mode", radioMode);
 
+export const highlightedTrackId = writable(null);
+
 /**
  * Derived store that computes Subsonic authentication parameters.
  * Returns a query string with username, password, and client info.

@@ -341,10 +341,17 @@
     {#if isLoading && tracks.length === 0}
         <p>Laden...</p>
     {:else}
-        <TrackList {tracks} onnavigate={(v) => activeView = v} />
-        {#if tracksHasMore}
-            <div class="flex justify-center py-6">
-                <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAllTracks(true)}>Meer laden</button>
+        {#if tracks.length > 0}
+            <TrackList {tracks} onnavigate={(v) => activeView = v} />
+            {#if tracksHasMore}
+                <div class="flex justify-center py-6">
+                    <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAllTracks(true)}>Meer laden</button>
+                </div>
+            {/if}
+        {:else}
+            <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
+                <p class="text-xl font-bold mb-2 text-white">Geen {$viewMode === 'sets' ? 'sets' : 'nummers'} gevonden</p>
+                <p class="text-sm opacity-60">Er zijn geen items gevonden die overeenkomen met de huidige {$viewMode === 'sets' ? 'sets' : 'nummers'} weergave.</p>
             </div>
         {/if}
     {/if}
@@ -353,31 +360,38 @@
       <h2 class="text-2xl font-bold m-0">Albums</h2>
       <FilterBar view="albums" bind:genre={currentAlbumGenre} bind:sort={currentAlbumSort} bind:search={currentAlbumSearch} onchange={handleFilterChange} />
     </div>
-    <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
-        {#each albums as album (album.id)}
-            <div 
-              role="button"
-              tabindex="0"
-              class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]" 
-              onclick={() => activeView = `album:${album.id}`}
-              onkeydown={(e) => e.key === 'Enter' && (activeView = `album:${album.id}`)}
-            >
-                <img 
-                  src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
-                  alt={album.name} 
-                  class="w-full aspect-square object-cover rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
-                  onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
-                />
-                <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{album.name}</span>
-                <ArtistList 
-                  artist={album.artist} 
-                  artistId={album.artistId} 
-                  artists={album.albumArtists} 
-                  onnavigate={(v) => activeView = v} 
-                />
-            </div>
-        {/each}
-    </div>
+    {#if albums.length > 0}
+        <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+            {#each albums as album (album.id)}
+                <div 
+                  role="button"
+                  tabindex="0"
+                  class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]" 
+                  onclick={() => activeView = `album:${album.id}`}
+                  onkeydown={(e) => e.key === 'Enter' && (activeView = `album:${album.id}`)}
+                >
+                    <img 
+                      src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
+                      alt={album.name} 
+                      class="w-full aspect-square object-cover rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
+                      onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
+                    />
+                    <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{album.name}</span>
+                    <ArtistList 
+                      artist={album.artist} 
+                      artistId={album.artistId} 
+                      artists={album.albumArtists} 
+                      onnavigate={(v) => activeView = v} 
+                    />
+                </div>
+            {/each}
+        </div>
+    {:else}
+        <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
+            <p class="text-xl font-bold mb-2 text-white">Geen albums gevonden</p>
+            <p class="text-sm opacity-60">Er zijn geen albums gevonden die overeenkomen met de huidige filters.</p>
+        </div>
+    {/if}
     {#if albumsHasMore}
         <div class="flex justify-center py-6">
             <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAlbums(true)}>Meer laden</button>

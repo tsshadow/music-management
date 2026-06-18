@@ -145,17 +145,22 @@
     </header>
 
     <div class="p-6 md:p-8 flex flex-col gap-8">
-        {#if allTracks.length > 0}
-            <section>
-                <h2 class="text-2xl font-bold mb-4">{$viewMode === 'sets' ? 'Alle sets' : 'Alle nummers'}</h2>
+        <section>
+            <h2 class="text-2xl font-bold mb-4">{$viewMode === 'sets' ? 'Alle sets' : 'Alle nummers'}</h2>
+            {#if allTracks.length > 0}
                 <TrackList tracks={allTracks} onnavigate={onnavigate} />
                 {#if allTracksHasMore}
                     <div class="flex justify-center py-4">
                         <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAllTracks(true)}>Meer laden</button>
                     </div>
                 {/if}
-            </section>
-        {/if}
+            {:else}
+                <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
+                    <p class="text-xl font-bold mb-2 text-white">Geen {$viewMode === 'sets' ? 'sets' : 'nummers'} gevonden</p>
+                    <p class="text-sm opacity-60">Deze artiest heeft geen items die overeenkomen met de huidige {$viewMode === 'sets' ? 'sets' : 'nummers'} weergave.</p>
+                </div>
+            {/if}
+        </section>
 
         {#if albums.length > 0}
             <section>

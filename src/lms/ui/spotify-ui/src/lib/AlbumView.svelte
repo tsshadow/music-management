@@ -82,7 +82,7 @@
   <div class="flex flex-col">
     <header class="h-auto md:h-[340px] flex flex-col md:flex-row items-center md:items-end p-6 md:p-8 bg-linear-to-b from-transparent to-black/50 relative gap-6 text-center md:text-left">
        <img 
-         src="/rest/getCoverArt?id={album.id}&size=300&${$authParams}" 
+         src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
          alt={album.name} 
          class="w-[160px] h-[160px] md:w-[232px] md:h-[232px] object-cover shadow-[0_4px_60px_rgba(0,0,0,0.5)]"
          onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}

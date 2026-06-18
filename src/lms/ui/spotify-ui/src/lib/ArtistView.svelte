@@ -175,7 +175,7 @@
                           onkeydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
                         >
                             <img 
-                              src={album.coverArt ? `/rest/getCoverArt?id=${album.id}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
+                              src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
                               alt={album.name} 
                               class="w-full aspect-square object-cover mb-4 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
@@ -201,7 +201,7 @@
                           onkeydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
                         >
                             <img 
-                              src={album.coverArt ? `/rest/getCoverArt?id=${album.id}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
+                              src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
                               alt={album.name} 
                               class="w-full aspect-square object-cover mb-4 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}

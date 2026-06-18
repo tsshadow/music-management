@@ -323,12 +323,12 @@ namespace lms::api::subsonic
         catch (const Error& e)
         {
             LMS_LOG(API_SUBSONIC, ERROR, "Error while processing request " << requestId << " to '" << requestPath << "' with params = " << parameterMapToDebugString(request.getParameterMap()) << ": code = " << static_cast<int>(e.getCode()) << ", msg = '" << e.getMessage() << "'");
-            
+
             // Re-throw if it's already caught and handled partially or needs more handling
             // In the original HEAD there was specific writing code, but upstream changed the logging.
             // Let's see how upstream handles the response.
             // Looking at the rest of the file, handleRequest (the other one) also catches Error.
-            
+
             // Wait, the original HEAD code was:
             /*
             Response resp{ Response::createFailedResponse(protocolVersion, e) };
@@ -337,11 +337,11 @@ namespace lms::api::subsonic
             */
             // But 'protocolVersion' and 'format' are not defined here in the upstream version of handleRequest (it's in the other handleRequest).
             // Upstream's handleRequest(const std::string& requestPath, ...) handles the response writing.
-            
+
             // If I look at the context, this catch is inside SubsonicResource::handleRequest(const Wt::Http::Request& request, Wt::Http::Response& response)
             // It calls handleMediaRetrievalRequest or handleRequest(string, ...).
             // Both of those have their own try-catch for Error.
-            
+
             // So if an Error is thrown and NOT caught by them, it ends up here.
             // Let's just use the upstream logging.
         }

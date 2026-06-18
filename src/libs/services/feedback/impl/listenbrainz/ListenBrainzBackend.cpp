@@ -101,7 +101,13 @@ namespace lms::feedback::listenBrainz
         _feedbacksSynchronizer.enqueFeedback(FeedbackType::Erase, starredtrackId);
     }
 
-    void ListenBrainzBackend::onRatingChanged(db::RatedArtistId) {}
-    void ListenBrainzBackend::onRatingChanged(db::RatedReleaseId) {}
-    void ListenBrainzBackend::onRatingChanged(db::RatedTrackId) {}
+    void ListenBrainzBackend::onRatingChanged(db::RatedArtistId)
+    {
+    }
+    void ListenBrainzBackend::onRatingChanged(db::RatedReleaseId)
+    {
+    }
+    void ListenBrainzBackend::onRatingChanged(db::RatedTrackId)
+    {
+    }
 } // namespace lms::feedback::listenBrainz

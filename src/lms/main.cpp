@@ -21,10 +21,10 @@
 #include <fstream>
 #include <thread>
 
+#include <Wt/Http/Response.h>
 #include <Wt/WApplication.h>
 #include <Wt/WLogSink.h>
 #include <Wt/WServer.h>
-#include <Wt/Http/Response.h>
 #include <boost/asio/io_context.hpp>
 #include <boost/property_tree/xml_parser.hpp>
 
@@ -595,20 +595,13 @@ namespace lms
             server.addResource(spotifyResource.get(), "/spotify");
 
             // Redirect root to spotify
-            server.addEntryPoint(Wt::EntryPointType::Application,
-                                 [](const Wt::WEnvironment& env) {
+            server.addEntryPoint(Wt::EntryPointType::Application, [](const Wt::WEnvironment& env) {
                                      auto app = std::make_unique<Wt::WApplication>(env);
                                      app->redirect("/spotify/");
-                                     return app;
-                                 },
-                                 "/");
+                                     return app; }, "/");
 
             // bind UI entry point
-            server.addEntryPoint(Wt::EntryPointType::Application,
-                                 [&database, &appManager, uiAuthenticationBackend](const Wt::WEnvironment& env) {
-                                     return ui::LmsApplication::create(env, *database, appManager, uiAuthenticationBackend);
-                                 },
-                                 "/legacy");
+            server.addEntryPoint(Wt::EntryPointType::Application, [&database, &appManager, uiAuthenticationBackend](const Wt::WEnvironment& env) { return ui::LmsApplication::create(env, *database, appManager, uiAuthenticationBackend); }, "/legacy");
 
             proxyScannerEventsToApplication(*scannerService, server);
 

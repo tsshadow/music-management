@@ -32,8 +32,8 @@ namespace lms::ui
         std::string name() const override;
         std::string resourcesUrl() const override;
         std::vector<Wt::WLinkedCssStyleSheet> styleSheets() const override;
-        void apply(Wt::WWidget*, Wt::WWidget*, int) const override{};
-        void apply(Wt::WWidget*, Wt::DomElement&, int) const override{};
+        void apply(Wt::WWidget*, Wt::WWidget*, int) const override {};
+        void apply(Wt::WWidget*, Wt::DomElement&, int) const override {};
         std::string disabledClass() const override { return "disabled"; }
         std::string activeClass() const override { return "active"; };
         std::string utilityCssClass(int) const override { return ""; };

@@ -190,29 +190,29 @@ namespace lms::db
                 query.orderBy("s_a.date_time DESC");
                 break;
             case ArtistSortMethod::Relevance:
-            {
-                std::ostringstream oss;
-                oss << "(";
-                bool first = true;
-                for (std::string_view keyword : params.keywords)
                 {
-                    if (!first)
-                        oss << " + ";
-                    std::string escaped = utils::escapeForLikeKeyword(keyword);
-                    oss << "(CASE WHEN LOWER(a.name) = LOWER(?) THEN 100 ELSE 0 END) + "
-                           "(CASE WHEN LOWER(a.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' THEN 50 ELSE 0 END) + "
-                           "(CASE WHEN LOWER(a.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' THEN 10 ELSE 0 END)";
-                    query.bind(keyword);
-                    query.bind(escaped + "%");
-                    query.bind("%" + escaped + "%");
-                    first = false;
+                    std::ostringstream oss;
+                    oss << "(";
+                    bool first = true;
+                    for (std::string_view keyword : params.keywords)
+                    {
+                        if (!first)
+                            oss << " + ";
+                        std::string escaped = utils::escapeForLikeKeyword(keyword);
+                        oss << "(CASE WHEN LOWER(a.name) = LOWER(?) THEN 100 ELSE 0 END) + "
+                               "(CASE WHEN LOWER(a.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' THEN 50 ELSE 0 END) + "
+                               "(CASE WHEN LOWER(a.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' THEN 10 ELSE 0 END)";
+                        query.bind(keyword);
+                        query.bind(escaped + "%");
+                        query.bind("%" + escaped + "%");
+                        first = false;
+                    }
+                    if (params.keywords.empty())
+                        oss << "0";
+                    oss << ") DESC, a.name COLLATE NOCASE";
+                    query.orderBy(oss.str());
+                    break;
                 }
-                if (params.keywords.empty())
-                    oss << "0";
-                oss << ") DESC, a.name COLLATE NOCASE";
-                query.orderBy(oss.str());
-                break;
-            }
             }
 
             query.groupBy("a.id");

@@ -83,7 +83,13 @@ namespace lms::feedback
         detail::onUnstarred<db::StarredTrack>(_db.getTLSSession(), trackId);
     }
 
-    void InternalBackend::onRatingChanged(db::RatedArtistId) {}
-    void InternalBackend::onRatingChanged(db::RatedReleaseId) {}
-    void InternalBackend::onRatingChanged(db::RatedTrackId) {}
+    void InternalBackend::onRatingChanged(db::RatedArtistId)
+    {
+    }
+    void InternalBackend::onRatingChanged(db::RatedReleaseId)
+    {
+    }
+    void InternalBackend::onRatingChanged(db::RatedTrackId)
+    {
+    }
 } // namespace lms::feedback

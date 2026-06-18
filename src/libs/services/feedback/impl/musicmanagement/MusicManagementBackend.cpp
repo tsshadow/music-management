@@ -34,15 +34,31 @@ namespace lms::feedback::musicManagement
         LMS_LOG(SCROBBLING, INFO, "Stopped MusicManagement feedback backend!");
     }
 
-    void MusicManagementBackend::onStarred(db::StarredArtistId) {}
-    void MusicManagementBackend::onUnstarred(db::StarredArtistId) {}
-    void MusicManagementBackend::onStarred(db::StarredReleaseId) {}
-    void MusicManagementBackend::onUnstarred(db::StarredReleaseId) {}
-    void MusicManagementBackend::onStarred(db::StarredTrackId) {}
-    void MusicManagementBackend::onUnstarred(db::StarredTrackId) {}
+    void MusicManagementBackend::onStarred(db::StarredArtistId)
+    {
+    }
+    void MusicManagementBackend::onUnstarred(db::StarredArtistId)
+    {
+    }
+    void MusicManagementBackend::onStarred(db::StarredReleaseId)
+    {
+    }
+    void MusicManagementBackend::onUnstarred(db::StarredReleaseId)
+    {
+    }
+    void MusicManagementBackend::onStarred(db::StarredTrackId)
+    {
+    }
+    void MusicManagementBackend::onUnstarred(db::StarredTrackId)
+    {
+    }
 
-    void MusicManagementBackend::onRatingChanged(db::RatedArtistId) {}
-    void MusicManagementBackend::onRatingChanged(db::RatedReleaseId) {}
+    void MusicManagementBackend::onRatingChanged(db::RatedArtistId)
+    {
+    }
+    void MusicManagementBackend::onRatingChanged(db::RatedReleaseId)
+    {
+    }
 
     void MusicManagementBackend::onRatingChanged(db::RatedTrackId ratedTrackId)
     {
@@ -56,7 +72,7 @@ namespace lms::feedback::musicManagement
                 std::string trackId = track->getId().toString();
                 int rating = ratedTrack->getRating();
                 std::string path = track->getAbsoluteFilePath().string();
-                
+
                 LMS_LOG(SCROBBLING, DEBUG, "Rating changed for track " << trackId << " (rating: " << rating << ", path: " << path << ")");
                 sendEvent("rating_changed", "track", trackId, rating, path);
             }

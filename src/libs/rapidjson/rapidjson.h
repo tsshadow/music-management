@@ -535,7 +535,7 @@ RAPIDJSON_NAMESPACE_END
 
 // adopted from Boost
 #define RAPIDJSON_VERSION_CODE(x, y, z) \
-    (((x)*100000) + ((y)*100) + (z))
+    (((x) * 100000) + ((y) * 100) + (z))
 
 #if defined(__has_builtin)
     #define RAPIDJSON_HAS_BUILTIN(x) __has_builtin(x)
@@ -573,8 +573,7 @@ RAPIDJSON_NAMESPACE_END
     #define RAPIDJSON_PRAGMA(x) __pragma(x)
     #define RAPIDJSON_DIAG_PRAGMA(x) RAPIDJSON_PRAGMA(warning(x))
 
-    #define RAPIDJSON_DIAG_OFF(x) RAPIDJSON_DIAG_PRAGMA(disable \
-                                                        : x)
+    #define RAPIDJSON_DIAG_OFF(x) RAPIDJSON_DIAG_PRAGMA(disable : x)
     #define RAPIDJSON_DIAG_PUSH RAPIDJSON_DIAG_PRAGMA(push)
     #define RAPIDJSON_DIAG_POP RAPIDJSON_DIAG_PRAGMA(pop)
 

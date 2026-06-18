@@ -19,15 +19,15 @@
 
 #include "Spotify.hpp"
 
+#include "../ParameterParsing.hpp"
+#include "../RequestContext.hpp"
+#include "../SubsonicId.hpp"
+#include "core/String.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Cluster.hpp"
 #include "database/objects/Track.hpp"
-#include "../RequestContext.hpp"
-#include "../ParameterParsing.hpp"
-#include "../SubsonicId.hpp"
-#include "responses/Song.hpp"
 #include "responses/Playlist.hpp"
-#include "core/String.hpp"
+#include "responses/Song.hpp"
 
 namespace lms::api::subsonic
 {
@@ -56,14 +56,15 @@ namespace lms::api::subsonic
         const std::vector<std::string> genres = {
             "mainstream hardstyle", "raw hardstyle", "mainstream hardcore", "uptempo hardcore",
             "zaagtempo", "krach", "industrial hardcore", "hardcore", "hardstyle", "frenchcore"
-            "euphoric frenchcore", "euphoric hardstyle", "terror"
+                                                                                  "euphoric frenchcore",
+            "euphoric hardstyle", "terror"
         };
 
         for (const auto& genre : genres)
         {
             addPlaylist("spotify:genre:" + genre, genre, "Curated " + genre + " tracks.");
         }
-        
+
         // 3. Sets
         addPlaylist("spotify:sets", "Sets & Mixes", "Sets and mixes");
 
@@ -73,7 +74,7 @@ namespace lms::api::subsonic
     std::optional<Response> handleGetSpotifyPlaylist(RequestContext& ctx, const std::string& id)
     {
         if (!id.starts_with("spotify:"))
-             return std::nullopt;
+            return std::nullopt;
 
         auto& session{ ctx.getDbSession() };
         auto transaction{ session.createReadTransaction() };
@@ -117,7 +118,7 @@ namespace lms::api::subsonic
         }
         else
         {
-             return std::nullopt;
+            return std::nullopt;
         }
 
         Response response{ Response::createOkResponse(ctx.getServerProtocolVersion()) };

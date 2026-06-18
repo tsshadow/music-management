@@ -21,12 +21,12 @@
 
 #include <memory>
 
-#include "database/objects/StarredArtistId.hpp"
-#include "database/objects/StarredReleaseId.hpp"
-#include "database/objects/StarredTrackId.hpp"
 #include "database/objects/RatedArtistId.hpp"
 #include "database/objects/RatedReleaseId.hpp"
 #include "database/objects/RatedTrackId.hpp"
+#include "database/objects/StarredArtistId.hpp"
+#include "database/objects/StarredReleaseId.hpp"
+#include "database/objects/StarredTrackId.hpp"
 
 namespace lms::feedback
 {

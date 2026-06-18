@@ -118,8 +118,9 @@ namespace lms::scanner
                             // GENRE clusters are already removed from the DB, so they should not be in 'clusters'
                             // but we filter them just in case some caching is involved
                             clusters.erase(std::remove_if(clusters.begin(), clusters.end(), [&](const db::Cluster::pointer& c) {
-                                return c->getType()->getName() == "GENRE";
-                            }), clusters.end());
+                                               return c->getType()->getName() == "GENRE";
+                                           }),
+                                           clusters.end());
 
                             for (const std::string& genreName : metadata.genres)
                             {

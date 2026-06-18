@@ -61,7 +61,6 @@ namespace lms::db
 
             auto query{ session.getDboSession()->query<ResultType>("SELECT " + std::string{ itemToSelect } + " FROM track t") };
 
-
             if (params.ratingUser.isValid())
             {
                 if (params.includeUnrated)
@@ -222,7 +221,6 @@ namespace lms::db
 
             if (params.maxDuration.has_value())
                 query.where("t.duration <= ?").bind(static_cast<long long>(params.maxDuration->count()));
-
 
             if (params.minRating)
             {

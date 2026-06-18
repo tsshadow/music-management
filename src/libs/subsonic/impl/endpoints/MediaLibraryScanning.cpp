@@ -21,13 +21,13 @@
 
 #include "core/Service.hpp"
 #include "core/String.hpp"
-#include "services/scanner/IScannerService.hpp"
 #include "services/recommendation/IRecommendationService.hpp"
+#include "services/scanner/IScannerService.hpp"
 
+#include "ParameterParsing.hpp"
 #include "database/Session.hpp"
 #include "database/objects/ScanSettings.hpp"
 #include "database/objects/User.hpp"
-#include "ParameterParsing.hpp"
 
 namespace lms::api::subsonic::Scan
 {
@@ -39,21 +39,36 @@ namespace lms::api::subsonic::Scan
         {
             switch (step)
             {
-            case ScanStep::AssociateArtistImages: return "AssociateArtistImages";
-            case ScanStep::AssociateExternalLyrics: return "AssociateExternalLyrics";
-            case ScanStep::AssociatePlayListTracks: return "AssociatePlayListTracks";
-            case ScanStep::AssociateReleaseImages: return "AssociateReleaseImages";
-            case ScanStep::AssociateTrackImages: return "AssociateTrackImages";
-            case ScanStep::CheckForDuplicatedFiles: return "CheckForDuplicatedFiles";
-            case ScanStep::CheckForRemovedFiles: return "CheckForRemovedFiles";
-            case ScanStep::Compact: return "Compact";
-            case ScanStep::ComputeClusterStats: return "ComputeClusterStats";
-            case ScanStep::Optimize: return "Optimize";
-            case ScanStep::ReconciliateArtists: return "ReconciliateArtists";
-            case ScanStep::RemoveOrphanedDbEntries: return "RemoveOrphanedDbEntries";
-            case ScanStep::ReloadSimilarityEngine: return "ReloadSimilarityEngine";
-            case ScanStep::ScanFiles: return "ScanFiles";
-            case ScanStep::UpdateLibraryFields: return "UpdateLibraryFields";
+            case ScanStep::AssociateArtistImages:
+                return "AssociateArtistImages";
+            case ScanStep::AssociateExternalLyrics:
+                return "AssociateExternalLyrics";
+            case ScanStep::AssociatePlayListTracks:
+                return "AssociatePlayListTracks";
+            case ScanStep::AssociateReleaseImages:
+                return "AssociateReleaseImages";
+            case ScanStep::AssociateTrackImages:
+                return "AssociateTrackImages";
+            case ScanStep::CheckForDuplicatedFiles:
+                return "CheckForDuplicatedFiles";
+            case ScanStep::CheckForRemovedFiles:
+                return "CheckForRemovedFiles";
+            case ScanStep::Compact:
+                return "Compact";
+            case ScanStep::ComputeClusterStats:
+                return "ComputeClusterStats";
+            case ScanStep::Optimize:
+                return "Optimize";
+            case ScanStep::ReconciliateArtists:
+                return "ReconciliateArtists";
+            case ScanStep::RemoveOrphanedDbEntries:
+                return "RemoveOrphanedDbEntries";
+            case ScanStep::ReloadSimilarityEngine:
+                return "ReloadSimilarityEngine";
+            case ScanStep::ScanFiles:
+                return "ScanFiles";
+            case ScanStep::UpdateLibraryFields:
+                return "UpdateLibraryFields";
             }
             return "Unknown";
         }

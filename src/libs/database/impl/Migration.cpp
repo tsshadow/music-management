@@ -1809,7 +1809,7 @@ FROM track)");
             LMS_LOG(DB, INFO, "Could not create release_artist_link indexes in V107: " << e.what());
         }
     }
-    
+
     void migrateFromV108(Session& session)
     {
         utils::executeCommand(*session.getDboSession(), "ALTER TABLE playqueue ADD COLUMN is_playing INTEGER NOT NULL DEFAULT(0)");

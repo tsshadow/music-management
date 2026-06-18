@@ -418,28 +418,28 @@ struct GenericStringRef
 
     //! Create string reference from \c const character array
 #ifndef __clang__ // -Wdocumentation
-        /*!
-            This constructor implicitly creates a constant string reference from
-            a \c const character array.  It has better performance than
-            \ref StringRef(const CharType*) by inferring the string \ref length
-            from the array length, and also supports strings containing null
-            characters.
-
-            \tparam N length of the string, automatically inferred
-
-            \param str Constant character array, lifetime assumed to be longer
-                than the use of the string in e.g. a GenericValue
-
-            \post \ref s == str
-
-            \note Constant complexity.
-            \note There is a hidden, private overload to disallow references to
-                non-const character arrays to be created via this constructor.
-                By this, e.g. function-scope arrays used to be filled via
-                \c snprintf are excluded from consideration.
-                In such cases, the referenced string should be \b copied to the
-                GenericValue instead.
-         */
+                  /*!
+                      This constructor implicitly creates a constant string reference from
+                      a \c const character array.  It has better performance than
+                      \ref StringRef(const CharType*) by inferring the string \ref length
+                      from the array length, and also supports strings containing null
+                      characters.
+          
+                      \tparam N length of the string, automatically inferred
+          
+                      \param str Constant character array, lifetime assumed to be longer
+                          than the use of the string in e.g. a GenericValue
+          
+                      \post \ref s == str
+          
+                      \note Constant complexity.
+                      \note There is a hidden, private overload to disallow references to
+                          non-const character arrays to be created via this constructor.
+                          By this, e.g. function-scope arrays used to be filled via
+                          \c snprintf are excluded from consideration.
+                          In such cases, the referenced string should be \b copied to the
+                          GenericValue instead.
+                   */
 #endif
     template<SizeType N>
     GenericStringRef(const CharType (&str)[N]) RAPIDJSON_NOEXCEPT
@@ -450,24 +450,24 @@ struct GenericStringRef
 
     //! Explicitly create string reference from \c const character pointer
 #ifndef __clang__ // -Wdocumentation
-        /*!
-            This constructor can be used to \b explicitly  create a reference to
-            a constant string pointer.
-
-            \see StringRef(const CharType*)
-
-            \param str Constant character pointer, lifetime assumed to be longer
-                than the use of the string in e.g. a GenericValue
-
-            \post \ref s == str
-
-            \note There is a hidden, private overload to disallow references to
-                non-const character arrays to be created via this constructor.
-                By this, e.g. function-scope arrays used to be filled via
-                \c snprintf are excluded from consideration.
-                In such cases, the referenced string should be \b copied to the
-                GenericValue instead.
-         */
+                  /*!
+                      This constructor can be used to \b explicitly  create a reference to
+                      a constant string pointer.
+          
+                      \see StringRef(const CharType*)
+          
+                      \param str Constant character pointer, lifetime assumed to be longer
+                          than the use of the string in e.g. a GenericValue
+          
+                      \post \ref s == str
+          
+                      \note There is a hidden, private overload to disallow references to
+                          non-const character arrays to be created via this constructor.
+                          By this, e.g. function-scope arrays used to be filled via
+                          \c snprintf are excluded from consideration.
+                          In such cases, the referenced string should be \b copied to the
+                          GenericValue instead.
+                   */
 #endif
     explicit GenericStringRef(const CharType* str)
         : s(str)
@@ -477,12 +477,12 @@ struct GenericStringRef
 
     //! Create constant string reference from pointer and length
 #ifndef __clang__ // -Wdocumentation
-        /*! \param str constant string, lifetime assumed to be longer than the use of the string in e.g. a GenericValue
-            \param len length of the string, excluding the trailing NULL terminator
-
-            \post \ref s == str && \ref length == len
-            \note Constant complexity.
-         */
+                  /*! \param str constant string, lifetime assumed to be longer than the use of the string in e.g. a GenericValue
+                      \param len length of the string, excluding the trailing NULL terminator
+          
+                      \post \ref s == str && \ref length == len
+                      \note Constant complexity.
+                   */
 #endif
     GenericStringRef(const CharType* str, SizeType len)
         : s(RAPIDJSON_LIKELY(str) ? str : emptyString)
@@ -1265,7 +1265,7 @@ public:
      */
     template<typename T>
     RAPIDJSON_DISABLEIF_RETURN((internal::OrExpr<internal::IsPointer<T>, internal::IsGenericValue<T>>), (bool))
-    operator==(const T& rhs) const
+    operator==(const T & rhs) const
     {
         return *this == GenericValue(rhs);
     }
@@ -1291,7 +1291,7 @@ public:
      */
     template<typename T>
     RAPIDJSON_DISABLEIF_RETURN((internal::IsGenericValue<T>), (bool))
-    operator!=(const T& rhs) const
+    operator!=(const T & rhs) const
     {
         return !(*this == rhs);
     }
@@ -1300,7 +1300,7 @@ public:
     /*! \return (rhs == lhs)
      */
     template<typename T>
-    friend RAPIDJSON_DISABLEIF_RETURN((internal::IsGenericValue<T>), (bool)) operator==(const T& lhs, const GenericValue& rhs)
+    friend RAPIDJSON_DISABLEIF_RETURN((internal::IsGenericValue<T>), (bool)) operator==(const T & lhs, const GenericValue & rhs)
     {
         return rhs == lhs;
     }
@@ -1309,7 +1309,7 @@ public:
     /*! \return !(rhs == lhs)
      */
     template<typename T>
-    friend RAPIDJSON_DISABLEIF_RETURN((internal::IsGenericValue<T>), (bool)) operator!=(const T& lhs, const GenericValue& rhs)
+    friend RAPIDJSON_DISABLEIF_RETURN((internal::IsGenericValue<T>), (bool)) operator!=(const T & lhs, const GenericValue & rhs)
     {
         return !(rhs == lhs);
     }
@@ -1496,14 +1496,14 @@ public:
     */
     template<typename T>
     RAPIDJSON_DISABLEIF_RETURN((internal::NotExpr<internal::IsSame<typename internal::RemoveConst<T>::Type, Ch>>), (GenericValue&))
-    operator[](T* name)
+    operator[](T * name)
     {
         GenericValue n(StringRef(name));
         return (*this)[n];
     }
     template<typename T>
     RAPIDJSON_DISABLEIF_RETURN((internal::NotExpr<internal::IsSame<typename internal::RemoveConst<T>::Type, Ch>>), (const GenericValue&))
-    operator[](T* name) const
+    operator[](T * name) const
     {
         return const_cast<GenericValue&>(*this)[name];
     }
@@ -1539,12 +1539,12 @@ public:
             __declspec(thread) static char buffer[sizeof(GenericValue)];
             return *new (buffer) GenericValue();
 #elif defined(__GNUC__) || defined(__clang__)
-                // This will generate -Wexit-time-destructors in clang, but that's
+                                         // This will generate -Wexit-time-destructors in clang, but that's
                 // better than having under-alignment.
                 __thread static GenericValue buffer;
                 return buffer;
 #else
-                // Don't know what compiler this is, so don't know how to ensure
+                                         // Don't know what compiler this is, so don't know how to ensure
                 // thread-locality.
                 static GenericValue buffer;
                 return buffer;
@@ -3340,7 +3340,7 @@ public:
     GenericDocument& ParseInsitu(Ch* str)
     {
         GenericInsituStringStream<Encoding> s(str);
-        return ParseStream<parseFlags | kParseInsituFlag>(s);
+        return ParseStream < parseFlags | kParseInsituFlag > (s);
     }
 
     //! Parse JSON text from a mutable string (with \ref kParseDefaultFlags)
@@ -3453,15 +3453,15 @@ public:
 
     //! Implicit conversion to get the last parse result
 #ifndef __clang // -Wdocumentation
-        /*! \return \ref ParseResult of the last parse operation
-
-            \code
-              Document doc;
-              ParseResult ok = doc.Parse(json);
-              if (!ok)
-                printf( "JSON parse error: %s (%u)\n", GetParseError_En(ok.Code()), ok.Offset());
-            \endcode
-         */
+                /*! \return \ref ParseResult of the last parse operation
+        
+                    \code
+                      Document doc;
+                      ParseResult ok = doc.Parse(json);
+                      if (!ok)
+                        printf( "JSON parse error: %s (%u)\n", GetParseError_En(ok.Code()), ok.Offset());
+                    \endcode
+                 */
 #endif
     operator ParseResult() const
     {

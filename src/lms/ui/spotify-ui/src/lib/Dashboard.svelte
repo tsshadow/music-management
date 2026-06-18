@@ -35,7 +35,8 @@
   let currentSort = $state('recent');
   let currentYear = $state('');
   let currentTrackSearch = $state('');
-  let currentMinRating = $state('0');
+  let currentMinRating = $state('2');
+  let includeUnrated = $state(true);
 
   let currentArtistSort = $state('alphabetical');
   let currentArtistRole = $state('all');
@@ -95,6 +96,7 @@
       
       if (currentYear) url += `&year=${encodeURIComponent(currentYear)}`;
       if (currentMinRating !== '0') url += `&minRating=${currentMinRating}`;
+      if (includeUnrated) url += `&includeUnrated=true`;
 
       if (activeView === 'sets') {
           url += `&minDuration=10`;
@@ -247,7 +249,7 @@
    * @param {Object} params - The filter and sort parameters.
    */
   function handleFilterChange(params) {
-      const { genre, sort, year, search, role, minRating } = params;
+      const { genre, sort, year, search, role, minRating, includeUnrated: incUnrated } = params;
       if (activeView === 'artists') {
           currentArtistSort = sort;
           currentArtistRole = role;
@@ -264,6 +266,7 @@
           currentYear = year;
           currentTrackSearch = search;
           currentMinRating = minRating || '0';
+          includeUnrated = incUnrated !== undefined ? incUnrated : true;
           loadAllTracks();
       }
   }
@@ -328,7 +331,7 @@
         <h2 class="text-2xl font-bold m-0">
             {#if activeView === 'songs'}Alle Nummers{:else if activeView === 'sets'}Sets{:else}{activeView.split(':')[1]}{/if}
         </h2>
-        <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} showGenre={!activeView.startsWith('genre:')} onchange={handleFilterChange} />
+        <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} showGenre={!activeView.startsWith('genre:')} onchange={handleFilterChange} />
     </div>
     {#if isLoading && tracks.length === 0}
         <p>Laden...</p>

@@ -164,7 +164,7 @@
       <tr 
         role="button"
         tabindex="0"
-        class="group hover:bg-white/10 active:bg-white/5 hover:text-white h-14 md:h-16 cursor-pointer select-none {String($currentTrack?.id) === String(track.id) ? 'text-spotify-green' : ''}" 
+        class="group hover:bg-white/10 active:bg-white/5 hover:text-white h-14 md:h-16 cursor-pointer select-none {String($currentTrack?.id) === String(track.id) ? 'text-brand' : ''}" 
         onclick={() => { if ($isMobile) playTrack(track); }}
         ondblclick={() => { if (!$isMobile) playTrack(track); }}
         onkeydown={(e) => e.key === 'Enter' && playTrack(track)}
@@ -190,7 +190,7 @@
               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
             />
             <div class="flex flex-col min-w-0">
-              <span class="text-sm md:text-base font-medium truncate {String($currentTrack?.id) === String(track.id) ? 'text-spotify-green' : 'text-white'}">{track.title}</span>
+              <span class="text-sm md:text-base font-medium truncate {String($currentTrack?.id) === String(track.id) ? 'text-brand' : 'text-white'}">{track.title}</span>
               <ArtistList 
                 artist={track.artist} 
                 artistId={track.artistId} 
@@ -228,7 +228,7 @@
               {#each [1, 2, 3, 4, 5] as star}
                 <button 
                   aria-label="{star} sterren"
-                  class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { (track.userRating || 0) >= star ? 'text-spotify-green' : 'text-white/10 hover:text-white/30' }"
+                  class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { (track.userRating || 0) >= star ? 'text-brand' : 'text-white/10 hover:text-white/30' }"
                   onclick={(e) => { e.stopPropagation(); updateRating(track, star); }}
                 >
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">

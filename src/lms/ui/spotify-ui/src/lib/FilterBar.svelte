@@ -96,7 +96,7 @@
     <input 
       type="text" 
       placeholder="Zoeken..." 
-      class="w-full bg-[#282828] text-white border-none px-4 py-2 rounded-[20px] text-sm focus:outline focus:outline-1 focus:outline-spotify-green focus:bg-[#333]"
+      class="w-full bg-[#282828] text-white border-none px-4 py-2 rounded-[20px] text-sm focus:outline focus:outline-1 focus:outline-brand focus:bg-[#333]"
       bind:value={search} 
       oninput={handleSearchInput}
     />
@@ -106,7 +106,7 @@
     {#if (view === 'songs' || view === 'albums') && showGenre}
       <div class="flex items-center gap-2">
         <label for="genre" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">Genre</label>
-        <select id="genre" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-spotify-green" bind:value={genre} onchange={handleChange}>
+        <select id="genre" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={genre} onchange={handleChange}>
           <option value="">Alle Genres</option>
           {#each genres as g (g.value)}
             <option value={g.value}>{g.value} ({g.songCount})</option>
@@ -118,7 +118,7 @@
     {#if view === 'songs'}
       <div class="flex items-center gap-2">
         <label for="year" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">Jaar</label>
-        <select id="year" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-spotify-green" bind:value={year} onchange={handleChange}>
+        <select id="year" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={year} onchange={handleChange}>
           <option value="">Alle Jaren</option>
           {#each years as y (y.value)}
             <option value={y.value}>{y.value}</option>
@@ -130,7 +130,7 @@
     {#if view === 'artists'}
       <div class="flex items-center gap-2">
         <label for="role" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">Rol</label>
-        <select id="role" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-spotify-green" bind:value={role} onchange={handleChange}>
+        <select id="role" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={role} onchange={handleChange}>
           {#each roles as r (r.value)}
             <option value={r.value}>{r.label}</option>
           {/each}
@@ -142,7 +142,7 @@
       <div class="flex items-center gap-4">
         <div class="flex items-center gap-2">
           <label for="minRating" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">Rating</label>
-          <select id="minRating" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-spotify-green" bind:value={minRating} onchange={handleChange}>
+          <select id="minRating" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={minRating} onchange={handleChange}>
             <option value="0">Alle</option>
             <option value="1">1+ sterren</option>
             <option value="2">2+ sterren</option>
@@ -156,7 +156,7 @@
           <input 
             type="checkbox" 
             id="unrated" 
-            class="w-4 h-4 accent-spotify-green cursor-pointer" 
+            class="w-4 h-4 accent-brand cursor-pointer" 
             bind:checked={includeUnrated} 
             onchange={handleChange} 
           />
@@ -167,7 +167,7 @@
 
     <div class="flex items-center gap-2">
       <label for="sort" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">Sorteer op</label>
-      <select id="sort" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-spotify-green" bind:value={sort} onchange={handleChange}>
+      <select id="sort" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={sort} onchange={handleChange}>
         {#if view === 'songs'}
           <option value="recent">Recent uitgebracht</option>
           <option value="added">Recent toegevoegd</option>

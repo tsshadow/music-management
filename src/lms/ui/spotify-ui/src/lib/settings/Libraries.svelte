@@ -57,7 +57,7 @@
       {/if}
 
       <div class="mt-4 p-4 border-t border-[#282828]">
-        <button class="text-spotify-green font-bold hover:underline cursor-pointer border-none bg-transparent flex items-center gap-2">
+        <button class="text-brand font-bold hover:underline cursor-pointer border-none bg-transparent flex items-center gap-2">
             <span class="text-2xl">+</span> Add Library
         </button>
       </div>

@@ -9,7 +9,7 @@
   import ArtistList from './ArtistList.svelte';
   import Settings from './Settings.svelte';
   import { getArtistImageUrl } from './utils.js';
-  import { authParams, currentPlaylist } from './store.js';
+  import { authParams, currentPlaylist, viewMode } from './store.js';
 
   let { activeView = $bindable('home') } = $props();
 
@@ -98,7 +98,7 @@
       if (currentMinRating !== '0') url += `&minRating=${currentMinRating}`;
       if (includeUnrated) url += `&includeUnrated=true`;
 
-      if (activeView === 'sets') {
+      if ($viewMode === 'sets') {
           url += `&minDuration=10`;
       } else {
           url += `&maxDuration=10`;
@@ -285,6 +285,7 @@
   $effect(() => {
     const view = activeView;
     const auth = $authParams;
+    const mode = $viewMode;
 
     if (auth) {
       untrack(() => {
@@ -329,7 +330,11 @@
   {:else if activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:')}
     <div class="flex flex-col gap-4 mb-6">
         <h2 class="text-2xl font-bold m-0">
-            {#if activeView === 'songs'}Alle Nummers{:else if activeView === 'sets'}Sets{:else}{activeView.split(':')[1]}{/if}
+            {#if activeView === 'songs' || activeView === 'sets'}
+              {$viewMode === 'sets' ? 'Sets' : 'Alle Nummers'}
+            {:else}
+              {activeView.split(':')[1]}
+            {/if}
         </h2>
         <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} showGenre={!activeView.startsWith('genre:')} onchange={handleFilterChange} />
     </div>
@@ -396,7 +401,7 @@
                   onclick={() => activeView = `genre:${g.value}`}
                   onkeydown={(e) => e.key === 'Enter' && (activeView = `genre:${g.value}`)}
                 >
-                    <div class="w-16 h-16 rounded-full bg-spotify-green flex items-center justify-center text-black mb-2 shadow-lg">
+                    <div class="w-16 h-16 rounded-full bg-brand flex items-center justify-center text-black mb-2 shadow-lg">
                         <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
                             <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"></path>
                         </svg>

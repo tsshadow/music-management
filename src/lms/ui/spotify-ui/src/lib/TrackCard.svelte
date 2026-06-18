@@ -31,7 +31,7 @@
     />
     <button 
       aria-label="Afspelen"
-      class="absolute right-2 bottom-2 w-12 h-12 bg-spotify-green border-none rounded-full flex items-center justify-center shadow-[0_8px_16px_rgba(0,0,0,0.3)] opacity-0 translate-y-2 transition-all group-hover:opacity-100 group-hover:translate-y-0"
+      class="absolute right-2 bottom-2 w-12 h-12 bg-brand border-none rounded-full flex items-center justify-center shadow-[0_8px_16px_rgba(0,0,0,0.3)] opacity-0 translate-y-2 transition-all group-hover:opacity-100 group-hover:translate-y-0"
       onclick={(e) => { e.stopPropagation(); play(); }}
     >
       <svg viewBox="0 0 24 24" width="24" height="24" fill="black">

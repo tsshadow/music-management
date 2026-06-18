@@ -116,7 +116,7 @@
       {#if status.scanning}
         <div class="relative w-24 h-24">
           <div class="absolute inset-0 rounded-full border-4 border-[#282828]"></div>
-          <div class="absolute inset-0 rounded-full border-4 border-spotify-green border-t-transparent animate-spin"></div>
+          <div class="absolute inset-0 rounded-full border-4 border-brand border-t-transparent animate-spin"></div>
         </div>
         <div class="text-center">
           <p class="text-2xl font-bold text-white">{getStepLabel(status.step)}</p>
@@ -135,7 +135,7 @@
             </div>
             <div class="bg-[#282828] h-3 rounded-full overflow-hidden">
                 <div 
-                    class="bg-spotify-green h-full transition-all duration-500 ease-out" 
+                    class="bg-brand h-full transition-all duration-500 ease-out" 
                     style="width: {((status.stepIndex + 1) / status.stepCount) * 100}%"
                 ></div>
             </div>
@@ -154,15 +154,15 @@
         <div class="flex flex-col gap-4 w-full max-w-xs mt-4">
             <div class="flex flex-col gap-2">
                 <label class="flex items-center gap-3 text-sm text-[#b3b3b3] hover:text-white cursor-pointer group">
-                    <input type="checkbox" bind:checked={fullScan} class="accent-spotify-green w-4 h-4" />
+                    <input type="checkbox" bind:checked={fullScan} class="accent-brand w-4 h-4" />
                     Full Scan
                 </label>
                 <label class="flex items-center gap-3 text-sm text-[#b3b3b3] hover:text-white cursor-pointer group">
-                    <input type="checkbox" bind:checked={forceOptimize} class="accent-spotify-green w-4 h-4" />
+                    <input type="checkbox" bind:checked={forceOptimize} class="accent-brand w-4 h-4" />
                     Force Optimize
                 </label>
                 <label class="flex items-center gap-3 text-sm text-[#b3b3b3] hover:text-white cursor-pointer group">
-                    <input type="checkbox" bind:checked={compact} class="accent-spotify-green w-4 h-4" />
+                    <input type="checkbox" bind:checked={compact} class="accent-brand w-4 h-4" />
                     Compact Database
                 </label>
             </div>

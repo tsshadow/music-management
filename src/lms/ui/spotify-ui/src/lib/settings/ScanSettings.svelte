@@ -122,7 +122,7 @@
   <div class="flex justify-between items-center mb-8">
     <h3 class="text-2xl font-bold">Scan Settings</h3>
     {#if message}
-        <span class="text-spotify-green font-medium animate-pulse">{message}</span>
+        <span class="text-brand font-medium animate-pulse">{message}</span>
     {/if}
   </div>
   
@@ -137,7 +137,7 @@
           <div class="flex flex-col gap-2">
             <span class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider">Update Period</span>
             <select 
-              class="bg-[#282828] text-white border-none rounded px-3 py-2 outline-none cursor-pointer focus:ring-1 focus:ring-spotify-green h-10"
+              class="bg-[#282828] text-white border-none rounded px-3 py-2 outline-none cursor-pointer focus:ring-1 focus:ring-brand h-10"
               bind:value={settings.updatePeriod}
             >
               {#each updatePeriods as period (period.value)}
@@ -149,7 +149,7 @@
           <div class="flex flex-col gap-2" class:opacity-50={settings.updatePeriod == 0 || settings.updatePeriod == 4}>
             <span class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider">Start Time</span>
             <select 
-              class="bg-[#282828] text-white border-none rounded px-3 py-2 outline-none cursor-pointer focus:ring-1 focus:ring-spotify-green h-10"
+              class="bg-[#282828] text-white border-none rounded px-3 py-2 outline-none cursor-pointer focus:ring-1 focus:ring-brand h-10"
               bind:value={settings.updateStartTime}
               disabled={settings.updatePeriod == 0 || settings.updatePeriod == 4}
             >
@@ -171,7 +171,7 @@
                     <p class="text-sm text-[#b3b3b3]">Mechanism used to find similar artists and tracks.</p>
                 </div>
                 <select 
-                    class="bg-[#282828] text-white border-none rounded px-3 py-2 outline-none cursor-pointer focus:ring-1 focus:ring-spotify-green h-10 w-48"
+                    class="bg-[#282828] text-white border-none rounded px-3 py-2 outline-none cursor-pointer focus:ring-1 focus:ring-brand h-10 w-48"
                     bind:value={settings.similarityEngineType}
                 >
                     {#each similarityEngines as engine (engine.value)}
@@ -182,26 +182,26 @@
 
             <label class="flex justify-between items-center cursor-pointer group">
                 <div>
-                    <p class="font-medium text-white group-hover:text-spotify-green transition-colors">Skip Single Release Playlists</p>
+                    <p class="font-medium text-white group-hover:text-brand transition-colors">Skip Single Release Playlists</p>
                     <p class="text-sm text-[#b3b3b3]">Do not create playlists for releases with only one track.</p>
                 </div>
-                <input type="checkbox" bind:checked={settings.skipSingleReleasePlayLists} class="accent-spotify-green w-5 h-5" />
+                <input type="checkbox" bind:checked={settings.skipSingleReleasePlayLists} class="accent-brand w-5 h-5" />
             </label>
 
             <label class="flex justify-between items-center cursor-pointer group">
                 <div>
-                    <p class="font-medium text-white group-hover:text-spotify-green transition-colors">Allow MBID Artist Merge</p>
+                    <p class="font-medium text-white group-hover:text-brand transition-colors">Allow MBID Artist Merge</p>
                     <p class="text-sm text-[#b3b3b3]">Merge artists based on MusicBrainz ID.</p>
                 </div>
-                <input type="checkbox" bind:checked={settings.allowMBIDArtistMerge} class="accent-spotify-green w-5 h-5" />
+                <input type="checkbox" bind:checked={settings.allowMBIDArtistMerge} class="accent-brand w-5 h-5" />
             </label>
 
             <label class="flex justify-between items-center cursor-pointer group">
                 <div>
-                    <p class="font-medium text-white group-hover:text-spotify-green transition-colors">Artist Image Fallback</p>
+                    <p class="font-medium text-white group-hover:text-brand transition-colors">Artist Image Fallback</p>
                     <p class="text-sm text-[#b3b3b3]">Use release cover art if artist image is missing.</p>
                 </div>
-                <input type="checkbox" bind:checked={settings.artistImageFallbackToRelease} class="accent-spotify-green w-5 h-5" />
+                <input type="checkbox" bind:checked={settings.artistImageFallbackToRelease} class="accent-brand w-5 h-5" />
             </label>
         </div>
       </div>
@@ -215,7 +215,7 @@
             <div>
                 <div class="flex justify-between items-center mb-4">
                     <span class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider">Extra Tags to Scan</span>
-                    <button on:click={() => addToList('extraTagsToScan')} class="text-xs text-spotify-green hover:underline font-bold">ADD TAG</button>
+                    <button on:click={() => addToList('extraTagsToScan')} class="text-xs text-brand hover:underline font-bold">ADD TAG</button>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     {#each settings.extraTagsToScan as _, i (i)}
@@ -231,7 +231,7 @@
             <div>
                 <div class="flex justify-between items-center mb-4">
                     <span class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider">Artist Tag Delimiters</span>
-                    <button on:click={() => addToList('artistTagDelimiters')} class="text-xs text-spotify-green hover:underline font-bold">ADD DELIMITER</button>
+                    <button on:click={() => addToList('artistTagDelimiters')} class="text-xs text-brand hover:underline font-bold">ADD DELIMITER</button>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     {#each settings.artistTagDelimiters as _, i (i)}
@@ -247,7 +247,7 @@
             <div>
                 <div class="flex justify-between items-center mb-4">
                     <span class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider">Default Tag Delimiters</span>
-                    <button on:click={() => addToList('defaultTagDelimiters')} class="text-xs text-spotify-green hover:underline font-bold">ADD DELIMITER</button>
+                    <button on:click={() => addToList('defaultTagDelimiters')} class="text-xs text-brand hover:underline font-bold">ADD DELIMITER</button>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     {#each settings.defaultTagDelimiters as _, i (i)}
@@ -263,7 +263,7 @@
             <div>
                 <span class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider block mb-4">Artists to NOT split (one per line)</span>
                 <textarea 
-                    class="w-full bg-[#282828] text-white border-none rounded p-4 outline-none focus:ring-1 focus:ring-spotify-green min-h-[120px] resize-none"
+                    class="w-full bg-[#282828] text-white border-none rounded p-4 outline-none focus:ring-1 focus:ring-brand min-h-[120px] resize-none"
                     placeholder="e.g. AC/DC"
                     value={settings.artistsToNotSplit.join('\n')}
                     on:input={(e) => settings.artistsToNotSplit = e.target.value.split('\n').filter(s => s.trim())}
@@ -284,7 +284,7 @@
         <button 
             on:click={saveSettings}
             disabled={!hasChanges || isSaving}
-            class="bg-spotify-green text-black px-8 py-2 rounded-full font-bold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            class="bg-brand text-black px-8 py-2 rounded-full font-bold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
             {#if isSaving}
                 <div class="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>

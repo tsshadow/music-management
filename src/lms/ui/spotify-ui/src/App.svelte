@@ -8,18 +8,28 @@
   import TrackList from './lib/TrackList.svelte';
   import MobileNav from './lib/MobileNav.svelte';
   import SettingsSidebar from './lib/SettingsSidebar.svelte';
-  import { playlist, activeView, currentPlaylist, isMobile, authParams } from './lib/store.js';
+  import { playlist, activeView, currentPlaylist, isMobile, authParams, viewMode } from './lib/store.js';
   import { get } from 'svelte/store';
 
-  let greeting = "";
+  let greeting = $state("");
   const hours = new Date().getHours();
   if (hours < 12) greeting = "Goedemorgen";
   else if (hours < 18) greeting = "Goedemiddag";
   else greeting = "Goedenavond";
 
-  let showQueue = false;
-  let queueWidth = 350;
-  let isResizing = false;
+  let showQueue = $state(false);
+
+  $effect(() => {
+    if ($viewMode === 'sets') {
+        document.documentElement.classList.add('mode-sets');
+        if ($activeView === 'songs') activeView.set('sets');
+    } else {
+        document.documentElement.classList.remove('mode-sets');
+        if ($activeView === 'sets') activeView.set('songs');
+    }
+  });
+  let queueWidth = $state(350);
+  let isResizing = $state(false);
 
   function startResizing(_e) {
     isResizing = true;
@@ -41,7 +51,7 @@
     document.removeEventListener('mouseup', stopResizing);
   }
 
-  let isMounted = false;
+  let isMounted = $state(false);
   const base = '/spotify';
 
   function viewToPath(view, _playlistObj) {
@@ -87,6 +97,12 @@
     window.addEventListener('resize', updateMobile);
 
     const initialView = pathToView(window.location.pathname);
+    if (initialView === 'sets') {
+        viewMode.set('sets');
+    } else if (initialView === 'songs') {
+        viewMode.set('songs');
+    }
+
     if (typeof initialView === 'object') {
         currentPlaylist.set({ id: initialView.id });
         activeView.set(initialView.view);
@@ -96,6 +112,12 @@
 
     window.addEventListener('popstate', () => {
         const view = pathToView(window.location.pathname);
+        if (view === 'sets') {
+            viewMode.set('sets');
+        } else if (view === 'songs') {
+            viewMode.set('songs');
+        }
+
         if (typeof view === 'object') {
             currentPlaylist.set({ id: view.id });
             activeView.set(view.view);
@@ -105,14 +127,14 @@
     });
   });
 
-  $: {
+  $effect(() => {
     if (isMounted) {
         const path = viewToPath($activeView, $currentPlaylist);
         if (path && path !== window.location.pathname) {
             window.history.pushState({}, '', path);
         }
     }
-  }
+  });
 
   function handleNavigate(view) {
     activeView.set(view);
@@ -173,7 +195,7 @@
     <div class="relative row-start-1 row-end-2 col-start-3 col-end-4 flex min-h-0 hidden md:flex">
       <button 
         aria-label="Wachtrij resizen"
-        class="w-1 bg-transparent border-none cursor-col-resize hover:bg-spotify-green transition-colors z-10 p-0"
+        class="w-1 bg-transparent border-none cursor-col-resize hover:bg-brand transition-colors z-10 p-0"
         onmousedown={startResizing}
       ></button>
       

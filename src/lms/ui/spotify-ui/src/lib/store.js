@@ -61,6 +61,9 @@ export const isPlaying = writable(false);
 export const activeView = writable("home");
 persist("lms_active_view", activeView);
 
+export const viewMode = writable("songs"); // 'songs' or 'sets'
+persist("lms_view_mode", viewMode);
+
 export const activeSettingsTab = writable("libraries");
 persist("lms_active_settings_tab", activeSettingsTab);
 

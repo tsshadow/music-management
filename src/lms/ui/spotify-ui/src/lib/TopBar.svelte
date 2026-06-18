@@ -1,6 +1,6 @@
 <script>
   import ProfileButton from './ProfileButton.svelte';
-  import { activeView, isMobile } from './store.js';
+  import { activeView } from './store.js';
 
   const { greeting = "" } = $props();
 
@@ -12,6 +12,7 @@
   function handleNavigate(view) {
     activeView.set(view);
   }
+
 </script>
 
 <div class="flex items-center justify-between mb-6 sticky top-0 z-30 py-2">

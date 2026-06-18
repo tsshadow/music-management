@@ -16,7 +16,7 @@
   });
 </script>
 
-<span class="text-sm {active ? 'text-spotify-green' : 'text-[#b3b3b3]'}">
+<span class="text-sm {active ? 'text-brand' : 'text-[#b3b3b3]'}">
   {#each displayArtists as a, i (a.id || i)}
     <span 
       role="link"

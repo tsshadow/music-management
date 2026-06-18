@@ -60,13 +60,13 @@
 
     <div class="flex flex-col gap-2">
       <label for="username" class="text-[12px] font-bold text-[#b3b3b3] uppercase">Gebruikersnaam</label>
-      <input id="username" type="text" bind:value={username} placeholder="Username" class="bg-[#3e3e3e] border border-transparent rounded p-3 text-white text-sm focus:outline-none focus:border-spotify-green disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading} />
+      <input id="username" type="text" bind:value={username} placeholder="Username" class="bg-[#3e3e3e] border border-transparent rounded p-3 text-white text-sm focus:outline-none focus:border-brand disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading} />
     </div>
     <div class="flex flex-col gap-2">
       <label for="password" class="text-[12px] font-bold text-[#b3b3b3] uppercase">Wachtwoord</label>
-      <input id="password" type="password" bind:value={password} placeholder="Password" class="bg-[#3e3e3e] border border-transparent rounded p-3 text-white text-sm focus:outline-none focus:border-spotify-green disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading} on:keydown={(e) => e.key === 'Enter' && verifyLogin()} />
+      <input id="password" type="password" bind:value={password} placeholder="Password" class="bg-[#3e3e3e] border border-transparent rounded p-3 text-white text-sm focus:outline-none focus:border-brand disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading} on:keydown={(e) => e.key === 'Enter' && verifyLogin()} />
     </div>
-    <button class="bg-spotify-green text-black border-none rounded-[500px] p-3.5 text-base font-bold cursor-pointer transition-transform hover:scale-[1.04] disabled:bg-spotify-green/50 disabled:cursor-not-allowed disabled:transform-none" on:click={verifyLogin} disabled={isLoading}>
+    <button class="bg-brand text-black border-none rounded-[500px] p-3.5 text-base font-bold cursor-pointer transition-transform hover:scale-[1.04] disabled:bg-brand/50 disabled:cursor-not-allowed disabled:transform-none" on:click={verifyLogin} disabled={isLoading}>
       {isLoading ? 'Verificeren...' : 'Verbinden'}
     </button>
   </div>

@@ -584,7 +584,7 @@
 
     <div class="flex-1 md:w-[40%] max-w-[600px] flex flex-col items-center gap-2">
       <div class="flex items-center gap-4 md:gap-6">
-        <button class="hidden md:flex bg-transparent border-none p-0 items-center justify-center cursor-pointer transition-colors hover:text-white {shuffleMode ? 'text-spotify-green' : 'text-[#b3b3b3]'}" onclick={toggleShuffleMode} aria-label="Shuffle">
+        <button class="hidden md:flex bg-transparent border-none p-0 items-center justify-center cursor-pointer transition-colors hover:text-white {shuffleMode ? 'text-brand' : 'text-[#b3b3b3]'}" onclick={toggleShuffleMode} aria-label="Shuffle">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
               <path d="M4.5 6.307a.75.75 0 1 1 0-1.5 5.862 5.862 0 0 1 4.671 2.382l.66.883 5.03 6.717a4.362 4.362 0 0 0 3.471 1.769h1.918a.75.75 0 1 1 0 1.5h-1.918a5.862 5.862 0 0 1-4.671-2.381l-.66-.883-5.03-6.717a4.362 4.362 0 0 0-3.471-1.77H4.5zM14.862 8.567l.66-.883A5.862 5.862 0 0 1 20.193 5.3h1.057a.75.75 0 1 1 0 1.5h-1.057a4.362 4.362 0 0 0-3.471 1.768l-.66.883-.16-.214-.132-.176-.908-1.213-.01.014zM4.5 19.193a.75.75 0 1 0 0-1.5h1.057a4.362 4.362 0 0 0 3.471-1.768l.66-.883.908 1.213.14.186.124.166.01-.013.66.883A5.862 5.862 0 0 1 16.208 20.193H4.5z"></path>
           </svg>
@@ -610,12 +610,12 @@
               <path d="M11.162 12.767a1 1 0 0 1 0-1.534l7.325-5.913a.6.6 0 0 1 .913.434v12.492a.6.6 0 0 1-.913.434l-7.325-5.913zM2.5 5.754a.6.6 0 0 1 .913-.434l7.325 5.913a1 1 0 0 1 0 1.534l-7.325 5.913a.6.6 0 0 1-.913-.434V5.754z"></path>
           </svg>
         </button>
-        <button class="hidden md:flex relative bg-transparent border-none p-0 items-center justify-center cursor-pointer transition-colors hover:text-white {repeatMode !== 'none' ? 'text-spotify-green' : 'text-[#b3b3b3]'}" onclick={toggleRepeat} aria-label="Herhalen">
+        <button class="hidden md:flex relative bg-transparent border-none p-0 items-center justify-center cursor-pointer transition-colors hover:text-white {repeatMode !== 'none' ? 'text-brand' : 'text-[#b3b3b3]'}" onclick={toggleRepeat} aria-label="Herhalen">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
               <path d="M4.5 12.2a.75.75 0 0 1 .75-.75h14a.75.75 0 0 1 .75.75v1.25a3.25 3.25 0 0 1-3.25 3.25H7.75a.75.75 0 0 1 0-1.5h8.25a1.75 1.75 0 0 0 1.75-1.75v-.5H5.25a.75.75 0 0 1-.75-.75v-1.25zM19.5 11.8a.75.75 0 0 1-.75.75h-14a.75.75 0 0 1-.75-.75v-1.25a3.25 3.25 0 0 1 3.25-3.25h8.5a.75.75 0 0 1 0 1.5h-8.5a1.75 1.75 0 0 0-1.75 1.75v.5h13.25a.75.75 0 0 1 .75.75v1.25z"></path>
           </svg>
           {#if repeatMode === 'one'}
-              <span class="absolute text-[8px] font-bold top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-spotify-green bg-[#181818] px-[1px]">1</span>
+              <span class="absolute text-[8px] font-bold top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-brand bg-[#181818] px-[1px]">1</span>
           {/if}
         </button>
       </div>
@@ -641,7 +641,7 @@
           {#each [1, 2, 3, 4, 5] as star}
             <button 
               aria-label="{star} sterren"
-              class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { (track?.userRating || 0) >= star ? 'text-spotify-green' : 'text-white/10 hover:text-white/30' }"
+              class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { (track?.userRating || 0) >= star ? 'text-brand' : 'text-white/10 hover:text-white/30' }"
               onclick={() => updateRating(star)}
             >
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">

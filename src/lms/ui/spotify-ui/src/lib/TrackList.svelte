@@ -2,7 +2,7 @@
   import { currentTrack, playerState, authParams, playlist, isMobile } from './store.js';
   import ArtistList from './ArtistList.svelte';
 
-  const { tracks = [], isQueue = false, onnavigate } = $props();
+  const { tracks = [], isQueue = false, playlistId = null, onremove = null, onnavigate } = $props();
 
   /**
    * Updates the rating of a track.
@@ -48,11 +48,16 @@
    */
   function removeTrack(e, index) {
       e.stopPropagation();
-      playlist.update(p => {
-          const newP = [...p];
-          newP.splice(index, 1);
-          return newP;
-      });
+      if (isQueue) {
+          playlist.update(p => {
+              const newP = [...p];
+              newP.splice(index, 1);
+              return newP;
+          });
+      }
+      if (onremove) {
+          onremove(index);
+      }
   }
 
   /**
@@ -237,29 +242,31 @@
         <td class="p-2 px-4 text-right text-xs md:text-sm">{formatTime(track.duration * 1000)}</td>
         <td class="p-2 px-4 text-center">
           <div class="flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              {#if isQueue}
-                  <button 
-                    aria-label="Omhoog"
-                    title="Omhoog"
-                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed" 
-                    onclick={(e) => moveTrack(e, i, -1)} 
-                    disabled={i === 0}
-                  >
-                      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                          <path d="M7 14l5-5 5 5z"></path>
-                      </svg>
-                  </button>
-                  <button 
-                    aria-label="Omlaag"
-                    title="Omlaag"
-                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed" 
-                    onclick={(e) => moveTrack(e, i, 1)} 
-                    disabled={i === tracks.length - 1}
-                  >
-                      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                          <path d="M7 10l5 5 5-5z"></path>
-                      </svg>
-                  </button>
+              {#if isQueue || playlistId}
+                  {#if isQueue}
+                      <button 
+                        aria-label="Omhoog"
+                        title="Omhoog"
+                        class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed" 
+                        onclick={(e) => moveTrack(e, i, -1)} 
+                        disabled={i === 0}
+                      >
+                          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                              <path d="M7 14l5-5 5 5z"></path>
+                          </svg>
+                      </button>
+                      <button 
+                        aria-label="Omlaag"
+                        title="Omlaag"
+                        class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed" 
+                        onclick={(e) => moveTrack(e, i, 1)} 
+                        disabled={i === tracks.length - 1}
+                      >
+                          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                              <path d="M7 10l5 5 5-5z"></path>
+                          </svg>
+                      </button>
+                  {/if}
                   <button 
                     aria-label="Verwijderen"
                     title="Verwijderen"

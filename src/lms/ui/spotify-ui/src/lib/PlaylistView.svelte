@@ -46,6 +46,24 @@
       playerState.update(s => ({ ...s, playing: true }));
     }
   }
+
+  /**
+   * Removes a track from the saved playlist.
+   * 
+   * @param {number} index - The index of the track to remove.
+   */
+  async function handleRemove(index) {
+    const id = $currentPlaylist?.id;
+    if (!id || !$authParams) return;
+    try {
+      const resp = await fetch(`${apiBase}/updatePlaylist?playlistId=${encodeURIComponent(id)}&songIndexToRemove=${index}&${$authParams}`);
+      if (resp.ok) {
+        tracks = tracks.filter((_, i) => i !== index);
+      }
+    } catch (e) {
+      console.error("Failed to remove track from playlist", e);
+    }
+  }
 </script>
 
 {#if $currentPlaylist}
@@ -82,7 +100,7 @@
          <button class="text-[#b3b3b3] hover:text-white text-3xl transition cursor-pointer bg-transparent border-none">···</button>
        </div>
 
-       <TrackList {tracks} onnavigate={onnavigate} />
+       <TrackList {tracks} playlistId={$currentPlaylist?.id} onremove={handleRemove} onnavigate={onnavigate} />
     </div>
   </div>
 {/if}

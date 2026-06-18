@@ -1,0 +1,251 @@
+openapi: 3.0.3
+info:
+  title: LMS Subsonic API
+  description: |
+    LMS (Lightweight Music Server) implements a subset of the Subsonic/OpenSubsonic API.
+    This documentation covers the endpoints available in LMS.
+  version: 3.76.0
+servers:
+  - url: /rest
+    description: Subsonic API root
+components:
+  securitySchemes:
+    queryAuth:
+      type: apiKey
+      in: query
+      name: apiKey
+      description: LMS specific API key authentication
+    passwordAuth:
+      type: apiKey
+      in: query
+      name: p
+      description: Plaintext password (not recommended)
+  parameters:
+    user:
+      name: u
+      in: query
+      required: true
+      schema:
+        type: string
+      description: The username
+    version:
+      name: v
+      in: query
+      required: true
+      schema:
+        type: string
+        default: "1.16.1"
+      description: The protocol version
+    client:
+      name: c
+      in: query
+      required: true
+      schema:
+        type: string
+      description: A unique string identifying the client application
+    format:
+      name: f
+      in: query
+      schema:
+        type: string
+        enum: [xml, json]
+        default: xml
+      description: The response format
+paths:
+  /ping:
+    get:
+      summary: Ping the server
+      description: Used to test connectivity and authentication.
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/version'
+        - $ref: '#/components/parameters/client'
+        - $ref: '#/components/parameters/format'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+            application/xml:
+              schema:
+                type: object
+  /getMusicFolders:
+    get:
+      summary: Get all configured music folders
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/version'
+        - $ref: '#/components/parameters/client'
+        - $ref: '#/components/parameters/format'
+      responses:
+        '200':
+          description: List of music folders
+  /getIndexes:
+    get:
+      summary: Get an indexed artist list
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/version'
+        - $ref: '#/components/parameters/client'
+        - $ref: '#/components/parameters/format'
+        - name: musicFolderId
+          in: query
+          schema:
+            type: string
+        - name: ifModifiedSince
+          in: query
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Artist index
+  /getMusicDirectory:
+    get:
+      summary: Get contents of a directory
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/version'
+        - $ref: '#/components/parameters/client'
+        - $ref: '#/components/parameters/format'
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Directory contents
+  /getArtist:
+    get:
+      summary: Get artist details including albums
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/version'
+        - $ref: '#/components/parameters/client'
+        - $ref: '#/components/parameters/format'
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Artist details
+  /getAlbum:
+    get:
+      summary: Get album details including songs
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/version'
+        - $ref: '#/components/parameters/client'
+        - $ref: '#/components/parameters/format'
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Album details
+  /getSong:
+    get:
+      summary: Get song details
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/version'
+        - $ref: '#/components/parameters/client'
+        - $ref: '#/components/parameters/format'
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Song details
+  /stream:
+    get:
+      summary: Stream a media file
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/version'
+        - $ref: '#/components/parameters/client'
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: maxBitRate
+          in: query
+          schema:
+            type: integer
+        - name: format
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Binary audio stream
+          content:
+            audio/*:
+              schema:
+                type: string
+                format: binary
+  /getCoverArt:
+    get:
+      summary: Get cover art for an album or song
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/version'
+        - $ref: '#/components/parameters/client'
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: size
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Image file
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+  /search3:
+    get:
+      summary: Search for artists, albums and songs
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/version'
+        - $ref: '#/components/parameters/client'
+        - $ref: '#/components/parameters/format'
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: artistCount
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: albumCount
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: songCount
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Search results

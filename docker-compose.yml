@@ -1,0 +1,17 @@
+services:
+  lms:
+    image: epoupon/lms:latest
+    container_name: lms
+    restart: unless-stopped
+    ports:
+      - "5082:5082"
+    volumes:
+      - lms_data:/var/lms
+      - /path/to/your/music:/music:ro # Change to your music directory
+      # - ./lms.conf:/etc/lms.conf:ro # Optional: provide your own config
+    environment:
+      - TZ=Europe/Paris # Change to your timezone
+    # user: "1000:1000" # Optional: run as a specific user
+
+volumes:
+  lms_data:

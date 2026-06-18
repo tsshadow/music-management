@@ -119,11 +119,16 @@ _LMS_ supports lyrics in `lrc` files, `txt` files, and embedded track metadata. 
 * Seek forward by 5 seconds: <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Right</kbd>
 
 
+## User Interfaces
+*   **Spotify-like UI (Recommended)**: A modern, responsive web interface built with Svelte. This is the primary UI for LMS.
+*   **Legacy Web UI**: The original C++ Web Toolkit (Wt) interface. This interface is now considered **legacy** and is maintained for compatibility purposes only. New features may not be implemented here.
+
 ## Installation
 See [INSTALL.md](INSTALL.md) file.
 
 ## Contributing
-Zie [CODE_QUALITY.md](CODE_QUALITY.md) voor onze richtlijnen met betrekking tot codekwaliteit en testen.
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to set up your development environment and contribute to the project.
+Refer to [CODE_QUALITY.md](CODE_QUALITY.md) for our code quality and testing standards.
 
 Any feedback is welcome:
 * feel free to participate in [discussions](https://github.com/epoupon/lms/discussions) if you have questions,

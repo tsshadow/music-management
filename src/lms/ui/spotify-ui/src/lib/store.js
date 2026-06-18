@@ -4,7 +4,7 @@ import { writable, derived } from "svelte/store";
 /**
  * Persists a Svelte store to localStorage.
  * Automatically loads the value on initialization and subscribes to changes.
- * 
+ *
  * @param {string} key - The localStorage key to use.
  * @param {import('svelte/store').Writable} store - The store to persist.
  * @param {Object} [options] - Optional configuration.

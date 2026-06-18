@@ -1,6 +1,6 @@
 /**
  * Splits a comma-separated string of artists into an array of trimmed names.
- * 
+ *
  * @param {string} artistStr - The comma-separated artist string.
  * @returns {string[]} An array of artist names.
  */
@@ -12,7 +12,7 @@ export function splitArtists(artistStr) {
 /**
  * Formats an array of artist names into a human-readable list.
  * e.g., ["Artist A", "Artist B", "Artist C"] -> "Artist A, Artist B and Artist C"
- * 
+ *
  * @param {string[]} artists - Array of artist names.
  * @returns {string} Formatted artist string.
  */
@@ -25,7 +25,7 @@ export function formatArtistList(artists) {
 
 /**
  * Returns the URL for an artist image.
- * 
+ *
  * @param {Object} artist - The artist object.
  * @param {string} authParams - Subsonic auth parameters.
  * @returns {string} The image URL.
@@ -37,5 +37,5 @@ export function getArtistImageUrl(artist, authParams) {
   if (artist && artist.id) {
     return `/media/artist-images/${artist.id}/primary.jpg`;
   }
-  return '/images/unknown-artist.svg';
+  return "/images/unknown-artist.svg";
 }

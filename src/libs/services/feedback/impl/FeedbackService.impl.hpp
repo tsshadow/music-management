@@ -142,7 +142,7 @@ namespace lms::feedback
             }
         }
 
-        if (ratedObjectId)
+        if (ratedObjectId.isValid())
             _backends[*backend]->onRatingChanged(ratedObjectId);
     }
 

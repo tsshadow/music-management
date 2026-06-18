@@ -12,6 +12,7 @@
 #include "core/IConfig.hpp"
 #include "core/ILogger.hpp"
 #include "core/Service.hpp"
+#include "core/http/ClientRequestParameters.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "database/objects/RatedTrack.hpp"
@@ -67,28 +68,37 @@ namespace lms::feedback::musicManagement
         if (!_client)
             return;
 
-        core::http::IClient::Request request;
-        request.method = core::http::Method::Post;
-        request.url = _apiUrl;
-        request.headers["Content-Type"] = "application/json";
-        
-        // Simple JSON manual construction
-        request.body = "{";
-        request.body += "\"event\": \"" + eventType + "\",";
-        request.body += "\"object_type\": \"" + objectType + "\",";
-        request.body += "\"object_id\": \"" + objectId + "\",";
-        request.body += "\"rating\": " + std::to_string(rating);
-        if (!path.empty()) {
-            request.body += ",\"path\": \"" + path + "\"";
-        }
-        request.body += "}";
+        core::http::ClientPOSTRequestParameters request;
+        request.message.addHeader("Content-Type", "application/json");
 
-        _client->sendRequest(request, [](const core::http::IClient::Response& response) {
-            if (response.status >= 200 && response.status < 300) {
+        // Simple JSON manual construction
+        std::string body = "{";
+        body += "\"event\": \"" + eventType + "\",";
+        body += "\"object_type\": \"" + objectType + "\",";
+        body += "\"object_id\": \"" + objectId + "\",";
+        body += "\"rating\": " + std::to_string(rating);
+        if (!path.empty())
+        {
+            body += ",\"path\": \"" + path + "\"";
+        }
+        body += "}";
+
+        request.message.addBodyText(body);
+
+        request.onSuccessFunc = [](const Wt::Http::Message& msg) {
+            if (msg.status() >= 200 && msg.status() < 300)
+            {
                 LMS_LOG(SCROBBLING, DEBUG, "Successfully sent event to music-management");
-            } else {
-                LMS_LOG(SCROBBLING, WARNING, "Failed to send event to music-management, status: " << response.status);
             }
-        });
+            else
+            {
+                LMS_LOG(SCROBBLING, WARNING, "Failed to send event to music-management, status: " << msg.status());
+            }
+        };
+        request.onFailureFunc = []() {
+            LMS_LOG(SCROBBLING, WARNING, "Failed to send event to music-management, connection error");
+        };
+
+        _client->sendPOSTRequest(std::move(request));
     }
 } // namespace lms::feedback::musicManagement

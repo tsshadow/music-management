@@ -1,1 +1,10 @@
-build
+build/
+cmake-build-*/
+.git/
+.idea/
+.vscode/
+node_modules/
+src/lms/ui/spotify-ui/node_modules/
+src/lms/ui/spotify-ui/dist/
+*.swp
+*.log

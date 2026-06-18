@@ -147,7 +147,7 @@ RUN \
 
 # Remove useless stuff
 RUN \
-	rm -rf /tmp/fakeroot/share/Wt/resources/jPlayer \
+	rm -rf /tmp/fakeroot/share/Wt/resources/jPlayer && \
 	rm -rf /tmp/fakeroot/share/Wt/resources/themes
 
 ## Release Stage

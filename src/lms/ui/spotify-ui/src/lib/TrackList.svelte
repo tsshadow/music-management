@@ -74,6 +74,37 @@
   }
 
   /**
+   * Adds a track to the playlist immediately after the current track.
+   * 
+   * @param {Event} e - The click event.
+   * @param {Object} track - The track to add.
+   */
+  function addAfterCurrent(e, track) {
+      e.stopPropagation();
+      playlist.update(p => {
+          const newP = [...p];
+          const currentIndex = newP.findIndex(t => t.id === $currentTrack?.id);
+          if (currentIndex === -1) {
+              newP.push(track);
+          } else {
+              newP.splice(currentIndex + 1, 0, track);
+          }
+          return newP;
+      });
+  }
+
+  /**
+   * Adds a track to the end of the current playlist.
+   * 
+   * @param {Event} e - The click event.
+   * @param {Object} track - The track to add.
+   */
+  function addToEnd(e, track) {
+      e.stopPropagation();
+      playlist.update(p => [...p, track]);
+  }
+
+  /**
    * Formats milliseconds into a "M:SS" string.
    * 
    * @param {number} ms - Time in milliseconds.
@@ -120,9 +151,7 @@
           <path d="M8 4a.5.5 0 01.5.5v3h3a.5.5 0 010 1H8a.5.5 0 01-.5-.5v-4A.5.5 0 018 4z"></path>
         </svg>
       </th>
-      {#if isQueue}
-        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[100px] text-center"></th>
-      {/if}
+      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[100px] text-center"></th>
     </tr>
   </thead>
   <tbody>
@@ -206,41 +235,66 @@
           </td>
         {/if}
         <td class="p-2 px-4 text-right text-xs md:text-sm">{formatTime(track.duration * 1000)}</td>
-        {#if isQueue}
-          <td class="p-2 px-4 text-center">
-            <div class="flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <button 
-                  aria-label="Omhoog"
-                  class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed" 
-                  onclick={(e) => moveTrack(e, i, -1)} 
-                  disabled={i === 0}
-                >
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                        <path d="M7 14l5-5 5 5z"></path>
-                    </svg>
-                </button>
-                <button 
-                  aria-label="Omlaag"
-                  class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed" 
-                  onclick={(e) => moveTrack(e, i, 1)} 
-                  disabled={i === tracks.length - 1}
-                >
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                        <path d="M7 10l5 5 5-5z"></path>
-                    </svg>
-                </button>
-                <button 
-                  aria-label="Verwijderen"
-                  class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white hover:text-pink-500" 
-                  onclick={(e) => removeTrack(e, i)}
-                >
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
-                    </svg>
-                </button>
-            </div>
-          </td>
-        {/if}
+        <td class="p-2 px-4 text-center">
+          <div class="flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              {#if isQueue}
+                  <button 
+                    aria-label="Omhoog"
+                    title="Omhoog"
+                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed" 
+                    onclick={(e) => moveTrack(e, i, -1)} 
+                    disabled={i === 0}
+                  >
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                          <path d="M7 14l5-5 5 5z"></path>
+                      </svg>
+                  </button>
+                  <button 
+                    aria-label="Omlaag"
+                    title="Omlaag"
+                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed" 
+                    onclick={(e) => moveTrack(e, i, 1)} 
+                    disabled={i === tracks.length - 1}
+                  >
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                          <path d="M7 10l5 5 5-5z"></path>
+                      </svg>
+                  </button>
+                  <button 
+                    aria-label="Verwijderen"
+                    title="Verwijderen"
+                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white hover:text-pink-500" 
+                    onclick={(e) => removeTrack(e, i)}
+                  >
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
+                      </svg>
+                  </button>
+              {:else}
+                  <button 
+                    aria-label="Hierna afspelen"
+                    title="Hierna afspelen"
+                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white" 
+                    onclick={(e) => addAfterCurrent(e, track)}
+                  >
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                          <path d="M13 13h5v2h-5v5h-2v-5H6v-2h5V8h2v5z"></path>
+                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path>
+                      </svg>
+                  </button>
+                  <button 
+                    aria-label="Aan wachtrij toevoegen"
+                    title="Aan wachtrij toevoegen"
+                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white" 
+                    onclick={(e) => addToEnd(e, track)}
+                  >
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"></path>
+                      </svg>
+                  </button>
+              {/if}
+          </div>
+        </td>
       </tr>
     {/each}
   </tbody>

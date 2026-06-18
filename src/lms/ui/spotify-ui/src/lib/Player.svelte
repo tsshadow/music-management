@@ -19,7 +19,7 @@
     try {
         const params = $authParams;
         const trackIds = $playlist.map(t => `id=${t.id}`).join('&');
-        const currentId = track?.id || '';
+        const currentId = $currentTrack?.id || '';
         const position = audioElement ? Math.floor(audioElement.currentTime * 1000) : 0;
         const isPlaying = audioElement ? !audioElement.paused : false;
 
@@ -56,7 +56,7 @@
             // Sync current track
             const currentTrackId = playQueue.current;
             const serverTrack = tracks.find(t => t.id === currentTrackId);
-            if (serverTrack && $currentTrack?.id !== serverTrack.id) {
+            if (serverTrack && String($currentTrack?.id) !== String(serverTrack.id)) {
                 currentTrack.set(serverTrack);
             }
 
@@ -105,7 +105,8 @@
   function playNext() {
       const p = $playlist;
       if (p.length === 0) return;
-      const currentIndex = p.findIndex(t => t.id === $currentTrack?.id);
+      const currentTrackId = $currentTrack ? String($currentTrack.id) : null;
+      const currentIndex = p.findIndex(t => String(t.id) === currentTrackId);
       
       let nextIndex;
       if ($playerState.shuffle) {
@@ -132,7 +133,7 @@
       if (nextTrack) {
           // If it's the same track (e.g. single track playlist), restart it manually
           // because the $effect that watches currentTrack might not trigger on same ID
-          if ($currentTrack?.id === nextTrack.id && audioElement) {
+          if (String($currentTrack?.id) === String(nextTrack.id) && audioElement) {
               audioElement.currentTime = 0;
               audioElement.play().catch(() => {});
           }
@@ -154,7 +155,8 @@
 
       const p = $playlist;
       if (p.length === 0) return;
-      const currentIndex = p.findIndex(t => t.id === $currentTrack?.id);
+      const currentTrackId = $currentTrack ? String($currentTrack.id) : null;
+      const currentIndex = p.findIndex(t => String(t.id) === currentTrackId);
       
       let prevIndex;
       if ($playerState.shuffle) {
@@ -179,7 +181,7 @@
 
       const prevTrack = p[prevIndex];
       if (prevTrack) {
-          if ($currentTrack?.id === prevTrack.id && audioElement) {
+          if (String($currentTrack?.id) === String(prevTrack.id) && audioElement) {
               audioElement.currentTime = 0;
               audioElement.play().catch(() => {});
           }

@@ -88,11 +88,11 @@
       e.stopPropagation();
       playlist.update(p => {
           const newP = [...p];
-          const currentIndex = newP.findIndex(t => t.id === $currentTrack?.id);
+          const currentIndex = newP.findIndex(t => String(t.id) === String($currentTrack?.id));
           if (currentIndex === -1) {
-              newP.push(track);
+              newP.push({ ...track });
           } else {
-              newP.splice(currentIndex + 1, 0, track);
+              newP.splice(currentIndex + 1, 0, { ...track });
           }
           return newP;
       });
@@ -106,7 +106,7 @@
    */
   function addToEnd(e, track) {
       e.stopPropagation();
-      playlist.update(p => [...p, track]);
+      playlist.update(p => [...p, { ...track }]);
   }
 
   /**
@@ -160,11 +160,11 @@
     </tr>
   </thead>
   <tbody>
-    {#each tracks as track, i (track.id || i)}
+    {#each tracks as track, i (track.id + '-' + i)}
       <tr 
         role="button"
         tabindex="0"
-        class="group hover:bg-white/10 active:bg-white/5 hover:text-white h-14 md:h-16 cursor-pointer select-none {$currentTrack?.id === track.id ? 'text-spotify-green' : ''}" 
+        class="group hover:bg-white/10 active:bg-white/5 hover:text-white h-14 md:h-16 cursor-pointer select-none {String($currentTrack?.id) === String(track.id) ? 'text-spotify-green' : ''}" 
         onclick={() => { if ($isMobile) playTrack(track); }}
         ondblclick={() => { if (!$isMobile) playTrack(track); }}
         onkeydown={(e) => e.key === 'Enter' && playTrack(track)}
@@ -190,12 +190,12 @@
               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
             />
             <div class="flex flex-col min-w-0">
-              <span class="text-sm md:text-base font-medium truncate {$currentTrack?.id === track.id ? 'text-spotify-green' : 'text-white'}">{track.title}</span>
+              <span class="text-sm md:text-base font-medium truncate {String($currentTrack?.id) === String(track.id) ? 'text-spotify-green' : 'text-white'}">{track.title}</span>
               <ArtistList 
                 artist={track.artist} 
                 artistId={track.artistId} 
                 artists={track.artists} 
-                active={$currentTrack?.id === track.id}
+                active={String($currentTrack?.id) === String(track.id)}
                 onnavigate={onnavigate} 
               />
             </div>
@@ -242,8 +242,7 @@
         <td class="p-2 px-4 text-right text-xs md:text-sm">{formatTime(track.duration * 1000)}</td>
         <td class="p-2 px-4 text-center">
           <div class="flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              {#if isQueue || playlistId}
-                  {#if isQueue}
+              {#if isQueue}
                       <button 
                         aria-label="Omhoog"
                         title="Omhoog"
@@ -266,7 +265,9 @@
                               <path d="M7 10l5 5 5-5z"></path>
                           </svg>
                       </button>
-                  {/if}
+              {/if}
+
+              {#if isQueue || playlistId}
                   <button 
                     aria-label="Verwijderen"
                     title="Verwijderen"
@@ -277,7 +278,9 @@
                           <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
                       </svg>
                   </button>
-              {:else}
+              {/if}
+
+              {#if !isQueue}
                   <button 
                     aria-label="Hierna afspelen"
                     title="Hierna afspelen"

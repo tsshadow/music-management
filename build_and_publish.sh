@@ -23,9 +23,17 @@ docker push "${IMAGE_NAME}:${TAG}"
 
 REMOTE_COMMAND="
 set -e
-cd ${STACK_DIR}
 docker pull ${IMAGE_NAME}:${TAG}
-docker compose up -d --force-recreate ${SERVICE_NAME}
+docker stop lms_alpha || true
+docker rm lms_alpha || true
+docker run -d --name lms_alpha \
+    --restart unless-stopped \
+    -p 8080:5082 \
+    -v /music:/music \
+    -v /docker/lms-alpha/usr/local/etc:/usr/local/etc \
+    -v /docker/lms-alpha/var/lms:/var/lms \
+    --user 0:0 \
+    ${IMAGE_NAME}:${TAG}
 "
 
 echo "Updating remote server ${REMOTE_HOST}..."

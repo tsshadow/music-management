@@ -9,6 +9,7 @@
   let artist = $state(null);
   let albums = $state([]);
   let appearsOn = $state([]);
+  let similarArtists = $state([]);
   let allTracks = $state([]);
   let allTracksOffset = $state(0);
   let allTracksHasMore = $state(false);
@@ -28,8 +29,8 @@
         artist = artistData;
         const allAlbums = Array.isArray(artistData.album) ? artistData.album : (artistData.album ? [artistData.album] : []);
         
-        albums = allAlbums.filter(a => a.artist === artist.name);
-        appearsOn = allAlbums.filter(a => a.artist !== artist.name);
+        albums = allAlbums.filter(a => a.artist === artistData.name);
+        appearsOn = allAlbums.filter(a => a.artist !== artistData.name);
         
         loadAllTracks();
         loadArtistInfo();
@@ -83,6 +84,8 @@
       const info = data['subsonic-response']?.artistInfo;
       if (info && info.similarArtist) {
         similarArtists = Array.isArray(info.similarArtist) ? info.similarArtist : [info.similarArtist];
+      } else {
+        similarArtists = [];
       }
     } catch (e) {
       console.error(e);

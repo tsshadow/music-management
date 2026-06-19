@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { currentTrack, playerState, audio, authParams, credentials, playlist, isMobile, radioMode, highlightedTrackId, activeView } from './store.js';
+  import { currentTrack, playerState, audio, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView } from './store.js';
   import ArtistList from './ArtistList.svelte';
 
   const { onnavigate, ontoggleQueue } = $props();
@@ -9,13 +9,15 @@
   let muted = $state(false);
   let lastVolume = $state(50);
   let lastSyncTime = null;
+  let lastPushTime = 0;
   let isSyncing = false;
 
   /**
-   * Sends the current player state to the server if radio mode is active.
+   * Sends the current player state to the server if sync mode is active.
    */
   async function pushRadioState() {
-    if (!$radioMode || isSyncing || !$credentials.username) return;
+    if ($syncMode === 'off' || isSyncing || !$credentials.username) return;
+    lastPushTime = Date.now();
     try {
         const params = $authParams;
         const trackIds = $playlist.map(t => `id=${t.id}`).join('&');
@@ -23,7 +25,13 @@
         const position = audioElement ? Math.floor(audioElement.currentTime * 1000) : 0;
         const isPlaying = audioElement ? !audioElement.paused : false;
 
-        const url = `${$credentials.url}/rest/savePlayQueue?${trackIds}&current=${currentId}&position=${position}&playing=${isPlaying}&${params}`;
+        // In follower mode, we NEVER push periodic position to avoid fighting the host.
+        // The 'position' parameter is only included if we are the Host.
+        let url = `${$credentials.url}/rest/savePlayQueue?${trackIds}&current=${currentId}&playing=${isPlaying}&${params}`;
+        if ($syncMode === 'host') {
+            url += `&position=${position}`;
+        }
+
         await fetch(url);
     } catch (e) {
         console.error("Radio push failed", e);
@@ -34,7 +42,12 @@
    * Fetches the player state from the server and synchronizes the local player.
    */
   async function syncRadio() {
-    if (!$radioMode || isSyncing || !$credentials.username || !audioElement) return;
+    if ($syncMode === 'off' || isSyncing || !$credentials.username || !audioElement) return;
+
+    // Don't sync from server if we just pushed our own state (within last 5 seconds)
+    // to avoid "jumps" caused by server having slightly outdated state.
+    if (Date.now() - lastPushTime < 5000) return;
+
     isSyncing = true;
     try {
       const params = $authParams;
@@ -56,15 +69,34 @@
             // Sync current track
             const currentTrackId = playQueue.current;
             const serverTrack = tracks.find(t => t.id === currentTrackId);
-            if (serverTrack && String($currentTrack?.id) !== String(serverTrack.id)) {
+            const trackChanged = serverTrack && String($currentTrack?.id) !== String(serverTrack.id);
+
+            const serverPlaying = playQueue.playing === "true" || playQueue.playing === true;
+            const playingChanged = serverPlaying !== !audioElement.paused;
+
+            // HOST LOGIC: Only apply changes if the server state is different from local
+            // (indicating a remote command from a Follower)
+            if ($syncMode === 'host') {
+                if (trackChanged || playingChanged) {
+                    if (trackChanged) currentTrack.set(serverTrack);
+                    if (playingChanged) {
+                        if (serverPlaying) audioElement.play().catch(() => {});
+                        else audioElement.pause();
+                    }
+                }
+                lastSyncTime = serverChanged;
+                return;
+            }
+
+            // FOLLOWER LOGIC: Apply everything from server
+            if (trackChanged) {
                 currentTrack.set(serverTrack);
             }
 
             const serverPos = (playQueue.position || 0) / 1000;
-            const serverPlaying = playQueue.playing === "true" || playQueue.playing === true;
 
-            // Sync position if difference > 3 seconds
-            if (Math.abs(audioElement.currentTime - serverPos) > 3) {
+            // Sync position if difference > 5 seconds
+            if (Math.abs(audioElement.currentTime - serverPos) > 5) {
                 audioElement.currentTime = serverPos;
             }
 
@@ -95,6 +127,9 @@
       audioElement.play().catch(e => console.error("Playback failed", e));
     } else {
       audioElement.pause();
+    }
+    if ($syncMode !== 'off') {
+      pushRadioState();
     }
   }
 
@@ -138,6 +173,9 @@
               audioElement.play().catch(() => {});
           }
           currentTrack.set(nextTrack);
+      }
+      if ($syncMode !== 'off') {
+        pushRadioState();
       }
   }
 
@@ -186,6 +224,9 @@
               audioElement.play().catch(() => {});
           }
           currentTrack.set(prevTrack);
+      }
+      if ($syncMode !== 'off') {
+        pushRadioState();
       }
   }
 
@@ -287,6 +328,9 @@
     const x = e.clientX - rect.left;
     const percentage = x / rect.width;
     audioElement.currentTime = percentage * audioElement.duration;
+    if ($syncMode !== 'off') {
+      pushRadioState();
+    }
   }
 
   /**
@@ -357,10 +401,14 @@
   }
 
   /**
-   * Toggles the radio mode.
+   * Toggles the sync mode: off -> host -> follower -> off.
    */
   function toggleRadioMode() {
-      radioMode.update(r => !r);
+      syncMode.update(m => {
+          if (m === 'off') return 'host';
+          if (m === 'host') return 'follower';
+          return 'off';
+      });
   }
 
   /**
@@ -411,7 +459,9 @@
   const volume = $derived($playerState.volume);
   const repeatMode = $derived($playerState.repeat);
   const shuffleMode = $derived($playerState.shuffle);
-  const isRadioActive = $derived($radioMode);
+  const isRadioActive = $derived($syncMode !== 'off');
+  const syncColor = $derived($syncMode === 'host' ? '#1db954' : ($syncMode === 'follower' ? '#3d91ff' : '#b3b3b3'));
+  const syncTitle = $derived($syncMode === 'host' ? 'Host (Lead)' : ($syncMode === 'follower' ? 'Follower (Remote)' : 'Sync Off'));
   const coverUrl = $derived(track?.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}` : '/images/spotify-fallback.svg');
   const streamUrl = $derived(track?.id ? `/rest/stream?id=${track.id}&${$authParams}` : '');
 
@@ -440,7 +490,7 @@
 
   $effect(() => {
     let interval;
-    if ($radioMode) {
+    if ($syncMode !== 'off') {
         interval = setInterval(syncRadio, 4000);
         syncRadio();
     }
@@ -774,9 +824,10 @@
         </div>
       {/if}
       <button
-        class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors {isRadioActive ? 'text-brand' : 'text-[#b3b3b3] hover:text-white'}"
+        class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors"
         onclick={toggleRadioMode}
-        title="Radio Mode (Sync)"
+        title={syncTitle}
+        style="color: {syncColor}"
       >
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.5-8c0 3.03 2.47 5.5 5.5 5.5s5.5-2.47 5.5-5.5-2.47-5.5-5.5-5.5-5.5 2.47-5.5 5.5z"></path>

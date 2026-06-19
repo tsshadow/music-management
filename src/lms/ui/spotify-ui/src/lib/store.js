@@ -68,8 +68,8 @@ export const activeSettingsTab = writable("libraries");
 persist("lms_active_settings_tab", activeSettingsTab);
 
 export const isMobile = writable(false);
-export const radioMode = writable(false);
-persist("lms_radio_mode", radioMode);
+export const syncMode = writable('off'); // 'off', 'host', 'follower'
+persist("lms_sync_mode", syncMode);
 
 export const highlightedTrackId = writable(null);
 

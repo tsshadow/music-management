@@ -232,15 +232,15 @@
                 role="link"
                 tabindex="0"
                 class="hover:underline cursor-pointer"
-                onclick={(e) => { e.stopPropagation(); onnavigate && onnavigate(`genre:${track.genre}`); }}
-                onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onnavigate && onnavigate(`genre:${track.genre}`); } }}
+                onclick={(e) => { e.stopPropagation(); if (onnavigate) onnavigate(`genre:${track.genre}`); }}
+                onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); if (onnavigate) onnavigate(`genre:${track.genre}`); } }}
               >{track.genre}</span>
             {/if}
           </td>
           <td class="p-2 px-4 hidden md:table-cell">{formatDate(track.date) || track.year || ''}</td>
           <td class="p-2 px-4 hidden lg:table-cell">
             <div class="flex gap-0.5 justify-center">
-              {#each [1, 2, 3, 4, 5] as star}
+              {#each [1, 2, 3, 4, 5] as star (star)}
                 <button
                   aria-label="{star} sterren"
                   class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { (track.userRating || 0) >= star ? 'text-brand' : 'text-white/10 hover:text-white/30' }"

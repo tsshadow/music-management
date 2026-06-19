@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { currentTrack, playerState, audio, authParams, credentials, playlist, isMobile, radioMode, highlightedTrackId } from './store.js';
+  import { currentTrack, playerState, audio, authParams, credentials, playlist, isMobile, radioMode, highlightedTrackId, activeView } from './store.js';
   import ArtistList from './ArtistList.svelte';
 
   const { onnavigate, ontoggleQueue } = $props();
@@ -364,6 +364,37 @@
   }
 
   /**
+   * Increases the volume by 5%.
+   */
+  function volumeUp() {
+    if (audioElement) {
+      audioElement.volume = Math.min(1, audioElement.volume + 0.05);
+      muted = false;
+    }
+  }
+
+  /**
+   * Decreases the volume by 5%.
+   */
+  function volumeDown() {
+    if (audioElement) {
+      audioElement.volume = Math.max(0, audioElement.volume - 0.05);
+      if (audioElement.volume === 0) muted = true;
+    }
+  }
+
+  /**
+   * Toggles full-screen mode for the application.
+   */
+  function toggleFullScreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(e => console.error("Fullscreen failed", e));
+    } else if (document.exitFullscreen) {
+      document.exitFullscreen();
+    }
+  }
+
+  /**
    * Navigates to the album of the current track and highlights it.
    */
   function goToAlbum() {
@@ -515,6 +546,75 @@
         console.warn("MediaSession seekto not supported", e);
       }
     }
+
+    const handleGlobalKeyDown = (e) => {
+      // Ignore if typing in an input field
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+        return;
+      }
+
+      switch (e.key) {
+        case '5':
+        case 'MediaPlayPause':
+          togglePlay();
+          break;
+        case '4':
+        case 'MediaTrackPrevious':
+          playPrev();
+          break;
+        case '6':
+        case 'MediaTrackNext':
+          playNext();
+          break;
+        case '2':
+        case 'VolumeUp':
+          volumeUp();
+          break;
+        case '8':
+        case 'VolumeDown':
+          volumeDown();
+          break;
+        case '0':
+        case 'VolumeMute':
+          toggleMute();
+          break;
+        case ' ':
+          e.preventDefault();
+          togglePlay();
+          break;
+        case 'f':
+        case 'F':
+          toggleFullScreen();
+          break;
+        case 'Escape':
+        case 'Backspace':
+          if (window.history.length > 1) {
+            window.history.back();
+          }
+          break;
+        case 'Red':
+        case 'ColorF0Red':
+          activeView.set('home');
+          break;
+        case 'Green':
+        case 'ColorF1Green':
+          activeView.set('songs');
+          break;
+        case 'Yellow':
+        case 'ColorF2Yellow':
+          activeView.set('sets');
+          break;
+        case 'Blue':
+        case 'ColorF3Blue':
+          activeView.set('settings');
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+    };
   });
 </script>
 
@@ -660,7 +760,7 @@
     <div class="w-[30%] hidden md:flex justify-end items-center gap-3">
       {#if track}
         <div class="flex gap-0.5 mr-2">
-          {#each [1, 2, 3, 4, 5] as star}
+          {#each [1, 2, 3, 4, 5] as star (star)}
             <button
               aria-label="{star} sterren"
               class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { (track?.userRating || 0) >= star ? 'text-brand' : 'text-white/10 hover:text-white/30' }"

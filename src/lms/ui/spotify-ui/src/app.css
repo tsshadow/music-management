@@ -25,6 +25,14 @@ body {
   @apply bg-spotify-black text-white;
 }
 
+/* Improved focus styles for TV remote navigation */
+:focus-visible {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 2px;
+  box-shadow: 0 0 15px rgba(29, 185, 84, 0.3);
+  z-index: 10;
+}
+
 /* Hide scrollbar for Chrome, Safari and Opera */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;

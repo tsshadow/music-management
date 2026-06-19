@@ -14,16 +14,21 @@
 
   /**
    * Sends the current player state to the server if sync mode is active.
+   * 
+   * @param {boolean|null} overridePlaying - Optional override for the playing state.
+   * @param {string|null} overrideTrackId - Optional override for the current track ID.
    */
-  async function pushRadioState() {
+  async function pushJamState(overridePlaying = null, overrideTrackId = null) {
     if ($syncMode === 'off' || isSyncing || !$credentials.username) return;
     lastPushTime = Date.now();
     try {
         const params = $authParams;
         const trackIds = $playlist.map(t => `id=${t.id}`).join('&');
-        const currentId = $currentTrack?.id || '';
+        
+        // Use overrides if provided, otherwise use local state
+        const currentId = overrideTrackId !== null ? overrideTrackId : ($currentTrack?.id || '');
+        const isPlaying = overridePlaying !== null ? overridePlaying : (audioElement ? !audioElement.paused : false);
         const position = audioElement ? Math.floor(audioElement.currentTime * 1000) : 0;
-        const isPlaying = audioElement ? !audioElement.paused : false;
 
         // In follower mode, we NEVER push periodic position to avoid fighting the host.
         // The 'position' parameter is only included if we are the Host.
@@ -34,14 +39,14 @@
 
         await fetch(url);
     } catch (e) {
-        console.error("Radio push failed", e);
+        console.error("Jam push failed", e);
     }
   }
 
   /**
    * Fetches the player state from the server and synchronizes the local player.
    */
-  async function syncRadio() {
+  async function syncJam() {
     if ($syncMode === 'off' || isSyncing || !$credentials.username || !audioElement) return;
 
     // Don't sync from server if we just pushed our own state (within last 5 seconds)
@@ -88,7 +93,23 @@
                 return;
             }
 
-            // FOLLOWER LOGIC: Apply everything from server
+            // JAM FOLLOWER LOGIC: Remote control, no local audio
+            if ($syncMode === 'follower-jam') {
+                if (trackChanged) {
+                    currentTrack.set(serverTrack);
+                }
+                // Update local playing state store so UI reflects host state
+                playerState.update(s => ({ ...s, playing: serverPlaying }));
+                
+                // Ensure audio is stopped
+                if (!audioElement.paused) {
+                    audioElement.pause();
+                }
+                lastSyncTime = serverChanged;
+                return;
+            }
+
+            // RADIO FOLLOWER LOGIC: Apply everything from server (Listen along)
             if (trackChanged) {
                 currentTrack.set(serverTrack);
             }
@@ -112,7 +133,7 @@
         }
       }
     } catch (e) {
-      console.error("Radio sync failed", e);
+      console.error("Jam sync failed", e);
     } finally {
       isSyncing = false;
     }
@@ -123,13 +144,20 @@
    */
   function togglePlay() {
     if (!audioElement) return;
+
+    if ($syncMode === 'follower-jam') {
+        // Remote control: toggle the state reported by the server
+        pushJamState(!$playerState.playing);
+        return;
+    }
+
     if (audioElement.paused) {
       audioElement.play().catch(e => console.error("Playback failed", e));
     } else {
       audioElement.pause();
     }
     if ($syncMode !== 'off') {
-      pushRadioState();
+      pushJamState();
     }
   }
 
@@ -166,6 +194,12 @@
 
       const nextTrack = p[nextIndex];
       if (nextTrack) {
+          if ($syncMode === 'follower-jam') {
+              // Remote control: send intent to play next track
+              pushJamState(true, nextTrack.id);
+              return;
+          }
+
           // If it's the same track (e.g. single track playlist), restart it manually
           // because the $effect that watches currentTrack might not trigger on same ID
           if (String($currentTrack?.id) === String(nextTrack.id) && audioElement) {
@@ -175,7 +209,7 @@
           currentTrack.set(nextTrack);
       }
       if ($syncMode !== 'off') {
-        pushRadioState();
+        pushJamState();
       }
   }
 
@@ -219,6 +253,12 @@
 
       const prevTrack = p[prevIndex];
       if (prevTrack) {
+          if ($syncMode === 'follower-jam') {
+              // Remote control: send intent to play previous track
+              pushJamState(true, prevTrack.id);
+              return;
+          }
+
           if (String($currentTrack?.id) === String(prevTrack.id) && audioElement) {
               audioElement.currentTime = 0;
               audioElement.play().catch(() => {});
@@ -226,7 +266,7 @@
           currentTrack.set(prevTrack);
       }
       if ($syncMode !== 'off') {
-        pushRadioState();
+        pushJamState();
       }
   }
 
@@ -329,7 +369,7 @@
     const percentage = x / rect.width;
     audioElement.currentTime = percentage * audioElement.duration;
     if ($syncMode !== 'off') {
-      pushRadioState();
+      pushJamState();
     }
   }
 
@@ -401,12 +441,13 @@
   }
 
   /**
-   * Toggles the sync mode: off -> host -> follower -> off.
+   * Toggles the sync mode: off -> host -> follower-jam -> follower-radio -> off.
    */
-  function toggleRadioMode() {
+  function toggleJamMode() {
       syncMode.update(m => {
           if (m === 'off') return 'host';
-          if (m === 'host') return 'follower';
+          if (m === 'host') return 'follower-jam';
+          if (m === 'follower-jam') return 'follower-radio';
           return 'off';
       });
   }
@@ -459,9 +500,17 @@
   const volume = $derived($playerState.volume);
   const repeatMode = $derived($playerState.repeat);
   const shuffleMode = $derived($playerState.shuffle);
-  const isRadioActive = $derived($syncMode !== 'off');
-  const syncColor = $derived($syncMode === 'host' ? '#1db954' : ($syncMode === 'follower' ? '#3d91ff' : '#b3b3b3'));
-  const syncTitle = $derived($syncMode === 'host' ? 'Host (Lead)' : ($syncMode === 'follower' ? 'Follower (Remote)' : 'Sync Off'));
+  const isJamActive = $derived($syncMode !== 'off');
+  const syncColor = $derived(
+    $syncMode === 'host' ? '#1db954' : 
+    ($syncMode === 'follower-jam' ? '#3d91ff' : 
+    ($syncMode === 'follower-radio' ? '#b266ff' : '#b3b3b3'))
+  );
+  const syncTitle = $derived(
+    $syncMode === 'host' ? 'Jam: Host (Lead)' : 
+    ($syncMode === 'follower-jam' ? 'Jam: Remote (Controller)' : 
+    ($syncMode === 'follower-radio' ? 'Radio: Listener (Following)' : 'Sync Off'))
+  );
   const coverUrl = $derived(track?.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}` : '/images/spotify-fallback.svg');
   const streamUrl = $derived(track?.id ? `/rest/stream?id=${track.id}&${$authParams}` : '');
 
@@ -491,8 +540,8 @@
   $effect(() => {
     let interval;
     if ($syncMode !== 'off') {
-        interval = setInterval(syncRadio, 4000);
-        syncRadio();
+        interval = setInterval(syncJam, 4000);
+        syncJam();
     }
     return () => {
         if (interval) clearInterval(interval);
@@ -505,8 +554,8 @@
     const _t = track;
     const _pl = playing;
 
-    if (isRadioActive && !isSyncing) {
-        pushRadioState();
+    if (isJamActive && !isSyncing) {
+        pushJamState();
     }
   });
 
@@ -559,6 +608,10 @@
         lastTrackId = track.id;
         hasScrobbledStarted = false;
         hasScrobbledFinished = false;
+        
+        // Don't load audio in remote-only jam mode
+        if ($syncMode === 'follower-jam') return;
+
         if (audioElement) {
             audioElement.src = streamUrl;
             if (!isInitialLoad) {
@@ -699,7 +752,12 @@
         </div>
       {/if}
       <div class="flex items-center gap-3 px-2">
-        <button class="bg-transparent border-none p-0 text-white hover:scale-105 transition-transform" onclick={togglePlay} aria-label={playing ? "Pauze" : "Afspelen"}>
+        <button 
+          class="bg-transparent border-none p-0 text-white hover:scale-105 transition-transform {$syncMode === 'follower-radio' ? 'opacity-50 cursor-not-allowed' : ''}" 
+          onclick={togglePlay} 
+          disabled={$syncMode === 'follower-radio'}
+          aria-label={playing ? "Pauze" : "Afspelen"}
+        >
           {#if playing}
             <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
               <path d="M5.7 3a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7H5.7zm10 0a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7h-2.6z"></path>
@@ -711,7 +769,12 @@
           {/if}
         </button>
         {#if track}
-          <button class="bg-transparent border-none p-0 text-[#b3b3b3] hover:text-white transition-colors" onclick={playNext} aria-label="Volgende">
+          <button 
+            class="bg-transparent border-none p-0 text-[#b3b3b3] hover:text-white transition-colors {$syncMode === 'follower-radio' ? 'opacity-50 cursor-not-allowed' : ''}" 
+            onclick={playNext} 
+            disabled={$syncMode === 'follower-radio'}
+            aria-label="Volgende"
+          >
             <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
               <path d="M16.7 3.3a.7.7 0 0 0-.7.7v6.85L6.05 4.806A.7.7 0 0 0 5 5.412v13.175a.7.7 0 0 0 1.05.607L16 13.15v6.85a.7.7 0 0 0 .7.7h1.6a.7.7 0 0 0 .7-.7V4a.7.7 0 0 0-.7-.7h-1.6z"></path>
             </svg>
@@ -758,12 +821,21 @@
             <div class="w-1 h-1 bg-brand rounded-full mt-0.5"></div>
           {/if}
         </button>
-        <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" onclick={playPrev} aria-label="Vorige">
+        <button 
+          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {$syncMode === 'follower-radio' ? 'opacity-50 cursor-not-allowed' : ''}" 
+          onclick={playPrev} 
+          disabled={$syncMode === 'follower-radio'}
+          aria-label="Vorige"
+        >
           <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
             <path d="M3.3 1a.7.7 0 0 1 .7.7v5.15l9.95-5.744a.7.7 0 0 1 1.05.606v12.575a.7.7 0 0 1-1.05.607L4 9.15v5.15a.7.7 0 0 1-.7.7H1.7a.7.7 0 0 1-.7-.7V1.7a.7.7 0 0 1 .7-.7h1.6z"></path>
           </svg>
         </button>
-        <button class="w-9 h-9 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105" onclick={togglePlay}>
+        <button 
+          class="w-9 h-9 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105 {$syncMode === 'follower-radio' ? 'opacity-50 cursor-not-allowed' : ''}" 
+          onclick={togglePlay}
+          disabled={$syncMode === 'follower-radio'}
+        >
           {#if playing}
             <svg viewBox="0 0 16 16" width="16" height="16" fill="black">
               <path d="M2.7 1a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7H2.7zm7.43 0a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7h-2.6z"></path>
@@ -774,7 +846,12 @@
             </svg>
           {/if}
         </button>
-        <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" onclick={playNext} aria-label="Volgende">
+        <button 
+          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {$syncMode === 'follower-radio' ? 'opacity-50 cursor-not-allowed' : ''}" 
+          onclick={playNext} 
+          disabled={$syncMode === 'follower-radio'}
+          aria-label="Volgende"
+        >
           <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
             <path d="M12.7 1a.7.7 0 0 0-.7.7v5.15L2.05 1.106A.7.7 0 0 0 1 1.712v12.575a.7.7 0 0 0 1.05.607L12 9.15v5.15a.7.7 0 0 0 .7.7h1.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7h-1.6z"></path>
           </svg>
@@ -793,16 +870,16 @@
       </div>
       <div class="hidden md:flex w-full items-center gap-2 text-[11px] text-[#b3b3b3]">
         <span>{formatTime(progress)}</span>
-        <div
-          role="button"
-          tabindex="0"
-          class="flex-1 h-1 bg-[#4d4d4d] rounded-sm cursor-pointer"
-          onclick={seek}
-          onkeydown={(e) => e.key === 'Enter' && seek(e)}
-          aria-label="Seek track"
-        >
-            <div class="h-full bg-white rounded-sm" style="width: {(progress/duration)*100}%"></div>
-        </div>
+      <div 
+        role="button"
+        tabindex="0"
+        class="flex-1 h-1 bg-[#4d4d4d] rounded-sm cursor-pointer {$syncMode === 'follower-radio' ? 'pointer-events-none opacity-50' : ''}"
+        onclick={seek}
+        onkeydown={(e) => e.key === 'Enter' && seek(e)}
+        aria-label="Seek track"
+      >
+          <div class="h-full bg-white rounded-sm" style="width: {(progress/duration)*100}%"></div>
+      </div>
         <span>{formatTime(duration)}</span>
       </div>
     </div>
@@ -825,7 +902,7 @@
       {/if}
       <button
         class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors"
-        onclick={toggleRadioMode}
+        onclick={toggleJamMode}
         title={syncTitle}
         style="color: {syncColor}"
       >

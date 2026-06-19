@@ -42,7 +42,10 @@
         if (response.ok) {
             const data = await response.json();
             const result = data['subsonic-response']?.genres?.genre || [];
-            genres = Array.isArray(result) ? result : [result];
+            const resultArr = Array.isArray(result) ? result : [result];
+            genres = resultArr
+                .filter(g => Number(g.songCount) >= 10)
+                .sort((a, b) => a.value.localeCompare(b.value));
         }
     } catch (e) {
         console.error("Failed to fetch genres:", e);

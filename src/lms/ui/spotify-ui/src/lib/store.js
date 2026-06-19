@@ -73,6 +73,9 @@ persist("lms_radio_mode", radioMode);
 
 export const highlightedTrackId = writable(null);
 
+export const favoriteGenres = writable([]);
+persist("lms_favorite_genres", favoriteGenres);
+
 /**
  * Derived store that computes Subsonic authentication parameters.
  * Returns a query string with username, password, and client info.

@@ -9,7 +9,7 @@
   import ArtistList from './ArtistList.svelte';
   import Settings from './Settings.svelte';
   import { getArtistImageUrl } from './utils.js';
-  import { authParams, currentPlaylist, viewMode } from './store.js';
+  import { authParams, currentPlaylist, viewMode, favoriteGenres } from './store.js';
 
   let { activeView = $bindable('home') } = $props();
 
@@ -217,13 +217,31 @@
       const data = await response.json();
       console.log("Genres response:", data);
       const result = data['subsonic-response']?.genres?.genre || [];
-      allGenres = Array.isArray(result) ? result : [result];
-      console.log(`Loaded ${allGenres.length} genres`);
+      const resultArr = Array.isArray(result) ? result : [result];
+      allGenres = resultArr
+        .filter(g => Number(g.songCount) >= 10)
+        .sort((a, b) => a.value.localeCompare(b.value));
+      console.log(`Loaded ${allGenres.length} genres (filtered from ${resultArr.length})`);
     } catch (e) {
       console.error("Failed to load genres:", e);
     } finally {
       isLoading = false;
     }
+  }
+
+  /**
+   * Toggles a genre as favorite.
+   *
+   * @param {string} genre - The genre name.
+   */
+  function toggleFavorite(genre) {
+    favoriteGenres.update(favs => {
+      if (favs.includes(genre)) {
+        return favs.filter(f => f !== genre);
+      } else {
+        return [...favs, genre].sort();
+      }
+    });
   }
 
   /**
@@ -329,11 +347,21 @@
     {/each}
   {:else if activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:')}
     <div class="flex flex-col gap-4 mb-6">
-        <h2 class="text-2xl font-bold m-0">
+        <h2 class="text-2xl font-bold m-0 flex items-center gap-3">
             {#if activeView === 'songs' || activeView === 'sets'}
               {$viewMode === 'sets' ? 'Sets' : 'Alle Nummers'}
             {:else}
-              {activeView.split(':')[1]}
+              {@const genreName = activeView.split(':')[1]}
+              <span>{genreName}</span>
+              <button
+                class="bg-transparent border-none text-brand transition-all hover:scale-110 active:scale-95 cursor-pointer p-1"
+                onclick={() => toggleFavorite(genreName)}
+                title={$favoriteGenres.includes(genreName) ? 'Verwijderen uit favorieten' : 'Toevoegen aan favorieten'}
+              >
+                <svg viewBox="0 0 24 24" width="24" height="24" fill={$favoriteGenres.includes(genreName) ? "currentColor" : "none"} stroke="currentColor" stroke-width="2">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+                </svg>
+              </button>
             {/if}
         </h2>
         <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} showGenre={!activeView.startsWith('genre:')} onchange={handleFilterChange} />
@@ -407,14 +435,23 @@
         <p class="text-[#b3b3b3]">Geen genres gevonden in je bibliotheek.</p>
     {:else}
         <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
-            {#each allGenres as g}
+            {#each allGenres as g (g.value)}
                 <div
                   role="button"
                   tabindex="0"
-                  class="bg-[#181818] p-6 rounded-lg flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors hover:bg-[#282828] aspect-square"
+                  class="bg-[#181818] p-6 rounded-lg flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors hover:bg-[#282828] aspect-square relative group"
                   onclick={() => activeView = `genre:${g.value}`}
                   onkeydown={(e) => e.key === 'Enter' && (activeView = `genre:${g.value}`)}
                 >
+                    <button
+                        class="absolute top-3 right-3 p-2 bg-black/40 rounded-full text-brand transition-all hover:scale-110 active:scale-95 {$favoriteGenres.includes(g.value) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}"
+                        onclick={(e) => { e.stopPropagation(); toggleFavorite(g.value); }}
+                        aria-label="Favoriet toggelen"
+                    >
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill={$favoriteGenres.includes(g.value) ? "currentColor" : "none"} stroke="currentColor" stroke-width="2">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+                        </svg>
+                    </button>
                     <div class="w-16 h-16 rounded-full bg-brand flex items-center justify-center text-black mb-2 shadow-lg">
                         <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
                             <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"></path>

@@ -1,7 +1,36 @@
 <script>
-  import { viewMode } from './store.js';
+  import { viewMode, authParams, favoriteGenres } from './store.js';
   const { activeView = 'home', onnavigate } = $props();
-  const genres = ['Euphoric Hardstyle', 'Hardstyle', 'Mainstream Hardstyle', 'Raw Hardstyle', "Hard Techno", 'Hardcore', 'Mainstream Hardcore', "Frenchcore", 'Industrial Hardcore', 'Uptempo Hardcore', 'Terror', 'Zaagtempo']
+  let allGenres = $state([]);
+
+  async function loadGenres() {
+    if (!$authParams) return;
+    try {
+        const response = await fetch(`/rest/getGenres?${$authParams}`);
+        if (response.ok) {
+            const data = await response.json();
+            const result = data['subsonic-response']?.genres?.genre || [];
+            const resultArr = Array.isArray(result) ? result : [result];
+            allGenres = resultArr
+                .filter(g => Number(g.songCount) >= 5)
+                .sort((a, b) => b.songCount - a.songCount);
+        }
+    } catch (e) {
+        console.error("Failed to fetch genres for sidebar:", e);
+    }
+  }
+
+  const displayedGenres = $derived(
+    $favoriteGenres.length > 0
+      ? allGenres.filter(g => $favoriteGenres.includes(g.value)).sort((a, b) => a.value.localeCompare(b.value))
+      : allGenres.slice(0, 15).sort((a, b) => a.value.localeCompare(b.value))
+  );
+
+  $effect(() => {
+    if ($authParams) {
+        loadGenres();
+    }
+  });
 
   const menuItems = $derived([
     { id: 'home', label: 'Home', icon: 'M12.5 3.5a.5.5 0 0 1 .5 0l9 5.25a.5.5 0 0 1 .25.433V20.5a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5v-5a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 0-.5.5v5a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5V9.183a.5.5 0 0 1 .25-.433z' },
@@ -78,11 +107,13 @@
   </div>
 
   <div class="genres overflow-y-auto scrollbar-hide">
-    <h3 class="px-3 text-[12px] text-[#b3b3b3] tracking-[1.5px] mb-3">GENRES</h3>
+    <h3 class="px-3 text-[12px] text-[#b3b3b3] tracking-[1.5px] mb-3">
+        {$favoriteGenres.length > 0 ? 'FAVORIETE GENRES' : 'POPULAIRE GENRES'}
+    </h3>
     <ul class="list-none p-0 m-0">
-      {#each genres as genre (genre)}
+      {#each displayedGenres as genre (genre.value)}
         <li>
-          <button class="w-full px-3 py-2 bg-transparent border-none {activeView === `genre:${genre}` ? 'text-white' : 'text-[#b3b3b3]'} text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate(`genre:${genre}`)}>{genre}</button>
+          <button class="w-full px-3 py-2 bg-transparent border-none {activeView === `genre:${genre.value}` ? 'text-white' : 'text-[#b3b3b3]'} text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate(`genre:${genre.value}`)}>{genre.value}</button>
         </li>
       {/each}
     </ul>

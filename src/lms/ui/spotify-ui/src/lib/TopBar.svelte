@@ -6,7 +6,7 @@
 
   /**
    * Updates the global active view state.
-   * 
+   *
    * @param {string} view - The view identifier.
    */
   function handleNavigate(view) {

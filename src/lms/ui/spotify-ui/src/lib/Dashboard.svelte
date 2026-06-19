@@ -50,7 +50,7 @@
 
   /**
    * Fetches tracks for a specific curated playlist.
-   * 
+   *
    * @param {string} id - The Subsonic ID of the curated playlist.
    * @returns {Promise<Object[]>} A promise that resolves to an array of tracks.
    */
@@ -72,7 +72,7 @@
 
   /**
    * Loads tracks for the 'songs', 'sets', or 'genre' views with pagination.
-   * 
+   *
    * @param {boolean} [append=false] - Whether to append new results to the existing tracks.
    */
   async function loadAllTracks(append = false) {
@@ -93,7 +93,7 @@
           const genreName = activeView.split(':')[1];
           url += `&genre=${encodeURIComponent(genreName)}`;
       }
-      
+
       if (currentYear) url += `&year=${encodeURIComponent(currentYear)}`;
       if (currentMinRating !== '0') url += `&minRating=${currentMinRating}`;
       if (includeUnrated) url += `&includeUnrated=true`;
@@ -110,13 +110,13 @@
       console.log("Track data received:", data);
       const result = data['subsonic-response']?.tracks?.track || [];
       const newTracks = Array.isArray(result) ? result : [result];
-      
+
       if (append) {
         tracks = [...tracks, ...newTracks];
       } else {
         tracks = newTracks;
       }
-      
+
       tracksOffset += newTracks.length;
       tracksHasMore = newTracks.length === pageSize;
     } catch (e) {
@@ -128,7 +128,7 @@
 
   /**
    * Loads a list of albums with sorting, filtering, and pagination.
-   * 
+   *
    * @param {boolean} [append=false] - Whether to append new results to the existing albums.
    */
   async function loadAlbums(append = false) {
@@ -148,13 +148,13 @@
       const data = await response.json();
       const result = data['subsonic-response']?.albumList2?.album || [];
       const newAlbums = Array.isArray(result) ? result : [result];
-      
+
       if (append) {
         albums = [...albums, ...newAlbums];
       } else {
         albums = newAlbums;
       }
-      
+
       albumsOffset += newAlbums.length;
       albumsHasMore = newAlbums.length === pageSize;
     } catch (e) { console.error(e); }
@@ -162,7 +162,7 @@
 
   /**
    * Loads a list of artists with sorting, filtering, and pagination.
-   * 
+   *
    * @param {boolean} [append=false] - Whether to append new results to the existing artists.
    */
   async function loadArtists(append = false) {
@@ -176,18 +176,18 @@
     try {
       let url = `/rest/getArtistList?type=${currentArtistSort}&role=${currentArtistRole}&size=${pageSize}&offset=${artistsOffset}&${$authParams}`;
       if (currentArtistSearch) url += `&query=${encodeURIComponent(currentArtistSearch)}`;
-      
+
       const response = await fetch(url);
       const data = await response.json();
       const result = data['subsonic-response']?.artistList?.artist || [];
       const newArtists = Array.isArray(result) ? result : [result];
-      
+
       if (append) {
         artists = [...artists, ...newArtists];
       } else {
         artists = newArtists;
       }
-      
+
       artistsOffset += newArtists.length;
       artistsHasMore = newArtists.length === pageSize;
     } catch (e) { console.error(e); }
@@ -219,8 +219,8 @@
       const result = data['subsonic-response']?.genres?.genre || [];
       allGenres = Array.isArray(result) ? result : [result];
       console.log(`Loaded ${allGenres.length} genres`);
-    } catch (e) { 
-      console.error("Failed to load genres:", e); 
+    } catch (e) {
+      console.error("Failed to load genres:", e);
     } finally {
       isLoading = false;
     }
@@ -235,7 +235,7 @@
 
   /**
    * Switches the view to the details of a specific playlist.
-   * 
+   *
    * @param {Object} playlist - The playlist object.
    */
   function openPlaylist(playlist) {
@@ -245,7 +245,7 @@
 
   /**
    * Handles changes from the FilterBar and reloads the appropriate data.
-   * 
+   *
    * @param {Object} params - The filter and sort parameters.
    */
   function handleFilterChange(params) {
@@ -363,25 +363,25 @@
     {#if albums.length > 0}
         <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
             {#each albums as album (album.id)}
-                <div 
+                <div
                   role="button"
                   tabindex="0"
-                  class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]" 
+                  class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
                   onclick={() => activeView = `album:${album.id}`}
                   onkeydown={(e) => e.key === 'Enter' && (activeView = `album:${album.id}`)}
                 >
-                    <img 
-                      src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
-                      alt={album.name} 
+                    <img
+                      src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+                      alt={album.name}
                       class="w-full aspect-square object-cover rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                       onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
                     />
                     <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{album.name}</span>
-                    <ArtistList 
-                      artist={album.artist} 
-                      artistId={album.artistId} 
-                      artists={album.albumArtists} 
-                      onnavigate={(v) => activeView = v} 
+                    <ArtistList
+                      artist={album.artist}
+                      artistId={album.artistId}
+                      artists={album.albumArtists}
+                      onnavigate={(v) => activeView = v}
                     />
                 </div>
             {/each}
@@ -408,10 +408,10 @@
     {:else}
         <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
             {#each allGenres as g}
-                <div 
+                <div
                   role="button"
                   tabindex="0"
-                  class="bg-[#181818] p-6 rounded-lg flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors hover:bg-[#282828] aspect-square" 
+                  class="bg-[#181818] p-6 rounded-lg flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors hover:bg-[#282828] aspect-square"
                   onclick={() => activeView = `genre:${g.value}`}
                   onkeydown={(e) => e.key === 'Enter' && (activeView = `genre:${g.value}`)}
                 >
@@ -433,17 +433,17 @@
     </div>
     <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
         {#each artists as artist (artist.id)}
-            <div 
+            <div
               role="button"
               tabindex="0"
-              class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]" 
+              class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
               onclick={() => activeView = `artist:${artist.id}`}
               onkeydown={(e) => e.key === 'Enter' && (activeView = `artist:${artist.id}`)}
             >
-                <img 
-                  src={getArtistImageUrl(artist, $authParams)} 
-                  alt={artist.name} 
-                  class="w-full aspect-square object-cover rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.5)]" 
+                <img
+                  src={getArtistImageUrl(artist, $authParams)}
+                  alt={artist.name}
+                  class="w-full aspect-square object-cover rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                   onerror={(e) => e.target.src = '/images/unknown-artist.svg'}
                 />
                 <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{artist.name}</span>
@@ -460,16 +460,16 @@
     <h2 class="text-2xl font-bold m-0 mb-6">Afspeellijsten</h2>
     <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
         {#each playlists as playlist (playlist.id)}
-            <div 
+            <div
               role="button"
               tabindex="0"
-              class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]" 
+              class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
               onclick={() => openPlaylist(playlist)}
               onkeydown={(e) => e.key === 'Enter' && openPlaylist(playlist)}
             >
-                <img 
-                  src={playlist.coverArt ? `/rest/getCoverArt?id=${playlist.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
-                  alt={playlist.name} 
+                <img
+                  src={playlist.coverArt ? `/rest/getCoverArt?id=${playlist.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+                  alt={playlist.name}
                   class="w-full aspect-square object-cover rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                   onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
                 />

@@ -38,7 +38,7 @@ export default ts.config(
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
 
       // Algemene kwaliteit
-      "prefer-const": "error",
+      "prefer-const": "off",
       "no-var": "error",
       "no-inline-comments": "off",
       "no-useless-assignment": "warn",

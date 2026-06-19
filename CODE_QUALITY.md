@@ -35,7 +35,7 @@ We hanteren de testpiramide: veel unit tests, minder integratietests, en een sel
 
 Om de kwaliteit te waarborgen zonder de ontwikkelaar te vertragen:
 
-1.  **Pre-commit Hooks**: We gebruiken de `pre-commit` framework. 
+1.  **Pre-commit Hooks**: We gebruiken de `pre-commit` framework.
     *   **Installatie**: `pip install pre-commit && pre-commit install`
     *   **Inhoud**: Controleert automatisch `clang-format`, `clang-tidy`, `oxlint` en `oxfmt` bij elke commit.
     *   **Handmatig draaien**: `pre-commit run --all-files`

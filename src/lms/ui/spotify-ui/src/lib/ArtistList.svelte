@@ -18,10 +18,10 @@
 
 <span class="text-sm {active ? 'text-brand' : 'text-[#b3b3b3]'}">
   {#each displayArtists as a, i (a.id || i)}
-    <span 
+    <span
       role="link"
       tabindex={a.id ? 0 : -1}
-      class="text-inherit hover:text-white {a.id ? 'hover:underline cursor-pointer' : ''}" 
+      class="text-inherit hover:text-white {a.id ? 'hover:underline cursor-pointer' : ''}"
       onclick={(e) => { e.stopPropagation(); if (a.id && onnavigate) onnavigate(`artist:${a.id}`); }}
       onkeydown={(e) => { e.stopPropagation(); if (a.id && onnavigate && (e.key === 'Enter' || e.key === ' ')) onnavigate(`artist:${a.id}`); }}
     >{a.name}</span>{#if i < displayArtists.length - 1}, {/if}

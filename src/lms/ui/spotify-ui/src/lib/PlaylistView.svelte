@@ -9,7 +9,7 @@
 
   /**
    * Fetches the tracks for a specific playlist.
-   * 
+   *
    * @param {string} id - The Subsonic playlist ID.
    */
   async function fetchTracks(id) {
@@ -49,7 +49,7 @@
 
   /**
    * Removes a track from the saved playlist.
-   * 
+   *
    * @param {number} index - The index of the track to remove.
    */
   async function handleRemove(index) {
@@ -71,10 +71,10 @@
     <header class="flex flex-col md:flex-row items-center md:items-end gap-6 mb-8 text-center md:text-left">
       <div class="w-40 h-40 md:w-52 md:h-52 bg-[#282828] shadow-2xl flex items-center justify-center flex-shrink-0 overflow-hidden">
         {#if $currentPlaylist.coverArt}
-          <img 
-            src="/rest/getCoverArt?id={$currentPlaylist.coverArt}&{$authParams}&size=300" 
-            alt="" 
-            class="w-full h-full object-cover" 
+          <img
+            src="/rest/getCoverArt?id={$currentPlaylist.coverArt}&{$authParams}&size=300"
+            alt=""
+            class="w-full h-full object-cover"
             onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
           />
         {:else}
@@ -90,7 +90,7 @@
 
     <div class="bg-black/20 -mx-8 px-8 py-6">
        <div class="flex items-center gap-8 mb-8">
-         <button 
+         <button
            class="bg-brand text-black w-14 h-14 rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition cursor-pointer"
            onclick={playAll}
          >

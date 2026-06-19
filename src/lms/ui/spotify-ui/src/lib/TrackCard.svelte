@@ -15,21 +15,21 @@
   const coverUrl = $derived(track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg');
 </script>
 
-<div 
+<div
   role="button"
   tabindex="0"
-  class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer flex flex-col gap-3 group hover:bg-[#282828]" 
+  class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer flex flex-col gap-3 group hover:bg-[#282828]"
   onclick={play}
   onkeydown={(e) => e.key === 'Enter' && play()}
 >
   <div class="relative aspect-square shadow-[0_8px_24px_rgba(0,0,0,0.5)] rounded overflow-hidden">
-    <img 
-      src={coverUrl} 
-      alt={track.title} 
+    <img
+      src={coverUrl}
+      alt={track.title}
       class="w-full h-full object-cover"
       onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
     />
-    <button 
+    <button
       aria-label="Afspelen"
       class="absolute right-2 bottom-2 w-12 h-12 bg-brand border-none rounded-full flex items-center justify-center shadow-[0_8px_16px_rgba(0,0,0,0.3)] opacity-0 translate-y-2 transition-all group-hover:opacity-100 group-hover:translate-y-0"
       onclick={(e) => { e.stopPropagation(); play(); }}

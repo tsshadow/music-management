@@ -12,7 +12,7 @@ target_include_directories(lmsjukebox PRIVATE
 	)
 
 target_link_libraries(lmsjukebox PRIVATE
-	lmsaudio	
+	lmsaudio
 	lmscore
 	lmsdatabase
 	)

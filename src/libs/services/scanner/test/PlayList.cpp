@@ -28,10 +28,10 @@ namespace lms::scanner::tests
     TEST(Scanner, playlist)
     {
         std::istringstream is{ R"(#EXTM3U
-#PLAYLIST:My super playlist  
+#PLAYLIST:My super playlist
  01-Foo.mp3
 
-    
+
 
 #EXTINF:263,Alice in Chains - Don't Follow
 02-FooBar.mp3

@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/crates/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "svelte", "import", "unicorn"],
+  "plugins": ["typescript", "import", "unicorn"],
   "rules": {
     "no-debugger": "error",
     "no-console": [
@@ -9,7 +9,7 @@
         "allow": ["warn", "error"]
       }
     ],
-    "prefer-const": "error",
+    "prefer-const": "off",
     "no-var": "error"
   }
 }

@@ -31,7 +31,7 @@
 
   /**
    * Returns the first character of a username as initials.
-   * 
+   *
    * @param {string} name - The username.
    * @returns {string} The first character capitalized.
    */
@@ -41,7 +41,7 @@
 
   /**
    * Generates a consistent background color for a user's avatar based on their name.
-   * 
+   *
    * @param {string} name - The username.
    * @returns {string} Tailwind CSS class for background color.
    */
@@ -56,7 +56,7 @@
 
   /**
    * Opens the user editor for a specific user.
-   * 
+   *
    * @param {Object} user - The user object to edit.
    */
   function handleEdit(user) {
@@ -82,7 +82,7 @@
 
 <section>
   <h3 class="text-2xl font-bold mb-6 text-white">Users</h3>
-  
+
   {#if isLoading && users.length === 0}
     <div class="text-[#b3b3b3]">Laden...</div>
   {:else}
@@ -101,7 +101,7 @@
                     </p>
                 </div>
             </div>
-            <button 
+            <button
                 onclick={() => handleEdit(user)}
                 class="text-[#b3b3b3] hover:text-white cursor-pointer border-none bg-transparent font-medium py-2 px-4 rounded-full hover:bg-[#333] transition-all"
             >
@@ -111,7 +111,7 @@
       {/each}
     </div>
 
-    <button 
+    <button
         onclick={handleCreate}
         class="mt-8 bg-white text-black px-8 py-3 rounded-full font-bold hover:scale-105 transition-transform cursor-pointer border-none shadow-lg active:scale-95"
     >
@@ -120,17 +120,17 @@
   {/if}
 
   {#if editingUser}
-    <UserEditor 
-        user={editingUser} 
-        onclose={() => editingUser = null} 
-        onsave={handleSave} 
+    <UserEditor
+        user={editingUser}
+        onclose={() => editingUser = null}
+        onsave={handleSave}
     />
   {/if}
 
   {#if showCreateModal}
-    <UserEditor 
-        onclose={() => showCreateModal = false} 
-        onsave={handleSave} 
+    <UserEditor
+        onclose={() => showCreateModal = false}
+        onsave={handleSave}
     />
   {/if}
 </section>

@@ -51,7 +51,7 @@
       query += `&skipSingleReleasePlayLists=${settings.skipSingleReleasePlayLists}`;
       query += `&allowMBIDArtistMerge=${settings.allowMBIDArtistMerge}`;
       query += `&artistImageFallbackToRelease=${settings.artistImageFallbackToRelease}`;
-      
+
       query += `&extraTagsToScan=${encodeURIComponent(settings.extraTagsToScan.join('|'))}`;
       query += `&artistTagDelimiters=${encodeURIComponent(settings.artistTagDelimiters.join('|'))}`;
       query += `&defaultTagDelimiters=${encodeURIComponent(settings.defaultTagDelimiters.join('|'))}`;
@@ -96,7 +96,7 @@
 
   /**
    * Adds an empty entry to a list-based setting.
-   * 
+   *
    * @param {string} key - The key of the setting to modify.
    */
   function addToList(key) {
@@ -105,7 +105,7 @@
 
   /**
    * Removes an entry from a list-based setting by index.
-   * 
+   *
    * @param {string} key - The key of the setting to modify.
    * @param {number} index - The index of the item to remove.
    */
@@ -125,7 +125,7 @@
         <span class="text-brand font-medium animate-pulse">{message}</span>
     {/if}
   </div>
-  
+
   {#if isLoading && !settings}
     <div class="text-[#b3b3b3]">Laden...</div>
   {:else if settings}
@@ -136,7 +136,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="flex flex-col gap-2">
             <span class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider">Update Period</span>
-            <select 
+            <select
               class="bg-[#282828] text-white border-none rounded px-3 py-2 outline-none cursor-pointer focus:ring-1 focus:ring-brand h-10"
               bind:value={settings.updatePeriod}
             >
@@ -148,7 +148,7 @@
 
           <div class="flex flex-col gap-2" class:opacity-50={settings.updatePeriod == 0 || settings.updatePeriod == 4}>
             <span class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider">Start Time</span>
-            <select 
+            <select
               class="bg-[#282828] text-white border-none rounded px-3 py-2 outline-none cursor-pointer focus:ring-1 focus:ring-brand h-10"
               bind:value={settings.updateStartTime}
               disabled={settings.updatePeriod == 0 || settings.updatePeriod == 4}
@@ -170,7 +170,7 @@
                     <p class="font-medium text-white">Similarity Engine</p>
                     <p class="text-sm text-[#b3b3b3]">Mechanism used to find similar artists and tracks.</p>
                 </div>
-                <select 
+                <select
                     class="bg-[#282828] text-white border-none rounded px-3 py-2 outline-none cursor-pointer focus:ring-1 focus:ring-brand h-10 w-48"
                     bind:value={settings.similarityEngineType}
                 >
@@ -209,7 +209,7 @@
       <!-- Tagging -->
       <div class="bg-[#181818] p-6 rounded-lg">
         <h4 class="font-bold mb-6 text-lg border-b border-[#282828] pb-2">Tag Management</h4>
-        
+
         <div class="space-y-8">
             <!-- Extra Tags -->
             <div>
@@ -262,7 +262,7 @@
             <!-- Artists Not To Split -->
             <div>
                 <span class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider block mb-4">Artists to NOT split (one per line)</span>
-                <textarea 
+                <textarea
                     class="w-full bg-[#282828] text-white border-none rounded p-4 outline-none focus:ring-1 focus:ring-brand min-h-[120px] resize-none"
                     placeholder="e.g. AC/DC"
                     value={settings.artistsToNotSplit.join('\n')}
@@ -274,14 +274,14 @@
 
       <!-- Action Buttons -->
       <div class="fixed bottom-8 right-8 flex gap-4 bg-[#121212] p-4 rounded-full shadow-2xl border border-[#282828]">
-        <button 
+        <button
             on:click={discardChanges}
             disabled={!hasChanges || isSaving}
             class="px-6 py-2 rounded-full font-bold text-white hover:bg-[#282828] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
             Discard
         </button>
-        <button 
+        <button
             on:click={saveSettings}
             disabled={!hasChanges || isSaving}
             class="bg-brand text-black px-8 py-2 rounded-full font-bold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"

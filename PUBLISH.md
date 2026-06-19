@@ -47,7 +47,7 @@ Alternatively, to perform the steps manually:
    ```
 
 ## Production Update
-The `build_and_publish.sh` script automatically handles the update on the production server (`192.0.2.27`). 
+The `build_and_publish.sh` script automatically handles the update on the production server (`192.0.2.27`).
 
 If you need to perform the update manually on the server:
 ```bash

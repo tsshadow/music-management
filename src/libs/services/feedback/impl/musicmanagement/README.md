@@ -1,6 +1,6 @@
 # External Rating Synchronization (MusicManagement)
 
-This module provides a mechanism to synchronize user ratings from LMS to an external management tool. 
+This module provides a mechanism to synchronize user ratings from LMS to an external management tool.
 This is particularly useful if you want to write ratings back to the audio file tags, as LMS maintains a read-only principle for the music library.
 
 ## How it works

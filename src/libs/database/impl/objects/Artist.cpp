@@ -343,23 +343,23 @@ namespace lms::db
     {
         // TODO extend with release artists
         session.checkReadTransaction();
-        auto query{ session.getDboSession()->query<ArtistId>(R"(SELECT DISTINCT a.id FROM artist a 
+        auto query{ session.getDboSession()->query<ArtistId>(R"(SELECT DISTINCT a.id FROM artist a
 WHERE NOT EXISTS (
-    SELECT 1 
-    FROM track t 
-    INNER JOIN track_artist_link t_a_l 
-    ON t_a_l.artist_id = a.id 
+    SELECT 1
+    FROM track t
+    INNER JOIN track_artist_link t_a_l
+    ON t_a_l.artist_id = a.id
     WHERE t.id = t_a_l.track_id
 )
 AND NOT EXISTS (
-    SELECT 1 
-    FROM release r 
-    INNER JOIN release_artist_link r_a_l 
-    ON r_a_l.artist_id = a.id 
+    SELECT 1
+    FROM release r
+    INNER JOIN release_artist_link r_a_l
+    ON r_a_l.artist_id = a.id
     WHERE r.id = r_a_l.release_id)
 AND NOT EXISTS (
-    SELECT 1 
-    FROM artist_info ai 
+    SELECT 1
+    FROM artist_info ai
     WHERE ai.artist_id = a.id))") };
         return utils::execRangeQuery<ArtistId>(query, range);
     }
@@ -375,12 +375,12 @@ AND NOT EXISTS (
         session.checkReadTransaction();
 
         auto query{ session.getDboSession()->query<Wt::Dbo::ptr<Artist>>(R"(
-        SELECT a FROM artist a 
+        SELECT a FROM artist a
         WHERE a.id IN (
-            SELECT t_a_l.artist_id 
-            FROM track_artist_link t_a_l 
-            WHERE t_a_l.artist_mbid_matched = 1 
-            GROUP BY t_a_l.artist_id 
+            SELECT t_a_l.artist_id
+            FROM track_artist_link t_a_l
+            WHERE t_a_l.artist_mbid_matched = 1
+            GROUP BY t_a_l.artist_id
             HAVING COUNT(DISTINCT t_a_l.artist_name) > 1
         )
         AND a.id > ?

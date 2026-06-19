@@ -14,8 +14,8 @@
       const data = await response.json();
       const res = data['subsonic-response'];
       if (res && res.musicFolders) {
-        libraries = Array.isArray(res.musicFolders.musicFolder) 
-          ? res.musicFolders.musicFolder 
+        libraries = Array.isArray(res.musicFolders.musicFolder)
+          ? res.musicFolders.musicFolder
           : [res.musicFolders.musicFolder];
       }
     } catch (e) {
@@ -30,7 +30,7 @@
 
 <section>
   <h3 class="text-2xl font-bold mb-6">Music Libraries</h3>
-  
+
   {#if isLoading}
     <div class="text-[#b3b3b3]">Laden...</div>
   {:else}

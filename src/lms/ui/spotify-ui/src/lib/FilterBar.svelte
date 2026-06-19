@@ -1,12 +1,12 @@
 <script>
-  /* eslint-disable prefer-const */
+
   import { authParams } from './store.js';
 
-  let { 
-    genre = $bindable(''), 
-    sort = $bindable('recent'), 
-    year = $bindable(''), 
-    search = $bindable(''), 
+  let {
+    genre = $bindable(''),
+    sort = $bindable('recent'),
+    year = $bindable(''),
+    search = $bindable(''),
     minRating = $bindable('0'),
     includeUnrated = $bindable(true),
     role = $bindable('all'),
@@ -93,11 +93,11 @@
 
 <div class="flex flex-col gap-4 mb-6 bg-[#181818] p-3 md:p-4 rounded-lg">
   <div class="w-full">
-    <input 
-      type="text" 
-      placeholder="Zoeken..." 
+    <input
+      type="text"
+      placeholder="Zoeken..."
       class="w-full bg-[#282828] text-white border-none px-4 py-2 rounded-[20px] text-sm focus:outline focus:outline-1 focus:outline-brand focus:bg-[#333]"
-      bind:value={search} 
+      bind:value={search}
       oninput={handleSearchInput}
     />
   </div>
@@ -153,12 +153,12 @@
         </div>
 
         <div class="flex items-center gap-2 cursor-pointer">
-          <input 
-            type="checkbox" 
-            id="unrated" 
-            class="w-4 h-4 accent-brand cursor-pointer" 
-            bind:checked={includeUnrated} 
-            onchange={handleChange} 
+          <input
+            type="checkbox"
+            id="unrated"
+            class="w-4 h-4 accent-brand cursor-pointer"
+            bind:checked={includeUnrated}
+            onchange={handleChange}
           />
           <label for="unrated" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider cursor-pointer select-none">Unrated</label>
         </div>

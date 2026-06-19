@@ -16,7 +16,7 @@
 
   /**
    * Handles the form submission to create or update a user.
-   * 
+   *
    * @param {Event} e - The form submission event.
    */
   async function handleSubmit(e) {
@@ -54,7 +54,7 @@
    */
   async function handleDelete() {
     if (!confirm(`Weet je zeker dat je gebruiker ${username} wilt verwijderen?`)) return;
-    
+
     isSaving = true;
     // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const params = new URLSearchParams($authParams);

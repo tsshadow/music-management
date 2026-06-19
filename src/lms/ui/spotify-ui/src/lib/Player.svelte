@@ -47,12 +47,12 @@
         if (serverChanged !== lastSyncTime) {
           if (playQueue.entry) {
             const tracks = Array.isArray(playQueue.entry) ? playQueue.entry : [playQueue.entry];
-            
+
             // Sync playlist
             if (JSON.stringify(tracks.map(t => t.id)) !== JSON.stringify($playlist.map(t => t.id))) {
                 playlist.set(tracks);
             }
-            
+
             // Sync current track
             const currentTrackId = playQueue.current;
             const serverTrack = tracks.find(t => t.id === currentTrackId);
@@ -74,7 +74,7 @@
             } else if (!serverPlaying && !audioElement.paused) {
                 audioElement.pause();
             }
-            
+
             lastSyncTime = serverChanged;
           }
         }
@@ -107,7 +107,7 @@
       if (p.length === 0) return;
       const currentTrackId = $currentTrack ? String($currentTrack.id) : null;
       const currentIndex = p.findIndex(t => String(t.id) === currentTrackId);
-      
+
       let nextIndex;
       if ($playerState.shuffle) {
           if (p.length > 1) {
@@ -128,7 +128,7 @@
               }
           }
       }
-      
+
       const nextTrack = p[nextIndex];
       if (nextTrack) {
           // If it's the same track (e.g. single track playlist), restart it manually
@@ -157,7 +157,7 @@
       if (p.length === 0) return;
       const currentTrackId = $currentTrack ? String($currentTrack.id) : null;
       const currentIndex = p.findIndex(t => String(t.id) === currentTrackId);
-      
+
       let prevIndex;
       if ($playerState.shuffle) {
           if (p.length > 1) {
@@ -279,7 +279,7 @@
 
   /**
    * Seeks to a specific position in the track based on a click event on the progress bar.
-   * 
+   *
    * @param {MouseEvent} e - The click event.
    */
   function seek(e) {
@@ -291,7 +291,7 @@
 
   /**
    * Changes the volume based on a click event on the volume bar.
-   * 
+   *
    * @param {MouseEvent} e - The click event.
    */
   function changeVolume(e) {
@@ -304,7 +304,7 @@
 
   /**
    * Formats seconds into a "M:SS" string.
-   * 
+   *
    * @param {number} seconds - Time in seconds.
    * @returns {string} Formatted time string.
    */
@@ -436,7 +436,7 @@
 
   /**
    * Sends a scrobble request to the server.
-   * 
+   *
    * @param {boolean} [submission=true] - Whether this is a final submission or just a "now playing" notification.
    */
   async function scrobble(submission = true) {
@@ -452,17 +452,17 @@
 
   /**
    * Updates the rating of the current track.
-   * 
+   *
    * @param {number} rating - The new rating (1-5).
    */
   async function updateRating(rating) {
     if (!track) return;
     const newRating = track.userRating === rating ? 0 : rating;
     const oldRating = track.userRating;
-    
+
     // Optimistic update
     track.userRating = newRating;
-    
+
     try {
       const response = await fetch(`${$credentials.url}/rest/setRating?id=${track.id}&rating=${newRating}&${$authParams}`);
       if (!response.ok) throw new Error('Failed to update rating');
@@ -581,18 +581,18 @@
       {#if track}
         <img src={coverUrl} alt={track.title} class="w-14 h-14 rounded" onerror={(e) => e.target.src = '/images/spotify-fallback.svg'} />
         <div class="track-info min-w-0">
-          <div 
+          <div
             role="button"
             tabindex="0"
-            class="text-sm font-medium truncate hover:underline cursor-pointer" 
+            class="text-sm font-medium truncate hover:underline cursor-pointer"
             onclick={goToAlbum}
             onkeydown={(e) => e.key === 'Enter' && goToAlbum()}
           >{track.title}</div>
-          <ArtistList 
-            artist={track.artist} 
-            artistId={track.artistId} 
-            artists={track.artists} 
-            onnavigate={onnavigate} 
+          <ArtistList
+            artist={track.artist}
+            artistId={track.artistId}
+            artists={track.artists}
+            onnavigate={onnavigate}
           />
         </div>
       {/if}
@@ -643,10 +643,10 @@
       </div>
       <div class="hidden md:flex w-full items-center gap-2 text-[11px] text-[#b3b3b3]">
         <span>{formatTime(progress)}</span>
-        <div 
+        <div
           role="button"
           tabindex="0"
-          class="flex-1 h-1 bg-[#4d4d4d] rounded-sm cursor-pointer" 
+          class="flex-1 h-1 bg-[#4d4d4d] rounded-sm cursor-pointer"
           onclick={seek}
           onkeydown={(e) => e.key === 'Enter' && seek(e)}
           aria-label="Seek track"
@@ -661,7 +661,7 @@
       {#if track}
         <div class="flex gap-0.5 mr-2">
           {#each [1, 2, 3, 4, 5] as star}
-            <button 
+            <button
               aria-label="{star} sterren"
               class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { (track?.userRating || 0) >= star ? 'text-brand' : 'text-white/10 hover:text-white/30' }"
               onclick={() => updateRating(star)}
@@ -673,9 +673,9 @@
           {/each}
         </div>
       {/if}
-      <button 
-        class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors {isRadioActive ? 'text-brand' : 'text-[#b3b3b3] hover:text-white'}" 
-        onclick={toggleRadioMode} 
+      <button
+        class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors {isRadioActive ? 'text-brand' : 'text-[#b3b3b3] hover:text-white'}"
+        onclick={toggleRadioMode}
         title="Radio Mode (Sync)"
       >
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
@@ -698,10 +698,10 @@
               </svg>
           {/if}
       </button>
-      <div 
+      <div
         role="button"
         tabindex="0"
-        class="w-24 h-1 bg-[#4d4d4d] rounded-sm cursor-pointer" 
+        class="w-24 h-1 bg-[#4d4d4d] rounded-sm cursor-pointer"
         onclick={changeVolume}
         onkeydown={(e) => e.key === 'Enter' && changeVolume(e)}
         aria-label="Volume"

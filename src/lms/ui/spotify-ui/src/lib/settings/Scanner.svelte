@@ -51,7 +51,7 @@
 
   /**
    * Formats an ISO date string into a localized human-readable format.
-   * 
+   *
    * @param {string} isoString - The ISO date string.
    * @returns {string} Formatted date and time.
    */
@@ -66,7 +66,7 @@
 
   /**
    * Translates a technical scan step identifier into a user-friendly label.
-   * 
+   *
    * @param {string} step - The technical step identifier.
    * @returns {string} User-friendly step label.
    */
@@ -108,7 +108,7 @@
       <p class="text-sm text-[#b3b3b3]">Last updated: {formatDateTime(status.lastScan.stopTime)}</p>
     {/if}
   </div>
-  
+
   {#if isLoading && !status}
     <div class="text-[#b3b3b3]">Laden...</div>
   {:else if status}
@@ -127,15 +127,15 @@
             {/if}
           </p>
         </div>
-        
+
         <div class="w-full max-w-md">
             <div class="flex justify-between text-xs text-[#b3b3b3] mb-2 uppercase font-bold tracking-wider">
                 <span>Progress</span>
                 <span>{Math.round(((status.stepIndex) / status.stepCount) * 100)}%</span>
             </div>
             <div class="bg-[#282828] h-3 rounded-full overflow-hidden">
-                <div 
-                    class="bg-brand h-full transition-all duration-500 ease-out" 
+                <div
+                    class="bg-brand h-full transition-all duration-500 ease-out"
                     style="width: {((status.stepIndex + 1) / status.stepCount) * 100}%"
                 ></div>
             </div>
@@ -167,7 +167,7 @@
                 </label>
             </div>
 
-            <button 
+            <button
                 on:click={startScan}
                 class="bg-white text-black px-8 py-3 rounded-full font-bold hover:scale-105 active:scale-95 transition-all cursor-pointer border-none shadow-lg"
             >
@@ -196,8 +196,8 @@
                 <div class="flex justify-between items-center py-2 border-b border-[#282828]">
                     <span class="text-[#b3b3b3]">Duration</span>
                     <span class="text-white font-medium">
-                        {status.lastScan.startTime && status.lastScan.stopTime ? 
-                            Math.round((new Date(status.lastScan.stopTime) - new Date(status.lastScan.startTime)) / 1000) + 's' 
+                        {status.lastScan.startTime && status.lastScan.stopTime ?
+                            Math.round((new Date(status.lastScan.stopTime) - new Date(status.lastScan.startTime)) / 1000) + 's'
                             : 'N/A'}
                     </span>
                 </div>

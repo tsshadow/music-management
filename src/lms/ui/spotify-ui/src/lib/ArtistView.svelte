@@ -28,10 +28,10 @@
       if (artistData) {
         artist = artistData;
         const allAlbums = Array.isArray(artistData.album) ? artistData.album : (artistData.album ? [artistData.album] : []);
-        
+
         albums = allAlbums.filter(a => a.artist === artistData.name);
         appearsOn = allAlbums.filter(a => a.artist !== artistData.name);
-        
+
         loadAllTracks();
         loadArtistInfo();
       }
@@ -44,7 +44,7 @@
 
   /**
    * Loads all tracks by the artist, filtered by duration based on viewMode.
-   * 
+   *
    * @param {boolean} [append=false] - Whether to append new results to the existing tracks.
    */
   async function loadAllTracks(append = false) {
@@ -60,13 +60,13 @@
       const tracksNode = data['subsonic-response']?.tracks;
       const result = tracksNode?.track || [];
       const newTracks = Array.isArray(result) ? result : [result];
-      
+
       if (append) {
           allTracks = [...allTracks, ...newTracks];
       } else {
           allTracks = newTracks;
       }
-      
+
       allTracksOffset += newTracks.length;
       allTracksHasMore = tracksNode?.moreResults === true || tracksNode?.moreResults === "true";
     } catch (e) {
@@ -103,7 +103,7 @@
 
   /**
    * Navigates to a specific album detail view.
-   * 
+   *
    * @param {string} id - The Subsonic album ID.
    */
   function openAlbum(id) {
@@ -112,7 +112,7 @@
 
   /**
    * Navigates to a specific artist detail view.
-   * 
+   *
    * @param {string} id - The Subsonic artist ID.
    */
   function openArtist(id) {
@@ -126,9 +126,9 @@
   <div class="flex flex-col">
     <header class="h-auto md:h-[340px] flex flex-col md:flex-row items-center md:items-end p-6 md:p-8 bg-linear-to-b from-transparent to-black/50 relative gap-6 text-center md:text-left">
        <div class="w-[160px] h-[160px] md:w-[232px] md:h-[232px] flex-shrink-0">
-         <img 
-           src={getArtistImageUrl(artist, $authParams)} 
-           alt={artist.name} 
+         <img
+           src={getArtistImageUrl(artist, $authParams)}
+           alt={artist.name}
            class="w-full h-full object-cover rounded-full shadow-[0_4px_60px_rgba(0,0,0,0.5)]"
            onerror={(e) => e.target.src = '/images/unknown-artist.svg'}
          />
@@ -167,16 +167,16 @@
                 <h2 class="text-2xl font-bold mb-4">Discografie</h2>
                 <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
                     {#each albums as album (album.id)}
-                        <div 
+                        <div
                           role="button"
                           tabindex="0"
-                          class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]" 
+                          class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]"
                           onclick={() => openAlbum(album.id)}
                           onkeydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
                         >
-                            <img 
-                              src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
-                              alt={album.name} 
+                            <img
+                              src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+                              alt={album.name}
                               class="w-full aspect-square object-cover mb-4 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
                             />
@@ -193,16 +193,16 @@
                 <h2 class="text-2xl font-bold mb-4">Komt voor op</h2>
                 <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
                     {#each appearsOn as album (album.id)}
-                        <div 
+                        <div
                           role="button"
                           tabindex="0"
-                          class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]" 
+                          class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]"
                           onclick={() => openAlbum(album.id)}
                           onkeydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
                         >
-                            <img 
-                              src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
-                              alt={album.name} 
+                            <img
+                              src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+                              alt={album.name}
                               class="w-full aspect-square object-cover mb-4 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
                             />
@@ -219,17 +219,17 @@
                 <h2 class="text-2xl font-bold mb-4">Fans vinden dit ook leuk</h2>
                 <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
                     {#each similarArtists as similar (similar.id)}
-                        <div 
+                        <div
                           role="button"
                           tabindex="0"
-                          class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]" 
+                          class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]"
                           onclick={() => openArtist(similar.id)}
                           onkeydown={(e) => e.key === 'Enter' && openArtist(similar.id)}
                         >
                             <div class="mb-4">
-                                <img 
-                                  src={similar.coverArt ? `/rest/getCoverArt?id=${similar.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
-                                  alt={similar.name} 
+                                <img
+                                  src={similar.coverArt ? `/rest/getCoverArt?id=${similar.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+                                  alt={similar.name}
                                   class="w-full aspect-square object-cover rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                                   onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
                                 />

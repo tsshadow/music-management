@@ -81,7 +81,7 @@ _LMS_ supports several non-standard tags to allow more accurate artist identific
 The recommended way to group tracks within an album is to use the `musicbrainz_albumid` tag.
 
 When this tag is not present, _LMS_ will attempt to group them as best as possible: if the analyzed file contains a disc number and the total number of discs is greater than 1, sibling directories are also scanned to find a matching album.
-Otherwise, _LMS_ will only consider albums within the current directory.  
+Otherwise, _LMS_ will only consider albums within the current directory.
 
 For an album to be considered a match, the following conditions must be met:
 * Same name

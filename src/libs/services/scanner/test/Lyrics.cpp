@@ -74,7 +74,7 @@ namespace lms::scanner::tests
 
     TEST(Lyrics, tagsWithSpaces)
     {
-        std::istringstream is{ R"([al:    dqsxdkbu ]  
+        std::istringstream is{ R"([al:    dqsxdkbu ]
 [00:09.16]I, I just woke up from a dream)" };
 
         const Lyrics lyrics{ parseLyrics(is) };
@@ -120,7 +120,7 @@ namespace lms::scanner::tests
     {
         std::istringstream is{ R"(
 
-  
+
 [00:03.30]Ooh, ooh)" };
         const Lyrics lyrics{ parseLyrics(is) };
 

@@ -424,14 +424,14 @@ struct GenericStringRef
                       \ref StringRef(const CharType*) by inferring the string \ref length
                       from the array length, and also supports strings containing null
                       characters.
-          
+
                       \tparam N length of the string, automatically inferred
-          
+
                       \param str Constant character array, lifetime assumed to be longer
                           than the use of the string in e.g. a GenericValue
-          
+
                       \post \ref s == str
-          
+
                       \note Constant complexity.
                       \note There is a hidden, private overload to disallow references to
                           non-const character arrays to be created via this constructor.
@@ -453,14 +453,14 @@ struct GenericStringRef
                   /*!
                       This constructor can be used to \b explicitly  create a reference to
                       a constant string pointer.
-          
+
                       \see StringRef(const CharType*)
-          
+
                       \param str Constant character pointer, lifetime assumed to be longer
                           than the use of the string in e.g. a GenericValue
-          
+
                       \post \ref s == str
-          
+
                       \note There is a hidden, private overload to disallow references to
                           non-const character arrays to be created via this constructor.
                           By this, e.g. function-scope arrays used to be filled via
@@ -479,7 +479,7 @@ struct GenericStringRef
 #ifndef __clang__ // -Wdocumentation
                   /*! \param str constant string, lifetime assumed to be longer than the use of the string in e.g. a GenericValue
                       \param len length of the string, excluding the trailing NULL terminator
-          
+
                       \post \ref s == str && \ref length == len
                       \note Constant complexity.
                    */
@@ -3454,7 +3454,7 @@ public:
     //! Implicit conversion to get the last parse result
 #ifndef __clang // -Wdocumentation
                 /*! \return \ref ParseResult of the last parse operation
-        
+
                     \code
                       Document doc;
                       ParseResult ok = doc.Parse(json);

@@ -23,7 +23,7 @@ target_link_libraries(lmsauth PUBLIC
 	lmscore
 	lmsdatabase
 	)
-	
+
 # PAM
 option(USE_PAM "Use the PAM backend authentication API" ON)
 if (USE_PAM)

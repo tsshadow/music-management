@@ -10,7 +10,7 @@
 
   /**
    * Triggers navigation to a specific view.
-   * 
+   *
    * @param {string} id - The view identifier.
    */
   function navigate(id) {
@@ -20,7 +20,7 @@
 
 <nav class="flex justify-around items-center bg-black border-t border-[#282828] pb-safe pt-2">
   {#each navItems as item (item.id)}
-    <button 
+    <button
       class="flex flex-col items-center gap-1 bg-transparent border-none py-2 px-4 cursor-pointer transition-colors {activeView === item.id || (item.id === 'playlists' && ['playlists', 'artists', 'albums', 'genres'].includes(activeView)) ? 'text-white' : 'text-[#b3b3b3]'}"
       onclick={() => navigate(item.id)}
     >

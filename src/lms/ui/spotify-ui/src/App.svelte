@@ -175,7 +175,7 @@
 
 <main class="grid grid-cols-1 md:grid-cols-[240px_1fr_auto] grid-rows-[1fr_auto_auto] md:grid-rows-[1fr_90px] h-dvh w-screen overflow-hidden bg-black text-white">
   <AuthOverlay />
-  
+
   <div class="bg-black row-start-1 row-end-2 col-start-1 col-end-2 overflow-y-auto min-h-0 hidden md:block">
     {#if $activeView === 'settings'}
       <SettingsSidebar />
@@ -183,7 +183,7 @@
       <Sidebar activeView={$activeView} onnavigate={handleNavigate} />
     {/if}
   </div>
-  
+
   <div class="bg-linear-to-b from-[#121212] to-[#121212] row-start-1 row-end-2 col-start-1 md:col-start-2 col-end-2 md:col-end-3 overflow-y-auto p-4 md:p-8 relative min-h-0 min-w-0">
     <TopBar {greeting} />
     <div class="content-area">
@@ -193,13 +193,13 @@
 
   {#if showQueue && !$isMobile}
     <div class="relative row-start-1 row-end-2 col-start-3 col-end-4 flex min-h-0 hidden md:flex">
-      <button 
+      <button
         aria-label="Wachtrij resizen"
         class="w-1 bg-transparent border-none cursor-col-resize hover:bg-brand transition-colors z-10 p-0"
         onmousedown={startResizing}
       ></button>
-      
-      <div 
+
+      <div
         class="bg-[#121212] border-l border-[#282828] overflow-y-auto p-5 min-h-0"
         style="width: {queueWidth}px"
       >
@@ -230,8 +230,8 @@
   {/if}
 
   <div class="bg-[#181818] col-start-1 col-end-2 md:col-end-4 row-start-2 row-end-3 border-t border-[#282828] z-20 min-h-[64px] md:min-h-0">
-    <Player 
-      ontoggleQueue={() => showQueue = !showQueue} 
+    <Player
+      ontoggleQueue={() => showQueue = !showQueue}
       onnavigate={handleNavigate}
     />
   </div>

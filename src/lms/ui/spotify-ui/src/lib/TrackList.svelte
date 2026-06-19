@@ -6,17 +6,17 @@
 
   /**
    * Updates the rating of a track.
-   * 
+   *
    * @param {Object} track - The track object.
    * @param {number} rating - The new rating (1-5).
    */
   async function updateRating(track, rating) {
     const newRating = track.userRating === rating ? 0 : rating;
     const oldRating = track.userRating;
-    
+
     // Optimistic update
     track.userRating = newRating;
-    
+
     try {
       const response = await fetch(`/rest/setRating?id=${track.id}&rating=${newRating}&${$authParams}`);
       if (!response.ok) throw new Error('Failed to update rating');
@@ -29,7 +29,7 @@
   /**
    * Sets the current track and starts playback.
    * If not in queue mode, also updates the global playlist.
-   * 
+   *
    * @param {Object} track - The track object to play.
    */
   function playTrack(track) {
@@ -42,7 +42,7 @@
 
   /**
    * Removes a track from the playlist by its index.
-   * 
+   *
    * @param {Event} e - The click event.
    * @param {number} index - The index of the track in the playlist.
    */
@@ -62,7 +62,7 @@
 
   /**
    * Moves a track up or down in the playlist.
-   * 
+   *
    * @param {Event} e - The click event.
    * @param {number} index - The current index of the track.
    * @param {number} direction - The direction to move (-1 for up, 1 for down).
@@ -80,7 +80,7 @@
 
   /**
    * Adds a track to the playlist immediately after the current track.
-   * 
+   *
    * @param {Event} e - The click event.
    * @param {Object} track - The track to add.
    */
@@ -100,7 +100,7 @@
 
   /**
    * Adds a track to the end of the current playlist.
-   * 
+   *
    * @param {Event} e - The click event.
    * @param {Object} track - The track to add.
    */
@@ -111,7 +111,7 @@
 
   /**
    * Formats milliseconds into a "M:SS" string.
-   * 
+   *
    * @param {number} ms - Time in milliseconds.
    * @returns {string} Formatted time string.
    */
@@ -124,7 +124,7 @@
 
   /**
    * Formats an ISO date string (YYYY-MM-DD) into DD-MM-YYYY.
-   * 
+   *
    * @param {string} dateStr - The date string from the backend.
    * @returns {string|null} Formatted date or null if invalid.
    */
@@ -175,20 +175,20 @@
   </thead>
   <tbody>
     {#each tracks as track, i (track.id + '-' + i)}
-      <tr 
+      <tr
         role="button"
         tabindex="0"
         data-track-id={track.id}
-        class="group hover:bg-white/10 active:bg-white/5 hover:text-white h-14 md:h-16 cursor-pointer select-none {String($currentTrack?.id) === String(track.id) ? 'text-brand' : ''} {String($highlightedTrackId) === String(track.id) ? 'bg-brand/20 text-white' : ''}" 
+        class="group hover:bg-white/10 active:bg-white/5 hover:text-white h-14 md:h-16 cursor-pointer select-none {String($currentTrack?.id) === String(track.id) ? 'text-brand' : ''} {String($highlightedTrackId) === String(track.id) ? 'bg-brand/20 text-white' : ''}"
         onclick={() => { if ($isMobile) playTrack(track); }}
         ondblclick={() => { if (!$isMobile) playTrack(track); }}
         onkeydown={(e) => e.key === 'Enter' && playTrack(track)}
       >
         <td class="p-2 px-4 text-right relative hidden md:table-cell">
             <span class="block group-hover:hidden">{i + 1}</span>
-            <button 
+            <button
               aria-label="Afspelen"
-              class="hidden group-hover:block bg-transparent border-none text-white cursor-pointer p-0 absolute right-4 top-1/2 -translate-y-1/2" 
+              class="hidden group-hover:block bg-transparent border-none text-white cursor-pointer p-0 absolute right-4 top-1/2 -translate-y-1/2"
               onclick={() => playTrack(track)}
             >
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -198,40 +198,40 @@
         </td>
         <td class="p-2 px-4">
           <div class="flex items-center gap-3">
-            <img 
-              src={track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=48&${$authParams}` : '/images/spotify-fallback.svg'} 
-              alt="" 
+            <img
+              src={track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=48&${$authParams}` : '/images/spotify-fallback.svg'}
+              alt=""
               class="w-10 h-10 md:w-12 md:h-12 rounded shadow"
               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
             />
             <div class="flex flex-col min-w-0">
               <span class="text-sm md:text-base font-medium truncate {String($currentTrack?.id) === String(track.id) ? 'text-brand' : 'text-white'}">{track.title}</span>
-              <ArtistList 
-                artist={track.artist} 
-                artistId={track.artistId} 
-                artists={track.artists} 
+              <ArtistList
+                artist={track.artist}
+                artistId={track.artistId}
+                artists={track.artists}
                 active={String($currentTrack?.id) === String(track.id)}
-                onnavigate={onnavigate} 
+                onnavigate={onnavigate}
               />
             </div>
           </div>
         </td>
         {#if !isQueue}
           <td class="p-2 px-4 hidden md:table-cell">
-            <span 
+            <span
               role="link"
               tabindex="0"
-              class="hover:underline cursor-pointer" 
+              class="hover:underline cursor-pointer"
               onclick={() => onnavigate && onnavigate(`album:${track.albumId}`)}
               onkeydown={(e) => e.key === 'Enter' && onnavigate && onnavigate(`album:${track.albumId}`)}
             >{track.album || ''}</span>
           </td>
           <td class="p-2 px-4 text-xs italic opacity-80 max-w-[150px] truncate hidden md:table-cell" title={track.genre || ''}>
             {#if track.genre}
-              <span 
+              <span
                 role="link"
                 tabindex="0"
-                class="hover:underline cursor-pointer" 
+                class="hover:underline cursor-pointer"
                 onclick={(e) => { e.stopPropagation(); onnavigate && onnavigate(`genre:${track.genre}`); }}
                 onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onnavigate && onnavigate(`genre:${track.genre}`); } }}
               >{track.genre}</span>
@@ -241,7 +241,7 @@
           <td class="p-2 px-4 hidden lg:table-cell">
             <div class="flex gap-0.5 justify-center">
               {#each [1, 2, 3, 4, 5] as star}
-                <button 
+                <button
                   aria-label="{star} sterren"
                   class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { (track.userRating || 0) >= star ? 'text-brand' : 'text-white/10 hover:text-white/30' }"
                   onclick={(e) => { e.stopPropagation(); updateRating(track, star); }}
@@ -258,22 +258,22 @@
         <td class="p-2 px-4 text-center">
           <div class="flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
               {#if isQueue}
-                      <button 
+                      <button
                         aria-label="Omhoog"
                         title="Omhoog"
-                        class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed" 
-                        onclick={(e) => moveTrack(e, i, -1)} 
+                        class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed"
+                        onclick={(e) => moveTrack(e, i, -1)}
                         disabled={i === 0}
                       >
                           <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                               <path d="M7 14l5-5 5 5z"></path>
                           </svg>
                       </button>
-                      <button 
+                      <button
                         aria-label="Omlaag"
                         title="Omlaag"
-                        class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed" 
-                        onclick={(e) => moveTrack(e, i, 1)} 
+                        class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed"
+                        onclick={(e) => moveTrack(e, i, 1)}
                         disabled={i === tracks.length - 1}
                       >
                           <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -283,10 +283,10 @@
               {/if}
 
               {#if isQueue || playlistId}
-                  <button 
+                  <button
                     aria-label="Verwijderen"
                     title="Verwijderen"
-                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white hover:text-pink-500" 
+                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white hover:text-pink-500"
                     onclick={(e) => removeTrack(e, i)}
                   >
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -296,10 +296,10 @@
               {/if}
 
               {#if !isQueue}
-                  <button 
+                  <button
                     aria-label="Hierna afspelen"
                     title="Hierna afspelen"
-                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white" 
+                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
                     onclick={(e) => addAfterCurrent(e, track)}
                   >
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -307,10 +307,10 @@
                           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path>
                       </svg>
                   </button>
-                  <button 
+                  <button
                     aria-label="Aan wachtrij toevoegen"
                     title="Aan wachtrij toevoegen"
-                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white" 
+                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
                     onclick={(e) => addToEnd(e, track)}
                   >
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">

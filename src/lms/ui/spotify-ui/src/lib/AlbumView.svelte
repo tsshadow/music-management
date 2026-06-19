@@ -36,7 +36,7 @@
         album = albumData;
         const result = albumData.song || [];
         allTracks = Array.isArray(result) ? result : [result];
-        
+
         loadAlbumInfo();
       }
     } catch (e) {
@@ -81,9 +81,9 @@
 {:else if album}
   <div class="flex flex-col">
     <header class="h-auto md:h-[340px] flex flex-col md:flex-row items-center md:items-end p-6 md:p-8 bg-linear-to-b from-transparent to-black/50 relative gap-6 text-center md:text-left">
-       <img 
-         src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'} 
-         alt={album.name} 
+       <img
+         src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+         alt={album.name}
          class="w-[160px] h-[160px] md:w-[232px] md:h-[232px] object-cover shadow-[0_4px_60px_rgba(0,0,0,0.5)]"
          onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
        />
@@ -91,11 +91,11 @@
          <div class="uppercase text-xs font-bold">Album</div>
          <h1 class="text-3xl md:text-5xl lg:text-7xl font-black my-2 leading-tight md:leading-none">{album.name}</h1>
          <div class="flex flex-wrap items-center justify-center md:justify-start gap-1 font-bold">
-            <ArtistList 
-              artist={album.artist} 
-              artistId={album.artistId} 
-              artists={album.albumArtists} 
-              onnavigate={onnavigate} 
+            <ArtistList
+              artist={album.artist}
+              artistId={album.artistId}
+              artists={album.albumArtists}
+              onnavigate={onnavigate}
             />
             {#if album.year} <span class="text-[#b3b3b3] hidden md:inline">•</span> {album.year}{/if}
             {#if tracks.length > 0} <span class="text-[#b3b3b3]">•</span> {tracks.length} nummers{/if}
@@ -112,7 +112,7 @@
           <p class="text-sm opacity-60">Dit album bevat geen items die overeenkomen met de huidige {$viewMode === 'sets' ? 'sets' : 'nummers'} weergave.</p>
         </div>
       {/if}
-      
+
       {#if album.genre || album.created}
         <div class="text-[#b3b3b3] text-sm mt-8 space-y-1">
             {#if album.genre}<div>Genre: {album.genre}</div>{/if}

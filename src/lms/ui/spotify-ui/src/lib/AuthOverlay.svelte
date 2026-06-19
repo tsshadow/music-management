@@ -12,12 +12,12 @@
   async function verifyLogin() {
     error = '';
     isLoading = true;
-    
+
     const params = `u=${encodeURIComponent(username)}&p=${encodeURIComponent(password)}&v=1.12.0&c=spotify-ui&f=json`;
     try {
       const response = await fetch(`${window.location.origin}/rest/ping?${params}`);
       const data = await response.json();
-      
+
       if (data['subsonic-response'] && data['subsonic-response'].status === 'ok') {
         save();
       } else {
@@ -53,7 +53,7 @@
   <div class="bg-[#282828] p-8 rounded-lg w-[400px] flex flex-col gap-5">
     <h2 class="m-0">LMS Inloggen</h2>
     <p class="text-sm">Voer je Subsonic inloggegevens in om muziek te kunnen streamen.</p>
-    
+
     {#if error}
       <div class="bg-[#e91429] text-white p-2.5 rounded text-sm">{error}</div>
     {/if}

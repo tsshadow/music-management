@@ -48,6 +48,10 @@
 
   let isLoading = $state(false);
 
+  let tracksController;
+  let albumsController;
+  let artistsController;
+
   /**
    * Fetches tracks for a specific curated playlist.
    *
@@ -80,8 +84,14 @@
     if (!append) {
       tracksOffset = 0;
       tracksHasMore = true;
+      if (tracksController) {
+        tracksController.abort();
+      }
+      tracksController = new AbortController();
     }
     if (!tracksHasMore) return;
+
+    const signal = tracksController?.signal;
 
     console.log(`Loading all tracks, activeView=${activeView}, genre=${currentGenre}, sort=${currentSort}, year=${currentYear}, minRating=${currentMinRating}, offset=${tracksOffset}`);
     isLoading = true;
@@ -105,7 +115,7 @@
       }
 
       console.log(`Fetching: ${url}`);
-      const response = await fetch(url);
+      const response = await fetch(url, { signal });
       const data = await response.json();
       console.log("Track data received:", data);
       const result = data['subsonic-response']?.tracks?.track || [];
@@ -120,9 +130,12 @@
       tracksOffset += newTracks.length;
       tracksHasMore = newTracks.length === pageSize;
     } catch (e) {
+      if (e.name === 'AbortError') return;
       console.error("Failed to load tracks:", e);
     } finally {
-      isLoading = false;
+      if (!signal || !signal.aborted) {
+        isLoading = false;
+      }
     }
   }
 
@@ -136,15 +149,21 @@
     if (!append) {
       albumsOffset = 0;
       albumsHasMore = true;
+      if (albumsController) {
+        albumsController.abort();
+      }
+      albumsController = new AbortController();
     }
     if (!albumsHasMore) return;
+
+    const signal = albumsController?.signal;
 
     try {
       let url = `/rest/getAlbumList2?type=${currentAlbumSort}&size=${pageSize}&offset=${albumsOffset}&${$authParams}`;
       if (currentAlbumGenre) url += `&genre=${encodeURIComponent(currentAlbumGenre)}`;
       if (currentAlbumSearch) url += `&query=${encodeURIComponent(currentAlbumSearch)}`;
 
-      const response = await fetch(url);
+      const response = await fetch(url, { signal });
       const data = await response.json();
       const result = data['subsonic-response']?.albumList2?.album || [];
       const newAlbums = Array.isArray(result) ? result : [result];
@@ -157,7 +176,10 @@
 
       albumsOffset += newAlbums.length;
       albumsHasMore = newAlbums.length === pageSize;
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      console.error(e);
+    }
   }
 
   /**
@@ -170,14 +192,20 @@
     if (!append) {
       artistsOffset = 0;
       artistsHasMore = true;
+      if (artistsController) {
+        artistsController.abort();
+      }
+      artistsController = new AbortController();
     }
     if (!artistsHasMore) return;
+
+    const signal = artistsController?.signal;
 
     try {
       let url = `/rest/getArtistList?type=${currentArtistSort}&role=${currentArtistRole}&size=${pageSize}&offset=${artistsOffset}&${$authParams}`;
       if (currentArtistSearch) url += `&query=${encodeURIComponent(currentArtistSearch)}`;
 
-      const response = await fetch(url);
+      const response = await fetch(url, { signal });
       const data = await response.json();
       const result = data['subsonic-response']?.artistList?.artist || [];
       const newArtists = Array.isArray(result) ? result : [result];
@@ -190,7 +218,10 @@
 
       artistsOffset += newArtists.length;
       artistsHasMore = newArtists.length === pageSize;
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      console.error(e);
+    }
   }
 
   /**
@@ -321,6 +352,13 @@
             loadArtists();
         } else if (view === 'playlists') {
             loadPlaylists();
+        } else if (view.startsWith('search:')) {
+            currentTrackSearch = view.split(':')[1];
+            currentAlbumSearch = currentTrackSearch;
+            currentArtistSearch = currentTrackSearch;
+            loadAllTracks();
+            loadAlbums();
+            loadArtists();
         }
       });
     }
@@ -520,6 +558,81 @@
     <ArtistView artistId={activeView.split(':')[1]} onnavigate={(v) => activeView = v} />
   {:else if activeView.startsWith('album:')}
     <AlbumView albumId={activeView.split(':')[1]} onnavigate={(v) => activeView = v} />
+  {:else if activeView.startsWith('search:')}
+    <div class="flex flex-col gap-8">
+      <h2 class="text-2xl font-bold m-0">Zoekresultaten voor "{activeView.split(':')[1]}" ({$viewMode === 'sets' ? 'sets' : 'nummers'})</h2>
+      
+      {#if tracks.length > 0}
+        <section>
+          <h3 class="text-xl font-bold mb-4">{$viewMode === 'sets' ? 'Sets' : 'Nummers'}</h3>
+          <TrackList {tracks} onnavigate={(v) => activeView = v} />
+        </section>
+      {/if}
+
+      {#if artists.length > 0}
+        <section>
+          <h3 class="text-xl font-bold mb-4">Artiesten</h3>
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+            {#each artists as artist (artist.id)}
+              <div
+                role="button"
+                tabindex="0"
+                class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
+                onclick={() => activeView = `artist:${artist.id}`}
+                onkeydown={(e) => e.key === 'Enter' && (activeView = `artist:${artist.id}`)}
+              >
+                  <img
+                    src={getArtistImageUrl(artist, $authParams)}
+                    alt={artist.name}
+                    class="w-full aspect-square object-cover rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
+                    onerror={(e) => e.target.src = '/images/unknown-artist.svg'}
+                  />
+                  <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{artist.name}</span>
+                  <span class="text-sm text-[#b3b3b3]">Artiest</span>
+              </div>
+            {/each}
+          </div>
+        </section>
+      {/if}
+
+      {#if albums.length > 0}
+        <section>
+          <h3 class="text-xl font-bold mb-4">Albums</h3>
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+            {#each albums as album (album.id)}
+              <div
+                role="button"
+                tabindex="0"
+                class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
+                onclick={() => activeView = `album:${album.id}`}
+                onkeydown={(e) => e.key === 'Enter' && (activeView = `album:${album.id}`)}
+              >
+                  <img
+                    src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+                    alt={album.name}
+                    class="w-full aspect-square object-cover rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
+                    onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
+                  />
+                  <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{album.name}</span>
+                  <ArtistList
+                    artist={album.artist}
+                    artistId={album.artistId}
+                    artists={album.albumArtists}
+                    onnavigate={(v) => activeView = v}
+                  />
+              </div>
+            {/each}
+          </div>
+        </section>
+      {/if}
+
+      {#if tracks.length === 0 && artists.length === 0 && albums.length === 0}
+        <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
+            <p class="text-xl font-bold mb-2 text-white">Geen resultaten gevonden</p>
+            <p class="text-sm opacity-60">Probeer een andere zoekterm.</p>
+        </div>
+      {/if}
+    </div>
   {:else if activeView === 'settings'}
     <Settings />
   {/if}

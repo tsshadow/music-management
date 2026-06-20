@@ -8,7 +8,8 @@
   import TrackList from './lib/TrackList.svelte';
   import MobileNav from './lib/MobileNav.svelte';
   import SettingsSidebar from './lib/SettingsSidebar.svelte';
-  import { playlist, activeView, currentPlaylist, isMobile, authParams, viewMode } from './lib/store.js';
+  import SearchMoreModal from './lib/SearchMoreModal.svelte';
+  import { playlist, activeView, currentPlaylist, isMobile, authParams, viewMode, activeModal } from './lib/store.js';
   import { get } from 'svelte/store';
 
   let greeting = $state("");
@@ -185,9 +186,9 @@
   </div>
 
   <div class="bg-linear-to-b from-[#121212] to-[#121212] row-start-1 row-end-2 col-start-1 md:col-start-2 col-end-2 md:col-end-3 overflow-y-auto p-4 md:p-8 relative min-h-0 min-w-0">
-    <TopBar {greeting} />
+    <TopBar greeting={greeting} />
     <div class="content-area">
-      <Dashboard bind:activeView={$activeView} />
+      <Dashboard activeView={$activeView} onnavigate={handleNavigate} />
     </div>
   </div>
 
@@ -240,6 +241,12 @@
     <MobileNav activeView={$activeView} onnavigate={handleNavigate} />
   </div>
 </main>
+
+{#if $activeModal}
+  {#if $activeModal.type === 'search-results'}
+    <SearchMoreModal query={$activeModal.data.query} category={$activeModal.data.category} />
+  {/if}
+{/if}
 
 <style>
   :global(body) {

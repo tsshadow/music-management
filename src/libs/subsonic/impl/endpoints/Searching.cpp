@@ -315,6 +315,11 @@ namespace lms::api::subsonic
                 params.filters.setMediaLibrary(mediaLibrary);
                 params.setSortMethod(TrackSortMethod::Id); // must be consistent with both methods
 
+                if (auto minDuration = getParameterAs<int>(context.getParameters(), "minDuration"))
+                    params.minDuration = std::chrono::minutes(*minDuration);
+                if (auto maxDuration = getParameterAs<int>(context.getParameters(), "maxDuration"))
+                    params.maxDuration = std::chrono::minutes(*maxDuration);
+
                 Track::find(context.getDbSession(), params, [&](const Track::pointer& track) {
                     searchResultNode.addArrayChild("song", createSongNode(context, track, id3));
                     lastRetrievedId = track->getId();

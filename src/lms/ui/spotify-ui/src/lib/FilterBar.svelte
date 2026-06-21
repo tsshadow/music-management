@@ -1,6 +1,6 @@
 <script>
 
-  import { authParams } from './store.js';
+  import { authParams, visibleSortOptions, allSortOptions } from './store.js';
 
   let {
     genre = $bindable(''),
@@ -171,29 +171,11 @@
     <div class="flex items-center gap-2">
       <label for="sort" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">Sorteer op</label>
       <select id="sort" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={sort} onchange={handleChange}>
-        {#if view === 'songs'}
-          <option value="recent">Recent uitgebracht</option>
-          <option value="added">Recent toegevoegd</option>
-          <option value="mostplayed">Meest beluisterd</option>
-          <option value="recentlyplayed">Recent beluisterd</option>
-          <option value="rating">Op rating</option>
-          <option value="alpha">Alfabetisch</option>
-          <option value="random">Willekeurig</option>
-        {:else if view === 'albums'}
-          <option value="newest">Recent toegevoegd</option>
-          <option value="recent">Recent afgespeeld</option>
-          <option value="alphabeticalByName">Alfabetisch (Titel)</option>
-          <option value="alphabeticalByArtist">Alfabetisch (Artiest)</option>
-          <option value="random">Willekeurig</option>
-          <option value="starred">Favorieten</option>
-        {:else if view === 'artists'}
-          <option value="alphabetical">Alfabetisch</option>
-          <option value="trackCount">Aantal nummers</option>
-          <option value="newest">Recent toegevoegd</option>
-          <option value="recent">Recent bijgewerkt</option>
-          <option value="starred">Favorieten</option>
-          <option value="random">Willekeurig</option>
-        {/if}
+        {#each allSortOptions[view] || [] as option}
+          {#if $visibleSortOptions[view]?.includes(option.id)}
+            <option value={option.id}>{option.label}</option>
+          {/if}
+        {/each}
       </select>
     </div>
   </div>

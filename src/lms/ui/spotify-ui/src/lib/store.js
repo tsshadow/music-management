@@ -78,6 +78,42 @@ persist("lms_favorite_genres", favoriteGenres);
 
 export const activeModal = writable(null); // { type, data }
 
+export const visibleSortOptions = writable({
+  songs: ['recent', 'added', 'mostplayed', 'recentlyplayed', 'rating', 'alpha', 'random'],
+  albums: ['newest', 'recent', 'alphabeticalByName', 'alphabeticalByArtist', 'random', 'starred'],
+  artists: ['alphabetical', 'trackCount', 'newest', 'recent', 'starred', 'random']
+});
+persist("lms_visible_sort_options", visibleSortOptions);
+
+export const allSortOptions = {
+  songs: [
+    { id: 'recent', label: 'Recent uitgebracht' },
+    { id: 'added', label: 'Recent toegevoegd' },
+    { id: 'mostplayed', label: 'Meest beluisterd' },
+    { id: 'recentlyplayed', label: 'Recent beluisterd' },
+    { id: 'rating', label: 'Op rating' },
+    { id: 'alpha', label: 'Alfabetisch' },
+    { id: 'starred', label: 'Favorieten' },
+    { id: 'random', label: 'Willekeurig' }
+  ],
+  albums: [
+    { id: 'newest', label: 'Recent toegevoegd' },
+    { id: 'recent', label: 'Recent afgespeeld' },
+    { id: 'alphabeticalByName', label: 'Alfabetisch (Titel)' },
+    { id: 'alphabeticalByArtist', label: 'Alfabetisch (Artiest)' },
+    { id: 'random', label: 'Willekeurig' },
+    { id: 'starred', label: 'Favorieten' }
+  ],
+  artists: [
+    { id: 'alphabetical', label: 'Alfabetisch' },
+    { id: 'trackCount', label: 'Aantal nummers' },
+    { id: 'newest', label: 'Recent toegevoegd' },
+    { id: 'recent', label: 'Recent bijgewerkt' },
+    { id: 'starred', label: 'Favorieten' },
+    { id: 'random', label: 'Willekeurig' }
+  ]
+};
+
 /**
  * Derived store that computes Subsonic authentication parameters.
  * Returns a query string with username, password, and client info.

@@ -3,6 +3,7 @@
   import ScanSettings from './settings/ScanSettings.svelte';
   import Scanner from './settings/Scanner.svelte';
   import Users from './settings/Users.svelte';
+  import Advanced from './settings/Advanced.svelte';
   import About from './settings/About.svelte';
   import { activeSettingsTab } from './store.js';
 </script>
@@ -18,6 +19,8 @@
       <Scanner />
     {:else if $activeSettingsTab === 'users'}
       <Users />
+    {:else if $activeSettingsTab === 'advanced'}
+      <Advanced />
     {:else if $activeSettingsTab === 'about'}
       <About />
     {/if}

@@ -211,6 +211,15 @@ namespace lms::api::subsonic
                 params.setSortMethod(db::TrackSortMethod::Name);
             else if (*sort == "starred")
                 params.setStarringUser(ctx.getUser()->getId(), db::FeedbackBackend::Internal);
+            else if (*sort == "mostplayed")
+                params.setSortMethod(db::TrackSortMethod::MostPlayed);
+            else if (*sort == "recentlyplayed")
+                params.setSortMethod(db::TrackSortMethod::RecentlyPlayed);
+            else if (*sort == "rating")
+            {
+                params.setSortMethod(db::TrackSortMethod::RatingDesc);
+                params.ratingUser = ctx.getUser()->getId();
+            }
         }
 
         auto query = getParameterAs<std::string>(ctx.getParameters(), "query");

@@ -174,6 +174,9 @@
         {#if view === 'songs'}
           <option value="recent">Recent uitgebracht</option>
           <option value="added">Recent toegevoegd</option>
+          <option value="mostplayed">Meest beluisterd</option>
+          <option value="recentlyplayed">Recent beluisterd</option>
+          <option value="rating">Op rating</option>
           <option value="alpha">Alfabetisch</option>
           <option value="random">Willekeurig</option>
         {:else if view === 'albums'}

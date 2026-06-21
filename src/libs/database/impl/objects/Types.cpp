@@ -85,6 +85,7 @@ namespace lms::db
         if (input == "TrackList") return TrackSortMethod::TrackList;
         if (input == "MostPlayed") return TrackSortMethod::MostPlayed;
         if (input == "RecentlyPlayed") return TrackSortMethod::RecentlyPlayed;
+        if (input == "RatingDesc") return TrackSortMethod::RatingDesc;
         if (input == "TrackNumber") return TrackSortMethod::TrackNumber;
         if (input == "AbsoluteFilePath") return TrackSortMethod::AbsoluteFilePath;
         if (input == "Relevance") return TrackSortMethod::Relevance;
@@ -120,6 +121,8 @@ namespace lms::db
             return "MostPlayed";
         case TrackSortMethod::RecentlyPlayed:
             return "RecentlyPlayed";
+        case TrackSortMethod::RatingDesc:
+            return "RatingDesc";
         case TrackSortMethod::TrackNumber:
             return "TrackNumber";
         case TrackSortMethod::AbsoluteFilePath:
@@ -163,6 +166,8 @@ namespace lms::db
             return "t.play_count DESC, t.last_play DESC";
         case TrackSortMethod::RecentlyPlayed:
             return "t.last_play DESC";
+        case TrackSortMethod::RatingDesc:
+            return "t.rating DESC";
         case TrackSortMethod::Relevance:
             return "t.id";
 

@@ -157,6 +157,7 @@ namespace lms::db
         TrackNumber,
         MostPlayed,
         RecentlyPlayed,
+        RatingDesc,
         Relevance,
     };
 

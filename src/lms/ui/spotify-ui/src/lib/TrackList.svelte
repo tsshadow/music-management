@@ -318,6 +318,19 @@
                       </svg>
                   </button>
               {/if}
+
+              <a
+                href={`/rest/download?id=${track.id}&${$authParams}`}
+                download={`${track.artist} - ${track.title}.mp3`}
+                aria-label="Downloaden"
+                title="Downloaden"
+                class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                onclick={(e) => e.stopPropagation()}
+              >
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                      <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"></path>
+                  </svg>
+              </a>
           </div>
         </td>
       </tr>

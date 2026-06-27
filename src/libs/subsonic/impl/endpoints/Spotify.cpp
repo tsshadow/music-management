@@ -289,14 +289,18 @@ namespace lms::api::subsonic
         Response response{ Response::createOkResponse(ctx.getServerProtocolVersion()) };
         auto& historyNode = response.createNode("history");
 
-        bool moreResults = false;
-        db::Listen::find(session, params).forEach([&](db::ListenId listenId) {
+        auto results = db::Listen::find(session, params);
+        for (db::ListenId listenId : results.results)
+        {
             if (auto listen = db::Listen::find(session, listenId))
             {
-                auto& entryNode = historyNode.addArrayChild("entry", createSongNode(ctx, listen->getTrack(), true));
+                auto entryNode{ createSongNode(ctx, listen->getTrack(), true) };
                 entryNode.setAttribute("listenedAt", listen->getDateTime().toString().toUTF8());
+                historyNode.addArrayChild("entry", std::move(entryNode));
             }
-        });
+        }
+
+        historyNode.setAttribute("moreResults", results.moreResults);
 
         return response;
     }

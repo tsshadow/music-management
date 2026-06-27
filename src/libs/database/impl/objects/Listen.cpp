@@ -274,19 +274,19 @@ namespace lms::db
 
         auto query{ session.getDboSession()->query<ListenId>("SELECT id FROM listen") };
 
-        if (parameters.desc)
-            query.orderBy("date_time DESC");
-        else
-            query.orderBy("date_time ASC");
-
         if (parameters.user.isValid())
-            query.where("user_id = ?").bind(parameters.user);
+            query = query.where("user_id = ?").bind(parameters.user);
 
         if (parameters.backend)
-            query.where("backend = ?").bind(*parameters.backend);
+            query = query.where("backend = ?").bind(*parameters.backend);
 
         if (parameters.syncState)
-            query.where("sync_state = ?").bind(*parameters.syncState);
+            query = query.where("sync_state = ?").bind(*parameters.syncState);
+
+        if (parameters.desc)
+            query = query.orderBy("date_time DESC");
+        else
+            query = query.orderBy("date_time ASC");
 
         return utils::execRangeQuery<ListenId>(query, parameters.range);
     }
@@ -301,11 +301,9 @@ namespace lms::db
     RangeResults<ArtistId> Listen::getTopArtists(Session& session, const ArtistStatsFindParameters& params)
     {
         session.checkReadTransaction();
-        auto query{ createArtistsQuery(session, params) };
-
-        auto collection{ query
-                             .orderBy("COUNT(a.id) DESC")
-                             .groupBy("a.id") };
+        auto query{ createArtistsQuery(session, params)
+                        .orderBy("COUNT(a.id) DESC")
+                        .groupBy("a.id") };
 
         return utils::execRangeQuery<ArtistId>(query, params.range);
     }

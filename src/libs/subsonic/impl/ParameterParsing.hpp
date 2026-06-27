@@ -40,6 +40,18 @@ namespace lms::api::subsonic
 
         auto it = parameterMap.find(paramName);
         if (it == parameterMap.end())
+        {
+            for (auto const& [key, val] : parameterMap)
+            {
+                if (core::stringUtils::stringCaseInsensitiveEqual(key, paramName))
+                {
+                    it = parameterMap.find(key);
+                    break;
+                }
+            }
+        }
+
+        if (it == parameterMap.end())
             return res;
 
         for (const std::string& param : it->second)

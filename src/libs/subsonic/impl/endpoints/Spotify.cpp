@@ -245,6 +245,7 @@ namespace lms::api::subsonic
             params.ratingUser = ctx.getUser()->getId();
         }
 
+        params.includeUnrated = true;
         if (auto includeUnrated = getParameterAs<bool>(ctx.getParameters(), "includeUnrated"))
         {
             params.includeUnrated = *includeUnrated;

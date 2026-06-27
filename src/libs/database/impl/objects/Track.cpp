@@ -171,7 +171,7 @@ namespace lms::db
                 query.where("t.release_id = ?").bind(params.release);
             else if (!params.releaseName.empty())
             {
-                query.join("release r ON t.release_id = r.id");
+                query.leftJoin("release r ON t.release_id = r.id");
                 query.where("r.name = ?").bind(params.releaseName);
             }
 
@@ -192,7 +192,7 @@ namespace lms::db
                 || params.sortMethod == TrackSortMethod::OriginalDateDescAndRelease
                 || params.sortMethod == TrackSortMethod::Release)
             {
-                query.join("medium m ON t.medium_id = m.id");
+                query.leftJoin("medium m ON t.medium_id = m.id");
             }
 
             if (params.filters.mediaLibrary.isValid())
@@ -200,13 +200,13 @@ namespace lms::db
 
             if (params.filters.label.isValid())
             {
-                query.join("release_label r_l ON r_l.release_id = t.release_id");
+                query.leftJoin("release_label r_l ON r_l.release_id = t.release_id");
                 query.where("r_l.label_id = ?").bind(params.filters.label);
             }
 
             if (params.filters.releaseType.isValid())
             {
-                query.join("release_release_type r_r_t ON r_r_t.release_id = t.release_id");
+                query.leftJoin("release_release_type r_r_t ON r_r_t.release_id = t.release_id");
                 query.where("r_r_t.release_type_id = ?").bind(params.filters.releaseType);
             }
 
@@ -302,6 +302,12 @@ namespace lms::db
                 break;
             case TrackSortMethod::AbsoluteFilePath:
                 query.orderBy("t.absolute_file_path COLLATE NOCASE");
+                break;
+            case TrackSortMethod::MostPlayed:
+                query.orderBy("t.play_count DESC, t.last_played DESC");
+                break;
+            case TrackSortMethod::RecentlyPlayed:
+                query.orderBy("t.last_played DESC");
                 break;
             case TrackSortMethod::DateDescAndRelease:
                 query.orderBy("t.date DESC,t.release_id,m.position,t.track_number");

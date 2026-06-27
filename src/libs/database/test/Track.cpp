@@ -24,6 +24,8 @@
 
 #include "database/objects/Artwork.hpp"
 #include "database/objects/Image.hpp"
+#include "database/objects/RatedTrack.hpp"
+#include "database/objects/User.hpp"
 
 namespace lms::db::tests
 {
@@ -149,6 +151,47 @@ namespace lms::db::tests
             ASSERT_EQ(visitedTracks.size(), 1);
             EXPECT_EQ(visitedTracks[0]->getId(), track2.getId());
             EXPECT_EQ(lastRetrievedTrackId, track2.getId());
+        }
+    }
+
+    TEST_F(DatabaseFixture, Track_findFilters)
+    {
+        ScopedUser user{ session, "testuser" };
+        ScopedTrack track1{ session }; // 0 ms duration, no rating, NO MEDIUM
+        ScopedTrack track2{ session }; // 5 min duration, rating 3
+        ScopedTrack track3{ session }; // 15 min duration, rating 5
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            track2.get().modify()->setDuration(std::chrono::minutes{ 5 });
+            track3.get().modify()->setDuration(std::chrono::minutes{ 15 });
+
+            // Set ratings manually
+            auto rt2 = session.create<RatedTrack>(track2.get(), user.get());
+            rt2.modify()->setRating(3);
+            auto rt3 = session.create<RatedTrack>(track3.get(), user.get());
+            rt3.modify()->setRating(5);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            // UI default: minRating=2, includeUnrated=true, maxDuration=10, sort=recent
+            Track::FindParameters params;
+            params.minRating = 2;
+            params.includeUnrated = true;
+            params.maxDuration = std::chrono::minutes{ 10 };
+            params.ratingUser = user.getId();
+            params.sortMethod = TrackSortMethod::OriginalDateDescAndRelease;
+
+            auto results = Track::find(session, params);
+            // Should find:
+            // track1 (unrated, duration 0 <= 10, even with no medium!)
+            // track2 (rated 3 >= 2, duration 5 <= 10)
+            // NOT track3 (duration 15 > 10)
+            ASSERT_EQ(results.results.size(), 2);
+            EXPECT_EQ(results.results[0]->getId(), track1.getId());
+            EXPECT_EQ(results.results[1]->getId(), track2.getId());
         }
     }
 

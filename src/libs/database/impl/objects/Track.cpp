@@ -998,6 +998,20 @@ namespace lms::db
                "WHERE id = ?")
             .bind(trackId);
     }
+    
+    void Track::registerListen(Session& session, TrackId trackId, const Wt::WDateTime& dateTime)
+    {
+        auto& dbo = *session.getDboSession();
+        
+        dbo.execute(
+            "UPDATE track SET "
+            "play_count = COALESCE(play_count, 0) + 1, "
+            "last_played = (CASE WHEN last_played IS NULL OR ? > last_played THEN ? ELSE last_played END) "
+            "WHERE id = ?")
+            .bind(dateTime)
+            .bind(dateTime)
+            .bind(trackId);
+    }
 
     void Track::visitArtistLinks(const std::function<void(const ObjectPtr<TrackArtistLink>& artistLink)>& visitor) const
     {

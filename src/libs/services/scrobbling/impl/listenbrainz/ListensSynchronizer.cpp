@@ -323,6 +323,8 @@ namespace lms::scrobbling::listenBrainz
             dbListen = session.create<db::Listen>(user, track, db::ScrobblingBackend::ListenBrainz, listen.listenedAt);
             dbListen.modify()->setSyncState(scrobblingState);
 
+            db::Track::registerListen(session, listen.trackId, listen.listenedAt);
+
             LOG(DEBUG, "LISTEN CREATED for user " << user->getLoginName() << ", track '" << track->getName() << "' AT " << listen.listenedAt.toString());
 
             return true;

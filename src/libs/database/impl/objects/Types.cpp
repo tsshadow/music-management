@@ -163,9 +163,9 @@ namespace lms::db
         case TrackSortMethod::TrackNumber:
             return "t.track_number";
         case TrackSortMethod::MostPlayed:
-            return "t.play_count DESC, t.last_play DESC";
+            return "t.play_count DESC, t.last_played DESC";
         case TrackSortMethod::RecentlyPlayed:
-            return "t.last_play DESC";
+            return "t.last_played DESC";
         case TrackSortMethod::RatingDesc:
             return "t.rating DESC";
         case TrackSortMethod::Relevance:

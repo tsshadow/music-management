@@ -247,6 +247,7 @@ namespace lms::db
         static RangeResults<TrackId> findIdsTrackMBIDDuplicates(Session& session, std::optional<Range> range = std::nullopt);
         static RangeResults<TrackId> findIdsWithRecordingMBIDAndMissingFeatures(Session& session, std::optional<Range> range = std::nullopt);
         static void logPlay(Session& session, TrackId trackId, std::optional<UserId> userId);
+        static void registerListen(Session& session, TrackId trackId, const Wt::WDateTime& dateTime);
 
         // Update utility functions
         static void updatePreferredArtwork(Session& session, TrackId trackId, ArtworkId artworkId);

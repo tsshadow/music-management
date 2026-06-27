@@ -1,4 +1,5 @@
 <script>
+  import { untrack } from 'svelte';
   import { authParams } from './store.js';
   import TrackList from './TrackList.svelte';
 
@@ -54,7 +55,7 @@
 
   $effect(() => {
     if ($authParams) {
-        loadHistory();
+        untrack(() => loadHistory());
     }
   });
 </script>

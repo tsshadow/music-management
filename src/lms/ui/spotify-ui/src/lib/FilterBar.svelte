@@ -170,13 +170,28 @@
 
     <div class="flex items-center gap-2">
       <label for="sort" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">Sorteer op</label>
-      <select id="sort" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={sort} onchange={handleChange}>
-        {#each allSortOptions[view] || [] as option}
-          {#if $visibleSortOptions[view]?.includes(option.id)}
-            <option value={option.id}>{option.label}</option>
-          {/if}
-        {/each}
-      </select>
+      <div class="flex items-center gap-1.5">
+        <select id="sort" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={sort} onchange={handleChange}>
+          {#each allSortOptions[view] || [] as option}
+            {#if $visibleSortOptions[view]?.includes(option.id)}
+              <option value={option.id}>{option.label}</option>
+            {/if}
+          {/each}
+        </select>
+        <button
+          type="button"
+          class="bg-[#282828] text-[#b3b3b3] p-1.5 rounded hover:bg-[#333] hover:text-white transition-colors focus:outline focus:outline-1 focus:outline-brand"
+          onclick={handleChange}
+          title="Vernieuwen"
+          aria-label="Lijst vernieuwen"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 4v6h-6"></path>
+            <path d="M1 20v-6h6"></path>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+        </button>
+      </div>
     </div>
   </div>
 </div>

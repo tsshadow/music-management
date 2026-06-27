@@ -294,13 +294,14 @@ namespace lms::api::subsonic
         {
             if (auto listen = db::Listen::find(session, listenId))
             {
-                auto entryNode{ createSongNode(ctx, listen->getTrack(), true) };
-                entryNode.setAttribute("listenedAt", listen->getDateTime().toString().toUTF8());
-                historyNode.addArrayChild("entry", std::move(entryNode));
+                if (auto track = listen->getTrack())
+                {
+                    auto entryNode{ createSongNode(ctx, track, true) };
+                    entryNode.setAttribute("listenedAt", listen->getDateTime().toString().toUTF8());
+                    historyNode.addArrayChild("entry", std::move(entryNode));
+                }
             }
         }
-
-        historyNode.setAttribute("moreResults", results.moreResults);
 
         return response;
     }

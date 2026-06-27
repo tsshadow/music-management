@@ -104,7 +104,7 @@ namespace lms::db::tests
         {
             auto transaction{ session.createReadTransaction() };
 
-            auto listens{ Listen::find(session, Listen::FindParameters{}.setUser(user->getId()).setScrobblingBackend(ScrobblingBackend::Internal)) };
+            auto listens{ Listen::find(session, Listen::FindParameters{}.setUser(user->getId()).setScrobblingBackend(ScrobblingBackend::Internal).setDesc(false)) };
             ASSERT_EQ(listens.results.size(), 3);
             EXPECT_EQ(listens.results[0], listen1.getId());
             EXPECT_EQ(listens.results[1], listen2.getId());

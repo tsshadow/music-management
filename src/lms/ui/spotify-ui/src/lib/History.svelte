@@ -42,8 +42,9 @@
             history = mappedEntries;
         }
 
-        hasMore = mappedEntries.length === pageSize;
-        offset += pageSize;
+        const moreResults = data['subsonic-response']?.history?.moreResults;
+        hasMore = moreResults !== undefined ? (String(moreResults) === 'true' || moreResults === true) : mappedEntries.length === pageSize;
+        offset += mappedEntries.length;
     } catch (e) {
         console.error("Failed to load history:", e);
     } finally {

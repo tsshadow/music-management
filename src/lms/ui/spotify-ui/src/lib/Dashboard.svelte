@@ -129,7 +129,8 @@
       }
 
       tracksOffset += newTracks.length;
-      tracksHasMore = newTracks.length === pageSize;
+      const moreResults = data['subsonic-response']?.tracks?.moreResults;
+      tracksHasMore = moreResults !== undefined ? (String(moreResults) === 'true' || moreResults === true) : newTracks.length === pageSize;
     } catch (e) {
       if (e.name === 'AbortError') return;
       console.error("Failed to load tracks:", e);

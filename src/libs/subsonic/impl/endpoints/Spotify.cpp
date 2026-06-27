@@ -304,6 +304,8 @@ namespace lms::api::subsonic
             }
         }
 
+        historyNode.setAttribute("moreResults", results.moreResults);
+
         return response;
     }
 } // namespace lms::api::subsonic

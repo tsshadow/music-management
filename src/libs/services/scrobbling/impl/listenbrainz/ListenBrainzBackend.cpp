@@ -84,4 +84,9 @@ namespace lms::scrobbling::listenBrainz
     {
         _listensSynchronizer.enqueListen(timedListen);
     }
+
+    void ListenBrainzBackend::synchronize(db::UserId userId)
+    {
+        _listensSynchronizer.startSync(userId);
+    }
 } // namespace lms::scrobbling::listenBrainz

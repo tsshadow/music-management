@@ -30,4 +30,5 @@ namespace lms::api::subsonic
     Response handleGetSpotifyPlaylistRequest(RequestContext& ctx);
     Response handleGetSpotifyTracks(RequestContext& ctx);
     Response handleGetSpotifyHistory(RequestContext& ctx);
+    Response handleSpotifyImportFromListenBrainz(RequestContext& ctx);
 } // namespace lms::api::subsonic

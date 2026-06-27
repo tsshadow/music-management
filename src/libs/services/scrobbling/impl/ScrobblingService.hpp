@@ -44,6 +44,7 @@ namespace lms::scrobbling
         void listenFinished(const Listen& listen, std::optional<std::chrono::seconds> duration) override;
         void addTimedListen(const TimedListen& listen) override;
         void visitNowPlayingListens(const std::function<void(Clock::time_point startedAt, const Listen&)>& visitor, db::UserId userId) override;
+        void synchronize(db::UserId userId) override;
 
         ArtistContainer getRecentArtists(const ArtistFindParameters& params) override;
         ReleaseContainer getRecentReleases(const FindParameters& params) override;

@@ -52,6 +52,7 @@ namespace lms::scrobbling::listenBrainz
 
         void enqueListen(const TimedListen& listen);
         void enqueListenNow(const Listen& listen);
+        void startSync(db::UserId userId);
 
     private:
         void enqueListen(const Listen& listen, const Wt::WDateTime& timePoint);

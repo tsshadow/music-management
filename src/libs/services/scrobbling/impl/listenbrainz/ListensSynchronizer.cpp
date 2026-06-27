@@ -437,6 +437,21 @@ namespace lms::scrobbling::listenBrainz
             scheduleSync(_syncListensPeriod);
     }
 
+    void ListensSynchronizer::startSync(db::UserId userId)
+    {
+        boost::asio::post(boost::asio::bind_executor(_strand, [this, userId] {
+            UserContext& context{ getUserContext(userId) };
+            if (context.syncing)
+            {
+                LOG(DEBUG, "Sync already in progress for user " << userId.getValue());
+                return;
+            }
+
+            LOG(DEBUG, "Starting manual sync for user " << userId.getValue());
+            startSync(context);
+        }));
+    }
+
     void ListensSynchronizer::startSync(UserContext& context)
     {
         context.syncing = true;

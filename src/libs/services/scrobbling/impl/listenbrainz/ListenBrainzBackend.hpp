@@ -47,6 +47,7 @@ namespace lms::scrobbling::listenBrainz
         void listenStarted(const Listen& listen) override;
         void listenFinished(const Listen& listen, std::optional<std::chrono::seconds> duration) override;
         void addTimedListen(const TimedListen& listen) override;
+        void synchronize(db::UserId userId) override;
 
         // Submit listens
         void enqueListen(const Listen& listen, const Wt::WDateTime& timePoint);

@@ -225,6 +225,7 @@ namespace lms::api::subsonic
             { "/getSpotifyPlaylist", { handleGetSpotifyPlaylistRequest } },
             { "/getSpotifyTracks", { handleGetSpotifyTracks } },
             { "/getSpotifyHistory", { handleGetSpotifyHistory } },
+            { "/spotifyImportFromListenBrainz", { handleSpotifyImportFromListenBrainz } },
 
             // Internet radio
             { "/getInternetRadioStations", { handleNotImplemented } },

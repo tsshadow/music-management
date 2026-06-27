@@ -63,6 +63,9 @@ namespace lms::scrobbling
         // Visit all now-playing listens
         virtual void visitNowPlayingListens(const std::function<void(Clock::time_point startedAt, const Listen&)>& visitor, db::UserId userId = {}) = 0;
 
+        // Force a synchronization for a given user
+        virtual void synchronize(db::UserId userId) = 0;
+
         // Stats
         using ArtistContainer = db::RangeResults<db::ArtistId>;
         using ReleaseContainer = db::RangeResults<db::ReleaseId>;

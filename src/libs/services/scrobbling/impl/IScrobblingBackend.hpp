@@ -42,5 +42,6 @@ namespace lms::scrobbling
         virtual void listenStarted(const Listen& listen) = 0;
         virtual void listenFinished(const Listen& listen, std::optional<std::chrono::seconds> duration) = 0;
         virtual void addTimedListen(const TimedListen& listen) = 0;
+        virtual void synchronize(db::UserId userId) {}
     };
 } // namespace lms::scrobbling

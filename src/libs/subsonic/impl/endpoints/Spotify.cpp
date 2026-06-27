@@ -29,6 +29,8 @@
 #include "database/objects/Track.hpp"
 #include "responses/Playlist.hpp"
 #include "responses/Song.hpp"
+#include "core/Service.hpp"
+#include "services/scrobbling/IScrobblingService.hpp"
 
 namespace lms::api::subsonic
 {
@@ -307,5 +309,11 @@ namespace lms::api::subsonic
         historyNode.setAttribute("moreResults", results.moreResults);
 
         return response;
+    }
+
+    Response handleSpotifyImportFromListenBrainz(RequestContext& ctx)
+    {
+        core::Service<scrobbling::IScrobblingService>::get()->synchronize(ctx.getUser()->getId());
+        return Response::createOkResponse(ctx.getServerProtocolVersion());
     }
 } // namespace lms::api::subsonic

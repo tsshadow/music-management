@@ -113,6 +113,12 @@ namespace lms::scrobbling
         }
     }
 
+    void ScrobblingService::synchronize(db::UserId userId)
+    {
+        if (std::optional<ScrobblingBackend> backend{ getUserBackend(userId) })
+            _scrobblingBackends[*backend]->synchronize(userId);
+    }
+
     std::optional<ScrobblingBackend> ScrobblingService::getUserBackend(UserId userId)
     {
         std::optional<ScrobblingBackend> backend;

@@ -98,6 +98,7 @@ namespace lms::api::subsonic
             trackResponse.setAttribute("year", *year);
         trackResponse.setAttribute("date", track->getDate().toString());
         trackResponse.setAttribute("playCount", core::Service<scrobbling::IScrobblingService>::get()->getCount(context.getUser()->getId(), track->getId()));
+        trackResponse.setAttribute("globalPlayCount", track->getPlayCount());
 
         // maybe not available if user just removed the library without rescanning
         if (const db::MediaLibrary::pointer library{ track->getMediaLibrary() })

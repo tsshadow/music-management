@@ -178,6 +178,7 @@
         <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] hidden md:table-cell">Album</th>
         <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] hidden md:table-cell">Genre</th>
         <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-20 hidden md:table-cell">Datum</th>
+        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-12 hidden lg:table-cell text-center">Plays</th>
         <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-32 hidden lg:table-cell text-center">Rating</th>
       {/if}
       <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[80px] md:w-[100px] text-right">
@@ -259,6 +260,9 @@
             {:else}
               {formatShortDate(track.date) || track.year || ''}
             {/if}
+          </td>
+          <td class="p-2 px-4 hidden lg:table-cell text-center text-xs opacity-70">
+            {track.globalPlayCount || ''}
           </td>
           <td class="p-2 px-4 hidden lg:table-cell">
             <div class="flex gap-0.5 justify-center">

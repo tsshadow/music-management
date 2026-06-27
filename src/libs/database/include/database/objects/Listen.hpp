@@ -51,6 +51,7 @@ namespace lms::db
             std::optional<ScrobblingBackend> backend;
             std::optional<SyncState> syncState;
             std::optional<Range> range;
+            bool desc{ true };
 
             FindParameters& setUser(UserId _user)
             {
@@ -70,6 +71,11 @@ namespace lms::db
             FindParameters& setRange(Range _range)
             {
                 range = _range;
+                return *this;
+            }
+            FindParameters& setDesc(bool _desc)
+            {
+                desc = _desc;
                 return *this;
             }
         };

@@ -272,7 +272,12 @@ namespace lms::db
     {
         session.checkReadTransaction();
 
-        auto query{ session.getDboSession()->query<ListenId>("SELECT id FROM listen").orderBy("date_time") };
+        auto query{ session.getDboSession()->query<ListenId>("SELECT id FROM listen") };
+
+        if (parameters.desc)
+            query.orderBy("date_time DESC");
+        else
+            query.orderBy("date_time ASC");
 
         if (parameters.user.isValid())
             query.where("user_id = ?").bind(parameters.user);

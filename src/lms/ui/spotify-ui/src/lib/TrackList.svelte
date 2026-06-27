@@ -2,7 +2,23 @@
   import { currentTrack, playerState, authParams, playlist, isMobile, highlightedTrackId } from './store.js';
   import ArtistList from './ArtistList.svelte';
 
-  const { tracks = [], isQueue = false, playlistId = null, onremove = null, onnavigate } = $props();
+  const { tracks = [], isQueue = false, playlistId = null, onremove = null, onnavigate, showDate = false } = $props();
+
+  /**
+   * Formats a date string to a more readable format.
+   *
+   * @param {string} dateStr - The date string from the backend.
+   * @returns {string} The formatted date.
+   */
+  function formatDate(dateStr) {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleString();
+    } catch (e) {
+      return dateStr;
+    }
+  }
 
   /**
    * Updates the rating of a track.
@@ -237,7 +253,13 @@
               >{track.genre}</span>
             {/if}
           </td>
-          <td class="p-2 px-4 hidden md:table-cell">{formatDate(track.date) || track.year || ''}</td>
+          <td class="p-2 px-4 hidden md:table-cell">
+            {#if showDate}
+              {formatDate(track.listenedAt)}
+            {:else}
+              {formatDate(track.date) || track.year || ''}
+            {/if}
+          </td>
           <td class="p-2 px-4 hidden lg:table-cell">
             <div class="flex gap-0.5 justify-center">
               {#each [1, 2, 3, 4, 5] as star (star)}

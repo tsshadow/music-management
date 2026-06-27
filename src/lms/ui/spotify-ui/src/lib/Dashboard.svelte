@@ -8,6 +8,7 @@
   import AlbumView from './AlbumView.svelte';
   import ArtistList from './ArtistList.svelte';
   import Settings from './Settings.svelte';
+  import History from './History.svelte';
   import { getArtistImageUrl } from './utils.js';
   import { authParams, currentPlaylist, viewMode, favoriteGenres } from './store.js';
 
@@ -635,6 +636,8 @@
     </div>
   {:else if activeView === 'settings'}
     <Settings />
+  {:else if activeView === 'history'}
+    <History onnavigate={(v) => activeView = v} />
   {/if}
 </div>
 

@@ -103,6 +103,7 @@
       <li><button class="w-full px-3 py-2 bg-transparent border-none {activeView === 'artists' ? 'text-white' : 'text-[#b3b3b3]'} text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate('artists')}>Artiesten</button></li>
       <li><button class="w-full px-3 py-2 bg-transparent border-none {activeView === 'albums' ? 'text-white' : 'text-[#b3b3b3]'} text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate('albums')}>Albums</button></li>
       <li><button class="w-full px-3 py-2 bg-transparent border-none {activeView === 'genres' ? 'text-white' : 'text-[#b3b3b3]'} text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate('genres')}>Genres</button></li>
+      <li><button class="w-full px-3 py-2 bg-transparent border-none {activeView === 'history' ? 'text-white' : 'text-[#b3b3b3]'} text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate('history')}>Geschiedenis</button></li>
     </ul>
   </div>
 

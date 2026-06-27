@@ -25,6 +25,7 @@
 #include "core/String.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Cluster.hpp"
+#include "database/objects/Listen.hpp"
 #include "database/objects/Track.hpp"
 #include "responses/Playlist.hpp"
 #include "responses/Song.hpp"
@@ -268,6 +269,34 @@ namespace lms::api::subsonic
         });
 
         tracksNode.setAttribute("moreResults", moreResults);
+
+        return response;
+    }
+
+    Response handleGetSpotifyHistory(RequestContext& ctx)
+    {
+        auto& session{ ctx.getDbSession() };
+        auto transaction{ session.createReadTransaction() };
+
+        db::Listen::FindParameters params;
+        params.setUser(ctx.getUser()->getId());
+        params.setDesc(true);
+
+        int offset = getParameterAs<int>(ctx.getParameters(), "offset").value_or(0);
+        int count = getParameterAs<int>(ctx.getParameters(), "count").value_or(50);
+        params.range = db::Range{ static_cast<std::size_t>(offset), static_cast<std::size_t>(count) };
+
+        Response response{ Response::createOkResponse(ctx.getServerProtocolVersion()) };
+        auto& historyNode = response.createNode("history");
+
+        bool moreResults = false;
+        db::Listen::find(session, params).forEach([&](db::ListenId listenId) {
+            if (auto listen = db::Listen::find(session, listenId))
+            {
+                auto& entryNode = historyNode.addArrayChild("entry", createSongNode(ctx, listen->getTrack(), true));
+                entryNode.setAttribute("listenedAt", listen->getDateTime().toString().toUTF8());
+            }
+        });
 
         return response;
     }

@@ -317,6 +317,8 @@ namespace lms::db
         std::size_t getSampleRate() const { return _sampleRate; }
         std::optional<std::size_t> getBitsPerSample() const { return _bitsPerSample; }
         std::optional<float> getReplayGain() const { return _replayGain; }
+        int getPlayCount() const { return _playCount; }
+        const Wt::WDateTime& getLastPlayed() const { return _lastPlayed; }
 
         // Metadata
         std::optional<std::size_t> getTrackNumber() const { return _trackNumber; }
@@ -380,6 +382,9 @@ namespace lms::db
             Wt::Dbo::field(a, _bitsPerSample, "bits_per_sample");
             Wt::Dbo::field(a, _replayGain, "replay_gain");
 
+            Wt::Dbo::field(a, _playCount, "play_count");
+            Wt::Dbo::field(a, _lastPlayed, "last_played");
+
             Wt::Dbo::field(a, _trackNumber, "track_number");
             Wt::Dbo::field(a, _rating, "rating");
             Wt::Dbo::field(a, _name, "name");
@@ -430,6 +435,8 @@ namespace lms::db
         int _sampleRate{};
         std::optional<int> _bitsPerSample;
         std::optional<float> _replayGain;
+        int _playCount{};
+        Wt::WDateTime _lastPlayed;
 
         // Metadata
         std::optional<int> _trackNumber{};

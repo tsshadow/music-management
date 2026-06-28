@@ -35,7 +35,7 @@ namespace lms::db
 {
     namespace
     {
-        static constexpr Version LMS_DATABASE_VERSION{ 109 };
+        static constexpr Version LMS_DATABASE_VERSION{ 110 };
     }
 
     VersionInfo::VersionInfo()
@@ -1815,6 +1815,12 @@ FROM track)");
         utils::executeCommand(*session.getDboSession(), "ALTER TABLE playqueue ADD COLUMN is_playing INTEGER NOT NULL DEFAULT(0)");
     }
 
+    void migrateFromV109(Session& session)
+    {
+        utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD COLUMN play_count INTEGER DEFAULT 0");
+        utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD COLUMN last_played TEXT");
+    }
+
     bool doDbMigration(Session& session)
     {
         constexpr std::string_view outdatedMsg{ "Outdated database, please rebuild it (delete the .db file and restart)" };
@@ -1900,6 +1906,7 @@ FROM track)");
             { 106, migrateFromV106 },
             { 107, migrateFromV107 },
             { 108, migrateFromV108 },
+            { 109, migrateFromV109 },
         };
 
         bool migrationPerformed{};

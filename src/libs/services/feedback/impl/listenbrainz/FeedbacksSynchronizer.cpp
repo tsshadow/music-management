@@ -374,7 +374,7 @@ namespace lms::feedback::listenBrainz
         assert(!context.listenBrainzUserName.empty());
 
         core::http::ClientGETRequestParameters request;
-        request.relativeUrl = "/1/feedback/user/" + context.listenBrainzUserName + "/get-feedback?offset=" + std::to_string(context.fetchedFeedbackCount);
+        request.relativeUrl = "/1/feedback/user/" + context.listenBrainzUserName + "/get-feedback?offset=" + std::to_string(context.fetchedFeedbackCount) + "&count=100";
         request.priority = core::http::ClientRequestParameters::Priority::Low;
         request.onSuccessFunc = [this, &context](const Wt::Http::Message& msg) {
             std::string msgBodyCopy{ msg.body() };

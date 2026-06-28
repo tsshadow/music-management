@@ -544,7 +544,7 @@ namespace lms::scrobbling::listenBrainz
         assert(!context.listenBrainzUserName.empty());
 
         core::http::ClientGETRequestParameters request;
-        request.relativeUrl = "/1/user/" + context.listenBrainzUserName + "/listens?max_ts=" + std::to_string(context.maxDateTime.toTime_t());
+        request.relativeUrl = "/1/user/" + context.listenBrainzUserName + "/listens?max_ts=" + std::to_string(context.maxDateTime.toTime_t()) + "&count=1000";
         request.priority = core::http::ClientRequestParameters::Priority::Low;
         request.onSuccessFunc = [this, &context](const Wt::Http::Message& msg) {
             processGetListensResponse(msg.body(), context);

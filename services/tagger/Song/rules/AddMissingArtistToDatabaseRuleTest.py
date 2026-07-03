@@ -5,7 +5,7 @@ class AddMissingArtistToDatabaseRuleTest(unittest.TestCase):
 
     def setUp(self):
         self.song = MagicMock()
-        self.song.artists.return_value = ['Wrong Artist']
+        self.song.library_artists.return_value = ['Wrong Artist']
         self.song.path.return_value = '/some/path/file.mp3'
         self.song.title.return_value = 'Some Title'
         self.song.tag_collection.get_item.return_value = MagicMock()
@@ -93,7 +93,7 @@ class AddMissingArtistToDatabaseRuleTest(unittest.TestCase):
 
     def test_skips_if_artist_list_is_empty(self):
         rule = AddMissingArtistToDatabaseRule(self.artist_table, self.ignored_table)
-        self.song.artists.return_value = []
+        self.song.library_artists.return_value = []
         rule.apply(self.song)
         self.artist_table.add.assert_not_called()
         self.ignored_table.add.assert_not_called()

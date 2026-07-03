@@ -11,8 +11,8 @@ class MergeDrumAndBassGenresRuleTest(unittest.TestCase):
         self.song.tag_collection.has_item.return_value = True
         self.song.tag_collection.get_item.return_value = self.tag
 
-    def _set_genres(self, genres):
-        self.tag.as_list.return_value = genres
+    def _set_genres(self, rules_genres):
+        self.tag.as_list.return_value = rules_genres
 
     def test_merges_drum_and_bass(self):
         self._set_genres(['drum', 'bass'])

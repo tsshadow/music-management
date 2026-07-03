@@ -12,7 +12,7 @@ class TableHelperTest(unittest.TestCase):
         self.mock_cursor = MagicMock()
         self.mock_connection.cursor.return_value.__enter__.return_value = self.mock_cursor
         self.mock_connector_cls.return_value.connect.return_value = self.mock_connection
-        self.helper = TableHelper('genres', 'name', preload=False)
+        self.helper = TableHelper('rules_genres', 'name', preload=False)
 
     def test_exists_found(self):
         self.mock_cursor.fetchone.return_value = (1,)

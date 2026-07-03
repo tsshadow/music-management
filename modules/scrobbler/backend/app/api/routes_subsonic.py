@@ -16,10 +16,10 @@ async def subsonic_scrobble(u: str=Query(..., alias='u'), id: str=Query(..., ali
     """Translate a Subsonic scrobble request into the generic ingest payload."""
     listened_at = datetime.utcfromtimestamp(time / 1000)
     track_title = t or id
-    artists = []
+    library_artists = []
     if a:
-        artists.append(ArtistInput(name=a))
-    genres = g.split(',') if g else []
-    payload = ScrobblePayload(user=u, source='subsonic', listened_at=listened_at, position_secs=None, duration_secs=None, source_track_id=id, track=TrackInput(title=track_title, album=al), artists=artists, genres=genres)
+        library_artists.append(ArtistInput(name=a))
+    rules_genres = g.split(',') if g else []
+    payload = ScrobblePayload(user=u, source='subsonic', listened_at=listened_at, position_secs=None, duration_secs=None, source_track_id=id, track=TrackInput(title=track_title, album=al), library_artists=library_artists, rules_genres=rules_genres)
     await service.ingest(payload)
     return {'status': 'ok'}

@@ -37,7 +37,7 @@ class MusicBrainzLookup:
             if response.status_code != 200:
                 return False
             data = response.json()
-            for artist in data.get('artists', []):
+            for artist in data.get('library_artists', []):
                 if artist.get('name', '').lower() == name.lower():
                     return True
         except Exception as e:
@@ -98,8 +98,8 @@ class SpotifyLookup:
             if response.status_code != 200:
                 return False
             data = response.json()
-            artists = data.get('artists', {}).get('items', [])
-            for artist in artists:
+            library_artists = data.get('library_artists', {}).get('items', [])
+            for artist in library_artists:
                 if artist.get('name', '').lower() == name.lower():
                     return True
         except Exception as e:

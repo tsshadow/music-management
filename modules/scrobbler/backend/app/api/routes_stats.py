@@ -4,11 +4,11 @@ from ..services.stats_service import StatsService
 from .deps import get_stats_service, verify_api_key
 router = APIRouter(prefix='/stats', tags=['stats'])
 
-@router.get('/artists', dependencies=[Depends(verify_api_key)])
-async def artists(period: str=Query('year', pattern='^(day|month|year|all)$'), value: str | None=Query(None), page: int=Query(1, ge=1), page_size: int=Query(100, ge=1, le=500), service: StatsService=Depends(get_stats_service)):
+@router.get('/library_artists', dependencies=[Depends(verify_api_key)])
+async def library_artists(period: str=Query('year', pattern='^(day|month|year|all)$'), value: str | None=Query(None), page: int=Query(1, ge=1), page_size: int=Query(100, ge=1, le=500), service: StatsService=Depends(get_stats_service)):
     """Return listen counts grouped by artist for the requested period."""
     try:
-        data = await service.artists(period, value, page_size, (page - 1) * page_size)
+        data = await service.library_artists(period, value, page_size, (page - 1) * page_size)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {**data, 'page': page, 'page_size': page_size}
@@ -22,20 +22,20 @@ async def albums(period: str=Query('year', pattern='^(day|month|year|all)$'), va
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {**data, 'page': page, 'page_size': page_size}
 
-@router.get('/tracks', dependencies=[Depends(verify_api_key)])
-async def tracks(period: str=Query('year', pattern='^(day|month|year|all)$'), value: str | None=Query(None), page: int=Query(1, ge=1), page_size: int=Query(100, ge=1, le=500), service: StatsService=Depends(get_stats_service)):
+@router.get('/library_tracks', dependencies=[Depends(verify_api_key)])
+async def library_tracks(period: str=Query('year', pattern='^(day|month|year|all)$'), value: str | None=Query(None), page: int=Query(1, ge=1), page_size: int=Query(100, ge=1, le=500), service: StatsService=Depends(get_stats_service)):
     """Return listen counts grouped by track for the requested period."""
     try:
-        data = await service.tracks(period, value, page_size, (page - 1) * page_size)
+        data = await service.library_tracks(period, value, page_size, (page - 1) * page_size)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {**data, 'page': page, 'page_size': page_size}
 
-@router.get('/genres', dependencies=[Depends(verify_api_key)])
-async def genres(period: str=Query('year', pattern='^(day|month|year|all)$'), value: str | None=Query(None), page: int=Query(1, ge=1), page_size: int=Query(100, ge=1, le=500), service: StatsService=Depends(get_stats_service)):
+@router.get('/rules_genres', dependencies=[Depends(verify_api_key)])
+async def rules_genres(period: str=Query('year', pattern='^(day|month|year|all)$'), value: str | None=Query(None), page: int=Query(1, ge=1), page_size: int=Query(100, ge=1, le=500), service: StatsService=Depends(get_stats_service)):
     """Return listen counts grouped by genre for the requested period."""
     try:
-        data = await service.genres(period, value, page_size, (page - 1) * page_size)
+        data = await service.rules_genres(period, value, page_size, (page - 1) * page_size)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {**data, 'page': page, 'page_size': page_size}
@@ -47,5 +47,5 @@ async def top_artist_by_genre(year: int=Query(...), service: StatsService=Depend
 
 @router.get('/time-of-day', dependencies=[Depends(verify_api_key)])
 async def time_of_day(year: int=Query(...), period: str=Query('morning', pattern='^(morning|afternoon|evening|night)$'), service: StatsService=Depends(get_stats_service)):
-    """Return top tracks for the selected time-of-day segment in a year."""
+    """Return top library_tracks for the selected time-of-day segment in a year."""
     return await service.time_of_day(year, period)

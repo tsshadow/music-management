@@ -29,7 +29,7 @@ class InferGenreFromSubgenreRuleTest(unittest.TestCase):
         self.song.tag_collection.set_item.assert_called_once_with(GENRE, 'Techno')
 
     def test_avoids_duplicates(self):
-        """Voegt geen dubbele genres toe."""
+        """Voegt geen dubbele rules_genres toe."""
         self.song.tag_collection.get_item_as_array = MagicMock(return_value=['Hardcore'])
         helper = MagicMock()
         helper.get = MagicMock(return_value=['Hardcore'])

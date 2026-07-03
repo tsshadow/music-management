@@ -5,8 +5,10 @@ pandas
 numpy
 scipy
 scikit-learn
+joblib
 sqlalchemy
 mysql-connector-python
 python-dotenv
+mutagen
 tqdm
 matplotlib

@@ -6,7 +6,7 @@ from services.analyzer_service.analyzer.matching.normalizer import normalize_tex
 from services.analyzer_service.analyzer.matching.uid import make_track_uid
 from backend.app.core.startup import init_database
 from backend.app.db.sqlite_test import create_sqlite_memory_adapter
-from backend.app.models import artists, genres, listen_artists, listen_genres, listens, listens_raw, metadata, track_artists, track_genres, tracks
+from backend.app.models import library_artists, rules_genres, listen_artists, listen_genres, listens, listens_raw, metadata, library_track_artists, library_track_genres, library_tracks
 from backend.app.schemas.common import ArtistInput, ScrobblePayload, TrackInput
 from backend.app.services.deduplication_service import DeduplicationService
 from backend.app.services.ingest_service import IngestService
@@ -45,16 +45,16 @@ async def _analyze_track(repository: AnalyzerRepository, *, title: str, artist: 
 async def test_analyze_track_with_title_only(isolated_database):
     """Given a fresh media library
     When the analyzer records a track using only its title
-    Then the track appears in the media library without any linked artists or genres."""
+    Then the track appears in the media library without any linked library_artists or rules_genres."""
     adapter, repository, _ = isolated_database
     result = await _analyze_track(repository, title='Lonely Signal')
     async with adapter.session_factory() as session:
-        track_row = (await session.execute(select(tracks).where(tracks.c.id == result['track_id']))).mappings().one()
+        track_row = (await session.execute(select(library_tracks).where(library_tracks.c.id == result['track_id']))).mappings().one()
         assert track_row['title'] == 'Lonely Signal'
         assert track_row['primary_artist_id'] is None
-        artist_links = (await session.execute(select(track_artists).where(track_artists.c.track_id == result['track_id']))).fetchall()
+        artist_links = (await session.execute(select(library_track_artists).where(library_track_artists.c.track_id == result['track_id']))).fetchall()
         assert artist_links == []
-        genre_links = (await session.execute(select(track_genres).where(track_genres.c.track_id == result['track_id']))).fetchall()
+        genre_links = (await session.execute(select(library_track_genres).where(library_track_genres.c.track_id == result['track_id']))).fetchall()
         assert genre_links == []
         listen_count = (await session.execute(select(func.count()).select_from(listens))).scalar_one()
         assert listen_count == 0
@@ -67,10 +67,10 @@ async def test_analyze_track_with_artist(isolated_database):
     adapter, repository, _ = isolated_database
     result = await _analyze_track(repository, title='Signal Fire', artist='The Metrics')
     async with adapter.session_factory() as session:
-        track_row = (await session.execute(select(tracks).where(tracks.c.id == result['track_id']))).mappings().one()
+        track_row = (await session.execute(select(library_tracks).where(library_tracks.c.id == result['track_id']))).mappings().one()
         assert track_row['title'] == 'Signal Fire'
         assert track_row['primary_artist_id'] == result['artist_id']
-        artist_row = (await session.execute(select(artists).where(artists.c.id == result['artist_id']))).mappings().one()
+        artist_row = (await session.execute(select(library_artists).where(library_artists.c.id == result['artist_id']))).mappings().one()
         assert artist_row['name'] == 'The Metrics'
         listen_count = (await session.execute(select(func.count()).select_from(listens))).scalar_one()
         assert listen_count == 0
@@ -83,14 +83,14 @@ async def test_analyze_track_with_artist_and_genre(isolated_database):
     adapter, repository, _ = isolated_database
     result = await _analyze_track(repository, title='Chromatic Dreams', artist='Spectrum', genre='Synthwave')
     async with adapter.session_factory() as session:
-        track_row = (await session.execute(select(tracks).where(tracks.c.id == result['track_id']))).mappings().one()
+        track_row = (await session.execute(select(library_tracks).where(library_tracks.c.id == result['track_id']))).mappings().one()
         assert track_row['title'] == 'Chromatic Dreams'
         assert track_row['primary_artist_id'] == result['artist_id']
-        artist_links = (await session.execute(select(track_artists).where(track_artists.c.track_id == result['track_id']))).fetchall()
+        artist_links = (await session.execute(select(library_track_artists).where(library_track_artists.c.track_id == result['track_id']))).fetchall()
         assert len(artist_links) == 1
-        genre_links = (await session.execute(select(track_genres).where(track_genres.c.track_id == result['track_id']))).fetchall()
+        genre_links = (await session.execute(select(library_track_genres).where(library_track_genres.c.track_id == result['track_id']))).fetchall()
         assert len(genre_links) == 1
-        stored_genre = (await session.execute(select(genres).where(genres.c.id == result['genre_id']))).mappings().one()
+        stored_genre = (await session.execute(select(rules_genres).where(rules_genres.c.id == result['genre_id']))).mappings().one()
         assert stored_genre['name'] == 'Synthwave'
         listen_count = (await session.execute(select(func.count()).select_from(listens))).scalar_one()
         assert listen_count == 0
@@ -102,7 +102,7 @@ async def test_scrobble_links_to_existing_track(isolated_database):
     Then the listen references the existing track and stores artist and genre links."""
     adapter, repository, ingest = isolated_database
     analyzed = await _analyze_track(repository, title='Northern Lights', artist='Aurora Atlas', genre='Ambient', duration=320)
-    payload = ScrobblePayload(user='listener', source='lms', listened_at=datetime(2024, 3, 3, 12, 0, tzinfo=timezone.utc), track=TrackInput(title='Northern Lights', duration_secs=320), artists=[ArtistInput(name='Aurora Atlas')], genres=['Ambient'])
+    payload = ScrobblePayload(user='listener', source='lms', listened_at=datetime(2024, 3, 3, 12, 0, tzinfo=timezone.utc), track=TrackInput(title='Northern Lights', duration_secs=320), library_artists=[ArtistInput(name='Aurora Atlas')], rules_genres=['Ambient'])
     listen_id = await ingest.ingest(payload)
     async with adapter.session_factory() as session:
         listen_row = (await session.execute(select(listens).where(listens.c.id == listen_id))).mappings().one()
@@ -113,7 +113,7 @@ async def test_scrobble_links_to_existing_track(isolated_database):
         assert len(linked_artists) == 1
         linked_genres = (await session.execute(select(listen_genres).where(listen_genres.c.listen_id == listen_id))).fetchall()
         assert len(linked_genres) == 1
-        track_total = (await session.execute(select(func.count()).select_from(tracks))).scalar_one()
+        track_total = (await session.execute(select(func.count()).select_from(library_tracks))).scalar_one()
         assert track_total == 1
 
 @pytest.mark.asyncio
@@ -122,7 +122,7 @@ async def test_scrobble_without_existing_track(isolated_database):
     When the scrobbler ingests a listen for an unknown track
     Then the listen is stored with raw metadata while the media library remains untouched."""
     adapter, _, ingest = isolated_database
-    payload = ScrobblePayload(user='listener', source='lms', listened_at=datetime(2024, 4, 4, 18, 30, tzinfo=timezone.utc), track=TrackInput(title='Uncharted Echo'), artists=[ArtistInput(name='Mystery Artist')], genres=['Unknown'])
+    payload = ScrobblePayload(user='listener', source='lms', listened_at=datetime(2024, 4, 4, 18, 30, tzinfo=timezone.utc), track=TrackInput(title='Uncharted Echo'), library_artists=[ArtistInput(name='Mystery Artist')], rules_genres=['Unknown'])
     listen_id = await ingest.ingest(payload)
     async with adapter.session_factory() as session:
         listen_row = (await session.execute(select(listens).where(listens.c.id == listen_id))).mappings().one()
@@ -133,7 +133,7 @@ async def test_scrobble_without_existing_track(isolated_database):
         assert linked_artists == []
         linked_genres = (await session.execute(select(listen_genres).where(listen_genres.c.listen_id == listen_id))).fetchall()
         assert linked_genres == []
-        track_total = (await session.execute(select(func.count()).select_from(tracks))).scalar_one()
+        track_total = (await session.execute(select(func.count()).select_from(library_tracks))).scalar_one()
         assert track_total == 0
 
 @pytest.mark.asyncio
@@ -141,7 +141,7 @@ async def test_reingest_links_existing_listen_to_library(isolated_database):
     """A second ingestion of the same listen links it to the library instead of duplicating."""
     adapter, repository, ingest = isolated_database
     listened_at = datetime(2024, 5, 1, 12, 0, tzinfo=timezone.utc)
-    payload = ScrobblePayload(user='listener', source='listenbrainz', listened_at=listened_at, track=TrackInput(title='Echo Trail', duration_secs=200), artists=[ArtistInput(name='Signal Forms')], genres=[])
+    payload = ScrobblePayload(user='listener', source='listenbrainz', listened_at=listened_at, track=TrackInput(title='Echo Trail', duration_secs=200), library_artists=[ArtistInput(name='Signal Forms')], rules_genres=[])
     listen_id, created = await ingest.ingest_with_status(payload)
     assert created is True
     async with adapter.session_factory() as session:
@@ -158,16 +158,16 @@ async def test_reingest_links_existing_listen_to_library(isolated_database):
 
 @pytest.mark.asyncio
 async def test_ingest_selects_consistent_track_when_duplicates_exist(isolated_database):
-    """When multiple matching tracks exist, ingestion picks a deterministic row."""
+    """When multiple matching library_tracks exist, ingestion picks a deterministic row."""
     adapter, repository, ingest = isolated_database
     artist_id = await repository.upsert_artist(display_name='Orbit Nine', name_normalized=normalize_text('Orbit Nine'), sort_name=normalize_text('Orbit Nine'), mbid=None)
     normalized_title = normalize_text('Parallel Drift')
     async with adapter.session_factory() as session:
-        first = await session.execute(insert(tracks).values(title='Parallel Drift', title_normalized=normalized_title, album_id=None, primary_artist_id=artist_id, duration_secs=180))
+        first = await session.execute(insert(library_tracks).values(title='Parallel Drift', title_normalized=normalized_title, album_id=None, primary_artist_id=artist_id, duration_secs=180))
         first_track_id = int(first.inserted_primary_key[0])
-        await session.execute(insert(tracks).values(title='Parallel Drift', title_normalized=normalized_title, album_id=None, primary_artist_id=artist_id, duration_secs=180))
+        await session.execute(insert(library_tracks).values(title='Parallel Drift', title_normalized=normalized_title, album_id=None, primary_artist_id=artist_id, duration_secs=180))
         await session.commit()
-    payload = ScrobblePayload(user='listener', source='listenbrainz', listened_at=datetime(2024, 5, 1, 12, 0, tzinfo=timezone.utc), track=TrackInput(title='Parallel Drift', duration_secs=180), artists=[ArtistInput(name='Orbit Nine')], genres=[])
+    payload = ScrobblePayload(user='listener', source='listenbrainz', listened_at=datetime(2024, 5, 1, 12, 0, tzinfo=timezone.utc), track=TrackInput(title='Parallel Drift', duration_secs=180), library_artists=[ArtistInput(name='Orbit Nine')], rules_genres=[])
     listen_id, created = await ingest.ingest_with_status(payload)
     assert created is True
     async with adapter.session_factory() as session:

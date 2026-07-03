@@ -19,7 +19,7 @@ The listener-facing dashboard for the Scrobbler service.
 - **Tech Stack**: Svelte, Vite.
 - **Key Features**:
     - "Hype Graph" for listening trends.
-    - Leaderboards for artists/tracks/genres.
+    - Leaderboards for library_artists/library_tracks/rules_genres.
     - Integration with the media library for enriched metadata.
 
 ## 🚀 Development

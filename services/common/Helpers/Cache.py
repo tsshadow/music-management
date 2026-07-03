@@ -2,11 +2,11 @@ from services.common.Helpers.FilterTableHelper import FilterTableHelper
 from services.common.Helpers.LookupTableHelper import LookupTableHelper
 from services.common.Helpers.TableHelper import TableHelper
 
-databaseHelpers = {'artists': TableHelper('artists', 'name'),
-                   'ignored_artists': FilterTableHelper('ignored_artists', 'name', 'corrected_name'),
-                   'genres': FilterTableHelper('genres', 'genre', 'corrected_genre'),
-                   'ignored_genres': FilterTableHelper('ignored_genres', 'name', 'corrected_name'),
-                   'artistGenreHelper': LookupTableHelper('artist_genre', 'artist', 'genre'),
-                   'labelGenreHelper': LookupTableHelper('label_genre', 'label', 'genre'),
-                   'subgenreHelper': LookupTableHelper('subgenre_genre', 'subgenre', 'genre'),
-                   'genre_backlog': TableHelper('genre_backlog', 'genre')}
+databaseHelpers = {'library_artists': TableHelper('library_artists', 'name'),
+                   'rules_ignored_artists': FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name'),
+                   'rules_genres': FilterTableHelper('rules_genres', 'name', 'corrected_genre'),
+                   'rules_ignored_genres': TableHelper('rules_ignored_genres', 'name'),
+                   'artistGenreHelper': LookupTableHelper('rules_artist_genre', 'artist', 'genre'),
+                   'labelGenreHelper': LookupTableHelper('rules_label_genre', 'label', 'genre'),
+                   'subgenreHelper': LookupTableHelper('rules_subgenre_hierarchy', 'subgenre', 'genre'),
+                   'rules_genre_backlog': TableHelper('rules_genre_backlog', 'genre')}

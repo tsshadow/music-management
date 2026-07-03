@@ -5,20 +5,20 @@ from services.analyzer_service.analyzer.matching.normalizer import normalize_tex
 from services.analyzer_service.analyzer.matching.uid import make_track_uid
 from backend.app.core.startup import init_database
 from backend.app.db.sqlite_test import create_sqlite_memory_adapter
-from backend.app.models import release_groups, artists, genres, metadata, track_artists, track_genres, tracks
+from backend.app.models import release_groups, library_artists, rules_genres, metadata, library_track_artists, library_track_genres, library_tracks
 from sqlalchemy import insert, select
 
 async def add_artist(adapter, name: str, mbid: str | None=None) -> int:
     normalized = normalize_text(name)
     async with adapter.session_factory() as session:
-        res = await session.execute(insert(artists).values(name=name, name_normalized=normalized, sort_name=normalized, mbid=mbid))
+        res = await session.execute(insert(library_artists).values(name=name, name_normalized=normalized, sort_name=normalized, mbid=mbid))
         await session.commit()
         return int(res.inserted_primary_key[0])
 
 async def add_genre(adapter, name: str) -> int:
     normalized = normalize_text(name)
     async with adapter.session_factory() as session:
-        res = await session.execute(insert(genres).values(name=name, name_normalized=normalized))
+        res = await session.execute(insert(rules_genres).values(name=name, name_normalized=normalized))
         await session.commit()
         return int(res.inserted_primary_key[0])
 
@@ -36,14 +36,14 @@ async def add_track(adapter, *, title: str, album_id: int | None, primary_artist
         if uid is None:
             artist_name = None
             if primary_artist_id is not None:
-                artist_row = await session.execute(select(artists.c.name).where(artists.c.id == primary_artist_id))
+                artist_row = await session.execute(select(library_artists.c.name).where(library_artists.c.id == primary_artist_id))
                 artist_name = artist_row.scalar_one_or_none()
             album_title = None
             if album_id is not None:
                 album_row = await session.execute(select(release_groups.c.title).where(release_groups.c.id == album_id))
                 album_title = album_row.scalar_one_or_none()
             uid = make_track_uid(artist_name, title, album_title, duration_secs)
-        res = await session.execute(insert(tracks).values(title=title, title_normalized=normalized, album_id=album_id, primary_artist_id=primary_artist_id, duration_secs=duration_secs, disc_no=disc_no, track_no=track_no, mbid=mbid, isrc=isrc, acoustid=acoustid, track_uid=uid))
+        res = await session.execute(insert(library_tracks).values(title=title, title_normalized=normalized, album_id=album_id, primary_artist_id=primary_artist_id, duration_secs=duration_secs, disc_no=disc_no, track_no=track_no, mbid=mbid, isrc=isrc, acoustid=acoustid, track_uid=uid))
         await session.commit()
         return int(res.inserted_primary_key[0])
 
@@ -54,7 +54,7 @@ async def link_track_artist(adapter, track_id: int, artists_payload, role: str='
         else:
             pairs = [(artists_payload, role)]
         for artist_id, artist_role in pairs:
-            await session.execute(insert(track_artists).values(track_id=track_id, artist_id=artist_id, role=artist_role))
+            await session.execute(insert(library_track_artists).values(track_id=track_id, artist_id=artist_id, role=artist_role))
         await session.commit()
 
 async def link_track_genre(adapter, track_id: int, genres_payload) -> None:
@@ -64,7 +64,7 @@ async def link_track_genre(adapter, track_id: int, genres_payload) -> None:
         else:
             genre_ids = [genres_payload]
         for genre_id in genre_ids:
-            await session.execute(insert(track_genres).values(track_id=track_id, genre_id=genre_id))
+            await session.execute(insert(library_track_genres).values(track_id=track_id, genre_id=genre_id))
         await session.commit()
 
 @pytest.mark.asyncio
@@ -99,8 +99,8 @@ async def test_adapter_upserts():
     export_row = rows[0]
     assert export_row['username'] == 'alice'
     assert export_row['track']['title'] == 'Song'
-    assert export_row['artists'] == [{'name': 'Artist', 'role': 'primary'}]
-    assert export_row['genres'] == ['Genre']
+    assert export_row['library_artists'] == [{'name': 'Artist', 'role': 'primary'}]
+    assert export_row['rules_genres'] == ['Genre']
     assert export_row['listen_artists'] == ['Artist']
     future_rows = await adapter.fetch_listens_for_export(user='alice', since=listened_at + timedelta(seconds=1))
     assert future_rows == []
@@ -121,15 +121,15 @@ async def test_fetch_recent_listens_prefers_clean_listen_artists():
     track_id = await add_track(adapter, title='Ready To Move', album_id=None, primary_artist_id=None, duration_secs=None, disc_no=None, track_no=None, mbid=None, isrc=None, acoustid=None, track_uid=None)
     await link_track_artist(adapter, track_id, [(artist_good1, 'primary'), (artist_good2, 'primary')])
     async with adapter.session_factory() as session:
-        await session.execute(insert(track_artists).values(track_id=track_id, artist_id=artist_bad1, role='primary'))
-        await session.execute(insert(track_artists).values(track_id=track_id, artist_id=artist_bad2, role='primary'))
+        await session.execute(insert(library_track_artists).values(track_id=track_id, artist_id=artist_bad1, role='primary'))
+        await session.execute(insert(library_track_artists).values(track_id=track_id, artist_id=artist_bad2, role='primary'))
         await session.commit()
     listened_at = datetime.now(timezone.utc)
     await adapter.insert_listen(user_id=user_id, track_id=track_id, listened_at=listened_at, source='listenbrainz', source_track_id='1', position_secs=None, duration_secs=None, artist_name_raw=None, track_title_raw=None, album_title_raw=None, raw_payload={}, artist_ids=[artist_good1, artist_good2], genre_ids=[])
     rows = await adapter.fetch_recent_listens(limit=5)
     assert len(rows) == 1
     assert rows[0]['artist_names'] == 'Jur Terreur, Brainkick'
-    assert [artist['name'] for artist in rows[0]['artists']] == ['Jur Terreur', 'Brainkick']
+    assert [artist['name'] for artist in rows[0]['library_artists']] == ['Jur Terreur', 'Brainkick']
     await adapter.close()
 
 @pytest.mark.asyncio
@@ -186,8 +186,8 @@ async def test_fetch_listen_detail_returns_enriched_metadata():
     assert detail is not None
     assert detail['track_id'] == track_id
     assert detail['album_id'] == album_id
-    assert detail['artists'][0]['name'] == 'Detail Artist'
-    assert detail['genres'][0]['name'] == 'Industrial'
+    assert detail['library_artists'][0]['name'] == 'Detail Artist'
+    assert detail['rules_genres'][0]['name'] == 'Industrial'
     assert detail['track_duration_secs'] == 250
     assert detail['disc_no'] == 1
     assert detail['track_no'] == 5
@@ -250,8 +250,8 @@ async def test_album_insights_aggregates_metadata():
     assert insights is not None
     assert insights['listen_count'] == 2
     assert insights['album_id'] == album_id
-    assert len(insights['tracks']) == 2
-    assert insights['artists'][0]['artist_id'] == artist_id
-    assert insights['artists'][0]['listen_count'] == 2
-    assert insights['genres'][0]['genre'] == 'Industrial'
+    assert len(insights['library_tracks']) == 2
+    assert insights['library_artists'][0]['artist_id'] == artist_id
+    assert insights['library_artists'][0]['listen_count'] == 2
+    assert insights['rules_genres'][0]['genre'] == 'Industrial'
     await adapter.close()

@@ -4,14 +4,14 @@ from services.common.Helpers.LookupTableHelper import LookupTableHelper
 
 class InferGenreFromSubgenreRule(TagRule):
     """
-    Infers broader genres based on subgenres using a lookup table.
+    Infers broader rules_genres based on subgenres using a lookup table.
 
     For example, if a song has the subgenre 'Uptempo Hardcore' or 'Mainstream Hardcore',
     this rule adds 'Hardcore' to the genre tag to ensure consistent genre grouping.
     """
 
     def __init__(self, helper=None):
-        self.subgenreHelper = helper or LookupTableHelper('subgenre_genre', 'subgenre', 'genre')
+        self.subgenreHelper = helper or LookupTableHelper('rules_subgenre_hierarchy', 'subgenre', 'genre')
 
     def apply(self, song):
         current_genres = song.tag_collection.get_item_as_array(GENRE)

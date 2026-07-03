@@ -16,7 +16,7 @@ class VerifyArtistRule(TagRule):
     INVALID_START = re.compile('^[&#\\-\\(\\*\'\\"\\[]+')
 
     def __init__(self, artist_db: Optional[TableHelper]=None, lookup: Optional[ExternalArtistLookup]=None):
-        self.artist_db = artist_db or TableHelper('artists', 'name')
+        self.artist_db = artist_db or TableHelper('library_artists', 'name')
         self.lookup = lookup or ExternalArtistLookup()
         self.seen_counts: defaultdict[str, int] = defaultdict(int)
 
@@ -77,7 +77,7 @@ class VerifyArtistRule(TagRule):
                 self.artist_db.add(artist)
             logger.info("Added artist '%s' from external lookup", artist)
             return TagResult(artist, TagResultType.VALID)
-        if artist.lower() in {'unknown artist', 'various artists'}:
+        if artist.lower() in {'unknown artist', 'various library_artists'}:
             tag_item.remove(artist)
             return TagResult(artist, TagResultType.IGNORED)
         cleaned, changed, invalid = self._heuristic_check(artist)

@@ -20,4 +20,4 @@ async def test_apply_schema_updates_creates_tables(tmp_path):
         await engine.dispose()
     assert 'config' in tables
     assert 'listens' in tables
-    assert 'tracks' in tables
+    assert 'library_tracks' in tables

@@ -2,7 +2,7 @@
 
 ## `scan_library_job`
 
-`scan_library_job` is responsible for walking configured filesystem roots, extracting audio metadata, and registering media files inside the analyzer's library tables. The job creates an async SQLAlchemy engine, wires up the analyzer services, and delegates the filesystem walk to `scan_paths`. The helper yields track metadata for each supported audio file and stores the payload through the `LibraryService` so artists, releases, tracks, and the raw media file entry stay in sync.【F:analyzer/jobs/handlers.py†L41-L54】【F:analyzer/ingestion/filesystem.py†L23-L86】【F:analyzer/services/library_service.py†L14-L93】
+`scan_library_job` is responsible for walking configured filesystem roots, extracting audio metadata, and registering media files inside the analyzer's library tables. The job creates an async SQLAlchemy engine, wires up the analyzer services, and delegates the filesystem walk to `scan_paths`. The helper yields track metadata for each supported audio file and stores the payload through the `LibraryService` so library_artists, releases, library_tracks, and the raw media file entry stay in sync.【F:analyzer/jobs/handlers.py†L41-L54】【F:analyzer/ingestion/filesystem.py†L23-L86】【F:analyzer/services/library_service.py†L14-L93】
 
 Each run returns a JSON payload containing the number of media files registered in that scan. The job is idempotent: re-running a scan revisits the filesystem and updates metadata without creating duplicate library entries.【F:analyzer/jobs/handlers.py†L41-L54】【F:analyzer/ingestion/filesystem.py†L88-L147】
 

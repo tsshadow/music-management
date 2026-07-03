@@ -1,24 +1,11 @@
 #!/bin/bash
+set -e
 
-# Configuration
-IMAGE_ML="muma/music-management-ml:latest"
-IMAGE_TOOLS="muma/music-management-tools:latest"
-IMAGE_APP="muma/music-management:latest"
+echo "--- Starting build and push of ALL containers ---"
 
-# Build ML Analyzer
-echo "--- Building ML Analyzer ---"
-docker build -t "$IMAGE_ML" -f services/ml-analyzer/Dockerfile services/ml-analyzer/
-docker push "$IMAGE_ML"
-
-# Build Tools
-echo "--- Building Tools ---"
-docker build -t "$IMAGE_TOOLS" -f Dockerfile.tools .
-docker push "$IMAGE_TOOLS"
-
-# Build Main Application
-echo "--- Building Main Application ---"
-echo "Note: This build might take a while and requires a stable internet connection for pnpm install."
-docker build -t "$IMAGE_APP" -f Dockerfile.music-management .
-docker push "$IMAGE_APP"
+# Call individual scripts
+./build_push_ml_analyzer.sh
+./build_push_tools.sh
+./build_push_app.sh
 
 echo "--- All builds and pushes completed ---"

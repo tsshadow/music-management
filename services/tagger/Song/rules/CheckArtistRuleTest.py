@@ -6,7 +6,7 @@ class CheckArtistRuleTest(unittest.TestCase):
     def setUp(self):
         self.song = MagicMock()
         self.tag_item = MagicMock()
-        self.song.artists.return_value = ['Wrong Artist', 'Known Artist']
+        self.song.library_artists.return_value = ['Wrong Artist', 'Known Artist']
         self.song.tag_collection.get_item.return_value = self.tag_item
         self.artist_table = MagicMock()
         self.ignored_table = MagicMock()

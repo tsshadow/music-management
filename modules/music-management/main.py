@@ -49,15 +49,15 @@ def main():
     artist_fixer = ArtistFixer()
     step_arg = args.step.lower()
     steps = step_arg.split(',') if step_arg != 'all' else ['all']
-    valid_steps = {'all', 'convert', 'download', 'download-soundcloud', 'download-youtube, 'download-telegram', 'flatten', 'import', 'extract', 'move', 'rename', 'manual', 'repair', 'sanitize', 'tag', 'tag-generic', 'tag-labels', 'tag-soundcloud', 'tag-youtube, 'tag-telegram', 'analyze', 'artistfixer'}
+    valid_steps = {'all', 'convert', 'download', 'download-soundcloud', 'download-youtube, 'download-telegram', 'flatten', 'import', 'extract', 'move', 'rename', 'manual', 'repair', 'sanitize', 'tag', 'tag-generic', 'tag-library_labels', 'tag-soundcloud', 'tag-youtube, 'tag-telegram', 'analyze', 'artistfixer'}
     for step in steps:
         if step not in valid_steps:
             parser.error(f'Invalid step: {step}')
 
     def run_tagger():
         parse_all = 'tag' in steps or 'all' in steps
-        tagger.run(parse_labels=parse_all or 'tag-labels' in steps, parse_soundcloud=parse_all or 'tag-soundcloud' in steps, parse_youtube=parse_all or 'tag-youtube in steps, parse_generic=parse_all or 'tag-generic' in steps, parse_telegram=parse_all or 'tag-telegram' in steps)
-    steps_to_run = [Step('Extractor', ['import', 'extract'], extractor.run), Step('Renamer', ['import', 'rename'], renamer.run), Step('Mover', ['import', 'move'], mover.run), Step('Converter', ['convert'], converter.run), Step('Sanitizer', ['sanitize'], sanitizer.run), Step('Flattener', ['flatten'], flattener.run), Step('YouTube Downloader', ['download', 'download-youtube], youtube_downloader.run), Step('SoundCloud Downloader', ['download', 'download-soundcloud'], lambda: soundcloud_downloader.run(account=args.account or '')), Step('Telegram Downloader', ['download-telegram'], lambda: telegram_downloader.run(args.account or '')), Step('Analyze', ['analyze'], analyze_step.run), Step('ArtistFixer', ['artistfixer'], artist_fixer.run), Step('Tagger', ['tag', 'tag-labels', 'tag-soundcloud', 'tag-youtube, 'tag-generic', 'tag-telegram'], run_tagger)]
+        tagger.run(parse_labels=parse_all or 'tag-library_labels' in steps, parse_soundcloud=parse_all or 'tag-soundcloud' in steps, parse_youtube=parse_all or 'tag-youtube in steps, parse_generic=parse_all or 'tag-generic' in steps, parse_telegram=parse_all or 'tag-telegram' in steps)
+    steps_to_run = [Step('Extractor', ['import', 'extract'], extractor.run), Step('Renamer', ['import', 'rename'], renamer.run), Step('Mover', ['import', 'move'], mover.run), Step('Converter', ['convert'], converter.run), Step('Sanitizer', ['sanitize'], sanitizer.run), Step('Flattener', ['flatten'], flattener.run), Step('YouTube Downloader', ['download', 'download-youtube], youtube_downloader.run), Step('SoundCloud Downloader', ['download', 'download-soundcloud'], lambda: soundcloud_downloader.run(account=args.account or '')), Step('Telegram Downloader', ['download-telegram'], lambda: telegram_downloader.run(args.account or '')), Step('Analyze', ['analyze'], analyze_step.run), Step('ArtistFixer', ['artistfixer'], artist_fixer.run), Step('Tagger', ['tag', 'tag-library_labels', 'tag-soundcloud', 'tag-youtube, 'tag-generic', 'tag-telegram'], run_tagger)]
     while True:
         try:
             logging.info('Starting process...')

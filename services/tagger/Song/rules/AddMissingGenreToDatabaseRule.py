@@ -6,14 +6,15 @@ from services.tagger.Song.rules.TagRule import TagRule
 class AddMissingGenreToDatabaseRule(TagRule):
 
     def __init__(self, genre_db=None, ignored_db=None, backlog_db=None):
-        self.genre_table = genre_db or TableHelper('genres', 'genre')
-        self.ignored_table = ignored_db or FilterTableHelper('ignored_genres', 'name', 'corrected_name')
-        self.backlog_table = backlog_db or TableHelper('genre_backlog', 'genre')
+        from services.common.Helpers.Cache import databaseHelpers
+        self.genre_table = genre_db or databaseHelpers.get('rules_genres') or FilterTableHelper('rules_genres', 'name', 'corrected_genre')
+        self.ignored_table = ignored_db or databaseHelpers.get('rules_ignored_genres') or TableHelper('rules_ignored_genres', 'name')
+        self.backlog_table = backlog_db or databaseHelpers.get('rules_genre_backlog') or TableHelper('rules_genre_backlog', 'genre')
 
     def apply(self, song) -> None:
-        if not song.genres():
+        if not song.rules_genres():
             return
-        for genre in song.genres():
+        for genre in song.rules_genres():
             genre = genre.strip()
             if not genre:
                 continue

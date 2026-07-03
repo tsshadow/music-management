@@ -87,24 +87,24 @@ class ListenBrainzExportService:
         origin_track_id = row.get('source_track_id')
         if origin_track_id:
             additional['origin_track_id'] = origin_track_id
-        genres = row.get('genres') or []
-        if genres:
-            additional['tags'] = genres
+        rules_genres = row.get('rules_genres') or []
+        if rules_genres:
+            additional['tags'] = rules_genres
         if additional:
             metadata['additional_info'] = additional
         return metadata
 
     @staticmethod
     def _artist_name(row: dict[str, Any]) -> str | None:
-        artists = row.get('artists') or []
-        primary = [artist['name'] for artist in artists if artist.get('role') == 'primary' and artist.get('name')]
+        library_artists = row.get('library_artists') or []
+        primary = [artist['name'] for artist in library_artists if artist.get('role') == 'primary' and artist.get('name')]
         if primary:
             return ', '.join(primary)
         listen_artists = row.get('listen_artists') or []
         names = [name for name in listen_artists if name]
         if names:
             return ', '.join(dict.fromkeys(names))
-        fallback = [artist.get('name') for artist in artists if artist.get('name')]
+        fallback = [artist.get('name') for artist in library_artists if artist.get('name')]
         if fallback:
             return ', '.join(dict.fromkeys(fallback))
         return None

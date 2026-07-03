@@ -25,5 +25,5 @@ class ScrobblePayload(BaseModel):
     duration_secs: int | None = None
     source_track_id: str | None = None
     track: TrackInput
-    artists: list[ArtistInput] = Field(default_factory=list)
-    genres: list[str] = Field(default_factory=list)
+    library_artists: list[ArtistInput] = Field(default_factory=list)
+    rules_genres: list[str] = Field(default_factory=list)

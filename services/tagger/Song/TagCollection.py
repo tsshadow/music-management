@@ -2,10 +2,12 @@ import logging
 from mutagen.easyid3 import EasyID3
 from mutagen.flac import VCFLACDict
 from mutagen.mp4 import MP4Tags, MP4FreeForm
+from mutagen.oggopus import OggOpusVComment
 from mutagen.wave import _WaveID3
 from services.tagger.Song.Tag import Tag
-from services.tagger.constants import reversed_FLACTags, reversed_MP3Tags, reversed_MP4Tags, reversed_WAVTags
+from services.tagger.constants import reversed_FLACTags, reversed_MP3Tags, reversed_MP4Tags, reversed_WAVTags, reversed_OPUSTags
 missing_tags_flac = []
+missing_tags_opus = []
 missing_aac_tags = []
 missing_tags_mp3 = []
 missing_tags_wav = []
@@ -44,10 +46,17 @@ class TagCollection:
                 if tag[0] == tag[0].lower():
                     logging.info('error in tag %s', tag)
                 try:
-                    self.tags[reversed_FLACTags[tag[0]]] = Tag(reversed_FLACTags[tag[0]], tag[1])
+                    self.tags[reversed_FLACTags[tag[0].upper()]] = Tag(reversed_FLACTags[tag[0].upper()], tag[1])
                 except KeyError:
                     if tag[0] not in missing_tags_flac:
                         missing_tags_flac.append(tag[0])
+        elif isinstance(tags, OggOpusVComment):
+            for tag in tags:
+                try:
+                    self.tags[reversed_OPUSTags[tag[0].upper()]] = Tag(reversed_OPUSTags[tag[0].upper()], tag[1])
+                except KeyError:
+                    if tag[0] not in missing_tags_opus:
+                        missing_tags_opus.append(tag[0])
         elif isinstance(tags, EasyID3):
             for tag in tags:
                 try:

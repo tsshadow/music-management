@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import MagicMock
+from services.tagger.Song.rules.CleanAndFilterGenreRule import CleanAndFilterGenreRule
 
 class CleanAndFilterGenreRuleTest(unittest.TestCase):
 
@@ -14,6 +15,9 @@ class CleanAndFilterGenreRuleTest(unittest.TestCase):
         song = MagicMock()
         song.tag_collection = tag_collection
         song.path.return_value = 'song.mp3'
-        rule = CleanAndFilterGenreRule(helper)
+        rule = CleanAndFilterGenreRule(helper, MagicMock(), MagicMock())
         rule.apply(song)
         tag.set.assert_called_once_with(['Hardstyle', 'Rawstyle'])
+
+if __name__ == '__main__':
+    unittest.main()

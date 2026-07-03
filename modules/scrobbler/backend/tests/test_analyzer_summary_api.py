@@ -18,5 +18,5 @@ async def test_analyzer_summary_endpoint(client):
     assert payload['files'] == 1
     assert payload['songs'] == 2
     assert payload['livesets'] == 1
-    assert any((entry['artist'] == 'Artist A' and entry['songs'] == 2 for entry in payload['artists']))
-    assert any((entry['genre'] == 'Uplifting' for entry in payload['genres']))
+    assert any((entry['artist'] == 'Artist A' and entry['songs'] == 2 for entry in payload['library_artists']))
+    assert any((entry['genre'] == 'Uplifting' for entry in payload['rules_genres']))

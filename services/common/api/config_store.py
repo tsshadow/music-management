@@ -100,7 +100,7 @@ def _config_fields() -> List[ConfigField]:
             default="",
             env="youtube_archive",
             group="YouTube",
-            description="Archive directory or file that tracks downloaded YouTube videos.",
+            description="Archive directory or file that library_tracks downloaded YouTube videos.",
         ),
         ConfigField(
             key="ffmpeg_location",
@@ -189,6 +189,14 @@ def _config_fields() -> List[ConfigField]:
             env="telegram_max_concurrent",
             group="Telegram",
             description="Maximum number of concurrent Telegram downloads.",
+        ),
+        ConfigField(
+            key="telegram_accounts",
+            type="string",
+            default="",
+            env="telegram_accounts",
+            group="Telegram",
+            description="Comma-separated list of Telegram channels to download from.",
         ),
         ConfigField(
             key="db_host",

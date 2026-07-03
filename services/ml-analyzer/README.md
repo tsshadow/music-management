@@ -28,7 +28,7 @@ This service is responsible for analyzing audio files and extracting musical fea
 De analyzer haalt momenteel de volgende kenmerken uit je muziek:
 
 1.  **Tempo (BPM)**: De snelheid van de track. 
-    *   *ML nut*: Helpt bij het onderscheiden van genres (bijv. Hardcore > 160 vs Hardstyle ~150).
+    *   *ML nut*: Helpt bij het onderscheiden van rules_genres (bijv. Hardcore > 160 vs Hardstyle ~150).
     *   *Opmerking*: De analyzer is geoptimaliseerd voor snellere muziek (150+ BPM) om te voorkomen dat het tempo per ongeluk op de helft wordt gedetecteerd.
 2.  **Duration**: De lengte van het bestand.
     *   *ML nut*: Helpt bij het filteren van korte samples of radio edits vs extended mixes.
@@ -114,6 +114,6 @@ python analyzer.py --all --save --parallel
 ## 📅 Future Roadmap (as per machine-learning.md)
 
 1. **Database Integration**: Automatically save extracted features to MariaDB.
-2. **Audio Chunking**: Splitting tracks into smaller fragments for better training data.
+2. **Audio Chunking**: Splitting library_tracks into smaller fragments for better training data.
 3. **Genre Classification**: Training custom models based on the high-quality labeled library.
 4. **Kick-type Recognition**: Specialized models for identifying different kick drum styles in electronic music.

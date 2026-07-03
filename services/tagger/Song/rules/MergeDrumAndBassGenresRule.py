@@ -8,11 +8,11 @@ class MergeDrumAndBassGenresRule(TagRule):
         if not song.tag_collection.has_item(GENRE):
             return
         genre_tag = song.tag_collection.get_item(GENRE)
-        genres = [g.lower() for g in genre_tag.as_list()]
-        has_drum = 'drum' in genres
-        has_bass = 'bass' in genres
-        has_dnb = "drum 'n bass" in genres or 'drum and bass' in genres or 'dnb' in genres
-        new_genres = genres.copy()
+        rules_genres = [g.lower() for g in genre_tag.as_list()]
+        has_drum = 'drum' in rules_genres
+        has_bass = 'bass' in rules_genres
+        has_dnb = "drum 'n bass" in rules_genres or 'drum and bass' in rules_genres or 'dnb' in rules_genres
+        new_genres = rules_genres.copy()
         if has_drum and has_bass:
             new_genres = [g for g in new_genres if g not in {'drum', 'bass'}]
             new_genres.append("drum 'n bass")

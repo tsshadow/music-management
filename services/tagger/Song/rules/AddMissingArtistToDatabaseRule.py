@@ -9,24 +9,25 @@ from services.tagger.constants import ARTIST
 
 class AddMissingArtistToDatabaseRule(TagRule):
     """
-    Controleert of artiesten van een song aanwezig zijn in de artist-database of ignored-artists.
+    Controleert of artiesten van een song aanwezig zijn in de artist-database of ignored-library_artists.
     Voegt ze toe of corrigeert ze afhankelijk van gebruikersinput.
 
     Logica:
-    - Als artiest in 'artists' staat -> niks doen
-    - Als artiest in 'ignored_artists' staat zonder correctie -> verwijderen
-    - Als artiest in 'ignored_artists' staat met correctie -> corrigeren
+    - Als artiest in 'library_artists' staat -> niks doen
+    - Als artiest in 'rules_ignored_artists' staat zonder correctie -> verwijderen
+    - Als artiest in 'rules_ignored_artists' staat met correctie -> corrigeren
     - Als artiest nergens staat en ask_for_missing == True -> prompt geven
     """
 
     def __init__(self, artist_db=None, ignored_db=None, ask_for_missing: bool=False):
-        self.artist_table = artist_db or TableHelper('artists', 'name')
-        self.ignored_table = ignored_db or FilterTableHelper('ignored_artists', 'name', 'corrected_name')
+        from services.common.Helpers.Cache import databaseHelpers
+        self.artist_table = artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
+        self.ignored_table = ignored_db or databaseHelpers.get('rules_ignored_artists') or FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name')
         self.ask_for_missing = ask_for_missing
 
-    def get_user_input(self, artist, artists, title, path) -> str:
+    def get_user_input(self, artist, library_artists, title, path) -> str:
         print('\n\n🔍 Nieuwe artiest gedetecteerd:')
-        print(f"'{artist}' in: {', '.join(artists)} – {title} ({path})")
+        print(f"'{artist}' in: {', '.join(library_artists)} – {title} ({path})")
         print('Is dit een correcte artiest? Druk binnen 10 sec op:')
         print('[j] = ja  |  [n] = nee  |  of typ correct gespelde naam (bv. HENK of Klaas)')
         i, _, _ = select.select([sys.stdin], [], [], 10)
@@ -35,7 +36,7 @@ class AddMissingArtistToDatabaseRule(TagRule):
         return ''
 
     def apply(self, song) -> None:
-        all_artists = song.artists()
+        all_artists = song.library_artists()
         if not all_artists:
             return
         for name in all_artists:

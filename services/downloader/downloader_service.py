@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os
 import signal
 from time import sleep
 
@@ -79,11 +80,21 @@ class DownloaderService:
             soundcloud_downloader.run(account=account)
 
         elif source == "telegram":
-            if not account:
-                logging.warning("Telegram selected but no --account provided; skipping Telegram downloader.")
-                return
             telegram_downloader = TelegramDownloader()
-            telegram_downloader.run(account)
+            if account:
+                accounts = [account]
+            else:
+                # Probeer accounts uit omgevingsvariabele te halen via settings of direct os.getenv
+                telegram_accounts = getattr(self.settings, "telegram_accounts", os.getenv("telegram_accounts", ""))
+                if telegram_accounts:
+                    accounts = [a.strip() for a in telegram_accounts.split(",") if a.strip()]
+                else:
+                    logging.warning("Telegram selected but no --account or telegram_accounts env var provided; skipping Telegram downloader.")
+                    return
+            
+            for acc in accounts:
+                logging.info(f"Starting Telegram download for channel: {acc}")
+                telegram_downloader.run(acc)
 
         else:
             raise ValueError(f"Unknown source: {source}")

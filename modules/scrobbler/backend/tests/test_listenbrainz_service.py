@@ -9,34 +9,34 @@ def build_listen(**extra):
     return listen
 
 def test_extract_genres_collects_from_multiple_sources():
-    listen = build_listen(track_metadata={'track_name': 'Example', 'artist_name': 'Artist', 'genres': ['Indie', 'Lo-Fi'], 'additional_info': {'tags': ['Rock', {'name': 'synthpop '}], 'musicbrainz_tags': [{'name': 'Electronic'}], 'artist_tags': [{'value': 'indie'}], 'release_group_tags': ['Alternative']}}, tags=['Rock', 'Dream Pop'])
-    genres = ListenBrainzImportService._extract_genres(listen)
-    assert genres == ['Indie', 'Lo-Fi', 'Rock', 'synthpop', 'Electronic', 'Alternative', 'Dream Pop']
+    listen = build_listen(track_metadata={'track_name': 'Example', 'artist_name': 'Artist', 'rules_genres': ['Indie', 'Lo-Fi'], 'additional_info': {'tags': ['Rock', {'name': 'synthpop '}], 'musicbrainz_tags': [{'name': 'Electronic'}], 'artist_tags': [{'value': 'indie'}], 'release_group_tags': ['Alternative']}}, tags=['Rock', 'Dream Pop'])
+    rules_genres = ListenBrainzImportService._extract_genres(listen)
+    assert rules_genres == ['Indie', 'Lo-Fi', 'Rock', 'synthpop', 'Electronic', 'Alternative', 'Dream Pop']
 
 def test_extract_genres_deduplicates_case_insensitive():
     listen = build_listen(track_metadata={'track_name': 'Example', 'artist_name': 'Artist', 'additional_info': {'tags': ['Pop', 'pop', ' POP ']}})
-    genres = ListenBrainzImportService._extract_genres(listen)
-    assert genres == ['Pop']
+    rules_genres = ListenBrainzImportService._extract_genres(listen)
+    assert rules_genres == ['Pop']
 
 def test_extract_genres_handles_tag_dict_keys():
     listen = build_listen(track_metadata={'track_name': 'Example', 'artist_name': 'Artist', 'additional_info': {'artist_genres': [{'genre': 'Hip-Hop'}, {'tag': 'Rap'}]}})
-    genres = ListenBrainzImportService._extract_genres(listen)
-    assert genres == ['Hip-Hop', 'Rap']
+    rules_genres = ListenBrainzImportService._extract_genres(listen)
+    assert rules_genres == ['Hip-Hop', 'Rap']
 
 def test_extract_artist_names_strips_and_deduplicates_credit_strings():
     metadata = {'track_name': 'Example', 'artist_name': 'Jur Terreur, Brainkick, ,Jur Terreur, ,Brainkick, '}
-    artists = ListenBrainzImportService._extract_artist_names(metadata)
-    assert artists == ['Jur Terreur', 'Brainkick']
+    library_artists = ListenBrainzImportService._extract_artist_names(metadata)
+    assert library_artists == ['Jur Terreur', 'Brainkick']
 
 def test_extract_artist_names_removes_trailing_delimiters():
     metadata = {'track_name': 'Example', 'artist_name': 'DitzKickz,'}
-    artists = ListenBrainzImportService._extract_artist_names(metadata)
-    assert artists == ['DitzKickz']
+    library_artists = ListenBrainzImportService._extract_artist_names(metadata)
+    assert library_artists == ['DitzKickz']
 
 def test_extract_artist_names_handles_additional_info_lists():
     metadata = {'track_name': 'Example', 'additional_info': {'artist_names': [' Jur Terreur', 'Brainkick ', '', {'name': 'Jur Terreur'}]}}
-    artists = ListenBrainzImportService._extract_artist_names(metadata)
-    assert artists == ['Jur Terreur', 'Brainkick']
+    library_artists = ListenBrainzImportService._extract_artist_names(metadata)
+    assert library_artists == ['Jur Terreur', 'Brainkick']
 
 class DummyResponse:
 
@@ -81,8 +81,8 @@ async def test_fetch_remote_genres_uses_listenbrainz_metadata():
     service = ListenBrainzImportService(SimpleNamespace())
     listen = build_listen(track_metadata={'track_name': 'Example', 'artist_name': 'Artist', 'additional_info': {'recording_mbid': '11111111-1111-1111-1111-111111111111'}})
     client = DummyListenBrainzClient([DummyResponse({'track_metadata': {'additional_info': {'tags': ['Hardcore', 'Industrial']}}})])
-    genres = await service._fetch_remote_genres(listen, client)
-    assert genres == ['Hardcore', 'Industrial']
+    rules_genres = await service._fetch_remote_genres(listen, client)
+    assert rules_genres == ['Hardcore', 'Industrial']
     assert client.calls == [('/metadata/recording/11111111-1111-1111-1111-111111111111', None)]
 
 @pytest.mark.asyncio
@@ -92,8 +92,8 @@ async def test_fetch_remote_genres_falls_back_to_musicbrainz_tags():
     lb_client = DummyListenBrainzClient([DummyResponse({})])
     mb_client = DummyMusicBrainzClient([DummyResponse({'tags': [{'name': 'Hardcore'}, {'name': 'Industrial'}]})])
     service._client_factory = lambda **_: mb_client
-    genres = await service._fetch_remote_genres(listen, lb_client)
-    assert genres == ['Hardcore', 'Industrial']
+    rules_genres = await service._fetch_remote_genres(listen, lb_client)
+    assert rules_genres == ['Hardcore', 'Industrial']
     assert lb_client.calls == [('/metadata/recording/22222222-2222-2222-2222-222222222222', None)]
     assert mb_client.calls == [('/recording/22222222-2222-2222-2222-222222222222', {'inc': 'tags', 'fmt': 'json'})]
 
@@ -102,29 +102,29 @@ async def test_fetch_listenbrainz_metadata_handles_non_json_response():
     service = ListenBrainzImportService(SimpleNamespace())
     listen = build_listen(track_metadata={'track_name': 'Example', 'artist_name': 'Artist', 'additional_info': {'recording_mbid': '33333333-3333-3333-3333-333333333333'}})
     client = DummyListenBrainzClient([DummyResponse(json_exc=ValueError())])
-    genres = await service._fetch_remote_genres(listen, client)
-    assert genres == []
+    rules_genres = await service._fetch_remote_genres(listen, client)
+    assert rules_genres == []
 
 @pytest.mark.asyncio
 async def test_fetch_musicbrainz_tags_handles_non_json_response():
     service = ListenBrainzImportService(SimpleNamespace())
     service._client_factory = lambda **_: DummyMusicBrainzClient([DummyResponse(json_exc=ValueError())])
-    genres = await service._fetch_musicbrainz_tags('44444444-4444-4444-4444-444444444444')
-    assert genres == []
+    rules_genres = await service._fetch_musicbrainz_tags('44444444-4444-4444-4444-444444444444')
+    assert rules_genres == []
 
 @pytest.mark.asyncio
 async def test_to_payload_splits_multiple_artist_names():
     service = ListenBrainzImportService(SimpleNamespace())
     listen = build_listen(track_metadata={'track_name': 'Example', 'artist_name': 'Headhunterz, Wildstylez', 'additional_info': {'tags': ['Hardstyle']}})
     payload = await service._to_payload('tester', listen, SimpleNamespace())
-    assert [artist.name for artist in payload.artists] == ['Headhunterz', 'Wildstylez']
+    assert [artist.name for artist in payload.library_artists] == ['Headhunterz', 'Wildstylez']
 
 @pytest.mark.asyncio
 async def test_to_payload_uses_mbid_mapping_artist_credit():
     service = ListenBrainzImportService(SimpleNamespace())
-    listen = build_listen(track_metadata={'track_name': 'Example', 'artist_name': 'Combined', 'additional_info': {'tags': ['Hardstyle']}, 'mbid_mapping': {'artists': [{'artist_credit_name': 'Elite Enemy'}, {'artist_credit_name': 'The Dope Doctor'}]}})
+    listen = build_listen(track_metadata={'track_name': 'Example', 'artist_name': 'Combined', 'additional_info': {'tags': ['Hardstyle']}, 'mbid_mapping': {'library_artists': [{'artist_credit_name': 'Elite Enemy'}, {'artist_credit_name': 'The Dope Doctor'}]}})
     payload = await service._to_payload('tester', listen, SimpleNamespace())
-    assert [artist.name for artist in payload.artists] == ['Elite Enemy', 'The Dope Doctor']
+    assert [artist.name for artist in payload.library_artists] == ['Elite Enemy', 'The Dope Doctor']
 
 @pytest.mark.asyncio
 async def test_to_payload_normalizes_soundcloud_album_title():

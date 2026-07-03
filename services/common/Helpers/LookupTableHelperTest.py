@@ -12,13 +12,13 @@ class LookupTableHelperTest(unittest.TestCase):
         self.mock_cursor = MagicMock()
         self.mock_connection.cursor.return_value.__enter__.return_value = self.mock_cursor
         self.mock_connector_cls.return_value.connect.return_value = self.mock_connection
-        self.helper = LookupTableHelper('artist_genre', 'artist', 'genre', preload=False)
+        self.helper = LookupTableHelper('rules_artist_genre', 'artist', 'genre', preload=False)
 
     def test_get_success(self):
         self.mock_cursor.fetchall.return_value = [('Hardcore',), ('Terror',)]
         result = self.helper.get('Evil Activities')
         self.assertEqual(result, ['Hardcore', 'Terror'])
-        self.mock_cursor.execute.assert_called_once_with('SELECT genre FROM artist_genre WHERE LOWER(artist) = LOWER(%s)', ('Evil Activities',))
+        self.mock_cursor.execute.assert_called_once_with('SELECT genre FROM rules_artist_genre WHERE LOWER(artist) = LOWER(%s)', ('Evil Activities',))
 
     def test_get_empty(self):
         self.mock_cursor.fetchall.return_value = []

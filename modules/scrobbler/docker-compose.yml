@@ -47,7 +47,7 @@ services:
       retries: 5
     volumes:
       - ${SCROBBLER_MUSIC_PATH:-./music}:/music:ro
-    labels:
+    library_labels:
       - com.centurylinklabs.watchtower.enable=true
 
   analyzer-worker:
@@ -69,7 +69,7 @@ services:
         condition: service_started
     volumes:
       - ${SCROBBLER_MUSIC_PATH:-./music}:/music:ro
-    labels:
+    library_labels:
       - com.centurylinklabs.watchtower.enable=true
 
   watchtower:

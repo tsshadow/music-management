@@ -6,7 +6,7 @@ from services.analyzer_service.analyzer.jobs.queue import get_queue
 from ..core.settings import AppSettings
 
 class EnrichmentQueueService:
-    """Queue listen enrichment jobs that link scrobbles to library tracks."""
+    """Queue listen enrichment jobs that link scrobbles to library library_tracks."""
 
     def __init__(self, settings: AppSettings) -> None:
         """Store application settings used to build job parameters."""

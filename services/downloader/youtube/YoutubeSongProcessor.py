@@ -33,7 +33,7 @@ class YoutubeSongProcessor(PostProcessor):
         if not YoutubeArchive.exists(account, video_id):
             YoutubeArchive.insert(account, video_id, path, url, title_for_archive)
         else:
-            logging.info(f'Track already in youtube_archive: {account}/{video_id} — skipping insert.')
+            logging.info(f'Track already in downloads_youtube_archive: {account}/{video_id} — skipping insert.')
         tagger_service = TaggerService()
         info.title = corrected_title
         tagger_service.tag("youtube", path, info)

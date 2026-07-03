@@ -81,12 +81,12 @@ class ListenBrainzImportService:
         mbid = self._get_recording_mbid(listen)
         isrc = additional.get('isrc')
         source_track_id = listen.get('recording_msid') or additional.get('track_msid')
-        artists = [ArtistInput(name=name) for name in self._extract_artist_names(metadata)]
-        genres = self._extract_genres(listen)
-        if not genres:
-            genres = await self._fetch_remote_genres(listen, client)
+        library_artists = [ArtistInput(name=name) for name in self._extract_artist_names(metadata)]
+        rules_genres = self._extract_genres(listen)
+        if not rules_genres:
+            rules_genres = await self._fetch_remote_genres(listen, client)
         track = TrackInput(title=track_title, album=self._normalize_album_title(metadata.get('release_name')), album_year=None, track_no=track_no, disc_no=disc_no, duration_secs=duration, mbid=mbid, isrc=isrc)
-        return ScrobblePayload(user=user, source='listenbrainz', listened_at=listened_dt, duration_secs=duration, track=track, source_track_id=source_track_id, artists=artists, genres=genres)
+        return ScrobblePayload(user=user, source='listenbrainz', listened_at=listened_dt, duration_secs=duration, track=track, source_track_id=source_track_id, library_artists=library_artists, rules_genres=rules_genres)
 
     @staticmethod
     def _extract_artist_names(metadata: dict[str, Any]) -> list[str]:
@@ -128,16 +128,16 @@ class ListenBrainzImportService:
                 return
         mbid_mapping = metadata.get('mbid_mapping')
         if isinstance(mbid_mapping, dict):
-            mapped_artists = mbid_mapping.get('artists')
+            mapped_artists = mbid_mapping.get('library_artists')
             if isinstance(mapped_artists, list):
                 for entry in mapped_artists:
                     collect(entry)
         if not names:
-            for key in ('artist_name', 'artist_credit', 'artists', 'artist_names'):
+            for key in ('artist_name', 'artist_credit', 'library_artists', 'artist_names'):
                 collect(metadata.get(key))
             additional = metadata.get('additional_info')
             if isinstance(additional, dict):
-                for key in ('artist_name', 'artist_credit_name', 'artist_credit', 'artists', 'artist_names'):
+                for key in ('artist_name', 'artist_credit_name', 'artist_credit', 'library_artists', 'artist_names'):
                     collect(additional.get(key))
         return names
 
@@ -181,18 +181,18 @@ class ListenBrainzImportService:
         return cleaned or None
 
     async def _fetch_remote_genres(self, listen: dict[str, Any], client: httpx.AsyncClient) -> list[str]:
-        """Retrieve genres from ListenBrainz or MusicBrainz when missing locally."""
+        """Retrieve rules_genres from ListenBrainz or MusicBrainz when missing locally."""
         recording_mbid = self._get_recording_mbid(listen)
         if recording_mbid is None:
             return []
         if recording_mbid in self._genre_cache:
             return self._genre_cache[recording_mbid]
-        genres: list[str] = []
-        genres = await self._fetch_listenbrainz_metadata(recording_mbid, client)
-        if not genres:
-            genres = await self._fetch_musicbrainz_tags(recording_mbid)
-        self._genre_cache[recording_mbid] = genres
-        return genres
+        rules_genres: list[str] = []
+        rules_genres = await self._fetch_listenbrainz_metadata(recording_mbid, client)
+        if not rules_genres:
+            rules_genres = await self._fetch_musicbrainz_tags(recording_mbid)
+        self._genre_cache[recording_mbid] = rules_genres
+        return rules_genres
 
     async def _fetch_listenbrainz_metadata(self, recording_mbid: str, client: httpx.AsyncClient) -> list[str]:
         """Request ListenBrainz cached metadata for a specific recording."""
@@ -278,7 +278,7 @@ class ListenBrainzImportService:
         """Return unique, normalized genre names from ListenBrainz metadata."""
         metadata = listen.get('track_metadata') or {}
         additional = metadata.get('additional_info') or {}
-        candidates = [metadata.get('genres'), metadata.get('tags'), additional.get('genres'), additional.get('genre'), additional.get('tags'), additional.get('musicbrainz_tags'), additional.get('artist_tags'), additional.get('artist_genres'), additional.get('track_tags'), additional.get('release_tags'), additional.get('release_group_tags'), additional.get('recording_tags'), additional.get('work_tags'), listen.get('tags')]
+        candidates = [metadata.get('rules_genres'), metadata.get('tags'), additional.get('rules_genres'), additional.get('genre'), additional.get('tags'), additional.get('musicbrainz_tags'), additional.get('artist_tags'), additional.get('artist_genres'), additional.get('track_tags'), additional.get('release_tags'), additional.get('release_group_tags'), additional.get('recording_tags'), additional.get('work_tags'), listen.get('tags')]
         normalized: list[str] = []
         seen: set[str] = set()
 

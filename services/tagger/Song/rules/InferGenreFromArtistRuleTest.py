@@ -29,7 +29,7 @@ class InferGenreFromArtistRuleTest(unittest.TestCase):
         self.song.tag_collection.set_item.assert_called_once_with(GENRE, 'Hardcore;Industrial')
 
     def test_sets_genre_when_none_exist(self):
-        """Zet genre als er nog geen genres aanwezig zijn."""
+        """Zet genre als er nog geen rules_genres aanwezig zijn."""
         self.song.tag_collection.get_item_as_array = MagicMock(side_effect=lambda key: {ARTIST: ['Angerfist'], GENRE: []}[key])
         helper = MagicMock()
         helper.get = MagicMock(return_value=['Genre1'])

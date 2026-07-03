@@ -24,6 +24,14 @@ A service for tracking listening history:
 - **Music Management UI**: Dashboard for monitoring import/tagging jobs.
 - **Scrobbler UI**: Dashboard for listening history and library analytics.
 
+### 4. Artist Image Fetcher (`services/artist_image_fetcher`)
+A pipeline for enriching the library with high-quality artist images:
+- Fetches images from Spotify, SoundCloud, and Last.fm.
+- Uses MusicBrainz for metadata and external ID matching.
+- Implements a confidence-based matching system.
+- Caches images and thumbnails locally for the LMS player.
+- Provides a stable path convention for player integration.
+
 ---
 
 ## 🚀 Getting Started
@@ -56,6 +64,7 @@ The following services will be available:
 │   ├── downloader/         # YouTube, SoundCloud, Telegram workers
 │   ├── importer/           # File movement and archive extraction
 │   ├── tagger/             # Rule-based metadata tagging engine
+│   ├── artist_image_fetcher/ # Artist image enrichment pipeline
 │   └── common/             # Shared logic and internal API
 ├── modules/                # Larger functional modules
 │   ├── music-management/   # Legacy/Core logic for the importer

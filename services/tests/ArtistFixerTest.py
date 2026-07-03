@@ -14,7 +14,7 @@ sys.modules.setdefault('requests', types.ModuleType('requests'))
 mutagen_mod = sys.modules.setdefault('mutagen', types.ModuleType('mutagen'))
 setattr(mutagen_mod, 'MutagenError', Exception)
 cache_mod = types.ModuleType('postprocessing.Song.Helpers.Cache')
-cache_mod.databaseHelpers = {'artists': MagicMock()}
+cache_mod.databaseHelpers = {'library_artists': MagicMock()}
 sys.modules['postprocessing.Song.Helpers.Cache'] = cache_mod
 import importlib
 
@@ -41,7 +41,7 @@ class ArtistFixerTest(unittest.TestCase):
         self.rule_instance = MagicMock()
         self.rule_instance.apply.return_value = TagResult('New Artist', TagResultType.VALID)
         importlib.reload(artistfixer)
-        self.artist_db = artistfixer.databaseHelpers['artists']
+        self.artist_db = artistfixer.databaseHelpers['library_artists']
         self.artist_db.exists.return_value = False
         self.patcher_settings = patch.object(artistfixer, 'Settings', return_value=types.SimpleNamespace(music_folder_path=self.tempdir.name))
         self.patcher_bs = patch.object(artistfixer, 'BaseSong', side_effect=fake_base_song)
@@ -57,6 +57,6 @@ class ArtistFixerTest(unittest.TestCase):
             self.fix.run()
         self.assertEqual(len(self.created_paths), 3)
         self.assertEqual(self.rule_instance.apply.call_count, 3)
-        self.assertTrue(all(('artists table' in call.args[0] for call in mock_print.call_args_list)))
+        self.assertTrue(all(('library_artists table' in call.args[0] for call in mock_print.call_args_list)))
 if __name__ == '__main__':
     unittest.main()

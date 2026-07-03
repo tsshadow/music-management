@@ -5,7 +5,7 @@ class BrokenSongArtistLookupHelper:
      Helper class to map raw artist names to normalized SoundCloud slugs.
      """
 
-    def __init__(self, table_name='broken_song_artist_lookup'):
+    def __init__(self, table_name='library_broken_song_artist_lookup'):
         self.table_name = table_name
         self.db_connector = DatabaseConnector()
 

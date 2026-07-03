@@ -66,11 +66,11 @@ docker-compose up --build
 
 This starts MariaDB, phpMyAdmin, and the FastAPI service (serving the built frontend). The Scrobbler API listens on port 8080 and phpMyAdmin is available at <http://localhost:8081>.
 
-Docker images are published for every commit. The `latest` tag always tracks the current `main` branch while `latest-beta` is updated on every successful build (including pull requests). Use the `latest-beta` tag if you want to automatically roll out the most recent build.
+Docker images are published for every commit. The `latest` tag always library_tracks the current `main` branch while `latest-beta` is updated on every successful build (including pull requests). Use the `latest-beta` tag if you want to automatically roll out the most recent build.
 
 #### Automatic updates with Watchtower
 
-The included `docker-compose.yml` defines a [Watchtower](https://containrrr.dev/watchtower/) service that monitors the Scrobbler containers and upgrades them whenever a new image tagged `latest-beta` is available. Watchtower prunes superseded images (`--cleanup`) and polls for updates every five minutes. Disable the service or remove the `com.centurylinklabs.watchtower.enable=true` labels if you prefer to manage updates manually.
+The included `docker-compose.yml` defines a [Watchtower](https://containrrr.dev/watchtower/) service that monitors the Scrobbler containers and upgrades them whenever a new image tagged `latest-beta` is available. Watchtower prunes superseded images (`--cleanup`) and polls for updates every five minutes. Disable the service or remove the `com.centurylinklabs.watchtower.enable=true` library_labels if you prefer to manage updates manually.
 
 ### Analyzer background jobs
 
@@ -139,7 +139,7 @@ curl -X POST http://localhost:8080/api/v1/export/listenbrainz \
 
 The API reuses the configured `listenbrainz_user` and `listenbrainz_token` unless overridden in the payload. Listens are exported in chronological batches (up to 100 per request by default) and the response reports how many entries were submitted and skipped.
 
-### Verifying ListenBrainz genres
+### Verifying ListenBrainz rules_genres
 
 If you want to double-check whether a listen actually has genre tags upstream, see [`docs/listenbrainz_genre_endpoints.md`](../../docs/listenbrainz_genre_endpoints.md) for ready-to-run API calls against ListenBrainz (and the underlying MusicBrainz data) that surface the `additional_info.tags` values used during imports.
 
@@ -159,11 +159,11 @@ If you want to double-check whether a listen actually has genre tags upstream, s
     "track_no": 3,
     "disc_no": 1
   },
-  "artists": [
+  "library_artists": [
     { "name": "Main Artist", "role": "primary" },
     { "name": "DJ X", "role": "remixer" }
   ],
-  "genres": ["Uptempo Hardcore", "Hardcore"]
+  "rules_genres": ["Uptempo Hardcore", "Hardcore"]
 }
 ```
 

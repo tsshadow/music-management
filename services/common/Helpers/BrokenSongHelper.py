@@ -6,10 +6,10 @@ from services.common.Helpers.DatabaseConnector import DatabaseConnector
 class BrokenSongHelper:
     """
     Helper class to log broken/corrupt song files in the database.
-    Stores song path and error code in the 'broken_songs' table.
+    Stores song path and error code in the 'library_broken_songs' table.
     """
 
-    def __init__(self, table_name='broken_songs'):
+    def __init__(self, table_name='library_broken_songs'):
         self.table_name = table_name
         self.db_connector = DatabaseConnector()
 

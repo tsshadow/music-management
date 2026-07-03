@@ -72,8 +72,8 @@ class SoundcloudDownloaderTest(unittest.TestCase):
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory()
         os.environ['soundcloud_folder'] = self.tempdir.name
-        os.environ['soundcloud_archive'] = os.path.join(self.tempdir.name, 'arc.txt')
-        open(os.environ['soundcloud_archive'], 'w').close()
+        os.environ['downloads_soundcloud_archive'] = os.path.join(self.tempdir.name, 'arc.txt')
+        open(os.environ['downloads_soundcloud_archive'], 'w').close()
 
     def tearDown(self):
         self.tempdir.cleanup()

@@ -44,7 +44,7 @@ class DbInitTest(unittest.TestCase):
         with patch('api.db_init.DatabaseConnector.connect', return_value=DummyConnection()):
             from services.common.api.db_init import ensure_tables_exist
             ensure_tables_exist()
-        expected_tables = ['soundcloud_accounts', 'soundcloud_archive', 'youtube_accounts', 'youtube_archive', 'artists', 'artist_genre', 'catid_label', 'festival_data', 'genres', 'ignored_artists', 'ignored_genres', 'label_genre', 'subgenre_genre']
+        expected_tables = ['downloads_soundcloud_accounts', 'downloads_soundcloud_archive', 'downloads_youtube_accounts', 'downloads_youtube_archive', 'library_artists', 'rules_artist_genre', 'rules_catid_label', 'rules_festival_data', 'rules_genres', 'rules_ignored_artists', 'rules_ignored_genres', 'rules_label_genre', 'rules_subgenre_hierarchy']
         self.assertEqual(len(executed), len(expected_tables))
         joined = ' '.join(executed)
         for table in expected_tables:

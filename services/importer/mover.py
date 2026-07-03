@@ -59,7 +59,7 @@ class Mover:
         self.db_connector = DatabaseConnector()
 
     def get_label(self, key) -> str | None:
-        query = f'SELECT `label` FROM `catid_label` WHERE `catid` = %s'
+        query = f'SELECT `label` FROM `rules_catid_label` WHERE `catid` = %s'
         connection = self.db_connector.connect()
         try:
             with connection.cursor() as cursor:
@@ -86,7 +86,7 @@ class Mover:
 
     def run(self, dry_run=False):
         """
-        Move folders to categorized destinations based on their labels.
+        Move folders to categorized destinations based on their library_labels.
         """
         logging.info('Starting Move Step')
         only_folders = [f for f in listdir(self.settings.import_folder_path) if not isfile(join(self.settings.import_folder_path, f))]
@@ -95,7 +95,7 @@ class Mover:
             if cat_id:
                 label = self.get_label(cat_id)
                 if label is None:
-                    logging.warning(f'CAT ID {cat_id} not found in labels for folder {folder}')
+                    logging.warning(f'CAT ID {cat_id} not found in library_labels for folder {folder}')
                 else:
                     src = join(self.settings.import_folder_path, folder)
                     dst = join(self.settings.eps_folder_path, label, folder)

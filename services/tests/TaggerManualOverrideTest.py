@@ -25,7 +25,7 @@ class TaggerManualOverrideTest(unittest.TestCase):
         for mod in ['mutagen', 'mutagen.easyid3', 'mutagen.easymp4', 'mutagen.id3', 'mutagen.mp4']:
             sys.modules.pop(mod, None)
         cache_mod = types.ModuleType('postprocessing.Song.Helpers.Cache')
-        cache_mod.databaseHelpers = {'artists': MagicMock(), 'genres': MagicMock()}
+        cache_mod.databaseHelpers = {'library_artists': MagicMock(), 'rules_genres': MagicMock()}
         sys.modules['postprocessing.Song.Helpers.Cache'] = cache_mod
         for mod_name, class_name in [('postprocessing.Song.TelegramSong', 'TelegramSong'), ('postprocessing.Song.GenericSong', 'GenericSong'), ('postprocessing.Song.SoundcloudSong', 'SoundcloudSong'), ('postprocessing.Song.YoutubeSong', 'YoutubeSong')]:
             mod = types.ModuleType(mod_name)

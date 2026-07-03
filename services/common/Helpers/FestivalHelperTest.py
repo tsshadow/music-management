@@ -24,7 +24,7 @@ class FestivalHelperTest(unittest.TestCase):
     def test_get_match_found(self):
         self.mock_cursor.fetchall.return_value = [('Defqon.1', date(2022, 6, 24)), ('Qlimax', date(2022, 11, 19))]
         result = self.helper.get('MyLiveSet Defqon.1 2022.mp3')
-        self.mock_cursor.execute.assert_called_once_with('SELECT festival, date FROM festival_data WHERE year = %s', (2022,))
+        self.mock_cursor.execute.assert_called_once_with('SELECT festival, date FROM rules_festival_data WHERE year = %s', (2022,))
         self.assertIsNotNone(result)
         self.assertEqual(result['festival'], 'Defqon.1')
         self.assertEqual(result['year'], 2022)

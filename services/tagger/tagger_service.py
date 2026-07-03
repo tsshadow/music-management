@@ -145,7 +145,7 @@ class TaggerService:
         """
         logging.info(
             "Starting full tagging run "
-            "(labels=%s, soundcloud=%s, youtube=%s, generic=%s, telegram=%s)",
+            "(library_labels=%s, soundcloud=%s, youtube=%s, generic=%s, telegram=%s)",
             parse_labels,
             parse_soundcloud,
             parse_youtube,

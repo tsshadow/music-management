@@ -15,7 +15,7 @@ try:
 except ImportError:
     pass
 
-# Configurable mappings for "auto-completing" genres
+# Configurable mappings for "auto-completing" rules_genres
 CORRECTIONS = {
     'raw': 'Raw Hardstyle',
     'uptempo': 'Uptempo Hardcore',
@@ -45,12 +45,12 @@ CORRECTIONS = {
     'dnb': "Drum 'N Bass",
 }
 
-# Regex for items that are definitely NOT genres
+# Regex for items that are definitely NOT rules_genres
 JUNK_PATTERNS = [
     r'^[\d\s\W]+$',  # Only numbers, spaces, or symbols (e.g., "#", "(", "2021", "---")
     r'^\d+bpm$',     # BPM values (e.g., "170BPM")
     r'^@.*',         # Social media handles
-    r'^#.*',         # Hashtag lists (often junk/multiple genres)
+    r'^#.*',         # Hashtag lists (often junk/multiple rules_genres)
     r'^[\'"].*',     # Starts with quote (often malformed)
     r'.*mix.*',      # Mixes
     r'.*festival.*', # Festivals
@@ -86,7 +86,7 @@ def get_correction(value):
         return CORRECTIONS[val_lower]
     
     # Check if it contains a known keyword and we want to expand it
-    # But be careful not to over-correct valid complex genres
+    # But be careful not to over-correct valid complex rules_genres
     # For now, let's stick to explicit corrections or simple expansions
     return None
 
@@ -103,7 +103,7 @@ class MockHelper:
         return key in self.ignored
 
     def add(self, key, corrected=None):
-        if self.table == 'ignored_genres':
+        if self.table == 'rules_ignored_genres':
             self.ignored.add(key)
         else:
             self.data[key] = corrected or key
@@ -114,24 +114,24 @@ def process_genres(json_file=None, dry_run=True, interactive=False):
     if json_file:
         with open(json_file, 'r') as f:
             data = json.load(f)
-        genres_list = [{'value': item['value']} for item in data['subsonic-response']['genres']['genre']]
+        genres_list = [{'value': item['value']} for item in data['subsonic-response']['rules_genres']['genre']]
     
     if dry_run:
-        genre_helper = MockHelper('genres')
-        ignored_helper = MockHelper('ignored_genres')
-        backlog_helper = MockHelper('genre_backlog')
+        genre_helper = MockHelper('rules_genres')
+        ignored_helper = MockHelper('rules_ignored_genres')
+        backlog_helper = MockHelper('rules_genre_backlog')
     else:
         from services.common.api.db_init import ensure_tables_exist
         ensure_tables_exist()
         
         from services.common.Helpers.FilterTableHelper import FilterTableHelper
         from services.common.Helpers.TableHelper import TableHelper
-        genre_helper = FilterTableHelper('genres', 'genre', 'corrected_genre')
-        ignored_helper = FilterTableHelper('ignored_genres', 'name', 'corrected_name')
-        backlog_helper = TableHelper('genre_backlog', 'genre')
+        genre_helper = FilterTableHelper('rules_genres', 'name', 'corrected_genre')
+        ignored_helper = TableHelper('rules_ignored_genres', 'name')
+        backlog_helper = TableHelper('rules_genre_backlog', 'genre')
         
     if not json_file and not dry_run:
-        print("Reading genres from database backlog...")
+        print("Reading rules_genres from database backlog...")
         genres_list = [{'value': g} for g in backlog_helper.get_all_values()]
     
     results = {
@@ -229,10 +229,10 @@ def process_genres(json_file=None, dry_run=True, interactive=False):
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Process and clean genres from Subsonic JSON or Database backlog.")
-    parser.add_argument("json_file", nargs="?", help="Path to the JSON file containing genres (optional, defaults to DB backlog if --run is used).")
+    parser = argparse.ArgumentParser(description="Process and clean rules_genres from Subsonic JSON or Database backlog.")
+    parser.add_argument("json_file", nargs="?", help="Path to the JSON file containing rules_genres (optional, defaults to DB backlog if --run is used).")
     parser.add_argument("--run", action="store_true", help="Actually update the database (requires dependencies).")
-    parser.add_argument("--interactive", "-i", action="store_true", help="Ask for confirmation/corrections on unknown genres.")
+    parser.add_argument("--interactive", "-i", action="store_true", help="Ask for confirmation/corrections on unknown rules_genres.")
     
     args = parser.parse_args()
     

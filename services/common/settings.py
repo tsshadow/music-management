@@ -29,7 +29,15 @@ class Settings(metaclass=SingletonMeta):
         self.eps_folder_path = os.getenv('eps_folder_path', '')
         self.music_folder_path = os.getenv('music_folder_path', '')
         self.delimiter = os.getenv('delimiter', os.sep)
+        self.telegram_accounts = os.getenv('telegram_accounts', '')
         logging.info('import_folder_path = %s', self.import_folder_path)
         logging.info('music_folder_path = %s', self.music_folder_path)
         logging.info('eps_folder_path = %s', self.eps_folder_path)
         logging.info('delimiter = %s', self.delimiter)
+        logging.info('telegram_accounts = %s', self.telegram_accounts)
+
+    def get(self, key, default=None):
+        """
+        Get a setting value by key. Falls back to environment variable if not found as attribute.
+        """
+        return getattr(self, key, os.getenv(key, default))

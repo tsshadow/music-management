@@ -31,7 +31,7 @@ class InferGenreFromLabelRuleTest(unittest.TestCase):
         self.song.tag_collection.set_item.assert_called_once_with(GENRE, 'Gabber;Hardcore')
 
     def test_sets_genre_when_none_exist(self):
-        """Publisher returns genre when no genres are tagged yet."""
+        """Publisher returns genre when no rules_genres are tagged yet."""
         self.song.tag_collection.get_item_as_string = MagicMock(return_value='MOH')
         self.song.tag_collection.get_item_as_array = MagicMock(return_value=[])
         helper = MagicMock()

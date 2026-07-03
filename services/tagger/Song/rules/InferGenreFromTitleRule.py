@@ -6,7 +6,7 @@ from services.common.Helpers.TableHelper import TableHelper
 class InferGenreFromTitleRule(TagRule):
 
     def __init__(self, genre_db=None, dryrun=True, dryrun_output_path='genre_matches.txt'):
-        self.genre_db = genre_db or TableHelper('genres', 'genre')
+        self.genre_db = genre_db or TableHelper('rules_genres', 'name')
         self.dryrun = dryrun
         self.dryrun_output_path = dryrun_output_path
         all_genres = self.genre_db.get_all_values()

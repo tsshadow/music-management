@@ -10,7 +10,7 @@ The Downloader Service is responsible for automatically fetching music from vari
 - Maintains a local archive database to avoid duplicate downloads.
 
 ### ☁️ SoundCloud
-- Downloads tracks from specific artists or URLs.
+- Downloads library_tracks from specific library_artists or URLs.
 - Handles rate limiting and metadata extraction.
 
 ### 📱 Telegram

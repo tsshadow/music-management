@@ -9,7 +9,7 @@ class StatsService:
         """Initialize the service with a database adapter implementation."""
         self.adapter = adapter
 
-    async def artists(self, period: str, value: str | None, limit: int, offset: int):
+    async def library_artists(self, period: str, value: str | None, limit: int, offset: int):
         """Return artist play counts for the selected period."""
         normalized_period, normalized_value = self._normalize_period(period, value)
         items, total = await self.adapter.stats_artists(normalized_period, normalized_value, limit, offset)
@@ -21,13 +21,13 @@ class StatsService:
         items, total = await self.adapter.stats_albums(normalized_period, normalized_value, limit, offset)
         return {'items': items, 'total': total}
 
-    async def tracks(self, period: str, value: str | None, limit: int, offset: int):
+    async def library_tracks(self, period: str, value: str | None, limit: int, offset: int):
         """Return track play counts for the selected period."""
         normalized_period, normalized_value = self._normalize_period(period, value)
         items, total = await self.adapter.stats_tracks(normalized_period, normalized_value, limit, offset)
         return {'items': items, 'total': total}
 
-    async def genres(self, period: str, value: str | None, limit: int, offset: int):
+    async def rules_genres(self, period: str, value: str | None, limit: int, offset: int):
         """Return genre play counts for the selected period."""
         normalized_period, normalized_value = self._normalize_period(period, value)
         items, total = await self.adapter.stats_genres(normalized_period, normalized_value, limit, offset)
@@ -38,7 +38,7 @@ class StatsService:
         return await self.adapter.stats_top_artist_by_genre(year)
 
     async def time_of_day(self, year: int, period: str):
-        """Return top tracks within the selected time-of-day segment."""
+        """Return top library_tracks within the selected time-of-day segment."""
         return await self.adapter.stats_time_of_day(year, period)
 
     def _normalize_period(self, period: str, value: str | None) -> tuple[str, str | None]:

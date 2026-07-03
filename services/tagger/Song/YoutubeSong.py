@@ -45,8 +45,8 @@ class YoutubeSong(BaseSong):
         self.rules.append(InferGenreFromSubgenreRule())
         self.rules.append(CleanTagsRule())
         from services.common.Helpers.Cache import databaseHelpers
-        self.rules.append(AddMissingGenreToDatabaseRule(genre_db=databaseHelpers['genres'], ignored_db=databaseHelpers['ignored_genres']))
-        self.rules.append(CleanAndFilterGenreRule(databaseHelpers['genres'], databaseHelpers.get('genre_backlog')))
+        self.rules.append(AddMissingGenreToDatabaseRule(genre_db=databaseHelpers['rules_genres'], ignored_db=databaseHelpers['rules_ignored_genres'], backlog_db=databaseHelpers.get('rules_genre_backlog')))
+        self.rules.append(CleanAndFilterGenreRule(databaseHelpers['rules_genres'], databaseHelpers.get('rules_genre_backlog'), databaseHelpers.get('rules_ignored_genres')))
         self.rules.append(ReplaceInvalidUnicodeRule())
         super().parse()
 
@@ -61,8 +61,8 @@ class YoutubeSong(BaseSong):
         return None
 
     def update_song(self, folder):
-        ignored_artists = []
-        if folder in ignored_artists:
+        rules_ignored_artists = []
+        if folder in rules_ignored_artists:
             return
         if self.artist() == self.album_artist() and self.artist() == folder:
             if self.title().find(' - ') != -1:

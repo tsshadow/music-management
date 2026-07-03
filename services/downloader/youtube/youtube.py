@@ -6,6 +6,7 @@ import time
 from typing import Optional
 from yt_dlp import YoutubeDL
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+from services.common.api.config_store import ConfigStore
 from services.downloader.youtube.YoutubeSongProcessor import YoutubeSongProcessor
 
 
@@ -15,7 +16,7 @@ class YoutubeDownloader:
                  max_pause: int = 5, socket_timeout: int = 30):
         """
         Initializes the YoutubeDownloader instance with configuration settings.
-    
+
         Args:
             break_on_existing (bool): Whether to stop processing if existing content is detected.
             max_workers (int): Maximum number of worker threads for concurrency.
@@ -24,9 +25,17 @@ class YoutubeDownloader:
             max_pause (int): Maximum pause duration (in seconds) between batches.
             socket_timeout (int): Timeout value (in seconds) for network connections.
         """
-        self.output_folder = os.getenv('youtube_folder')
-        self.archive_dir = os.getenv('youtube_archive')
-        self.ffmpeg_location = os.getenv('ffmpeg-location', 'usr/bin/local')
+        self._config = ConfigStore()
+        values = self._config.get_many([
+            'youtube_folder', 'downloads_youtube_archive', 'ffmpeg_location',
+            'yt_cookies', 'yt_user_agent'
+        ])
+        self.output_folder = values.get('youtube_folder')
+        self.archive_dir = values.get('downloads_youtube_archive')
+        self.ffmpeg_location = values.get('ffmpeg_location') or 'usr/bin/local'
+        self.cookies_file = values.get('yt_cookies')
+        self.user_agent = values.get('yt_user_agent')
+
         self.max_workers = max_workers
         self.burst_size = burst_size
         self.min_pause = min_pause
@@ -35,7 +44,7 @@ class YoutubeDownloader:
         self.default_break_on_existing = break_on_existing
         if not self.output_folder or not self.archive_dir:
             logging.warning(
-                'Missing required environment variables for youtube_folder or youtube_archive. YouTube downloads will be disabled.')
+                'Missing required configuration for youtube_folder or downloads_youtube_archive. YouTube downloads will be disabled.')
             self.output_folder = None
             self.archive_dir = None
             self.enabled = False
@@ -43,8 +52,6 @@ class YoutubeDownloader:
             os.makedirs(self.output_folder, exist_ok=True)
             os.makedirs(self.archive_dir, exist_ok=True)
             self.enabled = True
-        self.cookies_file = os.getenv('YT_COOKIES')
-        self.user_agent = os.getenv('YT_USER_AGENT')
         if not self.enabled:
             self._base_ydl_opts = {}
             return
@@ -229,7 +236,7 @@ class YoutubeDownloader:
         try:
             db = DatabaseConnector().connect()
             with db.cursor() as cursor:
-                cursor.execute('SELECT name FROM youtube_accounts')
+                cursor.execute('SELECT name FROM downloads_youtube_accounts')
                 accounts = [row[0] for row in cursor.fetchall()]
             return accounts
         except Exception as e:

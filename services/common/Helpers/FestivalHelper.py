@@ -7,10 +7,10 @@ class FestivalHelper:
     """
     Helper class to identify festivals and their corresponding years/dates
     based on a string input (typically filenames or folder names).
-    Looks up results from a SQL table, defaulting to 'festival_data'.
+    Looks up results from a SQL table, defaulting to 'rules_festival_data'.
     """
 
-    def __init__(self, table_name: str='festival_data'):
+    def __init__(self, table_name: str='rules_festival_data'):
         self.table_name = table_name
         self.db_connector = DatabaseConnector()
 

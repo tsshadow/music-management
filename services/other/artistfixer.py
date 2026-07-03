@@ -7,7 +7,7 @@ class ArtistFixer:
 
     def __init__(self):
         self.settings = Settings()
-        self.artist_db = databaseHelpers['artists']
+        self.artist_db = databaseHelpers['library_artists']
         self.rule = VerifyArtistRule(self.artist_db)
         self.extensions = {'mp3': True, 'flac': True, 'wav': False, 'm4a': True, 'aac': False}
 

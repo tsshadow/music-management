@@ -8,7 +8,7 @@ To confirm that ListenBrainz is sending genre information for a listen you can h
 GET https://api.listenbrainz.org/1/metadata/recording/{recording_mbid}
 ```
 
-This returns the metadata ListenBrainz has cached for the specific recording. When genres are available you will find them inside `track_metadata.additional_info.tags`, for example:
+This returns the metadata ListenBrainz has cached for the specific recording. When rules_genres are available you will find them inside `track_metadata.additional_info.tags`, for example:
 
 ```json
 {

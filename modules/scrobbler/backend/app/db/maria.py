@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from services.analyzer_service.analyzer.matching.normalizer import normalize_text
 from .adapter import DatabaseAdapter
-from ..models import release_groups, artists, config, genres, listen_artists, listen_genres, listens, listens_raw, track_artists, track_genres, tracks, users
+from ..models import release_groups, library_artists, config, rules_genres, listen_artists, listen_genres, listens, listens_raw, library_track_artists, library_track_genres, library_tracks, users
 
 class MariaDBAdapter(DatabaseAdapter):
     """SQLAlchemy adapter that targets MariaDB while remaining SQLite-compatible for tests."""
@@ -68,7 +68,7 @@ class MariaDBAdapter(DatabaseAdapter):
         """Return the artist identifier if it exists in the media library."""
         normalized = normalize_text(name)
         async with self.session_factory() as session:
-            stmt = select(artists.c.id).where(artists.c.name_normalized == normalized)
+            stmt = select(library_artists.c.id).where(library_artists.c.name_normalized == normalized)
             existing = (await session.execute(stmt)).scalar_one_or_none()
             return int(existing) if existing is not None else None
 
@@ -76,7 +76,7 @@ class MariaDBAdapter(DatabaseAdapter):
         """Return the genre identifier if it exists in the media library."""
         normalized = normalize_text(name)
         async with self.session_factory() as session:
-            stmt = select(genres.c.id).where(genres.c.name_normalized == normalized)
+            stmt = select(rules_genres.c.id).where(rules_genres.c.name_normalized == normalized)
             existing = (await session.execute(stmt)).scalar_one_or_none()
             return int(existing) if existing is not None else None
 
@@ -97,28 +97,28 @@ class MariaDBAdapter(DatabaseAdapter):
         if not track_uid:
             return None
         async with self.session_factory() as session:
-            stmt = select(tracks.c.id).where(tracks.c.track_uid == track_uid)
+            stmt = select(library_tracks.c.id).where(library_tracks.c.track_uid == track_uid)
             existing = (await session.execute(stmt)).scalar_one_or_none()
             return int(existing) if existing is not None else None
 
     async def lookup_track_details(self, *, title: str, artist_id: int | None, album_id: int | None) -> int | None:
         """Return a track identifier that matches the supplied metadata."""
         normalized = normalize_text(title)
-        conditions = [tracks.c.title_normalized == normalized]
+        conditions = [library_tracks.c.title_normalized == normalized]
         if artist_id is not None:
-            conditions.append(tracks.c.primary_artist_id == artist_id)
+            conditions.append(library_tracks.c.primary_artist_id == artist_id)
         if album_id is not None:
-            conditions.append(tracks.c.album_id == album_id)
+            conditions.append(library_tracks.c.album_id == album_id)
         if not conditions:
             return None
         async with self.session_factory() as session:
-            stmt = select(tracks.c.id).where(and_(*conditions))
+            stmt = select(library_tracks.c.id).where(and_(*conditions))
             ordering: list[Any] = []
             if album_id is not None:
-                ordering.append(case((tracks.c.album_id == album_id, 0), else_=1))
+                ordering.append(case((library_tracks.c.album_id == album_id, 0), else_=1))
             if artist_id is not None:
-                ordering.append(case((tracks.c.primary_artist_id == artist_id, 0), else_=1))
-            ordering.append(tracks.c.id)
+                ordering.append(case((library_tracks.c.primary_artist_id == artist_id, 0), else_=1))
+            ordering.append(library_tracks.c.id)
             stmt = stmt.order_by(*ordering).limit(1)
             existing = (await session.execute(stmt)).scalar_one_or_none()
             return int(existing) if existing is not None else None
@@ -126,14 +126,14 @@ class MariaDBAdapter(DatabaseAdapter):
     async def lookup_track_artist_ids(self, track_id: int) -> list[int]:
         """Return artist identifiers already linked to the provided track."""
         async with self.session_factory() as session:
-            stmt = select(track_artists.c.artist_id).where(track_artists.c.track_id == track_id).order_by(track_artists.c.artist_id)
+            stmt = select(library_track_artists.c.artist_id).where(library_track_artists.c.track_id == track_id).order_by(library_track_artists.c.artist_id)
             rows = await session.execute(stmt)
             return [int(row[0]) for row in rows.fetchall() if row[0] is not None]
 
     async def lookup_track_genre_ids(self, track_id: int) -> list[int]:
         """Return genre identifiers already linked to the provided track."""
         async with self.session_factory() as session:
-            stmt = select(track_genres.c.genre_id).where(track_genres.c.track_id == track_id).order_by(track_genres.c.genre_id)
+            stmt = select(library_track_genres.c.genre_id).where(library_track_genres.c.track_id == track_id).order_by(library_track_genres.c.genre_id)
             rows = await session.execute(stmt)
             return [int(row[0]) for row in rows.fetchall() if row[0] is not None]
 
@@ -295,7 +295,7 @@ class MariaDBAdapter(DatabaseAdapter):
             return rows
         listen_ids = [int(row['id']) for row in rows]
         track_ids = {int(row['track_id']) for row in rows if row.get('track_id') is not None}
-        listen_artist_stmt = select(listen_artists.c.listen_id, artists.c.id, artists.c.name).select_from(listen_artists.join(artists, artists.c.id == listen_artists.c.artist_id)).where(listen_artists.c.listen_id.in_(listen_ids)).order_by(listen_artists.c.listen_id, listen_artists.c.artist_id)
+        listen_artist_stmt = select(listen_artists.c.listen_id, library_artists.c.id, library_artists.c.name).select_from(listen_artists.join(library_artists, library_artists.c.id == listen_artists.c.artist_id)).where(listen_artists.c.listen_id.in_(listen_ids)).order_by(listen_artists.c.listen_id, listen_artists.c.artist_id)
         listen_artist_rows = await session.execute(listen_artist_stmt)
         listen_artist_map: dict[int, list[tuple[int | None, str]]] = defaultdict(list)
         for listen_id, artist_id, name in listen_artist_rows:
@@ -303,7 +303,7 @@ class MariaDBAdapter(DatabaseAdapter):
         missing_track_ids = {track_id for track_id, listen_id in ((int(row['track_id']) if row.get('track_id') is not None else None, int(row['id'])) for row in rows) if track_id is not None and listen_artist_map.get(listen_id) is None}
         track_artist_map: dict[int, list[tuple[int | None, str]]] = defaultdict(list)
         if missing_track_ids:
-            track_artist_stmt = select(track_artists.c.track_id, artists.c.id, artists.c.name).select_from(track_artists.join(artists, artists.c.id == track_artists.c.artist_id)).where(track_artists.c.track_id.in_(missing_track_ids)).order_by(track_artists.c.track_id, track_artists.c.artist_id)
+            track_artist_stmt = select(library_track_artists.c.track_id, library_artists.c.id, library_artists.c.name).select_from(library_track_artists.join(library_artists, library_artists.c.id == library_track_artists.c.artist_id)).where(library_track_artists.c.track_id.in_(missing_track_ids)).order_by(library_track_artists.c.track_id, library_track_artists.c.artist_id)
             track_artist_rows = await session.execute(track_artist_stmt)
             for track_id, artist_id, name in track_artist_rows:
                 track_artist_map[int(track_id)].append((int(artist_id) if artist_id is not None else None, name))
@@ -320,9 +320,9 @@ class MariaDBAdapter(DatabaseAdapter):
                     cleaned = raw_artist.strip()
                     if cleaned:
                         artists_list = [{'id': None, 'name': cleaned}]
-            row['artists'] = artists_list
+            row['library_artists'] = artists_list
             row['artist_names'] = ', '.join((artist['name'] for artist in artists_list)) if artists_list else None
-            raw_genres = row.pop('genres', None)
+            raw_genres = row.pop('rules_genres', None)
             genre_list: list[str] = []
             if raw_genres:
                 seen_genres: set[str] = set()
@@ -335,7 +335,7 @@ class MariaDBAdapter(DatabaseAdapter):
                         continue
                     seen_genres.add(key)
                     genre_list.append(trimmed)
-            row['genres'] = genre_list
+            row['rules_genres'] = genre_list
             row['genre_names'] = ', '.join(genre_list) if genre_list else None
             if track_id is not None:
                 row['track_id'] = int(track_id)
@@ -397,7 +397,7 @@ class MariaDBAdapter(DatabaseAdapter):
         if window is not None:
             start, end = window
             clause = and_(listens.c.listened_at >= start, listens.c.listened_at < end)
-        stmt = select(listens.c.id, listens.c.listened_at, listens.c.source, listens.c.source_track_id, listens.c.position_secs, listens.c.duration_secs, listens.c.track_id, func.coalesce(tracks.c.title, listens.c.track_title_raw).label('track_title'), listens.c.track_title_raw, listens.c.artist_name_raw, release_groups.c.id.label('album_id'), release_groups.c.title.label('album_title'), release_groups.c.year.label('album_release_year'), func.group_concat(genres.c.name, ', ').label('genres')).select_from(listens).outerjoin(tracks, listens.c.track_id == tracks.c.id).outerjoin(release_groups, tracks.c.album_id == release_groups.c.id).outerjoin(track_genres, track_genres.c.track_id == tracks.c.id).outerjoin(genres, genres.c.id == track_genres.c.genre_id).group_by(listens.c.id, listens.c.listened_at, listens.c.source, listens.c.source_track_id, listens.c.position_secs, listens.c.duration_secs, listens.c.track_id, tracks.c.title, listens.c.track_title_raw, listens.c.artist_name_raw, release_groups.c.id, release_groups.c.title, release_groups.c.year).order_by(listens.c.listened_at.desc()).limit(limit).offset(offset)
+        stmt = select(listens.c.id, listens.c.listened_at, listens.c.source, listens.c.source_track_id, listens.c.position_secs, listens.c.duration_secs, listens.c.track_id, func.coalesce(library_tracks.c.title, listens.c.track_title_raw).label('track_title'), listens.c.track_title_raw, listens.c.artist_name_raw, release_groups.c.id.label('album_id'), release_groups.c.title.label('album_title'), release_groups.c.year.label('album_release_year'), func.group_concat(rules_genres.c.name, ', ').label('rules_genres')).select_from(listens).outerjoin(library_tracks, listens.c.track_id == library_tracks.c.id).outerjoin(release_groups, library_tracks.c.album_id == release_groups.c.id).outerjoin(library_track_genres, library_track_genres.c.track_id == library_tracks.c.id).outerjoin(rules_genres, rules_genres.c.id == library_track_genres.c.genre_id).group_by(listens.c.id, listens.c.listened_at, listens.c.source, listens.c.source_track_id, listens.c.position_secs, listens.c.duration_secs, listens.c.track_id, library_tracks.c.title, listens.c.track_title_raw, listens.c.artist_name_raw, release_groups.c.id, release_groups.c.title, release_groups.c.year).order_by(listens.c.listened_at.desc()).limit(limit).offset(offset)
         if clause is not None:
             stmt = stmt.where(clause)
         count_stmt = select(func.count()).select_from(listens)
@@ -413,7 +413,7 @@ class MariaDBAdapter(DatabaseAdapter):
 
     async def fetch_listen_detail(self, listen_id: int) -> dict[str, Any] | None:
         """Return a single listen with detailed track, album, artist, and genre metadata."""
-        stmt = select(listens.c.id, listens.c.listened_at, listens.c.source, listens.c.source_track_id, listens.c.position_secs, listens.c.duration_secs, listens.c.user_id, users.c.username, tracks.c.id.label('track_id'), tracks.c.title.label('track_title'), tracks.c.duration_secs.label('track_duration_secs'), tracks.c.disc_no, tracks.c.track_no, tracks.c.mbid.label('track_mbid'), tracks.c.isrc, release_groups.c.id.label('album_id'), release_groups.c.title.label('album_title'), release_groups.c.year.label('release_year'), release_groups.c.mbid.label('album_mbid')).select_from(listens).join(users, listens.c.user_id == users.c.id).join(tracks, listens.c.track_id == tracks.c.id).outerjoin(release_groups, tracks.c.album_id == release_groups.c.id).where(listens.c.id == listen_id)
+        stmt = select(listens.c.id, listens.c.listened_at, listens.c.source, listens.c.source_track_id, listens.c.position_secs, listens.c.duration_secs, listens.c.user_id, users.c.username, library_tracks.c.id.label('track_id'), library_tracks.c.title.label('track_title'), library_tracks.c.duration_secs.label('track_duration_secs'), library_tracks.c.disc_no, library_tracks.c.track_no, library_tracks.c.mbid.label('track_mbid'), library_tracks.c.isrc, release_groups.c.id.label('album_id'), release_groups.c.title.label('album_title'), release_groups.c.year.label('release_year'), release_groups.c.mbid.label('album_mbid')).select_from(listens).join(users, listens.c.user_id == users.c.id).join(library_tracks, listens.c.track_id == library_tracks.c.id).outerjoin(release_groups, library_tracks.c.album_id == release_groups.c.id).where(listens.c.id == listen_id)
         async with self.session_factory() as session:
             result = await session.execute(stmt)
             mapping = result.mappings().one_or_none()
@@ -442,19 +442,19 @@ class MariaDBAdapter(DatabaseAdapter):
                     row['album_release_year'] = int(value)
                 else:
                     row['album_release_year'] = None
-            listen_artist_stmt = select(artists.c.id, artists.c.name).select_from(listen_artists.join(artists, artists.c.id == listen_artists.c.artist_id)).where(listen_artists.c.listen_id == listen_id).order_by(listen_artists.c.artist_id)
+            listen_artist_stmt = select(library_artists.c.id, library_artists.c.name).select_from(listen_artists.join(library_artists, library_artists.c.id == listen_artists.c.artist_id)).where(listen_artists.c.listen_id == listen_id).order_by(listen_artists.c.artist_id)
             listen_artists_rows = await session.execute(listen_artist_stmt)
             artist_entries = [(int(artist_id) if artist_id is not None else None, name) for artist_id, name in listen_artists_rows]
             if not artist_entries:
-                track_artist_stmt = select(artists.c.id, artists.c.name).select_from(track_artists.join(artists, artists.c.id == track_artists.c.artist_id)).where(track_artists.c.track_id == row['track_id']).order_by(track_artists.c.artist_id)
+                track_artist_stmt = select(library_artists.c.id, library_artists.c.name).select_from(library_track_artists.join(library_artists, library_artists.c.id == library_track_artists.c.artist_id)).where(library_track_artists.c.track_id == row['track_id']).order_by(library_track_artists.c.artist_id)
                 track_artist_rows = await session.execute(track_artist_stmt)
                 artist_entries = [(int(artist_id) if artist_id is not None else None, name) for artist_id, name in track_artist_rows]
-            row['artists'] = self._clean_artist_entries(artist_entries)
-            listen_genre_stmt = select(genres.c.id, genres.c.name).select_from(listen_genres.join(genres, genres.c.id == listen_genres.c.genre_id)).where(listen_genres.c.listen_id == listen_id).order_by(genres.c.name)
+            row['library_artists'] = self._clean_artist_entries(artist_entries)
+            listen_genre_stmt = select(rules_genres.c.id, rules_genres.c.name).select_from(listen_genres.join(rules_genres, rules_genres.c.id == listen_genres.c.genre_id)).where(listen_genres.c.listen_id == listen_id).order_by(rules_genres.c.name)
             listen_genre_rows = await session.execute(listen_genre_stmt)
             genre_entries = [(int(genre_id) if genre_id is not None else None, name) for genre_id, name in listen_genre_rows]
             if not genre_entries:
-                track_genre_stmt = select(genres.c.id, genres.c.name).select_from(track_genres.join(genres, genres.c.id == track_genres.c.genre_id)).where(track_genres.c.track_id == row['track_id']).order_by(genres.c.name)
+                track_genre_stmt = select(rules_genres.c.id, rules_genres.c.name).select_from(library_track_genres.join(rules_genres, rules_genres.c.id == library_track_genres.c.genre_id)).where(library_track_genres.c.track_id == row['track_id']).order_by(rules_genres.c.name)
                 track_genre_rows = await session.execute(track_genre_stmt)
                 genre_entries = [(int(genre_id) if genre_id is not None else None, name) for genre_id, name in track_genre_rows]
             seen_genres: set[str] = set()
@@ -470,7 +470,7 @@ class MariaDBAdapter(DatabaseAdapter):
                     continue
                 seen_genres.add(key)
                 genres_list.append({'id': int(genre_id) if genre_id is not None else None, 'name': trimmed})
-            row['genres'] = genres_list
+            row['rules_genres'] = genres_list
             return row
 
     async def count_listens(self) -> int:
@@ -488,7 +488,7 @@ class MariaDBAdapter(DatabaseAdapter):
     async def fetch_listens_for_export(self, *, user: str | None=None, since: datetime | None=None, limit: int=100, offset: int=0) -> list[dict[str, Any]]:
         """Return listens with related metadata for ListenBrainz exports."""
         async with self.session_factory() as session:
-            stmt = select(listens.c.id.label('listen_id'), listens.c.listened_at, listens.c.duration_secs.label('listen_duration'), listens.c.source, listens.c.source_track_id, tracks.c.id.label('track_id'), tracks.c.title.label('track_title'), tracks.c.duration_secs.label('track_duration'), tracks.c.track_no, tracks.c.disc_no, tracks.c.mbid, tracks.c.isrc, release_groups.c.title.label('album_title'), users.c.username).select_from(listens).join(users, listens.c.user_id == users.c.id).join(tracks, listens.c.track_id == tracks.c.id).outerjoin(release_groups, tracks.c.album_id == release_groups.c.id).order_by(listens.c.listened_at.asc(), listens.c.id.asc()).offset(offset).limit(limit)
+            stmt = select(listens.c.id.label('listen_id'), listens.c.listened_at, listens.c.duration_secs.label('listen_duration'), listens.c.source, listens.c.source_track_id, library_tracks.c.id.label('track_id'), library_tracks.c.title.label('track_title'), library_tracks.c.duration_secs.label('track_duration'), library_tracks.c.track_no, library_tracks.c.disc_no, library_tracks.c.mbid, library_tracks.c.isrc, release_groups.c.title.label('album_title'), users.c.username).select_from(listens).join(users, listens.c.user_id == users.c.id).join(library_tracks, listens.c.track_id == library_tracks.c.id).outerjoin(release_groups, library_tracks.c.album_id == release_groups.c.id).order_by(listens.c.listened_at.asc(), listens.c.id.asc()).offset(offset).limit(limit)
             if user:
                 stmt = stmt.where(func.lower(users.c.username) == user.lower())
             if since:
@@ -498,13 +498,13 @@ class MariaDBAdapter(DatabaseAdapter):
                 return []
             listen_ids = [row['listen_id'] for row in rows]
             track_ids = {row['track_id'] for row in rows}
-            artist_order = case((track_artists.c.role == 'primary', 0), (track_artists.c.role == 'featured', 1), (track_artists.c.role == 'remixer', 2), else_=3)
-            artist_stmt = select(track_artists.c.track_id, artists.c.name, track_artists.c.role).select_from(track_artists).join(artists, artists.c.id == track_artists.c.artist_id).where(track_artists.c.track_id.in_(track_ids)).order_by(track_artists.c.track_id, artist_order, artists.c.name)
+            artist_order = case((library_track_artists.c.role == 'primary', 0), (library_track_artists.c.role == 'featured', 1), (library_track_artists.c.role == 'remixer', 2), else_=3)
+            artist_stmt = select(library_track_artists.c.track_id, library_artists.c.name, library_track_artists.c.role).select_from(library_track_artists).join(library_artists, library_artists.c.id == library_track_artists.c.artist_id).where(library_track_artists.c.track_id.in_(track_ids)).order_by(library_track_artists.c.track_id, artist_order, library_artists.c.name)
             artist_rows = await session.execute(artist_stmt)
             artist_map: dict[int, list[tuple[str, str]]] = defaultdict(list)
             for track_id, name, role in artist_rows:
                 artist_map[int(track_id)].append((name, role))
-            genre_stmt = select(track_genres.c.track_id, genres.c.name).select_from(track_genres).join(genres, genres.c.id == track_genres.c.genre_id).where(track_genres.c.track_id.in_(track_ids)).order_by(track_genres.c.track_id, genres.c.name)
+            genre_stmt = select(library_track_genres.c.track_id, rules_genres.c.name).select_from(library_track_genres).join(rules_genres, rules_genres.c.id == library_track_genres.c.genre_id).where(library_track_genres.c.track_id.in_(track_ids)).order_by(library_track_genres.c.track_id, rules_genres.c.name)
             genre_rows = await session.execute(genre_stmt)
             genre_map: dict[int, list[str]] = defaultdict(list)
             for track_id, name in genre_rows:
@@ -512,8 +512,8 @@ class MariaDBAdapter(DatabaseAdapter):
             result: list[dict[str, Any]] = []
             for row in rows:
                 track_id = int(row['track_id'])
-                result.append({'listen_id': int(row['listen_id']), 'username': row['username'], 'listened_at': row['listened_at'], 'listen_duration': row['listen_duration'], 'source': row['source'], 'source_track_id': row['source_track_id'], 'track': {'id': track_id, 'title': row['track_title'], 'album': row['album_title'], 'duration': row['track_duration'], 'track_no': row['track_no'], 'disc_no': row['disc_no'], 'mbid': row['mbid'], 'isrc': row['isrc']}, 'artists': [{'name': name, 'role': role} for name, role in artist_map.get(track_id, [])], 'genres': genre_map.get(track_id, [])})
-            listen_artist_stmt = select(listen_artists.c.listen_id, artists.c.name).select_from(listen_artists).join(artists, artists.c.id == listen_artists.c.artist_id).where(listen_artists.c.listen_id.in_(listen_ids)).order_by(listen_artists.c.listen_id, artists.c.name)
+                result.append({'listen_id': int(row['listen_id']), 'username': row['username'], 'listened_at': row['listened_at'], 'listen_duration': row['listen_duration'], 'source': row['source'], 'source_track_id': row['source_track_id'], 'track': {'id': track_id, 'title': row['track_title'], 'album': row['album_title'], 'duration': row['track_duration'], 'track_no': row['track_no'], 'disc_no': row['disc_no'], 'mbid': row['mbid'], 'isrc': row['isrc']}, 'library_artists': [{'name': name, 'role': role} for name, role in artist_map.get(track_id, [])], 'rules_genres': genre_map.get(track_id, [])})
+            listen_artist_stmt = select(listen_artists.c.listen_id, library_artists.c.name).select_from(listen_artists).join(library_artists, library_artists.c.id == listen_artists.c.artist_id).where(listen_artists.c.listen_id.in_(listen_ids)).order_by(listen_artists.c.listen_id, library_artists.c.name)
             listen_artist_rows = await session.execute(listen_artist_stmt)
             listen_artist_map: dict[int, list[str]] = defaultdict(list)
             for listen_id, name in listen_artist_rows:
@@ -523,7 +523,7 @@ class MariaDBAdapter(DatabaseAdapter):
                 if listen_artist_map.get(listen_id):
                     item['listen_artists'] = listen_artist_map[listen_id]
                 else:
-                    item['listen_artists'] = [artist['name'] for artist in item['artists']]
+                    item['listen_artists'] = [artist['name'] for artist in item['library_artists']]
             return result
 
     def _date_format(self, column, pattern: str):
@@ -550,8 +550,8 @@ class MariaDBAdapter(DatabaseAdapter):
     async def stats_artists(self, period: str, value: str | None, limit: int, offset: int) -> tuple[list[dict[str, Any]], int]:
         """Return artist listen counts constrained by a time period."""
         clause = self._period_clause(period, value)
-        base_query = select(artists.c.id.label('artist_id'), artists.c.name.label('artist'), func.count().label('count')).select_from(listens).join(tracks, listens.c.track_id == tracks.c.id).join(track_artists, track_artists.c.track_id == tracks.c.id).join(artists, artists.c.id == track_artists.c.artist_id).where(clause).group_by(artists.c.id, artists.c.name)
-        stmt = base_query.order_by(func.count().desc(), artists.c.name).limit(limit).offset(offset)
+        base_query = select(library_artists.c.id.label('artist_id'), library_artists.c.name.label('artist'), func.count().label('count')).select_from(listens).join(library_tracks, listens.c.track_id == library_tracks.c.id).join(library_track_artists, library_track_artists.c.track_id == library_tracks.c.id).join(library_artists, library_artists.c.id == library_track_artists.c.artist_id).where(clause).group_by(library_artists.c.id, library_artists.c.name)
+        stmt = base_query.order_by(func.count().desc(), library_artists.c.name).limit(limit).offset(offset)
         count_stmt = select(func.count()).select_from(base_query.subquery())
         async with self.session_factory() as session:
             total = int((await session.execute(count_stmt)).scalar_one())
@@ -561,7 +561,7 @@ class MariaDBAdapter(DatabaseAdapter):
     async def stats_albums(self, period: str, value: str | None, limit: int, offset: int) -> tuple[list[dict[str, Any]], int]:
         """Return album listen counts constrained by a time period."""
         clause = self._period_clause(period, value)
-        base_query = select(release_groups.c.id.label('album_id'), release_groups.c.title.label('album'), release_groups.c.year.label('release_year'), func.count().label('count')).select_from(listens).join(tracks, listens.c.track_id == tracks.c.id).join(release_groups, tracks.c.album_id == release_groups.c.id).where(clause).group_by(release_groups.c.id, release_groups.c.title, release_groups.c.year)
+        base_query = select(release_groups.c.id.label('album_id'), release_groups.c.title.label('album'), release_groups.c.year.label('release_year'), func.count().label('count')).select_from(listens).join(library_tracks, listens.c.track_id == library_tracks.c.id).join(release_groups, library_tracks.c.album_id == release_groups.c.id).where(clause).group_by(release_groups.c.id, release_groups.c.title, release_groups.c.year)
         stmt = base_query.order_by(func.count().desc(), release_groups.c.title).limit(limit).offset(offset)
         count_stmt = select(func.count()).select_from(base_query.subquery())
         async with self.session_factory() as session:
@@ -573,21 +573,21 @@ class MariaDBAdapter(DatabaseAdapter):
         """Return track listen counts constrained by a time period."""
         clause = self._period_clause(period, value)
         listen_count = func.count().label('count')
-        base_query = select(tracks.c.id.label('track_id'), tracks.c.title.label('track'), release_groups.c.title.label('album'), artists.c.name.label('artist'), tracks.c.duration_secs.label('duration_secs'), listen_count).select_from(listens).join(tracks, listens.c.track_id == tracks.c.id).outerjoin(release_groups, tracks.c.album_id == release_groups.c.id).outerjoin(artists, tracks.c.primary_artist_id == artists.c.id).where(clause).group_by(tracks.c.id, tracks.c.title, release_groups.c.title, artists.c.name, tracks.c.duration_secs)
-        stmt = base_query.order_by(listen_count.desc(), tracks.c.title).limit(limit).offset(offset)
+        base_query = select(library_tracks.c.id.label('track_id'), library_tracks.c.title.label('track'), release_groups.c.title.label('album'), library_artists.c.name.label('artist'), library_tracks.c.duration_secs.label('duration_secs'), listen_count).select_from(listens).join(library_tracks, listens.c.track_id == library_tracks.c.id).outerjoin(release_groups, library_tracks.c.album_id == release_groups.c.id).outerjoin(library_artists, library_tracks.c.primary_artist_id == library_artists.c.id).where(clause).group_by(library_tracks.c.id, library_tracks.c.title, release_groups.c.title, library_artists.c.name, library_tracks.c.duration_secs)
+        stmt = base_query.order_by(listen_count.desc(), library_tracks.c.title).limit(limit).offset(offset)
         count_stmt = select(func.count()).select_from(base_query.subquery())
         async with self.session_factory() as session:
             total = int((await session.execute(count_stmt)).scalar_one())
             rows = await session.execute(stmt)
             records = rows.fetchall()
-            items = [{'track_id': int(row.track_id), 'track': row.track, 'album': row.album, 'artist': row.artist, 'duration_secs': row.duration_secs, 'labels': [], 'catalog_number': None, 'festival': None, 'count': int(row.count)} for row in records]
+            items = [{'track_id': int(row.track_id), 'track': row.track, 'album': row.album, 'artist': row.artist, 'duration_secs': row.duration_secs, 'library_labels': [], 'catalog_number': None, 'festival': None, 'count': int(row.count)} for row in records]
             return (items, total)
 
     async def stats_genres(self, period: str, value: str | None, limit: int, offset: int) -> tuple[list[dict[str, Any]], int]:
         """Return genre listen counts constrained by a time period."""
         clause = self._period_clause(period, value)
-        base_query = select(genres.c.id.label('genre_id'), genres.c.name.label('genre'), func.count().label('count')).select_from(listens).join(tracks, listens.c.track_id == tracks.c.id).join(track_genres, track_genres.c.track_id == tracks.c.id).join(genres, genres.c.id == track_genres.c.genre_id).where(clause).group_by(genres.c.id, genres.c.name)
-        stmt = base_query.order_by(func.count().desc(), genres.c.name).limit(limit).offset(offset)
+        base_query = select(rules_genres.c.id.label('genre_id'), rules_genres.c.name.label('genre'), func.count().label('count')).select_from(listens).join(library_tracks, listens.c.track_id == library_tracks.c.id).join(library_track_genres, library_track_genres.c.track_id == library_tracks.c.id).join(rules_genres, rules_genres.c.id == library_track_genres.c.genre_id).where(clause).group_by(rules_genres.c.id, rules_genres.c.name)
+        stmt = base_query.order_by(func.count().desc(), rules_genres.c.name).limit(limit).offset(offset)
         count_stmt = select(func.count()).select_from(base_query.subquery())
         async with self.session_factory() as session:
             total = int((await session.execute(count_stmt)).scalar_one())
@@ -596,7 +596,7 @@ class MariaDBAdapter(DatabaseAdapter):
 
     async def stats_top_artist_by_genre(self, year: int) -> list[dict[str, Any]]:
         """Return the top artist per genre for a specific year."""
-        stmt = select(genres.c.name.label('genre'), artists.c.name.label('artist'), func.count().label('count')).select_from(listens).join(tracks, listens.c.track_id == tracks.c.id).join(track_genres, track_genres.c.track_id == tracks.c.id).join(genres, genres.c.id == track_genres.c.genre_id).join(track_artists, track_artists.c.track_id == tracks.c.id).join(artists, artists.c.id == track_artists.c.artist_id).where(self._date_format(listens.c.listened_at, '%Y') == str(year)).group_by(genres.c.name, artists.c.name)
+        stmt = select(rules_genres.c.name.label('genre'), library_artists.c.name.label('artist'), func.count().label('count')).select_from(listens).join(library_tracks, listens.c.track_id == library_tracks.c.id).join(library_track_genres, library_track_genres.c.track_id == library_tracks.c.id).join(rules_genres, rules_genres.c.id == library_track_genres.c.genre_id).join(library_track_artists, library_track_artists.c.track_id == library_tracks.c.id).join(library_artists, library_artists.c.id == library_track_artists.c.artist_id).where(self._date_format(listens.c.listened_at, '%Y') == str(year)).group_by(rules_genres.c.name, library_artists.c.name)
         async with self.session_factory() as session:
             rows = await session.execute(stmt)
             data: dict[str, dict[str, Any]] = {}
@@ -617,7 +617,7 @@ class MariaDBAdapter(DatabaseAdapter):
             clause = and_(hour >= 17, hour <= 22)
         else:
             clause = or_(hour >= 23, hour <= 4)
-        stmt = select(tracks.c.title.label('track'), func.count().label('count')).select_from(listens).join(tracks, listens.c.track_id == tracks.c.id).where(self._date_format(listens.c.listened_at, '%Y') == str(year)).where(clause).group_by(tracks.c.title).order_by(func.count().desc())
+        stmt = select(library_tracks.c.title.label('track'), func.count().label('count')).select_from(listens).join(library_tracks, listens.c.track_id == library_tracks.c.id).where(self._date_format(listens.c.listened_at, '%Y') == str(year)).where(clause).group_by(library_tracks.c.title).order_by(func.count().desc())
         async with self.session_factory() as session:
             rows = await session.execute(stmt)
             return [dict(row._mapping) for row in rows]
@@ -625,24 +625,24 @@ class MariaDBAdapter(DatabaseAdapter):
     async def artist_insights(self, artist_id: int) -> dict[str, Any] | None:
         """Return aggregated information for an artist across listens."""
         async with self.session_factory() as session:
-            artist_stmt = select(artists.c.id, artists.c.name, artists.c.mbid).where(artists.c.id == artist_id)
+            artist_stmt = select(library_artists.c.id, library_artists.c.name, library_artists.c.mbid).where(library_artists.c.id == artist_id)
             artist_row = await session.execute(artist_stmt)
             artist = artist_row.mappings().one_or_none()
             if artist is None:
                 return None
-            base_join = listens.join(tracks, listens.c.track_id == tracks.c.id).join(track_artists, track_artists.c.track_id == tracks.c.id)
-            clause = track_artists.c.artist_id == artist_id
+            base_join = listens.join(library_tracks, listens.c.track_id == library_tracks.c.id).join(library_track_artists, library_track_artists.c.track_id == library_tracks.c.id)
+            clause = library_track_artists.c.artist_id == artist_id
             count_stmt = select(func.count()).select_from(base_join).where(clause)
             total = int((await session.execute(count_stmt)).scalar_one())
             span_stmt = select(func.min(listens.c.listened_at).label('first_listen'), func.max(listens.c.listened_at).label('last_listen')).select_from(base_join).where(clause)
             span = (await session.execute(span_stmt)).mappings().one()
-            top_genres_stmt = select(genres.c.id.label('genre_id'), genres.c.name.label('genre'), func.count().label('count')).select_from(base_join.join(track_genres, track_genres.c.track_id == tracks.c.id).join(genres, genres.c.id == track_genres.c.genre_id)).where(clause).group_by(genres.c.id, genres.c.name).order_by(func.count().desc(), genres.c.name).limit(10)
+            top_genres_stmt = select(rules_genres.c.id.label('genre_id'), rules_genres.c.name.label('genre'), func.count().label('count')).select_from(base_join.join(library_track_genres, library_track_genres.c.track_id == library_tracks.c.id).join(rules_genres, rules_genres.c.id == library_track_genres.c.genre_id)).where(clause).group_by(rules_genres.c.id, rules_genres.c.name).order_by(func.count().desc(), rules_genres.c.name).limit(10)
             top_genres_rows = await session.execute(top_genres_stmt)
             period_expr = self._date_format(listens.c.listened_at, '%Y-%m')
             history_stmt = select(period_expr.label('period'), func.count().label('count')).select_from(base_join).where(clause).group_by(period_expr).order_by(period_expr)
-            top_tracks_stmt = select(tracks.c.id.label('track_id'), tracks.c.title.label('track'), release_groups.c.id.label('album_id'), release_groups.c.title.label('album_title'), func.count().label('count')).select_from(base_join.outerjoin(release_groups, release_groups.c.id == tracks.c.album_id)).where(clause).group_by(tracks.c.id, tracks.c.title, release_groups.c.id, release_groups.c.title).order_by(func.count().desc(), tracks.c.title).limit(10)
+            top_tracks_stmt = select(library_tracks.c.id.label('track_id'), library_tracks.c.title.label('track'), release_groups.c.id.label('album_id'), release_groups.c.title.label('album_title'), func.count().label('count')).select_from(base_join.outerjoin(release_groups, release_groups.c.id == library_tracks.c.album_id)).where(clause).group_by(library_tracks.c.id, library_tracks.c.title, release_groups.c.id, release_groups.c.title).order_by(func.count().desc(), library_tracks.c.title).limit(10)
             top_tracks_rows = await session.execute(top_tracks_stmt)
-            top_albums_stmt = select(release_groups.c.id.label('album_id'), release_groups.c.title.label('album'), release_groups.c.year.label('release_year'), func.count().label('count')).select_from(base_join.join(release_groups, release_groups.c.id == tracks.c.album_id)).where(clause).group_by(release_groups.c.id, release_groups.c.title, release_groups.c.year).order_by(func.count().desc(), release_groups.c.title).limit(10)
+            top_albums_stmt = select(release_groups.c.id.label('album_id'), release_groups.c.title.label('album'), release_groups.c.year.label('release_year'), func.count().label('count')).select_from(base_join.join(release_groups, release_groups.c.id == library_tracks.c.album_id)).where(clause).group_by(release_groups.c.id, release_groups.c.title, release_groups.c.year).order_by(func.count().desc(), release_groups.c.title).limit(10)
             history_rows = (await session.execute(history_stmt)).mappings().all()
             top_albums_rows = await session.execute(top_albums_stmt)
 
@@ -669,22 +669,22 @@ class MariaDBAdapter(DatabaseAdapter):
             album = album_row.mappings().one_or_none()
             if album is None:
                 return None
-            base_clause = tracks.c.album_id == album_id
-            count_stmt = select(func.count()).select_from(listens.join(tracks, listens.c.track_id == tracks.c.id)).where(base_clause)
+            base_clause = library_tracks.c.album_id == album_id
+            count_stmt = select(func.count()).select_from(listens.join(library_tracks, listens.c.track_id == library_tracks.c.id)).where(base_clause)
             total = int((await session.execute(count_stmt)).scalar_one())
-            span_stmt = select(func.min(listens.c.listened_at).label('first_listen'), func.max(listens.c.listened_at).label('last_listen')).select_from(listens.join(tracks, listens.c.track_id == tracks.c.id)).where(base_clause)
+            span_stmt = select(func.min(listens.c.listened_at).label('first_listen'), func.max(listens.c.listened_at).label('last_listen')).select_from(listens.join(library_tracks, listens.c.track_id == library_tracks.c.id)).where(base_clause)
             span = (await session.execute(span_stmt)).mappings().one()
-            artist_stmt = select(artists.c.id.label('artist_id'), artists.c.name.label('artist')).select_from(track_artists.join(artists, artists.c.id == track_artists.c.artist_id).join(tracks, track_artists.c.track_id == tracks.c.id)).where(base_clause).group_by(artists.c.id, artists.c.name).order_by(artists.c.name)
+            artist_stmt = select(library_artists.c.id.label('artist_id'), library_artists.c.name.label('artist')).select_from(library_track_artists.join(library_artists, library_artists.c.id == library_track_artists.c.artist_id).join(library_tracks, library_track_artists.c.track_id == library_tracks.c.id)).where(base_clause).group_by(library_artists.c.id, library_artists.c.name).order_by(library_artists.c.name)
             artist_rows = (await session.execute(artist_stmt)).mappings().all()
             artist_ids = [int(row['artist_id']) for row in artist_rows]
             listen_totals: dict[int, int] = {}
             if artist_ids:
-                artist_totals_stmt = select(track_artists.c.artist_id, func.count().label('count')).select_from(listens.join(tracks, listens.c.track_id == tracks.c.id).join(track_artists, track_artists.c.track_id == tracks.c.id)).where(track_artists.c.artist_id.in_(artist_ids)).group_by(track_artists.c.artist_id)
+                artist_totals_stmt = select(library_track_artists.c.artist_id, func.count().label('count')).select_from(listens.join(library_tracks, listens.c.track_id == library_tracks.c.id).join(library_track_artists, library_track_artists.c.track_id == library_tracks.c.id)).where(library_track_artists.c.artist_id.in_(artist_ids)).group_by(library_track_artists.c.artist_id)
                 totals_rows = await session.execute(artist_totals_stmt)
                 listen_totals = {int(row.artist_id): int(row.count) for row in totals_rows}
-            genre_stmt = select(genres.c.id.label('genre_id'), genres.c.name.label('genre'), func.count().label('count')).select_from(track_genres.join(genres, genres.c.id == track_genres.c.genre_id).join(tracks, track_genres.c.track_id == tracks.c.id)).where(base_clause).group_by(genres.c.id, genres.c.name).order_by(func.count().desc(), genres.c.name)
+            genre_stmt = select(rules_genres.c.id.label('genre_id'), rules_genres.c.name.label('genre'), func.count().label('count')).select_from(library_track_genres.join(rules_genres, rules_genres.c.id == library_track_genres.c.genre_id).join(library_tracks, library_track_genres.c.track_id == library_tracks.c.id)).where(base_clause).group_by(rules_genres.c.id, rules_genres.c.name).order_by(func.count().desc(), rules_genres.c.name)
             genre_rows = (await session.execute(genre_stmt)).mappings().all()
-            tracks_stmt = select(tracks.c.id.label('track_id'), tracks.c.title.label('track'), tracks.c.track_no, tracks.c.disc_no, tracks.c.duration_secs, func.count().label('count')).select_from(listens.join(tracks, listens.c.track_id == tracks.c.id)).where(base_clause).group_by(tracks.c.id, tracks.c.title, tracks.c.track_no, tracks.c.disc_no, tracks.c.duration_secs).order_by(tracks.c.disc_no, tracks.c.track_no, tracks.c.title)
+            tracks_stmt = select(library_tracks.c.id.label('track_id'), library_tracks.c.title.label('track'), library_tracks.c.track_no, library_tracks.c.disc_no, library_tracks.c.duration_secs, func.count().label('count')).select_from(listens.join(library_tracks, listens.c.track_id == library_tracks.c.id)).where(base_clause).group_by(library_tracks.c.id, library_tracks.c.title, library_tracks.c.track_no, library_tracks.c.disc_no, library_tracks.c.duration_secs).order_by(library_tracks.c.disc_no, library_tracks.c.track_no, library_tracks.c.title)
             tracks_rows = (await session.execute(tracks_stmt)).mappings().all()
 
             def _convert_simple(rows: Iterable[Mapping[str, Any]], id_key: str):
@@ -704,4 +704,4 @@ class MariaDBAdapter(DatabaseAdapter):
                     payload.append(data)
                 return payload
             artist_payload = [{'artist_id': int(row['artist_id']), 'artist': row['artist'], 'listen_count': listen_totals.get(int(row['artist_id']), 0)} for row in artist_rows]
-            return {'album_id': int(album['id']), 'title': album['title'], 'release_year': album['release_year'], 'mbid': album['mbid'], 'listen_count': total, 'first_listen': span['first_listen'], 'last_listen': span['last_listen'], 'artists': artist_payload, 'genres': _convert_simple(genre_rows, 'genre_id'), 'tracks': _convert_simple(tracks_rows, 'track_id')}
+            return {'album_id': int(album['id']), 'title': album['title'], 'release_year': album['release_year'], 'mbid': album['mbid'], 'listen_count': total, 'first_listen': span['first_listen'], 'last_listen': span['last_listen'], 'library_artists': artist_payload, 'rules_genres': _convert_simple(genre_rows, 'genre_id'), 'library_tracks': _convert_simple(tracks_rows, 'track_id')}

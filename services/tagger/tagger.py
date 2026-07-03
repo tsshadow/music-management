@@ -45,7 +45,7 @@ class Tagger:
     def run(self, parse_labels=True, parse_soundcloud=True, parse_youtube=True, parse_generic=True, parse_telegram=True):
         """
         Entrypoint for the tagging process.
-        Scans various music directories (labels, YouTube, SoundCloud, generic) and applies appropriate tag parsing.
+        Scans various music directories (library_labels, YouTube, SoundCloud, generic) and applies appropriate tag parsing.
         """
         logging.info('Starting Tag Step with options: {}, {}, {}, {}, {}'.format(parse_labels, parse_soundcloud, parse_youtube, parse_generic, parse_telegram))
         if parse_labels:

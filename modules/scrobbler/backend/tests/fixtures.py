@@ -14,11 +14,11 @@ def iso(dt: datetime) -> str:
 async def seed_dataset(client: AsyncClient) -> None:
     """Seed a small dataset of listens used by multiple tests."""
     repo = AnalyzerRepository(app.state.db_adapter.engine)
-    payloads = [{'user': 'alice', 'source': 'lms', 'listened_at': iso(datetime(2023, 5, 20, 8, 30, tzinfo=timezone.utc)), 'track': {'title': 'Morning Track', 'album': 'Sunrise', 'album_year': 2023, 'duration_secs': 240}, 'artists': [{'name': 'Artist A', 'role': 'primary'}], 'genres': ['Uplifting']}, {'user': 'alice', 'source': 'lms', 'listened_at': iso(datetime(2023, 11, 20, 20, 0, tzinfo=timezone.utc)), 'track': {'title': 'Evening Track', 'album': 'Sunset', 'album_year': 2023, 'duration_secs': 720}, 'artists': [{'name': 'Artist B', 'role': 'primary'}], 'genres': ['Chill']}, {'user': 'bob', 'source': 'lms', 'listened_at': iso(datetime(2024, 2, 14, 14, 15, tzinfo=timezone.utc)), 'track': {'title': 'Afternoon Groove', 'album': 'Groove', 'album_year': 2024, 'duration_secs': 330}, 'artists': [{'name': 'Artist A', 'role': 'primary'}], 'genres': ['Chill']}]
+    payloads = [{'user': 'alice', 'source': 'lms', 'listened_at': iso(datetime(2023, 5, 20, 8, 30, tzinfo=timezone.utc)), 'track': {'title': 'Morning Track', 'album': 'Sunrise', 'album_year': 2023, 'duration_secs': 240}, 'library_artists': [{'name': 'Artist A', 'role': 'primary'}], 'rules_genres': ['Uplifting']}, {'user': 'alice', 'source': 'lms', 'listened_at': iso(datetime(2023, 11, 20, 20, 0, tzinfo=timezone.utc)), 'track': {'title': 'Evening Track', 'album': 'Sunset', 'album_year': 2023, 'duration_secs': 720}, 'library_artists': [{'name': 'Artist B', 'role': 'primary'}], 'rules_genres': ['Chill']}, {'user': 'bob', 'source': 'lms', 'listened_at': iso(datetime(2024, 2, 14, 14, 15, tzinfo=timezone.utc)), 'track': {'title': 'Afternoon Groove', 'album': 'Groove', 'album_year': 2024, 'duration_secs': 330}, 'library_artists': [{'name': 'Artist A', 'role': 'primary'}], 'rules_genres': ['Chill']}]
     for payload in payloads:
         track = payload['track']
-        artists = payload.get('artists', [])
-        primary_artist_name = artists[0]['name'] if artists else None
+        library_artists = payload.get('library_artists', [])
+        primary_artist_name = library_artists[0]['name'] if library_artists else None
         artist_id = None
         if primary_artist_name:
             normalized = normalize_text(primary_artist_name)
@@ -31,7 +31,7 @@ async def seed_dataset(client: AsyncClient) -> None:
         if artist_id is not None:
             await repo.link_track_artists(track_id, [(artist_id, 'primary')])
         genre_ids = []
-        for genre_name in payload.get('genres', []):
+        for genre_name in payload.get('rules_genres', []):
             genre_id = await repo.upsert_genre(name=genre_name, name_normalized=normalize_text(genre_name))
             genre_ids.append(genre_id)
         if genre_ids:

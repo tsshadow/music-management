@@ -4,21 +4,22 @@ from services.common.Helpers.LookupTableHelper import LookupTableHelper
 
 class InferGenreFromAlbumArtistRule(TagRule):
     """
-    Infers genres based on the album artist field.
+    Infers rules_genres based on the album artist field.
 
-    Uses the ALBUM_ARTIST tag to look up associated genres from a label-style lookup table.
+    Uses the ALBUM_ARTIST tag to look up associated rules_genres from a label-style lookup table.
     Merges the results into the current genre tag if applicable.
 
     Particularly useful for compilation albums, DJ mixes, or label-driven releases where album artist reflects a curated source.
     """
 
     def __init__(self, helper=None):
-        self.labelGenreHelper = helper or LookupTableHelper('label_genre', 'label', 'genre')
+        from services.common.Helpers.Cache import databaseHelpers
+        self.labelGenreHelper = helper or databaseHelpers.get('labelGenreHelper') or LookupTableHelper('rules_label_genre', 'label', 'genre')
 
     def apply(self, song):
         artist = song.tag_collection.get_item_as_string(ALBUM_ARTIST)
-        genres = self.labelGenreHelper.get(artist)
-        if genres:
+        rules_genres = self.labelGenreHelper.get(artist)
+        if rules_genres:
             current = song.tag_collection.get_item_as_array(GENRE)
-            merged = song.merge_and_sort_genres(current, genres)
+            merged = song.merge_and_sort_genres(current, rules_genres)
             song.tag_collection.set_item(GENRE, ';'.join(merged))

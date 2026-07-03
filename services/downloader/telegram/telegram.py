@@ -10,7 +10,14 @@ class TelegramDownloader:
         self.output_folder = os.getenv('telegram_folder')
         self.api_id = os.getenv('telegram_api_id')
         self.api_hash = os.getenv('telegram_api_hash')
-        self.session = os.getenv('telegram_session', 'telegram')
+        
+        session_name = os.getenv('telegram_session', 'telegram')
+        # Use /app/data for persistence if it exists (standard in our Docker setup)
+        if os.path.exists('/app/data'):
+            self.session = os.path.join('/app/data', session_name)
+        else:
+            self.session = session_name
+
         self.max_concurrent_downloads = int(os.getenv('telegram_max_concurrent', 4))
         if not self.output_folder or not self.api_id or (not self.api_hash):
             logging.warning('Missing required environment variables: telegram_folder, telegram_api_id, telegram_api_hash. Telegram downloads will be disabled.')

@@ -20,9 +20,9 @@ from services.tagger.Song.YoutubeSong import YoutubeSong
 
 class YoutubeSongTest(unittest.TestCase):
 
-    @patch('postprocessing.Song.BaseSong.BaseSong.parse')
-    @patch('postprocessing.Song.BaseSong.TagCollection')
-    @patch('postprocessing.Song.BaseSong.MP4')
+    @patch('services.tagger.Song.BaseSong.BaseSong.parse')
+    @patch('services.tagger.Song.BaseSong.TagCollection')
+    @patch('services.tagger.Song.BaseSong.MP4')
     def test_album_set_to_youtube_channel(self, mock_mp4, mock_tag_collection_cls, mock_base_parse):
         mock_file = MagicMock()
         mock_file.tags = {}

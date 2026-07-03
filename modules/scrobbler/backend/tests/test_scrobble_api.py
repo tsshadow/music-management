@@ -4,7 +4,7 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_scrobble_flow(client):
-    payload = {'user': 'teun', 'source': 'lms', 'listened_at': datetime.now(timezone.utc).isoformat(), 'position_secs': 120, 'duration_secs': 300, 'track': {'title': 'My Track', 'album': 'My Album', 'album_year': 2024, 'track_no': 1}, 'artists': [{'name': 'Main Artist', 'role': 'primary'}], 'genres': ['Hardcore']}
+    payload = {'user': 'teun', 'source': 'lms', 'listened_at': datetime.now(timezone.utc).isoformat(), 'position_secs': 120, 'duration_secs': 300, 'track': {'title': 'My Track', 'album': 'My Album', 'album_year': 2024, 'track_no': 1}, 'library_artists': [{'name': 'Main Artist', 'role': 'primary'}], 'rules_genres': ['Hardcore']}
     response = await client.post('/api/v1/scrobble', json=payload)
     assert response.status_code == 201
     data = response.json()

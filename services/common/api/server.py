@@ -80,6 +80,13 @@ class ConfigUpdatePayload(BaseModel):
             raise ValueError('updates must contain at least one entry')
         return value
 
+class LmsEvent(BaseModel):
+    event: str
+    object_type: str
+    object_id: str
+    rating: Optional[int] = None
+    path: Optional[str] = None
+
 async def broadcast(job: Dict) -> None:
     """Send a minimal job update to all connected WebSocket clients."""
     message = {'id': job['id'], 'step': job['step'], 'status': job['status']}
@@ -138,7 +145,7 @@ async def list_steps(_: None=Depends(verify_api_key)):
 @app.get('/api/accounts')
 async def list_accounts(_: None=Depends(verify_api_key)) -> Dict[str, List[str]]:
     """Return SoundCloud and YouTube account names for UI dropdowns."""
-    return {'soundcloud': _load_accounts('soundcloud_accounts'), 'youtube': _load_accounts('youtube_accounts')}
+    return {'soundcloud': _load_accounts('downloads_soundcloud_accounts'), 'youtube': _load_accounts('downloads_youtube_accounts')}
 
 @app.get('/api/config')
 async def get_config(_: None=Depends(verify_api_key)) -> Dict[str, Any]:
@@ -268,6 +275,39 @@ async def stop_job(job_id: str, _: None=Depends(verify_api_key)):
     job['status'] = 'stopped'
     await broadcast(job)
     return _public_job(job)
+
+def _update_track_rating(path: str, rating: Optional[int]):
+    from services.tagger.Song.BaseSong import BaseSong
+    from services.tagger.constants import RATING
+    
+    try:
+        song = BaseSong(path)
+        if rating is None or rating == 0:
+            song.delete_tag(RATING)
+        else:
+            if song.extension() == '.mp3':
+                mapping = {1: '1', 2: '64', 3: '128', 4: '196', 5: '255'}
+            else:
+                mapping = {1: '20', 2: '40', 3: '60', 4: '80', 5: '100'}
+            
+            val = mapping.get(rating, str(rating * 20))
+            song.tag_collection.set_item(RATING, val)
+        
+        song.save_file()
+        logging.info(f"Updated rating for {path} to {rating}")
+    except Exception as e:
+        logging.error(f"Failed to update rating for {path}: {e}")
+
+@app.post('/api/lms-event')
+async def handle_lms_event(payload: LmsEvent, _: None=Depends(verify_api_key)):
+    if payload.event == 'rating_changed' and payload.object_type == 'track':
+        if not payload.path:
+            raise HTTPException(status_code=400, detail='Missing path for track rating event')
+        
+        await run_in_threadpool(_update_track_rating, payload.path, payload.rating)
+        return {'status': 'success'}
+    
+    return {'status': 'ignored'}
 
 @app.websocket('/ws/jobs')
 async def jobs_ws(ws: WebSocket):

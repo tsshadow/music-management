@@ -5,11 +5,11 @@ Ja — en met jouw eigen library is dit juist het sterkste startpunt, omdat je a
 Ik zou dit niet beginnen als “maak één model dat alles snapt”, maar als een **meerlagige pipeline**:
 
 1. **Library → dataset**
-2. **Dataset → labels normaliseren**
+2. **Dataset → library_labels normaliseren**
 3. **Audio → features / embeddings**
 4. **Model 1 → hoofdgenre**
 5. **Model 2 → subgenre**
-6. **Model 3 → specifieke elementen zoals kicktype**
+6. **Model 3 → specifieke elementen**
 7. **Terugschrijven naar jouw muzieksysteem**
 8. **Feedback loop zodat het model steeds beter wordt**
 
@@ -35,7 +35,6 @@ Per track zou ik een record opslaan zoals:
   "year": 2024,
   "bpm_tag": 190,
   "genre_tag": "hardcore",
-  "subgenre_tag": "uptempo hardcore",
   "label_tag": "Offensive Rage",
   "festival_tag": null,
   "source": "soundcloud",
@@ -49,11 +48,6 @@ Per track zou ik een record opslaan zoals:
 Niet elk bestaand tag-veld is automatisch geschikt als trainingslabel. Voeg daarom aparte velden toe:
 
 * `ml_genre`
-* `ml_subgenre`
-* `ml_kick_type`
-* `ml_energy`
-* `ml_has_vocal`
-* `ml_is_liveset`
 * `ml_label_quality`
 * `ml_review_status`
 
@@ -61,7 +55,7 @@ Zo houd je “muziekbeheer-tags” gescheiden van “ML-trainingswaarheid”.
 
 ### 1.3 Bouw eerst een **label taxonomie**
 
-Ik zou jouw labels niet direct vrij laten. Maak een vaste boomstructuur, bijvoorbeeld:
+Ik zou jouw library_labels niet direct vrij laten. Maak een vaste boomstructuur, bijvoorbeeld:
 
 ```text
 Electronic
@@ -77,7 +71,7 @@ Hardstyle
 └── Xtra Raw
 ```
 
-Dat is belangrijk omdat openbare genre-datasets vaak grof zijn; bijvoorbeeld GTZAN bevat maar 10 brede genres en staat bovendien bekend om inhoudelijke problemen, waardoor het hooguit als benchmark of technische sanity check bruikbaar is, niet als basis voor jouw nicheclassificatie. ([TensorFlow][3])
+Dat is belangrijk omdat openbare genre-datasets vaak grof zijn; bijvoorbeeld GTZAN bevat maar 10 brede rules_genres en staat bovendien bekend om inhoudelijke problemen, waardoor het hooguit als benchmark of technische sanity check bruikbaar is, niet als basis voor jouw nicheclassificatie. ([TensorFlow][3])
 
 ---
 
@@ -122,7 +116,7 @@ Pas daarna:
 * vocal intro
 * anthem-like structuur
 
-Waarom zo? Omdat moderne audio-classification workflows prima werken voor classificatie op audio, maar hoe specifieker en subjectiever je labels, hoe meer jouw eigen gelabelde data bepalend wordt. Pretrained modellen en embeddings zijn dan vooral startpunt, geen eindoplossing. ([Hugging Face][4])
+Waarom zo? Omdat moderne audio-classification workflows prima werken voor classificatie op audio, maar hoe specifieker en subjectiever je library_labels, hoe meer jouw eigen gelabelde data bepalend wordt. Pretrained modellen en embeddings zijn dan vooral startpunt, geen eindoplossing. ([Hugging Face][4])
 
 ---
 
@@ -136,10 +130,10 @@ Jij slaat al veel in databases op; dat past hier goed bij.
 
 **Tabellen:**
 
-* `tracks`
-* `track_audio_features`
-* `track_ml_labels`
-* `track_ml_predictions`
+* `library_tracks`
+* `library_track_audio_features`
+* `library_track_ml_labels`
+* `library_track_ml_predictions`
 * `training_splits`
 * `model_runs`
 * `label_taxonomy`
@@ -209,16 +203,16 @@ Zo zie je snel waar de winst zit.
 
 ## Fase 5 — labelstrategie: mens blijft de bron van waarheid
 
-Omdat jouw genres subjectief en niche zijn, moet je labelbeleid strak zijn.
+Omdat jouw rules_genres subjectief en niche zijn, moet je labelbeleid strak zijn.
 
-### 5.1 Alleen “trainable” tracks gebruiken
+### 5.1 Alleen “trainable” library_tracks gebruiken
 
-Gebruik alleen tracks die:
+Gebruik alleen library_tracks die:
 
 * door jou expliciet gecontroleerd zijn
 * geen onduidelijke mashup/genre-mix zijn
 * geen slechte rip of rare live-opname zijn
-* geen dubbele tracks zijn
+* geen dubbele library_tracks zijn
 
 ### 5.2 Maak een reviewstatus
 
@@ -240,7 +234,7 @@ Dan weet je of je model echt kicks/sounddesign leert of alleen artiest/label-pat
 
 ---
 
-## Fase 6 — train niet op hele tracks, maar op chunks
+## Fase 6 — train niet op hele library_tracks, maar op chunks
 
 Een track van 4 minuten is te lang als één sample.
 
@@ -404,7 +398,7 @@ Kicktype is geen gewone genreclassificatie. Het is meer:
 * timbre classification
 * micro-audio event classification
 
-Daarvoor heb je dus veel fijnmaziger labels nodig dan op trackniveau.
+Daarvoor heb je dus veel fijnmaziger library_labels nodig dan op trackniveau.
 
 ---
 
@@ -414,8 +408,8 @@ Hier zit de schaalbaarheid.
 
 ### Workflow
 
-1. model voorspelt op ongelabelde tracks
-2. alleen tracks met lage confidence of twijfel toon je aan jezelf
+1. model voorspelt op ongelabelde library_tracks
+2. alleen library_tracks met lage confidence of twijfel toon je aan jezelf
 3. jij corrigeert
 4. correcties terug in database
 5. retrain periodiek
@@ -443,7 +437,7 @@ Die laatste is heel belangrijk.
 
 ### Artist split
 
-Train niet op tracks van een artiest en test op andere tracks van dezelfde artiest in dezelfde split. Anders leert het model eerder “Deadly Guns klinkt zo” dan “uptempo heeft deze kenmerken”.
+Train niet op library_tracks van een artiest en test op andere library_tracks van dezelfde artiest in dezelfde split. Anders leert het model eerder “Deadly Guns klinkt zo” dan “uptempo heeft deze kenmerken”.
 
 Dus:
 
@@ -454,7 +448,7 @@ Dus:
 
 ## Fase 12 — voorkom de klassieke valkuilen
 
-### 12.1 Dubbele tracks
+### 12.1 Dubbele library_tracks
 
 Radio edit, extended mix, remaster, reposts, liveset-fragmenten: die kunnen je evaluatie vervuilen.
 
@@ -518,8 +512,8 @@ Bijvoorbeeld:
 
 Doel:
 
-* tracks exporteren uit jouw library
-* labels normaliseren
+* library_tracks exporteren uit jouw library
+* library_labels normaliseren
 * vaste taxonomie opzetten
 * audio converteren naar chunks
 * database vullen met metadata
@@ -592,7 +586,7 @@ Torchaudio ondersteunt audioverwerking en augmentatie; Essentia is sterk in muzi
 
 * ruwe audio: jouw normale library
 * chunks/features: aparte cachemap
-* labels/predictions: database
+* library_labels/predictions: database
 
 ---
 
@@ -600,9 +594,9 @@ Torchaudio ondersteunt audioverwerking en augmentatie; Essentia is sterk in muzi
 
 De slimste volgorde is:
 
-**Stap 1:** maak een export uit je library met alleen tracks die jij vertrouwt.
+**Stap 1:** maak een export uit je library met alleen library_tracks die jij vertrouwt.
 **Stap 2:** normaliseer je genre/subgenre taxonomie.
-**Stap 3:** knip alle tracks in chunks en sla die op.
+**Stap 3:** knip alle library_tracks in chunks en sla die op.
 **Stap 4:** bereken basisfeatures en train een simpel hoofdgenre-model.
 **Stap 5:** voeg embeddings toe en train subgenre-modellen.
 **Stap 6:** bouw reviewscherm of reviewflow in je bestaande app.
@@ -613,7 +607,7 @@ Dat geeft je het snelst iets dat echt werkt, zonder meteen te verdrinken in de m
 ## Mijn eerlijke inschatting
 
 * **Genre op hoofdniveau:** heel haalbaar.
-* **Subgenre binnen jouw niche:** haalbaar, mits jouw labels strak zijn.
+* **Subgenre binnen jouw niche:** haalbaar, mits jouw library_labels strak zijn.
 * **Kicktype-herkenning:** mogelijk, maar alleen als je daar bewust een aparte gelabelde snippet-dataset voor opbouwt.
 * **Volledig autonoom “muziekbegrip”:** nog niet realistisch als eerste versie.
 

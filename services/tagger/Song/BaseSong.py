@@ -7,6 +7,7 @@ from mutagen.easymp4 import EasyMP4Tags
 from mutagen.flac import FLAC
 from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4, MP4StreamInfoError
+from mutagen.oggopus import OggOpus
 from mutagen.wave import WAVE
 
 from services.common.settings import Settings
@@ -16,18 +17,20 @@ from services.tagger.Song.rules.AnalyzeBpmRule import AnalyzeBpmRule
 from services.tagger.Song.rules.NormalizeFlacTagsRule import NormalizeFlacTagsRule
 from services.tagger.Song.rules.TagRule import TagRule
 from services.tagger.constants import MusicFileType, ARTIST_REGEX, GENRE, FLACTags, ARTIST, TRACK_NUMBER, TITLE, DATE, \
-    MP4Tags, ALBUM, ALBUM_ARTIST, BPM, CATALOG_NUMBER, FESTIVAL, PUBLISHER, REMIXER, PARSED, COPYRIGHT, WAVTags
+    MP4Tags, ALBUM, ALBUM_ARTIST, BPM, CATALOG_NUMBER, FESTIVAL, PUBLISHER, REMIXER, PARSED, COPYRIGHT, WAVTags, OPUSTags
 
 LOG_FILE = 'broken-files.log'
 s = Settings()
 analyze_bpm = False
 
 EasyID3.RegisterTXXXKey('publisher', 'publisher')
+EasyID3.RegisterTXXXKey('rating', 'RATING')
 EasyID3.RegisterTXXXKey('parsed', 'parsed')
 EasyID3.RegisterTXXXKey('festival', 'festival')
 EasyID3.RegisterTXXXKey('remixer', 'remixer')
 EasyID3.RegisterTXXXKey('original_title', 'original_title')
 EasyMP4Tags.RegisterTextKey('publisher', 'publisher')
+EasyMP4Tags.RegisterTextKey('rating', 'rating')
 EasyMP4Tags.RegisterTextKey('parsed', 'parsed')
 EasyMP4Tags.RegisterTextKey('festival', 'festival')
 EasyMP4Tags.RegisterTextKey('original_title', 'original_title')
@@ -59,7 +62,7 @@ class BaseSong:
         self._path: str = path
         self._filename = str(paths[-1])
         self._extension = os.path.splitext(self._filename)[1].lower()
-        music_file_classes = {'.mp3': lambda p: (MP3(p, ID3=EasyID3), MusicFileType.MP3), '.flac': lambda p: (FLAC(p), MusicFileType.FLAC), '.wav': lambda p: (WAVE(p), MusicFileType.WAV), '.m4a': lambda p: (MP4(p), MusicFileType.M4A)}
+        music_file_classes = {'.mp3': lambda p: (MP3(p, ID3=EasyID3), MusicFileType.MP3), '.flac': lambda p: (FLAC(p), MusicFileType.FLAC), '.wav': lambda p: (WAVE(p), MusicFileType.WAV), '.m4a': lambda p: (MP4(p), MusicFileType.M4A), '.opus': lambda p: (OggOpus(p), MusicFileType.OPUS)}
         try:
             self.music_file, self.type = music_file_classes[self._extension](path)
         except KeyError:
@@ -93,27 +96,27 @@ class BaseSong:
         if self.music_file and self.music_file.get(tag):
             self.music_file.pop(tag)
         if tag in self.tag_collection.get():
-            self.tag_collection.get()[tag].remove()
+            del self.tag_collection.get()[tag]
 
     def split_artists(self, artist_str: str) -> list[str]:
         raw = re.sub(ARTIST_REGEX, ';', artist_str)
         return [name.strip() for name in raw.split(';') if name.strip()]
 
     def merge_and_sort_genres(self, a, b):
-        """Merges and sorts two lists of genres, removing duplicates."""
+        """Merges and sorts two lists of rules_genres, removing duplicates."""
         return sorted(set(a + b))
 
     def sort_genres(self):
         """Sorts the genre tag array alphabetically if the tag exists."""
         if self.tag_collection.has_item(GENRE):
-            genres = self.tag_collection.get_item(GENRE)
-            genres.value.sort()
+            rules_genres = self.tag_collection.get_item(GENRE)
+            rules_genres.value.sort()
 
     def save_file(self):
         if not hasattr(self, 'tag_collection'):
             return
         changes = False
-        for tag in self.tag_collection.get().values():
+        for tag in list(self.tag_collection.get().values()):
             if isinstance(tag, Tag) and tag.has_changes():
                 self.set_tag(tag)
                 changes = True
@@ -125,16 +128,27 @@ class BaseSong:
         """Sets a tag on the underlying music file based on type."""
         logging.info(f'Set tag {tag.tag} to {tag.to_string()} (was: {self.music_file.get(tag.tag)})')
         value = tag.to_string()
+        if not value.strip():
+            self.delete_tag(tag.tag)
+            return
         if self.type == MusicFileType.MP3:
             self.music_file[tag.tag] = value
         elif self.type == MusicFileType.FLAC:
             flac_key = FLACTags.get(tag.tag)
             if flac_key:
                 self.music_file[flac_key] = value
+        elif self.type == MusicFileType.OPUS:
+            opus_key = OPUSTags.get(tag.tag)
+            if opus_key:
+                self.music_file[opus_key] = value
         elif self.type == MusicFileType.WAV:
             wav_key = WAVTags.get(tag.tag)
             if wav_key:
-                self.music_file.tags[wav_key] = mutagen.id3.TextFrame(encoding=3, text=[value])
+                if wav_key.startswith('TXXX:'):
+                    from mutagen.id3 import TXXX
+                    self.music_file.tags.add(TXXX(encoding=3, desc=wav_key[5:], text=[value]))
+                else:
+                    self.music_file.tags[wav_key] = mutagen.id3.TextFrame(encoding=3, text=[value])
         elif self.type == MusicFileType.M4A:
             mp4_key = MP4Tags.get(tag.tag)
             if mp4_key:
@@ -157,9 +171,14 @@ class BaseSong:
         """
         Apply extra metadata from yt-dlp dump to tag collection.
         """
-        artist = info.get('artists', [None])[0] if isinstance(info.get('artists'), list) else info.get('artist')
+        artist = info.get('library_artists', [None])[0] if isinstance(info.get('library_artists'), list) else info.get('artist')
         if artist:
             self.tag_collection.set_item(ARTIST, artist)
+
+        genre = info.get('genre')
+        if genre:
+            self.tag_collection.get_item(GENRE).add(genre)
+
         if info.get('upload_date'):
             self.tag_collection.set_item(DATE, info.get('upload_date'))
 
@@ -172,7 +191,7 @@ class BaseSong:
     def artist(self):
         return self.tag_collection.get_item_as_string(ARTIST)
 
-    def artists(self):
+    def library_artists(self):
         return self.tag_collection.get_item_as_array(ARTIST)
 
     def bpm(self):
@@ -193,11 +212,14 @@ class BaseSong:
     def genre(self):
         return self.tag_collection.get_item_as_string(GENRE)
 
-    def genres(self):
+    def rules_genres(self):
         return self.tag_collection.get_item_as_array(GENRE)
 
     def parsed(self):
         return self.tag_collection.get_item_as_string(PARSED)
+
+    def rating(self):
+        return self.tag_collection.get_item_as_string(RATING)
 
     def publisher(self):
         return self.tag_collection.get_item_as_string(PUBLISHER)

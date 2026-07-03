@@ -25,10 +25,10 @@ The Importer works as a background worker that monitors a specific `__TODO` fold
 The importer often works in tandem with the **Downloader Service**, which fetches music from various sources:
 
 - **YouTube**: Tracks channels or playlists and downloads new uploads using `yt-dlp`.
-- **SoundCloud**: Downloads tracks from followed artists or specific URLs.
+- **SoundCloud**: Downloads library_tracks from followed library_artists or specific URLs.
 - **Telegram**: Monitors specific channels/chats for shared audio files.
 
-Each downloader maintains an archive database to prevent re-downloading the same tracks.
+Each downloader maintains an archive database to prevent re-downloading the same library_tracks.
 
 ## 🛠 Configuration
 

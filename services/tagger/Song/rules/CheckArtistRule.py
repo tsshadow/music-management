@@ -7,14 +7,15 @@ from services.tagger.constants import ARTIST
 class CheckArtistRule(TagRule):
 
     def __init__(self, artist_db=None, ignored_db=None):
-        self.artist_table = artist_db or TableHelper('artists', 'name')
-        self.ignored_table = ignored_db or FilterTableHelper('ignored_artists', 'name', 'corrected_name')
+        from services.common.Helpers.Cache import databaseHelpers
+        self.artist_table = artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
+        self.ignored_table = ignored_db or databaseHelpers.get('rules_ignored_artists') or FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name')
 
     def apply(self, song) -> None:
-        if not song.artists():
+        if not song.library_artists():
             return
         tag_item = song.tag_collection.get_item(ARTIST)
-        for name in song.artists():
+        for name in song.library_artists():
             name = name.strip()
             if not name:
                 continue

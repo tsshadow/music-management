@@ -1,8 +1,9 @@
 import logging
+import os
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 
 class YoutubeArchive:
-    """Utility helpers for interacting with the `youtube_archive` table."""
+    """Utility helpers for interacting with the `downloads_youtube_archive` table."""
 
     @staticmethod
     def exists(account: str, video_id: str) -> bool:
@@ -10,7 +11,7 @@ class YoutubeArchive:
         try:
             conn = DatabaseConnector().connect()
             with conn.cursor() as cursor:
-                cursor.execute('\n                    SELECT 1 FROM youtube_archive WHERE account = %s AND video_id = %s\n                    ', (account, video_id))
+                cursor.execute('\n                    SELECT 1 FROM downloads_youtube_archive WHERE account = %s AND video_id = %s\n                    ', (account, video_id))
                 return cursor.fetchone() is not None
         except Exception as e:
             logging.warning(f'Could not check archive for {account}/{video_id}: {e}', exc_info=True)
@@ -18,16 +19,16 @@ class YoutubeArchive:
 
     @staticmethod
     def insert(account: str, video_id: str, path: str, url: str, title: str):
-        """Insert a newly downloaded track into the youtube_archive table."""
+        """Insert a newly downloaded track into the downloads_youtube_archive table."""
         if not all([account, video_id, url]):
             logging.warning(f'Missing fields for archive insert: account={account}, video_id={video_id}, url={url}')
             return
         try:
             conn = DatabaseConnector().connect()
             with conn.cursor() as cursor:
-                cursor.execute('INSERT IGNORE INTO youtube_accounts (name) VALUES (%s)', (account,))
-                cursor.execute('\n                    INSERT IGNORE INTO youtube_archive (account, video_id, filename, url, title)\n                    VALUES (%s, %s, %s, %s, %s)\n                    ', (account, video_id, path, url, title))
+                cursor.execute('INSERT IGNORE INTO downloads_youtube_accounts (name) VALUES (%s)', (account,))
+                cursor.execute('\n                    INSERT IGNORE INTO downloads_youtube_archive (account, video_id, filename, path, url, title)\n                    VALUES (%s, %s, %s, %s, %s, %s)\n                    ', (account, video_id, os.path.basename(path), path, url, title))
                 conn.commit()
-                logging.debug(f'Added to youtube_archive: {account}/{video_id}')
+                logging.debug(f'Added to downloads_youtube_archive: {account}/{video_id}')
         except Exception as e:
             logging.error(f'Failed to insert archive info for {path}: {e}', exc_info=True)

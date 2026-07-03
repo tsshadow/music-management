@@ -50,9 +50,9 @@ class BaseSongTest(unittest.TestCase):
         tag_collection.get_item_as_array.return_value = ['test1', 'test2']
         song.tag_collection = tag_collection
         self.assertEqual(song.artist(), 'test')
-        self.assertEqual(song.artists(), ['test1', 'test2'])
+        self.assertEqual(song.library_artists(), ['test1', 'test2'])
         self.assertEqual(song.genre(), 'test')
-        self.assertEqual(song.genres(), ['test1', 'test2'])
+        self.assertEqual(song.rules_genres(), ['test1', 'test2'])
 
     def test_set_tag_mp3(self):
         song = BaseSong.__new__(BaseSong)
@@ -82,7 +82,7 @@ class BaseSongTest(unittest.TestCase):
         song = BaseSong.__new__(BaseSong)
         tag_collection = MagicMock()
         song.tag_collection = tag_collection
-        info = {'artists': ['Test Artist']}
+        info = {'library_artists': ['Test Artist']}
         song._apply_extra_info(info)
         tag_collection.set_item.assert_called_once_with(ARTIST, 'Test Artist')
 

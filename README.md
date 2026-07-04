@@ -32,6 +32,12 @@ A pipeline for enriching the library with high-quality artist images:
 - Caches images and thumbnails locally for the LMS player.
 - Provides a stable path convention for player integration.
 
+### 5. Control Center (`services/management-api`)
+A central dashboard for the system:
+- View high-level release notes and technical changelogs.
+- Track system version and module status.
+- Centralized access to documentation and maintenance features.
+
 ---
 
 ## 🚀 Getting Started
@@ -75,9 +81,38 @@ You can also target specific components with `build.sh` and `publish.sh`:
 - `./build.sh app` (Main Application only)
 
 The following services will be available:
-- **Music Management API**: Port 7001
+- **Control Center (Release Notes)**: Port 8003
+- **Music Management API**: Port 7001 (if enabled)
 - **Scrobbler API**: Port 8080
 - **phpMyAdmin**: Port 8002 (to inspect the database)
+- **Firefox (GUI)**: Port 7003
+
+---
+
+## 🛠 Docker Stack Management
+
+The system is split into modular Docker Compose files for better resource management:
+
+1. **`docker-compose.yml`**: Core infrastructure (MariaDB, phpMyAdmin, Control Center).
+2. **`docker-compose.workers.yml`**: Background workers (Importer, YouTube/SoundCloud/Telegram downloaders, Tagger).
+3. **`docker-compose.tools.yml`**: Utility services (Fetchers, ML Analyzer, Firefox).
+
+### Common Commands:
+
+**Start the entire stack:**
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.workers.yml -f docker-compose.tools.yml up -d
+```
+
+**Start only core services:**
+```bash
+docker-compose up -d
+```
+
+**View logs for a specific service:**
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.workers.yml logs -f importer_worker
+```
 
 ---
 

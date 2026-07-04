@@ -44,6 +44,7 @@ elif [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
         docker pull muma/music-management-ml:latest
         docker pull muma/music-management-tools:latest
         docker pull muma/music-management:latest
+        docker pull muma/music-management-control:latest
         
         # Note: Individual run commands would go here if needed
     fi

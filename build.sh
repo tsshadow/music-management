@@ -28,6 +28,7 @@ DOCKER_USER="${DOCKER_USER}"
 IMAGE_ML="${IMAGE_ML}"
 IMAGE_TOOLS="${IMAGE_TOOLS}"
 IMAGE_APP="${IMAGE_APP}"
+IMAGE_MANAGEMENT="${IMAGE_MANAGEMENT}"
 VERSION=$(cat VERSION 2>/dev/null || echo "latest")
 
 build_ml() {
@@ -46,16 +47,23 @@ build_app() {
     docker build -t "${DOCKER_USER}/${IMAGE_APP}:latest" -t "${DOCKER_USER}/${IMAGE_APP}:${VERSION}" -f Dockerfile.music-management .
 }
 
+build_management() {
+    echo "--- Building Management API ($VERSION) ---"
+    docker build -t "${DOCKER_USER}/${IMAGE_MANAGEMENT}:latest" -t "${DOCKER_USER}/${IMAGE_MANAGEMENT}:${VERSION}" -f Dockerfile.management-api .
+}
+
 if [ $# -eq 0 ]; then
     build_ml
     build_tools
     build_app
+    build_management
 else
     for arg in "$@"; do
         case $arg in
             ml) build_ml ;;
             tools) build_tools ;;
             app) build_app ;;
+            mgmt|management) build_management ;;
             *) echo "Unknown component: $arg"; exit 1 ;;
         esac
     done

@@ -1,0 +1,282 @@
+version: "3.9"
+
+services:
+  importer_worker:
+    image: ${DOCKER_USER}/${IMAGE_APP}:latest
+    container_name: muma-importer-worker
+    restart: unless-stopped
+    depends_on:
+      - db
+    command:
+      [
+        "python",
+        "services/importer/importer_service.py",
+        "--repeat",
+        "--sleeptime",
+        "300"
+      ]
+    environment:
+      PYTHONPATH: /app:/app/services/downloader
+      debug: "${debug}"
+      dryrun: "False"
+      rescan: "True"
+      delimiter: "${delimiter}"
+      import_folder_path: ${import_folder_path}
+      eps_folder_path: ${eps_folder_path}
+      music_folder_path: ${music_folder_path}
+      youtube_folder: ${youtube_folder}
+      youtube_archive: ${youtube_archive}
+      youtube_accounts: ${youtube_accounts}
+      soundcloud_folder: ${soundcloud_folder}
+      soundcloud_archive: ${soundcloud_archive}
+      soundcloud_accounts: ${soundcloud_accounts}
+      ffmpeg_location: /usr/local/bin 
+      ffmpeg-location: /usr/local/bin
+      telegram_folder: ${telegram_folder}
+      ytdlp: yt-dlp
+      telegram_api_id: "${telegram_api_id}"
+      telegram_api_hash: "${telegram_api_hash}"
+      telegram_session: ${telegram_session}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_DB: ${DB_DB}
+      ask-for-missing: "false"
+    volumes:
+      - ${HOST_DATA_PATH}/importer:/app/data
+      - ${HOST_MUSIC_PATH}:/mnt/music
+      - ${HOST_DATA_PATH}/shared:/shared
+    networks:
+      - music-management_db
+
+  youtube_worker:
+    image: ${DOCKER_USER}/${IMAGE_APP}:latest
+    container_name: muma-youtube-worker
+    restart: unless-stopped
+    depends_on:
+      - db
+    command:
+      [
+        "python",
+        "services/downloader/downloader_service.py",
+        "--step",
+        "youtube",
+        "--repeat",
+        "--sleeptime",
+        "300",
+        "--break-on-existing"
+      ]
+    environment:
+      PYTHONPATH: /app:/app/services/downloader
+      debug: "${debug}"
+      dryrun: "False"
+      rescan: "True"
+      delimiter: "${delimiter}"
+      import_folder_path: ${import_folder_path}
+      eps_folder_path: ${eps_folder_path}
+      music_folder_path: ${music_folder_path}
+      youtube_folder: ${youtube_folder}
+      youtube_archive: ${youtube_archive}
+      youtube_accounts: ${youtube_accounts}
+      soundcloud_folder: ${soundcloud_folder}
+      soundcloud_archive: ${soundcloud_archive}
+      soundcloud_accounts: ${soundcloud_accounts}
+      ffmpeg_location: /usr/local/bin 
+      ffmpeg-location: /usr/local/bin
+      telegram_folder: ${telegram_folder}
+      ytdlp: yt-dlp
+      telegram_api_id: "${telegram_api_id}"
+      telegram_api_hash: "${telegram_api_hash}"
+      telegram_session: ${telegram_session}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_DB: ${DB_DB}
+      ask-for-missing: "false"
+    volumes:
+      - ${HOST_DATA_PATH}/importer:/app/data
+      - ${HOST_MUSIC_PATH}:/mnt/music
+      - ${HOST_DATA_PATH}/shared:/shared
+    networks:
+      - music-management_db
+
+  soundcloud_worker:
+    image: ${DOCKER_USER}/${IMAGE_APP}:latest
+    container_name: muma-soundcloud-worker
+    restart: unless-stopped
+    depends_on:
+      - db
+    command:
+      [
+        "python",
+        "services/downloader/downloader_service.py",
+        "--step",
+        "soundcloud",
+        "--repeat",
+        "--sleeptime",
+        "300",
+        "--break-on-existing"
+      ]
+    environment:
+      PYTHONPATH: /app:/app/services/downloader
+      debug: "${debug}"
+      dryrun: "False"
+      rescan: "True"
+      delimiter: "${delimiter}"
+      import_folder_path: ${import_folder_path}
+      eps_folder_path: ${eps_folder_path}
+      music_folder_path: ${music_folder_path}
+      youtube_folder: ${youtube_folder}
+      youtube_archive: ${youtube_archive}
+      youtube_accounts: ${youtube_accounts}
+      soundcloud_folder: ${soundcloud_folder}
+      soundcloud_archive: ${soundcloud_archive}
+      soundcloud_accounts: ${soundcloud_accounts}
+      ffmpeg_location: /usr/local/bin 
+      ffmpeg-location: /usr/local/bin
+      telegram_folder: ${telegram_folder}
+      ytdlp: yt-dlp
+      telegram_api_id: "${telegram_api_id}"
+      telegram_api_hash: "${telegram_api_hash}"
+      telegram_session: ${telegram_session}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_DB: ${DB_DB}
+      ask-for-missing: "false"
+    volumes:
+      - ${HOST_DATA_PATH}/importer:/app/data
+      - ${HOST_MUSIC_PATH}:/mnt/music
+      - ${HOST_DATA_PATH}/shared:/shared
+    networks:
+      - music-management_db
+
+  soundcloud_worker_full_once:
+    image: ${DOCKER_USER}/${IMAGE_APP}:latest
+    container_name: muma-soundcloud-worker-full-once
+    restart: unless-stopped
+    depends_on:
+      - db
+    command:
+      [
+        "python",
+        "services/downloader/downloader_service.py",
+        "--step",
+        "soundcloud",
+        "--no-break-on-existing"
+      ]
+    environment:
+      PYTHONPATH: /app:/app/services/downloader
+      debug: "${debug}"
+      dryrun: "False"
+      rescan: "True"
+      delimiter: "${delimiter}"
+      import_folder_path: ${import_folder_path}
+      eps_folder_path: ${eps_folder_path}
+      music_folder_path: ${music_folder_path}
+      youtube_folder: ${youtube_folder}
+      youtube_archive: ${youtube_archive}
+      youtube_accounts: ${youtube_accounts}
+      soundcloud_folder: ${soundcloud_folder}
+      soundcloud_archive: ${soundcloud_archive}
+      soundcloud_accounts: ${soundcloud_accounts}
+      ffmpeg_location: /usr/local/bin 
+      ffmpeg-location: /usr/local/bin
+      telegram_folder: ${telegram_folder}
+      ytdlp: yt-dlp
+      telegram_api_id: "${telegram_api_id}"
+      telegram_api_hash: "${telegram_api_hash}"
+      telegram_session: ${telegram_session}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_DB: ${DB_DB}
+      ask-for-missing: "false"
+    volumes:
+      - ${HOST_DATA_PATH}/importer:/app/data
+      - ${HOST_MUSIC_PATH}:/mnt/music
+      - ${HOST_DATA_PATH}/shared:/shared
+    networks:
+      - music-management_db
+
+  telegram_worker:
+    image: ${DOCKER_USER}/${IMAGE_APP}:latest
+    container_name: muma-telegram-worker
+    restart: unless-stopped
+    depends_on:
+      - db
+    command:
+      [
+        "python",
+        "services/downloader/downloader_service.py",
+        "--step",
+        "telegram",
+        "--repeat",
+        "--sleeptime",
+        "300"
+      ]
+    environment:
+      PYTHONPATH: /app:/app/services/downloader
+      debug: "${debug}"
+      dryrun: "False"
+      delimiter: "${delimiter}"
+      music_folder_path: ${music_folder_path}
+      telegram_folder: ${telegram_folder}
+      telegram_api_id: "${telegram_api_id}"
+      telegram_api_hash: "${telegram_api_hash}"
+      telegram_session: ${telegram_session}
+      telegram_accounts: "${telegram_accounts}" 
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_DB: ${DB_DB}
+    volumes:
+      - ${HOST_DATA_PATH}/importer:/app/data
+      - ${HOST_MUSIC_PATH}:/mnt/music
+      - ${HOST_DATA_PATH}/shared:/shared
+    networks:
+      - music-management_db  
+    stdin_open: true
+    tty: true
+
+  tagger_worker:
+    image: ${DOCKER_USER}/${IMAGE_APP}:latest
+    container_name: muma-tagger-worker
+    restart: unless-stopped
+    depends_on:
+      - db
+    command:
+      [
+        "python",
+        "services/tagger/tagger_service.py",
+        "--repeat",
+        "--sleeptime",
+        "300"
+      ]
+    environment:
+      PYTHONPATH: /app:/app/services/downloader
+      debug: "${debug}"
+      delimiter: "${delimiter}"
+      import_folder_path: ${import_folder_path}
+      eps_folder_path: ${eps_folder_path}
+      music_folder_path: ${music_folder_path}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_DB: ${DB_DB}
+    volumes:
+      - ${HOST_DATA_PATH}/importer:/app/data
+      - ${HOST_MUSIC_PATH}:/mnt/music
+      - ${HOST_DATA_PATH}/shared:/shared
+    networks:
+      - music-management_db
+
+networks:
+  music-management_db:
+    external: true

@@ -14,7 +14,8 @@ load_dotenv()
 app = FastAPI(title="Muma User Service")
 
 MUMA_API_KEY = os.getenv("MUMA_API_KEY", "453ecd33-3cb2-4ca4-a531-1677330bbaee")
-API_KEY = os.getenv("API_KEY", MUMA_API_KEY)
+LMS_API_KEY = os.getenv("LMS_API_KEY", MUMA_API_KEY)
+API_KEY = os.getenv("API_KEY", LMS_API_KEY)
 LMS_SUBSONIC_API_KEY = os.getenv("LMS_SUBSONIC_API_KEY", API_KEY)
 
 async def verify_api_key(x_api_key: str = Header(None)):

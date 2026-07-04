@@ -27,10 +27,12 @@ SERVICES = {
 }
 
 MUMA_API_KEY = os.getenv("MUMA_API_KEY", "453ecd33-3cb2-4ca4-a531-1677330bbaee")
-API_KEY = os.getenv("API_KEY", MUMA_API_KEY)
-RATING_API_KEY = os.getenv("RATING_API_KEY", MUMA_API_KEY)
-SCROBBLE_API_KEY = os.getenv("SCROBBLE_API_KEY", MUMA_API_KEY)
-USER_API_KEY = os.getenv("USER_API_KEY", MUMA_API_KEY)
+# LMS_API_KEY is an alias for MUMA_API_KEY when running in the same environment
+LMS_API_KEY = os.getenv("LMS_API_KEY", MUMA_API_KEY)
+API_KEY = os.getenv("API_KEY", LMS_API_KEY)
+RATING_API_KEY = os.getenv("RATING_API_KEY", LMS_API_KEY)
+SCROBBLE_API_KEY = os.getenv("SCROBBLE_API_KEY", LMS_API_KEY)
+USER_API_KEY = os.getenv("USER_API_KEY", LMS_API_KEY)
 
 async def verify_api_key(x_api_key: Optional[str] = Header(None)):
     if API_KEY and x_api_key != API_KEY:

@@ -11,9 +11,11 @@
   /** @type {Props} */
   let { results = {}, genres = [], loading = false, onSelect, mode = 'songs' } = $props();
 
+  import { deduplicateTracks } from './deduplicate.js';
+
   const artists = $derived(results.artist || []);
   const albums = $derived(results.album || []);
-  const tracks = $derived(results.song || []);
+  const tracks = $derived(deduplicateTracks(results.song || []));
 
   /**
    * Handles the click on a result item.

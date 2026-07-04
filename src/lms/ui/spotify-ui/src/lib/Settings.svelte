@@ -1,4 +1,5 @@
 <script>
+  import General from './settings/GeneralSettings.svelte';
   import Libraries from './settings/Libraries.svelte';
   import ScanSettings from './settings/ScanSettings.svelte';
   import Scanner from './settings/Scanner.svelte';
@@ -11,7 +12,9 @@
 <div class="flex flex-col h-full overflow-hidden">
   <!-- Content Area -->
   <main class="flex-1 overflow-y-auto">
-    {#if $activeSettingsTab === 'libraries'}
+    {#if $activeSettingsTab === 'general'}
+      <General />
+    {:else if $activeSettingsTab === 'libraries'}
       <Libraries />
     {:else if $activeSettingsTab === 'scan-settings'}
       <ScanSettings />

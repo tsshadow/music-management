@@ -10,7 +10,8 @@
   import Settings from './Settings.svelte';
   import History from './History.svelte';
   import { getArtistImageUrl } from './utils.js';
-  import { authParams, currentPlaylist, viewMode, favoriteGenres } from './store.js';
+  import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
+  import { authParams, currentPlaylist, viewMode, favoriteGenres, deduplicateEnabled } from './store.js';
 
   let { activeView = $bindable('home') } = $props();
 
@@ -48,6 +49,7 @@
   let currentAlbumSearch = $state('');
 
   let isLoading = $state(false);
+  let seenKeys = new Map();
 
   let tracksController;
   let albumsController;
@@ -85,6 +87,7 @@
     if (!append) {
       tracksOffset = 0;
       tracksHasMore = true;
+      seenKeys = new Map();
       if (tracksController) {
         tracksController.abort();
       }
@@ -96,41 +99,63 @@
 
     console.log(`Loading all tracks, activeView=${activeView}, genre=${currentGenre}, sort=${currentSort}, year=${currentYear}, minRating=${currentMinRating}, offset=${tracksOffset}`);
     isLoading = true;
+
+    let currentBatch = [];
     try {
-      let url = `/rest/getSpotifyTracks?sort=${currentSort}&offset=${tracksOffset}&count=${pageSize}&${$authParams}`;
-      if (currentTrackSearch) url += `&query=${encodeURIComponent(currentTrackSearch)}`;
-      if (currentGenre) url += `&genre=${encodeURIComponent(currentGenre)}`;
-      else if (activeView.startsWith('genre:')) {
+      while (currentBatch.length < pageSize && tracksHasMore) {
+        let url = `/rest/getSpotifyTracks?sort=${currentSort}&offset=${tracksOffset}&count=${pageSize}&${$authParams}`;
+        if ($deduplicateEnabled) url += `&deduplicate=true`;
+        if (currentTrackSearch) url += `&query=${encodeURIComponent(currentTrackSearch)}`;
+        if (currentGenre) url += `&genre=${encodeURIComponent(currentGenre)}`;
+        else if (activeView.startsWith('genre:')) {
           const genreName = activeView.split(':')[1];
           url += `&genre=${encodeURIComponent(genreName)}`;
-      }
+        }
 
-      if (currentYear) url += `&year=${encodeURIComponent(currentYear)}`;
-      if (currentMinRating !== '0') url += `&minRating=${currentMinRating}`;
-      if (includeUnrated) url += `&includeUnrated=true`;
+        if (currentYear) url += `&year=${encodeURIComponent(currentYear)}`;
+        if (currentMinRating !== '0') url += `&minRating=${currentMinRating}`;
+        if (includeUnrated) url += `&includeUnrated=true`;
 
-      if ($viewMode === 'sets') {
+        if ($viewMode === 'sets') {
           url += `&minDuration=10`;
-      } else {
+        } else {
           url += `&maxDuration=10`;
-      }
+        }
 
-      console.log(`Fetching: ${url}`);
-      const response = await fetch(url, { signal });
-      const data = await response.json();
-      console.log("Track data received:", data);
-      const result = data['subsonic-response']?.tracks?.track || [];
-      const newTracks = Array.isArray(result) ? result : [result];
+        console.log(`Fetching: ${url}`);
+        const response = await fetch(url, { signal });
+        const data = await response.json();
+        console.log("Track data received:", data);
+        const tracksNode = data['subsonic-response']?.tracks;
+        const result = tracksNode?.track || [];
+        const newTracks = Array.isArray(result) ? result : [result];
+
+        // Deduplicate this batch against what we've seen before if enabled
+        const deduped = $deduplicateEnabled ? deduplicateTracks(newTracks, seenKeys) : newTracks;
+
+        // Update seenKeys for the tracks we are actually going to show
+        if ($deduplicateEnabled) {
+          for (const track of deduped) {
+            seenKeys.set(getDeduplicateKey(track), track);
+          }
+        }
+
+        currentBatch.push(...deduped);
+        
+        const moreResults = tracksNode?.moreResults;
+        tracksHasMore = moreResults !== undefined ? (String(moreResults) === 'true' || moreResults === true) : newTracks.length === pageSize;
+        tracksOffset = tracksNode?.nextOffset !== undefined ? tracksNode.nextOffset : (tracksOffset + newTracks.length);
+
+        console.log(`Fetched ${newTracks.length} tracks, ${deduped.length} unique in this batch. Total unique in batch: ${currentBatch.length}. tracksHasMore: ${tracksHasMore}, nextOffset: ${tracksOffset}`);
+
+        if (!tracksHasMore || currentBatch.length >= pageSize) break;
+      }
 
       if (append) {
-        tracks = [...tracks, ...newTracks];
+        tracks = [...tracks, ...currentBatch];
       } else {
-        tracks = newTracks;
+        tracks = currentBatch;
       }
-
-      tracksOffset += newTracks.length;
-      const moreResults = data['subsonic-response']?.tracks?.moreResults;
-      tracksHasMore = moreResults !== undefined ? (String(moreResults) === 'true' || moreResults === true) : newTracks.length === pageSize;
     } catch (e) {
       if (e.name === 'AbortError') return;
       console.error("Failed to load tracks:", e);

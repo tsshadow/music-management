@@ -32,8 +32,180 @@
 #include "core/Service.hpp"
 #include "services/scrobbling/IScrobblingService.hpp"
 
+#include <unordered_map>
+
 namespace lms::api::subsonic
 {
+    namespace
+    {
+        std::string normalizeArtist(std::string_view artist)
+        {
+            std::string lower{ core::stringUtils::stringToLower(artist) };
+            
+            // Basic splitting by common separators
+            std::vector<std::string_view> separators = { ",", "&", " feat.", " ft.", " and " };
+            std::vector<std::string_view> parts_view = core::stringUtils::splitString(lower, std::span{ separators });
+            
+            std::vector<std::string> parts;
+            for (auto p : parts_view)
+            {
+                auto trimmed = core::stringUtils::stringTrim(p);
+                if (!trimmed.empty())
+                    parts.push_back(std::string(trimmed));
+            }
+            
+            std::sort(parts.begin(), parts.end());
+            
+            return core::stringUtils::joinStrings(parts, "|");
+        }
+
+        std::string normalizeTitle(std::string_view title)
+        {
+            std::string lower{ core::stringUtils::stringToLower(title) };
+            std::string normalized{ core::stringUtils::stringTrim(lower) };
+            
+            // Strip version info from key to treat them as duplicates
+            auto strip = [&](std::string_view search) {
+                auto pos = normalized.find(search);
+                if (pos != std::string::npos)
+                    normalized.erase(pos, search.length());
+            };
+            
+            strip("(radio edit)");
+            strip("radio edit");
+            strip("(extended mix)");
+            strip("extended mix");
+            strip("(original mix)");
+            strip("original mix");
+            strip("(edit)");
+            strip("edit");
+            strip("(official videoclip)");
+            strip("official videoclip");
+            strip("(official video clip)");
+            strip("official video clip");
+            strip("(official video)");
+            strip("official video");
+            strip("(official hardstyle visualizer)");
+            strip("official hardstyle visualizer");
+            strip("(hardstyle videoclip)");
+            strip("hardstyle videoclip");
+            
+            return std::string(core::stringUtils::stringTrim(normalized));
+        }
+
+        int getTrackScore(const db::Track::pointer& track)
+        {
+            int score = 0;
+            
+            // Quality
+            std::string suffix = core::stringUtils::stringToLower(track->getAbsoluteFilePath().extension().string());
+            if (!suffix.empty() && suffix[0] == '.')
+                suffix = suffix.substr(1);
+
+            int bitRate = static_cast<int>(track->getBitrate() / 1000);
+            
+            if (suffix == "flac") score += 10000;
+            else if (suffix == "mp3")
+            {
+                if (bitRate >= 320) score += 5000;
+                else if (bitRate >= 192) score += 2000;
+                else if (bitRate > 0) score += 1000;
+            }
+            
+            // Version
+            std::string name = core::stringUtils::stringToLower(track->getName());
+            bool isVideo = name.find("videoclip") != std::string::npos || 
+                           name.find("official video") != std::string::npos ||
+                           name.find("video clip") != std::string::npos;
+            bool isVisualizer = name.find("visualizer") != std::string::npos;
+
+            if (name.find("radio edit") != std::string::npos) score += 500;
+            else if (name.find("extended mix") != std::string::npos) score += 100;
+            else if (name.find("original mix") != std::string::npos) score += 300;
+            else score += 200;
+            
+            if (isVideo) score -= 50;
+            else if (isVisualizer) score -= 40;
+
+            return score;
+        }
+
+        std::string getDedupeKey(const db::Track::pointer& track)
+        {
+            return normalizeArtist(track->getArtistDisplayName()) + ":::" + normalizeTitle(track->getName());
+        }
+
+        void findTracks(db::Session& session, db::Track::FindParameters& params, bool deduplicate, int& nextOffset, bool& moreResults, std::function<void(const db::Track::pointer&)> callback)
+        {
+            int initialOffset = params.range ? static_cast<int>(params.range->offset) : 0;
+            int requestedCount = params.range ? static_cast<int>(params.range->size) : 50;
+
+            if (deduplicate)
+            {
+                std::unordered_map<std::string, db::Track::pointer> bestTracks;
+                std::vector<std::string> orderedKeys;
+                
+                int uniqueCount = 0;
+                int totalScanned = 0;
+                bool batchMoreResults = false;
+                
+                // We iterate in batches to fill requestedCount unique tracks
+                int currentScanOffset = initialOffset;
+                int scanBatchSize = std::max(requestedCount, 100);
+                
+                while (uniqueCount < requestedCount)
+                {
+                    params.range = db::Range{ static_cast<std::size_t>(currentScanOffset), static_cast<std::size_t>(scanBatchSize) };
+                    
+                    int batchScanned = 0;
+                    db::Track::find(session, params, batchMoreResults, [&](const db::Track::pointer& track) {
+                        batchScanned++;
+                        if (uniqueCount >= requestedCount)
+                            return;
+
+                        std::string key = getDedupeKey(track);
+                        auto it = bestTracks.find(key);
+                        if (it == bestTracks.end())
+                        {
+                            bestTracks[key] = track;
+                            orderedKeys.push_back(key);
+                            uniqueCount++;
+                        }
+                        else
+                        {
+                            if (getTrackScore(track) > getTrackScore(it->second))
+                            {
+                                bestTracks[key] = track;
+                            }
+                        }
+                    });
+                    
+                    totalScanned += batchScanned;
+                    currentScanOffset += batchScanned;
+                    
+                    if (!batchMoreResults || batchScanned < scanBatchSize || uniqueCount >= requestedCount)
+                        break;
+                }
+
+                for (const auto& key : orderedKeys)
+                {
+                    callback(bestTracks[key]);
+                }
+                
+                moreResults = batchMoreResults;
+                nextOffset = initialOffset + totalScanned;
+            }
+            else
+            {
+                int actualCount = 0;
+                db::Track::find(session, params, moreResults, [&](const db::Track::pointer& track) {
+                    actualCount++;
+                    callback(track);
+                });
+                nextOffset = initialOffset + actualCount;
+            }
+        }
+    }
     Response handleGetSpotifyCuratedPlaylists(RequestContext& ctx)
     {
         auto& session{ ctx.getDbSession() };
@@ -86,6 +258,10 @@ namespace lms::api::subsonic
         auto transaction{ session.createReadTransaction() };
 
         db::Track::FindParameters params;
+        int offset = getParameterAs<int>(ctx.getParameters(), "offset").value_or(0);
+        int count = getParameterAs<int>(ctx.getParameters(), "count").value_or(50);
+        params.range = db::Range{ static_cast<std::size_t>(offset), static_cast<std::size_t>(count) };
+
         std::string name;
         std::string description;
 
@@ -95,7 +271,6 @@ namespace lms::api::subsonic
             description = "Recent releases and new discoveries.";
             params.maxDuration = std::chrono::minutes(10);
             params.setSortMethod(db::TrackSortMethod::OriginalDateDescAndRelease);
-            params.range = db::Range{ 0, 50 };
         }
         else if (id == "spotify:sets")
         {
@@ -103,7 +278,6 @@ namespace lms::api::subsonic
             description = "Sets and mixes";
             params.minDuration = std::chrono::minutes(10);
             params.setSortMethod(db::TrackSortMethod::Random);
-            params.range = db::Range{ 0, 50 };
         }
         else if (id == "spotify:songs")
         {
@@ -111,7 +285,6 @@ namespace lms::api::subsonic
             description = "All songs";
             params.maxDuration = std::chrono::minutes(10);
             params.setSortMethod(db::TrackSortMethod::Random);
-            params.range = db::Range{ 0, 50 };
         }
         else if (id.starts_with("spotify:genre:"))
         {
@@ -128,7 +301,6 @@ namespace lms::api::subsonic
             }
             params.maxDuration = std::chrono::minutes(10);
             params.setSortMethod(db::TrackSortMethod::Random);
-            params.range = db::Range{ 0, 50 };
         }
         else
         {
@@ -143,9 +315,14 @@ namespace lms::api::subsonic
         playlistNode.setAttribute("owner", "LMS");
         playlistNode.setAttribute("public", true);
 
-        db::Track::find(session, params, [&](const db::Track::pointer& track) {
+        bool moreResults = false;
+        int nextOffset = 0;
+        findTracks(session, params, true /* always deduplicate curated */, nextOffset, moreResults, [&](const db::Track::pointer& track) {
             playlistNode.addArrayChild("entry", createSongNode(ctx, track, true));
         });
+
+        playlistNode.setAttribute("moreResults", moreResults);
+        playlistNode.setAttribute("nextOffset", nextOffset);
 
         return response;
     }
@@ -266,12 +443,16 @@ namespace lms::api::subsonic
         Response response{ Response::createOkResponse(ctx.getServerProtocolVersion()) };
         auto& tracksNode = response.createNode("tracks");
 
+        bool deduplicate = getParameterAs<bool>(ctx.getParameters(), "deduplicate").value_or(false);
         bool moreResults = false;
-        db::Track::find(session, params, moreResults, [&](const db::Track::pointer& track) {
+        int nextOffset = 0;
+
+        findTracks(session, params, deduplicate, nextOffset, moreResults, [&](const db::Track::pointer& track) {
             tracksNode.addArrayChild("track", createSongNode(ctx, track, true));
         });
 
         tracksNode.setAttribute("moreResults", moreResults);
+        tracksNode.setAttribute("nextOffset", nextOffset);
 
         return response;
     }

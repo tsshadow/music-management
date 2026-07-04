@@ -64,7 +64,7 @@ persist("lms_active_view", activeView);
 export const viewMode = writable("songs"); // 'songs' or 'sets'
 persist("lms_view_mode", viewMode);
 
-export const activeSettingsTab = writable("libraries");
+export const activeSettingsTab = writable("general");
 persist("lms_active_settings_tab", activeSettingsTab);
 
 export const isMobile = writable(false);
@@ -75,6 +75,9 @@ export const highlightedTrackId = writable(null);
 
 export const favoriteGenres = writable([]);
 persist("lms_favorite_genres", favoriteGenres);
+
+export const deduplicateEnabled = writable(true);
+persist("lms_deduplicate_enabled", deduplicateEnabled);
 
 export const activeModal = writable(null); // { type, data }
 

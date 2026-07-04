@@ -7,6 +7,7 @@ x-environment-db: &environment-db
   DB_PASS: ${DB_PASS}
   DB_DB: ${DB_DB}
   API_KEY: ${API_KEY}
+  AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
 
 x-environment-telegram: &environment-telegram
   telegram_api_id: "${telegram_api_id}"
@@ -373,8 +374,6 @@ services:
       <<: [*environment-db]
       API_KEY: ${RATING_API_KEY}
       PYTHONPATH: /app
-    ports:
-      - "8004:8000"
     networks:
       - music-management_db
 
@@ -388,8 +387,6 @@ services:
       <<: [*environment-db]
       API_KEY: ${SCROBBLE_API_KEY}
       PYTHONPATH: /app
-    ports:
-      - "8005:8000"
     networks:
       - music-management_db
 
@@ -406,8 +403,6 @@ services:
       LMS_HOSTS: ${LMS_HOSTS}
       PYTHONPATH: /app
       LMS_DB_PATH: /app/data/lms.db
-    ports:
-      - "8006:8001"
     volumes:
       - /docker/lms/var/lms/lms.db:/app/data/lms.db:ro
     networks:

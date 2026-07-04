@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.29] - 2026-07-05
+### Added
+- **Centralized Authentication**: Introduced a centralized `/auth/verify` endpoint in the User Service to validate both system-wide and user-specific API keys.
+- **Enhanced Security**: Repurposed the `user-service` as an Identity Provider, allowing services to offload credential verification.
+
+### Fixed
+- **Network Hardening**: Minimized the attack surface by removing public port exposures for internal services (Rating, Scrobble, User) in Docker Compose.
+- **Internal Communication**: Optimized service-to-service communication by using the shared `music-management_db` Docker network and internal DNS.
+
 ## [2.1.28] - 2026-07-04
 ### Fixed
 - **Infrastructuur**: `LMS_SUBSONIC_API_KEY` toegevoegd aan de hoofd `docker-compose.yml` voor correcte propagatie naar de User Service.

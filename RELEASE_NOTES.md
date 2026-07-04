@@ -12,6 +12,13 @@ This project is now modularized. Detailed release notes for each module can be f
 - [Scrobble Service](services/scrobble-service/RELEASE_NOTES.md)
 - [User Service](services/user-service/RELEASE_NOTES.md)
 
+## Global Version 2.1.29 (2026-07-05)
+### 🔐 Centralized Auth & Network Hardening
+- **User Service Identity Provider**: Repurposed the User Service to act as a central auth authority. It now exposes an `/auth/verify` endpoint that validates tokens for other services.
+- **Enhanced Verification**: Services can now offload API key verification to the User Service, which supports both global and user-specific keys from the database.
+- **Port Minimization**: Removed public port exposures for internal microservices (`Rating`, `Scrobble`, `User`). They are now only accessible within the secure Docker network.
+- **Internal DNS Integration**: Optimized service communication by utilizing Docker's internal networking, improving both security and performance.
+
 ## Global Version 2.1.28 (2026-07-04)
 ### 🛠 Infrastructure Fix
 - **Configuration Persistence**: Ensured that the newly introduced `LMS_SUBSONIC_API_KEY` is correctly propagated through the main Docker Compose configuration, finalizing the fix for LMS user synchronization.

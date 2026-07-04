@@ -1,5 +1,11 @@
 # Release Notes - Control Center (Management API)
 
+## Version 2.1.22 (2026-07-04)
+### 🔐 API Security & Header Management
+- **Centralized Security**: Implemented `X-API-Key` validation for all API endpoints.
+- **API Key Dashboard**: Added a new UI section to manage and persist the API key in the browser.
+- **Proxy Headers**: The API now automatically forwards the API key to all internal microservices.
+
 ## Version 2.1.13 (2026-07-04)
 ### 🍏 UI Focus & Rating System
 - **Database Alignment**: Renamed `track_ratings` to `rating_tracks` in the Rating System to match the service structure.

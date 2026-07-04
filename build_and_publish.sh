@@ -26,8 +26,8 @@ if [ "$AFFECTED" == "all" ]; then
     ./publish.sh "$@"
 else
     echo "Affected modules: $AFFECTED"
-    ./build.sh $AFFECTED
-    ./publish.sh $AFFECTED
+    ./build.sh $AFFECTED "$@"
+    ./publish.sh $AFFECTED "$@"
 fi
 
 ./scripts/deploy.sh "$@"

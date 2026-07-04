@@ -33,12 +33,22 @@ fi
 echo "--- Starting push of containers ---"
 
 DEBUG_MODE=false
+REMOTE_MODE=false
+SEMI_REMOTE_MODE=false
 for arg in "$@"; do
     if [ "$arg" == "--debug" ]; then
         DEBUG_MODE=true
-        break
+    elif [ "$arg" == "--remote" ]; then
+        REMOTE_MODE=true
+    elif [ "$arg" == "--semi-remote" ]; then
+        SEMI_REMOTE_MODE=true
     fi
 done
+
+if [ "$REMOTE_MODE" = true ] && [ "$SEMI_REMOTE_MODE" = true ]; then
+    echo "ERROR: Cannot use both --remote and --semi-remote"
+    exit 1
+fi
 
 if [ "$DEBUG_MODE" = true ]; then
     echo "--- Debug mode enabled ---"
@@ -72,92 +82,110 @@ IMAGE_SCROBBLE="${IMAGE_SCROBBLE}"
 IMAGE_USER="${IMAGE_USER}"
 VERSION=$(cat VERSION 2>/dev/null || echo "latest")
 
+# Docker command configuration
+DOCKER_CMD="docker"
+if [ "$REMOTE_MODE" = true ]; then
+    echo "--- Remote push mode enabled ---"
+    DOCKER_CMD="docker -c remote-lxc"
+fi
+
 push_base() {
     echo "--- Pushing Base Image ($VERSION) ---"
-    docker push "${DOCKER_USER}/${IMAGE_BASE}:latest"
-    docker push "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_BASE}:latest"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}"
 }
 
 push_scanner() {
     echo "--- Pushing Scanner ($VERSION) ---"
-    docker push "${DOCKER_USER}/${IMAGE_SCANNER}:latest"
-    docker push "${DOCKER_USER}/${IMAGE_SCANNER}:${VERSION}"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_SCANNER}:latest"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_SCANNER}:${VERSION}"
 }
 
 push_tagger() {
     echo "--- Pushing Tagger ($VERSION) ---"
-    docker push "${DOCKER_USER}/${IMAGE_TAGGER}:latest"
-    docker push "${DOCKER_USER}/${IMAGE_TAGGER}:${VERSION}"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_TAGGER}:latest"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_TAGGER}:${VERSION}"
 }
 
 push_downloader() {
     echo "--- Pushing Downloader ($VERSION) ---"
-    docker push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest"
-    docker push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}"
 }
 
 push_telegram() {
     echo "--- Pushing Telegram ($VERSION) ---"
-    docker push "${DOCKER_USER}/${IMAGE_TELEGRAM}:latest"
-    docker push "${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSION}"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_TELEGRAM}:latest"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSION}"
 }
 
 push_importer() {
     echo "--- Pushing Importer ($VERSION) ---"
-    docker push "${DOCKER_USER}/${IMAGE_IMPORTER}:latest"
-    docker push "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_IMPORTER}:latest"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}"
 }
 
 push_rating() {
     echo "--- Pushing Rating System ($VERSION) ---"
-    docker push "${DOCKER_USER}/${IMAGE_RATING}:latest"
-    docker push "${DOCKER_USER}/${IMAGE_RATING}:${VERSION}"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_RATING}:latest"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_RATING}:${VERSION}"
 }
 
 push_scrobble() {
     echo "--- Pushing Scrobble Service ($VERSION) ---"
-    docker push "${DOCKER_USER}/${IMAGE_SCROBBLE}:latest"
-    docker push "${DOCKER_USER}/${IMAGE_SCROBBLE}:${VERSION}"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_SCROBBLE}:latest"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_SCROBBLE}:${VERSION}"
 }
 
 push_user() {
     echo "--- Pushing User Service ($VERSION) ---"
-    docker push "${DOCKER_USER}/${IMAGE_USER}:latest"
-    docker push "${DOCKER_USER}/${IMAGE_USER}:${VERSION}"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_USER}:latest"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_USER}:${VERSION}"
 }
 
 push_ml() {
+    local cmd=$DOCKER_CMD
+    if [ "$SEMI_REMOTE_MODE" = true ]; then cmd="docker -c remote-lxc"; fi
     echo "--- Pushing ML Analyzer ($VERSION) ---"
-    docker push "${DOCKER_USER}/${IMAGE_ML}:latest"
-    docker push "${DOCKER_USER}/${IMAGE_ML}:${VERSION}"
+    $cmd push "${DOCKER_USER}/${IMAGE_ML}:latest"
+    $cmd push "${DOCKER_USER}/${IMAGE_ML}:${VERSION}"
 }
 
 push_tools() {
+    local cmd=$DOCKER_CMD
+    if [ "$SEMI_REMOTE_MODE" = true ]; then cmd="docker -c remote-lxc"; fi
     echo "--- Pushing Tools ($VERSION) ---"
-    docker push "${DOCKER_USER}/${IMAGE_TOOLS}:latest"
-    docker push "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}"
+    $cmd push "${DOCKER_USER}/${IMAGE_TOOLS}:latest"
+    $cmd push "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}"
 }
 
 push_app() {
+    local cmd=$DOCKER_CMD
+    if [ "$SEMI_REMOTE_MODE" = true ]; then cmd="docker -c remote-lxc"; fi
     echo "--- Pushing Main Application ($VERSION) ---"
-    docker push "${DOCKER_USER}/${IMAGE_APP}:latest"
-    docker push "${DOCKER_USER}/${IMAGE_APP}:${VERSION}"
+    $cmd push "${DOCKER_USER}/${IMAGE_APP}:latest"
+    $cmd push "${DOCKER_USER}/${IMAGE_APP}:${VERSION}"
 }
 
 push_management() {
     echo "--- Pushing Management API ($VERSION) ---"
-    docker push "${DOCKER_USER}/${IMAGE_MANAGEMENT}:latest"
-    docker push "${DOCKER_USER}/${IMAGE_MANAGEMENT}:${VERSION}"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_MANAGEMENT}:latest"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_MANAGEMENT}:${VERSION}"
 }
 
 # Filter arguments to remove special flags
 REQUESTED_MODULES=()
 for arg in "$@"; do
     case $arg in
-        --debug|patch) ;;
+        --debug|--remote|--semi-remote|patch) ;;
         *) REQUESTED_MODULES+=("$arg") ;;
     esac
 done
+
+if [ "$SEMI_REMOTE_MODE" = true ]; then
+    echo "--- Semi-remote push mode enabled ---"
+    echo "--- Pushing ML, Tools, and App from remote, others local ---"
+fi
 
 if [ ${#REQUESTED_MODULES[@]} -eq 0 ]; then
     echo "--- Pushing all modules in parallel ---"

@@ -1,5 +1,8 @@
 # User Service Release Notes
 
+## 1.1.2 (2026-07-04)
+- **Fix**: Added explicit `apiKey` parameter to Subsonic sync URL to satisfy LMS authentication requirements.
+
 ## 1.1.1 (2026-07-04)
 - **Fix**: Corrected syntax and logic errors in `run_lms_sync` background task.
 - **Feature**: Added support for multiple LMS hosts via `LMS_HOSTS`.

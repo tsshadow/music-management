@@ -26,10 +26,10 @@ SERVICES = {
     "user-service": "http://muma-user-service:8001"
 }
 
-API_KEY = os.getenv("API_KEY", "REDACTED")
+API_KEY = os.getenv("API_KEY", "00000000-0000-4000-8000-000000000000")
 RATING_API_KEY = os.getenv("RATING_API_KEY", "REDACTED")
-SCROBBLE_API_KEY = os.getenv("SCROBBLE_API_KEY", "REDACTED")
-USER_API_KEY = os.getenv("USER_API_KEY", "REDACTED")
+SCROBBLE_API_KEY = os.getenv("SCROBBLE_API_KEY", "00000000-0000-4000-8000-000000000000")
+USER_API_KEY = os.getenv("USER_API_KEY", "00000000-0000-4000-8000-000000000000")
 
 async def verify_api_key(x_api_key: Optional[str] = Header(None)):
     if API_KEY and x_api_key != API_KEY:

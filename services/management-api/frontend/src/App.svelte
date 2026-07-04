@@ -456,11 +456,11 @@
                         class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 pl-10 focus:outline-none focus:border-spotify-green"
                       />
                     </div>
-                    <select 
-                      bind:value={selectedArtistName}
-                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 h-32"
-                      size="5"
-                    >
+                      <select 
+                        bind:value={selectedArtistName}
+                        class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 h-32 focus:outline-none focus:border-spotify-green transition-colors"
+                        size="5"
+                      >
                       {#each artists as artist}
                         <option value={artist.name}>{artist.name}</option>
                       {/each}
@@ -481,7 +481,7 @@
                     </div>
                     <select 
                       bind:value={selectedLabelName}
-                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 h-32"
+                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 h-32 focus:outline-none focus:border-spotify-green transition-colors"
                       size="5"
                     >
                       {#each labels as label}
@@ -497,7 +497,7 @@
                 <div class="space-y-4">
                   <select 
                     bind:value={selectedGenreId}
-                    class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2"
+                    class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
                   >
                     <option value={null}>Kies een genre...</option>
                     {#each rules.genres as genre}

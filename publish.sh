@@ -32,6 +32,19 @@ fi
 
 echo "--- Starting push of containers ---"
 
+DEBUG_MODE=false
+for arg in "$@"; do
+    if [ "$arg" == "--debug" ]; then
+        DEBUG_MODE=true
+        break
+    fi
+done
+
+if [ "$DEBUG_MODE" = true ]; then
+    echo "--- Debug mode enabled ---"
+    set -x
+fi
+
 if [ -f .env ]; then
     while IFS= read -r line || [[ -n "$line" ]]; do
         # Strip trailing comments and whitespace
@@ -151,6 +164,7 @@ else
             importer) push_importer & ;;
             rating) push_rating & ;;
             base) push_base & ;;
+            --debug) ;; # Handled at start
             *) echo "Unknown component: $arg"; exit 1 ;;
         esac
     done

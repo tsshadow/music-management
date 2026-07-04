@@ -4,6 +4,12 @@
 
 :root {
   background-color: #121212;
+  color: #ffffff;
+}
+
+::selection {
+  background-color: #1DB954;
+  color: #000000;
 }
 
 .md-content h1 { @apply text-2xl font-bold mt-6 mb-4 text-spotify-green; }

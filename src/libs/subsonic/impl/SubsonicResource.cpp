@@ -27,10 +27,12 @@
 #include "core/ILogger.hpp"
 #include "core/ITraceLogger.hpp"
 #include "core/LiteralString.hpp"
+#include "core/Md5.hpp"
 #include "core/Service.hpp"
 #include "core/String.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
+#include "database/objects/AuthToken.hpp"
 #include "database/objects/User.hpp"
 #include "services/auth/IAuthTokenService.hpp"
 #include "services/auth/IPasswordService.hpp"
@@ -463,28 +465,31 @@ namespace lms::api::subsonic
     {
         const auto& parameters{ request.getParameterMap() };
 
-        if (hasParameter(parameters, "t"))
-            throw ProvidedAuthenticationMechanismNotSupportedError{};
-
         const auto user{ getParameterAs<std::string>(parameters, "u") };
         const auto password{ getParameterAs<std::string>(parameters, "p") };
-        if (!_config.supportUserPasswordAuthentication && (password || user))
-            throw ProvidedAuthenticationMechanismNotSupportedError{};
-
+        const auto token{ getParameterAs<std::string>(parameters, "t") };
+        const auto salt{ getParameterAs<std::string>(parameters, "s") };
         const auto apiKey{ getParameterAs<std::string>(parameters, "apiKey") };
 
-        if (user && !password)
-            throw RequiredParameterMissingError{ "p" };
-        if (!user && password)
+        if (!_config.supportUserPasswordAuthentication && (password || user || token || salt))
+            throw ProvidedAuthenticationMechanismNotSupportedError{};
+
+        if (user && !password && !token)
+            throw RequiredParameterMissingError{ "p" }; // or t
+        if (!user && (password || token))
             throw RequiredParameterMissingError{ "u" };
-        if (apiKey && password)
+        if (token && !salt)
+            throw RequiredParameterMissingError{ "s" };
+
+        if (password && token)
             throw MultipleConflictingAuthenticationMechanismsProvidedError{};
-        if (!apiKey && !password)
+
+        if (!apiKey && !password && !token)
             throw RequiredParameterMissingError{ "apiKey" };
 
         const auto clientAddress{ boost::asio::ip::make_address(request.clientAddress()) };
 
-        const std::string cacheKey{ (user ? *user : "") + ":" + (password ? *password : "") + ":" + (apiKey ? *apiKey : "") + ":" + clientAddress.to_string() };
+        const std::string cacheKey{ (user ? *user : "") + ":" + (password ? *password : "") + ":" + (token ? *token : "") + ":" + (salt ? *salt : "") + ":" + (apiKey ? *apiKey : "") + ":" + clientAddress.to_string() };
         {
             std::lock_guard lock{ _authCacheMutex };
             if (auto it{ _authCache.find(cacheKey) }; it != _authCache.end())
@@ -515,11 +520,9 @@ namespace lms::api::subsonic
             return userId;
         } };
 
-        const std::string authToken{ apiKey ? *apiKey : decodePasswordIfNeeded(*password) };
-
         if (apiKey)
         {
-            const auto authResult{ core::Service<auth::IAuthTokenService>::get()->processAuthToken("subsonic", clientAddress, authToken) };
+            const auto authResult{ core::Service<auth::IAuthTokenService>::get()->processAuthToken("subsonic", clientAddress, *apiKey) };
             if (authResult.state == auth::IAuthTokenService::AuthTokenProcessResult::State::Granted)
                 return onAuthSuccess(authResult.authTokenInfo->userId);
 
@@ -531,23 +534,48 @@ namespace lms::api::subsonic
 
         if (user)
         {
-            if (auto passwordService{ core::Service<auth::IPasswordService>::get() })
+            if (token && salt)
             {
-                const auto passwordResult{ passwordService->checkUserPassword(clientAddress, *user, authToken) };
-                if (passwordResult.state == auth::IPasswordService::CheckResult::State::Granted)
-                    return onAuthSuccess(passwordResult.userId);
+                db::Session& session{ _db.getTLSSession() };
+                auto transaction{ session.createReadTransaction() };
+                if (const auto dbUser{ db::User::find(session, *user) })
+                {
+                    db::UserId userId{ dbUser->getId() };
+                    bool authenticated{ false };
+                    db::AuthToken::find(session, "subsonic", userId, [&](const db::AuthToken::pointer& authToken) {
+                        if (authenticated)
+                            return;
 
-                if (passwordResult.state == auth::IPasswordService::CheckResult::State::Throttled)
-                    throw LoginThrottledGenericError{};
+                        if (core::crypto::md5(authToken->getValue() + *salt) == *token)
+                            authenticated = true;
+                    });
+
+                    if (authenticated)
+                        return onAuthSuccess(userId);
+                }
             }
 
-            // Fallback: check if the password is actually an API Key
-            const auto authResult{ core::Service<auth::IAuthTokenService>::get()->processAuthToken("subsonic", clientAddress, authToken) };
-            if (authResult.state == auth::IAuthTokenService::AuthTokenProcessResult::State::Granted)
+            if (password)
             {
-                const auto authenticatedUser{ getUserFromUserId(_db.getTLSSession(), authResult.authTokenInfo->userId) };
-                if (authenticatedUser->getLoginName() == *user)
-                    return onAuthSuccess(authResult.authTokenInfo->userId);
+                const std::string decodedPassword{ decodePasswordIfNeeded(*password) };
+                if (auto passwordService{ core::Service<auth::IPasswordService>::get() })
+                {
+                    const auto passwordResult{ passwordService->checkUserPassword(clientAddress, *user, decodedPassword) };
+                    if (passwordResult.state == auth::IPasswordService::CheckResult::State::Granted)
+                        return onAuthSuccess(passwordResult.userId);
+
+                    if (passwordResult.state == auth::IPasswordService::CheckResult::State::Throttled)
+                        throw LoginThrottledGenericError{};
+                }
+
+                // Fallback: check if the password is actually an API Key
+                const auto authResult{ core::Service<auth::IAuthTokenService>::get()->processAuthToken("subsonic", clientAddress, decodedPassword) };
+                if (authResult.state == auth::IAuthTokenService::AuthTokenProcessResult::State::Granted)
+                {
+                    const auto authenticatedUser{ getUserFromUserId(_db.getTLSSession(), authResult.authTokenInfo->userId) };
+                    if (authenticatedUser->getLoginName() == *user)
+                        return onAuthSuccess(authResult.authTokenInfo->userId);
+                }
             }
         }
 

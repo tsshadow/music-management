@@ -6,6 +6,7 @@
   let config = { version: '...', phpmyadmin_url: '#' };
   let notes = { release_notes: '', changelog: '' };
   let rules = { genres: [], ignored_genres: [] };
+  let versions = {};
   let accounts = [];
   let artists = [];
   let labels = [];
@@ -31,17 +32,19 @@
   async function fetchData() {
     loading = true;
     try {
-      const [configRes, notesRes, rulesRes, accountsRes] = await Promise.all([
+      const [configRes, notesRes, rulesRes, accountsRes, versionsRes] = await Promise.all([
         fetch(`${API_BASE}/api/config`),
         fetch(`${API_BASE}/api/notes`),
         fetch(`${API_BASE}/api/rules`),
-        fetch(`${API_BASE}/api/soundcloud`)
+        fetch(`${API_BASE}/api/soundcloud`),
+        fetch(`${API_BASE}/api/versions`)
       ]);
       
       config = await configRes.json();
       notes = await notesRes.json();
       rules = await rulesRes.json();
       accounts = await accountsRes.json();
+      versions = await versionsRes.json();
       
       // Load rules for editor
       fetchRules();
@@ -207,6 +210,12 @@
         class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'editor' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
       >
         <Music size={24} /> Artist-Genre Editor
+      </button>
+      <button 
+        on:click={() => activeTab = 'versions'}
+        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'versions' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+      >
+        <Info size={24} /> System Versions
       </button>
       
       <div class="pt-4 mt-4 border-t border-spotify-gray">
@@ -547,6 +556,34 @@
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+      {:else if activeTab === 'versions'}
+        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+          <header>
+            <h2 class="text-4xl font-extrabold mb-2">📟 System Versions</h2>
+            <p class="text-spotify-lightgray">Centraal overzicht van alle draaiende service versies.</p>
+          </header>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {#each Object.entries(versions) as [name, version]}
+              <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 flex flex-col gap-1">
+                <span class="text-xs font-bold text-spotify-lightgray uppercase tracking-wider">{name}</span>
+                <span class="text-xl font-mono {version === 'offline' ? 'text-red-500' : 'text-spotify-green'}">
+                  {version}
+                </span>
+              </div>
+            {/each}
+          </div>
+
+          <div class="bg-black bg-opacity-20 p-6 rounded-xl border border-spotify-gray border-dashed">
+            <h3 class="font-bold mb-2 flex items-center gap-2 text-spotify-lightgray">
+              <ExternalLink size={16} /> Externe Referenties
+            </h3>
+            <ul class="text-sm space-y-2 text-spotify-lightgray">
+              <li>LMS: <span class="text-white">{versions.lms || 'Niet gedetecteerd'}</span></li>
+              <li>Ultrasonic APK: <span class="text-white">{versions.ultrasonic || 'Niet gevonden'}</span></li>
+            </ul>
           </div>
         </section>
       {/if}

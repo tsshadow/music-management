@@ -1,0 +1,15 @@
+# syntax=docker/dockerfile:1
+ARG DOCKER_USER
+ARG VERSION=latest
+FROM ${DOCKER_USER}/muma-base:${VERSION}
+
+WORKDIR /app
+
+# Importer specific dependencies
+RUN pip install --no-cache-dir patool
+
+# Importer specific code
+COPY services/importer/ /app/services/importer/
+COPY services/importer/RELEASE_NOTES.md /app/services/importer/
+
+CMD ["python", "services/importer/importer_service.py", "--repeat"]

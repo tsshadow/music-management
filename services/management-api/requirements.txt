@@ -4,3 +4,4 @@ markdown
 pymysql
 python-dotenv
 jinja2
+requests

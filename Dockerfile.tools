@@ -20,8 +20,9 @@ COPY modules/music-management/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Kopieer de rest van de applicatie
-# We kopiëren alles omdat de tool afhankelijk is van de services/ map
-COPY . .
+COPY services/ /app/services/
+COPY tools/ /app/tools/
+COPY VERSION RELEASE_NOTES.md /app/
 
 # Set PYTHONPATH zodat de tool de services kan vinden
 ENV PYTHONPATH=/app

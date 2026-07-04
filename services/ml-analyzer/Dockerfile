@@ -9,11 +9,15 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Kopieer requirements en installeer python pakketten
-COPY requirements.txt .
+COPY services/ml-analyzer/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Kopieer de broncode
-COPY . .
+COPY services/ml-analyzer/ /app/services/ml-analyzer/
+COPY services/common/ /app/services/common/
+COPY VERSION RELEASE_NOTES.md /app/
 
-# Voor nu houden we de container levend zodat we er commando's in kunnen draaien
-CMD ["tail", "-f", "/dev/null"]
+ENV PYTHONPATH=/app
+
+# Draai de analyzer in de achtergrond (met API server)
+CMD ["python", "services/ml-analyzer/analyzer.py", "--all", "--save", "--repeat", "--sleeptime", "3600"]

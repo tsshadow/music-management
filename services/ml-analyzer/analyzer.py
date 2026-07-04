@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from tqdm import tqdm
+from services.common.api import start_api_server
 
 load_dotenv()
 
@@ -23,6 +24,7 @@ class TrackAnalyzer:
         self.engine = self._get_db_engine()
         self.max_workers = max_workers
         self.verbose = True
+        start_api_server()
 
     def _get_db_engine(self):
         host = os.getenv("DB_HOST", "db")
@@ -599,40 +601,42 @@ class TrackAnalyzer:
             self.analyze_folder(folder, save=save, parallel=parallel, tags_only=tags_only)
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2 and "--all" not in sys.argv:
-        print("Gebruik: python analyzer.py <path_to_audio_file_or_folder> [--save] [--parallel] [--all] [--tags-only]")
-        sys.exit(1)
-
-    path = None
-    if len(sys.argv) > 1 and not sys.argv[1].startswith("--"):
-        path = sys.argv[1]
-        
-    save_to_db = "--save" in sys.argv
-    parallel_mode = "--parallel" in sys.argv
-    full_scan = "--all" in sys.argv
-    tags_only = "--tags-only" in sys.argv
+    import argparse
+    parser = argparse.ArgumentParser(description="Muma ML Analyzer")
+    parser.add_argument("path", nargs="?", help="Path to audio file or folder")
+    parser.add_argument("--save", action="store_true", help="Save results to database")
+    parser.add_argument("--parallel", action="store_true", help="Use parallel processing")
+    parser.add_argument("--all", action="store_true", help="Scan all music folders")
+    parser.add_argument("--tags-only", action="store_true", help="Only extract tags, skip audio analysis")
+    parser.add_argument("--repeat", action="store_true", help="Repeat the scan in a loop")
+    parser.add_argument("--sleeptime", type=int, default=3600, help="Time to sleep between runs (default: 3600)")
     
-    # Zoek het argument dat het pad is (als niet --all)
-    if not full_scan and path is None:
-        for arg in sys.argv[1:]:
-            if not arg.startswith("--"):
-                path = arg
-                break
+    args = parser.parse_args()
     
     analyzer = TrackAnalyzer(max_workers=4)
     
-    if full_scan:
-        analyzer.run_full_scan(save=save_to_db, parallel=parallel_mode, tags_only=tags_only)
-    elif path:
-        if os.path.isdir(path):
-            analyzer.analyze_folder(path, save=save_to_db, parallel=parallel_mode, tags_only=tags_only)
-        else:
-            results = analyzer.analyze_track(path, save=save_to_db, tags_only=tags_only)
-            if results:
-                print("\nAnalyse resultaten:")
-                for k, v in results.items():
-                    print(f"  {k}: {v}")
+    while True:
+        if args.all:
+            analyzer.run_full_scan(save=args.save, parallel=args.parallel, tags_only=args.tags_only)
+        elif args.path:
+            if os.path.isdir(args.path):
+                analyzer.analyze_folder(args.path, save=args.save, parallel=args.parallel, tags_only=args.tags_only)
             else:
-                print("Analyse mislukt.")
-    else:
-        print("Geen pad opgegeven en --all niet gebruikt.")
+                results = analyzer.analyze_track(args.path, save=args.save, tags_only=args.tags_only)
+                if results:
+                    print("\nAnalyse resultaten:")
+                    for k, v in results.items():
+                        print(f"  {k}: {v}")
+                else:
+                    print("Analyse mislukt.")
+        else:
+            print("Geen pad opgegeven en --all niet gebruikt.")
+            if not args.repeat:
+                sys.exit(1)
+        
+        if not args.repeat:
+            break
+            
+        print(f"\nSlaap voor {args.sleeptime} seconden voor de volgende run...")
+        from time import sleep
+        sleep(args.sleeptime)

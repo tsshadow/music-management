@@ -1,0 +1,12 @@
+# syntax=docker/dockerfile:1
+ARG DOCKER_USER
+ARG VERSION=latest
+FROM ${DOCKER_USER}/muma-base:${VERSION}
+
+WORKDIR /app
+
+# Scanner specific code
+COPY services/scanner/ /app/services/scanner/
+COPY services/scanner/RELEASE_NOTES.md /app/services/scanner/
+
+CMD ["python", "services/scanner/scanner_service.py", "--repeat"]

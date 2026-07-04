@@ -9,6 +9,7 @@ coverage~=7.2.7
 telethon~=1.32.0
 fastapi~=0.111.0
 uvicorn~=0.22.0
+markdown~=3.6
 
 anyio~=4.10.0
 numpy~=2.0.2

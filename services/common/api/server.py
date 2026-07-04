@@ -14,25 +14,20 @@ from pydantic import BaseModel, Field, field_validator
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from .config_store import ConfigStore
 from .db_init import ensure_tables_exist
-from .steps import step_map, steps_to_run
+try:
+    from .steps import step_map, steps_to_run
+except ImportError:
+    step_map = {}
+    steps_to_run = []
+from .version_helper import get_version, get_release_notes, get_changelog
 app = FastAPI()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s', force=True)
 current_job_id: ContextVar[Optional[str]] = ContextVar('current_job_id', default=None)
 _default_logger = logging.LoggerAdapter(logging.getLogger(), {})
 current_logger: ContextVar[logging.LoggerAdapter] = ContextVar('current_logger', default=_default_logger)
 
-def ensure_yt_dlp_is_updated():
-    if os.getenv('SKIP_YT_DLP_UPDATE'):
-        return
-    import subprocess
-    try:
-        subprocess.run(['pip', 'install', '--upgrade', 'yt-dlp', '--break-system-packages'], check=True)
-    except subprocess.CalledProcessError as e:
-        logging.error(f'Failed to install yt-dlp: {e}')
-
 @app.on_event('startup')
 def _startup() -> None:
-    ensure_yt_dlp_is_updated()
     print('starting up...')
     ensure_tables_exist()
 
@@ -136,6 +131,19 @@ async def health() -> Dict[str, str]:
     except Exception as exc:
         raise HTTPException(status_code=500, detail='Database connection failed') from exc
     return {'status': 'ok'}
+
+@app.get('/version')
+async def version():
+    """Return the current version of the service."""
+    return {'version': get_version()}
+
+@app.get('/release-notes')
+async def release_notes(service: Optional[str] = None):
+    """Return the release notes for the service."""
+    return {
+        'release_notes': get_release_notes(service),
+        'changelog': get_changelog()
+    }
 
 @app.get('/api/steps')
 async def list_steps(_: None=Depends(verify_api_key)):

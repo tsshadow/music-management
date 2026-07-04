@@ -1,12 +1,31 @@
 # 🎵 Music Management System
 
-A comprehensive, modular system for automated music library management, including downloading, rule-based tagging, and listening history tracking (scrobbling).
+A comprehensive, modular system for automated music library management, including downloading, rule-based tagging, ML analysis, and listening history tracking (scrobbling).
 
-## 🏗 Project Architecture
+## 🧩 Modular System Architecture
 
-This project is composed of several specialized modules and services that work together to maintain a high-quality music library.
+The project has been refactored into specialized, lightweight Docker containers sharing a common base image. This ensures high performance and easy maintenance.
 
-### 1. Music Importer & Tagger (`services/` & `modules/music-management`)
+### Core Images
+- **`muma-base`**: Shared foundation containing core music logic and common dependencies.
+- **`muma-management-api`**: The "Control Center" providing the dashboard and version tracking.
+- **`muma-app`**: Legacy core music management application.
+
+### Specialized Workers
+- **`muma-scanner`**: High-performance library scanning and database synchronization.
+- **`muma-tagger`**: Rule-based metadata enforcement and genre inference engine.
+- **`muma-downloader`**: Automated fetches from YouTube and SoundCloud.
+- **`muma-telegram`**: Dedicated worker for Telegram-based music discovery.
+- **`muma-importer`**: Archive extraction and automated file movement.
+- **`muma-ml-analyzer`**: Machine learning pipeline for BPM, key, and mood detection.
+- **`muma-rating-system`**: Intelligent track rating and popularity tracking.
+
+### Utility
+- **`muma-tools`**: Collection of maintenance and database utility scripts.
+
+---
+
+## 🏗 Project Modules
 The core of the system that handles the lifecycle of music files:
 - **Downloaders**: Automated fetching from YouTube, SoundCloud, and Telegram.
 - **Importer**: Monitors incoming files, extracts archives, and moves them to the library.
@@ -63,10 +82,13 @@ The easiest way to run the entire stack is using Docker Compose.
 ### Building and Deployment
 If you are modifying the code and need to rebuild and redeploy the system:
 
-- **Build all images**: `./build.sh`
-- **Publish all images**: `./publish.sh`
-- **Deploy to remote**: `./deploy.sh`
-- **Full pipeline (Build + Publish + Deploy)**: `./build_and_publish.sh`
+- **Smart Build (Recommended)**: `./bup`
+  - Uses `scripts/affected.sh` to detect which modules have changed.
+  - Skips builds and pushes for unedited modules to save time.
+  - Automatically deploys the updated stack to production.
+- **Manual Build**: `./build.sh` (builds all or specified modules).
+- **Manual Publish**: `./publish.sh` (pushes to Docker Hub).
+- **Manual Deploy**: `./deploy.sh` (triggers remote update).
 
 #### Remote Deployment Options
 You can configure deployment in `.env`:
@@ -144,6 +166,8 @@ For specific information on each module, please refer to their respective README
 - [Music Importer](services/importer/README.md)
 - [Music Downloader](services/downloader/README.md)
 - [Music Tagger](services/tagger/README.md)
+- [ML Analyzer](services/ml-analyzer/README.md)
+- [Rating System](services/rating-system/README.md)
 - [Scrobbler](modules/scrobbler/README.md)
 - [Database Schema](docs/database-design.md)
 - [Data Flow](docs/system-data-flow.md)

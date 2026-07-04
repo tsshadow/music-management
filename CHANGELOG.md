@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.10] - 2026-07-04
+### Added
+- **Modular Containerization**: Split the monolithic application into 10 specialized, lightweight services (`muma-scanner`, `muma-tagger`, `muma-downloader`, etc.).
+- **Smart Build System**: Introduced `scripts/affected.sh` and optimized `bup` to skip builds for unedited modules.
+- **Unified Base Image**: Created `muma-base` to share core music logic and dependencies, reducing image size and ensuring consistency.
+- **Parallel Builds**: Optimized `build.sh` and `publish.sh` to execute Docker operations in parallel.
+
+### Fixed
+- Fixed missing `pymysql` and other dependencies in `ml-analyzer` worker.
+- Silenced database permission warnings in workers when tables/views are already managed by migrations.
+- Improved Telegram worker stability with dedicated `asyncio` loop management.
+- Resolved circular dependencies by consolidating core logic in the base image.
+
+## [2.1.9] - 2026-07-04
+### Fixed
+- Fixed `ml-analyzer` being offline by setting up a repeat loop and proper Docker command.
+- Resolved `RuntimeError` in Telegram worker by improving `asyncio` loop management and explicitly passing it to Telethon.
+- Removed redundant `yt-dlp` updates on service startup to speed up container initialization.
+
+## [2.1.8] - 2026-07-04
+### Fixed
+- Improved Telegram worker stability by using a dedicated event loop and modern `asyncio` patterns.
+
+## [2.1.7] - 2026-07-04
+### Fixed
+- Fixed `KeyError` in YouTube downloader by aligning configuration keys with `ConfigStore`.
+- Added missing `muma-rating-system` to build and deployment scripts.
+
+## [2.1.6] - 2026-07-04
+### Fixed
+- Consolidated all service code into the base image to resolve circular and cross-service dependencies.
+- Added all common dependencies (`yt-dlp`, `telethon`, `patool`, etc.) to the base image to ensure all workers can share the same entry points.
+
+## [2.1.5] - 2026-07-04
+### Fixed
+- Fixed API server crash due to missing dependencies (`markdown`, `pydantic`) in worker images.
+- Fixed `UnboundLocalError` in API initialization.
+- Fixed package recognition for `services.tagger` in modular workers by including `__init__.py` in the base image.
+
+## [2.1.4] - 2026-07-04
+### Fixed
+- Fixed missing `requests` dependency in Management API.
+- Fixed `ModuleNotFoundError` in modular worker images by moving core music logic (`BaseSong`, etc.) to the base image.
+- Improved Management API Dockerfile to inherit from the shared base image.
+
+## [2.1.3] - 2026-07-04
+### Changed
+- **Consolidated Deployment**: Unified root `deploy.sh` and `scripts/deploy-stack.sh` into a single `scripts/deploy.sh`.
+- **Streamlined Workflow**: Updated `bup` to use the new centralized deployment script.
+
 ## [2.1.2] - 2026-07-04
 ### Fixed
 - Fixed SQL syntax errors in `migrate_v2.sql` for MariaDB compatibility.

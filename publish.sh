@@ -48,7 +48,56 @@ IMAGE_ML="${IMAGE_ML}"
 IMAGE_TOOLS="${IMAGE_TOOLS}"
 IMAGE_APP="${IMAGE_APP}"
 IMAGE_MANAGEMENT="${IMAGE_MANAGEMENT}"
+IMAGE_BASE="${IMAGE_BASE}"
+IMAGE_SCANNER="${IMAGE_SCANNER}"
+IMAGE_TAGGER="${IMAGE_TAGGER}"
+IMAGE_DOWNLOADER="${IMAGE_DOWNLOADER}"
+IMAGE_TELEGRAM="${IMAGE_TELEGRAM}"
+IMAGE_IMPORTER="${IMAGE_IMPORTER}"
+IMAGE_RATING="${IMAGE_RATING}"
 VERSION=$(cat VERSION 2>/dev/null || echo "latest")
+
+push_base() {
+    echo "--- Pushing Base Image ($VERSION) ---"
+    docker push "${DOCKER_USER}/${IMAGE_BASE}:latest"
+    docker push "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}"
+}
+
+push_scanner() {
+    echo "--- Pushing Scanner ($VERSION) ---"
+    docker push "${DOCKER_USER}/${IMAGE_SCANNER}:latest"
+    docker push "${DOCKER_USER}/${IMAGE_SCANNER}:${VERSION}"
+}
+
+push_tagger() {
+    echo "--- Pushing Tagger ($VERSION) ---"
+    docker push "${DOCKER_USER}/${IMAGE_TAGGER}:latest"
+    docker push "${DOCKER_USER}/${IMAGE_TAGGER}:${VERSION}"
+}
+
+push_downloader() {
+    echo "--- Pushing Downloader ($VERSION) ---"
+    docker push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest"
+    docker push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}"
+}
+
+push_telegram() {
+    echo "--- Pushing Telegram ($VERSION) ---"
+    docker push "${DOCKER_USER}/${IMAGE_TELEGRAM}:latest"
+    docker push "${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSION}"
+}
+
+push_importer() {
+    echo "--- Pushing Importer ($VERSION) ---"
+    docker push "${DOCKER_USER}/${IMAGE_IMPORTER}:latest"
+    docker push "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}"
+}
+
+push_rating() {
+    echo "--- Pushing Rating System ($VERSION) ---"
+    docker push "${DOCKER_USER}/${IMAGE_RATING}:latest"
+    docker push "${DOCKER_USER}/${IMAGE_RATING}:${VERSION}"
+}
 
 push_ml() {
     echo "--- Pushing ML Analyzer ($VERSION) ---"
@@ -75,20 +124,37 @@ push_management() {
 }
 
 if [ $# -eq 0 ]; then
-    push_ml
-    push_tools
-    push_app
-    push_management
+    echo "--- Pushing all modules in parallel ---"
+    push_ml &
+    push_tools &
+    push_management &
+    push_base &
+    push_scanner &
+    push_tagger &
+    push_downloader &
+    push_telegram &
+    push_importer &
+    push_rating &
+    wait
 else
+    echo "--- Pushing requested modules: $@ ---"
     for arg in "$@"; do
         case $arg in
-            ml) push_ml ;;
-            tools) push_tools ;;
-            app) push_app ;;
-            mgmt|management) push_management ;;
+            ml) push_ml & ;;
+            tools) push_tools & ;;
+            app) push_app & ;;
+            mgmt|management) push_management & ;;
+            scanner) push_scanner & ;;
+            tagger) push_tagger & ;;
+            downloader) push_downloader & ;;
+            telegram) push_telegram & ;;
+            importer) push_importer & ;;
+            rating) push_rating & ;;
+            base) push_base & ;;
             *) echo "Unknown component: $arg"; exit 1 ;;
         esac
     done
+    wait
 fi
 
 echo "--- Push process completed ---"

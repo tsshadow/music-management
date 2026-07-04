@@ -1,0 +1,17 @@
+# syntax=docker/dockerfile:1
+ARG DOCKER_USER
+ARG VERSION=latest
+FROM ${DOCKER_USER}/muma-base:${VERSION}
+
+WORKDIR /app
+
+# Telegram specific dependencies
+RUN pip install --no-cache-dir telethon
+
+# Telegram specific code
+COPY services/downloader/ /app/services/downloader/
+COPY services/downloader/RELEASE_NOTES.md /app/services/downloader/
+
+ENV PYTHONPATH=/app:/app/services/downloader
+
+CMD ["python", "services/downloader/downloader_service.py", "--step", "telegram", "--repeat"]

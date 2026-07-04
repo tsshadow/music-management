@@ -27,11 +27,11 @@ class YoutubeDownloader:
         """
         self._config = ConfigStore()
         values = self._config.get_many([
-            'youtube_folder', 'downloads_youtube_archive', 'ffmpeg_location',
+            'youtube_folder', 'youtube_archive', 'ffmpeg_location',
             'yt_cookies', 'yt_user_agent'
         ])
         self.output_folder = values.get('youtube_folder')
-        self.archive_dir = values.get('downloads_youtube_archive')
+        self.archive_dir = values.get('youtube_archive')
         self.ffmpeg_location = values.get('ffmpeg_location') or '/usr/bin'
         self.cookies_file = values.get('yt_cookies')
         self.user_agent = values.get('yt_user_agent')
@@ -44,7 +44,7 @@ class YoutubeDownloader:
         self.default_break_on_existing = break_on_existing
         if not self.output_folder or not self.archive_dir:
             logging.warning(
-                'Missing required configuration for youtube_folder or downloads_youtube_archive. YouTube downloads will be disabled.')
+                'Missing required configuration for youtube_folder or youtube_archive. YouTube downloads will be disabled.')
             self.output_folder = None
             self.archive_dir = None
             self.enabled = False

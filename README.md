@@ -60,7 +60,7 @@ If you are modifying the code and need to rebuild and redeploy the system:
 - **Build all images**: `./build.sh`
 - **Publish all images**: `./publish.sh`
 - **Deploy to remote**: `./deploy.sh`
-- **Full pipeline (Build + Publish + Deploy)**: `./build_and_push_all.sh`
+- **Full pipeline (Build + Publish + Deploy)**: `./build_and_publish.sh`
 
 #### Remote Deployment Options
 You can configure deployment in `.env`:

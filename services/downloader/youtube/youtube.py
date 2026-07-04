@@ -87,13 +87,20 @@ class YoutubeDownloader:
         """
         opts: dict = {}
         if self.cookies_file:
-            if os.path.exists(self.cookies_file):
+            if self.cookies_file.startswith('firefox:'):
+                parts = self.cookies_file.split(':', 1)
+                profile = parts[1] if len(parts) > 1 else None
+                logging.info(f'Using cookiesfrombrowser=firefox with profile: {profile}')
+                opts['cookiesfrombrowser'] = ('firefox', profile)
+                return opts
+            elif os.path.exists(self.cookies_file):
                 logging.info(f'Using cookies.txt from YT_COOKIES: {self.cookies_file}')
                 opts['cookies'] = self.cookies_file
                 return opts
             else:
                 logging.warning(
                     f'YT_COOKIES is set but file not found: {self.cookies_file}. Falling back to cookiesfrombrowser=firefox.')
+        
         opts['cookiesfrombrowser'] = ('firefox',)
         logging.info('Using cookiesfrombrowser=firefox (no YT_COOKIES file).')
         return opts

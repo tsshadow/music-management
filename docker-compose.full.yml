@@ -179,10 +179,12 @@ services:
       DB_PASS: ${DB_PASS}
       DB_DB: ${DB_DB}
       ask-for-missing: "false"
+      YT_COOKIES: "firefox:/firefox-config/profile"
     volumes:
       - ${HOST_DATA_PATH}/importer:/app/data
       - ${HOST_MUSIC_PATH}:/mnt/music
       - ${HOST_DATA_PATH}/shared:/shared
+      - ${HOST_DATA_PATH}/firefox:/firefox-config:ro
     networks:
       - music-management_db
 
@@ -231,10 +233,12 @@ services:
       DB_PASS: ${DB_PASS}
       DB_DB: ${DB_DB}
       ask-for-missing: "false"
+      soundcloud_cookies: "firefox:/firefox-config/profile"
     volumes:
       - ${HOST_DATA_PATH}/importer:/app/data
       - ${HOST_MUSIC_PATH}:/mnt/music
       - ${HOST_DATA_PATH}/shared:/shared
+      - ${HOST_DATA_PATH}/firefox:/firefox-config:ro
     networks:
       - music-management_db
 
@@ -280,10 +284,12 @@ services:
       DB_PASS: ${DB_PASS}
       DB_DB: ${DB_DB}
       ask-for-missing: "false"
+      soundcloud_cookies: "firefox:/firefox-config/profile"
     volumes:
       - ${HOST_DATA_PATH}/importer:/app/data
       - ${HOST_MUSIC_PATH}:/mnt/music
       - ${HOST_DATA_PATH}/shared:/shared
+      - ${HOST_DATA_PATH}/firefox:/firefox-config:ro
     networks:
       - music-management_db
 

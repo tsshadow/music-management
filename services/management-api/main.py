@@ -77,7 +77,7 @@ def get_rules():
     
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT id, name FROM rules_genres_new ORDER BY name")
+            cursor.execute("SELECT id, name FROM rules_genres ORDER BY name")
             genres = cursor.fetchall()
             
             cursor.execute("SELECT name FROM rules_ignored_genres ORDER BY name")

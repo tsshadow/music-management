@@ -35,6 +35,13 @@ services:
     image: ${DOCKER_USER}/${IMAGE_MANAGEMENT}:latest
     container_name: muma-control-center
     restart: unless-stopped
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_DB=${DB_DB}
+      - PHPMYADMIN_URL=${PHPMYADMIN_URL}
     ports:
       - "8003:8000"
     networks:

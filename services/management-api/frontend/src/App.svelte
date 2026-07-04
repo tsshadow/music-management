@@ -239,7 +239,7 @@
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <!-- Genres -->
             <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-              <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Actieve Genres (rules_genres_new)</h3>
+              <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Actieve Genres (rules_genres)</h3>
               <div class="max-h-[500px] overflow-y-auto">
                 <table class="w-full text-left">
                   <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray sticky top-0">

@@ -1,0 +1,28 @@
+[
+  {
+    "version": "3.77.0",
+    "date": "2026-07-04",
+    "notes": {
+      "Added": [
+        "New update notification system with a dedicated release notes modal.",
+        "Persistent version history and release notes in the 'About' settings section."
+      ]
+    }
+  },
+  {
+    "version": "3.76.0",
+    "date": "2026-03-14",
+    "notes": {
+      "Added": [
+        "Subsonic API: Added coverArt in discTitle responses.",
+        "Subsonic API: Support for searching albums and artists using MusicBrainz Identifier (MBID).",
+        "Artist Views: Added an optional role filter for the 'appears on' section.",
+        "Configuration: Added basic checks to ensure configured directories in lms.conf exist."
+      ],
+      "Fixed": [
+        "ListenBrainz: Removed UUID constraint on ListenBrainz token.",
+        "Subsonic API: Fixed unwanted termination when receiving bad client parameters."
+      ]
+    }
+  }
+]

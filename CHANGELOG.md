@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standardized `.env` configuration file for deployment settings.
 - `bup` shortcut for the full build and publish pipeline.
 - Registry authentication pre-check in `publish.sh`.
+- **Spotify UI**: Added a new release notes modal and version update notification system.
+- **Spotify UI**: Added a persistent "Release Notes" history in the About section.
 
 ### Changed
 - Updated `install.sh` to handle `.env` creation and dependency checks automatically.

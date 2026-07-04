@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.77.0] - 2026-07-04
 ### Added
 - Modular build system: split `build_and_publish.sh` into `build.sh`, `publish.sh`, and `deploy.sh`.
+- Versioned Docker tagging: images are now tagged with both `:latest` and the version from CMake (e.g., `:3.77.0`).
 - Portainer Webhook support for automated deployments.
 - Automatic Docker group permission handling using `sg docker` re-execution.
 - Standardized `.env` configuration file for deployment settings.

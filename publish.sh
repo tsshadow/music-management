@@ -41,17 +41,24 @@ DOCKER_USER="${DOCKER_USER}"
 IMAGE_ML="${IMAGE_ML}"
 IMAGE_TOOLS="${IMAGE_TOOLS}"
 IMAGE_APP="${IMAGE_APP}"
+VERSION=$(cat VERSION 2>/dev/null || echo "latest")
 
 push_ml() {
+    echo "--- Pushing ML Analyzer ($VERSION) ---"
     docker push "${DOCKER_USER}/${IMAGE_ML}:latest"
+    docker push "${DOCKER_USER}/${IMAGE_ML}:${VERSION}"
 }
 
 push_tools() {
+    echo "--- Pushing Tools ($VERSION) ---"
     docker push "${DOCKER_USER}/${IMAGE_TOOLS}:latest"
+    docker push "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}"
 }
 
 push_app() {
+    echo "--- Pushing Main Application ($VERSION) ---"
     docker push "${DOCKER_USER}/${IMAGE_APP}:latest"
+    docker push "${DOCKER_USER}/${IMAGE_APP}:${VERSION}"
 }
 
 if [ $# -eq 0 ]; then

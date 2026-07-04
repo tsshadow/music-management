@@ -60,6 +60,9 @@ for i in "$@"; do
         --app=*)
             SELECTED_APPS+=("${i#*=}")
             ;;
+        major|minor|patch)
+            BUMP_TYPE="$i"
+            ;;
         debug|release)
             MODE="$i"
             ;;
@@ -70,6 +73,10 @@ for i in "$@"; do
 done
 
 # Validation and defaults
+if [ -n "$BUMP_TYPE" ]; then
+    ./scripts/bump.sh "$BUMP_TYPE"
+fi
+
 if [ ${#SELECTED_APPS[@]} -eq 0 ]; then
     SELECTED_APPS=("$DEFAULT_APP")
 fi

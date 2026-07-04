@@ -535,7 +535,9 @@ namespace lms::api::subsonic
                 (xApiKeyHeader == config->getString("music-management-rating-api-key", "") && !config->getString("music-management-rating-api-key", "").empty()) ||
                 (xApiKeyHeader == config->getString("music-management-scrobbling-api-key", "") && !config->getString("music-management-scrobbling-api-key", "").empty()))
             {
-                if (db::UserId adminId = db::User::findAdminUserId(_db.getTLSSession()); adminId.isValid())
+                db::Session& session{ _db.getTLSSession() };
+                auto transaction{ session.createReadTransaction() };
+                if (db::UserId adminId = db::User::findAdminUserId(session); adminId.isValid())
                     return onAuthSuccess(adminId);
             }
         }
@@ -544,7 +546,9 @@ namespace lms::api::subsonic
         {
             if (!mumaApiKey.empty() && *apiKey == mumaApiKey)
             {
-                if (db::UserId adminId = db::User::findAdminUserId(_db.getTLSSession()); adminId.isValid())
+                db::Session& session{ _db.getTLSSession() };
+                auto transaction{ session.createReadTransaction() };
+                if (db::UserId adminId = db::User::findAdminUserId(session); adminId.isValid())
                     return onAuthSuccess(adminId);
             }
 

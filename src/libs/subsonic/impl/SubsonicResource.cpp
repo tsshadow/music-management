@@ -527,10 +527,12 @@ namespace lms::api::subsonic
 
         auto config = core::Service<core::IConfig>::get();
         const std::string mumaApiKey{ config->getString("api-key", "") };
+        const std::string subsonicApiKey{ config->getString("subsonic-api-key", "") };
 
         if (!xApiKeyHeader.empty())
         {
             if ((!mumaApiKey.empty() && xApiKeyHeader == mumaApiKey) ||
+                (!subsonicApiKey.empty() && xApiKeyHeader == subsonicApiKey) ||
                 (xApiKeyHeader == config->getString("music-management-user-api-key", "") && !config->getString("music-management-user-api-key", "").empty()) ||
                 (xApiKeyHeader == config->getString("music-management-rating-api-key", "") && !config->getString("music-management-rating-api-key", "").empty()) ||
                 (xApiKeyHeader == config->getString("music-management-scrobbling-api-key", "") && !config->getString("music-management-scrobbling-api-key", "").empty()))
@@ -544,7 +546,7 @@ namespace lms::api::subsonic
 
         if (apiKey)
         {
-            if (!mumaApiKey.empty() && *apiKey == mumaApiKey)
+            if ((!mumaApiKey.empty() && *apiKey == mumaApiKey) || (!subsonicApiKey.empty() && *apiKey == subsonicApiKey))
             {
                 db::Session& session{ _db.getTLSSession() };
                 auto transaction{ session.createReadTransaction() };

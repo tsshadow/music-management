@@ -12,6 +12,7 @@ services:
       - ${DOCKER_DATA_PATH:-/docker}/lms/var/lms:/var/lms
     environment:
       - LMS_API_KEY=${LMS_API_KEY}
+      - LMS_SUBSONIC_API_KEY=${LMS_SUBSONIC_API_KEY}
       - LMS_MUSIC_MANAGEMENT_RATING_API_URL=${LMS_MUSIC_MANAGEMENT_RATING_API_URL:-http://muma-rating-system:8000/api/lms-event}
       - LMS_MUSIC_MANAGEMENT_RATING_API_KEY=${LMS_MUSIC_MANAGEMENT_RATING_API_KEY}
       - LMS_MUSIC_MANAGEMENT_SCROBBLING_API_URL=${LMS_MUSIC_MANAGEMENT_SCROBBLING_API_URL:-http://muma-scrobble-service:8000/scrobble}
@@ -36,6 +37,7 @@ services:
       - ${DOCKER_DATA_PATH:-/docker}/alpha-lms/var/lms:/var/lms
     environment:
       - LMS_API_KEY=${LMS_API_KEY}
+      - LMS_SUBSONIC_API_KEY=${LMS_SUBSONIC_API_KEY}
       - LMS_MUSIC_MANAGEMENT_RATING_API_URL=${LMS_MUSIC_MANAGEMENT_RATING_API_URL:-http://muma-rating-system:8000/api/lms-event}
       - LMS_MUSIC_MANAGEMENT_RATING_API_KEY=${LMS_MUSIC_MANAGEMENT_RATING_API_KEY}
       - LMS_MUSIC_MANAGEMENT_SCROBBLING_API_URL=${LMS_MUSIC_MANAGEMENT_SCROBBLING_API_URL:-http://muma-scrobble-service:8000/scrobble}

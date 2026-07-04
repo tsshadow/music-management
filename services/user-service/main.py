@@ -13,7 +13,9 @@ load_dotenv()
 
 app = FastAPI(title="Muma User Service")
 
-API_KEY = os.getenv("API_KEY", "453ecd33-3cb2-4ca4-a531-1677330bbaee")
+MUMA_API_KEY = os.getenv("MUMA_API_KEY", "453ecd33-3cb2-4ca4-a531-1677330bbaee")
+API_KEY = os.getenv("API_KEY", MUMA_API_KEY)
+LMS_SUBSONIC_API_KEY = os.getenv("LMS_SUBSONIC_API_KEY", API_KEY)
 
 async def verify_api_key(x_api_key: str = Header(None)):
     if API_KEY and x_api_key != API_KEY:
@@ -220,13 +222,23 @@ def run_lms_sync():
                 host = f"http://{host}"
             host = host.rstrip("/")
 
-            # 1. Try to trigger Lightweight Music Server sync (Subsonic API with X-API-Key)
+            # 1. Try to trigger Lightweight Music Server sync (Subsonic API)
             try:
-                sync_url = f"{host}/rest/syncUsers?v=1.16.1&c=muma-user-service&f=json&apiKey={API_KEY}"
-                headers = {"X-API-Key": API_KEY}
+                # Use dedicated LMS API key if available, fallback to internal API_KEY
+                lms_api_key = LMS_SUBSONIC_API_KEY
+                sync_url = f"{host}/rest/syncUsers?v=1.16.1&c=muma-user-service&f=json&apiKey={lms_api_key}"
+                headers = {"X-API-Key": lms_api_key}
                 sync_resp = requests.get(sync_url, headers=headers, timeout=2.0)
                 if sync_resp.status_code == 200:
-                    print(f"Successfully triggered user sync on LMS host: {host}")
+                    try:
+                        data = sync_resp.json()
+                        if data.get("subsonic-response", {}).get("status") == "ok":
+                            print(f"Successfully triggered user sync on LMS host: {host}")
+                        else:
+                            error = data.get("subsonic-response", {}).get("error", {})
+                            print(f"LMS host {host} returned error: {error.get('message', 'Unknown error')} (code {error.get('code')})")
+                    except:
+                        print(f"Successfully triggered user sync on LMS host: {host} (non-json response)")
                 else:
                     print(f"LMS host {host} did not respond to Subsonic sync (status {sync_resp.status_code})")
             except Exception as e:

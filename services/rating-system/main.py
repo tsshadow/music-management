@@ -11,7 +11,8 @@ load_dotenv()
 
 app = FastAPI(title="Muma Rating System")
 
-API_KEY = os.getenv("API_KEY", "Scouring-Quiver2-Throat-Everyday-Economist-Squabble")
+MUMA_API_KEY = os.getenv("MUMA_API_KEY", "453ecd33-3cb2-4ca4-a531-1677330bbaee")
+API_KEY = os.getenv("API_KEY", MUMA_API_KEY)
 
 async def verify_api_key(x_api_key: str = Header(None)):
     if API_KEY and x_api_key != API_KEY:

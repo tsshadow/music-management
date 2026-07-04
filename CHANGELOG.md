@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.28] - 2026-07-04
+### Fixed
+- **Infrastructuur**: `LMS_SUBSONIC_API_KEY` toegevoegd aan de hoofd `docker-compose.yml` voor correcte propagatie naar de User Service.
+
+## [2.1.27] - 2026-07-04
+### Fixed
+- **LMS Sync**: Mismatch in API-sleutels opgelost. Gebruikt nu een specifieke `LMS_SUBSONIC_API_KEY` voor LMS, terwijl de muma-services hun eigen sleutel behouden.
+- **Service Stability**: Verbeterde foutafhandeling in de User Service voor LMS sync-responses.
+
 ## [2.1.26] - 2026-07-04
 ### Fixed
 - **LMS Sync**: Authenticatieprobleem met de LMS Subsonic API opgelost door de `apiKey` parameter expliciet toe te voegen aan de sync-URL.

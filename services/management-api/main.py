@@ -88,6 +88,9 @@ class LBAccountUpdate(BaseModel):
     lb_username: str
     lb_token: str
 
+class PasswordUpdate(BaseModel):
+    password: str
+
 @app.get("/api/config")
 def get_config():
     return {
@@ -400,6 +403,15 @@ def proxy_update_lb_account(user_id: int, account: LBAccountUpdate):
     base_url = SERVICES["user-service"]
     try:
         response = requests.put(f"{base_url}/users/{user_id}/lb-account", json=account.dict(), timeout=5.0)
+        return response.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
+
+@app.put("/api/users/{user_id}/password")
+def proxy_update_user_password(user_id: int, pwd: PasswordUpdate):
+    base_url = SERVICES["user-service"]
+    try:
+        response = requests.put(f"{base_url}/users/{user_id}/password", json=pwd.dict(), timeout=5.0)
         return response.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")

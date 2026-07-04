@@ -12,6 +12,12 @@ This project is now modularized. Detailed release notes for each module can be f
 - [Scrobble Service](services/scrobble-service/RELEASE_NOTES.md)
 - [User Service](services/user-service/RELEASE_NOTES.md)
 
+## Global Version 2.1.19 (2026-07-04)
+### 🔐 Unified Password Management
+- **LMS Password Sync**: You can now set user passwords directly from the Muma Control Center. These passwords are automatically hashed and synchronized with your Logitech Media Server instance.
+- **Enhanced Security**: Switched to industry-standard Bcrypt hashing for all user accounts, ensuring consistent security across the modular ecosystem.
+- **Improved User UI**: The Users dashboard now features a dedicated security section for quick account management.
+
 ## Global Version 2.1.18 (2026-07-04)
 ### 🔄 Advanced LMS Integration
 - **Direct Database Sync**: Added the ability to sync users directly from the LMS `lms.db` SQLite database, providing more complete account information than the API.

@@ -33,6 +33,7 @@
   // User Form State
   let newUsername = '';
   let newDisplayName = '';
+  let userPassword = '';
   let lbUsername = '';
   let lbToken = '';
   
@@ -275,6 +276,7 @@
   async function selectUser(user) {
     selectedUser = user;
     userLBAccount = null;
+    userPassword = '';
     lbUsername = '';
     lbToken = '';
     
@@ -306,6 +308,27 @@
       }
     } catch (err) {
       error = "Fout bij bijwerken LB account";
+    }
+  }
+
+  async function updatePassword() {
+    if (!selectedUser || !userPassword) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/users/${selectedUser.id}/password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: userPassword })
+      });
+      if (res.ok) {
+        message = "Wachtwoord bijgewerkt (ook in LMS)";
+        userPassword = '';
+        setTimeout(() => message = '', 2000);
+      } else {
+        const data = await res.json();
+        error = data.detail || "Fout bij bijwerken wachtwoord";
+      }
+    } catch (err) {
+      error = "Netwerkfout bij bijwerken wachtwoord";
     }
   }
 
@@ -991,6 +1014,31 @@
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <!-- Password Section -->
+                      <div class="space-y-4">
+                        <h4 class="text-xl font-bold flex items-center gap-2 text-white">
+                          <Key size={20} class="text-spotify-green" /> Beveiliging
+                        </h4>
+                        <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
+                          <div>
+                            <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">Nieuw Wachtwoord</label>
+                            <input 
+                              type="password" 
+                              bind:value={userPassword}
+                              placeholder="••••••••"
+                              class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
+                            />
+                          </div>
+                          <button 
+                            on:click={updatePassword}
+                            disabled={!userPassword}
+                            class="w-full bg-spotify-green text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
+                          >
+                            WACHTWOORD OPSLAAN
+                          </button>
+                        </div>
+                      </div>
+
                       <!-- ListenBrainz Section -->
                       <div class="space-y-4">
                         <h4 class="text-xl font-bold flex items-center gap-2 text-white">

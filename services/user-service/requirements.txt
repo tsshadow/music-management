@@ -3,3 +3,4 @@ uvicorn
 pymysql
 python-dotenv
 requests
+bcrypt

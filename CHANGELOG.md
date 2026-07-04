@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.19] - 2026-07-04
+### Added
+- **User Password Management**: Wachtwoorden instellen via Control Center met automatische synchronisatie naar LMS.
+- **Security**: Bcrypt hashing geïmplementeerd voor veilige opslag van gebruikerswachtwoorden.
+
 ## [2.1.18] - 2026-07-04
 ### Added
 - **User Migration**: Geïmporteerd van gebruikers uit `lms.db` naar de User Service.

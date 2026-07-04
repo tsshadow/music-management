@@ -10,6 +10,12 @@ This project is now modularized. Detailed release notes for each module can be f
 - [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
 - [Rating System](services/rating-system/RELEASE_NOTES.md)
 
+## Global Version 2.1.12 (2026-07-04)
+### 🎨 UI Refinement & Debugging
+- **Spotify Theme Finalized**: The design system is now formalized in `styleguide.md`, ensuring a consistent Spotify-inspired look across the entire Control Center.
+- **Enhanced Debugging**: Added a new `--debug` flag to the build and publish scripts for easier troubleshooting of the deployment pipeline.
+- **Visual Polish**: Improved color consistency and interactive states (focus/selection) for a smoother user experience.
+
 ## Global Version 2.1.11 (2026-07-04)
 ### 🚀 System-wide Release Notes
 - **Unified Documentation**: You can now view release notes for all sub-programs directly from the Control Center home page.

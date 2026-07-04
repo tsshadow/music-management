@@ -166,6 +166,7 @@ else
             importer) build_importer & ;;
             rating) build_rating & ;;
             base) ;; # Already built if needed
+            patch) ;; # Handled as version bump, no specific component
             --debug) ;; # Handled at start
             *) echo "Unknown component: $arg"; exit 1 ;;
         esac

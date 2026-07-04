@@ -396,7 +396,7 @@ services:
       PYTHONPATH: /app
       LMS_DB_PATH: /app/data/lms.db
     ports:
-      - "8006:8000"
+      - "8006:8001"
     volumes:
       - /docker/lms/var/lms/lms.db:/app/data/lms.db:ro
     networks:

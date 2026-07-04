@@ -18,6 +18,8 @@ RENAMES = {
     "library_labels": "library_labels",
     "rules_artist_genre": "rules_artist_genre",
     "rules_label_genre": "rules_label_genre",
+    "rules_artist_genres": "rules_artist_genres",
+    "rules_label_genres": "rules_label_genres",
     "rules_subgenre_hierarchy": "rules_subgenre_hierarchy",
     "rules_ignored_artists": "rules_ignored_artists",
     "rules_ignored_genres": "rules_ignored_genres",

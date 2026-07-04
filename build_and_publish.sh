@@ -12,8 +12,8 @@ if ! docker info >/dev/null 2>&1; then
     fi
 fi
 
-./build.sh
-./publish.sh
-./deploy.sh
+./build.sh "$@"
+./publish.sh "$@"
+./deploy.sh "$@"
 
 echo "Build, publish and deploy completed successfully!"

@@ -26,8 +26,8 @@ A >──< B        : many-to-many  (via junction table)
 1. TAGGER DOMAIN (RULES & VALIDATION)
 ──────────────────────────────────────────────────────────────────────────────
 rules_genres ──< rules_subgenre_hierarchy
-rules_artist_genre ──> rules_genres
-rules_label_genre  ──> rules_genres
+rules_artist_genres ──> rules_genres
+rules_label_genres  ──> rules_genres
 rules_ignored_artists, rules_ignored_genres
 rules_catid_label, rules_festival_data
 rules_genre_backlog
@@ -79,8 +79,8 @@ These tables contain the "knowledge" of the system, used by the tagger service t
 | Table | Purpose | Key columns |
 | :--- | :--- | :--- |
 | `rules_genres` | List of allowed rules_genres and their corrections. | `genre`, `corrected_genre` |
-| `rules_artist_genre` | Mapping from artist name to a default genre. | `artist`, `genre` |
-| `rules_label_genre` | Mapping from label name to a default genre. | `label`, `genre` |
+| `rules_artist_genres` | Mapping from artist name to a default genre. | `artist_name`, `genre_id` |
+| `rules_label_genres` | Mapping from label name to a default genre. | `label_name`, `genre_id` |
 | `rules_subgenre_hierarchy` | Defines relationships (e.g., Uptempo is a subgenre of Hardcore). | `subgenre`, `genre` |
 | `rules_ignored_artists` | Artists to skip during processing. | `name` |
 | `rules_ignored_genres` | Genres to skip during processing. | `name` |

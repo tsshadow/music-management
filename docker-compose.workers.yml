@@ -277,9 +277,9 @@ services:
     networks:
       - music-management_db
 
-  library_scanner:
+  scanner_service:
     image: ${DOCKER_USER}/${IMAGE_APP}:latest
-    container_name: muma-library-scanner
+    container_name: muma-scanner
     restart: unless-stopped
     depends_on:
       - db

@@ -51,7 +51,7 @@ elif [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
     export LOCAL_ENV_FILE=".env"
     export SEARCH_STRING="tsshadow/music-management"
     
-    ./scripts/deploy-stack.sh
+    ./scripts/deploy-stack.sh "$@"
     
     # Run database migrations if any
     for sql_file in migrate_v*.sql; do
@@ -61,9 +61,17 @@ elif [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
             # Use docker exec on the db container to run the SQL
             # We assume the container name from docker-compose.yml: music-management-db-1
             # and credentials from .env
+            # Use root if available, otherwise fallback to DB_USER for migrations
+            MIGRATION_USER="$DB_USER"
+            MIGRATION_PASS="$DB_PASS"
+            if [ -n "$MYSQL_ROOT_PASSWORD" ]; then
+                MIGRATION_USER="root"
+                MIGRATION_PASS="$MYSQL_ROOT_PASSWORD"
+            fi
+
             REMOTE_CMD="
                 echo '$B64_SQL' | base64 -d > /tmp/migration.sql
-                docker exec -i music-management-db-1 mysql -u \"$DB_USER\" -p\"$DB_PASS\" \"$DB_DB\" < /tmp/migration.sql
+                docker exec -i music-management-db-1 mysql -u \"$MIGRATION_USER\" -p\"$MIGRATION_PASS\" \"$DB_DB\" < /tmp/migration.sql
                 rm /tmp/migration.sql
             "
             if [ -z "$REMOTE_PASS" ]; then

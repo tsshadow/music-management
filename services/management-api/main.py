@@ -90,6 +90,9 @@ class SoundCloudAccount(BaseModel):
     name: str
     soundcloud_id: Optional[str] = None
 
+class YouTubeAccount(BaseModel):
+    name: str
+
 class ArtistGenreRule(BaseModel):
     artist_name: str
     genre_id: int
@@ -231,6 +234,20 @@ def get_soundcloud_accounts(_: None = Depends(verify_api_key)):
     try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT name, soundcloud_id FROM downloads_soundcloud_accounts ORDER BY name")
+            accounts = cursor.fetchall()
+            return accounts
+    finally:
+        conn.close()
+
+@app.get("/api/youtube")
+def get_youtube_accounts(_: None = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT name FROM downloads_youtube_accounts ORDER BY name")
             accounts = cursor.fetchall()
             return accounts
     finally:
@@ -435,7 +452,7 @@ def proxy_update_lb_account(user_id: int, account: LBAccountUpdate, _: None = De
 def proxy_update_user_password(user_id: int, pwd: PasswordUpdate, _: None = Depends(verify_api_key)):
     base_url = SERVICES["user-service"]
     try:
-        response = requests.put(f"{base_url}/users/{user_id}/password", json=pwd.dict(), headers=get_proxy_headers(), timeout=5.0)
+        response = requests.put(f"{base_url}/users/{user_id}/password", json=pwd.dict(), headers=get_proxy_headers("user-service"), timeout=5.0)
         return response.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
@@ -444,7 +461,7 @@ def proxy_update_user_password(user_id: int, pwd: PasswordUpdate, _: None = Depe
 def proxy_sync_lms_users(_: None = Depends(verify_api_key)):
     base_url = SERVICES["user-service"]
     try:
-        response = requests.post(f"{base_url}/sync/lms", headers=get_proxy_headers(), timeout=5.0)
+        response = requests.post(f"{base_url}/sync/lms", headers=get_proxy_headers("user-service"), timeout=5.0)
         return response.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
@@ -453,7 +470,7 @@ def proxy_sync_lms_users(_: None = Depends(verify_api_key)):
 def proxy_sync_lms_db_users(_: None = Depends(verify_api_key)):
     base_url = SERVICES["user-service"]
     try:
-        response = requests.post(f"{base_url}/sync/lms-db", headers=get_proxy_headers(), timeout=5.0)
+        response = requests.post(f"{base_url}/sync/lms-db", headers=get_proxy_headers("user-service"), timeout=5.0)
         return response.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
@@ -474,6 +491,53 @@ def add_soundcloud_account(account: SoundCloudAccount, _: None = Depends(verify_
             return {"status": "success", "message": f"Account {account.name} added"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.delete("/api/soundcloud/{name}")
+def delete_soundcloud_account(name: str, _: None = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM downloads_soundcloud_accounts WHERE name = %s", (name,))
+            conn.commit()
+            return {"status": "success"}
+    finally:
+        conn.close()
+
+@app.post("/api/youtube")
+def add_youtube_account(account: YouTubeAccount, _: None = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT IGNORE INTO downloads_youtube_accounts (name) VALUES (%s)",
+                (account.name,)
+            )
+            conn.commit()
+            return {"status": "success", "message": f"Account {account.name} added"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.delete("/api/youtube/{name}")
+def delete_youtube_account(name: str, _: None = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM downloads_youtube_accounts WHERE name = %s", (name,))
+            conn.commit()
+            return {"status": "success"}
     finally:
         conn.close()
 

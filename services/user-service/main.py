@@ -209,38 +209,65 @@ async def sync_lms_users(background_tasks: BackgroundTasks, api_key: str = Depen
     return {"message": "LMS sync started in background"}
 
 def run_lms_sync():
-    lms_host = os.getenv("LMS_HOST", "http://lms.teunschriks.nl")
-    print(f"Starting LMS user sync from {lms_host}")
-    
-    try:
-        # LMS JSON-RPC call for players (can give us some hints about users/players)
-        # However, for actual users we might need a different approach.
-        # Let's try to get players as a proxy for 'users' if no better option exists.
-        payload = {
-            "method": "slim.request",
-            "params": ["", ["serverstatus", "0", "100"]]
-        }
-        response = requests.post(f"{lms_host}/jsonrpc.js", json=payload, timeout=5.0)
-        if response.status_code == 200:
-            players = response.json().get("result", {}).get("players_loop", [])
-            conn = get_db_connection()
-            if not conn: return
+    lms_hosts_raw = os.getenv("LMS_HOSTS", "http://192.168.1.27")
+    lms_hosts = [h.strip() for h in lms_hosts_raw.split(",")]
+    print(f"Starting LMS user sync from {lms_hosts}")
+
+    for host in lms_hosts:
+        try:
+            # Ensure host has protocol
+            if not host.startswith("http"):
+                host = f"http://{host}"
+            host = host.rstrip("/")
+
+            # 1. Try to trigger Lightweight Music Server sync (Subsonic API with X-API-Key)
             try:
-                with conn.cursor() as cursor:
-                    for player in players:
-                        name = player.get("name")
-                        pid = player.get("playerid")
-                        if name:
-                            # Use player name as username/display_name
-                            cursor.execute("""
-                                INSERT IGNORE INTO users (username, display_name, lms_user_id)
-                                VALUES (%s, %s, %s)
-                            """, (name.lower().replace(" ", "_"), name, pid))
-                    conn.commit()
-            finally:
-                conn.close()
-    except Exception as e:
-        print(f"LMS sync failed: {e}")
+                sync_url = f"{host}/rest/syncUsers?v=1.16.1&c=muma-user-service&f=json"
+                headers = {"X-API-Key": API_KEY}
+                sync_resp = requests.get(sync_url, headers=headers, timeout=2.0)
+                if sync_resp.status_code == 200:
+                    print(f"Successfully triggered user sync on LMS host: {host}")
+                else:
+                    print(f"LMS host {host} did not respond to Subsonic sync (status {sync_resp.status_code})")
+            except Exception as e:
+                print(f"LMS host {host} not a Lightweight Music Server or unreachable: {e}")
+
+            # 2. Try Logitech Media Server JSON-RPC call for players
+            payload = {
+                "method": "slim.request",
+                "params": ["", ["serverstatus", "0", "100"]]
+            }
+            try:
+                response = requests.post(f"{host}/jsonrpc.js", json=payload, timeout=2.0)
+                if response.status_code == 200:
+                    try:
+                        data = response.json()
+                        players = data.get("result", {}).get("players_loop", [])
+                        conn = get_db_connection()
+                        if conn:
+                            try:
+                                with conn.cursor() as cursor:
+                                    for player in players:
+                                        name = player.get("name")
+                                        pid = player.get("playerid")
+                                        if name:
+                                            # Use player name as username/display_name
+                                            cursor.execute("""
+                                                INSERT IGNORE INTO users (username, display_name, lms_user_id)
+                                                VALUES (%s, %s, %s)
+                                            """, (name.lower().replace(" ", "_"), name, pid))
+                                    conn.commit()
+                            finally:
+                                conn.close()
+                    except (ValueError, requests.exceptions.JSONDecodeError):
+                        # Not a Logitech Media Server response, ignore
+                        pass
+            except Exception:
+                # Host doesn't support JSON-RPC, ignore
+                pass
+
+        except Exception as e:
+            print(f"LMS sync general failure for {host}: {e}")
 
 @app.post("/sync/lms-db")
 async def sync_lms_db(background_tasks: BackgroundTasks, api_key: str = Depends(verify_api_key)):

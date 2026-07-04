@@ -1,5 +1,9 @@
 # User Service Release Notes
 
+## 1.1.1 (2026-07-04)
+- **Fix**: Corrected syntax and logic errors in `run_lms_sync` background task.
+- **Feature**: Added support for multiple LMS hosts via `LMS_HOSTS`.
+
 ## 1.1.0 (2026-07-04)
 - **Security**: Added `X-API-Key` validation to all endpoints.
 - **Sync**: Improved synchronization logic with LMS database.

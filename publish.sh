@@ -2,6 +2,29 @@
 set -e
 
 cd "$(dirname "$0")"
+
+# Check for docker permissions
+if ! docker info >/dev/null 2>&1; then
+    echo "ERROR: Permission denied while trying to connect to the Docker daemon."
+    echo "Please ensure your user ($USER) is in the 'docker' group."
+    echo "You can add yourself with: sudo usermod -aG docker \$USER"
+    echo "Then log out and log back in, or run: newgrp docker"
+    exit 1
+fi
+
+# Check for docker registry authentication
+if ! docker info | grep -q "Username:"; then
+    echo "WARNING: You don't seem to be logged into Docker Hub."
+    echo "Pushing images to 'muma/' will likely fail."
+    echo "Please run: docker login"
+    echo ""
+    read -p "Do you want to continue anyway? (y/N) " -n 1 -r
+    echo ""
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
 if [ -f .env ]; then
     export $(grep -v '^#' .env | xargs)
 fi
@@ -9,44 +32,8 @@ fi
 # Ensure variables are set
 IMAGE_NAME="${IMAGE_NAME:-muma/lms}"
 TAG="${TAG:-alpha}"
-REMOTE_HOST="${REMOTE_HOST}"
-REMOTE_USER="${REMOTE_USER}"
-REMOTE_PASS="${REMOTE_PASS}"
-SERVICE_NAME="${SERVICE_NAME:-lms-alpha}"
-
-if [ -z "${REMOTE_HOST}" ] || [ -z "${REMOTE_USER}" ]; then
-    echo "Error: REMOTE_HOST and REMOTE_USER must be set in .env"
-    exit 1
-fi
 
 echo "Pushing Docker image ${IMAGE_NAME}:${TAG}..."
 docker push "${IMAGE_NAME}:${TAG}"
 
-REMOTE_COMMAND="
-set -e
-docker pull ${IMAGE_NAME}:${TAG}
-docker stop ${SERVICE_NAME} || true
-docker rm ${SERVICE_NAME} || true
-docker run -d --name ${SERVICE_NAME} \
-    --restart unless-stopped \
-    -p 8080:5082 \
-    -v /music:/music \
-    -v /docker/${SERVICE_NAME}/usr/local/etc:/usr/local/etc \
-    -v /docker/${SERVICE_NAME}/var/lms:/var/lms \
-    --user 0:0 \
-    ${IMAGE_NAME}:${TAG}
-"
-
-echo "Updating remote server ${REMOTE_HOST}..."
-
-if [ -z "${REMOTE_PASS}" ]; then
-    echo "REMOTE_PASS not set. SSH may ask for password."
-    ssh -o StrictHostKeyChecking=no "${REMOTE_USER}@${REMOTE_HOST}" "${REMOTE_COMMAND}"
-elif command -v sshpass >/dev/null 2>&1; then
-    sshpass -p "${REMOTE_PASS}" ssh -o StrictHostKeyChecking=no "${REMOTE_USER}@${REMOTE_HOST}" "${REMOTE_COMMAND}"
-else
-    echo "Error: sshpass not found. Install it or unset REMOTE_PASS and enter password manually."
-    exit 1
-fi
-
-echo "Publish and deploy completed successfully!"
+echo "--- Push process completed ---"

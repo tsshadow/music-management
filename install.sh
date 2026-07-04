@@ -5,6 +5,14 @@ set -e
 echo "--- Installing dependencies for Docker build ---"
 sudo apt-get update
 sudo apt-get install -y docker.io sshpass
+
+# Add current user to docker group
+if ! groups $USER | grep -q "\bdocker\b"; then
+    echo "Adding $USER to docker group..."
+    sudo usermod -aG docker $USER
+    echo "User added to docker group. You may need to restart your session or run 'newgrp docker'."
+fi
+
 # Apply group membership to the current session
 
 if ! groups | grep -q "\bdocker\b"; then

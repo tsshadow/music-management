@@ -126,6 +126,22 @@ _LMS_ supports lyrics in `lrc` files, `txt` files, and embedded track metadata. 
 ## Installation
 See [INSTALL.md](INSTALL.md) file.
 
+### Building and Deployment
+If you are modifying the code and need to rebuild and redeploy the system:
+
+1.  **Install dependencies**: `./install.sh`
+2.  **Build image**: `./build.sh`
+3.  **Publish image**: `./publish.sh`
+4.  **Deploy to remote**: `./deploy.sh`
+5.  **Full pipeline (Build + Publish + Deploy)**: `./build_and_publish.sh`
+
+#### Remote Deployment Options
+You can configure deployment in `.env`:
+1.  **Portainer Webhook**: Set `PORTAINER_WEBHOOK_URL`. In Portainer, go to your Stack settings and enable "Service Webhook" to get this URL.
+2.  **SSH**: Set `REMOTE_HOST`, `REMOTE_USER`, etc. The script will SSH into the host, stop the old container, and start a new one.
+
+**Tip**: Use `DEPLOY_TARGET_NAME` in `.env` to give your deployment target a friendly name (e.g., "LMS Production") which will be displayed during the deployment process.
+
 ## Contributing
 Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to set up your development environment and contribute to the project.
 Refer to [CODE_QUALITY.md](CODE_QUALITY.md) for our code quality and testing standards.

@@ -2,13 +2,17 @@
 set -e
 
 # Remote Deployment / Auto Upgrade
+cd "$(dirname "$0")"
 if [ -f .env ]; then
     # Load .env variables
     export $(grep -v '^#' .env | xargs)
 fi
 
+# Configuration
+TARGET="${DEPLOY_TARGET_NAME:-Music Management Stack}"
+DOCKER_COMPOSE_FILE="${REMOTE_STACK_PATH:-docker-compose.yml}"
+
 if [ -n "${PORTAINER_WEBHOOK_URL}" ]; then
-    TARGET="${DEPLOY_TARGET_NAME:-Portainer Stack}"
     echo "--- Triggering Portainer Webhook for: $TARGET ---"
     if command -v curl >/dev/null 2>&1; then
         curl -X POST "${PORTAINER_WEBHOOK_URL}"
@@ -18,28 +22,30 @@ if [ -n "${PORTAINER_WEBHOOK_URL}" ]; then
         exit 1
     fi
 elif [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
-    TARGET="${DEPLOY_TARGET_NAME:-Music Management Stack}"
     echo "--- Starting remote update on ${REMOTE_HOST} for: $TARGET ---"
-    
-    # If REMOTE_DOCKER_COMPOSE_PATH is not set, try a default or warn
-    DOCKER_COMPOSE_FILE="${REMOTE_DOCKER_COMPOSE_PATH:-docker-compose.yml}"
     
     REMOTE_COMMAND="
     set -e
+    # Try to find docker-compose file
     if [ -f \"${DOCKER_COMPOSE_FILE}\" ]; then
         echo \"Updating stack '$TARGET' via docker-compose using ${DOCKER_COMPOSE_FILE}...\"
-        docker-compose -f \"${DOCKER_COMPOSE_FILE}\" pull
-        docker-compose -f \"${DOCKER_COMPOSE_FILE}\" up -d
+        docker-compose -f \"${DOCKER_COMPOSE_FILE}\" pull || docker compose -f \"${DOCKER_COMPOSE_FILE}\" pull
+        docker-compose -f \"${DOCKER_COMPOSE_FILE}\" up -d || docker compose -f \"${DOCKER_COMPOSE_FILE}\" up -d
+    elif [ -d \"${DOCKER_COMPOSE_FILE}\" ] && [ -f \"${DOCKER_COMPOSE_FILE}/docker-compose.yml\" ]; then
+        echo \"Updating stack '$TARGET' in directory ${DOCKER_COMPOSE_FILE}...\"
+        cd \"${DOCKER_COMPOSE_FILE}\"
+        docker-compose pull || docker compose pull
+        docker-compose up -d || docker compose up -d
     else
-        echo \"Warning: ${DOCKER_COMPOSE_FILE} not found on remote host.\"
+        echo \"Warning: Docker compose configuration not found at '${DOCKER_COMPOSE_FILE}' on remote host.\"
         echo \"Updating individual containers for '$TARGET':\"
-        echo \"  - tsshadow/music-management-ml:latest\"
-        echo \"  - tsshadow/music-management-tools:latest\"
-        echo \"  - tsshadow/music-management:latest\"
         
+        # Project-specific individual pulls/runs
         docker pull tsshadow/music-management-ml:latest
         docker pull tsshadow/music-management-tools:latest
         docker pull tsshadow/music-management:latest
+        
+        # Note: Individual run commands would go here if needed
     fi
     "
     

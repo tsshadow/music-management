@@ -360,6 +360,36 @@ services:
     networks:
       - music-management_db
 
+  library_scanner:
+    image: ${DOCKER_USER}/${IMAGE_APP}:latest
+    container_name: muma-library-scanner
+    restart: unless-stopped
+    depends_on:
+      - db
+    command:
+      [
+        "python",
+        "services/scanner/scanner_service.py",
+        "--repeat",
+        "--sleeptime",
+        "3600"
+      ]
+    environment:
+      PYTHONPATH: /app:/app/services/downloader
+      debug: "${debug}"
+      delimiter: "${delimiter}"
+      music_folder_path: ${music_folder_path}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_DB: ${DB_DB}
+    volumes:
+      - ${HOST_MUSIC_PATH}:/mnt/music
+      - ${HOST_DATA_PATH}/shared:/shared
+    networks:
+      - music-management_db
+
   soundcloud-fetcher:
     image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
     container_name: muma-soundcloud-fetcher

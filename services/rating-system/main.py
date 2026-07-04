@@ -63,6 +63,7 @@ class LMSEvent(BaseModel):
     event: str
     object_type: str
     object_id: str
+    username: str
     rating: int
     path: Optional[str] = None
 
@@ -111,7 +112,7 @@ def handle_lms_event(event: LMSEvent):
     rating_data = Rating(
         entity_type=event.object_type,
         entity_id=entity_id,
-        username="lms_user", # Default or extract from somewhere if possible
+        username=event.username,
         rating=event.rating
     )
     return set_rating(rating_data)

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.14] - 2026-07-04
+### Added
+- **Scrobble Service**: New microservice for tracking listens and importing history from ListenBrainz.
+- **ListenBrainz Integration**: Support for importing user listening history and automatic track matching.
+- **Smart Matching**: Fallback logic for matching tracks via Artist/Title when MBIDs are unavailable.
+- **Infrastructure**: Added Scrobble Service to the build pipeline and Control Center dashboard.
+
 ## [2.1.13] - 2026-07-04
 ### Changed
 - **Rating System**: Renamed database table from `track_ratings` to `rating_tracks` for better consistency.

@@ -68,6 +68,7 @@ IMAGE_DOWNLOADER="${IMAGE_DOWNLOADER}"
 IMAGE_TELEGRAM="${IMAGE_TELEGRAM}"
 IMAGE_IMPORTER="${IMAGE_IMPORTER}"
 IMAGE_RATING="${IMAGE_RATING}"
+IMAGE_SCROBBLE="${IMAGE_SCROBBLE}"
 VERSION=$(cat VERSION 2>/dev/null || echo "latest")
 
 push_base() {
@@ -110,6 +111,12 @@ push_rating() {
     echo "--- Pushing Rating System ($VERSION) ---"
     docker push "${DOCKER_USER}/${IMAGE_RATING}:latest"
     docker push "${DOCKER_USER}/${IMAGE_RATING}:${VERSION}"
+}
+
+push_scrobble() {
+    echo "--- Pushing Scrobble Service ($VERSION) ---"
+    docker push "${DOCKER_USER}/${IMAGE_SCROBBLE}:latest"
+    docker push "${DOCKER_USER}/${IMAGE_SCROBBLE}:${VERSION}"
 }
 
 push_ml() {
@@ -157,6 +164,7 @@ if [ ${#REQUESTED_MODULES[@]} -eq 0 ]; then
     push_telegram &
     push_importer &
     push_rating &
+    push_scrobble &
     wait
 else
     echo "--- Pushing requested modules: ${REQUESTED_MODULES[*]} ---"
@@ -172,6 +180,7 @@ else
             telegram) push_telegram & ;;
             importer) push_importer & ;;
             rating) push_rating & ;;
+            scrobble) push_scrobble & ;;
             base) push_base & ;;
             *) echo "Unknown component: $arg"; exit 1 ;;
         esac

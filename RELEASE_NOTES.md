@@ -9,6 +9,14 @@ This project is now modularized. Detailed release notes for each module can be f
 - [Control Center](services/management-api/RELEASE_NOTES.md)
 - [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
 - [Rating System](services/rating-system/RELEASE_NOTES.md)
+- [Scrobble Service](services/scrobble-service/RELEASE_NOTES.md)
+
+## Global Version 2.1.14 (2026-07-04)
+### 🎧 Introducing Scrobble Service
+- **Listening History**: You can now track your listens directly in MuMa.
+- **ListenBrainz Import**: Sync your existing history from ListenBrainz with a single click.
+- **Unmatched Listens**: If a song isn't in your library yet, it's stored separately so you can match it later once it's imported.
+- **Smart Matching**: Automated matching using MusicBrainz IDs with a robust artist/title fallback.
 
 ## Global Version 2.1.13 (2026-07-04)
 ### 🍏 UI Polish & Database Consistency

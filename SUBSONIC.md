@@ -18,12 +18,12 @@ OpenSubsonic is an initiative to patch and extend the legacy Subsonic API. You'l
 ## Authentication
 _LMS_ supports the [API Key Authentication](https://opensubsonic.netlify.app/docs/extensions/apikeyauth/) method. Each user has to generate their own API key on the settings page to use the Subsonic API.
 
-By default, API keys can also be used as passwords, provided the `user` parameter matches the API key owner. To disable this fallback authentication method, set the following in `lms.conf`:
+_LMS_ also supports the standard token+salt authentication method. However, since _LMS_ does not store passwords in plain text, you MUST use your **API Key** as the password in your Subsonic client when enabling token-based authentication.
+
+By default, API keys can also be used as passwords (plain text), provided the `user` parameter matches the API key owner. To disable this fallback authentication method, set the following in `lms.conf`:
 ```
 api-subsonic-support-user-password-auth = false;
 ```
-
-__Note__: the token+salt authentication method is not supported.
 
 ## Extra fields
 The following extra fields are implemented:

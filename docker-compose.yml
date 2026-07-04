@@ -7,8 +7,8 @@ services:
       - "${LMS_PORT:-80}:5082"
     volumes:
       - ${MUSIC_PATH:-/mnt/music}:/music
-      - ${DOCKER_DATA_PATH:-/mnt/docker}/lms/usr/local/etc:/usr/local/etc
-      - ${DOCKER_DATA_PATH:-/mnt/docker}/lms/var/lms:/var/lms
+      - ${DOCKER_DATA_PATH:-/docker}/lms/usr/local/etc:/usr/local/etc
+      - ${DOCKER_DATA_PATH:-/docker}/lms/var/lms:/var/lms
     user: "0:0"
     restart: unless-stopped
   lms_alpha:
@@ -19,7 +19,7 @@ services:
       - "${LMS_ALPHA_PORT:-8080}:5082"
     volumes:
       - ${MUSIC_PATH:-/mnt/music}:/music
-      - ${DOCKER_DATA_PATH:-/mnt/docker}/lms-alpha/usr/local/etc:/usr/local/etc
-      - ${DOCKER_DATA_PATH:-/mnt/docker}/lms-alpha/var/lms:/var/lms
+      - ${DOCKER_DATA_PATH:-/docker}/lms-alpha/usr/local/etc:/usr/local/etc
+      - ${DOCKER_DATA_PATH:-/docker}/lms-alpha/var/lms:/var/lms
     user: "0:0"
     restart: unless-stopped

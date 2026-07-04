@@ -593,6 +593,7 @@ namespace lms
 
             spotifyResource = std::make_unique<SpotifyResource>(server.docRoot());
             server.addResource(spotifyResource.get(), "/mumafi");
+            server.addResource(spotifyResource.get(), "/spotify");
 
             // Redirect root to mumafi
             server.addEntryPoint(Wt::EntryPointType::Application, [](const Wt::WEnvironment& env) {

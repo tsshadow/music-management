@@ -25,6 +25,7 @@ add_library(lmscore STATIC
 	impl/JobScheduler.cpp
 	impl/IOContextRunner.cpp
 	impl/Logger.cpp
+	impl/Md5.cpp
 	impl/MimeTypes.cpp
 	impl/NetAddress.cpp
 	impl/PartialDateTime.cpp

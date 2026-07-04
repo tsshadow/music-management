@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.77.0] - 2026-07-04
 ### Added
+- **Subsonic API**: Added support for token+salt authentication (legacy Subsonic auth) by using the API key as the secret.
 - Modular build system: split `build_and_publish.sh` into `build.sh`, `publish.sh`, and `deploy.sh`.
 - Build System: Introduced `debug` (default) and `release` modes in `bup` and deployment scripts, with intelligent tagging (`alpha`, `stable`, `latest`).
 - Versioned Docker tagging: images are now tagged with the version from CMake (e.g., `:3.77.0`) plus either `:stable` (if `SERVICE_NAME=lms`) or `:latest` (default).

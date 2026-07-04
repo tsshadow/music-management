@@ -21,7 +21,8 @@ SERVICES = {
     "soundcloud": "http://muma-soundcloud-worker:8001",
     "telegram": "http://muma-telegram-worker:8001",
     "ml-analyzer": "http://muma-ml-analyzer:8001",
-    "rating-system": "http://muma-rating-system:8000"
+    "rating-system": "http://muma-rating-system:8000",
+    "scrobble-service": "http://muma-scrobble-service:8000"
 }
 
 app = FastAPI(title="Music Management Control Center")

@@ -445,6 +445,42 @@ services:
     networks:
       - music-management_db
 
+  rating-system:
+    image: ${DOCKER_USER}/${IMAGE_RATING}:latest
+    container_name: muma-rating-system
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_DB=${DB_DB}
+      - PYTHONPATH=/app
+    ports:
+      - "8004:8000"
+    networks:
+      - music-management_db
+
+  scrobble-service:
+    image: ${DOCKER_USER}/${IMAGE_SCROBBLE}:latest
+    container_name: muma-scrobble-service
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_DB=${DB_DB}
+      - PYTHONPATH=/app
+    ports:
+      - "8005:8000"
+    networks:
+      - music-management_db
+
   firefox:
     image: jlesage/firefox:latest
     container_name: muma-firefox

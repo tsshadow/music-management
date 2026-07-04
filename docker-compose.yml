@@ -371,6 +371,20 @@ services:
     networks:
       - music-management_db
 
+  scrobble-service:
+    image: ${DOCKER_USER}/${IMAGE_SCROBBLE}:latest
+    container_name: muma-scrobble-service
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      <<: [*environment-db]
+      PYTHONPATH: /app
+    ports:
+      - "8005:8000"
+    networks:
+      - music-management_db
+
   firefox:
     image: jlesage/firefox:latest
     container_name: muma-firefox

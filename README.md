@@ -19,6 +19,7 @@ The project has been refactored into specialized, lightweight Docker containers 
 - **`muma-importer`**: Archive extraction and automated file movement.
 - **`muma-ml-analyzer`**: Machine learning pipeline for BPM, key, and mood detection.
 - **`muma-rating-system`**: Intelligent track rating and popularity tracking.
+- **`muma-scrobble-service`**: Listening history tracking and ListenBrainz integration.
 
 ### Utility
 - **`muma-tools`**: Collection of maintenance and database utility scripts.
@@ -106,8 +107,7 @@ You can also target specific components with `build.sh` and `publish.sh`:
 
 The following services will be available:
 - **Control Center (Release Notes)**: Port 8003
-- **Music Management API**: Port 7001 (if enabled)
-- **Scrobbler API**: Port 8080
+- **Scrobble Service**: Port 8005
 - **phpMyAdmin**: Port 8002 (to inspect the database)
 - **Firefox (GUI)**: Port 7003
 
@@ -168,7 +168,7 @@ For specific information on each module, please refer to their respective README
 - [Music Tagger](services/tagger/README.md)
 - [ML Analyzer](services/ml-analyzer/README.md)
 - [Rating System](services/rating-system/README.md)
-- [Scrobbler](modules/scrobbler/README.md)
+- [Scrobble Service](services/scrobble-service/README.md)
 - [Database Schema](docs/database-design.md)
 - [Data Flow](docs/system-data-flow.md)
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.11] - 2026-07-04
+### Added
+- **Centralized Release Notes**: The Control Center now aggregates and displays release notes and changelogs from all modular services.
+- **Service API Expansion**: Added versioning and release notes endpoints to the Rating System service.
+
 ## [2.1.10] - 2026-07-04
 ### Added
 - **Modular Containerization**: Split the monolithic application into 10 specialized, lightweight services (`muma-scanner`, `muma-tagger`, `muma-downloader`, etc.).

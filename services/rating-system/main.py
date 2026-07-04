@@ -5,6 +5,7 @@ import pymysql
 from typing import List, Optional
 from datetime import datetime
 from dotenv import load_dotenv
+from services.common.api.version_helper import get_version, get_release_notes, get_changelog
 
 load_dotenv()
 
@@ -104,6 +105,7 @@ def handle_lms_event(event: LMSEvent):
 
 @app.post("/ratings", response_model=RatingResponse)
 def set_rating(rating: Rating):
+    print(f"Setting rating: {rating.entity_type} {rating.entity_id} for user {rating.username} to {rating.rating}")
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -176,3 +178,16 @@ def get_updates(since: datetime = Query(...), entity_type: Optional[str] = None)
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+@app.get("/version")
+async def version():
+    """Return the current version of the service."""
+    return {"version": get_version()}
+
+@app.get("/release-notes")
+async def release_notes():
+    """Return the release notes for the service."""
+    return {
+        "release_notes": get_release_notes("rating-system"),
+        "changelog": get_changelog()
+    }

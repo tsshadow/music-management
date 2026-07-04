@@ -10,6 +10,11 @@ This project is now modularized. Detailed release notes for each module can be f
 - [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
 - [Rating System](services/rating-system/RELEASE_NOTES.md)
 
+## Global Version 2.1.11 (2026-07-04)
+### 🚀 System-wide Release Notes
+- **Unified Documentation**: You can now view release notes for all sub-programs directly from the Control Center home page.
+- **Service Integration**: The Rating System now fully supports the versioning and monitoring API.
+
 ## Global Version 2.1.10 (2026-07-04)
 ### 🛠️ Final Infrastructure Hardening
 - **ML Analyzer Fully Resolved**: Integrated `pymysql` and other missing core libraries into the ML Analyzer's specialized environment.

@@ -53,6 +53,27 @@ elif [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
     
     ./scripts/deploy-stack.sh
     
+    # Run database migrations if any
+    for sql_file in migrate_v*.sql; do
+        if [ -f "$sql_file" ]; then
+            echo "--- Executing database migration: $sql_file ---"
+            B64_SQL=$(base64 -w 0 "$sql_file")
+            # Use docker exec on the db container to run the SQL
+            # We assume the container name from docker-compose.yml: music-management-db-1
+            # and credentials from .env
+            REMOTE_CMD="
+                echo '$B64_SQL' | base64 -d > /tmp/migration.sql
+                docker exec -i music-management-db-1 mysql -u \"$DB_USER\" -p\"$DB_PASS\" \"$DB_DB\" < /tmp/migration.sql
+                rm /tmp/migration.sql
+            "
+            if [ -z "$REMOTE_PASS" ]; then
+                ssh -o StrictHostKeyChecking=no "${REMOTE_USER}@${REMOTE_HOST}" "${REMOTE_CMD}"
+            elif command -v sshpass >/dev/null 2>&1; then
+                sshpass -p "${REMOTE_PASS}" ssh -o StrictHostKeyChecking=no "${REMOTE_USER}@${REMOTE_HOST}" "${REMOTE_CMD}"
+            fi
+        fi
+    done
+    
     echo "--- Deployment completed successfully ---"
 else
     echo "Remote deployment skipped: Neither PORTAINER_WEBHOOK_URL nor REMOTE_HOST/REMOTE_USER are set in .env"

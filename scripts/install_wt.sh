@@ -3,6 +3,7 @@
 # This script clones, builds, and installs Wt4 from source.
 
 set -e
+cd "$(dirname "$(readlink -f "$0")")/.."
 
 echo "--- Installing Wt4 ---"
 

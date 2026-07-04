@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-cd "$(dirname "$0")"
+cd "$(dirname "$(readlink -f "$0")")/.."
 
 # Check for docker permissions
 if ! docker info >/dev/null 2>&1; then
@@ -23,8 +23,8 @@ else
     echo "=== RUNNING IN DEBUG MODE ==="
 fi
 
-./build.sh "$MODE"
-./publish.sh "$MODE"
-./deploy.sh "$MODE"
+./scripts/build.sh "$MODE"
+./scripts/publish.sh "$MODE"
+./scripts/deploy.sh "$MODE"
 
 echo "Build, publish and deploy completed successfully!"

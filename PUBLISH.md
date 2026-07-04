@@ -31,7 +31,11 @@ This document describes the steps to build and publish the LMS Docker image with
 ## Summary Command
 To perform build, publish, and automatic deployment to the production server:
 ```bash
-./build_and_publish.sh
+./bup
+```
+Or:
+```bash
+scripts/build_and_publish.sh
 ```
 
 Alternatively, to perform the steps manually:
@@ -47,7 +51,7 @@ Alternatively, to perform the steps manually:
    ```
 
 ## Production Update
-The `build_and_publish.sh` script automatically handles the update on the production server (`192.0.2.27`).
+The `bup` script (or `scripts/build_and_publish.sh`) automatically handles the update on the production server.
 
 If you need to perform the update manually on the server:
 ```bash

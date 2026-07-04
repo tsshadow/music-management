@@ -127,6 +127,6 @@ Document the model for future reference.
 ###   Step 5: Verify build and deployment
 Ensure the changes are integrated and the deployment script works as expected.
 
-- Run `./build_and_publish.sh` to build, push, and deploy the updated application.
+- Run `./bup` or `scripts/build_and_publish.sh` to build, push, and deploy the updated application.
 - Verify that the deployment is successful on the remote server.
 - Commit all changes including the new documentation.

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-cd "$(dirname "$0")"
+cd "$(dirname "$(readlink -f "$0")")/.."
 
 # Check for docker permissions
 if ! docker info >/dev/null 2>&1; then
@@ -17,6 +17,19 @@ if ! docker info >/dev/null 2>&1; then
     echo "You can add yourself with: sudo usermod -aG docker \$USER"
     echo "Then log out and log back in, or run: newgrp docker"
     exit 1
+fi
+
+# Check for docker registry authentication
+if ! docker info | grep -q "Username:"; then
+    echo "WARNING: You don't seem to be logged into Docker Hub."
+    echo "Pushing images to 'muma/' will likely fail."
+    echo "Please run: docker login"
+    echo ""
+    read -p "Do you want to continue anyway? (y/N) " -n 1 -r
+    echo ""
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
 fi
 
 if [ -f .env ]; then
@@ -38,18 +51,21 @@ MODE="${1:-${BUILD_MODE:-debug}}"
 
 if [ "$MODE" == "release" ]; then
     ADDITIONAL_TAG="stable"
-    echo "Release mode: using tag 'stable'"
+    echo "Release mode: pushing tag 'stable'"
 else
     # Default to debug/alpha
     ADDITIONAL_TAG="latest"
     UNSTABLE_TAG="unstable"
     ALPHA_TAG="alpha"
-    echo "Debug mode: using tags 'latest', 'unstable' and 'alpha'"
+    echo "Debug mode: pushing tags 'latest', 'unstable' and 'alpha'"
 fi
 
-echo "Building Docker image ${IMAGE_NAME}:${ADDITIONAL_TAG} and ${IMAGE_NAME}:${VERSION}..."
-if [ "$MODE" == "release" ]; then
-    docker build -t "${IMAGE_NAME}:${ADDITIONAL_TAG}" -t "${IMAGE_NAME}:${VERSION}" -f Dockerfile-release .
-else
-    docker build -t "${IMAGE_NAME}:${ADDITIONAL_TAG}" -t "${IMAGE_NAME}:${UNSTABLE_TAG}" -t "${IMAGE_NAME}:${ALPHA_TAG}" -t "${IMAGE_NAME}:${VERSION}" -f Dockerfile-release .
+echo "Pushing Docker image ${IMAGE_NAME}:${ADDITIONAL_TAG} and ${IMAGE_NAME}:${VERSION}..."
+docker push "${IMAGE_NAME}:${ADDITIONAL_TAG}"
+docker push "${IMAGE_NAME}:${VERSION}"
+if [ "$MODE" != "release" ]; then
+    docker push "${IMAGE_NAME}:${UNSTABLE_TAG}"
+    docker push "${IMAGE_NAME}:${ALPHA_TAG}"
 fi
+
+echo "--- Push process completed ---"

@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for initial stack creation: the deployment script now automatically creates the stack if it does not exist yet using a local template.
 
 ### Changed
+- Reorganized project structure: moved all utility scripts (`build.sh`, `publish.sh`, `deploy.sh`, `install.sh`, etc.) from root to `scripts/` directory, while maintaining the `bup` shortcut in root.
 - Updated `install.sh` to handle `.env` creation and dependency checks automatically.
 - Unified deployment environment variables (`REMOTE_STACK_PATH`, `DEPLOY_TARGET_NAME`) for multi-repo consistency.
 - **Deployment**: Refactored `deploy.sh` to use the new generalized `deploy-stack.sh` helper, simplifying per-project deployment scripts.

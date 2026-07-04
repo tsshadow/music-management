@@ -131,11 +131,11 @@ See [INSTALL.md](INSTALL.md) file.
 ### Building and Deployment
 If you are modifying the code and need to rebuild and redeploy the system:
 
-1.  **Install dependencies**: `./install.sh`
-2.  **Build image**: `./build.sh`
-3.  **Publish image**: `./publish.sh`
-4.  **Deploy to remote**: `./deploy.sh`
-5.  **Full pipeline (Build + Publish + Deploy)**: `./build_and_publish.sh`
+1.  **Install dependencies**: `scripts/install.sh`
+2.  **Build image**: `scripts/build.sh`
+3.  **Publish image**: `scripts/publish.sh`
+4.  **Deploy to remote**: `scripts/deploy.sh`
+5.  **Full pipeline (Build + Publish + Deploy)**: `./bup` or `scripts/build_and_publish.sh`
 
 #### Remote Deployment Options
 You can configure deployment in `.env`:

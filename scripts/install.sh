@@ -1,6 +1,7 @@
 #!/bin/bash
 # Installation script for LMS build dependencies (Docker)
 set -e
+cd "$(dirname "$(readlink -f "$0")")/.."
 
 echo "--- Installing dependencies for Docker build ---"
 sudo apt-get update
@@ -24,7 +25,7 @@ if [ ! -f .env ]; then
 fi
 
 echo "--- Dependencies installed ---"
-echo "You can now run ./build_and_publish.sh to build and publish the Docker image."
+echo "You can now run ./scripts/build_and_publish.sh to build and publish the Docker image."
 echo ""
 echo "NOTE: The build scripts now automatically handle Docker permissions if you've just been added to the group."
 echo "If you want to use Docker manually in this session, run: newgrp docker"

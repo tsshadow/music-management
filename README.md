@@ -40,15 +40,39 @@ The easiest way to run the entire stack is using Docker Compose.
 
 ### Prerequisites
 - Docker and Docker Compose
+- Current user in the `docker` group (for building images)
+- Docker Hub account and `docker login` (if pushing images to the registry)
+- `sshpass` (optional, for automated remote deployment)
 - A MariaDB/MySQL database (included in compose)
 
 ### Quick Start
 1. Clone the repository.
-2. Copy `.env.example` to `.env` and configure your paths and database credentials.
-3. Start the services:
+2. Run `./install.sh` to install dependencies and create a `.env` file.
+3. Configure your `.env` file with your paths, database credentials, and optional remote host settings.
+4. Start the services:
    ```bash
    docker-compose -f work-context/docker-compose.yml up -d
    ```
+
+### Building and Deployment
+If you are modifying the code and need to rebuild and redeploy the system:
+
+- **Build all images**: `./build.sh`
+- **Publish all images**: `./publish.sh`
+- **Deploy to remote**: `./deploy.sh`
+- **Full pipeline (Build + Publish + Deploy)**: `./build_and_push_all.sh`
+
+#### Remote Deployment Options
+You can configure deployment in `.env`:
+1. **Portainer Webhook**: Set `PORTAINER_WEBHOOK_URL`. In Portainer, go to your Stack settings and enable "Service Webhook" to get this URL.
+2. **SSH**: Set `REMOTE_HOST`, `REMOTE_USER`, etc. The script will SSH into the host and run `docker-compose pull && docker-compose up -d`.
+
+**Tip**: Use `DEPLOY_TARGET_NAME` in `.env` to give your deployment target a friendly name (e.g., "Production Stack") which will be displayed during the deployment process.
+
+You can also target specific components with `build.sh` and `publish.sh`:
+- `./build.sh ml` (ML Analyzer only)
+- `./build.sh tools` (Tools only)
+- `./build.sh app` (Main Application only)
 
 The following services will be available:
 - **Music Management API**: Port 7001

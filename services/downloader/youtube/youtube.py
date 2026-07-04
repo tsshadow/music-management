@@ -32,7 +32,7 @@ class YoutubeDownloader:
         ])
         self.output_folder = values.get('youtube_folder')
         self.archive_dir = values.get('downloads_youtube_archive')
-        self.ffmpeg_location = values.get('ffmpeg_location') or 'usr/bin/local'
+        self.ffmpeg_location = values.get('ffmpeg_location') or '/usr/bin'
         self.cookies_file = values.get('yt_cookies')
         self.user_agent = values.get('yt_user_agent')
 

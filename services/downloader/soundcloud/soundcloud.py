@@ -152,7 +152,7 @@ class SoundcloudDownloader:
         self.output_folder = values.get('soundcloud_folder') or None
         self.archive_dir = values.get('soundcloud_archive') or None
         self.cookies_file = values.get('soundcloud_cookies') or 'soundcloud.com_cookies.txt'
-        self.ffmpeg_location = values.get('ffmpeg_location') or 'usr/bin/local'
+        self.ffmpeg_location = values.get('ffmpeg_location') or '/usr/bin'
         if not self.output_folder or not self.archive_dir:
             if getattr(self, 'enabled', True):
                 logging.warning('Missing required configuration for SoundCloud downloads. SoundCloud downloads will be disabled.')

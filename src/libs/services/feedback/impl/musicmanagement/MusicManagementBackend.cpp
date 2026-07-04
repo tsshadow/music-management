@@ -31,7 +31,8 @@ namespace lms::feedback::musicManagement
     MusicManagementBackend::MusicManagementBackend(boost::asio::io_context& ioContext, db::IDb& db)
         : _ioContext{ ioContext }
         , _db{ db }
-        , _apiUrl{ core::Service<core::IConfig>::get()->getString("music-management-api-url", "http://music-management:8080/api/lms-event") }
+        , _apiUrl{ core::Service<core::IConfig>::get()->getString("music-management-rating-api-url", "http://muma-rating-system:8000/api/lms-event") }
+        , _apiKey{ core::Service<core::IConfig>::get()->getString("music-management-rating-api-key", "") }
     {
         LMS_LOG(SCROBBLING, INFO, "Starting MusicManagement feedback backend... API endpoint = '" << _apiUrl << "'");
         _client = core::http::createClient(_ioContext, _apiUrl);
@@ -133,6 +134,10 @@ namespace lms::feedback::musicManagement
 
         core::http::ClientPOSTRequestParameters request;
         request.message.addHeader("Content-Type", "application/json");
+        if (!_apiKey.empty())
+        {
+            request.message.addHeader("X-API-Key", _apiKey);
+        }
 
         Wt::Json::Object obj;
         obj["event"] = Wt::Json::Value(eventType);

@@ -30,6 +30,7 @@
 
 #include "internal/InternalBackend.hpp"
 #include "listenbrainz/ListenBrainzBackend.hpp"
+#include "musicmanagement/MusicManagementBackend.hpp"
 
 namespace lms::scrobbling
 {
@@ -67,6 +68,7 @@ namespace lms::scrobbling
         LMS_LOG(SCROBBLING, INFO, "Starting service...");
         _scrobblingBackends.emplace(ScrobblingBackend::Internal, std::make_unique<InternalBackend>(_db));
         _scrobblingBackends.emplace(ScrobblingBackend::ListenBrainz, std::make_unique<listenBrainz::ListenBrainzBackend>(ioContext, _db));
+        _mumaScrobbler = std::make_unique<musicManagement::MusicManagementBackend>(ioContext, _db);
         LMS_LOG(SCROBBLING, INFO, "Service started!");
     }
 
@@ -81,18 +83,27 @@ namespace lms::scrobbling
 
         if (std::optional<ScrobblingBackend> backend{ getUserBackend(listen.userId) })
             _scrobblingBackends[*backend]->listenStarted(listen);
+        
+        if (_mumaScrobbler)
+            _mumaScrobbler->listenStarted(listen);
     }
 
     void ScrobblingService::listenFinished(const Listen& listen, std::optional<std::chrono::seconds> duration)
     {
         if (std::optional<ScrobblingBackend> backend{ getUserBackend(listen.userId) })
             _scrobblingBackends[*backend]->listenFinished(listen, duration);
+
+        if (_mumaScrobbler)
+            _mumaScrobbler->listenFinished(listen, duration);
     }
 
     void ScrobblingService::addTimedListen(const TimedListen& listen)
     {
         if (std::optional<ScrobblingBackend> backend{ getUserBackend(listen.userId) })
             _scrobblingBackends[*backend]->addTimedListen(listen);
+
+        if (_mumaScrobbler)
+            _mumaScrobbler->addTimedListen(listen);
     }
 
     void ScrobblingService::visitNowPlayingListens(const std::function<void(Clock::time_point startedAt, const Listen&)>& visitor, db::UserId userId)

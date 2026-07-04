@@ -46,6 +46,7 @@ namespace lms::feedback::musicManagement
         boost::asio::io_context& _ioContext;
         db::IDb& _db;
         std::string _apiUrl;
+        std::string _apiKey;
         std::unique_ptr<core::http::IClient> _client;
     };
 } // namespace lms::feedback::musicManagement

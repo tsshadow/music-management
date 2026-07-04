@@ -33,6 +33,7 @@ namespace lms::api::subsonic
 
         userNode.setAttribute("username", user->getLoginName());
         userNode.setAttribute("scrobblingEnabled", true);
+        userNode.setAttribute("mumaScrobblingEnabled", user->getMumaScrobblingEnabled());
         userNode.setAttribute("adminRole", user->isAdmin());   // Whether the user is administrator
         userNode.setAttribute("settingsRole", true);           // Whether the user is allowed to change personal settings and password
         userNode.setAttribute("downloadRole", true);           // Whether the user is allowed to download files

@@ -66,6 +66,7 @@ namespace lms::scrobbling
 
         db::IDb& _db;
         std::unordered_map<db::ScrobblingBackend, std::unique_ptr<IScrobblingBackend>> _scrobblingBackends;
+        std::unique_ptr<IScrobblingBackend> _mumaScrobbler;
 
         std::shared_mutex _nowPlayingEntriesMutex;
         struct NowPlayingEntry

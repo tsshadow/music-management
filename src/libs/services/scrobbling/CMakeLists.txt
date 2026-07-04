@@ -6,6 +6,7 @@ add_library(lmsscrobbling STATIC
 	impl/listenbrainz/ListensParser.cpp
 	impl/listenbrainz/ListensSynchronizer.cpp
 	impl/listenbrainz/Utils.cpp
+	impl/musicmanagement/MusicManagementBackend.cpp
 	impl/ScrobblingService.cpp
 	)
 

@@ -10,6 +10,8 @@
   let isAdmin = $state(user ? user.adminRole : false);
   // svelte-ignore state_referenced_locally
   let scrobblingEnabled = $state(user ? user.scrobblingEnabled : true);
+  // svelte-ignore state_referenced_locally
+  let mumaScrobblingEnabled = $state(user ? user.mumaScrobblingEnabled : true);
   const isEditing = $derived(!!user);
   let error = $state('');
   let isSaving = $state(false);
@@ -31,6 +33,7 @@
     if (password) params.append('password', password);
     params.append('adminRole', String(isAdmin));
     params.append('scrobblingEnabled', String(scrobblingEnabled));
+    params.append('mumaScrobblingEnabled', String(mumaScrobblingEnabled));
 
     try {
       const response = await fetch(`${endpoint}?${params.toString()}`);
@@ -119,6 +122,11 @@
       <div class="flex items-center gap-3 py-2">
         <input type="checkbox" id="scrobbling" bind:checked={scrobblingEnabled} class="w-5 h-5 accent-[#1db954]" />
         <label for="scrobbling" class="text-sm font-medium text-white cursor-pointer select-none">Scrobbling enabled</label>
+      </div>
+
+      <div class="flex items-center gap-3 py-2">
+        <input type="checkbox" id="mumaScrobbling" bind:checked={mumaScrobblingEnabled} class="w-5 h-5 accent-[#1db954]" />
+        <label for="mumaScrobbling" class="text-sm font-medium text-white cursor-pointer select-none">Muma Scrobbling enabled</label>
       </div>
 
       {#if error}

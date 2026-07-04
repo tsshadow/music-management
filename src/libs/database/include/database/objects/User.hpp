@@ -117,6 +117,7 @@ namespace lms::db
         void setSubsonicArtistListMode(SubsonicArtistListMode mode) { _subsonicArtistListMode = mode; }
         void setFeedbackBackend(FeedbackBackend feedbackBackend) { _feedbackBackend = feedbackBackend; }
         void setScrobblingBackend(ScrobblingBackend scrobblingBackend) { _scrobblingBackend = scrobblingBackend; }
+        void setMumaScrobblingEnabled(bool enabled) { _mumaScrobblingEnabled = enabled; }
         void setListenBrainzToken(std::string_view token) { _listenbrainzToken = token; }
 
         // read
@@ -133,6 +134,7 @@ namespace lms::db
         SubsonicArtistListMode getSubsonicArtistListMode() const { return _subsonicArtistListMode; }
         FeedbackBackend getFeedbackBackend() const { return _feedbackBackend; }
         ScrobblingBackend getScrobblingBackend() const { return _scrobblingBackend; }
+        bool getMumaScrobblingEnabled() const { return _mumaScrobblingEnabled; }
         std::string_view getListenBrainzToken() const { return _listenbrainzToken; }
 
         template<class Action>
@@ -154,6 +156,7 @@ namespace lms::db
             Wt::Dbo::field(a, _uiInlineArtistRelationships, "ui_inline_artist_relationships");
             Wt::Dbo::field(a, _feedbackBackend, "feedback_backend");
             Wt::Dbo::field(a, _scrobblingBackend, "scrobbling_backend");
+            Wt::Dbo::field(a, _mumaScrobblingEnabled, "muma_scrobbling_enabled");
             Wt::Dbo::field(a, _listenbrainzToken, "listenbrainz_token");
 
             Wt::Dbo::hasMany(a, _authTokens, Wt::Dbo::ManyToOne, "user");
@@ -176,6 +179,7 @@ namespace lms::db
         core::EnumSet<TrackArtistLinkType> _uiInlineArtistRelationships{ TrackArtistLinkType::Composer, TrackArtistLinkType::Performer };
         FeedbackBackend _feedbackBackend{ defaultFeedbackBackend };
         ScrobblingBackend _scrobblingBackend{ defaultScrobblingBackend };
+        bool _mumaScrobblingEnabled{ true };
         std::string _listenbrainzToken; // Musicbrainz Identifier
 
         // Admin defined settings

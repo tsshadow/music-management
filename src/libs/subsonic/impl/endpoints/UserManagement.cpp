@@ -78,6 +78,7 @@ namespace lms::api::subsonic
         std::string username{ getMandatoryParameterAs<std::string>(context.getParameters(), "username") };
         std::string password{ getMandatoryParameterAs<std::string>(context.getParameters(), "password") };
         bool isAdmin{ getParameterAs<bool>(context.getParameters(), "adminRole").value_or(false) };
+        bool mumaScrobblingEnabled{ getParameterAs<bool>(context.getParameters(), "mumaScrobblingEnabled").value_or(true) };
 
         {
             auto transaction{ context.getDbSession().createWriteTransaction() };
@@ -86,6 +87,7 @@ namespace lms::api::subsonic
 
             User::pointer user{ context.getDbSession().create<User>(username) };
             user.modify()->setType(isAdmin ? UserType::ADMIN : UserType::REGULAR);
+            user.modify()->setMumaScrobblingEnabled(mumaScrobblingEnabled);
 
             if (auto* passwordService{ core::Service<auth::IPasswordService>::get() })
                 passwordService->setPassword(user->getId(), password);
@@ -101,6 +103,7 @@ namespace lms::api::subsonic
 
         auto password{ getParameterAs<std::string>(context.getParameters(), "password") };
         auto isAdmin{ getParameterAs<bool>(context.getParameters(), "adminRole") };
+        auto mumaScrobblingEnabled{ getParameterAs<bool>(context.getParameters(), "mumaScrobblingEnabled") };
 
         {
             auto transaction{ context.getDbSession().createWriteTransaction() };
@@ -110,6 +113,9 @@ namespace lms::api::subsonic
 
             if (isAdmin && context.getUser()->isAdmin())
                 user.modify()->setType(*isAdmin ? UserType::ADMIN : UserType::REGULAR);
+
+            if (mumaScrobblingEnabled)
+                user.modify()->setMumaScrobblingEnabled(*mumaScrobblingEnabled);
 
             if (password)
             {

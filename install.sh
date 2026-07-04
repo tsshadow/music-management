@@ -12,5 +12,19 @@ if ! groups | grep -q "\bdocker\b"; then
     newgrp docker
 fi
 
+if [ ! -f .env ]; then
+    echo "Creating .env file..."
+    cat <<EOF > .env
+IMAGE_NAME=muma/lms
+TAG=alpha
+REMOTE_HOST=192.0.2.27
+REMOTE_USER=root
+REMOTE_PASS=redacted
+STACK_DIR=/data/compose/24
+SERVICE_NAME=lms-alpha
+EOF
+    echo ".env file created. Please update REMOTE_PASS in .env."
+fi
+
 echo "--- Dependencies installed ---"
 echo "You can now run ./build_and_publish.sh to build and publish the Docker image."

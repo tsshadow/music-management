@@ -4,6 +4,7 @@ import os
 import pymysql
 import requests
 import sqlite3
+import bcrypt
 from typing import List, Optional
 from dotenv import load_dotenv
 from services.common.api.version_helper import get_version, get_release_notes, get_changelog
@@ -39,10 +40,15 @@ def startup_db():
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         username VARCHAR(255) UNIQUE NOT NULL,
                         display_name VARCHAR(255),
+                        password_hash VARCHAR(255),
                         lms_user_id VARCHAR(255),
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
+                # Add password_hash if it doesn't exist (for existing tables)
+                cursor.execute("SHOW COLUMNS FROM users LIKE 'password_hash'")
+                if not cursor.fetchone():
+                    cursor.execute("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) AFTER display_name")
                 # ListenBrainz accounts
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS user_listenbrainz_accounts (
@@ -71,6 +77,9 @@ class UserUpdate(BaseModel):
 class LBAccountUpdate(BaseModel):
     lb_username: str
     lb_token: str
+
+class PasswordUpdate(BaseModel):
+    password: str
 
 @app.get("/version")
 async def version():
@@ -138,6 +147,54 @@ async def update_lb_account(user_id: int, account: LBAccountUpdate):
             return {"status": "updated"}
     finally:
         conn.close()
+
+@app.put("/users/{user_id}/password")
+async def update_password(user_id: int, pwd: PasswordUpdate):
+    # Hash password with bcrypt (using 2b prefix, which is generally compatible)
+    salt = bcrypt.gensalt(rounds=12)
+    hashed = bcrypt.hashpw(pwd.password.encode('utf-8'), salt).decode('utf-8')
+    
+    # LMS often expects $2y$ prefix for bcrypt
+    lms_hashed = hashed.replace('$2b$', '$2y$')
+    
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        with conn.cursor() as cursor:
+            # Check if user exists and get lms_user_id
+            cursor.execute("SELECT lms_user_id FROM users WHERE id = %s", (user_id,))
+            user = cursor.fetchone()
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            
+            # Update MariaDB
+            cursor.execute("UPDATE users SET password_hash = %s WHERE id = %s", (hashed, user_id))
+            
+            # Update LMS DB if exists
+            if user['lms_user_id']:
+                update_lms_password(user['lms_user_id'], lms_hashed)
+                
+            conn.commit()
+            return {"status": "password updated"}
+    finally:
+        conn.close()
+
+def update_lms_password(lms_user_id, password_hash):
+    db_path = os.getenv("LMS_DB_PATH", "/app/data/lms.db")
+    if not os.path.exists(db_path):
+        print(f"LMS DB not found at {db_path}, skipping LMS password update")
+        return
+    try:
+        sqlite_conn = sqlite3.connect(db_path)
+        sqlite_cursor = sqlite_conn.cursor()
+        # Update password_hash in LMS user table
+        sqlite_cursor.execute("UPDATE user SET password_hash = ? WHERE id = ?", (password_hash, lms_user_id))
+        sqlite_conn.commit()
+        sqlite_conn.close()
+        print(f"Updated LMS password for user ID {lms_user_id}")
+    except Exception as e:
+        print(f"Failed to update LMS password: {e}")
 
 @app.post("/sync/lms")
 async def sync_lms_users(background_tasks: BackgroundTasks):

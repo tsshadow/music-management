@@ -11,10 +11,10 @@ fi
 IMAGE_NAME="${IMAGE_NAME:-muma/lms}"
 TAG="${TAG:-alpha}"
 SERVICE_NAME="${SERVICE_NAME:-lms-alpha}"
-STACK_DIR="${STACK_DIR}"
+TARGET="${DEPLOY_TARGET_NAME:-LMS Stack}"
+DOCKER_COMPOSE_FILE="${REMOTE_STACK_PATH:-docker-compose.yml}"
 
 if [ -n "${PORTAINER_WEBHOOK_URL}" ]; then
-    TARGET="${DEPLOY_TARGET_NAME:-Portainer Stack}"
     echo "--- Triggering Portainer Webhook for: $TARGET ---"
     if command -v curl >/dev/null 2>&1; then
         curl -X POST "${PORTAINER_WEBHOOK_URL}"
@@ -24,22 +24,24 @@ if [ -n "${PORTAINER_WEBHOOK_URL}" ]; then
         exit 1
     fi
 elif [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
-    TARGET="${DEPLOY_TARGET_NAME:-LMS Stack}"
     echo "--- Starting remote update on ${REMOTE_HOST} for: $TARGET ---"
     
-    if [ -n "${STACK_DIR}" ]; then
-        echo "Using Stack Directory: ${STACK_DIR}"
-        REMOTE_COMMAND="
-        set -e
-        cd ${STACK_DIR}
-        echo \"Updating stack in ${STACK_DIR}...\"
+    REMOTE_COMMAND="
+    set -e
+    # Try to find docker-compose file
+    if [ -f \"${DOCKER_COMPOSE_FILE}\" ]; then
+        echo \"Updating stack '$TARGET' via docker-compose using ${DOCKER_COMPOSE_FILE}...\"
+        docker-compose -f \"${DOCKER_COMPOSE_FILE}\" pull || docker compose -f \"${DOCKER_COMPOSE_FILE}\" pull
+        docker-compose -f \"${DOCKER_COMPOSE_FILE}\" up -d || docker compose -f \"${DOCKER_COMPOSE_FILE}\" up -d
+    elif [ -d \"${DOCKER_COMPOSE_FILE}\" ] && [ -f \"${DOCKER_COMPOSE_FILE}/docker-compose.yml\" ]; then
+        echo \"Updating stack '$TARGET' in directory ${DOCKER_COMPOSE_FILE}...\"
+        cd \"${DOCKER_COMPOSE_FILE}\"
         docker-compose pull || docker compose pull
         docker-compose up -d || docker compose up -d
-        "
     else
-        REMOTE_COMMAND="
-        set -e
-        echo \"Updating container '${SERVICE_NAME}' for '$TARGET'...\"
+        echo \"Warning: Docker compose configuration not found at '${DOCKER_COMPOSE_FILE}' on remote host.\"
+        echo \"Updating individual container '${SERVICE_NAME}' for '$TARGET'...\"
+        
         docker pull ${IMAGE_NAME}:${TAG}
         docker stop ${SERVICE_NAME} || true
         docker rm ${SERVICE_NAME} || true
@@ -51,8 +53,8 @@ elif [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
             -v /docker/${SERVICE_NAME}/var/lms:/var/lms \
             --user 0:0 \
             ${IMAGE_NAME}:${TAG}
-        "
     fi
+    "
     
     if [ -z "${REMOTE_PASS}" ]; then
         echo "REMOTE_PASS not set. SSH may ask for password."

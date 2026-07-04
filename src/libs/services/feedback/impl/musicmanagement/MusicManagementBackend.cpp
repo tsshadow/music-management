@@ -31,8 +31,8 @@ namespace lms::feedback::musicManagement
     MusicManagementBackend::MusicManagementBackend(boost::asio::io_context& ioContext, db::IDb& db)
         : _ioContext{ ioContext }
         , _db{ db }
-        , _apiUrl{ core::Service<core::IConfig>::get()->getString("music-management-rating-api-url", "http://muma-rating-system:8000/api/lms-event") }
-        , _apiKey{ core::Service<core::IConfig>::get()->getString("music-management-rating-api-key", "") }
+        , _apiUrl{ core::Service<core::IConfig>::get()->getString("music-management-rating-api-url", "https://muma-rating-service.example.com/api/lms-event") }
+        , _apiKey{ core::Service<core::IConfig>::get()->getString("music-management-rating-api-key", "REDACTED") }
     {
         LMS_LOG(SCROBBLING, INFO, "Starting MusicManagement feedback backend... API endpoint = '" << _apiUrl << "'");
         _client = core::http::createClient(_ioContext, _apiUrl);

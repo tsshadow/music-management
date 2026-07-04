@@ -21,15 +21,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Spotify UI**: Added a new release notes modal and version update notification system.
 - **Spotify UI**: Added a persistent "Release Notes" history in the About section.
 
+### Added
+- Created `scripts/deploy-stack.sh`, a generalized Docker stack deployment tool supporting Portainer discovery, SSH transfer, and intelligent fallbacks.
+- Support for initial stack creation: the deployment script now automatically creates the stack if it does not exist yet using a local template.
+
 ### Changed
 - Updated `install.sh` to handle `.env` creation and dependency checks automatically.
 - Unified deployment environment variables (`REMOTE_STACK_PATH`, `DEPLOY_TARGET_NAME`) for multi-repo consistency.
-- **Deployment**: Enhanced `deploy.sh` with a multi-stage discovery mechanism to automatically find Docker Compose configuration files on remote hosts (supporting Portainer hosts and container labels).
-- **Deployment**: Added support for `PORTAINER_HOST` in `.env` to pull stack templates from a master Portainer instance.
-- **Deployment**: Improved `deploy.sh` robustness with `base64` template transfer and automated tab-to-space conversion in compose files.
-- **Deployment**: Optimized `deploy.sh` to prioritize `docker compose` (v2) and include a standalone binary fallback for hosts with broken `docker-compose` installations.
+- **Deployment**: Refactored `deploy.sh` to use the new generalized `deploy-stack.sh` helper, simplifying per-project deployment scripts.
+- **Deployment**: Enhanced stack discovery to support `PORTAINER_HOST` for pulling master templates.
+- **Deployment**: Improved robustness with `base64` template transfer and automated tab-to-space conversion in compose files.
 - **Deployment**: Fixed `.env` parsing to correctly handle trailing comments and whitespace.
-- **Deployment**: Improved `deploy.sh` individual container fallback with environment variable support.
 - **Branding**: Updated all repository references to `muma/lms` on GitHub and Docker Hub.
 
 ### Fixed

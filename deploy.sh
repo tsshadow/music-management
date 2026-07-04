@@ -6,8 +6,10 @@ cd "$(dirname "$0")"
 if [ -f .env ]; then
     # Load .env variables
     while IFS= read -r line || [[ -n "$line" ]]; do
-        if [[ ! "$line" =~ ^# && -n "$line" ]]; then
-            export "$line"
+        # Strip trailing comments and whitespace
+        clean_line=$(echo "$line" | sed 's/[[:space:]]*#.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        if [[ -n "$clean_line" && ! "$clean_line" =~ ^# ]]; then
+            export "$clean_line"
         fi
     done < .env
 fi
@@ -42,45 +44,16 @@ if [ -n "${PORTAINER_WEBHOOK_URL}" ]; then
         exit 1
     fi
 elif [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
-    echo "--- Starting remote update on ${REMOTE_HOST} for: $TARGET ---"
+    echo "--- Starting remote deployment for stack: $TARGET ---"
     
-    REMOTE_COMMAND="
-    set -e
-    # Try to find docker-compose file
-    if [ -f \"${DOCKER_COMPOSE_FILE}\" ]; then
-        echo \"Updating stack '$TARGET' via docker-compose using ${DOCKER_COMPOSE_FILE}...\"
-        docker-compose -f \"${DOCKER_COMPOSE_FILE}\" pull || docker compose -f \"${DOCKER_COMPOSE_FILE}\" pull
-        docker-compose -f \"${DOCKER_COMPOSE_FILE}\" up -d || docker compose -f \"${DOCKER_COMPOSE_FILE}\" up -d
-    elif [ -d \"${DOCKER_COMPOSE_FILE}\" ] && [ -f \"${DOCKER_COMPOSE_FILE}/docker-compose.yml\" ]; then
-        echo \"Updating stack '$TARGET' in directory ${DOCKER_COMPOSE_FILE}...\"
-        cd \"${DOCKER_COMPOSE_FILE}\"
-        docker-compose pull || docker compose pull
-        docker-compose up -d || docker compose up -d
-    else
-        echo \"Warning: Docker compose configuration not found at '${DOCKER_COMPOSE_FILE}' on remote host.\"
-        echo \"Updating individual containers for '$TARGET':\"
-        
-        # Project-specific individual pulls/runs
-        docker pull ${DOCKER_USER}/${IMAGE_ML}:latest
-        docker pull ${DOCKER_USER}/${IMAGE_TOOLS}:latest
-        docker pull ${DOCKER_USER}/${IMAGE_APP}:latest
-        docker pull ${DOCKER_USER}/${IMAGE_MANAGEMENT}:latest
-        
-        # Note: Individual run commands would go here if needed
-    fi
-    "
+    # Use the generalized deployment script
+    export LOCAL_COMPOSE_FILE="docker-compose.yml"
+    export LOCAL_ENV_FILE=".env"
+    export SEARCH_STRING="tsshadow/music-management"
     
-    if [ -z "${REMOTE_PASS}" ]; then
-        echo "REMOTE_PASS not set. SSH may ask for password."
-        ssh -o StrictHostKeyChecking=no "${REMOTE_USER}@${REMOTE_HOST}" "${REMOTE_COMMAND}"
-    elif command -v sshpass >/dev/null 2>&1; then
-        sshpass -p "${REMOTE_PASS}" ssh -o StrictHostKeyChecking=no "${REMOTE_USER}@${REMOTE_HOST}" "${REMOTE_COMMAND}"
-    else
-        echo "Error: sshpass not found. Install it or unset REMOTE_PASS and enter password manually."
-        exit 1
-    fi
+    ./scripts/deploy-stack.sh
     
-    echo "--- Remote update completed ---"
+    echo "--- Deployment completed successfully ---"
 else
     echo "Remote deployment skipped: Neither PORTAINER_WEBHOOK_URL nor REMOTE_HOST/REMOTE_USER are set in .env"
 fi

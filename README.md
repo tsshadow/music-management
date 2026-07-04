@@ -73,9 +73,9 @@ You can configure deployment in `.env`:
 1. **Portainer Webhook**: Set `PORTAINER_WEBHOOK_URL`.
    - **Business Edition**: Supports "Stack Webhooks" (triggers a full stack redeploy).
    - **Community Edition**: Supports "Service Webhooks" (trigger per service). If you have multiple services, you might prefer the SSH method.
-2. **SSH**: Set `REMOTE_HOST`, `REMOTE_USER`, etc. The script will SSH into the host and run `docker-compose pull && docker-compose up -d`. This method is recommended for Community Edition users as it updates all services and environment variables in one go.
+2. **SSH**: Set `REMOTE_HOST`, `REMOTE_USER`, etc. The script will automatically discover your Docker Compose configuration (even if managed by Portainer), transfer it securely, and redeploy the stack. If the stack does not exist yet, it will be created using the local `docker-compose.yml` template. This method is highly recommended for multi-host setups and Community Edition users.
 
-**Tip**: Use `DEPLOY_TARGET_NAME` in `.env` to give your deployment target a friendly name (e.g., "Production Stack") which will be displayed during the deployment process.
+**Tip**: Use `DEPLOY_TARGET_NAME` in `.env` to give your deployment target a friendly name (e.g., "Production Stack"). The system now uses this to automatically manage stack naming and discovery across different repositories.
 
 You can also target specific components with `build.sh` and `publish.sh`:
 - `./build.sh ml` (ML Analyzer only)

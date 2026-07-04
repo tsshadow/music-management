@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+  db:
+    image: mariadb:10.6
+    container_name: music-management-db-1
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+      MYSQL_DATABASE: ${DB_DB}
+    ports:
+      - "3306:3306"
+    volumes:
+      - ${HOST_DATA_PATH}/mariadb:/var/lib/mysql
+    networks:
+      - music-management_db
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: music-management-phpmyadmin-1
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+    ports:
+      - "8002:80"
+    networks:
+      - music-management_db
+
+  control-center:
+    image: ${DOCKER_USER}/${IMAGE_MANAGEMENT}:latest
+    container_name: muma-control-center
+    restart: unless-stopped
+    ports:
+      - "8003:8000"
+    networks:
+      - music-management_db
+
+networks:
+  music-management_db:
+    name: music-management_db
+    driver: bridge

@@ -34,8 +34,10 @@ echo "--- Starting push of containers ---"
 
 if [ -f .env ]; then
     while IFS= read -r line || [[ -n "$line" ]]; do
-        if [[ ! "$line" =~ ^# && -n "$line" ]]; then
-            export "$line"
+        # Strip trailing comments and whitespace
+        clean_line=$(echo "$line" | sed 's/[[:space:]]*#.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        if [[ -n "$clean_line" && ! "$clean_line" =~ ^# ]]; then
+            export "$clean_line"
         fi
     done < .env
 fi

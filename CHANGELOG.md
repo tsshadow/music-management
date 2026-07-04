@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.25] - 2026-07-04
+### Fixed
+- **API Security**: Inconsistenties in API-sleutels tussen microservices en het Control Center opgelost in Docker Compose configuraties.
+- **LMS Sync**: Bevestigd dat de `user-service` de juiste `X-API-Key` meestuurt naar LMS tijdens de gebruikerssynchronisatie.
+
 ## [2.1.24] - 2026-07-04
 ### Added
 - **YouTube Management**: YouTube-accounts kunnen nu worden beheerd via het Control Center.

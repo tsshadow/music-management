@@ -464,7 +464,7 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASS=${DB_PASS}
       - DB_DB=${DB_DB}
-      - API_KEY=${API_KEY}
+      - API_KEY=${RATING_API_KEY}
       - PYTHONPATH=/app
     ports:
       - "8004:8000"
@@ -483,7 +483,7 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASS=${DB_PASS}
       - DB_DB=${DB_DB}
-      - API_KEY=${API_KEY}
+      - API_KEY=${SCROBBLE_API_KEY}
       - PYTHONPATH=/app
     ports:
       - "8005:8000"
@@ -502,7 +502,7 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASS=${DB_PASS}
       - DB_DB=${DB_DB}
-      - API_KEY=${API_KEY}
+      - API_KEY=${USER_API_KEY}
       - LMS_HOSTS=${LMS_HOSTS}
       - PYTHONPATH=/app
       - LMS_DB_PATH=/app/data/lms.db

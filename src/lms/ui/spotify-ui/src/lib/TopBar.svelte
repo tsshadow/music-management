@@ -1,7 +1,7 @@
 <script>
   import ProfileButton from './ProfileButton.svelte';
   import SearchBar from './SearchBar.svelte';
-  import { activeView } from './store.js';
+  import { activeView, deduplicateEnabled } from './store.js';
 
   const { greeting = "" } = $props();
 
@@ -25,5 +25,7 @@
     <SearchBar />
   </div>
 
-  <ProfileButton onNavigate={handleNavigate} />
+  <div class="flex items-center gap-4">
+    <ProfileButton onNavigate={handleNavigate} />
+  </div>
 </div>

@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
-  import { authParams, viewMode, activeModal, activeView } from './store.js';
+  import { authParams, viewMode, activeModal, activeView, deduplicateEnabled } from './store.js';
+  import { deduplicateTracks } from './deduplicate.js';
   import TrackList from './TrackList.svelte';
   import ArtistList from './ArtistList.svelte';
   import Modal from './Modal.svelte';
@@ -30,7 +31,7 @@
       const data = await response.json();
       const searchResult = data['subsonic-response']?.searchResult3 || {};
       
-      if (category === 'tracks') items = searchResult.song || [];
+      if (category === 'tracks') items = $deduplicateEnabled ? deduplicateTracks(searchResult.song || []) : (searchResult.song || []);
       else if (category === 'artists') items = searchResult.artist || [];
       else if (category === 'albums') items = searchResult.album || [];
     } catch (e) {

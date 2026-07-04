@@ -1,7 +1,8 @@
 <script>
   import { untrack } from 'svelte';
-  import { authParams, viewMode } from './store.js';
+  import { authParams, viewMode, deduplicateEnabled } from './store.js';
   import { getArtistImageUrl } from './utils.js';
+  import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
   import TrackList from './TrackList.svelte';
 
   const { artistId, onnavigate } = $props();
@@ -13,6 +14,7 @@
   let allTracks = $state([]);
   let allTracksOffset = $state(0);
   let allTracksHasMore = $state(false);
+  let seenKeys = new Map();
   let isLoading = $state(true);
 
   /**
@@ -50,25 +52,42 @@
   async function loadAllTracks(append = false) {
     if (!append) {
         allTracksOffset = 0;
-        allTracksHasMore = false;
+        allTracksHasMore = true;
+        seenKeys = new Map();
     }
-    const count = append ? 100 : 25;
+    const pageSize = append ? 100 : 25;
     const durationFilter = $viewMode === 'sets' ? 'minDuration=10' : 'maxDuration=10';
+    
+    let currentBatch = [];
     try {
-      const response = await fetch(`/rest/getSpotifyTracks?artistId=${artistId}&offset=${allTracksOffset}&count=${count}&${durationFilter}&sort=recent&${$authParams}`);
-      const data = await response.json();
-      const tracksNode = data['subsonic-response']?.tracks;
-      const result = tracksNode?.track || [];
-      const newTracks = Array.isArray(result) ? result : [result];
+      while (currentBatch.length < pageSize && allTracksHasMore) {
+        let url = `/rest/getSpotifyTracks?artistId=${artistId}&offset=${allTracksOffset}&count=${pageSize}&${durationFilter}&sort=recent&${$authParams}`;
+        if ($deduplicateEnabled) url += `&deduplicate=true`;
+        const response = await fetch(url);
+        const data = await response.json();
+        const tracksNode = data['subsonic-response']?.tracks;
+        const result = tracksNode?.track || [];
+        const newTracks = Array.isArray(result) ? result : [result];
 
-      if (append) {
-          allTracks = [...allTracks, ...newTracks];
-      } else {
-          allTracks = newTracks;
+        const deduped = $deduplicateEnabled ? deduplicateTracks(newTracks, seenKeys) : newTracks;
+        if ($deduplicateEnabled) {
+          for (const track of deduped) {
+            seenKeys.set(getDeduplicateKey(track), track);
+          }
+        }
+
+        currentBatch.push(...deduped);
+        allTracksHasMore = tracksNode?.moreResults === true || tracksNode?.moreResults === "true";
+        allTracksOffset = tracksNode?.nextOffset !== undefined ? tracksNode.nextOffset : (allTracksOffset + newTracks.length);
+
+        if (!allTracksHasMore || currentBatch.length >= pageSize) break;
       }
 
-      allTracksOffset += newTracks.length;
-      allTracksHasMore = tracksNode?.moreResults === true || tracksNode?.moreResults === "true";
+      if (append) {
+          allTracks = [...allTracks, ...currentBatch];
+      } else {
+          allTracks = currentBatch;
+      }
     } catch (e) {
       console.error(e);
     }

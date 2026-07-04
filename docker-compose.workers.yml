@@ -38,6 +38,7 @@ services:
       telegram_api_hash: "${telegram_api_hash}"
       telegram_session: ${telegram_session}
       DB_HOST: ${DB_HOST}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
       DB_PORT: ${DB_PORT}
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
@@ -90,6 +91,7 @@ services:
       telegram_api_hash: "${telegram_api_hash}"
       telegram_session: ${telegram_session}
       DB_HOST: ${DB_HOST}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
       DB_PORT: ${DB_PORT}
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
@@ -144,6 +146,7 @@ services:
       telegram_api_hash: "${telegram_api_hash}"
       telegram_session: ${telegram_session}
       DB_HOST: ${DB_HOST}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
       DB_PORT: ${DB_PORT}
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
@@ -195,6 +198,7 @@ services:
       telegram_api_hash: "${telegram_api_hash}"
       telegram_session: ${telegram_session}
       DB_HOST: ${DB_HOST}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
       DB_PORT: ${DB_PORT}
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
@@ -237,6 +241,7 @@ services:
       telegram_session: ${telegram_session}
       telegram_accounts: "${telegram_accounts}" 
       DB_HOST: ${DB_HOST}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
       DB_PORT: ${DB_PORT}
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
@@ -272,6 +277,7 @@ services:
       eps_folder_path: ${eps_folder_path}
       music_folder_path: ${music_folder_path}
       DB_HOST: ${DB_HOST}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
       DB_PORT: ${DB_PORT}
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
@@ -303,6 +309,7 @@ services:
       delimiter: "${delimiter}"
       music_folder_path: ${music_folder_path}
       DB_HOST: ${DB_HOST}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
       DB_PORT: ${DB_PORT}
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}

@@ -51,6 +51,7 @@ def startup_db():
                         username VARCHAR(255) UNIQUE NOT NULL,
                         display_name VARCHAR(255),
                         password_hash VARCHAR(255),
+                        api_key VARCHAR(255),
                         lms_user_id VARCHAR(255),
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
@@ -59,6 +60,11 @@ def startup_db():
                 cursor.execute("SHOW COLUMNS FROM users LIKE 'password_hash'")
                 if not cursor.fetchone():
                     cursor.execute("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) AFTER display_name")
+                
+                # Add api_key if it doesn't exist
+                cursor.execute("SHOW COLUMNS FROM users LIKE 'api_key'")
+                if not cursor.fetchone():
+                    cursor.execute("ALTER TABLE users ADD COLUMN api_key VARCHAR(255) AFTER password_hash")
                 # ListenBrainz accounts
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS user_listenbrainz_accounts (
@@ -79,10 +85,12 @@ class UserCreate(BaseModel):
     username: str
     display_name: Optional[str] = None
     lms_user_id: Optional[str] = None
+    api_key: Optional[str] = None
 
 class UserUpdate(BaseModel):
     display_name: Optional[str] = None
     lms_user_id: Optional[str] = None
+    api_key: Optional[str] = None
 
 class LBAccountUpdate(BaseModel):
     lb_username: str
@@ -98,6 +106,29 @@ async def version(api_key: str = Depends(verify_api_key)):
 @app.get("/release-notes")
 async def release_notes(api_key: str = Depends(verify_api_key)):
     return {"notes": get_release_notes("services/user-service/RELEASE_NOTES.md")}
+
+@app.get("/auth/verify")
+async def verify_token(x_api_key: str = Header(None)):
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="Missing API Key")
+    
+    # 1. Check system-wide key
+    if API_KEY and x_api_key == API_KEY:
+        return {"status": "ok", "type": "system"}
+    
+    # 2. Check user-specific keys
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT id, username, display_name FROM users WHERE api_key = %s", (x_api_key,))
+                user = cursor.fetchone()
+                if user:
+                    return {"status": "ok", "type": "user", "user": user}
+        finally:
+            conn.close()
+            
+    raise HTTPException(status_code=403, detail="Invalid API Key")
 
 @app.get("/users")
 async def get_users(api_key: str = Depends(verify_api_key)):
@@ -119,13 +150,43 @@ async def create_user(user: UserCreate, api_key: str = Depends(verify_api_key)):
     try:
         with conn.cursor() as cursor:
             cursor.execute(
-                "INSERT INTO users (username, display_name, lms_user_id) VALUES (%s, %s, %s)",
-                (user.username, user.display_name, user.lms_user_id)
+                "INSERT INTO users (username, display_name, lms_user_id, api_key) VALUES (%s, %s, %s, %s)",
+                (user.username, user.display_name, user.lms_user_id, user.api_key)
             )
             conn.commit()
             return {"id": cursor.lastrowid, "username": user.username}
     except pymysql.err.IntegrityError:
         raise HTTPException(status_code=400, detail="Username already exists")
+    finally:
+        conn.close()
+
+@app.put("/users/{user_id}")
+async def update_user(user_id: int, user_data: UserUpdate, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        with conn.cursor() as cursor:
+            fields = []
+            values = []
+            if user_data.display_name is not None:
+                fields.append("display_name = %s")
+                values.append(user_data.display_name)
+            if user_data.lms_user_id is not None:
+                fields.append("lms_user_id = %s")
+                values.append(user_data.lms_user_id)
+            if user_data.api_key is not None:
+                fields.append("api_key = %s")
+                values.append(user_data.api_key)
+            
+            if not fields:
+                return {"status": "no changes"}
+            
+            query = f"UPDATE users SET {', '.join(fields)} WHERE id = %s"
+            values.append(user_id)
+            cursor.execute(query, tuple(values))
+            conn.commit()
+            return {"status": "updated"}
     finally:
         conn.close()
 

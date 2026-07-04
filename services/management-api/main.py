@@ -34,7 +34,28 @@ RATING_API_KEY = os.getenv("RATING_API_KEY", LMS_API_KEY)
 SCROBBLE_API_KEY = os.getenv("SCROBBLE_API_KEY", LMS_API_KEY)
 USER_API_KEY = os.getenv("USER_API_KEY", LMS_API_KEY)
 
+AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://muma-user-service:8001")
+
 async def verify_api_key(x_api_key: Optional[str] = Header(None)):
+    if not x_api_key:
+        if API_KEY:
+            raise HTTPException(status_code=401, detail="Missing API key")
+        return
+
+    # 1. Check master key
+    if API_KEY and x_api_key == API_KEY:
+        return
+
+    # 2. Check via auth service if available
+    if AUTH_SERVICE_URL:
+        try:
+            resp = requests.get(f"{AUTH_SERVICE_URL}/auth/verify", headers={"X-API-Key": x_api_key}, timeout=2.0)
+            if resp.status_code == 200:
+                return
+        except Exception as e:
+            print(f"Auth service error: {e}")
+            pass
+
     if API_KEY and x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid API key")
 

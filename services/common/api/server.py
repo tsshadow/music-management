@@ -54,9 +54,33 @@ logging.warning = lambda msg, *a, **k: _log(logging.WARNING, msg, *a, **k)
 logging.error = lambda msg, *a, **k: _log(logging.ERROR, msg, *a, **k)
 logging.exception = _exception
 API_KEY = os.getenv('API_KEY')
+AUTH_SERVICE_URL = os.getenv('AUTH_SERVICE_URL')
 
 def verify_api_key(x_api_key: Optional[str]=Header(default=None)) -> None:
-    """Simple optional API key check."""
+    """Enhanced API key check via optional central auth service."""
+    if not x_api_key:
+        if API_KEY:
+            raise HTTPException(status_code=401, detail='Missing API key')
+        return
+
+    # 1. Local check (performance/fallback)
+    if API_KEY and x_api_key == API_KEY:
+        return
+
+    # 2. Central check if configured
+    if AUTH_SERVICE_URL:
+        import requests
+        try:
+            # We call the user-service to verify the token
+            resp = requests.get(f'{AUTH_SERVICE_URL}/auth/verify', headers={'X-API-Key': x_api_key}, timeout=2.0)
+            if resp.status_code == 200:
+                return
+        except Exception as e:
+            logging.error(f'Auth service error: {e}')
+            # If service is unreachable, we fall back to the local API_KEY check
+            pass
+    
+    # Final check
     if API_KEY and x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail='Invalid API key')
 default_origins = 'http://192.168.1.27:8001,http://192.168.1.27:3000,https://music-management.teunschriks.nl,https://lms.teunschriks.nl,https://lms-alpha.teunschriks.nl'

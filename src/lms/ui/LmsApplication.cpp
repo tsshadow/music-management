@@ -207,7 +207,7 @@ namespace lms::ui
         , _authBackend{ authBackend }
         , _areDownloadsEnabled(core::Service<core::IConfig>::get()->getBool("ui-allow-downloads", true))
     {
-        LMS_LOG(UI, WARNING, "LmsApplication (C++ Wt interface) is now considered legacy. Use the modern Spotify-like UI for the best experience.");
+        LMS_LOG(UI, WARNING, "LmsApplication (C++ Wt interface) is now considered legacy. Use the modern MuMaFi interface for the best experience.");
         try
         {
             init();

@@ -5,7 +5,7 @@ This is particularly useful if you want to write ratings back to the audio file 
 
 ## How it works
 
-When a user sets a rating for a track (via the Spotify UI, Subsonic API, or any other interface), the `MusicManagement` feedback backend catches the event and forwards it to a configured webhook.
+When a user sets a rating for a track (via the MuMaFi interface, Subsonic API, or any other interface), the `MusicManagement` feedback backend catches the event and forwards it to a configured webhook.
 
 ## Configuration
 

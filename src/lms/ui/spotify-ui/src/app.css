@@ -4,10 +4,10 @@
   --color-brand-green: #1db954;
   --color-brand-blue: #2d5afc;
   --color-brand: var(--brand-color, #1db954);
-  --color-spotify-black: #191414;
-  --color-spotify-dark: #121212;
-  --color-spotify-light: #282828;
-  --color-spotify-text: #b3b3b3;
+  --color-mumafi-black: #191414;
+  --color-mumafi-dark: #121212;
+  --color-mumafi-light: #282828;
+  --color-mumafi-text: #b3b3b3;
 }
 
 :root {
@@ -22,7 +22,7 @@
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  @apply bg-spotify-black text-white;
+  @apply bg-mumafi-black text-white;
 }
 
 /* Improved focus styles for TV remote navigation */

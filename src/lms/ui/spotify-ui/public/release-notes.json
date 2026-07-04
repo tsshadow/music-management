@@ -4,6 +4,7 @@
     "date": "2026-07-04",
     "notes": {
       "Added": [
+        "Rebranded the web interface to MuMaFi with Spotify-inspired styling.",
         "New update notification system with a dedicated release notes modal.",
         "Persistent version history and release notes in the 'About' settings section."
       ]

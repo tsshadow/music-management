@@ -1,8 +1,9 @@
 openapi: 3.0.3
 info:
-  title: LMS Subsonic API
+  title: MuMaFi (LMS Subsonic API)
   description: |
-    LMS (Lightweight Music Server) implements a subset of the Subsonic/OpenSubsonic API.
+    MuMaFi (Lightweight MuMa Server) implements a subset of the Subsonic/OpenSubsonic API.
+    MuMa stands for Music Management.
     This documentation covers the endpoints available in LMS.
   version: 3.76.0
 servers:

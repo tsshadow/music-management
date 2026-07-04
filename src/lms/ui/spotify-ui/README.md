@@ -1,6 +1,6 @@
-# LMS Spotify-like UI
+# MuMaFi
 
-This is a modern, responsive web interface for LMS, built with **Svelte** and **Vite**.
+This is a modern, responsive web interface for Lightweight MuMa Server (LMS), built with **Svelte** and **Vite**.
 
 ## Development
 

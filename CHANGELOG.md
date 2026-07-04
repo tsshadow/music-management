@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.77.0] - 2026-07-04
 ### Added
 - Modular build system: split `build_and_publish.sh` into `build.sh`, `publish.sh`, and `deploy.sh`.
+- Build System: Introduced `debug` (default) and `release` modes in `bup` and deployment scripts, with intelligent tagging (`alpha`, `stable`, `latest`).
 - Versioned Docker tagging: images are now tagged with the version from CMake (e.g., `:3.77.0`) plus either `:stable` (if `SERVICE_NAME=lms`) or `:latest` (default).
 - Portainer Webhook support for automated deployments.
 - Automatic Docker group permission handling using `sg docker` re-execution.
@@ -17,11 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `bup` shortcut for the full build and publish pipeline.
 - Registry authentication pre-check in `publish.sh`.
 - **Docker Compose**: Updated `docker-compose.yml` with environment variable support and sensible defaults.
+- **Docker Compose**: Removed explicit `container_name` to prevent naming conflicts and support multiple environments.
 - **Docker Compose**: Updated `docker-compose.yml` with versioned tags, correct service names (`lms`, `lms_alpha`), and optimized `/mnt/` volume paths.
-- **Spotify UI**: Added a new release notes modal and version update notification system.
-- **Spotify UI**: Added a persistent "Release Notes" history in the About section.
-
-### Added
+- **MuMaFi**: Added a new release notes modal and version update notification system.
+- **MuMaFi**: Added a persistent "Release Notes" history in the About section.
+- **Branding**: Renamed project to "Lightweight MuMa Server (LMS)" and the web interface to "MuMaFi".
 - Created `scripts/deploy-stack.sh`, a generalized Docker stack deployment tool supporting Portainer discovery, SSH transfer, and intelligent fallbacks.
 - Support for initial stack creation: the deployment script now automatically creates the stack if it does not exist yet using a local template.
 
@@ -33,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Deployment**: Improved robustness with `base64` template transfer and automated tab-to-space conversion in compose files.
 - **Deployment**: Fixed `.env` parsing to correctly handle trailing comments and whitespace.
 - **Branding**: Updated all repository references to `muma/lms` on GitHub and Docker Hub.
+- **Internal**: Reverted internal C++ and frontend source naming to "Spotify" for developer readability, while maintaining "MuMaFi" branding for user-facing components.
 
 ### Fixed
 - Fixed Docker Hub push denial issues by adding proactive login checks.

@@ -13,7 +13,7 @@
     error = '';
     isLoading = true;
 
-    const params = `u=${encodeURIComponent(username)}&p=${encodeURIComponent(password)}&v=1.12.0&c=spotify-ui&f=json`;
+    const params = `u=${encodeURIComponent(username)}&p=${encodeURIComponent(password)}&v=1.12.0&c=mumafi&f=json`;
     try {
       const response = await fetch(`${window.location.origin}/rest/ping?${params}`);
       const data = await response.json();
@@ -51,7 +51,7 @@
 {#if !$credentials.username}
 <div class="fixed inset-0 w-screen h-screen bg-black/80 flex justify-center items-center z-[1000]">
   <div class="bg-[#282828] p-8 rounded-lg w-[400px] flex flex-col gap-5">
-    <h2 class="m-0">LMS Inloggen</h2>
+    <h2 class="m-0">MuMaFi Inloggen</h2>
     <p class="text-sm">Voer je Subsonic inloggegevens in om muziek te kunnen streamen.</p>
 
     {#if error}

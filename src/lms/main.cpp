@@ -364,7 +364,7 @@ namespace lms
                 if (semiColonPos != std::string::npos)
                     docRoot = docRoot.substr(0, semiColonPos);
 
-                std::filesystem::path filePath = std::filesystem::path(docRoot) / "spotify";
+                std::filesystem::path filePath = std::filesystem::path(docRoot) / "mumafi";
 
                 if (pathInfo.empty() || pathInfo == "/")
                     filePath /= "index.html";
@@ -375,7 +375,7 @@ namespace lms
                 {
                     // Only fallback to index.html if it doesn't look like a static asset request
                     if (!filePath.has_extension() || filePath.extension() == ".html")
-                        filePath = std::filesystem::path(docRoot) / "spotify" / "index.html";
+                        filePath = std::filesystem::path(docRoot) / "mumafi" / "index.html";
                     else
                     {
                         response.setStatus(404);
@@ -592,12 +592,12 @@ namespace lms
             }
 
             spotifyResource = std::make_unique<SpotifyResource>(server.docRoot());
-            server.addResource(spotifyResource.get(), "/spotify");
+            server.addResource(spotifyResource.get(), "/mumafi");
 
-            // Redirect root to spotify
+            // Redirect root to mumafi
             server.addEntryPoint(Wt::EntryPointType::Application, [](const Wt::WEnvironment& env) {
                                      auto app = std::make_unique<Wt::WApplication>(env);
-                                     app->redirect("/spotify/");
+                                     app->redirect("/mumafi/");
                                      return app; }, "/");
 
             // bind UI entry point

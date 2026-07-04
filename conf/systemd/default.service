@@ -1,5 +1,5 @@
 [Unit]
-Description=Lightweight Music Server
+Description=Lightweight MuMa Server (LMS)
 After=network.target
 
 [Service]

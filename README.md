@@ -1,10 +1,12 @@
-# LMS - Lightweight Music Server
+# Lightweight MuMa Server (LMS)
 
 [![Last Release](https://img.shields.io/github/v/release/muma/lms?logo=github&label=latest)](https://github.com/muma/lms/releases)
 
-_LMS_ is a self-hosted music streaming software: access your music collection from anywhere using a web interface!
+Lightweight MuMa Server (LMS) is a self-hosted music streaming software: access your music collection from anywhere using a web interface!
 
-A [demo instance](http://lms-demo.poupon.dev) is available. Note the administration settings are not available.
+`MuMa` stands for **Music Management**.
+
+A [demo instance](http://lms-demo.muma.dev) is available. Note the administration settings are not available.
 
 ## Main features
 * [Subsonic/OpenSubsonic API](SUBSONIC.md) support
@@ -120,7 +122,7 @@ _LMS_ supports lyrics in `lrc` files, `txt` files, and embedded track metadata. 
 
 
 ## User Interfaces
-*   **Spotify-like UI (Recommended)**: A modern, responsive web interface built with Svelte. This is the primary UI for LMS.
+*   **MuMaFi (Recommended)**: A modern, responsive web interface built with Svelte. This is the primary UI for LMS.
 *   **Legacy Web UI**: The original C++ Web Toolkit (Wt) interface. This interface is now considered **legacy** and is maintained for compatibility purposes only. New features may not be implemented here.
 
 ## Installation

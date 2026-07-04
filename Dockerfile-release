@@ -152,7 +152,7 @@ RUN \
 
 ## Release Stage
 FROM		alpine:3.23 AS release
-LABEL		maintainer="Emeric Poupon <itmfr@yahoo.fr>"
+LABEL		maintainer="muma"
 
 ARG	RUNTIME_PACKAGES=" \
 	boost-iostreams \
@@ -191,7 +191,7 @@ USER	${LMS_USER}:${LMS_GROUP}
 
 COPY	--from=build /tmp/fakeroot/ /usr
 COPY	--from=build /tmp/fakeroot/share/lms/lms.conf /etc/lms.conf
-COPY	--from=svelte-build /app/dist /usr/share/lms/docroot/spotify
+COPY	--from=svelte-build /app/dist /usr/share/lms/docroot/mumafi
 
 EXPOSE	5082
 

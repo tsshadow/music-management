@@ -43,7 +43,7 @@ else
 fi
 
 # Ensure both tags and image name are passed to the remote host
-export EXTRA_VARS="LMS_TAG=$LMS_TAG LMS_ALPHA_TAG=$LMS_ALPHA_TAG IMAGE_NAME=$IMAGE_NAME"
+export EXTRA_VARS="LMS_TAG=$LMS_TAG LMS_ALPHA_TAG=$LMS_ALPHA_TAG IMAGE_NAME=$IMAGE_NAME MUSIC_PATH=$MUSIC_PATH DOCKER_DATA_PATH=$DOCKER_DATA_PATH"
 
 # We don't restrict to a single service name by default anymore, 
 # to ensure the whole stack (lms and lms_alpha) is recreated if needed.

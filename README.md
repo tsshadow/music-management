@@ -70,8 +70,8 @@ If you are modifying the code and need to rebuild and redeploy the system:
 
 #### Remote Deployment Options
 You can configure deployment in `.env`:
-1. **Portainer Webhook**: Set `PORTAINER_WEBHOOK_URL`. In Portainer, go to your Stack settings and enable "Service Webhook" to get this URL.
-2. **SSH**: Set `REMOTE_HOST`, `REMOTE_USER`, etc. The script will SSH into the host and run `docker-compose pull && docker-compose up -d`.
+1. **Portainer Webhook**: Set `PORTAINER_WEBHOOK_URL`. In Portainer, go to your Stack settings and enable "Service Webhook" to get this URL. *Note: Webhooks only trigger a redeploy/pull; they do not update environment variables. Manage variables directly in the Portainer Stack UI.*
+2. **SSH**: Set `REMOTE_HOST`, `REMOTE_USER`, etc. The script will SSH into the host and run `docker-compose pull && docker-compose up -d`. This method is better if you want to manage everything via files on the server.
 
 **Tip**: Use `DEPLOY_TARGET_NAME` in `.env` to give your deployment target a friendly name (e.g., "Production Stack") which will be displayed during the deployment process.
 

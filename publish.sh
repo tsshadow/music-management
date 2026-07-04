@@ -136,7 +136,16 @@ push_management() {
     docker push "${DOCKER_USER}/${IMAGE_MANAGEMENT}:${VERSION}"
 }
 
-if [ $# -eq 0 ]; then
+# Filter arguments to remove special flags
+REQUESTED_MODULES=()
+for arg in "$@"; do
+    case $arg in
+        --debug|patch) ;;
+        *) REQUESTED_MODULES+=("$arg") ;;
+    esac
+done
+
+if [ ${#REQUESTED_MODULES[@]} -eq 0 ]; then
     echo "--- Pushing all modules in parallel ---"
     push_ml &
     push_tools &
@@ -150,8 +159,8 @@ if [ $# -eq 0 ]; then
     push_rating &
     wait
 else
-    echo "--- Pushing requested modules: $@ ---"
-    for arg in "$@"; do
+    echo "--- Pushing requested modules: ${REQUESTED_MODULES[*]} ---"
+    for arg in "${REQUESTED_MODULES[@]}"; do
         case $arg in
             ml) push_ml & ;;
             tools) push_tools & ;;
@@ -164,8 +173,6 @@ else
             importer) push_importer & ;;
             rating) push_rating & ;;
             base) push_base & ;;
-            patch) ;; # Handled as version bump, no specific component
-            --debug) ;; # Handled at start
             *) echo "Unknown component: $arg"; exit 1 ;;
         esac
     done

@@ -120,7 +120,16 @@ build_management() {
     docker build --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_MANAGEMENT}:latest" -t "${DOCKER_USER}/${IMAGE_MANAGEMENT}:${VERSION}" -f Dockerfile.management-api .
 }
 
-if [ $# -eq 0 ]; then
+# Filter arguments to remove special flags
+REQUESTED_MODULES=()
+for arg in "$@"; do
+    case $arg in
+        --debug|patch) ;;
+        *) REQUESTED_MODULES+=("$arg") ;;
+    esac
+done
+
+if [ ${#REQUESTED_MODULES[@]} -eq 0 ]; then
     echo "--- Building all modules in parallel ---"
     # Group 1: Independent builds
     build_ml &
@@ -140,10 +149,10 @@ if [ $# -eq 0 ]; then
     
     wait
 else
-    echo "--- Building requested modules: $@ ---"
+    echo "--- Building requested modules: ${REQUESTED_MODULES[*]} ---"
     # If base is needed by any of the requested modules, build it once first
     NEED_BASE=false
-    for arg in "$@"; do
+    for arg in "${REQUESTED_MODULES[@]}"; do
         case $arg in
             scanner|tagger|downloader|telegram|importer|rating|mgmt|management) NEED_BASE=true ;;
         esac
@@ -153,7 +162,7 @@ else
         build_base
     fi
 
-    for arg in "$@"; do
+    for arg in "${REQUESTED_MODULES[@]}"; do
         case $arg in
             ml) build_ml & ;;
             tools) build_tools & ;;
@@ -166,8 +175,6 @@ else
             importer) build_importer & ;;
             rating) build_rating & ;;
             base) ;; # Already built if needed
-            patch) ;; # Handled as version bump, no specific component
-            --debug) ;; # Handled at start
             *) echo "Unknown component: $arg"; exit 1 ;;
         esac
     done

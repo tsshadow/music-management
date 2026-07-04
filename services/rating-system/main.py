@@ -44,7 +44,7 @@ def startup_db():
         try:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS track_ratings (
+                    CREATE TABLE IF NOT EXISTS rating_tracks (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         entity_type VARCHAR(50) NOT NULL,
                         entity_id VARCHAR(255) NOT NULL,
@@ -126,14 +126,14 @@ def set_rating(rating: Rating):
     try:
         with conn.cursor() as cursor:
             sql = """
-                INSERT INTO track_ratings (entity_type, entity_id, username, rating)
+                INSERT INTO rating_tracks (entity_type, entity_id, username, rating)
                 VALUES (%s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE rating = VALUES(rating)
             """
             cursor.execute(sql, (rating.entity_type, rating.entity_id, rating.username, rating.rating))
             conn.commit()
             
-            cursor.execute("SELECT * FROM track_ratings WHERE entity_type = %s AND entity_id = %s AND username = %s",
+            cursor.execute("SELECT * FROM rating_tracks WHERE entity_type = %s AND entity_id = %s AND username = %s",
                            (rating.entity_type, rating.entity_id, rating.username))
             return cursor.fetchone()
     finally:
@@ -147,7 +147,7 @@ def get_ratings(entity_type: str, entity_id: str):
     
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT * FROM track_ratings WHERE entity_type = %s AND entity_id = %s", (entity_type, entity_id))
+            cursor.execute("SELECT * FROM rating_tracks WHERE entity_type = %s AND entity_id = %s", (entity_type, entity_id))
             return cursor.fetchall()
     finally:
         conn.close()
@@ -161,9 +161,9 @@ def get_user_ratings(username: str, entity_type: Optional[str] = None):
     try:
         with conn.cursor() as cursor:
             if entity_type:
-                cursor.execute("SELECT * FROM track_ratings WHERE username = %s AND entity_type = %s", (username, entity_type))
+                cursor.execute("SELECT * FROM rating_tracks WHERE username = %s AND entity_type = %s", (username, entity_type))
             else:
-                cursor.execute("SELECT * FROM track_ratings WHERE username = %s", (username,))
+                cursor.execute("SELECT * FROM rating_tracks WHERE username = %s", (username,))
             return cursor.fetchall()
     finally:
         conn.close()
@@ -177,7 +177,7 @@ def get_updates(since: datetime = Query(...), entity_type: Optional[str] = None)
     
     try:
         with conn.cursor() as cursor:
-            sql = "SELECT * FROM track_ratings WHERE updated_at > %s"
+            sql = "SELECT * FROM rating_tracks WHERE updated_at > %s"
             params = [since]
             if entity_type:
                 sql += " AND entity_type = %s"

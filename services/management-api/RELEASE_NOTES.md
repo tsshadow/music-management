@@ -1,7 +1,8 @@
 # Release Notes - Control Center (Management API)
 
 ## Version 2.1.13 (2026-07-04)
-### 🍏 UI Focus & Interaction
+### 🍏 UI Focus & Rating System
+- **Database Alignment**: Renamed `track_ratings` to `rating_tracks` in the Rating System to match the service structure.
 - **Global Focus Styles**: Implemented a global override for focus-visible states to ensure consistent Spotify Green accents and no blue outlines.
 - **Improved Selection Color**: Verified selection background matches the theme on all browsers.
 

@@ -13,7 +13,7 @@ load_dotenv()
 
 app = FastAPI(title="Muma User Service")
 
-API_KEY = os.getenv("API_KEY", "Tarnish-Trespass-Dorsal-Sanding-Epilepsy-Unsavory9")
+API_KEY = os.getenv("API_KEY", "453ecd33-3cb2-4ca4-a531-1677330bbaee")
 
 async def verify_api_key(x_api_key: str = Header(None)):
     if API_KEY and x_api_key != API_KEY:
@@ -222,7 +222,7 @@ def run_lms_sync():
 
             # 1. Try to trigger Lightweight Music Server sync (Subsonic API with X-API-Key)
             try:
-                sync_url = f"{host}/rest/syncUsers?v=1.16.1&c=muma-user-service&f=json"
+                sync_url = f"{host}/rest/syncUsers?v=1.16.1&c=muma-user-service&f=json&apiKey={API_KEY}"
                 headers = {"X-API-Key": API_KEY}
                 sync_resp = requests.get(sync_url, headers=headers, timeout=2.0)
                 if sync_resp.status_code == 200:

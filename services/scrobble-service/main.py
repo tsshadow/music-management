@@ -14,7 +14,7 @@ load_dotenv()
 
 app = FastAPI(title="Muma Scrobble Service")
 
-API_KEY = os.getenv("API_KEY", "Tarnish-Trespass-Dorsal-Sanding-Epilepsy-Unsavory9")
+API_KEY = os.getenv("API_KEY", "453ecd33-3cb2-4ca4-a531-1677330bbaee")
 
 async def verify_api_key(x_api_key: str = Header(None)):
     if API_KEY and x_api_key != API_KEY:

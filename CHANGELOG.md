@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.26] - 2026-07-04
+### Fixed
+- **LMS Sync**: Authenticatieprobleem met de LMS Subsonic API opgelost door de `apiKey` parameter expliciet toe te voegen aan de sync-URL.
+
 ## [2.1.25] - 2026-07-04
 ### Fixed
 - **API Security**: Inconsistenties in API-sleutels tussen microservices en het Control Center opgelost in Docker Compose configuraties.

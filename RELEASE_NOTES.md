@@ -12,6 +12,10 @@ This project is now modularized. Detailed release notes for each module can be f
 - [Scrobble Service](services/scrobble-service/RELEASE_NOTES.md)
 - [User Service](services/user-service/RELEASE_NOTES.md)
 
+## Global Version 2.1.26 (2026-07-04)
+### 🐛 Bugfixes & LMS Connectivity
+- **Subsonic API Auth**: Fixed an authentication failure when syncing users with LMS. The system now correctly passes the `apiKey` as a query parameter, satisfying LMS security requirements.
+
 ## Global Version 2.1.25 (2026-07-04)
 ### 🔒 Security & LMS Integration
 - **API Key Alignment**: Fixed a configuration issue where microservices were receiving inconsistent API keys. Now, `user-service`, `rating-system`, and `scrobble-service` correctly use their dedicated keys.

@@ -11,7 +11,7 @@ class AppSettings(BaseSettings):
     app_name: str = 'Scrobbler'
     api_prefix: str = '/api/v1'
     db_dsn: str = Field(default='sqlite+aiosqlite:///./scrobbler.db', alias='SCROBBLER_DB_DSN')
-    api_key: str | None = Field(default='Tarnish-Trespass-Dorsal-Sanding-Epilepsy-Unsavory9', alias='API_KEY')
+    api_key: str | None = Field(default='453ecd33-3cb2-4ca4-a531-1677330bbaee', alias='API_KEY')
     log_level: str = Field(default='INFO', alias='SCROBBLER_LOG_LEVEL')
     cors_origins: List[str] = Field(default_factory=list, alias='SCROBBLER_CORS_ORIGINS')
     redis_url: str = Field(default='redis://redis:6379/0', alias='SCROBBLER_REDIS_URL')

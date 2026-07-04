@@ -8,11 +8,11 @@ if [ -f .env ]; then
 fi
 
 # Configuration
-IMAGE_NAME="${IMAGE_NAME:-muma/lms}"
-TAG="${TAG:-alpha}"
-SERVICE_NAME="${SERVICE_NAME:-lms-alpha}"
-TARGET="${DEPLOY_TARGET_NAME:-LMS Stack}"
-DOCKER_COMPOSE_FILE="${REMOTE_STACK_PATH:-docker-compose.yml}"
+IMAGE_NAME="${IMAGE_NAME}"
+TAG="${TAG}"
+SERVICE_NAME="${SERVICE_NAME}"
+TARGET="${DEPLOY_TARGET_NAME}"
+DOCKER_COMPOSE_FILE="${REMOTE_STACK_PATH}"
 
 if [ -n "${PORTAINER_WEBHOOK_URL}" ]; then
     echo "--- Triggering Portainer Webhook for: $TARGET ---"

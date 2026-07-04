@@ -30,8 +30,8 @@ if [ -f .env ]; then
 fi
 
 # Ensure variables are set
-IMAGE_NAME="${IMAGE_NAME:-muma/lms}"
-TAG="${TAG:-alpha}"
+IMAGE_NAME="${IMAGE_NAME}"
+TAG="${TAG}"
 
 echo "Pushing Docker image ${IMAGE_NAME}:${TAG}..."
 docker push "${IMAGE_NAME}:${TAG}"

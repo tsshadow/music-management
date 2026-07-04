@@ -17,8 +17,8 @@ if [ -f .env ]; then
 fi
 
 # Ensure variables are set
-IMAGE_NAME="${IMAGE_NAME:-muma/lms}"
-TAG="${TAG:-alpha}"
+IMAGE_NAME="${IMAGE_NAME}"
+TAG="${TAG}"
 
 echo "Building Docker image ${IMAGE_NAME}:${TAG}..."
 docker build -t "${IMAGE_NAME}:${TAG}" -f Dockerfile-release .

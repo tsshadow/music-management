@@ -38,9 +38,10 @@ fi
 
 # Ensure variables are set
 IMAGE_NAME="${IMAGE_NAME}"
-TAG="${TAG}"
+VERSION=$(grep "project(lms VERSION" CMakeLists.txt | sed 's/.*VERSION \(.*\))/\1/')
 
-echo "Pushing Docker image ${IMAGE_NAME}:${TAG}..."
-docker push "${IMAGE_NAME}:${TAG}"
+echo "Pushing Docker image ${IMAGE_NAME}:latest and ${IMAGE_NAME}:${VERSION}..."
+docker push "${IMAGE_NAME}:latest"
+docker push "${IMAGE_NAME}:${VERSION}"
 
 echo "--- Push process completed ---"

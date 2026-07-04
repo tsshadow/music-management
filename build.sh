@@ -25,7 +25,7 @@ fi
 
 # Ensure variables are set
 IMAGE_NAME="${IMAGE_NAME}"
-TAG="${TAG}"
+VERSION=$(grep "project(lms VERSION" CMakeLists.txt | sed 's/.*VERSION \(.*\))/\1/')
 
-echo "Building Docker image ${IMAGE_NAME}:${TAG}..."
-docker build -t "${IMAGE_NAME}:${TAG}" -f Dockerfile-release .
+echo "Building Docker image ${IMAGE_NAME}:latest and ${IMAGE_NAME}:${VERSION}..."
+docker build -t "${IMAGE_NAME}:latest" -t "${IMAGE_NAME}:${VERSION}" -f Dockerfile-release .

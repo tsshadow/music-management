@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.78.0] - 2026-07-04
+
 ## [3.77.0] - 2026-07-04
 ### Added
 - **Subsonic API**: Added support for token+salt authentication (legacy Subsonic auth) by using the API key as the secret.

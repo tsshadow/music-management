@@ -1,0 +1,79 @@
+version: "3.9"
+
+services:
+  soundcloud-fetcher:
+    image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
+    container_name: muma-soundcloud-fetcher
+    depends_on:
+      - db
+    command: ["python", "tools/soundcloud_fetcher.py"]
+    environment:
+      - PYTHONPATH=/app:/app/services/downloader
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_DB=${DB_DB}
+      - music_folder_path=${music_folder_path}
+    volumes:
+      - ${HOST_DATA_PATH}/importer:/app/data
+      - ${HOST_MUSIC_PATH}:/mnt/music
+      - ${HOST_DATA_PATH}/shared:/shared
+    networks:
+      - music-management_db
+
+  genre-processor:
+    image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
+    container_name: genre-processor
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_DB=${DB_DB}
+    stdin_open: true
+    tty: true
+    networks:
+      - music-management_db
+
+  ml-analyzer:
+    image: ${DOCKER_USER}/${IMAGE_ML}:latest
+    container_name: muma-ml-analyzer
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_DB=${DB_DB}
+      - PYTHONPATH=/app
+    volumes:
+      - ${HOST_MUSIC_PATH}:/mnt/music
+      - ${HOST_DATA_PATH}/shared:/shared
+    networks:
+      - music-management_db
+
+  firefox:
+    image: jlesage/firefox:latest
+    container_name: muma-firefox
+    restart: unless-stopped
+    shm_size: "1gb"
+    environment:
+      TZ: Europe/Amsterdam
+      WEB_AUTHENTICATION: "1"
+      SECURE_CONNECTION: "0"
+      DISABLE_GPU: "1"
+    ports:
+      - "7003:5800"
+    volumes:
+      - ${HOST_DATA_PATH}/firefox:/config
+      - ${HOST_DATA_PATH}/shared:/shared
+    networks:
+      - music-management_db
+
+networks:
+  music-management_db:
+    external: true

@@ -41,6 +41,7 @@ DOCKER_USER="${DOCKER_USER}"
 IMAGE_ML="${IMAGE_ML}"
 IMAGE_TOOLS="${IMAGE_TOOLS}"
 IMAGE_APP="${IMAGE_APP}"
+IMAGE_MANAGEMENT="${IMAGE_MANAGEMENT}"
 VERSION=$(cat VERSION 2>/dev/null || echo "latest")
 
 push_ml() {
@@ -61,16 +62,24 @@ push_app() {
     docker push "${DOCKER_USER}/${IMAGE_APP}:${VERSION}"
 }
 
+push_management() {
+    echo "--- Pushing Management API ($VERSION) ---"
+    docker push "${DOCKER_USER}/${IMAGE_MANAGEMENT}:latest"
+    docker push "${DOCKER_USER}/${IMAGE_MANAGEMENT}:${VERSION}"
+}
+
 if [ $# -eq 0 ]; then
     push_ml
     push_tools
     push_app
+    push_management
 else
     for arg in "$@"; do
         case $arg in
             ml) push_ml ;;
             tools) push_tools ;;
             app) push_app ;;
+            mgmt|management) push_management ;;
             *) echo "Unknown component: $arg"; exit 1 ;;
         esac
     done

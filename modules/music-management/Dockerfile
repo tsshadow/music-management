@@ -18,17 +18,6 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Build and install FFmpeg from source
-ARG FFMPEG_VERSION=6.1.2
-RUN set -eux; \
-    curl -L "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" -o /tmp/ffmpeg.tar.xz; \
-    tar -xJf /tmp/ffmpeg.tar.xz -C /tmp; \
-    cd "/tmp/ffmpeg-${FFMPEG_VERSION}"; \
-    ./configure --prefix=/usr/local --disable-debug --disable-doc --disable-ffplay; \
-    make -j"$(nproc)"; \
-    make install; \
-    rm -rf /tmp/ffmpeg*
-
 # Python dependencies
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
@@ -59,10 +48,15 @@ FROM python:3.13-slim-trixie
 
 WORKDIR /app
 
-# Bring in Python deps and FFmpeg
-COPY --from=builder /usr/local /usr/local
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    libsndfile1 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Bring in application code and built frontend
+# Bring in Python deps and application code
+COPY --from=builder /usr/local /usr/local
 COPY --from=builder /app /app
 
 ARG PORT=8001

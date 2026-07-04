@@ -44,6 +44,7 @@ elif [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
         docker pull tsshadow/music-management-ml:latest
         docker pull tsshadow/music-management-tools:latest
         docker pull tsshadow/music-management:latest
+        docker pull tsshadow/music-management-control:latest
         
         # Note: Individual run commands would go here if needed
     fi

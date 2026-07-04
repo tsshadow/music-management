@@ -1,6 +1,6 @@
-docker-compose.yml
+# docker-compose.yml
 work-context/
-/docker-compose.tools.yml
+# /docker-compose.tools.yml
 /.env
 *.sql
 *.log

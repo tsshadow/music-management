@@ -28,21 +28,22 @@ DOCKER_USER="${DOCKER_USER}"
 IMAGE_ML="${IMAGE_ML}"
 IMAGE_TOOLS="${IMAGE_TOOLS}"
 IMAGE_APP="${IMAGE_APP}"
+VERSION=$(cat VERSION 2>/dev/null || echo "latest")
 
 build_ml() {
-    echo "--- Building ML Analyzer ---"
-    docker build -t "${DOCKER_USER}/${IMAGE_ML}:latest" -f services/ml-analyzer/Dockerfile services/ml-analyzer/
+    echo "--- Building ML Analyzer ($VERSION) ---"
+    docker build -t "${DOCKER_USER}/${IMAGE_ML}:latest" -t "${DOCKER_USER}/${IMAGE_ML}:${VERSION}" -f services/ml-analyzer/Dockerfile services/ml-analyzer/
 }
 
 build_tools() {
-    echo "--- Building Tools ---"
-    docker build -t "${DOCKER_USER}/${IMAGE_TOOLS}:latest" -f Dockerfile.tools .
+    echo "--- Building Tools ($VERSION) ---"
+    docker build -t "${DOCKER_USER}/${IMAGE_TOOLS}:latest" -t "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}" -f Dockerfile.tools .
 }
 
 build_app() {
-    echo "--- Building Main Application (Music Management) ---"
+    echo "--- Building Main Application ($VERSION) ---"
     echo "Note: This build might take a while and requires a stable internet connection for pnpm install."
-    docker build -t "${DOCKER_USER}/${IMAGE_APP}:latest" -f Dockerfile.music-management .
+    docker build -t "${DOCKER_USER}/${IMAGE_APP}:latest" -t "${DOCKER_USER}/${IMAGE_APP}:${VERSION}" -f Dockerfile.music-management .
 }
 
 if [ $# -eq 0 ]; then

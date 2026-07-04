@@ -77,30 +77,33 @@ def handle_lms_event(event: LMSEvent):
     
     # If it's a track and we have a path, try to find the muma track_uid
     if event.object_type == "track" and event.path:
-        # Strip potential /music/ prefix from LMS
+        # Normalize path by stripping known prefixes
         clean_path = event.path
-        if clean_path.startswith("/music/"):
-            clean_path = clean_path[len("/music/"):]
-            print(f"Cleaned path: {clean_path}")
+        for p in ["/music/", "/mnt/music/"]:
+            if clean_path.startswith(p):
+                clean_path = clean_path[len(p):]
+                break
+        
+        possible_paths = [event.path, clean_path, f"/music/{clean_path}", f"/mnt/music/{clean_path}"]
 
         conn = get_db_connection()
         if conn:
             try:
                 with conn.cursor() as cursor:
-                    # Look up track_uid by path
-                    # Try both absolute and relative (without /music/) paths
-                    cursor.execute("""
+                    # Look up track_uid by trying various path combinations
+                    sql = """
                         SELECT t.track_uid 
                         FROM library_media_files f
                         JOIN library_tracks t ON f.track_id = t.id
-                        WHERE f.file_path = %s OR f.file_path = %s
-                    """, (event.path, clean_path))
+                        WHERE f.file_path IN (%s, %s, %s, %s)
+                    """
+                    cursor.execute(sql, tuple(possible_paths))
                     row = cursor.fetchone()
                     if row:
                         entity_id = row['track_uid']
                         print(f"Resolved path to track_uid {entity_id}")
                     else:
-                        print(f"Could not resolve path {clean_path} in database")
+                        print(f"Could not resolve path {event.path} in database (tried {possible_paths})")
             finally:
                 conn.close()
 

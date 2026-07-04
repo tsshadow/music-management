@@ -246,6 +246,7 @@ namespace lms::api::subsonic
             { "/updateUser", { handleUpdateUserRequest } },
             { "/deleteUser", { handleDeleteUserRequest, AuthenticationMode::Authenticated, { db::UserType::ADMIN } } },
             { "/changePassword", { handleChangePassword } },
+            { "/syncUsers", { handleSyncUsersRequest, AuthenticationMode::Authenticated, { db::UserType::ADMIN } } },
 
             // Bookmarks
             { "/getBookmarks", { handleGetBookmarks } },

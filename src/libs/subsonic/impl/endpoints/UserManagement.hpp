@@ -30,4 +30,5 @@ namespace lms::api::subsonic
     Response handleUpdateUserRequest(RequestContext& context);
     Response handleDeleteUserRequest(RequestContext& context);
     Response handleChangePassword(RequestContext& context);
+    Response handleSyncUsersRequest(RequestContext& context);
 } // namespace lms::api::subsonic

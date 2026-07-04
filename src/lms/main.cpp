@@ -46,6 +46,7 @@
 #include "services/auth/IAuthTokenService.hpp"
 #include "services/auth/IEnvService.hpp"
 #include "services/auth/IPasswordService.hpp"
+#include "services/auth/IUserSynchronizer.hpp"
 #include "services/feedback/IFeedbackService.hpp"
 #include "services/jukebox//IJukeboxService.hpp"
 #include "services/podcast/IPodcastService.hpp"
@@ -530,6 +531,7 @@ namespace lms
 
             const ui::AuthenticationBackend uiAuthenticationBackend{ getUIAuthenticationBackend() };
             core::Service<auth::IAuthTokenService> authTokenService{ auth::createAuthTokenService(*database, config->getULong("login-throttler-max-entriees", 10'000)) };
+            core::Service<auth::IUserSynchronizer> userSynchronizer{ auth::createUserSynchronizer(ioContext, *database) };
             core::Service<auth::IPasswordService> authPasswordService;
             core::Service<auth::IEnvService> authEnvService;
 
@@ -555,6 +557,8 @@ namespace lms
                 authEnvService.assign(auth::createEnvService("http-headers", *database));
                 break;
             }
+
+            userSynchronizer->syncUsers();
 
             image::init(argv[0]);
             core::Service<artwork::IArtworkService> artworkService{ artwork::createArtworkService(*database, server.appRoot() + "/images/unknown-cover.svg", server.appRoot() + "/images/unknown-artist.svg") };

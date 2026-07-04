@@ -25,6 +25,7 @@
 #include "database/objects/User.hpp"
 #include "services/auth/IAuthTokenService.hpp"
 #include "services/auth/IPasswordService.hpp"
+#include "services/auth/IUserSynchronizer.hpp"
 
 #include "ParameterParsing.hpp"
 #include "responses/User.hpp"
@@ -165,6 +166,17 @@ namespace lms::api::subsonic
                 core::Service<auth::IAuthTokenService>::get()->clearAuthTokens("ui", user->getId());
             }
         }
+
+        return Response::createOkResponse(context.getServerProtocolVersion());
+    }
+
+    Response handleSyncUsersRequest(RequestContext& context)
+    {
+        if (!context.getUser()->isAdmin())
+            throw UserNotAuthorizedError{};
+
+        if (auto* userSynchronizer{ core::Service<auth::IUserSynchronizer>::get() })
+            userSynchronizer->syncUsers();
 
         return Response::createOkResponse(context.getServerProtocolVersion());
     }

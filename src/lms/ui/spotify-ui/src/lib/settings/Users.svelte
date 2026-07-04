@@ -78,10 +78,30 @@
     showCreateModal = false;
     loadUsers();
   }
+
+  /**
+   * Synchronizes users from the external MusicManagement service.
+   */
+  async function syncUsers() {
+    try {
+      await fetch(`/rest/syncUsers?${$authParams}`);
+      loadUsers();
+    } catch (e) {
+      console.error('Failed to sync users:', e);
+    }
+  }
 </script>
 
 <section>
-  <h3 class="text-2xl font-bold mb-6 text-white">Users</h3>
+  <div class="flex justify-between items-center mb-6">
+    <h3 class="text-2xl font-bold text-white">Users</h3>
+    <button
+        onclick={syncUsers}
+        class="bg-[#1db954] hover:bg-[#1ed760] text-black px-4 py-2 rounded-full text-sm font-bold transition-colors cursor-pointer border-none shadow-md hover:scale-105 active:scale-95"
+    >
+        Synch
+    </button>
+  </div>
 
   {#if isLoading && users.length === 0}
     <div class="text-[#b3b3b3]">Laden...</div>

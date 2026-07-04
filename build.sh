@@ -31,5 +31,12 @@ fi
 IMAGE_NAME="${IMAGE_NAME}"
 VERSION=$(grep "project(lms VERSION" CMakeLists.txt | sed 's/.*VERSION \(.*\))/\1/')
 
-echo "Building Docker image ${IMAGE_NAME}:latest and ${IMAGE_NAME}:${VERSION}..."
-docker build -t "${IMAGE_NAME}:latest" -t "${IMAGE_NAME}:${VERSION}" -f Dockerfile-release .
+# Determine additional tag based on service name
+if [ "$SERVICE_NAME" == "lms" ]; then
+    ADDITIONAL_TAG="stable"
+else
+    ADDITIONAL_TAG="latest"
+fi
+
+echo "Building Docker image ${IMAGE_NAME}:${ADDITIONAL_TAG} and ${IMAGE_NAME}:${VERSION}..."
+docker build -t "${IMAGE_NAME}:${ADDITIONAL_TAG}" -t "${IMAGE_NAME}:${VERSION}" -f Dockerfile-release .

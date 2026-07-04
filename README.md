@@ -1,6 +1,6 @@
 # LMS - Lightweight Music Server
 
-[![Last Release](https://img.shields.io/github/v/release/epoupon/lms?logo=github&label=latest)](https://github.com/epoupon/lms/releases)
+[![Last Release](https://img.shields.io/github/v/release/muma/lms?logo=github&label=latest)](https://github.com/muma/lms/releases)
 
 _LMS_ is a self-hosted music streaming software: access your music collection from anywhere using a web interface!
 
@@ -149,6 +149,6 @@ Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to set up yo
 Refer to [CODE_QUALITY.md](CODE_QUALITY.md) for our code quality and testing standards.
 
 Any feedback is welcome:
-* feel free to participate in [discussions](https://github.com/epoupon/lms/discussions) if you have questions,
-* report any bug or request for new features in the [issue tracker](https://github.com/epoupon/lms/issues),
+* feel free to participate in [discussions](https://github.com/muma/lms/discussions) if you have questions,
+* report any bug or request for new features in the [issue tracker](https://github.com/muma/lms/issues),
 * submit your pull requests based on the [develop](../../tree/develop) branch.

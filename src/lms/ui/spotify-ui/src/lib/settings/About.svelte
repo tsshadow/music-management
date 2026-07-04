@@ -76,8 +76,8 @@
     {/if}
 
     <div class="mt-6 flex gap-4">
-        <a href="https://github.com/epoupon/lms" target="_blank" class="text-white font-bold hover:underline">GitHub</a>
-        <a href="https://github.com/epoupon/lms/wiki" target="_blank" class="text-white font-bold hover:underline">Documentation</a>
+        <a href="https://github.com/muma/lms" target="_blank" class="text-white font-bold hover:underline">GitHub</a>
+        <a href="https://github.com/muma/lms/wiki" target="_blank" class="text-white font-bold hover:underline">Documentation</a>
         <button class="text-white font-bold hover:underline bg-transparent border-none cursor-pointer p-0">License</button>
     </div>
   </div>

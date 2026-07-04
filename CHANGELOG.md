@@ -10,18 +10,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.77.0] - 2026-07-04
 ### Added
 - Modular build system: split `build_and_publish.sh` into `build.sh`, `publish.sh`, and `deploy.sh`.
-- Versioned Docker tagging: images are now tagged with both `:latest` and the version from CMake (e.g., `:3.77.0`).
+- Versioned Docker tagging: images are now tagged with the version from CMake (e.g., `:3.77.0`) plus either `:stable` (if `SERVICE_NAME=lms`) or `:latest` (default).
 - Portainer Webhook support for automated deployments.
 - Automatic Docker group permission handling using `sg docker` re-execution.
 - Standardized `.env` configuration file for deployment settings.
 - `bup` shortcut for the full build and publish pipeline.
 - Registry authentication pre-check in `publish.sh`.
+- **Docker Compose**: Updated `docker-compose.yml` with environment variable support and sensible defaults.
+- **Docker Compose**: Updated `docker-compose.yml` with versioned tags, correct service names (`lms`, `lms_alpha`), and optimized `/mnt/` volume paths.
 - **Spotify UI**: Added a new release notes modal and version update notification system.
 - **Spotify UI**: Added a persistent "Release Notes" history in the About section.
 
 ### Changed
 - Updated `install.sh` to handle `.env` creation and dependency checks automatically.
 - Unified deployment environment variables (`REMOTE_STACK_PATH`, `DEPLOY_TARGET_NAME`) for multi-repo consistency.
+- **Deployment**: Enhanced `deploy.sh` with a multi-stage discovery mechanism to automatically find Docker Compose configuration files on remote hosts (supporting Portainer hosts and container labels).
+- **Deployment**: Added support for `PORTAINER_HOST` in `.env` to pull stack templates from a master Portainer instance.
+- **Deployment**: Improved `deploy.sh` robustness with `base64` template transfer and automated tab-to-space conversion in compose files.
+- **Deployment**: Optimized `deploy.sh` to prioritize `docker compose` (v2) and include a standalone binary fallback for hosts with broken `docker-compose` installations.
+- **Deployment**: Fixed `.env` parsing to correctly handle trailing comments and whitespace.
+- **Deployment**: Improved `deploy.sh` individual container fallback with environment variable support.
+- **Branding**: Updated all repository references to `muma/lms` on GitHub and Docker Hub.
 
 ### Fixed
 - Fixed Docker Hub push denial issues by adding proactive login checks.

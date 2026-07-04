@@ -1,17 +1,27 @@
 services:
   lms:
-    image: epoupon/lms:latest
+    image: ${IMAGE_NAME:-muma/lms}:${LMS_TAG:-stable}
     container_name: lms
-    restart: unless-stopped
+    expose:
+      - "5082"
     ports:
-      - "5082:5082"
+      - "${LMS_PORT:-80}:5082"
     volumes:
-      - lms_data:/var/lms
-      - /path/to/your/music:/music:ro # Change to your music directory
-      # - ./lms.conf:/etc/lms.conf:ro # Optional: provide your own config
-    environment:
-      - TZ=Europe/Paris # Change to your timezone
-    # user: "1000:1000" # Optional: run as a specific user
-
-volumes:
-  lms_data:
+      - ${MUSIC_PATH:-/mnt/music}:/music
+      - ${DOCKER_DATA_PATH:-/mnt/docker}/lms/usr/local/etc:/usr/local/etc
+      - ${DOCKER_DATA_PATH:-/mnt/docker}/lms/var/lms:/var/lms
+    user: "0:0"
+    restart: unless-stopped
+  lms_alpha:
+    image: ${IMAGE_NAME:-muma/lms}:${LMS_ALPHA_TAG:-latest}
+    container_name: lms_alpha
+    expose:
+      - "5082"
+    ports:
+      - "${LMS_ALPHA_PORT:-8080}:5082"
+    volumes:
+      - ${MUSIC_PATH:-/mnt/music}:/music
+      - ${DOCKER_DATA_PATH:-/mnt/docker}/lms-alpha/usr/local/etc:/usr/local/etc
+      - ${DOCKER_DATA_PATH:-/mnt/docker}/lms-alpha/var/lms:/var/lms
+    user: "0:0"
+    restart: unless-stopped

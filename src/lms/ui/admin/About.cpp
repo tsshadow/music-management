@@ -35,7 +35,7 @@ namespace lms::ui
         aboutModal->addFunction("tr", &Wt::WTemplate::Functions::tr);
 
         aboutModal->bindString("version", std::string{ core::getVersion() }, Wt::TextFormat::Plain);
-        aboutModal->bindString("homepage-link", "https://github.com/epoupon/lms");
+        aboutModal->bindString("homepage-link", "https://github.com/muma/lms");
 
         Wt::WPushButton* okBtn{ aboutModal->bindNew<Wt::WPushButton>("ok-btn", Wt::WString::tr("Lms.ok")) };
         okBtn->clicked().connect([=] {

@@ -44,8 +44,15 @@ fi
 IMAGE_NAME="${IMAGE_NAME}"
 VERSION=$(grep "project(lms VERSION" CMakeLists.txt | sed 's/.*VERSION \(.*\))/\1/')
 
-echo "Pushing Docker image ${IMAGE_NAME}:latest and ${IMAGE_NAME}:${VERSION}..."
-docker push "${IMAGE_NAME}:latest"
+# Determine additional tag based on service name
+if [ "$SERVICE_NAME" == "lms" ]; then
+    ADDITIONAL_TAG="stable"
+else
+    ADDITIONAL_TAG="latest"
+fi
+
+echo "Pushing Docker image ${IMAGE_NAME}:${ADDITIONAL_TAG} and ${IMAGE_NAME}:${VERSION}..."
+docker push "${IMAGE_NAME}:${ADDITIONAL_TAG}"
 docker push "${IMAGE_NAME}:${VERSION}"
 
 echo "--- Push process completed ---"

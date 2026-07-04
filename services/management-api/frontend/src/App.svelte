@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Home, Cloud, Scale, Database, Info, ExternalLink, Plus, RefreshCw, Music, Tag, Trash2, Search } from 'lucide-svelte';
+  import { Home, Cloud, Scale, Database, Info, ExternalLink, Plus, RefreshCw, Music, Tag, Trash2, Search, Radio } from 'lucide-svelte';
 
   let activeTab = 'home';
   let config = { version: '...', phpmyadmin_url: '#' };
@@ -13,6 +13,7 @@
   let labels = [];
   let artistGenreRules = [];
   let labelGenreRules = [];
+  let latestImports = [];
   let loading = true;
   let message = '';
   let error = '';
@@ -20,6 +21,11 @@
   // Form state
   let newAccountName = '';
   let newAccountId = '';
+  
+  // Scrobble Import State
+  let importMumaUser = '';
+  let importLbUser = '';
+  let isImporting = false;
   
   // Editor state
   let artistSearch = '';
@@ -34,13 +40,14 @@
   async function fetchData() {
     loading = true;
     try {
-      const [configRes, notesRes, rulesRes, accountsRes, versionsRes, allNotesRes] = await Promise.all([
+      const [configRes, notesRes, rulesRes, accountsRes, versionsRes, allNotesRes, importsRes] = await Promise.all([
         fetch(`${API_BASE}/api/config`),
         fetch(`${API_BASE}/api/notes`),
         fetch(`${API_BASE}/api/rules`),
         fetch(`${API_BASE}/api/soundcloud`),
         fetch(`${API_BASE}/api/versions`),
-        fetch(`${API_BASE}/api/all-notes`)
+        fetch(`${API_BASE}/api/all-notes`),
+        fetch(`${API_BASE}/api/scrobble/import/latest`)
       ]);
       
       config = await configRes.json();
@@ -49,6 +56,7 @@
       accounts = await accountsRes.json();
       versions = await versionsRes.json();
       allNotes = await allNotesRes.json();
+      latestImports = await importsRes.json();
       
       // Load rules for editor
       fetchRules();
@@ -59,6 +67,44 @@
       console.error(err);
     } finally {
       loading = false;
+    }
+  }
+
+  async function fetchLatestImports() {
+    try {
+      const res = await fetch(`${API_BASE}/api/scrobble/import/latest`);
+      latestImports = await res.json();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function startLbImport() {
+    if (!importMumaUser || !importLbUser) return;
+    isImporting = true;
+    try {
+      const res = await fetch(`${API_BASE}/api/scrobble/import/listenbrainz`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: importMumaUser, lb_username: importLbUser })
+      });
+      if (res.ok) {
+        message = "ListenBrainz import gestart!";
+        fetchLatestImports();
+        // Poll for updates every 3 seconds while active
+        const interval = setInterval(async () => {
+          await fetchLatestImports();
+          const active = latestImports.some(i => i.status === 'running' || i.status === 'pending');
+          if (!active) {
+            clearInterval(interval);
+            isImporting = false;
+          }
+        }, 3000);
+      } else {
+        error = "Kon import niet starten.";
+      }
+    } catch (err) {
+      error = "Netwerkfout bij starten import.";
     }
   }
 
@@ -214,6 +260,12 @@
         class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'editor' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
       >
         <Music size={24} /> Artist-Genre Editor
+      </button>
+      <button 
+        on:click={() => activeTab = 'scrobble'}
+        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'scrobble' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+      >
+        <Radio size={24} /> Scrobble Service
       </button>
       <button 
         on:click={() => activeTab = 'versions'}
@@ -611,6 +663,105 @@
               <li>LMS: <span class="text-white">{versions.lms || 'Niet gedetecteerd'}</span></li>
               <li>Ultrasonic APK: <span class="text-white">{versions.ultrasonic || 'Niet gevonden'}</span></li>
             </ul>
+          </div>
+        </section>
+      {:else if activeTab === 'scrobble'}
+        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+          <header>
+            <h2 class="text-4xl font-extrabold mb-2">📻 Scrobble Service</h2>
+            <p class="text-spotify-lightgray">Beheer luistergeschiedenis en ListenBrainz imports.</p>
+          </header>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Import Form -->
+            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
+              <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
+                <RefreshCw class="text-spotify-green {isImporting ? 'animate-spin' : ''}" /> ListenBrainz Import
+              </h3>
+              <form on:submit|preventDefault={startLbImport} class="space-y-4">
+                <div>
+                  <label for="muma-user" class="block text-sm font-bold text-spotify-lightgray mb-2">MuMa Username</label>
+                  <input 
+                    type="text" 
+                    id="muma-user" 
+                    bind:value={importMumaUser}
+                    placeholder="teun"
+                    class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
+                  />
+                </div>
+                <div>
+                  <label for="lb-user" class="block text-sm font-bold text-spotify-lightgray mb-2">ListenBrainz Username</label>
+                  <input 
+                    type="text" 
+                    id="lb-user" 
+                    bind:value={importLbUser}
+                    placeholder="teunschriks"
+                    class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
+                  />
+                </div>
+                <button 
+                  type="submit" 
+                  disabled={isImporting || !importMumaUser || !importLbUser}
+                  class="w-full bg-spotify-green text-black font-extrabold py-3 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                >
+                  {isImporting ? 'IMPORT BEZIG...' : 'IMPORT STARTEN'}
+                </button>
+              </form>
+            </div>
+
+            <!-- Recent Imports -->
+            <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+              <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex justify-between items-center">
+                Recente Imports
+                <button on:click={fetchLatestImports} class="text-spotify-lightgray hover:text-white transition-colors">
+                  <RefreshCw size={16} />
+                </button>
+              </h3>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                  <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
+                    <tr>
+                      <th class="p-4">User</th>
+                      <th class="p-4">Status</th>
+                      <th class="p-4">Progress</th>
+                      <th class="p-4 text-right">Started</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-spotify-gray divide-opacity-30 text-sm">
+                    {#each latestImports as imp}
+                      <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
+                        <td class="p-4">
+                          <div class="font-bold">{imp.username}</div>
+                          <div class="text-xs text-spotify-lightgray">LB: {imp.lb_username}</div>
+                        </td>
+                        <td class="p-4">
+                          <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase
+                            {imp.status === 'completed' ? 'bg-spotify-green text-black' : 
+                             imp.status === 'running' ? 'bg-blue-500 text-white' : 
+                             imp.status === 'failed' ? 'bg-red-500 text-white' : 'bg-spotify-gray text-white'}">
+                            {imp.status}
+                          </span>
+                        </td>
+                        <td class="p-4">
+                          <div class="w-full bg-spotify-dark rounded-full h-1.5 mb-1">
+                            <div class="bg-spotify-green h-1.5 rounded-full" style="width: {imp.total_found > 0 ? (imp.processed / imp.total_found) * 100 : 0}%"></div>
+                          </div>
+                          <div class="text-[10px] text-spotify-lightgray">{imp.processed} / {imp.total_found}</div>
+                        </td>
+                        <td class="p-4 text-right text-xs text-spotify-lightgray">
+                          {new Date(imp.started_at).toLocaleString()}
+                        </td>
+                      </tr>
+                    {/each}
+                    {#if latestImports.length === 0}
+                      <tr>
+                        <td colspan="4" class="p-8 text-center text-spotify-lightgray italic">Geen import geschiedenis gevonden.</td>
+                      </tr>
+                    {/if}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </section>
       {/if}

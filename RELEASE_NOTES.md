@@ -11,6 +11,13 @@ This project is now modularized. Detailed release notes for each module can be f
 - [Rating System](services/rating-system/RELEASE_NOTES.md)
 - [Scrobble Service](services/scrobble-service/RELEASE_NOTES.md)
 
+## Global Version 2.1.15 (2026-07-04)
+### 📊 Enhanced Scrobble Monitoring
+- **Import Dashboard**: Added a new dedicated tab in the Control Center for the Scrobble Service.
+- **Progress Tracking**: You can now monitor ListenBrainz imports in real-time with progress bars and status updates.
+- **Import History**: View a log of recent imports, including total tracks found and processed.
+- **API Improvements**: Enhanced the Scrobble Service with task tracking and background processing status endpoints.
+
 ## Global Version 2.1.14 (2026-07-04)
 ### 🎧 Introducing Scrobble Service
 - **Listening History**: You can now track your listens directly in MuMa.

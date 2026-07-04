@@ -65,6 +65,20 @@ def startup_db():
                         UNIQUE KEY (username, listened_at, artist_name, track_title)
                     )
                 """)
+                # Import status tracking
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS scrobble_imports (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        username VARCHAR(255) NOT NULL,
+                        lb_username VARCHAR(255) NOT NULL,
+                        status VARCHAR(50) NOT NULL,
+                        total_found INT DEFAULT 0,
+                        processed INT DEFAULT 0,
+                        last_error TEXT,
+                        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        finished_at TIMESTAMP NULL
+                    )
+                """)
             conn.commit()
         finally:
             conn.close()
@@ -147,55 +161,136 @@ def release_notes():
 # ListenBrainz Import Logic
 @app.post("/api/import/listenbrainz")
 def import_listenbrainz(username: str, lb_username: str, background_tasks: BackgroundTasks):
-    background_tasks.add_task(run_listenbrainz_import, username, lb_username)
-    return {"message": "Import started in background"}
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                INSERT INTO scrobble_imports (username, lb_username, status)
+                VALUES (%s, %s, %s)
+            """, (username, lb_username, "pending"))
+            import_id = cursor.lastrowid
+            conn.commit()
+            
+            background_tasks.add_task(run_listenbrainz_import, import_id, username, lb_username)
+            return {"message": "Import started", "import_id": import_id}
+    finally:
+        conn.close()
 
-def run_listenbrainz_import(muma_username: str, lb_username: str):
-    print(f"Starting ListenBrainz import for {lb_username} -> {muma_username}")
+@app.get("/api/import/status/{import_id}")
+def get_import_status(import_id: int):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM scrobble_imports WHERE id = %s", (import_id,))
+            result = cursor.fetchone()
+            if not result:
+                raise HTTPException(status_code=404, detail="Import not found")
+            return result
+    finally:
+        conn.close()
+
+@app.get("/api/import/latest")
+def get_latest_imports(limit: int = 5):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM scrobble_imports ORDER BY started_at DESC LIMIT %s", (limit,))
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+def run_listenbrainz_import(import_id: int, muma_username: str, lb_username: str):
+    print(f"Starting ListenBrainz import #{import_id} for {lb_username} -> {muma_username}")
+    
+    def update_status(status=None, processed=None, total=None, error=None, finished=False):
+        conn = get_db_connection()
+        if not conn: return
+        try:
+            with conn.cursor() as cursor:
+                updates = []
+                params = []
+                if status: updates.append("status = %s"); params.append(status)
+                if processed is not None: updates.append("processed = %s"); params.append(processed)
+                if total is not None: updates.append("total_found = %s"); params.append(total)
+                if error: updates.append("last_error = %s"); params.append(error)
+                if finished: updates.append("finished_at = CURRENT_TIMESTAMP")
+                
+                if updates:
+                    sql = f"UPDATE scrobble_imports SET {', '.join(updates)} WHERE id = %s"
+                    params.append(import_id)
+                    cursor.execute(sql, params)
+                    conn.commit()
+        finally:
+            conn.close()
+
+    update_status(status="running")
+
     url = f"https://api.listenbrainz.org/1/user/{lb_username}/listens"
     params = {"count": 100}
     
-    # Simple loop for now
-    response = requests.get(url, params=params)
-    if response.status_code != 200:
-        print(f"Failed to fetch listens from ListenBrainz: {response.status_code}")
-        return
-    
-    data = response.json()
-    listens = data.get("payload", {}).get("listens", [])
-    
-    conn = get_db_connection()
-    if not conn:
-        return
-        
     try:
-        with conn.cursor() as cursor:
-            for item in listens:
-                metadata = item.get("track_metadata", {})
-                artist_name = metadata.get("artist_name")
-                track_title = metadata.get("track_name")
-                album_name = metadata.get("release_name")
-                info = metadata.get("additional_info", {})
-                mbid_track = info.get("recording_mbid")
-                mbid_artist = info.get("artist_mbids", [None])[0]
-                listened_at = item.get("listened_at")
+        response = requests.get(url, params=params, timeout=30)
+        if response.status_code != 200:
+            update_status(status="failed", error=f"ListenBrainz API error: {response.status_code}", finished=True)
+            return
+        
+        data = response.json()
+        listens = data.get("payload", {}).get("listens", [])
+        total_count = len(listens)
+        update_status(total=total_count)
+        
+        conn = get_db_connection()
+        if not conn:
+            update_status(status="failed", error="Database connection failed during import", finished=True)
+            return
+            
+        try:
+            processed_count = 0
+            with conn.cursor() as cursor:
+                for item in listens:
+                    metadata = item.get("track_metadata", {})
+                    artist_name = metadata.get("artist_name")
+                    track_title = metadata.get("track_name")
+                    album_name = metadata.get("release_name")
+                    info = metadata.get("additional_info", {})
+                    mbid_track = info.get("recording_mbid")
+                    mbid_artist = info.get("artist_mbids", [None])[0]
+                    listened_at = item.get("listened_at")
+                    
+                    track_id = find_track_id(cursor, artist_name, track_title, mbid_track)
+                    ts = datetime.fromtimestamp(listened_at)
+                    
+                    if track_id:
+                        cursor.execute("""
+                            INSERT IGNORE INTO scrobble_listens (track_id, listened_at, username, source, mbid_track)
+                            VALUES (%s, %s, %s, %s, %s)
+                        """, (track_id, ts, muma_username, "listenbrainz_import", mbid_track))
+                    else:
+                        cursor.execute("""
+                            INSERT IGNORE INTO scrobble_unmatched_listens 
+                            (artist_name, track_title, album_name, mbid_track, mbid_artist, listened_at, username, source, data)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """, (artist_name, track_title, album_name, mbid_track, mbid_artist, 
+                              ts, muma_username, "listenbrainz_import", str(item)))
+                    
+                    processed_count += 1
+                    if processed_count % 10 == 0:
+                        update_status(processed=processed_count)
                 
-                track_id = find_track_id(cursor, artist_name, track_title, mbid_track)
-                ts = datetime.fromtimestamp(listened_at)
-                
-                if track_id:
-                    cursor.execute("""
-                        INSERT IGNORE INTO scrobble_listens (track_id, listened_at, username, source, mbid_track)
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, (track_id, ts, muma_username, "listenbrainz_import", mbid_track))
-                else:
-                    cursor.execute("""
-                        INSERT IGNORE INTO scrobble_unmatched_listens 
-                        (artist_name, track_title, album_name, mbid_track, mbid_artist, listened_at, username, source, data)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """, (artist_name, track_title, album_name, mbid_track, mbid_artist, 
-                          ts, muma_username, "listenbrainz_import", str(item)))
-            conn.commit()
-    finally:
-        conn.close()
-    print(f"ListenBrainz import finished for {lb_username}")
+                conn.commit()
+                update_status(status="completed", processed=processed_count, finished=True)
+        finally:
+            conn.close()
+    except Exception as e:
+        update_status(status="failed", error=str(e), finished=True)
+    
+    print(f"ListenBrainz import #{import_id} finished")

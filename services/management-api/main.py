@@ -74,6 +74,10 @@ class LabelGenreRule(BaseModel):
     label_name: str
     genre_id: int
 
+class ListenBrainzImport(BaseModel):
+    username: str
+    lb_username: str
+
 @app.get("/api/config")
 def get_config():
     return {
@@ -329,6 +333,29 @@ def delete_label_genre_rule(rule_id: int):
             return {"status": "success"}
     finally:
         conn.close()
+
+# Scrobble Service Proxy Endpoints
+@app.post("/api/scrobble/import/listenbrainz")
+def proxy_import_listenbrainz(data: ListenBrainzImport):
+    base_url = SERVICES["scrobble-service"]
+    try:
+        response = requests.post(
+            f"{base_url}/api/import/listenbrainz", 
+            params={"username": data.username, "lb_username": data.lb_username},
+            timeout=5.0
+        )
+        return response.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to contact Scrobble Service: {str(e)}")
+
+@app.get("/api/scrobble/import/latest")
+def proxy_latest_imports():
+    base_url = SERVICES["scrobble-service"]
+    try:
+        response = requests.get(f"{base_url}/api/import/latest", timeout=5.0)
+        return response.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to contact Scrobble Service: {str(e)}")
 
 @app.post("/api/soundcloud")
 def add_soundcloud_account(account: SoundCloudAccount):

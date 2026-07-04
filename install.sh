@@ -13,17 +13,13 @@ if ! groups | grep -q "\bdocker\b"; then
 fi
 
 if [ ! -f .env ]; then
-    echo "Creating .env file..."
-    cat <<EOF > .env
-IMAGE_NAME=muma/lms
-TAG=alpha
-REMOTE_HOST=192.0.2.27
-REMOTE_USER=root
-REMOTE_PASS=redacted
-STACK_DIR=/data/compose/24
-SERVICE_NAME=lms-alpha
-EOF
-    echo ".env file created. Please update REMOTE_PASS in .env."
+    echo "Creating .env file from template..."
+    if [ -f .env.example ]; then
+        cp .env.example .env
+        echo ".env file created from .env.example. Please update it with your actual settings."
+    else
+        echo "Warning: .env.example not found, skipping .env creation."
+    fi
 fi
 
 echo "--- Dependencies installed ---"

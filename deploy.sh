@@ -9,8 +9,8 @@ if [ -f .env ]; then
 fi
 
 # Configuration
-TARGET="${DEPLOY_TARGET_NAME:-Music Management Stack}"
-DOCKER_COMPOSE_FILE="${REMOTE_STACK_PATH:-docker-compose.yml}"
+TARGET="${DEPLOY_TARGET_NAME}"
+DOCKER_COMPOSE_FILE="${REMOTE_STACK_PATH}"
 
 if [ -n "${PORTAINER_WEBHOOK_URL}" ]; then
     echo "--- Triggering Portainer Webhook for: $TARGET ---"

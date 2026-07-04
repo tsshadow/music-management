@@ -25,16 +25,26 @@ fi
 
 echo "--- Starting push of containers ---"
 
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
+fi
+
+# Configuration
+DOCKER_USER="${DOCKER_USER}"
+IMAGE_ML="${IMAGE_ML}"
+IMAGE_TOOLS="${IMAGE_TOOLS}"
+IMAGE_APP="${IMAGE_APP}"
+
 push_ml() {
-    docker push tsshadow/music-management-ml:latest
+    docker push "${DOCKER_USER}/${IMAGE_ML}:latest"
 }
 
 push_tools() {
-    docker push tsshadow/music-management-tools:latest
+    docker push "${DOCKER_USER}/${IMAGE_TOOLS}:latest"
 }
 
 push_app() {
-    docker push tsshadow/music-management:latest
+    docker push "${DOCKER_USER}/${IMAGE_APP}:latest"
 }
 
 if [ $# -eq 0 ]; then

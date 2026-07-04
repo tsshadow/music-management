@@ -12,20 +12,30 @@ fi
 
 echo "--- Starting build of containers ---"
 
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
+fi
+
+# Configuration
+DOCKER_USER="${DOCKER_USER}"
+IMAGE_ML="${IMAGE_ML}"
+IMAGE_TOOLS="${IMAGE_TOOLS}"
+IMAGE_APP="${IMAGE_APP}"
+
 build_ml() {
     echo "--- Building ML Analyzer ---"
-    docker build -t tsshadow/music-management-ml:latest -f services/ml-analyzer/Dockerfile services/ml-analyzer/
+    docker build -t "${DOCKER_USER}/${IMAGE_ML}:latest" -f services/ml-analyzer/Dockerfile services/ml-analyzer/
 }
 
 build_tools() {
     echo "--- Building Tools ---"
-    docker build -t tsshadow/music-management-tools:latest -f Dockerfile.tools .
+    docker build -t "${DOCKER_USER}/${IMAGE_TOOLS}:latest" -f Dockerfile.tools .
 }
 
 build_app() {
     echo "--- Building Main Application (Music Management) ---"
     echo "Note: This build might take a while and requires a stable internet connection for pnpm install."
-    docker build -t tsshadow/music-management:latest -f Dockerfile.music-management .
+    docker build -t "${DOCKER_USER}/${IMAGE_APP}:latest" -f Dockerfile.music-management .
 }
 
 if [ $# -eq 0 ]; then

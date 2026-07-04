@@ -1,5 +1,10 @@
 # Release Notes - Control Center (Management API)
 
+## Version 2.1.13 (2026-07-04)
+### 🍏 UI Focus & Interaction
+- **Global Focus Styles**: Implemented a global override for focus-visible states to ensure consistent Spotify Green accents and no blue outlines.
+- **Improved Selection Color**: Verified selection background matches the theme on all browsers.
+
 ## Version 2.1.12 (2026-07-04)
 ### 🎨 Visual Polish & Theme Consistency
 - **Spotify Theme Alignment**: Replaced all remaining non-Spotify colors with the brand's signature green (`#1DB954`).

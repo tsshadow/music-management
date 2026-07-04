@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.15] - 2026-07-04
+### Added
+- **Control Center**: New Scrobble Service dashboard with ListenBrainz import monitoring.
+- **Scrobble Service**: Added `scrobble_imports` table for tracking background task progress.
+- **Scrobble Service**: New endpoints for polling import status and fetching recent history.
+- **Frontend**: Real-time polling for active imports and visual progress bars.
+
 ## [2.1.14] - 2026-07-04
 ### Added
 - **Scrobble Service**: New microservice for tracking listens and importing history from ListenBrainz.

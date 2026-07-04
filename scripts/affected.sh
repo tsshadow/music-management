@@ -30,6 +30,8 @@ MODULE_MAP=(
     "docker/Dockerfile.importer:importer"
     "services/rating-system/:rating"
     "docker/Dockerfile.rating-system:rating"
+    "services/scrobble-service/:scrobble"
+    "Dockerfile.scrobble-service:scrobble"
     "frontend/:app"
     "Dockerfile.music-management:app"
     "tools/:tools"

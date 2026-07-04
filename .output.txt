@@ -1,0 +1,423 @@
+Command timed out after 60s (default timeout applied by the system) and was forcibly terminated by the system. 
+The command did not fail or crash — it was killed because it exceeded the time limit. 
+If your command needs more time, retry the command and use the `timeout` parameter to extend the time limit.
+Command output:
+=== OFFLOADING TO REMOTE LXC ===
+Switching to Docker context: remote-lxc
+remote-lxc
+Current context is now "remote-lxc"
+=== RUNNING IN DEBUG MODE ===
+Copying STYLEGUIDE.md to ~/git/ultrasonic/...
+Debug mode: using tags 'latest', 'unstable' and 'alpha'
+Building Docker image muma/lms:latest and muma/lms:3.78.4...
+#0 building with "remote-lxc" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile-release
+#1 transferring dockerfile:
+#1 transferring dockerfile: 5.55kB done
+#1 DONE 0.2s
+
+#2 [internal] load metadata for docker.io/library/node:24-alpine
+#2 ...
+
+#3 [auth] library/node:pull token for registry-1.docker.io
+#3 DONE 0.0s
+
+#4 [auth] library/alpine:pull token for registry-1.docker.io
+#4 DONE 0.0s
+
+#5 [internal] load metadata for docker.io/library/alpine:3.23
+#5 DONE 0.6s
+
+#2 [internal] load metadata for docker.io/library/node:24-alpine
+#2 DONE 1.2s
+
+#6 [internal] load .dockerignore
+#6 transferring context: 176B done
+#6 DONE 0.0s
+
+#7 [build  1/14] FROM docker.io/library/alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40
+#7 resolve docker.io/library/alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 0.0s done
+#7 CACHED
+
+#8 [svelte-build 1/4] FROM docker.io/library/node:24-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd
+#8 resolve docker.io/library/node:24-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd 0.0s done
+#8 sha256:21af007bacf625b557dda6dbce062088808612be54a955980b3d8efb8ea7d082 448B / 448B 0.1s done
+#8 sha256:57eb903fc7a4b0006b1253f877823b15c51433ccd41a20392812682211c46a6c 0B / 1.26MB 0.2s
+#8 sha256:7e2a5e2761f53b694faaee16c5ad1e400cb41224f693337aac52e74bee3b2f65 0B / 52.52MB 0.2s
+#8 sha256:57eb903fc7a4b0006b1253f877823b15c51433ccd41a20392812682211c46a6c 1.26MB / 1.26MB 0.3s done
+#8 sha256:7e2a5e2761f53b694faaee16c5ad1e400cb41224f693337aac52e74bee3b2f65 5.24MB / 52.52MB 0.6s
+#8 sha256:7e2a5e2761f53b694faaee16c5ad1e400cb41224f693337aac52e74bee3b2f65 8.39MB / 52.52MB 0.8s
+#8 sha256:7e2a5e2761f53b694faaee16c5ad1e400cb41224f693337aac52e74bee3b2f65 12.58MB / 52.52MB 0.9s
+#8 sha256:7e2a5e2761f53b694faaee16c5ad1e400cb41224f693337aac52e74bee3b2f65 17.83MB / 52.52MB 1.2s
+#8 sha256:7e2a5e2761f53b694faaee16c5ad1e400cb41224f693337aac52e74bee3b2f65 20.97MB / 52.52MB 1.4s
+#8 sha256:7e2a5e2761f53b694faaee16c5ad1e400cb41224f693337aac52e74bee3b2f65 25.17MB / 52.52MB 1.5s
+#8 sha256:7e2a5e2761f53b694faaee16c5ad1e400cb41224f693337aac52e74bee3b2f65 31.46MB / 52.52MB 1.8s
+#8 sha256:7e2a5e2761f53b694faaee16c5ad1e400cb41224f693337aac52e74bee3b2f65 37.75MB / 52.52MB 2.1s
+#8 sha256:7e2a5e2761f53b694faaee16c5ad1e400cb41224f693337aac52e74bee3b2f65 42.99MB / 52.52MB 2.4s
+#8 sha256:7e2a5e2761f53b694faaee16c5ad1e400cb41224f693337aac52e74bee3b2f65 46.14MB / 52.52MB 2.6s
+#8 sha256:7e2a5e2761f53b694faaee16c5ad1e400cb41224f693337aac52e74bee3b2f65 49.28MB / 52.52MB 2.7s
+#8 sha256:7e2a5e2761f53b694faaee16c5ad1e400cb41224f693337aac52e74bee3b2f65 52.52MB / 52.52MB 2.9s
+#8 sha256:7e2a5e2761f53b694faaee16c5ad1e400cb41224f693337aac52e74bee3b2f65 52.52MB / 52.52MB 2.9s done
+#8 extracting sha256:7e2a5e2761f53b694faaee16c5ad1e400cb41224f693337aac52e74bee3b2f65
+#8 ...
+
+#9 [release 2/6] RUN	APK add --no-cache --update  	boost-iostreams 	boost-program_options 	boost-thread 	lame-libs 	libarchive 	libconfig++ 	libcrypto3 	libogg 	libpng 	libpulse 	libvorbis 	libssl3 	openjpeg 	opus 	pugixml 	sqlite-libs 	zlib
+#9 0.758 ( 1/41) Installing libbz2 (1.0.8-r6)
+#9 0.796 ( 2/41) Installing libgcc (15.2.0-r2)
+#9 0.832 ( 3/41) Installing xz-libs (5.8.3-r0)
+#9 0.873 ( 4/41) Installing libstdc++ (15.2.0-r2)
+#9 1.096 ( 5/41) Installing zstd-libs (1.5.7-r2)
+#9 1.169 ( 6/41) Installing boost1.84-iostreams (1.84.0-r3)
+#9 1.196 ( 7/41) Installing boost1.84-program_options (1.84.0-r3)
+#9 1.230 ( 8/41) Installing boost1.84-thread (1.84.0-r3)
+#9 1.286 ( 9/41) Installing lame-libs (3.100-r5)
+#9 1.346 (10/41) Installing acl-libs (2.3.2-r1)
+#9 1.375 (11/41) Installing libexpat (2.8.2-r0)
+#9 1.407 (12/41) Installing lz4-libs (1.10.0-r0)
+#9 1.444 (13/41) Installing libarchive (3.8.5-r0)
+#9 1.510 (14/41) Installing libconfig++ (1.8.1-r0)
+#9 1.554 (15/41) Installing libogg (1.3.6-r0)
+#9 1.613 (16/41) Installing libpng (1.6.58-r1)
+#9 1.649 (17/41) Installing libxau (1.0.12-r0)
+#9 1.672 (18/41) Installing libmd (1.1.0-r0)
+#9 1.695 (19/41) Installing libbsd (0.12.2-r0)
+#9 1.720 (20/41) Installing libxdmcp (1.1.5-r1)
+#9 1.746 (21/41) Installing libxcb (1.17.0-r1)
+#9 1.798 (22/41) Installing libx11 (1.8.12-r1)
+#9 1.988 (23/41) Installing libasyncns (0.8-r4)
+#9 2.007 (24/41) Installing dbus-libs (1.16.2-r1)
+#9 2.037 (25/41) Installing libintl (0.24.1-r1)
+#9 2.062 (26/41) Installing libltdl (2.5.4-r2)
+#9 2.085 (27/41) Installing orc (0.4.41-r0)
+#9 2.128 (28/41) Installing libflac (1.4.3-r2)
+#9 2.203 (29/41) Installing alsa-lib (1.2.14-r2)
+#9 2.309 (30/41) Installing mpg123-libs (1.33.3-r0)
+#9 2.353 (31/41) Installing opus (1.5.2-r1)
+#9 2.398 (32/41) Installing libvorbis (1.3.7-r2)
+#9 2.458 (33/41) Installing libsndfile (1.2.2-r2)
+#9 2.524 (34/41) Installing libgomp (15.2.0-r2)
+#9 2.564 (35/41) Installing soxr (0.1.3-r7)
+#9 2.595 (36/41) Installing speexdsp (1.2.1-r2)
+#9 2.622 (37/41) Installing tdb-libs (1.4.14-r0)
+#9 2.650 (38/41) Installing libpulse (17.0-r5)
+#9 2.783 (39/41) Installing openjpeg (2.5.4-r1)
+#9 2.833 (40/41) Installing pugixml (1.15-r0)
+#9 2.867 (41/41) Installing sqlite-libs (3.51.2-r0)
+#9 2.911 Executing busybox-1.37.0-r30.trigger
+#9 2.970 OK: 26.0 MiB in 57 packages
+#9 DONE 3.2s
+
+#10 [release 3/6] RUN	ADDGROUP -S lms && 	adduser -S -H lms && 	adduser lms lms && 	mkdir -p /var/lms && chown -R lms:lms /var/lms
+#10 DONE 0.2s
+
+#11 [internal] load build context
+#11 ...
+
+#8 [svelte-build 1/4] FROM docker.io/library/node:24-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd
+#8 extracting sha256:7e2a5e2761f53b694faaee16c5ad1e400cb41224f693337aac52e74bee3b2f65 1.2s done
+#8 extracting sha256:57eb903fc7a4b0006b1253f877823b15c51433ccd41a20392812682211c46a6c 0.0s done
+#8 extracting sha256:21af007bacf625b557dda6dbce062088808612be54a955980b3d8efb8ea7d082 done
+#8 DONE 4.2s
+
+#12 [svelte-build 2/4] WORKDIR	/APP
+#12 DONE 0.0s
+
+#11 [internal] load build context
+#11 transferring context: 165.84MB 5.0s
+#11 transferring context: 204.77MB 6.2s done
+#11 DONE 6.3s
+
+#13 [build  2/14] WORKDIR	/TMP/WORKDIR
+#13 CACHED
+
+#14 [build  3/14] RUN	APK add --no-cache --update  	autoconf 	automake 	boost-dev 	bzip2 	ca-certificates 	cmake 	coreutils 	curl 	g++ 	gtest-dev 	lame-dev 	libarchive-dev 	libconfig-dev 	libogg-dev 	libpng-dev 	libtool 	libvorbis-dev 	make 	openjpeg-dev 	openssl-dev 	opus-dev 	pkgconfig 	pugixml-dev 	pulseaudio-dev 	nasm 	sqlite-dev 	utfcpp 	xxhash-dev 	yasm 	zlib-dev
+#14 CACHED
+
+#15 [build  5/14] RUN 	DIR=/tmp/ffmpeg && mkdir -p ${DIR} && cd ${DIR} && 	./configure 	--prefix=/tmp/install 	--disable-autodetect 	--disable-debug 	--disable-doc 	--disable-ffplay 	--disable-ffprobe 	--disable-openssl 	--disable-postproc 	--disable-pixelutils 	--disable-network 	--enable-shared 	--disable-static 	--enable-gpl 	--enable-version3 	--enable-nonfree 	--enable-libmp3lame 	--enable-libopenjpeg 	--enable-libopus 	--enable-libvorbis 	--enable-zlib 	--disable-everything 	--enable-decoder=aac*,ac3*,alac,als,ape,asf,dsd*,flac,libopus,pcm*,libvorbis,mp3*,mpc7,mpc8,shorten,tta,wavpack,wma*,libopenjpg,png 	--enable-encoder=flac,libmp3lame,libopus,libvorbis 	--enable-demuxer=aac,aiff,ape,asf,dsf,flac,m4a,mp3,mov,mpc,mpc8,ogg,shn,tta,wav,wv 	--enable-muxer=flac,mp3,ogg 	--enable-protocol=file,pipe 	--enable-filter=aresample 	--enable-lto 	--extra-libs=-ldl && 	make -j$(nproc) install
+#15 CACHED
+
+#16 [build  6/14] RUN 	DIR=/tmp/wt && mkdir -p ${DIR} && cd ${DIR} && 	curl -sLO https://github.com/emweb/wt/archive/4.12.5.tar.gz && 	tar -x --strip-components=1 -f 4.12.5.tar.gz
+#16 CACHED
+
+#17 [build  9/14] RUN 	DIR=/tmp/taglib && mkdir -p ${DIR} && cd ${DIR} && 	curl -sLO https://github.com/taglib/taglib/archive/v2.2.tar.gz && 	tar -x --strip-components=1 -f v2.2.tar.gz
+#17 CACHED
+
+#18 [build  4/14] RUN  	DIR=/tmp/ffmpeg && mkdir -p ${DIR} && cd ${DIR} && 	curl -sLO https://ffmpeg.org/releases/ffmpeg-6.1.4.tar.bz2 && 	tar -jx --strip-components=1 -f ffmpeg-6.1.4.tar.bz2
+#18 CACHED
+
+#19 [build  7/14] RUN 	DIR=/tmp/wt && mkdir -p ${DIR} && cd ${DIR} && 	cmake -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=TRUE -DCMAKE_CXX_STANDARD=20 -DSHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/tmp/install -DWT_CPP20_DATE_TZ_IMPLEMENTATION="std" -DWT_CPP17_FILESYSTEM_IMPLEMENTATION="std" -DWT_CPP17_ANY_IMPLEMENTATION="std" -DBUILD_EXAMPLES=OFF -DENABLE_LIBWTTEST=OFF -DCONNECTOR_FCGI=OFF -DUSE_SYSTEM_SQLITE3=ON -DDEBUG=OFF && 	make -j$(nproc) install
+#19 CACHED
+
+#20 [build  8/14] RUN 	DIR=/tmp/stb && mkdir -p ${DIR} && cd ${DIR} && 	curl -sLO https://github.com/nothings/stb/archive/f1c79c02822848a9bed4315b12c8c8f3761e1296.tar.gz && 	tar -x --strip-components=1 -f f1c79c02822848a9bed4315b12c8c8f3761e1296.tar.gz && 	mkdir -p /tmp/install/include/stb && 	cp ./*.h /tmp/install/include/stb
+#20 CACHED
+
+#21 [build 10/14] RUN 	DIR=/tmp/taglib && mkdir -p ${DIR} && cd ${DIR} && 	CXXFLAGS="-I/usr/include/utf8cpp" cmake -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=TRUE -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/tmp/install -DBUILD_SHARED_LIBS=ON -DBUILD_EXAMPLES=OFF -DBUILD_BINDINGS=OFF -DBUILD_TESTING=OFF -DTRACE_IN_RELEASE=OFF -DWITH_ZLIB=ON  && 	make -j$(nproc) install
+#21 CACHED
+
+#22 [svelte-build 3/4] COPY	SRC/LMS/UI/SPOTIFY-UI /app
+#22 DONE 0.1s
+
+#23 [build 11/14] COPY . /tmp/lms/
+#23 DONE 0.5s
+
+#24 [svelte-build 4/4] RUN	NPM install && npm run build
+#24 3.050 
+#24 3.050 added 173 packages, and audited 174 packages in 3s
+#24 3.050 
+#24 3.050 59 packages are looking for funding
+#24 3.051   run `npm fund` for details
+#24 3.062 
+#24 3.062 4 vulnerabilities (2 moderate, 2 high)
+#24 3.062 
+#24 3.062 To address all issues, run:
+#24 3.062   npm audit fix
+#24 3.062 
+#24 3.062 Run `npm audit` for details.
+#24 3.063 npm notice
+#24 3.063 npm notice New minor version of npm available! 11.16.0 -> 11.18.0
+#24 3.063 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.18.0
+#24 3.063 npm notice To update run: npm install -g npm@11.18.0
+#24 3.063 npm notice
+#24 3.199 
+#24 3.199 > spotify-ui@0.0.0 build
+#24 3.199 > vite build
+#24 3.199 
+#24 3.630 vite v8.0.10 building client environment for production...
+#24 3.640 [2K
+transforming...9:45:59 PM [vite-plugin-svelte] src/lib/settings/GeneralSettings.svelte:30:2 Unused CSS selector ".bg-brand"
+#24 4.592 https://svelte.dev/e/css_unused_selector
+#24 4.592 28: 
+#24 4.592 29: <style>
+#24 4.592 30:   .bg-brand {
+#24 4.592                ^
+#24 4.592 31:     background-color: #1ed760;
+#24 4.592 32:   }
+#24 4.629 ✓ 150 modules transformed.
+#24 4.659 rendering chunks...
+#24 4.703 computing gzip size...
+#24 4.708 dist/index.html                   0.47 kB │ gzip:  0.30 kB
+#24 4.708 dist/assets/index-BNdv7mNg.css   44.85 kB │ gzip:  8.59 kB
+#24 4.708 dist/assets/index-x5Yh_DQH.js   203.24 kB │ gzip: 60.96 kB
+#24 4.708 
+#24 4.708 ✓ built in 1.08s
+#24 DONE 4.8s
+
+#25 [build 12/14] RUN 	DIR=/tmp/lms/build && mkdir -p ${DIR} && cd ${DIR} && 	PKG_CONFIG_PATH=/tmp/install/lib/pkgconfig CXXFLAGS="-I/tmp/install/include" LDFLAGS="-L/tmp/install/lib -Wl,--rpath-link=/tmp/install/lib" cmake /tmp/lms/ -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=TRUE -DCMAKE_UNITY_BUILD=ON -DCMAKE_INSTALL_PREFIX=/tmp/install -DCMAKE_PREFIX_PATH=/tmp/install && 	LD_LIBRARY_PATH=/tmp/install/lib make -j$(nproc) install && 	LD_LIBRARY_PATH=/tmp/install/lib make test && 	mkdir -p /tmp/install/etc/ && 	cp /tmp/lms/conf/lms.conf /tmp/install/etc
+#25 0.184 -- The C compiler identification is GNU 15.2.0
+#25 0.251 -- The CXX compiler identification is GNU 15.2.0
+#25 0.264 -- Detecting C compiler ABI info
+#25 0.325 -- Detecting C compiler ABI info - done
+#25 0.339 -- Check for working C compiler: /usr/bin/cc - skipped
+#25 0.339 -- Detecting C compile features
+#25 0.339 -- Detecting C compile features - done
+#25 0.355 -- Detecting CXX compiler ABI info
+#25 0.422 -- Detecting CXX compiler ABI info - done
+#25 0.443 -- Check for working CXX compiler: /usr/bin/c++ - skipped
+#25 0.443 -- Detecting CXX compile features
+#25 0.444 -- Detecting CXX compile features - done
+#25 0.545 -- Found GTest: /usr/lib/cmake/GTest/GTestConfig.cmake (found version "1.17.0")
+#25 0.599 -- Found OpenSSL: /usr/lib/libcrypto.so (found version "3.5.7")
+#25 0.604 -- Found PkgConfig: /usr/bin/pkg-config (found version "2.5.1")
+#25 0.607 -- Found Threads: TRUE
+#25 0.607 CMake Warning (dev) at CMakeLists.txt:24 (find_package):
+#25 0.607   Policy CMP0167 is not set: The FindBoost module is removed.  Run "cmake
+#25 0.607   --help-policy CMP0167" for policy details.  Use the cmake_policy command to
+#25 0.607   set the policy and suppress this warning.
+#25 0.607 
+#25 0.607 This warning is for project developers.  Use -Wno-dev to suppress it.
+#25 0.607 
+#25 0.620 -- Found Boost: /usr/lib/cmake/Boost-1.84.0/BoostConfig.cmake (found version "1.84.0") found components: program_options iostreams
+#25 0.622 CMake Warning (dev) at /tmp/install/lib/cmake/wt/wt-config.cmake:5 (find_package):
+#25 0.622   Policy CMP0167 is not set: The FindBoost module is removed.  Run "cmake
+#25 0.622   --help-policy CMP0167" for policy details.  Use the cmake_policy command to
+#25 0.622   set the policy and suppress this warning.
+#25 0.622 
+#25 0.622 Call Stack (most recent call first):
+#25 0.622   CMakeLists.txt:25 (find_package)
+#25 0.622 This warning is for project developers.  Use -Wno-dev to suppress it.
+#25 0.622 
+#25 0.638 -- Checking for modules 'libavcodec;libavutil;libavformat;libswresample'
+#25 0.655 --   Found libavcodec, version 60.31.102
+#25 0.664 --   Found libavutil, version 58.29.100
+#25 0.673 --   Found libavformat, version 60.16.100
+#25 0.682 --   Found libswresample, version 4.12.100
+#25 0.723 -- Checking for module 'taglib'
+#25 0.733 --   Found taglib, version 2.2
+#25 0.759 -- Checking for module 'libpulse'
+#25 0.772 --   Found libpulse, version 17.0
+#25 0.799 -- Checking for module 'alsa'
+#25 0.816 --   Package 'alsa' not found
+#25 0.816 -- Audio output available (PulseAudio=1, ALSA=)
+#25 0.817 -- Checking for module 'libconfig++'
+#25 0.827 --   Found libconfig++, version 1.8.1
+#25 0.852 -- Checking for module 'libarchive'
+#25 0.863 --   Found libarchive, version 3.8.5
+#25 0.893 -- Checking for module 'libxxhash'
+#25 0.902 --   Found libxxhash, version 0.8.3
+#25 0.934 -- Found StbImage: /tmp/install/include/stb
+#25 0.934 -- Using stb (resize version 2)
+#25 0.936 -- NOT using PAM authentication backend
+#25 0.936 CMake Warning at src/libs/services/auth/CMakeLists.txt:33 (message):
+#25 0.936   PAM library not found: disabling
+#25 0.936 
+#25 0.936 
+#25 0.953 -- Configuring done (0.9s)
+#25 1.064 -- Generating done (0.1s)
+#25 1.064 -- Build files have been written to: /tmp/lms/build
+#25 1.107 [  1%] Building CXX object src/libs/core/CMakeFiles/lmscore.dir/Unity/unity_2_cxx.cxx.o
+#25 1.109 [  3%] Building CXX object src/libs/core/CMakeFiles/lmscore.dir/Unity/unity_0_cxx.cxx.o
+#25 1.109 [  3%] Building CXX object src/libs/core/CMakeFiles/lmscore.dir/Unity/unity_3_cxx.cxx.o
+#25 1.109 [  4%] Building CXX object src/libs/core/CMakeFiles/lmscore.dir/Unity/unity_1_cxx.cxx.o
+#25 5.128 [  5%] Linking CXX static library liblmscore.a
+#25 5.177 [  5%] Built target lmscore
+#25 5.192 [  7%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_4_cxx.cxx.o
+#25 5.192 [  7%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_1_cxx.cxx.o
+#25 5.193 [  8%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_3_cxx.cxx.o
+#25 5.193 [ 10%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_2_cxx.cxx.o
+#25 5.194 [ 11%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_5_cxx.cxx.o
+#25 5.196 [ 12%] Building CXX object src/libs/audio/CMakeFiles/lmsaudio.dir/Unity/unity_1_cxx.cxx.o
+#25 5.196 [ 13%] Building CXX object src/libs/image/CMakeFiles/lmsimage.dir/Unity/unity_0_cxx.cxx.o
+#25 5.197 [ 14%] Building CXX object src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_0_cxx.cxx.o
+#25 5.197 [ 15%] Building CXX object src/libs/audio/CMakeFiles/lmsaudio.dir/Unity/unity_2_cxx.cxx.o
+#25 5.198 [ 16%] Building CXX object src/libs/som/CMakeFiles/lmssom.dir/Unity/unity_0_cxx.cxx.o
+#25 5.202 [ 19%] Building CXX object src/libs/core/test/CMakeFiles/test-core.dir/Unity/unity_0_cxx.cxx.o
+#25 5.202 [ 19%] Building CXX object src/libs/image/CMakeFiles/lmsimage.dir/impl/stb/StbImage.cpp.o
+#25 5.202 [ 20%] Building CXX object src/libs/image/CMakeFiles/lmsimage.dir/impl/stb/StbImageResize.cpp.o
+#25 5.202 [ 22%] Building CXX object src/libs/image/CMakeFiles/lmsimage.dir/impl/stb/StbImageWrite.cpp.o
+#25 5.202 [ 22%] Building CXX object src/libs/audio/CMakeFiles/lmsaudio.dir/Unity/unity_0_cxx.cxx.o
+#25 5.202 [ 23%] Building CXX object src/libs/core/test/CMakeFiles/test-core.dir/Unity/unity_1_cxx.cxx.o
+#25 5.664 In file included from /tmp/lms/src/libs/image/impl/stb/StbImageWrite.hpp:21,
+#25 5.664                  from /tmp/lms/src/libs/image/impl/stb/StbImageWrite.cpp:21:
+#25 5.664 /tmp/install/include/stb/stb_image_write.h: In function 'int stbi_write_bmp_to_func(void (*)(void*, void*, int), void*, int, int, int, const void*)':
+#25 5.664 /tmp/install/include/stb/stb_image_write.h:514:32: warning: missing initializer for member 'stbi__write_context::context' [-Wmissing-field-initializers]
+#25 5.664   514 |    stbi__write_context s = { 0 };
+#25 5.664       |                                ^
+#25 5.664 /tmp/install/include/stb/stb_image_write.h:514:32: warning: missing initializer for member 'stbi__write_context::buffer' [-Wmissing-field-initializers]
+#25 5.665 /tmp/install/include/stb/stb_image_write.h:514:32: warning: missing initializer for member 'stbi__write_context::buf_used' [-Wmissing-field-initializers]
+#25 5.665 /tmp/install/include/stb/stb_image_write.h: In function 'int stbi_write_bmp(const char*, int, int, int, const void*)':
+#25 5.665 /tmp/install/include/stb/stb_image_write.h:522:32: warning: missing initializer for member 'stbi__write_context::context' [-Wmissing-field-initializers]
+#25 5.665   522 |    stbi__write_context s = { 0 };
+#25 5.665       |                                ^
+#25 5.665 /tmp/install/include/stb/stb_image_write.h:522:32: warning: missing initializer for member 'stbi__write_context::buffer' [-Wmissing-field-initializers]
+#25 5.665 /tmp/install/include/stb/stb_image_write.h:522:32: warning: missing initializer for member 'stbi__write_context::buf_used' [-Wmissing-field-initializers]
+#25 5.668 /tmp/install/include/stb/stb_image_write.h: In function 'int stbi_write_tga_to_func(void (*)(void*, void*, int), void*, int, int, int, const void*)':
+#25 5.668 /tmp/install/include/stb/stb_image_write.h:613:32: warning: missing initializer for member 'stbi__write_context::context' [-Wmissing-field-initializers]
+#25 5.668   613 |    stbi__write_context s = { 0 };
+#25 5.668       |                                ^
+#25 5.668 /tmp/install/include/stb/stb_image_write.h:613:32: warning: missing initializer for member 'stbi__write_context::buffer' [-Wmissing-field-initializers]
+#25 5.669 /tmp/install/include/stb/stb_image_write.h:613:32: warning: missing initializer for member 'stbi__write_context::buf_used' [-Wmissing-field-initializers]
+#25 5.669 /tmp/install/include/stb/stb_image_write.h: In function 'int stbi_write_tga(const char*, int, int, int, const void*)':
+#25 5.669 /tmp/install/include/stb/stb_image_write.h:621:32: warning: missing initializer for member 'stbi__write_context::context' [-Wmissing-field-initializers]
+#25 5.669   621 |    stbi__write_context s = { 0 };
+#25 5.669       |                                ^
+#25 5.669 /tmp/install/include/stb/stb_image_write.h:621:32: warning: missing initializer for member 'stbi__write_context::buffer' [-Wmissing-field-initializers]
+#25 5.670 /tmp/install/include/stb/stb_image_write.h:621:32: warning: missing initializer for member 'stbi__write_context::buf_used' [-Wmissing-field-initializers]
+#25 5.674 /tmp/install/include/stb/stb_image_write.h: In function 'int stbi_write_hdr_to_func(void (*)(void*, void*, int), void*, int, int, int, const float*)':
+#25 5.674 /tmp/install/include/stb/stb_image_write.h:789:32: warning: missing initializer for member 'stbi__write_context::context' [-Wmissing-field-initializers]
+#25 5.674   789 |    stbi__write_context s = { 0 };
+#25 5.674       |                                ^
+#25 5.674 /tmp/install/include/stb/stb_image_write.h:789:32: warning: missing initializer for member 'stbi__write_context::buffer' [-Wmissing-field-initializers]
+#25 5.674 /tmp/install/include/stb/stb_image_write.h:789:32: warning: missing initializer for member 'stbi__write_context::buf_used' [-Wmissing-field-initializers]
+#25 5.675 /tmp/install/include/stb/stb_image_write.h: In function 'int stbi_write_hdr(const char*, int, int, int, const float*)':
+#25 5.675 /tmp/install/include/stb/stb_image_write.h:796:32: warning: missing initializer for member 'stbi__write_context::context' [-Wmissing-field-initializers]
+#25 5.675   796 |    stbi__write_context s = { 0 };
+#25 5.675       |                                ^
+#25 5.675 /tmp/install/include/stb/stb_image_write.h:796:32: warning: missing initializer for member 'stbi__write_context::buffer' [-Wmissing-field-initializers]
+#25 5.675 /tmp/install/include/stb/stb_image_write.h:796:32: warning: missing initializer for member 'stbi__write_context::buf_used' [-Wmissing-field-initializers]
+#25 5.720 /tmp/install/include/stb/stb_image_write.h: In function 'int stbi_write_jpg_to_func(void (*)(void*, void*, int), void*, int, int, int, const void*, int)':
+#25 5.720 /tmp/install/include/stb/stb_image_write.h:1609:32: warning: missing initializer for member 'stbi__write_context::context' [-Wmissing-field-initializers]
+#25 5.720  1609 |    stbi__write_context s = { 0 };
+#25 5.720       |                                ^
+#25 5.720 /tmp/install/include/stb/stb_image_write.h:1609:32: warning: missing initializer for member 'stbi__write_context::buffer' [-Wmissing-field-initializers]
+#25 5.720 /tmp/install/include/stb/stb_image_write.h:1609:32: warning: missing initializer for member 'stbi__write_context::buf_used' [-Wmissing-field-initializers]
+#25 5.721 /tmp/install/include/stb/stb_image_write.h: In function 'int stbi_write_jpg(const char*, int, int, int, const void*, int)':
+#25 5.721 /tmp/install/include/stb/stb_image_write.h:1618:32: warning: missing initializer for member 'stbi__write_context::context' [-Wmissing-field-initializers]
+#25 5.721  1618 |    stbi__write_context s = { 0 };
+#25 5.721       |                                ^
+#25 5.721 /tmp/install/include/stb/stb_image_write.h:1618:32: warning: missing initializer for member 'stbi__write_context::buffer' [-Wmissing-field-initializers]
+#25 5.721 /tmp/install/include/stb/stb_image_write.h:1618:32: warning: missing initializer for member 'stbi__write_context::buf_used' [-Wmissing-field-initializers]
+#25 5.899 In file included from /tmp/lms/src/libs/image/impl/stb/StbImage.hpp:26,
+#25 5.899                  from /tmp/lms/src/libs/image/impl/stb/StbImage.cpp:21:
+#25 5.899 /tmp/install/include/stb/stb_image.h: In function 'int stbi__parse_png_file(stbi__png*, int, int)':
+#25 5.899 /tmp/install/include/stb/stb_image.h:5247:28: warning: variable 'invalid_chunk' set but not used [-Wunused-but-set-variable]
+#25 5.899  5247 |                static char invalid_chunk[] = "XXXX PNG chunk not known";
+#25 5.899       |                            ^~~~~~~~~~~~~
+#25 8.414 In file included from /tmp/lms/build/src/libs/database/CMakeFiles/lmsdatabase.dir/Unity/unity_4_cxx.cxx:19:
+#25 8.414 /tmp/lms/src/libs/database/impl/Migration.cpp: In function 'void lms::db::Migration::migrateFromV105(lms::db::Session&)':
+#25 8.414 /tmp/lms/src/libs/database/impl/Migration.cpp:1776:35: warning: unused parameter 'session' [-Wunused-parameter]
+#25 8.414  1776 |     void migrateFromV105(Session& session)
+#25 8.414       |                          ~~~~~~~~~^~~~~~~
+#25 8.415 /tmp/lms/src/libs/database/impl/Migration.cpp: In function 'void lms::db::Migration::migrateFromV106(lms::db::Session&)':
+#25 8.415 /tmp/lms/src/libs/database/impl/Migration.cpp:1781:35: warning: unused parameter 'session' [-Wunused-parameter]
+#25 8.415  1781 |     void migrateFromV106(Session& session)
+#25 8.415       |                          ~~~~~~~~~^~~~~~~
+#25 10.05 [ 24%] Linking CXX static library liblmsimage.a
+#25 10.11 [ 24%] Built target lmsimage
+#25 10.22 [ 25%] Linking CXX static library liblmssom.a
+#25 10.25 [ 25%] Built target lmssom
+#25 10.27 [ 26%] Building CXX object src/libs/som/test/CMakeFiles/test-som.dir/Unity/unity_0_cxx.cxx.o
+#25 11.92 [ 28%] Linking CXX executable test-som
+#25 12.65 [ 29%] Linking CXX executable test-core
+#25 13.51 [ 30%] Linking CXX static library liblmsaudio.a
+#25 13.60 [ 30%] Built target lmsaudio
+#25 13.64 [ 31%] Building CXX object src/tools/audioinfo/CMakeFiles/lms-audioinfo.dir/Unity/unity_0_cxx.cxx.o
+#25 13.65 [ 32%] Building CXX object src/tools/audioplay/CMakeFiles/lms-audioplay.dir/Unity/unity_0_cxx.cxx.o
+#25 15.45 [ 32%] Built target test-som
+#25 18.20 [ 32%] Built target test-core
+#25 20.02 [ 33%] Linking CXX executable lms-audioinfo
+#25 20.61 [ 34%] Linking CXX executable lms-audioplay
+#25 23.46 [ 34%] Built target lms-audioinfo
+#25 24.32 [ 34%] Built target lms-audioplay
+#25 30.88 [ 35%] Linking CXX static library liblmsdatabase.a
+#25 31.15 [ 35%] Built target lmsdatabase
+#25 31.17 [ 37%] Building CXX object src/libs/services/jukebox/CMakeFiles/lmsjukebox.dir/Unity/unity_0_cxx.cxx.o
+#25 31.17 [ 38%] Building CXX object src/libs/services/recommendation/CMakeFiles/lmsrecommendation.dir/Unity/unity_1_cxx.cxx.o
+#25 31.17 [ 39%] Building CXX object src/libs/services/recommendation/CMakeFiles/lmsrecommendation.dir/Unity/unity_0_cxx.cxx.o
+#25 31.17 [ 40%] Building CXX object src/libs/services/scrobbling/CMakeFiles/lmsscrobbling.dir/Unity/unity_0_cxx.cxx.o
+#25 31.17 [ 41%] Building CXX object src/libs/database/test/CMakeFiles/test-database.dir/Unity/unity_2_cxx.cxx.o
+#25 31.17 [ 42%] Building CXX object src/libs/database/test/CMakeFiles/test-database.dir/Unity/unity_1_cxx.cxx.o
+#25 31.17 [ 43%] Building CXX object src/libs/database/test/CMakeFiles/test-database.dir/Unity/unity_3_cxx.cxx.o
+#25 31.17 [ 44%] Building CXX object src/libs/database/test/CMakeFiles/test-database.dir/Unity/unity_0_cxx.cxx.o
+#25 31.18 [ 46%] Building CXX object src/libs/services/artwork/CMakeFiles/lmsartwork.dir/Unity/unity_0_cxx.cxx.o
+#25 31.18 [ 47%] Building CXX object src/libs/services/auth/CMakeFiles/lmsauth.dir/Unity/unity_0_cxx.cxx.o
+#25 31.18 [ 48%] Building CXX object src/libs/services/feedback/CMakeFiles/lmsfeedback.dir/Unity/unity_0_cxx.cxx.o
+#25 31.18 [ 49%] Building CXX object src/libs/services/podcast/CMakeFiles/lmspodcast.dir/Unity/unity_1_cxx.cxx.o
+#25 31.18 [ 50%] Building CXX object src/libs/services/podcast/CMakeFiles/lmspodcast.dir/Unity/unity_0_cxx.cxx.o
+#25 31.18 [ 51%] Building CXX object src/libs/services/transcoding/CMakeFiles/lmstranscoding.dir/Unity/unity_0_cxx.cxx.o
+#25 31.18 [ 52%] Building CXX object src/tools/db-generator/CMakeFiles/lms-db-generator.dir/Unity/unity_0_cxx.cxx.o
+#25 33.19 In file included from /tmp/lms/src/libs/services/scrobbling/impl/internal/InternalBackend.hpp:22,
+#25 33.19                  from /tmp/lms/src/libs/services/scrobbling/impl/internal/InternalBackend.cpp:20,
+#25 33.19                  from /tmp/lms/build/src/libs/services/scrobbling/CMakeFiles/lmsscrobbling.dir/Unity/unity_0_cxx.cxx:4:
+#25 33.19 /tmp/lms/src/libs/services/scrobbling/impl/IScrobblingBackend.hpp: In member function 'virtual void lms::scrobbling::IScrobblingBackend::synchronize(lms::db::UserId)':
+#25 33.19 /tmp/lms/src/libs/services/scrobbling/impl/IScrobblingBackend.hpp:45:45: warning: unused parameter 'userId' [-Wunused-parameter]
+#25 33.19    45 |         virtual void synchronize(db::UserId userId) {}
+#25 33.19       |                                  ~~~~~~~~~~~^~~~~~
+#25 35.66 [ 53%] Linking CXX static library liblmstranscoding.a
+#25 35.70 [ 53%] Built target lmstranscoding
+#25 35.86 [ 55%] Linking CXX static library liblmsartwork.a
+#25 35.91 [ 55%] Built target lmsartwork
+#25 37.27 [ 56%] Linking CXX static library liblmsjukebox.a
+#25 37.31 [ 56%] Built target lmsjukebox
+#25 37.90 [ 57%] Linking CXX static library liblmspodcast.a
+#25 37.94 [ 57%] Built target lmspodcast
+#25 37.96 [ 58%] Building CXX object src/libs/services/podcast/test/CMakeFiles/test-podcast.dir/Unity/unity_0_cxx.cxx.o
+#25 38.77 [ 59%] Linking CXX static library liblmsfeedback.a
+#25 38.80 [ 59%] Built target lmsfeedback
+#25 38.88 [ 60%] Linking CXX static library liblmsauth.a
+#25 38.91 [ 60%] Built target lmsauth
+#25 39.04 [ 61%] Linking CXX static library liblmsscrobbling.a
+#25 39.07 [ 62%] Linking CXX executable lms-db-generator
+#25 39.08 [ 62%] Built target lmsscrobbling
+#25 39.10 [ 64%] Building CXX object src/libs/services/scrobbling/test/CMakeFiles/test-scrobbling.dir/Unity/unity_0_cxx.cxx.o
+#25 40.77 [ 65%] Linking CXX executable test-podcast
+#25 41.01 [ 66%] Linking CXX executable test-scrobbling
+#25 42.79 [ 67%] Linking CXX static library liblmsrecommendation.a
+#25 42.96 [ 67%] Built target lmsrecommendation
+#25 45.72 [ 68%] Building CXX object src/libs/services/scanner/CMakeFiles/lmsscanner.dir/Unity/unity_4_cxx.cxx.o
+#25 45.87 [ 69%] Building CXX object src/libs/services/scanner/CMakeFiles/lmsscanner.dir/Unity/unity_3_cxx.cxx.o
+#25 45.87 [ 70%] Building CXX object src/tools/recommendation/CMakeFiles/lms-recommendation.dir/Unity/unity_0_cxx.cxx.o
+#25 46.01 [ 71%] Linking CXX executable test-database
+#25 46.10 [ 73%] Building CXX object src/libs/services/scanner/CMakeFiles/lmsscanner.dir/Unity/unity_2_cxx.cxx.o
+#25 46.51 [ 74%] Building CXX object src/libs/services/scanner/CMakeFiles/lmsscanner.dir/Unity/unity_1_cxx.cxx.o
+#25 47.21 [ 75%] Building CXX object src/libs/services/scanner/CMakeFiles/lmsscanner.dir/Unity/unity_0_cxx.cxx.o

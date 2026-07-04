@@ -31,7 +31,7 @@ namespace lms::scrobbling::musicManagement
         : _ioContext{ ioContext }
         , _db{ db }
         , _apiUrl{ core::Service<core::IConfig>::get()->getString("music-management-scrobbling-api-url", "https://muma-scrobble-service.example.com/scrobble") }
-        , _apiKey{ core::Service<core::IConfig>::get()->getString("music-management-scrobbling-api-key", "REDACTED") }
+        , _apiKey{ core::Service<core::IConfig>::get()->getString("music-management-scrobbling-api-key", "00000000-0000-4000-8000-000000000000") }
     {
         if (!_apiUrl.empty())
         {

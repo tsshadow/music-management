@@ -146,10 +146,10 @@ DEPLOY_CMD="
     
     if [ -n \"$SERVICE_NAME\" ] && \$DOCKER_CMD config --services | grep -q \"^$SERVICE_NAME\$\"; then
         echo \"Updating service: $SERVICE_NAME\"
-        \$DOCKER_CMD up -d $SERVICE_NAME
+        \$DOCKER_CMD up -d --remove-orphans $SERVICE_NAME
     else
         echo \"Updating full stack...\"
-        \$DOCKER_CMD up -d
+        \$DOCKER_CMD up -d --remove-orphans
     fi
 "
 

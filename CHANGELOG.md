@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Internal**: Reverted internal C++ and frontend source naming to "Spotify" for developer readability, while maintaining "MuMaFi" branding for user-facing components.
 
 ### Fixed
+- Fixed "orphan containers" warnings during deployment by adding `--remove-orphans` to the deployment scripts.
 - Fixed Docker Hub push denial issues by adding proactive login checks.
 - Improved SSH deployment reliability by verifying remote Docker Compose paths.
 

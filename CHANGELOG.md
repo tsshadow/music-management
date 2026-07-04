@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0.0] - 2026-07-04
 ### Added
 - Modular build system with separate `build.sh`, `publish.sh`, and `deploy.sh` scripts.
+- Versioned Docker tagging: images are now tagged with both `:latest` and the repository version (e.g., `:2.0.0`).
 - Portainer Webhook support for automated Stack updates.
 - Automatic Docker group permission handling via `sg docker` re-execution.
 - Standardized `.env` configuration for all deployment targets.

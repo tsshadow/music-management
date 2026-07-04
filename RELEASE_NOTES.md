@@ -11,7 +11,8 @@ This project is now modularized. Detailed release notes for each module can be f
 - [Rating System](services/rating-system/RELEASE_NOTES.md)
 
 ## Global Version 2.1.13 (2026-07-04)
-### 🍏 UI Polish
+### 🍏 UI Polish & Database Consistency
+- **Rating System**: Renamed internal table to `rating_tracks` to align with the module's naming convention.
 - **Goodbye Blue**: Fixed remaining browser default focus rings that were still showing up as blue. Everything now glows in Spotify Green.
 - **Theme Consistency**: Reinforced the dark theme across all interactive components.
 

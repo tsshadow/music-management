@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.13] - 2026-07-04
 ### Changed
+- **Rating System**: Renamed database table from `track_ratings` to `rating_tracks` for better consistency.
 - **UI Refinement**: Global override of focus rings to eliminate blue browser defaults in favor of Spotify Green.
 - **Styling**: Further alignment with `styleguide.md` for a consistent dark theme experience.
 

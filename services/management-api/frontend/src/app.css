@@ -7,6 +7,18 @@
   color: #ffffff;
 }
 
+:focus {
+  outline: none !important;
+}
+
+button:focus-visible, 
+input:focus-visible, 
+select:focus-visible, 
+a:focus-visible {
+  outline: 2px solid #1DB954 !important;
+  outline-offset: 2px;
+}
+
 ::selection {
   background-color: #1DB954;
   color: #000000;

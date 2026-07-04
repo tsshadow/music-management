@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.13] - 2026-07-04
+### Changed
+- **UI Refinement**: Global override of focus rings to eliminate blue browser defaults in favor of Spotify Green.
+- **Styling**: Further alignment with `styleguide.md` for a consistent dark theme experience.
+
 ## [2.1.12] - 2026-07-04
 ### Added
 - **Debug Support**: Added `--debug` flag to `build.sh` and `publish.sh` for detailed execution logging.

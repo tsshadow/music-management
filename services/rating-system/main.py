@@ -69,6 +69,7 @@ class LMSEvent(BaseModel):
 @app.post("/api/lms-event")
 def handle_lms_event(event: LMSEvent):
     """Handle events from LMS MusicManagementBackend."""
+    print(f"Received LMS event: {event}")
     if event.event != "rating_changed":
         return {"status": "ignored", "reason": "unsupported event type"}
     
@@ -76,21 +77,30 @@ def handle_lms_event(event: LMSEvent):
     
     # If it's a track and we have a path, try to find the muma track_uid
     if event.object_type == "track" and event.path:
+        # Strip potential /music/ prefix from LMS
+        clean_path = event.path
+        if clean_path.startswith("/music/"):
+            clean_path = clean_path[len("/music/"):]
+            print(f"Cleaned path: {clean_path}")
+
         conn = get_db_connection()
         if conn:
             try:
                 with conn.cursor() as cursor:
                     # Look up track_uid by path
+                    # Try both absolute and relative (without /music/) paths
                     cursor.execute("""
                         SELECT t.track_uid 
                         FROM library_media_files f
                         JOIN library_tracks t ON f.track_id = t.id
-                        WHERE f.file_path = %s
-                    """, (event.path,))
+                        WHERE f.file_path = %s OR f.file_path = %s
+                    """, (event.path, clean_path))
                     row = cursor.fetchone()
                     if row:
                         entity_id = row['track_uid']
-                        print(f"Resolved path {event.path} to track_uid {entity_id}")
+                        print(f"Resolved path to track_uid {entity_id}")
+                    else:
+                        print(f"Could not resolve path {clean_path} in database")
             finally:
                 conn.close()
 

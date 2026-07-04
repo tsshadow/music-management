@@ -11,6 +11,7 @@ fi
 IMAGE_NAME="${IMAGE_NAME:-muma/lms}"
 TAG="${TAG:-alpha}"
 SERVICE_NAME="${SERVICE_NAME:-lms-alpha}"
+STACK_DIR="${STACK_DIR}"
 
 if [ -n "${PORTAINER_WEBHOOK_URL}" ]; then
     TARGET="${DEPLOY_TARGET_NAME:-Portainer Stack}"
@@ -26,21 +27,32 @@ elif [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
     TARGET="${DEPLOY_TARGET_NAME:-LMS Stack}"
     echo "--- Starting remote update on ${REMOTE_HOST} for: $TARGET ---"
     
-    REMOTE_COMMAND="
-    set -e
-    echo \"Updating container '${SERVICE_NAME}' for '$TARGET'...\"
-    docker pull ${IMAGE_NAME}:${TAG}
-    docker stop ${SERVICE_NAME} || true
-    docker rm ${SERVICE_NAME} || true
-    docker run -d --name ${SERVICE_NAME} \
-        --restart unless-stopped \
-        -p 8080:5082 \
-        -v /music:/music \
-        -v /docker/${SERVICE_NAME}/usr/local/etc:/usr/local/etc \
-        -v /docker/${SERVICE_NAME}/var/lms:/var/lms \
-        --user 0:0 \
-        ${IMAGE_NAME}:${TAG}
-    "
+    if [ -n "${STACK_DIR}" ]; then
+        echo "Using Stack Directory: ${STACK_DIR}"
+        REMOTE_COMMAND="
+        set -e
+        cd ${STACK_DIR}
+        echo \"Updating stack in ${STACK_DIR}...\"
+        docker-compose pull || docker compose pull
+        docker-compose up -d || docker compose up -d
+        "
+    else
+        REMOTE_COMMAND="
+        set -e
+        echo \"Updating container '${SERVICE_NAME}' for '$TARGET'...\"
+        docker pull ${IMAGE_NAME}:${TAG}
+        docker stop ${SERVICE_NAME} || true
+        docker rm ${SERVICE_NAME} || true
+        docker run -d --name ${SERVICE_NAME} \
+            --restart unless-stopped \
+            -p 8080:5082 \
+            -v /music:/music \
+            -v /docker/${SERVICE_NAME}/usr/local/etc:/usr/local/etc \
+            -v /docker/${SERVICE_NAME}/var/lms:/var/lms \
+            --user 0:0 \
+            ${IMAGE_NAME}:${TAG}
+        "
+    fi
     
     if [ -z "${REMOTE_PASS}" ]; then
         echo "REMOTE_PASS not set. SSH may ask for password."

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.16] - 2026-07-04
+### Fixed
+- **Scrobble Service**: Fixed ListenBrainz import crash caused by missing `json` import and improper data serialization.
+- **Scrobble Service**: Added required `User-Agent` header to ListenBrainz API requests to prevent blocking.
+- **Scrobble Service**: Improved database error handling during background import tasks.
+
 ## [2.1.15] - 2026-07-04
 ### Added
 - **Control Center**: New Scrobble Service dashboard with ListenBrainz import monitoring.

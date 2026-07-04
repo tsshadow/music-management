@@ -4,6 +4,7 @@ import os
 import pymysql
 import requests
 import time
+import json
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from dotenv import load_dotenv
@@ -236,9 +237,10 @@ def run_listenbrainz_import(import_id: int, muma_username: str, lb_username: str
 
     url = f"https://api.listenbrainz.org/1/user/{lb_username}/listens"
     params = {"count": 100}
+    headers = {"User-Agent": "MumaScrobbler/2.1 ( contact@muma.local )"}
     
     try:
-        response = requests.get(url, params=params, timeout=30)
+        response = requests.get(url, params=params, headers=headers, timeout=30)
         if response.status_code != 200:
             update_status(status="failed", error=f"ListenBrainz API error: {response.status_code}", finished=True)
             return
@@ -280,7 +282,7 @@ def run_listenbrainz_import(import_id: int, muma_username: str, lb_username: str
                             (artist_name, track_title, album_name, mbid_track, mbid_artist, listened_at, username, source, data)
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """, (artist_name, track_title, album_name, mbid_track, mbid_artist, 
-                              ts, muma_username, "listenbrainz_import", str(item)))
+                              ts, muma_username, "listenbrainz_import", json.dumps(item)))
                     
                     processed_count += 1
                     if processed_count % 10 == 0:

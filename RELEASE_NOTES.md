@@ -11,6 +11,12 @@ This project is now modularized. Detailed release notes for each module can be f
 - [Rating System](services/rating-system/RELEASE_NOTES.md)
 - [Scrobble Service](services/scrobble-service/RELEASE_NOTES.md)
 
+## Global Version 2.1.16 (2026-07-04)
+### 🐛 Scrobble Service Fixes
+- **Import Stability**: Fixed a critical crash in the ListenBrainz import background task.
+- **API Compliance**: Added proper User-Agent headers to external API calls.
+- **Data Integrity**: Ensured ListenBrainz raw data is correctly serialized as JSON before storage.
+
 ## Global Version 2.1.15 (2026-07-04)
 ### 📊 Enhanced Scrobble Monitoring
 - **Import Dashboard**: Added a new dedicated tab in the Control Center for the Scrobble Service.

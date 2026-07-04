@@ -1,6 +1,6 @@
-# Release Notes - LMS 3.78.0
+# Release Notes - LMS 3.78.1
 
-## Version 3.78.0 (2026-07-04)
+## Version 3.78.1 (2026-07-04)
 
 LMS 3.77.0 focuses on rebranding the project to MuMa Server, improving Subsonic API compatibility, enhancing the web interface MuMaFi, and refining the deployment pipeline.
 

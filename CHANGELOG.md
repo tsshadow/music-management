@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0] - 2026-07-04
 ### Added
+- Created `scripts/deploy-stack.sh`, a generalized Docker stack deployment tool supporting Portainer discovery, SSH transfer, and intelligent fallbacks.
+- Support for initial stack creation: the deployment script now automatically creates the stack if it does not exist yet using a local template.
 - Modular build system with separate `build.sh`, `publish.sh`, and `deploy.sh` scripts.
 - Versioned Docker tagging: images are now tagged with both `:latest` and the repository version (e.g., `:2.0.0`).
 - Portainer Webhook support for automated Stack updates.
@@ -19,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Advanced audio feature extraction (MFCC, ZCR, Rolloff, Chroma) in ML analyzer.
 
 ### Changed
+- **Deployment**: Refactored `deploy.sh` to use the new generalized `deploy-stack.sh` helper, simplifying per-project deployment scripts.
+- **Deployment**: Enhanced stack discovery to support `PORTAINER_HOST` for pulling master templates.
+- **Deployment**: Improved robustness with `base64` template transfer and automated tab-to-space conversion in compose files.
 - Refactored core to use normalized database schema v2.
 - Updated `install.sh` to automate environment setup and dependency installation.
 - Optimized Docker builds by using system FFmpeg packages instead of source builds.

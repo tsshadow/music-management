@@ -131,11 +131,13 @@ See [INSTALL.md](INSTALL.md) file.
 ### Building and Deployment
 If you are modifying the code and need to rebuild and redeploy the system:
 
-1.  **Install dependencies**: `scripts/install.sh`
-2.  **Build image**: `scripts/build.sh`
-3.  **Publish image**: `scripts/publish.sh`
-4.  **Deploy to remote**: `scripts/deploy.sh`
-5.  **Full pipeline (Build + Publish + Deploy)**: `./bup` or `scripts/build_and_publish.sh`
+1.  **Full pipeline (Build + Publish + Deploy)**: `./install` or `./install.sh`
+    - Use `--remote` to offload to the LXC container.
+    - Use `release` for production builds.
+2.  **Individual steps**:
+    - Build: `scripts/build.sh`
+    - Publish: `scripts/publish.sh`
+    - Deploy: `scripts/deploy.sh`
 
 #### Remote Deployment Options
 You can configure deployment in `.env`:

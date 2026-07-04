@@ -1,3 +1,5 @@
+package org.moire.ultrasonic.fragment.muma
+
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 

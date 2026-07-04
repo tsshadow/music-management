@@ -7,6 +7,7 @@
   let notes = { release_notes: '', changelog: '' };
   let rules = { genres: [], ignored_genres: [] };
   let versions = {};
+  let allNotes = {};
   let accounts = [];
   let artists = [];
   let labels = [];
@@ -26,18 +27,20 @@
   let selectedArtistName = '';
   let selectedLabelName = '';
   let selectedGenreId = null;
+  let selectedServiceNotes = 'control-center';
 
   const API_BASE = import.meta.env.DEV ? 'http://localhost:8003' : '';
 
   async function fetchData() {
     loading = true;
     try {
-      const [configRes, notesRes, rulesRes, accountsRes, versionsRes] = await Promise.all([
+      const [configRes, notesRes, rulesRes, accountsRes, versionsRes, allNotesRes] = await Promise.all([
         fetch(`${API_BASE}/api/config`),
         fetch(`${API_BASE}/api/notes`),
         fetch(`${API_BASE}/api/rules`),
         fetch(`${API_BASE}/api/soundcloud`),
-        fetch(`${API_BASE}/api/versions`)
+        fetch(`${API_BASE}/api/versions`),
+        fetch(`${API_BASE}/api/all-notes`)
       ]);
       
       config = await configRes.json();
@@ -45,6 +48,7 @@
       rules = await rulesRes.json();
       accounts = await accountsRes.json();
       versions = await versionsRes.json();
+      allNotes = await allNotesRes.json();
       
       // Load rules for editor
       fetchRules();
@@ -260,25 +264,48 @@
     {:else}
       {#if activeTab === 'home'}
         <section class="space-y-8 animate-in fade-in duration-500">
-          <header>
-            <h2 class="text-4xl font-extrabold mb-2">🚀 Release Notes</h2>
-            <p class="text-spotify-lightgray">Updates en nieuwe features van het systeem.</p>
+          <header class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+              <h2 class="text-4xl font-extrabold mb-2">🚀 Release Notes</h2>
+              <p class="text-spotify-lightgray">Updates en nieuwe features van het systeem.</p>
+            </div>
+            
+            <div class="flex flex-col gap-2 min-w-[200px]">
+              <label for="service-select" class="text-xs font-bold text-spotify-lightgray uppercase tracking-widest">Kies Service</label>
+              <select 
+                id="service-select"
+                bind:value={selectedServiceNotes}
+                class="bg-spotify-gray border border-white border-opacity-10 rounded-md p-2 text-white focus:outline-none focus:border-spotify-green"
+              >
+                {#each Object.keys(allNotes) as service}
+                  <option value={service}>{service.charAt(0).toUpperCase() + service.slice(1).replace('-', ' ')}</option>
+                {/each}
+              </select>
+            </div>
           </header>
           
-          <div class="bg-spotify-gray bg-opacity-40 p-8 rounded-xl backdrop-blur-sm border border-white border-opacity-5">
-            <div class="md-content">
-              {@html notes.release_notes}
+          {#if allNotes[selectedServiceNotes]}
+            <div class="bg-spotify-gray bg-opacity-40 p-8 rounded-xl backdrop-blur-sm border border-white border-opacity-5">
+              <div class="md-content">
+                {@html allNotes[selectedServiceNotes].release_notes}
+              </div>
             </div>
-          </div>
-          
-          <header class="pt-8">
-            <h2 class="text-2xl font-bold mb-2 text-spotify-lightgray">📜 Technical Changelog</h2>
-          </header>
-          <div class="bg-spotify-dark p-8 rounded-xl border border-spotify-gray">
-            <div class="md-content">
-              {@html notes.changelog}
+            
+            {#if allNotes[selectedServiceNotes].changelog && allNotes[selectedServiceNotes].changelog !== '<p>No changelog found.</p>'}
+              <header class="pt-8">
+                <h2 class="text-2xl font-bold mb-2 text-spotify-lightgray">📜 Technical Changelog</h2>
+              </header>
+              <div class="bg-spotify-dark p-8 rounded-xl border border-spotify-gray">
+                <div class="md-content">
+                  {@html allNotes[selectedServiceNotes].changelog}
+                </div>
+              </div>
+            {/if}
+          {:else}
+            <div class="bg-spotify-gray bg-opacity-40 p-8 rounded-xl border border-white border-opacity-5 text-center text-spotify-lightgray">
+              Geen gegevens beschikbaar voor deze service.
             </div>
-          </div>
+          {/if}
         </section>
 
       {:else if activeTab === 'soundcloud'}

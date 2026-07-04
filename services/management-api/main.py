@@ -13,6 +13,17 @@ from services.common.api.version_helper import get_version, get_release_notes, g
 
 load_dotenv()
 
+SERVICES = {
+    "scanner": "http://muma-scanner:8001",
+    "tagger": "http://muma-tagger-worker:8001",
+    "importer": "http://muma-importer-worker:8001",
+    "youtube": "http://muma-youtube-worker:8001",
+    "soundcloud": "http://muma-soundcloud-worker:8001",
+    "telegram": "http://muma-telegram-worker:8001",
+    "ml-analyzer": "http://muma-ml-analyzer:8001",
+    "rating-system": "http://muma-rating-system:8000"
+}
+
 app = FastAPI(title="Music Management Control Center")
 
 # Allow CORS for development
@@ -79,21 +90,13 @@ def get_notes():
 @app.get("/api/versions")
 def get_all_versions():
     """Aggregate versions from all running services."""
-    services = {
-        "scanner": "http://muma-scanner:8001/version",
-        "tagger": "http://muma-tagger-worker:8001/version",
-        "importer": "http://muma-importer-worker:8001/version",
-        "downloader": "http://muma-youtube-worker:8001/version",
-        "ml-analyzer": "http://muma-ml-analyzer:8001/version"
-    }
-    
     versions = {
         "control-center": get_version()
     }
     
-    for name, url in services.items():
+    for name, base_url in SERVICES.items():
         try:
-            response = requests.get(url, timeout=1.0)
+            response = requests.get(f"{base_url}/version", timeout=1.0)
             if response.status_code == 200:
                 versions[name] = response.json().get("version", "unknown")
             else:
@@ -101,11 +104,33 @@ def get_all_versions():
         except Exception:
             versions[name] = "offline"
             
-    # Add LMS and Ultrasonic references as requested
+    # Add LMS and Ultrasonic references
     versions["lms"] = get_lms_version()
     versions["ultrasonic"] = get_latest_ultrasonic_version()
     
     return versions
+
+@app.get("/api/all-notes")
+def get_all_release_notes():
+    """Aggregate release notes from all services."""
+    all_notes = {
+        "control-center": {
+            "release_notes": get_release_notes("management-api"),
+            "changelog": get_changelog()
+        }
+    }
+    
+    for name, base_url in SERVICES.items():
+        try:
+            response = requests.get(f"{base_url}/release-notes", timeout=2.0)
+            if response.status_code == 200:
+                all_notes[name] = response.json()
+            else:
+                all_notes[name] = {"release_notes": f"<p>Error fetching: {response.status_code}</p>", "changelog": ""}
+        except Exception:
+            all_notes[name] = {"release_notes": "<p>Service offline.</p>", "changelog": ""}
+            
+    return all_notes
 
 def get_lms_version():
     """Try to get LMS version if possible, otherwise return a reference."""

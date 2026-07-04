@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.12] - 2026-07-04
+### Added
+- **Debug Support**: Added `--debug` flag to `build.sh` and `publish.sh` for detailed execution logging.
+- **Design System**: Created `styleguide.md` to formalize the Spotify-inspired dark theme (Groen/Zwart/Grijs).
+- **UI Refinement**: Standardized all UI accent colors to Spotify Green (`#1DB954`) and improved focus/selection states.
+
 ## [2.1.11] - 2026-07-04
 ### Added
 - **Centralized Release Notes**: The Control Center now aggregates and displays release notes and changelogs from all modular services.

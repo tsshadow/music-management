@@ -164,6 +164,7 @@ else
             importer) push_importer & ;;
             rating) push_rating & ;;
             base) push_base & ;;
+            patch) ;; # Handled as version bump, no specific component
             --debug) ;; # Handled at start
             *) echo "Unknown component: $arg"; exit 1 ;;
         esac

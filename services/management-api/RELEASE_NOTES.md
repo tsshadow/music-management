@@ -1,5 +1,11 @@
 # Release Notes - Control Center (Management API)
 
+## Version 2.1.12 (2026-07-04)
+### 🎨 Visual Polish & Theme Consistency
+- **Spotify Theme Alignment**: Replaced all remaining non-Spotify colors with the brand's signature green (`#1DB954`).
+- **Improved Interaction Styling**: Added custom focus borders and selection colors for better accessibility and visual feedback.
+- **Design Documentation**: Integrated the new `styleguide.md` as the source of truth for all UI decisions.
+
 ## Version 2.1.11 (2026-07-04)
 ### 🚀 Aggregated Release Notes
 - Added a service selector to view release notes for all sub-programs.

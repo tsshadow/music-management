@@ -22,6 +22,9 @@
 #include <atomic>
 #include <unordered_map>
 
+#include <Wt/Dbo/Exception.h>
+#include <Wt/Dbo/Query.h>
+
 #include "core/EnumSet.hpp"
 #include "core/IConfig.hpp"
 #include "core/ILogger.hpp"
@@ -471,6 +474,7 @@ namespace lms::api::subsonic
         const auto token{ getParameterAs<std::string>(parameters, "t") };
         const auto salt{ getParameterAs<std::string>(parameters, "s") };
         const auto apiKey{ getParameterAs<std::string>(parameters, "apiKey") };
+        const std::string xApiKeyHeader{ request.headerValue("X-API-Key") };
 
         if (!_config.supportUserPasswordAuthentication && (password || user || token || salt))
             throw ProvidedAuthenticationMechanismNotSupportedError{};
@@ -485,12 +489,12 @@ namespace lms::api::subsonic
         if (password && token)
             throw MultipleConflictingAuthenticationMechanismsProvidedError{};
 
-        if (!apiKey && !password && !token)
+        if (!apiKey && !password && !token && xApiKeyHeader.empty())
             throw RequiredParameterMissingError{ "apiKey" };
 
         const auto clientAddress{ boost::asio::ip::make_address(request.clientAddress()) };
 
-        const std::string cacheKey{ (user ? *user : "") + ":" + (password ? *password : "") + ":" + (token ? *token : "") + ":" + (salt ? *salt : "") + ":" + (apiKey ? *apiKey : "") + ":" + clientAddress.to_string() };
+        const std::string cacheKey{ (user ? *user : "") + ":" + (password ? *password : "") + ":" + (token ? *token : "") + ":" + (salt ? *salt : "") + ":" + (apiKey ? *apiKey : "") + ":" + xApiKeyHeader + ":" + clientAddress.to_string() };
         {
             std::lock_guard lock{ _authCacheMutex };
             if (auto it{ _authCache.find(cacheKey) }; it != _authCache.end())
@@ -520,6 +524,18 @@ namespace lms::api::subsonic
             _authCache[cacheKey] = { userId, std::chrono::steady_clock::now() + std::chrono::minutes{ 5 } };
             return userId;
         } };
+
+        if (!xApiKeyHeader.empty())
+        {
+            auto config = core::Service<core::IConfig>::get();
+            if ((xApiKeyHeader == config->getString("music-management-user-api-key", "") && !config->getString("music-management-user-api-key", "").empty()) ||
+                (xApiKeyHeader == config->getString("music-management-rating-api-key", "") && !config->getString("music-management-rating-api-key", "").empty()) ||
+                (xApiKeyHeader == config->getString("music-management-scrobbling-api-key", "") && !config->getString("music-management-scrobbling-api-key", "").empty()))
+            {
+                if (db::UserId adminId = db::User::findAdminUserId(_db.getTLSSession()); adminId.isValid())
+                    return onAuthSuccess(adminId);
+            }
+        }
 
         if (apiKey)
         {

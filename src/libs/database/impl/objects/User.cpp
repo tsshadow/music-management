@@ -100,6 +100,18 @@ namespace lms::db
         return utils::fetchQuerySingleResult(session.getDboSession()->query<Wt::Dbo::ptr<User>>("SELECT u from user u").where("u.login_name = ?").bind(name));
     }
 
+    UserId User::findAdminUserId(Session& session)
+    {
+        session.checkReadTransaction();
+
+        auto query{ session.getDboSession()->query<UserId>("SELECT id FROM user").where("type = ?").bind(UserType::ADMIN) };
+        auto results = query.resultList();
+        if (!results.empty())
+            return *results.begin();
+
+        return {};
+    }
+
     void User::setSubsonicDefaultTranscodingOutputBitrate(Bitrate bitrate)
     {
         assert(isAudioBitrateAllowed(bitrate));

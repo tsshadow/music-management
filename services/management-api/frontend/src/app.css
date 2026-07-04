@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  background-color: #121212;
+}
+
+.md-content h1 { @apply text-2xl font-bold mt-6 mb-4 text-spotify-green; }
+.md-content h2 { @apply text-xl font-bold mt-5 mb-3 border-b border-spotify-gray pb-2; }
+.md-content h3 { @apply text-lg font-bold mt-4 mb-2 text-spotify-lightgray; }
+.md-content p { @apply my-3 text-spotify-lightgray; }
+.md-content ul { @apply list-disc ml-6 my-3 text-spotify-lightgray; }
+.md-content li { @apply mb-1; }
+.md-content code { @apply bg-spotify-gray px-1 rounded text-sm font-mono; }
+.md-content pre { @apply bg-spotify-dark p-4 rounded-lg overflow-x-auto my-4 border border-spotify-gray; }
+.md-content a { @apply text-spotify-green hover:underline; }

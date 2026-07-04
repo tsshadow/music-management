@@ -1,17 +1,28 @@
-FROM python:3.11-slim
+# Stage 1: Build Svelte frontend
+FROM node:20-slim AS frontend-builder
+WORKDIR /app/frontend
+COPY services/management-api/frontend/package*.json ./
+RUN npm install
+COPY services/management-api/frontend/ ./
+RUN npm run build
 
+# Stage 2: Python Backend
+FROM python:3.11-slim
 WORKDIR /app
 
 COPY services/management-api/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy backend code
 COPY services/management-api/ /app/services/management-api/
 COPY RELEASE_NOTES.md /app/
 COPY CHANGELOG.md /app/
 COPY VERSION /app/
 
-ENV PYTHONPATH=/app
+# Copy built frontend from Stage 1
+COPY --from=frontend-builder /app/frontend/dist /app/services/management-api/frontend/dist
 
+ENV PYTHONPATH=/app
 EXPOSE 8000
 
 CMD ["uvicorn", "services.management-api.main:app", "--host", "0.0.0.0", "--port", "8000"]

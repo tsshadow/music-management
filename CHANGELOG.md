@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.30] - 2026-07-05
+### Added
+- **LMS Subsonic API Key**: De Subsonic API-sleutel in LMS kan nu worden geconfigureerd via de omgevingsvariabele `LMS_SUBSONIC_API_KEY`, wat de integratie met externe apps vergemakkelijkt.
+
 ## [2.1.29] - 2026-07-05
 ### Added
 - **Centralized Authentication**: Introduced a centralized `/auth/verify` endpoint in the User Service to validate both system-wide and user-specific API keys.

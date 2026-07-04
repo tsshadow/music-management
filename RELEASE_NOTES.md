@@ -12,6 +12,10 @@ This project is now modularized. Detailed release notes for each module can be f
 - [Scrobble Service](services/scrobble-service/RELEASE_NOTES.md)
 - [User Service](services/user-service/RELEASE_NOTES.md)
 
+## Global Version 2.1.30 (2026-07-05)
+### 🔑 LMS Subsonic API Key Integration
+- **Configurable Subsonic Key**: LMS ondersteunt nu de `LMS_SUBSONIC_API_KEY` omgevingsvariabele. Hiermee kan de Subsonic API-sleutel direct worden ingesteld zonder handmatige database-wijzigingen, wat zorgt voor een vlekkeloze verbinding met apps zoals Ultrasonic.
+
 ## Global Version 2.1.29 (2026-07-05)
 ### 🔐 Centralized Auth & Network Hardening
 - **User Service Identity Provider**: Repurposed the User Service to act as a central auth authority. It now exposes an `/auth/verify` endpoint that validates tokens for other services.

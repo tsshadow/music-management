@@ -55,9 +55,6 @@ if [ ! -f .env ]; then
 fi
 
 echo "Requirements installation completed."
-
-# Apply group membership to the current session
-if ! groups | grep -q "\bdocker\b"; then
-    echo "Applying docker group membership to the current session via 'newgrp docker'..."
-    newgrp docker
-fi
+echo ""
+echo "NOTE: The build scripts now automatically handle Docker permissions if you've just been added to the group."
+echo "If you want to use Docker manually in this session, run: newgrp docker"

@@ -27,6 +27,7 @@
 #include "database/objects/Cluster.hpp"
 #include "database/objects/Listen.hpp"
 #include "database/objects/Track.hpp"
+#include "database/objects/User.hpp"
 #include "responses/Playlist.hpp"
 #include "responses/Song.hpp"
 #include "core/Service.hpp"
@@ -135,7 +136,7 @@ namespace lms::api::subsonic
             return normalizeArtist(track->getArtistDisplayName()) + ":::" + normalizeTitle(track->getName());
         }
 
-        void findTracks(db::Session& session, db::Track::FindParameters& params, bool deduplicate, int& nextOffset, bool& moreResults, std::function<void(const db::Track::pointer&)> callback)
+        void findTracks(db::Session& session, db::Track::FindParameters& params, const std::map<std::string, std::set<db::ClusterId>>& clusterGroups, bool deduplicate, int& nextOffset, bool& moreResults, std::function<void(const db::Track::pointer&)> callback)
         {
             int initialOffset = params.range ? static_cast<int>(params.range->offset) : 0;
             int requestedCount = params.range ? static_cast<int>(params.range->size) : 50;
@@ -158,7 +159,7 @@ namespace lms::api::subsonic
                     params.range = db::Range{ static_cast<std::size_t>(currentScanOffset), static_cast<std::size_t>(scanBatchSize) };
                     
                     int batchScanned = 0;
-                    db::Track::find(session, params, batchMoreResults, [&](const db::Track::pointer& track) {
+                    db::Track::find_advanced(session, params, clusterGroups, [&](const db::Track::pointer& track) {
                         batchScanned++;
                         if (uniqueCount >= requestedCount)
                             return;
@@ -183,7 +184,11 @@ namespace lms::api::subsonic
                     totalScanned += batchScanned;
                     currentScanOffset += batchScanned;
                     
-                    if (!batchMoreResults || batchScanned < scanBatchSize || uniqueCount >= requestedCount)
+                    // We need to know if there were more results in the batch
+                    // find_advanced doesn't easily tell us this for raw SQL unless we check if we got scanBatchSize results
+                    batchMoreResults = (batchScanned >= scanBatchSize);
+
+                    if (!batchMoreResults || uniqueCount >= requestedCount)
                         break;
                 }
 
@@ -198,11 +203,14 @@ namespace lms::api::subsonic
             else
             {
                 int actualCount = 0;
-                db::Track::find(session, params, moreResults, [&](const db::Track::pointer& track) {
+                db::Track::find_advanced(session, params, clusterGroups, [&](const db::Track::pointer& track) {
                     actualCount++;
                     callback(track);
                 });
                 nextOffset = initialOffset + actualCount;
+                
+                // Simplified moreResults check
+                moreResults = (actualCount >= requestedCount);
             }
         }
     }
@@ -317,7 +325,7 @@ namespace lms::api::subsonic
 
         bool moreResults = false;
         int nextOffset = 0;
-        findTracks(session, params, true /* always deduplicate curated */, nextOffset, moreResults, [&](const db::Track::pointer& track) {
+        findTracks(session, params, {}, true /* always deduplicate curated */, nextOffset, moreResults, [&](const db::Track::pointer& track) {
             playlistNode.addArrayChild("entry", createSongNode(ctx, track, true));
         });
 
@@ -357,13 +365,14 @@ namespace lms::api::subsonic
             params.setArtist(*artistId, { db::TrackArtistLinkType::Artist });
         }
 
+        std::map<std::string, std::set<db::ClusterId>> clusterGroups;
         if (auto genre = getParameterAs<std::string>(ctx.getParameters(), "genre"))
         {
             if (auto genreType = db::ClusterType::find(session, "GENRE"))
             {
                 if (auto cluster = genreType->getCluster(*genre))
                 {
-                    params.filters.clusters.push_back(cluster->getId());
+                    clusterGroups["GENRE"].insert(cluster->getId());
                 }
             }
         }
@@ -374,7 +383,7 @@ namespace lms::api::subsonic
             {
                 if (auto cluster = yearType->getCluster(*year))
                 {
-                    params.filters.clusters.push_back(cluster->getId());
+                    clusterGroups["YEAR"].insert(cluster->getId());
                 }
             }
         }
@@ -447,7 +456,7 @@ namespace lms::api::subsonic
         bool moreResults = false;
         int nextOffset = 0;
 
-        findTracks(session, params, deduplicate, nextOffset, moreResults, [&](const db::Track::pointer& track) {
+        findTracks(session, params, clusterGroups, deduplicate, nextOffset, moreResults, [&](const db::Track::pointer& track) {
             tracksNode.addArrayChild("track", createSongNode(ctx, track, true));
         });
 

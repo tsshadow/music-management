@@ -1,5 +1,6 @@
 services:
   lms:
+    container_name: lms
     image: ${IMAGE_NAME:-muma/lms}:${LMS_TAG:-stable}
     expose:
       - "5082"
@@ -12,6 +13,7 @@ services:
     user: "0:0"
     restart: unless-stopped
   lms_alpha:
+    container_name: lms_alpha
     image: ${IMAGE_NAME:-muma/lms}:${LMS_ALPHA_TAG:-latest}
     expose:
       - "5082"
@@ -19,7 +21,7 @@ services:
       - "${LMS_ALPHA_PORT:-8080}:5082"
     volumes:
       - ${MUSIC_PATH:-/mnt/music}:/music
-      - ${DOCKER_DATA_PATH:-/docker}/lms-alpha/usr/local/etc:/usr/local/etc
-      - ${DOCKER_DATA_PATH:-/docker}/lms-alpha/var/lms:/var/lms
+      - ${DOCKER_DATA_PATH:-/docker}/alpha-lms/usr/local/etc:/usr/local/etc
+      - ${DOCKER_DATA_PATH:-/docker}/alpha-lms/var/lms:/var/lms
     user: "0:0"
     restart: unless-stopped

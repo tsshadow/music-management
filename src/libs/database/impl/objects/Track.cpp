@@ -639,11 +639,33 @@ namespace lms::db
         const std::function<void(const Track::pointer&)>& func)
     {
         session.checkReadTransaction();
+        const UserId ratingUserId = params.ratingUser;
 
         std::string baseQuery = "SELECT DISTINCT t FROM track t";
         std::vector<ClusterId> bindClusterIds;
         std::vector<std::function<void(Wt::Dbo::Query<Wt::Dbo::ptr<Track>>&)>>
             bindFuncs; // store lambdas that bind later
+
+        if (ratingUserId.isValid())
+        {
+            if (params.includeUnrated)
+            {
+                baseQuery += " LEFT JOIN rated_track r_t ON (r_t.track_id = t.id AND r_t.user_id = ?)";
+                bindFuncs.emplace_back([ratingUserId](auto& q) { q.bind(ratingUserId); });
+            }
+            else
+            {
+                baseQuery += " JOIN rated_track r_t ON (r_t.track_id = t.id AND r_t.user_id = ?)";
+                bindFuncs.emplace_back([ratingUserId](auto& q) { q.bind(ratingUserId); });
+            }
+        }
+
+        if (params.sortMethod == TrackSortMethod::DateDescAndRelease
+            || params.sortMethod == TrackSortMethod::OriginalDateDescAndRelease
+            || params.sortMethod == TrackSortMethod::Release)
+        {
+            baseQuery += " LEFT JOIN medium m ON t.medium_id = m.id";
+        }
 
         int groupCounter = 0;
         for (const auto& [filterName, clusterIds] : clusterGroups)
@@ -671,13 +693,21 @@ namespace lms::db
         {
             if (params.includeUnrated || params.minRating.value() == 0)
             {
-                baseQuery += " AND (t.rating IS NULL OR t.rating = 0 OR t.rating BETWEEN ? AND ?)";
+                if (ratingUserId.isValid())
+                    baseQuery += " AND (r_t.rating IS NULL OR r_t.rating = 0 OR r_t.rating BETWEEN ? AND ?)";
+                else
+                    baseQuery += " AND (t.rating IS NULL OR t.rating = 0 OR t.rating BETWEEN ? AND ?)";
+
                 bindFuncs.emplace_back([&params](auto& q) { q.bind(params.minRating.value()); });
                 bindFuncs.emplace_back([&params](auto& q) { q.bind(params.maxRating.value()); });
             }
             else
             {
-                baseQuery += " AND t.rating BETWEEN ? AND ?";
+                if (ratingUserId.isValid())
+                    baseQuery += " AND r_t.rating BETWEEN ? AND ?";
+                else
+                    baseQuery += " AND t.rating BETWEEN ? AND ?";
+
                 bindFuncs.emplace_back([&params](auto& q) { q.bind(params.minRating.value()); });
                 bindFuncs.emplace_back([&params](auto& q) { q.bind(params.maxRating.value()); });
             }
@@ -686,18 +716,30 @@ namespace lms::db
         {
             if (params.includeUnrated || params.minRating.value() == 0)
             {
-                baseQuery += " AND (t.rating IS NULL OR t.rating = 0 OR t.rating >= ?)";
+                if (ratingUserId.isValid())
+                    baseQuery += " AND (r_t.rating IS NULL OR r_t.rating = 0 OR r_t.rating >= ?)";
+                else
+                    baseQuery += " AND (t.rating IS NULL OR t.rating = 0 OR t.rating >= ?)";
+
                 bindFuncs.emplace_back([&params](auto& q) { q.bind(params.minRating.value()); });
             }
             else
             {
-                baseQuery += " AND t.rating >= ?";
+                if (ratingUserId.isValid())
+                    baseQuery += " AND r_t.rating >= ?";
+                else
+                    baseQuery += " AND t.rating >= ?";
+
                 bindFuncs.emplace_back([&params](auto& q) { q.bind(params.minRating.value()); });
             }
         }
         else if (params.maxRating.has_value())
         {
-            baseQuery += " AND (t.rating IS NULL OR t.rating <= ?)";
+            if (ratingUserId.isValid())
+                baseQuery += " AND (r_t.rating IS NULL OR r_t.rating <= ?)";
+            else
+                baseQuery += " AND (t.rating IS NULL OR t.rating <= ?)";
+
             bindFuncs.emplace_back([&params](auto& q) { q.bind(params.maxRating.value()); });
         }
 
@@ -720,7 +762,12 @@ namespace lms::db
         }
 
         if (params.sortMethod != TrackSortMethod::None)
-            baseQuery += " ORDER BY " + sortMethodToSQL(params.sortMethod);
+        {
+            if (params.sortMethod == TrackSortMethod::RatingDesc && ratingUserId.isValid())
+                baseQuery += " ORDER BY r_t.rating DESC";
+            else
+                baseQuery += " ORDER BY " + sortMethodToSQL(params.sortMethod);
+        }
         else
             baseQuery += " ORDER BY t.id";
 

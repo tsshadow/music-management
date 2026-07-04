@@ -14,6 +14,35 @@ if ! docker info >/dev/null 2>&1; then
     fi
 fi
 
+# Handle --remote flag
+REMOTE=false
+for arg in "$@"; do
+    if [ "$arg" == "--remote" ]; then
+        REMOTE=true
+        break
+    fi
+done
+
+if [ "$REMOTE" == "true" ]; then
+    # Remove --remote from arguments
+    NEW_ARGS=()
+    for arg in "$@"; do
+        if [ "$arg" != "--remote" ]; then
+            NEW_ARGS+=("$arg")
+        fi
+    done
+    
+    # Check if we are already in the remote context to avoid recursion
+    CURRENT_CONTEXT=$(docker context show)
+    if [ "$CURRENT_CONTEXT" != "remote-lxc" ]; then
+        echo "=== OFFLOADING TO REMOTE LXC ==="
+        exec ./scripts/remote-build.sh bup "${NEW_ARGS[@]}"
+    fi
+    
+    # Apply new args (without --remote) for local execution (inside remote context)
+    set -- "${NEW_ARGS[@]}"
+fi
+
 # Determine mode (debug is default)
 MODE="${1:-debug}"
 
@@ -25,6 +54,5 @@ fi
 
 ./scripts/build.sh "$MODE"
 ./scripts/publish.sh "$MODE"
-./scripts/deploy.sh "$MODE"
 
 echo "Build, publish and deploy completed successfully!"

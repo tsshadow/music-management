@@ -81,6 +81,7 @@ namespace lms::db
         if (input == "StarredDateDesc") return TrackSortMethod::StarredDateDesc;
         if (input == "Name") return TrackSortMethod::Name;
         if (input == "DateDescAndRelease") return TrackSortMethod::DateDescAndRelease;
+        if (input == "OriginalDateDescAndRelease") return TrackSortMethod::OriginalDateDescAndRelease;
         if (input == "Release") return TrackSortMethod::Release;
         if (input == "TrackList") return TrackSortMethod::TrackList;
         if (input == "MostPlayed") return TrackSortMethod::MostPlayed;
@@ -113,6 +114,8 @@ namespace lms::db
             return "Name";
         case TrackSortMethod::DateDescAndRelease:
             return "DateDescAndRelease";
+        case TrackSortMethod::OriginalDateDescAndRelease:
+            return "OriginalDateDescAndRelease";
         case TrackSortMethod::Release:
             return "Release";
         case TrackSortMethod::TrackList:
@@ -155,9 +158,11 @@ namespace lms::db
         case TrackSortMethod::Name:
             return "t.name";
         case TrackSortMethod::DateDescAndRelease:
-            return "t.date DESC, t.release_id, t.track_number";
+            return "t.date DESC, t.release_id, m.position, t.track_number";
+        case TrackSortMethod::OriginalDateDescAndRelease:
+            return "COALESCE(t.original_date, t.date) DESC, t.release_id, m.position, t.track_number";
         case TrackSortMethod::Release:
-            return "t.track_number";
+            return "m.position, t.track_number";
         case TrackSortMethod::TrackList:
             return "t.tracklist_order";
         case TrackSortMethod::TrackNumber:

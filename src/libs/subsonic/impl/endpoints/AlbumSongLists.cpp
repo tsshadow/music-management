@@ -339,6 +339,8 @@ namespace lms::api::subsonic
         params.setRange(Range{ offset, count });
         params.setMinRating(static_cast<int>(ratingMin));
         params.setMaxRating(static_cast<int>(ratingMax));
+        params.ratingUser = context.getUser()->getId();
+        params.includeUnrated = true;
 
         Track::find(context.getDbSession(), params, [&](const Track::pointer& track) {
             songsByGenreNode.addArrayChild("song", createSongNode(context, track, context.getUser()));
@@ -480,6 +482,8 @@ namespace lms::api::subsonic
         std::optional<int> minRating = getParameterAs<int>(context.getParameters(), "ratingMin");
         std::optional<int> maxRating = getParameterAs<int>(context.getParameters(), "ratingMax");
         std::optional<std::string> festivalLineup = getParameterAs<std::string>(context.getParameters(), "festivalLineup");
+        std::optional<int> minDuration = getParameterAs<int>(context.getParameters(), "minDuration");
+        std::optional<int> maxDuration = getParameterAs<int>(context.getParameters(), "maxDuration");
 
         size = std::min(size, defaultMaxCountSize);
 
@@ -505,10 +509,21 @@ namespace lms::api::subsonic
         if (minRating)
         {
             params.setMinRating(*minRating);
+            params.ratingUser = context.getUser()->getId();
+            params.includeUnrated = true;
         }
         if (maxRating)
         {
             params.setMaxRating(*maxRating);
+            params.ratingUser = context.getUser()->getId();
+        }
+        if (minDuration)
+        {
+            params.minDuration = std::chrono::minutes(*minDuration);
+        }
+        if (maxDuration)
+        {
+            params.maxDuration = std::chrono::minutes(*maxDuration);
         }
 
         Response::Node& songsNode = response.createNode("songs");

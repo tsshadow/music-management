@@ -19,7 +19,11 @@
 
 #pragma once
 
-#include <Wt/Http/Response.h>
+#include "../RequestContext.hpp"
+#include "../SubsonicResponse.hpp"
+
+#include <optional>
+#include <string>
 
 namespace lms::api::subsonic
 {

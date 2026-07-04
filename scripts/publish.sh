@@ -32,12 +32,44 @@ if ! docker info | grep -q "Username:"; then
     fi
 fi
 
+# Handle --remote flag
+REMOTE=false
+for arg in "$@"; do
+    if [ "$arg" == "--remote" ]; then
+        REMOTE=true
+        break
+    fi
+done
+
+if [ "$REMOTE" == "true" ]; then
+    # Remove --remote from arguments
+    NEW_ARGS=()
+    for arg in "$@"; do
+        if [ "$arg" != "--remote" ]; then
+            NEW_ARGS+=("$arg")
+        fi
+    done
+    
+    # Check if we are already in the remote context to avoid recursion
+    CURRENT_CONTEXT=$(docker context show)
+    if [ "$CURRENT_CONTEXT" != "remote-lxc" ]; then
+        echo "=== OFFLOADING PUSH TO REMOTE LXC ==="
+        exec ./scripts/remote-build.sh publish "${NEW_ARGS[@]}"
+    fi
+    
+    # Apply new args (without --remote) for local execution (inside remote context)
+    set -- "${NEW_ARGS[@]}"
+fi
+
 if [ -f .env ]; then
     while IFS= read -r line || [[ -n "$line" ]]; do
         # Strip trailing comments and whitespace
         clean_line=$(echo "$line" | sed 's/[[:space:]]*#.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         if [[ -n "$clean_line" && ! "$clean_line" =~ ^# ]]; then
-            export "$clean_line"
+            varname="${clean_line%%=*}"
+            if [ -z "${!varname}" ]; then
+                export "$clean_line"
+            fi
         fi
     done < .env
 fi
@@ -68,4 +100,6 @@ if [ "$MODE" != "release" ]; then
     docker push "${IMAGE_NAME}:${ALPHA_TAG}"
 fi
 
-echo "--- Push process completed ---"
+./scripts/deploy.sh "$MODE"
+
+echo "--- Push and deploy process completed ---"

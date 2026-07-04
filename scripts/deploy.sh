@@ -9,7 +9,10 @@ if [ -f .env ]; then
         # Strip trailing comments and whitespace
         clean_line=$(echo "$line" | sed 's/[[:space:]]*#.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         if [[ -n "$clean_line" && ! "$clean_line" =~ ^# ]]; then
-            export "$clean_line"
+            varname="${clean_line%%=*}"
+            if [ -z "${!varname}" ]; then
+                export "$clean_line"
+            fi
         fi
     done < .env
 fi
@@ -32,18 +35,21 @@ fi
 
 # Service name selection and Tag assignment based on mode
 if [ "$MODE" == "release" ]; then
-    SERVICE_NAME="lms"
     export LMS_TAG="$TAG"
-    echo "Release mode: deploying service '$SERVICE_NAME' with tag '$LMS_TAG'"
+    echo "Release mode: using tag '$LMS_TAG' for lms"
 else
-    SERVICE_NAME="lms_alpha"
     export LMS_ALPHA_TAG="$TAG"
-    echo "Debug mode: deploying service '$SERVICE_NAME' with tag '$LMS_ALPHA_TAG'"
+    echo "Debug mode: using tag '$LMS_ALPHA_TAG' for lms_alpha"
 fi
-export SERVICE_NAME
+
+# Ensure both tags and image name are passed to the remote host
+export EXTRA_VARS="LMS_TAG=$LMS_TAG LMS_ALPHA_TAG=$LMS_ALPHA_TAG IMAGE_NAME=$IMAGE_NAME"
+
+# We don't restrict to a single service name by default anymore, 
+# to ensure the whole stack (lms and lms_alpha) is recreated if needed.
+unset SERVICE_NAME
 
 TARGET=$(echo "${DEPLOY_TARGET_NAME}" | tr '[:upper:]' '[:lower:]')
-DOCKER_COMPOSE_FILE="${REMOTE_STACK_PATH}"
 
 
 # Webhook method
@@ -83,8 +89,6 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
     export LOCAL_COMPOSE_FILE="docker-compose.yml"
     export LOCAL_ENV_FILE=".env"
     export SEARCH_STRING="muma/lms"
-    # Pass mode-specific tags through EXTRA_VARS
-    export EXTRA_VARS="LMS_TAG=$LMS_TAG LMS_ALPHA_TAG=$LMS_ALPHA_TAG"
     
     ./scripts/deploy-stack.sh
     

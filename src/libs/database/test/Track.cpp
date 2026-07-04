@@ -634,4 +634,128 @@ namespace lms::db::tests
             EXPECT_EQ(track->getPreferredMediaArtwork(), Artwork::pointer{});
         }
     }
+
+    TEST_F(DatabaseFixture, Track_findAdvanced)
+    {
+        ScopedClusterType genreType{ session, "GENRE" };
+        ScopedCluster rock{ session, genreType.lockAndGet(), "Rock" };
+        ScopedCluster pop{ session, genreType.lockAndGet(), "Pop" };
+
+        ScopedClusterType yearType{ session, "YEAR" };
+        ScopedCluster y2020{ session, yearType.lockAndGet(), "2020" };
+        ScopedCluster y2021{ session, yearType.lockAndGet(), "2021" };
+
+        ScopedTrack trackRock2020{ session };
+        ScopedTrack trackPop2021{ session };
+        ScopedTrack trackRock2021{ session };
+
+        ScopedUser user{ session, "user" };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            rock.get().modify()->addTrack(trackRock2020.get());
+            y2020.get().modify()->addTrack(trackRock2020.get());
+            trackRock2020.get().modify()->setDuration(std::chrono::minutes{ 5 });
+
+            pop.get().modify()->addTrack(trackPop2021.get());
+            y2021.get().modify()->addTrack(trackPop2021.get());
+            trackPop2021.get().modify()->setDuration(std::chrono::minutes{ 3 });
+
+            rock.get().modify()->addTrack(trackRock2021.get());
+            y2021.get().modify()->addTrack(trackRock2021.get());
+            trackRock2021.get().modify()->setDuration(std::chrono::minutes{ 15 });
+
+            auto rt = session.create<RatedTrack>(trackRock2020.get(), user.get());
+            rt.modify()->setRating(4);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            // Find by Genre AND Year
+            {
+                Track::FindParameters params;
+                std::map<std::string, std::set<ClusterId>> clusterGroups;
+                clusterGroups["GENRE"].insert(rock.getId());
+                clusterGroups["YEAR"].insert(y2021.getId());
+
+                std::vector<TrackId> foundIds;
+                Track::find_advanced(session, params, clusterGroups, [&](const Track::pointer& t) {
+                    foundIds.push_back(t->getId());
+                });
+
+                ASSERT_EQ(foundIds.size(), 1);
+                EXPECT_EQ(foundIds[0], trackRock2021.getId());
+            }
+
+            // Find by Genre AND Max Duration
+            {
+                Track::FindParameters params;
+                params.maxDuration = std::chrono::minutes{ 10 };
+                std::map<std::string, std::set<ClusterId>> clusterGroups;
+                clusterGroups["GENRE"].insert(rock.getId());
+
+                std::vector<TrackId> foundIds;
+                Track::find_advanced(session, params, clusterGroups, [&](const Track::pointer& t) {
+                    foundIds.push_back(t->getId());
+                });
+
+                ASSERT_EQ(foundIds.size(), 1);
+                EXPECT_EQ(foundIds[0], trackRock2020.getId());
+            }
+
+            // Find by Genre AND Min Rating
+            {
+                Track::FindParameters params;
+                params.ratingUser = user.getId();
+                params.minRating = 3;
+                params.includeUnrated = false;
+                std::map<std::string, std::set<ClusterId>> clusterGroups;
+                clusterGroups["GENRE"].insert(rock.getId());
+
+                std::vector<TrackId> foundIds;
+                Track::find_advanced(session, params, clusterGroups, [&](const Track::pointer& t) {
+                    foundIds.push_back(t->getId());
+                });
+
+                ASSERT_EQ(foundIds.size(), 1);
+                EXPECT_EQ(foundIds[0], trackRock2020.getId());
+            }
+
+            // Find by Genre AND Min Rating (including unrated)
+            {
+                Track::FindParameters params;
+                params.ratingUser = user.getId();
+                params.minRating = 3;
+                params.includeUnrated = true;
+                std::map<std::string, std::set<ClusterId>> clusterGroups;
+                clusterGroups["GENRE"].insert(rock.getId());
+
+                std::vector<TrackId> foundIds;
+                Track::find_advanced(session, params, clusterGroups, [&](const Track::pointer& t) {
+                    foundIds.push_back(t->getId());
+                });
+
+                // Should find trackRock2020 (rated 4) and trackRock2021 (unrated)
+                EXPECT_EQ(foundIds.size(), 2);
+            }
+
+            // Test sorting by rating
+            {
+                Track::FindParameters params;
+                params.ratingUser = user.getId();
+                params.sortMethod = TrackSortMethod::RatingDesc;
+
+                std::vector<TrackId> foundIds;
+                Track::find_advanced(session, params, {}, [&](const Track::pointer& t) {
+                    foundIds.push_back(t->getId());
+                });
+
+                // trackRock2020 has rating 4, others have 0/NULL.
+                // So trackRock2020 should be first.
+                ASSERT_GT(foundIds.size(), 0);
+                EXPECT_EQ(foundIds[0], trackRock2020.getId());
+            }
+        }
+    }
 } // namespace lms::db::tests

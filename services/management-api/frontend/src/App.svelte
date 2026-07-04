@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Home, Cloud, Scale, Database, Info, ExternalLink, Plus, RefreshCw, Music, Tag, Trash2, Search, Radio, Users, Key } from 'lucide-svelte';
+  import { Home, Cloud, Scale, Database, Info, ExternalLink, Plus, RefreshCw, Music, Tag, Trash2, Search, Radio, Users, Key, Youtube } from 'lucide-svelte';
 
   let activeTab = 'home';
   let config = { version: '...', phpmyadmin_url: '#' };
@@ -9,6 +9,7 @@
   let versions = {};
   let allNotes = {};
   let accounts = [];
+  let youtubeAccounts = [];
   let artists = [];
   let labels = [];
   let artistGenreRules = [];
@@ -72,11 +73,12 @@
     loading = true;
     try {
       const headers = getHeaders();
-      const [configRes, notesRes, rulesRes, accountsRes, versionsRes, allNotesRes, importsRes, usersRes] = await Promise.all([
+      const [configRes, notesRes, rulesRes, accountsRes, youtubeRes, versionsRes, allNotesRes, importsRes, usersRes] = await Promise.all([
         fetch(`${API_BASE}/api/config`, { headers }),
         fetch(`${API_BASE}/api/notes`, { headers }),
         fetch(`${API_BASE}/api/rules`, { headers }),
         fetch(`${API_BASE}/api/soundcloud`, { headers }),
+        fetch(`${API_BASE}/api/youtube`, { headers }),
         fetch(`${API_BASE}/api/versions`, { headers }),
         fetch(`${API_BASE}/api/all-notes`, { headers }),
         fetch(`${API_BASE}/api/scrobble/import/latest`, { headers }),
@@ -87,6 +89,7 @@
       notes = await notesRes.json();
       rules = await rulesRes.json();
       accounts = await accountsRes.json();
+      youtubeAccounts = await youtubeRes.json();
       versions = await versionsRes.json();
       allNotes = await allNotesRes.json();
       latestImports = await importsRes.json();
@@ -273,6 +276,72 @@
     }
   }
 
+  async function deleteSoundcloudAccount(name) {
+    if (!confirm(`Weet je zeker dat je SoundCloud account ${name} wilt verwijderen?`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/soundcloud/${name}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      });
+      if (res.ok) {
+        message = "SoundCloud account verwijderd";
+        fetchData();
+        setTimeout(() => message = '', 2000);
+      }
+    } catch (err) {
+      error = "Fout bij verwijderen account";
+    }
+  }
+
+  async function fetchYoutubeAccounts() {
+    try {
+      const res = await fetch(`${API_BASE}/api/youtube`, { headers: getHeaders() });
+      youtubeAccounts = await res.json();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function addYoutubeAccount() {
+    if (!newAccountName) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/youtube`, {
+        method: 'POST',
+        headers: getHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ name: newAccountName })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        message = data.message;
+        newAccountName = '';
+        fetchYoutubeAccounts();
+        setTimeout(() => message = '', 3000);
+      } else {
+        error = data.detail || "Fout bij toevoegen account.";
+        setTimeout(() => error = '', 5000);
+      }
+    } catch (err) {
+      error = "Netwerkfout bij toevoegen account.";
+    }
+  }
+
+  async function deleteYoutubeAccount(name) {
+    if (!confirm(`Weet je zeker dat je YouTube account ${name} wilt verwijderen?`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/youtube/${name}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      });
+      if (res.ok) {
+        message = "YouTube account verwijderd";
+        fetchYoutubeAccounts();
+        setTimeout(() => message = '', 2000);
+      }
+    } catch (err) {
+      error = "Fout bij verwijderen account";
+    }
+  }
+
   async function fetchUsers() {
     try {
       const res = await fetch(`${API_BASE}/api/users`, { headers: getHeaders() });
@@ -344,7 +413,7 @@
     try {
       const res = await fetch(`${API_BASE}/api/users/${selectedUser.id}/password`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ password: userPassword })
       });
       if (res.ok) {
@@ -424,6 +493,12 @@
         class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'soundcloud' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
       >
         <Cloud size={24} /> SoundCloud
+      </button>
+      <button 
+        on:click={() => activeTab = 'youtube'}
+        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'youtube' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+      >
+        <Youtube size={24} /> YouTube
       </button>
       <button 
         on:click={() => activeTab = 'users'}
@@ -601,7 +676,77 @@
                           {account.name} <ExternalLink size={14} class="opacity-0 group-hover:opacity-100 transition-opacity" />
                         </a>
                       </td>
-                      <td class="p-4 text-right text-spotify-lightgray font-mono">{account.soundcloud_id || '-'}</td>
+                      <td class="p-4 text-right text-spotify-lightgray font-mono">
+                        <div class="flex items-center justify-end gap-4">
+                          {account.soundcloud_id || '-'}
+                          <button on:click={() => deleteSoundcloudAccount(account.name)} class="text-spotify-lightgray hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+      {:else if activeTab === 'youtube'}
+        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+          <header class="flex justify-between items-end">
+            <div>
+              <h2 class="text-4xl font-extrabold mb-2">📺 YouTube Accounts</h2>
+              <p class="text-spotify-lightgray">Beheer de YouTube kanalen die worden gescand voor nieuwe muziek.</p>
+            </div>
+          </header>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Add Form -->
+            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
+              <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
+                <Plus class="text-spotify-green" /> Kanaal Toevoegen
+              </h3>
+              <form on:submit|preventDefault={addYoutubeAccount} class="space-y-4">
+                <div>
+                  <label for="yt-name" class="block text-sm font-bold text-spotify-lightgray mb-2">Channel Handle / ID</label>
+                  <input 
+                    type="text" 
+                    id="yt-name" 
+                    bind:value={newAccountName}
+                    placeholder="@Monstercat"
+                    class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
+                  />
+                  <p class="text-xs text-spotify-lightgray mt-2">Gebruik de handle (bijv. @Monstercat) of de channel ID.</p>
+                </div>
+                <button type="submit" class="w-full bg-spotify-green text-black font-extrabold py-3 rounded-full hover:scale-105 transition-transform">
+                  TOEVOEGEN
+                </button>
+              </form>
+            </div>
+
+            <!-- List -->
+            <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+              <table class="w-full text-left">
+                <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
+                  <tr>
+                    <th class="p-4">Channel</th>
+                    <th class="p-4 text-right">Acties</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+                  {#each youtubeAccounts as account}
+                    <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
+                      <td class="p-4">
+                        <a href="https://www.youtube.com/{account.name.startsWith('@') ? account.name : 'channel/'+account.name}" target="_blank" class="font-bold flex items-center gap-2 group-hover:text-spotify-green">
+                          {account.name} <ExternalLink size={14} class="opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </a>
+                      </td>
+                      <td class="p-4 text-right">
+                        <button on:click={() => deleteYoutubeAccount(account.name)} class="text-spotify-lightgray hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
                     </tr>
                   {/each}
                 </tbody>

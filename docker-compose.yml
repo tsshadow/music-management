@@ -396,6 +396,7 @@ services:
     environment:
       <<: [*environment-db]
       API_KEY: ${USER_API_KEY}
+      LMS_HOSTS: ${LMS_HOSTS}
       PYTHONPATH: /app
       LMS_DB_PATH: /app/data/lms.db
     ports:

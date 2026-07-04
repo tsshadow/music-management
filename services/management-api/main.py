@@ -413,6 +413,15 @@ def proxy_sync_lms_users():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
 
+@app.post("/api/users/sync/lms-db")
+def proxy_sync_lms_db_users():
+    base_url = SERVICES["user-service"]
+    try:
+        response = requests.post(f"{base_url}/sync/lms-db", timeout=5.0)
+        return response.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
+
 @app.post("/api/soundcloud")
 def add_soundcloud_account(account: SoundCloudAccount):
     conn = get_db_connection()

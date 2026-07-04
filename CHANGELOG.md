@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.18] - 2026-07-04
+### Added
+- **User Migration**: Geïmporteerd van gebruikers uit `lms.db` naar de User Service.
+- **LMS Integration**: Ondersteuning toegevoegd voor directe SQLite database synchronisatie vanuit LMS.
+- **UI Enhancements**: Nieuwe synchronisatie-opties toegevoegd aan het Users dashboard.
+
 ## [2.1.17] - 2026-07-04
 ### Added
 - **User Service**: Nieuwe microservice voor centraal gebruikersbeheer en externe account koppelingen (ListenBrainz).

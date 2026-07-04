@@ -3,6 +3,7 @@ from pydantic import BaseModel
 import os
 import pymysql
 import requests
+import sqlite3
 from typing import List, Optional
 from dotenv import load_dotenv
 from services.common.api.version_helper import get_version, get_release_notes, get_changelog
@@ -176,6 +177,58 @@ def run_lms_sync():
                 conn.close()
     except Exception as e:
         print(f"LMS sync failed: {e}")
+
+@app.post("/sync/lms-db")
+async def sync_lms_db(background_tasks: BackgroundTasks):
+    background_tasks.add_task(run_lms_db_sync)
+    return {"message": "LMS DB sync started in background"}
+
+def run_lms_db_sync():
+    db_path = os.getenv("LMS_DB_PATH", "/app/data/lms.db")
+    if not os.path.exists(db_path):
+        print(f"LMS DB not found at {db_path}")
+        return
+    
+    print(f"Starting LMS DB sync from {db_path}")
+    try:
+        sqlite_conn = sqlite3.connect(db_path)
+        sqlite_cursor = sqlite_conn.cursor()
+        
+        # Get users from LMS
+        sqlite_cursor.execute("SELECT id, login_name, listenbrainz_token FROM user")
+        lms_users = sqlite_cursor.fetchall()
+        
+        conn = get_db_connection()
+        if not conn: return
+        
+        try:
+            with conn.cursor() as cursor:
+                for lms_id, username, lb_token in lms_users:
+                    # Insert user
+                    cursor.execute("""
+                        INSERT INTO users (username, display_name, lms_user_id)
+                        VALUES (%s, %s, %s)
+                        ON DUPLICATE KEY UPDATE lms_user_id = VALUES(lms_user_id)
+                    """, (username, username, lms_id))
+                    
+                    # Get user_id
+                    cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+                    user_row = cursor.fetchone()
+                    
+                    if user_row and lb_token:
+                        user_id = user_row['id']
+                        cursor.execute("""
+                            INSERT INTO user_listenbrainz_accounts (user_id, lb_username, lb_token)
+                            VALUES (%s, %s, %s)
+                            ON DUPLICATE KEY UPDATE lb_token = VALUES(lb_token)
+                        """, (user_id, username, lb_token))
+                conn.commit()
+            print("LMS DB sync completed")
+        finally:
+            conn.close()
+            sqlite_conn.close()
+    except Exception as e:
+        print(f"LMS DB sync failed: {e}")
 
 if __name__ == "__main__":
     import uvicorn

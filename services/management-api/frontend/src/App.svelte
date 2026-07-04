@@ -325,6 +325,22 @@
     }
   }
 
+  async function syncLMSDbUsers() {
+    try {
+      const res = await fetch(`${API_BASE}/api/users/sync/lms-db`, { method: 'POST' });
+      if (res.ok) {
+        message = "LMS DB sync gestart...";
+        setTimeout(() => {
+          fetchUsers();
+          message = "LMS DB sync voltooid (waarschijnlijk)";
+          setTimeout(() => message = '', 2000);
+        }, 2000);
+      }
+    } catch (err) {
+      error = "Fout bij starten LMS DB sync";
+    }
+  }
+
   onMount(fetchData);
 </script>
 
@@ -1023,13 +1039,27 @@
                         </div>
                       </div>
 
-                      <!-- Other Settings -->
-                      <div class="space-y-4 opacity-50 cursor-not-allowed">
+                      <!-- LMS Settings -->
+                      <div class="space-y-4">
                         <h4 class="text-xl font-bold flex items-center gap-2 text-white">
-                          <Database size={20} /> Andere Instellingen
+                          <Database size={20} class="text-spotify-green" /> LMS Integratie
                         </h4>
-                        <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray italic text-spotify-lightgray text-sm">
-                          Binnenkort beschikbaar: LMS integratie, persoonlijke filters, etc.
+                        <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
+                          <p class="text-xs text-spotify-lightgray">Synchroniseer gebruikersgegevens direct vanuit Logitech Media Server.</p>
+                          <div class="flex flex-col gap-2">
+                            <button 
+                              on:click={syncLMSUsers}
+                              class="w-full bg-white text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform flex items-center justify-center gap-2"
+                            >
+                              <RefreshCw size={14} /> SYNC VIA API (SPELERS)
+                            </button>
+                            <button 
+                              on:click={syncLMSDbUsers}
+                              class="w-full bg-spotify-green text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform flex items-center justify-center gap-2"
+                            >
+                              <Database size={14} /> SYNC VIA DATABASE (USERS)
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>

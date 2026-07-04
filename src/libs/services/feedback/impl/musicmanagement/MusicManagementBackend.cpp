@@ -24,6 +24,7 @@
 #include "database/objects/RatedTrack.hpp"
 #include "database/objects/Release.hpp"
 #include "database/objects/Track.hpp"
+#include "database/objects/User.hpp"
 
 namespace lms::feedback::musicManagement
 {
@@ -72,9 +73,10 @@ namespace lms::feedback::musicManagement
             {
                 std::string artistName{ artist->getName() };
                 int rating = ratedArtist->getRating();
+                std::string username = ratedArtist->getUser()->getLoginName();
 
-                LMS_LOG(SCROBBLING, INFO, "Rating changed for artist " << artistName << " (rating: " << rating << ")");
-                sendEvent("rating_changed", "artist", artistName, rating);
+                LMS_LOG(SCROBBLING, INFO, "Rating changed for artist " << artistName << " (rating: " << rating << ", user: " << username << ")");
+                sendEvent("rating_changed", "artist", artistName, username, rating);
             }
         }
     }
@@ -91,9 +93,10 @@ namespace lms::feedback::musicManagement
             {
                 std::string releaseName{ release->getName() };
                 int rating = ratedRelease->getRating();
+                std::string username = ratedRelease->getUser()->getLoginName();
 
-                LMS_LOG(SCROBBLING, INFO, "Rating changed for release " << releaseName << " (rating: " << rating << ")");
-                sendEvent("rating_changed", "release", releaseName, rating);
+                LMS_LOG(SCROBBLING, INFO, "Rating changed for release " << releaseName << " (rating: " << rating << ", user: " << username << ")");
+                sendEvent("rating_changed", "release", releaseName, username, rating);
             }
         }
     }
@@ -111,16 +114,17 @@ namespace lms::feedback::musicManagement
                 std::string trackId = track->getId().toString();
                 int rating = ratedTrack->getRating();
                 std::string path = track->getAbsoluteFilePath().string();
+                std::string username = ratedTrack->getUser()->getLoginName();
 
-                LMS_LOG(SCROBBLING, INFO, "Rating changed for track " << trackId << " (rating: " << rating << ", path: " << path << ")");
-                sendEvent("rating_changed", "track", trackId, rating, path);
+                LMS_LOG(SCROBBLING, INFO, "Rating changed for track " << trackId << " (rating: " << rating << ", path: " << path << ", user: " << username << ")");
+                sendEvent("rating_changed", "track", trackId, username, rating, path);
             }
         }
     }
 
-    void MusicManagementBackend::sendEvent(const std::string& eventType, const std::string& objectType, const std::string& objectId, int rating, const std::string& path)
+    void MusicManagementBackend::sendEvent(const std::string& eventType, const std::string& objectType, const std::string& objectId, const std::string& username, int rating, const std::string& path)
     {
-        LMS_LOG(SCROBBLING, INFO, "MusicManagementBackend::sendEvent(" << eventType << ", " << objectType << ", " << objectId << ", " << rating << ")");
+        LMS_LOG(SCROBBLING, INFO, "MusicManagementBackend::sendEvent(" << eventType << ", " << objectType << ", " << objectId << ", " << username << ", " << rating << ")");
         if (!_client)
         {
             LMS_LOG(SCROBBLING, WARNING, "No HTTP client available!");
@@ -134,6 +138,7 @@ namespace lms::feedback::musicManagement
         obj["event"] = Wt::Json::Value(eventType);
         obj["object_type"] = Wt::Json::Value(objectType);
         obj["object_id"] = Wt::Json::Value(objectId);
+        obj["username"] = Wt::Json::Value(username);
         obj["rating"] = Wt::Json::Value(rating);
         if (!path.empty())
         {

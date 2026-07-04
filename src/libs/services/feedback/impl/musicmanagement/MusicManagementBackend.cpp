@@ -66,7 +66,7 @@ namespace lms::feedback::musicManagement
         {
             if (auto artist{ ratedArtist->getArtist() })
             {
-                std::string artistName = artist->getName();
+                std::string artistName{ artist->getName() };
                 int rating = ratedArtist->getRating();
 
                 LMS_LOG(SCROBBLING, DEBUG, "Rating changed for artist " << artistName << " (rating: " << rating << ")");
@@ -84,7 +84,7 @@ namespace lms::feedback::musicManagement
         {
             if (auto release{ ratedRelease->getRelease() })
             {
-                std::string releaseName = release->getName();
+                std::string releaseName{ release->getName() };
                 int rating = ratedRelease->getRating();
 
                 LMS_LOG(SCROBBLING, DEBUG, "Rating changed for release " << releaseName << " (rating: " << rating << ")");

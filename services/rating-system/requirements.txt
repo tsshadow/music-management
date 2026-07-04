@@ -1,7 +1,5 @@
 fastapi
 uvicorn
-markdown
 pymysql
 python-dotenv
-jinja2
 requests

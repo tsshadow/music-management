@@ -17,9 +17,11 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 from . import job_manager
+import logging
 try:
     from .server import app
-except Exception:
+except Exception as e:
+    logging.error(f"Failed to import API server: {e}", exc_info=True)
     app = None
 
 class JobAPIHandler(BaseHTTPRequestHandler):
@@ -48,10 +50,18 @@ class JobAPIHandler(BaseHTTPRequestHandler):
         else:
             self._send(404, {'error': 'Not found'})
 
-def start_api_server(host: str='localhost', port: int=0) -> HTTPServer:
-    """Start the lightweight HTTP server in a background thread."""
-    server = HTTPServer((host, port), JobAPIHandler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
+def start_api_server(host: str='0.0.0.0', port: int=8001) -> None:
+    """Start the FastAPI app in a background thread."""
+    if app is None:
+        logging.error("FastAPI app is not available, cannot start API server.")
+        return
+
+    import uvicorn
+    
+    def run():
+        uvicorn.run(app, host=host, port=port, log_level="error")
+
+    thread = threading.Thread(target=run, daemon=True)
     thread.start()
-    return server
+    logging.info(f"Started API server on {host}:{port}")
 __all__ = ['app', 'start_api_server']

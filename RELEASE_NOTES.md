@@ -1,9 +1,80 @@
-# Release Notes - Music Management
+# Release Notes - Music Management Suite
 
-## Version 2.1.2 (2026-07-04)
-### 🛠️ Database Normalization & Fixes
-- **MariaDB Compatibility**: Resolved syntax issues in migration scripts to ensure smooth database updates on all platforms.
-- **Unified Rule Schema**: Streamlined the way artist and label genre rules are stored, making the database more efficient while maintaining full compatibility with existing tools.
+This project is now modularized. Detailed release notes for each module can be found in their respective directories:
+
+- [Scanner Module](services/scanner/RELEASE_NOTES.md)
+- [Tagger Module](services/tagger/RELEASE_NOTES.md)
+- [Downloader Module](services/downloader/RELEASE_NOTES.md)
+- [Importer Module](services/importer/RELEASE_NOTES.md)
+- [Control Center](services/management-api/RELEASE_NOTES.md)
+- [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
+- [Rating System](services/rating-system/RELEASE_NOTES.md)
+
+## Global Version 2.1.10 (2026-07-04)
+### 🛠️ Final Infrastructure Hardening
+- **ML Analyzer Fully Resolved**: Integrated `pymysql` and other missing core libraries into the ML Analyzer's specialized environment.
+- **Cleaner Logs**: Silenced redundant database warnings in worker services, ensuring clearer and more relevant logs.
+
+---
+
+## Global Version 2.1.9 (2026-07-04)
+### 🚀 Final Polish & Service Stability
+- **ML Analyzer Active**: Fixed the ML Analyzer configuration to ensure it runs as a persistent service, enabling its version tracking and API features.
+- **Telegram Reliability**: Implemented advanced asyncio loop handling for the Telegram worker, resolving persistent "Event loop is closed" errors.
+- **Optimized Startup**: Removed unnecessary `yt-dlp` update checks from service startup to ensure containers boot faster.
+
+---
+
+## Global Version 2.1.8 (2026-07-04)
+### ⚡ Performance & Reliability
+- **Telegram Worker Fix**: Resolved a critical "Event loop is closed" error that caused the Telegram worker to crash repeatedly. It now uses a much more stable asynchronous initialization process.
+
+---
+
+## Global Version 2.1.7 (2026-07-04)
+### 🛠️ Final Polishing
+- **YouTube Fix**: Resolved a configuration mismatch that caused the YouTube worker to crash on startup.
+- **Rating System Integration**: Officially included the new Rating System service in the build and deployment pipeline.
+
+---
+
+## Global Version 2.1.6 (2026-07-04)
+### 🔄 Massive Dependency Fix
+- **Unified Base Image**: To prevent further "ModuleNotFound" errors, all worker service code is now bundled into the base image. This ensures that any cross-service imports (like the Downloader using the Tagger's logic) work seamlessly in all containers.
+- **Dependency Consolidation**: All common Python libraries are now pre-installed in the base image, reducing the chance of runtime failures in specialized workers.
+
+---
+
+## Global Version 2.1.5 (2026-07-04)
+### 🐛 Bug Fixes
+- **API Stability**: Fixed a crash in worker APIs by ensuring all necessary dependencies like `markdown` and `pydantic` are available in the base image.
+- **Improved Logging**: Fixed an error masking bug that made it difficult to diagnose startup failures.
+- **Service Integration**: Ensured core music management classes are correctly discoverable by all worker services.
+
+---
+
+## Global Version 2.1.4 (2026-07-04)
+### 🛠️ Bug Fixes & Stability
+- **Dependency Resolution**: Fixed a critical issue where specialized worker containers were missing core music management logic.
+- **Base Image Enhancement**: Moved shared `Song` classes and `mutagen` to the base image for better consistency across workers.
+- **Management API Fixes**: Resolved a crash in the Control Center caused by missing `requests` library and properly integrated it into the base image ecosystem.
+
+---
+
+## Global Version 2.1.3 (2026-07-04)
+### 🚀 Deployment Optimization
+- **Consolidated Deployment**: Merged all deployment logic into a single, unified `scripts/deploy.sh` script.
+- **Improved Automation**: Streamlined the `bup` (Build, Update, Publish) workflow to ensure all modular applications are processed correctly in one go.
+
+---
+
+## Global Version 2.1.2 (2026-07-04)
+### 🏗️ Modular Architecture
+- **Specialized Containers**: Each service now runs in its own lightweight, optimized Docker container.
+- **Improved Performance**: Reduced image sizes by excluding unnecessary dependencies and frontend builds from background workers.
+- **Module-Specific Documentation**: Introduced separate release notes and changelogs for each module to improve clarity.
+
+---
 
 ## Version 2.1.1 (2026-07-04)
 ### 🏗️ Infrastructure Update

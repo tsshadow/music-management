@@ -1,3 +1,6 @@
+pymysql
+requests
+pydantic
 torchaudio
 librosa
 essentia-tensorflow  # Large package (~300MB), optional for basic analyzer.py
@@ -12,3 +15,6 @@ python-dotenv
 mutagen
 tqdm
 matplotlib
+fastapi
+uvicorn
+markdown

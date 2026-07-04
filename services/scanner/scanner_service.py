@@ -6,6 +6,7 @@ import argparse
 import pymysql
 from services.common.settings import Settings
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+from services.common.api import start_api_server
 from services.scanner.Song.ReadonlySong import ReadonlySong
 from services.tagger.Song.BaseSong import ExtensionNotSupportedException
 
@@ -20,6 +21,7 @@ class ScannerService:
         self.music_path = self.settings.music_folder_path
         if not self.music_path:
             logger.error("music_folder_path not configured in settings/env")
+        start_api_server()
         
     def get_db(self):
         return self.db_connector.connect()

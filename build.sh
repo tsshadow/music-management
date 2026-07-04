@@ -35,11 +35,59 @@ IMAGE_ML="${IMAGE_ML}"
 IMAGE_TOOLS="${IMAGE_TOOLS}"
 IMAGE_APP="${IMAGE_APP}"
 IMAGE_MANAGEMENT="${IMAGE_MANAGEMENT}"
+IMAGE_BASE="${IMAGE_BASE}"
+IMAGE_SCANNER="${IMAGE_SCANNER}"
+IMAGE_TAGGER="${IMAGE_TAGGER}"
+IMAGE_DOWNLOADER="${IMAGE_DOWNLOADER}"
+IMAGE_TELEGRAM="${IMAGE_TELEGRAM}"
+IMAGE_IMPORTER="${IMAGE_IMPORTER}"
+IMAGE_RATING="${IMAGE_RATING}"
 VERSION=$(cat VERSION 2>/dev/null || echo "latest")
+
+build_base() {
+    echo "--- Building Base Image ($VERSION) ---"
+    docker build -t "${DOCKER_USER}/${IMAGE_BASE}:latest" -t "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}" -f docker/Dockerfile.base .
+}
+
+build_scanner() {
+    build_base
+    echo "--- Building Scanner ($VERSION) ---"
+    docker build --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_SCANNER}:latest" -t "${DOCKER_USER}/${IMAGE_SCANNER}:${VERSION}" -f docker/Dockerfile.scanner .
+}
+
+build_tagger() {
+    build_base
+    echo "--- Building Tagger ($VERSION) ---"
+    docker build --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_TAGGER}:latest" -t "${DOCKER_USER}/${IMAGE_TAGGER}:${VERSION}" -f docker/Dockerfile.tagger .
+}
+
+build_downloader() {
+    build_base
+    echo "--- Building Downloader ($VERSION) ---"
+    docker build --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest" -t "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}" -f docker/Dockerfile.downloader .
+}
+
+build_telegram() {
+    build_base
+    echo "--- Building Telegram ($VERSION) ---"
+    docker build --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_TELEGRAM}:latest" -t "${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSION}" -f docker/Dockerfile.telegram .
+}
+
+build_importer() {
+    build_base
+    echo "--- Building Importer ($VERSION) ---"
+    docker build --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_IMPORTER}:latest" -t "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}" -f docker/Dockerfile.importer .
+}
+
+build_rating() {
+    build_base
+    echo "--- Building Rating System ($VERSION) ---"
+    docker build --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_RATING}:latest" -t "${DOCKER_USER}/${IMAGE_RATING}:${VERSION}" -f docker/Dockerfile.rating-system .
+}
 
 build_ml() {
     echo "--- Building ML Analyzer ($VERSION) ---"
-    docker build -t "${DOCKER_USER}/${IMAGE_ML}:latest" -t "${DOCKER_USER}/${IMAGE_ML}:${VERSION}" -f services/ml-analyzer/Dockerfile services/ml-analyzer/
+    docker build -t "${DOCKER_USER}/${IMAGE_ML}:latest" -t "${DOCKER_USER}/${IMAGE_ML}:${VERSION}" -f services/ml-analyzer/Dockerfile .
 }
 
 build_tools() {
@@ -54,25 +102,61 @@ build_app() {
 }
 
 build_management() {
+    build_base
     echo "--- Building Management API ($VERSION) ---"
-    docker build -t "${DOCKER_USER}/${IMAGE_MANAGEMENT}:latest" -t "${DOCKER_USER}/${IMAGE_MANAGEMENT}:${VERSION}" -f Dockerfile.management-api .
+    docker build --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_MANAGEMENT}:latest" -t "${DOCKER_USER}/${IMAGE_MANAGEMENT}:${VERSION}" -f Dockerfile.management-api .
 }
 
 if [ $# -eq 0 ]; then
-    build_ml
-    build_tools
-    build_app
-    build_management
+    echo "--- Building all modules in parallel ---"
+    # Group 1: Independent builds
+    build_ml &
+    build_tools &
+    build_app &
+    
+    # Group 2: Base-dependent builds
+    build_base
+    
+    build_management &
+    build_scanner &
+    build_tagger &
+    build_downloader &
+    build_telegram &
+    build_importer &
+    build_rating &
+    
+    wait
 else
+    echo "--- Building requested modules: $@ ---"
+    # If base is needed by any of the requested modules, build it once first
+    NEED_BASE=false
     for arg in "$@"; do
         case $arg in
-            ml) build_ml ;;
-            tools) build_tools ;;
-            app) build_app ;;
-            mgmt|management) build_management ;;
+            scanner|tagger|downloader|telegram|importer|rating|mgmt|management) NEED_BASE=true ;;
+        esac
+    done
+    
+    if [ "$NEED_BASE" = true ]; then
+        build_base
+    fi
+
+    for arg in "$@"; do
+        case $arg in
+            ml) build_ml & ;;
+            tools) build_tools & ;;
+            app) build_app & ;;
+            mgmt|management) build_management & ;;
+            scanner) build_scanner & ;;
+            tagger) build_tagger & ;;
+            downloader) build_downloader & ;;
+            telegram) build_telegram & ;;
+            importer) build_importer & ;;
+            rating) build_rating & ;;
+            base) ;; # Already built if needed
             *) echo "Unknown component: $arg"; exit 1 ;;
         esac
     done
+    wait
 fi
 
 echo "--- Build process completed ---"

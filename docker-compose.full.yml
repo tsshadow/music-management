@@ -85,7 +85,7 @@ services:
   #     - music-management_db
 
   importer_worker:
-    image: ${DOCKER_USER}/${IMAGE_APP}:latest
+    image: ${DOCKER_USER}/${IMAGE_IMPORTER}:latest
     container_name: muma-importer-worker
     restart: unless-stopped
     depends_on:
@@ -134,7 +134,7 @@ services:
       - music-management_db
 
   youtube_worker:
-    image: ${DOCKER_USER}/${IMAGE_APP}:latest
+    image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest
     container_name: muma-youtube-worker
     restart: unless-stopped
     depends_on:
@@ -186,7 +186,7 @@ services:
       - music-management_db
 
   soundcloud_worker:
-    image: ${DOCKER_USER}/${IMAGE_APP}:latest
+    image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest
     container_name: muma-soundcloud-worker
     restart: unless-stopped
     depends_on:
@@ -238,7 +238,7 @@ services:
       - music-management_db
 
   soundcloud_worker_full_once:
-    image: ${DOCKER_USER}/${IMAGE_APP}:latest
+    image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest
     container_name: muma-soundcloud-worker-full-once
     restart: unless-stopped
     depends_on:
@@ -287,7 +287,7 @@ services:
       - music-management_db
 
   telegram_worker:
-    image: ${DOCKER_USER}/${IMAGE_APP}:latest
+    image: ${DOCKER_USER}/${IMAGE_TELEGRAM}:latest
     container_name: muma-telegram-worker
     restart: unless-stopped
     depends_on:
@@ -328,7 +328,7 @@ services:
     tty: true
 
   tagger_worker:
-    image: ${DOCKER_USER}/${IMAGE_APP}:latest
+    image: ${DOCKER_USER}/${IMAGE_TAGGER}:latest
     container_name: muma-tagger-worker
     restart: unless-stopped
     depends_on:
@@ -361,7 +361,7 @@ services:
       - music-management_db
 
   scanner_service:
-    image: ${DOCKER_USER}/${IMAGE_APP}:latest
+    image: ${DOCKER_USER}/${IMAGE_SCANNER}:latest
     container_name: muma-scanner
     restart: unless-stopped
     depends_on:

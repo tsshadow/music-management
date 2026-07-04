@@ -6,8 +6,10 @@ import markdown
 import os
 import pymysql
 from dotenv import load_dotenv
-from typing import List, Optional
+from typing import List, Optional, Dict
 from pydantic import BaseModel
+import requests
+from services.common.api.version_helper import get_version, get_release_notes, get_changelog
 
 load_dotenv()
 
@@ -63,19 +65,75 @@ class LabelGenreRule(BaseModel):
 @app.get("/api/config")
 def get_config():
     return {
-        "version": get_file_content("VERSION").strip(),
+        "version": get_version(),
         "phpmyadmin_url": os.getenv("PHPMYADMIN_URL", "http://music-management-db.teunschriks.nl")
     }
 
 @app.get("/api/notes")
 def get_notes():
-    release_notes_md = get_file_content("RELEASE_NOTES.md")
-    changelog_md = get_file_content("CHANGELOG.md")
-    
     return {
-        "release_notes": markdown.markdown(release_notes_md, extensions=['extra', 'toc']),
-        "changelog": markdown.markdown(changelog_md, extensions=['extra', 'toc'])
+        "release_notes": get_release_notes("management-api"),
+        "changelog": get_changelog()
     }
+
+@app.get("/api/versions")
+def get_all_versions():
+    """Aggregate versions from all running services."""
+    services = {
+        "scanner": "http://muma-scanner:8001/version",
+        "tagger": "http://muma-tagger-worker:8001/version",
+        "importer": "http://muma-importer-worker:8001/version",
+        "downloader": "http://muma-youtube-worker:8001/version",
+        "ml-analyzer": "http://muma-ml-analyzer:8001/version"
+    }
+    
+    versions = {
+        "control-center": get_version()
+    }
+    
+    for name, url in services.items():
+        try:
+            response = requests.get(url, timeout=1.0)
+            if response.status_code == 200:
+                versions[name] = response.json().get("version", "unknown")
+            else:
+                versions[name] = f"error ({response.status_code})"
+        except Exception:
+            versions[name] = "offline"
+            
+    # Add LMS and Ultrasonic references as requested
+    versions["lms"] = get_lms_version()
+    versions["ultrasonic"] = get_latest_ultrasonic_version()
+    
+    return versions
+
+def get_lms_version():
+    """Try to get LMS version if possible, otherwise return a reference."""
+    lms_host = os.getenv("LMS_HOST", "http://192.168.1.4:9000")
+    try:
+        # LMS JSON-RPC call for version
+        payload = {
+            "method": "slim.request",
+            "params": ["", ["version", "?"]]
+        }
+        response = requests.post(f"{lms_host}/jsonrpc.js", json=payload, timeout=1.0)
+        if response.status_code == 200:
+            return response.json().get("result", {}).get("_version", "unknown")
+    except Exception:
+        pass
+    return "Reference: http://192.168.1.4:9000"
+
+def get_latest_ultrasonic_version():
+    """Get latest version from apk-hoster or github."""
+    try:
+        # Example: checking ultrasonic repo or a specific host
+        # For now, return a placeholder or try to fetch from GitHub API
+        response = requests.get("https://api.github.com/repos/ultrasonic/ultrasonic/releases/latest", timeout=1.0)
+        if response.status_code == 200:
+            return response.json().get("tag_name", "unknown")
+    except Exception:
+        pass
+    return "See https://github.com/ultrasonic/ultrasonic/releases"
 
 @app.get("/api/rules")
 def get_rules():

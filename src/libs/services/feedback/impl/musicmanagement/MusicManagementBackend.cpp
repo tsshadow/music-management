@@ -7,6 +7,9 @@
 #include "MusicManagementBackend.hpp"
 
 #include <Wt/Http/Client.h>
+#include <Wt/Json/Object.h>
+#include <Wt/Json/Serializer.h>
+#include <Wt/Json/Value.h>
 #include <Wt/WDateTime.h>
 
 #include "core/IConfig.hpp"
@@ -59,6 +62,7 @@ namespace lms::feedback::musicManagement
 
     void MusicManagementBackend::onRatingChanged(db::RatedArtistId ratedArtistId)
     {
+        LMS_LOG(SCROBBLING, INFO, "MusicManagementBackend::onRatingChanged(Artist)");
         db::Session& session{ _db.getTLSSession() };
         auto transaction{ session.createReadTransaction() };
 
@@ -69,7 +73,7 @@ namespace lms::feedback::musicManagement
                 std::string artistName{ artist->getName() };
                 int rating = ratedArtist->getRating();
 
-                LMS_LOG(SCROBBLING, DEBUG, "Rating changed for artist " << artistName << " (rating: " << rating << ")");
+                LMS_LOG(SCROBBLING, INFO, "Rating changed for artist " << artistName << " (rating: " << rating << ")");
                 sendEvent("rating_changed", "artist", artistName, rating);
             }
         }
@@ -77,6 +81,7 @@ namespace lms::feedback::musicManagement
 
     void MusicManagementBackend::onRatingChanged(db::RatedReleaseId ratedReleaseId)
     {
+        LMS_LOG(SCROBBLING, INFO, "MusicManagementBackend::onRatingChanged(Release)");
         db::Session& session{ _db.getTLSSession() };
         auto transaction{ session.createReadTransaction() };
 
@@ -87,7 +92,7 @@ namespace lms::feedback::musicManagement
                 std::string releaseName{ release->getName() };
                 int rating = ratedRelease->getRating();
 
-                LMS_LOG(SCROBBLING, DEBUG, "Rating changed for release " << releaseName << " (rating: " << rating << ")");
+                LMS_LOG(SCROBBLING, INFO, "Rating changed for release " << releaseName << " (rating: " << rating << ")");
                 sendEvent("rating_changed", "release", releaseName, rating);
             }
         }
@@ -95,6 +100,7 @@ namespace lms::feedback::musicManagement
 
     void MusicManagementBackend::onRatingChanged(db::RatedTrackId ratedTrackId)
     {
+        LMS_LOG(SCROBBLING, INFO, "MusicManagementBackend::onRatingChanged(Track)");
         db::Session& session{ _db.getTLSSession() };
         auto transaction{ session.createReadTransaction() };
 
@@ -106,7 +112,7 @@ namespace lms::feedback::musicManagement
                 int rating = ratedTrack->getRating();
                 std::string path = track->getAbsoluteFilePath().string();
 
-                LMS_LOG(SCROBBLING, DEBUG, "Rating changed for track " << trackId << " (rating: " << rating << ", path: " << path << ")");
+                LMS_LOG(SCROBBLING, INFO, "Rating changed for track " << trackId << " (rating: " << rating << ", path: " << path << ")");
                 sendEvent("rating_changed", "track", trackId, rating, path);
             }
         }
@@ -114,30 +120,34 @@ namespace lms::feedback::musicManagement
 
     void MusicManagementBackend::sendEvent(const std::string& eventType, const std::string& objectType, const std::string& objectId, int rating, const std::string& path)
     {
+        LMS_LOG(SCROBBLING, INFO, "MusicManagementBackend::sendEvent(" << eventType << ", " << objectType << ", " << objectId << ", " << rating << ")");
         if (!_client)
+        {
+            LMS_LOG(SCROBBLING, WARNING, "No HTTP client available!");
             return;
+        }
 
         core::http::ClientPOSTRequestParameters request;
         request.message.addHeader("Content-Type", "application/json");
 
-        // Simple JSON manual construction
-        std::string body = "{";
-        body += "\"event\": \"" + eventType + "\",";
-        body += "\"object_type\": \"" + objectType + "\",";
-        body += "\"object_id\": \"" + objectId + "\",";
-        body += "\"rating\": " + std::to_string(rating);
+        Wt::Json::Object obj;
+        obj["event"] = Wt::Json::Value(eventType);
+        obj["object_type"] = Wt::Json::Value(objectType);
+        obj["object_id"] = Wt::Json::Value(objectId);
+        obj["rating"] = Wt::Json::Value(rating);
         if (!path.empty())
         {
-            body += ",\"path\": \"" + path + "\"";
+            obj["path"] = Wt::Json::Value(path);
         }
-        body += "}";
 
-        request.message.addBodyText(body);
+        std::string jsonBody = Wt::Json::serialize(obj);
+        LMS_LOG(SCROBBLING, INFO, "Sending JSON: " << jsonBody);
+        request.message.addBodyText(jsonBody);
 
         request.onSuccessFunc = [](const Wt::Http::Message& msg) {
             if (msg.status() >= 200 && msg.status() < 300)
             {
-                LMS_LOG(SCROBBLING, DEBUG, "Successfully sent event to music-management");
+                LMS_LOG(SCROBBLING, INFO, "Successfully sent event to music-management");
             }
             else
             {

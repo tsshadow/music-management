@@ -18,11 +18,24 @@
  */
 
 #include "Config.hpp"
+#include <algorithm>
+#include <cstdlib>
 
 #include "core/Exception.hpp"
 
 namespace lms::core
 {
+    namespace
+    {
+        std::string getEnvName(std::string_view setting)
+        {
+            std::string envName = "LMS_" + std::string{ setting };
+            std::replace(envName.begin(), envName.end(), '-', '_');
+            std::transform(envName.begin(), envName.end(), envName.begin(), ::toupper);
+            return envName;
+        }
+    }
+
     std::unique_ptr<IConfig> createConfig(const std::filesystem::path& p)
     {
         return std::make_unique<Config>(p);
@@ -50,6 +63,9 @@ namespace lms::core
 
     std::string_view Config::getString(std::string_view setting, std::string_view def)
     {
+        if (const char* envVal = std::getenv(getEnvName(setting).c_str()))
+            return envVal;
+
         try
         {
             return static_cast<const char*>(_config.lookup(std::string{ setting }));
@@ -80,6 +96,9 @@ namespace lms::core
 
     std::filesystem::path Config::getPath(std::string_view setting, const std::filesystem::path& path)
     {
+        if (const char* envVal = std::getenv(getEnvName(setting).c_str()))
+            return std::filesystem::path{ envVal };
+
         try
         {
             const char* res{ _config.lookup(std::string{ setting }) };
@@ -93,6 +112,9 @@ namespace lms::core
 
     unsigned long Config::getULong(std::string_view setting, unsigned long def)
     {
+        if (const char* envVal = std::getenv(getEnvName(setting).c_str()))
+            return std::stoul(envVal);
+
         try
         {
             return static_cast<unsigned int>(_config.lookup(std::string{ setting }));
@@ -105,6 +127,9 @@ namespace lms::core
 
     long Config::getLong(std::string_view setting, long def)
     {
+        if (const char* envVal = std::getenv(getEnvName(setting).c_str()))
+            return std::stol(envVal);
+
         try
         {
             return _config.lookup(std::string{ setting });
@@ -117,6 +142,13 @@ namespace lms::core
 
     bool Config::getBool(std::string_view setting, bool def)
     {
+        if (const char* envVal = std::getenv(getEnvName(setting).c_str()))
+        {
+            std::string val{ envVal };
+            std::transform(val.begin(), val.end(), val.begin(), ::tolower);
+            return val == "true" || val == "1" || val == "yes" || val == "on";
+        }
+
         try
         {
             return _config.lookup(std::string{ setting });

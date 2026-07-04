@@ -10,6 +10,11 @@ services:
       - ${MUSIC_PATH:-/music}:/music
       - ${DOCKER_DATA_PATH:-/docker}/lms/usr/local/etc:/usr/local/etc
       - ${DOCKER_DATA_PATH:-/docker}/lms/var/lms:/var/lms
+    environment:
+      - LMS_MUSIC_MANAGEMENT_API_URL=http://muma-rating-system:8000/api/lms-event
+    networks:
+      - default
+      - music-management_db
     user: "0:0"
     restart: unless-stopped
   lms_alpha:
@@ -23,5 +28,15 @@ services:
       - ${MUSIC_PATH:-/music}:/music
       - ${DOCKER_DATA_PATH:-/docker}/alpha-lms/usr/local/etc:/usr/local/etc
       - ${DOCKER_DATA_PATH:-/docker}/alpha-lms/var/lms:/var/lms
+    environment:
+      - LMS_MUSIC_MANAGEMENT_API_URL=http://muma-rating-system:8000/api/lms-event
+    networks:
+      - default
+      - music-management_db
     user: "0:0"
     restart: unless-stopped
+
+networks:
+  music-management_db:
+    external: true
+    name: music-management_db

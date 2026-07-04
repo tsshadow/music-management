@@ -1,6 +1,15 @@
 #!/bin/bash
 set -e
 
+# Check for docker permissions
+if ! docker info >/dev/null 2>&1; then
+    echo "ERROR: Permission denied while trying to connect to the Docker daemon."
+    echo "Please ensure your user ($USER) is in the 'docker' group."
+    echo "You can add yourself with: sudo usermod -aG docker \$USER"
+    echo "Then log out and log back in, or run: newgrp docker"
+    exit 1
+fi
+
 # Telegram Authentication Helper Script
 # This script helps with the one-time interactive authentication for Telegram.
 

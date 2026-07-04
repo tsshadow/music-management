@@ -43,6 +43,17 @@ else
     echo "sshpass is already installed."
 fi
 
+# Create .env file from .env.example if it doesn't exist
+if [ ! -f .env ]; then
+    echo "Creating .env file from template..."
+    if [ -f .env.example ]; then
+        cp .env.example .env
+        echo ".env file created from .env.example. Please update it with your actual settings."
+    else
+        echo "Warning: .env.example not found, skipping .env creation."
+    fi
+fi
+
 echo "Requirements installation completed."
 
 # Apply group membership to the current session

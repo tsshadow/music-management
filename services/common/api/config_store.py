@@ -105,7 +105,7 @@ def _config_fields() -> List[ConfigField]:
         ConfigField(
             key="ffmpeg_location",
             type="string",
-            default="usr/bin/local",
+            default="/usr/bin",
             env="ffmpeg-location",
             group="YouTube",
             description="Location of the ffmpeg binary used by yt-dlp.",

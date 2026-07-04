@@ -73,25 +73,27 @@ The easiest way to run the entire stack is using Docker Compose.
 
 ### Quick Start
 1. Clone the repository.
-2. Run `./install.sh` to install dependencies and create a `.env` file.
+2. Run `./install.sh` to setup your environment (installs Docker and creates `.env`).
 3. Configure your `.env` file with your paths, database credentials, and optional remote host settings.
-4. Start the services:
+4. Build and deploy the system:
    ```bash
-   docker-compose -f work-context/docker-compose.yml up -d
+   ./install.sh
    ```
 
 ### Building and Deployment
 If you are modifying the code and need to rebuild and redeploy the system:
 
-- **Smart Build (Recommended)**: `./bup`
-  - Uses `scripts/affected.sh` to detect which modules have changed.
+- **Full pipeline (Build + Publish + Deploy)**: `./install` or `./install.sh`
+  - Uses `scripts/affected.sh` to detect which modules have changed if no modules are specified.
   - Skips builds and pushes for unedited modules to save time.
   - Automatically deploys the updated stack to production.
-  - **New**: Use `--semi-remote` to offload heavy builds (`app`, `ml`, `tools`) to the remote LXC container (192.168.1.40) while building others locally. This significantly speeds up the build process.
+  - **New**: Use `--semi-remote` to offload heavy builds (`app`, `ml`, `tools`) to the remote LXC container (192.168.1.40).
   - **New**: Use `--remote` to perform the entire build on the remote LXC container.
-- **Manual Build**: `./build.sh` (builds all or specified modules).
-- **Manual Publish**: `./publish.sh` (pushes to Docker Hub).
-- **Manual Deploy**: `./deploy.sh` (triggers remote update).
+  - **New**: Use `--app=<app>` or positional arguments to target specific modules (e.g., `./install --app=user rating`).
+- **Individual steps**:
+  - Build: `./build.sh`
+  - Publish: `./publish.sh`
+  - Deploy: `./deploy.sh`
 
 #### Remote Deployment Options
 You can configure deployment in `.env`:

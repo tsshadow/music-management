@@ -503,6 +503,7 @@ services:
       - DB_PASS=${DB_PASS}
       - DB_DB=${DB_DB}
       - API_KEY=${USER_API_KEY}
+      - LMS_SUBSONIC_API_KEY=${LMS_SUBSONIC_API_KEY}
       - LMS_HOSTS=${LMS_HOSTS}
       - PYTHONPATH=/app
       - LMS_DB_PATH=/app/data/lms.db

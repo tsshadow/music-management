@@ -13,7 +13,7 @@ from ..services.listenbrainz_service import ListenBrainzImportService
 async def verify_api_key(request: Request, x_api_key: str | None=Header(default=None)) -> None:
     """Validate the optional API key header against the configured value."""
     settings = get_settings()
-    expected = settings.api_key
+    expected = settings.effective_api_key
     if expected and expected != x_api_key:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid API key')
 

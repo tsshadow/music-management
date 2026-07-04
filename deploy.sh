@@ -5,7 +5,11 @@ set -e
 cd "$(dirname "$0")"
 if [ -f .env ]; then
     # Load .env variables
-    export $(grep -v '^#' .env | xargs)
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        if [[ ! "$line" =~ ^# && -n "$line" ]]; then
+            export "$line"
+        fi
+    done < .env
 fi
 
 # Configuration
@@ -15,8 +19,24 @@ DOCKER_COMPOSE_FILE="${REMOTE_STACK_PATH}"
 if [ -n "${PORTAINER_WEBHOOK_URL}" ]; then
     echo "--- Triggering Portainer Webhook for: $TARGET ---"
     if command -v curl >/dev/null 2>&1; then
-        curl -X POST "${PORTAINER_WEBHOOK_URL}"
-        echo -e "\n--- Webhook triggered for $TARGET ---"
+        STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${PORTAINER_WEBHOOK_URL}")
+        if [ "$STATUS_CODE" -ge 200 ] && [ "$STATUS_CODE" -lt 300 ]; then
+            echo "--- Webhook triggered successfully for $TARGET (Status: $STATUS_CODE) ---"
+        elif [ "$STATUS_CODE" -eq 404 ]; then
+            echo "Error: Portainer Webhook returned 404 Not Found."
+            echo "Note: Stack Webhooks are a Business Edition feature."
+            if [[ "${PORTAINER_WEBHOOK_URL}" == *"/stacks/"* ]]; then
+                echo "HINT: You are using a Stack Webhook URL, which requires Portainer Business Edition."
+                echo "If you have Community Edition, you can use 'Service Webhooks' (under each service) or the SSH method."
+            fi
+            if [[ "${PORTAINER_WEBHOOK_URL}" == *"ptr_"* ]]; then
+                echo "HINT: Your URL seems to contain an API Access Token (ptr_...). Webhooks use a different token."
+            fi
+            exit 1
+        else
+            echo "Error: Portainer Webhook failed with status code $STATUS_CODE"
+            exit 1
+        fi
     else
         echo "Error: curl not found. Cannot trigger Portainer Webhook."
         exit 1
@@ -41,10 +61,10 @@ elif [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
         echo \"Updating individual containers for '$TARGET':\"
         
         # Project-specific individual pulls/runs
-        docker pull tsshadow/music-management-ml:latest
-        docker pull tsshadow/music-management-tools:latest
-        docker pull tsshadow/music-management:latest
-        docker pull tsshadow/music-management-control:latest
+        docker pull ${DOCKER_USER}/${IMAGE_ML}:latest
+        docker pull ${DOCKER_USER}/${IMAGE_TOOLS}:latest
+        docker pull ${DOCKER_USER}/${IMAGE_APP}:latest
+        docker pull ${DOCKER_USER}/${IMAGE_MANAGEMENT}:latest
         
         # Note: Individual run commands would go here if needed
     fi

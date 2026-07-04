@@ -33,7 +33,11 @@ fi
 echo "--- Starting push of containers ---"
 
 if [ -f .env ]; then
-    export $(grep -v '^#' .env | xargs)
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        if [[ ! "$line" =~ ^# && -n "$line" ]]; then
+            export "$line"
+        fi
+    done < .env
 fi
 
 # Configuration

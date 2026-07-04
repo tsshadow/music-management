@@ -528,7 +528,9 @@ namespace lms::api::subsonic
         if (!xApiKeyHeader.empty())
         {
             auto config = core::Service<core::IConfig>::get();
-            if ((xApiKeyHeader == config->getString("music-management-user-api-key", "") && !config->getString("music-management-user-api-key", "").empty()) ||
+            const std::string mumaApiKey{ config->getString("muma-api-key", "") };
+            if ((!mumaApiKey.empty() && xApiKeyHeader == mumaApiKey) ||
+                (xApiKeyHeader == config->getString("music-management-user-api-key", "") && !config->getString("music-management-user-api-key", "").empty()) ||
                 (xApiKeyHeader == config->getString("music-management-rating-api-key", "") && !config->getString("music-management-rating-api-key", "").empty()) ||
                 (xApiKeyHeader == config->getString("music-management-scrobbling-api-key", "") && !config->getString("music-management-scrobbling-api-key", "").empty()))
             {

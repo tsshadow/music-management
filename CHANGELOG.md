@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-07-04
+### Fixed
+- Fixed SQL syntax errors in `migrate_v2.sql` for MariaDB compatibility.
+- Unified artist and label genre rule tables into a normalized structure with backward-compatible views.
+- Improved database initialization logic to handle table renames and view creation.
+
+## [2.1.1] - 2026-07-04
+### Added
+- Formalized `scanner_service` in Docker Compose configurations for production deployment.
+- Created `docker-compose.full.yml` as a consolidated configuration for Portainer and manual stack management.
+
 ## [2.1.0] - 2026-07-04
 
 ### Added

@@ -1,5 +1,15 @@
 # Release Notes - Music Management
 
+## Version 2.1.2 (2026-07-04)
+### 🛠️ Database Normalization & Fixes
+- **MariaDB Compatibility**: Resolved syntax issues in migration scripts to ensure smooth database updates on all platforms.
+- **Unified Rule Schema**: Streamlined the way artist and label genre rules are stored, making the database more efficient while maintaining full compatibility with existing tools.
+
+## Version 2.1.1 (2026-07-04)
+### 🏗️ Infrastructure Update
+- Unified Docker deployment configuration with the new `scanner_service` name.
+- Added a consolidated `docker-compose.full.yml` for easier Portainer integration.
+
 ## Version 2.1.0 (2026-07-04)
 
 ### 🎨 Artist-Genre Editor

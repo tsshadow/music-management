@@ -20,6 +20,8 @@ RENAMES = {
     "library_broken_song_artist_lookup": "library_broken_song_artist_lookup",
     "library_artist_aliases": "library_artist_aliases",
     "rules_genres": "rules_genres",
+    "rules_artist_genres": "rules_artist_genres",
+    "rules_label_genres": "rules_label_genres",
     "rules_artist_genre": "rules_artist_genre",
     "rules_label_genre": "rules_label_genre",
     "rules_subgenre_hierarchy": "rules_subgenre_hierarchy",

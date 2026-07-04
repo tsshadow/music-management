@@ -1,6 +1,26 @@
 -- Database migratie naar v2 design gebaseerd op docs/database-design.md
 
 -- 1. Tracks & Files
+CREATE TABLE IF NOT EXISTS library_artists (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    sort_name VARCHAR(255),
+    mbid VARCHAR(36),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS library_labels (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS rules_genres (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    corrected_genre VARCHAR(255)
+);
+
 CREATE TABLE IF NOT EXISTS library_tracks (
     id INT AUTO_INCREMENT PRIMARY KEY,
     track_uid VARCHAR(255) UNIQUE,
@@ -24,9 +44,15 @@ CREATE TABLE IF NOT EXISTS library_media_files (
 );
 
 -- Migreer data van library_tagged_files naar library_media_files
--- We gebruiken SHA2(path, 256) voor de hash als we die nog niet hebben
-INSERT IGNORE INTO library_media_files (file_path, file_path_hash, file_size, file_mtime)
-SELECT path, SHA2(path, 256), file_size, file_mtime FROM library_tagged_files;
+-- We gebruiken een standalone PREPARE/EXECUTE om CREATE PROCEDURE permissie-fouten te voorkomen
+SET @sql = IF(
+    EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'library_tagged_files'),
+    'INSERT IGNORE INTO library_media_files (file_path, file_path_hash, file_size, file_mtime) SELECT path, SHA2(path, 256), file_size, file_mtime FROM library_tagged_files',
+    'DO 0'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- 2. Artists & Aliases
 ALTER TABLE library_artists ADD COLUMN IF NOT EXISTS sort_name VARCHAR(255);
@@ -40,15 +66,20 @@ CREATE TABLE IF NOT EXISTS library_artist_aliases (
     FOREIGN KEY (artist_id) REFERENCES library_artists(id) ON DELETE CASCADE
 );
 
--- 3. Genres (nieuwe opzet)
-CREATE TABLE IF NOT EXISTS rules_genres_new (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL UNIQUE
+-- 3. Genres
+-- De tabel rules_genres wordt nu aan het begin gedefinieerd en gebruikt.
+-- We zorgen dat de kolommen correct zijn als ze al bestonden (hernoem 'genre' naar 'name' indien nodig).
+SET @sql = IF(
+    EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'rules_genres' AND column_name = 'genre'),
+    'ALTER TABLE rules_genres CHANGE genre name VARCHAR(100) NOT NULL UNIQUE',
+    'DO 0'
 );
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
--- Migreer rules_genres
-INSERT IGNORE INTO rules_genres_new (name)
-SELECT DISTINCT genre FROM rules_genres WHERE genre IS NOT NULL AND genre != '';
+ALTER TABLE rules_genres MODIFY COLUMN name VARCHAR(100) NOT NULL UNIQUE;
+ALTER TABLE rules_genres ADD COLUMN IF NOT EXISTS corrected_genre VARCHAR(255);
 
 -- 4. Junction tables
 CREATE TABLE IF NOT EXISTS library_track_artists (
@@ -67,7 +98,7 @@ CREATE TABLE IF NOT EXISTS library_track_genres (
     weight FLOAT DEFAULT 1.0,
     PRIMARY KEY (track_id, genre_id),
     FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE CASCADE,
-    FOREIGN KEY (genre_id) REFERENCES rules_genres_new(id) ON DELETE CASCADE
+    FOREIGN KEY (genre_id) REFERENCES rules_genres(id) ON DELETE CASCADE
 );
 
 -- 5. ML Tabellen (al deels aanwezig, maar check relaties)
@@ -75,17 +106,23 @@ CREATE TABLE IF NOT EXISTS library_track_genres (
 -- Momenteel is track_id in ML tabellen een VARCHAR(255) (vaak de hash).
 -- We laten dit even zo voor compatibiliteit met de huidige analyzer code, 
 -- maar we voegen een kolom toe voor de numerieke track_id.
+
+CREATE TABLE IF NOT EXISTS library_track_audio_features (
+    track_id VARCHAR(255) PRIMARY KEY
+);
+
+CREATE TABLE IF NOT EXISTS library_track_ml_labels (
+    track_id VARCHAR(255) PRIMARY KEY
+);
+
 ALTER TABLE library_track_audio_features ADD COLUMN IF NOT EXISTS internal_track_id INT;
-ALTER TABLE library_track_audio_features ADD FOREIGN KEY IF NOT EXISTS (internal_track_id) REFERENCES library_tracks(id) ON DELETE SET NULL;
+ALTER TABLE library_track_audio_features ADD CONSTRAINT fk_audio_features_internal_track_id FOREIGN KEY IF NOT EXISTS (internal_track_id) REFERENCES library_tracks(id) ON DELETE SET NULL;
 
 ALTER TABLE library_track_ml_labels ADD COLUMN IF NOT EXISTS internal_track_id INT;
-ALTER TABLE library_track_ml_labels ADD FOREIGN KEY IF NOT EXISTS (internal_track_id) REFERENCES library_tracks(id) ON DELETE SET NULL;
+ALTER TABLE library_track_ml_labels ADD CONSTRAINT fk_ml_labels_internal_track_id FOREIGN KEY IF NOT EXISTS (internal_track_id) REFERENCES library_tracks(id) ON DELETE SET NULL;
 
 -- 6. Labels
-CREATE TABLE IF NOT EXISTS library_labels (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL UNIQUE
-);
+-- library_labels is nu bovenaan gedefinieerd
 
 CREATE TABLE IF NOT EXISTS library_track_labels (
     track_id INT NOT NULL,

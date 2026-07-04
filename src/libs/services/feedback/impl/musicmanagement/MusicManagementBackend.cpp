@@ -32,7 +32,7 @@ namespace lms::feedback::musicManagement
         : _ioContext{ ioContext }
         , _db{ db }
         , _apiUrl{ core::Service<core::IConfig>::get()->getString("music-management-rating-api-url", "https://muma-rating-service.example.com/api/lms-event") }
-        , _apiKey{ core::Service<core::IConfig>::get()->getString("music-management-rating-api-key", core::Service<core::IConfig>::get()->getString("muma-api-key", "REDACTED")) }
+        , _apiKey{ core::Service<core::IConfig>::get()->getString("music-management-rating-api-key", core::Service<core::IConfig>::get()->getString("api-key", "REDACTED")) }
     {
         LMS_LOG(SCROBBLING, INFO, "Starting MusicManagement feedback backend... API endpoint = '" << _apiUrl << "'");
         _client = core::http::createClient(_ioContext, _apiUrl);

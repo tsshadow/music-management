@@ -34,7 +34,7 @@ namespace lms::auth
         : _ioContext{ ioContext }
         , _db{ db }
         , _apiUrl{ core::Service<core::IConfig>::get()->getString("music-management-user-api-url", "https://muma-user-service.example.com/users") }
-        , _apiKey{ core::Service<core::IConfig>::get()->getString("music-management-user-api-key", core::Service<core::IConfig>::get()->getString("muma-api-key", "00000000-0000-4000-8000-000000000000")) }
+        , _apiKey{ core::Service<core::IConfig>::get()->getString("music-management-user-api-key", core::Service<core::IConfig>::get()->getString("api-key", "00000000-0000-4000-8000-000000000000")) }
     {
         LMS_LOG(AUTH, INFO, "Starting MusicManagement user synchronizer... API endpoint = '" << _apiUrl << "'");
         _client = core::http::createClient(_ioContext, _apiUrl);

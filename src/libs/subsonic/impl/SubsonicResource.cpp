@@ -525,10 +525,11 @@ namespace lms::api::subsonic
             return userId;
         } };
 
+        auto config = core::Service<core::IConfig>::get();
+        const std::string mumaApiKey{ config->getString("api-key", "") };
+
         if (!xApiKeyHeader.empty())
         {
-            auto config = core::Service<core::IConfig>::get();
-            const std::string mumaApiKey{ config->getString("muma-api-key", "") };
             if ((!mumaApiKey.empty() && xApiKeyHeader == mumaApiKey) ||
                 (xApiKeyHeader == config->getString("music-management-user-api-key", "") && !config->getString("music-management-user-api-key", "").empty()) ||
                 (xApiKeyHeader == config->getString("music-management-rating-api-key", "") && !config->getString("music-management-rating-api-key", "").empty()) ||
@@ -541,6 +542,12 @@ namespace lms::api::subsonic
 
         if (apiKey)
         {
+            if (!mumaApiKey.empty() && *apiKey == mumaApiKey)
+            {
+                if (db::UserId adminId = db::User::findAdminUserId(_db.getTLSSession()); adminId.isValid())
+                    return onAuthSuccess(adminId);
+            }
+
             const auto authResult{ core::Service<auth::IAuthTokenService>::get()->processAuthToken("subsonic", clientAddress, *apiKey) };
             if (authResult.state == auth::IAuthTokenService::AuthTokenProcessResult::State::Granted)
                 return onAuthSuccess(authResult.authTokenInfo->userId);

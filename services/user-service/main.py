@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Header
 from pydantic import BaseModel
 import os
 import pymysql
@@ -12,6 +12,13 @@ from services.common.api.version_helper import get_version, get_release_notes, g
 load_dotenv()
 
 app = FastAPI(title="Muma User Service")
+
+API_KEY = os.getenv("API_KEY", "Tarnish-Trespass-Dorsal-Sanding-Epilepsy-Unsavory9")
+
+async def verify_api_key(x_api_key: str = Header(None)):
+    if API_KEY and x_api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid API Key")
+    return x_api_key
 
 def get_db_connection():
     try:
@@ -90,7 +97,7 @@ async def release_notes():
     return {"notes": get_release_notes("services/user-service/RELEASE_NOTES.md")}
 
 @app.get("/users")
-async def get_users():
+async def get_users(api_key: str = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -102,7 +109,7 @@ async def get_users():
         conn.close()
 
 @app.post("/users")
-async def create_user(user: UserCreate):
+async def create_user(user: UserCreate, api_key: str = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -197,12 +204,12 @@ def update_lms_password(lms_user_id, password_hash):
         print(f"Failed to update LMS password: {e}")
 
 @app.post("/sync/lms")
-async def sync_lms_users(background_tasks: BackgroundTasks):
+async def sync_lms_users(background_tasks: BackgroundTasks, api_key: str = Depends(verify_api_key)):
     background_tasks.add_task(run_lms_sync)
     return {"message": "LMS sync started in background"}
 
 def run_lms_sync():
-    lms_host = os.getenv("LMS_HOST", "http://192.168.1.4:9000")
+    lms_host = os.getenv("LMS_HOST", "http://lms.teunschriks.nl")
     print(f"Starting LMS user sync from {lms_host}")
     
     try:
@@ -236,7 +243,7 @@ def run_lms_sync():
         print(f"LMS sync failed: {e}")
 
 @app.post("/sync/lms-db")
-async def sync_lms_db(background_tasks: BackgroundTasks):
+async def sync_lms_db(background_tasks: BackgroundTasks, api_key: str = Depends(verify_api_key)):
     background_tasks.add_task(run_lms_db_sync)
     return {"message": "LMS DB sync started in background"}
 

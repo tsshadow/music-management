@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Header, Depends
 from pydantic import BaseModel
 import os
 import pymysql
@@ -10,6 +10,13 @@ from services.common.api.version_helper import get_version, get_release_notes, g
 load_dotenv()
 
 app = FastAPI(title="Muma Rating System")
+
+API_KEY = os.getenv("API_KEY", "Scouring-Quiver2-Throat-Everyday-Economist-Squabble")
+
+async def verify_api_key(x_api_key: str = Header(None)):
+    if API_KEY and x_api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid API Key")
+    return x_api_key
 
 def get_db_connection():
     try:
@@ -68,7 +75,7 @@ class LMSEvent(BaseModel):
     path: Optional[str] = None
 
 @app.post("/api/lms-event")
-def handle_lms_event(event: LMSEvent):
+def handle_lms_event(event: LMSEvent, api_key: str = Depends(verify_api_key)):
     """Handle events from LMS MusicManagementBackend."""
     print(f"Received LMS event: {event}")
     if event.event != "rating_changed":
@@ -118,7 +125,7 @@ def handle_lms_event(event: LMSEvent):
     return set_rating(rating_data)
 
 @app.post("/ratings", response_model=RatingResponse)
-def set_rating(rating: Rating):
+def set_rating(rating: Rating, api_key: str = Depends(verify_api_key)):
     print(f"Setting rating: {rating.entity_type} {rating.entity_id} for user {rating.username} to {rating.rating}")
     conn = get_db_connection()
     if not conn:

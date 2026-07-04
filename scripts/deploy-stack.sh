@@ -32,6 +32,7 @@ SERVICE_NAME="${SERVICE_NAME:-$2}"
 IMAGE_NAME="${IMAGE_NAME:-$3}"
 TAG="${TAG:-$4}"
 SEARCH_STRING="${SEARCH_STRING:-$IMAGE_NAME}"
+LOCAL_ENV_FILE="${LOCAL_ENV_FILE:-$5}"
 
 # Discovery command to be run on remote hosts
 DISCOVERY_CMD="
@@ -111,13 +112,22 @@ DEPLOY_CMD="
     FINAL_COMPOSE_FILE=\"/tmp/docker-compose.$STACK_NAME.yml\"
     echo \"\$BASE64_COMPOSE\" | base64 -d > \"\$FINAL_COMPOSE_FILE\"
     
+    # Handle environment variables
+    ENV_ARG=\"\"
+    if [ -n \"\$BASE64_ENV\" ]; then
+        FINAL_ENV_FILE=\"/tmp/.env.$STACK_NAME\"
+        echo \"\$BASE64_ENV\" | base64 -d > \"\$FINAL_ENV_FILE\"
+        ENV_ARG=\"--env-file \$FINAL_ENV_FILE\"
+        echo \"Using environment file: \$FINAL_ENV_FILE\"
+    fi
+
     # Selection of compose command
     if [ -x /tmp/docker-compose-v2 ]; then
-        DOCKER_CMD=\"/tmp/docker-compose-v2 -f \$FINAL_COMPOSE_FILE -p $STACK_NAME\"
+        DOCKER_CMD=\"/tmp/docker-compose-v2 \$ENV_ARG -f \$FINAL_COMPOSE_FILE -p $STACK_NAME\"
     elif docker compose version >/dev/null 2>&1; then
-        DOCKER_CMD=\"docker compose -f \$FINAL_COMPOSE_FILE -p $STACK_NAME\"
+        DOCKER_CMD=\"docker compose \$ENV_ARG -f \$FINAL_COMPOSE_FILE -p $STACK_NAME\"
     elif command -v docker-compose >/dev/null 2>&1; then
-        DOCKER_CMD=\"docker-compose -f \$FINAL_COMPOSE_FILE -p $STACK_NAME\"
+        DOCKER_CMD=\"docker-compose \$ENV_ARG -f \$FINAL_COMPOSE_FILE -p $STACK_NAME\"
     else
         echo \"Error: Neither docker compose nor docker-compose found on remote host.\"
         exit 1
@@ -136,6 +146,10 @@ DEPLOY_CMD="
 "
 
 B64_DATA=$(echo "$COMPOSE_CONTENT" | base64 -w 0)
-run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "BASE64_COMPOSE='$B64_DATA' $DEPLOY_CMD"
+B64_ENV=""
+if [ -n "$LOCAL_ENV_FILE" ] && [ -f "$LOCAL_ENV_FILE" ]; then
+    B64_ENV=$(base64 -w 0 "$LOCAL_ENV_FILE")
+fi
+run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "BASE64_COMPOSE='$B64_DATA' BASE64_ENV='$B64_ENV' $DEPLOY_CMD"
 
 echo "--- Stack '$STACK_NAME' deployment completed successfully ---"

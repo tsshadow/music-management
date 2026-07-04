@@ -39,6 +39,17 @@ if [ -n "${PORTAINER_WEBHOOK_URL}" ]; then
         STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${PORTAINER_WEBHOOK_URL}")
         if [ "$STATUS_CODE" -ge 200 ] && [ "$STATUS_CODE" -lt 300 ]; then
             echo "--- Webhook triggered successfully for $TARGET (Status: $STATUS_CODE) ---"
+        elif [ "$STATUS_CODE" -eq 404 ]; then
+            echo "Error: Portainer Webhook returned 404 Not Found."
+            echo "Note: Stack Webhooks are a Business Edition feature."
+            if [[ "${PORTAINER_WEBHOOK_URL}" == *"/stacks/"* ]]; then
+                echo "HINT: You are using a Stack Webhook URL, which requires Portainer Business Edition."
+                echo "If you have Community Edition, you can use 'Service Webhooks' (under each service) or the SSH method."
+            fi
+            if [[ "${PORTAINER_WEBHOOK_URL}" == *"ptr_"* ]]; then
+                echo "HINT: Your URL seems to contain an API Access Token (ptr_...). Webhooks use a different token."
+            fi
+            exit 1
         else
             echo "Error: Portainer Webhook failed with status code $STATUS_CODE"
             exit 1
@@ -56,6 +67,7 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
     
     # Use the generalized deployment script
     export LOCAL_COMPOSE_FILE="docker-compose.yml"
+    export LOCAL_ENV_FILE=".env"
     export SEARCH_STRING="muma/lms"
     
     ./scripts/deploy-stack.sh

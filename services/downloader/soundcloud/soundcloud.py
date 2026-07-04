@@ -179,7 +179,6 @@ class SoundcloudDownloader:
             'match_filter': self._match_filter,
             'quiet': False,
             'set_file_timestamp': True,
-            'cookies': self.cookies_file,
             'ffmpeg_location': self.ffmpeg_location,
             'sleep_interval': 10,
             'max_sleep_interval': 60,
@@ -187,5 +186,17 @@ class SoundcloudDownloader:
             'ratelimit': 1024 * 1024,  # Limit to 1MB/s
             'playlist_random': True,
         }
+        
+        if self.cookies_file:
+            if self.cookies_file.startswith('firefox:'):
+                parts = self.cookies_file.split(':', 1)
+                profile = parts[1] if len(parts) > 1 else None
+                logging.info(f'Using cookiesfrombrowser=firefox with profile: {profile} for SoundCloud')
+                self.ydl_opts['cookiesfrombrowser'] = ('firefox', profile)
+            else:
+                self.ydl_opts['cookies'] = self.cookies_file
+        else:
+            self.ydl_opts['cookiesfrombrowser'] = ('firefox',)
+
         if self.default_break_on_existing:
             self.ydl_opts['break_on_existing'] = True

@@ -4,7 +4,7 @@ set -e
 
 echo "--- Installing dependencies for Docker build ---"
 sudo apt-get update
-sudo apt-get install -y docker.io
+sudo apt-get install -y docker.io sshpass
 # Apply group membership to the current session
 
 if ! groups | grep -q "\bdocker\b"; then

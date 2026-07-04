@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Home, Cloud, Scale, Database, Info, ExternalLink, Plus, RefreshCw, Music, Tag, Trash2, Search, Radio } from 'lucide-svelte';
+  import { Home, Cloud, Scale, Database, Info, ExternalLink, Plus, RefreshCw, Music, Tag, Trash2, Search, Radio, Users, Key } from 'lucide-svelte';
 
   let activeTab = 'home';
   let config = { version: '...', phpmyadmin_url: '#' };
@@ -14,6 +14,9 @@
   let artistGenreRules = [];
   let labelGenreRules = [];
   let latestImports = [];
+  let users = [];
+  let selectedUser = null;
+  let userLBAccount = null;
   let loading = true;
   let message = '';
   let error = '';
@@ -26,6 +29,12 @@
   let importMumaUser = '';
   let importLbUser = '';
   let isImporting = false;
+  
+  // User Form State
+  let newUsername = '';
+  let newDisplayName = '';
+  let lbUsername = '';
+  let lbToken = '';
   
   // Editor state
   let artistSearch = '';
@@ -40,14 +49,15 @@
   async function fetchData() {
     loading = true;
     try {
-      const [configRes, notesRes, rulesRes, accountsRes, versionsRes, allNotesRes, importsRes] = await Promise.all([
+      const [configRes, notesRes, rulesRes, accountsRes, versionsRes, allNotesRes, importsRes, usersRes] = await Promise.all([
         fetch(`${API_BASE}/api/config`),
         fetch(`${API_BASE}/api/notes`),
         fetch(`${API_BASE}/api/rules`),
         fetch(`${API_BASE}/api/soundcloud`),
         fetch(`${API_BASE}/api/versions`),
         fetch(`${API_BASE}/api/all-notes`),
-        fetch(`${API_BASE}/api/scrobble/import/latest`)
+        fetch(`${API_BASE}/api/scrobble/import/latest`),
+        fetch(`${API_BASE}/api/users`)
       ]);
       
       config = await configRes.json();
@@ -57,6 +67,7 @@
       versions = await versionsRes.json();
       allNotes = await allNotesRes.json();
       latestImports = await importsRes.json();
+      users = await usersRes.json();
       
       // Load rules for editor
       fetchRules();
@@ -80,13 +91,25 @@
   }
 
   async function startLbImport() {
-    if (!importMumaUser || !importLbUser) return;
+    if (!importMumaUser) return;
     isImporting = true;
     try {
+      // If we have a selected user and an LB account, use that lbUsername if importLbUser is empty
+      let lbUserToUse = importLbUser;
+      if (!lbUserToUse && selectedUser && lbUsername) {
+        lbUserToUse = lbUsername;
+      }
+      
+      if (!lbUserToUse) {
+        error = "ListenBrainz gebruikersnaam is vereist.";
+        isImporting = false;
+        return;
+      }
+
       const res = await fetch(`${API_BASE}/api/scrobble/import/listenbrainz`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: importMumaUser, lb_username: importLbUser })
+        body: JSON.stringify({ username: importMumaUser, lb_username: lbUserToUse })
       });
       if (res.ok) {
         message = "ListenBrainz import gestart!";
@@ -221,6 +244,87 @@
     }
   }
 
+  async function fetchUsers() {
+    try {
+      const res = await fetch(`${API_BASE}/api/users`);
+      users = await res.json();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function addUser() {
+    if (!newUsername) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: newUsername, display_name: newDisplayName || null })
+      });
+      if (res.ok) {
+        message = "Gebruiker toegevoegd";
+        newUsername = '';
+        newDisplayName = '';
+        fetchUsers();
+      }
+    } catch (err) {
+      error = "Fout bij toevoegen gebruiker";
+    }
+  }
+
+  async function selectUser(user) {
+    selectedUser = user;
+    userLBAccount = null;
+    lbUsername = '';
+    lbToken = '';
+    
+    try {
+      const res = await fetch(`${API_BASE}/api/users/${user.id}/lb-account`);
+      if (res.ok) {
+        userLBAccount = await res.json();
+        if (userLBAccount) {
+          lbUsername = userLBAccount.lb_username;
+          lbToken = userLBAccount.lb_token;
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function updateLBAccount() {
+    if (!selectedUser || !lbUsername || !lbToken) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/users/${selectedUser.id}/lb-account`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lb_username: lbUsername, lb_token: lbToken })
+      });
+      if (res.ok) {
+        message = "ListenBrainz account bijgewerkt";
+        setTimeout(() => message = '', 2000);
+      }
+    } catch (err) {
+      error = "Fout bij bijwerken LB account";
+    }
+  }
+
+  async function syncLMSUsers() {
+    try {
+      const res = await fetch(`${API_BASE}/api/users/sync/lms`, { method: 'POST' });
+      if (res.ok) {
+        message = "LMS sync gestart...";
+        setTimeout(() => {
+          fetchUsers();
+          message = "LMS sync voltooid (waarschijnlijk)";
+          setTimeout(() => message = '', 2000);
+        }, 2000);
+      }
+    } catch (err) {
+      error = "Fout bij starten LMS sync";
+    }
+  }
+
   onMount(fetchData);
 </script>
 
@@ -248,6 +352,12 @@
         class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'soundcloud' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
       >
         <Cloud size={24} /> SoundCloud
+      </button>
+      <button 
+        on:click={() => activeTab = 'users'}
+        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'users' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+      >
+        <Users size={24} /> Users
       </button>
       <button 
         on:click={() => activeTab = 'rules'}
@@ -680,14 +790,23 @@
               </h3>
               <form on:submit|preventDefault={startLbImport} class="space-y-4">
                 <div>
-                  <label for="muma-user" class="block text-sm font-bold text-spotify-lightgray mb-2">MuMa Username</label>
-                  <input 
-                    type="text" 
+                  <label for="muma-user" class="block text-sm font-bold text-spotify-lightgray mb-2">MuMa User</label>
+                  <select 
                     id="muma-user" 
                     bind:value={importMumaUser}
-                    placeholder="teun"
+                    on:change={(e) => {
+                      const user = users.find(u => u.username === importMumaUser);
+                      if (user) selectUser(user).then(() => {
+                        importLbUser = lbUsername;
+                      });
+                    }}
                     class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
-                  />
+                  >
+                    <option value="">Kies gebruiker...</option>
+                    {#each users as user}
+                      <option value={user.username}>{user.username}</option>
+                    {/each}
+                  </select>
                 </div>
                 <div>
                   <label for="lb-user" class="block text-sm font-bold text-spotify-lightgray mb-2">ListenBrainz Username</label>
@@ -701,7 +820,7 @@
                 </div>
                 <button 
                   type="submit" 
-                  disabled={isImporting || !importMumaUser || !importLbUser}
+                  disabled={isImporting || !importMumaUser}
                   class="w-full bg-spotify-green text-black font-extrabold py-3 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
                 >
                   {isImporting ? 'IMPORT BEZIG...' : 'IMPORT STARTEN'}
@@ -761,6 +880,170 @@
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        </section>
+      {:else if activeTab === 'users'}
+        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+          <header>
+            <h2 class="text-4xl font-extrabold mb-2">👥 User Management</h2>
+            <p class="text-spotify-lightgray">Beheer systeemgebruikers en hun externe account koppelingen.</p>
+          </header>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- User List -->
+            <div class="lg:col-span-1 space-y-6">
+              <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+                <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex justify-between items-center">
+                  Gebruikers
+                  <div class="flex gap-2">
+                    <button 
+                      on:click={syncLMSUsers} 
+                      title="Sync van LMS"
+                      class="text-spotify-lightgray hover:text-spotify-green transition-colors"
+                    >
+                      <RefreshCw size={16} />
+                    </button>
+                    <button 
+                      on:click={fetchUsers} 
+                      title="Verversen"
+                      class="text-spotify-lightgray hover:text-white transition-colors"
+                    >
+                      <RefreshCw size={16} class="rotate-90" />
+                    </button>
+                  </div>
+                </h3>
+                <div class="max-h-[400px] overflow-y-auto">
+                  <table class="w-full text-left text-sm">
+                    <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+                      {#each users as user}
+                        <tr 
+                          class="hover:bg-white hover:bg-opacity-5 cursor-pointer transition-colors {selectedUser?.id === user.id ? 'bg-spotify-gray' : ''}"
+                          on:click={() => selectUser(user)}
+                        >
+                          <td class="p-4">
+                            <div class="font-bold {selectedUser?.id === user.id ? 'text-spotify-green' : ''}">{user.username}</div>
+                            <div class="text-xs text-spotify-lightgray">{user.display_name || ''}</div>
+                          </td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Add User Form -->
+              <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
+                <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><Plus size={20} class="text-spotify-green" /> Gebruiker Toevoegen</h3>
+                <form on:submit|preventDefault={addUser} class="space-y-4">
+                  <div>
+                    <input 
+                      type="text" 
+                      bind:value={newUsername}
+                      placeholder="Gebruikersnaam"
+                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <input 
+                      type="text" 
+                      bind:value={newDisplayName}
+                      placeholder="Display Name (Optioneel)"
+                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
+                    />
+                  </div>
+                  <button type="submit" class="w-full bg-spotify-green text-black font-bold py-2 rounded-full hover:scale-105 transition-transform">
+                    TOEVOEGEN
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <!-- User Detail / External Accounts -->
+            <div class="lg:col-span-2">
+              {#if selectedUser}
+                <div class="space-y-6 animate-in fade-in duration-300">
+                  <div class="bg-spotify-gray p-8 rounded-xl border border-white border-opacity-5">
+                    <div class="flex items-center gap-4 mb-8">
+                      <div class="w-16 h-16 bg-spotify-green rounded-full flex items-center justify-center text-black text-2xl font-bold">
+                        {selectedUser.username.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <h3 class="text-3xl font-extrabold">{selectedUser.username}</h3>
+                        <p class="text-spotify-lightgray">{selectedUser.display_name || 'Geen display name'}</p>
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <!-- ListenBrainz Section -->
+                      <div class="space-y-4">
+                        <h4 class="text-xl font-bold flex items-center gap-2 text-white">
+                          <Radio size={20} class="text-[#EB743B]" /> ListenBrainz
+                        </h4>
+                  <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
+                          <div>
+                            <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">LB Username</label>
+                            <input 
+                              type="text" 
+                              bind:value={lbUsername}
+                              placeholder="ListenBrainz User"
+                              class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
+                            />
+                          </div>
+                          <div>
+                            <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">API Token</label>
+                            <div class="relative">
+                              <Key class="absolute left-2 top-2.5 text-spotify-lightgray" size={16} />
+                              <input 
+                                type="password" 
+                                bind:value={lbToken}
+                                placeholder="Token"
+                                class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 pl-9 focus:outline-none focus:border-spotify-green transition-colors font-mono text-sm"
+                              />
+                            </div>
+                          </div>
+                          <div class="flex gap-2">
+                            <button 
+                              on:click={() => {
+                                activeTab = 'scrobble';
+                                importMumaUser = selectedUser.username;
+                                importLbUser = lbUsername;
+                              }}
+                              class="flex-1 bg-white text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform"
+                            >
+                              IMPORT STARTEN
+                            </button>
+                            <button 
+                              on:click={updateLBAccount}
+                              class="flex-1 bg-spotify-green text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform"
+                            >
+                              OPSLAAN
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Other Settings -->
+                      <div class="space-y-4 opacity-50 cursor-not-allowed">
+                        <h4 class="text-xl font-bold flex items-center gap-2 text-white">
+                          <Database size={20} /> Andere Instellingen
+                        </h4>
+                        <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray italic text-spotify-lightgray text-sm">
+                          Binnenkort beschikbaar: LMS integratie, persoonlijke filters, etc.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              {:else}
+                <div class="h-full flex items-center justify-center bg-spotify-gray bg-opacity-20 rounded-xl border border-dashed border-spotify-gray p-12 text-center text-spotify-lightgray">
+                  <div>
+                    <Users size={48} class="mx-auto mb-4 opacity-20" />
+                    <p class="text-xl font-bold">Selecteer een gebruiker</p>
+                    <p>Kies een gebruiker uit de lijst om instellingen te beheren.</p>
+                  </div>
+                </div>
+              {/if}
             </div>
           </div>
         </section>

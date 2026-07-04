@@ -32,6 +32,8 @@ MODULE_MAP=(
     "docker/Dockerfile.rating-system:rating"
     "services/scrobble-service/:scrobble"
     "Dockerfile.scrobble-service:scrobble"
+    "services/user-service/:user"
+    "Dockerfile.user-service:user"
     "frontend/:app"
     "Dockerfile.music-management:app"
     "tools/:tools"

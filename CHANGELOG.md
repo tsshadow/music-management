@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-07-04
+
+### Added
+- **Artist-Genre Editor**: A new Spotify-inspired UI for mapping artists and labels to genres.
+- **Library Scanner**: A new `muma-library-scanner` service that automatically indexes audio files into the database.
+- **ReadonlySong**: A specialized song class for metadata extraction without file modification.
+- **Database Schema v3**: Added tables for `rules_artist_genres`, `rules_label_genres`, `library_artists`, and `library_labels`.
+- **API Endpoints**: New REST endpoints for artists, labels, and genre-mapping rules.
+
+### Fixed
+- Improved database connection reliability in the Management API.
+- Standardized Docker worker configurations.
+
 ## [2.0.0] - 2026-07-04
 ### Added
 - Created `scripts/deploy-stack.sh`, a generalized Docker stack deployment tool supporting Portainer discovery, SSH transfer, and intelligent fallbacks.

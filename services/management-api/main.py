@@ -52,6 +52,14 @@ class SoundCloudAccount(BaseModel):
     name: str
     soundcloud_id: Optional[str] = None
 
+class ArtistGenreRule(BaseModel):
+    artist_name: str
+    genre_id: int
+
+class LabelGenreRule(BaseModel):
+    label_name: str
+    genre_id: int
+
 @app.get("/api/config")
 def get_config():
     return {
@@ -101,6 +109,140 @@ def get_soundcloud_accounts():
             cursor.execute("SELECT name, soundcloud_id FROM downloads_soundcloud_accounts ORDER BY name")
             accounts = cursor.fetchall()
             return accounts
+    finally:
+        conn.close()
+
+@app.get("/api/artists")
+def get_artists(q: Optional[str] = None, limit: int = 100):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    try:
+        with conn.cursor() as cursor:
+            if q:
+                cursor.execute("SELECT id, name FROM library_artists WHERE name LIKE %s ORDER BY name LIMIT %s", (f"%{q}%", limit))
+            else:
+                cursor.execute("SELECT id, name FROM library_artists ORDER BY name LIMIT %s", (limit,))
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+@app.get("/api/labels")
+def get_labels(q: Optional[str] = None, limit: int = 100):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    try:
+        with conn.cursor() as cursor:
+            if q:
+                cursor.execute("SELECT id, name FROM library_labels WHERE name LIKE %s ORDER BY name LIMIT %s", (f"%{q}%", limit))
+            else:
+                cursor.execute("SELECT id, name FROM library_labels ORDER BY name LIMIT %s", (limit,))
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+@app.get("/api/rules/artist-genres")
+def get_artist_genre_rules():
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT r.id, r.artist_name, r.genre_id, g.name as genre_name 
+                FROM rules_artist_genres r
+                JOIN rules_genres g ON r.genre_id = g.id
+                ORDER BY r.artist_name
+            """)
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+@app.post("/api/rules/artist-genres")
+def add_artist_genre_rule(rule: ArtistGenreRule):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT IGNORE INTO rules_artist_genres (artist_name, genre_id) VALUES (%s, %s)",
+                (rule.artist_name, rule.genre_id)
+            )
+            conn.commit()
+            return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.delete("/api/rules/artist-genres/{rule_id}")
+def delete_artist_genre_rule(rule_id: int):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM rules_artist_genres WHERE id = %s", (rule_id,))
+            conn.commit()
+            return {"status": "success"}
+    finally:
+        conn.close()
+
+@app.get("/api/rules/label-genres")
+def get_label_genre_rules():
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT r.id, r.label_name, r.genre_id, g.name as genre_name 
+                FROM rules_label_genres r
+                JOIN rules_genres g ON r.genre_id = g.id
+                ORDER BY r.label_name
+            """)
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+@app.post("/api/rules/label-genres")
+def add_label_genre_rule(rule: LabelGenreRule):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT IGNORE INTO rules_label_genres (label_name, genre_id) VALUES (%s, %s)",
+                (rule.label_name, rule.genre_id)
+            )
+            conn.commit()
+            return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.delete("/api/rules/label-genres/{rule_id}")
+def delete_label_genre_rule(rule_id: int):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM rules_label_genres WHERE id = %s", (rule_id,))
+            conn.commit()
+            return {"status": "success"}
     finally:
         conn.close()
 

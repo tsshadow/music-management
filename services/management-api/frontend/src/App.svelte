@@ -1,12 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Home, Cloud, Scale, Database, Info, ExternalLink, Plus, RefreshCw } from 'lucide-svelte';
+  import { Home, Cloud, Scale, Database, Info, ExternalLink, Plus, RefreshCw, Music, Tag, Trash2, Search } from 'lucide-svelte';
 
   let activeTab = 'home';
   let config = { version: '...', phpmyadmin_url: '#' };
   let notes = { release_notes: '', changelog: '' };
   let rules = { genres: [], ignored_genres: [] };
   let accounts = [];
+  let artists = [];
+  let labels = [];
+  let artistGenreRules = [];
+  let labelGenreRules = [];
   let loading = true;
   let message = '';
   let error = '';
@@ -14,6 +18,13 @@
   // Form state
   let newAccountName = '';
   let newAccountId = '';
+  
+  // Editor state
+  let artistSearch = '';
+  let labelSearch = '';
+  let selectedArtistName = '';
+  let selectedLabelName = '';
+  let selectedGenreId = null;
 
   const API_BASE = import.meta.env.DEV ? 'http://localhost:8003' : '';
 
@@ -31,11 +42,105 @@
       notes = await notesRes.json();
       rules = await rulesRes.json();
       accounts = await accountsRes.json();
+      
+      // Load rules for editor
+      fetchRules();
+      searchArtists();
+      searchLabels();
     } catch (err) {
       error = "Kon gegevens niet ophalen van de API.";
       console.error(err);
     } finally {
       loading = false;
+    }
+  }
+
+  async function fetchRules() {
+    try {
+      const [artistRulesRes, labelRulesRes] = await Promise.all([
+        fetch(`${API_BASE}/api/rules/artist-genres`),
+        fetch(`${API_BASE}/api/rules/label-genres`)
+      ]);
+      artistGenreRules = await artistRulesRes.json();
+      labelGenreRules = await labelRulesRes.json();
+    } catch (err) {
+      console.error("Fout bij ophalen regels:", err);
+    }
+  }
+
+  async function searchArtists() {
+    try {
+      const res = await fetch(`${API_BASE}/api/artists?q=${encodeURIComponent(artistSearch)}`);
+      artists = await res.json();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function searchLabels() {
+    try {
+      const res = await fetch(`${API_BASE}/api/labels?q=${encodeURIComponent(labelSearch)}`);
+      labels = await res.json();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function addArtistRule() {
+    if (!selectedArtistName || !selectedGenreId) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/rules/artist-genres`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ artist_name: selectedArtistName, genre_id: selectedGenreId })
+      });
+      if (res.ok) {
+        message = "Artiest regel toegevoegd";
+        fetchRules();
+        setTimeout(() => message = '', 2000);
+      }
+    } catch (err) {
+      error = "Fout bij toevoegen regel";
+    }
+  }
+
+  async function deleteArtistRule(id) {
+    try {
+      const res = await fetch(`${API_BASE}/api/rules/artist-genres/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchRules();
+      }
+    } catch (err) {
+      error = "Fout bij verwijderen regel";
+    }
+  }
+
+  async function addLabelRule() {
+    if (!selectedLabelName || !selectedGenreId) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/rules/label-genres`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label_name: selectedLabelName, genre_id: selectedGenreId })
+      });
+      if (res.ok) {
+        message = "Label regel toegevoegd";
+        fetchRules();
+        setTimeout(() => message = '', 2000);
+      }
+    } catch (err) {
+      error = "Fout bij toevoegen regel";
+    }
+  }
+
+  async function deleteLabelRule(id) {
+    try {
+      const res = await fetch(`${API_BASE}/api/rules/label-genres/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchRules();
+      }
+    } catch (err) {
+      error = "Fout bij verwijderen regel";
     }
   }
 
@@ -96,6 +201,12 @@
         class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'rules' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
       >
         <Scale size={24} /> Rules & Genres
+      </button>
+      <button 
+        on:click={() => activeTab = 'editor'}
+        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'editor' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+      >
+        <Music size={24} /> Artist-Genre Editor
       </button>
       
       <div class="pt-4 mt-4 border-t border-spotify-gray">
@@ -278,6 +389,162 @@
                     {/each}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      {:else if activeTab === 'editor'}
+        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+          <header>
+            <h2 class="text-4xl font-extrabold mb-2">🎨 Artist-Genre Editor</h2>
+            <p class="text-spotify-lightgray">Koppel artiesten en labels aan specifieke genres.</p>
+          </header>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left: Selector -->
+            <div class="lg:col-span-1 space-y-6">
+              <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
+                <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><Music size={20} class="text-spotify-green" /> Artiest/Label Kiezen</h3>
+                
+                <div class="space-y-4">
+                  <div class="flex flex-col gap-2">
+                    <label class="text-xs font-bold text-spotify-lightgray uppercase">Zoek Artiest</label>
+                    <div class="relative">
+                      <Search class="absolute left-3 top-3 text-spotify-lightgray" size={16} />
+                      <input 
+                        type="text" 
+                        bind:value={artistSearch} 
+                        on:input={searchArtists}
+                        placeholder="Naam..."
+                        class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 pl-10 focus:outline-none focus:border-spotify-green"
+                      />
+                    </div>
+                    <select 
+                      bind:value={selectedArtistName}
+                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 h-32"
+                      size="5"
+                    >
+                      {#each artists as artist}
+                        <option value={artist.name}>{artist.name}</option>
+                      {/each}
+                    </select>
+                  </div>
+
+                  <div class="flex flex-col gap-2">
+                    <label class="text-xs font-bold text-spotify-lightgray uppercase">Of Zoek Label</label>
+                    <div class="relative">
+                      <Search class="absolute left-3 top-3 text-spotify-lightgray" size={16} />
+                      <input 
+                        type="text" 
+                        bind:value={labelSearch} 
+                        on:input={searchLabels}
+                        placeholder="Naam..."
+                        class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 pl-10 focus:outline-none focus:border-spotify-green"
+                      />
+                    </div>
+                    <select 
+                      bind:value={selectedLabelName}
+                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 h-32"
+                      size="5"
+                    >
+                      {#each labels as label}
+                        <option value={label.name}>{label.name}</option>
+                      {/each}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
+                <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><Tag size={20} class="text-spotify-green" /> Genre Toewijzen</h3>
+                <div class="space-y-4">
+                  <select 
+                    bind:value={selectedGenreId}
+                    class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2"
+                  >
+                    <option value={null}>Kies een genre...</option>
+                    {#each rules.genres as genre}
+                      <option value={genre.id}>{genre.name}</option>
+                    {/each}
+                  </select>
+                  
+                  <div class="flex gap-2">
+                    <button 
+                      on:click={addArtistRule}
+                      disabled={!selectedArtistName || !selectedGenreId}
+                      class="flex-1 bg-spotify-green text-black font-bold py-3 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                    >
+                      KOPPEL ARTIEST
+                    </button>
+                    <button 
+                      on:click={addLabelRule}
+                      disabled={!selectedLabelName || !selectedGenreId}
+                      class="flex-1 bg-white text-black font-bold py-3 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                    >
+                      KOPPEL LABEL
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Rules Lists -->
+            <div class="lg:col-span-2 space-y-8">
+              <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+                <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Artiest Genre Regels</h3>
+                <div class="max-h-[400px] overflow-y-auto">
+                  <table class="w-full text-left">
+                    <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray sticky top-0">
+                      <tr>
+                        <th class="p-4">Artiest</th>
+                        <th class="p-4">Genre</th>
+                        <th class="p-4 w-16"></th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+                      {#each artistGenreRules as rule}
+                        <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
+                          <td class="p-4 font-bold">{rule.artist_name}</td>
+                          <td class="p-4 text-spotify-green">{rule.genre_name}</td>
+                          <td class="p-4 text-right">
+                            <button on:click={() => deleteArtistRule(rule.id)} class="text-spotify-lightgray hover:text-red-500">
+                              <Trash2 size={18} />
+                            </button>
+                          </td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+                <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Label Genre Regels</h3>
+                <div class="max-h-[400px] overflow-y-auto">
+                  <table class="w-full text-left">
+                    <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray sticky top-0">
+                      <tr>
+                        <th class="p-4">Label</th>
+                        <th class="p-4">Genre</th>
+                        <th class="p-4 w-16"></th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+                      {#each labelGenreRules as rule}
+                        <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
+                          <td class="p-4 font-bold">{rule.label_name}</td>
+                          <td class="p-4 text-spotify-green">{rule.genre_name}</td>
+                          <td class="p-4 text-right">
+                            <button on:click={() => deleteLabelRule(rule.id)} class="text-spotify-lightgray hover:text-red-500">
+                              <Trash2 size={18} />
+                            </button>
+                          </td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>

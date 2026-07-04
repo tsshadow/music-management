@@ -1,4 +1,18 @@
-# Release Notes - Music Management 2.0.0
+# Release Notes - Music Management
+
+## Version 2.1.0 (2026-07-04)
+
+### 🎨 Artist-Genre Editor
+We've introduced a powerful new editor in the Control Center! You can now easily map your favorite artists and labels to specific genres using a modern, Spotify-inspired interface. Search through your library, find the right genre, and set the rules for future imports.
+
+### 🔍 Library Scanner
+The new Library Scanner automatically indexes your music collection into the database. It finds your tracks, extracts metadata, and organizes your artists and labels without ever touching your original files.
+
+### 🛠️ Backend Enhancements
+- Expanded the Management API with dedicated endpoints for library and rule management.
+- Improved database indexing for faster library lookups.
+
+---
 
 ## Version 2.0.0 (2026-07-04)
 

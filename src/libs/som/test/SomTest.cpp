@@ -26,7 +26,7 @@
 
 namespace lms::som
 {
-    static constexpr InputVector::value_type EPSILON = 0.01;
+    static constexpr InputVector::value_type EPSILON = 0.05;
 
     TEST(som, Matrix)
     {
@@ -87,7 +87,7 @@ namespace lms::som
             normalizer.normalizeData(data);
 
         network.dump(std::cout);
-        network.train(trainData, 20);
+        network.train(trainData, 100);
         network.dump(std::cout);
 
         auto distFunc{ network.getDistanceFunc() };

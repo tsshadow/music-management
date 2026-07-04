@@ -15,7 +15,11 @@
 #include "core/http/ClientRequestParameters.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
+#include "database/objects/Artist.hpp"
+#include "database/objects/RatedArtist.hpp"
+#include "database/objects/RatedRelease.hpp"
 #include "database/objects/RatedTrack.hpp"
+#include "database/objects/Release.hpp"
 #include "database/objects/Track.hpp"
 
 namespace lms::feedback::musicManagement
@@ -53,11 +57,40 @@ namespace lms::feedback::musicManagement
     {
     }
 
-    void MusicManagementBackend::onRatingChanged(db::RatedArtistId)
+    void MusicManagementBackend::onRatingChanged(db::RatedArtistId ratedArtistId)
     {
+        db::Session& session{ _db.getTLSSession() };
+        auto transaction{ session.createReadTransaction() };
+
+        if (auto ratedArtist{ db::RatedArtist::find(session, ratedArtistId) })
+        {
+            if (auto artist{ ratedArtist->getArtist() })
+            {
+                std::string artistName = artist->getName();
+                int rating = ratedArtist->getRating();
+
+                LMS_LOG(SCROBBLING, DEBUG, "Rating changed for artist " << artistName << " (rating: " << rating << ")");
+                sendEvent("rating_changed", "artist", artistName, rating);
+            }
+        }
     }
-    void MusicManagementBackend::onRatingChanged(db::RatedReleaseId)
+
+    void MusicManagementBackend::onRatingChanged(db::RatedReleaseId ratedReleaseId)
     {
+        db::Session& session{ _db.getTLSSession() };
+        auto transaction{ session.createReadTransaction() };
+
+        if (auto ratedRelease{ db::RatedRelease::find(session, ratedReleaseId) })
+        {
+            if (auto release{ ratedRelease->getRelease() })
+            {
+                std::string releaseName = release->getName();
+                int rating = ratedRelease->getRating();
+
+                LMS_LOG(SCROBBLING, DEBUG, "Rating changed for release " << releaseName << " (rating: " << rating << ")");
+                sendEvent("rating_changed", "release", releaseName, rating);
+            }
+        }
     }
 
     void MusicManagementBackend::onRatingChanged(db::RatedTrackId ratedTrackId)

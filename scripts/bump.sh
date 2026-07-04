@@ -73,4 +73,19 @@ if [ -f "$JSON_FILE" ]; then
     mv "$TEMP_JSON" "$JSON_FILE"
 fi
 
-echo "Successfully bumped to $NEW_VERSION"
+# 5. Git commit and tag
+echo "Committing version bump..."
+git add CMakeLists.txt CHANGELOG.md
+if [ -f "RELEASE_NOTES.md" ]; then git add RELEASE_NOTES.md; fi
+if [ -f "$JSON_FILE" ]; then git add "$JSON_FILE"; fi
+
+git commit -m "Bump version to $NEW_VERSION" --trailer "Co-authored-by: Junie <junie@jetbrains.com>"
+
+echo "Creating tag v$NEW_VERSION..."
+git tag "v$NEW_VERSION"
+
+echo "Pushing changes and tag..."
+git push origin "$(git rev-parse --abbrev-ref HEAD)"
+git push origin "v$NEW_VERSION"
+
+echo "Successfully bumped to $NEW_VERSION and pushed tag."

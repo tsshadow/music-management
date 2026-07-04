@@ -148,7 +148,7 @@ def set_rating(rating: Rating, api_key: str = Depends(verify_api_key)):
         conn.close()
 
 @app.get("/ratings/{entity_type}/{entity_id}", response_model=List[RatingResponse])
-def get_ratings(entity_type: str, entity_id: str):
+def get_ratings(entity_type: str, entity_id: str, api_key: str = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -161,7 +161,7 @@ def get_ratings(entity_type: str, entity_id: str):
         conn.close()
 
 @app.get("/ratings/user/{username}", response_model=List[RatingResponse])
-def get_user_ratings(username: str, entity_type: Optional[str] = None):
+def get_user_ratings(username: str, entity_type: Optional[str] = None, api_key: str = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -177,7 +177,7 @@ def get_user_ratings(username: str, entity_type: Optional[str] = None):
         conn.close()
 
 @app.get("/ratings/updates", response_model=List[RatingResponse])
-def get_updates(since: datetime = Query(...), entity_type: Optional[str] = None):
+def get_updates(since: datetime = Query(...), entity_type: Optional[str] = None, api_key: str = Depends(verify_api_key)):
     """Fetch ratings updated since a specific timestamp for synchronization."""
     conn = get_db_connection()
     if not conn:
@@ -201,12 +201,12 @@ def health():
     return {"status": "ok"}
 
 @app.get("/version")
-async def version():
+async def version(api_key: str = Depends(verify_api_key)):
     """Return the current version of the service."""
     return {"version": get_version()}
 
 @app.get("/release-notes")
-async def release_notes():
+async def release_notes(api_key: str = Depends(verify_api_key)):
     """Return the release notes for the service."""
     return {
         "release_notes": get_release_notes("rating-system"),

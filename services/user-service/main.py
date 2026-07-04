@@ -89,11 +89,11 @@ class PasswordUpdate(BaseModel):
     password: str
 
 @app.get("/version")
-async def version():
+async def version(api_key: str = Depends(verify_api_key)):
     return {"version": get_version()}
 
 @app.get("/release-notes")
-async def release_notes():
+async def release_notes(api_key: str = Depends(verify_api_key)):
     return {"notes": get_release_notes("services/user-service/RELEASE_NOTES.md")}
 
 @app.get("/users")
@@ -127,7 +127,7 @@ async def create_user(user: UserCreate, api_key: str = Depends(verify_api_key)):
         conn.close()
 
 @app.get("/users/{user_id}/lb-account")
-async def get_lb_account(user_id: int):
+async def get_lb_account(user_id: int, api_key: str = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -139,7 +139,7 @@ async def get_lb_account(user_id: int):
         conn.close()
 
 @app.put("/users/{user_id}/lb-account")
-async def update_lb_account(user_id: int, account: LBAccountUpdate):
+async def update_lb_account(user_id: int, account: LBAccountUpdate, api_key: str = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -156,7 +156,7 @@ async def update_lb_account(user_id: int, account: LBAccountUpdate):
         conn.close()
 
 @app.put("/users/{user_id}/password")
-async def update_password(user_id: int, pwd: PasswordUpdate):
+async def update_password(user_id: int, pwd: PasswordUpdate, api_key: str = Depends(verify_api_key)):
     # Hash password with bcrypt (using 2b prefix, which is generally compatible)
     salt = bcrypt.gensalt(rounds=12)
     hashed = bcrypt.hashpw(pwd.password.encode('utf-8'), salt).decode('utf-8')

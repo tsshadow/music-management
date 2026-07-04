@@ -87,6 +87,8 @@ If you are modifying the code and need to rebuild and redeploy the system:
   - Uses `scripts/affected.sh` to detect which modules have changed.
   - Skips builds and pushes for unedited modules to save time.
   - Automatically deploys the updated stack to production.
+  - **New**: Use `--semi-remote` to offload heavy builds (`app`, `ml`, `tools`) to the remote LXC container (192.168.1.40) while building others locally. This significantly speeds up the build process.
+  - **New**: Use `--remote` to perform the entire build on the remote LXC container.
 - **Manual Build**: `./build.sh` (builds all or specified modules).
 - **Manual Publish**: `./publish.sh` (pushes to Docker Hub).
 - **Manual Deploy**: `./deploy.sh` (triggers remote update).

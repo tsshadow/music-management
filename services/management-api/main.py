@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Form
+from fastapi import FastAPI, HTTPException, Form, Header, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,6 +25,29 @@ SERVICES = {
     "scrobble-service": "http://muma-scrobble-service:8000",
     "user-service": "http://muma-user-service:8001"
 }
+
+API_KEY = os.getenv("API_KEY", "Tarnish-Trespass-Dorsal-Sanding-Epilepsy-Unsavory9")
+RATING_API_KEY = os.getenv("RATING_API_KEY", "Scouring-Quiver2-Throat-Everyday-Economist-Squabble")
+SCROBBLE_API_KEY = os.getenv("SCROBBLE_API_KEY", "Tarnish-Trespass-Dorsal-Sanding-Epilepsy-Unsavory9")
+USER_API_KEY = os.getenv("USER_API_KEY", "Tarnish-Trespass-Dorsal-Sanding-Epilepsy-Unsavory9")
+
+async def verify_api_key(x_api_key: Optional[str] = Header(None)):
+    if API_KEY and x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+def get_proxy_headers(service_name=None):
+    headers = {}
+    key = API_KEY
+    if service_name == "rating-system":
+        key = RATING_API_KEY
+    elif service_name == "scrobble-service":
+        key = SCROBBLE_API_KEY
+    elif service_name == "user-service":
+        key = USER_API_KEY
+    
+    if key:
+        headers["X-API-Key"] = key
+    return headers
 
 app = FastAPI(title="Music Management Control Center")
 
@@ -92,21 +115,21 @@ class PasswordUpdate(BaseModel):
     password: str
 
 @app.get("/api/config")
-def get_config():
+def get_config(_: None = Depends(verify_api_key)):
     return {
         "version": get_version(),
         "phpmyadmin_url": os.getenv("PHPMYADMIN_URL", "http://music-management-db.teunschriks.nl")
     }
 
 @app.get("/api/notes")
-def get_notes():
+def get_notes(_: None = Depends(verify_api_key)):
     return {
         "release_notes": get_release_notes("management-api"),
         "changelog": get_changelog()
     }
 
 @app.get("/api/versions")
-def get_all_versions():
+def get_all_versions(_: None = Depends(verify_api_key)):
     """Aggregate versions from all running services."""
     versions = {
         "control-center": get_version()
@@ -114,7 +137,7 @@ def get_all_versions():
     
     for name, base_url in SERVICES.items():
         try:
-            response = requests.get(f"{base_url}/version", timeout=1.0)
+            response = requests.get(f"{base_url}/version", headers=get_proxy_headers(name), timeout=1.0)
             if response.status_code == 200:
                 versions[name] = response.json().get("version", "unknown")
             else:
@@ -129,7 +152,7 @@ def get_all_versions():
     return versions
 
 @app.get("/api/all-notes")
-def get_all_release_notes():
+def get_all_release_notes(_: None = Depends(verify_api_key)):
     """Aggregate release notes from all services."""
     all_notes = {
         "control-center": {
@@ -140,7 +163,7 @@ def get_all_release_notes():
     
     for name, base_url in SERVICES.items():
         try:
-            response = requests.get(f"{base_url}/release-notes", timeout=2.0)
+            response = requests.get(f"{base_url}/release-notes", headers=get_proxy_headers(name), timeout=2.0)
             if response.status_code == 200:
                 all_notes[name] = response.json()
             else:
@@ -152,7 +175,7 @@ def get_all_release_notes():
 
 def get_lms_version():
     """Try to get LMS version if possible, otherwise return a reference."""
-    lms_host = os.getenv("LMS_HOST", "http://192.168.1.4:9000")
+    lms_host = os.getenv("LMS_HOST", "http://lms.teunschriks.nl")
     try:
         # LMS JSON-RPC call for version
         payload = {
@@ -164,7 +187,7 @@ def get_lms_version():
             return response.json().get("result", {}).get("_version", "unknown")
     except Exception:
         pass
-    return "Reference: http://192.168.1.4:9000"
+    return "Reference: http://lms.teunschriks.nl"
 
 def get_latest_ultrasonic_version():
     """Get latest version from apk-hoster or github."""
@@ -179,7 +202,7 @@ def get_latest_ultrasonic_version():
     return "See https://github.com/ultrasonic/ultrasonic/releases"
 
 @app.get("/api/rules")
-def get_rules():
+def get_rules(_: None = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -200,7 +223,7 @@ def get_rules():
         conn.close()
 
 @app.get("/api/soundcloud")
-def get_soundcloud_accounts():
+def get_soundcloud_accounts(_: None = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -214,7 +237,7 @@ def get_soundcloud_accounts():
         conn.close()
 
 @app.get("/api/artists")
-def get_artists(q: Optional[str] = None, limit: int = 100):
+def get_artists(q: Optional[str] = None, limit: int = 100, _: None = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -230,7 +253,7 @@ def get_artists(q: Optional[str] = None, limit: int = 100):
         conn.close()
 
 @app.get("/api/labels")
-def get_labels(q: Optional[str] = None, limit: int = 100):
+def get_labels(q: Optional[str] = None, limit: int = 100, _: None = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -246,7 +269,7 @@ def get_labels(q: Optional[str] = None, limit: int = 100):
         conn.close()
 
 @app.get("/api/rules/artist-genres")
-def get_artist_genre_rules():
+def get_artist_genre_rules(_: None = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -264,7 +287,7 @@ def get_artist_genre_rules():
         conn.close()
 
 @app.post("/api/rules/artist-genres")
-def add_artist_genre_rule(rule: ArtistGenreRule):
+def add_artist_genre_rule(rule: ArtistGenreRule, _: None = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -283,7 +306,7 @@ def add_artist_genre_rule(rule: ArtistGenreRule):
         conn.close()
 
 @app.delete("/api/rules/artist-genres/{rule_id}")
-def delete_artist_genre_rule(rule_id: int):
+def delete_artist_genre_rule(rule_id: int, _: None = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -297,7 +320,7 @@ def delete_artist_genre_rule(rule_id: int):
         conn.close()
 
 @app.get("/api/rules/label-genres")
-def get_label_genre_rules():
+def get_label_genre_rules(_: None = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -315,7 +338,7 @@ def get_label_genre_rules():
         conn.close()
 
 @app.post("/api/rules/label-genres")
-def add_label_genre_rule(rule: LabelGenreRule):
+def add_label_genre_rule(rule: LabelGenreRule, _: None = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -334,7 +357,7 @@ def add_label_genre_rule(rule: LabelGenreRule):
         conn.close()
 
 @app.delete("/api/rules/label-genres/{rule_id}")
-def delete_label_genre_rule(rule_id: int):
+def delete_label_genre_rule(rule_id: int, _: None = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -349,12 +372,13 @@ def delete_label_genre_rule(rule_id: int):
 
 # Scrobble Service Proxy Endpoints
 @app.post("/api/scrobble/import/listenbrainz")
-def proxy_import_listenbrainz(data: ListenBrainzImport):
+def proxy_import_listenbrainz(data: ListenBrainzImport, _: None = Depends(verify_api_key)):
     base_url = SERVICES["scrobble-service"]
     try:
         response = requests.post(
             f"{base_url}/api/import/listenbrainz", 
             params={"username": data.username, "lb_username": data.lb_username},
+            headers=get_proxy_headers("scrobble-service"),
             timeout=5.0
         )
         return response.json()
@@ -362,80 +386,80 @@ def proxy_import_listenbrainz(data: ListenBrainzImport):
         raise HTTPException(status_code=500, detail=f"Failed to contact Scrobble Service: {str(e)}")
 
 @app.get("/api/scrobble/import/latest")
-def proxy_latest_imports():
+def proxy_latest_imports(_: None = Depends(verify_api_key)):
     base_url = SERVICES["scrobble-service"]
     try:
-        response = requests.get(f"{base_url}/api/import/latest", timeout=5.0)
+        response = requests.get(f"{base_url}/api/import/latest", headers=get_proxy_headers("scrobble-service"), timeout=5.0)
         return response.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to contact Scrobble Service: {str(e)}")
 
 # User Service Proxy Endpoints
 @app.get("/api/users")
-def proxy_get_users():
+def proxy_get_users(_: None = Depends(verify_api_key)):
     base_url = SERVICES["user-service"]
     try:
-        response = requests.get(f"{base_url}/users", timeout=5.0)
+        response = requests.get(f"{base_url}/users", headers=get_proxy_headers("user-service"), timeout=5.0)
         return response.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
 
 @app.post("/api/users")
-def proxy_create_user(user: UserCreate):
+def proxy_create_user(user: UserCreate, _: None = Depends(verify_api_key)):
     base_url = SERVICES["user-service"]
     try:
-        response = requests.post(f"{base_url}/users", json=user.dict(), timeout=5.0)
+        response = requests.post(f"{base_url}/users", json=user.dict(), headers=get_proxy_headers("user-service"), timeout=5.0)
         return response.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
 
 @app.get("/api/users/{user_id}/lb-account")
-def proxy_get_lb_account(user_id: int):
+def proxy_get_lb_account(user_id: int, _: None = Depends(verify_api_key)):
     base_url = SERVICES["user-service"]
     try:
-        response = requests.get(f"{base_url}/users/{user_id}/lb-account", timeout=5.0)
+        response = requests.get(f"{base_url}/users/{user_id}/lb-account", headers=get_proxy_headers("user-service"), timeout=5.0)
         return response.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
 
 @app.put("/api/users/{user_id}/lb-account")
-def proxy_update_lb_account(user_id: int, account: LBAccountUpdate):
+def proxy_update_lb_account(user_id: int, account: LBAccountUpdate, _: None = Depends(verify_api_key)):
     base_url = SERVICES["user-service"]
     try:
-        response = requests.put(f"{base_url}/users/{user_id}/lb-account", json=account.dict(), timeout=5.0)
+        response = requests.put(f"{base_url}/users/{user_id}/lb-account", json=account.dict(), headers=get_proxy_headers("user-service"), timeout=5.0)
         return response.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
 
 @app.put("/api/users/{user_id}/password")
-def proxy_update_user_password(user_id: int, pwd: PasswordUpdate):
+def proxy_update_user_password(user_id: int, pwd: PasswordUpdate, _: None = Depends(verify_api_key)):
     base_url = SERVICES["user-service"]
     try:
-        response = requests.put(f"{base_url}/users/{user_id}/password", json=pwd.dict(), timeout=5.0)
+        response = requests.put(f"{base_url}/users/{user_id}/password", json=pwd.dict(), headers=get_proxy_headers(), timeout=5.0)
         return response.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
 
 @app.post("/api/users/sync/lms")
-def proxy_sync_lms_users():
+def proxy_sync_lms_users(_: None = Depends(verify_api_key)):
     base_url = SERVICES["user-service"]
     try:
-        response = requests.post(f"{base_url}/sync/lms", timeout=5.0)
+        response = requests.post(f"{base_url}/sync/lms", headers=get_proxy_headers(), timeout=5.0)
         return response.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
 
 @app.post("/api/users/sync/lms-db")
-def proxy_sync_lms_db_users():
+def proxy_sync_lms_db_users(_: None = Depends(verify_api_key)):
     base_url = SERVICES["user-service"]
     try:
-        response = requests.post(f"{base_url}/sync/lms-db", timeout=5.0)
+        response = requests.post(f"{base_url}/sync/lms-db", headers=get_proxy_headers(), timeout=5.0)
         return response.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
 
 @app.post("/api/soundcloud")
-def add_soundcloud_account(account: SoundCloudAccount):
+def add_soundcloud_account(account: SoundCloudAccount, _: None = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")

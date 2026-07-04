@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.22] - 2026-07-04
+### Added
+- **API Security**: Systeem-brede API-key validatie (`X-API-Key`) geïmplementeerd voor alle microservices.
+- **Control Center**: Mogelijkheid toegevoegd om de API-sleutel in te stellen en op te slaan in het dashboard.
+- **User Service**: `user-service` toegevoegd aan de `full` docker-compose configuratie.
+
+### Fixed
+- **API Consistency**: De `API_KEY` is nu gesynchroniseerd over alle services (`management-api`, `user-service`, `scrobble-service`, `rating-system`).
+- **LMS Configuration**: De standaard LMS host gecorrigeerd naar `lms.teunschriks.nl`.
+
+## [2.1.20] - 2026-07-04
+### Fixed
+- **LMS Configuration**: De standaard LMS host gecorrigeerd naar `lms.teunschriks.nl` en CORS origins bijgewerkt naar de juiste productie-IP (192.168.1.27).
+
 ## [2.1.19] - 2026-07-04
 ### Added
 - **User Password Management**: Wachtwoorden instellen via Control Center met automatische synchronisatie naar LMS.

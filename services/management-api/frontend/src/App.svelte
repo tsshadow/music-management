@@ -44,21 +44,43 @@
   let selectedLabelName = '';
   let selectedGenreId = null;
   let selectedServiceNotes = 'control-center';
+  let apiKey = '';
 
   const API_BASE = import.meta.env.DEV ? 'http://localhost:8003' : '';
+
+  onMount(() => {
+    apiKey = localStorage.getItem('muma_api_key') || '';
+    fetchData();
+  });
+
+  function getHeaders(extra = {}) {
+    const headers = { ...extra };
+    if (apiKey) {
+      headers['X-API-Key'] = apiKey;
+    }
+    return headers;
+  }
+
+  function saveApiKey() {
+    localStorage.setItem('muma_api_key', apiKey);
+    message = "API Sleutel opgeslagen.";
+    setTimeout(() => message = '', 2000);
+    fetchData();
+  }
 
   async function fetchData() {
     loading = true;
     try {
+      const headers = getHeaders();
       const [configRes, notesRes, rulesRes, accountsRes, versionsRes, allNotesRes, importsRes, usersRes] = await Promise.all([
-        fetch(`${API_BASE}/api/config`),
-        fetch(`${API_BASE}/api/notes`),
-        fetch(`${API_BASE}/api/rules`),
-        fetch(`${API_BASE}/api/soundcloud`),
-        fetch(`${API_BASE}/api/versions`),
-        fetch(`${API_BASE}/api/all-notes`),
-        fetch(`${API_BASE}/api/scrobble/import/latest`),
-        fetch(`${API_BASE}/api/users`)
+        fetch(`${API_BASE}/api/config`, { headers }),
+        fetch(`${API_BASE}/api/notes`, { headers }),
+        fetch(`${API_BASE}/api/rules`, { headers }),
+        fetch(`${API_BASE}/api/soundcloud`, { headers }),
+        fetch(`${API_BASE}/api/versions`, { headers }),
+        fetch(`${API_BASE}/api/all-notes`, { headers }),
+        fetch(`${API_BASE}/api/scrobble/import/latest`, { headers }),
+        fetch(`${API_BASE}/api/users`, { headers })
       ]);
       
       config = await configRes.json();
@@ -84,7 +106,7 @@
 
   async function fetchLatestImports() {
     try {
-      const res = await fetch(`${API_BASE}/api/scrobble/import/latest`);
+      const res = await fetch(`${API_BASE}/api/scrobble/import/latest`, { headers: getHeaders() });
       latestImports = await res.json();
     } catch (err) {
       console.error(err);
@@ -109,7 +131,7 @@
 
       const res = await fetch(`${API_BASE}/api/scrobble/import/listenbrainz`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ username: importMumaUser, lb_username: lbUserToUse })
       });
       if (res.ok) {
@@ -135,8 +157,8 @@
   async function fetchRules() {
     try {
       const [artistRulesRes, labelRulesRes] = await Promise.all([
-        fetch(`${API_BASE}/api/rules/artist-genres`),
-        fetch(`${API_BASE}/api/rules/label-genres`)
+        fetch(`${API_BASE}/api/rules/artist-genres`, { headers: getHeaders() }),
+        fetch(`${API_BASE}/api/rules/label-genres`, { headers: getHeaders() })
       ]);
       artistGenreRules = await artistRulesRes.json();
       labelGenreRules = await labelRulesRes.json();
@@ -147,7 +169,7 @@
 
   async function searchArtists() {
     try {
-      const res = await fetch(`${API_BASE}/api/artists?q=${encodeURIComponent(artistSearch)}`);
+      const res = await fetch(`${API_BASE}/api/artists?q=${artistSearch}`, { headers: getHeaders() });
       artists = await res.json();
     } catch (err) {
       console.error(err);
@@ -156,7 +178,7 @@
 
   async function searchLabels() {
     try {
-      const res = await fetch(`${API_BASE}/api/labels?q=${encodeURIComponent(labelSearch)}`);
+      const res = await fetch(`${API_BASE}/api/labels?q=${labelSearch}`, { headers: getHeaders() });
       labels = await res.json();
     } catch (err) {
       console.error(err);
@@ -168,7 +190,7 @@
     try {
       const res = await fetch(`${API_BASE}/api/rules/artist-genres`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ artist_name: selectedArtistName, genre_id: selectedGenreId })
       });
       if (res.ok) {
@@ -183,7 +205,10 @@
 
   async function deleteArtistRule(id) {
     try {
-      const res = await fetch(`${API_BASE}/api/rules/artist-genres/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/rules/artist-genres/${id}`, { 
+        method: 'DELETE',
+        headers: getHeaders()
+      });
       if (res.ok) {
         fetchRules();
       }
@@ -197,7 +222,7 @@
     try {
       const res = await fetch(`${API_BASE}/api/rules/label-genres`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ label_name: selectedLabelName, genre_id: selectedGenreId })
       });
       if (res.ok) {
@@ -212,7 +237,10 @@
 
   async function deleteLabelRule(id) {
     try {
-      const res = await fetch(`${API_BASE}/api/rules/label-genres/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/rules/label-genres/${id}`, { 
+        method: 'DELETE',
+        headers: getHeaders()
+      });
       if (res.ok) {
         fetchRules();
       }
@@ -226,7 +254,7 @@
     try {
       const res = await fetch(`${API_BASE}/api/soundcloud`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ name: newAccountName, soundcloud_id: newAccountId || null })
       });
       const data = await res.json();
@@ -247,7 +275,7 @@
 
   async function fetchUsers() {
     try {
-      const res = await fetch(`${API_BASE}/api/users`);
+      const res = await fetch(`${API_BASE}/api/users`, { headers: getHeaders() });
       users = await res.json();
     } catch (err) {
       console.error(err);
@@ -259,7 +287,7 @@
     try {
       const res = await fetch(`${API_BASE}/api/users`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ username: newUsername, display_name: newDisplayName || null })
       });
       if (res.ok) {
@@ -281,7 +309,7 @@
     lbToken = '';
     
     try {
-      const res = await fetch(`${API_BASE}/api/users/${user.id}/lb-account`);
+      const res = await fetch(`${API_BASE}/api/users/${user.id}/lb-account`, { headers: getHeaders() });
       if (res.ok) {
         userLBAccount = await res.json();
         if (userLBAccount) {
@@ -299,7 +327,7 @@
     try {
       const res = await fetch(`${API_BASE}/api/users/${selectedUser.id}/lb-account`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ lb_username: lbUsername, lb_token: lbToken })
       });
       if (res.ok) {
@@ -334,7 +362,10 @@
 
   async function syncLMSUsers() {
     try {
-      const res = await fetch(`${API_BASE}/api/users/sync/lms`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/users/sync/lms`, { 
+        method: 'POST',
+        headers: getHeaders()
+      });
       if (res.ok) {
         message = "LMS sync gestart...";
         setTimeout(() => {
@@ -350,7 +381,10 @@
 
   async function syncLMSDbUsers() {
     try {
-      const res = await fetch(`${API_BASE}/api/users/sync/lms-db`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/users/sync/lms-db`, { 
+        method: 'POST',
+        headers: getHeaders()
+      });
       if (res.ok) {
         message = "LMS DB sync gestart...";
         setTimeout(() => {
@@ -364,7 +398,6 @@
     }
   }
 
-  onMount(fetchData);
 </script>
 
 <div class="flex h-screen bg-spotify-dark overflow-hidden font-sans">
@@ -804,14 +837,39 @@
             {/each}
           </div>
 
-          <div class="bg-black bg-opacity-20 p-6 rounded-xl border border-spotify-gray border-dashed">
-            <h3 class="font-bold mb-2 flex items-center gap-2 text-spotify-lightgray">
-              <ExternalLink size={16} /> Externe Referenties
-            </h3>
-            <ul class="text-sm space-y-2 text-spotify-lightgray">
-              <li>LMS: <span class="text-white">{versions.lms || 'Niet gedetecteerd'}</span></li>
-              <li>Ultrasonic APK: <span class="text-white">{versions.ultrasonic || 'Niet gevonden'}</span></li>
-            </ul>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-black bg-opacity-20 p-6 rounded-xl border border-spotify-gray border-dashed">
+              <h3 class="font-bold mb-2 flex items-center gap-2 text-spotify-lightgray">
+                <ExternalLink size={16} /> Externe Referenties
+              </h3>
+              <ul class="text-sm space-y-2 text-spotify-lightgray">
+                <li>LMS: <span class="text-white">{versions.lms || 'Niet gedetecteerd'}</span></li>
+                <li>Ultrasonic APK: <span class="text-white">{versions.ultrasonic || 'Niet gevonden'}</span></li>
+              </ul>
+            </div>
+
+            <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
+              <h3 class="text-xl font-bold flex items-center gap-2 text-white">
+                <Key size={20} class="text-spotify-green" /> API Beveiliging
+              </h3>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">API Sleutel</label>
+                  <input 
+                    type="password" 
+                    bind:value={apiKey}
+                    placeholder="Voer sleutel in..."
+                    class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
+                  />
+                </div>
+                <button 
+                  on:click={saveApiKey}
+                  class="w-full bg-spotify-green text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform"
+                >
+                  SLEUTEL OPSLAAN
+                </button>
+              </div>
+            </div>
           </div>
         </section>
       {:else if activeTab === 'scrobble'}

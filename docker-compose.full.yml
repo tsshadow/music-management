@@ -41,6 +41,7 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASS=${DB_PASS}
       - DB_DB=${DB_DB}
+      - API_KEY=${API_KEY}
       - PHPMYADMIN_URL=${PHPMYADMIN_URL}
     ports:
       - "8003:8000"
@@ -457,6 +458,7 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASS=${DB_PASS}
       - DB_DB=${DB_DB}
+      - API_KEY=${API_KEY}
       - PYTHONPATH=/app
     ports:
       - "8004:8000"
@@ -475,9 +477,32 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASS=${DB_PASS}
       - DB_DB=${DB_DB}
+      - API_KEY=${API_KEY}
       - PYTHONPATH=/app
     ports:
       - "8005:8000"
+    networks:
+      - music-management_db
+
+  user-service:
+    image: ${DOCKER_USER}/${IMAGE_USER}:latest
+    container_name: muma-user-service
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_DB=${DB_DB}
+      - API_KEY=${API_KEY}
+      - PYTHONPATH=/app
+      - LMS_DB_PATH=/app/data/lms.db
+    ports:
+      - "8006:8001"
+    volumes:
+      - /docker/lms/var/lms/lms.db:/app/data/lms.db:ro
     networks:
       - music-management_db
 

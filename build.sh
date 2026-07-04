@@ -20,12 +20,22 @@ fi
     echo "--- Starting build of containers ---"
     
     DEBUG_MODE=false
+    REMOTE_MODE=false
+    SEMI_REMOTE_MODE=false
     for arg in "$@"; do
         if [ "$arg" == "--debug" ]; then
             DEBUG_MODE=true
-            break
+        elif [ "$arg" == "--remote" ]; then
+            REMOTE_MODE=true
+        elif [ "$arg" == "--semi-remote" ]; then
+            SEMI_REMOTE_MODE=true
         fi
     done
+
+    if [ "$REMOTE_MODE" = true ] && [ "$SEMI_REMOTE_MODE" = true ]; then
+        echo "ERROR: Cannot use both --remote and --semi-remote"
+        exit 1
+    fi
 
     if [ "$DEBUG_MODE" = true ]; then
         echo "--- Debug mode enabled ---"
@@ -59,89 +69,111 @@ IMAGE_SCROBBLE="${IMAGE_SCROBBLE}"
 IMAGE_USER="${IMAGE_USER}"
 VERSION=$(cat VERSION 2>/dev/null || echo "latest")
 
+# Docker command configuration
+DOCKER_CMD="docker"
+if [ "$REMOTE_MODE" = true ] || [ "$SEMI_REMOTE_MODE" = true ]; then
+    export DOCKER_FLAGS="--network host"
+fi
+
+if [ "$REMOTE_MODE" = true ]; then
+    echo "--- Remote build mode enabled ---"
+    DOCKER_CMD="docker -c remote-lxc"
+fi
+
 build_base() {
     echo "--- Building Base Image ($VERSION) ---"
-    docker build -t "${DOCKER_USER}/${IMAGE_BASE}:latest" -t "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}" -f docker/Dockerfile.base .
+    $DOCKER_CMD build $DOCKER_FLAGS -t "${DOCKER_USER}/${IMAGE_BASE}:latest" -t "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}" -f docker/Dockerfile.base .
 }
 
 build_scanner() {
     build_base
     echo "--- Building Scanner ($VERSION) ---"
-    docker build --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_SCANNER}:latest" -t "${DOCKER_USER}/${IMAGE_SCANNER}:${VERSION}" -f docker/Dockerfile.scanner .
+    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_SCANNER}:latest" -t "${DOCKER_USER}/${IMAGE_SCANNER}:${VERSION}" -f docker/Dockerfile.scanner .
 }
 
 build_tagger() {
     build_base
     echo "--- Building Tagger ($VERSION) ---"
-    docker build --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_TAGGER}:latest" -t "${DOCKER_USER}/${IMAGE_TAGGER}:${VERSION}" -f docker/Dockerfile.tagger .
+    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_TAGGER}:latest" -t "${DOCKER_USER}/${IMAGE_TAGGER}:${VERSION}" -f docker/Dockerfile.tagger .
 }
 
 build_downloader() {
     build_base
     echo "--- Building Downloader ($VERSION) ---"
-    docker build --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest" -t "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}" -f docker/Dockerfile.downloader .
+    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest" -t "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}" -f docker/Dockerfile.downloader .
 }
 
 build_telegram() {
     build_base
     echo "--- Building Telegram ($VERSION) ---"
-    docker build --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_TELEGRAM}:latest" -t "${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSION}" -f docker/Dockerfile.telegram .
+    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_TELEGRAM}:latest" -t "${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSION}" -f docker/Dockerfile.telegram .
 }
 
 build_importer() {
     build_base
     echo "--- Building Importer ($VERSION) ---"
-    docker build --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_IMPORTER}:latest" -t "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}" -f docker/Dockerfile.importer .
+    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_IMPORTER}:latest" -t "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}" -f docker/Dockerfile.importer .
 }
 
 build_rating() {
     build_base
     echo "--- Building Rating System ($VERSION) ---"
-    docker build --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_RATING}:latest" -t "${DOCKER_USER}/${IMAGE_RATING}:${VERSION}" -f docker/Dockerfile.rating-system .
+    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_RATING}:latest" -t "${DOCKER_USER}/${IMAGE_RATING}:${VERSION}" -f docker/Dockerfile.rating-system .
 }
 
 build_scrobble() {
     build_base
     echo "--- Building Scrobble Service ($VERSION) ---"
-    docker build --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_SCROBBLE}:latest" -t "${DOCKER_USER}/${IMAGE_SCROBBLE}:${VERSION}" -f Dockerfile.scrobble-service .
+    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_SCROBBLE}:latest" -t "${DOCKER_USER}/${IMAGE_SCROBBLE}:${VERSION}" -f Dockerfile.scrobble-service .
 }
 
 build_user() {
     build_base
     echo "--- Building User Service ($VERSION) ---"
-    docker build --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_USER}:latest" -t "${DOCKER_USER}/${IMAGE_USER}:${VERSION}" -f Dockerfile.user-service .
+    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_USER}:latest" -t "${DOCKER_USER}/${IMAGE_USER}:${VERSION}" -f Dockerfile.user-service .
 }
 
 build_ml() {
+    local cmd=$DOCKER_CMD
+    if [ "$SEMI_REMOTE_MODE" = true ]; then cmd="docker -c remote-lxc"; fi
     echo "--- Building ML Analyzer ($VERSION) ---"
-    docker build -t "${DOCKER_USER}/${IMAGE_ML}:latest" -t "${DOCKER_USER}/${IMAGE_ML}:${VERSION}" -f services/ml-analyzer/Dockerfile .
+    $cmd build $DOCKER_FLAGS -t "${DOCKER_USER}/${IMAGE_ML}:latest" -t "${DOCKER_USER}/${IMAGE_ML}:${VERSION}" -f services/ml-analyzer/Dockerfile .
 }
 
 build_tools() {
+    local cmd=$DOCKER_CMD
+    if [ "$SEMI_REMOTE_MODE" = true ]; then cmd="docker -c remote-lxc"; fi
     echo "--- Building Tools ($VERSION) ---"
-    docker build -t "${DOCKER_USER}/${IMAGE_TOOLS}:latest" -t "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}" -f Dockerfile.tools .
+    $cmd build $DOCKER_FLAGS -t "${DOCKER_USER}/${IMAGE_TOOLS}:latest" -t "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}" -f Dockerfile.tools .
 }
 
 build_app() {
+    local cmd=$DOCKER_CMD
+    if [ "$SEMI_REMOTE_MODE" = true ]; then cmd="docker -c remote-lxc"; fi
     echo "--- Building Main Application ($VERSION) ---"
     echo "Note: This build might take a while and requires a stable internet connection for pnpm install."
-    docker build -t "${DOCKER_USER}/${IMAGE_APP}:latest" -t "${DOCKER_USER}/${IMAGE_APP}:${VERSION}" -f Dockerfile.music-management .
+    $cmd build $DOCKER_FLAGS -t "${DOCKER_USER}/${IMAGE_APP}:latest" -t "${DOCKER_USER}/${IMAGE_APP}:${VERSION}" -f Dockerfile.music-management .
 }
 
 build_management() {
     build_base
     echo "--- Building Management API ($VERSION) ---"
-    docker build --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_MANAGEMENT}:latest" -t "${DOCKER_USER}/${IMAGE_MANAGEMENT}:${VERSION}" -f Dockerfile.management-api .
+    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_MANAGEMENT}:latest" -t "${DOCKER_USER}/${IMAGE_MANAGEMENT}:${VERSION}" -f Dockerfile.management-api .
 }
 
 # Filter arguments to remove special flags
 REQUESTED_MODULES=()
 for arg in "$@"; do
     case $arg in
-        --debug|patch) ;;
+        --debug|--remote|--semi-remote|patch) ;;
         *) REQUESTED_MODULES+=("$arg") ;;
     esac
 done
+
+if [ "$SEMI_REMOTE_MODE" = true ]; then
+    echo "--- Semi-remote build mode enabled ---"
+    echo "--- Building ML, Tools, and App remote, others local ---"
+fi
 
 if [ ${#REQUESTED_MODULES[@]} -eq 0 ]; then
     echo "--- Building all modules in parallel ---"

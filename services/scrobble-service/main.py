@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Header, Depends
 from pydantic import BaseModel
 import os
 import pymysql
@@ -13,6 +13,13 @@ from services.common.api.version_helper import get_version, get_release_notes, g
 load_dotenv()
 
 app = FastAPI(title="Muma Scrobble Service")
+
+API_KEY = os.getenv("API_KEY", "Tarnish-Trespass-Dorsal-Sanding-Epilepsy-Unsavory9")
+
+async def verify_api_key(x_api_key: str = Header(None)):
+    if API_KEY and x_api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid API Key")
+    return x_api_key
 
 def get_db_connection():
     try:
@@ -120,7 +127,7 @@ def find_track_id(cursor, artist_name: str, track_title: str, mbid_track: Option
     return None
 
 @app.post("/api/scrobble")
-def scrobble(event: ScrobbleEvent):
+def scrobble(event: ScrobbleEvent, _: str = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -152,16 +159,16 @@ def scrobble(event: ScrobbleEvent):
         conn.close()
 
 @app.get("/version")
-def version():
+def version(_: str = Depends(verify_api_key)):
     return {"version": get_version()}
 
 @app.get("/release-notes")
-def release_notes():
+def release_notes(_: str = Depends(verify_api_key)):
     return {"notes": get_release_notes("services/scrobble-service/RELEASE_NOTES.md")}
 
 # ListenBrainz Import Logic
 @app.post("/api/import/listenbrainz")
-def import_listenbrainz(username: str, lb_username: str, background_tasks: BackgroundTasks):
+def import_listenbrainz(username: str, lb_username: str, background_tasks: BackgroundTasks, _: str = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -181,7 +188,7 @@ def import_listenbrainz(username: str, lb_username: str, background_tasks: Backg
         conn.close()
 
 @app.get("/api/import/status/{import_id}")
-def get_import_status(import_id: int):
+def get_import_status(import_id: int, _: str = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -197,7 +204,7 @@ def get_import_status(import_id: int):
         conn.close()
 
 @app.get("/api/import/latest")
-def get_latest_imports(limit: int = 5):
+def get_latest_imports(limit: int = 5, _: str = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")

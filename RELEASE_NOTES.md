@@ -12,6 +12,13 @@ This project is now modularized. Detailed release notes for each module can be f
 - [Scrobble Service](services/scrobble-service/RELEASE_NOTES.md)
 - [User Service](services/user-service/RELEASE_NOTES.md)
 
+## Global Version 2.1.18 (2026-07-04)
+### 🔄 Advanced LMS Integration
+- **Direct Database Sync**: Added the ability to sync users directly from the LMS `lms.db` SQLite database, providing more complete account information than the API.
+- **ListenBrainz Token Migration**: Automatically migrates ListenBrainz tokens found in LMS accounts to the Muma User Service.
+- **Volume Mounting**: Updated infrastructure to support direct access to LMS data files for seamless background synchronization.
+- **Enhanced UI**: Added new synchronization triggers to the Users dashboard to easily maintain parity with LMS.
+
 ## Global Version 2.1.17 (2026-07-04)
 ### 👥 Centralized User Management
 - **User Service**: Introduced a dedicated service to manage Muma users and their external account credentials.

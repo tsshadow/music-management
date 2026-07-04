@@ -1,4 +1,6 @@
-FROM muma-base:latest
+ARG DOCKER_USER=muma
+ARG VERSION=latest
+FROM ${DOCKER_USER}/muma-base:${VERSION}
 
 WORKDIR /app
 

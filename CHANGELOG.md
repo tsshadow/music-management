@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.17] - 2026-07-04
+### Added
+- **User Service**: Nieuwe microservice voor centraal gebruikersbeheer en externe account koppelingen (ListenBrainz).
+- **Control Center**: Nieuw "Users" dashboard voor het beheren van gebruikers en hun API keys.
+- **LMS Sync**: Mogelijkheid om gebruikers/spelers direct vanuit Logitech Media Server te synchroniseren.
+- **Scrobble Integration**: Geïntegreerde ListenBrainz imports gebaseerd op opgeslagen gebruikersprofielen.
+
 ## [2.1.16] - 2026-07-04
 ### Fixed
 - **Scrobble Service**: Fixed ListenBrainz import crash caused by missing `json` import and improper data serialization.

@@ -22,7 +22,8 @@ SERVICES = {
     "telegram": "http://muma-telegram-worker:8001",
     "ml-analyzer": "http://muma-ml-analyzer:8001",
     "rating-system": "http://muma-rating-system:8000",
-    "scrobble-service": "http://muma-scrobble-service:8000"
+    "scrobble-service": "http://muma-scrobble-service:8000",
+    "user-service": "http://muma-user-service:8001"
 }
 
 app = FastAPI(title="Music Management Control Center")
@@ -77,6 +78,15 @@ class LabelGenreRule(BaseModel):
 class ListenBrainzImport(BaseModel):
     username: str
     lb_username: str
+
+class UserCreate(BaseModel):
+    username: str
+    display_name: Optional[str] = None
+    lms_user_id: Optional[str] = None
+
+class LBAccountUpdate(BaseModel):
+    lb_username: str
+    lb_token: str
 
 @app.get("/api/config")
 def get_config():
@@ -356,6 +366,52 @@ def proxy_latest_imports():
         return response.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to contact Scrobble Service: {str(e)}")
+
+# User Service Proxy Endpoints
+@app.get("/api/users")
+def proxy_get_users():
+    base_url = SERVICES["user-service"]
+    try:
+        response = requests.get(f"{base_url}/users", timeout=5.0)
+        return response.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
+
+@app.post("/api/users")
+def proxy_create_user(user: UserCreate):
+    base_url = SERVICES["user-service"]
+    try:
+        response = requests.post(f"{base_url}/users", json=user.dict(), timeout=5.0)
+        return response.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
+
+@app.get("/api/users/{user_id}/lb-account")
+def proxy_get_lb_account(user_id: int):
+    base_url = SERVICES["user-service"]
+    try:
+        response = requests.get(f"{base_url}/users/{user_id}/lb-account", timeout=5.0)
+        return response.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
+
+@app.put("/api/users/{user_id}/lb-account")
+def proxy_update_lb_account(user_id: int, account: LBAccountUpdate):
+    base_url = SERVICES["user-service"]
+    try:
+        response = requests.put(f"{base_url}/users/{user_id}/lb-account", json=account.dict(), timeout=5.0)
+        return response.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
+
+@app.post("/api/users/sync/lms")
+def proxy_sync_lms_users():
+    base_url = SERVICES["user-service"]
+    try:
+        response = requests.post(f"{base_url}/sync/lms", timeout=5.0)
+        return response.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
 
 @app.post("/api/soundcloud")
 def add_soundcloud_account(account: SoundCloudAccount):

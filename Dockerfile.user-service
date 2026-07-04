@@ -1,0 +1,14 @@
+FROM muma-base:latest
+
+WORKDIR /app
+
+# Copy service code
+COPY services/user-service/ /app/
+COPY services/common/ /app/services/common/
+
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+EXPOSE 8001
+
+CMD ["python", "main.py"]

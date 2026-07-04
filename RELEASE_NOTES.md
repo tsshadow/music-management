@@ -10,6 +10,14 @@ This project is now modularized. Detailed release notes for each module can be f
 - [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
 - [Rating System](services/rating-system/RELEASE_NOTES.md)
 - [Scrobble Service](services/scrobble-service/RELEASE_NOTES.md)
+- [User Service](services/user-service/RELEASE_NOTES.md)
+
+## Global Version 2.1.17 (2026-07-04)
+### 👥 Centralized User Management
+- **User Service**: Introduced a dedicated service to manage Muma users and their external account credentials.
+- **ListenBrainz Integration**: Users can now securely store their ListenBrainz API tokens.
+- **LMS Synchronization**: One-click synchronization of players/users from Logitech Media Server.
+- **Enhanced Dashboard**: New dedicated Users tab in the Control Center for streamlined administration.
 
 ## Global Version 2.1.16 (2026-07-04)
 ### 🐛 Scrobble Service Fixes

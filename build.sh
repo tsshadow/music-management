@@ -56,6 +56,7 @@ IMAGE_TELEGRAM="${IMAGE_TELEGRAM}"
 IMAGE_IMPORTER="${IMAGE_IMPORTER}"
 IMAGE_RATING="${IMAGE_RATING}"
 IMAGE_SCROBBLE="${IMAGE_SCROBBLE}"
+IMAGE_USER="${IMAGE_USER}"
 VERSION=$(cat VERSION 2>/dev/null || echo "latest")
 
 build_base() {
@@ -103,6 +104,12 @@ build_scrobble() {
     build_base
     echo "--- Building Scrobble Service ($VERSION) ---"
     docker build --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_SCROBBLE}:latest" -t "${DOCKER_USER}/${IMAGE_SCROBBLE}:${VERSION}" -f Dockerfile.scrobble-service .
+}
+
+build_user() {
+    build_base
+    echo "--- Building User Service ($VERSION) ---"
+    docker build --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_USER}:latest" -t "${DOCKER_USER}/${IMAGE_USER}:${VERSION}" -f Dockerfile.user-service .
 }
 
 build_ml() {
@@ -154,6 +161,7 @@ if [ ${#REQUESTED_MODULES[@]} -eq 0 ]; then
     build_importer &
     build_rating &
     build_scrobble &
+    build_user &
     
     wait
 else
@@ -162,7 +170,7 @@ else
     NEED_BASE=false
     for arg in "${REQUESTED_MODULES[@]}"; do
         case $arg in
-            scanner|tagger|downloader|telegram|importer|rating|scrobble|mgmt|management) NEED_BASE=true ;;
+            scanner|tagger|downloader|telegram|importer|rating|scrobble|user|mgmt|management) NEED_BASE=true ;;
         esac
     done
     
@@ -183,6 +191,7 @@ else
             importer) build_importer & ;;
             rating) build_rating & ;;
             scrobble) build_scrobble & ;;
+            user) build_user & ;;
             base) ;; # Already built if needed
             *) echo "Unknown component: $arg"; exit 1 ;;
         esac

@@ -46,15 +46,26 @@ fi
 IMAGE_NAME="${IMAGE_NAME}"
 VERSION=$(grep "project(lms VERSION" CMakeLists.txt | sed 's/.*VERSION \(.*\))/\1/')
 
-# Determine additional tag based on service name
-if [ "$SERVICE_NAME" == "lms" ]; then
+# Determine mode (debug is default)
+MODE="${1:-${BUILD_MODE:-debug}}"
+
+if [ "$MODE" == "release" ]; then
     ADDITIONAL_TAG="stable"
+    echo "Release mode: pushing tag 'stable'"
 else
+    # Default to debug/alpha
     ADDITIONAL_TAG="latest"
+    UNSTABLE_TAG="unstable"
+    ALPHA_TAG="alpha"
+    echo "Debug mode: pushing tags 'latest', 'unstable' and 'alpha'"
 fi
 
 echo "Pushing Docker image ${IMAGE_NAME}:${ADDITIONAL_TAG} and ${IMAGE_NAME}:${VERSION}..."
 docker push "${IMAGE_NAME}:${ADDITIONAL_TAG}"
 docker push "${IMAGE_NAME}:${VERSION}"
+if [ "$MODE" != "release" ]; then
+    docker push "${IMAGE_NAME}:${UNSTABLE_TAG}"
+    docker push "${IMAGE_NAME}:${ALPHA_TAG}"
+fi
 
 echo "--- Push process completed ---"

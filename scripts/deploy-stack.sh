@@ -33,6 +33,7 @@ IMAGE_NAME="${IMAGE_NAME:-$3}"
 TAG="${TAG:-$4}"
 SEARCH_STRING="${SEARCH_STRING:-$IMAGE_NAME}"
 LOCAL_ENV_FILE="${LOCAL_ENV_FILE:-$5}"
+EXTRA_VARS="${EXTRA_VARS}"
 
 # Discovery command to be run on remote hosts
 DISCOVERY_CMD="
@@ -134,6 +135,13 @@ DEPLOY_CMD="
     fi
     
     echo \"Updating stack '$STACK_NAME' via: \$DOCKER_CMD\"
+    
+    # Inject extra variables if provided
+    if [ -n \"$EXTRA_VARS\" ]; then
+        echo \"Injecting extra variables: $EXTRA_VARS\"
+        export $EXTRA_VARS
+    fi
+
     \$DOCKER_CMD pull
     
     if [ -n \"$SERVICE_NAME\" ] && \$DOCKER_CMD config --services | grep -q \"^$SERVICE_NAME\$\"; then

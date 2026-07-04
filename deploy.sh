@@ -14,19 +14,33 @@ if [ -f .env ]; then
     done < .env
 fi
 
-# Configuration
-IMAGE_NAME="${IMAGE_NAME:-muma/lms}"
-SERVICE_NAME="${SERVICE_NAME:-lms}"
-TAG="${TAG}"
+# Determine mode (debug is default)
+MODE="${1:-${BUILD_MODE:-debug}}"
 
-# Default tag logic based on service name if using generic tags
+# Load explicit overrides from environment if provided, otherwise sensible defaults based on MODE
+export DEPLOY_TARGET_NAME="${DEPLOY_TARGET_NAME:-lms}"
+export IMAGE_NAME="${IMAGE_NAME:-muma/lms}"
+
+# Tag logic
 if [ -z "$TAG" ] || [ "$TAG" == "latest" ] || [ "$TAG" == "stable" ]; then
-    if [ "$SERVICE_NAME" == "lms" ]; then
+    if [ "$MODE" == "release" ]; then
         TAG="stable"
     else
         TAG="latest"
     fi
 fi
+
+# Service name selection and Tag assignment based on mode
+if [ "$MODE" == "release" ]; then
+    SERVICE_NAME="lms"
+    export LMS_TAG="$TAG"
+    echo "Release mode: deploying service '$SERVICE_NAME' with tag '$LMS_TAG'"
+else
+    SERVICE_NAME="lms_alpha"
+    export LMS_ALPHA_TAG="$TAG"
+    echo "Debug mode: deploying service '$SERVICE_NAME' with tag '$LMS_ALPHA_TAG'"
+fi
+export SERVICE_NAME
 
 TARGET=$(echo "${DEPLOY_TARGET_NAME}" | tr '[:upper:]' '[:lower:]')
 DOCKER_COMPOSE_FILE="${REMOTE_STACK_PATH}"
@@ -69,6 +83,8 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
     export LOCAL_COMPOSE_FILE="docker-compose.yml"
     export LOCAL_ENV_FILE=".env"
     export SEARCH_STRING="muma/lms"
+    # Pass mode-specific tags through EXTRA_VARS
+    export EXTRA_VARS="LMS_TAG=$LMS_TAG LMS_ALPHA_TAG=$LMS_ALPHA_TAG"
     
     ./scripts/deploy-stack.sh
     

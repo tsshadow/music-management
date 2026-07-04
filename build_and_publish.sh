@@ -14,8 +14,17 @@ if ! docker info >/dev/null 2>&1; then
     fi
 fi
 
-./build.sh
-./publish.sh
-./deploy.sh
+# Determine mode (debug is default)
+MODE="${1:-debug}"
+
+if [ "$MODE" == "release" ]; then
+    echo "=== RUNNING IN RELEASE MODE ==="
+else
+    echo "=== RUNNING IN DEBUG MODE ==="
+fi
+
+./build.sh "$MODE"
+./publish.sh "$MODE"
+./deploy.sh "$MODE"
 
 echo "Build, publish and deploy completed successfully!"

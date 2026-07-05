@@ -29,5 +29,6 @@ This file provides a concise summary of the main blocks within the MuMa ecosyste
 #### 5. Dataflow & Connectivity
 *   **Authentication**: Users validate against `lms.db` via the `Music Manager API`.
 *   **Ingestion**: Pipeline of download -> tagging -> MariaDB -> LMS rescan.
+*   **Settings Backup**: Ultrasonic and other clients can backup settings to MuMa via the `/api/users/{id}/settings/{app}` endpoint.
 *   **Sync**: Ratings and scrobbles are sent from all clients to the central `Music Manager API`.
 *   **Network**: All communication occurs via reverse proxies at `*.teunschriks.nl`.

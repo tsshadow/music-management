@@ -18,6 +18,12 @@
 - **Improved Interaction Styling**: Added custom focus borders and selection colors for better accessibility and visual feedback.
 - **Design Documentation**: Integrated the new `styleguide.md` as the source of truth for all UI decisions.
 
+## Version 2.1.31 (2026-07-05)
+### 🛡️ Monitoring & Dashboard
+- **Health Tab**: Nieuwe sectie voor Docker status en logs.
+- **Activity Feed**: Real-time overzicht van nieuwe en getagde tracks.
+- **Docker Integration**: Directe communicatie met de Docker engine voor logs en status.
+
 ## Version 2.1.11 (2026-07-04)
 ### 🚀 Aggregated Release Notes
 - Added a service selector to view release notes for all sub-programs.

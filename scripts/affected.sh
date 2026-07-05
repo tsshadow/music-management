@@ -10,7 +10,7 @@ GLOBAL_PATTERNS=(
     "modules/music-management/"
     "build.sh"
     "publish.sh"
-    "bup"
+    "install.sh"
 )
 
 # Mapping of paths to modules
@@ -34,6 +34,8 @@ MODULE_MAP=(
     "Dockerfile.scrobble-service:scrobble"
     "services/user-service/:user"
     "Dockerfile.user-service:user"
+    "services/stats-service/:stats"
+    "Dockerfile.stats-service:stats"
     "frontend/:app"
     "Dockerfile.music-management:app"
     "tools/:tools"

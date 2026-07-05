@@ -53,7 +53,7 @@ logging.info = lambda msg, *a, **k: _log(logging.INFO, msg, *a, **k)
 logging.warning = lambda msg, *a, **k: _log(logging.WARNING, msg, *a, **k)
 logging.error = lambda msg, *a, **k: _log(logging.ERROR, msg, *a, **k)
 logging.exception = _exception
-API_KEY = os.getenv('API_KEY')
+API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or None
 AUTH_SERVICE_URL = os.getenv('AUTH_SERVICE_URL')
 
 def verify_api_key(x_api_key: Optional[str]=Header(default=None)) -> None:

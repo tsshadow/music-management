@@ -35,7 +35,7 @@ namespace lms::db
 {
     namespace
     {
-        static constexpr Version LMS_DATABASE_VERSION{ 113 };
+        static constexpr Version LMS_DATABASE_VERSION{ 114 };
     }
 
     VersionInfo::VersionInfo()
@@ -1778,7 +1778,7 @@ FROM track)");
         // Upstream now also added rating, but we might already have it from our own V103
     }
 
-    void migrateFromV106(Session& session)
+    void migrateFromV106([[maybe_unused]] Session& session)
     {
         // Placeholder for future migrations
     }
@@ -1839,6 +1839,25 @@ FROM track)");
     void migrateFromV112(Session& session)
     {
         utils::executeCommand(*session.getDboSession(), "ALTER TABLE user ADD COLUMN muma_id INTEGER");
+    }
+
+    void migrateFromV113(Session& session)
+    {
+        utils::executeCommand(*session.getDboSession(), R"(CREATE TABLE IF NOT EXISTS "ui_state" (
+  "id" integer primary key autoincrement,
+  "version" integer not null,
+  "item" text not null,
+  "value" text not null,
+  "user_id" bigint,
+  constraint "fk_ui_state_user" foreign key ("user_id") references "user" ("id") on delete cascade deferrable initially deferred))");
+
+        try
+        {
+            utils::executeCommand(*session.getDboSession(), "ALTER TABLE tracklist DROP COLUMN smart_params");
+        }
+        catch (...)
+        {
+        }
     }
 
 
@@ -1931,6 +1950,7 @@ FROM track)");
             { 110, migrateFromV110 },
             { 111, migrateFromV111 },
             { 112, migrateFromV112 },
+            { 113, migrateFromV113 },
         };
 
         bool migrationPerformed{};

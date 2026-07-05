@@ -9,10 +9,21 @@ router = APIRouter(prefix="/rating", tags=["rating"])
 
 API_KEY = os.getenv("API_KEY") or os.getenv("MUMA_API_KEY") or "453ecd33-3cb2-4ca4-a531-1677330bbaee"
 
-def verify_api_key(x_api_key: str = Header(None)):
-    if API_KEY and x_api_key != API_KEY:
-        raise HTTPException(status_code=403, detail="Invalid API Key")
-    return x_api_key
+def verify_api_key(x_api_key: Optional[str] = Header(None)):
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="Missing API Key")
+    if API_KEY and x_api_key == API_KEY:
+        return {"type": "system"}
+    
+    from services.music_manager.routers.users import verify_token
+    try:
+        res = verify_token(x_api_key)
+        if res.get("status") == "ok":
+            return res
+    except:
+        pass
+        
+    raise HTTPException(status_code=401, detail="Invalid API key")
 
 class Rating(BaseModel):
     entity_type: str = "track"
@@ -43,7 +54,7 @@ def init_db(cursor):
     """)
 
 @router.post("/api/lms-event")
-def handle_lms_event(event: LMSEvent, api_key: str = Depends(verify_api_key)):
+def handle_lms_event(event: LMSEvent, auth: dict = Depends(verify_api_key)):
     if event.event != "rating_changed":
         return {"status": "ignored", "reason": "unsupported event type"}
     

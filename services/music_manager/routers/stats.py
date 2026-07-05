@@ -10,16 +10,30 @@ router = APIRouter(prefix="/stats", tags=["stats"])
 API_KEY = os.getenv("API_KEY") or os.getenv("MUMA_API_KEY") or "453ecd33-3cb2-4ca4-a531-1677330bbaee"
 
 def verify_api_key(x_api_key: Optional[str] = Header(None)):
-    if API_KEY and x_api_key != API_KEY:
-        raise HTTPException(status_code=401, detail="Invalid API key")
-    return x_api_key
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="Missing API Key")
+    if API_KEY and x_api_key == API_KEY:
+        return {"type": "system"}
+    
+    from services.music_manager.routers.users import verify_token
+    try:
+        res = verify_token(x_api_key)
+        if res.get("status") == "ok":
+            return res
+    except:
+        pass
+        
+    raise HTTPException(status_code=401, detail="Invalid API key")
 
 def init_db(cursor):
     # Stats service usually just reads, but we can ensure tables exist if needed
     pass
 
 @router.get("/")
-def get_stats(api_key: str = Depends(verify_api_key)):
+def get_stats(auth: dict = Depends(verify_api_key)):
+    # Statistics usually only for admins or system
+    if auth.get("type") == "user" and not auth['user'].get('is_admin'):
+        raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")

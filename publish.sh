@@ -88,22 +88,22 @@ if [ "$DEBUG_MODE" = true ]; then
     set -x
 fi
 
-# Create pre-deployment database backup (Release only)
-if [ "$DEBUG_MODE" = false ] && [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
-    echo "--- Creating pre-deployment database backup on ${REMOTE_HOST} ---"
-    BACKUP_CMD="
-        if docker ps --format '{{.Names}}' | grep -q 'music-management-db-1'; then
-            mkdir -p /muma/backups
-            BACKUP_FILE=\"/muma/backups/muma_backup_\$(date +%Y%m%d_%H%M%S).sql\"
-            docker exec music-management-db-1 /usr/bin/mysqldump --single-transaction --quick -u root --password=\"$MYSQL_ROOT_PASSWORD\" \"$DB_DB\" > \"\$BACKUP_FILE\"
-            gzip \"\$BACKUP_FILE\"
-            echo \"Backup saved to \${BACKUP_FILE}.gz\"
-        else
-            echo \"Warning: music-management-db-1 container not found, skipping backup.\"
-        fi
-    "
-    run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "$BACKUP_CMD" || echo "Warning: Remote backup failed."
-fi
+## Create pre-deployment database backup (Release only)
+#if [ "$DEBUG_MODE" = false ] && [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
+#    echo "--- Creating pre-deployment database backup on ${REMOTE_HOST} ---"
+#    BACKUP_CMD="
+#        if docker ps --format '{{.Names}}' | grep -q 'music-management-db-1'; then
+#            mkdir -p /muma/backups
+#            BACKUP_FILE=\"/muma/backups/muma_backup_\$(date +%Y%m%d_%H%M%S).sql\"
+#            docker exec music-management-db-1 /usr/bin/mysqldump --single-transaction --quick -u root --password=\"$MYSQL_ROOT_PASSWORD\" \"$DB_DB\" > \"\$BACKUP_FILE\"
+#            gzip \"\$BACKUP_FILE\"
+#            echo \"Backup saved to \${BACKUP_FILE}.gz\"
+#        else
+#            echo \"Warning: music-management-db-1 container not found, skipping backup.\"
+#        fi
+#    "
+#    run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "$BACKUP_CMD" || echo "Warning: Remote backup failed."
+#fi
 
 # Configuration
 DOCKER_USER="${DOCKER_USER}"

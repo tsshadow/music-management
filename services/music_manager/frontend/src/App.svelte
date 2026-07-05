@@ -158,12 +158,6 @@
     return headers;
   }
 
-  function saveApiKey() {
-    localStorage.setItem('muma_api_key', apiKey);
-    message = "API Sleutel opgeslagen.";
-    setTimeout(() => message = '', 2000);
-    fetchData();
-  }
 
   async function fetchStats() {
     try {
@@ -479,7 +473,7 @@
     loading = true;
     try {
       const response = await fetch(`/api/users/${user_id}/dynamic-playlists`, {
-        headers: { 'X-API-Key': localStorage.getItem('muma_api_key') }
+        headers: { 'X-API-Key': apiKey }
       });
       playlists = await response.json();
     } catch (e) {
@@ -497,7 +491,7 @@
     const user_id = selectedUser.id;
     try {
       const response = await fetch(`/api/users/${user_id}/dynamic-playlists/${playlist.id}/tracks`, {
-        headers: { 'X-API-Key': localStorage.getItem('muma_api_key') }
+        headers: { 'X-API-Key': apiKey }
       });
       playlistTracks = await response.json();
     } catch (e) {
@@ -521,7 +515,7 @@
         method,
         headers: { 
           'Content-Type': 'application/json',
-          'X-API-Key': localStorage.getItem('muma_api_key')
+          'X-API-Key': apiKey
         },
         body: JSON.stringify({
           name: playlistName,
@@ -562,7 +556,7 @@
     try {
       const response = await fetch(`/api/users/${user_id}/dynamic-playlists/${id}`, {
         method: 'DELETE',
-        headers: { 'X-API-Key': localStorage.getItem('muma_api_key') }
+        headers: { 'X-API-Key': apiKey }
       });
       
       if (response.ok) {
@@ -1398,7 +1392,7 @@
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="bg-black bg-opacity-20 p-6 rounded-xl border border-spotify-gray border-dashed">
+            <div class="bg-black bg-opacity-20 p-6 rounded-xl border border-spotify-gray border-dashed md:col-span-2">
               <h3 class="font-bold mb-2 flex items-center gap-2 text-spotify-lightgray">
                 <ExternalLink size={16} /> Externe Referenties
               </h3>
@@ -1406,29 +1400,6 @@
                 <li>LMS: <span class="text-white">{versions.lms || 'Niet gedetecteerd'}</span></li>
                 <li>Ultrasonic APK: <span class="text-white">{versions.ultrasonic || 'Niet gevonden'}</span></li>
               </ul>
-            </div>
-
-            <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
-              <h3 class="text-xl font-bold flex items-center gap-2 text-white">
-                <Key size={20} class="text-spotify-green" /> API Beveiliging
-              </h3>
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">API Sleutel</label>
-                  <input 
-                    type="password" 
-                    bind:value={apiKey}
-                    placeholder="Voer sleutel in..."
-                    class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
-                  />
-                </div>
-                <button 
-                  on:click={saveApiKey}
-                  class="w-full bg-spotify-green text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform"
-                >
-                  SLEUTEL OPSLAAN
-                </button>
-              </div>
             </div>
           </div>
         </section>
@@ -1804,7 +1775,7 @@
                   if(confirm('Weet je zeker dat je de standaard playlists wilt herstellen voor deze gebruiker?')) {
                     fetch('/api/users/' + selectedUser.id + '/dynamic-playlists/seed-defaults', {
                       method: 'POST',
-                      headers: { 'X-API-Key': localStorage.getItem('muma_api_key') }
+                      headers: { 'X-API-Key': apiKey }
                     }).then(() => fetchPlaylists());
                   }
                 }}

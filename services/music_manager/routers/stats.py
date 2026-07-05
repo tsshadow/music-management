@@ -24,7 +24,18 @@ def get_stats(api_key: str = Depends(verify_api_key)):
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
     
-    stats = {}
+    stats = {
+        'total_tracks': 0,
+        'total_artists': 0,
+        'total_albums': 0,
+        'top_artists': [],
+        'top_genres': [],
+        'total_scrobbles': 0,
+        'total_unmatched': 0,
+        'match_rate': 0,
+        'recently_added': [],
+        'avg_track_duration': 0
+    }
     try:
         with conn.cursor() as cursor:
             # Basic counts
@@ -33,13 +44,12 @@ def get_stats(api_key: str = Depends(verify_api_key)):
             
             cursor.execute("SELECT COUNT(*) as count FROM library_artists")
             stats['total_artists'] = cursor.fetchone()['count']
+
+            stats['total_albums'] = 0 # Currently not tracked in MuMa DB
             
-            cursor.execute("SHOW TABLES LIKE 'library_albums'")
-            if cursor.fetchone():
-                cursor.execute("SELECT COUNT(*) as count FROM library_albums")
-                stats['total_albums'] = cursor.fetchone()['count']
-            else:
-                stats['total_albums'] = 0
+            # Duration
+            cursor.execute("SELECT AVG(duration_secs) as avg_dur FROM library_tracks WHERE duration_secs > 0")
+            stats['avg_track_duration'] = round(cursor.fetchone()['avg_dur'] or 0, 2)
             
             # Top Artists
             cursor.execute("""
@@ -51,12 +61,44 @@ def get_stats(api_key: str = Depends(verify_api_key)):
                 LIMIT 10
             """)
             stats['top_artists'] = cursor.fetchall()
+
+            # Top Genres (combining regular and ML genres)
+            cursor.execute("""
+                SELECT genre, COUNT(*) as count
+                FROM (
+                    SELECT g.name as genre FROM library_track_genres tg JOIN rules_genres g ON tg.genre_id = g.id
+                    UNION ALL
+                    SELECT ml_genre as genre FROM library_track_ml_labels WHERE ml_genre IS NOT NULL
+                ) as combined
+                GROUP BY genre
+                ORDER BY count DESC
+                LIMIT 10
+            """)
+            stats['top_genres'] = cursor.fetchall()
+            
+            # Match Rate (tracks with at least one genre or ML label)
+            cursor.execute("""
+                SELECT COUNT(DISTINCT t.id) as count 
+                FROM library_tracks t
+                LEFT JOIN library_track_genres tg ON t.id = tg.track_id
+                LEFT JOIN library_track_ml_labels ml ON t.track_uid = ml.track_id
+                WHERE tg.track_id IS NOT NULL OR ml.track_id IS NOT NULL
+            """)
+            matched_count = cursor.fetchone()['count']
+            if stats['total_tracks'] > 0:
+                stats['match_rate'] = round((matched_count / stats['total_tracks']) * 100, 2)
             
             # Scrobble stats
             cursor.execute("SHOW TABLES LIKE 'scrobble_listens'")
             if cursor.fetchone():
                 cursor.execute("SELECT COUNT(*) as count FROM scrobble_listens")
                 stats['total_scrobbles'] = cursor.fetchone()['count']
+            
+            # Unmatched scrobbles
+            cursor.execute("SHOW TABLES LIKE 'scrobble_unmatched_listens'")
+            if cursor.fetchone():
+                cursor.execute("SELECT COUNT(*) as count FROM scrobble_unmatched_listens")
+                stats['total_unmatched'] = cursor.fetchone()['count']
             
             # Recently added
             cursor.execute("""

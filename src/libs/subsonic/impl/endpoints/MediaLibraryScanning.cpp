@@ -19,6 +19,7 @@
 
 #include "MediaLibraryScanning.hpp"
 
+#include "core/ILogger.hpp"
 #include "core/Service.hpp"
 #include "core/String.hpp"
 #include "services/recommendation/IRecommendationService.hpp"
@@ -118,7 +119,7 @@ namespace lms::api::subsonic::Scan
                     auto addArray = [&](Response::Node::Key name, const auto& values) {
                         Response::Node& node{ settingsNode.createChild(name) };
                         for (const auto& value : values)
-                            node.createChild("value").setValue(std::string_view{ value });
+                            node.addArrayValue("value", std::string_view{ value });
                     };
 
                     addArray("extraTagsToScan", settings->getExtraTagsToScan());
@@ -142,6 +143,7 @@ namespace lms::api::subsonic::Scan
 
     Response handleStartScan(RequestContext& context)
     {
+        LMS_LOG(UI, INFO, "User '" << context.getUser()->getLoginName() << "' requested a scan (admin=" << context.getUser()->isAdmin() << ")");
         if (context.getUser()->isAdmin())
         {
             scanner::ScanOptions scanOptions;

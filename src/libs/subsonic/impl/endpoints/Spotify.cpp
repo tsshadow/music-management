@@ -270,6 +270,11 @@ namespace lms::api::subsonic
         int count = getParameterAs<int>(ctx.getParameters(), "count").value_or(50);
         params.range = db::Range{ static_cast<std::size_t>(offset), static_cast<std::size_t>(count) };
 
+        if (auto seed = getParameterAs<int>(ctx.getParameters(), "seed"))
+        {
+            params.randomSeed = *seed;
+        }
+
         std::string name;
         std::string description;
 
@@ -409,6 +414,11 @@ namespace lms::api::subsonic
                 params.setSortMethod(db::TrackSortMethod::RatingDesc);
                 params.ratingUser = ctx.getUser()->getId();
             }
+        }
+
+        if (auto seed = getParameterAs<int>(ctx.getParameters(), "seed"))
+        {
+            params.randomSeed = *seed;
         }
 
         auto query = getParameterAs<std::string>(ctx.getParameters(), "query");

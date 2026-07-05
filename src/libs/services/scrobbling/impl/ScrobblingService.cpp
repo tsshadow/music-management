@@ -84,7 +84,7 @@ namespace lms::scrobbling
         if (std::optional<ScrobblingBackend> backend{ getUserBackend(listen.userId) })
             _scrobblingBackends[*backend]->listenStarted(listen);
         
-        if (_mumaScrobbler)
+        if (_mumaScrobbler && isMumaScrobblingEnabled(listen.userId))
             _mumaScrobbler->listenStarted(listen);
     }
 
@@ -93,7 +93,7 @@ namespace lms::scrobbling
         if (std::optional<ScrobblingBackend> backend{ getUserBackend(listen.userId) })
             _scrobblingBackends[*backend]->listenFinished(listen, duration);
 
-        if (_mumaScrobbler)
+        if (_mumaScrobbler && isMumaScrobblingEnabled(listen.userId))
             _mumaScrobbler->listenFinished(listen, duration);
     }
 
@@ -102,7 +102,7 @@ namespace lms::scrobbling
         if (std::optional<ScrobblingBackend> backend{ getUserBackend(listen.userId) })
             _scrobblingBackends[*backend]->addTimedListen(listen);
 
-        if (_mumaScrobbler)
+        if (_mumaScrobbler && isMumaScrobblingEnabled(listen.userId))
             _mumaScrobbler->addTimedListen(listen);
     }
 
@@ -140,6 +140,18 @@ namespace lms::scrobbling
             backend = user->getScrobblingBackend();
 
         return backend;
+    }
+
+    bool ScrobblingService::isMumaScrobblingEnabled(UserId userId)
+    {
+        bool enabled{ true };
+
+        Session& session{ _db.getTLSSession() };
+        auto transaction{ session.createReadTransaction() };
+        if (const User::pointer user{ User::find(session, userId) })
+            enabled = user->getMumaScrobblingEnabled();
+
+        return enabled;
     }
 
     ScrobblingService::ArtistContainer ScrobblingService::getRecentArtists(const ArtistFindParameters& params)

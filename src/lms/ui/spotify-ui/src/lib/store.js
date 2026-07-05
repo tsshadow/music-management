@@ -123,5 +123,5 @@ export const allSortOptions = {
  */
 export const authParams = derived(credentials, ($c) => {
   if (!$c.username || !$c.password) return "";
-  return `u=${encodeURIComponent($c.username)}&p=${encodeURIComponent($c.password)}&v=1.12.0&c=mumafi&f=json`;
+  return `u=${encodeURIComponent($c.username)}&p=${encodeURIComponent($c.password)}&v=1.12.0&c=muma-spotify&f=json`;
 });

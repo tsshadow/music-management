@@ -540,7 +540,19 @@ namespace lms::api::subsonic
                 db::Session& session{ _db.getTLSSession() };
                 auto transaction{ session.createReadTransaction() };
                 if (db::UserId adminId = db::User::findAdminUserId(session); adminId.isValid())
+                {
+                    LMS_LOG(API_SUBSONIC, INFO, "Authenticated as admin ID " << adminId.getValue() << " via X-API-Key header");
                     return onAuthSuccess(adminId);
+                }
+                
+                // Fallback: any user if no admin found
+                if (auto user = session.getDboSession()->find<db::User>().limit(1).resultValue())
+                {
+                    LMS_LOG(API_SUBSONIC, WARNING, "No admin user found, authenticating as user ID " << user.id() << " via X-API-Key header");
+                    return onAuthSuccess(user.id());
+                }
+                
+                LMS_LOG(API_SUBSONIC, ERROR, "Master API Key matched but no users found in database!");
             }
         }
 
@@ -551,7 +563,19 @@ namespace lms::api::subsonic
                 db::Session& session{ _db.getTLSSession() };
                 auto transaction{ session.createReadTransaction() };
                 if (db::UserId adminId = db::User::findAdminUserId(session); adminId.isValid())
+                {
+                    LMS_LOG(API_SUBSONIC, INFO, "Authenticated as admin ID " << adminId.getValue() << " via apiKey parameter");
                     return onAuthSuccess(adminId);
+                }
+                
+                // Fallback: any user if no admin found
+                if (auto user = session.getDboSession()->find<db::User>().limit(1).resultValue())
+                {
+                    LMS_LOG(API_SUBSONIC, WARNING, "No admin user found, authenticating as user ID " << user.id() << " via apiKey parameter");
+                    return onAuthSuccess(user.id());
+                }
+
+                LMS_LOG(API_SUBSONIC, ERROR, "Master API Key matched but no users found in database!");
             }
 
             const auto authResult{ core::Service<auth::IAuthTokenService>::get()->processAuthToken("subsonic", clientAddress, *apiKey) };

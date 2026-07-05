@@ -285,7 +285,10 @@ namespace lms::db
                 query.orderBy("t.file_added DESC");
                 break;
             case TrackSortMethod::Random:
-                query.orderBy("RANDOM()");
+                if (params.randomSeed)
+                    query.orderBy("(t.id * 1103515245 + " + std::to_string(*params.randomSeed) + ") % 2147483647");
+                else
+                    query.orderBy("RANDOM()");
                 break;
             case TrackSortMethod::StarredDateDesc:
                 assert(params.starringUser.isValid());

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# MuMaFi LMS Install Script
+# MuMa Spotify LMS Install Script
 # Standardized interface for building, publishing, and deploying.
 
 # Get the project root
@@ -14,7 +14,7 @@ AVAILABLE_APPS=("lms")
 DEFAULT_APP="lms"
 
 show_help() {
-    echo "MuMaFi $PROJECT_NAME Install Script"
+    echo "MuMa Spotify $PROJECT_NAME Install Script"
     echo "Usage: ./install.sh [options] [mode]"
     echo ""
     echo "Options:"

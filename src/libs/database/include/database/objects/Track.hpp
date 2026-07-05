@@ -104,6 +104,7 @@ namespace lms::db
             bool includeUnrated{};
             std::optional<std::chrono::milliseconds> minDuration;
             std::optional<std::chrono::milliseconds> maxDuration;
+            std::optional<int> randomSeed;
             std::set<std::string> allowedArtists;
 
             void setAllowedArtists(const std::set<std::string>& artists)

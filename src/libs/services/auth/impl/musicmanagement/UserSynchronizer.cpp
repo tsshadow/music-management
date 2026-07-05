@@ -74,15 +74,32 @@ namespace lms::auth
                     {
                         const Wt::Json::Object& userObj = userVal;
                         std::string username = userObj.get("username");
+                        int mumaId = static_cast<int>(userObj.get("id"));
                         
-                        if (auto user = db::User::find(session, username))
+                        bool isAdmin = false;
+                        const Wt::Json::Value& isAdminVal = userObj.get("is_admin");
+                        if (isAdminVal.type() == Wt::Json::Type::Bool)
+                            isAdmin = static_cast<bool>(isAdminVal);
+                        else if (isAdminVal.type() == Wt::Json::Type::Number)
+                            isAdmin = static_cast<double>(isAdminVal) != 0;
+
+                        db::User::pointer user = db::User::findByMumaId(session, mumaId);
+                        if (!user)
+                            user = db::User::find(session, username);
+
+                        if (user)
                         {
-                            LMS_LOG(AUTH, DEBUG, "User '" << username << "' already exists, skipping.");
+                            LMS_LOG(AUTH, DEBUG, "User '" << user->getLoginName() << "' already exists, updating properties.");
+                            user.modify()->setMumaId(mumaId);
+                            user.modify()->setLoginName(username);
+                            user.modify()->setType(isAdmin ? db::UserType::ADMIN : db::UserType::REGULAR);
                         }
                         else
                         {
                             LMS_LOG(AUTH, INFO, "Creating new user '" << username << "' from MusicManagement.");
-                            session.create<db::User>(username);
+                            db::User::pointer newUser{ session.create<db::User>(username) };
+                            newUser.modify()->setMumaId(mumaId);
+                            newUser.modify()->setType(isAdmin ? db::UserType::ADMIN : db::UserType::REGULAR);
                         }
                     }
                 }

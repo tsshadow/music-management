@@ -35,7 +35,7 @@ namespace lms::db
 {
     namespace
     {
-        static constexpr Version LMS_DATABASE_VERSION{ 111 };
+        static constexpr Version LMS_DATABASE_VERSION{ 113 };
     }
 
     VersionInfo::VersionInfo()
@@ -1826,6 +1826,21 @@ FROM track)");
         utils::executeCommand(*session.getDboSession(), "ALTER TABLE user ADD COLUMN muma_scrobbling_enabled INTEGER NOT NULL DEFAULT(1)");
     }
 
+    void migrateFromV111(Session& session)
+    {
+        utils::executeCommand(*session.getDboSession(), "ALTER TABLE user ADD COLUMN ui_transcoding_mode INTEGER DEFAULT 2");
+        utils::executeCommand(*session.getDboSession(), "ALTER TABLE user ADD COLUMN ui_transcoding_format INTEGER DEFAULT 2"); // OGG_OPUS
+        utils::executeCommand(*session.getDboSession(), "ALTER TABLE user ADD COLUMN ui_transcoding_bitrate INTEGER DEFAULT 128000");
+        utils::executeCommand(*session.getDboSession(), "ALTER TABLE user ADD COLUMN ui_replaygain_mode INTEGER DEFAULT 0"); // None
+        utils::executeCommand(*session.getDboSession(), "ALTER TABLE user ADD COLUMN ui_replaygain_preamp_gain REAL DEFAULT 0.0");
+        utils::executeCommand(*session.getDboSession(), "ALTER TABLE user ADD COLUMN ui_replaygain_preamp_gain_no_info REAL DEFAULT 0.0");
+    }
+
+    void migrateFromV112(Session& session)
+    {
+        utils::executeCommand(*session.getDboSession(), "ALTER TABLE user ADD COLUMN muma_id INTEGER");
+    }
+
     bool doDbMigration(Session& session)
     {
         constexpr std::string_view outdatedMsg{ "Outdated database, please rebuild it (delete the .db file and restart)" };
@@ -1913,6 +1928,8 @@ FROM track)");
             { 108, migrateFromV108 },
             { 109, migrateFromV109 },
             { 110, migrateFromV110 },
+            { 111, migrateFromV111 },
+            { 112, migrateFromV112 },
         };
 
         bool migrationPerformed{};

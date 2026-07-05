@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: MuMaFi (LMS Subsonic API)
+  title: MuMa Spotify (LMS Subsonic API)
   description: |
-    MuMaFi (Lightweight MuMa Server) implements a subset of the Subsonic/OpenSubsonic API.
+    MuMa Spotify (Lightweight MuMa Server) implements a subset of the Subsonic/OpenSubsonic API.
     MuMa stands for Music Management.
     This documentation covers the endpoints available in LMS.
   version: 3.76.0

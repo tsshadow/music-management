@@ -57,7 +57,7 @@ make -j$(nproc)
 ```
 
 ### Frontend (Svelte)
-The modern MuMaFi is built with Svelte and Vite.
+The modern MuMa Spotify is built with Svelte and Vite.
 
 #### Prerequisites
 - Node.js (v18+)

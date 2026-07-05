@@ -99,6 +99,7 @@ namespace lms::scanner
         bool _abortScan{};
         Wt::WIOService _ioService;
         boost::asio::system_timer _scheduleTimer{ _ioService };
+        bool _firstSchedule{ true };
         Events _events;
         std::chrono::steady_clock::time_point _lastScanInProgressEmit;
 

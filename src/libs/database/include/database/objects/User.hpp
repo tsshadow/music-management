@@ -88,6 +88,7 @@ namespace lms::db
         static std::size_t getCount(Session& session);
         static pointer find(Session& session, UserId id);
         static pointer find(Session& session, std::string_view loginName);
+        static pointer findByMumaId(Session& session, int mumaId);
         static UserId findAdminUserId(Session& session);
         static RangeResults<UserId> find(Session& session, const FindParameters& params);
         static void find(Session& session, const FindParameters& params, const std::function<void(const pointer&)>& func);
@@ -100,6 +101,8 @@ namespace lms::db
         std::size_t getAuthTokensCount() const { return _authTokens.size(); }
 
         // write
+        void setMumaId(std::optional<int> mumaId) { _mumaId = mumaId; }
+        void setLoginName(std::string_view loginName);
         void setLastLogin(const Wt::WDateTime& dateTime) { _lastLogin = dateTime; }
         void setPasswordHash(const PasswordHash& passwordHash)
         {
@@ -121,6 +124,14 @@ namespace lms::db
         void setMumaScrobblingEnabled(bool enabled) { _mumaScrobblingEnabled = enabled; }
         void setListenBrainzToken(std::string_view token) { _listenbrainzToken = token; }
 
+        // Web player settings
+        void setUITranscodingMode(int mode) { _uiTranscodingMode = mode; }
+        void setUITranscodingFormat(TranscodingOutputFormat format) { _uiTranscodingFormat = format; }
+        void setUITranscodingBitrate(Bitrate bitrate) { _uiTranscodingBitrate = static_cast<int>(bitrate); }
+        void setUIReplayGainMode(int mode) { _uiReplayGainMode = mode; }
+        void setUIReplayGainPreAmpGain(float gain) { _uiReplayGainPreAmpGain = gain; }
+        void setUIReplayGainPreAmpGainIfNoInfo(float gain) { _uiReplayGainPreAmpGainIfNoInfo = gain; }
+
         // read
         bool isAdmin() const { return _type == UserType::ADMIN; }
         bool isDemo() const { return _type == UserType::DEMO; }
@@ -137,6 +148,14 @@ namespace lms::db
         ScrobblingBackend getScrobblingBackend() const { return _scrobblingBackend; }
         bool getMumaScrobblingEnabled() const { return _mumaScrobblingEnabled; }
         std::string_view getListenBrainzToken() const { return _listenbrainzToken; }
+
+        int getUITranscodingMode() const { return _uiTranscodingMode; }
+        TranscodingOutputFormat getUITranscodingFormat() const { return _uiTranscodingFormat; }
+        Bitrate getUITranscodingBitrate() const { return static_cast<Bitrate>(_uiTranscodingBitrate); }
+        int getUIReplayGainMode() const { return _uiReplayGainMode; }
+        float getUIReplayGainPreAmpGain() const { return _uiReplayGainPreAmpGain; }
+        float getUIReplayGainPreAmpGainIfNoInfo() const { return _uiReplayGainPreAmpGainIfNoInfo; }
+        std::optional<int> getMumaId() const { return _mumaId; }
 
         template<class Action>
         void persist(Action& a)
@@ -159,6 +178,14 @@ namespace lms::db
             Wt::Dbo::field(a, _scrobblingBackend, "scrobbling_backend");
             Wt::Dbo::field(a, _mumaScrobblingEnabled, "muma_scrobbling_enabled");
             Wt::Dbo::field(a, _listenbrainzToken, "listenbrainz_token");
+            Wt::Dbo::field(a, _mumaId, "muma_id");
+
+            Wt::Dbo::field(a, _uiTranscodingMode, "ui_transcoding_mode");
+            Wt::Dbo::field(a, _uiTranscodingFormat, "ui_transcoding_format");
+            Wt::Dbo::field(a, _uiTranscodingBitrate, "ui_transcoding_bitrate");
+            Wt::Dbo::field(a, _uiReplayGainMode, "ui_replaygain_mode");
+            Wt::Dbo::field(a, _uiReplayGainPreAmpGain, "ui_replaygain_preamp_gain");
+            Wt::Dbo::field(a, _uiReplayGainPreAmpGainIfNoInfo, "ui_replaygain_preamp_gain_no_info");
 
             Wt::Dbo::hasMany(a, _authTokens, Wt::Dbo::ManyToOne, "user");
             Wt::Dbo::hasMany(a, _uiStates, Wt::Dbo::ManyToOne, "user");
@@ -182,6 +209,15 @@ namespace lms::db
         ScrobblingBackend _scrobblingBackend{ defaultScrobblingBackend };
         bool _mumaScrobblingEnabled{ true };
         std::string _listenbrainzToken; // Musicbrainz Identifier
+        std::optional<int> _mumaId;
+
+        // UI player settings
+        int _uiTranscodingMode{ 2 }; // IfFormatNotSupported
+        TranscodingOutputFormat _uiTranscodingFormat{ TranscodingOutputFormat::OGG_OPUS };
+        int _uiTranscodingBitrate{ 128000 };
+        int _uiReplayGainMode{ 0 }; // None
+        float _uiReplayGainPreAmpGain{ 0 };
+        float _uiReplayGainPreAmpGainIfNoInfo{ 0 };
 
         // Admin defined settings
         UserType _type{ UserType::REGULAR };

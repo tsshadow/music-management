@@ -191,7 +191,7 @@ USER	${LMS_USER}:${LMS_GROUP}
 
 COPY	--from=build /tmp/fakeroot/ /usr
 COPY	--from=build /tmp/fakeroot/share/lms/lms.conf /etc/lms.conf
-COPY	--from=svelte-build /app/dist /usr/share/lms/docroot/mumafi
+COPY	--from=svelte-build /app/dist /usr/share/lms/docroot/muma-spotify
 
 EXPOSE	5082
 

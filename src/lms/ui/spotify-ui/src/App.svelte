@@ -53,7 +53,7 @@
   }
 
   let isMounted = $state(false);
-  const base = '/mumafi';
+  const base = '/muma-spotify';
 
   function viewToPath(view, _playlistObj) {
     if (view === 'home') return base + '/';

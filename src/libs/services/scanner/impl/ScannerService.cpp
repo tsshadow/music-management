@@ -312,7 +312,19 @@ namespace lms::scanner
             break;
 
         case ScanSettings::UpdatePeriod::Hourly:
-            nextScanDateTime = { now.date(), now.time().addSecs(3600) };
+            if (_firstSchedule)
+            {
+                nextScanDateTime = now;
+                _firstSchedule = false;
+            }
+            else
+            {
+                Wt::WTime nextTime = now.time().addSecs(3600);
+                if (nextTime < now.time())
+                    nextScanDateTime = { now.date().addDays(1), nextTime };
+                else
+                    nextScanDateTime = { now.date(), nextTime };
+            }
             break;
 
         case ScanSettings::UpdatePeriod::Never:

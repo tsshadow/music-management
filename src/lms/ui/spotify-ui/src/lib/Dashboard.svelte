@@ -39,6 +39,8 @@
   let currentTrackSearch = $state('');
   let currentMinRating = $state('2');
   let includeUnrated = $state(true);
+  let currentSeed = $state(Math.floor(Math.random() * 1000000));
+  let sentinel = $state(null);
 
   let currentArtistSort = $state('alphabetical');
   let currentArtistRole = $state('all');
@@ -65,7 +67,7 @@
     if (!$authParams) return [];
     console.log(`Fetching tracks for curated playlist: ${id}`);
     try {
-        const response = await fetch(`/rest/getSpotifyPlaylist?id=${encodeURIComponent(id)}&${$authParams}`);
+        const response = await fetch(`/rest/getSpotifyPlaylist?id=${encodeURIComponent(id)}&seed=${currentSeed}&${$authParams}`);
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
         console.log(`Data for ${id}:`, data);
@@ -104,6 +106,7 @@
     try {
       while (currentBatch.length < pageSize && tracksHasMore) {
         let url = `/rest/getSpotifyTracks?sort=${currentSort}&offset=${tracksOffset}&count=${pageSize}&${$authParams}`;
+        if (currentSort === 'random') url += `&seed=${currentSeed}`;
         if ($deduplicateEnabled) url += `&deduplicate=true`;
         if (currentTrackSearch) url += `&query=${encodeURIComponent(currentTrackSearch)}`;
         if (currentGenre) url += `&genre=${encodeURIComponent(currentGenre)}`;
@@ -326,6 +329,7 @@
    */
   function handleFilterChange(params) {
       const { genre, sort, year, search, role, minRating, includeUnrated: incUnrated } = params;
+      currentSeed = Math.floor(Math.random() * 1000000);
       if (activeView === 'artists') {
           currentArtistSort = sort;
           currentArtistRole = role;
@@ -390,6 +394,18 @@
       });
     }
   });
+
+  $effect(() => {
+    if (sentinel && tracksHasMore && !isLoading && (activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('search:'))) {
+      const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          loadAllTracks(true);
+        }
+      }, { threshold: 0.1 });
+      observer.observe(sentinel);
+      return () => observer.disconnect();
+    }
+  });
 </script>
 
 <div class="flex flex-col gap-8">
@@ -437,8 +453,10 @@
         {#if tracks.length > 0}
             <TrackList {tracks} onnavigate={(v) => activeView = v} />
             {#if tracksHasMore}
-                <div class="flex justify-center py-6">
-                    <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAllTracks(true)}>Meer laden</button>
+                <div bind:this={sentinel} class="flex justify-center py-6">
+                    <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAllTracks(true)}>
+                        {isLoading ? 'Laden...' : 'Meer laden'}
+                    </button>
                 </div>
             {/if}
         {:else}

@@ -122,7 +122,7 @@ _LMS_ supports lyrics in `lrc` files, `txt` files, and embedded track metadata. 
 
 
 ## User Interfaces
-*   **MuMaFi (Recommended)**: A modern, responsive web interface built with Svelte. This is the primary UI for LMS.
+*   **MuMa Spotify (Recommended)**: A modern, responsive web interface built with Svelte. This is the primary UI for LMS.
 *   **Legacy Web UI**: The original C++ Web Toolkit (Wt) interface. This interface is now considered **legacy** and is maintained for compatibility purposes only. New features may not be implemented here.
 
 ## Installation

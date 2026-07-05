@@ -123,7 +123,9 @@ DEPLOY_CMD="
     fi
 
     # Selection of compose command
-    if [ -x /tmp/docker-compose-v2 ]; then
+    if [ -x /usr/local/bin/docker-compose-v2 ]; then
+        DOCKER_CMD=\"/usr/local/bin/docker-compose-v2 \$ENV_ARG -f \$FINAL_COMPOSE_FILE -p $STACK_NAME\"
+    elif [ -x /tmp/docker-compose-v2 ]; then
         DOCKER_CMD=\"/tmp/docker-compose-v2 \$ENV_ARG -f \$FINAL_COMPOSE_FILE -p $STACK_NAME\"
     elif docker compose version >/dev/null 2>&1; then
         DOCKER_CMD=\"docker compose \$ENV_ARG -f \$FINAL_COMPOSE_FILE -p $STACK_NAME\"

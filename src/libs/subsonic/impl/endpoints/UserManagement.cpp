@@ -106,6 +106,18 @@ namespace lms::api::subsonic
         auto isAdmin{ getParameterAs<bool>(context.getParameters(), "adminRole") };
         auto mumaScrobblingEnabled{ getParameterAs<bool>(context.getParameters(), "mumaScrobblingEnabled") };
 
+        auto subsonicEnableTranscodingByDefault{ getParameterAs<bool>(context.getParameters(), "subsonicEnableTranscodingByDefault") };
+        auto subsonicDefaultTranscodeFormat{ getParameterAs<int>(context.getParameters(), "subsonicDefaultTranscodeFormat") };
+        auto subsonicDefaultTranscodeBitrate{ getParameterAs<int>(context.getParameters(), "subsonicDefaultTranscodeBitrate") };
+        auto subsonicArtistListMode{ getParameterAs<int>(context.getParameters(), "subsonicArtistListMode") };
+        auto uiArtistReleaseSortMethod{ getParameterAs<int>(context.getParameters(), "uiArtistReleaseSortMethod") };
+        auto uiEnableInlineArtistRelationships{ getParameterAs<bool>(context.getParameters(), "uiEnableInlineArtistRelationships") };
+        auto uiInlineArtistRelationships{ getParameterAs<std::string>(context.getParameters(), "uiInlineArtistRelationships") };
+        auto feedbackBackend{ getParameterAs<int>(context.getParameters(), "feedbackBackend") };
+        auto scrobblingBackend{ getParameterAs<int>(context.getParameters(), "scrobblingBackend") };
+        auto listenbrainzToken{ getParameterAs<std::string>(context.getParameters(), "listenbrainzToken") };
+        auto subsonicToken{ getParameterAs<std::string>(context.getParameters(), "subsonicToken") };
+
         {
             auto transaction{ context.getDbSession().createWriteTransaction() };
             User::pointer user{ User::find(context.getDbSession(), username) };
@@ -117,6 +129,63 @@ namespace lms::api::subsonic
 
             if (mumaScrobblingEnabled)
                 user.modify()->setMumaScrobblingEnabled(*mumaScrobblingEnabled);
+
+            if (subsonicEnableTranscodingByDefault)
+                user.modify()->setSubsonicEnableTranscodingByDefault(*subsonicEnableTranscodingByDefault);
+            if (subsonicDefaultTranscodeFormat)
+                user.modify()->setSubsonicDefaultTranscodintOutputFormat(static_cast<TranscodingOutputFormat>(*subsonicDefaultTranscodeFormat));
+            if (subsonicDefaultTranscodeBitrate)
+                user.modify()->setSubsonicDefaultTranscodingOutputBitrate(static_cast<Bitrate>(*subsonicDefaultTranscodeBitrate));
+            if (subsonicArtistListMode)
+                user.modify()->setSubsonicArtistListMode(static_cast<SubsonicArtistListMode>(*subsonicArtistListMode));
+            if (uiArtistReleaseSortMethod)
+                user.modify()->setUIArtistReleaseSortMethod(static_cast<ReleaseSortMethod>(*uiArtistReleaseSortMethod));
+            if (uiEnableInlineArtistRelationships)
+                user.modify()->setUIEnableInlineArtistRelationships(*uiEnableInlineArtistRelationships);
+
+            if (uiInlineArtistRelationships)
+            {
+                core::EnumSet<TrackArtistLinkType> artistLinkTypes;
+                for (std::string_view relationship : core::stringUtils::splitString(*uiInlineArtistRelationships, ','))
+                {
+                    if (auto val = core::stringUtils::readAs<int>(relationship))
+                        artistLinkTypes.insert(static_cast<TrackArtistLinkType>(*val));
+                }
+                user.modify()->setUIInlineArtistRelationships(artistLinkTypes);
+            }
+
+            if (feedbackBackend)
+                user.modify()->setFeedbackBackend(static_cast<FeedbackBackend>(*feedbackBackend));
+            if (scrobblingBackend)
+                user.modify()->setScrobblingBackend(static_cast<ScrobblingBackend>(*scrobblingBackend));
+            if (listenbrainzToken)
+                user.modify()->setListenBrainzToken(*listenbrainzToken);
+
+            if (subsonicToken)
+            {
+                auto& authTokenService{ *core::Service<auth::IAuthTokenService>::get() };
+                if (subsonicToken->empty())
+                {
+                    authTokenService.clearAuthTokens("subsonic", user->getId());
+                }
+                else
+                {
+                    bool hasMatchingToken{ false };
+                    bool hasNonMatchingToken{ false };
+                    authTokenService.visitAuthTokens("subsonic", user->getId(), [&](const auth::IAuthTokenService::AuthTokenInfo&, std::string_view storedToken) {
+                        if (storedToken == *subsonicToken)
+                            hasMatchingToken = true;
+                        else
+                            hasNonMatchingToken = true;
+                    });
+
+                    if (!hasMatchingToken || hasNonMatchingToken)
+                    {
+                        authTokenService.clearAuthTokens("subsonic", user->getId());
+                        authTokenService.createAuthToken("subsonic", user->getId(), *subsonicToken);
+                    }
+                }
+            }
 
             if (password)
             {

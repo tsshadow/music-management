@@ -24,6 +24,8 @@
 
 #include "RequestContext.hpp"
 #include "SubsonicId.hpp"
+#include "services/auth/IAuthTokenService.hpp"
+#include "core/Service.hpp"
 
 namespace lms::api::subsonic
 {
@@ -45,6 +47,33 @@ namespace lms::api::subsonic
         userNode.setAttribute("streamRole", true);             // Whether the user is allowed to play files
         userNode.setAttribute("jukeboxRole", user->isAdmin()); // Whether the user is allowed to control the jukebox
         userNode.setAttribute("shareRole", false);             // not supported
+
+        userNode.setAttribute("subsonicEnableTranscodingByDefault", user->getSubsonicEnableTranscodingByDefault());
+        userNode.setAttribute("subsonicDefaultTranscodeFormat", static_cast<int>(user->getSubsonicDefaultTranscodingOutputFormat()));
+        userNode.setAttribute("subsonicDefaultTranscodeBitrate", static_cast<int>(user->getSubsonicDefaultTranscodingOutputBitrate()));
+        userNode.setAttribute("subsonicArtistListMode", static_cast<int>(user->getSubsonicArtistListMode()));
+        userNode.setAttribute("uiArtistReleaseSortMethod", static_cast<int>(user->getUIArtistReleaseSortMethod()));
+        userNode.setAttribute("uiEnableInlineArtistRelationships", user->getUIEnableInlineArtistRelationships());
+
+        std::string inlineArtistRelationships;
+        for (db::TrackArtistLinkType type : user->getUIInlineArtistRelationships())
+        {
+            if (!inlineArtistRelationships.empty())
+                inlineArtistRelationships += ",";
+            inlineArtistRelationships += std::to_string(static_cast<int>(type));
+        }
+        userNode.setAttribute("uiInlineArtistRelationships", inlineArtistRelationships);
+
+        userNode.setAttribute("feedbackBackend", static_cast<int>(user->getFeedbackBackend()));
+        userNode.setAttribute("scrobblingBackend", static_cast<int>(user->getScrobblingBackend()));
+        userNode.setAttribute("listenbrainzToken", std::string{ user->getListenBrainzToken() });
+
+        std::string subsonicToken;
+        core::Service<auth::IAuthTokenService>::get()->visitAuthTokens("subsonic", user->getId(), [&](const auth::IAuthTokenService::AuthTokenInfo&, std::string_view storedToken) {
+            if (subsonicToken.empty())
+                subsonicToken = storedToken;
+        });
+        userNode.setAttribute("subsonicToken", subsonicToken);
 
         // users can access all libraries
         db::MediaLibrary::find(context.getDbSession(), [&](const db::MediaLibrary::pointer& library) {

@@ -35,16 +35,16 @@
 </script>
 
 <section>
-  <h3 class="text-2xl font-bold mb-6">About MuMaFi</h3>
+  <h3 class="text-2xl font-bold mb-6">About MuMa Spotify</h3>
   <div class="flex flex-col gap-4 text-[#b3b3b3]">
     <div class="flex items-center gap-6 mb-4">
-        <img src="/images/logo.svg" alt="MuMaFi Logo" class="w-24 h-24" on:error={(e) => e.target.src = '/images/spotify-fallback.svg'} />
+        <img src="/images/logo.svg" alt="MuMa Spotify Logo" class="w-24 h-24" on:error={(e) => e.target.src = '/images/spotify-fallback.svg'} />
         <div>
             <h4 class="text-white text-3xl font-bold">Lightweight MuMa Server</h4>
             <p>Version {version} {serverType !== '...' ? `(${serverType})` : ''}</p>
         </div>
     </div>
-    <p>MuMaFi (Lightweight MuMa Server) is a fast, feature-rich music streaming server written in C++.</p>
+    <p>MuMa Spotify (Lightweight MuMa Server) is a fast, feature-rich music streaming server written in C++.</p>
     <p>© 2024-2026 The MuMa Project. Distributed under the GPL license.</p>
     
     {#if releaseNotes.length > 0}

@@ -100,6 +100,11 @@ namespace lms::db
         return utils::fetchQuerySingleResult(session.getDboSession()->query<Wt::Dbo::ptr<User>>("SELECT u from user u").where("u.login_name = ?").bind(name));
     }
 
+    User::pointer User::findByMumaId(Session& session, int mumaId)
+    {
+        return utils::fetchQuerySingleResult(session.getDboSession()->query<Wt::Dbo::ptr<User>>("SELECT u from user u").where("u.muma_id = ?").bind(mumaId));
+    }
+
     UserId User::findAdminUserId(Session& session)
     {
         session.checkReadTransaction();
@@ -110,6 +115,11 @@ namespace lms::db
             return *results.begin();
 
         return {};
+    }
+
+    void User::setLoginName(std::string_view loginName)
+    {
+        _loginName = loginName;
     }
 
     void User::setSubsonicDefaultTranscodingOutputBitrate(Bitrate bitrate)

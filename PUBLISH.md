@@ -17,7 +17,7 @@ This document describes the steps to build and publish the LMS Docker image with
    *(Note: Replace `<DOCKER_HUB_PAT>` with your actual token)*
 
 2. **Build the Docker Image**
-   The `Dockerfile-release` is used for the alpha builds. It includes the multi-stage build for the MuMaFi interface.
+   The `Dockerfile-release` is used for the alpha builds. It includes the multi-stage build for the MuMa Spotify interface.
    ```bash
    docker build -t muma/lms:alpha -f Dockerfile-release .
    ```

@@ -4,6 +4,11 @@
 
   let activeTab = 'home';
   let config = { version: '...', phpmyadmin_url: '#' };
+  let isLoggedIn = false;
+  let username = '';
+  let password = '';
+  let loginError = '';
+  let isLoggingIn = false;
   let notes = { release_notes: '', changelog: '' };
   let rules = { genres: [], ignored_genres: [] };
   let versions = {};
@@ -66,8 +71,46 @@
 
   onMount(() => {
     apiKey = localStorage.getItem('muma_api_key') || '';
-    fetchData();
+    if (apiKey) {
+      fetchData();
+    } else {
+      loading = false;
+    }
   });
+
+  async function handleLogin() {
+    isLoggingIn = true;
+    loginError = '';
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        apiKey = data.api_key;
+        localStorage.setItem('muma_api_key', apiKey);
+        isLoggedIn = true;
+        fetchData();
+      } else {
+        const data = await res.json();
+        loginError = data.detail || 'Login mislukt';
+      }
+    } catch (err) {
+      loginError = 'Kon niet verbinden met auth service';
+    } finally {
+      isLoggingIn = false;
+    }
+  }
+
+  function logout() {
+    apiKey = '';
+    localStorage.removeItem('muma_api_key');
+    isLoggedIn = false;
+    activeTab = 'home';
+  }
 
   function getHeaders(extra = {}) {
     const headers = { ...extra };
@@ -97,8 +140,17 @@
 
   async function fetchData() {
     loading = true;
+    error = '';
     try {
       const headers = getHeaders();
+      const res = await fetch(`${API_BASE}/api/config`, { headers });
+      if (res.status === 401 || res.status === 403) {
+        isLoggedIn = false;
+        loading = false;
+        return;
+      }
+      
+      isLoggedIn = true;
       const [configRes, notesRes, rulesRes, accountsRes, youtubeRes, versionsRes, allNotesRes, importsRes, usersRes, containersRes, activityRes, statsRes] = await Promise.all([
         fetch(`${API_BASE}/api/config`, { headers }),
         fetch(`${API_BASE}/api/notes`, { headers }),
@@ -552,6 +604,66 @@
 
 </script>
 
+{#if !isLoggedIn}
+  <div class="h-screen w-screen bg-black flex flex-col items-center justify-center p-4 font-sans text-white">
+    <div class="mb-8 flex flex-col items-center">
+      <div class="w-20 h-20 bg-spotify-green rounded-full flex items-center justify-center mb-4 shadow-lg shadow-spotify-green/20">
+        <Database size={40} class="text-black" />
+      </div>
+      <h1 class="text-white text-4xl font-black tracking-tighter italic">MuMa<span class="text-spotify-green not-italic">.</span></h1>
+    </div>
+
+    <div class="w-full max-w-sm bg-[#121212] p-10 rounded-xl shadow-2xl">
+      <h2 class="text-white text-2xl font-bold mb-8 text-center">Beheerder Login</h2>
+      
+      {#if loginError}
+        <div class="bg-red-500/10 border border-red-500/50 text-red-500 p-4 rounded-md mb-6 text-sm font-medium text-center">
+          {loginError}
+        </div>
+      {/if}
+
+      <form on:submit|preventDefault={handleLogin} class="space-y-5">
+        <div>
+          <label for="username" class="block text-xs font-bold text-white uppercase mb-2">Gebruikersnaam</label>
+          <input 
+            type="text" 
+            id="username"
+            bind:value={username}
+            class="w-full bg-[#3e3e3e] border-0 rounded-md p-3 text-white placeholder-gray-400 focus:ring-2 focus:ring-white transition-all"
+            placeholder="E-mailadres of gebruikersnaam"
+            required
+          />
+        </div>
+        
+        <div>
+          <label for="password" class="block text-xs font-bold text-white uppercase mb-2">Wachtwoord</label>
+          <input 
+            type="password" 
+            id="password"
+            bind:value={password}
+            class="w-full bg-[#3e3e3e] border-0 rounded-md p-3 text-white placeholder-gray-400 focus:ring-2 focus:ring-white transition-all"
+            placeholder="Wachtwoord"
+            required
+          />
+        </div>
+
+        <div class="pt-4">
+          <button 
+            type="submit" 
+            disabled={isLoggingIn}
+            class="w-full bg-spotify-green text-black font-black py-4 rounded-full hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 uppercase tracking-widest text-sm"
+          >
+            {isLoggingIn ? 'Bezig...' : 'Log In'}
+          </button>
+        </div>
+      </form>
+    </div>
+    
+    <div class="mt-12 text-spotify-lightgray text-[10px] uppercase tracking-[0.2em] font-bold">
+      MuMa Control Center &bull; 2026
+    </div>
+  </div>
+{:else}
 <div class="flex h-screen bg-spotify-dark overflow-hidden font-sans">
   <!-- Sidebar -->
   <aside class="w-64 bg-black flex flex-col flex-shrink-0">
@@ -628,12 +740,32 @@
       
       <div class="pt-4 mt-4 border-t border-spotify-gray">
         <a 
+          href="https://spotify.teunschriks.nl"
+          target="_blank"
+          class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold text-spotify-lightgray hover:text-white transition-colors"
+        >
+          <ExternalLink size={24} /> MuMa Spotify
+        </a>
+        <a 
+          href="https://spotify-alpha.teunschriks.nl"
+          target="_blank"
+          class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold text-spotify-lightgray hover:text-white transition-colors"
+        >
+          <ExternalLink size={24} /> MuMa Spotify-alpha
+        </a>
+        <a 
           href={config.phpmyadmin_url} 
           target="_blank"
           class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold text-spotify-lightgray hover:text-white transition-colors"
         >
           <ExternalLink size={24} /> phpMyAdmin
         </a>
+        <button 
+          on:click={logout}
+          class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold text-red-500 hover:text-red-400 transition-colors mt-2"
+        >
+          <Key size={24} /> Uitloggen
+        </button>
       </div>
     </nav>
     
@@ -1685,6 +1817,7 @@
     {/if}
   </main>
 </div>
+{/if}
 
 <style>
   /* Scrollbar styling */

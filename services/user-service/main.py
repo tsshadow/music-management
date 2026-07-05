@@ -111,6 +111,10 @@ class LBAccountUpdate(BaseModel):
 class PasswordUpdate(BaseModel):
     password: str
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
 @app.get("/version")
 async def version(api_key: str = Depends(verify_api_key)):
     return {"version": get_version()}
@@ -133,7 +137,7 @@ async def verify_token(x_api_key: str = Header(None)):
     if conn:
         try:
             with conn.cursor() as cursor:
-                cursor.execute("SELECT id, username, display_name FROM users WHERE api_key = %s", (x_api_key,))
+                cursor.execute("SELECT id, username, display_name, is_admin FROM users WHERE api_key = %s", (x_api_key,))
                 user = cursor.fetchone()
                 if user:
                     return {"status": "ok", "type": "user", "user": user}
@@ -141,6 +145,47 @@ async def verify_token(x_api_key: str = Header(None)):
             conn.close()
             
     raise HTTPException(status_code=403, detail="Invalid API Key")
+
+@app.post("/auth/login")
+async def login(req: LoginRequest):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM users WHERE username = %s", (req.username,))
+            user = cursor.fetchone()
+            if not user:
+                raise HTTPException(status_code=401, detail="Invalid username or password")
+            
+            if not user['password_hash']:
+                 raise HTTPException(status_code=401, detail="User has no password set")
+
+            # Password check
+            # Note: LMS uses $2y$ but bcrypt in python often expects $2b$. 
+            # We stored it as $2b$ in MariaDB but converted to $2y$ for LMS.
+            stored_hash = user['password_hash']
+            if bcrypt.checkpw(req.password.encode('utf-8'), stored_hash.encode('utf-8')):
+                if not user['is_admin']:
+                    raise HTTPException(status_code=403, detail="Toegang geweigerd: Admin rechten vereist")
+                
+                # Ensure user has an API key
+                api_key = user['api_key']
+                if not api_key:
+                    api_key = secrets.token_hex(32)
+                    cursor.execute("UPDATE users SET api_key = %s WHERE id = %s", (api_key, user['id']))
+                    conn.commit()
+                
+                return {
+                    "username": user['username'],
+                    "display_name": user['display_name'],
+                    "is_admin": bool(user['is_admin']),
+                    "api_key": api_key
+                }
+            else:
+                raise HTTPException(status_code=401, detail="Invalid username or password")
+    finally:
+        conn.close()
 
 @app.get("/users")
 async def get_users(api_key: str = Depends(verify_api_key)):

@@ -9,6 +9,15 @@ This project is now modularized. Detailed release notes for each module can be f
 - [Music Manager](services/music_manager/RELEASE_NOTES.md)
 - [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
 
+## Global Version 2.3.0 (2026-07-05)
+### 🚀 The Cloud Sync & Security Update
+- **MuMa Cloud Sync**: Introduced a new server-side backup system for application settings. Clients like Ultrasonic can now securely store and restore their full configuration in the MuMa database.
+- **Unified Authentication**: Streamlined the API authentication flow. The API key returned during login is now universally valid for all user-specific actions, including settings management and playlist control.
+- **ListenBrainz Reliability**: Overhauled the scrobble import engine with robust pagination support, allowing imports of up to 10,000 tracks per session with improved matching logic.
+- **Library Intelligence**: Restored and expanded library statistics, providing deep insights into genre distribution, match rates, and artist coverage across both stable and alpha instances.
+- **UI Hardening**: Removed sensitive API keys from the frontend interface in favor of secure session-based tokens, improving overall security for administrators.
+- **Multi-Instance Enrichment**: Enhanced the artist image fetcher to automatically synchronize high-quality artwork across all connected LMS databases.
+
 ## Global Version 2.2.0 (2026-07-05)
 ### 🚀 Music Manager Core Consolidation
 - **Service Consolidation**: Merged six microservices (`user-service`, `scrobble-service`, `rating-system`, `stats-service`, `management-api`, and `artist-image-fetcher`) into a single, high-performance FastAPI service: **Music Manager**.

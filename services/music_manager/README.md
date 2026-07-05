@@ -1,4 +1,4 @@
-# Music Manager v1.0
+# Music Manager v1.3
 
 The **Music Manager** is a centralized management platform and API core for the MuMa music ecosystem. It consolidates multiple microservices into a single, efficient application to provide a unified interface for music library administration, user authentication, listening history, and metadata enrichment.
 
@@ -26,5 +26,5 @@ The Music Manager acts as the brain of the MuMa ecosystem, orchestrating special
 
 This application follows its own versioning cycle, independent of the individual worker modules.
 
-- **Current Version**: v1.0.0
+- **Current Version**: v1.3.0
 - **Release Date**: 2026-07-05

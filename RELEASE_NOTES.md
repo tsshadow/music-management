@@ -1,14 +1,14 @@
-# Release Notes - LMS 3.78.7
+# Release Notes - LMS 3.78.8
 
-## Version 3.78.7 (2026-07-04)
+## Version 3.78.8 (2026-07-04)
 
-LMS 3.77.0 focuses on rebranding the project to MuMa Server, improving Subsonic API compatibility, enhancing the web interface MuMaFi, and refining the deployment pipeline.
+LMS 3.77.0 focuses on rebranding the project to MuMa Server, improving Subsonic API compatibility, enhancing the web interface MuMa Spotify, and refining the deployment pipeline.
 
 ### Branding & UI
 - **MuMa Server**: Renamed "Lightweight Music Server" to "Lightweight MuMa Server (LMS)".
-- **MuMaFi**: The web interface has been rebranded to MuMaFi, featuring Spotify-inspired styling.
+- **MuMa Spotify**: The web interface has been rebranded to MuMa Spotify, featuring Spotify-inspired styling.
 - **Update Notifications**: You will now be automatically notified of new updates with a dedicated release notes modal.
-- **Persistent Release Notes**: A full history of changes is now accessible anytime via the "About" section in the MuMaFi interface.
+- **Persistent Release Notes**: A full history of changes is now accessible anytime via the "About" section in the MuMa Spotify interface.
 
 ### Deployment & Build System
 - **Enhanced Pipeline**: Split `build_and_publish.sh` into focused `build.sh`, `publish.sh`, and `deploy.sh` scripts.

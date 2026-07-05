@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.78.8] - 2026-07-05
+
 ## [3.78.7] - 2026-07-05
 
 ## [3.78.6] - 2026-07-05
@@ -37,9 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Docker Compose**: Updated `docker-compose.yml` with environment variable support and sensible defaults.
 - **Docker Compose**: Removed explicit `container_name` to prevent naming conflicts and support multiple environments.
 - **Docker Compose**: Updated `docker-compose.yml` with versioned tags, correct service names (`lms`, `lms_alpha`), and optimized `/mnt/` volume paths.
-- **MuMaFi**: Added a new release notes modal and version update notification system.
-- **MuMaFi**: Added a persistent "Release Notes" history in the About section.
-- **Branding**: Renamed project to "Lightweight MuMa Server (LMS)" and the web interface to "MuMaFi".
+- **MuMa Spotify**: Added a new release notes modal and version update notification system.
+- **MuMa Spotify**: Added a persistent "Release Notes" history in the About section.
+- **Branding**: Renamed project to "Lightweight MuMa Server (LMS)" and the web interface to "MuMa Spotify".
 - Created `scripts/deploy-stack.sh`, a generalized Docker stack deployment tool supporting Portainer discovery, SSH transfer, and intelligent fallbacks.
 - Support for initial stack creation: the deployment script now automatically creates the stack if it does not exist yet using a local template.
 
@@ -52,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Deployment**: Improved robustness with `base64` template transfer and automated tab-to-space conversion in compose files.
 - **Deployment**: Fixed `.env` parsing to correctly handle trailing comments and whitespace.
 - **Branding**: Updated all repository references to `muma/lms` on GitHub and Docker Hub.
-- **Internal**: Reverted internal C++ and frontend source naming to "Spotify" for developer readability, while maintaining "MuMaFi" branding for user-facing components.
+- **Internal**: Reverted internal C++ and frontend source naming to "Spotify" for developer readability, while maintaining "MuMa Spotify" branding for user-facing components.
 
 ### Fixed
 - Fixed "orphan containers" warnings during deployment by adding `--remove-orphans` to the deployment scripts.

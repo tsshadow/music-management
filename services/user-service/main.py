@@ -85,6 +85,36 @@ def startup_db():
                         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
                     )
                 """)
+
+                # Dynamic Playlists
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS dynamic_playlists (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL,
+                        remote_id INT,
+                        source VARCHAR(50),
+                        name VARCHAR(255) NOT NULL,
+                        params TEXT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                """)
+
+                # Add remote_id and source to dynamic_playlists if they don't exist
+                cursor.execute("SHOW COLUMNS FROM dynamic_playlists LIKE 'remote_id'")
+                if not cursor.fetchone():
+                    cursor.execute("ALTER TABLE dynamic_playlists ADD COLUMN remote_id INT AFTER user_id")
+                
+                cursor.execute("SHOW COLUMNS FROM dynamic_playlists LIKE 'source'")
+                if not cursor.fetchone():
+                    cursor.execute("ALTER TABLE dynamic_playlists ADD COLUMN source VARCHAR(50) AFTER remote_id")
+
+                # Add unique index if it doesn't exist
+                try:
+                    cursor.execute("ALTER TABLE dynamic_playlists ADD UNIQUE INDEX uq_source_remote_id (source, remote_id)")
+                except Exception:
+                    pass
             conn.commit()
         finally:
             conn.close()
@@ -107,6 +137,21 @@ class UserUpdate(BaseModel):
 class LBAccountUpdate(BaseModel):
     lb_username: str
     lb_token: str
+
+class DynamicPlaylistCreate(BaseModel):
+    name: str
+    params: str
+
+class DynamicPlaylistUpdate(BaseModel):
+    name: Optional[str] = None
+    params: Optional[str] = None
+
+class DynamicPlaylistSync(BaseModel):
+    remote_id: int
+    lms_user_id: Optional[str] = None
+    source: str
+    name: str
+    params: str
 
 class PasswordUpdate(BaseModel):
     password: str
@@ -177,6 +222,7 @@ async def login(req: LoginRequest):
                     conn.commit()
                 
                 return {
+                    "id": user['id'],
                     "username": user['username'],
                     "display_name": user['display_name'],
                     "is_admin": bool(user['is_admin']),
@@ -184,6 +230,186 @@ async def login(req: LoginRequest):
                 }
             else:
                 raise HTTPException(status_code=401, detail="Invalid username or password")
+    finally:
+        conn.close()
+
+# --- Dynamic Playlists ---
+
+@app.get("/users/{user_id}/dynamic-playlists")
+async def get_dynamic_playlists(user_id: int, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM dynamic_playlists WHERE user_id = %s", (user_id,))
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+@app.post("/users/{user_id}/dynamic-playlists")
+async def create_dynamic_playlist(user_id: int, playlist: DynamicPlaylistCreate, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO dynamic_playlists (user_id, name, params) VALUES (%s, %s, %s)",
+                (user_id, playlist.name, playlist.params)
+            )
+            playlist_id = cursor.lastrowid
+            conn.commit()
+            return {"id": playlist_id, "status": "created"}
+    finally:
+        conn.close()
+
+@app.put("/users/{user_id}/dynamic-playlists/{playlist_id}")
+async def update_dynamic_playlist(user_id: int, playlist_id: int, playlist: DynamicPlaylistUpdate, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        with conn.cursor() as cursor:
+            updates = []
+            values = []
+            if playlist.name is not None:
+                updates.append("name = %s")
+                values.append(playlist.name)
+            if playlist.params is not None:
+                updates.append("params = %s")
+                values.append(playlist.params)
+            
+            if not updates:
+                return {"status": "no changes"}
+            
+            values.extend([playlist_id, user_id])
+            query = f"UPDATE dynamic_playlists SET {', '.join(updates)} WHERE id = %s AND user_id = %s"
+            cursor.execute(query, tuple(values))
+            conn.commit()
+            return {"status": "updated"}
+    finally:
+        conn.close()
+
+@app.delete("/users/{user_id}/dynamic-playlists/{playlist_id}")
+async def delete_dynamic_playlist(user_id: int, playlist_id: int, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM dynamic_playlists WHERE id = %s AND user_id = %s", (playlist_id, user_id))
+            conn.commit()
+            return {"status": "deleted"}
+    finally:
+        conn.close()
+
+@app.post("/users/{user_id}/dynamic-playlists/sync")
+async def sync_dynamic_playlist(user_id: int, playlist: DynamicPlaylistSync, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        with conn.cursor() as cursor:
+            target_user_id = user_id
+            
+            # Try to resolve user_id via lms_user_id if provided
+            if playlist.lms_user_id:
+                cursor.execute("SELECT id FROM users WHERE lms_user_id = %s", (str(playlist.lms_user_id),))
+                user_row = cursor.fetchone()
+                if user_row:
+                    target_user_id = user_row['id']
+
+            if target_user_id == 0:
+                raise HTTPException(status_code=400, detail="Valid user_id or lms_user_id required")
+
+            cursor.execute("""
+                INSERT INTO dynamic_playlists (user_id, remote_id, source, name, params)
+                VALUES (%s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE name = VALUES(name), params = VALUES(params)
+            """, (target_user_id, playlist.remote_id, playlist.source, playlist.name, playlist.params))
+            conn.commit()
+            return {"status": "synced"}
+    finally:
+        conn.close()
+
+@app.get("/users/{user_id}/dynamic-playlists/{playlist_id}/tracks")
+async def resolve_dynamic_playlist_tracks(user_id: int, playlist_id: int, api_key: str = Depends(verify_api_key)):
+    """
+    Preview tracks for a dynamic playlist based on its parameters.
+    MuMa acts as a central registry for playlist definitions (parameters),
+    while tracks are resolved on-the-fly from the current library.
+    """
+    import json
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        with conn.cursor() as cursor:
+            # 1. Get playlist params
+            cursor.execute("SELECT params FROM dynamic_playlists WHERE id = %s AND user_id = %s", (playlist_id, user_id))
+            row = cursor.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Playlist not found")
+            
+            try:
+                params = json.loads(row['params'])
+            except:
+                raise HTTPException(status_code=400, detail="Invalid playlist parameters")
+            
+            # 2. Build query for library_tracks
+            # Joining with artists and ML labels to get readable info
+            query = """
+                SELECT t.id, t.title, a.name as artist, 
+                       COALESCE(ml.ml_genre, GROUP_CONCAT(DISTINCT g.name SEPARATOR ', ')) as genre, 
+                       t.created_at
+                FROM library_tracks t
+                LEFT JOIN library_artists a ON t.primary_artist_id = a.id
+                LEFT JOIN library_track_ml_labels ml ON t.track_uid = ml.track_id
+                LEFT JOIN library_track_genres tg ON t.id = tg.track_id
+                LEFT JOIN rules_genres g ON tg.genre_id = g.id
+                WHERE 1=1
+            """
+            args = []
+            
+            if 'genre' in params and params['genre']:
+                genres = params['genre'] if isinstance(params['genre'], list) else [params['genre']]
+                
+                genre_regex_filters = []
+                regex_args = []
+                for g_name in genres:
+                    # Escape for regex: replace special chars
+                    safe_g = g_name.replace('(', '\\(').replace(')', '\\)')
+                    genre_regex_filters.append(f"ml.ml_genre REGEXP %s")
+                    regex_args.append(f"(^|;){safe_g}(;|$)")
+                
+                query += f"""
+                    AND (
+                        {' OR '.join(genre_regex_filters)}
+                        OR t.id IN (
+                            SELECT track_id FROM library_track_genres tg2
+                            JOIN rules_genres g2 ON tg2.genre_id = g2.id
+                            WHERE g2.name IN ({', '.join(['%s'] * len(genres))})
+                        )
+                    )
+                """
+                args.extend(regex_args)
+                args.extend(genres)
+            
+            query += " GROUP BY t.id"
+
+            sort_method = params.get('sortMethod', 'DateDescAndRelease')
+            if sort_method == 'DateDescAndRelease':
+                query += " ORDER BY t.created_at DESC"
+            elif sort_method == 'Random':
+                query += " ORDER BY RAND()"
+            
+            limit = int(params.get('size', 50))
+            query += " LIMIT %s"
+            args.append(limit)
+            
+            cursor.execute(query, args)
+            return cursor.fetchall()
     finally:
         conn.close()
 
@@ -614,6 +840,33 @@ def run_lms_db_sync():
                             ON DUPLICATE KEY UPDATE lb_token = VALUES(lb_token)
                         """, (user_id, username, lb_token))
                 conn.commit()
+                
+                # Get smart playlists from LMS
+                try:
+                    # Check if smart_params column exists
+                    sqlite_cursor.execute("PRAGMA table_info(tracklist)")
+                    columns = [col[1] for col in sqlite_cursor.fetchall()]
+                    
+                    if "smart_params" in columns:
+                        sqlite_cursor.execute("SELECT id, user_id, name, smart_params FROM tracklist WHERE type = 2")
+                        lms_playlists = sqlite_cursor.fetchall()
+                        for lms_id, lms_user_ptr_id, name, smart_params in lms_playlists:
+                            # Find corresponding MuMa user
+                            cursor.execute("SELECT id FROM users WHERE lms_user_id = %s", (str(lms_user_ptr_id),))
+                            user_row = cursor.fetchone()
+                            if user_row:
+                                muma_user_id = user_row['id']
+                                cursor.execute("""
+                                    INSERT INTO dynamic_playlists (user_id, remote_id, source, name, params)
+                                    VALUES (%s, %s, %s, %s, %s)
+                                    ON DUPLICATE KEY UPDATE name = VALUES(name), params = VALUES(params)
+                                """, (muma_user_id, lms_id, 'lms-stable', name, smart_params))
+                    else:
+                        print("LMS DB tracklist table missing smart_params column, skipping smart playlist sync.")
+                    conn.commit()
+                except Exception as e:
+                    print(f"Failed to sync LMS playlists: {e}")
+                    
             print("LMS DB sync completed")
         finally:
             conn.close()

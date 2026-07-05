@@ -127,6 +127,13 @@ The system is split into modular Docker Compose files for better resource manage
 2. **`docker-compose.workers.yml`**: Background workers (Importer, YouTube/SoundCloud/Telegram downloaders, Tagger).
 3. **`docker-compose.tools.yml`**: Utility services (Fetchers, ML Analyzer, Firefox).
 
+### Database Backups
+A SQL dump of the MariaDB database is automatically created during every deployment. Manual backups can be triggered using:
+```bash
+./tools/backup_db.sh
+```
+Backups are stored in `/muma/backups` on the host machine. The script uses `docker exec` to perform the dump within the running database container.
+
 ### Common Commands:
 
 **Start the entire stack:**
@@ -175,8 +182,12 @@ For specific information on each module, please refer to their respective README
 - [ML Analyzer](services/ml-analyzer/README.md)
 - [Rating System](services/rating-system/README.md)
 - [Scrobble Service](services/scrobble-service/README.md)
+- [Ecosystem Architecture](docs/architecture.md)
+- [System Overview](docs/OVERVIEW.md)
 - [Database Schema](docs/database-design.md)
 - [Data Flow](docs/system-data-flow.md)
+- [Style Guide](docs/styleguide.md)
+- [Machine Learning Pipeline](docs/machine-learning.md)
 
 ---
 

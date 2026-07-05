@@ -48,11 +48,11 @@ async def verify_api_key(x_api_key: Optional[str] = Header(None)):
     if not x_api_key:
         if API_KEY:
             raise HTTPException(status_code=401, detail="Missing API key")
-        return
+=        return {"type": "system"}
 
     # 1. Check master key
     if API_KEY and x_api_key == API_KEY:
-        return
+        return {"type": "system"}
 
     # 2. Check via auth service if available
     if AUTH_SERVICE_URL:
@@ -61,9 +61,9 @@ async def verify_api_key(x_api_key: Optional[str] = Header(None)):
             if resp.status_code == 200:
                 data = resp.json()
                 if data.get("type") == "system":
-                    return
+                    return data
                 if data.get("user") and data["user"].get("is_admin"):
-                    return
+                    return data
                 raise HTTPException(status_code=403, detail="Admin access required")
         except HTTPException:
             raise
@@ -73,6 +73,8 @@ async def verify_api_key(x_api_key: Optional[str] = Header(None)):
 
     if API_KEY and x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid API key")
+    
+    return {"type": "system"}
 
 def get_proxy_headers(service_name=None):
     headers = {}
@@ -91,6 +93,36 @@ def get_proxy_headers(service_name=None):
     return headers
 
 app = FastAPI(title="Music Management Control Center")
+
+DEFAULT_PLAYLISTS = [
+    {"name": "Euphoric Hardstyle", "params": '{"genre":["Euphoric Hardstyle"],"size":50,"sortMethod":"DateDescAndRelease","favorite":true,"length":"short"}'},
+    {"name": "Hardstyle", "params": '{"genre":["Hardstyle"],"size":50,"sortMethod":"DateDescAndRelease","favorite":true,"length":"short"}'},
+    {"name": "Mainstream Hardstyle", "params": '{"genre":["Mainstream Hardstyle"],"size":50,"sortMethod":"DateDescAndRelease","favorite":true,"length":"short"}'},
+    {"name": "Raw Hardstyle", "params": '{"genre":["Raw Hardstyle"],"size":50,"sortMethod":"DateDescAndRelease","favorite":true,"length":"short"}'},
+    {"name": "Hardcore", "params": '{"genre":["Hardcore"],"size":50,"sortMethod":"DateDescAndRelease","favorite":true,"length":"short"}'},
+    {"name": "Mainstream Hardcore", "params": '{"genre":["Mainstream Hardcore"],"size":50,"sortMethod":"DateDescAndRelease","favorite":true,"length":"short"}'},
+    {"name": "Uptempo Hardcore", "params": '{"genre":["Uptempo Hardcore"],"size":50,"sortMethod":"DateDescAndRelease","favorite":true,"length":"short"}'},
+    {"name": "Bouncy Uptempo", "params": '{"genre":["Bouncy Uptempo"],"size":50,"sortMethod":"DateDescAndRelease","favorite":true,"length":"short"}'},
+]
+
+@app.on_event("startup")
+async def startup_event():
+    user_service_url = SERVICES.get("user-service")
+    if not user_service_url:
+        print("Startup: user-service not configured, skipping default playlists check.")
+        return
+
+    try:
+        # Check for user 1
+        resp = requests.get(f"{user_service_url}/users/1/dynamic-playlists", headers=get_proxy_headers("user-service"), timeout=5.0)
+        if resp.status_code == 200:
+            existing = resp.json()
+            if not existing:
+                print("Startup: No dynamic playlists found for user 1. Creating defaults...")
+                for p in DEFAULT_PLAYLISTS:
+                    requests.post(f"{user_service_url}/users/1/dynamic-playlists", json=p, headers=get_proxy_headers("user-service"), timeout=5.0)
+    except Exception as e:
+        print(f"Startup: Error checking/creating default playlists: {e}")
 
 try:
     docker_client = docker.from_env()
@@ -162,6 +194,21 @@ class LBAccountUpdate(BaseModel):
     lb_username: str
     lb_token: str
 
+class DynamicPlaylistCreate(BaseModel):
+    name: str
+    params: str
+
+class DynamicPlaylistUpdate(BaseModel):
+    name: Optional[str] = None
+    params: Optional[str] = None
+
+class DynamicPlaylistSync(BaseModel):
+    remote_id: int
+    lms_user_id: Optional[str] = None
+    source: str
+    name: str
+    params: str
+
 class PasswordUpdate(BaseModel):
     password: str
 
@@ -185,6 +232,10 @@ async def proxy_login(req: LoginRequest):
         return resp.json()
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Auth service communication error: {str(e)}")
+
+@app.get("/api/auth/verify")
+async def proxy_verify(auth: dict = Depends(verify_api_key)):
+    return auth
 
 @app.get("/api/config")
 def get_config(_: None = Depends(verify_api_key)):
@@ -559,6 +610,71 @@ def proxy_update_user_password(user_id: int, pwd: PasswordUpdate, _: None = Depe
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
 
+# --- Dynamic Playlists ---
+
+@app.get("/api/users/{user_id}/dynamic-playlists")
+def proxy_get_dynamic_playlists(user_id: int, _: None = Depends(verify_api_key)):
+    base_url = SERVICES["user-service"]
+    try:
+        response = requests.get(f"{base_url}/users/{user_id}/dynamic-playlists", headers=get_proxy_headers("user-service"), timeout=5.0)
+        return response.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
+
+@app.post("/api/users/{user_id}/dynamic-playlists")
+def proxy_create_dynamic_playlist(user_id: int, playlist: DynamicPlaylistCreate, _: None = Depends(verify_api_key)):
+    base_url = SERVICES["user-service"]
+    try:
+        response = requests.post(f"{base_url}/users/{user_id}/dynamic-playlists", json=playlist.dict(), headers=get_proxy_headers("user-service"), timeout=5.0)
+        return response.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
+
+@app.get("/api/users/{user_id}/dynamic-playlists/{playlist_id}/tracks")
+def proxy_get_dynamic_playlist_tracks(user_id: int, playlist_id: int, _: None = Depends(verify_api_key)):
+    base_url = SERVICES["user-service"]
+    try:
+        response = requests.get(f"{base_url}/users/{user_id}/dynamic-playlists/{playlist_id}/tracks", headers=get_proxy_headers("user-service"), timeout=10.0)
+        return response.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
+
+@app.post("/api/users/{user_id}/dynamic-playlists/seed-defaults")
+def seed_default_playlists(user_id: int, _: None = Depends(verify_api_key)):
+    user_service_url = SERVICES["user-service"]
+    results = []
+    for p in DEFAULT_PLAYLISTS:
+        resp = requests.post(f"{user_service_url}/users/{user_id}/dynamic-playlists", json=p, headers=get_proxy_headers("user-service"), timeout=5.0)
+        results.append(resp.status_code)
+    return {"status": "ok", "results": results}
+
+@app.put("/api/users/{user_id}/dynamic-playlists/{playlist_id}")
+def proxy_update_dynamic_playlist(user_id: int, playlist_id: int, playlist: DynamicPlaylistUpdate, _: None = Depends(verify_api_key)):
+    base_url = SERVICES["user-service"]
+    try:
+        response = requests.put(f"{base_url}/users/{user_id}/dynamic-playlists/{playlist_id}", json=playlist.dict(), headers=get_proxy_headers("user-service"), timeout=5.0)
+        return response.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
+
+@app.delete("/api/users/{user_id}/dynamic-playlists/{playlist_id}")
+def proxy_delete_dynamic_playlist(user_id: int, playlist_id: int, _: None = Depends(verify_api_key)):
+    base_url = SERVICES["user-service"]
+    try:
+        response = requests.delete(f"{base_url}/users/{user_id}/dynamic-playlists/{playlist_id}", headers=get_proxy_headers("user-service"), timeout=5.0)
+        return response.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
+
+@app.post("/api/users/{user_id}/dynamic-playlists/sync")
+def proxy_sync_dynamic_playlist(user_id: int, playlist: DynamicPlaylistSync, _: None = Depends(verify_api_key)):
+    base_url = SERVICES["user-service"]
+    try:
+        response = requests.post(f"{base_url}/users/{user_id}/dynamic-playlists/sync", json=playlist.dict(), headers=get_proxy_headers("user-service"), timeout=5.0)
+        return response.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
+
 @app.post("/api/users/sync/lms")
 def proxy_sync_lms_users(_: None = Depends(verify_api_key)):
     base_url = SERVICES["user-service"]
@@ -746,10 +862,12 @@ def health():
     return {"status": "healthy"}
 
 # Serve Frontend
-frontend_path = "/app/services/management-api/frontend/dist"
+base_dir = os.path.dirname(os.path.abspath(__file__))
+frontend_path = os.path.join(base_dir, "frontend/dist")
 if os.path.exists(frontend_path):
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 else:
+    print(f"Warning: Frontend build directory not found at {frontend_path}; static files will not be served.")
     @app.get("/", response_class=HTMLResponse)
     def root_fallback():
         return """

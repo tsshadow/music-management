@@ -14,14 +14,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Global Version 2.1.31 (2026-07-05)
 ### 🛡️ Health & Activity Dashboard
-- **System Monitoring**: Het Control Center heeft nu een speciaal "Health & Activity" tabblad voor een compleet overzicht van het systeem.
-- **Container Health**: Real-time statusoverzicht van alle Docker containers (Running/Stopped).
-- **In-App Logs**: Bekijk direct de laatste 200 regels logs van elke container zonder SSH te gebruiken.
-- **Activity Stream**: Zie direct welke tracks er onlangs zijn toegevoegd door de downloaders of zijn verwerkt door de tagger.
+- **System Monitoring**: The Control Center now has a dedicated "Health & Activity" tab for a complete overview of the system.
+- **Container Health**: Real-time status overview of all Docker containers (Running/Stopped).
+- **In-App Logs**: View the last 200 lines of logs from each container directly without using SSH.
+- **Activity Stream**: Instantly see which tracks have recently been added by the downloaders or processed by the tagger.
 
 ## Global Version 2.1.30 (2026-07-05)
 ### 🔑 LMS Subsonic API Key Integration
-- **Configurable Subsonic Key**: LMS ondersteunt nu de `LMS_SUBSONIC_API_KEY` omgevingsvariabele. Hiermee kan de Subsonic API-sleutel direct worden ingesteld zonder handmatige database-wijzigingen, wat zorgt voor een vlekkeloze verbinding met apps zoals Ultrasonic.
+- **Configurable Subsonic Key**: LMS now supports the `LMS_SUBSONIC_API_KEY` environment variable. This allows the Subsonic API key to be set directly without manual database changes, ensuring a seamless connection with apps like Ultrasonic.
 
 ## Global Version 2.1.29 (2026-07-05)
 ### 🔐 Centralized Auth & Network Hardening

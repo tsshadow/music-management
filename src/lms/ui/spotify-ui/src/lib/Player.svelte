@@ -714,9 +714,20 @@
       }
     };
 
+    const handleGlobalWheel = (e) => {
+      // MX Master 3 thumb wheel sends deltaX. 
+      // We use a threshold to avoid accidental triggers.
+      if (Math.abs(e.deltaX) > 20) {
+        if (e.deltaX > 0) volumeDown();
+        else volumeUp();
+      }
+    };
+
+    window.addEventListener('wheel', handleGlobalWheel, { passive: true });
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDown);
+      window.removeEventListener('wheel', handleGlobalWheel);
     };
   });
 </script>
@@ -931,6 +942,10 @@
         tabindex="0"
         class="w-24 h-1 bg-[#4d4d4d] rounded-sm cursor-pointer"
         onclick={changeVolume}
+        onwheel={(e) => {
+          if (e.deltaY > 0) volumeDown();
+          else volumeUp();
+        }}
         onkeydown={(e) => e.key === 'Enter' && changeVolume(e)}
         aria-label="Volume"
       >

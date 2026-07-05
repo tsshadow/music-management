@@ -60,6 +60,9 @@ class DynamicPlaylistSync(BaseModel):
 class PasswordUpdate(BaseModel):
     password: str
 
+class AppSettingsUpdate(BaseModel):
+    settings: str
+
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -125,6 +128,19 @@ def init_db(cursor):
         cursor.execute("ALTER TABLE dynamic_playlists ADD UNIQUE INDEX uq_source_remote_id (source, remote_id)")
     except Exception:
         pass
+
+    # User App Settings
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_app_settings (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            app_id VARCHAR(50) NOT NULL,
+            settings_json LONGTEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY (user_id, app_id),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
 
 @router.get("/auth/verify")
 def verify_token(x_api_key: str = Header(None)):
@@ -410,6 +426,36 @@ def update_password(user_id: int, req: PasswordUpdate, api_key: str = Depends(ve
         password_hash = bcrypt.hashpw(req.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         with conn.cursor() as cursor:
             cursor.execute("UPDATE users SET password_hash = %s WHERE id = %s", (password_hash, user_id))
+            conn.commit()
+            return {"status": "ok"}
+    finally:
+        conn.close()
+
+@router.get("/{user_id}/settings/{app_id}")
+def get_user_app_settings(user_id: int, app_id: str, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn: raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT settings_json, CAST(updated_at AS CHAR) as updated_at FROM user_app_settings WHERE user_id = %s AND app_id = %s", (user_id, app_id))
+            res = cursor.fetchone()
+            if not res:
+                return {"settings": None}
+            return {"settings": res['settings_json'], "updated_at": res['updated_at']}
+    finally:
+        conn.close()
+
+@router.post("/{user_id}/settings/{app_id}")
+def update_user_app_settings(user_id: int, app_id: str, req: AppSettingsUpdate, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn: raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                INSERT INTO user_app_settings (user_id, app_id, settings_json)
+                VALUES (%s, %s, %s)
+                ON DUPLICATE KEY UPDATE settings_json = VALUES(settings_json)
+            """, (user_id, app_id, req.settings))
             conn.commit()
             return {"status": "ok"}
     finally:

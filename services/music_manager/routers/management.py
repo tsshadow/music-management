@@ -87,6 +87,16 @@ def update_password_proxy(user_id: int, req: Dict[str, Any] = Body(...), auth: d
     from services.music_manager.routers.users import update_password, PasswordUpdate
     return update_password(user_id, PasswordUpdate(**req), API_KEY)
 
+@router.get("/users/{user_id}/settings/{app_id}")
+def get_user_settings_proxy(user_id: int, app_id: str, auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.users import get_user_app_settings
+    return get_user_app_settings(user_id, app_id, API_KEY)
+
+@router.post("/users/{user_id}/settings/{app_id}")
+def update_user_settings_proxy(user_id: int, app_id: str, req: Dict[str, Any] = Body(...), auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.users import update_user_app_settings, AppSettingsUpdate
+    return update_user_app_settings(user_id, app_id, AppSettingsUpdate(**req), API_KEY)
+
 @router.get("/users/{user_id}/dynamic-playlists/{playlist_id}/tracks")
 def get_playlist_tracks_proxy(user_id: int, playlist_id: int, auth: dict = Depends(verify_api_key)):
     from services.music_manager.routers.users import get_playlist_tracks
@@ -163,7 +173,7 @@ def search_labels(q: str = "", auth: dict = Depends(verify_api_key)):
 
 @router.get("/config")
 def get_config(auth: dict = Depends(verify_api_key)):
-    version = "1.0.7"
+    version = "1.0.8"
     try:
         with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "VERSION"), "r") as f:
             version = f.read().strip()

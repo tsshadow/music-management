@@ -370,6 +370,8 @@ services:
     image: ${DOCKER_USER}/muma-rating-system:latest
     container_name: muma-rating-system
     restart: unless-stopped
+    ports:
+      - "8004:8000"
     depends_on:
       - db
     environment:
@@ -383,6 +385,8 @@ services:
     image: ${DOCKER_USER}/${IMAGE_SCROBBLE}:latest
     container_name: muma-scrobble-service
     restart: unless-stopped
+    ports:
+      - "8005:8000"
     depends_on:
       - db
     environment:
@@ -398,6 +402,8 @@ services:
     restart: unless-stopped
     depends_on:
       - db
+    ports:
+      - "8006:8001"
     environment:
       <<: [*environment-db]
       API_KEY: ${USER_API_KEY}

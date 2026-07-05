@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.79.0] - 2026-07-05
+
+### Added
+- **Subsonic API**: Added `createDynamicPlaylist` and `updateDynamicPlaylist` endpoints for server-side dynamic playlists.
+- **Subsonic API**: Implemented automatic resolution of dynamic playlists (smart params) to track IDs in all Subsonic responses.
+- **Database**: Migrated to version 114 with `smart_params` support in `tracklist` table.
+- **Feedback Service**: Integrated real-time synchronization of playlist changes with Music Management (Muma Control).
+
 ## [3.78.12] - 2026-07-05
 
 ## [3.78.11] - 2026-07-05

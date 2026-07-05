@@ -868,11 +868,79 @@ def run_lms_db_sync():
                     print(f"Failed to sync LMS playlists: {e}")
                     
             print("LMS DB sync completed")
+            
+            # Now sync artist images back to LMS
+            sync_artist_images_to_lms(conn, sqlite_conn)
+            
         finally:
             conn.close()
             sqlite_conn.close()
     except Exception as e:
         print(f"LMS DB sync failed: {e}")
+
+def sync_artist_images_to_lms(muma_conn, lms_conn):
+    """
+    Syncs primary artist images from MuMa MariaDB to LMS SQLite DB.
+    """
+    print("Syncing artist images to LMS...")
+    try:
+        muma_cursor = muma_conn.cursor()
+        lms_cursor = lms_conn.cursor()
+        
+        # 1. Get all primary artist images from MuMa
+        muma_cursor.execute("""
+            SELECT a.name as artist_name, i.cached_path, i.width, i.height, i.mime_type, i.file_size
+            FROM library_artists a
+            JOIN library_artist_images i ON a.primary_image_id = i.id
+            WHERE i.cached_path IS NOT NULL
+        """)
+        images = muma_cursor.fetchall()
+        
+        for img in images:
+            artist_name = img['artist_name']
+            abs_path = img['cached_path']
+            
+            # 2. Find artist in LMS
+            lms_cursor.execute("SELECT id FROM artist WHERE name = ?", (artist_name,))
+            artist_row = lms_cursor.fetchone()
+            if not artist_row:
+                continue
+            
+            artist_id = artist_row[0]
+            
+            # 3. Ensure Image exists in LMS
+            lms_cursor.execute("SELECT id FROM image WHERE absolute_file_path = ?", (abs_path,))
+            image_row = lms_cursor.fetchone()
+            
+            image_id = None
+            if image_row:
+                image_id = image_row[0]
+            else:
+                stem = os.path.splitext(os.path.basename(abs_path))[0]
+                lms_cursor.execute("""
+                    INSERT INTO image (absolute_file_path, stem, file_size, width, height, mime_type)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (abs_path, stem, img['file_size'], img['width'], img['height'], img['mime_type']))
+                image_id = lms_cursor.lastrowid
+            
+            # 4. Ensure Artwork exists in LMS
+            lms_cursor.execute("SELECT id FROM artwork WHERE image_id = ?", (image_id,))
+            artwork_row = lms_cursor.fetchone()
+            
+            artwork_id = None
+            if artwork_row:
+                artwork_id = artwork_row[0]
+            else:
+                lms_cursor.execute("INSERT INTO artwork (image_id) VALUES (?)", (image_id,))
+                artwork_id = lms_cursor.lastrowid
+            
+            # 5. Link Artwork to Artist in LMS
+            lms_cursor.execute("UPDATE artist SET preferred_artwork_id = ? WHERE id = ?", (artwork_id, artist_id))
+            
+        lms_conn.commit()
+        print(f"Synced {len(images)} artist images to LMS")
+    except Exception as e:
+        print(f"Failed to sync artist images to LMS: {e}")
 
 if __name__ == "__main__":
     import uvicorn

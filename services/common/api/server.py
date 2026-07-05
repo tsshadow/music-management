@@ -357,7 +357,7 @@ async def jobs_ws(ws: WebSocket):
     finally:
         clients.discard(ws)
 frontend_dir = Path('frontend/dist')
-if frontend_dir.exists():
-    app.mount('/', StaticFiles(directory=str(frontend_dir), html=True), name='frontend')
-else:
-    logging.warning('Frontend build directory not found; static files will not be served.')
+# if frontend_dir.exists():
+#     app.mount('/', StaticFiles(directory=str(frontend_dir), html=True), name='frontend')
+# else:
+#     logging.warning('Frontend build directory not found; static files will not be served.')

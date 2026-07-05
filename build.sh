@@ -190,7 +190,7 @@ else
             ml) build_ml & ;;
             tools) build_tools & ;;
             app) build_app & ;;
-            manager) build_manager & ;;
+            manager|music-manager) build_manager & ;;
             scanner) build_scanner & ;;
             tagger) build_tagger & ;;
             downloader) build_downloader & ;;

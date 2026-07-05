@@ -1,10 +1,11 @@
 <script>
   import { onMount } from 'svelte';
-  import { credentials } from './store.js';
+  import { credentials, authParams } from './store.js';
 
   const { onNavigate } = $props();
 
   let isOpen = $state(false);
+  let isAdmin = $state(false);
   const displayUsername = $derived($credentials.username || 'Gebruiker');
 
   /**
@@ -54,6 +55,20 @@
 
   onMount(() => {
     window.addEventListener('click', handleClickOutside);
+
+    // Check if user is admin to show MuMa Control
+    const checkAdmin = async () => {
+      if (!$authParams) return;
+      try {
+        const resp = await fetch(`/rest/getUser?${$authParams}&username=${encodeURIComponent($credentials.username)}`);
+        const data = await resp.json();
+        isAdmin = data['subsonic-response']?.user?.adminRole === true;
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    checkAdmin();
+
     return () => window.removeEventListener('click', handleClickOutside);
   });
 </script>
@@ -96,6 +111,19 @@
           <path d="M13 3L16.29 6.29L13.6 8.99L15.01 10.4L17.71 7.71L21 11V3H13M3 21H11V13H3V21M5 15H9V19H5V15M3 11H11V3H3V11M5 5H9V9H5V5M13 21H21V13H13V21M15 15H19V19H15V15Z"/>
         </svg>
       </a>
+      {#if isAdmin}
+        <a
+          href="https://muma.example.com"
+          target="_blank"
+          class="w-full text-left px-4 py-3 text-sm hover:bg-[#3e3e3e] transition-colors border-none bg-transparent text-white cursor-pointer flex justify-between items-center no-underline"
+          onclick={() => isOpen = false}
+        >
+          MuMa Control
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+            <path d="M14 14V11H12V14C12 14.55 11.55 15 11 15H2C1.45 15 1 14.55 1 14V5C1 4.45 1.45 4 2 4H5V6H3V13H10V8H12V14C12 14.55 11.55 15 11 15ZM9 3V1H15V7H13V4.41L6.71 10.71L5.29 9.29L11.59 3H9Z"/>
+          </svg>
+        </a>
+      {/if}
       <div class="h-[1px] bg-[#3e3e3e] mx-1 my-1"></div>
       <button
         class="w-full text-left px-4 py-3 text-sm hover:bg-[#3e3e3e] transition-colors border-none bg-transparent text-white cursor-pointer"

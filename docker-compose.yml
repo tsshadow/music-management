@@ -429,6 +429,21 @@ services:
     networks:
       - music-management_db
 
+  artist-image-fetcher:
+    image: ${DOCKER_USER}/muma-artist-image-fetcher:latest
+    container_name: muma-artist-image-fetcher
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      <<: [*environment-db]
+      STORAGE_PATH: /music/artists
+      PYTHONPATH: /app
+    volumes:
+      - ${HOST_MUSIC_PATH}:/music
+    networks:
+      - music-management_db
+
   firefox:
     image: jlesage/firefox:latest
     container_name: muma-firefox

@@ -1,0 +1,12 @@
+[
+  {
+    "artist_id": 123456,
+    "name": "Daft Punk",
+    "image": "/media/artist-images/123456/generated-adbcd93ce4af9d55aeb123edd520fcb5.jpg",
+    "primary_jpg": "/media/artist-images/123456/primary.jpg",
+    "thumb_160": "/media/artist-images/123456/thumb_160.jpg",
+    "source": "generated",
+    "confidence": 10,
+    "updated_at": "2026-07-05T13:22:59.533121"
+  }
+]

@@ -29,13 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.31] - 2026-07-05
 ### Added
-- **Health & Activity Dashboard**: Nieuw tabblad in het Control Center voor real-time monitoring van Docker containers.
-- **Docker Logs Viewer**: Bekijk de logs van alle Muma-gerelateerde containers direct vanuit de UI.
-- **Recent Activity**: Overzicht van onlangs toegevoegde en getagde nummers, gecategoriseerd per bron (YouTube, SoundCloud, etc.).
+- **Health & Activity Dashboard**: New tab in the Control Center for real-time monitoring of Docker containers.
+- **Docker Logs Viewer**: View the logs of all Muma-related containers directly from the UI.
+- **Recent Activity**: Overview of recently added and tagged tracks, categorized by source (YouTube, SoundCloud, etc.).
 
 ## [2.1.30] - 2026-07-05
 ### Added
-- **LMS Subsonic API Key**: De Subsonic API-sleutel in LMS kan nu worden geconfigureerd via de omgevingsvariabele `LMS_SUBSONIC_API_KEY`, wat de integratie met externe apps vergemakkelijkt.
+- **LMS Subsonic API Key**: The Subsonic API key in LMS can now be configured via the environment variable `LMS_SUBSONIC_API_KEY`, facilitating integration with external apps.
 
 ## [2.1.29] - 2026-07-05
 ### Added
@@ -48,29 +48,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.28] - 2026-07-04
 ### Fixed
-- **Infrastructuur**: `LMS_SUBSONIC_API_KEY` toegevoegd aan de hoofd `docker-compose.yml` voor correcte propagatie naar de User Service.
+- **Infrastructure**: Added `LMS_SUBSONIC_API_KEY` to the main `docker-compose.yml` for correct propagation to the User Service.
 
 ## [2.1.27] - 2026-07-04
 ### Fixed
-- **LMS Sync**: Mismatch in API-sleutels opgelost. Gebruikt nu een specifieke `LMS_SUBSONIC_API_KEY` voor LMS, terwijl de muma-services hun eigen sleutel behouden.
-- **Service Stability**: Verbeterde foutafhandeling in de User Service voor LMS sync-responses.
+- **LMS Sync**: Resolved mismatch in API keys. Now uses a specific `LMS_SUBSONIC_API_KEY` for LMS, while the Muma services retain their own key.
+- **Service Stability**: Improved error handling in the User Service for LMS sync responses.
 
 ## [2.1.26] - 2026-07-04
 ### Fixed
-- **LMS Sync**: Authenticatieprobleem met de LMS Subsonic API opgelost door de `apiKey` parameter expliciet toe te voegen aan de sync-URL.
+- **LMS Sync**: Resolved authentication issue with the LMS Subsonic API by explicitly adding the `apiKey` parameter to the sync URL.
 
 ## [2.1.25] - 2026-07-04
 ### Fixed
-- **API Security**: Inconsistenties in API-sleutels tussen microservices en het Control Center opgelost in Docker Compose configuraties.
-- **LMS Sync**: Bevestigd dat de `user-service` de juiste `X-API-Key` meestuurt naar LMS tijdens de gebruikerssynchronisatie.
+- **API Security**: Resolved inconsistencies in API keys between microservices and the Control Center in Docker Compose configurations.
+- **LMS Sync**: Confirmed that the `user-service` sends the correct `X-API-Key` to LMS during user synchronization.
 
 ## [2.1.24] - 2026-07-04
 ### Added
-- **YouTube Management**: YouTube-accounts kunnen nu worden beheerd via het Control Center.
-- **Cookie Support**: Ondersteuning toegevoegd voor Firefox-cookies uit een gedeeld Docker-volume voor zowel YouTube als SoundCloud downloaders.
+- **YouTube Management**: YouTube accounts can now be managed via the Control Center.
+- **Cookie Support**: Added support for Firefox cookies from a shared Docker volume for both YouTube and SoundCloud downloaders.
 
 ### Fixed
-- **UI Consistency**: SoundCloud en YouTube beheerpagina's zijn nu consistent en ondersteunen verwijderen van accounts.
+- **UI Consistency**: SoundCloud and YouTube management pages are now consistent and support removing accounts.
 
 ## [2.1.23] - 2026-07-04
 ### Fixed
@@ -79,35 +79,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.22] - 2026-07-04
 ### Added
-- **API Security**: Systeem-brede API-key validatie (`X-API-Key`) geïmplementeerd voor alle microservices.
-- **Control Center**: Mogelijkheid toegevoegd om de API-sleutel in te stellen en op te slaan in het dashboard.
-- **User Service**: `user-service` toegevoegd aan de `full` docker-compose configuratie.
+- **API Security**: Implemented system-wide API key validation (`X-API-Key`) for all microservices.
+- **Control Center**: Added ability to set and save the API key in the dashboard.
+- **User Service**: Added `user-service` to the `full` Docker Compose configuration.
 
 ### Fixed
-- **API Consistency**: De `API_KEY` is nu gesynchroniseerd over alle services (`management-api`, `user-service`, `scrobble-service`, `rating-system`).
-- **LMS Configuration**: De standaard LMS host gecorrigeerd naar `lms.teunschriks.nl`.
+- **API Consistency**: The `API_KEY` is now synchronized across all services (`management-api`, `user-service`, `scrobble-service`, `rating-system`).
+- **LMS Configuration**: Corrected default LMS host to `lms.teunschriks.nl`.
 
 ## [2.1.20] - 2026-07-04
 ### Fixed
-- **LMS Configuration**: De standaard LMS host gecorrigeerd naar `lms.teunschriks.nl` en CORS origins bijgewerkt naar de juiste productie-IP (192.168.1.27).
+- **LMS Configuration**: Corrected default LMS host to `lms.teunschriks.nl` and updated CORS origins to the correct production IP (192.168.1.27).
 
 ## [2.1.19] - 2026-07-04
 ### Added
-- **User Password Management**: Wachtwoorden instellen via Control Center met automatische synchronisatie naar LMS.
-- **Security**: Bcrypt hashing geïmplementeerd voor veilige opslag van gebruikerswachtwoorden.
+- **User Password Management**: Set passwords via Control Center with automatic synchronization to LMS.
+- **Security**: Implemented Bcrypt hashing for secure storage of user passwords.
 
 ## [2.1.18] - 2026-07-04
 ### Added
-- **User Migration**: Geïmporteerd van gebruikers uit `lms.db` naar de User Service.
-- **LMS Integration**: Ondersteuning toegevoegd voor directe SQLite database synchronisatie vanuit LMS.
-- **UI Enhancements**: Nieuwe synchronisatie-opties toegevoegd aan het Users dashboard.
+- **User Migration**: Imported users from `lms.db` to the User Service.
+- **LMS Integration**: Added support for direct SQLite database synchronization from LMS.
+- **UI Enhancements**: Added new synchronization options to the Users dashboard.
 
 ## [2.1.17] - 2026-07-04
 ### Added
-- **User Service**: Nieuwe microservice voor centraal gebruikersbeheer en externe account koppelingen (ListenBrainz).
-- **Control Center**: Nieuw "Users" dashboard voor het beheren van gebruikers en hun API keys.
-- **LMS Sync**: Mogelijkheid om gebruikers/spelers direct vanuit Logitech Media Server te synchroniseren.
-- **Scrobble Integration**: Geïntegreerde ListenBrainz imports gebaseerd op opgeslagen gebruikersprofielen.
+- **User Service**: New microservice for centralized user management and external account links (ListenBrainz).
+- **Control Center**: New "Users" dashboard for managing users and their API keys.
+- **LMS Sync**: Ability to synchronize users/players directly from Logitech Media Server.
+- **Scrobble Integration**: Integrated ListenBrainz imports based on saved user profiles.
 
 ## [2.1.16] - 2026-07-04
 ### Fixed
@@ -138,7 +138,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.1.12] - 2026-07-04
 ### Added
 - **Debug Support**: Added `--debug` flag to `build.sh` and `publish.sh` for detailed execution logging.
-- **Design System**: Created `styleguide.md` to formalize the Spotify-inspired dark theme (Groen/Zwart/Grijs).
+- **Design System**: Created `styleguide.md` to formalize the Spotify-inspired dark theme (Green/Black/Gray).
 - **UI Refinement**: Standardized all UI accent colors to Spotify Green (`#1DB954`) and improved focus/selection states.
 
 ## [2.1.11] - 2026-07-04

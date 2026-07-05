@@ -150,6 +150,7 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
         fi
         
         echo \"Updating stack '$STACK_NAME'...\"
+        
         \$DOCKER_CMD pull
         
         if [ -n \"$SERVICE_NAME\" ] && \$DOCKER_CMD config --services | grep -q \"^$SERVICE_NAME\$\"; then

@@ -30,6 +30,39 @@ if ! docker info | grep -q "Username:"; then
     fi
 fi
 
+# Load environment variables
+if [ -f .env ]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Strip trailing comments and whitespace
+        clean_line=$(echo "$line" | sed 's/[[:space:]]*#.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        if [[ -n "$clean_line" && ! "$clean_line" =~ ^# ]]; then
+            export "$clean_line"
+        fi
+    done < .env
+fi
+
+# Helper function to run SSH command
+run_ssh() {
+    local host="$1"
+    local user="$2"
+    local pass="$3"
+    local cmd="$4"
+    
+    if [ -z "$host" ] || [ -z "$user" ]; then
+        return 1
+    fi
+
+    if [ -z "$pass" ]; then
+        ssh -o StrictHostKeyChecking=no "${user}@${host}" "${cmd}"
+    elif command -v sshpass >/dev/null 2>&1; then
+        sshpass -p "${pass}" ssh -o StrictHostKeyChecking=no "${user}@${host}" "${cmd}"
+    else
+        echo "Error: sshpass not found. Install it or unset password variable."
+        exit 1
+    fi
+}
+
+
 echo "--- Starting push of containers ---"
 
 DEBUG_MODE=false
@@ -55,14 +88,21 @@ if [ "$DEBUG_MODE" = true ]; then
     set -x
 fi
 
-if [ -f .env ]; then
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        # Strip trailing comments and whitespace
-        clean_line=$(echo "$line" | sed 's/[[:space:]]*#.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        if [[ -n "$clean_line" && ! "$clean_line" =~ ^# ]]; then
-            export "$clean_line"
+# Create pre-deployment database backup (Release only)
+if [ "$DEBUG_MODE" = false ] && [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
+    echo "--- Creating pre-deployment database backup on ${REMOTE_HOST} ---"
+    BACKUP_CMD="
+        if docker ps --format '{{.Names}}' | grep -q 'music-management-db-1'; then
+            mkdir -p /muma/backups
+            BACKUP_FILE=\"/muma/backups/muma_backup_\$(date +%Y%m%d_%H%M%S).sql\"
+            docker exec music-management-db-1 /usr/bin/mysqldump --single-transaction --quick -u root --password=\"$MYSQL_ROOT_PASSWORD\" \"$DB_DB\" > \"\$BACKUP_FILE\"
+            gzip \"\$BACKUP_FILE\"
+            echo \"Backup saved to \${BACKUP_FILE}.gz\"
+        else
+            echo \"Warning: music-management-db-1 container not found, skipping backup.\"
         fi
-    done < .env
+    "
+    run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "$BACKUP_CMD" || echo "Warning: Remote backup failed."
 fi
 
 # Configuration

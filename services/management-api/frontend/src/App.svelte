@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Home, Cloud, Scale, Database, Info, ExternalLink, Plus, RefreshCw, Music, Tag, Trash2, Search, Radio, Users, Key, Youtube, Activity, ShieldCheck, Terminal, Clock } from 'lucide-svelte';
+  import { Home, Cloud, Scale, Database, Info, ExternalLink, Plus, RefreshCw, Music, Tag, Trash2, Search, Radio, Users, Key, Youtube, Activity, ShieldCheck, Terminal, Clock, List, LayoutTemplate } from 'lucide-svelte';
 
   let activeTab = 'home';
   let config = { version: '...', phpmyadmin_url: '#' };
@@ -21,6 +21,14 @@
   let labelGenreRules = [];
   let latestImports = [];
   let users = [];
+  let playlists = [];
+  let isPlaylistModalOpen = false;
+  let isPlaylistTracksModalOpen = false;
+  let playlistTracks = [];
+  let viewingPlaylist = null;
+  let editingPlaylist = null;
+  let playlistName = '';
+  let playlistParams = '';
   let containers = [];
   let systemLogs = '';
   let activity = { recent_added: [], recent_tagged: [] };
@@ -37,6 +45,7 @@
   };
   let selectedContainer = '';
   let selectedUser = null;
+  let currentUser = null;
   let userLBAccount = null;
   let loading = true;
   let message = '';
@@ -69,10 +78,36 @@
 
   const API_BASE = import.meta.env.DEV ? 'http://localhost:8003' : '';
 
-  onMount(() => {
+  onMount(async () => {
     apiKey = localStorage.getItem('muma_api_key') || '';
     if (apiKey) {
-      fetchData();
+      try {
+        const res = await fetch(`${API_BASE}/api/config`, { 
+          headers: { 'X-API-Key': apiKey }
+        });
+        if (res.status === 401 || res.status === 403) {
+          logout();
+          loading = false;
+          return;
+        }
+        
+        // Try to get user info
+        const authRes = await fetch(`${API_BASE}/api/auth/verify`, {
+          headers: { 'X-API-Key': apiKey }
+        });
+        if (authRes.ok) {
+          const authData = await authRes.json();
+          if (authData.type === 'user') {
+            currentUser = authData.user;
+            if (!selectedUser) selectedUser = currentUser;
+          }
+        }
+        
+        fetchData();
+      } catch (e) {
+        console.error("Auth check failed:", e);
+        loading = false;
+      }
     } else {
       loading = false;
     }
@@ -92,6 +127,8 @@
         const data = await res.json();
         apiKey = data.api_key;
         localStorage.setItem('muma_api_key', apiKey);
+        currentUser = { id: data.id, username: data.username, display_name: data.display_name };
+        if (!selectedUser) selectedUser = currentUser;
         isLoggedIn = true;
         fetchData();
       } else {
@@ -420,6 +457,122 @@
     }
   }
 
+  
+  async function fetchPlaylists() {
+    if (!selectedUser) {
+      playlists = [];
+      return;
+    }
+    const user_id = selectedUser.id;
+    loading = true;
+    try {
+      const response = await fetch(`/api/users/${user_id}/dynamic-playlists`, {
+        headers: { 'X-API-Key': localStorage.getItem('muma_api_key') }
+      });
+      playlists = await response.json();
+    } catch (e) {
+      error = 'Failed to fetch playlists';
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function fetchPlaylistTracks(playlist) {
+    viewingPlaylist = playlist;
+    playlistTracks = [];
+    isPlaylistTracksModalOpen = true;
+    if (!selectedUser) return;
+    const user_id = selectedUser.id;
+    try {
+      const response = await fetch(`/api/users/${user_id}/dynamic-playlists/${playlist.id}/tracks`, {
+        headers: { 'X-API-Key': localStorage.getItem('muma_api_key') }
+      });
+      playlistTracks = await response.json();
+    } catch (e) {
+      console.error('Error fetching playlist tracks:', e);
+    }
+  }
+
+  async function savePlaylist() {
+    if (!selectedUser) {
+      error = 'Geen gebruiker geselecteerd';
+      return;
+    }
+    const user_id = selectedUser.id;
+    const method = editingPlaylist ? 'PUT' : 'POST';
+    const url = editingPlaylist 
+      ? `/api/users/${user_id}/dynamic-playlists/${editingPlaylist.id}`
+      : `/api/users/${user_id}/dynamic-playlists`;
+    
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-API-Key': localStorage.getItem('muma_api_key')
+        },
+        body: JSON.stringify({
+          name: playlistName,
+          params: playlistParams
+        })
+      });
+      
+      if (response.ok) {
+        message = editingPlaylist ? 'Playlist bijgewerkt' : 'Playlist opgeslagen';
+        isPlaylistModalOpen = false;
+        fetchPlaylists();
+      } else {
+        const data = await response.json();
+        error = data.detail || 'Fout bij opslaan playlist';
+      }
+    } catch (e) {
+      error = 'Netwerkfout bij opslaan playlist';
+    }
+  }
+
+  function openPlaylistEditor(playlist = null) {
+    editingPlaylist = playlist;
+    if (playlist) {
+      playlistName = playlist.name;
+      playlistParams = playlist.params;
+    } else {
+      playlistName = '';
+      playlistParams = '';
+    }
+    isPlaylistModalOpen = true;
+  }
+
+  async function deletePlaylist(id) {
+    if (!confirm('Weet je zeker dat je deze playlist wilt verwijderen?')) return;
+    
+    if (!selectedUser) return;
+    const user_id = selectedUser.id;
+    try {
+      const response = await fetch(`/api/users/${user_id}/dynamic-playlists/${id}`, {
+        method: 'DELETE',
+        headers: { 'X-API-Key': localStorage.getItem('muma_api_key') }
+      });
+      
+      if (response.ok) {
+        message = 'Playlist verwijderd';
+        fetchPlaylists();
+      } else {
+        error = 'Fout bij verwijderen playlist';
+      }
+    } catch (e) {
+      error = 'Netwerkfout bij verwijderen playlist';
+    }
+  }
+
+  function formatParams(paramsStr) {
+    try {
+      const p = JSON.parse(paramsStr);
+      return Object.entries(p).map(([k, v]) => `<${k}=${v}>`).join(' ');
+    } catch (e) {
+      return paramsStr;
+    }
+  }
+
   async function fetchUsers() {
     try {
       const res = await fetch(`${API_BASE}/api/users`, { headers: getHeaders() });
@@ -724,6 +877,12 @@
         class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'versions' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
       >
         <Info size={24} /> System Versions
+      </button>
+      <button 
+        on:click={() => { activeTab = 'playlists'; fetchPlaylists(); }}
+        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'playlists' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+      >
+        <List size={24} /> Dynamic Playlists
       </button>
       <button 
         on:click={() => { activeTab = 'health'; refreshSystemStatus(); }}
@@ -1582,6 +1741,113 @@
             </div>
           </div>
         </section>
+            {:else if activeTab === 'playlists'}
+        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+          <header class="flex justify-between items-end">
+            <div>
+              <h2 class="text-4xl font-extrabold mb-2">🎵 Dynamic Playlists</h2>
+              <div class="flex items-center gap-4">
+                <p class="text-spotify-lightgray">Beheer de tiles en slimme afspeellijsten voor</p>
+                <select 
+                  bind:value={selectedUser} 
+                  on:change={() => {
+                    if (selectedUser) {
+                      selectUser(selectedUser);
+                      fetchPlaylists();
+                    }
+                  }}
+                  class="bg-spotify-dark border border-spotify-gray rounded-full px-4 py-1 text-white text-sm focus:outline-none focus:border-spotify-green transition-colors"
+                >
+                  <option value={null}>Selecteer gebruiker...</option>
+                  {#each users as user}
+                    <option value={user}>{user.username}</option>
+                  {/each}
+                </select>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <button 
+                on:click={() => {
+                  if (!selectedUser) {
+                    alert('Selecteer eerst een gebruiker');
+                    return;
+                  }
+                  if(confirm('Weet je zeker dat je de standaard playlists wilt herstellen voor deze gebruiker?')) {
+                    fetch('/api/users/' + selectedUser.id + '/dynamic-playlists/seed-defaults', {
+                      method: 'POST',
+                      headers: { 'X-API-Key': localStorage.getItem('muma_api_key') }
+                    }).then(() => fetchPlaylists());
+                  }
+                }}
+                class="bg-spotify-gray text-white font-bold px-6 py-3 rounded-full hover:bg-spotify-lightgray transition-colors flex items-center gap-2"
+              >
+                <LayoutTemplate size={20} /> DEFAULTS
+              </button>
+              <button 
+                on:click={() => openPlaylistEditor()}
+                class="bg-spotify-green text-black font-extrabold px-8 py-3 rounded-full hover:scale-105 transition-transform flex items-center gap-2"
+              >
+                <Plus size={20} /> NIEUWE PLAYLIST
+              </button>
+            </div>
+          </header>
+
+          <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+            <table class="w-full text-left">
+              <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
+                <tr>
+                  <th class="p-4">Naam</th>
+                  <th class="p-4">Identifiers</th>
+                  <th class="p-4 text-right">Acties</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+                {#each playlists as playlist}
+                  <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
+                    <td class="p-4 font-bold text-white">
+                      {playlist.name}
+                    </td>
+                    <td class="p-4 text-spotify-lightgray font-mono text-sm">
+                      {formatParams(playlist.params)}
+                    </td>
+                    <td class="p-4 text-right">
+                      <div class="flex items-center justify-end gap-2">
+                        <button 
+                          on:click={() => fetchPlaylistTracks(playlist)}
+                          class="p-2 text-spotify-lightgray hover:text-spotify-green transition-colors"
+                          title="Tracks bekijken"
+                        >
+                          <List size={18} />
+                        </button>
+                        <button 
+                          on:click={() => openPlaylistEditor(playlist)}
+                          class="p-2 text-spotify-lightgray hover:text-white transition-colors"
+                          title="Bewerken"
+                        >
+                          <Music size={18} />
+                        </button>
+                        <button 
+                          on:click={() => deletePlaylist(playlist.id)}
+                          class="p-2 text-spotify-lightgray hover:text-red-500 transition-colors"
+                          title="Verwijderen"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                {/each}
+                {#if playlists.length === 0}
+                  <tr>
+                    <td colspan="3" class="p-8 text-center text-spotify-lightgray italic">
+                      Geen dynamic playlists gevonden.
+                    </td>
+                  </tr>
+                {/if}
+              </tbody>
+            </table>
+          </div>
+        </section>
       {:else if activeTab === 'health'}
         <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
           <header class="flex justify-between items-end">
@@ -1816,6 +2082,106 @@
       {/if}
     {/if}
   </main>
+
+  <!-- Playlist Editor Modal -->
+  {#if isPlaylistModalOpen}
+    <div class="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-spotify-gray w-full max-w-2xl rounded-2xl border border-white border-opacity-10 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <header class="p-6 border-b border-white border-opacity-5 flex justify-between items-center">
+          <h3 class="text-2xl font-bold">{editingPlaylist ? 'Afspeellijst Bewerken' : 'Nieuwe Dynamic Playlist'}</h3>
+          <button on:click={() => isPlaylistModalOpen = false} class="text-spotify-lightgray hover:text-white text-3xl">&times;</button>
+        </header>
+        <div class="p-6 space-y-6">
+          <div>
+            <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Naam</label>
+            <input 
+              type="text" 
+              bind:value={playlistName}
+              placeholder="Bijv: Euphoric Hardstyle"
+              class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Parameters (JSON)</label>
+            <textarea 
+              bind:value={playlistParams}
+              rows="8"
+              placeholder={ '{"genre":["Hardstyle"], "size":50}' }
+              class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 font-mono text-sm focus:outline-none focus:border-spotify-green transition-colors"
+            ></textarea>
+          </div>
+        </div>
+        <footer class="p-6 bg-black bg-opacity-20 flex justify-end gap-4">
+          <button 
+            on:click={() => isPlaylistModalOpen = false}
+            class="px-6 py-2 text-white font-bold hover:underline"
+          >
+            ANNULEREN
+          </button>
+          <button 
+            on:click={savePlaylist}
+            class="bg-spotify-green text-black font-extrabold px-8 py-2 rounded-full hover:scale-105 transition-transform"
+          >
+            OPSLAAN
+          </button>
+        </footer>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Playlist Tracks Modal -->
+  {#if isPlaylistTracksModalOpen}
+    <div class="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-spotify-gray w-full max-w-4xl h-[80vh] rounded-2xl border border-white border-opacity-10 shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+        <header class="p-6 border-b border-white border-opacity-5 flex justify-between items-center">
+          <div>
+            <h3 class="text-2xl font-bold">Tracks in {viewingPlaylist?.name}</h3>
+            <p class="text-spotify-lightgray text-sm">Preview van tracks gebaseerd op de dynamic rules.</p>
+          </div>
+          <button on:click={() => isPlaylistTracksModalOpen = false} class="text-spotify-lightgray hover:text-white text-3xl">&times;</button>
+        </header>
+        <div class="flex-1 overflow-y-auto">
+          <table class="w-full text-left">
+            <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray sticky top-0">
+              <tr>
+                <th class="p-4">Titel</th>
+                <th class="p-4">Artiest</th>
+                <th class="p-4">Genre</th>
+                <th class="p-4 text-right">Datum</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+              {#each playlistTracks as track}
+                <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
+                  <td class="p-4 font-bold">{track.title}</td>
+                  <td class="p-4 text-spotify-lightgray">{track.artist}</td>
+                  <td class="p-4 italic text-sm">{track.genre || '-'}</td>
+                  <td class="p-4 text-right text-spotify-lightgray text-xs">
+                    {new Date(track.created_at).toLocaleDateString()}
+                  </td>
+                </tr>
+              {/each}
+              {#if playlistTracks.length === 0}
+                <tr>
+                  <td colspan="4" class="p-20 text-center text-spotify-lightgray italic">
+                    Geen tracks gevonden die voldoen aan deze criteria.
+                  </td>
+                </tr>
+              {/if}
+            </tbody>
+          </table>
+        </div>
+        <footer class="p-6 bg-black bg-opacity-20 flex justify-end">
+          <button 
+            on:click={() => isPlaylistTracksModalOpen = false}
+            class="bg-spotify-green text-black font-extrabold px-8 py-2 rounded-full hover:scale-105 transition-transform"
+          >
+            SLUITEN
+          </button>
+        </footer>
+      </div>
+    </div>
+  {/if}
 </div>
 {/if}
 

@@ -18,7 +18,7 @@ OpenSubsonic is an initiative to patch and extend the legacy Subsonic API. You'l
 ## MuMa Extensions
 This fork implements **extended custom OpenSubsonic implementations**, primarily under the `spotify/` namespace, which are **deeply coupled with a custom Ultrasonic client**. These extensions power features like:
 *   Smart track deduplication and quality scoring.
-*   Dynamic playlist retrieval via `getSpotifyCuratedPlaylists`.
+*   Curated playlist retrieval via `getSpotifyCuratedPlaylists`.
 *   User listening history and scrobble synchronization.
 *   Festival lineup browsing and advanced cluster filtering.
 

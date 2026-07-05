@@ -46,7 +46,7 @@ namespace lms::api::subsonic
     {
         void checkTrackListModificationAccess(const db::TrackList::pointer& trackList, const db::UserId currentUserId)
         {
-            if (!trackList || (trackList->getType() != TrackListType::PlayList && trackList->getType() != TrackListType::SmartPlaylist))
+            if (!trackList || trackList->getType() != TrackListType::PlayList)
                 throw RequestedDataNotFoundError{};
 
             // Can only modify own playlists
@@ -59,78 +59,6 @@ namespace lms::api::subsonic
             }
         }
 
-        void resolveSmartPlaylist(RequestContext& context, const db::TrackList::pointer& trackList, std::vector<db::Track::pointer>& results)
-        {
-            if (trackList->getType() != TrackListType::SmartPlaylist || trackList->getSmartParams().empty())
-                return;
-
-            Wt::Json::Object root;
-            Wt::Json::ParseError error;
-            if (!Wt::Json::parse(std::string{ trackList->getSmartParams() }, root, error))
-                return;
-
-            Track::FindParameters params;
-            
-            // Limit
-            params.range = Range{ 0, static_cast<std::size_t>(root.get("size").toNumber().orIfNull(50.0)) };
-
-            // Sort Method
-            if (auto sortMethod = root.get("sortMethod").toString(); !sortMethod.isNull())
-                params.sortMethod = stringToSortMethod(sortMethod.orIfNull(""));
-
-            // Genre
-            if (const auto& genreVal = root.get("genre"); !genreVal.isNull())
-            {
-                std::vector<std::string> genres;
-                if (genreVal.type() == Wt::Json::Type::Array)
-                {
-                    for (const auto& g : static_cast<const Wt::Json::Array&>(genreVal))
-                        genres.push_back(g.toString().orIfNull(""));
-                }
-                else
-                {
-                    genres.push_back(genreVal.toString().orIfNull(""));
-                }
-
-                if (!genres.empty())
-                {
-                    if (const db::ClusterType::pointer genreType{ db::ClusterType::find(context.getDbSession(), "GENRE") })
-                    {
-                        for (const std::string& genreName : genres)
-                        {
-                            if (const auto cluster{ genreType->getCluster(genreName) })
-                                params.filters.clusters.push_back(cluster->getId());
-                        }
-                    }
-                }
-            }
-
-            // Artists
-            if (const auto& artistsVal = root.get("artists"); !artistsVal.isNull())
-            {
-                 if (artistsVal.type() == Wt::Json::Type::Array && !static_cast<const Wt::Json::Array&>(artistsVal).empty())
-                     params.artistName = static_cast<const Wt::Json::Array&>(artistsVal)[0].toString().orIfNull("");
-                 else
-                     params.artistName = artistsVal.toString().orIfNull("");
-            }
-
-            // Year
-            if (const auto& yearVal = root.get("year"); !yearVal.isNull())
-            {
-                 std::string year;
-                 if (yearVal.type() == Wt::Json::Type::Array && !static_cast<const Wt::Json::Array&>(yearVal).empty())
-                     year = static_cast<const Wt::Json::Array&>(yearVal)[0].toString().orIfNull("");
-                 else
-                     year = yearVal.toString().orIfNull("");
-                 
-                 if (!year.empty())
-                     params.keywords.push_back(year);
-            }
-
-            Track::find(context.getDbSession(), params, [&](const Track::pointer& track) {
-                results.push_back(track);
-            });
-        }
     } // namespace
 
     Response handleGetPlaylistsRequest(RequestContext& context)
@@ -150,7 +78,7 @@ namespace lms::api::subsonic
             params.setUser(context.getUser()->getId());
 
             db::TrackList::find(context.getDbSession(), params, [&](const db::TrackList::pointer& trackList) {
-                if (trackList->getType() == TrackListType::PlayList || trackList->getType() == TrackListType::SmartPlaylist)
+                if (trackList->getType() == TrackListType::PlayList)
                     addTrackList(trackList);
             });
         }
@@ -163,7 +91,7 @@ namespace lms::api::subsonic
 
             db::TrackList::find(context.getDbSession(), params, [&](const db::TrackList::pointer& trackList) {
                 assert(trackList->getUserId() != context.getUser()->getId());
-                if (trackList->getType() == TrackListType::PlayList || trackList->getType() == TrackListType::SmartPlaylist)
+                if (trackList->getType() == TrackListType::PlayList)
                     addTrackList(trackList);
             });
         }
@@ -189,7 +117,7 @@ namespace lms::api::subsonic
         auto transaction{ context.getDbSession().createReadTransaction() };
 
         TrackList::pointer trackList{ TrackList::find(context.getDbSession(), trackListId) };
-        if (!trackList || (trackList->getType() != TrackListType::PlayList && trackList->getType() != TrackListType::SmartPlaylist))
+        if (!trackList || trackList->getType() != TrackListType::PlayList)
             throw RequestedDataNotFoundError{};
 
         if (trackList->getUserId() != context.getUser()->getId() && trackList->getVisibility() != TrackList::Visibility::Public)
@@ -198,19 +126,9 @@ namespace lms::api::subsonic
         Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
         Response::Node playlistNode{ createPlaylistNode(context, trackList) };
 
-        if (trackList->getType() == TrackListType::SmartPlaylist)
-        {
-            std::vector<Track::pointer> tracks;
-            resolveSmartPlaylist(context, trackList, tracks);
-            for (const Track::pointer& track : tracks)
-                playlistNode.addArrayChild("entry", createSongNode(context, track, context.getUser()));
-        }
-        else
-        {
-            auto entries{ trackList->getEntries() };
-            for (const TrackListEntry::pointer& entry : entries.results)
-                playlistNode.addArrayChild("entry", createSongNode(context, entry->getTrack(), context.getUser()));
-        }
+        auto entries{ trackList->getEntries() };
+        for (const TrackListEntry::pointer& entry : entries.results)
+            playlistNode.addArrayChild("entry", createSongNode(context, entry->getTrack(), context.getUser()));
 
         response.addNode("playlist", std::move(playlistNode));
 
@@ -332,52 +250,4 @@ namespace lms::api::subsonic
         return Response::createOkResponse(context.getServerProtocolVersion());
     }
 
-    Response handleCreateDynamicPlaylistRequest(RequestContext& context)
-    {
-        auto name{ getMandatoryParameterAs<std::string>(context.getParameters(), "name") };
-        auto smartParams{ getMandatoryParameterAs<std::string>(context.getParameters(), "smartParams") };
-
-        TrackList::pointer trackList;
-        {
-            auto transaction{ context.getDbSession().createWriteTransaction() };
-
-            trackList = context.getDbSession().create<TrackList>(name, TrackListType::SmartPlaylist);
-            trackList.modify()->setSmartParams(smartParams);
-            trackList.modify()->setUser(context.getUser());
-            trackList.modify()->setVisibility(TrackList::Visibility::Private);
-        }
-
-        core::Service<feedback::IFeedbackService>::get()->notifyPlaylistChanged(trackList->getId());
-
-        Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
-        response.addNode("playlist", createPlaylistNode(context, trackList));
-
-        return response;
-    }
-
-    Response handleUpdateDynamicPlaylistRequest(RequestContext& context)
-    {
-        TrackListId id{ getMandatoryParameterAs<TrackListId>(context.getParameters(), "playlistId") };
-        auto name{ getParameterAs<std::string>(context.getParameters(), "name") };
-        auto smartParams{ getParameterAs<std::string>(context.getParameters(), "smartParams") };
-
-        TrackList::pointer trackList;
-        {
-            auto transaction{ context.getDbSession().createWriteTransaction() };
-
-            trackList = TrackList::find(context.getDbSession(), id);
-            checkTrackListModificationAccess(trackList, context.getUser()->getId());
-
-            if (name)
-                trackList.modify()->setName(*name);
-            if (smartParams)
-                trackList.modify()->setSmartParams(*smartParams);
-
-            trackList.modify()->setLastModifiedDateTime(Wt::WDateTime::currentDateTime());
-        }
-
-        core::Service<feedback::IFeedbackService>::get()->notifyPlaylistChanged(trackList->getId());
-
-        return Response::createOkResponse(context.getServerProtocolVersion());
-    }
 } // namespace lms::api::subsonic

@@ -56,6 +56,7 @@
 #include "services/scrobbling/IScrobblingService.hpp"
 #include "services/transcoding/ITranscodeService.hpp"
 #include "subsonic/SubsonicResource.hpp"
+#include "api/muma/MumaResource.hpp"
 #include "ui/Auth.hpp"
 #include "ui/LmsApplication.hpp"
 #include "ui/LmsApplicationManager.hpp"
@@ -586,6 +587,7 @@ namespace lms
             server.removeEntryPoint("");
 
             std::unique_ptr<Wt::WResource> subsonicResource;
+            std::unique_ptr<Wt::WResource> mumaResource;
             std::unique_ptr<Wt::WResource> spotifyResource;
 
             // bind API resources
@@ -594,6 +596,9 @@ namespace lms
                 subsonicResource = api::subsonic::createSubsonicResource(*database);
                 server.addResource(subsonicResource.get(), "/rest");
             }
+
+            mumaResource = std::make_unique<api::muma::MumaResource>(*database);
+            server.addResource(mumaResource.get(), "/muma");
 
             spotifyResource = std::make_unique<SpotifyResource>(server.docRoot());
             server.addResource(spotifyResource.get(), "/muma-spotify");

@@ -35,7 +35,7 @@ namespace lms::db
 {
     namespace
     {
-        static constexpr Version LMS_DATABASE_VERSION{ 114 };
+        static constexpr Version LMS_DATABASE_VERSION{ 113 };
     }
 
     VersionInfo::VersionInfo()
@@ -1841,10 +1841,6 @@ FROM track)");
         utils::executeCommand(*session.getDboSession(), "ALTER TABLE user ADD COLUMN muma_id INTEGER");
     }
 
-    void migrateFromV113(Session& session)
-    {
-        utils::executeCommand(*session.getDboSession(), "ALTER TABLE tracklist ADD COLUMN smart_params TEXT NOT NULL DEFAULT ''");
-    }
 
     bool doDbMigration(Session& session)
     {
@@ -1935,7 +1931,6 @@ FROM track)");
             { 110, migrateFromV110 },
             { 111, migrateFromV111 },
             { 112, migrateFromV112 },
-            { 113, migrateFromV113 },
         };
 
         bool migrationPerformed{};

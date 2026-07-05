@@ -126,22 +126,7 @@ namespace lms::feedback::musicManagement
 
     void MusicManagementBackend::onPlaylistChanged(db::TrackListId playlistId)
     {
-        LMS_LOG(SCROBBLING, INFO, "MusicManagementBackend::onPlaylistChanged(" << playlistId.toString() << ")");
-        db::Session& session{ _db.getTLSSession() };
-        auto transaction{ session.createReadTransaction() };
-
-        if (auto playlist{ db::TrackList::find(session, playlistId) })
-        {
-            if (playlist->getType() == db::TrackListType::SmartPlaylist)
-            {
-                std::string username = playlist->getUser() ? std::string{ playlist->getUser()->getLoginName() } : "unknown";
-                std::string name{ playlist->getName() };
-                std::string params{ playlist->getSmartParams() };
-
-                LMS_LOG(SCROBBLING, INFO, "Dynamic playlist changed: " << name << " for user " << username);
-                sendEvent("playlist_changed", "smart_playlist", name, username, 0, params);
-            }
-        }
+        (void)playlistId;
     }
 
     void MusicManagementBackend::sendEvent(const std::string& eventType, const std::string& objectType, const std::string& objectId, const std::string& username, int rating, const std::string& path)

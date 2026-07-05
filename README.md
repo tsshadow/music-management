@@ -16,7 +16,6 @@ Key changes include:
 
 *   **MuMa Spotify UI**: A complete, modern, and responsive web interface built with Svelte, providing a Spotify-like user experience. This is the primary and recommended interface for this fork.
 *   **Smart Deduplication Engine**: Sophisticated backend logic that identifies and hides duplicate tracks across different releases, automatically prioritizing the highest quality version (e.g., favoring FLAC over MP3 or selecting the higher bitrate).
-*   **Dynamic (Smart) Playlists**: Support for rule-based playlists that automatically populate based on flexible criteria (genre, rating, release date, etc.). These can be managed through the MuMa Control Center.
 *   **MuMa Ecosystem Integration**: Native integration with external microservices for centralized rating, scrobbling, and user management via dedicated API hooks.
 *   **Extended Subsonic API**: Additional `spotify/` endpoints specifically designed to power the advanced features and performance requirements of the modern Svelte UI and the custom Ultrasonic mobile client.
 *   **Streamlined DevOps**: Custom build and deployment scripts with integrated support for remote environment management (Stable/Alpha) via Docker, Portainer webhooks, and SSH.

@@ -189,8 +189,6 @@ namespace lms::api::subsonic
             { "/createPlaylist", { handleCreatePlaylistRequest } },
             { "/updatePlaylist", { handleUpdatePlaylistRequest } },
             { "/deletePlaylist", { handleDeletePlaylistRequest } },
-            { "/createDynamicPlaylist", { handleCreateDynamicPlaylistRequest } },
-            { "/updateDynamicPlaylist", { handleUpdateDynamicPlaylistRequest } },
 
             // Media retrieval
             { "/hls", { handleNotImplemented } },

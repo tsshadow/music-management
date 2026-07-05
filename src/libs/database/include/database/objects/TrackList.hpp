@@ -121,7 +121,6 @@ namespace lms::db
 
         // Accessors
         std::string_view getName() const { return _name; }
-        std::string_view getSmartParams() const { return _smartParams; }
         Visibility getVisibility() const { return _visibility; }
         TrackListType getType() const { return _type; }
         ObjectPtr<User> getUser() const { return _user; }
@@ -132,7 +131,6 @@ namespace lms::db
         // Modifiers
         void setUser(ObjectPtr<User> user) { _user = getDboPtr(user); }
         void setName(std::string_view name) { _name = name; }
-        void setSmartParams(std::string_view smartParams) { _smartParams = smartParams; }
         void setVisibility(Visibility visibility) { _visibility = visibility; }
         void clear() { _entries.clear(); }
 
@@ -159,7 +157,6 @@ namespace lms::db
         void persist(Action& a)
         {
             Wt::Dbo::field(a, _name, "name");
-            Wt::Dbo::field(a, _smartParams, "smart_params");
             Wt::Dbo::field(a, _type, "type");
             Wt::Dbo::field(a, _visibility, "visibility");
             Wt::Dbo::field(a, _creationDateTime, "creation_date_time");
@@ -177,7 +174,6 @@ namespace lms::db
         static pointer create(Session& session, std::string_view name, TrackListType type);
 
         std::string _name;
-        std::string _smartParams;
         TrackListType _type{ TrackListType::PlayList };
         Visibility _visibility{ Visibility::Private };
         Wt::WDateTime _creationDateTime;

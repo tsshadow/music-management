@@ -173,7 +173,7 @@ def search_labels(q: str = "", auth: dict = Depends(verify_api_key)):
 
 @router.get("/config")
 def get_config(auth: dict = Depends(verify_api_key)):
-    version = "1.0.8"
+    version = "1.3.0"
     try:
         with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "VERSION"), "r") as f:
             version = f.read().strip()

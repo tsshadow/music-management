@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-07-05
+
+### Added
+- **MuMa Cloud Sync**: New server-side backup system for application settings (User App Settings API).
+- **Settings API**: Endpoints for saving and retrieving JSON-based application configurations per user and app ID.
+- **Enhanced Scrobble Imports**: Implemented robust pagination for ListenBrainz imports, allowing retrieval of up to 10,000 tracks.
+- **Artist Image Synchronization**: Centralized artwork management for multi-LMS environments (Stable and Alpha).
+- **Consolidated Versioning**: Unified version reporting for all internal worker services in the dashboard.
+
+### Changed
+- **Authentication**: Streamlined API key flow; keys returned at login are now universally valid for user-specific actions.
+- **Security**: Removed sensitive API key displays from the frontend, relying on session-based auth.
+- **Database Architecture**: Added `user_app_settings` and `scrobble_imports` tables to core initialization.
+- **Stats Engine**: Refactored statistics queries to provide more accurate match rates and genre distributions.
+
 ## [2.2.0] - 2026-07-05
 
 ### Added

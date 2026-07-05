@@ -19,7 +19,6 @@ COPY services/tagger/ /app/services/tagger/
 COPY services/downloader/ /app/services/downloader/
 COPY services/scanner/ /app/services/scanner/
 COPY services/importer/ /app/services/importer/
-COPY services/rating-system/ /app/services/rating-system/
 COPY modules/music-management/ /app/modules/music-management/
 COPY VERSION RELEASE_NOTES.md CHANGELOG.md /app/
 

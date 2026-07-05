@@ -9,6 +9,16 @@ This project is now modularized. Detailed release notes for each module can be f
 - [Music Manager](services/music_manager/RELEASE_NOTES.md)
 - [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
 
+## Global Version 2.2.0 (2026-07-05)
+### 🚀 Music Manager Core Consolidation
+- **Service Consolidation**: Merged six microservices (`user-service`, `scrobble-service`, `rating-system`, `stats-service`, `management-api`, and `artist-image-fetcher`) into a single, high-performance FastAPI service: **Music Manager**.
+- **Performance Optimization**: Implemented database connection pooling and asynchronous thread offloading to eliminate bottlenecks and connection errors.
+- **Enhanced Artist Enrichment**: Fixed artist image synchronization to support multiple LMS instances (Stable & Alpha) with proper version tracking.
+- **Improved UI/UX**: Updated the Control Center dashboard with better session handling and integrated all management features into a unified interface.
+- **Infrastructure Simplification**: Streamlined `docker-compose.yml` and deployment scripts, reducing resource overhead and build complexity.
+- **LMS Integration Fixes**: Updated the entire ecosystem to use a unified API port (8000) and optimized internal Docker networking for more reliable communication.
+- **Side Scroll Wheel Support**: Added horizontal scroll (deltaX) support for volume control in the LMS music player, optimized for Logitech MX Master 3.
+
 ## Global Version 2.1.31 (2026-07-05)
 ### 🛡️ Health & Activity Dashboard
 - **System Monitoring**: The Control Center now has a dedicated "Health & Activity" tab for a complete overview of the system.

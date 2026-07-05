@@ -46,6 +46,21 @@ STACK_NAME="${DEPLOY_TARGET_NAME:-muma}"
 STACK_NAME=$(echo "$STACK_NAME" | tr '[:upper:]' '[:lower:]')
 SERVICE_NAME="${SERVICE_NAME}"
 IMAGE_NAME="${IMAGE_NAME}"
+
+# Parse positional arguments for service name
+for arg in "$@"; do
+    case $arg in
+        --debug|--remote|--semi-remote) ;;
+        *) 
+            if [ -z "$SERVICE_NAME" ]; then
+                SERVICE_NAME="$arg"
+                # Map shorthand names to service names in docker-compose.yml
+                if [ "$SERVICE_NAME" == "manager" ]; then SERVICE_NAME="music-manager"; fi
+                if [ "$SERVICE_NAME" == "app" ]; then SERVICE_NAME="importer_api"; fi
+            fi
+            ;;
+    esac
+done
 TAG="${TAG:-latest}"
 SEARCH_STRING="${SEARCH_STRING:-tsshadow/muma}"
 LOCAL_COMPOSE_FILE="${LOCAL_COMPOSE_FILE:-docker-compose.yml}"

@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 logger = logging.getLogger("music-manager")
+logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="Music Manager API")
 
@@ -61,10 +62,21 @@ def health():
 def serve_frontend(app: FastAPI):
     base_dir = os.path.dirname(os.path.abspath(__file__))
     frontend_path = os.path.join(base_dir, "frontend", "dist")
+    
+    logger.info(f"Checking for frontend at: {frontend_path}")
+    logger.info(f"Current Working Directory: {os.getcwd()}")
+    logger.info(f"__file__: {__file__}")
+    
     if os.path.exists(frontend_path):
+        logger.info(f"Frontend found at {frontend_path}. Mounting at /")
         app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
     else:
         logger.warning(f"Frontend build directory not found at {frontend_path}; static files will not be served.")
+        # Check parent directory
+        parent = os.path.dirname(frontend_path)
+        if os.path.exists(parent):
+            logger.info(f"Parent directory {parent} exists. Contents: {os.listdir(parent)}")
+        
         @app.get("/", response_class=HTMLResponse)
         def root_fallback():
             return "<h1>Music Manager</h1><p>Frontend not found. API is active.</p>"

@@ -225,7 +225,7 @@ else
             ml) push_ml & ;;
             tools) push_tools & ;;
             app) push_app & ;;
-            manager) push_manager & ;;
+            manager|music-manager) push_manager & ;;
             scanner) push_scanner & ;;
             tagger) push_tagger & ;;
             downloader) push_downloader & ;;

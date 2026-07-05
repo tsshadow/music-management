@@ -5,6 +5,8 @@ import pymysql
 import requests
 import sqlite3
 import bcrypt
+import secrets
+import string
 from typing import List, Optional
 from dotenv import load_dotenv
 from services.common.api.version_helper import get_version, get_release_notes, get_changelog
@@ -50,12 +52,18 @@ def startup_db():
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         username VARCHAR(255) UNIQUE NOT NULL,
                         display_name VARCHAR(255),
+                        is_admin BOOLEAN DEFAULT FALSE,
                         password_hash VARCHAR(255),
                         api_key VARCHAR(255),
                         lms_user_id VARCHAR(255),
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
+                # Add is_admin if it doesn't exist
+                cursor.execute("SHOW COLUMNS FROM users LIKE 'is_admin'")
+                if not cursor.fetchone():
+                    cursor.execute("ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT FALSE AFTER display_name")
+
                 # Add password_hash if it doesn't exist (for existing tables)
                 cursor.execute("SHOW COLUMNS FROM users LIKE 'password_hash'")
                 if not cursor.fetchone():
@@ -84,12 +92,15 @@ def startup_db():
 class UserCreate(BaseModel):
     username: str
     display_name: Optional[str] = None
+    is_admin: Optional[bool] = False
     lms_user_id: Optional[str] = None
     api_key: Optional[str] = None
     password: Optional[str] = None
 
 class UserUpdate(BaseModel):
+    username: Optional[str] = None
     display_name: Optional[str] = None
+    is_admin: Optional[bool] = None
     lms_user_id: Optional[str] = None
     api_key: Optional[str] = None
 
@@ -160,12 +171,12 @@ async def create_user(user: UserCreate, api_key: str = Depends(verify_api_key)):
         # Create in LMS first if possible to get lms_user_id
         lms_user_id = user.lms_user_id
         if not lms_user_id and lms_password_hash:
-            lms_user_id = create_lms_user(user.username, lms_password_hash)
+            lms_user_id = create_lms_user(user.username, lms_password_hash, user.is_admin)
 
         with conn.cursor() as cursor:
             cursor.execute(
-                "INSERT INTO users (username, display_name, lms_user_id, api_key, password_hash) VALUES (%s, %s, %s, %s, %s)",
-                (user.username, user.display_name, lms_user_id, user.api_key, password_hash)
+                "INSERT INTO users (username, display_name, is_admin, lms_user_id, api_key, password_hash) VALUES (%s, %s, %s, %s, %s, %s)",
+                (user.username, user.display_name, user.is_admin, lms_user_id, user.api_key, password_hash)
             )
             conn.commit()
             return {"id": cursor.lastrowid, "username": user.username, "lms_user_id": lms_user_id}
@@ -195,6 +206,22 @@ async def delete_user(user_id: int, api_key: str = Depends(verify_api_key)):
                 delete_lms_user(user['lms_user_id'])
                 
             conn.commit()
+            # Trigger delete on all LMS hosts via Subsonic API
+            lms_hosts_raw = os.getenv("LMS_HOSTS", "http://192.168.1.27")
+            lms_hosts = [h.strip() for h in lms_hosts_raw.split(",")]
+            lms_api_key = LMS_SUBSONIC_API_KEY
+            for host in lms_hosts:
+                try:
+                    if not host.startswith("http"): host = f"http://{host}"
+                    host = host.rstrip("/")
+                    del_url = f"{host}/rest/deleteUser.view?v=1.16.1&c=muma-user-service&f=json&apiKey={lms_api_key}&username={user['username']}"
+                    requests.get(del_url, headers={"X-API-Key": lms_api_key}, timeout=2.0)
+                except:
+                    pass
+
+            # Trigger sync on all LMS hosts (to be sure)
+            run_lms_sync()
+            
             return {"status": "user deleted"}
     finally:
         conn.close()
@@ -208,9 +235,15 @@ async def update_user(user_id: int, user_data: UserUpdate, api_key: str = Depend
         with conn.cursor() as cursor:
             fields = []
             values = []
+            if user_data.username is not None:
+                fields.append("username = %s")
+                values.append(user_data.username)
             if user_data.display_name is not None:
                 fields.append("display_name = %s")
                 values.append(user_data.display_name)
+            if user_data.is_admin is not None:
+                fields.append("is_admin = %s")
+                values.append(user_data.is_admin)
             if user_data.lms_user_id is not None:
                 fields.append("lms_user_id = %s")
                 values.append(user_data.lms_user_id)
@@ -224,7 +257,18 @@ async def update_user(user_id: int, user_data: UserUpdate, api_key: str = Depend
             query = f"UPDATE users SET {', '.join(fields)} WHERE id = %s"
             values.append(user_id)
             cursor.execute(query, tuple(values))
+
+            # Forward to LMS if lms_user_id exists
+            cursor.execute("SELECT username, is_admin, lms_user_id FROM users WHERE id = %s", (user_id,))
+            user = cursor.fetchone()
+            if user and user['lms_user_id']:
+                update_lms_user_info(user['lms_user_id'], user['username'], user['is_admin'])
+
             conn.commit()
+            
+            # Trigger sync on all LMS hosts
+            run_lms_sync()
+            
             return {"status": "updated"}
     finally:
         conn.close()
@@ -286,9 +330,38 @@ async def update_password(user_id: int, pwd: PasswordUpdate, api_key: str = Depe
                 update_lms_password(user['lms_user_id'], lms_hashed)
                 
             conn.commit()
+            
+            # Trigger sync on all LMS hosts
+            run_lms_sync()
+            
             return {"status": "password updated"}
     finally:
         conn.close()
+
+def update_lms_user_info(lms_user_id, username, is_admin):
+    db_path = os.getenv("LMS_DB_PATH", "/app/data/lms.db")
+    if not os.path.exists(db_path):
+        print(f"LMS DB not found at {db_path}, skipping LMS user info update")
+        return
+    
+    # Check if directory is writable
+    db_dir = os.path.dirname(db_path)
+    if not os.access(db_dir, os.W_OK):
+        print(f"WARNING: LMS DB directory {db_dir} is not writable. SQLite updates might fail.")
+
+    try:
+        sqlite_conn = sqlite3.connect(db_path)
+        sqlite_cursor = sqlite_conn.cursor()
+        
+        user_type = 1 if is_admin else 0
+        
+        # Update login_name and type in LMS user table
+        sqlite_cursor.execute("UPDATE user SET login_name = ?, type = ? WHERE id = ?", (username, user_type, lms_user_id))
+        sqlite_conn.commit()
+        sqlite_conn.close()
+        print(f"Updated LMS user info for user ID {lms_user_id}")
+    except Exception as e:
+        print(f"Failed to update LMS user info for ID {lms_user_id}: {e}")
 
 def update_lms_password(lms_user_id, password_hash):
     db_path = os.getenv("LMS_DB_PATH", "/app/data/lms.db")
@@ -334,7 +407,7 @@ def delete_lms_user(lms_user_id):
     except Exception as e:
         print(f"Failed to delete LMS user with ID {lms_user_id}: {e}")
 
-def create_lms_user(username, password_hash):
+def create_lms_user(username, password_hash, is_admin=False):
     db_path = os.getenv("LMS_DB_PATH", "/app/data/lms.db")
     if not os.path.exists(db_path):
         print(f"LMS DB not found at {db_path}, skipping LMS user creation")
@@ -348,11 +421,23 @@ def create_lms_user(username, password_hash):
     try:
         sqlite_conn = sqlite3.connect(db_path)
         sqlite_cursor = sqlite_conn.cursor()
-        # Insert user into LMS user table
-        # We assume is_admin = 0 for new users created via MuMa
+        
+        # Generate a dummy salt since it's NOT NULL (32 chars)
+        dummy_salt = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32))
+
+        user_type = 1 if is_admin else 0
+
+        # Insert user into LMS user table with all required fields found in schema
+        # We use values inspired by existing users for other mandatory fields
         sqlite_cursor.execute(
-            "INSERT INTO user (login_name, password_hash, is_admin) VALUES (?, ?, ?)",
-            (username, password_hash, 0)
+            """INSERT INTO user (
+                version, type, login_name, password_salt, password_hash, 
+                subsonic_enable_transcoding_by_default, subsonic_default_transcode_format, 
+                subsonic_default_transcode_bitrate, subsonic_artist_list_mode, 
+                ui_theme, feedback_backend, scrobbling_backend, listenbrainz_token
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (0, user_type, username, dummy_salt, password_hash, 
+             0, 2, 128000, 0, 1, 0, 0, "")
         )
         lms_id = sqlite_cursor.lastrowid
         sqlite_conn.commit()
@@ -384,9 +469,9 @@ def run_lms_sync():
             try:
                 # Use dedicated LMS API key if available, fallback to internal API_KEY
                 lms_api_key = LMS_SUBSONIC_API_KEY
-                sync_url = f"{host}/rest/syncUsers?v=1.16.1&c=muma-user-service&f=json&apiKey={lms_api_key}"
+                sync_url = f"{host}/rest/syncUsers.view?v=1.16.1&c=muma-user-service&f=json&apiKey={lms_api_key}"
                 headers = {"X-API-Key": lms_api_key}
-                sync_resp = requests.get(sync_url, headers=headers, timeout=2.0)
+                sync_resp = requests.get(sync_url, headers=headers, timeout=5.0)
                 if sync_resp.status_code == 200:
                     try:
                         data = sync_resp.json()
@@ -395,8 +480,8 @@ def run_lms_sync():
                         else:
                             error = data.get("subsonic-response", {}).get("error", {})
                             print(f"LMS host {host} returned error: {error.get('message', 'Unknown error')} (code {error.get('code')})")
-                    except:
-                        print(f"Successfully triggered user sync on LMS host: {host} (non-json response)")
+                    except Exception as e:
+                        print(f"Successfully triggered user sync on LMS host: {host} (non-json response). Body start: {sync_resp.text[:100]}")
                 else:
                     print(f"LMS host {host} did not respond to Subsonic sync (status {sync_resp.status_code})")
             except Exception as e:

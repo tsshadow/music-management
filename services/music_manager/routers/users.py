@@ -19,9 +19,17 @@ API_KEY = os.getenv("API_KEY") or LMS_API_KEY
 LMS_SUBSONIC_API_KEY = os.getenv("LMS_SUBSONIC_API_KEY") or API_KEY
 
 async def verify_api_key(x_api_key: str = Header(None)):
-    if API_KEY and x_api_key != API_KEY:
-        raise HTTPException(status_code=403, detail="Invalid API Key")
-    return x_api_key
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="Missing API Key")
+    if API_KEY and x_api_key == API_KEY:
+        return {"type": "system"}
+    
+    # Check users table for this API Key
+    res = verify_token(x_api_key)
+    if res.get("status") == "ok":
+        return res
+        
+    raise HTTPException(status_code=401, detail="Invalid API Key")
 
 class UserCreate(BaseModel):
     username: str
@@ -187,7 +195,9 @@ def login(req: LoginRequest):
         conn.close()
 
 @router.get("/{user_id}/dynamic-playlists")
-def get_dynamic_playlists(user_id: int, api_key: str = Depends(verify_api_key)):
+def get_dynamic_playlists(user_id: int, auth: dict = Depends(verify_api_key)):
+    if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
+        raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
     if not conn: raise HTTPException(status_code=500, detail="DB failed")
     try:
@@ -198,7 +208,9 @@ def get_dynamic_playlists(user_id: int, api_key: str = Depends(verify_api_key)):
         conn.close()
 
 @router.get("/{user_id}/dynamic-playlists/{playlist_id}")
-def get_dynamic_playlist(user_id: int, playlist_id: int, api_key: str = Depends(verify_api_key)):
+def get_dynamic_playlist(user_id: int, playlist_id: int, auth: dict = Depends(verify_api_key)):
+    if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
+        raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
     if not conn: raise HTTPException(status_code=500)
     try:
@@ -211,7 +223,9 @@ def get_dynamic_playlist(user_id: int, playlist_id: int, api_key: str = Depends(
         conn.close()
 
 @router.post("/{user_id}/dynamic-playlists")
-def create_dynamic_playlist(user_id: int, playlist: DynamicPlaylistCreate, api_key: str = Depends(verify_api_key)):
+def create_dynamic_playlist(user_id: int, playlist: DynamicPlaylistCreate, auth: dict = Depends(verify_api_key)):
+    if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
+        raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
     if not conn: raise HTTPException(status_code=500)
     try:
@@ -224,7 +238,9 @@ def create_dynamic_playlist(user_id: int, playlist: DynamicPlaylistCreate, api_k
         conn.close()
 
 @router.put("/{user_id}/dynamic-playlists/{playlist_id}")
-def update_dynamic_playlist(user_id: int, playlist_id: int, playlist: DynamicPlaylistUpdate, api_key: str = Depends(verify_api_key)):
+def update_dynamic_playlist(user_id: int, playlist_id: int, playlist: DynamicPlaylistUpdate, auth: dict = Depends(verify_api_key)):
+    if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
+        raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
     if not conn: raise HTTPException(status_code=500)
     try:
@@ -244,7 +260,9 @@ def update_dynamic_playlist(user_id: int, playlist_id: int, playlist: DynamicPla
         conn.close()
 
 @router.delete("/{user_id}/dynamic-playlists/{playlist_id}")
-def delete_dynamic_playlist(user_id: int, playlist_id: int, api_key: str = Depends(verify_api_key)):
+def delete_dynamic_playlist(user_id: int, playlist_id: int, auth: dict = Depends(verify_api_key)):
+    if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
+        raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
     if not conn: raise HTTPException(status_code=500)
     try:
@@ -256,7 +274,9 @@ def delete_dynamic_playlist(user_id: int, playlist_id: int, api_key: str = Depen
         conn.close()
 
 @router.get("/{user_id}/dynamic-playlists/{playlist_id}/tracks")
-def get_playlist_tracks(user_id: int, playlist_id: int, api_key: str = Depends(verify_api_key)):
+def get_playlist_tracks(user_id: int, playlist_id: int, auth: dict = Depends(verify_api_key)):
+    if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
+        raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
     if not conn: raise HTTPException(status_code=500)
     try:
@@ -303,7 +323,9 @@ def get_playlist_tracks(user_id: int, playlist_id: int, api_key: str = Depends(v
         conn.close()
 
 @router.post("/{user_id}/dynamic-playlists/seed-defaults")
-def seed_defaults(user_id: int, api_key: str = Depends(verify_api_key)):
+def seed_defaults(user_id: int, auth: dict = Depends(verify_api_key)):
+    if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
+        raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
     if not conn: raise HTTPException(status_code=500)
     try:
@@ -326,7 +348,9 @@ def seed_defaults(user_id: int, api_key: str = Depends(verify_api_key)):
         conn.close()
 
 @router.post("/{user_id}/dynamic-playlists/sync")
-def sync_dynamic_playlist(user_id: int, playlist: DynamicPlaylistSync, api_key: str = Depends(verify_api_key)):
+def sync_dynamic_playlist(user_id: int, playlist: DynamicPlaylistSync, auth: dict = Depends(verify_api_key)):
+    if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
+        raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
     if not conn: raise HTTPException(status_code=500, detail="DB failed")
     try:
@@ -347,7 +371,9 @@ def sync_dynamic_playlist(user_id: int, playlist: DynamicPlaylistSync, api_key: 
         conn.close()
 
 @router.get("/")
-def get_users(api_key: str = Depends(verify_api_key)):
+def get_users(auth: dict = Depends(verify_api_key)):
+    if auth.get("type") == "user" and not auth['user'].get('is_admin'):
+        raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
     if not conn: raise HTTPException(status_code=500, detail="DB failed")
     try:
@@ -358,7 +384,9 @@ def get_users(api_key: str = Depends(verify_api_key)):
         conn.close()
 
 @router.post("/")
-def create_user(user: UserCreate, api_key: str = Depends(verify_api_key)):
+def create_user(user: UserCreate, auth: dict = Depends(verify_api_key)):
+    if auth.get("type") == "user" and not auth['user'].get('is_admin'):
+        raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
     if not conn: raise HTTPException(status_code=500)
     try:
@@ -379,7 +407,9 @@ def create_user(user: UserCreate, api_key: str = Depends(verify_api_key)):
         conn.close()
 
 @router.get("/{user_id}/lb-account")
-def get_lb_account(user_id: int, api_key: str = Depends(verify_api_key)):
+def get_lb_account(user_id: int, auth: dict = Depends(verify_api_key)):
+    if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
+        raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
     if not conn: raise HTTPException(status_code=500, detail="DB failed")
     try:
@@ -391,7 +421,9 @@ def get_lb_account(user_id: int, api_key: str = Depends(verify_api_key)):
         conn.close()
 
 @router.put("/{user_id}/lb-account")
-def update_lb_account(user_id: int, lb_data: LBAccountUpdate, api_key: str = Depends(verify_api_key)):
+def update_lb_account(user_id: int, lb_data: LBAccountUpdate, auth: dict = Depends(verify_api_key)):
+    if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
+        raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
     if not conn: raise HTTPException(status_code=500, detail="DB failed")
     try:
@@ -407,7 +439,9 @@ def update_lb_account(user_id: int, lb_data: LBAccountUpdate, api_key: str = Dep
         conn.close()
 
 @router.delete("/{user_id}")
-def delete_user(user_id: int, api_key: str = Depends(verify_api_key)):
+def delete_user(user_id: int, auth: dict = Depends(verify_api_key)):
+    if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
+        raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
     if not conn: raise HTTPException(status_code=500)
     try:
@@ -419,7 +453,9 @@ def delete_user(user_id: int, api_key: str = Depends(verify_api_key)):
         conn.close()
 
 @router.put("/{user_id}/password")
-def update_password(user_id: int, req: PasswordUpdate, api_key: str = Depends(verify_api_key)):
+def update_password(user_id: int, req: PasswordUpdate, auth: dict = Depends(verify_api_key)):
+    if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
+        raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
     if not conn: raise HTTPException(status_code=500)
     try:
@@ -432,7 +468,9 @@ def update_password(user_id: int, req: PasswordUpdate, api_key: str = Depends(ve
         conn.close()
 
 @router.get("/{user_id}/settings/{app_id}")
-def get_user_app_settings(user_id: int, app_id: str, api_key: str = Depends(verify_api_key)):
+def get_user_app_settings(user_id: int, app_id: str, auth: dict = Depends(verify_api_key)):
+    if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
+        raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
     if not conn: raise HTTPException(status_code=500)
     try:
@@ -446,7 +484,9 @@ def get_user_app_settings(user_id: int, app_id: str, api_key: str = Depends(veri
         conn.close()
 
 @router.post("/{user_id}/settings/{app_id}")
-def update_user_app_settings(user_id: int, app_id: str, req: AppSettingsUpdate, api_key: str = Depends(verify_api_key)):
+def update_user_app_settings(user_id: int, app_id: str, req: AppSettingsUpdate, auth: dict = Depends(verify_api_key)):
+    if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
+        raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
     if not conn: raise HTTPException(status_code=500)
     try:

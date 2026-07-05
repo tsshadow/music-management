@@ -6,6 +6,7 @@ import bcrypt
 import secrets
 import string
 import requests
+import json
 from typing import List, Optional
 from services.music_manager.database import get_db_connection
 from services.common.api.version_helper import get_version, get_release_notes
@@ -180,6 +181,134 @@ def get_dynamic_playlists(user_id: int, api_key: str = Depends(verify_api_key)):
     finally:
         conn.close()
 
+@router.get("/{user_id}/dynamic-playlists/{playlist_id}")
+def get_dynamic_playlist(user_id: int, playlist_id: int, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn: raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM dynamic_playlists WHERE id = %s AND user_id = %s", (playlist_id, user_id))
+            res = cursor.fetchone()
+            if not res: raise HTTPException(status_code=404)
+            return res
+    finally:
+        conn.close()
+
+@router.post("/{user_id}/dynamic-playlists")
+def create_dynamic_playlist(user_id: int, playlist: DynamicPlaylistCreate, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn: raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("INSERT INTO dynamic_playlists (user_id, name, params) VALUES (%s, %s, %s)", 
+                          (user_id, playlist.name, playlist.params))
+            conn.commit()
+            return {"status": "ok", "id": cursor.lastrowid}
+    finally:
+        conn.close()
+
+@router.put("/{user_id}/dynamic-playlists/{playlist_id}")
+def update_dynamic_playlist(user_id: int, playlist_id: int, playlist: DynamicPlaylistUpdate, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn: raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            if playlist.name and playlist.params:
+                cursor.execute("UPDATE dynamic_playlists SET name = %s, params = %s WHERE id = %s AND user_id = %s", 
+                              (playlist.name, playlist.params, playlist_id, user_id))
+            elif playlist.name:
+                cursor.execute("UPDATE dynamic_playlists SET name = %s WHERE id = %s AND user_id = %s", 
+                              (playlist.name, playlist_id, user_id))
+            elif playlist.params:
+                cursor.execute("UPDATE dynamic_playlists SET params = %s WHERE id = %s AND user_id = %s", 
+                              (playlist.params, playlist_id, user_id))
+            conn.commit()
+            return {"status": "ok"}
+    finally:
+        conn.close()
+
+@router.delete("/{user_id}/dynamic-playlists/{playlist_id}")
+def delete_dynamic_playlist(user_id: int, playlist_id: int, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn: raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM dynamic_playlists WHERE id = %s AND user_id = %s", (playlist_id, user_id))
+            conn.commit()
+            return {"status": "ok"}
+    finally:
+        conn.close()
+
+@router.get("/{user_id}/dynamic-playlists/{playlist_id}/tracks")
+def get_playlist_tracks(user_id: int, playlist_id: int, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn: raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT params FROM dynamic_playlists WHERE id = %s AND user_id = %s", (playlist_id, user_id))
+            row = cursor.fetchone()
+            if not row: raise HTTPException(status_code=404)
+            
+            params_str = row['params']
+            try:
+                params = json.loads(params_str)
+            except:
+                params = {}
+                
+            rules = params.get('rules', [])
+            
+            query = """
+                SELECT t.id, t.title, COALESCE(a.name, 'Unknown Artist') as artist, CAST(t.created_at AS CHAR) as created_at
+                FROM library_tracks t
+                LEFT JOIN library_artists a ON t.primary_artist_id = a.id
+                WHERE 1=1
+            """
+            q_params = []
+            
+            for rule in rules:
+                col = rule.get('column')
+                val = rule.get('value')
+                if not col or not val: continue
+                
+                if col == 'genre':
+                    query += """ AND (
+                        EXISTS (SELECT 1 FROM library_track_genres tg JOIN rules_genres rg ON tg.genre_id = rg.id WHERE tg.track_id = t.id AND rg.name = %s)
+                        OR EXISTS (SELECT 1 FROM library_track_ml_labels ml WHERE ml.track_id = t.track_uid AND ml.ml_genre = %s)
+                    )"""
+                    q_params.extend([val, val])
+                elif col == 'artist':
+                    query += " AND a.name LIKE %s"
+                    q_params.append(f"%{val}%")
+            
+            query += " ORDER BY t.created_at DESC LIMIT 500"
+            cursor.execute(query, tuple(q_params))
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+@router.post("/{user_id}/dynamic-playlists/seed-defaults")
+def seed_defaults(user_id: int, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn: raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            defaults = [
+                ("Hardstyle", json.dumps({"rules":[{"column":"genre","operator":"is","value":"Hardstyle"}]})),
+                ("Hardcore", json.dumps({"rules":[{"column":"genre","operator":"is","value":"Hardcore"}]})),
+                ("Techno", json.dumps({"rules":[{"column":"genre","operator":"is","value":"Techno"}]})),
+                ("Recently Added", json.dumps({"rules":[], "sort":"created_at", "order":"desc"}))
+            ]
+            for name, params in defaults:
+                cursor.execute("""
+                    INSERT INTO dynamic_playlists (user_id, name, params, source)
+                    VALUES (%s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE params = VALUES(params)
+                """, (user_id, name, params, "default"))
+            conn.commit()
+            return {"status": "ok"}
+    finally:
+        conn.close()
+
 @router.post("/{user_id}/dynamic-playlists/sync")
 def sync_dynamic_playlist(user_id: int, playlist: DynamicPlaylistSync, api_key: str = Depends(verify_api_key)):
     conn = get_db_connection()
@@ -209,6 +338,80 @@ def get_users(api_key: str = Depends(verify_api_key)):
         with conn.cursor() as cursor:
             cursor.execute("SELECT id, username, display_name, is_admin, lms_user_id, api_key FROM users")
             return cursor.fetchall()
+    finally:
+        conn.close()
+
+@router.post("/")
+def create_user(user: UserCreate, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn: raise HTTPException(status_code=500)
+    try:
+        password_hash = None
+        if user.password:
+            password_hash = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        
+        token = user.api_key or secrets.token_hex(16)
+        
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                INSERT INTO users (username, display_name, is_admin, password_hash, api_key, lms_user_id)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (user.username, user.display_name, user.is_admin, password_hash, token, user.lms_user_id))
+            conn.commit()
+            return {"status": "ok", "id": cursor.lastrowid}
+    finally:
+        conn.close()
+
+@router.get("/{user_id}/lb-account")
+def get_lb_account(user_id: int, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn: raise HTTPException(status_code=500, detail="DB failed")
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT lb_username, lb_token FROM user_listenbrainz_accounts WHERE user_id = %s", (user_id,))
+            res = cursor.fetchone()
+            return res or {"lb_username": "", "lb_token": ""}
+    finally:
+        conn.close()
+
+@router.put("/{user_id}/lb-account")
+def update_lb_account(user_id: int, lb_data: LBAccountUpdate, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn: raise HTTPException(status_code=500, detail="DB failed")
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                INSERT INTO user_listenbrainz_accounts (user_id, lb_username, lb_token)
+                VALUES (%s, %s, %s)
+                ON DUPLICATE KEY UPDATE lb_username = VALUES(lb_username), lb_token = VALUES(lb_token)
+            """, (user_id, lb_data.lb_username, lb_data.lb_token))
+            conn.commit()
+            return {"status": "ok"}
+    finally:
+        conn.close()
+
+@router.delete("/{user_id}")
+def delete_user(user_id: int, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn: raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            conn.commit()
+            return {"status": "ok"}
+    finally:
+        conn.close()
+
+@router.put("/{user_id}/password")
+def update_password(user_id: int, req: PasswordUpdate, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn: raise HTTPException(status_code=500)
+    try:
+        password_hash = bcrypt.hashpw(req.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        with conn.cursor() as cursor:
+            cursor.execute("UPDATE users SET password_hash = %s WHERE id = %s", (password_hash, user_id))
+            conn.commit()
+            return {"status": "ok"}
     finally:
         conn.close()
 

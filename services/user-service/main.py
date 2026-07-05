@@ -13,10 +13,10 @@ load_dotenv()
 
 app = FastAPI(title="Muma User Service")
 
-MUMA_API_KEY = os.getenv("MUMA_API_KEY", "453ecd33-3cb2-4ca4-a531-1677330bbaee")
-LMS_API_KEY = os.getenv("LMS_API_KEY", MUMA_API_KEY)
-API_KEY = os.getenv("API_KEY", LMS_API_KEY)
-LMS_SUBSONIC_API_KEY = os.getenv("LMS_SUBSONIC_API_KEY", API_KEY)
+MUMA_API_KEY = os.getenv("MUMA_API_KEY") or "453ecd33-3cb2-4ca4-a531-1677330bbaee"
+LMS_API_KEY = os.getenv("LMS_API_KEY") or MUMA_API_KEY
+API_KEY = os.getenv("API_KEY") or LMS_API_KEY
+LMS_SUBSONIC_API_KEY = os.getenv("LMS_SUBSONIC_API_KEY") or API_KEY
 
 async def verify_api_key(x_api_key: str = Header(None)):
     if API_KEY and x_api_key != API_KEY:
@@ -86,6 +86,7 @@ class UserCreate(BaseModel):
     display_name: Optional[str] = None
     lms_user_id: Optional[str] = None
     api_key: Optional[str] = None
+    password: Optional[str] = None
 
 class UserUpdate(BaseModel):
     display_name: Optional[str] = None
@@ -147,16 +148,54 @@ async def create_user(user: UserCreate, api_key: str = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    password_hash = None
+    lms_password_hash = None
+    if user.password:
+        salt = bcrypt.gensalt(rounds=12)
+        password_hash = bcrypt.hashpw(user.password.encode('utf-8'), salt).decode('utf-8')
+        lms_password_hash = password_hash.replace('$2b$', '$2y$')
+
     try:
+        # Create in LMS first if possible to get lms_user_id
+        lms_user_id = user.lms_user_id
+        if not lms_user_id and lms_password_hash:
+            lms_user_id = create_lms_user(user.username, lms_password_hash)
+
         with conn.cursor() as cursor:
             cursor.execute(
-                "INSERT INTO users (username, display_name, lms_user_id, api_key) VALUES (%s, %s, %s, %s)",
-                (user.username, user.display_name, user.lms_user_id, user.api_key)
+                "INSERT INTO users (username, display_name, lms_user_id, api_key, password_hash) VALUES (%s, %s, %s, %s, %s)",
+                (user.username, user.display_name, lms_user_id, user.api_key, password_hash)
             )
             conn.commit()
-            return {"id": cursor.lastrowid, "username": user.username}
+            return {"id": cursor.lastrowid, "username": user.username, "lms_user_id": lms_user_id}
     except pymysql.err.IntegrityError:
         raise HTTPException(status_code=400, detail="Username already exists")
+    finally:
+        conn.close()
+
+@app.delete("/users/{user_id}")
+async def delete_user(user_id: int, api_key: str = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        with conn.cursor() as cursor:
+            # Get LMS ID before deleting
+            cursor.execute("SELECT lms_user_id FROM users WHERE id = %s", (user_id,))
+            user = cursor.fetchone()
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            
+            # Delete from MariaDB
+            cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            
+            # Delete from LMS DB if exists
+            if user['lms_user_id']:
+                delete_lms_user(user['lms_user_id'])
+                
+            conn.commit()
+            return {"status": "user deleted"}
     finally:
         conn.close()
 
@@ -256,6 +295,12 @@ def update_lms_password(lms_user_id, password_hash):
     if not os.path.exists(db_path):
         print(f"LMS DB not found at {db_path}, skipping LMS password update")
         return
+    
+    # Check if directory is writable (needed for SQLite journals)
+    db_dir = os.path.dirname(db_path)
+    if not os.access(db_dir, os.W_OK):
+        print(f"WARNING: LMS DB directory {db_dir} is not writable. SQLite updates might fail.")
+
     try:
         sqlite_conn = sqlite3.connect(db_path)
         sqlite_cursor = sqlite_conn.cursor()
@@ -265,7 +310,58 @@ def update_lms_password(lms_user_id, password_hash):
         sqlite_conn.close()
         print(f"Updated LMS password for user ID {lms_user_id}")
     except Exception as e:
-        print(f"Failed to update LMS password: {e}")
+        print(f"Failed to update LMS password for ID {lms_user_id}: {e}")
+
+def delete_lms_user(lms_user_id):
+    db_path = os.getenv("LMS_DB_PATH", "/app/data/lms.db")
+    if not os.path.exists(db_path):
+        print(f"LMS DB not found at {db_path}, skipping LMS user deletion")
+        return
+    
+    # Check if directory is writable
+    db_dir = os.path.dirname(db_path)
+    if not os.access(db_dir, os.W_OK):
+        print(f"WARNING: LMS DB directory {db_dir} is not writable. SQLite deletion might fail.")
+
+    try:
+        sqlite_conn = sqlite3.connect(db_path)
+        sqlite_cursor = sqlite_conn.cursor()
+        # Delete user from LMS user table
+        sqlite_cursor.execute("DELETE FROM user WHERE id = ?", (lms_user_id,))
+        sqlite_conn.commit()
+        sqlite_conn.close()
+        print(f"Deleted LMS user with ID {lms_user_id}")
+    except Exception as e:
+        print(f"Failed to delete LMS user with ID {lms_user_id}: {e}")
+
+def create_lms_user(username, password_hash):
+    db_path = os.getenv("LMS_DB_PATH", "/app/data/lms.db")
+    if not os.path.exists(db_path):
+        print(f"LMS DB not found at {db_path}, skipping LMS user creation")
+        return None
+    
+    # Check if directory is writable
+    db_dir = os.path.dirname(db_path)
+    if not os.access(db_dir, os.W_OK):
+        print(f"WARNING: LMS DB directory {db_dir} is not writable. SQLite creation might fail.")
+
+    try:
+        sqlite_conn = sqlite3.connect(db_path)
+        sqlite_cursor = sqlite_conn.cursor()
+        # Insert user into LMS user table
+        # We assume is_admin = 0 for new users created via MuMa
+        sqlite_cursor.execute(
+            "INSERT INTO user (login_name, password_hash, is_admin) VALUES (?, ?, ?)",
+            (username, password_hash, 0)
+        )
+        lms_id = sqlite_cursor.lastrowid
+        sqlite_conn.commit()
+        sqlite_conn.close()
+        print(f"Created LMS user {username} with ID {lms_id}")
+        return lms_id
+    except Exception as e:
+        print(f"Failed to create LMS user {username}: {e}")
+        return None
 
 @app.post("/sync/lms")
 async def sync_lms_users(background_tasks: BackgroundTasks, api_key: str = Depends(verify_api_key)):

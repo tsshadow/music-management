@@ -74,6 +74,8 @@ services:
       PHPMYADMIN_URL: ${PHPMYADMIN_URL}
     ports:
       - "8003:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - music-management_db
 
@@ -404,7 +406,20 @@ services:
       PYTHONPATH: /app
       LMS_DB_PATH: /app/data/lms.db
     volumes:
-      - /docker/lms/var/lms/lms.db:/app/data/lms.db:ro
+      - /docker/lms/var/lms:/app/data:rw
+    networks:
+      - music-management_db
+
+  stats-service:
+    image: ${DOCKER_USER}/${IMAGE_STATS}:latest
+    container_name: muma-stats-service
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      <<: [*environment-db]
+      API_KEY: ${API_KEY}
+      PYTHONPATH: /app
     networks:
       - music-management_db
 
@@ -416,8 +431,10 @@ services:
     environment:
       TZ: Europe/Amsterdam
       WEB_AUTHENTICATION: "1"
-      SECURE_CONNECTION: "0"
+      SECURE_CONNECTION: "1"
       DISABLE_GPU: "1"
+      WEB_AUTHENTICATION_USERNAME: ${FIREFOX_USER:-admin}
+      WEB_AUTHENTICATION_PASSWORD: ${FIREFOX_PASSWORD:-admin}
     ports:
       - "7003:5800"
     volumes:

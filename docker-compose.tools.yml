@@ -64,8 +64,10 @@ services:
     environment:
       TZ: Europe/Amsterdam
       WEB_AUTHENTICATION: "1"
-      SECURE_CONNECTION: "0"
+      SECURE_CONNECTION: "1"
       DISABLE_GPU: "1"
+      WEB_AUTHENTICATION_USERNAME: ${FIREFOX_USER:-admin}
+      WEB_AUTHENTICATION_PASSWORD: ${FIREFOX_PASSWORD:-admin}
     ports:
       - "7003:5800"
     volumes:

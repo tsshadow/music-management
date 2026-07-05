@@ -67,6 +67,7 @@ IMAGE_IMPORTER="${IMAGE_IMPORTER}"
 IMAGE_RATING="${IMAGE_RATING}"
 IMAGE_SCROBBLE="${IMAGE_SCROBBLE}"
 IMAGE_USER="${IMAGE_USER}"
+IMAGE_STATS="${IMAGE_STATS}"
 VERSION=$(cat VERSION 2>/dev/null || echo "latest")
 
 # Docker command configuration
@@ -133,6 +134,12 @@ build_user() {
     $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_USER}:latest" -t "${DOCKER_USER}/${IMAGE_USER}:${VERSION}" -f Dockerfile.user-service .
 }
 
+build_stats() {
+    build_base
+    echo "--- Building Stats Service ($VERSION) ---"
+    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_STATS}:latest" -t "${DOCKER_USER}/${IMAGE_STATS}:${VERSION}" -f Dockerfile.stats-service .
+}
+
 build_ml() {
     local cmd=$DOCKER_CMD
     if [ "$SEMI_REMOTE_MODE" = true ]; then cmd="docker -c remote-lxc"; fi
@@ -194,6 +201,7 @@ if [ ${#REQUESTED_MODULES[@]} -eq 0 ]; then
     build_rating &
     build_scrobble &
     build_user &
+    build_stats &
     
     wait
 else
@@ -202,7 +210,7 @@ else
     NEED_BASE=false
     for arg in "${REQUESTED_MODULES[@]}"; do
         case $arg in
-            scanner|tagger|downloader|telegram|importer|rating|scrobble|user|mgmt|management) NEED_BASE=true ;;
+            scanner|tagger|downloader|telegram|importer|rating|scrobble|user|stats|mgmt|management) NEED_BASE=true ;;
         esac
     done
     
@@ -224,6 +232,7 @@ else
             rating) build_rating & ;;
             scrobble) build_scrobble & ;;
             user) build_user & ;;
+            stats) build_stats & ;;
             base) ;; # Already built if needed
             *) echo "Unknown component: $arg"; exit 1 ;;
         esac

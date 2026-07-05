@@ -78,7 +78,18 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
-ALTER TABLE rules_genres MODIFY COLUMN name VARCHAR(100) NOT NULL UNIQUE;
+-- Use a procedure or check to only add unique index if it doesn't exist
+SET @sql = IF(
+    (SELECT COUNT(*) FROM information_schema.statistics 
+     WHERE table_schema = DATABASE() AND table_name = 'rules_genres' AND column_name = 'name' AND non_unique = 0) = 0,
+    'ALTER TABLE rules_genres ADD UNIQUE (name)',
+    'DO 0'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+ALTER TABLE rules_genres MODIFY COLUMN name VARCHAR(100) NOT NULL;
 ALTER TABLE rules_genres ADD COLUMN IF NOT EXISTS corrected_genre VARCHAR(255);
 
 -- 4. Junction tables

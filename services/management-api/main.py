@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 from typing import List, Optional, Dict
 from pydantic import BaseModel
 import requests
+import docker
+from datetime import datetime
 from services.common.api.version_helper import get_version, get_release_notes, get_changelog
 
 load_dotenv()
@@ -23,16 +25,18 @@ SERVICES = {
     "ml-analyzer": "http://muma-ml-analyzer:8001",
     "rating-system": "http://muma-rating-system:8000",
     "scrobble-service": "http://muma-scrobble-service:8000",
-    "user-service": "http://muma-user-service:8001"
+    "user-service": "http://muma-user-service:8001",
+    "stats-service": "http://muma-stats-service:8000"
 }
 
-MUMA_API_KEY = os.getenv("MUMA_API_KEY", "453ecd33-3cb2-4ca4-a531-1677330bbaee")
+MUMA_API_KEY = os.getenv("MUMA_API_KEY") or "453ecd33-3cb2-4ca4-a531-1677330bbaee"
 # LMS_API_KEY is an alias for MUMA_API_KEY when running in the same environment
-LMS_API_KEY = os.getenv("LMS_API_KEY", MUMA_API_KEY)
-API_KEY = os.getenv("API_KEY", LMS_API_KEY)
-RATING_API_KEY = os.getenv("RATING_API_KEY", LMS_API_KEY)
-SCROBBLE_API_KEY = os.getenv("SCROBBLE_API_KEY", LMS_API_KEY)
-USER_API_KEY = os.getenv("USER_API_KEY", LMS_API_KEY)
+LMS_API_KEY = os.getenv("LMS_API_KEY") or MUMA_API_KEY
+API_KEY = os.getenv("API_KEY") or LMS_API_KEY
+RATING_API_KEY = os.getenv("RATING_API_KEY") or LMS_API_KEY
+SCROBBLE_API_KEY = os.getenv("SCROBBLE_API_KEY") or LMS_API_KEY
+USER_API_KEY = os.getenv("USER_API_KEY") or LMS_API_KEY
+STATS_API_KEY = os.getenv("STATS_API_KEY") or LMS_API_KEY
 
 AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://muma-user-service:8001")
 
@@ -68,12 +72,20 @@ def get_proxy_headers(service_name=None):
         key = SCROBBLE_API_KEY
     elif service_name == "user-service":
         key = USER_API_KEY
+    elif service_name == "stats-service":
+        key = STATS_API_KEY
     
     if key:
         headers["X-API-Key"] = key
     return headers
 
 app = FastAPI(title="Music Management Control Center")
+
+try:
+    docker_client = docker.from_env()
+except Exception as e:
+    print(f"Docker client initialization error: {e}")
+    docker_client = None
 
 # Allow CORS for development
 app.add_middleware(
@@ -127,12 +139,13 @@ class LabelGenreRule(BaseModel):
 
 class ListenBrainzImport(BaseModel):
     username: str
-    lb_username: str
+    lb_username: Optional[str] = None
 
 class UserCreate(BaseModel):
     username: str
     display_name: Optional[str] = None
     lms_user_id: Optional[str] = None
+    password: Optional[str] = None
 
 class LBAccountUpdate(BaseModel):
     lb_username: str
@@ -154,6 +167,26 @@ def get_notes(_: None = Depends(verify_api_key)):
         "release_notes": get_release_notes("management-api"),
         "changelog": get_changelog()
     }
+
+@app.get("/api/stats")
+def get_stats_endpoint(_: None = Depends(verify_api_key)):
+    try:
+        url = f"{SERVICES['stats-service']}/stats"
+        resp = requests.get(url, headers=get_proxy_headers("stats-service"), timeout=5.0)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        print(f"Stats service error: {e}")
+        # Fallback to empty stats if service is down
+        return {
+            "total_tracks": 0,
+            "total_artists": 0,
+            "total_albums": 0,
+            "top_artists": [],
+            "top_genres": [],
+            "recently_added": [],
+            "match_rate": 0
+        }
 
 @app.get("/api/versions")
 def get_all_versions(_: None = Depends(verify_api_key)):
@@ -415,10 +448,14 @@ def delete_label_genre_rule(rule_id: int, _: None = Depends(verify_api_key)):
 @app.post("/api/scrobble/import/listenbrainz")
 def proxy_import_listenbrainz(data: ListenBrainzImport, _: None = Depends(verify_api_key)):
     base_url = SERVICES["scrobble-service"]
+    params = {"username": data.username}
+    if data.lb_username:
+        params["lb_username"] = data.lb_username
+        
     try:
         response = requests.post(
             f"{base_url}/api/import/listenbrainz", 
-            params={"username": data.username, "lb_username": data.lb_username},
+            params=params,
             headers=get_proxy_headers("scrobble-service"),
             timeout=5.0
         )
@@ -450,6 +487,15 @@ def proxy_create_user(user: UserCreate, _: None = Depends(verify_api_key)):
     base_url = SERVICES["user-service"]
     try:
         response = requests.post(f"{base_url}/users", json=user.dict(), headers=get_proxy_headers("user-service"), timeout=5.0)
+        return response.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
+
+@app.delete("/api/users/{user_id}")
+def proxy_delete_user(user_id: int, _: None = Depends(verify_api_key)):
+    base_url = SERVICES["user-service"]
+    try:
+        response = requests.delete(f"{base_url}/users/{user_id}", headers=get_proxy_headers("user-service"), timeout=5.0)
         return response.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to contact User Service: {str(e)}")
@@ -562,6 +608,104 @@ def delete_youtube_account(name: str, _: None = Depends(verify_api_key)):
             cursor.execute("DELETE FROM downloads_youtube_accounts WHERE name = %s", (name,))
             conn.commit()
             return {"status": "success"}
+    finally:
+        conn.close()
+
+# System Monitoring Endpoints
+@app.get("/api/system/containers")
+def get_containers(_: None = Depends(verify_api_key)):
+    if not docker_client:
+        return []
+    try:
+        containers = []
+        for container in docker_client.containers.list(all=True):
+            # Filter only muma related containers if possible, or show all
+            if any(name in container.name for name in ["muma", "music-management", "db", "phpmyadmin", "firefox", "lms"]):
+                containers.append({
+                    "id": container.id,
+                    "name": container.name,
+                    "status": container.status,
+                    "image": container.image.tags[0] if container.image.tags else "unknown",
+                    "state": container.attrs.get("State", {})
+                })
+        return sorted(containers, key=lambda x: x["name"])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Docker error: {str(e)}")
+
+@app.get("/api/system/logs/{container_name}")
+def get_container_logs(container_name: str, tail: int = 100, _: None = Depends(verify_api_key)):
+    if not docker_client:
+        raise HTTPException(status_code=500, detail="Docker not available")
+    try:
+        container = docker_client.containers.get(container_name)
+        logs = container.logs(tail=tail).decode("utf-8")
+        return {"logs": logs}
+    except docker.errors.NotFound:
+        raise HTTPException(status_code=404, detail="Container not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/system/activity")
+def get_recent_activity(limit: int = 20, _: None = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    try:
+        with conn.cursor() as cursor:
+            # Recent added tracks
+            cursor.execute("""
+                SELECT mf.file_path, t.created_at as timestamp, t.title, a.name as artist
+                FROM library_media_files mf
+                LEFT JOIN library_tracks t ON mf.track_id = t.id
+                LEFT JOIN library_artists a ON t.primary_artist_id = a.id
+                WHERE t.created_at IS NOT NULL
+                ORDER BY t.created_at DESC
+                LIMIT %s
+            """, (limit,))
+            added = cursor.fetchall()
+            
+            # Recent tagged tracks (last_seen > created_at + some buffer)
+            cursor.execute("""
+                SELECT mf.file_path, mf.last_seen as timestamp, t.title, a.name as artist
+                FROM library_media_files mf
+                LEFT JOIN library_tracks t ON mf.track_id = t.id
+                LEFT JOIN library_artists a ON t.primary_artist_id = a.id
+                WHERE mf.last_seen > DATE_ADD(t.created_at, INTERVAL 10 SECOND)
+                ORDER BY mf.last_seen DESC
+                LIMIT %s
+            """, (limit,))
+            tagged = cursor.fetchall()
+            
+            # Categorize by source based on path
+            def get_source(path):
+                if not path: return "Unknown"
+                if "/Youtube/" in path: return "YouTube"
+                if "/Soundcloud/" in path: return "SoundCloud"
+                if "/Telegram/" in path: return "Telegram"
+                if "/EPs/" in path: return "Importer"
+                return "Unknown"
+            
+            for item in added:
+                item["source"] = get_source(item["file_path"])
+                if item["timestamp"]:
+                    if isinstance(item["timestamp"], datetime):
+                        item["timestamp"] = item["timestamp"].isoformat()
+                    else:
+                        item["timestamp"] = str(item["timestamp"])
+            
+            for item in tagged:
+                item["source"] = get_source(item["file_path"])
+                if item["timestamp"]:
+                    if isinstance(item["timestamp"], datetime):
+                        item["timestamp"] = item["timestamp"].isoformat()
+                    else:
+                        item["timestamp"] = str(item["timestamp"])
+            
+            return {
+                "recent_added": added,
+                "recent_tagged": tagged
+            }
     finally:
         conn.close()
 

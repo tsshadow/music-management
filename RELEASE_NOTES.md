@@ -12,6 +12,13 @@ This project is now modularized. Detailed release notes for each module can be f
 - [Scrobble Service](services/scrobble-service/RELEASE_NOTES.md)
 - [User Service](services/user-service/RELEASE_NOTES.md)
 
+## Global Version 2.1.31 (2026-07-05)
+### 🛡️ Health & Activity Dashboard
+- **System Monitoring**: Het Control Center heeft nu een speciaal "Health & Activity" tabblad voor een compleet overzicht van het systeem.
+- **Container Health**: Real-time statusoverzicht van alle Docker containers (Running/Stopped).
+- **In-App Logs**: Bekijk direct de laatste 200 regels logs van elke container zonder SSH te gebruiken.
+- **Activity Stream**: Zie direct welke tracks er onlangs zijn toegevoegd door de downloaders of zijn verwerkt door de tagger.
+
 ## Global Version 2.1.30 (2026-07-05)
 ### 🔑 LMS Subsonic API Key Integration
 - **Configurable Subsonic Key**: LMS ondersteunt nu de `LMS_SUBSONIC_API_KEY` omgevingsvariabele. Hiermee kan de Subsonic API-sleutel direct worden ingesteld zonder handmatige database-wijzigingen, wat zorgt voor een vlekkeloze verbinding met apps zoals Ultrasonic.
@@ -176,7 +183,7 @@ This project is now modularized. Detailed release notes for each module can be f
 ## Global Version 2.1.3 (2026-07-04)
 ### 🚀 Deployment Optimization
 - **Consolidated Deployment**: Merged all deployment logic into a single, unified `scripts/deploy.sh` script.
-- **Improved Automation**: Streamlined the `bup` (Build, Update, Publish) workflow to ensure all modular applications are processed correctly in one go.
+- **Improved Automation**: Streamlined the `install.sh` workflow to ensure all modular applications are processed correctly in one go.
 
 ---
 

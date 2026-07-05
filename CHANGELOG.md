@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.35] - 2026-07-05
+### Fixed
+- **User Management**: Fixed an issue where deleting or creating users in MuMa did not reflect in LMS due to a read-only database mount.
+- **Service Integration**: Changed the `lms.db` mount in `user-service` to read-write by mounting the parent directory, allowing SQLite to handle journal files.
+- **Logging**: Added enhanced logging and permission checks in the User Service to monitor LMS database connectivity.
+
+## [2.1.34] - 2026-07-05
+### Added
+- **User Management**: Added ability to delete users and set default passwords in the Control Center.
+- **LMS Synchronization**: Implemented immediate bidirectional synchronization with the Lightweight Music Server (LMS) database.
+
+## [2.1.33] - 2026-07-05
+### Fixed
+- **Stats Service**: Resolved build and deployment issues for the new stats microservice.
+- **Database**: Cleaned up redundant indices on the `rules_genres` table.
+
+## [2.1.32] - 2026-07-05
+### Added
+- **Stats Microservice**: Decoupled library statistics into a dedicated microservice (`stats-service`).
+- **Improved Management API**: Integrated statistics module directly into the Control Center via proxy to the new microservice.
+- **Library Stats CLI**: Added a `stats` command to `install.sh` to quickly view library statistics from the terminal.
+
+## [2.1.31] - 2026-07-05
+### Added
+- **Health & Activity Dashboard**: Nieuw tabblad in het Control Center voor real-time monitoring van Docker containers.
+- **Docker Logs Viewer**: Bekijk de logs van alle Muma-gerelateerde containers direct vanuit de UI.
+- **Recent Activity**: Overzicht van onlangs toegevoegde en getagde nummers, gecategoriseerd per bron (YouTube, SoundCloud, etc.).
+
 ## [2.1.30] - 2026-07-05
 ### Added
 - **LMS Subsonic API Key**: De Subsonic API-sleutel in LMS kan nu worden geconfigureerd via de omgevingsvariabele `LMS_SUBSONIC_API_KEY`, wat de integratie met externe apps vergemakkelijkt.
@@ -118,10 +146,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Centralized Release Notes**: The Control Center now aggregates and displays release notes and changelogs from all modular services.
 - **Service API Expansion**: Added versioning and release notes endpoints to the Rating System service.
 
+## [2.1.11] - 2026-07-05
+### Added
+- **Library Stats CLI**: Added a `stats` command to `install.sh` to quickly view library statistics from the terminal.
+- **Improved Management API**: Integrated statistics module directly into the Control Center.
+
 ## [2.1.10] - 2026-07-04
 ### Added
 - **Modular Containerization**: Split the monolithic application into 10 specialized, lightweight services (`muma-scanner`, `muma-tagger`, `muma-downloader`, etc.).
-- **Smart Build System**: Introduced `scripts/affected.sh` and optimized `bup` to skip builds for unedited modules.
+- **Smart Build System**: Introduced `scripts/affected.sh` and optimized `install.sh` to skip builds for unedited modules.
 - **Unified Base Image**: Created `muma-base` to share core music logic and dependencies, reducing image size and ensuring consistency.
 - **Parallel Builds**: Optimized `build.sh` and `publish.sh` to execute Docker operations in parallel.
 
@@ -166,7 +199,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.1.3] - 2026-07-04
 ### Changed
 - **Consolidated Deployment**: Unified root `deploy.sh` and `scripts/deploy-stack.sh` into a single `scripts/deploy.sh`.
-- **Streamlined Workflow**: Updated `bup` to use the new centralized deployment script.
+- **Streamlined Workflow**: Updated `install.sh` to use the new centralized deployment script.
 
 ## [2.1.2] - 2026-07-04
 ### Fixed
@@ -201,7 +234,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Portainer Webhook support for automated Stack updates.
 - Automatic Docker group permission handling via `sg docker` re-execution.
 - Standardized `.env` configuration for all deployment targets.
-- `bup` shortcut for the full build-publish-deploy pipeline.
+- `install.sh` shortcut for the full build-publish-deploy pipeline.
 - Proactive Docker registry authentication checks.
 - Advanced audio feature extraction (MFCC, ZCR, Rolloff, Chroma) in ML analyzer.
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Home, Cloud, Scale, Database, Info, ExternalLink, Plus, RefreshCw, Music, Tag, Trash2, Search, Radio, Users, Key, Youtube } from 'lucide-svelte';
+  import { Home, Cloud, Scale, Database, Info, ExternalLink, Plus, RefreshCw, Music, Tag, Trash2, Search, Radio, Users, Key, Youtube, Activity, ShieldCheck, Terminal, Clock } from 'lucide-svelte';
 
   let activeTab = 'home';
   let config = { version: '...', phpmyadmin_url: '#' };
@@ -16,6 +16,21 @@
   let labelGenreRules = [];
   let latestImports = [];
   let users = [];
+  let containers = [];
+  let systemLogs = '';
+  let activity = { recent_added: [], recent_tagged: [] };
+  let stats = {
+    total_tracks: 0,
+    total_artists: 0,
+    total_albums: 0,
+    top_artists: [],
+    top_genres: [],
+    total_scrobbles: 0,
+    match_rate: 0,
+    recently_added: [],
+    avg_track_duration: 0
+  };
+  let selectedContainer = '';
   let selectedUser = null;
   let userLBAccount = null;
   let loading = true;
@@ -69,11 +84,22 @@
     fetchData();
   }
 
+  async function fetchStats() {
+    try {
+      const res = await fetch(`${API_BASE}/api/stats`, { headers: getHeaders() });
+      if (res.ok) {
+        stats = await res.json();
+      }
+    } catch (err) {
+      console.error("Stats fetch error:", err);
+    }
+  }
+
   async function fetchData() {
     loading = true;
     try {
       const headers = getHeaders();
-      const [configRes, notesRes, rulesRes, accountsRes, youtubeRes, versionsRes, allNotesRes, importsRes, usersRes] = await Promise.all([
+      const [configRes, notesRes, rulesRes, accountsRes, youtubeRes, versionsRes, allNotesRes, importsRes, usersRes, containersRes, activityRes, statsRes] = await Promise.all([
         fetch(`${API_BASE}/api/config`, { headers }),
         fetch(`${API_BASE}/api/notes`, { headers }),
         fetch(`${API_BASE}/api/rules`, { headers }),
@@ -82,7 +108,10 @@
         fetch(`${API_BASE}/api/versions`, { headers }),
         fetch(`${API_BASE}/api/all-notes`, { headers }),
         fetch(`${API_BASE}/api/scrobble/import/latest`, { headers }),
-        fetch(`${API_BASE}/api/users`, { headers })
+        fetch(`${API_BASE}/api/users`, { headers }),
+        fetch(`${API_BASE}/api/system/containers`, { headers }),
+        fetch(`${API_BASE}/api/system/activity`, { headers }),
+        fetch(`${API_BASE}/api/stats`, { headers })
       ]);
       
       config = await configRes.json();
@@ -94,6 +123,9 @@
       allNotes = await allNotesRes.json();
       latestImports = await importsRes.json();
       users = await usersRes.json();
+      containers = await containersRes.json();
+      activity = await activityRes.json();
+      stats = await statsRes.json();
       
       // Load rules for editor
       fetchRules();
@@ -120,25 +152,19 @@
     if (!importMumaUser) return;
     isImporting = true;
     try {
-      // If we have a selected user and an LB account, use that lbUsername if importLbUser is empty
-      let lbUserToUse = importLbUser;
-      if (!lbUserToUse && selectedUser && lbUsername) {
-        lbUserToUse = lbUsername;
-      }
-      
-      if (!lbUserToUse) {
-        error = "ListenBrainz gebruikersnaam is vereist.";
-        isImporting = false;
-        return;
+      const body = { username: importMumaUser };
+      if (importLbUser) {
+        body.lb_username = importLbUser;
       }
 
       const res = await fetch(`${API_BASE}/api/scrobble/import/listenbrainz`, {
         method: 'POST',
         headers: getHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ username: importMumaUser, lb_username: lbUserToUse })
+        body: JSON.stringify(body)
       });
       if (res.ok) {
-        message = "ListenBrainz import gestart!";
+        const data = await res.json();
+        message = `ListenBrainz import gestart voor ${data.lb_username || 'gekoppeld account'}!`;
         fetchLatestImports();
         // Poll for updates every 3 seconds while active
         const interval = setInterval(async () => {
@@ -357,16 +383,40 @@
       const res = await fetch(`${API_BASE}/api/users`, {
         method: 'POST',
         headers: getHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ username: newUsername, display_name: newDisplayName || null })
+        body: JSON.stringify({ 
+          username: newUsername, 
+          display_name: newDisplayName || null,
+          password: userPassword || null
+        })
       });
       if (res.ok) {
-        message = "Gebruiker toegevoegd";
+        message = "Gebruiker toegevoegd (ook in LMS)";
         newUsername = '';
         newDisplayName = '';
+        userPassword = '';
         fetchUsers();
+        setTimeout(() => message = '', 2000);
       }
     } catch (err) {
       error = "Fout bij toevoegen gebruiker";
+    }
+  }
+
+  async function deleteUser(user) {
+    if (!confirm(`Weet je zeker dat je gebruiker ${user.username} wilt verwijderen? Dit verwijdert hem ook uit de LMS.`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/users/${user.id}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      });
+      if (res.ok) {
+        message = "Gebruiker verwijderd";
+        if (selectedUser?.id === user.id) selectedUser = null;
+        fetchUsers();
+        setTimeout(() => message = '', 2000);
+      }
+    } catch (err) {
+      error = "Fout bij verwijderen gebruiker";
     }
   }
 
@@ -467,6 +517,39 @@
     }
   }
 
+  async function fetchLogs(name) {
+    selectedContainer = name;
+    systemLogs = 'Laden...';
+    try {
+      const res = await fetch(`${API_BASE}/api/system/logs/${name}?tail=200`, { headers: getHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        systemLogs = data.logs;
+      } else {
+        systemLogs = "Kon logs niet ophalen.";
+      }
+    } catch (err) {
+      systemLogs = "Fout bij ophalen logs.";
+    }
+  }
+
+  async function refreshSystemStatus() {
+    try {
+      const headers = getHeaders();
+      const [contRes, actRes] = await Promise.all([
+        fetch(`${API_BASE}/api/system/containers`, { headers }),
+        fetch(`${API_BASE}/api/system/activity`, { headers })
+      ]);
+      containers = await contRes.json();
+      activity = await actRes.json();
+      if (selectedContainer) {
+        fetchLogs(selectedContainer);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
 </script>
 
 <div class="flex h-screen bg-spotify-dark overflow-hidden font-sans">
@@ -529,6 +612,18 @@
         class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'versions' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
       >
         <Info size={24} /> System Versions
+      </button>
+      <button 
+        on:click={() => { activeTab = 'health'; refreshSystemStatus(); }}
+        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'health' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+      >
+        <ShieldCheck size={24} /> Health & Activity
+      </button>
+      <button 
+        on:click={() => { activeTab = 'stats'; fetchStats(); }}
+        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'stats' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+      >
+        <Activity size={24} /> Bibliotheek Stats
       </button>
       
       <div class="pt-4 mt-4 border-t border-spotify-gray">
@@ -1052,13 +1147,21 @@
                 </div>
                 <div>
                   <label for="lb-user" class="block text-sm font-bold text-spotify-lightgray mb-2">ListenBrainz Username</label>
-                  <input 
-                    type="text" 
-                    id="lb-user" 
-                    bind:value={importLbUser}
-                    placeholder="teunschriks"
-                    class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
-                  />
+                  <div class="relative">
+                    <input 
+                      type="text" 
+                      id="lb-user" 
+                      bind:value={importLbUser}
+                      placeholder={lbUsername ? `Gekoppeld: ${lbUsername}` : "teunschriks"}
+                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
+                    />
+                    {#if !importLbUser && lbUsername}
+                      <span class="absolute right-3 top-3 text-xs text-spotify-green font-bold">GEKOPPELD</span>
+                    {/if}
+                  </div>
+                  <p class="text-[10px] text-spotify-lightgray mt-1 italic">
+                    Optioneel indien al gekoppeld in User Management.
+                  </p>
                 </div>
                 <button 
                   type="submit" 
@@ -1164,8 +1267,19 @@
                           on:click={() => selectUser(user)}
                         >
                           <td class="p-4">
-                            <div class="font-bold {selectedUser?.id === user.id ? 'text-spotify-green' : ''}">{user.username}</div>
-                            <div class="text-xs text-spotify-lightgray">{user.display_name || ''}</div>
+                            <div class="flex justify-between items-center">
+                              <div>
+                                <div class="font-bold {selectedUser?.id === user.id ? 'text-spotify-green' : ''}">{user.username}</div>
+                                <div class="text-xs text-spotify-lightgray">{user.display_name || ''}</div>
+                              </div>
+                              <button 
+                                on:click|stopPropagation={() => deleteUser(user)}
+                                class="text-spotify-lightgray hover:text-red-500 transition-colors p-2"
+                                title="Verwijder gebruiker"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       {/each}
@@ -1191,6 +1305,14 @@
                       type="text" 
                       bind:value={newDisplayName}
                       placeholder="Display Name (Optioneel)"
+                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <input 
+                      type="password" 
+                      bind:value={userPassword}
+                      placeholder="Standaard Wachtwoord"
                       class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
                     />
                   </div>
@@ -1325,6 +1447,237 @@
                   </div>
                 </div>
               {/if}
+            </div>
+          </div>
+        </section>
+      {:else if activeTab === 'health'}
+        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+          <header class="flex justify-between items-end">
+            <div>
+              <h2 class="text-4xl font-extrabold mb-2">🛡️ Health & Activity</h2>
+              <p class="text-spotify-lightgray">Systeem monitoring en recente activiteit van alle workers.</p>
+            </div>
+            <button 
+              on:click={refreshSystemStatus}
+              class="bg-spotify-gray hover:bg-spotify-lightgray text-white px-4 py-2 rounded-full flex items-center gap-2 transition-colors"
+            >
+              <RefreshCw size={16} /> Vernieuwen
+            </button>
+          </header>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Container Status -->
+            <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+              <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex items-center gap-2">
+                <ShieldCheck class="text-spotify-green" /> Docker Containers
+              </h3>
+              <div class="max-h-[500px] overflow-y-auto">
+                <table class="w-full text-left">
+                  <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray sticky top-0">
+                    <tr>
+                      <th class="p-4">Name</th>
+                      <th class="p-4">Status</th>
+                      <th class="p-4 text-right">Logs</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-spotify-gray divide-opacity-30 text-sm">
+                    {#each containers as container}
+                      <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
+                        <td class="p-4">
+                          <div class="font-bold">{container.name}</div>
+                          <div class="text-[10px] text-spotify-lightgray truncate max-w-[200px]">{container.image}</div>
+                        </td>
+                        <td class="p-4">
+                          <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase
+                            {container.status === 'running' ? 'bg-spotify-green text-black' : 'bg-red-500 text-white'}">
+                            {container.status}
+                          </span>
+                        </td>
+                        <td class="p-4 text-right">
+                          <button 
+                            on:click={() => fetchLogs(container.name)}
+                            class="text-spotify-lightgray hover:text-spotify-green"
+                          >
+                            <Terminal size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="space-y-8">
+              <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+                <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex items-center gap-2">
+                  <Plus class="text-spotify-green" /> Recent Toegevoegd
+                </h3>
+                <div class="max-h-[250px] overflow-y-auto">
+                  <ul class="divide-y divide-spotify-gray divide-opacity-30">
+                    {#each activity.recent_added as item}
+                      <li class="p-4 hover:bg-white hover:bg-opacity-5 flex justify-between items-center gap-4">
+                        <div class="truncate">
+                          <div class="font-bold text-sm truncate">{item.title || item.file_path.split('/').pop()}</div>
+                          <div class="text-xs text-spotify-lightgray truncate">{item.artist || item.source}</div>
+                        </div>
+                        <div class="text-[10px] text-spotify-lightgray whitespace-nowrap text-right">
+                          <Clock size={10} class="inline mb-0.5" /> {new Date(item.timestamp).toLocaleString()}
+                        </div>
+                      </li>
+                    {/each}
+                  </ul>
+                </div>
+              </div>
+
+              <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+                <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex items-center gap-2">
+                  <Tag class="text-spotify-green" /> Recent Getagged
+                </h3>
+                <div class="max-h-[250px] overflow-y-auto">
+                  <ul class="divide-y divide-spotify-gray divide-opacity-30">
+                    {#each activity.recent_tagged as item}
+                      <li class="p-4 hover:bg-white hover:bg-opacity-5 flex justify-between items-center gap-4">
+                        <div class="truncate">
+                          <div class="font-bold text-sm truncate">{item.title || item.file_path.split('/').pop()}</div>
+                          <div class="text-xs text-spotify-lightgray truncate">{item.artist || item.source}</div>
+                        </div>
+                        <div class="text-[10px] text-spotify-lightgray whitespace-nowrap text-right">
+                          <Clock size={10} class="inline mb-0.5" /> {new Date(item.timestamp).toLocaleString()}
+                        </div>
+                      </li>
+                    {/each}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Logs Viewer -->
+          {#if selectedContainer}
+            <div class="bg-black rounded-xl border border-spotify-gray overflow-hidden flex flex-col h-[500px] animate-in slide-in-from-bottom-4">
+              <div class="bg-spotify-gray p-4 flex justify-between items-center border-b border-white border-opacity-10">
+                <div class="flex items-center gap-2 font-bold text-sm">
+                  <Terminal size={16} class="text-spotify-green" /> Logs: {selectedContainer}
+                </div>
+                <div class="flex gap-2">
+                  <button on:click={() => fetchLogs(selectedContainer)} class="text-spotify-lightgray hover:text-white"><RefreshCw size={16} /></button>
+                  <button on:click={() => selectedContainer = ''} class="text-spotify-lightgray hover:text-white text-xl leading-none">&times;</button>
+                </div>
+              </div>
+              <pre class="p-4 text-xs font-mono text-spotify-lightgray overflow-auto flex-1 bg-black bg-opacity-50">
+                {systemLogs}
+              </pre>
+            </div>
+          {/if}
+        </section>
+
+      {:else if activeTab === 'stats'}
+        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+          <header class="flex justify-between items-end">
+            <div>
+              <h2 class="text-4xl font-extrabold mb-2">📊 Bibliotheek Statistieken</h2>
+              <p class="text-spotify-lightgray">Inzichten in je muziekcollectie en luistergedrag.</p>
+            </div>
+            <button on:click={fetchStats} class="bg-spotify-gray p-3 rounded-full hover:bg-white hover:bg-opacity-10 transition-colors">
+              <RefreshCw size={20} />
+            </button>
+          </header>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
+              <div class="text-spotify-lightgray text-xs font-bold uppercase mb-1">Totaal Tracks</div>
+              <div class="text-3xl font-extrabold text-spotify-green">{stats.total_tracks.toLocaleString()}</div>
+            </div>
+            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
+              <div class="text-spotify-lightgray text-xs font-bold uppercase mb-1">Totaal Artiesten</div>
+              <div class="text-3xl font-extrabold text-white">{stats.total_artists.toLocaleString()}</div>
+            </div>
+            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
+              <div class="text-spotify-lightgray text-xs font-bold uppercase mb-1">Totaal Scrobbles</div>
+              <div class="text-3xl font-extrabold text-blue-400">{stats.total_scrobbles.toLocaleString()}</div>
+            </div>
+            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
+              <div class="text-spotify-lightgray text-xs font-bold uppercase mb-1">Match Rate</div>
+              <div class="text-3xl font-extrabold {stats.match_rate > 80 ? 'text-spotify-green' : 'text-yellow-500'}">{stats.match_rate}%</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Top Artists -->
+            <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+              <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Top 10 Artiesten</h3>
+              <table class="w-full text-left">
+                <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+                  {#each stats.top_artists as artist, i}
+                    <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
+                      <td class="p-4 w-12 text-spotify-lightgray font-mono">{i + 1}.</td>
+                      <td class="p-4 font-bold">{artist.name}</td>
+                      <td class="p-4 text-right text-spotify-lightgray">{artist.track_count} tracks</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Top Genres -->
+            <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+              <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Populaire Genres</h3>
+              <div class="p-6 space-y-4">
+                {#each stats.top_genres as genre}
+                  <div class="space-y-1">
+                    <div class="flex justify-between text-sm font-bold">
+                      <span>{genre.genre}</span>
+                      <span class="text-spotify-lightgray">{genre.count}</span>
+                    </div>
+                    <div class="w-full bg-spotify-dark rounded-full h-2">
+                      <div class="bg-spotify-green h-2 rounded-full" style="width: {stats.top_genres.length > 0 ? (genre.count / stats.top_genres[0].count) * 100 : 0}%"></div>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Fun Stats -->
+            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 space-y-4">
+              <h3 class="text-xl font-bold">Leuke Weetjes</h3>
+              <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                  <span class="text-spotify-lightgray">Gem. Track Lengte</span>
+                  <span class="font-bold">{Math.floor(stats.avg_track_duration / 60)}:{Math.floor(stats.avg_track_duration % 60).toString().padStart(2, '0')}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-spotify-lightgray">Albums in collectie</span>
+                  <span class="font-bold">{stats.total_albums || 'Onbekend'}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-spotify-lightgray">Unmatched Scrobbles</span>
+                  <span class="font-bold text-yellow-500">{stats.total_unmatched}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recently Added -->
+            <div class="lg:col-span-2 bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+              <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Nieuw in Bibliotheek</h3>
+              <table class="w-full text-left">
+                <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+                  {#each stats.recently_added as track}
+                    <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
+                      <td class="p-4">
+                        <div class="font-bold">{track.title}</div>
+                        <div class="text-xs text-spotify-lightgray">{track.artist}</div>
+                      </td>
+                      <td class="p-4 text-right text-xs text-spotify-lightgray">
+                        {new Date(track.created_at).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
             </div>
           </div>
         </section>

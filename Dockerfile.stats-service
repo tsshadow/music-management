@@ -1,0 +1,17 @@
+ARG DOCKER_USER=tsshadow
+ARG VERSION=latest
+
+FROM ${DOCKER_USER}/muma-base:${VERSION}
+WORKDIR /app
+
+COPY services/stats-service/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy backend code
+COPY VERSION /app/VERSION
+COPY services/stats-service/ /app/services/stats-service/
+
+ENV PYTHONPATH=/app
+EXPOSE 8000
+
+CMD ["uvicorn", "services.stats-service.main:app", "--host", "0.0.0.0", "--port", "8000"]

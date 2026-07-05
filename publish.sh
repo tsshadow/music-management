@@ -80,6 +80,7 @@ IMAGE_IMPORTER="${IMAGE_IMPORTER}"
 IMAGE_RATING="${IMAGE_RATING}"
 IMAGE_SCROBBLE="${IMAGE_SCROBBLE}"
 IMAGE_USER="${IMAGE_USER}"
+IMAGE_STATS="${IMAGE_STATS}"
 VERSION=$(cat VERSION 2>/dev/null || echo "latest")
 
 # Docker command configuration
@@ -143,6 +144,12 @@ push_user() {
     $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_USER}:${VERSION}"
 }
 
+push_stats() {
+    echo "--- Pushing Stats Service ($VERSION) ---"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_STATS}:latest"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_STATS}:${VERSION}"
+}
+
 push_ml() {
     local cmd=$DOCKER_CMD
     if [ "$SEMI_REMOTE_MODE" = true ]; then cmd="docker -c remote-lxc"; fi
@@ -201,6 +208,7 @@ if [ ${#REQUESTED_MODULES[@]} -eq 0 ]; then
     push_rating &
     push_scrobble &
     push_user &
+    push_stats &
     wait
 else
     echo "--- Pushing requested modules: ${REQUESTED_MODULES[*]} ---"
@@ -218,6 +226,7 @@ else
             rating) push_rating & ;;
             scrobble) push_scrobble & ;;
             user) push_user & ;;
+            stats) push_stats & ;;
             base) push_base & ;;
             *) echo "Unknown component: $arg"; exit 1 ;;
         esac

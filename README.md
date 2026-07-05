@@ -20,6 +20,7 @@ The project has been refactored into specialized, lightweight Docker containers 
 - **`muma-ml-analyzer`**: Machine learning pipeline for BPM, key, and mood detection.
 - **`muma-rating-system`**: Intelligent track rating and popularity tracking.
 - **`muma-scrobble-service`**: Listening history tracking and ListenBrainz integration.
+- **`muma-stats-service`**: Dedicated microservice for music library analytics and insights.
 
 ### Utility
 - **`muma-tools`**: Collection of maintenance and database utility scripts.
@@ -83,13 +84,14 @@ The easiest way to run the entire stack is using Docker Compose.
 ### Building and Deployment
 If you are modifying the code and need to rebuild and redeploy the system:
 
-- **Full pipeline (Build + Publish + Deploy)**: `./install` or `./install.sh`
+- **Full pipeline (Build + Publish + Deploy)**: `./install.sh`
   - Uses `scripts/affected.sh` to detect which modules have changed if no modules are specified.
   - Skips builds and pushes for unedited modules to save time.
   - Automatically deploys the updated stack to production.
   - **New**: Use `--semi-remote` to offload heavy builds (`app`, `ml`, `tools`) to the remote LXC container (192.168.1.40).
   - **New**: Use `--remote` to perform the entire build on the remote LXC container.
-  - **New**: Use `--app=<app>` or positional arguments to target specific modules (e.g., `./install --app=user rating`).
+  - **New**: Use `--app=<app>` or positional arguments to target specific modules (e.g., `./install.sh --app=user rating`).
+  - **New**: Use `./install.sh stats` to view music library statistics from the terminal.
 - **Individual steps**:
   - Build: `./build.sh`
   - Publish: `./publish.sh`

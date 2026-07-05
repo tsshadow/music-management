@@ -169,13 +169,26 @@ def release_notes(_: str = Depends(verify_api_key)):
 
 # ListenBrainz Import Logic
 @app.post("/api/import/listenbrainz")
-def import_listenbrainz(username: str, lb_username: str, background_tasks: BackgroundTasks, _: str = Depends(verify_api_key)):
+def import_listenbrainz(username: str, background_tasks: BackgroundTasks, lb_username: Optional[str] = None, _: str = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
     
     try:
         with conn.cursor() as cursor:
+            # If lb_username is not provided, try to find it in user_listenbrainz_accounts
+            if not lb_username:
+                cursor.execute("""
+                    SELECT lb_username FROM user_listenbrainz_accounts lb
+                    JOIN users u ON lb.user_id = u.id
+                    WHERE u.username = %s
+                """, (username,))
+                row = cursor.fetchone()
+                if row:
+                    lb_username = row['lb_username']
+                else:
+                    raise HTTPException(status_code=400, detail=f"No linked ListenBrainz account found for user {username}. Please provide lb_username.")
+
             cursor.execute("""
                 INSERT INTO scrobble_imports (username, lb_username, status)
                 VALUES (%s, %s, %s)
@@ -184,7 +197,7 @@ def import_listenbrainz(username: str, lb_username: str, background_tasks: Backg
             conn.commit()
             
             background_tasks.add_task(run_listenbrainz_import, import_id, username, lb_username)
-            return {"message": "Import started", "import_id": import_id}
+            return {"message": "Import started", "import_id": import_id, "lb_username": lb_username}
     finally:
         conn.close()
 
@@ -244,62 +257,99 @@ def run_listenbrainz_import(import_id: int, muma_username: str, lb_username: str
     update_status(status="running")
 
     url = f"https://api.listenbrainz.org/1/user/{lb_username}/listens"
-    params = {"count": 100}
     headers = {"User-Agent": "MumaScrobbler/2.1 ( contact@muma.local )"}
     
+    processed_count = 0
+    total_found = 0
+    max_ts = None
+    
     try:
-        response = requests.get(url, params=params, headers=headers, timeout=30)
-        if response.status_code != 200:
-            update_status(status="failed", error=f"ListenBrainz API error: {response.status_code}", finished=True)
-            return
-        
-        data = response.json()
-        listens = data.get("payload", {}).get("listens", [])
-        total_count = len(listens)
-        update_status(total=total_count)
-        
-        conn = get_db_connection()
-        if not conn:
-            update_status(status="failed", error="Database connection failed during import", finished=True)
-            return
+        while True:
+            params = {"count": 100}
+            if max_ts is not None:
+                params["max_ts"] = max_ts
+                
+            response = requests.get(url, params=params, headers=headers, timeout=30)
+            if response.status_code == 429:
+                print("Rate limited by ListenBrainz, sleeping for 5 seconds...")
+                time.sleep(5)
+                continue
+                
+            if response.status_code != 200:
+                update_status(status="failed", error=f"ListenBrainz API error: {response.status_code}", finished=True)
+                return
             
-        try:
-            processed_count = 0
-            with conn.cursor() as cursor:
-                for item in listens:
-                    metadata = item.get("track_metadata", {})
-                    artist_name = metadata.get("artist_name")
-                    track_title = metadata.get("track_name")
-                    album_name = metadata.get("release_name")
-                    info = metadata.get("additional_info", {})
-                    mbid_track = info.get("recording_mbid")
-                    mbid_artist = info.get("artist_mbids", [None])[0]
-                    listened_at = item.get("listened_at")
+            data = response.json()
+            listens = data.get("payload", {}).get("listens", [])
+            
+            if not listens:
+                break
+            
+            total_found += len(listens)
+            update_status(total=total_found)
+            
+            conn = get_db_connection()
+            if not conn:
+                update_status(status="failed", error="Database connection failed during import", finished=True)
+                return
+                
+            try:
+                with conn.cursor() as cursor:
+                    matched_listens = []
+                    unmatched_listens = []
+                    for item in listens:
+                        try:
+                            metadata = item.get("track_metadata", {})
+                            artist_name = metadata.get("artist_name")
+                            track_title = metadata.get("track_name")
+                            album_name = metadata.get("release_name")
+                            info = metadata.get("additional_info", {})
+                            mbid_track = info.get("recording_mbid")
+                            
+                            artist_mbids = info.get("artist_mbids")
+                            mbid_artist = artist_mbids[0] if isinstance(artist_mbids, list) and artist_mbids else None
+                            
+                            listened_at = item.get("listened_at")
+                            if listened_at is None:
+                                continue
+                                
+                            track_id = find_track_id(cursor, artist_name, track_title, mbid_track)
+                            ts = datetime.fromtimestamp(listened_at)
+                            
+                            if track_id:
+                                matched_listens.append((track_id, ts, muma_username, "listenbrainz_import", mbid_track))
+                            else:
+                                unmatched_listens.append((artist_name, track_title, album_name, mbid_track, mbid_artist, 
+                                      ts, muma_username, "listenbrainz_import", json.dumps(item)))
+                        except Exception as inner_e:
+                            print(f"Error processing track: {inner_e}")
+                            continue
                     
-                    track_id = find_track_id(cursor, artist_name, track_title, mbid_track)
-                    ts = datetime.fromtimestamp(listened_at)
-                    
-                    if track_id:
-                        cursor.execute("""
+                    if matched_listens:
+                        cursor.executemany("""
                             INSERT IGNORE INTO scrobble_listens (track_id, listened_at, username, source, mbid_track)
                             VALUES (%s, %s, %s, %s, %s)
-                        """, (track_id, ts, muma_username, "listenbrainz_import", mbid_track))
-                    else:
-                        cursor.execute("""
+                        """, matched_listens)
+                    
+                    if unmatched_listens:
+                        cursor.executemany("""
                             INSERT IGNORE INTO scrobble_unmatched_listens 
                             (artist_name, track_title, album_name, mbid_track, mbid_artist, listened_at, username, source, data)
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        """, (artist_name, track_title, album_name, mbid_track, mbid_artist, 
-                              ts, muma_username, "listenbrainz_import", json.dumps(item)))
+                        """, unmatched_listens)
                     
-                    processed_count += 1
-                    if processed_count % 10 == 0:
-                        update_status(processed=processed_count)
-                
-                conn.commit()
-                update_status(status="completed", processed=processed_count, finished=True)
-        finally:
-            conn.close()
+                    processed_count += len(listens)
+                    conn.commit()
+                    update_status(processed=processed_count)
+                    # Set max_ts to the oldest listen in this batch
+                    max_ts = listens[-1].get("listened_at")
+            finally:
+                conn.close()
+            
+            # Rate limiting / polite sleep
+            time.sleep(1)
+        
+        update_status(status="completed", processed=processed_count, finished=True)
     except Exception as e:
         update_status(status="failed", error=str(e), finished=True)
     

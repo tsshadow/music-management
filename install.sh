@@ -10,7 +10,7 @@ cd "$ROOT_DIR"
 
 # Application-specific configuration
 PROJECT_NAME="Music Management"
-AVAILABLE_APPS=("ml" "tools" "app" "management" "scanner" "tagger" "downloader" "telegram" "importer" "rating" "scrobble" "user")
+AVAILABLE_APPS=("ml" "tools" "app" "management" "scanner" "tagger" "downloader" "telegram" "importer" "rating" "scrobble" "user" "stats")
 
 show_help() {
     echo "MuMaFi $PROJECT_NAME Install Script"
@@ -20,8 +20,10 @@ show_help() {
     echo "  --help          Show this help message"
     echo "  --remote        Offload build and publish to remote LXC"
     echo "  --semi-remote   Use semi-remote mode (heavy images remote, others local)"
+    echo "  --debug         Enable debug output"
     echo "  --app=<app>     Specify an application to install"
     echo "  --list          List available applications"
+    echo "  --show-stats    Show music library statistics (CLI)"
     echo ""
     echo "Apps:"
     for app in "${AVAILABLE_APPS[@]}"; do
@@ -42,6 +44,7 @@ list_apps() {
 
 # Default values
 REMOTE_FLAG=""
+DEBUG_FLAG=""
 SELECTED_APPS=()
 
 # Parse arguments
@@ -57,15 +60,22 @@ for i in "$@"; do
         --semi-remote)
             REMOTE_FLAG="--semi-remote"
             ;;
+        --debug)
+            DEBUG_FLAG="--debug"
+            ;;
         --list)
             list_apps
+            exit 0
+            ;;
+        --show-stats)
+            python3 scripts/library_stats.py
             exit 0
             ;;
         --app=*)
             SELECTED_APPS+=("${i#*=}")
             ;;
         -*)
-            # Ignore other flags for now
+            # Ignore other flags
             ;;
         *)
             # Positional arguments are treated as app names
@@ -74,13 +84,46 @@ for i in "$@"; do
     esac
 done
 
+# Check for docker permissions
+if ! docker info >/dev/null 2>&1; then
+    if [ -z "$DOCKER_GROUP_RETRY" ] && getent group docker | grep -q "\b$USER\b"; then
+        export DOCKER_GROUP_RETRY=1
+        echo "Detected 'docker' group membership but it's not active in this session."
+        echo "Re-executing with 'sg docker'..."
+        CMD=$(printf "%q " "$0" "$@")
+        exec sg docker -c "$CMD"
+    fi
+fi
+
+# Detect affected modules if none selected
+if [ ${#SELECTED_APPS[@]} -eq 0 ]; then
+    chmod +x scripts/affected.sh
+    AFFECTED=$(./scripts/affected.sh)
+    
+    if [ "$AFFECTED" == "none" ]; then
+        echo "No changes detected. Skipping build and publish."
+        exit 0
+    fi
+    
+    if [ "$AFFECTED" == "all" ]; then
+        echo "Global changes detected. Building all modules."
+    else
+        echo "Affected modules: $AFFECTED"
+        # Split AFFECTED into SELECTED_APPS array
+        read -r -a SELECTED_APPS <<< "$AFFECTED"
+    fi
+fi
+
+# Construct arguments for sub-scripts
 BP_ARGS=()
-if [ -n "$REMOTE_FLAG" ]; then
-    BP_ARGS+=("$REMOTE_FLAG")
-fi
+[ -n "$REMOTE_FLAG" ] && BP_ARGS+=("$REMOTE_FLAG")
+[ -n "$DEBUG_FLAG" ] && BP_ARGS+=("$DEBUG_FLAG")
+[ ${#SELECTED_APPS[@]} -gt 0 ] && BP_ARGS+=("${SELECTED_APPS[@]}")
 
-if [ ${#SELECTED_APPS[@]} -gt 0 ]; then
-    BP_ARGS+=("${SELECTED_APPS[@]}")
-fi
+# Execute stages
+echo "--- Starting MuMaFi Install Process ---"
+./build.sh "${BP_ARGS[@]}"
+./publish.sh "${BP_ARGS[@]}"
+./scripts/deploy.sh "${BP_ARGS[@]}"
 
-./build_and_publish.sh "${BP_ARGS[@]}"
+echo "Install completed successfully!"

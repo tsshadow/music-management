@@ -40,6 +40,10 @@ STATS_API_KEY = os.getenv("STATS_API_KEY") or LMS_API_KEY
 
 AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://muma-user-service:8001")
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
 async def verify_api_key(x_api_key: Optional[str] = Header(None)):
     if not x_api_key:
         if API_KEY:
@@ -55,7 +59,14 @@ async def verify_api_key(x_api_key: Optional[str] = Header(None)):
         try:
             resp = requests.get(f"{AUTH_SERVICE_URL}/auth/verify", headers={"X-API-Key": x_api_key}, timeout=2.0)
             if resp.status_code == 200:
-                return
+                data = resp.json()
+                if data.get("type") == "system":
+                    return
+                if data.get("user") and data["user"].get("is_admin"):
+                    return
+                raise HTTPException(status_code=403, detail="Admin access required")
+        except HTTPException:
+            raise
         except Exception as e:
             print(f"Auth service error: {e}")
             pass
@@ -153,6 +164,27 @@ class LBAccountUpdate(BaseModel):
 
 class PasswordUpdate(BaseModel):
     password: str
+
+@app.post("/api/auth/login")
+async def proxy_login(req: LoginRequest):
+    if not AUTH_SERVICE_URL:
+         raise HTTPException(status_code=503, detail="Auth service not configured")
+    
+    try:
+        resp = requests.post(
+            f"{AUTH_SERVICE_URL}/auth/login", 
+            json={"username": req.username, "password": req.password},
+            timeout=5.0
+        )
+        if resp.status_code != 200:
+            try:
+                detail = resp.json().get("detail", "Login failed")
+            except:
+                detail = "Login failed"
+            raise HTTPException(status_code=resp.status_code, detail=detail)
+        return resp.json()
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Auth service communication error: {str(e)}")
 
 @app.get("/api/config")
 def get_config(_: None = Depends(verify_api_key)):

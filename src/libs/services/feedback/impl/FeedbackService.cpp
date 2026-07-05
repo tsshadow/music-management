@@ -219,4 +219,10 @@ namespace lms::feedback
     {
         return getRating<db::Track, db::TrackId, db::RatedTrack>(userId, trackId);
     }
+
+    void FeedbackService::notifyPlaylistChanged(db::TrackListId playlistId)
+    {
+        for (auto& [backendType, backend] : _backends)
+            backend->onPlaylistChanged(playlistId);
+    }
 } // namespace lms::feedback

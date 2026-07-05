@@ -40,6 +40,7 @@ namespace lms::feedback::musicManagement
         void onRatingChanged(db::RatedArtistId artistId) override;
         void onRatingChanged(db::RatedReleaseId releaseId) override;
         void onRatingChanged(db::RatedTrackId trackId) override;
+        void onPlaylistChanged(db::TrackListId playlistId) override;
 
         void sendEvent(const std::string& eventType, const std::string& objectType, const std::string& objectId, const std::string& username, int rating = 0, const std::string& path = "");
 

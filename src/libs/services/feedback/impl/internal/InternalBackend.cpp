@@ -92,4 +92,8 @@ namespace lms::feedback
     void InternalBackend::onRatingChanged(db::RatedTrackId)
     {
     }
+
+    void InternalBackend::onPlaylistChanged(db::TrackListId)
+    {
+    }
 } // namespace lms::feedback

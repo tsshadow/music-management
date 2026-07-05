@@ -69,6 +69,8 @@ namespace lms::feedback
         void setRating(db::UserId userId, db::TrackId trackId, std::optional<db::Rating> rating) override;
         std::optional<db::Rating> getRating(db::UserId userId, db::TrackId trackId) override;
 
+        void notifyPlaylistChanged(db::TrackListId playlistId) override;
+
         std::optional<db::FeedbackBackend> getUserFeedbackBackend(db::UserId userId);
 
         template<typename ObjType, typename ObjIdType, typename StarredObjType>

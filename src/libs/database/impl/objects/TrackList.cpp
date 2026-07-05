@@ -152,6 +152,7 @@ namespace lms::db
 
     TrackList::TrackList(std::string_view name, TrackListType type)
         : _name{ name }
+        , _smartParams{}
         , _type{ type }
         , _creationDateTime{ utils::normalizeDateTime(Wt::WDateTime::currentDateTime()) }
         , _lastModifiedDateTime{ utils::normalizeDateTime(Wt::WDateTime::currentDateTime()) }

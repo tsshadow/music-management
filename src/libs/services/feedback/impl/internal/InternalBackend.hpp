@@ -48,6 +48,8 @@ namespace lms::feedback
         void onRatingChanged(db::RatedReleaseId releaseId) override;
         void onRatingChanged(db::RatedTrackId trackId) override;
 
+        void onPlaylistChanged(db::TrackListId playlistId) override;
+
         db::IDb& _db;
     };
 } // namespace lms::feedback

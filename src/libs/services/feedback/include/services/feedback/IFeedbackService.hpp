@@ -30,6 +30,7 @@
 #include "database/objects/Filters.hpp"
 #include "database/objects/ReleaseId.hpp"
 #include "database/objects/TrackId.hpp"
+#include "database/objects/TrackListId.hpp"
 #include "database/objects/Types.hpp"
 #include "database/objects/UserId.hpp"
 
@@ -130,6 +131,8 @@ namespace lms::feedback
 
         virtual void setRating(db::UserId userId, db::TrackId trackId, std::optional<db::Rating> rating) = 0;
         virtual std::optional<db::Rating> getRating(db::UserId userId, db::TrackId trackId) = 0;
+
+        virtual void notifyPlaylistChanged(db::TrackListId playlistId) = 0;
     };
 
     std::unique_ptr<IFeedbackService> createFeedbackService(boost::asio::io_context& ioContext, db::IDb& db);

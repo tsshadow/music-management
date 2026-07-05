@@ -27,6 +27,7 @@
 #include "database/objects/StarredArtistId.hpp"
 #include "database/objects/StarredReleaseId.hpp"
 #include "database/objects/StarredTrackId.hpp"
+#include "database/objects/TrackListId.hpp"
 
 namespace lms::feedback
 {
@@ -45,6 +46,8 @@ namespace lms::feedback
         virtual void onRatingChanged(db::RatedArtistId artistId) = 0;
         virtual void onRatingChanged(db::RatedReleaseId releaseId) = 0;
         virtual void onRatingChanged(db::RatedTrackId trackId) = 0;
+
+        virtual void onPlaylistChanged(db::TrackListId playlistId) = 0;
     };
 
     std::unique_ptr<IFeedbackBackend> createFeedbackBackend(std::string_view backendName);

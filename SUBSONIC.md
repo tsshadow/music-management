@@ -15,6 +15,15 @@ __Note__: the jukebox play queue is kept entirely in memory by the service and i
 # OpenSubsonic API
 OpenSubsonic is an initiative to patch and extend the legacy Subsonic API. You'll find more details in the [official documentation](https://opensubsonic.netlify.app/)
 
+## MuMa Extensions
+This fork implements **extended custom OpenSubsonic implementations**, primarily under the `spotify/` namespace, which are **deeply coupled with a custom Ultrasonic client**. These extensions power features like:
+*   Smart track deduplication and quality scoring.
+*   Dynamic playlist retrieval via `getSpotifyCuratedPlaylists`.
+*   User listening history and scrobble synchronization.
+*   Festival lineup browsing and advanced cluster filtering.
+
+See [BIG_CHANGES.md](BIG_CHANGES.md) for more details.
+
 ## Authentication
 _LMS_ supports the [API Key Authentication](https://opensubsonic.netlify.app/docs/extensions/apikeyauth/) method. Each user has to generate their own API key on the settings page to use the Subsonic API.
 

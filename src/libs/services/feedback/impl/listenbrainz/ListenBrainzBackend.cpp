@@ -110,4 +110,8 @@ namespace lms::feedback::listenBrainz
     void ListenBrainzBackend::onRatingChanged(db::RatedTrackId)
     {
     }
+
+    void ListenBrainzBackend::onPlaylistChanged(db::TrackListId)
+    {
+    }
 } // namespace lms::feedback::listenBrainz

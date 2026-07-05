@@ -41,6 +41,8 @@ namespace lms::api::subsonic
         playlistNode.setAttribute("songCount", tracklist->getCount());
         playlistNode.setAttribute("duration", std::chrono::duration_cast<std::chrono::seconds>(tracklist->getDuration()).count());
         playlistNode.setAttribute("public", tracklist->getVisibility() == db::TrackList::Visibility::Public);
+        if (!tracklist->getSmartParams().empty())
+            playlistNode.setAttribute("smartParams", tracklist->getSmartParams());
         playlistNode.setAttribute("changed", core::stringUtils::toISO8601String(tracklist->getLastModifiedDateTime()));
         playlistNode.setAttribute("created", core::stringUtils::toISO8601String(tracklist->getCreationDateTime()));
 

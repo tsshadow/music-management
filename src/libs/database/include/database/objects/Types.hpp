@@ -249,6 +249,7 @@ namespace lms::db
     {
         PlayList = 0, // user controlled playlists
         Internal = 1, // internal usage (current playqueue, history, ...)
+        SmartPlaylist = 2,
     };
 
     enum class Advisory

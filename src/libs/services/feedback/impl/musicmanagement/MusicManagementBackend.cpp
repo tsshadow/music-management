@@ -24,6 +24,7 @@
 #include "database/objects/RatedTrack.hpp"
 #include "database/objects/Release.hpp"
 #include "database/objects/Track.hpp"
+#include "database/objects/TrackList.hpp"
 #include "database/objects/User.hpp"
 
 namespace lms::feedback::musicManagement
@@ -119,6 +120,26 @@ namespace lms::feedback::musicManagement
 
                 LMS_LOG(SCROBBLING, INFO, "Rating changed for track " << trackId << " (rating: " << rating << ", path: " << path << ", user: " << username << ")");
                 sendEvent("rating_changed", "track", trackId, username, rating, path);
+            }
+        }
+    }
+
+    void MusicManagementBackend::onPlaylistChanged(db::TrackListId playlistId)
+    {
+        LMS_LOG(SCROBBLING, INFO, "MusicManagementBackend::onPlaylistChanged(" << playlistId.toString() << ")");
+        db::Session& session{ _db.getTLSSession() };
+        auto transaction{ session.createReadTransaction() };
+
+        if (auto playlist{ db::TrackList::find(session, playlistId) })
+        {
+            if (playlist->getType() == db::TrackListType::SmartPlaylist)
+            {
+                std::string username = playlist->getUser() ? std::string{ playlist->getUser()->getLoginName() } : "unknown";
+                std::string name{ playlist->getName() };
+                std::string params{ playlist->getSmartParams() };
+
+                LMS_LOG(SCROBBLING, INFO, "Dynamic playlist changed: " << name << " for user " << username);
+                sendEvent("playlist_changed", "smart_playlist", name, username, 0, params);
             }
         }
     }

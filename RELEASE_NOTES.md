@@ -1,6 +1,6 @@
-# Release Notes - LMS 3.78.8
+# Release Notes - LMS 3.78.9
 
-## Version 3.78.8 (2026-07-04)
+## Version 3.78.9 (2026-07-04)
 
 LMS 3.77.0 focuses on rebranding the project to MuMa Server, improving Subsonic API compatibility, enhancing the web interface MuMa Spotify, and refining the deployment pipeline.
 

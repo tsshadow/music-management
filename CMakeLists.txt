@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(lms VERSION 3.78.8)
+project(lms VERSION 3.78.9)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake/modules/)
 

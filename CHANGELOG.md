@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.80.0] - 2026-07-05
+
+### Added
+- **MuMa Resource**: New dedicated `/muma` API resource for management and synchronization.
+- **Settings Sync**: Server-side UI state persistence via MuMa.
+- **UI**: Horizontal wheel support for volume control (MX Master 3).
+- **UI**: Mouse wheel volume control when hovering the volume bar.
+
+### Changed
+- **Architecture**: Migrated SmartPlaylist logic to the external MuMa service.
+- **Subsonic API**: Removed SmartPlaylist support from Subsonic endpoints in favor of MuMa dynamic playlists.
+
 ## [3.79.0] - 2026-07-05
 
 ### Added

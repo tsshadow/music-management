@@ -1,4 +1,12 @@
-# Release Notes - LMS 3.79.0
+# Release Notes - LMS 3.80.0
+
+## Version 3.80.0 (2026-07-05)
+### 🔗 MuMa Integration & UI Enhancements
+- **MuMa Resource API**: Integrated a new `/muma` API endpoint for seamless communication with the MuMa Control Center. This enables centralized authentication and cross-app settings synchronization.
+- **Smart Playlist Migration**: Migrated all dynamic playlist logic to the MuMa core. LMS now acts as a dedicated playback engine while offloading complex playlist rules to the management layer.
+- **MX Master 3 Support**: Enhanced the web interface with horizontal scroll wheel support for volume control, optimized for the Logitech MX Master 3 thumbwheel.
+- **Volume Bar Scrolling**: Added vertical scroll wheel support directly on the volume slider for more intuitive audio management.
+- **Subsonic API Cleanup**: Removed legacy SmartPlaylist endpoints in favor of the new MuMa-driven dynamic playlists.
 
 ## Version 3.79.0 (2026-07-04)
 

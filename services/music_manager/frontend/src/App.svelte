@@ -47,6 +47,7 @@
   let selectedUser = null;
   let currentUser = null;
   let userLBAccount = null;
+  let aboutHtml = '';
   let loading = true;
   let message = '';
   let error = '';
@@ -225,6 +226,17 @@
       console.error(err);
     } finally {
       loading = false;
+    }
+  }
+
+  async function fetchAbout() {
+    try {
+      const res = await fetch(`${API_BASE}/api/about`, {
+        headers: { 'X-API-Key': apiKey }
+      });
+      aboutHtml = await res.text();
+    } catch (e) {
+      aboutHtml = 'Failed to load about content.';
     }
   }
 
@@ -873,10 +885,16 @@
         <Radio size={24} /> Scrobble Service
       </button>
       <button 
+        on:click={() => { activeTab = 'about'; fetchAbout(); }}
+        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'about' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+      >
+        <Info size={24} /> About Music Manager
+      </button>
+      <button 
         on:click={() => activeTab = 'versions'}
         class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'versions' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
       >
-        <Info size={24} /> System Versions
+        <LayoutTemplate size={24} /> Worker Versions
       </button>
       <button 
         on:click={() => { activeTab = 'playlists'; fetchPlaylists(); }}
@@ -1348,6 +1366,17 @@
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+      {:else if activeTab === 'about'}
+        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500 max-w-4xl">
+          <header>
+            <h2 class="text-4xl font-extrabold mb-2">ℹ️ About Music Manager</h2>
+            <p class="text-spotify-lightgray">System documentation and overview.</p>
+          </header>
+
+          <div class="bg-spotify-gray p-8 rounded-xl border border-white border-opacity-5 prose prose-invert prose-green max-w-none">
+            {@html aboutHtml}
           </div>
         </section>
       {:else if activeTab === 'versions'}

@@ -1773,7 +1773,7 @@ FROM track)");
         }
     }
 
-    void migrateFromV105(Session& session)
+    void migrateFromV105([[maybe_unused]] Session& session)
     {
         // Upstream now also added rating, but we might already have it from our own V103
     }

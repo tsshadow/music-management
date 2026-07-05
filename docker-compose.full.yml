@@ -31,23 +31,31 @@ services:
     networks:
       - music-management_db
 
-  control-center:
-    image: ${DOCKER_USER}/${IMAGE_MANAGEMENT}:latest
-    container_name: muma-control-center
+  # Consolidated Music Manager Service
+  music-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile.music-manager
+    container_name: music-manager
     restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "8003:8000" # Compatibility for old control-center port if needed
     environment:
       - DB_HOST=${DB_HOST}
-      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - AUTH_SERVICE_URL=http://music-manager:8000
       - DB_PORT=${DB_PORT}
       - DB_USER=${DB_USER}
       - DB_PASS=${DB_PASS}
       - DB_DB=${DB_DB}
       - API_KEY=${API_KEY}
       - PHPMYADMIN_URL=${PHPMYADMIN_URL}
-    ports:
-      - "8003:8000"
+      - LMS_HOSTS=${LMS_HOSTS}
+      - LMS_SUBSONIC_API_KEY=${LMS_SUBSONIC_API_KEY}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - /docker/lms/var/lms:/app/data:rw
+      - ${HOST_MUSIC_PATH}:/music:ro
     networks:
       - music-management_db
 
@@ -458,87 +466,93 @@ services:
     networks:
       - music-management_db
 
-  rating-system:
-    image: ${DOCKER_USER}/${IMAGE_RATING}:latest
-    container_name: muma-rating-system
-    restart: unless-stopped
-    ports:
-      - "8004:8000"
-    depends_on:
-      - db
-    environment:
-      - DB_HOST=${DB_HOST}
-      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
-      - DB_PORT=${DB_PORT}
-      - DB_USER=${DB_USER}
-      - DB_PASS=${DB_PASS}
-      - DB_DB=${DB_DB}
-      - API_KEY=${RATING_API_KEY}
-      - PYTHONPATH=/app
-    networks:
-      - music-management_db
+  # The following services are now integrated into music-manager:
+  # - rating-system
+  # - scrobble-service
+  # - stats-service
+  # - user-service
 
-  scrobble-service:
-    image: ${DOCKER_USER}/${IMAGE_SCROBBLE}:latest
-    container_name: muma-scrobble-service
-    restart: unless-stopped
-    ports:
-      - "8005:8000"
-    depends_on:
-      - db
-    environment:
-      - DB_HOST=${DB_HOST}
-      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
-      - DB_PORT=${DB_PORT}
-      - DB_USER=${DB_USER}
-      - DB_PASS=${DB_PASS}
-      - DB_DB=${DB_DB}
-      - API_KEY=${SCROBBLE_API_KEY}
-      - PYTHONPATH=/app
-    networks:
-      - music-management_db
+  # rating-system:
+  #   image: ${DOCKER_USER}/${IMAGE_RATING}:latest
+  #   container_name: muma-rating-system
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8004:8000"
+  #   depends_on:
+  #     - db
+  #   environment:
+  #     - DB_HOST=${DB_HOST}
+  #     - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+  #     - DB_PORT=${DB_PORT}
+  #     - DB_USER=${DB_USER}
+  #     - DB_PASS=${DB_PASS}
+  #     - DB_DB=${DB_DB}
+  #     - API_KEY=${RATING_API_KEY}
+  #     - PYTHONPATH=/app
+  #   networks:
+  #     - music-management_db
 
-  stats-service:
-    image: ${DOCKER_USER}/${IMAGE_STATS}:latest
-    container_name: muma-stats-service
-    restart: unless-stopped
-    depends_on:
-      - db
-    environment:
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_USER=${DB_USER}
-      - DB_PASS=${DB_PASS}
-      - DB_DB=${DB_DB}
-      - API_KEY=${API_KEY}
-      - PYTHONPATH=/app
-    networks:
-      - music-management_db
+  # scrobble-service:
+  #   image: ${DOCKER_USER}/${IMAGE_SCROBBLE}:latest
+  #   container_name: muma-scrobble-service
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8005:8000"
+  #   depends_on:
+  #     - db
+  #   environment:
+  #     - DB_HOST=${DB_HOST}
+  #     - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+  #     - DB_PORT=${DB_PORT}
+  #     - DB_USER=${DB_USER}
+  #     - DB_PASS=${DB_PASS}
+  #     - DB_DB=${DB_DB}
+  #     - API_KEY=${SCROBBLE_API_KEY}
+  #     - PYTHONPATH=/app
+  #   networks:
+  #     - music-management_db
 
-  user-service:
-    image: ${DOCKER_USER}/${IMAGE_USER}:latest
-    container_name: muma-user-service
-    restart: unless-stopped
-    depends_on:
-      - db
-    ports:
-      - "8006:8001"
-    environment:
-      - DB_HOST=${DB_HOST}
-      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
-      - DB_PORT=${DB_PORT}
-      - DB_USER=${DB_USER}
-      - DB_PASS=${DB_PASS}
-      - DB_DB=${DB_DB}
-      - API_KEY=${USER_API_KEY}
-      - LMS_SUBSONIC_API_KEY=${LMS_SUBSONIC_API_KEY}
-      - LMS_HOSTS=${LMS_HOSTS}
-      - PYTHONPATH=/app
-      - LMS_DB_PATH=/app/data/lms.db
-    volumes:
-      - /docker/lms/var/lms:/app/data:rw
-    networks:
-      - music-management_db
+  # stats-service:
+  #   image: ${DOCKER_USER}/${IMAGE_STATS}:latest
+  #   container_name: muma-stats-service
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - db
+  #   environment:
+  #     - DB_HOST=${DB_HOST}
+  #     - DB_PORT=${DB_PORT}
+  #     - DB_USER=${DB_USER}
+  #     - DB_PASS=${DB_PASS}
+  #     - DB_DB=${DB_DB}
+  #     - API_KEY=${API_KEY}
+  #     - PYTHONPATH=/app
+  #   networks:
+  #     - music-management_db
+
+  # user-service:
+  #   image: ${DOCKER_USER}/${IMAGE_USER}:latest
+  #   container_name: muma-user-service
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - db
+  #   ports:
+  #     - "8006:8001"
+  #   environment:
+  #     - DB_HOST=${DB_HOST}
+  #     - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+  #     - DB_PORT=${DB_PORT}
+  #     - DB_USER=${DB_USER}
+  #     - DB_PASS=${DB_PASS}
+  #     - DB_DB=${DB_DB}
+  #     - API_KEY=${USER_API_KEY}
+  #     - LMS_SUBSONIC_API_KEY=${LMS_SUBSONIC_API_KEY}
+  #     - LMS_HOSTS=${LMS_HOSTS}
+  #     - PYTHONPATH=/app
+  #     - LMS_DB_PATH=/app/data/lms.db
+  #   volumes:
+  #     - /docker/lms/var/lms:/app/data:rw
+  #   networks:
+  #     - music-management_db
 
   firefox:
     image: jlesage/firefox:latest

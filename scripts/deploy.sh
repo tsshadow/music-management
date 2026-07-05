@@ -155,10 +155,10 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
         
         if [ -n \"$SERVICE_NAME\" ] && \$DOCKER_CMD config --services | grep -q \"^$SERVICE_NAME\$\"; then
             echo \"Updating service: $SERVICE_NAME\"
-            \$DOCKER_CMD up -d --force-recreate $SERVICE_NAME
+            \$DOCKER_CMD up -d --force-recreate --remove-orphans $SERVICE_NAME
         else
             echo \"Updating full stack...\"
-            \$DOCKER_CMD up -d --force-recreate
+            \$DOCKER_CMD up -d --force-recreate --remove-orphans
         fi
     "
 

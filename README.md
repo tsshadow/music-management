@@ -7,9 +7,8 @@ A comprehensive, modular system for automated music library management, includin
 The project has been refactored into specialized, lightweight Docker containers sharing a common base image. This ensures high performance and easy maintenance.
 
 ### Core Images
+- **`music-manager`**: The central "Music Manager" & "Control Center". Consolidates management, authentication, ratings, scrobbling, and stats into a single FastAPI service.
 - **`muma-base`**: Shared foundation containing core music logic and common dependencies.
-- **`muma-management-api`**: The "Control Center" providing the dashboard and version tracking.
-- **`muma-app`**: Legacy core music management application.
 
 ### Specialized Workers
 - **`muma-scanner`**: High-performance library scanning and database synchronization.
@@ -18,9 +17,6 @@ The project has been refactored into specialized, lightweight Docker containers 
 - **`muma-telegram`**: Dedicated worker for Telegram-based music discovery.
 - **`muma-importer`**: Archive extraction and automated file movement.
 - **`muma-ml-analyzer`**: Machine learning pipeline for BPM, key, and mood detection.
-- **`muma-rating-system`**: Intelligent track rating and popularity tracking.
-- **`muma-scrobble-service`**: Listening history tracking and ListenBrainz integration.
-- **`muma-stats-service`**: Dedicated microservice for music library analytics and insights.
 
 ### Utility
 - **`muma-tools`**: Collection of maintenance and database utility scripts.
@@ -34,30 +30,12 @@ The core of the system that handles the lifecycle of music files:
 - **Tagger**: A rule-based engine that cleans metadata, guesses missing tags (artist, title, genre) from filenames, and enforces library standards.
 - **Common**: Shared utilities and the internal API.
 
-### 2. Scrobbler (`modules/scrobbler`)
-A service for tracking listening history:
-- Ingests "listens" from compatible players (Open Subsonic, LMS).
-- Links listening events to the canonical media library.
-- Provides a dashboard with statistics and trends.
-- Integrates with ListenBrainz for import/export.
-
-### 3. Frontends (`frontend/`)
-- **Music Management UI**: Dashboard for monitoring import/tagging jobs.
-- **Scrobbler UI**: Dashboard for listening history and library analytics.
-
-### 4. Artist Image Fetcher (`services/artist_image_fetcher`)
-A pipeline for enriching the library with high-quality artist images:
-- Fetches images from Spotify, SoundCloud, and Last.fm.
-- Uses MusicBrainz for metadata and external ID matching.
-- Implements a confidence-based matching system.
-- Caches images and thumbnails locally for the LMS player.
-- Provides a stable path convention for player integration.
-
-### 5. Control Center (`services/management-api`)
-A central dashboard for the system:
-- View high-level release notes and technical changelogs.
-- Track system version and module status.
-- Centralized access to documentation and maintenance features.
+### 2. Music Manager (`services/music_manager`)
+A central dashboard and API for the system:
+- Consolidates management, authentication, ratings, scrobbling, stats, and artist image enrichment.
+- Provides a unified API endpoint for frontends and external services.
+- View release notes, track system versions, and manage system status.
+- Integrates the **Artist Image Fetcher** for high-quality metadata enrichment.
 
 ---
 
@@ -91,7 +69,7 @@ If you are modifying the code and need to rebuild and redeploy the system:
   - **New**: Use `--semi-remote` to offload heavy builds (`app`, `ml`, `tools`) to the remote LXC container (192.168.1.40).
   - **New**: Use `--remote` to perform the entire build on the remote LXC container.
   - **New**: Use `--app=<app>` or positional arguments to target specific modules (e.g., `./install.sh --app=user rating`).
-  - **New**: Use `./install.sh stats` to view music library statistics from the terminal.
+  - **New**: Use `./install.sh manager` to view music library statistics from the terminal.
 - **Individual steps**:
   - Build: `./build.sh`
   - Publish: `./publish.sh`
@@ -112,8 +90,7 @@ You can also target specific components with `build.sh` and `publish.sh`:
 - `./build.sh app` (Main Application only)
 
 The following services will be available:
-- **Control Center (Release Notes)**: Port 8003
-- **Scrobble Service**: Port 8005
+- **Music Manager / Control Center**: Port 8000 (main API) / 8003 (Dashboard)
 - **phpMyAdmin**: Port 8002 (to inspect the database)
 - **Firefox (GUI)**: Port 7003
 
@@ -157,17 +134,18 @@ docker-compose -f docker-compose.yml -f docker-compose.workers.yml logs -f impor
 
 ```text
 ├── services/               # Backend microservices
+│   ├── music_manager/      # Consolidated Core API & Dashboard
+│   │   ├── artist_image_fetcher/ # Artist image enrichment logic
+│   │   └── frontend/       # Svelte-based Control Center
 │   ├── downloader/         # YouTube, SoundCloud, Telegram workers
-│   ├── importer/           # File movement and archive extraction
-│   ├── tagger/             # Rule-based metadata tagging engine
-│   ├── artist_image_fetcher/ # Artist image enrichment pipeline
+│   ├── importer/           # File movement and extraction
+│   ├── tagger/             # Rule-based tagging engine
+│   ├── ml-analyzer/        # ML audio feature extraction
+│   ├── scanner/            # Library scan and sync
 │   └── common/             # Shared logic and internal API
-├── modules/                # Larger functional modules
-│   ├── music-management/   # Legacy/Core logic for the importer
-│   └── scrobbler/          # Listening history tracking service
-├── frontend/               # Svelte-based web interfaces
+├── modules/                # Specialized/Standalone modules
 ├── docs/                   # Detailed documentation and diagrams
-└── work-context/           # Docker Compose and environment configuration
+└── tools/                  # Utility scripts
 ```
 
 ---
@@ -176,14 +154,9 @@ docker-compose -f docker-compose.yml -f docker-compose.workers.yml logs -f impor
 
 For specific information on each module, please refer to their respective READMEs:
 
-- [Music Importer](services/importer/README.md)
-- [Music Downloader](services/downloader/README.md)
-- [Music Tagger](services/tagger/README.md)
-- [ML Analyzer](services/ml-analyzer/README.md)
-- [Rating System](services/rating-system/README.md)
-- [Scrobble Service](services/scrobble-service/README.md)
 - [Ecosystem Architecture](docs/architecture.md)
 - [System Overview](docs/OVERVIEW.md)
+- [Deployment Guide](docs/deployment.md)
 - [Database Schema](docs/database-design.md)
 - [Data Flow](docs/system-data-flow.md)
 - [Style Guide](docs/styleguide.md)

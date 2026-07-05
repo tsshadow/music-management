@@ -10,20 +10,22 @@ The ecosystem is divided into three main layers:
 
 ---
 
-#### 2. MuMa Control Center (`music-management`)
-This is the central management platform. It runs as a collection of microservices in Docker.
+#### 2. Music Manager (`music-management`)
+The core management functions are consolidated into a unified service to streamline operations and reduce container overhead.
 
-- **Management API**: The backend for the `muma.teunschriks.nl` dashboard. Proxies requests to other services.
-- **User Service**: The central authentication authority. 
-    - *Integration*: Validates login credentials and checks admin status by directly querying the LMS `lms.db`.
-- **Scrobble & Stats Services**: Process listening history and generate statistics.
-- **Rating System**: Manages track ratings that must remain consistent across the entire ecosystem.
-- **Workers**:
+- **Music Manager (Consolidated API)**: A single high-performance FastAPI service that integrates:
+    - **Management/Dashboard**: The backend for the `muma.teunschriks.nl` dashboard.
+    - **User Service**: The central authentication authority. 
+        - *Integration*: Validates login credentials and checks admin status by directly querying the LMS `lms.db`.
+    - **Scrobble & Stats Services**: Process listening history and generate statistics.
+    - **Rating System**: Manages track ratings that must remain consistent across the entire ecosystem.
+    - **Artist Image Fetcher**: Centrally fetches artist images and provides them via an API endpoint.
+- **Workers**: Specialized background processes for data processing:
     - `importer_worker`: Processes new music files.
     - `youtube/soundcloud/telegram_worker`: Automate downloading of new tracks.
     - `tagger_worker`: Enriches files with metadata.
     - `scanner_service`: Fills the library with track information.
-    - `ml-analyzer`: Machine learning to eventually let the tagger generate info itself.
+    - `ml-analyzer`: Machine learning for automatic tagging and audio feature extraction.
 
 ---
 
@@ -109,10 +111,7 @@ graph TD
     end
 
     subgraph "Management Layer (MuMa)"
-        ControlCenter[MuMa Control Center]
-        UserService[User Service]
-        ScrobbleService[Scrobble Service]
-        RatingService[Rating System]
+        MuMaCore[Music Manager API]
         MainDB[(MariaDB)]
         Workers[Download/Tag/Scan Workers]
     end
@@ -123,17 +122,14 @@ graph TD
 
     WebUI --> LMS_Stable
     WebUI --> LMS_Alpha
-    WebUI -- Ratings/Scrobbles --> ScrobbleService
-    WebUI -- Ratings/Scrobbles --> RatingService
+    WebUI -- Ratings/Scrobbles/Stats --> MuMaCore
     Mobile --> LMS_Stable
     
-    UserService -- Reads --> LMS_DB
-    ControlCenter -- Proxy --> UserService
-    ControlCenter -- Manages --> Workers
+    MuMaCore -- Reads --> LMS_DB
+    MuMaCore -- Manages --> Workers
     
     Workers -- Writes --> MainDB
-    ScrobbleService -- Writes --> MainDB
-    RatingService -- Writes --> MainDB
+    MuMaCore -- Writes/Reads --> MainDB
     
     APKHoster -- Delivers --> Mobile
 ```
@@ -145,18 +141,15 @@ graph TD
 sequenceDiagram
     participant U as User
     participant W as Web Interface (Spotify UI / MuMa)
-    participant API as Management API (Proxy)
-    participant US as User Service
+    participant API as Music Manager API
     participant DB as LMS SQLite (lms.db)
 
     U->>W: Login (User/Pass)
     W->>API: POST /auth/login
-    API->>US: Forward to User Service
-    US->>DB: Query users table
-    DB-->>US: User data & pass hash
-    US->>US: Validate password & Admin status
-    US-->>API: Auth Token + Admin status
-    API-->>W: Login successful
+    API->>DB: Query users table
+    DB-->>API: User data & pass hash
+    API->>API: Validate password & Admin status
+    API-->>W: Login successful (Token + Admin status)
     W->>U: Show Dashboard / Player
 ```
 
@@ -187,15 +180,15 @@ sequenceDiagram
     participant U as User
     participant W as Web UI
     participant LMS as LMS Engine
-    participant S as Scrobble Service
+    participant MM as Music Manager (Scrobble Router)
     participant MDB as MuMa MariaDB
 
     U->>W: Start track
     W->>LMS: Stream audio
     W->>W: Wait for threshold (e.g., 30 sec)
-    W->>S: POST /scrobble
-    S->>MDB: Register listen (Listens Domain)
-    S-->>W: Confirmation
+    W->>MM: POST /scrobble
+    MM->>MDB: Register listen (Listens Domain)
+    MM-->>W: Confirmation
 ```
 
 ##### D. Rating Synchronization
@@ -203,22 +196,22 @@ sequenceDiagram
 sequenceDiagram
     participant U as User
     participant W as Web UI
-    participant RS as Rating Service
+    participant MM as Music Manager (Rating Router)
     participant MDB as MuMa MariaDB
     participant LMS as LMS Engine
 
     rect rgb(40, 40, 40)
     Note over U,MDB: Direct Rating (via Spotify UI)
     U->>W: Change rating
-    W->>RS: POST /rate
-    RS->>MDB: Update rating_tracks in MariaDB
+    W->>MM: POST /rate
+    MM->>MDB: Update rating_tracks in MariaDB
     end
 
     rect rgb(50, 50, 50)
     Note over U,LMS: LMS Sync (e.g., via Ultrasonic)
     U->>LMS: Change rating (Subsonic API)
-    LMS->>RS: Webhook (Rating changed)
-    RS->>MDB: Sync rating in MariaDB
+    LMS->>MM: Webhook (Rating changed)
+    MM->>MDB: Sync rating in MariaDB
     end
 ```
 

@@ -1805,7 +1805,16 @@
                 {#each playlists as playlist}
                   <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
                     <td class="p-4 font-bold text-white">
-                      {playlist.name}
+                      <div class="flex items-center gap-2">
+                        {playlist.name}
+                        {#if playlist.source}
+                          <span class="px-1.5 py-0.5 rounded text-[10px] uppercase font-bold 
+                            {playlist.source === 'lms-alpha' ? 'bg-purple-600 text-white' : 
+                             playlist.source === 'lms-stable' ? 'bg-spotify-green text-black' : 'bg-spotify-gray text-white'}">
+                            {playlist.source.replace('lms-', '')}
+                          </span>
+                        {/if}
+                      </div>
                     </td>
                     <td class="p-4 text-spotify-lightgray font-mono text-sm">
                       {formatParams(playlist.params)}

@@ -92,7 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **User Service**: Added `user-service` to the `full` Docker Compose configuration.
 
 ### Fixed
-- **API Consistency**: The `API_KEY` is now synchronized across all services (`management-api`, `user-service`, `scrobble-service`, `rating-system`).
+- **API Consistency**: The `API_KEY` is now synchronized across all modules in the `music-manager`.
 - **LMS Configuration**: Corrected default LMS host to `lms.teunschriks.nl`.
 
 ## [2.1.20] - 2026-07-04

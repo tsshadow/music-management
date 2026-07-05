@@ -4,9 +4,9 @@ This file provides a concise summary of the main blocks within the MuMa ecosyste
 
 ---
 
-#### 1. Management Layer (MuMa Control)
-*   **Core**: Central management platform (`music-management`) running in Docker.
-*   **Services**: `user-service` (auth), `scrobble-service` (stats), `rating-system`.
+#### 1. Management Layer (Music Manager)
+*   **Core**: Central management platform (`music-manager`) running in Docker.
+*   **Music Manager API**: Consolidated service for authentication, scrobbles, ratings, stats, and artist images.
 *   **Workers**: Automate downloading (YT/SC/TG), tagging, scanning, and ML analysis.
 *   **Access**: Dashboard at `muma.teunschriks.nl`.
 
@@ -27,7 +27,7 @@ This file provides a concise summary of the main blocks within the MuMa ecosyste
 *   **APK Hoster DB**: Manages versions and access for mobile app distribution.
 
 #### 5. Dataflow & Connectivity
-*   **Authentication**: Users validate against `lms.db` via the `user-service`.
+*   **Authentication**: Users validate against `lms.db` via the `Music Manager API`.
 *   **Ingestion**: Pipeline of download -> tagging -> MariaDB -> LMS rescan.
-*   **Sync**: Ratings and scrobbles are sent from all clients to the central MuMa services.
+*   **Sync**: Ratings and scrobbles are sent from all clients to the central `Music Manager API`.
 *   **Network**: All communication occurs via reverse proxies at `*.teunschriks.nl`.

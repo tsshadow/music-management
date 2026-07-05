@@ -6,11 +6,8 @@ This project is now modularized. Detailed release notes for each module can be f
 - [Tagger Module](services/tagger/RELEASE_NOTES.md)
 - [Downloader Module](services/downloader/RELEASE_NOTES.md)
 - [Importer Module](services/importer/RELEASE_NOTES.md)
-- [Control Center](services/management-api/RELEASE_NOTES.md)
+- [Music Manager](services/music_manager/RELEASE_NOTES.md)
 - [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
-- [Rating System](services/rating-system/RELEASE_NOTES.md)
-- [Scrobble Service](services/scrobble-service/RELEASE_NOTES.md)
-- [User Service](services/user-service/RELEASE_NOTES.md)
 
 ## Global Version 2.1.31 (2026-07-05)
 ### 🛡️ Health & Activity Dashboard

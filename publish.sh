@@ -108,19 +108,15 @@ fi
 # Configuration
 DOCKER_USER="${DOCKER_USER}"
 IMAGE_ML="${IMAGE_ML}"
+IMAGE_CORE="music-manager"
 IMAGE_TOOLS="${IMAGE_TOOLS}"
 IMAGE_APP="${IMAGE_APP}"
-IMAGE_MANAGEMENT="${IMAGE_MANAGEMENT}"
 IMAGE_BASE="${IMAGE_BASE}"
 IMAGE_SCANNER="${IMAGE_SCANNER}"
 IMAGE_TAGGER="${IMAGE_TAGGER}"
 IMAGE_DOWNLOADER="${IMAGE_DOWNLOADER}"
 IMAGE_TELEGRAM="${IMAGE_TELEGRAM}"
 IMAGE_IMPORTER="${IMAGE_IMPORTER}"
-IMAGE_RATING="${IMAGE_RATING}"
-IMAGE_SCROBBLE="${IMAGE_SCROBBLE}"
-IMAGE_USER="${IMAGE_USER}"
-IMAGE_STATS="${IMAGE_STATS}"
 VERSION=$(cat VERSION 2>/dev/null || echo "latest")
 
 # Docker command configuration
@@ -166,30 +162,6 @@ push_importer() {
     $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}"
 }
 
-push_rating() {
-    echo "--- Pushing Rating System ($VERSION) ---"
-    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_RATING}:latest"
-    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_RATING}:${VERSION}"
-}
-
-push_scrobble() {
-    echo "--- Pushing Scrobble Service ($VERSION) ---"
-    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_SCROBBLE}:latest"
-    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_SCROBBLE}:${VERSION}"
-}
-
-push_user() {
-    echo "--- Pushing User Service ($VERSION) ---"
-    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_USER}:latest"
-    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_USER}:${VERSION}"
-}
-
-push_stats() {
-    echo "--- Pushing Stats Service ($VERSION) ---"
-    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_STATS}:latest"
-    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_STATS}:${VERSION}"
-}
-
 push_ml() {
     local cmd=$DOCKER_CMD
     if [ "$SEMI_REMOTE_MODE" = true ]; then cmd="docker -c remote-lxc"; fi
@@ -214,10 +186,10 @@ push_app() {
     $cmd push "${DOCKER_USER}/${IMAGE_APP}:${VERSION}"
 }
 
-push_management() {
-    echo "--- Pushing Management API ($VERSION) ---"
-    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_MANAGEMENT}:latest"
-    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_MANAGEMENT}:${VERSION}"
+push_manager() {
+    echo "--- Pushing Music Manager ($VERSION) ---"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_CORE}:latest"
+    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_CORE}:${VERSION}"
 }
 
 # Filter arguments to remove special flags
@@ -238,17 +210,13 @@ if [ ${#REQUESTED_MODULES[@]} -eq 0 ]; then
     echo "--- Pushing all modules in parallel ---"
     push_ml &
     push_tools &
-    push_management &
+    push_manager &
     push_base &
     push_scanner &
     push_tagger &
     push_downloader &
     push_telegram &
     push_importer &
-    push_rating &
-    push_scrobble &
-    push_user &
-    push_stats &
     wait
 else
     echo "--- Pushing requested modules: ${REQUESTED_MODULES[*]} ---"
@@ -257,16 +225,12 @@ else
             ml) push_ml & ;;
             tools) push_tools & ;;
             app) push_app & ;;
-            mgmt|management) push_management & ;;
+            manager) push_manager & ;;
             scanner) push_scanner & ;;
             tagger) push_tagger & ;;
             downloader) push_downloader & ;;
             telegram) push_telegram & ;;
             importer) push_importer & ;;
-            rating) push_rating & ;;
-            scrobble) push_scrobble & ;;
-            user) push_user & ;;
-            stats) push_stats & ;;
             base) push_base & ;;
             *) echo "Unknown component: $arg"; exit 1 ;;
         esac

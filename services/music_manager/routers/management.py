@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Header, Depends, Body
+from fastapi.responses import HTMLResponse
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 import os
@@ -34,9 +35,9 @@ def init_db(cursor):
     pass
 
 @router.post("/auth/login")
-def login_proxy(req: Any = Body(...)):
-    from services.music_manager.routers.users import login
-    return login(req)
+def login_proxy(req: Dict[str, Any] = Body(...)):
+    from services.music_manager.routers.users import login, LoginRequest
+    return login(LoginRequest(**req))
 
 @router.get("/auth/verify")
 def verify_proxy(x_api_key: str = Header(None)):
@@ -55,12 +56,30 @@ def get_playlists_proxy(user_id: int, api_key: str = Depends(verify_api_key)):
 
 @router.get("/config")
 def get_config(auth: dict = Depends(verify_api_key)):
+    version = "1.0.0"
+    try:
+        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "VERSION"), "r") as f:
+            version = f.read().strip()
+    except:
+        pass
+        
     return {
         "DB_HOST": os.getenv("DB_HOST"),
         "DB_NAME": os.getenv("DB_DB"),
-        "VERSION": get_version(),
+        "VERSION": version,
         "PHPMYADMIN_URL": os.getenv("PHPMYADMIN_URL", "http://muma.teunschriks.nl:8002")
     }
+
+@router.get("/about", response_class=HTMLResponse)
+def get_about(auth: dict = Depends(verify_api_key)):
+    readme_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "README.md")
+    content = "# Music Manager\nDocumentation not found."
+    if os.path.exists(readme_path):
+        with open(readme_path, "r") as f:
+            content = f.read()
+    
+    html = markdown.markdown(content, extensions=['fenced_code', 'tables'])
+    return html
 
 @router.get("/stats")
 def get_stats_proxy(auth: dict = Depends(verify_api_key)):

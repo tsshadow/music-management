@@ -55,19 +55,15 @@ fi
 # Configuration
 DOCKER_USER="${DOCKER_USER}"
 IMAGE_ML="${IMAGE_ML}"
+IMAGE_CORE="music-manager"
 IMAGE_TOOLS="${IMAGE_TOOLS}"
 IMAGE_APP="${IMAGE_APP}"
-IMAGE_MANAGEMENT="${IMAGE_MANAGEMENT}"
 IMAGE_BASE="${IMAGE_BASE}"
 IMAGE_SCANNER="${IMAGE_SCANNER}"
 IMAGE_TAGGER="${IMAGE_TAGGER}"
 IMAGE_DOWNLOADER="${IMAGE_DOWNLOADER}"
 IMAGE_TELEGRAM="${IMAGE_TELEGRAM}"
 IMAGE_IMPORTER="${IMAGE_IMPORTER}"
-IMAGE_RATING="${IMAGE_RATING}"
-IMAGE_SCROBBLE="${IMAGE_SCROBBLE}"
-IMAGE_USER="${IMAGE_USER}"
-IMAGE_STATS="${IMAGE_STATS}"
 VERSION=$(cat VERSION 2>/dev/null || echo "latest")
 
 # Docker command configuration
@@ -116,30 +112,6 @@ build_importer() {
     $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_IMPORTER}:latest" -t "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}" -f docker/Dockerfile.importer .
 }
 
-build_rating() {
-    build_base
-    echo "--- Building Rating System ($VERSION) ---"
-    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_RATING}:latest" -t "${DOCKER_USER}/${IMAGE_RATING}:${VERSION}" -f docker/Dockerfile.rating-system .
-}
-
-build_scrobble() {
-    build_base
-    echo "--- Building Scrobble Service ($VERSION) ---"
-    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_SCROBBLE}:latest" -t "${DOCKER_USER}/${IMAGE_SCROBBLE}:${VERSION}" -f Dockerfile.scrobble-service .
-}
-
-build_user() {
-    build_base
-    echo "--- Building User Service ($VERSION) ---"
-    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_USER}:latest" -t "${DOCKER_USER}/${IMAGE_USER}:${VERSION}" -f Dockerfile.user-service .
-}
-
-build_stats() {
-    build_base
-    echo "--- Building Stats Service ($VERSION) ---"
-    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_STATS}:latest" -t "${DOCKER_USER}/${IMAGE_STATS}:${VERSION}" -f Dockerfile.stats-service .
-}
-
 build_ml() {
     local cmd=$DOCKER_CMD
     if [ "$SEMI_REMOTE_MODE" = true ]; then cmd="docker -c remote-lxc"; fi
@@ -162,10 +134,9 @@ build_app() {
     $cmd build $DOCKER_FLAGS -t "${DOCKER_USER}/${IMAGE_APP}:latest" -t "${DOCKER_USER}/${IMAGE_APP}:${VERSION}" -f Dockerfile.music-management .
 }
 
-build_management() {
-    build_base
-    echo "--- Building Management API ($VERSION) ---"
-    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_MANAGEMENT}:latest" -t "${DOCKER_USER}/${IMAGE_MANAGEMENT}:${VERSION}" -f Dockerfile.management-api .
+build_manager() {
+    echo "--- Building Music Manager ($VERSION) ---"
+    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_CORE}:latest" -t "${DOCKER_USER}/${IMAGE_CORE}:${VERSION}" -f Dockerfile.music-manager .
 }
 
 # Filter arguments to remove special flags
@@ -192,16 +163,12 @@ if [ ${#REQUESTED_MODULES[@]} -eq 0 ]; then
     # Group 2: Base-dependent builds
     build_base
     
-    build_management &
+    build_manager &
     build_scanner &
     build_tagger &
     build_downloader &
     build_telegram &
     build_importer &
-    build_rating &
-    build_scrobble &
-    build_user &
-    build_stats &
     
     wait
 else
@@ -210,7 +177,7 @@ else
     NEED_BASE=false
     for arg in "${REQUESTED_MODULES[@]}"; do
         case $arg in
-            scanner|tagger|downloader|telegram|importer|rating|scrobble|user|stats|mgmt|management) NEED_BASE=true ;;
+            scanner|tagger|downloader|telegram|importer) NEED_BASE=true ;;
         esac
     done
     
@@ -223,16 +190,12 @@ else
             ml) build_ml & ;;
             tools) build_tools & ;;
             app) build_app & ;;
-            mgmt|management) build_management & ;;
+            manager) build_manager & ;;
             scanner) build_scanner & ;;
             tagger) build_tagger & ;;
             downloader) build_downloader & ;;
             telegram) build_telegram & ;;
             importer) build_importer & ;;
-            rating) build_rating & ;;
-            scrobble) build_scrobble & ;;
-            user) build_user & ;;
-            stats) build_stats & ;;
             base) ;; # Already built if needed
             *) echo "Unknown component: $arg"; exit 1 ;;
         esac

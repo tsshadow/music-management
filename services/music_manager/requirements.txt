@@ -4,3 +4,9 @@ pymysql
 python-dotenv
 requests
 bcrypt
+pydantic
+docker
+markdown
+jinja2
+Pillow
+DBUtils

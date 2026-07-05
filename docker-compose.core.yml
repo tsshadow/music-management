@@ -31,10 +31,16 @@ services:
     networks:
       - music-management_db
 
-  control-center:
-    image: ${DOCKER_USER}/${IMAGE_MANAGEMENT}:latest
-    container_name: muma-control-center
+  # Consolidated Music Manager Service
+  music-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile.music-manager
+    container_name: music-manager
     restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "8003:8000" # Compatibility for old control-center port if needed
     environment:
       - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT}
@@ -42,8 +48,14 @@ services:
       - DB_PASS=${DB_PASS}
       - DB_DB=${DB_DB}
       - PHPMYADMIN_URL=${PHPMYADMIN_URL}
-    ports:
-      - "8003:8000"
+      - API_KEY=${API_KEY}
+      - AUTH_SERVICE_URL=http://music-manager:8000
+      - LMS_HOSTS=${LMS_HOSTS}
+      - LMS_SUBSONIC_API_KEY=${LMS_SUBSONIC_API_KEY}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /docker/lms/var/lms:/app/data:rw
+      - ${HOST_MUSIC_PATH}:/music:ro
     networks:
       - music-management_db
 

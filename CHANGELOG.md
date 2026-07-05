@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-07-05
+
+### Added
+- **Dynamic Playlists**: Support for storing and managing dynamic playlist definitions (modifiers) in the database.
+- **Management API**: New endpoints to create, update, and retrieve dynamic playlists.
+- **User Service**: Added dynamic playlist management to the user-centric API.
+- **LMS Integration**: Added a feedback hook to receive and process real-time playlist updates from LMS.
+
 ## [2.1.35] - 2026-07-05
 ### Fixed
 - **User Management**: Fixed an issue where deleting or creating users in MuMa did not reflect in LMS due to a read-only database mount.

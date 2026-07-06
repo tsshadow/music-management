@@ -116,8 +116,19 @@ namespace lms::api::muma
                 std::string userIdStr = remaining.substr(0, slashPos);
                 std::string appId = remaining.substr(slashPos + 10);
                 
-                db::UserId userId{ std::stoll(userIdStr) };
-                if (userId != dbUser->getId() && !dbUser->isAdmin())
+                std::optional<db::UserId> userId;
+                try
+                {
+                    userId = db::UserId{ std::stoll(userIdStr) };
+                }
+                catch (const std::exception&)
+                {
+                    response.setStatus(400);
+                    response.out() << "Invalid User ID";
+                    return;
+                }
+
+                if (*userId != dbUser->getId() && !dbUser->isAdmin())
                 {
                     response.setStatus(403);
                     response.out() << "Forbidden";
@@ -126,7 +137,7 @@ namespace lms::api::muma
 
                 if (request.method() == "GET")
                 {
-                    db::UIState::pointer state = db::UIState::find(session, "muma_settings_" + appId, userId);
+                    db::UIState::pointer state = db::UIState::find(session, "muma_settings_" + appId, *userId);
                     Wt::Json::Object result;
                     result["settings"] = state ? Wt::Json::Value(std::string{ state->getValue() }) : Wt::Json::Value::Null;
                     response.out() << Wt::Json::serialize(result);
@@ -147,14 +158,14 @@ namespace lms::api::muma
 
                     std::string settings = root.get("settings").toString().orIfNull("");
                     
-                    db::UIState::pointer state = db::UIState::find(session, "muma_settings_" + appId, userId);
+                    db::UIState::pointer state = db::UIState::find(session, "muma_settings_" + appId, *userId);
                     if (state)
                     {
                         state.modify()->setValue(settings);
                     }
                     else
                     {
-                        db::User::pointer targetUser = db::User::find(session, userId);
+                        db::User::pointer targetUser = db::User::find(session, *userId);
                         if (targetUser)
                         {
                             auto state = session.create<db::UIState>("muma_settings_" + appId, targetUser);

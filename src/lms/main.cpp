@@ -615,7 +615,7 @@ namespace lms
 
             proxyScannerEventsToApplication(*scannerService, server);
 
-            LMS_LOG(MAIN, INFO, "Starting init web server...");
+            LMS_LOG(MAIN, INFO, "Starting main web server...");
             server.start();
 
             LMS_LOG(MAIN, INFO, "Now running...");

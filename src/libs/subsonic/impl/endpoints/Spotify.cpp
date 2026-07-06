@@ -153,8 +153,9 @@ namespace lms::api::subsonic
                 // We iterate in batches to fill requestedCount unique tracks
                 int currentScanOffset = initialOffset;
                 int scanBatchSize = std::max(requestedCount, 100);
+                const int maxScanCount = 5000; // Limit scanning to avoid server hangs
                 
-                while (uniqueCount < requestedCount)
+                while (uniqueCount < requestedCount && totalScanned < maxScanCount)
                 {
                     params.range = db::Range{ static_cast<std::size_t>(currentScanOffset), static_cast<std::size_t>(scanBatchSize) };
                     

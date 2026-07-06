@@ -75,19 +75,19 @@ VERSION=$(grep "project(lms VERSION" CMakeLists.txt | sed 's/.*VERSION \(.*\))/\
 MODE="${1:-${BUILD_MODE:-debug}}"
 
 if [ "$MODE" == "release" ]; then
-    ADDITIONAL_TAG="stable"
-    echo "Release mode: using tag 'stable'"
+    ADDITIONAL_TAG="latest"
+    STABLE_TAG="stable"
+    echo "Release mode: using tags 'latest' and 'stable'"
 else
     # Default to debug/alpha
-    ADDITIONAL_TAG="latest"
+    ADDITIONAL_TAG="alpha"
     UNSTABLE_TAG="unstable"
-    ALPHA_TAG="alpha"
-    echo "Debug mode: using tags 'latest', 'unstable' and 'alpha'"
+    echo "Debug mode: using tags 'alpha' and 'unstable'"
 fi
 
 echo "Building Docker image ${IMAGE_NAME}:${ADDITIONAL_TAG} and ${IMAGE_NAME}:${VERSION}..."
 if [ "$MODE" == "release" ]; then
-    docker build ${DOCKER_FLAGS} -t "${IMAGE_NAME}:${ADDITIONAL_TAG}" -t "${IMAGE_NAME}:${VERSION}" -f Dockerfile-release .
+    docker build ${DOCKER_FLAGS} -t "${IMAGE_NAME}:${ADDITIONAL_TAG}" -t "${IMAGE_NAME}:${STABLE_TAG}" -t "${IMAGE_NAME}:${VERSION}" -f Dockerfile-release .
 else
-    docker build ${DOCKER_FLAGS} -t "${IMAGE_NAME}:${ADDITIONAL_TAG}" -t "${IMAGE_NAME}:${UNSTABLE_TAG}" -t "${IMAGE_NAME}:${ALPHA_TAG}" -t "${IMAGE_NAME}:${VERSION}" -f Dockerfile-release .
+    docker build ${DOCKER_FLAGS} -t "${IMAGE_NAME}:${ADDITIONAL_TAG}" -t "${IMAGE_NAME}:${UNSTABLE_TAG}" -t "${IMAGE_NAME}:${VERSION}" -f Dockerfile-release .
 fi

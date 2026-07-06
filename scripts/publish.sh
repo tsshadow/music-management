@@ -82,22 +82,23 @@ VERSION=$(grep "project(lms VERSION" CMakeLists.txt | sed 's/.*VERSION \(.*\))/\
 MODE="${1:-${BUILD_MODE:-debug}}"
 
 if [ "$MODE" == "release" ]; then
-    ADDITIONAL_TAG="stable"
-    echo "Release mode: pushing tag 'stable'"
+    ADDITIONAL_TAG="latest"
+    STABLE_TAG="stable"
+    echo "Release mode: pushing tags 'latest' and 'stable'"
 else
     # Default to debug/alpha
-    ADDITIONAL_TAG="latest"
+    ADDITIONAL_TAG="alpha"
     UNSTABLE_TAG="unstable"
-    ALPHA_TAG="alpha"
-    echo "Debug mode: pushing tags 'latest', 'unstable' and 'alpha'"
+    echo "Debug mode: pushing tags 'alpha' and 'unstable'"
 fi
 
 echo "Pushing Docker image ${IMAGE_NAME}:${ADDITIONAL_TAG} and ${IMAGE_NAME}:${VERSION}..."
 docker push "${IMAGE_NAME}:${ADDITIONAL_TAG}"
 docker push "${IMAGE_NAME}:${VERSION}"
-if [ "$MODE" != "release" ]; then
+if [ "$MODE" == "release" ]; then
+    docker push "${IMAGE_NAME}:${STABLE_TAG}"
+else
     docker push "${IMAGE_NAME}:${UNSTABLE_TAG}"
-    docker push "${IMAGE_NAME}:${ALPHA_TAG}"
 fi
 
 ./scripts/deploy.sh "$MODE"

@@ -1,7 +1,7 @@
 services:
   lms:
     container_name: lms
-    image: ${IMAGE_NAME:-muma/lms}:${LMS_TAG:-stable}
+    image: ${IMAGE_NAME:-muma/lms}:${LMS_TAG:-latest}
     expose:
       - "5082"
     ports:
@@ -26,7 +26,7 @@ services:
     restart: unless-stopped
   lms_alpha:
     container_name: lms_alpha
-    image: ${IMAGE_NAME:-muma/lms}:${LMS_ALPHA_TAG:-latest}
+    image: ${IMAGE_NAME:-muma/lms}:${LMS_ALPHA_TAG:-alpha}
     expose:
       - "5082"
     ports:

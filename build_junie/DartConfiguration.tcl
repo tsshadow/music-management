@@ -4,14 +4,14 @@
 
 
 # Configuration directories and files
-SourceDirectory: /home/user/git/muma/lms
-BuildDirectory: /home/user/git/muma/lms/build_junie
+SourceDirectory: /home/user/git/lms
+BuildDirectory: /home/user/git/lms/build_junie
 
 # Where to place the cost data store
 CostDataFile: 
 
 # Site is something like machine.domain, i.e. pragmatic.crd
-Site: magna-development
+Site: minipc-debian13
 
 # Build name is osname-revision-compiler, i.e. Linux-2.4.2-2smp-c++
 BuildName: Linux-c++
@@ -27,7 +27,7 @@ SubmitInactivityTimeout:
 NightlyStartTime: 00:00:00 EDT
 
 # Commands for the build/test/submit cycle
-ConfigureCommand: "/usr/bin/cmake" "/home/user/git/muma/lms"
+ConfigureCommand: "/usr/bin/cmake" "/home/user/git/lms"
 MakeCommand: /usr/bin/cmake --build . --config "${CTEST_CONFIGURATION_TYPE}"
 DefaultCTestConfigurationType: Release
 
@@ -64,7 +64,7 @@ UpdateType: git
 
 # Compiler info
 Compiler: /usr/bin/c++
-CompilerVersion: 12.2.0
+CompilerVersion: 14.2.0
 
 # Dynamic analysis (MemCheck)
 PurifyCommand: 

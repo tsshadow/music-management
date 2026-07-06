@@ -7,7 +7,7 @@ import pymysql.cursors
 # Add project root to path so we can import services
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
-from services.artist_image_fetcher.fetcher import ArtistImageFetcher
+from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetcher
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from dotenv import load_dotenv
 

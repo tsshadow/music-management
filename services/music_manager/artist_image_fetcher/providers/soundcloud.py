@@ -21,14 +21,17 @@ class SoundCloudArtistImageProvider(ArtistImageProvider):
             # Try to find in downloads_soundcloud_accounts
             try:
                 with self.db_conn.cursor() as cursor:
-                    # Search by name match in sc accounts
-                    query = "SELECT name, soundcloud_id FROM downloads_soundcloud_accounts WHERE name = %s OR name = %s"
-                    cursor.execute(query, (artist_name, artist_name.replace(' ', '-').lower()))
-                    row = cursor.fetchone()
-                    if row:
-                        sc_account = row[0]
+                    # Check if table exists first to avoid error spam
+                    cursor.execute("SHOW TABLES LIKE 'downloads_soundcloud_accounts'")
+                    if cursor.fetchone():
+                        # Search by name match in sc accounts
+                        query = "SELECT name, soundcloud_id FROM downloads_soundcloud_accounts WHERE name = %s OR name = %s"
+                        cursor.execute(query, (artist_name, artist_name.replace(' ', '-').lower()))
+                        row = cursor.fetchone()
+                        if row:
+                            sc_account = row[0]
             except Exception as e:
-                self.logger.error(f"Error searching SoundCloud accounts in DB: {e}")
+                self.logger.debug(f"Could not search SoundCloud accounts in DB: {e}")
 
         if sc_account:
             # We don't have a direct API to get the avatar without a client ID, 

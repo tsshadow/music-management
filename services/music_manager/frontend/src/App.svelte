@@ -1,8 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Home, Cloud, Scale, Database, Info, ExternalLink, Plus, RefreshCw, Music, Tag, Trash2, Search, Radio, Users, Key, Youtube, Activity, ShieldCheck, Terminal, Clock, List, LayoutTemplate } from 'lucide-svelte';
+  import { Home, Cloud, Scale, Database, Info, ExternalLink, Plus, RefreshCw, Music, Tag, Trash2, Search, Radio, Users, Key, Youtube, Activity, ShieldCheck, Terminal, Clock, List, LayoutTemplate, Image } from 'lucide-svelte';
 
   let activeTab = 'home';
+  let taggerSubTab = 'artists';
+  let downloaderSubTab = 'soundcloud';
   let config = { version: '...', phpmyadmin_url: '#' };
   let isLoggedIn = false;
   let username = '';
@@ -728,6 +730,23 @@
     }
   }
 
+  async function fetchArtistImages() {
+    try {
+      const res = await fetch(`${API_BASE}/api/artists/fetch-missing`, { 
+        method: 'POST',
+        headers: getHeaders()
+      });
+      if (res.ok) {
+        message = "Artiestafbeeldingen ophalen gestart in de achtergrond...";
+        setTimeout(() => message = '', 3000);
+      } else {
+        error = "Kon het ophalen van afbeeldingen niet starten.";
+      }
+    } catch (err) {
+      error = "Fout bij starten artist image fetcher";
+    }
+  }
+
   async function fetchLogs(name) {
     selectedContainer = name;
     systemLogs = 'Laden...';
@@ -835,107 +854,107 @@
       </h1>
     </div>
     
-    <nav class="flex-1 px-4 space-y-2">
+    <nav class="flex-1 px-4 space-y-1 overflow-y-auto scrollbar-thin pb-8">
+      <div class="pt-4 pb-1 px-4 text-[10px] font-bold text-spotify-lightgray uppercase tracking-widest">Dashboard</div>
       <button 
         on:click={() => activeTab = 'home'}
-        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'home' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'home' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
       >
-        <Home size={24} /> Home
-      </button>
-      <button 
-        on:click={() => activeTab = 'soundcloud'}
-        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'soundcloud' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <Cloud size={24} /> SoundCloud
-      </button>
-      <button 
-        on:click={() => activeTab = 'youtube'}
-        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'youtube' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <Youtube size={24} /> YouTube
-      </button>
-      <button 
-        on:click={() => activeTab = 'users'}
-        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'users' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <Users size={24} /> Users
-      </button>
-      <button 
-        on:click={() => activeTab = 'rules'}
-        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'rules' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <Scale size={24} /> Rules & Genres
-      </button>
-      <button 
-        on:click={() => activeTab = 'editor'}
-        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'editor' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <Music size={24} /> Artist-Genre Editor
-      </button>
-      <button 
-        on:click={() => activeTab = 'scrobble'}
-        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'scrobble' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <Radio size={24} /> Scrobble Service
-      </button>
-      <button 
-        on:click={() => { activeTab = 'about'; fetchAbout(); }}
-        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'about' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <Info size={24} /> About Music Manager
-      </button>
-      <button 
-        on:click={() => activeTab = 'versions'}
-        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'versions' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <LayoutTemplate size={24} /> Worker Versions
-      </button>
-      <button 
-        on:click={() => { activeTab = 'playlists'; fetchPlaylists(); }}
-        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'playlists' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <List size={24} /> Dynamic Playlists
-      </button>
-      <button 
-        on:click={() => { activeTab = 'health'; refreshSystemStatus(); }}
-        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'health' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <ShieldCheck size={24} /> Health & Activity
+        <Home size={20} /> Overview
       </button>
       <button 
         on:click={() => { activeTab = 'stats'; fetchStats(); }}
-        class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold transition-colors {activeTab === 'stats' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'stats' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
       >
-        <Activity size={24} /> Bibliotheek Stats
+        <Activity size={20} /> Bibliotheek Stats
       </button>
-      
+
+      <div class="pt-4 pb-1 px-4 text-[10px] font-bold text-spotify-lightgray uppercase tracking-widest">Bibliotheek</div>
+      <button 
+        on:click={() => activeTab = 'images'}
+        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'images' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+      >
+        <Image size={20} /> Artist Images
+      </button>
+      <button 
+        on:click={() => { activeTab = 'playlists'; fetchPlaylists(); }}
+        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'playlists' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+      >
+        <List size={20} /> Dynamic Playlists
+      </button>
+
+      <div class="pt-4 pb-1 px-4 text-[10px] font-bold text-spotify-lightgray uppercase tracking-widest">Tools</div>
+      <button 
+        on:click={() => activeTab = 'tagger'}
+        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'tagger' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+      >
+        <Tag size={20} /> Tagger
+      </button>
+      <button 
+        on:click={() => activeTab = 'downloaders'}
+        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'downloaders' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+      >
+        <Cloud size={20} /> Downloaders
+      </button>
+      <button 
+        on:click={() => activeTab = 'scrobble'}
+        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'scrobble' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+      >
+        <Radio size={20} /> Scrobble Service
+      </button>
+
+      <div class="pt-4 pb-1 px-4 text-[10px] font-bold text-spotify-lightgray uppercase tracking-widest">Systeem</div>
+      <button 
+        on:click={() => { activeTab = 'health'; refreshSystemStatus(); }}
+        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'health' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+      >
+        <ShieldCheck size={20} /> Systeem Status
+      </button>
+      <button 
+        on:click={() => activeTab = 'users'}
+        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'users' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+      >
+        <Users size={20} /> Users
+      </button>
+      <button 
+        on:click={() => activeTab = 'versions'}
+        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'versions' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+      >
+        <LayoutTemplate size={20} /> Worker Versions
+      </button>
+      <button 
+        on:click={() => { activeTab = 'about'; fetchAbout(); }}
+        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'about' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+      >
+        <Info size={20} /> About MuMa
+      </button>
       <div class="pt-4 mt-4 border-t border-spotify-gray">
         <a 
           href="https://spotify.teunschriks.nl"
           target="_blank"
-          class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold text-spotify-lightgray hover:text-white transition-colors"
+          class="w-full flex items-center gap-4 px-4 py-2 rounded-md font-bold text-spotify-lightgray hover:text-white transition-colors text-sm"
         >
-          <ExternalLink size={24} /> MuMa Spotify
+          <ExternalLink size={18} /> MuMa Spotify
         </a>
         <a 
           href="https://spotify-alpha.teunschriks.nl"
           target="_blank"
-          class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold text-spotify-lightgray hover:text-white transition-colors"
+          class="w-full flex items-center gap-4 px-4 py-2 rounded-md font-bold text-spotify-lightgray hover:text-white transition-colors text-sm"
         >
-          <ExternalLink size={24} /> MuMa Spotify-alpha
+          <ExternalLink size={18} /> MuMa Spotify-alpha
         </a>
         <a 
           href={config.phpmyadmin_url} 
           target="_blank"
-          class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold text-spotify-lightgray hover:text-white transition-colors"
+          class="w-full flex items-center gap-4 px-4 py-2 rounded-md font-bold text-spotify-lightgray hover:text-white transition-colors text-sm"
         >
-          <ExternalLink size={24} /> phpMyAdmin
+          <ExternalLink size={18} /> phpMyAdmin
         </a>
         <button 
           on:click={logout}
-          class="w-full flex items-center gap-4 px-4 py-3 rounded-md font-bold text-red-500 hover:text-red-400 transition-colors mt-2"
+          class="w-full flex items-center gap-4 px-4 py-2 rounded-md font-bold text-red-500 hover:text-red-400 transition-colors mt-2 text-sm"
         >
-          <Key size={24} /> Uitloggen
+          <Key size={18} /> Uitloggen
         </button>
       </div>
     </nav>
@@ -971,294 +990,197 @@
     {:else}
       {#if activeTab === 'home'}
         <section class="space-y-8 animate-in fade-in duration-500">
-          <header class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <header class="flex justify-between items-end">
             <div>
-              <h2 class="text-4xl font-extrabold mb-2">🚀 Release Notes</h2>
-              <p class="text-spotify-lightgray">Updates en nieuwe features van het systeem.</p>
-            </div>
-            
-            <div class="flex flex-col gap-2 min-w-[200px]">
-              <label for="service-select" class="text-xs font-bold text-spotify-lightgray uppercase tracking-widest">Kies Service</label>
-              <select 
-                id="service-select"
-                bind:value={selectedServiceNotes}
-                class="bg-spotify-gray border border-white border-opacity-10 rounded-md p-2 text-white focus:outline-none focus:border-spotify-green"
-              >
-                {#each Object.keys(allNotes) as service}
-                  <option value={service}>{service.charAt(0).toUpperCase() + service.slice(1).replace('-', ' ')}</option>
-                {/each}
-              </select>
+              <h1 class="text-6xl font-extrabold mb-4 tracking-tighter">MuMa Overview</h1>
+              <p class="text-spotify-lightgray text-lg">Welkom terug! Hier is een overzicht van je systeem status.</p>
             </div>
           </header>
-          
-          {#if allNotes[selectedServiceNotes]}
-            <div class="bg-spotify-gray bg-opacity-40 p-8 rounded-xl backdrop-blur-sm border border-white border-opacity-5">
-              <div class="md-content">
-                {@html allNotes[selectedServiceNotes].release_notes}
+
+          <!-- Status Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
+              <div class="flex items-center gap-3 mb-4">
+                <ShieldCheck class={containers.every(c => c.status === 'running') ? 'text-spotify-green' : 'text-red-500'} />
+                <h3 class="font-bold">Systeem Status</h3>
               </div>
+              <div class="text-2xl font-extrabold">
+                {containers.filter(c => c.status === 'running').length} / {containers.length} Running
+              </div>
+              <p class="text-xs text-spotify-lightgray mt-2">
+                {#if containers.some(c => c.status !== 'running')}
+                  <span class="text-red-500 font-bold">{containers.filter(c => c.status !== 'running').length} containers hebben problemen.</span>
+                {:else}
+                  Alle systemen werken naar behoren.
+                {/if}
+              </p>
             </div>
-            
-            {#if allNotes[selectedServiceNotes].changelog && allNotes[selectedServiceNotes].changelog !== '<p>No changelog found.</p>'}
-              <header class="pt-8">
-                <h2 class="text-2xl font-bold mb-2 text-spotify-lightgray">📜 Technical Changelog</h2>
-              </header>
-              <div class="bg-spotify-dark p-8 rounded-xl border border-spotify-gray">
-                <div class="md-content">
-                  {@html allNotes[selectedServiceNotes].changelog}
-                </div>
+
+            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
+              <div class="flex items-center gap-3 mb-4">
+                <Clock class="text-blue-400" />
+                <h3 class="font-bold">Laatste Activiteit</h3>
               </div>
-            {/if}
-          {:else}
-            <div class="bg-spotify-gray bg-opacity-40 p-8 rounded-xl border border-white border-opacity-5 text-center text-spotify-lightgray">
-              Geen gegevens beschikbaar voor deze service.
+              <div class="text-2xl font-extrabold">
+                {activity.recent_added.length > 0 ? new Date(activity.recent_added[0].timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-'}
+              </div>
+              <p class="text-xs text-spotify-lightgray mt-2">Laatste track toegevoegd.</p>
+            </div>
+
+            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
+              <div class="flex items-center gap-3 mb-4">
+                <Info class="text-spotify-green" />
+                <h3 class="font-bold">MuMa Versie</h3>
+              </div>
+              <div class="text-2xl font-extrabold">{config.version}</div>
+              <p class="text-xs text-spotify-lightgray mt-2">Service: music-manager</p>
+            </div>
+          </div>
+
+          <!-- System Alerts (if any) -->
+          {#if containers.some(c => c.status !== 'running')}
+            <div class="bg-red-500 bg-opacity-10 border border-red-500 rounded-xl p-4 flex items-center gap-4 animate-in shake duration-500">
+              <ShieldCheck size={32} class="text-red-500" />
+              <div>
+                <h3 class="font-bold text-red-500 text-sm uppercase tracking-wider">Systeem Alert</h3>
+                <p class="text-sm text-red-200">
+                  {containers.filter(c => c.status !== 'running').length} service(s) zijn momenteel offline: 
+                  <span class="font-bold font-mono">{containers.filter(c => c.status !== 'running').map(c => c.name).join(', ')}</span>
+                </p>
+              </div>
             </div>
           {/if}
-        </section>
-
-      {:else if activeTab === 'soundcloud'}
-        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-          <header class="flex justify-between items-end">
-            <div>
-              <h2 class="text-4xl font-extrabold mb-2">☁️ SoundCloud Accounts</h2>
-              <p class="text-spotify-lightgray">Beheer de accounts die worden gescand door de MuMa Downloader.</p>
-            </div>
-          </header>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <!-- Add Form -->
-            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
-              <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
-                <Plus class="text-spotify-green" /> Account Toevoegen
-              </h3>
-              <form on:submit|preventDefault={addAccount} class="space-y-4">
-                <div>
-                  <label for="name" class="block text-sm font-bold text-spotify-lightgray mb-2">Account Slug</label>
-                  <input 
-                    type="text" 
-                    id="name" 
-                    bind:value={newAccountName}
-                    placeholder="monstercat"
-                    class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
-                  />
-                </div>
-                <div>
-                  <label for="id" class="block text-sm font-bold text-spotify-lightgray mb-2">SoundCloud ID (Optioneel)</label>
-                  <input 
-                    type="text" 
-                    id="id" 
-                    bind:value={newAccountId}
-                    placeholder="123456"
-                    class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
-                  />
-                </div>
-                <button type="submit" class="w-full bg-spotify-green text-black font-extrabold py-3 rounded-full hover:scale-105 transition-transform">
-                  TOEVOEGEN
-                </button>
-              </form>
-            </div>
-
-            <!-- List -->
-            <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-              <table class="w-full text-left">
-                <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
-                  <tr>
-                    <th class="p-4">Name / Slug</th>
-                    <th class="p-4 text-right">ID</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-                  {#each accounts as account}
-                    <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
-                      <td class="p-4">
-                        <a href="https://soundcloud.com/{account.name}" target="_blank" class="font-bold flex items-center gap-2 group-hover:text-spotify-green">
-                          {account.name} <ExternalLink size={14} class="opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </a>
-                      </td>
-                      <td class="p-4 text-right text-spotify-lightgray font-mono">
-                        <div class="flex items-center justify-end gap-4">
-                          {account.soundcloud_id || '-'}
-                          <button on:click={() => deleteSoundcloudAccount(account.name)} class="text-spotify-lightgray hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-      {:else if activeTab === 'youtube'}
-        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-          <header class="flex justify-between items-end">
-            <div>
-              <h2 class="text-4xl font-extrabold mb-2">📺 YouTube Accounts</h2>
-              <p class="text-spotify-lightgray">Beheer de YouTube kanalen die worden gescand voor nieuwe muziek.</p>
-            </div>
-          </header>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <!-- Add Form -->
-            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
-              <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
-                <Plus class="text-spotify-green" /> Kanaal Toevoegen
-              </h3>
-              <form on:submit|preventDefault={addYoutubeAccount} class="space-y-4">
-                <div>
-                  <label for="yt-name" class="block text-sm font-bold text-spotify-lightgray mb-2">Channel Handle / ID</label>
-                  <input 
-                    type="text" 
-                    id="yt-name" 
-                    bind:value={newAccountName}
-                    placeholder="@Monstercat"
-                    class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
-                  />
-                  <p class="text-xs text-spotify-lightgray mt-2">Gebruik de handle (bijv. @Monstercat) of de channel ID.</p>
-                </div>
-                <button type="submit" class="w-full bg-spotify-green text-black font-extrabold py-3 rounded-full hover:scale-105 transition-transform">
-                  TOEVOEGEN
-                </button>
-              </form>
-            </div>
-
-            <!-- List -->
-            <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-              <table class="w-full text-left">
-                <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
-                  <tr>
-                    <th class="p-4">Channel</th>
-                    <th class="p-4 text-right">Acties</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-                  {#each youtubeAccounts as account}
-                    <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
-                      <td class="p-4">
-                        <a href="https://www.youtube.com/{account.name.startsWith('@') ? account.name : 'channel/'+account.name}" target="_blank" class="font-bold flex items-center gap-2 group-hover:text-spotify-green">
-                          {account.name} <ExternalLink size={14} class="opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </a>
-                      </td>
-                      <td class="p-4 text-right">
-                        <button on:click={() => deleteYoutubeAccount(account.name)} class="text-spotify-lightgray hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Trash2 size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-      {:else if activeTab === 'rules'}
-        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-          <header>
-            <h2 class="text-4xl font-extrabold mb-2">⚖️ Rules & Genres</h2>
-            <p class="text-spotify-lightgray">Database configuratie voor het importeren en taggen van muziek.</p>
-          </header>
 
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Genres -->
+            <!-- Recent Activity Mini List -->
             <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-              <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Actieve Genres (rules_genres)</h3>
-              <div class="max-h-[500px] overflow-y-auto">
-                <table class="w-full text-left">
-                  <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray sticky top-0">
-                    <tr>
-                      <th class="p-4 w-16">ID</th>
-                      <th class="p-4">Genre</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-                    {#each rules.genres as genre}
-                      <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
-                        <td class="p-4 text-spotify-lightgray font-mono">{genre.id}</td>
-                        <td class="p-4 font-bold">{genre.name}</td>
-                      </tr>
-                    {/each}
-                  </tbody>
-                </table>
+              <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex items-center gap-2">
+                <Activity size={20} class="text-spotify-green" /> Recente Activiteit
+              </h3>
+              <div class="max-h-[300px] overflow-y-auto">
+                <ul class="divide-y divide-spotify-gray divide-opacity-30">
+                  {#each activity.recent_added.slice(0, 5) as item}
+                    <li class="p-4 hover:bg-white hover:bg-opacity-5 flex justify-between items-center gap-4">
+                      <div class="truncate">
+                        <div class="font-bold text-sm truncate">{item.title || item.file_path.split('/').pop()}</div>
+                        <div class="text-xs text-spotify-lightgray truncate">{item.artist || item.source}</div>
+                      </div>
+                      <div class="text-[10px] text-spotify-lightgray whitespace-nowrap text-right">
+                        {new Date(item.timestamp).toLocaleDateString()}
+                      </div>
+                    </li>
+                  {/each}
+                  {#if activity.recent_added.length === 0}
+                    <li class="p-8 text-center text-spotify-lightgray italic">Geen recente activiteit gevonden.</li>
+                  {/if}
+                </ul>
+              </div>
+              <div class="p-4 bg-black bg-opacity-20 text-center">
+                 <button on:click={() => activeTab = 'stats'} class="text-xs font-bold text-spotify-lightgray hover:text-white uppercase tracking-widest">Bekijk alle statistieken</button>
               </div>
             </div>
 
-            <!-- Ignored -->
-            <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-              <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Genegeerde Genres</h3>
-              <div class="max-h-[500px] overflow-y-auto">
-                <table class="w-full text-left">
-                  <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray sticky top-0">
-                    <tr>
-                      <th class="p-4">Naam</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-                    {#each rules.ignored_genres as ignored}
-                      <tr class="hover:bg-red-900 hover:bg-opacity-20 transition-colors">
-                        <td class="p-4 text-red-200">{ignored.name}</td>
-                      </tr>
-                    {/each}
-                  </tbody>
-                </table>
+            <!-- Quick Release Notes -->
+            <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden flex flex-col">
+              <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex items-center justify-between">
+                <div class="flex items-center gap-2"><RefreshCw size={20} class="text-blue-400" /> Release Notes</div>
+                <select 
+                  bind:value={selectedServiceNotes}
+                  class="bg-spotify-dark border border-white border-opacity-10 rounded-md p-1 text-xs text-white focus:outline-none focus:border-spotify-green"
+                >
+                  {#each Object.keys(allNotes) as service}
+                    <option value={service}>{service.replace('-', ' ')}</option>
+                  {/each}
+                </select>
+              </h3>
+              <div class="p-6 overflow-y-auto max-h-[300px] flex-1">
+                {#if allNotes[selectedServiceNotes]}
+                  <div class="md-content text-sm overflow-hidden text-ellipsis">
+                    {@html allNotes[selectedServiceNotes].release_notes}
+                  </div>
+                {:else}
+                  <p class="text-spotify-lightgray text-center italic mt-10">Selecteer een service om de release notes te bekijken.</p>
+                {/if}
               </div>
             </div>
           </div>
         </section>
 
-      {:else if activeTab === 'editor'}
+      {:else if activeTab === 'tagger'}
         <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-          <header>
-            <h2 class="text-4xl font-extrabold mb-2">🎨 Artist-Genre Editor</h2>
-            <p class="text-spotify-lightgray">Koppel artiesten en labels aan specifieke genres.</p>
+          <header class="flex justify-between items-end">
+            <div>
+              <h1 class="text-6xl font-extrabold mb-4 tracking-tighter">Tagger Config</h1>
+              <p class="text-spotify-lightgray text-lg">Beheer genres, artiesten en tag-regels voor je bibliotheek.</p>
+            </div>
           </header>
 
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Left: Selector -->
-            <div class="lg:col-span-1 space-y-6">
-              <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
-                <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><Music size={20} class="text-spotify-green" /> Artiest/Label Kiezen</h3>
-                
+          <div class="flex gap-6 border-b border-white border-opacity-10">
+            <button 
+              on:click={() => taggerSubTab = 'artists'}
+              class="pb-4 font-bold text-sm transition-colors relative {taggerSubTab === 'artists' ? 'text-white' : 'text-spotify-lightgray hover:text-white'}"
+            >
+              Artiesten & Labels
+              {#if taggerSubTab === 'artists'}
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-spotify-green rounded-full animate-in fade-in duration-300"></div>
+              {/if}
+            </button>
+            <button 
+              on:click={() => taggerSubTab = 'genres'}
+              class="pb-4 font-bold text-sm transition-colors relative {taggerSubTab === 'genres' ? 'text-white' : 'text-spotify-lightgray hover:text-white'}"
+            >
+              Genre Overzicht
+              {#if taggerSubTab === 'genres'}
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-spotify-green rounded-full animate-in fade-in duration-300"></div>
+              {/if}
+            </button>
+            <button 
+              on:click={() => taggerSubTab = 'rules'}
+              class="pb-4 font-bold text-sm transition-colors relative {taggerSubTab === 'rules' ? 'text-white' : 'text-spotify-lightgray hover:text-white'}"
+            >
+              Genre Koppelingen
+              {#if taggerSubTab === 'rules'}
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-spotify-green rounded-full animate-in fade-in duration-300"></div>
+              {/if}
+            </button>
+          </div>
+
+          {#if taggerSubTab === 'artists'}
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300">
+              <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 space-y-6">
+                <h3 class="text-xl font-bold flex items-center gap-2"><Search size={20} class="text-spotify-green" /> Zoeken</h3>
                 <div class="space-y-4">
-                  <div class="flex flex-col gap-2">
-                    <label class="text-xs font-bold text-spotify-lightgray uppercase">Zoek Artiest</label>
-                    <div class="relative">
-                      <Search class="absolute left-3 top-3 text-spotify-lightgray" size={16} />
-                      <input 
-                        type="text" 
-                        bind:value={artistSearch} 
-                        on:input={searchArtists}
-                        placeholder="Naam..."
-                        class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 pl-10 focus:outline-none focus:border-spotify-green"
-                      />
-                    </div>
-                      <select 
-                        bind:value={selectedArtistName}
-                        class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 h-32 focus:outline-none focus:border-spotify-green transition-colors"
-                        size="5"
-                      >
+                  <div>
+                    <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Artiest</label>
+                    <input 
+                      type="text" 
+                      bind:value={artistSearch} 
+                      on:input={searchArtists}
+                      placeholder="Naam..."
+                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green"
+                    />
+                    <select 
+                      bind:value={selectedArtistName}
+                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md mt-2 p-2 h-40 focus:outline-none focus:border-spotify-green"
+                      size="5"
+                    >
                       {#each artists as artist}
                         <option value={artist.name}>{artist.name}</option>
                       {/each}
                     </select>
                   </div>
-
-                  <div class="flex flex-col gap-2">
-                    <label class="text-xs font-bold text-spotify-lightgray uppercase">Of Zoek Label</label>
-                    <div class="relative">
-                      <Search class="absolute left-3 top-3 text-spotify-lightgray" size={16} />
-                      <input 
-                        type="text" 
-                        bind:value={labelSearch} 
-                        on:input={searchLabels}
-                        placeholder="Naam..."
-                        class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 pl-10 focus:outline-none focus:border-spotify-green"
-                      />
-                    </div>
+                  <div>
+                    <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Label</label>
+                    <input 
+                      type="text" 
+                      bind:value={labelSearch} 
+                      on:input={searchLabels}
+                      placeholder="Naam..."
+                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green"
+                    />
                     <select 
                       bind:value={selectedLabelName}
-                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 h-32 focus:outline-none focus:border-spotify-green transition-colors"
+                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md mt-2 p-2 h-40 focus:outline-none focus:border-spotify-green"
                       size="5"
                     >
                       {#each labels as label}
@@ -1269,96 +1191,275 @@
                 </div>
               </div>
 
-              <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
-                <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><Tag size={20} class="text-spotify-green" /> Genre Toewijzen</h3>
-                <div class="space-y-4">
-                  <select 
-                    bind:value={selectedGenreId}
-                    class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
-                  >
-                    <option value={null}>Kies een genre...</option>
-                    {#each rules.genres as genre}
-                      <option value={genre.id}>{genre.name}</option>
-                    {/each}
-                  </select>
+              <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 space-y-6">
+                <h3 class="text-xl font-bold flex items-center gap-2"><Tag size={20} class="text-spotify-green" /> Genre Toewijzen</h3>
+                <div class="p-6 bg-black bg-opacity-20 rounded-xl space-y-6">
+                  <div>
+                    <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Kies Genre</label>
+                    <select 
+                      bind:value={selectedGenreId}
+                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
+                    >
+                      <option value={null}>Selecteer...</option>
+                      {#each rules.genres as genre}
+                        <option value={genre.id}>{genre.name}</option>
+                      {/each}
+                    </select>
+                  </div>
                   
-                  <div class="flex gap-2">
+                  <div class="flex flex-col gap-3">
                     <button 
                       on:click={addArtistRule}
                       disabled={!selectedArtistName || !selectedGenreId}
-                      class="flex-1 bg-spotify-green text-black font-bold py-3 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                      class="w-full bg-spotify-green text-black font-extrabold py-4 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
                     >
-                      KOPPEL ARTIEST
+                      KOPPEL ARTIEST: {selectedArtistName || '...'}
                     </button>
                     <button 
                       on:click={addLabelRule}
                       disabled={!selectedLabelName || !selectedGenreId}
-                      class="flex-1 bg-white text-black font-bold py-3 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                      class="w-full bg-white text-black font-extrabold py-4 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
                     >
-                      KOPPEL LABEL
+                      KOPPEL LABEL: {selectedLabelName || '...'}
                     </button>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Right: Rules Lists -->
-            <div class="lg:col-span-2 space-y-8">
+          {:else if taggerSubTab === 'genres'}
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300">
               <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-                <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Artiest Genre Regels</h3>
-                <div class="max-h-[400px] overflow-y-auto">
+                <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Actieve Genres</h3>
+                <div class="max-h-[600px] overflow-y-auto">
                   <table class="w-full text-left">
                     <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray sticky top-0">
                       <tr>
-                        <th class="p-4">Artiest</th>
+                        <th class="p-4 w-16">ID</th>
                         <th class="p-4">Genre</th>
-                        <th class="p-4 w-16"></th>
                       </tr>
                     </thead>
                     <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-                      {#each artistGenreRules as rule}
+                      {#each rules.genres as genre}
                         <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
-                          <td class="p-4 font-bold">{rule.artist_name}</td>
-                          <td class="p-4 text-spotify-green">{rule.genre_name}</td>
-                          <td class="p-4 text-right">
-                            <button on:click={() => deleteArtistRule(rule.id)} class="text-spotify-lightgray hover:text-red-500">
-                              <Trash2 size={18} />
-                            </button>
-                          </td>
+                          <td class="p-4 text-spotify-lightgray font-mono">{genre.id}</td>
+                          <td class="p-4 font-bold">{genre.name}</td>
                         </tr>
                       {/each}
                     </tbody>
                   </table>
                 </div>
+              </div>
+              <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+                <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Genegeerde Genres</h3>
+                <div class="max-h-[600px] overflow-y-auto">
+                  <table class="w-full text-left">
+                    <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+                      {#each rules.ignored_genres as ignored}
+                        <tr class="hover:bg-red-900 hover:bg-opacity-10 transition-colors">
+                          <td class="p-4 text-spotify-lightgray">{ignored.name}</td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+          {:else if taggerSubTab === 'rules'}
+            <div class="space-y-8 animate-in fade-in duration-300">
+              <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+                <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex justify-between items-center">
+                   Artiest Genre Koppelingen
+                   <span class="text-xs text-spotify-lightgray font-mono">{artistGenreRules.length} regels</span>
+                </h3>
+                <table class="w-full text-left">
+                  <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
+                    <tr>
+                      <th class="p-4">Artiest</th>
+                      <th class="p-4">Genre</th>
+                      <th class="p-4 text-right">Actie</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+                    {#each artistGenreRules as rule}
+                      <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
+                        <td class="p-4 font-bold">{rule.artist_name}</td>
+                        <td class="p-4 text-spotify-green">{rule.genre_name}</td>
+                        <td class="p-4 text-right">
+                          <button on:click={() => deleteArtistRule(rule.id)} class="text-spotify-lightgray hover:text-red-500">
+                            <Trash2 size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
               </div>
 
               <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-                <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Label Genre Regels</h3>
-                <div class="max-h-[400px] overflow-y-auto">
-                  <table class="w-full text-left">
-                    <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray sticky top-0">
-                      <tr>
-                        <th class="p-4">Label</th>
-                        <th class="p-4">Genre</th>
-                        <th class="p-4 w-16"></th>
+                <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex justify-between items-center">
+                  Label Genre Koppelingen
+                  <span class="text-xs text-spotify-lightgray font-mono">{labelGenreRules.length} regels</span>
+                </h3>
+                <table class="w-full text-left">
+                  <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
+                    <tr>
+                      <th class="p-4">Label</th>
+                      <th class="p-4">Genre</th>
+                      <th class="p-4 text-right">Actie</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+                    {#each labelGenreRules as rule}
+                      <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
+                        <td class="p-4 font-bold">{rule.label_name}</td>
+                        <td class="p-4 text-spotify-green">{rule.genre_name}</td>
+                        <td class="p-4 text-right">
+                          <button on:click={() => deleteLabelRule(rule.id)} class="text-spotify-lightgray hover:text-red-500">
+                            <Trash2 size={18} />
+                          </button>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-                      {#each labelGenreRules as rule}
-                        <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
-                          <td class="p-4 font-bold">{rule.label_name}</td>
-                          <td class="p-4 text-spotify-green">{rule.genre_name}</td>
-                          <td class="p-4 text-right">
-                            <button on:click={() => deleteLabelRule(rule.id)} class="text-spotify-lightgray hover:text-red-500">
-                              <Trash2 size={18} />
-                            </button>
-                          </td>
-                        </tr>
-                      {/each}
-                    </tbody>
-                  </table>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          {/if}
+        </section>
+
+      {:else if activeTab === 'downloaders'}
+        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+          <header>
+            <h1 class="text-6xl font-extrabold mb-4 tracking-tighter">Downloaders</h1>
+            <p class="text-spotify-lightgray text-lg">Beheer SoundCloud accounts en YouTube kanalen voor automatische imports.</p>
+          </header>
+
+          <div class="flex gap-6 border-b border-white border-opacity-10">
+            <button 
+              on:click={() => downloaderSubTab = 'soundcloud'}
+              class="pb-4 font-bold text-sm transition-colors relative {downloaderSubTab === 'soundcloud' ? 'text-white' : 'text-spotify-lightgray hover:text-white'}"
+            >
+              SoundCloud
+              {#if downloaderSubTab === 'soundcloud'}
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-spotify-green rounded-full animate-in fade-in duration-300"></div>
+              {/if}
+            </button>
+            <button 
+              on:click={() => downloaderSubTab = 'youtube'}
+              class="pb-4 font-bold text-sm transition-colors relative {downloaderSubTab === 'youtube' ? 'text-white' : 'text-spotify-lightgray hover:text-white'}"
+            >
+              YouTube
+              {#if downloaderSubTab === 'youtube'}
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-spotify-green rounded-full animate-in fade-in duration-300"></div>
+              {/if}
+            </button>
+          </div>
+
+          {#if downloaderSubTab === 'soundcloud'}
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300">
+              <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 space-y-6">
+                <h3 class="text-xl font-bold flex items-center gap-2"><Plus class="text-spotify-green" /> Account Toevoegen</h3>
+                <form on:submit|preventDefault={addAccount} class="space-y-4">
+                  <div>
+                    <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Account Slug (URL)</label>
+                    <input type="text" bind:value={newAccountName} placeholder="bijv: monstercat" class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">SoundCloud ID (Optioneel)</label>
+                    <input type="text" bind:value={newAccountId} placeholder="123456" class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
+                  </div>
+                  <button type="submit" class="w-full bg-spotify-green text-black font-extrabold py-3 rounded-full hover:scale-105 transition-transform">TOEVOEGEN</button>
+                </form>
+              </div>
+              <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+                <table class="w-full text-left">
+                  <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
+                    <tr><th class="p-4">Account</th><th class="p-4 text-right">Acties</th></tr>
+                  </thead>
+                  <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+                    {#each accounts as account}
+                      <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
+                        <td class="p-4 font-bold">
+                          <a href="https://soundcloud.com/{account.name}" target="_blank" class="flex items-center gap-2 hover:text-spotify-green">
+                            {account.name} <ExternalLink size={14} />
+                          </a>
+                        </td>
+                        <td class="p-4 text-right">
+                          <button on:click={() => deleteSoundcloudAccount(account.name)} class="text-spotify-lightgray hover:text-red-500">
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          {:else if downloaderSubTab === 'youtube'}
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300">
+              <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 space-y-6">
+                <h3 class="text-xl font-bold mb-6 flex items-center gap-2"><Search class="text-spotify-green" /> Snel Toevoegen</h3>
+                <form on:submit|preventDefault={addYoutubeAccount} class="space-y-4">
+                  <div class="flex gap-2">
+                    <input type="text" bind:value={newAccountName} placeholder="Channel Handle of ID..." class="flex-1 bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
+                    <button type="submit" class="bg-spotify-green text-black font-extrabold px-6 rounded-md hover:scale-105 transition-transform">ADD</button>
+                  </div>
+                  <p class="text-xs text-spotify-lightgray italic">Voeg een kanaal toe aan de automatische scanner.</p>
+                </form>
+
+                <div class="pt-6 border-t border-white border-opacity-5">
+                  <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><Youtube class="text-red-500" /> Handmatig Downloaden</h3>
+                  <div class="flex gap-2">
+                    <input type="text" placeholder="YouTube Video URL..." class="flex-1 bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
+                    <button class="bg-white text-black font-extrabold px-6 rounded-md hover:scale-105 transition-transform">FETCH</button>
+                  </div>
                 </div>
               </div>
+              <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+                <table class="w-full text-left">
+                  <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
+                    <tr><th class="p-4">Kanaal</th><th class="p-4 text-right">Acties</th></tr>
+                  </thead>
+                  <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+                    {#each youtubeAccounts as account}
+                      <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
+                        <td class="p-4 font-bold">
+                          <a href="https://youtube.com/{account.name.startsWith('@') ? account.name : 'channel/'+account.name}" target="_blank" class="flex items-center gap-2 hover:text-spotify-green">
+                            {account.name} <ExternalLink size={14} />
+                          </a>
+                        </td>
+                        <td class="p-4 text-right">
+                          <button on:click={() => deleteYoutubeAccount(account.name)} class="text-spotify-lightgray hover:text-red-500">
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          {/if}
+
+          <!-- Recent Activity (Downloads) -->
+          <div class="bg-spotify-gray bg-opacity-20 p-8 rounded-2xl border border-white border-opacity-5">
+            <h3 class="text-2xl font-bold mb-6 flex items-center gap-3">
+              <Clock class="text-spotify-lightgray" /> Laatst Gedownloade Tracks
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {#each activity.recent_added.slice(0, 6) as track}
+                <div class="bg-black bg-opacity-40 p-4 rounded-lg border border-white border-opacity-5 flex items-center gap-4 group hover:bg-opacity-60 transition-all">
+                  <div class="w-12 h-12 bg-spotify-gray rounded flex items-center justify-center text-spotify-lightgray group-hover:text-white transition-colors">
+                    <Music size={24} />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="font-bold text-sm truncate">{track.title || track.file_path.split('/').pop()}</div>
+                    <div class="text-xs text-spotify-lightgray truncate">{track.artist || 'Onbekend'}</div>
+                  </div>
+                </div>
+              {/each}
             </div>
           </div>
         </section>
@@ -1857,6 +1958,30 @@
             </table>
           </div>
         </section>
+
+      {:else if activeTab === 'images'}
+        <section class="space-y-8 animate-in fade-in duration-500">
+          <header>
+            <h1 class="text-6xl font-extrabold mb-4 tracking-tighter">Artist Images</h1>
+            <p class="text-spotify-lightgray text-lg">Beheer en download afbeeldingen voor artiesten in je bibliotheek.</p>
+          </header>
+
+          <div class="bg-spotify-gray bg-opacity-30 p-8 rounded-xl border border-white border-opacity-5">
+            <h2 class="text-2xl font-bold mb-4">Missing Images Ophalen</h2>
+            <p class="mb-6 text-spotify-lightgray font-medium max-w-2xl">
+              Start een achtergrondtaak die voor alle artiesten zonder afbeelding probeert een afbeelding te vinden via 
+              Spotify, Last.fm, MusicBrainz en SoundCloud. Dit kan even duren afhankelijk van de grootte van je bibliotheek.
+            </p>
+            
+            <button 
+              on:click={fetchArtistImages} 
+              class="bg-spotify-green text-black font-extrabold px-8 py-4 rounded-full hover:scale-105 active:scale-95 transition-all flex items-center gap-3 shadow-xl"
+            >
+              <Image size={24} /> START FETCHING
+            </button>
+          </div>
+        </section>
+
       {:else if activeTab === 'health'}
         <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
           <header class="flex justify-between items-end">
@@ -1982,14 +2107,23 @@
 
       {:else if activeTab === 'stats'}
         <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-          <header class="flex justify-between items-end">
+          <header class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
             <div>
               <h2 class="text-4xl font-extrabold mb-2">📊 Bibliotheek Statistieken</h2>
               <p class="text-spotify-lightgray">Inzichten in je muziekcollectie en luistergedrag.</p>
             </div>
-            <button on:click={fetchStats} class="bg-spotify-gray p-3 rounded-full hover:bg-white hover:bg-opacity-10 transition-colors">
-              <RefreshCw size={20} />
-            </button>
+            <div class="flex gap-4 w-full md:w-auto">
+              <button 
+                on:click={fetchArtistImages} 
+                class="flex-1 md:flex-none bg-white text-black font-extrabold px-6 py-3 rounded-full hover:scale-105 transition-transform flex items-center justify-center gap-2 shadow-lg shadow-white/10"
+                title="Haal ontbrekende artiestafbeeldingen op van externe bronnen"
+              >
+                <Image size={20} class="text-black" /> IMAGES OPHALEN
+              </button>
+              <button on:click={fetchStats} class="bg-spotify-gray p-3 rounded-full hover:bg-white hover:bg-opacity-10 transition-colors">
+                <RefreshCw size={20} />
+              </button>
+            </div>
           </header>
 
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

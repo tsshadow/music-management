@@ -1,13 +1,80 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Header
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Header, Depends
 from fastapi.responses import FileResponse
 import os
 import sqlite3
 from services.music_manager.database import get_db_connection
 from typing import Optional
 
-router = APIRouter(prefix="/artists", tags=["artists"])
+router = APIRouter(prefix="/api/artists", tags=["artists"])
+
+API_KEY = os.getenv("API_KEY") or os.getenv("MUMA_API_KEY") or "453ecd33-3cb2-4ca4-a531-1677330bbaee"
+
+def verify_api_key(x_api_key: Optional[str] = Header(None)):
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="Missing API Key")
+    if API_KEY and x_api_key == API_KEY:
+        return {"type": "system"}
+    
+    from services.music_manager.routers.users import verify_token
+    try:
+        res = verify_token(x_api_key)
+        if res.get("status") == "ok":
+            return res
+    except:
+        pass
+        
+    raise HTTPException(status_code=401, detail="Invalid API key")
 
 STORAGE_PATH = os.getenv("STORAGE_PATH", "/music/artists")
+
+def init_db(cursor):
+    # library_artist_images table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS library_artist_images (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            artist_id INT NOT NULL,
+            source VARCHAR(50),
+            source_id VARCHAR(255),
+            original_url TEXT,
+            cached_path TEXT,
+            public_path TEXT,
+            width INT,
+            height INT,
+            mime_type VARCHAR(50),
+            file_size INT,
+            confidence INT DEFAULT 0,
+            is_primary TINYINT(1) DEFAULT 0,
+            created_at DATETIME,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX (artist_id),
+            INDEX (is_primary)
+        )
+    """)
+
+    # artist_external_ids table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS artist_external_ids (
+            artist_id INT NOT NULL,
+            source VARCHAR(50) NOT NULL,
+            external_id VARCHAR(255) NOT NULL,
+            created_at DATETIME,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (artist_id, source)
+        )
+    """)
+
+    # Alter library_artists to add image-related columns
+    columns_to_add = [
+        ("primary_image_id", "INT NULL"),
+        ("image_updated_at", "DATETIME NULL"),
+        ("image_status", "VARCHAR(50) NULL"),
+        ("mbid", "VARCHAR(100) NULL")
+    ]
+
+    for col_name, col_type in columns_to_add:
+        cursor.execute(f"SHOW COLUMNS FROM library_artists LIKE '{col_name}'")
+        if not cursor.fetchone():
+            cursor.execute(f"ALTER TABLE library_artists ADD COLUMN {col_name} {col_type}")
 
 @router.get("/{artist_name}/image")
 def get_artist_image(artist_name: str, background_tasks: BackgroundTasks):
@@ -34,6 +101,43 @@ def get_artist_image(artist_name: str, background_tasks: BackgroundTasks):
             raise HTTPException(status_code=404, detail="Artist image not found. Fetching triggered.")
     finally:
         conn.close()
+
+@router.post("/fetch-missing")
+def fetch_missing_images(background_tasks: BackgroundTasks, auth: dict = Depends(verify_api_key)):
+    """
+    Triggers a background task to fetch missing artist images for all artists.
+    """
+    background_tasks.add_task(run_fetch_missing)
+    return {"status": "ok", "message": "Fetching missing artist images started in background"}
+
+def run_fetch_missing():
+    try:
+        from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetcher
+        conn = get_db_connection()
+        if not conn: return
+        try:
+            fetcher = ArtistImageFetcher(db_conn=conn)
+            # Find all artists without a primary image
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT id, name 
+                    FROM library_artists 
+                    WHERE primary_image_id IS NULL 
+                    AND (image_status IS NULL OR image_status != 'failed')
+                    ORDER BY name
+                """)
+                artists = cursor.fetchall()
+                
+                print(f"Starting background fetch for {len(artists)} artists")
+                for artist in artists:
+                    try:
+                        fetcher.fetch_for_artist(artist['id'], artist['name'])
+                    except Exception as e:
+                        print(f"Failed to fetch for {artist['name']}: {e}")
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"Global background fetch failed: {e}")
 
 def trigger_fetch(artist_name: str):
     try:

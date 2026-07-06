@@ -12,6 +12,8 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
         self.client_secret = client_secret or os.getenv('SPOTIFY_CLIENT_SECRET')
         self._token = None
         self.logger = logging.getLogger(__name__)
+        if not self.client_id or not self.client_secret:
+            self.logger.warning("Spotify API credentials (SPOTIFY_CLIENT_ID/SECRET) not found. Spotify provider will be disabled.")
 
     @property
     def name(self):

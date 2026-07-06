@@ -9,6 +9,8 @@ class LastFmArtistImageProvider(ArtistImageProvider):
     def __init__(self, api_key=None):
         self.api_key = api_key or os.getenv('LASTFM_API_KEY')
         self.logger = logging.getLogger(__name__)
+        if not self.api_key:
+            self.logger.warning("Last.fm API key (LASTFM_API_KEY) not found. Last.fm provider will be disabled.")
 
     @property
     def name(self):

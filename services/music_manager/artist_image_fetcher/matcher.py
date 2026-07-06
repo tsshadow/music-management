@@ -16,11 +16,18 @@ class ArtistMatcher:
         candidate_name_norm = self.normalizer.normalize(candidate_artist.get('name', ''))
         
         # Name matching
+        import difflib
+        ratio = difflib.SequenceMatcher(None, target_name_norm, candidate_name_norm).ratio()
+        
         if target_name_norm == candidate_name_norm:
             score += 50
-        else:
-            # Check for name mismatch penalty
-            # This is tricky if it's just a slight variation, but let's be strict for now
+        elif ratio > 0.9:
+            score += 40
+        elif ratio > 0.8:
+            score += 30
+        elif ratio > 0.7:
+            score += 20
+        elif ratio < 0.5:
             score -= 40
             
         # MBID match

@@ -44,6 +44,7 @@ def startup_event():
                 rating.init_db(cursor)
                 # stats doesn't have its own tables usually, it reads from others
                 management.init_db(cursor)
+                artist_images.init_db(cursor)
             conn.commit()
             print("Music Manager: Database initialized")
         finally:
@@ -80,6 +81,15 @@ def serve_frontend(app: FastAPI):
         @app.get("/", response_class=HTMLResponse)
         def root_fallback():
             return "<h1>Music Manager</h1><p>Frontend not found. API is active.</p>"
+
+# Serve Artist Images
+artist_images_path = os.getenv('STORAGE_PATH', '/music/images/artists')
+try:
+    os.makedirs(artist_images_path, exist_ok=True)
+    logger.info(f"Mounting artist images from {artist_images_path} at /media/artist-images")
+    app.mount("/media/artist-images", StaticFiles(directory=artist_images_path), name="artist-images")
+except Exception as e:
+    logger.error(f"Could not setup artist images storage at {artist_images_path}: {e}")
 
 serve_frontend(app)
 

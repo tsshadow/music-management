@@ -23,7 +23,7 @@ class ArtistImageFetcher:
         self.matcher = ArtistMatcher(self.db_conn)
         
         # Load config from env
-        storage_path = os.getenv('ARTIST_IMAGE_STORAGE_PATH', '/var/lib/music-management/artist-images')
+        storage_path = os.getenv('ARTIST_IMAGE_STORAGE_PATH') or os.getenv('STORAGE_PATH') or '/var/lib/music-management/artist-images'
         public_base_url = os.getenv('ARTIST_IMAGE_PUBLIC_BASE_URL', '/media/artist-images')
         
         self.storage = ImageStorage(storage_path, public_base_url)
@@ -36,6 +36,7 @@ class ArtistImageFetcher:
             SoundCloudArtistImageProvider(self.db_conn),
             LastFmArtistImageProvider(),
         ]
+        self.use_fallback = os.getenv('ARTIST_IMAGE_DISABLE_FALLBACK', 'false').lower() != 'true'
         self.fallback_provider = GeneratedArtistImageProvider()
 
     def fetch_for_artist(self, artist_id, artist_name=None, force_refresh=False):
@@ -102,9 +103,14 @@ class ArtistImageFetcher:
                 break
         
         if not best_candidate:
-            self.logger.info(f"No good candidates found for {artist_name}. Using fallback.")
-            best_candidate = self.fallback_provider.get_artist_images(artist_name)[0]
-            best_candidate['confidence'] = 10
+            if self.use_fallback:
+                self.logger.info(f"No good candidates found for {artist_name}. Using fallback.")
+                best_candidate = self.fallback_provider.get_artist_images(artist_name)[0]
+                best_candidate['confidence'] = 10
+            else:
+                self.logger.info(f"No good candidates found for {artist_name} and fallback is disabled.")
+                self._update_artist_image_status(artist_id, 'failed')
+                return False
 
         # 5. Save image
         try:

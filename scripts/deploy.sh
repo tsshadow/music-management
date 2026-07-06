@@ -210,7 +210,7 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
     
     echo "--- Remote deployment completed successfully ---"
 else
-    if [ -z "${PORTAINER_WEBHOOK_URL}" ]; then
-        echo "Remote deployment skipped: No webhooks or SSH targets configured."
-    fi
+    echo "Error: Remote deployment skipped. No PORTAINER_WEBHOOK_URL, REMOTE_HOST, or SSH targets configured in .env."
+    echo "To deploy locally, use 'docker compose up -d' or configure your remote target."
+    exit 1
 fi

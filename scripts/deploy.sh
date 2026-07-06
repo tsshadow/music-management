@@ -25,11 +25,11 @@ export DEPLOY_TARGET_NAME="${DEPLOY_TARGET_NAME:-lms}"
 export IMAGE_NAME="${IMAGE_NAME:-muma/lms}"
 
 # Tag logic
-if [ -z "$TAG" ] || [ "$TAG" == "latest" ] || [ "$TAG" == "stable" ]; then
+if [ -z "$TAG" ] || [ "$TAG" == "latest" ] || [ "$TAG" == "stable" ] || [ "$TAG" == "alpha" ]; then
     if [ "$MODE" == "release" ]; then
-        TAG="stable"
-    else
         TAG="latest"
+    else
+        TAG="alpha"
     fi
 fi
 

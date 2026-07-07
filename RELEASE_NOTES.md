@@ -1,6 +1,6 @@
-# Release Notes - LMS 3.82.0
+# Release Notes - LMS 3.82.1
 
-## Version 3.82.0 (2026-07-05)
+## Version 3.82.1 (2026-07-05)
 ### 🔗 MuMa Integration & UI Enhancements
 - **MuMa Resource API**: Integrated a new `/muma` API endpoint for seamless communication with the MuMa Control Center. This enables centralized authentication and cross-app settings synchronization.
 - **Smart Playlist Migration**: Migrated all dynamic playlist logic to the MuMa core. LMS now acts as a dedicated playback engine while offloading complex playlist rules to the management layer.

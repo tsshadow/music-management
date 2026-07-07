@@ -1,5 +1,14 @@
 [
   {
+    "version": "3.82.6",
+    "date": "2026-07-07",
+    "notes": {
+      "Added": [
+        "New version started."
+      ]
+    }
+  },
+  {
     "version": "3.82.5",
     "date": "2026-07-07",
     "notes": {

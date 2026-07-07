@@ -26,10 +26,10 @@ run_ssh() {
 }
 
 # Parameters (usually from environment)
-STACK_NAME="${DEPLOY_TARGET_NAME:-$1}"
+STACK_NAME="${DEPLOY_TARGET_NAME}"
 STACK_NAME=$(echo "$STACK_NAME" | tr '[:upper:]' '[:lower:]')
 SERVICE_NAME="${SERVICE_NAME:-$2}"
-IMAGE_NAME="${IMAGE_NAME:-$3}"
+IMAGE_NAME="${IMAGE_NAME}"
 TAG="${TAG:-$4}"
 SEARCH_STRING="${SEARCH_STRING:-$IMAGE_NAME}"
 LOCAL_ENV_FILE="${LOCAL_ENV_FILE:-$5}"

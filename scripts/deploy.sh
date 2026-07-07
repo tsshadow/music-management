@@ -21,8 +21,8 @@ fi
 MODE="${1:-${BUILD_MODE:-debug}}"
 
 # Load explicit overrides from environment if provided, otherwise sensible defaults based on MODE
-export DEPLOY_TARGET_NAME="${DEPLOY_TARGET_NAME:-lms}"
-export IMAGE_NAME="${IMAGE_NAME:-muma/lms}"
+export DEPLOY_TARGET_NAME="${DEPLOY_TARGET_NAME}"
+export IMAGE_NAME="${IMAGE_NAME}"
 
 # Tag logic
 if [ -z "$TAG" ] || [ "$TAG" == "latest" ] || [ "$TAG" == "stable" ] || [ "$TAG" == "alpha" ]; then
@@ -88,7 +88,6 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
     # Use the generalized deployment script
     export LOCAL_COMPOSE_FILE="docker-compose.yml"
     export LOCAL_ENV_FILE=".env"
-    export SEARCH_STRING="muma/lms"
     
     ./scripts/deploy-stack.sh
     

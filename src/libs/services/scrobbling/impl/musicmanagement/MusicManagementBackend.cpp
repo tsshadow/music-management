@@ -30,8 +30,8 @@ namespace lms::scrobbling::musicManagement
     MusicManagementBackend::MusicManagementBackend(boost::asio::io_context& ioContext, db::IDb& db)
         : _ioContext{ ioContext }
         , _db{ db }
-        , _apiUrl{ core::Service<core::IConfig>::get()->getString("music-management-scrobbling-api-url", "https://muma-scrobble-service.example.com/scrobble") }
-        , _apiKey{ core::Service<core::IConfig>::get()->getString("music-management-scrobbling-api-key", core::Service<core::IConfig>::get()->getString("api-key", "00000000-0000-4000-8000-000000000000")) }
+        , _apiUrl{ core::Service<core::IConfig>::get()->getString("music-management-scrobbling-api-url", std::string{ core::Service<core::IConfig>::get()->getString("music-management", "https://muma-scrobble-service.example.com") } + "/scrobble/api/event") }
+        , _apiKey{ core::Service<core::IConfig>::get()->getString("music-management-scrobbling-api-key", core::Service<core::IConfig>::get()->getString("music-management-api-key", core::Service<core::IConfig>::get()->getString("api-key", "00000000-0000-4000-8000-000000000000"))) }
     {
         if (!_apiUrl.empty())
         {
@@ -59,6 +59,7 @@ namespace lms::scrobbling::musicManagement
 
     void MusicManagementBackend::sendScrobble(const Listen& listen, const Wt::WDateTime& timePoint, std::optional<std::chrono::seconds> duration)
     {
+        (void)duration;
         if (!_client)
             return;
 
@@ -74,55 +75,27 @@ namespace lms::scrobbling::musicManagement
             return;
 
         Wt::Json::Object payload;
-        payload["user"] = Wt::Json::Value(std::string{ user->getLoginName() });
+        payload["username"] = Wt::Json::Value(std::string{ user->getLoginName() });
         payload["source"] = Wt::Json::Value("lms");
         
         Wt::WDateTime listenedAt = timePoint.isValid() ? timePoint : Wt::WDateTime::currentDateTime();
-        payload["listened_at"] = Wt::Json::Value(listenedAt.toString("yyyy-MM-ddTHH:mm:ss.000Z").toUTF8());
+        payload["listened_at"] = Wt::Json::Value(static_cast<long long>(listenedAt.toTime_t()));
         
-        if (duration)
-            payload["duration_secs"] = Wt::Json::Value(static_cast<long long>(duration->count()));
+        payload["track_title"] = Wt::Json::Value(std::string{ track->getName() });
         
-        payload["source_track_id"] = Wt::Json::Value(track->getId().toString());
-
-        Wt::Json::Object trackInput;
-        trackInput["title"] = Wt::Json::Value(std::string{ track->getName() });
         if (auto release = track->getRelease())
         {
-            trackInput["album"] = Wt::Json::Value(std::string{ release->getName() });
-            auto date = release->getOriginalDate();
-            if (date.isValid())
-            {
-                if (auto year = date.getYear())
-                    trackInput["album_year"] = Wt::Json::Value(static_cast<long long>(*year));
-            }
+            payload["album_name"] = Wt::Json::Value(std::string{ release->getName() });
         }
-        
-        if (auto trackNo = track->getTrackNumber())
-            trackInput["track_no"] = Wt::Json::Value(static_cast<long long>(*trackNo));
-        
-        if (auto medium = track->getMedium())
-        {
-            if (auto pos = medium->getPosition())
-                trackInput["disc_no"] = Wt::Json::Value(static_cast<long long>(*pos));
-        }
-            
-        trackInput["duration_secs"] = Wt::Json::Value(static_cast<long long>(std::chrono::duration_cast<std::chrono::seconds>(track->getDuration()).count()));
         
         if (auto mbid = track->getTrackMBID())
-            trackInput["mbid"] = Wt::Json::Value(std::string{ mbid->getAsString() });
+            payload["mbid_track"] = Wt::Json::Value(std::string{ mbid->getAsString() });
 
-        payload["track"] = std::move(trackInput);
-
-        Wt::Json::Array artists;
         for (const auto& link : track->getArtistLinks(db::TrackArtistLinkType::Artist))
         {
-            Wt::Json::Object artist;
-            artist["name"] = Wt::Json::Value(std::string{ link->getArtistName() });
-            artist["role"] = Wt::Json::Value("primary");
-            artists.push_back(std::move(artist));
+            payload["artist_name"] = Wt::Json::Value(std::string{ link->getArtistName() });
+            break;
         }
-        payload["library_artists"] = std::move(artists);
 
         core::http::ClientPOSTRequestParameters request;
         request.message.addHeader("Content-Type", "application/json");

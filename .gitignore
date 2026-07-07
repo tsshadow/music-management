@@ -8,3 +8,4 @@ build/
 .junie/
 .env
 docs
+/.production

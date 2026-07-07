@@ -380,10 +380,20 @@ namespace lms::api::subsonic
         const ClusterType::pointer clusterType{ ClusterType::find(context.getDbSession(), "GENRE") };
         if (clusterType)
         {
-            const auto clusters{ clusterType->getClusters() };
+            try
+            {
+                const auto clusters{ clusterType->getClusters() };
 
-            for (const Cluster::pointer& cluster : clusters)
-                genresNode.addArrayChild("genre", createGenreNode(context, cluster));
+                for (const Cluster::pointer& cluster : clusters)
+                {
+                    if (cluster)
+                        genresNode.addArrayChild("genre", createGenreNode(context, cluster));
+                }
+            }
+            catch (const std::exception& e)
+            {
+                LMS_LOG(API_SUBSONIC, ERROR, "Error while fetching genres: " << e.what());
+            }
         }
 
         return response;
@@ -401,10 +411,20 @@ namespace lms::api::subsonic
         const ClusterType::pointer clusterType{ ClusterType::find(context.getDbSession(), name) };
         if (clusterType)
         {
-            const auto clusters{ clusterType->getClusters() };
+            try
+            {
+                const auto clusters{ clusterType->getClusters() };
 
-            for (const Cluster::pointer& cluster : clusters)
-                tagsNode.addArrayChild("tag", createGenreNode(context, cluster));
+                for (const Cluster::pointer& cluster : clusters)
+                {
+                    if (cluster)
+                        tagsNode.addArrayChild("tag", createGenreNode(context, cluster));
+                }
+            }
+            catch (const std::exception& e)
+            {
+                LMS_LOG(API_SUBSONIC, ERROR, "Error while fetching tags: " << e.what());
+            }
         }
 
         return response;
@@ -422,11 +442,23 @@ namespace lms::api::subsonic
         const ClusterType::pointer clusterType{ ClusterType::find(context.getDbSession(), "MOOD") };
         if (clusterType)
         {
-            const auto clusters{ clusterType->getClusters() };
+            try
+            {
+                const auto clusters{ clusterType->getClusters() };
 
-            for (const Cluster::pointer& cluster : clusters)
-                if (!year.has_value() || year == -1)
-                    moodNode.addArrayChild("mood", createGenreNode(context, cluster));
+                for (const Cluster::pointer& cluster : clusters)
+                {
+                    if (cluster)
+                    {
+                        if (!year.has_value() || year == -1)
+                            moodNode.addArrayChild("mood", createGenreNode(context, cluster));
+                    }
+                }
+            }
+            catch (const std::exception& e)
+            {
+                LMS_LOG(API_SUBSONIC, ERROR, "Error while fetching moods: " << e.what());
+            }
         }
 
         return response;
@@ -443,10 +475,20 @@ namespace lms::api::subsonic
         const ClusterType::pointer clusterType{ ClusterType::find(context.getDbSession(), "YEAR") };
         if (clusterType)
         {
-            const auto clusters{ clusterType->getClusters() };
+            try
+            {
+                const auto clusters{ clusterType->getClusters() };
 
-            for (const Cluster::pointer& cluster : clusters)
-                yearsNode.addArrayChild("year", createGenreNode(context, cluster));
+                for (const Cluster::pointer& cluster : clusters)
+                {
+                    if (cluster)
+                        yearsNode.addArrayChild("year", createGenreNode(context, cluster));
+                }
+            }
+            catch (const std::exception& e)
+            {
+                LMS_LOG(API_SUBSONIC, ERROR, "Error while fetching years: " << e.what());
+            }
         }
 
         return response;

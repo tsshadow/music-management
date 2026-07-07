@@ -54,6 +54,9 @@ namespace lms::api::subsonic
 
         Response::Node albumNode;
 
+        if (!release)
+            return albumNode;
+
         if (id3)
         {
             albumNode.setAttribute("id", idToString(release->getId()));

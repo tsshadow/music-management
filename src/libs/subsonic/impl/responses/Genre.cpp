@@ -29,6 +29,9 @@ namespace lms::api::subsonic
     {
         Response::Node clusterNode;
 
+        if (!cluster)
+            return clusterNode;
+
         switch (context.getResponseFormat())
         {
         case ResponseFormat::json:

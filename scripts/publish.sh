@@ -75,7 +75,7 @@ if [ -f .env ]; then
 fi
 
 # Ensure variables are set
-IMAGE_NAME="${IMAGE_NAME}"
+export IMAGE_NAME="${IMAGE_NAME}"
 VERSION=$(grep "project(lms VERSION" CMakeLists.txt | sed 's/.*VERSION \(.*\))/\1/')
 
 # Determine mode (debug is default)

@@ -75,9 +75,12 @@ namespace lms::api::subsonic
     {
         LMS_SCOPED_TRACE_DETAILED("Subsonic", "CreateSong");
 
-        const auto medium{ track->getMedium() };
-
         Response::Node trackResponse;
+
+        if (!track)
+            return trackResponse;
+
+        const auto medium{ track->getMedium() };
 
         if (!id3)
         {

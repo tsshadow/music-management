@@ -67,6 +67,9 @@ namespace lms::api::subsonic
     {
         LMS_SCOPED_TRACE_DETAILED("Subsonic", "CreateArtist");
 
+        if (!artist)
+            return Response::Node{};
+
         Response::Node artistNode{ createMinimalArtistNode(artist) };
 
         if (const auto artwork{ artist->getPreferredArtwork() })
@@ -122,6 +125,9 @@ namespace lms::api::subsonic
     Response::Node createMinimalArtistNode(const Artist::pointer& artist)
     {
         Response::Node artistNode;
+
+        if (!artist)
+            return artistNode;
 
         artistNode.setAttribute("id", idToString(artist->getId()));
         artistNode.setAttribute("name", artist->getName());

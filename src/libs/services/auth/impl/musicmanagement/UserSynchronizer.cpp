@@ -33,8 +33,8 @@ namespace lms::auth
         UserSynchronizer::UserSynchronizer(boost::asio::io_context& ioContext, db::IDb& db)
         : _ioContext{ ioContext }
         , _db{ db }
-        , _apiUrl{ core::Service<core::IConfig>::get()->getString("music-management-url", "") + "/users/" }
-        , _apiKey{ core::Service<core::IConfig>::get()->getString("music-management-api-key", "") }
+        , _apiUrl{ std::string{ core::Service<core::IConfig>::get()->getString("music-management-url", "") } + "/users/" }
+        , _apiKey{ std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-key", "") } }
     {
         LMS_LOG(AUTH, INFO, "Starting MusicManagement user synchronizer... API endpoint = '" << _apiUrl << "'");
         _client = core::http::createClient(_ioContext, _apiUrl);

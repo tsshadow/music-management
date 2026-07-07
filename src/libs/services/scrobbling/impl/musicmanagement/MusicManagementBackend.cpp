@@ -30,8 +30,8 @@ namespace lms::scrobbling::musicManagement
     MusicManagementBackend::MusicManagementBackend(boost::asio::io_context& ioContext, db::IDb& db)
         : _ioContext{ ioContext }
         , _db{ db }
-        , _apiUrl{ core::Service<core::IConfig>::get()->getString("music-management-url") + "/scrobble/api/event" }
-        , _apiKey{ core::Service<core::IConfig>::get()->getString("music-management-api-key") }
+        , _apiUrl{ core::Service<core::IConfig>::get()->getString("music-management-url", "") + "/scrobble/api/event" }
+        , _apiKey{ core::Service<core::IConfig>::get()->getString("music-management-api-key", "") }
     {
         if (!_apiUrl.empty())
         {

@@ -1,16 +1,34 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Home, Cloud, Scale, Database, Info, ExternalLink, Plus, RefreshCw, Music, Tag, Trash2, Search, Radio, Users, Key, Youtube, Activity, ShieldCheck, Terminal, Clock, List, LayoutTemplate, Image } from 'lucide-svelte';
+  import { RefreshCw } from 'lucide-svelte';
 
+  // Import Tabs
+  import OverviewTab from './lib/tabs/OverviewTab.svelte';
+  import StatsTab from './lib/tabs/StatsTab.svelte';
+  import ArtistImagesTab from './lib/tabs/ArtistImagesTab.svelte';
+  import PlaylistsTab from './lib/tabs/PlaylistsTab.svelte';
+  import TaggerTab from './lib/tabs/TaggerTab.svelte';
+  import DownloadersTab from './lib/tabs/DownloadersTab.svelte';
+  import ScrobbleTab from './lib/tabs/ScrobbleTab.svelte';
+  import HealthTab from './lib/tabs/HealthTab.svelte';
+  import UsersTab from './lib/tabs/UsersTab.svelte';
+  import WorkerVersionsTab from './lib/tabs/WorkerVersionsTab.svelte';
+  import AboutTab from './lib/tabs/AboutTab.svelte';
+
+  // Import Components
+  import Sidebar from './lib/components/Sidebar.svelte';
+  import Login from './lib/components/Login.svelte';
+
+  // State
   let activeTab = 'home';
-  let taggerSubTab = 'artists';
-  let downloaderSubTab = 'soundcloud';
-  let config = { version: '...', phpmyadmin_url: '#' };
   let isLoggedIn = false;
-  let username = '';
-  let password = '';
-  let loginError = '';
-  let isLoggingIn = false;
+  let apiKey = '';
+  let loading = true;
+  let message = '';
+  let error = '';
+
+  // Data State
+  let config = { version: '...', phpmyadmin_url: '#' };
   let notes = { release_notes: '', changelog: '' };
   let rules = { genres: [], ignored_genres: [] };
   let versions = {};
@@ -24,15 +42,7 @@
   let latestImports = [];
   let users = [];
   let playlists = [];
-  let isPlaylistModalOpen = false;
-  let isPlaylistTracksModalOpen = false;
-  let playlistTracks = [];
-  let viewingPlaylist = null;
-  let editingPlaylist = null;
-  let playlistName = '';
-  let playlistParams = '';
   let containers = [];
-  let systemLogs = '';
   let activity = { recent_added: [], recent_tagged: [] };
   let stats = {
     total_tracks: 0,
@@ -43,147 +53,52 @@
     total_scrobbles: 0,
     match_rate: 0,
     recently_added: [],
-    avg_track_duration: 0
+    avg_track_duration: 0,
+    total_unmatched: 0
   };
-  let selectedContainer = '';
+
+  // UI State
   let selectedUser = null;
   let currentUser = null;
-  let userLBAccount = null;
-  let aboutHtml = '';
-  let loading = true;
-  let message = '';
-  let error = '';
-
-  // Form state
-  let newAccountName = '';
-  let newAccountId = '';
-  
-  // Scrobble Import State
+  let lbUsername = '';
+  let selectedServiceNotes = 'control-center';
+  let artistSearch = '';
+  let artistImageSearch = '';
+  let labelSearch = '';
+  let artistsWithImages = [];
+  let allArtists = [];
+  let fetchProgress = { active: false, total: 0, current: 0, last_artist: null, status: 'idle' };
+  let imageStats = { total_artists: 0, artists_with_images: 0, artists_without_images: 0 };
   let importMumaUser = '';
   let importLbUser = '';
   let isImporting = false;
-  
-  // User Form State
-  let newUsername = '';
-  let newDisplayName = '';
-  let userPassword = '';
-  let lbUsername = '';
-  let lbToken = '';
-  
-  // Editor state
-  let artistSearch = '';
-  let labelSearch = '';
-  let selectedArtistName = '';
-  let selectedLabelName = '';
-  let selectedGenreId = null;
-  let selectedServiceNotes = 'control-center';
-  let apiKey = '';
 
   const API_BASE = import.meta.env.DEV ? 'http://localhost:8003' : '';
 
-  onMount(async () => {
-    apiKey = localStorage.getItem('muma_api_key') || '';
-    if (apiKey) {
-      try {
-        const res = await fetch(`${API_BASE}/api/config`, { 
-          headers: { 'X-API-Key': apiKey }
-        });
-        if (res.status === 401 || res.status === 403) {
-          logout();
-          loading = false;
-          return;
-        }
-        
-        // Try to get user info
-        const authRes = await fetch(`${API_BASE}/api/auth/verify`, {
-          headers: { 'X-API-Key': apiKey }
-        });
-        if (authRes.ok) {
-          const authData = await authRes.json();
-          if (authData.type === 'user') {
-            currentUser = authData.user;
-            if (!selectedUser) selectedUser = currentUser;
-          }
-        }
-        
-        fetchData();
-      } catch (e) {
-        console.error("Auth check failed:", e);
-        loading = false;
-      }
-    } else {
-      loading = false;
-    }
-  });
-
-  async function handleLogin() {
-    isLoggingIn = true;
-    loginError = '';
-    try {
-      const res = await fetch(`${API_BASE}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        apiKey = data.api_key;
-        localStorage.setItem('muma_api_key', apiKey);
-        currentUser = { id: data.id, username: data.username, display_name: data.display_name };
-        if (!selectedUser) selectedUser = currentUser;
-        isLoggedIn = true;
-        fetchData();
-      } else {
-        const data = await res.json();
-        loginError = data.detail || 'Login mislukt';
-      }
-    } catch (err) {
-      loginError = 'Kon niet verbinden met auth service';
-    } finally {
-      isLoggingIn = false;
-    }
-  }
-
-  function logout() {
-    apiKey = '';
-    localStorage.removeItem('muma_api_key');
-    isLoggedIn = false;
-    activeTab = 'home';
-  }
-
   function getHeaders(extra = {}) {
-    const headers = { ...extra };
+    const headers: any = { ...extra };
     if (apiKey) {
       headers['X-API-Key'] = apiKey;
     }
     return headers;
   }
 
+  function logout() {
+    apiKey = '';
+    isLoggedIn = false;
+    localStorage.removeItem('muma_api_key');
+  }
 
-  async function fetchStats() {
-    try {
-      const res = await fetch(`${API_BASE}/api/stats`, { headers: getHeaders() });
-      if (res.ok) {
-        stats = await res.json();
-      }
-    } catch (err) {
-      console.error("Stats fetch error:", err);
-    }
+  async function handleLoginSuccess(newApiKey: string) {
+    apiKey = newApiKey;
+    localStorage.setItem('muma_api_key', apiKey);
+    await fetchData();
   }
 
   async function fetchData() {
     loading = true;
-    error = '';
+    const headers = getHeaders();
     try {
-      const headers = getHeaders();
-      const res = await fetch(`${API_BASE}/api/config`, { headers });
-      if (res.status === 401 || res.status === 403) {
-        isLoggedIn = false;
-        loading = false;
-        return;
-      }
-      
       isLoggedIn = true;
       const [configRes, notesRes, rulesRes, accountsRes, youtubeRes, versionsRes, allNotesRes, importsRes, usersRes, containersRes, activityRes, statsRes] = await Promise.all([
         fetch(`${API_BASE}/api/config`, { headers }),
@@ -213,7 +128,7 @@
       activity = await activityRes.json();
       stats = await statsRes.json();
       
-      // Load rules for editor
+      // Load extra rules
       fetchRules();
       searchArtists();
       searchLabels();
@@ -222,61 +137,6 @@
       console.error(err);
     } finally {
       loading = false;
-    }
-  }
-
-  async function fetchAbout() {
-    try {
-      const res = await fetch(`${API_BASE}/api/about`, {
-        headers: { 'X-API-Key': apiKey }
-      });
-      aboutHtml = await res.text();
-    } catch (e) {
-      aboutHtml = 'Failed to load about content.';
-    }
-  }
-
-  async function fetchLatestImports() {
-    try {
-      const res = await fetch(`${API_BASE}/api/scrobble/import/latest`, { headers: getHeaders() });
-      latestImports = await res.json();
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async function startLbImport() {
-    if (!importMumaUser) return;
-    isImporting = true;
-    try {
-      const body = { username: importMumaUser };
-      if (importLbUser) {
-        body.lb_username = importLbUser;
-      }
-
-      const res = await fetch(`${API_BASE}/api/scrobble/import/listenbrainz`, {
-        method: 'POST',
-        headers: getHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify(body)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        message = `ListenBrainz import gestart voor ${data.lb_username || 'gekoppeld account'}!`;
-        fetchLatestImports();
-        // Poll for updates every 3 seconds while active
-        const interval = setInterval(async () => {
-          await fetchLatestImports();
-          const active = latestImports.some(i => i.status === 'running' || i.status === 'pending');
-          if (!active) {
-            clearInterval(interval);
-            isImporting = false;
-          }
-        }, 3000);
-      } else {
-        error = "Kon import niet starten.";
-      }
-    } catch (err) {
-      error = "Netwerkfout bij starten import.";
     }
   }
 
@@ -311,273 +171,106 @@
     }
   }
 
-  async function addArtistRule() {
-    if (!selectedArtistName || !selectedGenreId) return;
+  async function searchArtistImages() {
     try {
-      const res = await fetch(`${API_BASE}/api/rules/artist-genres`, {
-        method: 'POST',
-        headers: getHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ artist_name: selectedArtistName, genre_id: selectedGenreId })
-      });
-      if (res.ok) {
-        message = "Artiest regel toegevoegd";
-        fetchRules();
-        setTimeout(() => message = '', 2000);
-      }
-    } catch (err) {
-      error = "Fout bij toevoegen regel";
-    }
-  }
-
-  async function deleteArtistRule(id) {
-    try {
-      const res = await fetch(`${API_BASE}/api/rules/artist-genres/${id}`, { 
-        method: 'DELETE',
-        headers: getHeaders()
-      });
-      if (res.ok) {
-        fetchRules();
-      }
-    } catch (err) {
-      error = "Fout bij verwijderen regel";
-    }
-  }
-
-  async function addLabelRule() {
-    if (!selectedLabelName || !selectedGenreId) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/rules/label-genres`, {
-        method: 'POST',
-        headers: getHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ label_name: selectedLabelName, genre_id: selectedGenreId })
-      });
-      if (res.ok) {
-        message = "Label regel toegevoegd";
-        fetchRules();
-        setTimeout(() => message = '', 2000);
-      }
-    } catch (err) {
-      error = "Fout bij toevoegen regel";
-    }
-  }
-
-  async function deleteLabelRule(id) {
-    try {
-      const res = await fetch(`${API_BASE}/api/rules/label-genres/${id}`, { 
-        method: 'DELETE',
-        headers: getHeaders()
-      });
-      if (res.ok) {
-        fetchRules();
-      }
-    } catch (err) {
-      error = "Fout bij verwijderen regel";
-    }
-  }
-
-  async function addAccount() {
-    if (!newAccountName) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/soundcloud`, {
-        method: 'POST',
-        headers: getHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ name: newAccountName, soundcloud_id: newAccountId || null })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        message = data.message;
-        newAccountName = '';
-        newAccountId = '';
-        fetchData();
-        setTimeout(() => message = '', 3000);
+      const res = await fetch(`${API_BASE}/api/artists/search?q=${artistImageSearch}`, { headers: getHeaders() });
+      artistsWithImages = await res.json();
+      
+      // Also search all artists if needed
+      if (artistImageSearch) {
+        const resAll = await fetch(`${API_BASE}/api/artists/search-all?q=${artistImageSearch}`, { headers: getHeaders() });
+        allArtists = await resAll.json();
       } else {
-        error = data.detail || "Fout bij toevoegen account.";
-        setTimeout(() => error = '', 5000);
+        allArtists = [];
       }
-    } catch (err) {
-      error = "Netwerkfout bij toevoegen account.";
-    }
-  }
-
-  async function deleteSoundcloudAccount(name) {
-    if (!confirm(`Weet je zeker dat je SoundCloud account ${name} wilt verwijderen?`)) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/soundcloud/${name}`, {
-        method: 'DELETE',
-        headers: getHeaders()
-      });
-      if (res.ok) {
-        message = "SoundCloud account verwijderd";
-        fetchData();
-        setTimeout(() => message = '', 2000);
-      }
-    } catch (err) {
-      error = "Fout bij verwijderen account";
-    }
-  }
-
-  async function fetchYoutubeAccounts() {
-    try {
-      const res = await fetch(`${API_BASE}/api/youtube`, { headers: getHeaders() });
-      youtubeAccounts = await res.json();
     } catch (err) {
       console.error(err);
     }
   }
 
-  async function addYoutubeAccount() {
-    if (!newAccountName) return;
+  async function fetchArtistImages() {
+    message = "Achtergrondtaak voor afbeeldingen gestart...";
     try {
-      const res = await fetch(`${API_BASE}/api/youtube`, {
+      const res = await fetch(`${API_BASE}/api/artists/fetch-images`, {
         method: 'POST',
-        headers: getHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ name: newAccountName })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        message = data.message;
-        newAccountName = '';
-        fetchYoutubeAccounts();
-        setTimeout(() => message = '', 3000);
-      } else {
-        error = data.detail || "Fout bij toevoegen account.";
-        setTimeout(() => error = '', 5000);
-      }
-    } catch (err) {
-      error = "Netwerkfout bij toevoegen account.";
-    }
-  }
-
-  async function deleteYoutubeAccount(name) {
-    if (!confirm(`Weet je zeker dat je YouTube account ${name} wilt verwijderen?`)) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/youtube/${name}`, {
-        method: 'DELETE',
         headers: getHeaders()
       });
       if (res.ok) {
-        message = "YouTube account verwijderd";
-        fetchYoutubeAccounts();
-        setTimeout(() => message = '', 2000);
+        message = "Afbeeldingen fetch taak succesvol gestart!";
+        startProgressPolling();
       }
     } catch (err) {
-      error = "Fout bij verwijderen account";
+      error = "Kon fetch taak niet starten.";
     }
   }
 
-  
+  async function manualFetchImage(artistId: number) {
+    try {
+      const res = await fetch(`${API_BASE}/api/artists/${artistId}/fetch-image`, {
+        method: 'POST',
+        headers: getHeaders()
+      });
+      if (res.ok) {
+        message = "Handmatige scan gestart...";
+        setTimeout(searchArtistImages, 2000); // Refresh after a bit
+      }
+    } catch (err) {
+      error = "Kon handmatige scan niet starten.";
+    }
+  }
+
+  let progressInterval: any;
+  function startProgressPolling() {
+    if (progressInterval) clearInterval(progressInterval);
+    progressInterval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/artists/fetch-progress`, { headers: getHeaders() });
+        fetchProgress = await res.json();
+        if (!fetchProgress.active && fetchProgress.status !== 'running') {
+          clearInterval(progressInterval);
+          fetchImageStats();
+          searchArtistImages();
+        }
+      } catch (err) {
+        console.error("Error polling progress:", err);
+      }
+    }, 1000);
+  }
+
+  async function fetchImageStats() {
+    try {
+      const res = await fetch(`${API_BASE}/api/artists/images/stats`, { headers: getHeaders() });
+      imageStats = await res.json();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function fetchStats() {
+    try {
+      const res = await fetch(`${API_BASE}/api/stats`, { headers: getHeaders() });
+      stats = await res.json();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   async function fetchPlaylists() {
-    if (!selectedUser) {
-      playlists = [];
-      return;
-    }
-    const user_id = selectedUser.id;
-    loading = true;
-    try {
-      const response = await fetch(`/api/users/${user_id}/dynamic-playlists`, {
-        headers: { 'X-API-Key': apiKey }
-      });
-      playlists = await response.json();
-    } catch (e) {
-      error = 'Failed to fetch playlists';
-    } finally {
-      loading = false;
-    }
-  }
-
-  async function fetchPlaylistTracks(playlist) {
-    viewingPlaylist = playlist;
-    playlistTracks = [];
-    isPlaylistTracksModalOpen = true;
     if (!selectedUser) return;
-    const user_id = selectedUser.id;
     try {
-      const response = await fetch(`/api/users/${user_id}/dynamic-playlists/${playlist.id}/tracks`, {
-        headers: { 'X-API-Key': apiKey }
-      });
-      playlistTracks = await response.json();
-    } catch (e) {
-      console.error('Error fetching playlist tracks:', e);
+      const res = await fetch(`${API_BASE}/api/users/${selectedUser.id}/dynamic-playlists`, { headers: getHeaders() });
+      playlists = await res.json();
+    } catch (err) {
+      console.error(err);
     }
   }
 
-  async function savePlaylist() {
-    if (!selectedUser) {
-      error = 'Geen gebruiker geselecteerd';
-      return;
-    }
-    const user_id = selectedUser.id;
-    const method = editingPlaylist ? 'PUT' : 'POST';
-    const url = editingPlaylist 
-      ? `/api/users/${user_id}/dynamic-playlists/${editingPlaylist.id}`
-      : `/api/users/${user_id}/dynamic-playlists`;
-    
+  async function fetchLatestImports() {
     try {
-      const response = await fetch(url, {
-        method,
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-API-Key': apiKey
-        },
-        body: JSON.stringify({
-          name: playlistName,
-          params: playlistParams
-        })
-      });
-      
-      if (response.ok) {
-        message = editingPlaylist ? 'Playlist bijgewerkt' : 'Playlist opgeslagen';
-        isPlaylistModalOpen = false;
-        fetchPlaylists();
-      } else {
-        const data = await response.json();
-        error = data.detail || 'Fout bij opslaan playlist';
-      }
-    } catch (e) {
-      error = 'Netwerkfout bij opslaan playlist';
-    }
-  }
-
-  function openPlaylistEditor(playlist = null) {
-    editingPlaylist = playlist;
-    if (playlist) {
-      playlistName = playlist.name;
-      playlistParams = playlist.params;
-    } else {
-      playlistName = '';
-      playlistParams = '';
-    }
-    isPlaylistModalOpen = true;
-  }
-
-  async function deletePlaylist(id) {
-    if (!confirm('Weet je zeker dat je deze playlist wilt verwijderen?')) return;
-    
-    if (!selectedUser) return;
-    const user_id = selectedUser.id;
-    try {
-      const response = await fetch(`/api/users/${user_id}/dynamic-playlists/${id}`, {
-        method: 'DELETE',
-        headers: { 'X-API-Key': apiKey }
-      });
-      
-      if (response.ok) {
-        message = 'Playlist verwijderd';
-        fetchPlaylists();
-      } else {
-        error = 'Fout bij verwijderen playlist';
-      }
-    } catch (e) {
-      error = 'Netwerkfout bij verwijderen playlist';
-    }
-  }
-
-  function formatParams(paramsStr) {
-    try {
-      const p = JSON.parse(paramsStr);
-      return Object.entries(p).map(([k, v]) => `<${k}=${v}>`).join(' ');
-    } catch (e) {
-      return paramsStr;
+      const res = await fetch(`${API_BASE}/api/scrobble/import/latest`, { headers: getHeaders() });
+      latestImports = await res.json();
+    } catch (err) {
+      console.error(err);
     }
   }
 
@@ -590,176 +283,22 @@
     }
   }
 
-  async function addUser() {
-    if (!newUsername) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/users`, {
-        method: 'POST',
-        headers: getHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ 
-          username: newUsername, 
-          display_name: newDisplayName || null,
-          password: userPassword || null
-        })
-      });
-      if (res.ok) {
-        message = "Gebruiker toegevoegd (ook in LMS)";
-        newUsername = '';
-        newDisplayName = '';
-        userPassword = '';
-        fetchUsers();
-        setTimeout(() => message = '', 2000);
-      }
-    } catch (err) {
-      error = "Fout bij toevoegen gebruiker";
-    }
-  }
-
-  async function deleteUser(user) {
-    if (!confirm(`Weet je zeker dat je gebruiker ${user.username} wilt verwijderen? Dit verwijdert hem ook uit de LMS.`)) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/users/${user.id}`, {
-        method: 'DELETE',
-        headers: getHeaders()
-      });
-      if (res.ok) {
-        message = "Gebruiker verwijderd";
-        if (selectedUser?.id === user.id) selectedUser = null;
-        fetchUsers();
-        setTimeout(() => message = '', 2000);
-      }
-    } catch (err) {
-      error = "Fout bij verwijderen gebruiker";
-    }
-  }
-
   async function selectUser(user) {
     selectedUser = user;
-    userLBAccount = null;
-    userPassword = '';
-    lbUsername = '';
-    lbToken = '';
-    
-    try {
-      const res = await fetch(`${API_BASE}/api/users/${user.id}/lb-account`, { headers: getHeaders() });
-      if (res.ok) {
-        userLBAccount = await res.json();
-        if (userLBAccount) {
-          lbUsername = userLBAccount.lb_username;
-          lbToken = userLBAccount.lb_token;
+    if (user) {
+      try {
+        const res = await fetch(`${API_BASE}/api/users/${user.id}/listenbrainz`, {
+          headers: getHeaders()
+        });
+        if (res.ok) {
+          const lbData = await res.json();
+          lbUsername = lbData.lb_username || '';
+        } else {
+          lbUsername = '';
         }
+      } catch (err) {
+        console.error(err);
       }
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async function updateLBAccount() {
-    if (!selectedUser || !lbUsername || !lbToken) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/users/${selectedUser.id}/lb-account`, {
-        method: 'PUT',
-        headers: getHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ lb_username: lbUsername, lb_token: lbToken })
-      });
-      if (res.ok) {
-        message = "ListenBrainz account bijgewerkt";
-        setTimeout(() => message = '', 2000);
-      }
-    } catch (err) {
-      error = "Fout bij bijwerken LB account";
-    }
-  }
-
-  async function updatePassword() {
-    if (!selectedUser || !userPassword) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/users/${selectedUser.id}/password`, {
-        method: 'PUT',
-        headers: getHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ password: userPassword })
-      });
-      if (res.ok) {
-        message = "Wachtwoord bijgewerkt (ook in LMS)";
-        userPassword = '';
-        setTimeout(() => message = '', 2000);
-      } else {
-        const data = await res.json();
-        error = data.detail || "Fout bij bijwerken wachtwoord";
-      }
-    } catch (err) {
-      error = "Netwerkfout bij bijwerken wachtwoord";
-    }
-  }
-
-  async function syncLMSUsers() {
-    try {
-      const res = await fetch(`${API_BASE}/api/users/sync/lms`, { 
-        method: 'POST',
-        headers: getHeaders()
-      });
-      if (res.ok) {
-        message = "LMS sync gestart...";
-        setTimeout(() => {
-          fetchUsers();
-          message = "LMS sync voltooid (waarschijnlijk)";
-          setTimeout(() => message = '', 2000);
-        }, 2000);
-      }
-    } catch (err) {
-      error = "Fout bij starten LMS sync";
-    }
-  }
-
-  async function syncLMSDbUsers() {
-    try {
-      const res = await fetch(`${API_BASE}/api/users/sync/lms-db`, { 
-        method: 'POST',
-        headers: getHeaders()
-      });
-      if (res.ok) {
-        message = "LMS DB sync gestart...";
-        setTimeout(() => {
-          fetchUsers();
-          message = "LMS DB sync voltooid (waarschijnlijk)";
-          setTimeout(() => message = '', 2000);
-        }, 2000);
-      }
-    } catch (err) {
-      error = "Fout bij starten LMS DB sync";
-    }
-  }
-
-  async function fetchArtistImages() {
-    try {
-      const res = await fetch(`${API_BASE}/api/artists/fetch-missing`, { 
-        method: 'POST',
-        headers: getHeaders()
-      });
-      if (res.ok) {
-        message = "Artiestafbeeldingen ophalen gestart in de achtergrond...";
-        setTimeout(() => message = '', 3000);
-      } else {
-        error = "Kon het ophalen van afbeeldingen niet starten.";
-      }
-    } catch (err) {
-      error = "Fout bij starten artist image fetcher";
-    }
-  }
-
-  async function fetchLogs(name) {
-    selectedContainer = name;
-    systemLogs = 'Laden...';
-    try {
-      const res = await fetch(`${API_BASE}/api/system/logs/${name}?tail=200`, { headers: getHeaders() });
-      if (res.ok) {
-        const data = await res.json();
-        systemLogs = data.logs;
-      } else {
-        systemLogs = "Kon logs niet ophalen.";
-      }
-    } catch (err) {
-      systemLogs = "Fout bij ophalen logs.";
     }
   }
 
@@ -772,1576 +311,194 @@
       ]);
       containers = await contRes.json();
       activity = await actRes.json();
-      if (selectedContainer) {
-        fetchLogs(selectedContainer);
-      }
     } catch (err) {
       console.error(err);
     }
   }
 
+  onMount(async () => {
+    apiKey = localStorage.getItem('muma_api_key') || '';
+    if (apiKey) {
+      try {
+        const res = await fetch(`${API_BASE}/api/config`, { 
+          headers: { 'X-API-Key': apiKey }
+        });
+        if (res.status === 401 || res.status === 403) {
+          logout();
+          loading = false;
+          return;
+        }
+        
+        const authRes = await fetch(`${API_BASE}/api/auth/verify`, {
+          headers: { 'X-API-Key': apiKey }
+        });
+        if (authRes.ok) {
+          const authData = await authRes.json();
+          if (authData.type === 'user') {
+            currentUser = authData.user;
+            if (!selectedUser) selectedUser = currentUser;
+          }
+        }
+        
+        await fetchData();
+        await fetchImageStats();
+        startProgressPolling(); // Check if a task is already running
+      } catch (e) {
+        logout();
+      }
+    }
+    loading = false;
+  });
+
+  // Navigation handlers
+  function navigateToScrobbleImport(user: string, lbUser: string) {
+    activeTab = 'scrobble';
+    importMumaUser = user;
+    importLbUser = lbUser;
+  }
 </script>
 
 {#if !isLoggedIn}
-  <div class="h-screen w-screen bg-black flex flex-col items-center justify-center p-4 font-sans text-white">
-    <div class="mb-8 flex flex-col items-center">
-      <div class="w-20 h-20 bg-spotify-green rounded-full flex items-center justify-center mb-4 shadow-lg shadow-spotify-green/20">
-        <Database size={40} class="text-black" />
-      </div>
-      <h1 class="text-white text-4xl font-black tracking-tighter italic">MuMa<span class="text-spotify-green not-italic">.</span></h1>
-    </div>
-
-    <div class="w-full max-w-sm bg-[#121212] p-10 rounded-xl shadow-2xl">
-      <h2 class="text-white text-2xl font-bold mb-8 text-center">Beheerder Login</h2>
-      
-      {#if loginError}
-        <div class="bg-red-500/10 border border-red-500/50 text-red-500 p-4 rounded-md mb-6 text-sm font-medium text-center">
-          {loginError}
-        </div>
-      {/if}
-
-      <form on:submit|preventDefault={handleLogin} class="space-y-5">
-        <div>
-          <label for="username" class="block text-xs font-bold text-white uppercase mb-2">Gebruikersnaam</label>
-          <input 
-            type="text" 
-            id="username"
-            bind:value={username}
-            class="w-full bg-[#3e3e3e] border-0 rounded-md p-3 text-white placeholder-gray-400 focus:ring-2 focus:ring-white transition-all"
-            placeholder="E-mailadres of gebruikersnaam"
-            required
-          />
-        </div>
-        
-        <div>
-          <label for="password" class="block text-xs font-bold text-white uppercase mb-2">Wachtwoord</label>
-          <input 
-            type="password" 
-            id="password"
-            bind:value={password}
-            class="w-full bg-[#3e3e3e] border-0 rounded-md p-3 text-white placeholder-gray-400 focus:ring-2 focus:ring-white transition-all"
-            placeholder="Wachtwoord"
-            required
-          />
-        </div>
-
-        <div class="pt-4">
-          <button 
-            type="submit" 
-            disabled={isLoggingIn}
-            class="w-full bg-spotify-green text-black font-black py-4 rounded-full hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 uppercase tracking-widest text-sm"
-          >
-            {isLoggingIn ? 'Bezig...' : 'Log In'}
-          </button>
-        </div>
-      </form>
-    </div>
-    
-    <div class="mt-12 text-spotify-lightgray text-[10px] uppercase tracking-[0.2em] font-bold">
-      MuMa Control Center &bull; 2026
-    </div>
-  </div>
+  <Login {API_BASE} onLoginSuccess={handleLoginSuccess} />
 {:else}
-<div class="flex h-screen bg-spotify-dark overflow-hidden font-sans">
-  <!-- Sidebar -->
-  <aside class="w-64 bg-black flex flex-col flex-shrink-0">
-    <div class="p-6">
-      <h1 class="text-white text-xl font-bold flex items-center gap-2">
-        <div class="w-8 h-8 bg-spotify-green rounded-full flex items-center justify-center">
-          <Database size={18} class="text-black" />
-        </div>
-        MuMa Control
-      </h1>
-    </div>
-    
-    <nav class="flex-1 px-4 space-y-1 overflow-y-auto scrollbar-thin pb-8">
-      <div class="pt-4 pb-1 px-4 text-[10px] font-bold text-spotify-lightgray uppercase tracking-widest">Dashboard</div>
-      <button 
-        on:click={() => activeTab = 'home'}
-        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'home' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <Home size={20} /> Overview
-      </button>
-      <button 
-        on:click={() => { activeTab = 'stats'; fetchStats(); }}
-        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'stats' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <Activity size={20} /> Bibliotheek Stats
-      </button>
+  <div class="flex h-screen bg-spotify-dark overflow-hidden font-sans text-white">
+    <Sidebar 
+      {activeTab} 
+      onTabChange={(tab) => activeTab = tab}
+      fetchStats={fetchStats}
+      fetchPlaylists={fetchPlaylists}
+      refreshSystemStatus={refreshSystemStatus}
+      fetchAbout={() => {}} 
+    />
 
-      <div class="pt-4 pb-1 px-4 text-[10px] font-bold text-spotify-lightgray uppercase tracking-widest">Bibliotheek</div>
-      <button 
-        on:click={() => activeTab = 'images'}
-        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'images' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <Image size={20} /> Artist Images
-      </button>
-      <button 
-        on:click={() => { activeTab = 'playlists'; fetchPlaylists(); }}
-        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'playlists' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <List size={20} /> Dynamic Playlists
-      </button>
-
-      <div class="pt-4 pb-1 px-4 text-[10px] font-bold text-spotify-lightgray uppercase tracking-widest">Tools</div>
-      <button 
-        on:click={() => activeTab = 'tagger'}
-        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'tagger' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <Tag size={20} /> Tagger
-      </button>
-      <button 
-        on:click={() => activeTab = 'downloaders'}
-        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'downloaders' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <Cloud size={20} /> Downloaders
-      </button>
-      <button 
-        on:click={() => activeTab = 'scrobble'}
-        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'scrobble' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <Radio size={20} /> Scrobble Service
-      </button>
-
-      <div class="pt-4 pb-1 px-4 text-[10px] font-bold text-spotify-lightgray uppercase tracking-widest">Systeem</div>
-      <button 
-        on:click={() => { activeTab = 'health'; refreshSystemStatus(); }}
-        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'health' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <ShieldCheck size={20} /> Systeem Status
-      </button>
-      <button 
-        on:click={() => activeTab = 'users'}
-        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'users' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <Users size={20} /> Users
-      </button>
-      <button 
-        on:click={() => activeTab = 'versions'}
-        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'versions' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <LayoutTemplate size={20} /> Worker Versions
-      </button>
-      <button 
-        on:click={() => { activeTab = 'about'; fetchAbout(); }}
-        class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'about' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
-      >
-        <Info size={20} /> About MuMa
-      </button>
-      <div class="pt-4 mt-4 border-t border-spotify-gray">
-        <a 
-          href="https://spotify.teunschriks.nl"
-          target="_blank"
-          class="w-full flex items-center gap-4 px-4 py-2 rounded-md font-bold text-spotify-lightgray hover:text-white transition-colors text-sm"
-        >
-          <ExternalLink size={18} /> MuMa Spotify
-        </a>
-        <a 
-          href="https://spotify-alpha.teunschriks.nl"
-          target="_blank"
-          class="w-full flex items-center gap-4 px-4 py-2 rounded-md font-bold text-spotify-lightgray hover:text-white transition-colors text-sm"
-        >
-          <ExternalLink size={18} /> MuMa Spotify-alpha
-        </a>
-        <a 
-          href={config.phpmyadmin_url} 
-          target="_blank"
-          class="w-full flex items-center gap-4 px-4 py-2 rounded-md font-bold text-spotify-lightgray hover:text-white transition-colors text-sm"
-        >
-          <ExternalLink size={18} /> phpMyAdmin
-        </a>
+    <main class="flex-1 overflow-y-auto bg-gradient-to-b from-spotify-gray to-spotify-dark p-8 relative">
+      <!-- Top Bar / Logout -->
+      <div class="absolute top-8 right-8 flex items-center gap-4 z-10">
+        {#if currentUser}
+          <div class="bg-black bg-opacity-40 px-4 py-2 rounded-full border border-white border-opacity-10 text-xs font-bold flex items-center gap-2">
+             <div class="w-2 h-2 bg-spotify-green rounded-full"></div>
+             {currentUser.username}
+          </div>
+        {/if}
         <button 
           on:click={logout}
-          class="w-full flex items-center gap-4 px-4 py-2 rounded-md font-bold text-red-500 hover:text-red-400 transition-colors mt-2 text-sm"
+          class="bg-black bg-opacity-40 hover:bg-opacity-60 text-white px-4 py-2 rounded-full border border-white border-opacity-10 text-xs font-bold transition-all"
         >
-          <Key size={18} /> Uitloggen
+          LOGOUT
         </button>
       </div>
-    </nav>
-    
-    <div class="p-6 text-xs text-spotify-lightgray">
-      <div class="flex items-center gap-2">
-        <Info size={12} />
-        Version {config.version}
-      </div>
-    </div>
-  </aside>
 
-  <!-- Main Content -->
-  <main class="flex-1 overflow-y-auto bg-gradient-to-b from-spotify-gray to-spotify-black p-8">
-    {#if message}
-      <div class="bg-spotify-green text-black p-4 rounded-md mb-6 font-bold flex justify-between items-center">
-        {message}
-        <button on:click={() => message = ''}>&times;</button>
-      </div>
-    {/if}
-    
-    {#if error}
-      <div class="bg-red-600 text-white p-4 rounded-md mb-6 font-bold flex justify-between items-center">
-        {error}
-        <button on:click={() => error = ''}>&times;</button>
-      </div>
-    {/if}
-
-    {#if loading}
-      <div class="flex items-center justify-center h-full">
-        <RefreshCw class="animate-spin text-spotify-green" size={48} />
-      </div>
-    {:else}
-      {#if activeTab === 'home'}
-        <section class="space-y-8 animate-in fade-in duration-500">
-          <header class="flex justify-between items-end">
-            <div>
-              <h1 class="text-6xl font-extrabold mb-4 tracking-tighter">MuMa Overview</h1>
-              <p class="text-spotify-lightgray text-lg">Welkom terug! Hier is een overzicht van je systeem status.</p>
-            </div>
-          </header>
-
-          <!-- Status Cards -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
-              <div class="flex items-center gap-3 mb-4">
-                <ShieldCheck class={containers.every(c => c.status === 'running') ? 'text-spotify-green' : 'text-red-500'} />
-                <h3 class="font-bold">Systeem Status</h3>
-              </div>
-              <div class="text-2xl font-extrabold">
-                {containers.filter(c => c.status === 'running').length} / {containers.length} Running
-              </div>
-              <p class="text-xs text-spotify-lightgray mt-2">
-                {#if containers.some(c => c.status !== 'running')}
-                  <span class="text-red-500 font-bold">{containers.filter(c => c.status !== 'running').length} containers hebben problemen.</span>
-                {:else}
-                  Alle systemen werken naar behoren.
-                {/if}
-              </p>
-            </div>
-
-            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
-              <div class="flex items-center gap-3 mb-4">
-                <Clock class="text-blue-400" />
-                <h3 class="font-bold">Laatste Activiteit</h3>
-              </div>
-              <div class="text-2xl font-extrabold">
-                {activity.recent_added.length > 0 ? new Date(activity.recent_added[0].timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-'}
-              </div>
-              <p class="text-xs text-spotify-lightgray mt-2">Laatste track toegevoegd.</p>
-            </div>
-
-            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
-              <div class="flex items-center gap-3 mb-4">
-                <Info class="text-spotify-green" />
-                <h3 class="font-bold">MuMa Versie</h3>
-              </div>
-              <div class="text-2xl font-extrabold">{config.version}</div>
-              <p class="text-xs text-spotify-lightgray mt-2">Service: music-manager</p>
-            </div>
-          </div>
-
-          <!-- System Alerts (if any) -->
-          {#if containers.some(c => c.status !== 'running')}
-            <div class="bg-red-500 bg-opacity-10 border border-red-500 rounded-xl p-4 flex items-center gap-4 animate-in shake duration-500">
-              <ShieldCheck size={32} class="text-red-500" />
-              <div>
-                <h3 class="font-bold text-red-500 text-sm uppercase tracking-wider">Systeem Alert</h3>
-                <p class="text-sm text-red-200">
-                  {containers.filter(c => c.status !== 'running').length} service(s) zijn momenteel offline: 
-                  <span class="font-bold font-mono">{containers.filter(c => c.status !== 'running').map(c => c.name).join(', ')}</span>
-                </p>
-              </div>
-            </div>
-          {/if}
-
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Recent Activity Mini List -->
-            <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-              <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex items-center gap-2">
-                <Activity size={20} class="text-spotify-green" /> Recente Activiteit
-              </h3>
-              <div class="max-h-[300px] overflow-y-auto">
-                <ul class="divide-y divide-spotify-gray divide-opacity-30">
-                  {#each activity.recent_added.slice(0, 5) as item}
-                    <li class="p-4 hover:bg-white hover:bg-opacity-5 flex justify-between items-center gap-4">
-                      <div class="truncate">
-                        <div class="font-bold text-sm truncate">{item.title || item.file_path.split('/').pop()}</div>
-                        <div class="text-xs text-spotify-lightgray truncate">{item.artist || item.source}</div>
-                      </div>
-                      <div class="text-[10px] text-spotify-lightgray whitespace-nowrap text-right">
-                        {new Date(item.timestamp).toLocaleDateString()}
-                      </div>
-                    </li>
-                  {/each}
-                  {#if activity.recent_added.length === 0}
-                    <li class="p-8 text-center text-spotify-lightgray italic">Geen recente activiteit gevonden.</li>
-                  {/if}
-                </ul>
-              </div>
-              <div class="p-4 bg-black bg-opacity-20 text-center">
-                 <button on:click={() => activeTab = 'stats'} class="text-xs font-bold text-spotify-lightgray hover:text-white uppercase tracking-widest">Bekijk alle statistieken</button>
-              </div>
-            </div>
-
-            <!-- Quick Release Notes -->
-            <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden flex flex-col">
-              <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex items-center justify-between">
-                <div class="flex items-center gap-2"><RefreshCw size={20} class="text-blue-400" /> Release Notes</div>
-                <select 
-                  bind:value={selectedServiceNotes}
-                  class="bg-spotify-dark border border-white border-opacity-10 rounded-md p-1 text-xs text-white focus:outline-none focus:border-spotify-green"
-                >
-                  {#each Object.keys(allNotes) as service}
-                    <option value={service}>{service.replace('-', ' ')}</option>
-                  {/each}
-                </select>
-              </h3>
-              <div class="p-6 overflow-y-auto max-h-[300px] flex-1">
-                {#if allNotes[selectedServiceNotes]}
-                  <div class="md-content text-sm overflow-hidden text-ellipsis">
-                    {@html allNotes[selectedServiceNotes].release_notes}
-                  </div>
-                {:else}
-                  <p class="text-spotify-lightgray text-center italic mt-10">Selecteer een service om de release notes te bekijken.</p>
-                {/if}
-              </div>
-            </div>
-          </div>
-        </section>
-
-      {:else if activeTab === 'tagger'}
-        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-          <header class="flex justify-between items-end">
-            <div>
-              <h1 class="text-6xl font-extrabold mb-4 tracking-tighter">Tagger Config</h1>
-              <p class="text-spotify-lightgray text-lg">Beheer genres, artiesten en tag-regels voor je bibliotheek.</p>
-            </div>
-          </header>
-
-          <div class="flex gap-6 border-b border-white border-opacity-10">
-            <button 
-              on:click={() => taggerSubTab = 'artists'}
-              class="pb-4 font-bold text-sm transition-colors relative {taggerSubTab === 'artists' ? 'text-white' : 'text-spotify-lightgray hover:text-white'}"
-            >
-              Artiesten & Labels
-              {#if taggerSubTab === 'artists'}
-                <div class="absolute bottom-0 left-0 right-0 h-1 bg-spotify-green rounded-full animate-in fade-in duration-300"></div>
-              {/if}
-            </button>
-            <button 
-              on:click={() => taggerSubTab = 'genres'}
-              class="pb-4 font-bold text-sm transition-colors relative {taggerSubTab === 'genres' ? 'text-white' : 'text-spotify-lightgray hover:text-white'}"
-            >
-              Genre Overzicht
-              {#if taggerSubTab === 'genres'}
-                <div class="absolute bottom-0 left-0 right-0 h-1 bg-spotify-green rounded-full animate-in fade-in duration-300"></div>
-              {/if}
-            </button>
-            <button 
-              on:click={() => taggerSubTab = 'rules'}
-              class="pb-4 font-bold text-sm transition-colors relative {taggerSubTab === 'rules' ? 'text-white' : 'text-spotify-lightgray hover:text-white'}"
-            >
-              Genre Koppelingen
-              {#if taggerSubTab === 'rules'}
-                <div class="absolute bottom-0 left-0 right-0 h-1 bg-spotify-green rounded-full animate-in fade-in duration-300"></div>
-              {/if}
-            </button>
-          </div>
-
-          {#if taggerSubTab === 'artists'}
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300">
-              <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 space-y-6">
-                <h3 class="text-xl font-bold flex items-center gap-2"><Search size={20} class="text-spotify-green" /> Zoeken</h3>
-                <div class="space-y-4">
-                  <div>
-                    <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Artiest</label>
-                    <input 
-                      type="text" 
-                      bind:value={artistSearch} 
-                      on:input={searchArtists}
-                      placeholder="Naam..."
-                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green"
-                    />
-                    <select 
-                      bind:value={selectedArtistName}
-                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md mt-2 p-2 h-40 focus:outline-none focus:border-spotify-green"
-                      size="5"
-                    >
-                      {#each artists as artist}
-                        <option value={artist.name}>{artist.name}</option>
-                      {/each}
-                    </select>
-                  </div>
-                  <div>
-                    <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Label</label>
-                    <input 
-                      type="text" 
-                      bind:value={labelSearch} 
-                      on:input={searchLabels}
-                      placeholder="Naam..."
-                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green"
-                    />
-                    <select 
-                      bind:value={selectedLabelName}
-                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md mt-2 p-2 h-40 focus:outline-none focus:border-spotify-green"
-                      size="5"
-                    >
-                      {#each labels as label}
-                        <option value={label.name}>{label.name}</option>
-                      {/each}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 space-y-6">
-                <h3 class="text-xl font-bold flex items-center gap-2"><Tag size={20} class="text-spotify-green" /> Genre Toewijzen</h3>
-                <div class="p-6 bg-black bg-opacity-20 rounded-xl space-y-6">
-                  <div>
-                    <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Kies Genre</label>
-                    <select 
-                      bind:value={selectedGenreId}
-                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
-                    >
-                      <option value={null}>Selecteer...</option>
-                      {#each rules.genres as genre}
-                        <option value={genre.id}>{genre.name}</option>
-                      {/each}
-                    </select>
-                  </div>
-                  
-                  <div class="flex flex-col gap-3">
-                    <button 
-                      on:click={addArtistRule}
-                      disabled={!selectedArtistName || !selectedGenreId}
-                      class="w-full bg-spotify-green text-black font-extrabold py-4 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
-                    >
-                      KOPPEL ARTIEST: {selectedArtistName || '...'}
-                    </button>
-                    <button 
-                      on:click={addLabelRule}
-                      disabled={!selectedLabelName || !selectedGenreId}
-                      class="w-full bg-white text-black font-extrabold py-4 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
-                    >
-                      KOPPEL LABEL: {selectedLabelName || '...'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          {:else if taggerSubTab === 'genres'}
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300">
-              <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-                <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Actieve Genres</h3>
-                <div class="max-h-[600px] overflow-y-auto">
-                  <table class="w-full text-left">
-                    <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray sticky top-0">
-                      <tr>
-                        <th class="p-4 w-16">ID</th>
-                        <th class="p-4">Genre</th>
-                      </tr>
-                    </thead>
-                    <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-                      {#each rules.genres as genre}
-                        <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
-                          <td class="p-4 text-spotify-lightgray font-mono">{genre.id}</td>
-                          <td class="p-4 font-bold">{genre.name}</td>
-                        </tr>
-                      {/each}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-                <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Genegeerde Genres</h3>
-                <div class="max-h-[600px] overflow-y-auto">
-                  <table class="w-full text-left">
-                    <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-                      {#each rules.ignored_genres as ignored}
-                        <tr class="hover:bg-red-900 hover:bg-opacity-10 transition-colors">
-                          <td class="p-4 text-spotify-lightgray">{ignored.name}</td>
-                        </tr>
-                      {/each}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-          {:else if taggerSubTab === 'rules'}
-            <div class="space-y-8 animate-in fade-in duration-300">
-              <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-                <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex justify-between items-center">
-                   Artiest Genre Koppelingen
-                   <span class="text-xs text-spotify-lightgray font-mono">{artistGenreRules.length} regels</span>
-                </h3>
-                <table class="w-full text-left">
-                  <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
-                    <tr>
-                      <th class="p-4">Artiest</th>
-                      <th class="p-4">Genre</th>
-                      <th class="p-4 text-right">Actie</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-                    {#each artistGenreRules as rule}
-                      <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
-                        <td class="p-4 font-bold">{rule.artist_name}</td>
-                        <td class="p-4 text-spotify-green">{rule.genre_name}</td>
-                        <td class="p-4 text-right">
-                          <button on:click={() => deleteArtistRule(rule.id)} class="text-spotify-lightgray hover:text-red-500">
-                            <Trash2 size={18} />
-                          </button>
-                        </td>
-                      </tr>
-                    {/each}
-                  </tbody>
-                </table>
-              </div>
-
-              <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-                <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex justify-between items-center">
-                  Label Genre Koppelingen
-                  <span class="text-xs text-spotify-lightgray font-mono">{labelGenreRules.length} regels</span>
-                </h3>
-                <table class="w-full text-left">
-                  <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
-                    <tr>
-                      <th class="p-4">Label</th>
-                      <th class="p-4">Genre</th>
-                      <th class="p-4 text-right">Actie</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-                    {#each labelGenreRules as rule}
-                      <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
-                        <td class="p-4 font-bold">{rule.label_name}</td>
-                        <td class="p-4 text-spotify-green">{rule.genre_name}</td>
-                        <td class="p-4 text-right">
-                          <button on:click={() => deleteLabelRule(rule.id)} class="text-spotify-lightgray hover:text-red-500">
-                            <Trash2 size={18} />
-                          </button>
-                        </td>
-                      </tr>
-                    {/each}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          {/if}
-        </section>
-
-      {:else if activeTab === 'downloaders'}
-        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-          <header>
-            <h1 class="text-6xl font-extrabold mb-4 tracking-tighter">Downloaders</h1>
-            <p class="text-spotify-lightgray text-lg">Beheer SoundCloud accounts en YouTube kanalen voor automatische imports.</p>
-          </header>
-
-          <div class="flex gap-6 border-b border-white border-opacity-10">
-            <button 
-              on:click={() => downloaderSubTab = 'soundcloud'}
-              class="pb-4 font-bold text-sm transition-colors relative {downloaderSubTab === 'soundcloud' ? 'text-white' : 'text-spotify-lightgray hover:text-white'}"
-            >
-              SoundCloud
-              {#if downloaderSubTab === 'soundcloud'}
-                <div class="absolute bottom-0 left-0 right-0 h-1 bg-spotify-green rounded-full animate-in fade-in duration-300"></div>
-              {/if}
-            </button>
-            <button 
-              on:click={() => downloaderSubTab = 'youtube'}
-              class="pb-4 font-bold text-sm transition-colors relative {downloaderSubTab === 'youtube' ? 'text-white' : 'text-spotify-lightgray hover:text-white'}"
-            >
-              YouTube
-              {#if downloaderSubTab === 'youtube'}
-                <div class="absolute bottom-0 left-0 right-0 h-1 bg-spotify-green rounded-full animate-in fade-in duration-300"></div>
-              {/if}
-            </button>
-          </div>
-
-          {#if downloaderSubTab === 'soundcloud'}
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300">
-              <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 space-y-6">
-                <h3 class="text-xl font-bold flex items-center gap-2"><Plus class="text-spotify-green" /> Account Toevoegen</h3>
-                <form on:submit|preventDefault={addAccount} class="space-y-4">
-                  <div>
-                    <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Account Slug (URL)</label>
-                    <input type="text" bind:value={newAccountName} placeholder="bijv: monstercat" class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
-                  </div>
-                  <div>
-                    <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">SoundCloud ID (Optioneel)</label>
-                    <input type="text" bind:value={newAccountId} placeholder="123456" class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
-                  </div>
-                  <button type="submit" class="w-full bg-spotify-green text-black font-extrabold py-3 rounded-full hover:scale-105 transition-transform">TOEVOEGEN</button>
-                </form>
-              </div>
-              <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-                <table class="w-full text-left">
-                  <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
-                    <tr><th class="p-4">Account</th><th class="p-4 text-right">Acties</th></tr>
-                  </thead>
-                  <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-                    {#each accounts as account}
-                      <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
-                        <td class="p-4 font-bold">
-                          <a href="https://soundcloud.com/{account.name}" target="_blank" class="flex items-center gap-2 hover:text-spotify-green">
-                            {account.name} <ExternalLink size={14} />
-                          </a>
-                        </td>
-                        <td class="p-4 text-right">
-                          <button on:click={() => deleteSoundcloudAccount(account.name)} class="text-spotify-lightgray hover:text-red-500">
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    {/each}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          {:else if downloaderSubTab === 'youtube'}
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300">
-              <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 space-y-6">
-                <h3 class="text-xl font-bold mb-6 flex items-center gap-2"><Search class="text-spotify-green" /> Snel Toevoegen</h3>
-                <form on:submit|preventDefault={addYoutubeAccount} class="space-y-4">
-                  <div class="flex gap-2">
-                    <input type="text" bind:value={newAccountName} placeholder="Channel Handle of ID..." class="flex-1 bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
-                    <button type="submit" class="bg-spotify-green text-black font-extrabold px-6 rounded-md hover:scale-105 transition-transform">ADD</button>
-                  </div>
-                  <p class="text-xs text-spotify-lightgray italic">Voeg een kanaal toe aan de automatische scanner.</p>
-                </form>
-
-                <div class="pt-6 border-t border-white border-opacity-5">
-                  <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><Youtube class="text-red-500" /> Handmatig Downloaden</h3>
-                  <div class="flex gap-2">
-                    <input type="text" placeholder="YouTube Video URL..." class="flex-1 bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
-                    <button class="bg-white text-black font-extrabold px-6 rounded-md hover:scale-105 transition-transform">FETCH</button>
-                  </div>
-                </div>
-              </div>
-              <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-                <table class="w-full text-left">
-                  <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
-                    <tr><th class="p-4">Kanaal</th><th class="p-4 text-right">Acties</th></tr>
-                  </thead>
-                  <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-                    {#each youtubeAccounts as account}
-                      <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
-                        <td class="p-4 font-bold">
-                          <a href="https://youtube.com/{account.name.startsWith('@') ? account.name : 'channel/'+account.name}" target="_blank" class="flex items-center gap-2 hover:text-spotify-green">
-                            {account.name} <ExternalLink size={14} />
-                          </a>
-                        </td>
-                        <td class="p-4 text-right">
-                          <button on:click={() => deleteYoutubeAccount(account.name)} class="text-spotify-lightgray hover:text-red-500">
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    {/each}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          {/if}
-
-          <!-- Recent Activity (Downloads) -->
-          <div class="bg-spotify-gray bg-opacity-20 p-8 rounded-2xl border border-white border-opacity-5">
-            <h3 class="text-2xl font-bold mb-6 flex items-center gap-3">
-              <Clock class="text-spotify-lightgray" /> Laatst Gedownloade Tracks
-            </h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {#each activity.recent_added.slice(0, 6) as track}
-                <div class="bg-black bg-opacity-40 p-4 rounded-lg border border-white border-opacity-5 flex items-center gap-4 group hover:bg-opacity-60 transition-all">
-                  <div class="w-12 h-12 bg-spotify-gray rounded flex items-center justify-center text-spotify-lightgray group-hover:text-white transition-colors">
-                    <Music size={24} />
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="font-bold text-sm truncate">{track.title || track.file_path.split('/').pop()}</div>
-                    <div class="text-xs text-spotify-lightgray truncate">{track.artist || 'Onbekend'}</div>
-                  </div>
-                </div>
-              {/each}
-            </div>
-          </div>
-        </section>
-      {:else if activeTab === 'about'}
-        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500 max-w-4xl">
-          <header>
-            <h2 class="text-4xl font-extrabold mb-2">ℹ️ About Music Manager</h2>
-            <p class="text-spotify-lightgray">System documentation and overview.</p>
-          </header>
-
-          <div class="bg-spotify-gray p-8 rounded-xl border border-white border-opacity-5 prose prose-invert prose-green max-w-none">
-            {@html aboutHtml}
-          </div>
-        </section>
-      {:else if activeTab === 'versions'}
-        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-          <header>
-            <h2 class="text-4xl font-extrabold mb-2">📟 System Versions</h2>
-            <p class="text-spotify-lightgray">Centraal overzicht van alle draaiende service versies.</p>
-          </header>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {#each Object.entries(versions) as [name, version]}
-              <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 flex flex-col gap-1">
-                <span class="text-xs font-bold text-spotify-lightgray uppercase tracking-wider">{name}</span>
-                <span class="text-xl font-mono {version === 'offline' ? 'text-red-500' : 'text-spotify-green'}">
-                  {version}
-                </span>
-              </div>
-            {/each}
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="bg-black bg-opacity-20 p-6 rounded-xl border border-spotify-gray border-dashed md:col-span-2">
-              <h3 class="font-bold mb-2 flex items-center gap-2 text-spotify-lightgray">
-                <ExternalLink size={16} /> Externe Referenties
-              </h3>
-              <ul class="text-sm space-y-2 text-spotify-lightgray">
-                <li>LMS: <span class="text-white">{versions.lms || 'Niet gedetecteerd'}</span></li>
-                <li>Ultrasonic APK: <span class="text-white">{versions.ultrasonic || 'Niet gevonden'}</span></li>
-              </ul>
-            </div>
-          </div>
-        </section>
-      {:else if activeTab === 'scrobble'}
-        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-          <header>
-            <h2 class="text-4xl font-extrabold mb-2">📻 Scrobble Service</h2>
-            <p class="text-spotify-lightgray">Beheer luistergeschiedenis en ListenBrainz imports.</p>
-          </header>
-
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Import Form -->
-            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
-              <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
-                <RefreshCw class="text-spotify-green {isImporting ? 'animate-spin' : ''}" /> ListenBrainz Import
-              </h3>
-              <form on:submit|preventDefault={startLbImport} class="space-y-4">
-                <div>
-                  <label for="muma-user" class="block text-sm font-bold text-spotify-lightgray mb-2">MuMa User</label>
-                  <select 
-                    id="muma-user" 
-                    bind:value={importMumaUser}
-                    on:change={(e) => {
-                      const user = users.find(u => u.username === importMumaUser);
-                      if (user) selectUser(user).then(() => {
-                        importLbUser = lbUsername;
-                      });
-                    }}
-                    class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
-                  >
-                    <option value="">Kies gebruiker...</option>
-                    {#each users as user}
-                      <option value={user.username}>{user.username}</option>
-                    {/each}
-                  </select>
-                </div>
-                <div>
-                  <label for="lb-user" class="block text-sm font-bold text-spotify-lightgray mb-2">ListenBrainz Username</label>
-                  <div class="relative">
-                    <input 
-                      type="text" 
-                      id="lb-user" 
-                      bind:value={importLbUser}
-                      placeholder={lbUsername ? `Gekoppeld: ${lbUsername}` : "teunschriks"}
-                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
-                    />
-                    {#if !importLbUser && lbUsername}
-                      <span class="absolute right-3 top-3 text-xs text-spotify-green font-bold">GEKOPPELD</span>
-                    {/if}
-                  </div>
-                  <p class="text-[10px] text-spotify-lightgray mt-1 italic">
-                    Optioneel indien al gekoppeld in User Management.
-                  </p>
-                </div>
-                <button 
-                  type="submit" 
-                  disabled={isImporting || !importMumaUser}
-                  class="w-full bg-spotify-green text-black font-extrabold py-3 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
-                >
-                  {isImporting ? 'IMPORT BEZIG...' : 'IMPORT STARTEN'}
-                </button>
-              </form>
-            </div>
-
-            <!-- Recent Imports -->
-            <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-              <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex justify-between items-center">
-                Recente Imports
-                <button on:click={fetchLatestImports} class="text-spotify-lightgray hover:text-white transition-colors">
-                  <RefreshCw size={16} />
-                </button>
-              </h3>
-              <div class="overflow-x-auto">
-                <table class="w-full text-left">
-                  <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
-                    <tr>
-                      <th class="p-4">User</th>
-                      <th class="p-4">Status</th>
-                      <th class="p-4">Progress</th>
-                      <th class="p-4 text-right">Started</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-spotify-gray divide-opacity-30 text-sm">
-                    {#each latestImports as imp}
-                      <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
-                        <td class="p-4">
-                          <div class="font-bold">{imp.username}</div>
-                          <div class="text-xs text-spotify-lightgray">LB: {imp.lb_username}</div>
-                        </td>
-                        <td class="p-4">
-                          <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase
-                            {imp.status === 'completed' ? 'bg-spotify-green text-black' : 
-                             imp.status === 'running' ? 'bg-blue-500 text-white' : 
-                             imp.status === 'failed' ? 'bg-red-500 text-white' : 'bg-spotify-gray text-white'}">
-                            {imp.status}
-                          </span>
-                        </td>
-                        <td class="p-4">
-                          <div class="w-full bg-spotify-dark rounded-full h-1.5 mb-1">
-                            <div class="bg-spotify-green h-1.5 rounded-full" style="width: {imp.total_found > 0 ? (imp.processed / imp.total_found) * 100 : 0}%"></div>
-                          </div>
-                          <div class="text-[10px] text-spotify-lightgray">{imp.processed} / {imp.total_found}</div>
-                        </td>
-                        <td class="p-4 text-right text-xs text-spotify-lightgray">
-                          {new Date(imp.started_at).toLocaleString()}
-                        </td>
-                      </tr>
-                    {/each}
-                    {#if latestImports.length === 0}
-                      <tr>
-                        <td colspan="4" class="p-8 text-center text-spotify-lightgray italic">Geen import geschiedenis gevonden.</td>
-                      </tr>
-                    {/if}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </section>
-      {:else if activeTab === 'users'}
-        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-          <header>
-            <h2 class="text-4xl font-extrabold mb-2">👥 User Management</h2>
-            <p class="text-spotify-lightgray">Beheer systeemgebruikers en hun externe account koppelingen.</p>
-          </header>
-
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- User List -->
-            <div class="lg:col-span-1 space-y-6">
-              <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-                <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex justify-between items-center">
-                  Gebruikers
-                  <div class="flex gap-2">
-                    <button 
-                      on:click={syncLMSUsers} 
-                      title="Sync van LMS"
-                      class="text-spotify-lightgray hover:text-spotify-green transition-colors"
-                    >
-                      <RefreshCw size={16} />
-                    </button>
-                    <button 
-                      on:click={fetchUsers} 
-                      title="Verversen"
-                      class="text-spotify-lightgray hover:text-white transition-colors"
-                    >
-                      <RefreshCw size={16} class="rotate-90" />
-                    </button>
-                  </div>
-                </h3>
-                <div class="max-h-[400px] overflow-y-auto">
-                  <table class="w-full text-left text-sm">
-                    <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-                      {#each users as user}
-                        <tr 
-                          class="hover:bg-white hover:bg-opacity-5 cursor-pointer transition-colors {selectedUser?.id === user.id ? 'bg-spotify-gray' : ''}"
-                          on:click={() => selectUser(user)}
-                        >
-                          <td class="p-4">
-                            <div class="flex justify-between items-center">
-                              <div>
-                                <div class="font-bold {selectedUser?.id === user.id ? 'text-spotify-green' : ''}">{user.username}</div>
-                                <div class="text-xs text-spotify-lightgray">{user.display_name || ''}</div>
-                              </div>
-                              <button 
-                                on:click|stopPropagation={() => deleteUser(user)}
-                                class="text-spotify-lightgray hover:text-red-500 transition-colors p-2"
-                                title="Verwijder gebruiker"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      {/each}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <!-- Add User Form -->
-              <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
-                <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><Plus size={20} class="text-spotify-green" /> Gebruiker Toevoegen</h3>
-                <form on:submit|preventDefault={addUser} class="space-y-4">
-                  <div>
-                    <input 
-                      type="text" 
-                      bind:value={newUsername}
-                      placeholder="Gebruikersnaam"
-                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <input 
-                      type="text" 
-                      bind:value={newDisplayName}
-                      placeholder="Display Name (Optioneel)"
-                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <input 
-                      type="password" 
-                      bind:value={userPassword}
-                      placeholder="Standaard Wachtwoord"
-                      class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
-                    />
-                  </div>
-                  <button type="submit" class="w-full bg-spotify-green text-black font-bold py-2 rounded-full hover:scale-105 transition-transform">
-                    TOEVOEGEN
-                  </button>
-                </form>
-              </div>
-            </div>
-
-            <!-- User Detail / External Accounts -->
-            <div class="lg:col-span-2">
-              {#if selectedUser}
-                <div class="space-y-6 animate-in fade-in duration-300">
-                  <div class="bg-spotify-gray p-8 rounded-xl border border-white border-opacity-5">
-                    <div class="flex items-center gap-4 mb-8">
-                      <div class="w-16 h-16 bg-spotify-green rounded-full flex items-center justify-center text-black text-2xl font-bold">
-                        {selectedUser.username.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <h3 class="text-3xl font-extrabold">{selectedUser.username}</h3>
-                        <p class="text-spotify-lightgray">{selectedUser.display_name || 'Geen display name'}</p>
-                      </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <!-- Password Section -->
-                      <div class="space-y-4">
-                        <h4 class="text-xl font-bold flex items-center gap-2 text-white">
-                          <Key size={20} class="text-spotify-green" /> Beveiliging
-                        </h4>
-                        <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
-                          <div>
-                            <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">Nieuw Wachtwoord</label>
-                            <input 
-                              type="password" 
-                              bind:value={userPassword}
-                              placeholder="••••••••"
-                              class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
-                            />
-                          </div>
-                          <button 
-                            on:click={updatePassword}
-                            disabled={!userPassword}
-                            class="w-full bg-spotify-green text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
-                          >
-                            WACHTWOORD OPSLAAN
-                          </button>
-                        </div>
-                      </div>
-
-                      <!-- ListenBrainz Section -->
-                      <div class="space-y-4">
-                        <h4 class="text-xl font-bold flex items-center gap-2 text-white">
-                          <Radio size={20} class="text-[#EB743B]" /> ListenBrainz
-                        </h4>
-                  <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
-                          <div>
-                            <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">LB Username</label>
-                            <input 
-                              type="text" 
-                              bind:value={lbUsername}
-                              placeholder="ListenBrainz User"
-                              class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
-                            />
-                          </div>
-                          <div>
-                            <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">API Token</label>
-                            <div class="relative">
-                              <Key class="absolute left-2 top-2.5 text-spotify-lightgray" size={16} />
-                              <input 
-                                type="password" 
-                                bind:value={lbToken}
-                                placeholder="Token"
-                                class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 pl-9 focus:outline-none focus:border-spotify-green transition-colors font-mono text-sm"
-                              />
-                            </div>
-                          </div>
-                          <div class="flex gap-2">
-                            <button 
-                              on:click={() => {
-                                activeTab = 'scrobble';
-                                importMumaUser = selectedUser.username;
-                                importLbUser = lbUsername;
-                              }}
-                              class="flex-1 bg-white text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform"
-                            >
-                              IMPORT STARTEN
-                            </button>
-                            <button 
-                              on:click={updateLBAccount}
-                              class="flex-1 bg-spotify-green text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform"
-                            >
-                              OPSLAAN
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <!-- LMS Settings -->
-                      <div class="space-y-4">
-                        <h4 class="text-xl font-bold flex items-center gap-2 text-white">
-                          <Database size={20} class="text-spotify-green" /> LMS Integratie
-                        </h4>
-                        <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
-                          <p class="text-xs text-spotify-lightgray">Synchroniseer gebruikersgegevens direct vanuit Logitech Media Server.</p>
-                          <div class="flex flex-col gap-2">
-                            <button 
-                              on:click={syncLMSUsers}
-                              class="w-full bg-white text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform flex items-center justify-center gap-2"
-                            >
-                              <RefreshCw size={14} /> SYNC VIA API (SPELERS)
-                            </button>
-                            <button 
-                              on:click={syncLMSDbUsers}
-                              class="w-full bg-spotify-green text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform flex items-center justify-center gap-2"
-                            >
-                              <Database size={14} /> SYNC VIA DATABASE (USERS)
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              {:else}
-                <div class="h-full flex items-center justify-center bg-spotify-gray bg-opacity-20 rounded-xl border border-dashed border-spotify-gray p-12 text-center text-spotify-lightgray">
-                  <div>
-                    <Users size={48} class="mx-auto mb-4 opacity-20" />
-                    <p class="text-xl font-bold">Selecteer een gebruiker</p>
-                    <p>Kies een gebruiker uit de lijst om instellingen te beheren.</p>
-                  </div>
-                </div>
-              {/if}
-            </div>
-          </div>
-        </section>
-            {:else if activeTab === 'playlists'}
-        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-          <header class="flex justify-between items-end">
-            <div>
-              <h2 class="text-4xl font-extrabold mb-2">🎵 Dynamic Playlists</h2>
-              <div class="flex items-center gap-4">
-                <p class="text-spotify-lightgray">Beheer de tiles en slimme afspeellijsten voor</p>
-                <select 
-                  bind:value={selectedUser} 
-                  on:change={() => {
-                    if (selectedUser) {
-                      selectUser(selectedUser);
-                      fetchPlaylists();
-                    }
-                  }}
-                  class="bg-spotify-dark border border-spotify-gray rounded-full px-4 py-1 text-white text-sm focus:outline-none focus:border-spotify-green transition-colors"
-                >
-                  <option value={null}>Selecteer gebruiker...</option>
-                  {#each users as user}
-                    <option value={user}>{user.username}</option>
-                  {/each}
-                </select>
-              </div>
-            </div>
-            <div class="flex gap-4">
-              <button 
-                on:click={() => {
-                  if (!selectedUser) {
-                    alert('Selecteer eerst een gebruiker');
-                    return;
-                  }
-                  if(confirm('Weet je zeker dat je de standaard playlists wilt herstellen voor deze gebruiker?')) {
-                    fetch('/api/users/' + selectedUser.id + '/dynamic-playlists/seed-defaults', {
-                      method: 'POST',
-                      headers: { 'X-API-Key': apiKey }
-                    }).then(() => fetchPlaylists());
-                  }
-                }}
-                class="bg-spotify-gray text-white font-bold px-6 py-3 rounded-full hover:bg-spotify-lightgray transition-colors flex items-center gap-2"
-              >
-                <LayoutTemplate size={20} /> DEFAULTS
-              </button>
-              <button 
-                on:click={() => openPlaylistEditor()}
-                class="bg-spotify-green text-black font-extrabold px-8 py-3 rounded-full hover:scale-105 transition-transform flex items-center gap-2"
-              >
-                <Plus size={20} /> NIEUWE PLAYLIST
-              </button>
-            </div>
-          </header>
-
-          <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-            <table class="w-full text-left">
-              <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
-                <tr>
-                  <th class="p-4">Naam</th>
-                  <th class="p-4">Identifiers</th>
-                  <th class="p-4 text-right">Acties</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-                {#each playlists as playlist}
-                  <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
-                    <td class="p-4 font-bold text-white">
-                      <div class="flex items-center gap-2">
-                        {playlist.name}
-                        {#if playlist.source}
-                          <span class="px-1.5 py-0.5 rounded text-[10px] uppercase font-bold 
-                            {playlist.source === 'lms-alpha' ? 'bg-purple-600 text-white' : 
-                             playlist.source === 'lms-stable' ? 'bg-spotify-green text-black' : 'bg-spotify-gray text-white'}">
-                            {playlist.source.replace('lms-', '')}
-                          </span>
-                        {/if}
-                      </div>
-                    </td>
-                    <td class="p-4 text-spotify-lightgray font-mono text-sm">
-                      {formatParams(playlist.params)}
-                    </td>
-                    <td class="p-4 text-right">
-                      <div class="flex items-center justify-end gap-2">
-                        <button 
-                          on:click={() => fetchPlaylistTracks(playlist)}
-                          class="p-2 text-spotify-lightgray hover:text-spotify-green transition-colors"
-                          title="Tracks bekijken"
-                        >
-                          <List size={18} />
-                        </button>
-                        <button 
-                          on:click={() => openPlaylistEditor(playlist)}
-                          class="p-2 text-spotify-lightgray hover:text-white transition-colors"
-                          title="Bewerken"
-                        >
-                          <Music size={18} />
-                        </button>
-                        <button 
-                          on:click={() => deletePlaylist(playlist.id)}
-                          class="p-2 text-spotify-lightgray hover:text-red-500 transition-colors"
-                          title="Verwijderen"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                {/each}
-                {#if playlists.length === 0}
-                  <tr>
-                    <td colspan="3" class="p-8 text-center text-spotify-lightgray italic">
-                      Geen dynamic playlists gevonden.
-                    </td>
-                  </tr>
-                {/if}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-      {:else if activeTab === 'images'}
-        <section class="space-y-8 animate-in fade-in duration-500">
-          <header>
-            <h1 class="text-6xl font-extrabold mb-4 tracking-tighter">Artist Images</h1>
-            <p class="text-spotify-lightgray text-lg">Beheer en download afbeeldingen voor artiesten in je bibliotheek.</p>
-          </header>
-
-          <div class="bg-spotify-gray bg-opacity-30 p-8 rounded-xl border border-white border-opacity-5">
-            <h2 class="text-2xl font-bold mb-4">Missing Images Ophalen</h2>
-            <p class="mb-6 text-spotify-lightgray font-medium max-w-2xl">
-              Start een achtergrondtaak die voor alle artiesten zonder afbeelding probeert een afbeelding te vinden via 
-              Spotify, Last.fm, MusicBrainz en SoundCloud. Dit kan even duren afhankelijk van de grootte van je bibliotheek.
-            </p>
-            
-            <button 
-              on:click={fetchArtistImages} 
-              class="bg-spotify-green text-black font-extrabold px-8 py-4 rounded-full hover:scale-105 active:scale-95 transition-all flex items-center gap-3 shadow-xl"
-            >
-              <Image size={24} /> START FETCHING
-            </button>
-          </div>
-        </section>
-
-      {:else if activeTab === 'health'}
-        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-          <header class="flex justify-between items-end">
-            <div>
-              <h2 class="text-4xl font-extrabold mb-2">🛡️ Health & Activity</h2>
-              <p class="text-spotify-lightgray">Systeem monitoring en recente activiteit van alle workers.</p>
-            </div>
-            <button 
-              on:click={refreshSystemStatus}
-              class="bg-spotify-gray hover:bg-spotify-lightgray text-white px-4 py-2 rounded-full flex items-center gap-2 transition-colors"
-            >
-              <RefreshCw size={16} /> Vernieuwen
-            </button>
-          </header>
-
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Container Status -->
-            <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-              <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex items-center gap-2">
-                <ShieldCheck class="text-spotify-green" /> Docker Containers
-              </h3>
-              <div class="max-h-[500px] overflow-y-auto">
-                <table class="w-full text-left">
-                  <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray sticky top-0">
-                    <tr>
-                      <th class="p-4">Name</th>
-                      <th class="p-4">Status</th>
-                      <th class="p-4 text-right">Logs</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-spotify-gray divide-opacity-30 text-sm">
-                    {#each containers as container}
-                      <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
-                        <td class="p-4">
-                          <div class="font-bold">{container.name}</div>
-                          <div class="text-[10px] text-spotify-lightgray truncate max-w-[200px]">{container.image}</div>
-                        </td>
-                        <td class="p-4">
-                          <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase
-                            {container.status === 'running' ? 'bg-spotify-green text-black' : 'bg-red-500 text-white'}">
-                            {container.status}
-                          </span>
-                        </td>
-                        <td class="p-4 text-right">
-                          <button 
-                            on:click={() => fetchLogs(container.name)}
-                            class="text-spotify-lightgray hover:text-spotify-green"
-                          >
-                            <Terminal size={18} />
-                          </button>
-                        </td>
-                      </tr>
-                    {/each}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- Recent Activity -->
-            <div class="space-y-8">
-              <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-                <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex items-center gap-2">
-                  <Plus class="text-spotify-green" /> Recent Toegevoegd
-                </h3>
-                <div class="max-h-[250px] overflow-y-auto">
-                  <ul class="divide-y divide-spotify-gray divide-opacity-30">
-                    {#each activity.recent_added as item}
-                      <li class="p-4 hover:bg-white hover:bg-opacity-5 flex justify-between items-center gap-4">
-                        <div class="truncate">
-                          <div class="font-bold text-sm truncate">{item.title || item.file_path.split('/').pop()}</div>
-                          <div class="text-xs text-spotify-lightgray truncate">{item.artist || item.source}</div>
-                        </div>
-                        <div class="text-[10px] text-spotify-lightgray whitespace-nowrap text-right">
-                          <Clock size={10} class="inline mb-0.5" /> {new Date(item.timestamp).toLocaleString()}
-                        </div>
-                      </li>
-                    {/each}
-                  </ul>
-                </div>
-              </div>
-
-              <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-                <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex items-center gap-2">
-                  <Tag class="text-spotify-green" /> Recent Getagged
-                </h3>
-                <div class="max-h-[250px] overflow-y-auto">
-                  <ul class="divide-y divide-spotify-gray divide-opacity-30">
-                    {#each activity.recent_tagged as item}
-                      <li class="p-4 hover:bg-white hover:bg-opacity-5 flex justify-between items-center gap-4">
-                        <div class="truncate">
-                          <div class="font-bold text-sm truncate">{item.title || item.file_path.split('/').pop()}</div>
-                          <div class="text-xs text-spotify-lightgray truncate">{item.artist || item.source}</div>
-                        </div>
-                        <div class="text-[10px] text-spotify-lightgray whitespace-nowrap text-right">
-                          <Clock size={10} class="inline mb-0.5" /> {new Date(item.timestamp).toLocaleString()}
-                        </div>
-                      </li>
-                    {/each}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Logs Viewer -->
-          {#if selectedContainer}
-            <div class="bg-black rounded-xl border border-spotify-gray overflow-hidden flex flex-col h-[500px] animate-in slide-in-from-bottom-4">
-              <div class="bg-spotify-gray p-4 flex justify-between items-center border-b border-white border-opacity-10">
-                <div class="flex items-center gap-2 font-bold text-sm">
-                  <Terminal size={16} class="text-spotify-green" /> Logs: {selectedContainer}
-                </div>
-                <div class="flex gap-2">
-                  <button on:click={() => fetchLogs(selectedContainer)} class="text-spotify-lightgray hover:text-white"><RefreshCw size={16} /></button>
-                  <button on:click={() => selectedContainer = ''} class="text-spotify-lightgray hover:text-white text-xl leading-none">&times;</button>
-                </div>
-              </div>
-              <pre class="p-4 text-xs font-mono text-spotify-lightgray overflow-auto flex-1 bg-black bg-opacity-50">
-                {systemLogs}
-              </pre>
-            </div>
-          {/if}
-        </section>
-
-      {:else if activeTab === 'stats'}
-        <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-          <header class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-            <div>
-              <h2 class="text-4xl font-extrabold mb-2">📊 Bibliotheek Statistieken</h2>
-              <p class="text-spotify-lightgray">Inzichten in je muziekcollectie en luistergedrag.</p>
-            </div>
-            <div class="flex gap-4 w-full md:w-auto">
-              <button 
-                on:click={fetchArtistImages} 
-                class="flex-1 md:flex-none bg-white text-black font-extrabold px-6 py-3 rounded-full hover:scale-105 transition-transform flex items-center justify-center gap-2 shadow-lg shadow-white/10"
-                title="Haal ontbrekende artiestafbeeldingen op van externe bronnen"
-              >
-                <Image size={20} class="text-black" /> IMAGES OPHALEN
-              </button>
-              <button on:click={fetchStats} class="bg-spotify-gray p-3 rounded-full hover:bg-white hover:bg-opacity-10 transition-colors">
-                <RefreshCw size={20} />
-              </button>
-            </div>
-          </header>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
-              <div class="text-spotify-lightgray text-xs font-bold uppercase mb-1">Totaal Tracks</div>
-              <div class="text-3xl font-extrabold text-spotify-green">{stats.total_tracks.toLocaleString()}</div>
-            </div>
-            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
-              <div class="text-spotify-lightgray text-xs font-bold uppercase mb-1">Totaal Artiesten</div>
-              <div class="text-3xl font-extrabold text-white">{stats.total_artists.toLocaleString()}</div>
-            </div>
-            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
-              <div class="text-spotify-lightgray text-xs font-bold uppercase mb-1">Totaal Scrobbles</div>
-              <div class="text-3xl font-extrabold text-blue-400">{stats.total_scrobbles.toLocaleString()}</div>
-            </div>
-            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
-              <div class="text-spotify-lightgray text-xs font-bold uppercase mb-1">Match Rate</div>
-              <div class="text-3xl font-extrabold {stats.match_rate > 80 ? 'text-spotify-green' : 'text-yellow-500'}">{stats.match_rate}%</div>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Top Artists -->
-            <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-              <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Top 10 Artiesten</h3>
-              <table class="w-full text-left">
-                <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-                  {#each stats.top_artists as artist, i}
-                    <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
-                      <td class="p-4 w-12 text-spotify-lightgray font-mono">{i + 1}.</td>
-                      <td class="p-4 font-bold">{artist.name}</td>
-                      <td class="p-4 text-right text-spotify-lightgray">{artist.track_count} tracks</td>
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
-            </div>
-
-            <!-- Top Genres -->
-            <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-              <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Populaire Genres</h3>
-              <div class="p-6 space-y-4">
-                {#each stats.top_genres as genre}
-                  <div class="space-y-1">
-                    <div class="flex justify-between text-sm font-bold">
-                      <span>{genre.genre}</span>
-                      <span class="text-spotify-lightgray">{genre.count}</span>
-                    </div>
-                    <div class="w-full bg-spotify-dark rounded-full h-2">
-                      <div class="bg-spotify-green h-2 rounded-full" style="width: {stats.top_genres.length > 0 ? (genre.count / stats.top_genres[0].count) * 100 : 0}%"></div>
-                    </div>
-                  </div>
-                {/each}
-              </div>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Fun Stats -->
-            <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 space-y-4">
-              <h3 class="text-xl font-bold">Leuke Weetjes</h3>
-              <div class="space-y-4">
-                <div class="flex justify-between items-center">
-                  <span class="text-spotify-lightgray">Gem. Track Lengte</span>
-                  <span class="font-bold">{Math.floor(stats.avg_track_duration / 60)}:{Math.floor(stats.avg_track_duration % 60).toString().padStart(2, '0')}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-spotify-lightgray">Albums in collectie</span>
-                  <span class="font-bold">{stats.total_albums || 'Onbekend'}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-spotify-lightgray">Unmatched Scrobbles</span>
-                  <span class="font-bold text-yellow-500">{stats.total_unmatched}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Recently Added -->
-            <div class="lg:col-span-2 bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-              <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Nieuw in Bibliotheek</h3>
-              <table class="w-full text-left">
-                <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-                  {#each stats.recently_added as track}
-                    <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
-                      <td class="p-4">
-                        <div class="font-bold">{track.title}</div>
-                        <div class="text-xs text-spotify-lightgray">{track.artist}</div>
-                      </td>
-                      <td class="p-4 text-right text-xs text-spotify-lightgray">
-                        {new Date(track.created_at).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
+      <!-- Notifications -->
+      {#if message}
+        <div class="bg-spotify-green text-black p-4 rounded-md mb-6 font-bold flex justify-between items-center animate-in slide-in-from-top-4 duration-300">
+          {message}
+          <button on:click={() => message = ''}>&times;</button>
+        </div>
       {/if}
-    {/if}
-  </main>
-
-  <!-- Playlist Editor Modal -->
-  {#if isPlaylistModalOpen}
-    <div class="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div class="bg-spotify-gray w-full max-w-2xl rounded-2xl border border-white border-opacity-10 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-        <header class="p-6 border-b border-white border-opacity-5 flex justify-between items-center">
-          <h3 class="text-2xl font-bold">{editingPlaylist ? 'Afspeellijst Bewerken' : 'Nieuwe Dynamic Playlist'}</h3>
-          <button on:click={() => isPlaylistModalOpen = false} class="text-spotify-lightgray hover:text-white text-3xl">&times;</button>
-        </header>
-        <div class="p-6 space-y-6">
-          <div>
-            <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Naam</label>
-            <input 
-              type="text" 
-              bind:value={playlistName}
-              placeholder="Bijv: Euphoric Hardstyle"
-              class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
-            />
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Parameters (JSON)</label>
-            <textarea 
-              bind:value={playlistParams}
-              rows="8"
-              placeholder={ '{"genre":["Hardstyle"], "size":50}' }
-              class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 font-mono text-sm focus:outline-none focus:border-spotify-green transition-colors"
-            ></textarea>
-          </div>
+      
+      {#if error}
+        <div class="bg-red-600 text-white p-4 rounded-md mb-6 font-bold flex justify-between items-center">
+          {error}
+          <button on:click={() => error = ''}>&times;</button>
         </div>
-        <footer class="p-6 bg-black bg-opacity-20 flex justify-end gap-4">
-          <button 
-            on:click={() => isPlaylistModalOpen = false}
-            class="px-6 py-2 text-white font-bold hover:underline"
-          >
-            ANNULEREN
-          </button>
-          <button 
-            on:click={savePlaylist}
-            class="bg-spotify-green text-black font-extrabold px-8 py-2 rounded-full hover:scale-105 transition-transform"
-          >
-            OPSLAAN
-          </button>
-        </footer>
-      </div>
-    </div>
-  {/if}
+      {/if}
 
-  <!-- Playlist Tracks Modal -->
-  {#if isPlaylistTracksModalOpen}
-    <div class="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div class="bg-spotify-gray w-full max-w-4xl h-[80vh] rounded-2xl border border-white border-opacity-10 shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
-        <header class="p-6 border-b border-white border-opacity-5 flex justify-between items-center">
-          <div>
-            <h3 class="text-2xl font-bold">Tracks in {viewingPlaylist?.name}</h3>
-            <p class="text-spotify-lightgray text-sm">Preview van tracks gebaseerd op de dynamic rules.</p>
-          </div>
-          <button on:click={() => isPlaylistTracksModalOpen = false} class="text-spotify-lightgray hover:text-white text-3xl">&times;</button>
-        </header>
-        <div class="flex-1 overflow-y-auto">
-          <table class="w-full text-left">
-            <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray sticky top-0">
-              <tr>
-                <th class="p-4">Titel</th>
-                <th class="p-4">Artiest</th>
-                <th class="p-4">Genre</th>
-                <th class="p-4 text-right">Datum</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-              {#each playlistTracks as track}
-                <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
-                  <td class="p-4 font-bold">{track.title}</td>
-                  <td class="p-4 text-spotify-lightgray">{track.artist}</td>
-                  <td class="p-4 italic text-sm">{track.genre || '-'}</td>
-                  <td class="p-4 text-right text-spotify-lightgray text-xs">
-                    {new Date(track.created_at).toLocaleDateString()}
-                  </td>
-                </tr>
-              {/each}
-              {#if playlistTracks.length === 0}
-                <tr>
-                  <td colspan="4" class="p-20 text-center text-spotify-lightgray italic">
-                    Geen tracks gevonden die voldoen aan deze criteria.
-                  </td>
-                </tr>
-              {/if}
-            </tbody>
-          </table>
+      {#if loading}
+        <div class="flex items-center justify-center h-full">
+          <RefreshCw class="animate-spin text-spotify-green" size={48} />
         </div>
-        <footer class="p-6 bg-black bg-opacity-20 flex justify-end">
-          <button 
-            on:click={() => isPlaylistTracksModalOpen = false}
-            class="bg-spotify-green text-black font-extrabold px-8 py-2 rounded-full hover:scale-105 transition-transform"
-          >
-            SLUITEN
-          </button>
-        </footer>
-      </div>
-    </div>
-  {/if}
-</div>
+      {:else}
+        {#if activeTab === 'home'}
+          <OverviewTab {containers} {activity} {config} {allNotes} {selectedServiceNotes} {notes} onNavigateToStats={() => activeTab = 'stats'} />
+        {:else if activeTab === 'stats'}
+          <StatsTab {stats} {fetchStats} {fetchArtistImages} />
+        {:else if activeTab === 'images'}
+          <ArtistImagesTab 
+            {API_BASE} bind:artistImageSearch 
+            {artistsWithImages} {allArtists} 
+            {fetchArtistImages} {manualFetchImage}
+            {fetchProgress} {imageStats}
+            {searchArtistImages}
+          />
+        {:else if activeTab === 'playlists'}
+          <PlaylistsTab 
+            {API_BASE} {apiKey} {users} {playlists} {selectedUser} 
+            getHeaders={getHeaders} {fetchPlaylists} 
+            onSelectUser={selectUser} 
+            onMessage={(m) => message = m} 
+            onError={(e) => error = e} 
+          />
+        {:else if activeTab === 'tagger'}
+          <TaggerTab 
+            {API_BASE} getHeaders={getHeaders} 
+            bind:artistSearch bind:labelSearch 
+            {artists} {labels} {rules} {artistGenreRules} {labelGenreRules} 
+            {fetchRules} {searchArtists} {searchLabels} 
+            onMessage={(m) => message = m} 
+            onError={(e) => error = e} 
+          />
+        {:else if activeTab === 'downloaders'}
+          <DownloadersTab 
+            {API_BASE} getHeaders={getHeaders} 
+            {accounts} {youtubeAccounts} 
+            onMessage={(m) => message = m} 
+            onError={(e) => error = e} 
+            refreshDownloaders={fetchData} 
+          />
+        {:else if activeTab === 'scrobble'}
+          <ScrobbleTab 
+            {API_BASE} getHeaders={getHeaders} 
+            {users} {latestImports} 
+            bind:importMumaUser bind:importLbUser {isImporting} {lbUsername} 
+            onMessage={(m) => message = m} 
+            onError={(e) => error = e} 
+            onSelectUser={selectUser} 
+            fetchLatestImports={fetchLatestImports} 
+          />
+        {:else if activeTab === 'health'}
+          <HealthTab {containers} {activity} {API_BASE} getHeaders={getHeaders} {refreshSystemStatus} />
+        {:else if activeTab === 'users'}
+          <UsersTab 
+            {users} {selectedUser} {API_BASE} getHeaders={getHeaders} {fetchUsers} 
+            onMessage={(m) => message = m} 
+            onError={(e) => error = e} 
+            onSelectUser={selectUser} 
+            navigateToScrobbleImport={navigateToScrobbleImport} 
+          />
+        {:else if activeTab === 'versions'}
+          <WorkerVersionsTab {versions} />
+        {:else if activeTab === 'about'}
+          <AboutTab {API_BASE} {apiKey} />
+        {/if}
+      {/if}
+    </main>
+  </div>
 {/if}
 
 <style>
-  /* Scrollbar styling */
-  :global(::-webkit-scrollbar) {
-    width: 12px;
+  :global(:root) {
+    --spotify-green: #1DB954;
+    --spotify-dark: #121212;
+    --spotify-gray: #282828;
+    --spotify-lightgray: #b3b3b3;
   }
-  :global(::-webkit-scrollbar-track) {
+
+  :global(body) {
+    background-color: var(--spotify-dark);
+  }
+
+  /* Custom scrollbar for sidebar */
+  :global(.scrollbar-thin::-webkit-scrollbar) {
+    width: 6px;
+  }
+  :global(.scrollbar-thin::-webkit-scrollbar-track) {
     background: transparent;
   }
-  :global(::-webkit-scrollbar-thumb) {
-    background: #5a5a5a;
-    border-radius: 6px;
-    border: 3px solid #121212;
+  :global(.scrollbar-thin::-webkit-scrollbar-thumb) {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
   }
-  :global(::-webkit-scrollbar-thumb:hover) {
-    background: #888;
+  :global(.scrollbar-thin::-webkit-scrollbar-thumb:hover) {
+    background: rgba(255, 255, 255, 0.2);
   }
 </style>

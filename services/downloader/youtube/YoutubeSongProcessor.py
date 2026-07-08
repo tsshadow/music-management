@@ -35,7 +35,8 @@ class YoutubeSongProcessor(PostProcessor):
         else:
             logging.info(f'Track already in downloads_youtube_archive: {account}/{video_id} — skipping insert.')
         tagger_service = TaggerService()
-        info.title = corrected_title
+        if corrected_title:
+            info['title'] = corrected_title
         tagger_service.tag("youtube", path, info)
         # if corrected_title:
         #     try:

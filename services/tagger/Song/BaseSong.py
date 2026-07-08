@@ -14,6 +14,7 @@ from services.common.settings import Settings
 from services.tagger.Song.Tag import Tag
 from services.tagger.Song.TagCollection import TagCollection
 from services.tagger.Song.rules.AnalyzeBpmRule import AnalyzeBpmRule
+from services.tagger.Song.rules.CleanTitleRule import CleanTitleRule
 from services.tagger.Song.rules.NormalizeFlacTagsRule import NormalizeFlacTagsRule
 from services.tagger.Song.rules.TagRule import TagRule
 from services.tagger.constants import MusicFileType, ARTIST_REGEX, GENRE, FLACTags, ARTIST, TRACK_NUMBER, TITLE, DATE, \
@@ -83,6 +84,7 @@ class BaseSong:
             self._apply_extra_info(extra_info)
         if self.type == MusicFileType.FLAC:
             NormalizeFlacTagsRule().apply(self)
+        self.rules.append(CleanTitleRule())
         if analyze_bpm:
             self.rules.append(AnalyzeBpmRule())
 

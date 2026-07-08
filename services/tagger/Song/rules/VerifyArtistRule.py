@@ -77,7 +77,7 @@ class VerifyArtistRule(TagRule):
                 self.artist_db.add(artist)
             logger.info("Added artist '%s' from external lookup", artist)
             return TagResult(artist, TagResultType.VALID)
-        if artist.lower() in {'unknown artist', 'various library_artists'}:
+        if artist.lower() in {'unknown artist', 'various artists'}:
             tag_item.remove(artist)
             return TagResult(artist, TagResultType.IGNORED)
         cleaned, changed, invalid = self._heuristic_check(artist)

@@ -22,6 +22,11 @@
 
 #include <Wt/WResource.h>
 
+namespace boost::asio
+{
+    class io_context;
+}
+
 namespace lms::db
 {
     class IDb;
@@ -29,5 +34,5 @@ namespace lms::db
 
 namespace lms::api::subsonic
 {
-    std::unique_ptr<Wt::WResource> createSubsonicResource(db::IDb& db);
+    std::unique_ptr<Wt::WResource> createSubsonicResource(boost::asio::io_context& ioContext, db::IDb& db);
 } // namespace lms::api::subsonic

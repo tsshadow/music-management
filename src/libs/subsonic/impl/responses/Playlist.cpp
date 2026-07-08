@@ -52,7 +52,7 @@ namespace lms::api::subsonic
         {
             if (const auto artwork{ db::Artwork::find(context.getDbSession(), artworkId) })
             {
-                CoverArtId coverArtId{ artwork->getId(), artwork->getLastWrittenTime().toTime_t() };
+                CoverArtId coverArtId{ .id = artwork->getId(), .timestamp = artwork->getLastWrittenTime().toTime_t() };
                 playlistNode.setAttribute("coverArt", idToString(coverArtId));
             }
         }

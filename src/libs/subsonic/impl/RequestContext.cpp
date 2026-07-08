@@ -43,9 +43,10 @@ namespace lms::api::subsonic
         }
     } // namespace
 
-    RequestContext::RequestContext(const Wt::Http::Request& request, db::Session& dbSession, const SubsonicResourceConfig& config)
+    RequestContext::RequestContext(const Wt::Http::Request& request, db::Session& dbSession, const SubsonicResourceConfig& config, boost::asio::io_context& ioContext)
         : _request{ request }
         , _dbSession{ dbSession }
+        , _ioContext{ ioContext }
         , _config{ config }
         , _clientName{ getMandatoryParameterAs<std::string>(_request.getParameterMap(), "c") }
         , _clientProtocolVersion{ getMandatoryParameterAs<ProtocolVersion>(_request.getParameterMap(), "v") }
@@ -106,5 +107,10 @@ namespace lms::api::subsonic
     bool RequestContext::isOpenSubsonicEnabled() const
     {
         return _isOpenSubsonicEnabled;
+    }
+
+    boost::asio::io_context& RequestContext::getIoContext() const
+    {
+        return _ioContext;
     }
 } // namespace lms::api::subsonic

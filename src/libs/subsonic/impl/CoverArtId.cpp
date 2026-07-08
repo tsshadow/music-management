@@ -40,8 +40,16 @@ namespace lms::api::subsonic
     {
         std::string res;
 
-        // produce "art-id-timestamp"
-        res = idToString(coverId.id);
+        if (!coverId.mumaArtistName.empty())
+        {
+            res = "muma-" + core::stringUtils::toHexString(coverId.mumaArtistName);
+        }
+        else
+        {
+            // produce "art-id-timestamp"
+            res = idToString(coverId.id);
+        }
+
         res += timestampSeparatorChar;
         res += std::to_string(coverId.timestamp);
 
@@ -60,19 +68,30 @@ namespace lms::core::stringUtils
 
         std::vector<std::string_view> values{ core::stringUtils::splitString(str, '-') };
 
-        // expect "art-id-timestamp"
+        // expect "art-id-timestamp" or "muma-hexname-timestamp"
         if (values.size() != 3)
             return res;
 
-        if (values[0] != "art")
-            return res;
-
-        const auto value{ core::stringUtils::readAs<db::ArtworkId::ValueType>(values[1]) };
         const auto timestamp{ core::stringUtils::readAs<std::time_t>(values[2]) };
-        if (!value || !timestamp)
+        if (!timestamp)
             return std::nullopt;
 
-        res.emplace(api::subsonic::CoverArtId{ *value, *timestamp });
+        if (values[0] == "art")
+        {
+            const auto value{ core::stringUtils::readAs<db::ArtworkId::ValueType>(values[1]) };
+            if (!value)
+                return std::nullopt;
+
+            res.emplace(api::subsonic::CoverArtId{ .id = *value, .timestamp = *timestamp });
+        }
+        else if (values[0] == "muma")
+        {
+            const auto artistName{ core::stringUtils::stringFromHex(values[1]) };
+            if (!artistName)
+                return std::nullopt;
+
+            res.emplace(api::subsonic::CoverArtId{ .mumaArtistName = *artistName, .timestamp = *timestamp });
+        }
 
         return res;
     }

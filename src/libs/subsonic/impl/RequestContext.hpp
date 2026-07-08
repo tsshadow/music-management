@@ -31,6 +31,11 @@
 #include "ResponseFormat.hpp"
 #include "SubsonicResourceConfig.hpp"
 
+namespace boost::asio
+{
+    class io_context;
+}
+
 namespace lms::db
 {
     class Session;
@@ -42,7 +47,7 @@ namespace lms::api::subsonic
     class RequestContext
     {
     public:
-        RequestContext(const Wt::Http::Request& request, db::Session& dbSession, const SubsonicResourceConfig& config);
+        RequestContext(const Wt::Http::Request& request, db::Session& dbSession, const SubsonicResourceConfig& config, boost::asio::io_context& ioContext);
         ~RequestContext();
         RequestContext(const RequestContext&) = delete;
         RequestContext& operator=(const RequestContext&) = delete;
@@ -64,9 +69,12 @@ namespace lms::api::subsonic
         ResponseFormat getResponseFormat() const;
         bool isOpenSubsonicEnabled() const;
 
+        boost::asio::io_context& getIoContext() const;
+
     private:
         const Wt::Http::Request& _request;
         db::Session& _dbSession;
+        boost::asio::io_context& _ioContext;
         db::ObjectPtr<db::User> _user;
         const SubsonicResourceConfig& _config;
 

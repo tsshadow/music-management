@@ -94,7 +94,7 @@ namespace lms::api::subsonic
 
         if (const auto artwork{ release->getPreferredArtwork() })
         {
-            CoverArtId coverArtId{ artwork->getId(), artwork->getLastWrittenTime().toTime_t() };
+            CoverArtId coverArtId{ .id = artwork->getId(), .timestamp = artwork->getLastWrittenTime().toTime_t() };
             albumNode.setAttribute("coverArt", idToString(coverArtId));
         }
 

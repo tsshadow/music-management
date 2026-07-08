@@ -29,7 +29,8 @@ namespace lms::api::subsonic
     struct CoverArtId
     {
         db::ArtworkId id;
-        std::time_t timestamp;
+        std::string mumaArtistName{};
+        std::time_t timestamp{};
     };
 
     std::string idToString(CoverArtId coverId);

@@ -21,11 +21,17 @@
 
 #include <algorithm>
 #include <chrono>
+#include <future>
+
+#include <Wt/Utils.h>
 
 #include "core/FileResourceHandlerCreator.hpp"
+#include "core/IConfig.hpp"
 #include "core/ILogger.hpp"
 #include "core/IResourceHandler.hpp"
 #include "core/String.hpp"
+#include "core/http/ClientRequestParameters.hpp"
+#include "core/http/IClient.hpp"
 #include "core/media/Codec.hpp"
 #include "core/media/MimeType.hpp"
 
@@ -365,15 +371,108 @@ namespace lms::api::subsonic
         if (size)
             *size = std::clamp(*size, std::size_t{ 32 }, std::size_t{ 2048 });
 
-        std::shared_ptr<image::IEncodedImage> image{ core::Service<artwork::IArtworkService>::get()->getImage(coverArtId.id, size) };
-        if (!image)
+        if (!coverArtId.mumaArtistName.empty())
         {
-            response.setStatus(404);
-            return;
-        }
+            std::string mumaApiUrl = std::string{ core::Service<core::IConfig>::get()->getString("music-management-url", "") };
+            if (mumaApiUrl.empty())
+            {
+                std::string apiUrl = std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-url", "") };
+                size_t pos = apiUrl.find("/api/");
+                if (pos != std::string::npos)
+                    mumaApiUrl = apiUrl.substr(0, pos);
+                else
+                    mumaApiUrl = apiUrl;
+            }
 
-        response.out().write(reinterpret_cast<const char*>(image->getData().data()), image->getData().size());
-        response.setMimeType(std::string{ image->getMimeType() });
+            if (!mumaApiUrl.empty() && mumaApiUrl.back() == '/')
+                mumaApiUrl.pop_back();
+
+            if (mumaApiUrl.empty())
+            {
+                response.setStatus(500);
+                response.out() << "Music Management not configured";
+                return;
+            }
+
+            std::string mumaApiKey = std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-key", "") };
+            auto httpClient = core::http::createClient(context.getIoContext(), mumaApiUrl);
+
+            std::string encodedName = Wt::Utils::urlEncode(coverArtId.mumaArtistName);
+            for (size_t i = 0; i < encodedName.length(); ++i)
+            {
+                if (encodedName[i] == '+')
+                {
+                    encodedName.replace(i, 1, "%20");
+                }
+            }
+            std::string relativeUrl = "/api/artists/" + encodedName + "/image";
+
+            struct ProxyResult
+            {
+                int status;
+                std::string contentType;
+                std::vector<std::byte> data;
+            };
+            auto resultPromise = std::make_shared<std::promise<ProxyResult>>();
+            auto resultFuture = resultPromise->get_future();
+
+            core::http::ClientGETRequestParameters getParams;
+            getParams.relativeUrl = relativeUrl;
+            if (!mumaApiKey.empty())
+                getParams.headers.push_back(Wt::Http::Message::Header("X-API-Key", mumaApiKey));
+
+            getParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
+                ProxyResult res;
+                res.status = msg.status();
+                if (const std::string* contentType = msg.getHeader("Content-Type"))
+                    res.contentType = *contentType;
+                const std::string& body = msg.body();
+                res.data.resize(body.size());
+                std::memcpy(res.data.data(), body.data(), body.size());
+                resultPromise->set_value(std::move(res));
+            };
+            getParams.onFailureFunc = [resultPromise]() {
+                ProxyResult res;
+                res.status = 502; // Bad Gateway
+                resultPromise->set_value(std::move(res));
+            };
+
+            httpClient->sendGETRequest(std::move(getParams));
+
+            if (resultFuture.wait_for(std::chrono::seconds(10)) == std::future_status::ready)
+            {
+                ProxyResult res = resultFuture.get();
+                response.setStatus(res.status);
+                if (res.status == 200)
+                {
+                    response.setMimeType(res.contentType);
+                    response.out().write(reinterpret_cast<const char*>(res.data.data()), res.data.size());
+                }
+                else
+                {
+                    LMS_LOG(API_SUBSONIC, WARNING, "handleGetCoverArt: MuMa returned status " << res.status << " for artist '" << coverArtId.mumaArtistName << "'");
+                    response.out() << "MuMa returned error: " << res.status;
+                }
+            }
+            else
+            {
+                LMS_LOG(API_SUBSONIC, ERROR, "handleGetCoverArt: Timeout waiting for MuMa response for artist '" << coverArtId.mumaArtistName << "'");
+                response.setStatus(504); // Gateway Timeout
+                response.out() << "Timeout waiting for MuMa";
+            }
+        }
+        else
+        {
+            std::shared_ptr<image::IEncodedImage> image{ core::Service<artwork::IArtworkService>::get()->getImage(coverArtId.id, size) };
+            if (!image)
+            {
+                response.setStatus(404);
+                return;
+            }
+
+            response.out().write(reinterpret_cast<const char*>(image->getData().data()), image->getData().size());
+            response.setMimeType(std::string{ image->getMimeType() });
+        }
     }
 
 } // namespace lms::api::subsonic

@@ -34,7 +34,7 @@ namespace lms::api::subsonic
         discTitleNode.setAttribute("title", medium->getName());
         if (const auto artwork{ medium->getPreferredArtwork() })
         {
-            CoverArtId coverArtId{ artwork->getId(), artwork->getLastWrittenTime().toTime_t() };
+            CoverArtId coverArtId{ .id = artwork->getId(), .timestamp = artwork->getLastWrittenTime().toTime_t() };
             discTitleNode.setAttribute("coverArt", idToString(coverArtId));
         }
 

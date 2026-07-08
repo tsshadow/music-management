@@ -19,6 +19,7 @@
 
 #include "responses/Artist.hpp"
 
+#include "core/IConfig.hpp"
 #include "core/ITraceLogger.hpp"
 #include "core/Service.hpp"
 #include "core/String.hpp"
@@ -74,7 +75,12 @@ namespace lms::api::subsonic
 
         if (const auto artwork{ artist->getPreferredArtwork() })
         {
-            CoverArtId coverArtId{ artwork->getId(), artwork->getLastWrittenTime().toTime_t() };
+            CoverArtId coverArtId{ .id = artwork->getId(), .timestamp = artwork->getLastWrittenTime().toTime_t() };
+            artistNode.setAttribute("coverArt", idToString(coverArtId));
+        }
+        else if (core::Service<core::IConfig>::get()->getString("music-management-url", "") != "")
+        {
+            CoverArtId coverArtId{ .mumaArtistName = std::string{ artist->getName() }, .timestamp = 0 };
             artistNode.setAttribute("coverArt", idToString(coverArtId));
         }
 

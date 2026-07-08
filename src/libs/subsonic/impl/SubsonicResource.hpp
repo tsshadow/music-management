@@ -31,6 +31,11 @@
 
 #include "SubsonicResourceConfig.hpp"
 
+namespace boost::asio
+{
+    class io_context;
+}
+
 namespace lms::db
 {
     class IDb;
@@ -43,7 +48,7 @@ namespace lms::api::subsonic
     class SubsonicResource final : public Wt::WResource
     {
     public:
-        SubsonicResource(db::IDb& db);
+        SubsonicResource(boost::asio::io_context& ioContext, db::IDb& db);
 
     private:
         struct AuthCacheEntry
@@ -61,6 +66,7 @@ namespace lms::api::subsonic
 
         const SubsonicResourceConfig _config;
         db::IDb& _db;
+        boost::asio::io_context& _ioContext;
 
         std::mutex _authCacheMutex;
         std::unordered_map<std::string, AuthCacheEntry> _authCache;

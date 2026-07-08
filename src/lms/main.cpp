@@ -593,7 +593,7 @@ namespace lms
             // bind API resources
             if (config->getBool("api-subsonic", true))
             {
-                subsonicResource = api::subsonic::createSubsonicResource(*database);
+                subsonicResource = api::subsonic::createSubsonicResource(ioContext, *database);
                 server.addResource(subsonicResource.get(), "/rest");
             }
 

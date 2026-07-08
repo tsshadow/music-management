@@ -60,9 +60,9 @@
 
 namespace lms::api::subsonic
 {
-    std::unique_ptr<Wt::WResource> createSubsonicResource(db::IDb& db)
+    std::unique_ptr<Wt::WResource> createSubsonicResource(boost::asio::io_context& ioContext, db::IDb& db)
     {
-        return std::make_unique<SubsonicResource>(db);
+        return std::make_unique<SubsonicResource>(ioContext, db);
     }
 
     namespace
@@ -301,9 +301,10 @@ namespace lms::api::subsonic
         }
     } // namespace
 
-    SubsonicResource::SubsonicResource(db::IDb& db)
+    SubsonicResource::SubsonicResource(boost::asio::io_context& ioContext, db::IDb& db)
         : _config{ readSubsonicResourceConfig(*core::Service<core::IConfig>::get()) }
         , _db{ db }
+        , _ioContext{ ioContext }
     {
     }
 
@@ -365,7 +366,7 @@ namespace lms::api::subsonic
 
         try
         {
-            RequestContext requestContext{ request, _db.getTLSSession(), _config };
+            RequestContext requestContext{ request, _db.getTLSSession(), _config, _ioContext };
 
             // Media retrieval endpoints are always authenticated but we don't reauth user for a continuation
             db::User::pointer user;
@@ -421,7 +422,7 @@ namespace lms::api::subsonic
         std::optional<RequestContext> requestContext;
         try
         {
-            requestContext.emplace(request, _db.getTLSSession(), _config);
+            requestContext.emplace(request, _db.getTLSSession(), _config, _ioContext);
         }
         catch (const Error& e)
         {

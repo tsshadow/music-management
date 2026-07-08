@@ -133,7 +133,7 @@ namespace lms::api::subsonic
 
         if (artwork)
         {
-            CoverArtId coverArtId{ artwork->getId(), artwork->getLastWrittenTime().toTime_t() };
+            CoverArtId coverArtId{ .id = artwork->getId(), .timestamp = artwork->getLastWrittenTime().toTime_t() };
             trackResponse.setAttribute("coverArt", idToString(coverArtId));
         }
 

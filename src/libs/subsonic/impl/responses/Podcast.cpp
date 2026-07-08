@@ -71,7 +71,7 @@ namespace lms::api::subsonic
             episodeNode.setAttribute("bitrate", episode->getEnclosureLength() * 8 / std::chrono::duration_cast<std::chrono::milliseconds>(episode->getDuration()).count());
         if (const auto artwork{ episode->getArtwork() })
         {
-            CoverArtId coverArtId{ artwork->getId(), artwork->getLastWrittenTime().toTime_t() };
+            CoverArtId coverArtId{ .id = artwork->getId(), .timestamp = artwork->getLastWrittenTime().toTime_t() };
             episodeNode.setAttribute("coverArt", idToString(coverArtId));
         }
 
@@ -113,7 +113,7 @@ namespace lms::api::subsonic
 
         if (const auto artwork{ podcast->getArtwork() })
         {
-            CoverArtId coverArtId{ artwork->getId(), artwork->getLastWrittenTime().toTime_t() };
+            CoverArtId coverArtId{ .id = artwork->getId(), .timestamp = artwork->getLastWrittenTime().toTime_t() };
             podcastNode.setAttribute("coverArt", idToString(coverArtId));
         }
 

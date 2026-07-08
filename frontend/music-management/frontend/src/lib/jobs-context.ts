@@ -1,13 +1,13 @@
-import { writable, type Writable } from 'svelte/store';
-import { getContext, setContext } from 'svelte';
-import { jobs as jobsStore, upsert, type Job } from './jobs';
+import { writable, type Writable } from "svelte/store";
+import { getContext, setContext } from "svelte";
+import { jobs as jobsStore, upsert, type Job } from "./jobs";
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/api';
+const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 const WS_URL = API_BASE
-  ? API_BASE.replace(/^http/, 'ws').replace(/\/?api$/, '') + '/ws/jobs'
-  : typeof window !== 'undefined'
-    ? window.location.origin.replace(/^http/, 'ws') + '/ws/jobs'
-    : '';
+  ? API_BASE.replace(/^http/, "ws").replace(/\/?api$/, "") + "/ws/jobs"
+  : typeof window !== "undefined"
+    ? window.location.origin.replace(/^http/, "ws") + "/ws/jobs"
+    : "";
 
 export class JobsContext {
   steps: Writable<string[]> = writable([]);
@@ -18,7 +18,7 @@ export class JobsContext {
   });
 
   constructor() {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       this.loadSteps();
       this.loadJobs();
       this.loadAccounts();
@@ -41,7 +41,7 @@ export class JobsContext {
       const res = await fetch(`${API_BASE}/jobs`);
       const data = await res.json();
       (data.jobs ?? [])
-        .filter((j: Job) => ['queued', 'running'].includes(j.status))
+        .filter((j: Job) => ["queued", "running"].includes(j.status))
         .forEach(upsert);
     } catch {
       // ignore errors
@@ -64,11 +64,11 @@ export class JobsContext {
   }
 
   setupWebSocket() {
-    if (typeof WebSocket === 'undefined') return;
+    if (typeof WebSocket === "undefined") return;
     const connect = () => {
       try {
         const ws = new WebSocket(WS_URL);
-        ws.onmessage = ev => {
+        ws.onmessage = (ev) => {
           const update = JSON.parse(ev.data);
           upsert(update);
         };
@@ -79,7 +79,7 @@ export class JobsContext {
           ws.close();
         };
       } catch {
-      console.log('reconnecting...')
+        console.log("reconnecting...");
         setTimeout(connect, 1000);
       }
     };
@@ -89,8 +89,8 @@ export class JobsContext {
   async start(step: string, options: Record<string, unknown> = {}) {
     try {
       const res = await fetch(`${API_BASE}/run/${step}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(options),
       });
       const job = await res.json();
@@ -103,7 +103,7 @@ export class JobsContext {
 
   async stop(jobId: string) {
     try {
-      await fetch(`${API_BASE}/job/${jobId}/stop`, { method: 'POST' });
+      await fetch(`${API_BASE}/job/${jobId}/stop`, { method: "POST" });
     } catch {
       // ignore
     }
@@ -119,7 +119,7 @@ export class JobsContext {
   }
 }
 
-const key = Symbol('JobsContext');
+const key = Symbol("JobsContext");
 
 export function initializeJobsContext() {
   setContext(key, new JobsContext());

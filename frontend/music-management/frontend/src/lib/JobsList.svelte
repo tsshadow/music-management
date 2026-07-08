@@ -1,12 +1,13 @@
-<script>
+<script lang="ts">
 import { onMount, onDestroy } from 'svelte';
 import { getJobsContext } from '$lib/jobs-context';
+import type { Job } from './jobs';
 
 const { jobs, stop, get } = getJobsContext();
-let selected = null;
-let selectedId = null;
+let selected: Job | null = null;
+let selectedId: string | null = null;
 let now = Date.now();
-let logInterval;
+const poll: { interval: ReturnType<typeof setInterval> | undefined } = { interval: undefined };
 
 onMount(() => {
   const interval = setInterval(() => {
@@ -15,22 +16,31 @@ onMount(() => {
   return () => clearInterval(interval);
 });
 
-$: {
-  clearInterval(logInterval);
-  if (selectedId && (!selected || !selected.ended)) {
-    logInterval = setInterval(async () => {
-      const id = selectedId;
+function updatePolling(id: string | null) {
+  if (poll.interval) clearInterval(poll.interval);
+  poll.interval = undefined;
+  if (id) {
+    poll.interval = setInterval(async () => {
+      if (selectedId !== id) return;
       const job = await get(id);
-      if (selectedId === id) {
+      if (selectedId === job?.id) {
         selected = job;
+        if (job?.ended && poll.interval) {
+          clearInterval(poll.interval);
+          poll.interval = undefined;
+        }
       }
     }, 1000);
   }
 }
 
-onDestroy(() => clearInterval(logInterval));
+$: updatePolling(selectedId);
 
-function duration(job) {
+onDestroy(() => {
+  if (poll.interval) clearInterval(poll.interval);
+});
+
+function duration(job: Job) {
   if (!job.started) return '-';
   const start = new Date(job.started).getTime();
   const end = job.ended ? new Date(job.ended).getTime() : now;
@@ -40,7 +50,7 @@ function duration(job) {
   return `${minutes}m ${secs}s`;
 }
 
-async function select(id) {
+async function select(id: string) {
   if (selectedId === id) {
     selectedId = null;
     selected = null;
@@ -57,7 +67,7 @@ async function select(id) {
 <div class="space-y-4 rounded border border-green-700/40 bg-black/60 p-4">
   <h2 class="text-xl font-bold text-green-400">Running Jobs</h2>
   <ul class="space-y-2">
-    {#each $jobs as job}
+    {#each $jobs as job (job.id)}
       <li class="rounded border border-green-700/40 bg-gray-900/60 p-2">
         <button
           class="mb-2 rounded bg-blue-600 px-2 py-1 text-sm font-bold text-white hover:bg-blue-500"

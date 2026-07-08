@@ -1,24 +1,28 @@
-import { describe, it, expect, vi } from 'vitest';
-import { JobsContext } from './jobs-context';
+import { describe, it, expect, vi } from "vitest";
+import { JobsContext } from "./jobs-context";
 
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
   onclose: (() => void) | null = null;
   onmessage: ((ev: { data: string }) => void) | null = null;
-  constructor(_url: string) {
+  constructor() {
     MockWebSocket.instances.push(this);
   }
   close() {
-    this.onclose && this.onclose();
+    this.onclose?.();
   }
 }
 
-describe('JobsContext websocket', () => {
-  it('reconnects after close', () => {
+describe("JobsContext websocket", () => {
+  it("reconnects after close", () => {
     vi.useFakeTimers();
     // mock fetch for constructor's calls
-    globalThis.fetch = vi.fn().mockResolvedValue({ json: async () => ({ steps: [], jobs: [] }) }) as any;
-    (globalThis as any).WebSocket = MockWebSocket as any;
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      json: async () => ({ steps: [], jobs: [] }),
+    }) as unknown as typeof fetch;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).WebSocket = MockWebSocket;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (globalThis as any).window = {};
 
     new JobsContext();

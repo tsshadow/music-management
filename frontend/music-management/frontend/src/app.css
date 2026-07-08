@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 body {
   @apply bg-black text-gray-100 font-mono;

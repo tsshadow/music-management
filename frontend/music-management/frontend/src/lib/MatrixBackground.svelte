@@ -1,9 +1,10 @@
-<script>
+<script lang="ts">
 import { onMount } from 'svelte';
-let canvas;
+let canvas: HTMLCanvasElement;
 
 onMount(() => {
   const ctx = canvas.getContext('2d');
+  if (!ctx) return;
   function resize() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -17,6 +18,7 @@ onMount(() => {
   const letters = '0123456789ABCDEF';
 
   function draw() {
+    if (!ctx) return;
     ctx.fillStyle = 'rgba(0,0,0,0.05)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#0f0';

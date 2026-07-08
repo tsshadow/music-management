@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 import { createEventDispatcher, onDestroy } from 'svelte';
 import { getJobsContext } from '$lib/jobs-context';
 
@@ -9,14 +9,14 @@ let repeatInterval = 0;
 let breakOnExisting = false;
 let redownload = false;
 let youtubeUrl = '';
-let availableAccounts = [];
+let availableAccounts: string[] = [];
 let selectedAccount = '';
-let accountType = '';
-let accountOptions = { soundcloud: [], youtube: [] };
-let selectedAccounts = { soundcloud: '', youtube: '' };
+let accountType: string = '';
+let accountOptions: { soundcloud: string[]; youtube: string[] } = { soundcloud: [], youtube: [] };
+let selectedAccounts: Record<string, string> = { soundcloud: '', youtube: '' };
 const breakOnExistingSteps = ['download', 'download-soundcloud', 'download-youtube'];
 const redownloadSteps = ['download', 'download-soundcloud', 'download-youtube'];
-const accountStepMap = {
+const accountStepMap: Record<string, string> = {
   'download-soundcloud': 'soundcloud',
   'download-youtube': 'youtube',
 };
@@ -43,15 +43,16 @@ $: if (!redownloadSteps.includes(selected)) {
 }
 
 $: accountType = accountStepMap[selected] ?? '';
-$: availableAccounts = accountType ? accountOptions[accountType] ?? [] : [];
+$: availableAccounts = accountType ? (accountOptions as Record<string, string[]>)[accountType] ?? [] : [];
 $: selectedAccount = accountType ? selectedAccounts[accountType] ?? '' : '';
 $: if (accountType && selectedAccount && !availableAccounts.includes(selectedAccount)) {
   selectedAccount = '';
   selectedAccounts = { ...selectedAccounts, [accountType]: '' };
 }
 
-function onAccountChange(event) {
-  const value = event.target.value;
+function onAccountChange(event: Event) {
+  const target = event.target as HTMLSelectElement;
+  const value = target.value;
   if (accountType) {
     selectedAccounts = { ...selectedAccounts, [accountType]: value };
     selectedAccount = value;
@@ -60,7 +61,7 @@ function onAccountChange(event) {
 
 async function startSelected() {
   if (!selected) return;
-  const options = {};
+  const options: Record<string, unknown> = {};
   if (repeat) {
     options.repeat = true;
     if (repeatInterval > 0) options.interval = repeatInterval;
@@ -84,7 +85,7 @@ async function startSelected() {
     class="rounded border border-green-700 bg-gray-900 p-2 text-green-400"
     bind:value={selected}
   >
-    {#each $steps as step}
+    {#each $steps as step (step)}
       <option value={step}>{step}</option>
     {/each}
   </select>
@@ -141,7 +142,7 @@ async function startSelected() {
         on:change={onAccountChange}
       >
         <option value="">All accounts</option>
-        {#each availableAccounts as account}
+        {#each availableAccounts as account (account)}
           <option value={account}>{account}</option>
         {/each}
       </select>

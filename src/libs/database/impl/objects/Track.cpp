@@ -136,8 +136,8 @@ namespace lms::db
 
             if (params.artist.isValid() || !params.artistName.empty())
             {
-                query.join("artist a ON a.id = t_a_l.artist_id")
-                    .join("track_artist_link t_a_l ON t_a_l.track_id = t.id");
+                query.join("track_artist_link t_a_l ON t_a_l.track_id = t.id")
+                    .join("artist a ON a.id = t_a_l.artist_id");
 
                 if (params.artist.isValid())
                     query.where("a.id = ?").bind(params.artist);
@@ -683,6 +683,35 @@ namespace lms::db
             }
         }
 
+        if (params.artist.isValid() || !params.artistName.empty())
+        {
+            baseQuery += " JOIN track_artist_link t_a_l ON t_a_l.track_id = t.id";
+            if (params.artist.isValid())
+            {
+                baseQuery += " AND t_a_l.artist_id = ?";
+                ArtistId aid = params.artist;
+                bindFuncs.emplace_back([aid](auto& q) { q.bind(aid); });
+            }
+            if (!params.artistName.empty())
+            {
+                baseQuery += " JOIN artist a ON a.id = t_a_l.artist_id";
+            }
+
+            if (!params.trackArtistLinkTypes.empty())
+            {
+                baseQuery += " AND t_a_l.type IN (" + utils::createPlaceholders(params.trackArtistLinkTypes.size()) + ")";
+                for (TrackArtistLinkType type : params.trackArtistLinkTypes)
+                {
+                    bindFuncs.emplace_back([type](auto& q) { q.bind(type); });
+                }
+            }
+        }
+
+        if (!params.releaseName.empty())
+        {
+            baseQuery += " JOIN release r_f ON t.release_id = r_f.id";
+        }
+
         baseQuery += " WHERE 1=1";
         if (!params.allowedArtists.empty())
         {
@@ -762,6 +791,49 @@ namespace lms::db
         {
             baseQuery += " AND t.media_library_id = ?";
             bindFuncs.emplace_back([&params](auto& q) { q.bind(params.filters.mediaLibrary); });
+        }
+
+        if (!params.artistName.empty())
+        {
+            baseQuery += " AND a.name = ?";
+            std::string aname = params.artistName;
+            bindFuncs.emplace_back([aname](auto& q) { q.bind(aname); });
+        }
+        if (!params.releaseName.empty())
+        {
+            baseQuery += " AND r_f.name = ?";
+            std::string rname = params.releaseName;
+            bindFuncs.emplace_back([rname](auto& q) { q.bind(rname); });
+        }
+        if (params.release.isValid())
+        {
+            baseQuery += " AND t.release_id = ?";
+            ReleaseId rid = params.release;
+            bindFuncs.emplace_back([rid](auto& q) { q.bind(rid); });
+        }
+        if (params.nonRelease)
+        {
+            baseQuery += " AND t.release_id IS NULL";
+        }
+        if (!params.name.empty())
+        {
+            baseQuery += " AND t.name = ?";
+            std::string tname = params.name;
+            bindFuncs.emplace_back([tname](auto& q) { q.bind(tname); });
+        }
+
+        for (std::string_view keyword : params.keywords)
+        {
+            std::string escaped = "%" + utils::escapeForLikeKeyword(keyword) + "%";
+            baseQuery += " AND (LOWER(t.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "'"
+                         " OR EXISTS (SELECT 1 FROM track_artist_link t_a_l_k JOIN artist a_k ON a_k.id = t_a_l_k.artist_id WHERE t_a_l_k.track_id = t.id AND (LOWER(a_k.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' OR LOWER(a_k.sort_name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "'))"
+                         " OR EXISTS (SELECT 1 FROM release r_k WHERE r_k.id = t.release_id AND (LOWER(r_k.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' OR LOWER(r_k.sort_name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "')))";
+
+            for (int i = 0; i < 5; ++i)
+            {
+                std::string esc = escaped;
+                bindFuncs.emplace_back([esc](auto& q) { q.bind(esc); });
+            }
         }
 
         if (params.sortMethod != TrackSortMethod::None)

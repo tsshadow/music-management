@@ -247,10 +247,10 @@
                         >
                             <div class="mb-4">
                                 <img
-                                  src={similar.coverArt ? `/rest/getCoverArt?id=${similar.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+                                  src={getArtistImageUrl(similar, $authParams)}
                                   alt={similar.name}
                                   class="w-full aspect-square object-cover rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
-                                  onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
+                                  onerror={(e) => e.target.src = '/images/unknown-artist.svg'}
                                 />
                             </div>
                             <span class="block font-bold mb-1 whitespace-nowrap overflow-hidden text-ellipsis">{similar.name}</span>

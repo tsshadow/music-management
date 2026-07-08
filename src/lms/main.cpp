@@ -597,7 +597,7 @@ namespace lms
                 server.addResource(subsonicResource.get(), "/rest");
             }
 
-            mumaResource = std::make_unique<api::muma::MumaResource>(*database);
+            mumaResource = std::make_unique<api::muma::MumaResource>(ioContext, *database);
             server.addResource(mumaResource.get(), "/muma");
 
             spotifyResource = std::make_unique<SpotifyResource>(server.docRoot());

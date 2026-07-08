@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { authParams, viewMode, activeModal, activeView, deduplicateEnabled } from './store.js';
+  import { getArtistImageUrl } from './utils.js';
   import { deduplicateTracks } from './deduplicate.js';
   import TrackList from './TrackList.svelte';
   import ArtistList from './ArtistList.svelte';
@@ -58,12 +59,6 @@
     close();
   }
 
-  function getArtistImageUrl(artist, auth) {
-    if (artist.coverArt) {
-        return `/rest/getCoverArt?id=${artist.coverArt}&size=300&${auth}`;
-    }
-    return '/images/unknown-artist.svg';
-  }
 </script>
 
 <Modal title={titleText} onclose={close}>

@@ -507,74 +507,12 @@ namespace lms::api::subsonic
         auto onAuthSuccess{ [&](db::UserId userId) {
             std::lock_guard lock{ _authCacheMutex };
 
-            static int cleanupCounter = 0;
-            if (++cleanupCounter >= 100)
-            {
-                cleanupCounter = 0;
-                auto now{ std::chrono::steady_clock::now() };
-                for (auto it{ _authCache.begin() }; it != _authCache.end();)
-                {
-                    if (it->second.expiry <= now)
-                        it = _authCache.erase(it);
-                    else
-                        ++it;
-                }
-            }
-
             _authCache[cacheKey] = { userId, std::chrono::steady_clock::now() + std::chrono::minutes{ 5 } };
             return userId;
         } };
 
-        auto config = core::Service<core::IConfig>::get();
-        const std::string mumaApiKey{ config->getString("music-management-api-key", config->getString("api-key", "")) };
-        const std::string subsonicApiKey{ config->getString("subsonic-api-key", "") };
-
-        if (!xApiKeyHeader.empty())
-        {
-            if ((!mumaApiKey.empty() && xApiKeyHeader == mumaApiKey) ||
-                (!subsonicApiKey.empty() && xApiKeyHeader == subsonicApiKey))
-            {
-                db::Session& session{ _db.getTLSSession() };
-                auto transaction{ session.createReadTransaction() };
-                if (db::UserId adminId = db::User::findAdminUserId(session); adminId.isValid())
-                {
-                    LMS_LOG(API_SUBSONIC, INFO, "Authenticated as admin ID " << adminId.getValue() << " via X-API-Key header");
-                    return onAuthSuccess(adminId);
-                }
-                
-                // Fallback: any user if no admin found
-                if (auto user = session.getDboSession()->find<db::User>().limit(1).resultValue())
-                {
-                    LMS_LOG(API_SUBSONIC, WARNING, "No admin user found, authenticating as user ID " << user.id() << " via X-API-Key header");
-                    return onAuthSuccess(user.id());
-                }
-                
-                LMS_LOG(API_SUBSONIC, ERROR, "Master API Key matched but no users found in database!");
-            }
-        }
-
         if (apiKey)
         {
-            if ((!mumaApiKey.empty() && *apiKey == mumaApiKey) || (!subsonicApiKey.empty() && *apiKey == subsonicApiKey))
-            {
-                db::Session& session{ _db.getTLSSession() };
-                auto transaction{ session.createReadTransaction() };
-                if (db::UserId adminId = db::User::findAdminUserId(session); adminId.isValid())
-                {
-                    LMS_LOG(API_SUBSONIC, INFO, "Authenticated as admin ID " << adminId.getValue() << " via apiKey parameter");
-                    return onAuthSuccess(adminId);
-                }
-                
-                // Fallback: any user if no admin found
-                if (auto user = session.getDboSession()->find<db::User>().limit(1).resultValue())
-                {
-                    LMS_LOG(API_SUBSONIC, WARNING, "No admin user found, authenticating as user ID " << user.id() << " via apiKey parameter");
-                    return onAuthSuccess(user.id());
-                }
-
-                LMS_LOG(API_SUBSONIC, ERROR, "Master API Key matched but no users found in database!");
-            }
-
             const auto authResult{ core::Service<auth::IAuthTokenService>::get()->processAuthToken("subsonic", clientAddress, *apiKey) };
             if (authResult.state == auth::IAuthTokenService::AuthTokenProcessResult::State::Granted)
                 return onAuthSuccess(authResult.authTokenInfo->userId);
@@ -619,15 +557,6 @@ namespace lms::api::subsonic
 
                     if (passwordResult.state == auth::IPasswordService::CheckResult::State::Throttled)
                         throw LoginThrottledGenericError{};
-                }
-
-                // Fallback: check if the password is actually an API Key
-                const auto authResult{ core::Service<auth::IAuthTokenService>::get()->processAuthToken("subsonic", clientAddress, decodedPassword) };
-                if (authResult.state == auth::IAuthTokenService::AuthTokenProcessResult::State::Granted)
-                {
-                    const auto authenticatedUser{ getUserFromUserId(_db.getTLSSession(), authResult.authTokenInfo->userId) };
-                    if (authenticatedUser->getLoginName() == *user)
-                        return onAuthSuccess(authResult.authTokenInfo->userId);
                 }
             }
         }

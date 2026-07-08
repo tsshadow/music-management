@@ -34,6 +34,9 @@ export function getArtistImageUrl(artist, authParams) {
   if (artist && artist.coverArt) {
     return `/rest/getCoverArt?id=${artist.coverArt}&size=300&${authParams}`;
   }
+  if (artist && artist.name) {
+    return `/api/artists/${encodeURIComponent(artist.name)}/image?${authParams}`;
+  }
   if (artist && artist.id) {
     return `/media/artist-images/${artist.id}/primary.jpg`;
   }

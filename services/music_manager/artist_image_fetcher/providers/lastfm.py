@@ -46,14 +46,17 @@ class LastFmArtistImageProvider(ArtistImageProvider):
                     candidates.append({
                         'source': self.name,
                         'source_id': artist.get('mbid') or artist.get('name'),
+                        'name': artist.get('name'),
+                        'mbid': artist.get('mbid'),
                         'url': img.get('#text'),
-                        'width': None, # Last.fm doesn't provide width/height in getInfo
+                        'width': None, 
                         'height': None,
                         'confidence': 0,
                         'metadata': {
                             'artist_name': artist.get('name'),
                             'listeners': artist.get('stats', {}).get('listeners'),
-                            'playcount': artist.get('stats', {}).get('playcount')
+                            'playcount': artist.get('stats', {}).get('playcount'),
+                            'bio': artist.get('bio', {}).get('summary')
                         }
                     })
         except Exception as e:

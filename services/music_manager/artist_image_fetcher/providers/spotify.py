@@ -65,14 +65,18 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
                     candidates.append({
                         'source': self.name,
                         'source_id': artist.get('id'),
+                        'name': artist.get('name'),
                         'url': img.get('url'),
                         'width': img.get('width'),
                         'height': img.get('height'),
-                        'confidence': 0, # Will be calculated by matcher
+                        'confidence': 0, 
+                        'popularity': artist.get('popularity'),
+                        'genres': artist.get('genres'),
                         'metadata': {
                             'artist_name': artist.get('name'),
                             'popularity': artist.get('popularity'),
-                            'followers': artist.get('followers', {}).get('total')
+                            'followers': artist.get('followers', {}).get('total'),
+                            'genres': artist.get('genres')
                         }
                     })
         except Exception as e:

@@ -7,6 +7,15 @@ from typing import Optional
 
 router = APIRouter(prefix="/api/artists", tags=["artists"])
 
+# Global state for background tasks progress
+fetch_progress = {
+    "active": False,
+    "total": 0,
+    "current": 0,
+    "last_artist": None,
+    "status": "idle"
+}
+
 API_KEY = os.getenv("API_KEY") or os.getenv("MUMA_API_KEY") or "453ecd33-3cb2-4ca4-a531-1677330bbaee"
 
 def verify_api_key(x_api_key: Optional[str] = Header(None)):
@@ -76,6 +85,64 @@ def init_db(cursor):
         if not cursor.fetchone():
             cursor.execute(f"ALTER TABLE library_artists ADD COLUMN {col_name} {col_type}")
 
+@router.get("/search")
+def search_artist_images(q: str = "", auth: dict = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn: raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT a.id, a.name, a.primary_image_id, i.width, i.height, i.mime_type
+                FROM library_artists a
+                JOIN library_artist_images i ON a.primary_image_id = i.id
+                WHERE a.name LIKE %s
+                ORDER BY a.name
+                LIMIT 100
+            """, (f"%{q}%",))
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+@router.get("/search-all")
+def search_all_artists(q: str = "", auth: dict = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn: raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT a.id, a.name, a.primary_image_id, i.width, i.height, i.mime_type, a.image_status
+                FROM library_artists a
+                LEFT JOIN library_artist_images i ON a.primary_image_id = i.id
+                WHERE a.name LIKE %s
+                ORDER BY a.name
+                LIMIT 100
+            """, (f"%{q}%",))
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+@router.get("/images/stats")
+def get_artist_image_stats(auth: dict = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn: raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT COUNT(*) as total FROM library_artists")
+            total = cursor.fetchone()['total']
+            cursor.execute("SELECT COUNT(*) as with_image FROM library_artists WHERE primary_image_id IS NOT NULL")
+            with_image = cursor.fetchone()['with_image']
+            return {
+                "total_artists": total,
+                "artists_with_images": with_image,
+                "artists_without_images": total - with_image
+            }
+    finally:
+        conn.close()
+
+@router.get("/fetch-progress")
+def get_fetch_progress(auth: dict = Depends(verify_api_key)):
+    return fetch_progress
+
 @router.get("/{artist_name}/image")
 def get_artist_image(artist_name: str, background_tasks: BackgroundTasks):
     conn = get_db_connection()
@@ -103,14 +170,24 @@ def get_artist_image(artist_name: str, background_tasks: BackgroundTasks):
         conn.close()
 
 @router.post("/fetch-missing")
+@router.post("/fetch-images")
 def fetch_missing_images(background_tasks: BackgroundTasks, auth: dict = Depends(verify_api_key)):
     """
     Triggers a background task to fetch missing artist images for all artists.
     """
+    if fetch_progress["active"]:
+        return {"status": "error", "message": "Fetch already in progress"}
+    
     background_tasks.add_task(run_fetch_missing)
     return {"status": "ok", "message": "Fetching missing artist images started in background"}
 
+@router.post("/{artist_id}/fetch-image")
+def fetch_artist_image_manual(artist_id: int, background_tasks: BackgroundTasks, auth: dict = Depends(verify_api_key)):
+    background_tasks.add_task(trigger_fetch_by_id, artist_id)
+    return {"status": "ok", "message": f"Fetching image for artist ID {artist_id} started"}
+
 def run_fetch_missing():
+    global fetch_progress
     try:
         from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetcher
         conn = get_db_connection()
@@ -128,16 +205,52 @@ def run_fetch_missing():
                 """)
                 artists = cursor.fetchall()
                 
+                fetch_progress.update({
+                    "active": True,
+                    "total": len(artists),
+                    "current": 0,
+                    "last_artist": None,
+                    "status": "running"
+                })
+
                 print(f"Starting background fetch for {len(artists)} artists")
-                for artist in artists:
+                for i, artist in enumerate(artists):
+                    fetch_progress["current"] = i + 1
+                    fetch_progress["last_artist"] = artist['name']
                     try:
                         fetcher.fetch_for_artist(artist['id'], artist['name'])
                     except Exception as e:
                         print(f"Failed to fetch for {artist['name']}: {e}")
+                
+                fetch_progress.update({
+                    "active": False,
+                    "status": "completed"
+                })
         finally:
             conn.close()
     except Exception as e:
         print(f"Global background fetch failed: {e}")
+        fetch_progress.update({
+            "active": False,
+            "status": "failed"
+        })
+
+def trigger_fetch_by_id(artist_id: int):
+    try:
+        from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetcher
+        conn = get_db_connection()
+        if not conn: return
+        try:
+            fetcher = ArtistImageFetcher(db_conn=conn)
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT name FROM library_artists WHERE id = %s", (artist_id,))
+                row = cursor.fetchone()
+                if row:
+                    fetcher.fetch_for_artist(artist_id, row['name'], force_refresh=True)
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"Background fetch failed for artist ID {artist_id}: {e}")
 
 def trigger_fetch(artist_name: str):
     try:

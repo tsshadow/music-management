@@ -9,7 +9,6 @@ from .providers.spotify import SpotifyArtistImageProvider
 from .providers.lastfm import LastFmArtistImageProvider
 from .providers.musicbrainz import MusicBrainzArtistProvider
 from .providers.soundcloud import SoundCloudArtistImageProvider
-from .providers.generated import GeneratedArtistImageProvider
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from dotenv import load_dotenv
 
@@ -36,8 +35,6 @@ class ArtistImageFetcher:
             SoundCloudArtistImageProvider(self.db_conn),
             LastFmArtistImageProvider(),
         ]
-        self.use_fallback = os.getenv('ARTIST_IMAGE_DISABLE_FALLBACK', 'false').lower() != 'true'
-        self.fallback_provider = GeneratedArtistImageProvider()
 
     def fetch_for_artist(self, artist_id, artist_name=None, force_refresh=False):
         # 1. Get artist info from DB if not provided
@@ -103,14 +100,9 @@ class ArtistImageFetcher:
                 break
         
         if not best_candidate:
-            if self.use_fallback:
-                self.logger.info(f"No good candidates found for {artist_name}. Using fallback.")
-                best_candidate = self.fallback_provider.get_artist_images(artist_name)[0]
-                best_candidate['confidence'] = 10
-            else:
-                self.logger.info(f"No good candidates found for {artist_name} and fallback is disabled.")
-                self._update_artist_image_status(artist_id, 'failed')
-                return False
+            self.logger.info(f"No good candidates found for {artist_name}.")
+            self._update_artist_image_status(artist_id, 'failed')
+            return False
 
         # 5. Save image
         try:
@@ -127,6 +119,10 @@ class ArtistImageFetcher:
             # 6. Update Database
             image_id = self._save_image_to_db(artist_id, best_candidate, image_meta)
             self._set_primary_image(artist_id, image_id)
+            
+            # Save external ID if we just discovered it
+            if best_candidate.get('source_id') and best_candidate['source'] not in external_ids:
+                self._save_external_id(artist_id, best_candidate['source'], best_candidate['source_id'])
             
             # 7. Update Manifest
             self._update_manifest(artist_id, artist_name, best_candidate, image_meta)

@@ -374,19 +374,19 @@ services:
     networks:
       - music-management_db
 
-  ml-analyzer:
-    image: ${DOCKER_USER}/${IMAGE_ML}:latest
-    container_name: muma-ml-analyzer
-    depends_on:
-      - db
-    environment:
-      <<: [*environment-db]
-      PYTHONPATH: /app
-    volumes:
-      - ${HOST_MUSIC_PATH}:/mnt/music
-      - ${HOST_DATA_PATH}/shared:/shared
-    networks:
-      - music-management_db
+#  ml-analyzer:
+#    image: ${DOCKER_USER}/${IMAGE_ML}:latest
+#    container_name: muma-ml-analyzer
+#    depends_on:
+#      - db
+#    environment:
+#      <<: [*environment-db]
+#      PYTHONPATH: /app
+#    volumes:
+#      - ${HOST_MUSIC_PATH}:/mnt/music
+#      - ${HOST_DATA_PATH}/shared:/shared
+#    networks:
+#      - music-management_db
 
   # rating-system:
   #   image: ${DOCKER_USER}/muma-rating-system:latest

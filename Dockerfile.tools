@@ -5,6 +5,9 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     curl \
+    unrar-free \
+    p7zip-full \
+    unar \
     && rm -rf /var/lib/apt/lists/*
 
 # Installeer yt-dlp

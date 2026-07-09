@@ -15,7 +15,11 @@ class CleanAndFilterGenreRuleTest(unittest.TestCase):
         song = MagicMock()
         song.tag_collection = tag_collection
         song.path.return_value = 'song.mp3'
-        rule = CleanAndFilterGenreRule(helper, MagicMock(), MagicMock())
+        ignored_helper = MagicMock()
+        ignored_helper.exists.return_value = False
+        backlog_helper = MagicMock()
+        backlog_helper.exists.return_value = False
+        rule = CleanAndFilterGenreRule(helper, backlog_helper, ignored_helper)
         rule.apply(song)
         tag.set.assert_called_once_with(['Hardstyle', 'Rawstyle'])
 

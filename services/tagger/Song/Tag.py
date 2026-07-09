@@ -207,6 +207,12 @@ class Tag:
         """
         return self.changed
 
+    def clear_changes(self):
+        """
+        Resets the changed flag to False.
+        """
+        self.changed = False
+
     def log(self):
         """
         Logs the tag and its current value.

@@ -38,6 +38,9 @@ class BaseSongTest(unittest.TestCase):
         song = BaseSong.__new__(BaseSong)
         mock_tag = MagicMock()
         mock_tag.value = ['Techno', 'Hardcore', 'Ambient']
+        def mock_sort():
+            mock_tag.value.sort()
+        mock_tag.sort.side_effect = mock_sort
         tag_collection = MagicMock()
         tag_collection.has_item.return_value = True
         tag_collection.get_item.return_value = mock_tag
@@ -83,6 +86,7 @@ class BaseSongTest(unittest.TestCase):
     def test_apply_extra_info_sets_artist(self):
         song = BaseSong.__new__(BaseSong)
         tag_collection = MagicMock()
+        tag_collection.get_item_as_string.return_value = ''
         song.tag_collection = tag_collection
         info = {'library_artists': ['Test Artist']}
         song._apply_extra_info(info)

@@ -149,21 +149,19 @@ class InferArtistFromTitleRuleTest(unittest.TestCase):
         self.song.tag_collection.set_item.assert_any_call(ARTIST, 'Noisekick')
         self.song.tag_collection.set_item.assert_any_call(TITLE, 'Decibel outdoor 2019 - Terror - Saturday')
 
-    def test_artist_presents_preserve_title(self):
+    def test_artist_presents_title_stripped(self):
         self.song.path = lambda: '/home/teun/Music/Bloodlust/track.mp3'
         title = 'Bloodlust presents: The Assassination | Decibel outdoor 2024 | Mainstage | SAVAGE SUNDAY'
         self._apply_rule(title)
         self.song.tag_collection.set_item.assert_any_call(ARTIST, 'Bloodlust')
-        for call in self.song.tag_collection.set_item.call_args_list:
-            assert call.args[0] != TITLE, f'Unexpected TITLE modification: {call}'
+        self.song.tag_collection.set_item.assert_any_call(TITLE, 'The Assassination | Decibel outdoor 2024 | Mainstage | SAVAGE SUNDAY')
 
-    def test_artist_colon_preserve_title(self):
+    def test_artist_colon_title_stripped(self):
         self.song.path = lambda: '/home/teun/Music/Unresolved/track.mp3'
         title = 'Unresolved: Bad Blood LIVE | Decibel outdoor 2024 | Mainstage | SAVAGE SUNDAY'
         self._apply_rule(title)
         self.song.tag_collection.set_item.assert_any_call(ARTIST, 'Unresolved')
-        for call in self.song.tag_collection.set_item.call_args_list:
-            assert call.args[0] != TITLE, f'Unexpected TITLE modification: {call}'
+        self.song.tag_collection.set_item.assert_any_call(TITLE, 'Bad Blood LIVE | Decibel outdoor 2024 | Mainstage | SAVAGE SUNDAY')
 
     def test_manual_test(self):
         self.song.path = lambda: '/home/teun/Music/The Viper/track.mp3'

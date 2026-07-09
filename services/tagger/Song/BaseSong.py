@@ -103,7 +103,7 @@ class BaseSong:
         """Sorts the genre tag array alphabetically if the tag exists."""
         if self.tag_collection.has_item(GENRE):
             rules_genres = self.tag_collection.get_item(GENRE)
-            rules_genres.value.sort()
+            rules_genres.sort()
 
     def save_file(self):
         if not hasattr(self, 'tag_collection'):
@@ -112,6 +112,7 @@ class BaseSong:
         for tag in list(self.tag_collection.get().values()):
             if isinstance(tag, Tag) and tag.has_changes():
                 self.set_tag(tag)
+                tag.clear_changes()
                 changes = True
         if changes:
             logging.info(f'File saved: {self.path()}')
@@ -179,7 +180,7 @@ class BaseSong:
         if not artist:
             artist = info.get('uploader') or info.get('channel')
 
-        if artist:
+        if artist and not self.tag_collection.get_item_as_string(ARTIST):
             self.tag_collection.set_item(ARTIST, artist)
 
         title = info.get('title')
@@ -190,7 +191,7 @@ class BaseSong:
         if genre:
             self.tag_collection.get_item(GENRE).add(genre)
 
-        if info.get('upload_date'):
+        if info.get('upload_date') and not self.tag_collection.get_item_as_string(DATE):
             self.tag_collection.set_item(DATE, info.get('upload_date'))
 
     def album(self):

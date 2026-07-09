@@ -4,8 +4,8 @@ import os
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))
 
-from services.artist_image_fetcher.normalizer import ArtistNameNormalizer
-from services.artist_image_fetcher.matcher import ArtistMatcher
+from services.music_manager.artist_image_fetcher.normalizer import ArtistNameNormalizer
+from services.music_manager.artist_image_fetcher.matcher import ArtistMatcher
 
 def test_normalizer():
     norm = ArtistNameNormalizer()

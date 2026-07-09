@@ -1,14 +1,16 @@
 import sys
 import types
 import unittest
+from unittest.mock import MagicMock
 sys.modules['requests'] = types.ModuleType('requests')
 sys.modules['yt_dlp'] = types.ModuleType('yt_dlp')
-helpers_mod = types.ModuleType('postprocessing.Song.Helpers.BrokenSongHelper')
-helpers_mod.BrokenSongHelper = lambda *args, **kwargs: None
-sys.modules['postprocessing.Song.Helpers.BrokenSongHelper'] = helpers_mod
-helpers_mod2 = types.ModuleType('postprocessing.Song.Helpers.BrokenSongArtistLookupHelper')
-helpers_mod2.BrokenSongArtistLookupHelper = lambda *args, **kwargs: types.SimpleNamespace(insert_if_missing=lambda *a, **k: None, get_normalized_name=lambda *a, **k: 'artist')
-sys.modules['postprocessing.Song.Helpers.BrokenSongArtistLookupHelper'] = helpers_mod2
+sys.modules['yt_dlp'].YoutubeDL = lambda *a, **k: None
+helpers_mod = types.ModuleType('services.common.Helpers.BrokenSongHelper')
+helpers_mod.BrokenSongHelper = lambda *args, **kwargs: MagicMock()
+sys.modules['services.common.Helpers.BrokenSongHelper'] = helpers_mod
+helpers_mod2 = types.ModuleType('services.common.Helpers.BrokenSongArtistLookupHelper')
+helpers_mod2.BrokenSongArtistLookupHelper = lambda *args, **kwargs: MagicMock()
+sys.modules['services.common.Helpers.BrokenSongArtistLookupHelper'] = helpers_mod2
 from services.other.repair import FileRepair
 
 class FileRepairTest(unittest.TestCase):

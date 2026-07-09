@@ -82,7 +82,7 @@ class InferRemixerFromTitleRule(TagRule):
                     artist_tag.add(canonical)
                     artist_tag.regex()
                     artist_tag.deduplicate()
-                if song.tag_collection.has_item(REMIXER) and canonical is not None and (len(canonical) > 1):
+                if canonical is not None and (len(canonical) > 1):
                     remixer_tag = song.tag_collection.get_item(REMIXER)
                     if canonical not in remixer_tag.to_array():
                         remixer_tag.add(canonical)

@@ -30,12 +30,12 @@ class ConcurrentJobLoggingTest(unittest.TestCase):
             mod = types.ModuleType(module_name)
             for cls, message in class_names.items():
                 attrs = {'__init__': lambda self, *a, **k: None, 'run': lambda self, *a, **k: logging.info(message) or time.sleep(0.1) if message else None}
-                if module_name == 'soundcloud.youtube and cls == 'YoutubeDownloader':
+                if module_name == 'soundcloud.youtube' and cls == 'YoutubeDownloader':
                     attrs['download_link'] = lambda self, *a, **k: None
                 mod_class = type(cls, (), attrs)
                 setattr(mod, cls, mod_class)
             return mod
-        modules_to_stub = {'soundcloud.youtube: {'YoutubeDownloader': None}, 'soundcloud.soundcloud': {'SoundcloudDownloader': 'download job log'}, 'soundcloud.telegram': {'TelegramDownloader': None}, 'processing.converter': {'Converter': None}, 'processing.epsflattener': {'EpsFlattener': None}, 'processing.extractor': {'Extractor': None}, 'processing.mover': {'Mover': None}, 'processing.renamer': {'Renamer': None}, 'postprocessing.sanitizer': {'Sanitizer': None}, 'postprocessing.analyze': {'Analyze': None}, 'postprocessing.artistfixer': {'ArtistFixer': None}, 'postprocessing.tagger': {'Tagger': 'tag job log'}}
+        modules_to_stub = {'soundcloud.youtube': {'YoutubeDownloader': None}, 'soundcloud.soundcloud': {'SoundcloudDownloader': 'download job log'}, 'soundcloud.telegram': {'TelegramDownloader': None}, 'processing.converter': {'Converter': None}, 'processing.epsflattener': {'EpsFlattener': None}, 'processing.extractor': {'Extractor': None}, 'processing.mover': {'Mover': None}, 'processing.renamer': {'Renamer': None}, 'postprocessing.sanitizer': {'Sanitizer': None}, 'postprocessing.analyze': {'Analyze': None}, 'postprocessing.artistfixer': {'ArtistFixer': None}, 'postprocessing.tagger': {'Tagger': 'tag job log'}}
         for mod_name, classes in modules_to_stub.items():
             self.original_modules[mod_name] = sys.modules.get(mod_name)
             sys.modules[mod_name] = _make_stub_module(mod_name, classes)

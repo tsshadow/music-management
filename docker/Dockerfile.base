@@ -6,6 +6,9 @@ WORKDIR /app
 # Common system dependencies
 RUN apt-get update && apt-get install -y \
     curl \
+    unrar-free \
+    p7zip-full \
+    unar \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy common requirements and logic
@@ -14,11 +17,7 @@ COPY modules/music-management/requirements.txt /tmp/requirements.txt
 RUN grep -E "pymysql|python-dotenv|requests|fastapi|uvicorn|anyio|mutagen|markdown|pydantic|yt-dlp|telethon|patool" /tmp/requirements.txt > /tmp/base_reqs.txt && \
     pip install --no-cache-dir -r /tmp/base_reqs.txt
 
-COPY services/common/ /app/services/common/
-COPY services/tagger/ /app/services/tagger/
-COPY services/downloader/ /app/services/downloader/
-COPY services/scanner/ /app/services/scanner/
-COPY services/importer/ /app/services/importer/
+COPY services/ /app/services/
 COPY modules/music-management/ /app/modules/music-management/
 COPY VERSION RELEASE_NOTES.md CHANGELOG.md /app/
 

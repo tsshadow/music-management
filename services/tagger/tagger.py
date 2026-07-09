@@ -170,6 +170,7 @@ class Tagger:
                 for tag, value in manual_tags.items():
                     song.tag_collection.add(tag, value)
                 song.save_file()
+        return song
 
     @staticmethod
     def _parse_worker(file: str, song_type_str: str, manual_tags: dict[str, str] | None=None, extra_info=None):

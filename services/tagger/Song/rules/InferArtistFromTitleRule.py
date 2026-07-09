@@ -261,10 +261,12 @@ class InferArtistFromPresentsOrColonRule(TagRule):
         title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
         if not title:
             return False
-        match = re.search('\\b([A-Za-z0-9 &\\-_]+?)\\s*(presents:|:)', title, flags=re.IGNORECASE)
+        match = re.search('\\b([A-Za-z0-9 &\\-_]+?)\\s*(presents\\b|presents:|:)', title, flags=re.IGNORECASE)
         if match:
             candidate = match.group(1).strip()
             if get_close_matches(candidate.lower(), self.artist_names, n=1, cutoff=0.7):
                 set_cleaned_artist(song, candidate, self.artist_db)
+                new_title = title[match.end():].strip()
+                song.tag_collection.set_item(TITLE, new_title)
                 return True
         return False

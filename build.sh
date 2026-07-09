@@ -139,6 +139,19 @@ build_manager() {
     $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_CORE}:latest" -t "${DOCKER_USER}/${IMAGE_CORE}:${VERSION}" -f Dockerfile.music-manager .
 }
 
+run_tests() {
+    echo "--- Running tests ---"
+    export PYTHONPATH=$PYTHONPATH:$(pwd)
+    # Focus on downloader and importer tests as requested
+    TEST_TARGETS="services/downloader/soundcloud/tests/ services/tests/YoutubeDownloaderTest.py services/tests/ImporterTest.py"
+    if ! python3 -m pytest -p no:warnings $TEST_TARGETS; then
+        echo ""
+        echo "❌ ERROR: Tests failed! Build aborted."
+        exit 1
+    fi
+    echo "--- Tests passed ---"
+}
+
 # Filter arguments to remove special flags
 REQUESTED_MODULES=()
 for arg in "$@"; do
@@ -152,6 +165,9 @@ if [ "$SEMI_REMOTE_MODE" = true ]; then
     echo "--- Semi-remote build mode enabled ---"
     echo "--- Building ML, Tools, and App remote, others local ---"
 fi
+
+# All builds require passing tests
+run_tests
 
 if [ ${#REQUESTED_MODULES[@]} -eq 0 ]; then
     echo "--- Building all modules in parallel ---"

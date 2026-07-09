@@ -8,8 +8,14 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 os.environ.setdefault('SCROBBLER_DB_DSN', 'sqlite+aiosqlite:///:memory:')
 ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
+
+from backend.app.main import app
+from backend.app.core.settings import get_settings
 get_settings.cache_clear()
 
 class DummyEnrichmentQueueService:

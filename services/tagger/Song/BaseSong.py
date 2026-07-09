@@ -106,7 +106,7 @@ class BaseSong:
 
     def merge_and_sort_genres(self, a, b):
         """Merges and sorts two lists of rules_genres, removing duplicates."""
-        return sorted(set(a + b))
+        return sorted(set(list(a) + list(b)))
 
     def sort_genres(self):
         """Sorts the genre tag array alphabetically if the tag exists."""
@@ -174,8 +174,15 @@ class BaseSong:
         Apply extra metadata from yt-dlp dump to tag collection.
         """
         artist = info.get('library_artists', [None])[0] if isinstance(info.get('library_artists'), list) else info.get('artist')
+        if not artist:
+            artist = info.get('uploader') or info.get('channel')
+
         if artist:
             self.tag_collection.set_item(ARTIST, artist)
+
+        title = info.get('title')
+        if title and not self.tag_collection.get_item_as_string(TITLE):
+            self.tag_collection.set_item(TITLE, title)
 
         genre = info.get('genre')
         if genre:
@@ -250,6 +257,17 @@ class BaseSong:
     def run_all_rules(self):
         for rule in self.rules:
             rule.apply(self)
+
+    def __str__(self):
+        fields = [
+            ("Title", self.title()),
+            ("Artists", self.artist()),
+            ("Album", self.album()),
+            ("Genre", self.genre()),
+            ("Publisher", self.publisher()),
+            ("Path", self.path()),
+        ]
+        return "\n".join([f"{label}={value}" for label, value in fields if value])
 
     def __del__(self):
         """Ensure changes are saved when the object is deleted."""

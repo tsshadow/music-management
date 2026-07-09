@@ -48,6 +48,9 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     libsndfile1 \
     curl \
+    unrar-free \
+    p7zip-full \
+    unar \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

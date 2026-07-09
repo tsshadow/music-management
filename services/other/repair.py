@@ -21,7 +21,7 @@ class FileRepair:
                 path_lower = path.lower()
                 if 'soundcloud' in path_lower:
                     success = self.repair_soundcloud(song_id, path)
-                elif 'youtube in path_lower:
+                elif 'youtube' in path_lower:
                     success = self.repair_youtube(song_id, path)
                 else:
                     logging.info(f'[SKIP] Unsupported path (not SoundCloud or YouTube): {path}')

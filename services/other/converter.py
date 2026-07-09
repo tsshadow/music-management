@@ -2,6 +2,7 @@ import os
 import subprocess
 import time
 import logging
+from services.common.settings import Settings
 s = Settings()
 
 class Converter:

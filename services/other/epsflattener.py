@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 import shutil
 from concurrent.futures import ThreadPoolExecutor
-from data.settings import Settings
+from services.common.settings import Settings
 
 class EpsFlattener:
 

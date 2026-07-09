@@ -6,6 +6,10 @@ work-context/
 *.log
 .output.txt
 venv/
+.venv/
 __pycache__/
 .idea/
 services/ml-analyzer/.env
+node_modules/
+.pytest_cache/
+package-lock.json

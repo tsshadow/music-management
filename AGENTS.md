@@ -100,3 +100,6 @@ To ensure consistency and reliability, all contributions must adhere to these ru
 2. **Code must be linted**: Follow PEP 8 guidelines for Python code.
 3. **Code must be documented**: Use clear function/class docstrings and update `AGENTS.md`, `README.md`, or the `docs/` folder if system behavior changes.
 4. **Release notes / changelog should be written**: Document significant changes in `CHANGELOG.md` or `RELEASE_NOTES.md` before merging.
+
+## Production
+Production info can be found at .production

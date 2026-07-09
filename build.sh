@@ -83,31 +83,26 @@ build_base() {
 }
 
 build_scanner() {
-    build_base
     echo "--- Building Scanner ($VERSION) ---"
     $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_SCANNER}:latest" -t "${DOCKER_USER}/${IMAGE_SCANNER}:${VERSION}" -f docker/Dockerfile.scanner .
 }
 
 build_tagger() {
-    build_base
     echo "--- Building Tagger ($VERSION) ---"
     $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_TAGGER}:latest" -t "${DOCKER_USER}/${IMAGE_TAGGER}:${VERSION}" -f docker/Dockerfile.tagger .
 }
 
 build_downloader() {
-    build_base
     echo "--- Building Downloader ($VERSION) ---"
     $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest" -t "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}" -f docker/Dockerfile.downloader .
 }
 
 build_telegram() {
-    build_base
     echo "--- Building Telegram ($VERSION) ---"
     $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_TELEGRAM}:latest" -t "${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSION}" -f docker/Dockerfile.telegram .
 }
 
 build_importer() {
-    build_base
     echo "--- Building Importer ($VERSION) ---"
     $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_IMPORTER}:latest" -t "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}" -f docker/Dockerfile.importer .
 }

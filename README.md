@@ -155,6 +155,7 @@ docker-compose -f docker-compose.yml -f docker-compose.workers.yml logs -f impor
 For specific information on each module, please refer to their respective READMEs:
 
 - [Ecosystem Architecture](docs/architecture.md)
+- [API Specification](docs/api-specification.md)
 - [System Overview](docs/OVERVIEW.md)
 - [Deployment Guide](docs/deployment.md)
 - [Database Schema](docs/database-design.md)

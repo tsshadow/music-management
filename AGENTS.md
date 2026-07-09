@@ -86,34 +86,9 @@ To maintain high code quality, the system employs an automated test suite:
     - **Pre-commit Hook**: A Git `pre-commit` hook ensures all tests pass before allowing a commit to be finalized.
 
 ---
-
+ 
 ## 🔌 API Specification
-
-The `music-manager` service provides a REST API (FastAPI) for managing the music library, users, and notifications.
-
-### 🔐 Authentication
-- **POST `/users/auth/login`**: Authenticate with username/password and receive an API key.
-- **GET `/users/auth/verify`**: Verify the validity of an `X-API-Key`.
-
-### 👤 User & Settings Management
-- **GET `/users/`**: List all registered users (Admin only).
-- **GET `/users/{user_id}/settings/{app_id}`**: Retrieve application-specific settings (e.g., for Ultrasonic).
-- **POST `/users/{user_id}/settings/{app_id}`**: Backup application-specific settings.
-- **GET `/users/{user_id}/lb-account`**: Get ListenBrainz integration details.
-
-### 🔔 Notifications
-- **GET `/api/notifications/`**: Retrieve recent notifications sent via `ntfy.sh`.
-- **DELETE `/api/notifications/{id}`**: Remove a specific notification.
-- **DELETE `/api/notifications/`**: Clear all notifications.
-
-### 📈 Scrobbling & Ratings
-- **POST `/api/event`**: General scrobble/playback event endpoint.
-- **POST `/api/lms-event`**: Specific endpoint for Logitech Media Server webhooks (syncs ratings).
-
-### 🛠 Management & Rules
-- **GET `/api/rules`**: List all active tagging and genre rules.
-- **POST `/api/users/sync/lms-db`**: Manually trigger a synchronization with `lms.db`.
-- **GET `/api/system/containers`**: Monitor the status of system Docker containers.
+The full API specification for the `music-manager` service can be found in [docs/api-specification.md](docs/api-specification.md).
 
 ---
 
@@ -123,5 +98,5 @@ To ensure consistency and reliability, all contributions must adhere to these ru
 
 1. **Code must be tested**: Every new feature or bug fix must include corresponding tests in the relevant `tests/` directory.
 2. **Code must be linted**: Follow PEP 8 guidelines for Python code.
-3. **Code must be documented**: Use clear function/class docstrings and update `AGENTS.md` or `README.md` if system behavior changes.
+3. **Code must be documented**: Use clear function/class docstrings and update `AGENTS.md`, `README.md`, or the `docs/` folder if system behavior changes.
 4. **Release notes / changelog should be written**: Document significant changes in `CHANGELOG.md` or `RELEASE_NOTES.md` before merging.

@@ -1,8 +1,8 @@
+import os
+from typing import Optional
+
 from fastapi import APIRouter, HTTPException, Header, Depends
 from pydantic import BaseModel
-from typing import List, Optional
-from datetime import datetime
-import os
 from services.music_manager.database import get_db_connection
 
 router = APIRouter(prefix="/rating", tags=["rating"])
@@ -14,15 +14,15 @@ def verify_api_key(x_api_key: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Missing API Key")
     if API_KEY and x_api_key == API_KEY:
         return {"type": "system"}
-    
-    from services.music_manager.routers.users import verify_token
+
+    from services.music_manager.routers.users import verify_token # pylint: disable=import-outside-toplevel
     try:
         res = verify_token(x_api_key)
         if res.get("status") == "ok":
             return res
-    except:
+    except Exception: # pylint: disable=broad-except
         pass
-        
+
     raise HTTPException(status_code=401, detail="Invalid API key")
 
 class Rating(BaseModel):
@@ -54,26 +54,26 @@ def init_db(cursor):
     """)
 
 @router.post("/api/lms-event")
-def handle_lms_event(event: LMSEvent, auth: dict = Depends(verify_api_key)):
+def handle_lms_event(event: LMSEvent, _auth: dict = Depends(verify_api_key)):
     if event.event != "rating_changed":
         return {"status": "ignored", "reason": "unsupported event type"}
-    
+
     entity_id = event.object_id
-    
+
     if event.object_type == "track" and event.path:
         clean_path = event.path
         for p in ["/music/", "/mnt/music/"]:
             if clean_path.startswith(p):
                 clean_path = clean_path[len(p):]
                 break
-        
+
         possible_paths = [event.path, clean_path, f"/music/{clean_path}", f"/mnt/music/{clean_path}"]
         conn = get_db_connection()
         if conn:
             try:
                 with conn.cursor() as cursor:
                     sql = """
-                        SELECT t.track_uid 
+                        SELECT t.track_uid
                         FROM library_media_files f
                         JOIN library_tracks t ON f.track_id = t.id
                         WHERE f.file_path IN (%s, %s, %s, %s)

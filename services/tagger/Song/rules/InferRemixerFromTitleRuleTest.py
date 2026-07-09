@@ -24,6 +24,7 @@ class InferRemixerFromTitleRuleTest(unittest.TestCase):
         self.artist_db.exists.side_effect = lambda x: True
         self.ignored_db = MagicMock()
         self.ignored_db.exists.side_effect = lambda x: False
+        self.title = ''
         self.rule = InferRemixerFromTitleRule(artist_db=self.artist_db, ignored_db=self.ignored_db)
 
     def assertArtistAdded(self, name):

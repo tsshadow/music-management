@@ -25,7 +25,7 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
         if not self.client_id or not self.client_secret:
             return None
         try:
-            resp = requests.post(self.TOKEN_URL, data={'grant_type': 'client_credentials'}, 
+            resp = requests.post(self.TOKEN_URL, data={'grant_type': 'client_credentials'},
                                  auth=(self.client_id, self.client_secret), timeout=5)
             if resp.status_code == 200:
                 self._token = resp.json().get('access_token')
@@ -42,7 +42,7 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
         try:
             # If we have a spotify_id in external_ids, we could use that directly
             spotify_id = external_ids.get('spotify') if external_ids else None
-            
+
             if spotify_id:
                 # Direct lookup
                 url = f"https://api.spotify.com/v1/artists/{spotify_id}"
@@ -50,7 +50,7 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
             else:
                 # Search
                 params = {'q': artist_name, 'type': 'artist', 'limit': 5}
-                response = requests.get(self.SEARCH_URL, params=params, 
+                response = requests.get(self.SEARCH_URL, params=params,
                                         headers={'Authorization': f'Bearer {token}'}, timeout=5)
 
             if response.status_code != 200:
@@ -69,7 +69,7 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
                         'url': img.get('url'),
                         'width': img.get('width'),
                         'height': img.get('height'),
-                        'confidence': 0, 
+                        'confidence': 0,
                         'popularity': artist.get('popularity'),
                         'genres': artist.get('genres'),
                         'metadata': {

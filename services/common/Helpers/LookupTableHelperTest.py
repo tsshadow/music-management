@@ -5,7 +5,7 @@ from services.common.Helpers.LookupTableHelper import LookupTableHelper
 class LookupTableHelperTest(unittest.TestCase):
 
     def setUp(self):
-        patcher = patch('postprocessing.Song.Helpers.LookupTableHelper.DatabaseConnector')
+        patcher = patch('services.common.Helpers.LookupTableHelper.DatabaseConnector')
         self.addCleanup(patcher.stop)
         self.mock_connector_cls = patcher.start()
         self.mock_connection = MagicMock()

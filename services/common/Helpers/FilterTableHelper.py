@@ -73,10 +73,9 @@ class FilterTableHelper:
         if self.cache_enabled:
             if key in self._corrected_map:
                 return self._corrected_map[key]
-            elif key in self._exists_cache:
+            if key in self._exists_cache:
                 return key
-            else:
-                return False
+            return False
         query = f'SELECT {self.corrected_column_name} FROM {self.table_name} WHERE {self.column_name} = %s LIMIT 1'
         connection = self.db_connector.connect()
         try:

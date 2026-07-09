@@ -1,15 +1,15 @@
+# pylint: disable=cyclic-import
+import json
+import os
+import secrets
+import sqlite3
+from typing import Optional
+
+import bcrypt
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Header
 from pydantic import BaseModel
-import os
-import sqlite3
-import bcrypt
-import secrets
-import string
-import requests
-import json
-from typing import List, Optional
+
 from services.music_manager.database import get_db_connection
-from services.common.api.version_helper import get_version, get_release_notes
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -23,12 +23,12 @@ async def verify_api_key(x_api_key: str = Header(None)):
         raise HTTPException(status_code=401, detail="Missing API Key")
     if API_KEY and x_api_key == API_KEY:
         return {"type": "system"}
-    
+
     # Check users table for this API Key
     res = verify_token(x_api_key)
     if res.get("status") == "ok":
         return res
-        
+
     raise HTTPException(status_code=401, detail="Invalid API Key")
 
 class UserCreate(BaseModel):
@@ -98,7 +98,7 @@ def init_db(cursor):
     cursor.execute("SHOW COLUMNS FROM users LIKE 'api_key'")
     if not cursor.fetchone():
         cursor.execute("ALTER TABLE users ADD COLUMN api_key VARCHAR(255) AFTER password_hash")
-    
+
     # ListenBrainz accounts
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS user_listenbrainz_accounts (
@@ -189,8 +189,7 @@ def login(req: LoginRequest):
                     cursor.execute("UPDATE users SET api_key = %s WHERE id = %s", (api_key, user['id']))
                     conn.commit()
                 return {"id": user['id'], "username": user['username'], "display_name": user['display_name'], "is_admin": bool(user['is_admin']), "api_key": api_key}
-            else:
-                raise HTTPException(status_code=401, detail="Invalid username or password")
+            raise HTTPException(status_code=401, detail="Invalid username or password")
     finally:
         conn.close()
 
@@ -199,7 +198,8 @@ def get_dynamic_playlists(user_id: int, auth: dict = Depends(verify_api_key)):
     if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
         raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500, detail="DB failed")
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB failed")
     try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT * FROM dynamic_playlists WHERE user_id = %s", (user_id,))
@@ -212,12 +212,14 @@ def get_dynamic_playlist(user_id: int, playlist_id: int, auth: dict = Depends(ve
     if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
         raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT * FROM dynamic_playlists WHERE id = %s AND user_id = %s", (playlist_id, user_id))
             res = cursor.fetchone()
-            if not res: raise HTTPException(status_code=404)
+            if not res:
+                raise HTTPException(status_code=404)
             return res
     finally:
         conn.close()
@@ -227,10 +229,11 @@ def create_dynamic_playlist(user_id: int, playlist: DynamicPlaylistCreate, auth:
     if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
         raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
-            cursor.execute("INSERT INTO dynamic_playlists (user_id, name, params) VALUES (%s, %s, %s)", 
+            cursor.execute("INSERT INTO dynamic_playlists (user_id, name, params) VALUES (%s, %s, %s)",
                           (user_id, playlist.name, playlist.params))
             conn.commit()
             return {"status": "ok", "id": cursor.lastrowid}
@@ -242,17 +245,18 @@ def update_dynamic_playlist(user_id: int, playlist_id: int, playlist: DynamicPla
     if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
         raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             if playlist.name and playlist.params:
-                cursor.execute("UPDATE dynamic_playlists SET name = %s, params = %s WHERE id = %s AND user_id = %s", 
+                cursor.execute("UPDATE dynamic_playlists SET name = %s, params = %s WHERE id = %s AND user_id = %s",
                               (playlist.name, playlist.params, playlist_id, user_id))
             elif playlist.name:
-                cursor.execute("UPDATE dynamic_playlists SET name = %s WHERE id = %s AND user_id = %s", 
+                cursor.execute("UPDATE dynamic_playlists SET name = %s WHERE id = %s AND user_id = %s",
                               (playlist.name, playlist_id, user_id))
             elif playlist.params:
-                cursor.execute("UPDATE dynamic_playlists SET params = %s WHERE id = %s AND user_id = %s", 
+                cursor.execute("UPDATE dynamic_playlists SET params = %s WHERE id = %s AND user_id = %s",
                               (playlist.params, playlist_id, user_id))
             conn.commit()
             return {"status": "ok"}
@@ -264,7 +268,8 @@ def delete_dynamic_playlist(user_id: int, playlist_id: int, auth: dict = Depends
     if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
         raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("DELETE FROM dynamic_playlists WHERE id = %s AND user_id = %s", (playlist_id, user_id))
@@ -278,21 +283,23 @@ def get_playlist_tracks(user_id: int, playlist_id: int, auth: dict = Depends(ver
     if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
         raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT params FROM dynamic_playlists WHERE id = %s AND user_id = %s", (playlist_id, user_id))
             row = cursor.fetchone()
-            if not row: raise HTTPException(status_code=404)
-            
+            if not row:
+                raise HTTPException(status_code=404)
+
             params_str = row['params']
             try:
                 params = json.loads(params_str)
-            except:
+            except json.JSONDecodeError:
                 params = {}
-                
+
             rules = params.get('rules', [])
-            
+
             query = """
                 SELECT t.id, t.title, COALESCE(a.name, 'Unknown Artist') as artist, CAST(t.created_at AS CHAR) as created_at
                 FROM library_tracks t
@@ -300,12 +307,13 @@ def get_playlist_tracks(user_id: int, playlist_id: int, auth: dict = Depends(ver
                 WHERE 1=1
             """
             q_params = []
-            
+
             for rule in rules:
                 col = rule.get('column')
                 val = rule.get('value')
-                if not col or not val: continue
-                
+                if not col or not val:
+                    continue
+
                 if col == 'genre':
                     query += """ AND (
                         EXISTS (SELECT 1 FROM library_track_genres tg JOIN rules_genres rg ON tg.genre_id = rg.id WHERE tg.track_id = t.id AND rg.name = %s)
@@ -315,7 +323,7 @@ def get_playlist_tracks(user_id: int, playlist_id: int, auth: dict = Depends(ver
                 elif col == 'artist':
                     query += " AND a.name LIKE %s"
                     q_params.append(f"%{val}%")
-            
+
             query += " ORDER BY t.created_at DESC LIMIT 500"
             cursor.execute(query, tuple(q_params))
             return cursor.fetchall()
@@ -327,7 +335,8 @@ def seed_defaults(user_id: int, auth: dict = Depends(verify_api_key)):
     if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
         raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             defaults = [
@@ -352,14 +361,16 @@ def sync_dynamic_playlist(user_id: int, playlist: DynamicPlaylistSync, auth: dic
     if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
         raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500, detail="DB failed")
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB failed")
     try:
         with conn.cursor() as cursor:
             target_user_id = user_id
             if playlist.lms_user_id:
                 cursor.execute("SELECT id FROM users WHERE lms_user_id = %s", (str(playlist.lms_user_id),))
                 user_row = cursor.fetchone()
-                if user_row: target_user_id = user_row['id']
+                if user_row:
+                    target_user_id = user_row['id']
             cursor.execute("""
                 INSERT INTO dynamic_playlists (user_id, remote_id, source, name, params)
                 VALUES (%s, %s, %s, %s, %s)
@@ -375,7 +386,8 @@ def get_users(auth: dict = Depends(verify_api_key)):
     if auth.get("type") == "user" and not auth['user'].get('is_admin'):
         raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500, detail="DB failed")
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB failed")
     try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT id, username, display_name, is_admin, lms_user_id, api_key FROM users")
@@ -388,14 +400,15 @@ def create_user(user: UserCreate, auth: dict = Depends(verify_api_key)):
     if auth.get("type") == "user" and not auth['user'].get('is_admin'):
         raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         password_hash = None
         if user.password:
             password_hash = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        
+
         token = user.api_key or secrets.token_hex(16)
-        
+
         with conn.cursor() as cursor:
             cursor.execute("""
                 INSERT INTO users (username, display_name, is_admin, password_hash, api_key, lms_user_id)
@@ -411,7 +424,8 @@ def get_lb_account(user_id: int, auth: dict = Depends(verify_api_key)):
     if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
         raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500, detail="DB failed")
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB failed")
     try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT lb_username, lb_token FROM user_listenbrainz_accounts WHERE user_id = %s", (user_id,))
@@ -425,7 +439,8 @@ def update_lb_account(user_id: int, lb_data: LBAccountUpdate, auth: dict = Depen
     if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
         raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500, detail="DB failed")
+    if not conn:
+        raise HTTPException(status_code=500, detail="DB failed")
     try:
         with conn.cursor() as cursor:
             cursor.execute("""
@@ -443,7 +458,8 @@ def delete_user(user_id: int, auth: dict = Depends(verify_api_key)):
     if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
         raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
@@ -457,7 +473,8 @@ def update_password(user_id: int, req: PasswordUpdate, auth: dict = Depends(veri
     if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
         raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         password_hash = bcrypt.hashpw(req.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         with conn.cursor() as cursor:
@@ -472,7 +489,8 @@ def get_user_app_settings(user_id: int, app_id: str, auth: dict = Depends(verify
     if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
         raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT settings_json, CAST(updated_at AS CHAR) as updated_at FROM user_app_settings WHERE user_id = %s AND app_id = %s", (user_id, app_id))
@@ -488,7 +506,8 @@ def update_user_app_settings(user_id: int, app_id: str, req: AppSettingsUpdate, 
     if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
         raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("""
@@ -502,12 +521,72 @@ def update_user_app_settings(user_id: int, app_id: str, req: AppSettingsUpdate, 
         conn.close()
 
 @router.post("/sync/lms-db")
-def sync_lms_db(background_tasks: BackgroundTasks, api_key: str = Depends(verify_api_key)):
+def sync_lms_db(background_tasks: BackgroundTasks, _api_key: str = Depends(verify_api_key)):
     background_tasks.add_task(run_lms_db_sync)
     return {"message": "LMS DB sync started in background"}
 
+def _sync_lms_users(cursor, sqlite_cursor):
+    sqlite_cursor.execute("SELECT id, login_name, listenbrainz_token FROM user")
+    lms_users = sqlite_cursor.fetchall()
+    for lms_id, username, lb_token in lms_users:
+        cursor.execute("""
+            INSERT INTO users (username, display_name, lms_user_id)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE lms_user_id = VALUES(lms_user_id)
+        """, (username, username, lms_id))
+
+        if lb_token:
+            cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+            user_row = cursor.fetchone()
+            if user_row:
+                cursor.execute("""
+                    INSERT INTO user_listenbrainz_accounts (user_id, lb_username, lb_token)
+                    VALUES (%s, %s, %s)
+                    ON DUPLICATE KEY UPDATE lb_token = VALUES(lb_token)
+                """, (user_row['id'], username, lb_token))
+
+def _sync_lms_playlists(cursor, sqlite_cursor, source):
+    try:
+        sqlite_cursor.execute("PRAGMA table_info(tracklist)")
+        columns = [col[1] for col in sqlite_cursor.fetchall()]
+        if "smart_params" in columns:
+            sqlite_cursor.execute("SELECT id, user_id, name, smart_params FROM tracklist WHERE type = 2")
+            for lms_id, lms_user_ptr, name, params in sqlite_cursor.fetchall():
+                cursor.execute("SELECT id FROM users WHERE lms_user_id = %s", (str(lms_user_ptr),))
+                u_row = cursor.fetchone()
+                if u_row:
+                    cursor.execute("""
+                        INSERT INTO dynamic_playlists (user_id, remote_id, source, name, params)
+                        VALUES (%s, %s, %s, %s, %s)
+                        ON DUPLICATE KEY UPDATE name = VALUES(name), params = VALUES(params)
+                    """, (u_row['id'], lms_id, source, name, params))
+    except Exception as pe: # pylint: disable=broad-except
+        print(f"Playlist sync failed for {source}: {pe}")
+
+def sync_single_lms_db(muma_conn, db_path, source):
+    print(f"Syncing LMS DB: {db_path} ({source})")
+    try:
+        sqlite_conn = sqlite3.connect(db_path)
+        sqlite_cursor = sqlite_conn.cursor()
+
+        with muma_conn.cursor() as cursor:
+            # 1. Sync Users
+            _sync_lms_users(cursor, sqlite_cursor)
+            muma_conn.commit()
+
+            # 2. Sync Dynamic Playlists (Smart Playlists)
+            _sync_lms_playlists(cursor, sqlite_cursor, source)
+            muma_conn.commit()
+
+        # 3. Sync Artist Images back to LMS
+        from services.music_manager.routers.artist_images import sync_artist_images_to_lms # pylint: disable=import-outside-toplevel
+        sync_artist_images_to_lms(muma_conn, sqlite_conn)
+
+        sqlite_conn.close()
+    except Exception as e: # pylint: disable=broad-except
+        print(f"Sync failed for {db_path}: {e}")
+
 def run_lms_db_sync():
-    from services.music_manager.routers.users import sync_single_lms_db
     db_root = os.getenv("LMS_DB_ROOT", "/app/data")
     targets = []
     if os.path.exists(db_root):
@@ -518,64 +597,10 @@ def run_lms_db_sync():
                 if os.path.exists(db_file):
                     targets.append((db_file, f"lms-{entry}"))
     conn = get_db_connection()
-    if not conn: return
+    if not conn:
+        return
     try:
         for db_path, source in targets:
             sync_single_lms_db(conn, db_path, source)
     finally:
         conn.close()
-
-def sync_single_lms_db(muma_conn, db_path, source):
-    print(f"Syncing LMS DB: {db_path} ({source})")
-    try:
-        sqlite_conn = sqlite3.connect(db_path)
-        sqlite_cursor = sqlite_conn.cursor()
-        
-        # 1. Sync Users
-        sqlite_cursor.execute("SELECT id, login_name, listenbrainz_token FROM user")
-        lms_users = sqlite_cursor.fetchall()
-        with muma_conn.cursor() as cursor:
-            for lms_id, username, lb_token in lms_users:
-                cursor.execute("""
-                    INSERT INTO users (username, display_name, lms_user_id)
-                    VALUES (%s, %s, %s)
-                    ON DUPLICATE KEY UPDATE lms_user_id = VALUES(lms_user_id)
-                """, (username, username, lms_id))
-                
-                if lb_token:
-                    cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
-                    user_row = cursor.fetchone()
-                    if user_row:
-                        cursor.execute("""
-                            INSERT INTO user_listenbrainz_accounts (user_id, lb_username, lb_token)
-                            VALUES (%s, %s, %s)
-                            ON DUPLICATE KEY UPDATE lb_token = VALUES(lb_token)
-                        """, (user_row['id'], username, lb_token))
-            muma_conn.commit()
-            
-            # 2. Sync Dynamic Playlists (Smart Playlists)
-            try:
-                sqlite_cursor.execute("PRAGMA table_info(tracklist)")
-                columns = [col[1] for col in sqlite_cursor.fetchall()]
-                if "smart_params" in columns:
-                    sqlite_cursor.execute("SELECT id, user_id, name, smart_params FROM tracklist WHERE type = 2")
-                    for lms_id, lms_user_ptr, name, params in sqlite_cursor.fetchall():
-                        cursor.execute("SELECT id FROM users WHERE lms_user_id = %s", (str(lms_user_ptr),))
-                        u_row = cursor.fetchone()
-                        if u_row:
-                            cursor.execute("""
-                                INSERT INTO dynamic_playlists (user_id, remote_id, source, name, params)
-                                VALUES (%s, %s, %s, %s, %s)
-                                ON DUPLICATE KEY UPDATE name = VALUES(name), params = VALUES(params)
-                            """, (u_row['id'], lms_id, source, name, params))
-                muma_conn.commit()
-            except Exception as pe:
-                print(f"Playlist sync failed for {source}: {pe}")
-        
-        # 3. Sync Artist Images back to LMS
-        from services.music_manager.routers.artist_images import sync_artist_images_to_lms
-        sync_artist_images_to_lms(muma_conn, sqlite_conn)
-        
-        sqlite_conn.close()
-    except Exception as e:
-        print(f"Sync failed for {db_path}: {e}")

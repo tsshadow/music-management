@@ -1,0 +1,26 @@
+[MASTER]
+ignore=node_modules,venv,.git,dist
+extension-pkg-allow-list=docker
+
+[MESSAGES CONTROL]
+# Disable some of the more pedantic or project-conflicting checks
+disable=
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    too-few-public-methods,
+    logging-fstring-interpolation,
+    broad-exception-caught,
+    invalid-name,
+    line-too-long,
+    import-error, # Many dependencies are only in Docker
+    no-member, # Can be noisy with some libraries
+    duplicate-code, # Sometimes tests share setup
+    protected-access # Often needed in tests
+
+[BASIC]
+# Allow both snake_case and PascalCase for modules (since the project uses both)
+module-rgx=(([a-z_][a-z0-9_]*)|([A-Z][a-zA-Z0-9]+))$
+
+[FORMAT]
+max-line-length=120

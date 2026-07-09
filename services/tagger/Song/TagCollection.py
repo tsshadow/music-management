@@ -42,61 +42,70 @@ class TagCollection:
         if tags is None:
             logging.info('no tags for tagcollection')
         elif isinstance(tags, VCFLACDict):
-            for tag in tags:
-                if tag[0] == tag[0].lower():
-                    logging.info('error in tag %s', tag)
-                try:
-                    self.tags[reversed_FLACTags[tag[0].upper()]] = Tag(reversed_FLACTags[tag[0].upper()], tag[1])
-                except KeyError:
-                    if tag[0] not in missing_tags_flac:
-                        missing_tags_flac.append(tag[0])
+            self._parse_flac(tags)
         elif isinstance(tags, OggOpusVComment):
-            for tag in tags:
-                try:
-                    self.tags[reversed_OPUSTags[tag[0].upper()]] = Tag(reversed_OPUSTags[tag[0].upper()], tag[1])
-                except KeyError:
-                    if tag[0] not in missing_tags_opus:
-                        missing_tags_opus.append(tag[0])
+            self._parse_opus(tags)
         elif isinstance(tags, EasyID3):
-            for tag in tags:
-                try:
-                    self.tags[reversed_MP3Tags[tag]] = Tag(reversed_MP3Tags[tag], tags[tag])
-                except KeyError:
-                    if tag not in missing_tags_mp3:
-                        missing_tags_mp3.append(tag)
+            self._parse_mp3(tags)
         elif isinstance(tags, _WaveID3):
-            for tag in tags:
-                try:
-                    id3_frame = tags[tag]
-                    if hasattr(id3_frame, 'text'):
-                        value = id3_frame.text
-                    else:
-                        value = id3_frame
-                    self.tags[reversed_WAVTags[tag]] = Tag(reversed_WAVTags[tag], value)
-                except KeyError:
-                    if tag not in missing_tags_wav:
-                        missing_tags_wav.append(tag)
+            self._parse_wav(tags)
         elif isinstance(tags, MP4Tags):
-            for tag_key, value in tags.items():
-                standard_key = reversed_MP4Tags.get(tag_key)
-                if standard_key:
-                    self.tags[standard_key] = Tag(standard_key, value)
-                elif tag_key.startswith('----:com.apple.iTunes:'):
-                    custom_name = tag_key.split(':')[-1].lower()
-                    val = value[0]
-                    if isinstance(val, MP4FreeForm):
-                        decoded_val = val.decode('utf-8', 'ignore')
-                    elif isinstance(val, bytes):
-                        decoded_val = val.decode('utf-8', 'ignore')
-                    else:
-                        decoded_val = str(val)
-                    self.tags[custom_name] = Tag(custom_name, decoded_val)
-                elif tag_key not in missing_tags_m4a:
-                    missing_tags_m4a.append(tag_key)
+            self._parse_m4a(tags)
         else:
-            logging.info('TagCollection not supporting this file extension')
-            logging.info(type(tags))
+            logging.info('TagCollection not supporting this file extension: %s', type(tags))
             raise UnsupportedExtension(str(type(tags)))
+
+    def _parse_flac(self, tags):
+        for tag in tags:
+            if tag[0] == tag[0].lower():
+                logging.info('error in tag %s', tag)
+            try:
+                self.tags[reversed_FLACTags[tag[0].upper()]] = Tag(reversed_FLACTags[tag[0].upper()], tag[1])
+            except KeyError:
+                if tag[0] not in missing_tags_flac:
+                    missing_tags_flac.append(tag[0])
+
+    def _parse_opus(self, tags):
+        for tag in tags:
+            try:
+                self.tags[reversed_OPUSTags[tag[0].upper()]] = Tag(reversed_OPUSTags[tag[0].upper()], tag[1])
+            except KeyError:
+                if tag[0] not in missing_tags_opus:
+                    missing_tags_opus.append(tag[0])
+
+    def _parse_mp3(self, tags):
+        for tag in tags:
+            try:
+                self.tags[reversed_MP3Tags[tag]] = Tag(reversed_MP3Tags[tag], tags[tag])
+            except KeyError:
+                if tag not in missing_tags_mp3:
+                    missing_tags_mp3.append(tag)
+
+    def _parse_wav(self, tags):
+        for tag in tags:
+            try:
+                id3_frame = tags[tag]
+                value = id3_frame.text if hasattr(id3_frame, 'text') else id3_frame
+                self.tags[reversed_WAVTags[tag]] = Tag(reversed_WAVTags[tag], value)
+            except KeyError:
+                if tag not in missing_tags_wav:
+                    missing_tags_wav.append(tag)
+
+    def _parse_m4a(self, tags):
+        for tag_key, value in tags.items():
+            standard_key = reversed_MP4Tags.get(tag_key)
+            if standard_key:
+                self.tags[standard_key] = Tag(standard_key, value)
+            elif tag_key.startswith('----:com.apple.iTunes:'):
+                custom_name = tag_key.split(':')[-1].lower()
+                val = value[0]
+                if isinstance(val, (MP4FreeForm, bytes)):
+                    decoded_val = val.decode('utf-8', 'ignore')
+                else:
+                    decoded_val = str(val)
+                self.tags[custom_name] = Tag(custom_name, decoded_val)
+            elif tag_key not in missing_tags_m4a:
+                missing_tags_m4a.append(tag_key)
 
     def __str__(self):
         """

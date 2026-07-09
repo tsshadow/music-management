@@ -33,13 +33,13 @@ class VerifyArtistRule(TagRule):
                 return (original, False, True)
             return (name, True, False)
         cleaned = self.INVALID_START.sub('', name).strip()
+        changed = False
         if cleaned != name:
             name = cleaned
             if not name:
                 return (original, False, True)
             changed = True
-        else:
-            changed = False
+
         if name.count('(') != name.count(')'):
             name = name.replace('(', ';').replace(')', ';')
             changed = True
@@ -49,10 +49,11 @@ class VerifyArtistRule(TagRule):
         if name.count('"') % 2 == 1:
             name = name.replace('"', '')
             changed = True
-        if len(name) <= 2 and (not re.search('[A-Za-z]', name)):
+
+        is_invalid = (len(name) <= 2 and (not re.search('[A-Za-z]', name))) or (not re.search('[A-Za-z]', name))
+        if is_invalid:
             return (original, False, True)
-        if not re.search('[A-Za-z]', name):
-            return (original, False, True)
+
         return (name, changed, False)
 
     def apply(self, song) -> TagResult:
@@ -61,6 +62,7 @@ class VerifyArtistRule(TagRule):
             return TagResult(None, TagResultType.UNKNOWN)
         tag_item = song.tag_collection.get_item(ARTIST)
         self.seen_counts[artist.lower()] += 1
+
         if self.artist_db.exists(artist):
             canonical = self.artist_db.get(artist)
             if canonical != artist:
@@ -69,25 +71,32 @@ class VerifyArtistRule(TagRule):
                 logger.info("Updated artist casing '%s' -> '%s'", artist, canonical)
                 return TagResult(canonical, TagResultType.UPDATED)
             return TagResult(artist, TagResultType.VALID)
+
         if self.lookup.is_known_artist(artist):
-            insert = getattr(self.artist_db, 'insert_if_not_exists', None)
-            if callable(insert):
-                insert(artist)
+            if hasattr(self.artist_db, 'insert_if_not_exists'):
+                self.artist_db.insert_if_not_exists(artist)
             elif not self.artist_db.exists(artist):
                 self.artist_db.add(artist)
             logger.info("Added artist '%s' from external lookup", artist)
             return TagResult(artist, TagResultType.VALID)
+
         if artist.lower() in {'unknown artist', 'various artists'}:
             tag_item.remove(artist)
             return TagResult(artist, TagResultType.IGNORED)
+
         cleaned, changed, invalid = self._heuristic_check(artist)
+        res_type = TagResultType.UNKNOWN
+        res_val = artist
+
         if invalid:
             tag_item.remove(artist)
             logger.info("Ignored invalid artist '%s'", artist)
-            return TagResult(artist, TagResultType.IGNORED)
-        if changed and cleaned != artist:
+            res_type = TagResultType.IGNORED
+        elif changed and cleaned != artist:
             tag_item.remove(artist)
             tag_item.add(cleaned)
             logger.info("Cleaned artist '%s' -> '%s'", artist, cleaned)
-            return TagResult(cleaned, TagResultType.UPDATED)
-        return TagResult(artist, TagResultType.UNKNOWN)
+            res_type = TagResultType.UPDATED
+            res_val = cleaned
+
+        return TagResult(res_val, res_type)

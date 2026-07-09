@@ -24,25 +24,25 @@ class TestSoundcloudPremiere(unittest.TestCase):
             'uploader': 'Scantraxx',
             'title': 'Premiere: Devin Wild - Blue'
         }
-        
+
         song = SoundcloudSong(path, extra_info)
         song.tag_collection.set_item(TITLE, extra_info['title'])
         song.parse()
-        
+
         # Based on InferArtistFromPresentsOrColonRule:
         # re.search('\\b([A-Za-z0-9 &\\-_]+?)\\s*(presents:|:)', title, flags=re.IGNORECASE)
         # 'Premiere' matches group 1.
         # Wait, if 'Premiere' is the one before ':', then it might think 'Premiere' is the artist.
         # But 'Premiere' is likely NOT in library_artists.
         # If Devin Wild is in library_artists, we want IT to be found.
-        
+
         # Let's check InferArtistFromPresentsOrColonRule again.
         # It looks for something BEFORE 'presents:' or ':'.
         # In 'Premiere: Devin Wild - Blue', 'Premiere' is before ':'.
         # If 'Premiere' is not in library_artists, it fails.
         # Then it moves to other rules.
         # InferArtistFromTitleSingleDashRule replaces '|' with '-' and checks 'Devin Wild - Blue'.
-        
+
         self.assertEqual(song.artist(), 'Devin Wild')
         self.assertEqual(song.title(), 'Blue')
 

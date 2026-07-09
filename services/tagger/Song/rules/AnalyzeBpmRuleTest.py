@@ -1,10 +1,12 @@
 import unittest
 from unittest.mock import MagicMock, patch
+from services.tagger.Song.rules.AnalyzeBpmRule import AnalyzeBpmRule
+from services.tagger.constants import BPM
 
 class AnalyzeBpmRuleTest(unittest.TestCase):
 
-    @patch('postprocessing.Song.rules.AnalyzeBpmRule.librosa.load')
-    @patch('postprocessing.Song.rules.AnalyzeBpmRule.librosa.beat.beat_track')
+    @patch('services.tagger.Song.rules.AnalyzeBpmRule.librosa.load')
+    @patch('services.tagger.Song.rules.AnalyzeBpmRule.librosa.beat.beat_track')
     def test_sets_bpm(self, mock_beat_track, mock_load):
         mock_load.return_value = ('dummy_audio', 44100)
         mock_beat_track.return_value = (153.6, None)

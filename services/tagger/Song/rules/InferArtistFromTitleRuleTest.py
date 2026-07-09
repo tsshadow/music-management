@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 from services.tagger.Song.rules.InferArtistFromTitleRule import InferArtistFromTitleRule
 from services.tagger.constants import TITLE, ARTIST, ORIGINAL_TITLE
 
+# pylint: disable=too-many-public-methods
 class InferArtistFromTitleRuleTest(unittest.TestCase):
 
     def setUp(self):

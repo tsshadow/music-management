@@ -1,4 +1,5 @@
 import logging
+from services.common.Helpers.DatabaseConnector import DatabaseConnector
 
 class BrokenSongArtistLookupHelper:
     """
@@ -28,22 +29,22 @@ class BrokenSongArtistLookupHelper:
             connection.close()
         return raw_name.strip().lower().replace(' ', '-')
 
-    def insert_if_missing(self, raw_name: str, normalized_name: str):
+    def insert_if_missing(self, raw_name: str, normalized_name: str = ""):
         """
         Inserts a raw artist name into the table if it doesn't already exist.
-        The normalized_name will be left empty.
+        The normalized_name will be left empty if not provided.
         """
         check_query = f'\n             SELECT 1 FROM {self.table_name}\n             WHERE LOWER(raw_name) = LOWER(%s)\n             LIMIT 1\n         '
-        insert_query = f"\n             INSERT INTO {self.table_name} (raw_name, normalized_name)\n             VALUES (%s, '')\n         "
+        insert_query = f"\n             INSERT INTO {self.table_name} (raw_name, normalized_name)\n             VALUES (%s, %s)\n         "
         connection = self.db_connector.connect()
         try:
             with connection.cursor() as cursor:
-                cursor.execute(check_query, (raw_name, normalized_name))
+                cursor.execute(check_query, (raw_name,))
                 if not cursor.fetchone():
                     cursor.execute(insert_query, (raw_name, normalized_name))
                     connection.commit()
-                    logging.info(f"Inserted new raw artist into lookup: '{raw_name} {normalized_name}'")
+                    logging.info(f"Inserted new raw artist into lookup: '{raw_name}' (normalized: '{normalized_name}')")
         except Exception as e:
-            logging.error(f"Error inserting raw artist name '{raw_name} {normalized_name}': {e}")
+            logging.error(f"Error inserting raw artist name '{raw_name}': {e}")
         finally:
             connection.close()

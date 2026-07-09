@@ -9,9 +9,11 @@ from typing import Any, Dict, List, Optional, Set
 from fastapi import Depends, FastAPI, HTTPException, Header, WebSocket, WebSocketDisconnect, Body
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
+import requests
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+from services.tagger.Song.BaseSong import BaseSong
+from services.tagger.constants import RATING
 from .config_store import ConfigStore
 from .db_init import ensure_tables_exist
 try:
@@ -69,7 +71,6 @@ def verify_api_key(x_api_key: Optional[str]=Header(default=None)) -> None:
 
     # 2. Central check if configured
     if AUTH_SERVICE_URL:
-        import requests
         try:
             # We call the user-service to verify the token
             resp = requests.get(f'{AUTH_SERVICE_URL}/auth/verify', headers={'X-API-Key': x_api_key}, timeout=2.0)
@@ -78,8 +79,7 @@ def verify_api_key(x_api_key: Optional[str]=Header(default=None)) -> None:
         except Exception as e:
             logging.error(f'Auth service error: {e}')
             # If service is unreachable, we fall back to the local API_KEY check
-            pass
-    
+
     # Final check
     if API_KEY and x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail='Invalid API key')
@@ -146,8 +146,6 @@ async def health() -> Dict[str, str]:
     Optionally verifies database connectivity for additional assurance.
     """
     try:
-        from services.common.Helpers.DatabaseConnector import DatabaseConnector
-
         def _check_db() -> None:
             conn = DatabaseConnector().connect()
             conn.close()
@@ -211,6 +209,21 @@ class JobLogHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         jobs[self.job_id]['log'].append(self.format(record))
 
+def _setup_job_logging(job_id: str):
+    """Setup logging for a specific job."""
+    handler = JobLogHandler(job_id)
+    handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
+    handler.addFilter(JobLogFilter(job_id))
+    job_logger = logging.getLogger(f'job.{job_id}')
+    job_logger.setLevel(logging.INFO)
+    job_logger.propagate = False
+    job_logger.addHandler(handler)
+    token_id = current_job_id.set(job_id)
+    adapter = logging.LoggerAdapter(job_logger, {'job_id': job_id})
+    token_logger = current_logger.set(adapter)
+    return handler, job_logger, token_id, token_logger
+
+# pylint: disable=too-many-arguments, too-many-positional-arguments
 async def execute_step(step_name: str, job_id: str, repeat: bool, interval: float, stop_event: asyncio.Event, args: Dict[str, Any]):
     job = jobs[job_id]
     if step_name not in step_map:
@@ -225,16 +238,7 @@ async def execute_step(step_name: str, job_id: str, repeat: bool, interval: floa
         job['log'].append(f'No executable steps found for: {step_name}')
         await broadcast(job)
         return
-    handler = JobLogHandler(job_id)
-    handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
-    handler.addFilter(JobLogFilter(job_id))
-    job_logger = logging.getLogger(f'job.{job_id}')
-    job_logger.setLevel(logging.INFO)
-    job_logger.propagate = False
-    job_logger.addHandler(handler)
-    token_id = current_job_id.set(job_id)
-    adapter = logging.LoggerAdapter(job_logger, {'job_id': job_id})
-    token_logger = current_logger.set(adapter)
+    handler, job_logger, token_id, token_logger = _setup_job_logging(job_id)
     try:
         job['status'] = 'running'
         await broadcast(job)
@@ -309,9 +313,6 @@ async def stop_job(job_id: str, _: None=Depends(verify_api_key)):
     return _public_job(job)
 
 def _update_track_rating(path: str, rating: Optional[int]):
-    from services.tagger.Song.BaseSong import BaseSong
-    from services.tagger.constants import RATING
-    
     try:
         song = BaseSong(path)
         if rating is None or rating == 0:
@@ -321,10 +322,10 @@ def _update_track_rating(path: str, rating: Optional[int]):
                 mapping = {1: '1', 2: '64', 3: '128', 4: '196', 5: '255'}
             else:
                 mapping = {1: '20', 2: '40', 3: '60', 4: '80', 5: '100'}
-            
+
             val = mapping.get(rating, str(rating * 20))
             song.tag_collection.set_item(RATING, val)
-        
+
         song.save_file()
         logging.info(f"Updated rating for {path} to {rating}")
     except Exception as e:
@@ -335,10 +336,10 @@ async def handle_lms_event(payload: LmsEvent, _: None=Depends(verify_api_key)):
     if payload.event == 'rating_changed' and payload.object_type == 'track':
         if not payload.path:
             raise HTTPException(status_code=400, detail='Missing path for track rating event')
-        
+
         await run_in_threadpool(_update_track_rating, payload.path, payload.rating)
         return {'status': 'success'}
-    
+
     return {'status': 'ignored'}
 
 @app.websocket('/ws/jobs')

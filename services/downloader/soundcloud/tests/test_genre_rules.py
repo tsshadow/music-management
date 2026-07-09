@@ -26,13 +26,13 @@ class TestSoundcloudGenreRules(unittest.TestCase):
             'title': 'RIJE MOAT',
             'genre': None # No genre in metadata
         }
-        
+
         song = SoundcloudSong(path, extra_info)
         song.tag_collection.set_item(TITLE, extra_info['title'])
         # We need to make sure Artist is set to 'Albino' so the rule can find it
         # SoundcloudSong sets album artist from path
         song.parse()
-        
+
         # InferGenreFromArtistRule should find 'Albino' and set genre to 'Hardstyle'
         self.assertEqual(song.genre(), 'Hardstyle')
 

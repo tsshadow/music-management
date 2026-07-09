@@ -22,7 +22,7 @@ class ScannerService:
         if not self.music_path:
             logger.error("music_folder_path not configured in settings/env")
         start_api_server()
-        
+
     def get_db(self):
         return self.db_connector.connect()
 
@@ -37,39 +37,46 @@ class ScannerService:
         logger.info(f"Starting scan of {self.music_path}")
         conn = self.get_db()
         try:
-            count = 0
-            for root, dirs, files in os.walk(self.music_path):
-                for file in files:
-                    if file.startswith('.'):
-                        continue
-                    
-                    full_path = os.path.join(root, file)
-                    try:
-                        if self.process_file(conn, full_path, force):
-                            count += 1
-                            if count % 100 == 0:
-                                logger.info(f"Processed {count} files...")
-                                conn.commit()
-                    except ExtensionNotSupportedException:
-                        continue
-                    except Exception as e:
-                        logger.error(f"Error processing {full_path}: {e}")
-            
-            conn.commit()
+            count = self._scan_recursive(conn, force)
             logger.info(f"Scan completed. Total files processed/updated: {count}")
         finally:
             conn.close()
-            
-    def process_file(self, conn, path, force=False):
+
+    def _scan_recursive(self, conn, force):
+        count = 0
+        for root, _, files in os.walk(self.music_path):
+            for file in files:
+                if file.startswith('.'):
+                    continue
+
+                full_path = os.path.join(root, file)
+                if self._process_file_safe(conn, full_path, force):
+                    count += 1
+                    if count % 100 == 0:
+                        logger.info(f"Processed {count} files...")
+                        conn.commit()
+        conn.commit()
+        return count
+
+    def _process_file_safe(self, conn, full_path, force):
+        try:
+            return self.process_file(conn, full_path, force)
+        except ExtensionNotSupportedException:
+            pass
+        except Exception as e:
+            logger.error(f"Error processing {full_path}: {e}")
+        return False
+
+    def process_file(self, conn, path, force=False): # pylint: disable=too-many-locals
         path_hash = self.get_file_hash(path)
         mtime = os.path.getmtime(path)
         size = os.path.getsize(path)
-        
+
         with conn.cursor(pymysql.cursors.DictCursor) as cursor:
             # Check if file exists in DB
             cursor.execute("SELECT id, file_mtime, file_size FROM library_media_files WHERE file_path_hash = %s", (path_hash,))
             record = cursor.fetchone()
-            
+
             if not force and record and record['file_mtime'] == mtime and record['file_size'] == size:
                 # File unchanged
                 return False
@@ -85,7 +92,8 @@ class ScannerService:
             artist_names = song.library_artists()
             artist_ids = []
             for name in artist_names:
-                if not name: continue
+                if not name:
+                    continue
                 cursor.execute("INSERT IGNORE INTO library_artists (name) VALUES (%s)", (name,))
                 cursor.execute("SELECT id FROM library_artists WHERE name = %s", (name,))
                 artist_ids.append(cursor.fetchone()['id'])
@@ -102,16 +110,16 @@ class ScannerService:
             title = song.title()
             duration = song.length()
             primary_artist_id = artist_ids[0] if artist_ids else None
-            
+
             # Use a unique identifier for the track. For now title + duration + primary artist
             track_uid = hashlib.sha256(f"{title}-{duration}-{primary_artist_id}".encode('utf-8')).hexdigest()
-            
+
             cursor.execute("""
                 INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id)
                 VALUES (%s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE title=%s, duration_secs=%s, primary_artist_id=%s
             """, (track_uid, title, duration, primary_artist_id, title, duration, primary_artist_id))
-            
+
             cursor.execute("SELECT id FROM library_tracks WHERE track_uid = %s", (track_uid,))
             track_id = cursor.fetchone()['id']
 
@@ -142,10 +150,10 @@ if __name__ == "__main__":
     parser.add_argument('--force', action='store_true', help='Force re-scanning of all files')
     parser.add_argument('--repeat', action='store_true', help='Keep running in a loop')
     parser.add_argument('--sleeptime', type=int, default=3600, help='Time to sleep between scans (seconds)')
-    
+
     args = parser.parse_args()
     scanner = ScannerService()
-    
+
     while True:
         scanner.scan(force=args.force)
         if not args.repeat:

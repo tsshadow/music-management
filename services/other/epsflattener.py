@@ -45,9 +45,9 @@ class EpsFlattener:
             logging.error(f'Error while processing {subdir}: {e}')
 
     def run(self):
-        logging.info('Starting EPS flattener...' + (' (dry run)' if self.dry_run else ''))
+        logging.info('Starting EPS flattener... %s', ('(dry run)' if self.dry_run else ''))
         work = []
-        for dirpath, dirnames, filenames in os.walk(self.eps_root):
+        for dirpath, dirnames, _ in os.walk(self.eps_root):
             dirnames[:] = [d for d in dirnames if d.lower() != '@eadir']
             if len(dirnames) == 1:
                 work.append((dirpath, dirnames[0]))

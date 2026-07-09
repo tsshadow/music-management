@@ -1,14 +1,13 @@
 import os
-from difflib import get_close_matches
+import re
+from difflib import get_close_matches, SequenceMatcher
 from services.common.Helpers.FilterTableHelper import FilterTableHelper
+from services.common.Helpers.TableHelper import TableHelper
 from services.tagger.Song.rules.TagRule import TagRule
-from services.tagger.constants import TITLE, ARTIST_REGEX_NON_CAPTURING, ORIGINAL_TITLE
+from services.tagger.constants import TITLE, ARTIST_REGEX_NON_CAPTURING, ORIGINAL_TITLE, ARTIST
 
 def extract_artists_from_string(part: str) -> list[str]:
     return [a.strip() for a in re.split(ARTIST_REGEX_NON_CAPTURING, part) if a.strip()]
-import re
-from services.common.Helpers.TableHelper import TableHelper
-from services.tagger.constants import ARTIST
 
 def set_cleaned_artist(song, library_artists: str | list[str], artist_db=None) -> bool:
     if isinstance(library_artists, str):
@@ -36,6 +35,7 @@ def set_cleaned_artist(song, library_artists: str | list[str], artist_db=None) -
 class InferArtistFromTitleRule(TagRule):
 
     def __init__(self, artist_db=None, ignored_db: FilterTableHelper=None, genre_db: FilterTableHelper=None):
+        # pylint: disable=import-outside-toplevel
         from services.common.Helpers.Cache import databaseHelpers
         self.artist_db = artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
         all_names = self.artist_db.get_all_values()
@@ -169,40 +169,13 @@ class InferArtistFromTitleMultiDashRule(TagRule):
 
     def apply(self, song):
         title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
-        title = title.replace('|', '-')
-        title = title.replace('｜', '-')
-        title = title.replace(' I ', ' - ')
-        title = title.replace(' warmup mix ', ' warmup mix - ')
-        title = title.replace(' warm-up mix ', ' warm-up mix - ')
+        title = self._clean_raw_title(title)
         if not title or ' - ' not in title:
             return False
         segments = [s.strip() for s in title.split(' - ') if s.strip()]
         if len(segments) < 3:
             return False
-        best_match_index = -1
-        best_match_score = 0.0
-        best_artists = []
-        for idx, segment in enumerate(segments):
-            library_artists = extract_artists_from_string(segment)
-            filtered_artists = []
-            for artist in library_artists:
-                cleaned = re.sub('\\s*[\\(\\[\\{<][^()\\[\\]{}<>]*[\\)\\]\\}>]', '', artist).strip()
-                if not cleaned or cleaned.lower() in {'live', 'dj set', 'set', 'remix', 'edit', 'extended mix', 'mix', 'version'}:
-                    continue
-                filtered_artists.append(cleaned)
-            for artist in filtered_artists:
-                lowered = artist.lower()
-                if lowered in self.genre_names:
-                    continue
-                matches = get_close_matches(lowered, self.artist_names, n=1, cutoff=0.6)
-                if matches:
-                    from difflib import SequenceMatcher
-                    score = SequenceMatcher(None, lowered, matches[0]).ratio()
-                    score += 0.05
-                    if score > best_match_score:
-                        best_match_score = score
-                        best_match_index = idx
-                        best_artists = filtered_artists
+        best_match_index, best_artists = self._find_best_match(segments)
         if best_match_index == -1:
             return False
         set_cleaned_artist(song, best_artists, self.artist_db)
@@ -210,6 +183,45 @@ class InferArtistFromTitleMultiDashRule(TagRule):
         title = ' - '.join(remaining_segments)
         song.tag_collection.set_item(TITLE, title)
         return True
+
+    def _clean_raw_title(self, title):
+        if not title:
+            return ""
+        title = title.replace('|', '-')
+        title = title.replace('｜', '-')
+        title = title.replace(' I ', ' - ')
+        title = title.replace(' warmup mix ', ' warmup mix - ')
+        title = title.replace(' warm-up mix ', ' warm-up mix - ')
+        return title
+
+    def _find_best_match(self, segments):
+        best_match_index = -1
+        best_match_score = 0.0
+        best_artists = []
+        for idx, segment in enumerate(segments):
+            filtered_artists = self._get_filtered_artists(segment)
+            for artist in filtered_artists:
+                lowered = artist.lower()
+                if lowered in self.genre_names:
+                    continue
+                matches = get_close_matches(lowered, self.artist_names, n=1, cutoff=0.6)
+                if matches:
+                    score = SequenceMatcher(None, lowered, matches[0]).ratio() + 0.05
+                    if score > best_match_score:
+                        best_match_score = score
+                        best_match_index = idx
+                        best_artists = filtered_artists
+        return best_match_index, best_artists
+
+    def _get_filtered_artists(self, segment):
+        library_artists = extract_artists_from_string(segment)
+        filtered_artists = []
+        for artist in library_artists:
+            cleaned = re.sub('\\s*[\\(\\[\\{<][^()\\[\\]{}<>]*[\\)\\]\\}>]', '', artist).strip()
+            if not cleaned or cleaned.lower() in {'live', 'dj set', 'set', 'remix', 'edit', 'extended mix', 'mix', 'version'}:
+                continue
+            filtered_artists.append(cleaned)
+        return filtered_artists
 
 class InferArtistFromFirstSegmentFallbackRule(TagRule):
 

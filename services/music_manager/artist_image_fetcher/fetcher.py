@@ -20,14 +20,14 @@ class ArtistImageFetcher:
         self.logger = logging.getLogger(__name__)
         self.normalizer = ArtistNameNormalizer()
         self.matcher = ArtistMatcher(self.db_conn)
-        
+
         # Load config from env
         storage_path = os.getenv('ARTIST_IMAGE_STORAGE_PATH') or os.getenv('STORAGE_PATH') or '/var/lib/music-management/artist-images'
         public_base_url = os.getenv('ARTIST_IMAGE_PUBLIC_BASE_URL', '/media/artist-images')
-        
+
         self.storage = ImageStorage(storage_path, public_base_url)
         self.downloader = ImageDownloader()
-        
+
         # Initialize providers
         self.mb_provider = MusicBrainzArtistProvider()
         self.providers = [
@@ -64,14 +64,14 @@ class ArtistImageFetcher:
 
         # 2. Get external IDs (MBID and links)
         external_ids = self._get_external_ids(artist_id)
-        
+
         # Enrich with MusicBrainz if MBID is missing or to find more links
         mb_metadata = self.mb_provider.get_artist_metadata(artist_name, mbid)
         if mb_metadata:
             if not mbid:
                 mbid = mb_metadata['mbid']
                 self._update_artist_mbid(artist_id, mbid)
-            
+
             # Merge external IDs
             for source, sid in mb_metadata['external_ids'].items():
                 if source not in external_ids:
@@ -81,7 +81,7 @@ class ArtistImageFetcher:
         # 3. Collect candidates
         candidates = []
         target_artist = {'id': artist_id, 'name': artist_name, 'mbid': mbid}
-        
+
         for provider in self.providers:
             provider_candidates = provider.get_artist_images(artist_name, mbid, external_ids)
             for cand in provider_candidates:
@@ -98,7 +98,7 @@ class ArtistImageFetcher:
             if self.matcher.is_candidate(cand['confidence']):
                 best_candidate = cand
                 break
-        
+
         if not best_candidate:
             self.logger.info(f"No good candidates found for {artist_name}.")
             self._update_artist_image_status(artist_id, 'failed')
@@ -110,23 +110,23 @@ class ArtistImageFetcher:
                 image_data = best_candidate['image_data']
             else:
                 image_data = self.downloader.download(best_candidate['url'])
-            
+
             if not image_data:
                 raise Exception("Failed to download image data")
-                
+
             image_meta = self.storage.save_image(artist_id, best_candidate['source'], image_data)
-            
+
             # 6. Update Database
             image_id = self._save_image_to_db(artist_id, best_candidate, image_meta)
             self._set_primary_image(artist_id, image_id)
-            
+
             # Save external ID if we just discovered it
             if best_candidate.get('source_id') and best_candidate['source'] not in external_ids:
                 self._save_external_id(artist_id, best_candidate['source'], best_candidate['source_id'])
-            
+
             # 7. Update Manifest
             self._update_manifest(artist_id, artist_name, best_candidate, image_meta)
-            
+
             return True
         except Exception as e:
             self.logger.error(f"Failed to save image for {artist_name}: {e}")
@@ -159,21 +159,21 @@ class ArtistImageFetcher:
     def _save_image_to_db(self, artist_id, candidate, meta):
         with self.db_conn.cursor() as cursor:
             query = """
-                INSERT INTO library_artist_images 
+                INSERT INTO library_artist_images
                 (artist_id, source, source_id, original_url, cached_path, public_path, width, height, mime_type, file_size, confidence, created_at)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
             """
             cursor.execute(query, (
-                artist_id, 
-                candidate['source'], 
-                candidate['source_id'], 
-                candidate.get('url'), 
-                meta['cached_path'], 
-                meta['public_path'], 
-                meta['width'], 
-                meta['height'], 
-                meta['mime_type'], 
-                meta['file_size'], 
+                artist_id,
+                candidate['source'],
+                candidate['source_id'],
+                candidate.get('url'),
+                meta['cached_path'],
+                meta['public_path'],
+                meta['width'],
+                meta['height'],
+                meta['mime_type'],
+                meta['file_size'],
                 candidate['confidence']
             ))
             image_id = cursor.lastrowid
@@ -188,8 +188,8 @@ class ArtistImageFetcher:
             cursor.execute("UPDATE library_artist_images SET is_primary = 1 WHERE id = %s", (image_id,))
             # Update artist table
             cursor.execute("""
-                UPDATE library_artists 
-                SET primary_image_id = %s, image_updated_at = NOW(), image_status = 'active' 
+                UPDATE library_artists
+                SET primary_image_id = %s, image_updated_at = NOW(), image_status = 'active'
                 WHERE id = %s
             """, (image_id, artist_id))
         self.db_conn.commit()
@@ -209,10 +209,10 @@ class ArtistImageFetcher:
                     manifest = json.load(f)
             except:
                 manifest = []
-        
+
         # Remove existing entry for this artist
         manifest = [e for e in manifest if e['artist_id'] != artist_id]
-        
+
         # Add new entry
         manifest.append({
             "artist_id": artist_id,
@@ -224,7 +224,7 @@ class ArtistImageFetcher:
             "confidence": candidate['confidence'],
             "updated_at": datetime.now().isoformat()
         })
-        
+
         try:
             with open(manifest_path, 'w') as f:
                 json.dump(manifest, f, indent=2)

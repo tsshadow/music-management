@@ -10,6 +10,7 @@ os.environ.setdefault('eps_folder_path', '/tmp')
 os.environ.setdefault('delimiter', '/')
 sys.modules['dotenv'] = types.ModuleType('dotenv')
 sys.modules['dotenv'].load_dotenv = lambda *args, **kwargs: None
+# pylint: disable=wrong-import-position
 from services.other.sanitizer import Sanitizer
 
 class SanitizerTest(unittest.TestCase):

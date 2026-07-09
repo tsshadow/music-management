@@ -3,6 +3,7 @@ import sys
 import types
 import tempfile
 import unittest
+import importlib
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 os.environ.setdefault('import_folder_path', '/tmp')
@@ -18,14 +19,17 @@ except ImportError:
     mutagen.__path__ = []
     sys.modules['mutagen'] = mutagen
 mutagen.MutagenError = getattr(mutagen, 'MutagenError', Exception)
-cache_mod = types.ModuleType('postprocessing.Song.Helpers.Cache')
+cache_mod = types.ModuleType('services.common.Helpers.Cache')
 cache_mod.databaseHelpers = {'library_artists': MagicMock()}
-sys.modules['postprocessing.Song.Helpers.Cache'] = cache_mod
-import importlib
+sys.modules['services.common.Helpers.Cache'] = cache_mod
+# pylint: disable=wrong-import-position
+from services.tagger.Song.rules.TagResult import TagResult, TagResultType
+from services.other import artistfixer
 
 class ArtistFixerTest(unittest.TestCase):
 
     def setUp(self):
+        # pylint: disable=consider-using-with
         self.tempdir = tempfile.TemporaryDirectory()
         os.environ['music_folder_path'] = self.tempdir.name
         Path(self.tempdir.name, 'one.mp3').touch()
@@ -35,6 +39,7 @@ class ArtistFixerTest(unittest.TestCase):
         Path(sub, 'three.m4a').touch()
         Path(sub, 'skip.txt').touch()
         self.created_paths = []
+        self.mocks = {}
 
         def fake_base_song(path):
             self.created_paths.append(Path(path))
@@ -43,15 +48,15 @@ class ArtistFixerTest(unittest.TestCase):
             song.tag_collection.get_item.return_value = MagicMock()
             song.save_file.return_value = None
             return song
-        self.rule_instance = MagicMock()
-        self.rule_instance.apply.return_value = TagResult('New Artist', TagResultType.VALID)
+        self.mocks['rule_instance'] = MagicMock()
+        self.mocks['rule_instance'].apply.return_value = TagResult('New Artist', TagResultType.VALID)
         importlib.reload(artistfixer)
-        self.artist_db = artistfixer.databaseHelpers['library_artists']
-        self.artist_db.exists.return_value = False
-        self.patcher_settings = patch.object(artistfixer, 'Settings', return_value=types.SimpleNamespace(music_folder_path=self.tempdir.name))
-        self.patcher_bs = patch.object(artistfixer, 'BaseSong', side_effect=fake_base_song)
-        self.patcher_rule = patch.object(artistfixer, 'VerifyArtistRule', return_value=self.rule_instance)
-        for p in (self.patcher_settings, self.patcher_bs, self.patcher_rule):
+        self.mocks['artist_db'] = artistfixer.databaseHelpers['library_artists']
+        self.mocks['artist_db'].exists.return_value = False
+        patcher_settings = patch.object(artistfixer, 'Settings', return_value=types.SimpleNamespace(music_folder_path=self.tempdir.name))
+        patcher_bs = patch.object(artistfixer, 'BaseSong', side_effect=fake_base_song)
+        patcher_rule = patch.object(artistfixer, 'VerifyArtistRule', return_value=self.mocks['rule_instance'])
+        for p in (patcher_settings, patcher_bs, patcher_rule):
             p.start()
             self.addCleanup(p.stop)
         self.addCleanup(self.tempdir.cleanup)
@@ -61,7 +66,7 @@ class ArtistFixerTest(unittest.TestCase):
         with patch('builtins.print') as mock_print:
             self.fix.run()
         self.assertEqual(len(self.created_paths), 3)
-        self.assertEqual(self.rule_instance.apply.call_count, 3)
+        self.assertEqual(self.mocks['rule_instance'].apply.call_count, 3)
         self.assertTrue(all(('library_artists table' in call.args[0] for call in mock_print.call_args_list)))
 if __name__ == '__main__':
     unittest.main()

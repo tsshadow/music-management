@@ -34,3 +34,4 @@ class Step:
                 logging.error(f'{self.name} failed: {e}')
                 job_manager.update(job_id, 'failed', str(e))
             return job_id
+        return None

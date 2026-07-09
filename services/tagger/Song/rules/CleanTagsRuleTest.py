@@ -1,5 +1,8 @@
 import unittest
 from unittest.mock import MagicMock
+from services.tagger.Song.rules.CleanTagsRule import CleanTagsRule
+from services.tagger.constants import ARTIST, ALBUM_ARTIST, GENRE, REMIXER
+from services.tagger.Song.Tag import Tag
 
 class CleanTagsRuleTest(unittest.TestCase):
 

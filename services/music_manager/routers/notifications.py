@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Depends
-from typing import List, Dict, Any
 from services.music_manager.database import get_db_connection
 from services.music_manager.routers.management import verify_api_key
 
@@ -17,9 +16,10 @@ def init_db(cursor):
     """)
 
 @router.get("/")
-def get_notifications(limit: int = 50, auth: dict = Depends(verify_api_key)):
+def get_notifications(limit: int = 50, _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT * FROM notifications ORDER BY created_at DESC LIMIT %s", (limit,))
@@ -28,9 +28,10 @@ def get_notifications(limit: int = 50, auth: dict = Depends(verify_api_key)):
         conn.close()
 
 @router.delete("/{notification_id}")
-def delete_notification(notification_id: int, auth: dict = Depends(verify_api_key)):
+def delete_notification(notification_id: int, _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("DELETE FROM notifications WHERE id = %s", (notification_id,))
@@ -40,9 +41,10 @@ def delete_notification(notification_id: int, auth: dict = Depends(verify_api_ke
         conn.close()
 
 @router.delete("/")
-def clear_notifications(auth: dict = Depends(verify_api_key)):
+def clear_notifications(_auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("DELETE FROM notifications")

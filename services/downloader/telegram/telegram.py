@@ -10,7 +10,7 @@ class TelegramDownloader:
         self.output_folder = os.getenv('telegram_folder')
         self.api_id = os.getenv('telegram_api_id')
         self.api_hash = os.getenv('telegram_api_hash')
-        
+
         session_name = os.getenv('telegram_session', 'telegram')
         # Use /app/data for persistence if it exists (standard in our Docker setup)
         if os.path.exists('/app/data'):
@@ -18,7 +18,7 @@ class TelegramDownloader:
         else:
             self.session = session_name
 
-        self.max_concurrent_downloads = int(os.getenv('telegram_max_concurrent', 4))
+        self.max_concurrent_downloads = int(os.getenv('telegram_max_concurrent', '4'))
         if not self.output_folder or not self.api_id or (not self.api_hash):
             logging.warning('Missing required environment variables: telegram_folder, telegram_api_id, telegram_api_hash. Telegram downloads will be disabled.')
             self.output_folder = None
@@ -41,8 +41,7 @@ class TelegramDownloader:
         if file_path.exists():
             if expected_size is not None and file_path.stat().st_size == expected_size:
                 return
-            else:
-                print(f'⚠️ Onvolledig of onbekend bestand gevonden, opnieuw downloaden: {safe_path}')
+            print(f'⚠️ Onvolledig of onbekend bestand gevonden, opnieuw downloaden: {safe_path}')
         else:
             print(f'⬇️ Downloaden: {safe_path}')
         async with semaphore:
@@ -74,11 +73,11 @@ class TelegramDownloader:
             return
         if not channel:
             raise ValueError('Channel must be provided')
-        
+
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-        
+
         loop.run_until_complete(self._run_async(channel, limit))

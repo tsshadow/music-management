@@ -20,6 +20,7 @@ class AddMissingArtistToDatabaseRule(TagRule):
     """
 
     def __init__(self, artist_db=None, ignored_db=None, ask_for_missing: bool=False):
+        # pylint: disable=import-outside-toplevel
         from services.common.Helpers.Cache import databaseHelpers
         self.artist_table = artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
         self.ignored_table = ignored_db or databaseHelpers.get('rules_ignored_artists') or FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name')
@@ -40,38 +41,46 @@ class AddMissingArtistToDatabaseRule(TagRule):
         if not all_artists:
             return
         for name in all_artists:
-            name = name.strip()
-            if not name:
-                continue
-            if self.artist_table.exists(name):
-                continue
-            if self.ignored_table.exists(name):
-                corrected = self.ignored_table.get_corrected(name)
-                if corrected:
-                    song.tag_collection.get_item(ARTIST).add(corrected)
-                    song.tag_collection.get_item(ARTIST).remove(name)
-                    print(f"✅ '{name}' vervangen door gecorrigeerde naam '{corrected}'")
-                else:
-                    song.tag_collection.get_item('ARTIST').remove(name)
-                    print(f"❌ '{name}' verwijderd (staat op ignore-lijst)")
-                continue
-            if not self.ask_for_missing:
-                continue
-            user_input = self.get_user_input(name, all_artists, song.title(), song.path()).strip()
-            if not user_input:
-                continue
-            if user_input.lower() == 'j':
-                self.artist_table.add(name)
-                print(f"✅ '{name}' toegevoegd aan artiestendatabase")
-            elif user_input.lower() == 'n':
-                self.ignored_table.add(name)
-                song.tag_collection.get_item('ARTIST').remove(name)
-                print(f"❌ '{name}' toegevoegd aan ignore-lijst en verwijderd")
-            elif user_input.lower() == name.lower():
-                self.artist_table.add(user_input)
-                print(f"✅ '{user_input}' toegevoegd aan artiestendatabase (case corrected)")
-            else:
-                self.ignored_table.add(name, user_input)
-                song.tag_collection.get_item('ARTIST').add(user_input)
-                song.tag_collection.get_item('ARTIST').remove(name)
-                print(f"🔁 '{name}' vervangen door '{user_input}', toegevoegd aan ignore-lijst met correctie")
+            self._process_single_artist(song, name, all_artists)
+
+    def _process_single_artist(self, song, name, all_artists):
+        name = name.strip()
+        if not name:
+            return
+        if self.artist_table.exists(name):
+            return
+        if self.ignored_table.exists(name):
+            self._handle_ignored_artist(song, name)
+            return
+        if not self.ask_for_missing:
+            return
+        user_input = self.get_user_input(name, all_artists, song.title(), song.path()).strip()
+        if user_input:
+            self._handle_user_input(song, name, user_input)
+
+    def _handle_ignored_artist(self, song, name):
+        corrected = self.ignored_table.get_corrected(name)
+        if corrected:
+            song.tag_collection.get_item(ARTIST).add(corrected)
+            song.tag_collection.get_item(ARTIST).remove(name)
+            print(f"✅ '{name}' vervangen door gecorrigeerde naam '{corrected}'")
+        else:
+            song.tag_collection.get_item('ARTIST').remove(name)
+            print(f"❌ '{name}' verwijderd (staat op ignore-lijst)")
+
+    def _handle_user_input(self, song, name, user_input):
+        if user_input.lower() == 'j':
+            self.artist_table.add(name)
+            print(f"✅ '{name}' toegevoegd aan artiestendatabase")
+        elif user_input.lower() == 'n':
+            self.ignored_table.add(name)
+            song.tag_collection.get_item('ARTIST').remove(name)
+            print(f"❌ '{name}' toegevoegd aan ignore-lijst en verwijderd")
+        elif user_input.lower() == name.lower():
+            self.artist_table.add(user_input)
+            print(f"✅ '{user_input}' toegevoegd aan artiestendatabase (case corrected)")
+        else:
+            self.ignored_table.add(name, user_input)
+            song.tag_collection.get_item('ARTIST').add(user_input)
+            song.tag_collection.get_item('ARTIST').remove(name)
+            print(f"🔁 '{name}' vervangen door '{user_input}', toegevoegd aan ignore-lijst met correctie")

@@ -26,13 +26,13 @@ class TestMover(unittest.TestCase):
             ('/tmp/eps/Scantraxx/SCAN123', [], ['song1.mp3'])
         ]
         mock_isfile.return_value = True
-        
+
         with patch('services.importer.mover.LabelSong') as MockLabelSong:
             mock_song = MockLabelSong.return_value
             mock_song.__str__.return_value = "Title=Test Song\nArtists=Test Artist"
-            
+
             post_processing_songs('/tmp/eps/Scantraxx/SCAN123')
-            
+
             notification_service.notify.assert_called()
             self.assertEqual(notification_service.notify.call_args[1]['title'], "Import Complete")
 

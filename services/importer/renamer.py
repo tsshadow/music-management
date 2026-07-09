@@ -6,16 +6,14 @@ from os.path import isfile, join
 import re
 
 from services.common.settings import Settings
+from services.common.Helpers.NotificationService import notification_service
 
 
 def has_numbers(input_string):
     return any((char.isdigit() for char in input_string))
 
 def is_parsed(folder):
-    if '- ' in folder:
-        return True
-    else:
-        return False
+    return '- ' in folder
 
 def find_cat_id(folder):
     res = re.findall('\\(.*?\\)', folder)
@@ -23,13 +21,11 @@ def find_cat_id(folder):
     logging.info(res)
     if len(res) == 0:
         return ' - ' + folder
-    else:
-        for item in res:
-            if has_numbers(item):
-                item = item[1:-1]
-                return item + ' - ' + folder
+    for item in res:
+        if has_numbers(item):
+            item = item[1:-1]
+            return item + ' - ' + folder
     return ' - ' + folder
-    pass
 
 class Renamer:
 
@@ -43,19 +39,19 @@ class Renamer:
             if '@eaDir' in folder:
                 logging.info('skipping @eaDir')
             elif not is_parsed(folder):
-                logging.info('input: ' + folder)
-                logging.info('parsed: ' + find_cat_id(folder))
+                logging.info('input: %s', folder)
+                logging.info('parsed: %s', find_cat_id(folder))
                 try:
                     os.rename(self.settings.import_folder_path + self.settings.delimiter + folder, self.settings.import_folder_path + self.settings.delimiter + find_cat_id(folder))
                 except FileExistsError:
                     src = self.settings.import_folder_path + self.settings.delimiter + folder
-                    logging.info('File exists:' + src)
-                    logging.info('Removing file:' + src)
+                    logging.info('File exists: %s', src)
+                    logging.info('Removing file: %s', src)
                     try:
                         shutil.rmtree(src)
                     except Exception as e:
-                        logging.info("Thrown exception '" + str(e) + "' while deleting for '" + folder + "'")
+                        logging.info("Thrown exception '%s' while deleting for '%s'", e, folder)
                 except Exception as e:
-                    logging.info("Thrown exception  '" + str(e) + "' while moving for '" + folder + "'")
-            else:
-                pass
+                    error_msg = f"Failed to rename folder '{folder}': {e}"
+                    logging.info(error_msg)
+                    notification_service.notify(error_msg, title="Import Error")

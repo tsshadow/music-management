@@ -66,13 +66,13 @@ def main():
         db = DatabaseConnector().connect()
         with db.cursor(pymysql.cursors.DictCursor) as cursor:
             query = """
-                SELECT id, name FROM library_artists 
+                SELECT id, name FROM library_artists
                 WHERE primary_image_id IS NULL AND (image_status IS NULL OR image_status != 'failed')
                 LIMIT %s
             """
             cursor.execute(query, (args.limit,))
             artists = cursor.fetchall()
-            
+
             print(f"Found {len(artists)} artists missing images")
             for artist in artists:
                 fetcher.fetch_for_artist(artist['id'], artist['name'])
@@ -81,13 +81,13 @@ def main():
         db = DatabaseConnector().connect()
         with db.cursor(pymysql.cursors.DictCursor) as cursor:
             query = """
-                SELECT id, name FROM library_artists 
+                SELECT id, name FROM library_artists
                 WHERE image_updated_at < DATE_SUB(NOW(), INTERVAL %s DAY)
                 LIMIT %s
             """
             cursor.execute(query, (args.older_than_days, args.limit))
             artists = cursor.fetchall()
-            
+
             print(f"Refreshing {len(artists)} stale artist images")
             for artist in artists:
                 fetcher.fetch_for_artist(artist['id'], artist['name'], force_refresh=True)

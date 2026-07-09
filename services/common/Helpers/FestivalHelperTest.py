@@ -6,7 +6,7 @@ from services.common.Helpers.FestivalHelper import FestivalHelper
 class FestivalHelperTest(unittest.TestCase):
 
     def setUp(self):
-        patcher = patch('postprocessing.Song.Helpers.FestivalHelper.DatabaseConnector')
+        patcher = patch('services.common.Helpers.FestivalHelper.DatabaseConnector')
         self.addCleanup(patcher.stop)
         self.mock_connector_cls = patcher.start()
         self.mock_connection = MagicMock()

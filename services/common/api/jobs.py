@@ -24,7 +24,7 @@ except Exception:
 
     class APIRouter:
 
-        def websocket(self, *args: Any, **kwargs: Any):
+        def websocket(self, *_args: Any, **_kwargs: Any):
 
             def decorator(func):
                 return func

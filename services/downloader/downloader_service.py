@@ -91,7 +91,7 @@ class DownloaderService:
                 else:
                     logging.warning("Telegram selected but no --account or telegram_accounts env var provided; skipping Telegram downloader.")
                     return
-            
+
             for acc in accounts:
                 logging.info(f"Starting Telegram download for channel: {acc}")
                 telegram_downloader.run(acc)

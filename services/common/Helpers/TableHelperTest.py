@@ -5,7 +5,7 @@ from services.common.Helpers.TableHelper import TableHelper
 class TableHelperTest(unittest.TestCase):
 
     def setUp(self):
-        patcher = patch('postprocessing.Song.Helpers.TableHelper.DatabaseConnector')
+        patcher = patch('services.common.Helpers.TableHelper.DatabaseConnector')
         self.addCleanup(patcher.stop)
         self.mock_connector_cls = patcher.start()
         self.mock_connection = MagicMock()

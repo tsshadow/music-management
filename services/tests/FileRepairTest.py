@@ -11,6 +11,7 @@ sys.modules['services.common.Helpers.BrokenSongHelper'] = helpers_mod
 helpers_mod2 = types.ModuleType('services.common.Helpers.BrokenSongArtistLookupHelper')
 helpers_mod2.BrokenSongArtistLookupHelper = lambda *args, **kwargs: MagicMock()
 sys.modules['services.common.Helpers.BrokenSongArtistLookupHelper'] = helpers_mod2
+# pylint: disable=wrong-import-position
 from services.other.repair import FileRepair
 
 class FileRepairTest(unittest.TestCase):

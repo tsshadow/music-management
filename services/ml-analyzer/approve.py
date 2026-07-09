@@ -6,11 +6,11 @@ import numpy as np
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
-def get_prediction(model, encoders, scaler, track_data):
+def get_prediction(model, encoders, scaler, track_data): # pylint: disable=too-many-locals
     """Berekent een voorspelling voor de track data."""
     if not model or not encoders or not scaler:
         return None, 0
-    
+
     try:
         # 1. Audio features (moeten geschaald worden)
         audio_features = [
@@ -26,10 +26,10 @@ def get_prediction(model, encoders, scaler, track_data):
         for i in range(1, 14):
             audio_features.append(f'mfcc_{i}')
             audio_features.append(f'std_mfcc_{i}')
-            
+
         X_audio = pd.DataFrame([track_data])[audio_features].fillna(0)
         X_audio_scaled = pd.DataFrame(scaler.transform(X_audio), columns=audio_features)
-        
+
         # 2. Metadata features
         X_meta = pd.DataFrame()
         for col in ['artist_name', 'label_name', 'source_platform']:
@@ -37,43 +37,36 @@ def get_prediction(model, encoders, scaler, track_data):
             le = encoders.get(col)
             if not le:
                 continue
-            
+
             # Handling voor ongeziene labels
             if val not in le.classes_:
                 val = 'Unknown'
             X_meta[col] = le.transform([val])
-        
+
         X_meta['release_year'] = float(track_data.get('release_year') or 0)
         X_meta['tempo'] = float(track_data.get('tempo') or 0)
-        
+
         # 3. WEGING (dupliceren van kolommen zoals in trainer.py)
         X_weighted_meta = X_meta.copy()
         for col in ['artist_name', 'label_name', 'tempo']:
             for i in range(2):
                 X_weighted_meta[f'{col}_boost_{i}'] = X_meta[col]
-        
+
         # 4. Combineer in JUISTE volgorde (Metadata EERST, dan audio)
         X = pd.concat([X_weighted_meta, X_audio_scaled], axis=1)
-        
+
         # 5. Predict
         genre_pred = model.predict(X)[0]
         probs = model.predict_proba(X)[0]
         confidence = float(np.max(probs))
-        
+
         return genre_pred, confidence
-    except Exception as e:
-        # print(f"Prediction error: {e}")
+    except Exception: # pylint: disable=broad-except
+        # print("Prediction error")
         return None, 0
 
-def approve_tracks():
-    parser = argparse.ArgumentParser(description="Interatieve tool om tracks goed te keuren voor ML training.")
-    parser.add_argument("--redo", action="store_true", help="Herhaal beoordeling voor alle tracks (ook reeds goedgekeurde)")
-    parser.add_argument("--limit", type=int, default=100, help="Aantal tracks om te laden (default: 100)")
-    args = parser.parse_args()
-
-    load_dotenv()
+def _get_db_url():
     db_url = os.getenv("DATABASE_URL")
-    
     if not db_url:
         # Fallback naar losse DB variabelen
         host = os.getenv("DB_HOST", "db")
@@ -81,30 +74,117 @@ def approve_tracks():
         user = os.getenv("DB_USER", "music-management")
         password = os.getenv("DB_PASS", "")
         db_name = os.getenv("DB_DB", "music-management")
-        
+
         if password:
             db_url = f"mysql+mysqlconnector://{user}:{password}@{host}:{port}/{db_name}"
-            
+    return db_url
+
+def _process_single_track(conn, track, model_data): # pylint: disable=too-many-locals
+    (model, encoders, scaler) = model_data
+    (track_id, file_path, artist, label, genre_tag, ml_genre,
+     tempo, rms, _, year, centroid, _, _, _,
+     rolloff, _, contrast, std_contrast,
+     *mfccs_and_more) = track
+
+    # mfccs_and_more bevat m1-m13, s1-s13, zcr, std_zcr, chroma, std_chroma, platform, duration, review_status, approved_for_training
+    # m1 is mfccs_and_more[0], ..., m13 is mfccs_and_more[12]
+    # s1 is mfccs_and_more[13], ..., s13 is mfccs_and_more[25]
+    # zcr is mfccs_and_more[26], ..., duration is mfccs_and_more[31]
+    # review_status is mfccs_and_more[32], approved_for_training is mfccs_and_more[33]
+
+    m1 = mfccs_and_more[0]
+    zcr = mfccs_and_more[26]
+    chroma = mfccs_and_more[28]
+    platform = mfccs_and_more[30]
+    duration = mfccs_and_more[31]
+    review_status = mfccs_and_more[32]
+    approved_for_training = mfccs_and_more[33]
+
+    genre_to_approve = ml_genre or genre_tag
+
+    # Voorbereiden data voor predictie
+    track_data = {
+        'artist_name': artist, 'label_name': label, 'release_year': year,
+        'tempo': tempo, 'mean_rms': rms, 'std_rms': track[8],
+        'mean_spectral_centroid': centroid, 'std_spectral_centroid': track[11],
+        'mean_spectral_bandwidth': track[12], 'std_spectral_bandwidth': track[13],
+        'mean_spectral_rolloff': rolloff, 'std_spectral_rolloff': track[15],
+        'mean_spectral_contrast': contrast, 'std_spectral_contrast': std_contrast,
+        'mean_zcr': zcr, 'std_zcr': mfccs_and_more[27],
+        'mean_chroma': chroma, 'std_chroma': mfccs_and_more[29],
+        'source_platform': platform, 'duration': duration
+    }
+    for i in range(1, 14):
+        track_data[f'mfcc_{i}'] = mfccs_and_more[i-1]
+        track_data[f'std_mfcc_{i}'] = mfccs_and_more[i+12]
+
+    pred_genre, confidence = get_prediction(model, encoders, scaler, track_data)
+
+    print("-" * 50)
+    print(f"Song:   {os.path.basename(file_path)}")
+    print(f"Artist: {artist} | Label: {label} | Year: {year}")
+    print(f"Tempo:  {tempo:.1f} BPM | RMS: {rms:.4f} | ZCR: {zcr:.4f}")
+    print(f"Spectral: Centroid={centroid:.0f}, Rolloff={rolloff:.0f}")
+    print(f"MFCCs:  {m1:.2f}, {mfccs_and_more[1]:.2f}, {mfccs_and_more[2]:.2f}...")
+    print(f"Chroma: {chroma:.4f}")
+
+    if pred_genre:
+        print(f"AI Guess: {pred_genre} ({confidence*100:.1f}% sure)")
+    else:
+        print("AI Guess: Geen voorspelling mogelijk")
+
+    print("-" * 50)
+    print(f"Proposed ML Genre: {ml_genre} (Current Tag: {genre_tag})")
+    print(f"Status: {review_status} | Approved: {bool(approved_for_training)}")
+    print(f"\nShould be genre: {genre_to_approve}")
+
+    choice = input("Approve? (y/n/s=skip/q=quit): ").lower()
+    if choice == 'y':
+        conn.execute(
+            text("UPDATE library_track_ml_labels SET approved_for_training = 1, ml_review_status = 'human_verified' WHERE id = :id"),
+            {"id": track_id}
+        )
+        conn.commit()
+        print("Approved!")
+    elif choice == 'n':
+        new_genre = input("Enter correct genre (or leave empty to mark as do_not_train): ")
+        if new_genre:
+            conn.execute(
+                text("UPDATE library_track_ml_labels SET ml_genre = :genre, approved_for_training = 1, ml_review_status = 'human_verified' WHERE id = :id"),
+                {"id": track_id, "genre": new_genre}
+            )
+        else:
+            conn.execute(
+                text("UPDATE library_track_ml_labels SET approved_for_training = 0, ml_review_status = 'do_not_train' WHERE id = :id"),
+                {"id": track_id}
+            )
+        conn.commit()
+        print("Updated!")
+    return choice
+
+def approve_tracks():
+    parser = argparse.ArgumentParser(description="Interatieve tool om tracks goed te keuren voor ML training.")
+    parser.add_argument("--redo", action="store_true", help="Herhaal beoordeling voor alle tracks")
+    parser.add_argument("--limit", type=int, default=100, help="Aantal tracks om te laden")
+    args = parser.parse_args()
+
+    load_dotenv()
+    db_url = _get_db_url()
     if not db_url:
-        print("Geen database configuratie gevonden (DATABASE_URL of DB_PASS ontbreekt in .env)")
+        print("Geen database configuratie gevonden")
         return
 
     engine = create_engine(db_url)
-    
-    # Probeer model te laden voor previews
-    model_path = 'models/genre_classifier.joblib'
-    encoder_path = 'models/label_encoders.joblib'
-    scaler_path = 'models/feature_scaler.joblib'
-    model = None
-    encoders = None
-    scaler = None
-    if os.path.exists(model_path) and os.path.exists(encoder_path) and os.path.exists(scaler_path):
+
+    # Probeer model te laden
+    model_data = (None, None, None)
+    if all(os.path.exists(f'models/{p}.joblib') for p in ['genre_classifier', 'label_encoders', 'feature_scaler']):
         try:
-            model = joblib.load(model_path)
-            encoders = joblib.load(encoder_path)
-            scaler = joblib.load(scaler_path)
-            print(f"ML Model en scalers geladen voor previews.\n")
-        except:
+            model_data = (joblib.load('models/genre_classifier.joblib'),
+                          joblib.load('models/label_encoders.joblib'),
+                          joblib.load('models/feature_scaler.joblib'))
+            print("ML Model en scalers geladen voor previews.\n")
+        except Exception: # pylint: disable=broad-except
             pass
 
     where_clause = "WHERE l.approved_for_training = 0 AND l.ml_review_status = 'unreviewed'"
@@ -113,9 +193,9 @@ def approve_tracks():
         print("MODUS: Redo (beoordeel alle tracks opnieuw)")
 
     query = f"""
-        SELECT 
+        SELECT
             l.id, f.file_path, f.artist_name, f.label_name, f.genre_tag, l.ml_genre,
-            f.tempo, f.mean_rms, f.std_rms, f.release_year, 
+            f.tempo, f.mean_rms, f.std_rms, f.release_year,
             f.mean_spectral_centroid, f.std_spectral_centroid,
             f.mean_spectral_bandwidth, f.std_spectral_bandwidth,
             f.mean_spectral_rolloff, f.std_spectral_rolloff,
@@ -131,105 +211,21 @@ def approve_tracks():
         ORDER BY RAND()
         LIMIT :limit
     """
-    
+
     try:
         with engine.connect() as conn:
             tracks = conn.execute(text(query), {"limit": args.limit}).fetchall()
-            
             if not tracks:
                 print("Geen tracks gevonden die wachten op goedkeuring.")
                 return
 
             print(f"Gevonden: {len(tracks)} tracks om te beoordelen.\n")
-            
             for track in tracks:
-                (track_id, file_path, artist, label, genre_tag, ml_genre,
-                 tempo, rms, std_rms, year, centroid, std_centroid, bandwidth, std_bandwidth,
-                 rolloff, std_rolloff, contrast, std_contrast,
-                 m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13,
-                 s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13,
-                 zcr, std_zcr, chroma, std_chroma, platform, duration,
-                 review_status, approved_for_training) = track
-                genre_to_approve = ml_genre or genre_tag
-                
-                # Voorbereiden data voor predictie (ALLE features!)
-                track_data = {
-                    'artist_name': artist, 'label_name': label, 'release_year': year,
-                    'tempo': tempo, 'mean_rms': rms, 'std_rms': std_rms,
-                    'mean_spectral_centroid': centroid, 'std_spectral_centroid': std_centroid,
-                    'mean_spectral_bandwidth': bandwidth, 'std_spectral_bandwidth': std_bandwidth,
-                    'mean_spectral_rolloff': rolloff, 'std_spectral_rolloff': std_rolloff,
-                    'mean_spectral_contrast': contrast, 'std_spectral_contrast': std_contrast,
-                    'mean_zcr': zcr, 'std_zcr': std_zcr,
-                    'mean_chroma': chroma, 'std_chroma': std_chroma,
-                    'source_platform': platform, 'duration': duration
-                }
-                # Voeg MFCCs toe
-                for i in range(1, 14):
-                    track_data[f'mfcc_{i}'] = locals()[f'm{i}']
-                    track_data[f'std_mfcc_{i}'] = locals()[f's{i}']
-                
-                pred_genre, confidence = get_prediction(model, encoders, scaler, track_data)
-
-                print("-" * 50)
-                print(f"Song:   {os.path.basename(file_path)}")
-                print(f"Artist: {artist}")
-                print(f"Label:  {label}")
-                print(f"Year:   {year}")
-                print("-" * 20 + " ML FEATURES " + "-" * 17)
-                print(f"Tempo:  {tempo:.1f} BPM | RMS: {rms:.4f} | ZCR: {zcr:.4f}")
-                print(f"Spectral: Centroid={centroid:.0f}, Rolloff={rolloff:.0f}")
-                print(f"MFCCs:  {m1:.2f}, {m2:.2f}, {m3:.2f}, {m4:.2f}, {m5:.2f}")
-                print(f"Chroma: {chroma:.4f}")
-                
-                if pred_genre:
-                    print("-" * 20 + " AI PREDICTION " + "-" * 15)
-                    print(f"AI Guess: {pred_genre} ({confidence*100:.1f}% sure)")
-                else:
-                    print("-" * 20 + " AI PREDICTION " + "-" * 15)
-                    print("AI Guess: Geen voorspelling mogelijk (is het model getraind?)")
-
-                print("-" * 50)
-                print(f"Current Genre Tag: {genre_tag}")
-                print(f"Proposed ML Genre: {ml_genre}")
-                print(f"Status: {review_status} | Approved for training: {approved_for_training}")
-                print(f"\nShould be genre: {genre_to_approve}")
-                
-                if approved_for_training == 1:
-                    print("(Reeds goedgekeurd)")
-                else:
-                    print("Is nog niet goedgekeurd.")
-                
-                choice = input("Approve? (y/n/s=skip/q=quit): ").lower()
-                
-                if choice == 'y':
-                    conn.execute(
-                        text("UPDATE library_track_ml_labels SET approved_for_training = 1, ml_review_status = 'human_verified' WHERE id = :id"),
-                        {"id": track_id}
-                    )
-                    conn.commit()
-                    print("Approved!")
-                elif choice == 'n':
-                    new_genre = input("Enter correct genre (or leave empty to mark as do_not_train): ")
-                    if new_genre:
-                        conn.execute(
-                            text("UPDATE library_track_ml_labels SET ml_genre = :genre, approved_for_training = 1, ml_review_status = 'human_verified' WHERE id = :id"),
-                            {"id": track_id, "genre": new_genre}
-                        )
-                    else:
-                        conn.execute(
-                            text("UPDATE library_track_ml_labels SET approved_for_training = 0, ml_review_status = 'do_not_train' WHERE id = :id"),
-                            {"id": track_id}
-                        )
-                    conn.commit()
-                    print("Updated!")
-                elif choice == 'q':
+                choice = _process_single_track(conn, track, model_data)
+                if choice == 'q':
                     print("Stopping...")
                     break
-                else:
-                    print("Skipped.")
-                    
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-except
         print(f"Fout bij uitvoeren van approval script: {e}")
 
 if __name__ == "__main__":

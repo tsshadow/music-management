@@ -8,9 +8,9 @@ class ReplaceInvalidUnicodeRuleTest(unittest.TestCase):
 
     def test_replaces_invalid_unicode_chars(self):
         rule = ReplaceInvalidUnicodeRule()
-        artist = Tag(ARTIST, f'Soulblast\ufeffChaotic Brotherz\ufeffMaus999')
-        album_artist = Tag(ALBUM_ARTIST, f'Label\ufeffLabel2')
-        genre = Tag(GENRE, f'Hardcore\ufeffUptempo')
+        artist = Tag(ARTIST, 'Soulblast\ufeffChaotic Brotherz\ufeffMaus999')
+        album_artist = Tag(ALBUM_ARTIST, 'Label\ufeffLabel2')
+        genre = Tag(GENRE, 'Hardcore\ufeffUptempo')
         tag_collection = MagicMock()
         tag_collection.has_item.side_effect = lambda k: True
         tag_collection.get_item.side_effect = lambda k: {ARTIST: artist, ALBUM_ARTIST: album_artist, GENRE: genre}[k]

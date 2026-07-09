@@ -6,7 +6,7 @@ class ReadonlySong(BaseSong):
     A readonly version of BaseSong that prevents any changes from being saved to the file.
     Used for scanning metadata into the database without modifying the files.
     """
-    
+
     def __init__(self, path, extra_info=None):
         super().__init__(path, extra_info)
         # We don't want any rules applied by default in scanner mode

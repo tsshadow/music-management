@@ -8,19 +8,26 @@ def fix_nested_youtube_dirs():
         print(f'Checking uploader folder: {uploader_path}')
         if not os.path.isdir(uploader_path):
             continue
-        for subdir in os.listdir(uploader_path):
-            nested_path = os.path.join(uploader_path, subdir)
-            if os.path.isdir(nested_path):
-                deeper_uploader = os.path.join(nested_path, uploader)
-                if os.path.isdir(deeper_uploader):
-                    print(f'Fixing: {deeper_uploader}')
-                    for file in os.listdir(deeper_uploader):
-                        src = os.path.join(deeper_uploader, file)
-                        dst = os.path.join(uploader_path, file)
-                        if not os.path.exists(dst):
-                            shutil.move(src, dst)
-                        else:
-                            print(f'Skipped existing file: {dst}')
-                    shutil.rmtree(nested_path, ignore_errors=True)
+        _process_uploader_subdirs(uploader, uploader_path)
+
+def _process_uploader_subdirs(uploader, uploader_path):
+    for subdir in os.listdir(uploader_path):
+        nested_path = os.path.join(uploader_path, subdir)
+        if not os.path.isdir(nested_path):
+            continue
+        deeper_uploader = os.path.join(nested_path, uploader)
+        if os.path.isdir(deeper_uploader):
+            _move_files_and_cleanup(deeper_uploader, uploader_path, nested_path)
+
+def _move_files_and_cleanup(src_dir, dst_root, dir_to_remove):
+    print(f'Fixing: {src_dir}')
+    for file in os.listdir(src_dir):
+        src = os.path.join(src_dir, file)
+        dst = os.path.join(dst_root, file)
+        if not os.path.exists(dst):
+            shutil.move(src, dst)
+        else:
+            print(f'Skipped existing file: {dst}')
+    shutil.rmtree(dir_to_remove, ignore_errors=True)
 if __name__ == '__main__':
     fix_nested_youtube_dirs()

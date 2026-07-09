@@ -27,7 +27,7 @@ class TestSoundcloudArtistTitle(unittest.TestCase):
             'uploader': 'Albino',
             'title': 'Albino - RIJE MOAT'
         }
-        
+
         song = SoundcloudSong(path, extra_info)
         # In SoundcloudSong, the title is initially taken from extra_info or file name
         song.tag_collection.set_item(TITLE, extra_info['title'])
@@ -37,7 +37,7 @@ class TestSoundcloudArtistTitle(unittest.TestCase):
 
         self.assertEqual(song.artist(), 'Albino')
         self.assertEqual(song.title(), 'RIJE MOAT')
-        
+
 
     def test_multi_artist_title_split(self):
         """

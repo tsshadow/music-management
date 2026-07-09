@@ -40,14 +40,13 @@ class Tagger:
 
     def __init__(self):
         self.parallel = True
-        pass
 
     def run(self, parse_labels=True, parse_soundcloud=True, parse_youtube=True, parse_generic=True, parse_telegram=True):
         """
         Entrypoint for the tagging process.
         Scans various music directories (library_labels, YouTube, SoundCloud, generic) and applies appropriate tag parsing.
         """
-        logging.info('Starting Tag Step with options: {}, {}, {}, {}, {}'.format(parse_labels, parse_soundcloud, parse_youtube, parse_generic, parse_telegram))
+        logging.info('Starting Tag Step with options: %s, %s, %s, %s, %s', parse_labels, parse_soundcloud, parse_youtube, parse_generic, parse_telegram)
         if parse_labels:
             self._parse_label_folders()
         if parse_soundcloud:
@@ -111,19 +110,19 @@ class Tagger:
 
         if '@eaDir' in str(folder):
             return
-        extensions = {'mp3': parse_mp3, 'flac': parse_flac, 'wav': parse_wav, 'm4a': parse_m4a, 'aac': parse_aac}
+
         try:
             files = []
-            for ext, enabled in extensions.items():
+            for ext, enabled in {'mp3': parse_mp3, 'flac': parse_flac, 'wav': parse_wav, 'm4a': parse_m4a, 'aac': parse_aac}.items():
                 if enabled:
                     files.extend(folder.glob(f'*.{ext}'))
             if self.parallel and files:
                 with ThreadPoolExecutor(max_workers=16) as executor:
                     futures = [executor.submit(Tagger._parse_worker, str(file), song_type.name, None, extra_info) for file in files]
                     for future in as_completed(futures):
-                        path, status = future.result()
+                        _, status = future.result()
                         if status != 'OK':
-                            logging.warning(f'{path}: {status}')
+                            logging.warning(f'Error: {status}')
             else:
                 for file in files:
                     self._try_parse(file, song_type, extra_info)

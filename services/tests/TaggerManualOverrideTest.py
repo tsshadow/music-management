@@ -15,6 +15,7 @@ os.environ.setdefault('DB_PASS', '')
 os.environ.setdefault('DB_DB', 'db')
 sys.modules['dotenv'] = types.ModuleType('dotenv')
 sys.modules['dotenv'].load_dotenv = lambda *a, **k: None
+# pylint: disable=wrong-import-position
 from services.tagger.constants import SongTypeEnum
 
 class TaggerManualOverrideTest(unittest.TestCase):
@@ -31,6 +32,7 @@ class TaggerManualOverrideTest(unittest.TestCase):
             mod = types.ModuleType(mod_name)
             setattr(mod, class_name, type(class_name, (), {}))
             sys.modules[mod_name] = mod
+        # pylint: disable=import-outside-toplevel
         from services.tagger import tagger as tagger_module
         with patch.object(tagger_module, 'LabelSong', return_value=dummy_song):
             tagger_module.Tagger.parse_song(Path('file.mp3'), SongTypeEnum.LABEL, {'genre': 'Trance'})

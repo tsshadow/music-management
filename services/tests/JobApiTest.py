@@ -5,6 +5,7 @@ import importlib
 import sys
 sys.modules.pop('requests', None)
 requests = importlib.import_module('requests')
+# pylint: disable=wrong-import-position
 from services.common.api.step import Step
 from services.common.api import start_api_server
 from services.common.api.job_manager import job_manager

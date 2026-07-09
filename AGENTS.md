@@ -97,9 +97,10 @@ The full API specification for the `music-manager` service can be found in [docs
 To ensure consistency and reliability, all contributions must adhere to these rules:
 
 1. **Code must be tested**: Every new feature or bug fix must include corresponding tests in the relevant `tests/` directory.
-2. **Code must be linted**: Follow PEP 8 guidelines for Python code.
+2. **Code must be linted**: Follow PEP 8 guidelines and ensure `pylint` passes with a score above 8.5.
 3. **Code must be documented**: Use clear function/class docstrings and update `AGENTS.md`, `README.md`, or the `docs/` folder if system behavior changes.
 4. **Release notes / changelog should be written**: Document significant changes in `CHANGELOG.md` or `RELEASE_NOTES.md` before merging.
 
 ## Production
+
 Production info can be found at .production

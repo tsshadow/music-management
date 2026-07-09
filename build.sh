@@ -134,6 +134,16 @@ build_manager() {
     $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_CORE}:latest" -t "${DOCKER_USER}/${IMAGE_CORE}:${VERSION}" -f Dockerfile.music-manager .
 }
 
+run_linter() {
+    echo "--- Running pylint ---"
+    if ! python3 -m pylint services/ --fail-under=8.5; then
+        echo ""
+        echo "❌ ERROR: Pylint score too low! Build aborted."
+        exit 1
+    fi
+    echo "--- Pylint passed ---"
+}
+
 run_tests() {
     echo "--- Running tests ---"
     export PYTHONPATH=$PYTHONPATH:$(pwd)
@@ -161,7 +171,8 @@ if [ "$SEMI_REMOTE_MODE" = true ]; then
     echo "--- Building ML, Tools, and App remote, others local ---"
 fi
 
-# All builds require passing tests
+# All builds require passing tests and linting
+run_linter
 run_tests
 
 if [ ${#REQUESTED_MODULES[@]} -eq 0 ]; then

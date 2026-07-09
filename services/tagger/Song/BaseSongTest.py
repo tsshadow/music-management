@@ -1,12 +1,16 @@
 import unittest
 from unittest.mock import patch, MagicMock, Mock
 from mutagen.easyid3 import EasyID3
+from services.tagger.Song.BaseSong import BaseSong, ExtensionNotSupportedException
+from services.tagger.Song.SongHelper import split_artists, merge_and_sort_genres
+from services.tagger.constants import MusicFileType, ARTIST
+from services.tagger.Song.Tag import Tag
 
 class BaseSongTest(unittest.TestCase):
 
-    @patch('postprocessing.Song.BaseSong.MP3')
-    @patch('postprocessing.Song.BaseSong.EasyID3')
-    def test_initialization_with_supported_extension(self, mock_easyid3, mock_mp3):
+    @patch('services.tagger.Song.BaseSong.MP3')
+    @patch('services.tagger.Song.BaseSong.EasyID3')
+    def test_initialization_with_supported_extension(self, _mock_easyid3, mock_mp3):
         mock_file = MagicMock()
         mock_file.tags = EasyID3()
         mock_mp3.return_value = mock_file
@@ -19,17 +23,15 @@ class BaseSongTest(unittest.TestCase):
             BaseSong('file.unsupported')
 
     def test_split_artists(self):
-        song = BaseSong.__new__(BaseSong)
-        result = song.split_artists('Artist A & Artist B feat. Artist C')
+        result = split_artists('Artist A & Artist B feat. Artist C')
         self.assertIn('Artist A', result)
         self.assertIn('Artist B', result)
         self.assertIn('Artist C', result)
 
     def test_merge_and_sort_genres(self):
-        song = BaseSong.__new__(BaseSong)
         a = ['Techno', 'Hardcore']
         b = ['Hardcore', 'Industrial']
-        merged = song.merge_and_sort_genres(a, b)
+        merged = merge_and_sort_genres(a, b)
         self.assertEqual(merged, ['Hardcore', 'Industrial', 'Techno'])
 
     def test_sort_genres(self):
@@ -64,8 +66,8 @@ class BaseSongTest(unittest.TestCase):
         song.set_tag(tag)
         self.assertEqual(song.music_file[ARTIST], 'New Artist')
 
-    @patch('postprocessing.Song.BaseSong.logging')
-    def test_save_file_saves_only_if_changed(self, mock_logging):
+    @patch('services.tagger.Song.BaseSong.logging')
+    def test_save_file_saves_only_if_changed(self, _mock_logging):
         tag = Tag(tag=ARTIST, value='Original Artist')
         tag.set('Some Artist')
         song = BaseSong.__new__(BaseSong)
@@ -86,8 +88,8 @@ class BaseSongTest(unittest.TestCase):
         song._apply_extra_info(info)
         tag_collection.set_item.assert_called_once_with(ARTIST, 'Test Artist')
 
-    @patch('postprocessing.Song.BaseSong.logging')
-    def test_length_returns_none_on_error(self, mock_logging):
+    @patch('services.tagger.Song.BaseSong.logging')
+    def test_length_returns_none_on_error(self, _mock_logging):
         song = BaseSong.__new__(BaseSong)
         song.path = lambda: 'fakepath'
         song.music_file = object()

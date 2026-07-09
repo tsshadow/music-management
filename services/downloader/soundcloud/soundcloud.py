@@ -37,13 +37,15 @@ class SoundcloudDownloader:
     - Skips tracks outside a configurable duration range.
     """
 
-    def __init__(self, break_on_existing=True, max_workers=1, burst_size=10, min_pause=1, max_pause=5):
+    def __init__(self, break_on_existing=True, **kwargs):
         self._config = ConfigStore()
         self.default_break_on_existing = break_on_existing
-        self.max_workers = max_workers
-        self.burst_size = burst_size
-        self.min_pause = min_pause
-        self.max_pause = max_pause
+        self.batch_settings = {
+            'max_workers': kwargs.get('max_workers', 1),
+            'burst_size': kwargs.get('burst_size', 10),
+            'min_pause': kwargs.get('min_pause', 1),
+            'max_pause': kwargs.get('max_pause', 5)
+        }
         self._subscriptions = []
         self._apply_config()
         for key in ['soundcloud_folder', 'soundcloud_archive', 'soundcloud_cookies', 'ffmpeg_location']:
@@ -91,87 +93,114 @@ class SoundcloudDownloader:
                     time.sleep(5 * attempt)
         logging.error(f'SoundCloud download failed for {name} after 3 attempts.')
 
-    def run(self, account: str='', download: bool=True, breakOnExisting: Optional[bool]=None, redownload: bool=False):
-        if not getattr(self, 'enabled', True):
+    def run(self, account: str='', break_on_existing_arg: Optional[bool]=None, redownload: bool=False):
+        if not getattr(self, 'downloader_config', {}).get('enabled', True):
             logging.warning('SoundCloud soundcloud is not configured; skipping run().')
             return
-        
+
         # Defensive: initial wait up to 1 minute
         init_wait = random.randint(5, 60)
         logging.info(f'Defensive start: waiting {init_wait}s before first download...')
         time.sleep(init_wait)
 
+        accounts = self._get_accounts(account)
+        if not accounts:
+            return
+
+        total_accounts = len(accounts)
+        burst_size = self.batch_settings['burst_size']
+        total_batches = math.ceil(total_accounts / burst_size)
+        processed = 0
+
+        for i in range(0, total_accounts, burst_size):
+            batch = accounts[i:i + burst_size]
+            batch_num = i // burst_size + 1
+            logging.info(f'Processing batch {batch_num} of {total_batches}')
+            processed = self._process_batch(batch, break_on_existing_arg, redownload, processed, total_accounts)
+
+    def _get_accounts(self, account: str) -> list[str]:
         if not account:
             accounts = get_accounts_from_db()
             if not accounts:
                 logging.warning('No SoundCloud accounts found in the database.')
-                return
+                return []
             accounts.sort()
+            return accounts
+        return [account]
+
+    def _process_batch(self, batch, break_on_existing_arg, redownload, processed, total_accounts):
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.batch_settings['max_workers']) as executor:
+            futures = {}
+            for acc in batch:
+                if futures:
+                    time.sleep(random.randint(2, 10))
+
+                ydl_opts = self._prepare_ydl_opts(acc, break_on_existing_arg, redownload)
+                futures[executor.submit(self.download_account, acc, ydl_opts)] = acc
+
+            for future in concurrent.futures.as_completed(futures):
+                acc = futures[future]
+                processed += 1
+                job_manager.publish({
+                    'type': 'soundcloud-account',
+                    'account': acc,
+                    'current': processed,
+                    'total': total_accounts
+                })
+        return processed
+
+    def _prepare_ydl_opts(self, acc, break_on_existing_arg, redownload):
+        ydl_opts = self.downloader_config['ydl_opts'].copy()
+        effective_break = self.default_break_on_existing if break_on_existing_arg is None else break_on_existing_arg
+        if effective_break:
+            ydl_opts['break_on_existing'] = True
         else:
-            accounts = [account]
-        total_accounts = len(accounts)
-        processed = 0
-        total_batches = math.ceil(total_accounts / self.burst_size)
-        for i in range(0, total_accounts, self.burst_size):
-            batch = accounts[i:i + self.burst_size]
-            batch_num = i // self.burst_size + 1
-            logging.info(f'Processing batch {batch_num} of {total_batches}')
-            # Reduced max_workers to avoid hitting rate limits too fast
-            with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                futures = {}
-                for acc in batch:
-                    # Add a small delay between starting account downloads to spread requests
-                    if futures:
-                        time.sleep(random.randint(2, 10))
-                    
-                    ydl_opts = self.ydl_opts.copy()
-                    effective_break = self.default_break_on_existing if breakOnExisting is None else breakOnExisting
-                    if effective_break:
-                        ydl_opts['break_on_existing'] = True
-                    else:
-                        ydl_opts.pop('break_on_existing', None)
-                    if not redownload:
-                        if self.archive_file:
-                            ydl_opts['download_archive'] = str(self.archive_file)
-                            logging.info(f'Using shared archive: {self.archive_file}')
-                        else:
-                            account_archive = Path(self.archive_dir) / f'{acc}.txt'
-                            ydl_opts['download_archive'] = str(account_archive)
-                            logging.info(f'Using per-account archive: {account_archive} for {acc}')
-                    else:
-                        ydl_opts.pop('download_archive', None)
-                        logging.info(f'Redownload enabled — skipping archive for {acc}.')
-                    futures[executor.submit(self.download_account, acc, ydl_opts)] = acc
-                for future in concurrent.futures.as_completed(futures):
-                    acc = futures[future]
-                    processed += 1
-                    job_manager.publish({'type': 'soundcloud-account', 'account': acc, 'current': processed, 'total': total_accounts})
+            ydl_opts.pop('break_on_existing', None)
+
+        if not redownload:
+            if self.downloader_config['archive_file']:
+                ydl_opts['download_archive'] = str(self.downloader_config['archive_file'])
+                logging.info(f"Using shared archive: {self.downloader_config['archive_file']}")
+            else:
+                account_archive = Path(self.downloader_config['archive_dir']) / f'{acc}.txt'
+                ydl_opts['download_archive'] = str(account_archive)
+                logging.info(f'Using per-account archive: {account_archive} for {acc}')
+        else:
+            ydl_opts.pop('download_archive', None)
+            logging.info(f'Redownload enabled — skipping archive for {acc}.')
+        return ydl_opts
 
     def _apply_config(self) -> None:
         values = self._config.get_many(['soundcloud_folder', 'soundcloud_archive', 'soundcloud_cookies', 'ffmpeg_location'])
-        self.output_folder = values.get('soundcloud_folder') or None
-        self.archive_dir = values.get('soundcloud_archive') or None
-        self.cookies_file = values.get('soundcloud_cookies') or 'soundcloud.com_cookies.txt'
-        self.ffmpeg_location = values.get('ffmpeg_location') or '/usr/bin'
-        if not self.output_folder or not self.archive_dir:
-            if getattr(self, 'enabled', True):
+        self.downloader_config = {
+            'output_folder': values.get('soundcloud_folder') or None,
+            'archive_dir': values.get('soundcloud_archive') or None,
+            'cookies_file': values.get('soundcloud_cookies') or 'soundcloud.com_cookies.txt',
+            'ffmpeg_location': values.get('ffmpeg_location') or '/usr/bin',
+            'enabled': True,
+            'archive_file': None,
+            'ydl_opts': {}
+        }
+
+        if not self.downloader_config['output_folder'] or not self.downloader_config['archive_dir']:
+            if getattr(self, 'downloader_config', {}).get('enabled', True):
                 logging.warning('Missing required configuration for SoundCloud downloads. SoundCloud downloads will be disabled.')
-            self.enabled = False
-            self.ydl_opts = {}
-            self.archive_file = None
+            self.downloader_config['enabled'] = False
+            self.downloader_config['ydl_opts'] = {}
+            self.downloader_config['archive_file'] = None
             return
-        os.makedirs(self.output_folder, exist_ok=True)
-        if os.path.isfile(self.archive_dir):
-            self.archive_file = self.archive_dir
+        os.makedirs(self.downloader_config['output_folder'], exist_ok=True)
+        if os.path.isfile(self.downloader_config['archive_dir']):
+            self.downloader_config['archive_file'] = self.downloader_config['archive_dir']
         else:
-            os.makedirs(self.archive_dir, exist_ok=True)
-            self.archive_file = None
-        self.enabled = True
-        self.ydl_opts = {
+            os.makedirs(self.downloader_config['archive_dir'], exist_ok=True)
+            self.downloader_config['archive_file'] = None
+        self.downloader_config['enabled'] = True
+        self.downloader_config['ydl_opts'] = {
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             },
-            'outtmpl': f'{self.output_folder}/%(uploader)s/%(title)s.%(ext)s',
+            'outtmpl': f"{self.downloader_config['output_folder']}/%(uploader)s/%(title)s.%(ext)s",
             'compat_opts': ['filename'],
             'nooverwrites': False,
             'no_part': True,
@@ -179,24 +208,25 @@ class SoundcloudDownloader:
             'match_filter': self._match_filter,
             'quiet': False,
             'set_file_timestamp': True,
-            'ffmpeg_location': self.ffmpeg_location,
+            'ffmpeg_location': self.downloader_config['ffmpeg_location'],
             'sleep_interval': 10,
             'max_sleep_interval': 60,
             'sleep_requests': 1,
             'ratelimit': 1024 * 1024,  # Limit to 1MB/s
             'playlist_random': True,
         }
-        
-        if self.cookies_file:
-            if self.cookies_file.startswith('firefox:'):
-                parts = self.cookies_file.split(':', 1)
+
+        cookies_file = self.downloader_config['cookies_file']
+        if cookies_file:
+            if cookies_file.startswith('firefox:'):
+                parts = cookies_file.split(':', 1)
                 profile = parts[1] if len(parts) > 1 else None
                 logging.info(f'Using cookiesfrombrowser=firefox with profile: {profile} for SoundCloud')
-                self.ydl_opts['cookiesfrombrowser'] = ('firefox', profile)
+                self.downloader_config['ydl_opts']['cookiesfrombrowser'] = ('firefox', profile)
             else:
-                self.ydl_opts['cookies'] = self.cookies_file
+                self.downloader_config['ydl_opts']['cookies'] = cookies_file
         else:
-            self.ydl_opts['cookiesfrombrowser'] = ('firefox',)
+            self.downloader_config['ydl_opts']['cookiesfrombrowser'] = ('firefox',)
 
         if self.default_break_on_existing:
-            self.ydl_opts['break_on_existing'] = True
+            self.downloader_config['ydl_opts']['break_on_existing'] = True

@@ -15,7 +15,7 @@ class TestSoundcloudBasicRun(unittest.TestCase):
         self.archive_patcher = patch('services.downloader.soundcloud.SoundcloudSongProcessor.SoundcloudArchive')
         self.mock_archive = self.archive_patcher.start()
         self.mock_archive.exists.return_value = False
-        
+
         self.db_patcher = patch('services.downloader.soundcloud.soundcloud.get_accounts_from_db')
         self.mock_get_accounts = self.db_patcher.start()
         self.mock_get_accounts.return_value = ['albino_music']
@@ -41,7 +41,7 @@ class TestSoundcloudBasicRun(unittest.TestCase):
             'ext': 'mp3',
             'filepath': '/tmp/soundcloud/Albino/RIJE MOAT.mp3'
         }
-        
+
         enriched_info = {
             'id': 'rije-moat-1',
             'title': 'RIJE MOAT',
@@ -51,9 +51,9 @@ class TestSoundcloudBasicRun(unittest.TestCase):
             'genre': 'Hardstyle',
             'channel_id': 'albino_id'
         }
-        
+
         mock_instance = mock_ytdlp.return_value.__enter__.return_value
-        
+
         def mock_add_pp(pp):
             if "SoundcloudSongProcessor" in str(type(pp)):
                 self.processor = pp
@@ -64,7 +64,7 @@ class TestSoundcloudBasicRun(unittest.TestCase):
                 self.processor.run(dl_info)
             return 0
         mock_instance.download.side_effect = mock_download
-        
+
         import json
         mock_subprocess.return_value = MagicMock(stdout=json.dumps(enriched_info), check_returncode=lambda: None)
 
@@ -76,7 +76,7 @@ class TestSoundcloudBasicRun(unittest.TestCase):
         song = SoundcloudSong(dl_info['filepath'], enriched_info)
         song.tag_collection.set_item(TITLE, 'RIJE MOAT')
         song.parse()
-        
+
         self.assertEqual(song.title(), 'RIJE MOAT')
         self.assertEqual(song.album(), 'Soundcloud (Albino)')
         self.assertEqual(song.publisher(), 'Soundcloud')

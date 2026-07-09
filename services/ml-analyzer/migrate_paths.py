@@ -1,4 +1,3 @@
-import os
 from sqlalchemy import text
 from analyzer import TrackAnalyzer
 from dotenv import load_dotenv

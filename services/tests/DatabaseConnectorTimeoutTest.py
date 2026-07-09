@@ -1,6 +1,7 @@
 import os
 import unittest
 from unittest.mock import patch
+from services.common.Helpers.DatabaseConnector import DatabaseConnector
 
 class DatabaseConnectorTimeoutTest(unittest.TestCase):
 
@@ -12,7 +13,7 @@ class DatabaseConnectorTimeoutTest(unittest.TestCase):
         os.environ.setdefault('DB_DB', 'db')
 
     def test_connect_uses_default_timeout(self):
-        import services.common.Helpers.DatabaseConnector as db_module
+        import services.common.Helpers.DatabaseConnector as db_module # pylint: disable=import-outside-toplevel
         with patch.object(db_module, 'pymysql') as mock_pymysql:
             DatabaseConnector().connect()
             _, kwargs = mock_pymysql.connect.call_args
@@ -20,7 +21,7 @@ class DatabaseConnectorTimeoutTest(unittest.TestCase):
 
     def test_env_can_override_timeout(self):
         os.environ['DB_CONNECT_TIMEOUT'] = '1'
-        import services.common.Helpers.DatabaseConnector as db_module
+        import services.common.Helpers.DatabaseConnector as db_module # pylint: disable=import-outside-toplevel
         with patch.object(db_module, 'pymysql') as mock_pymysql:
             DatabaseConnector().connect()
             _, kwargs = mock_pymysql.connect.call_args

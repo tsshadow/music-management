@@ -13,3 +13,4 @@ services/ml-analyzer/.env
 node_modules/
 .pytest_cache/
 package-lock.json
+.production

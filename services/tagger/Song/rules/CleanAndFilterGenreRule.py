@@ -6,6 +6,7 @@ class CleanAndFilterGenreRule(TagRule):
     """Cleans and filters genre tag using the genre filter table."""
 
     def __init__(self, genre_filter_helper=None, backlog_helper=None, ignored_helper=None):
+        # pylint: disable=import-outside-toplevel
         from services.common.Helpers.FilterTableHelper import FilterTableHelper
         from services.common.Helpers.TableHelper import TableHelper
         from services.common.Helpers.Cache import databaseHelpers

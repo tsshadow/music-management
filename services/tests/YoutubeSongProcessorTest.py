@@ -34,7 +34,7 @@ class DummyYoutubeArchive:
     inserted = []
 
     @staticmethod
-    def exists(account, video_id):
+    def exists(_account, _video_id):
         return False
 
     @staticmethod
@@ -46,6 +46,7 @@ sys.modules['services.tagger.Song.YoutubeSong'] = dummy_song_module
 dummy_archive_module = types.ModuleType('services.downloader.youtube.YoutubeArchive')
 dummy_archive_module.YoutubeArchive = DummyYoutubeArchive
 sys.modules['services.downloader.youtube.YoutubeArchive'] = dummy_archive_module
+# pylint: disable=wrong-import-position
 from downloader.youtube import YoutubeSongProcessor
 
 class DummyDownloader:
@@ -65,18 +66,19 @@ class DummyDownloader:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         return path
 
-    def urlopen(self, url):
+    def urlopen(self, _url):
         return io.BytesIO(self.html.encode('utf-8'))
 
-    def to_console_title(self, *args, **kwargs):
+    def to_console_title(self, *_args, **_kwargs):
         return None
 
-    def evaluate_outtmpl(self, template, info_dict=None, **kwargs):
+    def evaluate_outtmpl(self, _template, _info_dict=None, **_kwargs):
         return ''
 
 class YoutubeSongProcessorTest(unittest.TestCase):
 
     def setUp(self):
+        # pylint: disable=consider-using-with
         self.temp_dir = tempfile.TemporaryDirectory()
         DummyYoutubeArchive.inserted.clear()
         DummySong.last_instance = None

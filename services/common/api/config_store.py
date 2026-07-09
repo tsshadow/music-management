@@ -282,7 +282,7 @@ def _config_fields() -> List[ConfigField]:
             key="notify_url",
             type="string",
             default="",
-            env="notify_url",
+            env="NOTIFY_URL",
             group="Notifications",
             description="URL for ntfy.sh integration.",
         ),
@@ -302,28 +302,35 @@ class ConfigStore:
 
     _instance: Optional["ConfigStore"] = None
     _instance_lock = threading.Lock()
+    _initialized = False
 
     def __new__(cls) -> "ConfigStore":
         with cls._instance_lock:
             if cls._instance is None:
                 cls._instance = super().__new__(cls)
-                cls._instance._initialize()
         return cls._instance
 
+    def __init__(self) -> None:
+        with self._instance_lock:
+            if self._initialized:
+                return
+            self._fields = _config_fields()
+            self._field_map = {field.key: field for field in self._fields}
+            self._lock = threading.RLock()
+            self._listeners: MutableMapping[str, List[Callable[[Any], None]]] = defaultdict(list)
+            config_path = os.getenv("CONFIG_PATH")
+            if config_path:
+                self._config_path = Path(config_path)
+            else:
+                self._config_path = Path("data") / "config.json"
+            self._config_path.parent.mkdir(parents=True, exist_ok=True)
+            self._values: Dict[str, Any] = {field.key: field.default for field in self._fields}
+            self._load_from_env()
+            self._load_from_disk()
+            self._initialized = True
+
     def _initialize(self) -> None:
-        self._fields = _config_fields()
-        self._field_map = {field.key: field for field in self._fields}
-        self._lock = threading.RLock()
-        self._listeners: MutableMapping[str, List[Callable[[Any], None]]] = defaultdict(list)
-        config_path = os.getenv("CONFIG_PATH")
-        if config_path:
-            self._config_path = Path(config_path)
-        else:
-            self._config_path = Path("data") / "config.json"
-        self._config_path.parent.mkdir(parents=True, exist_ok=True)
-        self._values: Dict[str, Any] = {field.key: field.default for field in self._fields}
-        self._load_from_env()
-        self._load_from_disk()
+        """Legacy initialization method."""
 
     # ------------------------------------------------------------------
     # Public API
@@ -406,46 +413,53 @@ class ConfigStore:
             return None
 
         if field.type == "boolean":
-            if isinstance(value, bool):
-                return value
-            if isinstance(value, str):
-                lowered = value.strip().lower()
-                if lowered in {"1", "true", "yes", "on"}:
-                    return True
-                if lowered in {"0", "false", "no", "off"}:
-                    return False
-                raise ValueError(f"Cannot parse boolean value for {field.key}: {value!r}")
-            if isinstance(value, (int, float)):
-                return bool(value)
-            raise ValueError(f"Invalid type for boolean field {field.key}")
-
+            return self._coerce_boolean(field, value)
         if field.type == "integer":
-            if value == "":
-                return None if field.nullable else 0
-            if isinstance(value, bool):
-                raise ValueError(f"Invalid boolean for integer field {field.key}")
-            if isinstance(value, int):
-                return value
-            if isinstance(value, float):
-                if value.is_integer():
-                    return int(value)
-                raise ValueError(f"Non-integer value for {field.key}")
-            if isinstance(value, str):
-                try:
-                    return int(value.strip())
-                except ValueError as exc:
-                    raise ValueError(f"Cannot parse integer value for {field.key}") from exc
-            raise ValueError(f"Invalid type for integer field {field.key}")
-
+            return self._coerce_integer(field, value)
         if field.type == "string":
-            if isinstance(value, str):
-                return value
-            # Accept simple primitives and convert to string for convenience
-            if isinstance(value, (int, float, bool)):
-                return str(value)
-            raise ValueError(f"Invalid type for string field {field.key}")
+            return self._coerce_string(field, value)
 
         raise ValueError(f"Unsupported field type {field.type} for {field.key}")
+
+    def _coerce_boolean(self, field: ConfigField, value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in {"1", "true", "yes", "on"}:
+                return True
+            if lowered in {"0", "false", "no", "off"}:
+                return False
+            raise ValueError(f"Cannot parse boolean value for {field.key}: {value!r}")
+        if isinstance(value, (int, float)):
+            return bool(value)
+        raise ValueError(f"Invalid type for boolean field {field.key}")
+
+    def _coerce_integer(self, field: ConfigField, value: Any) -> Optional[int]:
+        if value == "":
+            return None if field.nullable else 0
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid boolean for integer field {field.key}")
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float):
+            if value.is_integer():
+                return int(value)
+            raise ValueError(f"Non-integer value for {field.key}")
+        if isinstance(value, str):
+            try:
+                return int(value.strip())
+            except ValueError as exc:
+                raise ValueError(f"Cannot parse integer value for {field.key}") from exc
+        raise ValueError(f"Invalid type for integer field {field.key}")
+
+    def _coerce_string(self, field: ConfigField, value: Any) -> str:
+        if isinstance(value, str):
+            return value
+        # Accept simple primitives and convert to string for convenience
+        if isinstance(value, (int, float, bool)):
+            return str(value)
+        raise ValueError(f"Invalid type for string field {field.key}")
 
     def _load_from_env(self) -> None:
         for field in self._fields:
@@ -482,13 +496,8 @@ class ConfigStore:
                 continue
 
     def _persist_locked(self) -> None:
-        try:
-            payload = {key: self._values.get(key) for key in self._field_map}
-            self._config_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-        except Exception:
-            # Persistence issues should not crash the application, but they are
-            # significant enough to raise for visibility.
-            raise
+        payload = {key: self._values.get(key) for key in self._field_map}
+        self._config_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
     def _notify_listeners(self, key: str, value: Any) -> None:
         listeners: List[Callable[[Any], None]]
@@ -510,4 +519,3 @@ class ConfigStore:
 
 
 __all__ = ["ConfigField", "ConfigStore"]
-

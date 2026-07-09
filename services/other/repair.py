@@ -17,7 +17,7 @@ class FileRepair:
         self.import_accounts()
         try:
             rows = self.broken_helper.get_all()
-            for song_id, path, error_code in rows:
+            for song_id, path, _ in rows:
                 path_lower = path.lower()
                 if 'soundcloud' in path_lower:
                     success = self.repair_soundcloud(song_id, path)
@@ -41,7 +41,7 @@ class FileRepair:
         if not os.path.exists(path):
             logging.warning('No Accounts.txt file found.')
             return
-        with open(path, 'r') as f:
+        with open(path, 'r', encoding='utf-8') as f:
             for line in f:
                 normalized_name = line.strip()
                 if not normalized_name:
@@ -130,7 +130,6 @@ class FileRepair:
 
     def fetch_uploader_info(self, url):
         try:
-            ydl_opts = {'quiet': True, 'cookiefile': '/volume1/Music/Soundcloud/cookies.txt', 'extract_flat': True}
             with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
                 info = ydl.extract_info(url, download=False)
                 return info.get('uploader')

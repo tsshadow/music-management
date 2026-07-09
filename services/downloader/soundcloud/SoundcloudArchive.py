@@ -29,7 +29,14 @@ class SoundcloudArchive:
         return self_info.get('channel_id') or self_info.get('uploader_id') or None
 
     @staticmethod
-    def insert(account_name: str, account_id: str, video_id: str, path: str, url: str, title: str):
+    def insert(info: dict):
+        account_name = info.get('account_name')
+        account_id = info.get('account_id')
+        video_id = info.get('video_id')
+        path = info.get('path')
+        url = info.get('url')
+        title = info.get('title')
+
         if not all([account_name, video_id, url]):
             logging.warning(f'Missing fields for archive insert: account_id={account_id!r}, video_id={video_id!r}, url={url!r}')
             return

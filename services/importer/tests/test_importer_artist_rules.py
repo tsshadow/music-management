@@ -26,11 +26,11 @@ class TestArtistRules(unittest.TestCase):
         song = LabelSong(file_path)
         song.tag_collection.set_item(TITLE, "Song Name (Headhunterz Remix)")
         song.tag_collection.set_item(ARTIST, "Original Artist")
-        
+
         # Mock library_artists to contain Headhunterz
         self.db_helpers['library_artists'].get.side_effect = lambda x: x if x == 'Headhunterz' else x
         self.db_helpers['library_artists'].exists.side_effect = lambda x: x == 'Headhunterz'
-        
+
         song.parse()
         self.assertIn('Headhunterz', song.artist())
         self.assertEqual(song.tag_collection.get_item_as_string(REMIXER), 'Headhunterz')
@@ -40,10 +40,10 @@ class TestArtistRules(unittest.TestCase):
         file_path = '/tmp/Label/CAT/song.mp3'
         song = LabelSong(file_path)
         song.tag_collection.set_item(ARTIST, "New Artist")
-        
+
         # Mock library_artists to NOT contain New Artist
         self.db_helpers['library_artists'].exists.return_value = False
-        
+
         song.parse()
         self.db_helpers['library_artists'].add.assert_not_called()
 
@@ -52,11 +52,11 @@ class TestArtistRules(unittest.TestCase):
         file_path = '/tmp/Label/CAT/song.mp3'
         song = LabelSong(file_path)
         song.tag_collection.set_item(ARTIST, "d-block")
-        
+
         # Mock library_artists to return corrected casing
         self.db_helpers['library_artists'].get.side_effect = lambda x: "D-Block" if x.lower() == "d-block" else x
         self.db_helpers['library_artists'].exists.side_effect = lambda x: x.lower() == "d-block"
-        
+
         song.parse()
         self.assertEqual(song.artist(), 'D-Block')
 

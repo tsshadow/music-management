@@ -8,7 +8,7 @@ load_dotenv()
 _pool = None
 
 def get_db_pool():
-    global _pool
+    global _pool # pylint: disable=global-statement
     if _pool is None:
         try:
             _pool = PooledDB(

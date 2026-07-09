@@ -52,7 +52,7 @@ class MusicBrainzArtistProvider(ArtistImageProvider):
                 target_type = rel.get('target-type')
                 url_data = rel.get('url', {})
                 resource = url_data.get('resource', '')
-                
+
                 if 'spotify.com/artist/' in resource:
                     spotify_id = resource.split('/')[-1].split('?')[0]
                     metadata['external_ids']['spotify'] = spotify_id

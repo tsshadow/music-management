@@ -24,7 +24,7 @@ class TestCopyright(unittest.TestCase):
         song = LabelSong(file_path)
         song.tag_collection.set_item(DATE, '2023-01-01')
         song.tag_collection.set_item(PUBLISHER, 'Scantraxx')
-        
+
         copyright = song.calculate_copyright()
         self.assertEqual(copyright, 'Scantraxx (2023)')
 
@@ -33,7 +33,7 @@ class TestCopyright(unittest.TestCase):
         file_path = '/tmp/Scantraxx/SCAN123/song.mp3'
         song = LabelSong(file_path)
         song.tag_collection.set_item(PUBLISHER, 'Scantraxx')
-        
+
         copyright = song.calculate_copyright()
         self.assertEqual(copyright, 'Scantraxx')
 
@@ -42,7 +42,7 @@ class TestCopyright(unittest.TestCase):
         file_path = '/tmp/Scantraxx/SCAN123/song.mp3'
         song = LabelSong(file_path)
         song.tag_collection.set_item(DATE, '2024-05-05')
-        
+
         song.parse()
         self.assertEqual(song.copyright(), 'Scantraxx (2024)')
 
@@ -51,7 +51,7 @@ class TestCopyright(unittest.TestCase):
         file_path = '/tmp/Scantraxx/SCAN123/song.mp3'
         song = LabelSong(file_path)
         song.tag_collection.set_item(COPYRIGHT, 'Original Copyright')
-        
+
         song.parse()
         self.assertEqual(song.copyright(), 'Original Copyright')
 

@@ -1,3 +1,4 @@
+from services.tagger.Song.SongHelper import merge_and_sort_genres
 from services.tagger.Song.rules.TagRule import TagRule
 from services.tagger.constants import GENRE
 from services.common.Helpers.LookupTableHelper import LookupTableHelper
@@ -20,5 +21,5 @@ class InferGenreFromSubgenreRule(TagRule):
             broader = self.subgenreHelper.get(genre)
             if broader:
                 new_genres.update(broader)
-        merged = song.merge_and_sort_genres(current_genres, list(new_genres))
+        merged = merge_and_sort_genres(current_genres, list(new_genres))
         song.tag_collection.set_item(GENRE, ';'.join(merged))

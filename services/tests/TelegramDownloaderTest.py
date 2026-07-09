@@ -7,8 +7,8 @@ telethon_mod = types.ModuleType('telethon')
 
 class DummyClient:
 
-    def __init__(self, *a, **k):
-        self.loop = types.SimpleNamespace(run_until_complete=lambda coro: None)
+    def __init__(self, *_a, **_k):
+        self.loop = types.SimpleNamespace(run_until_complete=lambda _coro: None)
 
     def __enter__(self):
         return self
@@ -16,19 +16,21 @@ class DummyClient:
     def __exit__(self, exc_type, exc, tb):
         pass
 
-    async def iter_messages(self, *a, **k):
-        if False:
-            yield None
+    async def iter_messages(self, *_a, **_k):
+        return
+        yield
 
-    async def download_media(self, *a, **k):
+    async def download_media(self, *_a, **_k):
         pass
 telethon_mod.TelegramClient = DummyClient
 sys.modules['telethon'] = telethon_mod
+# pylint: disable=wrong-import-position
 from downloader.telegram import TelegramDownloader
 
 class TelegramDownloaderTest(unittest.TestCase):
 
     def setUp(self):
+        # pylint: disable=consider-using-with
         self.tempdir = tempfile.TemporaryDirectory()
         os.environ['telegram_folder'] = self.tempdir.name
         os.environ['telegram_api_id'] = '1'

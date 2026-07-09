@@ -44,6 +44,7 @@ class YoutubeSong(BaseSong):
         self.rules.append(InferGenreFromAlbumArtistRule())
         self.rules.append(InferGenreFromSubgenreRule())
         self.rules.append(CleanTagsRule())
+        # pylint: disable=import-outside-toplevel
         from services.common.Helpers.Cache import databaseHelpers
         self.rules.append(AddMissingGenreToDatabaseRule(genre_db=databaseHelpers['rules_genres'], ignored_db=databaseHelpers['rules_ignored_genres'], backlog_db=databaseHelpers.get('rules_genre_backlog')))
         self.rules.append(CleanAndFilterGenreRule(databaseHelpers['rules_genres'], databaseHelpers.get('rules_genre_backlog'), databaseHelpers.get('rules_ignored_genres')))

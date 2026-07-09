@@ -1,5 +1,5 @@
-import requests
 import logging
+import requests
 from services.common.api.config_store import ConfigStore
 
 class NotificationService:

@@ -2,6 +2,7 @@ import logging
 import re
 from services.common.Helpers.FilterTableHelper import FilterTableHelper
 from services.common.Helpers.TableHelper import TableHelper
+from services.tagger.Song.SongHelper import split_artists
 from services.tagger.Song.rules.TagRule import TagRule
 from services.tagger.constants import TITLE, ARTIST, REMIXER
 
@@ -16,6 +17,7 @@ class InferRemixerFromTitleRule(TagRule):
     SUFFIX_CLEANUP_SIMPLE = re.compile('\\s*\\b(edit|remix|refix|bootleg)\\b\\s*$', re.IGNORECASE)
 
     def __init__(self, artist_db=None, ignored_db=None, ask_for_missing: bool=False):
+        # pylint: disable=import-outside-toplevel
         from services.common.Helpers.Cache import databaseHelpers
         self.artist_db = artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
         self.ignored_db = ignored_db or databaseHelpers.get('rules_ignored_artists') or FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name')
@@ -36,6 +38,46 @@ class InferRemixerFromTitleRule(TagRule):
                 return new_name
             name = new_name
 
+    def _add_artist_to_tags(self, song, canonical):
+        if canonical is not None and len(canonical) > 1:
+            artist_tag = song.tag_collection.get_item(ARTIST)
+            if canonical not in artist_tag.to_array():
+                artist_tag.add(canonical)
+                artist_tag.regex()
+                artist_tag.deduplicate()
+
+            remixer_tag = song.tag_collection.get_item(REMIXER)
+            if canonical not in remixer_tag.to_array():
+                remixer_tag.add(canonical)
+                remixer_tag.regex()
+                remixer_tag.deduplicate()
+
+    def _handle_missing_artist(self, artist, song):
+        if self.ignored_db.exists(artist):
+            corrected = self.ignored_db.get_corrected(artist)
+            song.tag_collection.get_item(ARTIST).remove(artist)
+            song.tag_collection.get_item(REMIXER).remove(artist)
+            if corrected:
+                return corrected
+        elif self.ask_for_missing:
+            user_input = input(f"Is '{artist}' een valide artiest? (j/n/[corrected]) ").strip()
+            if user_input.lower() == 'j':
+                self.artist_db.add(artist)
+                logging.info(f"'{artist}' toegevoegd aan artiestendatabase.")
+                return artist
+            if user_input.lower() == 'n':
+                self.ignored_db.add(artist)
+                logging.info(f"'{artist}' toegevoegd aan ignore-lijst.")
+            elif user_input:
+                self.ignored_db.add(artist, user_input)
+                logging.info(f"'{artist}' toegevoegd aan ignore-lijst met correctie '{user_input}'.")
+                return user_input
+            else:
+                logging.info(f"'{artist}' werd genegeerd.")
+        else:
+            logging.info(f"'{artist}' niet gevonden in database of ignore-lijst, overslaan.")
+        return None
+
     def apply(self, song) -> None:
         title = song.tag_collection.get_item_as_string(TITLE)
         if not title:
@@ -44,47 +86,13 @@ class InferRemixerFromTitleRule(TagRule):
         for segment in bracket_segments:
             if not re.search('(edit|remix|refix|bootleg|remix edit)', segment, re.IGNORECASE):
                 continue
-            for raw_artist in song.split_artists(self._clean_suffix_only(segment)):
+            for raw_artist in split_artists(self._clean_suffix_only(segment)):
                 artist = self._clean_artist_name(raw_artist)
                 if not artist.strip() or artist.strip().isdigit():
                     continue
                 exists = self.artist_db.exists(artist)
                 canonical = self.artist_db.get(artist)
                 if not exists:
-                    if self.ignored_db.exists(artist):
-                        corrected = self.ignored_db.get_corrected(artist)
-                        song.tag_collection.get_item(ARTIST).remove(artist)
-                        song.tag_collection.get_item(REMIXER).remove(artist)
-                        if corrected:
-                            canonical = corrected
-                    elif self.ask_for_missing:
-                        user_input = input(f"Is '{artist}' een valide artiest? (j/n/[corrected]) ").strip()
-                        if user_input.lower() == 'j':
-                            self.artist_db.add(artist)
-                            canonical = artist
-                            logging.info(f"'{artist}' toegevoegd aan artiestendatabase.")
-                        elif user_input.lower() == 'n':
-                            self.ignored_db.add(artist)
-                            logging.info(f"'{artist}' toegevoegd aan ignore-lijst.")
-                            continue
-                        elif user_input:
-                            self.ignored_db.add(artist, user_input)
-                            logging.info(f"'{artist}' toegevoegd aan ignore-lijst met correctie '{user_input}'.")
-                            canonical = user_input
-                        else:
-                            logging.info(f"'{artist}' werd genegeerd.")
-                            continue
-                    else:
-                        logging.info(f"'{artist}' niet gevonden in database of ignore-lijst, overslaan.")
-                        continue
-                artist_tag = song.tag_collection.get_item(ARTIST)
-                if canonical not in artist_tag.to_array() and canonical is not None and (len(canonical) > 1):
-                    artist_tag.add(canonical)
-                    artist_tag.regex()
-                    artist_tag.deduplicate()
-                if canonical is not None and (len(canonical) > 1):
-                    remixer_tag = song.tag_collection.get_item(REMIXER)
-                    if canonical not in remixer_tag.to_array():
-                        remixer_tag.add(canonical)
-                        remixer_tag.regex()
-                        remixer_tag.deduplicate()
+                    canonical = self._handle_missing_artist(artist, song)
+                if canonical:
+                    self._add_artist_to_tags(song, canonical)

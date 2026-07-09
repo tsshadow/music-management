@@ -1,7 +1,7 @@
 import sys
 import types
 import unittest
-mock_db = types.ModuleType('postprocessing.Song.Helpers.DatabaseConnector')
+mock_db = types.ModuleType('services.common.Helpers.DatabaseConnector')
 
 class DummyConnector:
 
@@ -9,28 +9,29 @@ class DummyConnector:
 
         class DummyConn:
 
-            def cursor(self_inner):
+            def cursor(self):
 
                 class Ctx:
 
-                    def __enter__(self_ctx):
-                        return self_ctx
+                    def __enter__(self):
+                        return self
 
-                    def __exit__(self_ctx, exc_type, exc, tb):
+                    def __exit__(self, exc_type, exc, tb):
                         pass
 
-                    def execute(self_ctx, q, params=None):
+                    def execute(self, q, params=None):
                         pass
 
-                    def fetchone(self_ctx):
+                    def fetchone(self):
                         return None
                 return Ctx()
 
-            def commit(self_inner):
+            def commit(self):
                 pass
         return DummyConn()
 mock_db.DatabaseConnector = DummyConnector
-sys.modules['postprocessing.Song.Helpers.DatabaseConnector'] = mock_db
+sys.modules['services.common.Helpers.DatabaseConnector'] = mock_db
+# pylint: disable=wrong-import-position
 from downloader.youtube import YoutubeArchive
 
 class YoutubeArchiveTest(unittest.TestCase):

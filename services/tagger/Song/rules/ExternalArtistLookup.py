@@ -1,7 +1,7 @@
 import os
 import logging
-import requests
 from typing import Optional
+import requests
 
 class DiscogsLookup:
     API_URL = 'https://api.discogs.com/database/search'

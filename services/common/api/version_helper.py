@@ -1,6 +1,6 @@
 import os
+from typing import Optional
 import markdown
-from typing import Dict, Optional
 
 def get_version() -> str:
     """Read the VERSION file from the project root or service directory."""
@@ -12,7 +12,7 @@ def get_version() -> str:
     ]
     for path in paths:
         if os.path.exists(path):
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 return f.read().strip()
     return "unknown"
 
@@ -24,20 +24,20 @@ def get_release_notes(service_name: Optional[str] = None) -> str:
         paths.append(f"services/{service_name}/RELEASE_NOTES.md")
         paths.append(f"/app/services/{service_name}/RELEASE_NOTES.md")
         paths.append("RELEASE_NOTES.md") # If running inside the service container where it might be copied to root
-    
+
     paths.extend([
         "RELEASE_NOTES.md",
         "../RELEASE_NOTES.md",
         "../../RELEASE_NOTES.md",
         "/app/RELEASE_NOTES.md"
     ])
-    
+
     for path in paths:
         if os.path.exists(path):
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 content = f.read()
                 return markdown.markdown(content, extensions=['extra', 'toc'])
-    
+
     return "<p>No release notes found.</p>"
 
 def get_changelog() -> str:
@@ -50,7 +50,7 @@ def get_changelog() -> str:
     ]
     for path in paths:
         if os.path.exists(path):
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 content = f.read()
                 return markdown.markdown(content, extensions=['extra', 'toc'])
     return "<p>No changelog found.</p>"

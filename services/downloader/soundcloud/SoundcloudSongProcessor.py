@@ -4,10 +4,9 @@ import subprocess
 from urllib.parse import urlparse
 from yt_dlp.postprocessor import PostProcessor
 
+from services.common.Helpers.NotificationService import notification_service
 from services.tagger.tagger_service import TaggerService
 from .SoundcloudArchive import SoundcloudArchive
-from services.tagger.Song.SoundcloudSong import SoundcloudSong
-from services.common.Helpers.NotificationService import notification_service
 
 class SoundcloudSongProcessor(PostProcessor):
     """
@@ -44,7 +43,14 @@ class SoundcloudSongProcessor(PostProcessor):
         if SoundcloudArchive.exists(account_id, video_id):
             logging.info(f'Track already in downloads_soundcloud_archive: {account_name}/{video_id} — skipping.')
         else:
-            SoundcloudArchive.insert(account_name=account_name, account_id=account_id, video_id=video_id, path=path, url=enriched_info.get('original_url'), title=enriched_info.get('title'))
+            SoundcloudArchive.insert({
+                'account_name': account_name,
+                'account_id': account_id,
+                'video_id': video_id,
+                'path': path,
+                'url': enriched_info.get('original_url'),
+                'title': enriched_info.get('title')
+            })
         tagger_service = TaggerService()
         song = tagger_service.tag("soundcloud", path, enriched_info)
         if song:

@@ -29,8 +29,7 @@ def get_cat_id(folder: str):
         if match:
             return match.group(1)
         return first_part
-    else:
-        return None
+    return None
 
 def post_processing_songs(folder_path):
     """
@@ -61,7 +60,7 @@ class Mover:
         self.db_connector = DatabaseConnector()
 
     def get_label(self, key) -> str | None:
-        query = f'SELECT `label` FROM `rules_catid_label` WHERE `catid` = %s'
+        query = 'SELECT `label` FROM `rules_catid_label` WHERE `catid` = %s'
         connection = self.db_connector.connect()
         try:
             with connection.cursor() as cursor:
@@ -69,8 +68,7 @@ class Mover:
                 result = cursor.fetchone()
                 if result:
                     return str(result[0])
-                else:
-                    return None
+                return None
         except Exception as e:
             logging.error(f'Error querying database: {e}')
             return None
@@ -97,7 +95,9 @@ class Mover:
             if cat_id:
                 label = self.get_label(cat_id)
                 if label is None:
-                    logging.warning(f'CAT ID {cat_id} not found in library_labels for folder {folder}')
+                    error_msg = f'CAT ID {cat_id} not found in database for folder {folder}. Please add it to rules_catid_label.'
+                    logging.warning(error_msg)
+                    # notification_service.notify(error_msg, title="Import Error")
                 else:
                     src = join(self.settings.import_folder_path, folder)
                     dst = join(self.settings.eps_folder_path, label, folder)
@@ -113,4 +113,6 @@ class Mover:
                     except Exception as e:
                         logging.error(f'Error moving {src} to {dst}: {e}')
             else:
-                logging.warning(f'No valid CAT ID found for folder: {folder}')
+                error_msg = f'No valid CAT ID found for folder: {folder}. Manual intervention required.'
+                logging.warning(error_msg)
+                # notification_service.notify(error_msg, title="Import Error")

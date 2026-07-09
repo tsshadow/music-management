@@ -42,6 +42,7 @@ class DbInitTest(unittest.TestCase):
             def close(self):
                 pass
         with patch('api.db_init.DatabaseConnector.connect', return_value=DummyConnection()):
+            # pylint: disable=import-outside-toplevel
             from services.common.api.db_init import ensure_tables_exist
             ensure_tables_exist()
         expected_tables = ['downloads_soundcloud_accounts', 'downloads_soundcloud_archive', 'downloads_youtube_accounts', 'downloads_youtube_archive', 'library_artists', 'rules_artist_genre', 'rules_catid_label', 'rules_festival_data', 'rules_genres', 'rules_ignored_artists', 'rules_ignored_genres', 'rules_label_genre', 'rules_subgenre_hierarchy']
@@ -69,12 +70,14 @@ class DbInitTest(unittest.TestCase):
         for full_name, classes in modules_to_stub.items():
             original_modules[full_name] = sys.modules.get(full_name)
             sys.modules[full_name] = _make_stub_module(full_name, classes)
+        # pylint: disable=import-outside-toplevel
         from services.common.api.step import Step as RealStep
         original_modules['main'] = sys.modules.get('main')
         main_mod = types.ModuleType('main')
         main_mod.Step = RealStep
         sys.modules['main'] = main_mod
         with patch('services.common.api.db_init.ensure_tables_exist') as ensure_mock:
+            # pylint: disable=import-outside-toplevel
             import services.common.api.server as server_module
             importlib.reload(server_module)
             anyio.run(server_module.app.router.startup)

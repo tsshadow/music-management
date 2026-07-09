@@ -1,9 +1,8 @@
-from fastapi import APIRouter, HTTPException, Header, Depends
-from typing import List, Optional, Dict
-from pydantic import BaseModel
 import os
+from typing import Optional
+
+from fastapi import APIRouter, HTTPException, Header, Depends
 from services.music_manager.database import get_db_connection
-from services.common.api.version_helper import get_version, get_release_notes
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
@@ -14,18 +13,18 @@ def verify_api_key(x_api_key: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Missing API Key")
     if API_KEY and x_api_key == API_KEY:
         return {"type": "system"}
-    
-    from services.music_manager.routers.users import verify_token
+
+    from services.music_manager.routers.users import verify_token # pylint: disable=import-outside-toplevel
     try:
         res = verify_token(x_api_key)
         if res.get("status") == "ok":
             return res
-    except:
+    except Exception: # pylint: disable=broad-except
         pass
-        
+
     raise HTTPException(status_code=401, detail="Invalid API key")
 
-def init_db(cursor):
+def init_db(_cursor):
     # Stats service usually just reads, but we can ensure tables exist if needed
     pass
 
@@ -37,7 +36,7 @@ def get_stats(auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
-    
+
     stats = {
         'total_tracks': 0,
         'total_artists': 0,
@@ -55,19 +54,19 @@ def get_stats(auth: dict = Depends(verify_api_key)):
             # Basic counts
             cursor.execute("SELECT COUNT(*) as count FROM library_tracks")
             stats['total_tracks'] = cursor.fetchone()['count']
-            
+
             cursor.execute("SELECT COUNT(*) as count FROM library_artists")
             stats['total_artists'] = cursor.fetchone()['count']
 
             stats['total_albums'] = 0 # Currently not tracked in MuMa DB
-            
+
             # Duration
             cursor.execute("SELECT AVG(duration_secs) as avg_dur FROM library_tracks WHERE duration_secs > 0")
             stats['avg_track_duration'] = round(cursor.fetchone()['avg_dur'] or 0, 2)
-            
+
             # Top Artists
             cursor.execute("""
-                SELECT a.name, COUNT(t.id) as track_count 
+                SELECT a.name, COUNT(t.id) as track_count
                 FROM library_artists a
                 JOIN library_tracks t ON a.id = t.primary_artist_id
                 GROUP BY a.id
@@ -89,10 +88,10 @@ def get_stats(auth: dict = Depends(verify_api_key)):
                 LIMIT 10
             """)
             stats['top_genres'] = cursor.fetchall()
-            
+
             # Match Rate (tracks with at least one genre or ML label)
             cursor.execute("""
-                SELECT COUNT(DISTINCT t.id) as count 
+                SELECT COUNT(DISTINCT t.id) as count
                 FROM library_tracks t
                 LEFT JOIN library_track_genres tg ON t.id = tg.track_id
                 LEFT JOIN library_track_ml_labels ml ON t.track_uid = ml.track_id
@@ -101,19 +100,19 @@ def get_stats(auth: dict = Depends(verify_api_key)):
             matched_count = cursor.fetchone()['count']
             if stats['total_tracks'] > 0:
                 stats['match_rate'] = round((matched_count / stats['total_tracks']) * 100, 2)
-            
+
             # Scrobble stats
             cursor.execute("SHOW TABLES LIKE 'scrobble_listens'")
             if cursor.fetchone():
                 cursor.execute("SELECT COUNT(*) as count FROM scrobble_listens")
                 stats['total_scrobbles'] = cursor.fetchone()['count']
-            
+
             # Unmatched scrobbles
             cursor.execute("SHOW TABLES LIKE 'scrobble_unmatched_listens'")
             if cursor.fetchone():
                 cursor.execute("SELECT COUNT(*) as count FROM scrobble_unmatched_listens")
                 stats['total_unmatched'] = cursor.fetchone()['count']
-            
+
             # Recently added
             cursor.execute("""
                 SELECT t.title, a.name as artist, CAST(t.created_at AS CHAR) as created_at
@@ -126,8 +125,8 @@ def get_stats(auth: dict = Depends(verify_api_key)):
 
     except Exception as e:
         print(f"Stats Query error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     finally:
         conn.close()
-    
+
     return stats

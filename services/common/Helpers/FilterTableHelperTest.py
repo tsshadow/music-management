@@ -5,7 +5,7 @@ from services.common.Helpers.FilterTableHelper import FilterTableHelper
 class FilterTableHelperTest(unittest.TestCase):
 
     def setUp(self):
-        patcher = patch('postprocessing.Song.Helpers.FilterTableHelper.DatabaseConnector')
+        patcher = patch('services.common.Helpers.FilterTableHelper.DatabaseConnector')
         self.addCleanup(patcher.stop)
         self.mock_connector_cls = patcher.start()
         self.mock_connection = MagicMock()

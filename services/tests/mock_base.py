@@ -1,7 +1,7 @@
 import os
 import sys
 import types
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # --- SETUP (Mocking Environment and Modules) ---
 # This MUST happen before any services are imported
@@ -27,13 +27,14 @@ if 'yt_dlp' in sys.modules:
 if 'yt_dlp.postprocessor' in sys.modules:
     pp_mod = sys.modules['yt_dlp.postprocessor']
     class MockPostProcessor:
-        def __init__(self, *args, **kwargs): pass
+        def __init__(self, *args, **kwargs):
+            pass
     pp_mod.PostProcessor = MockPostProcessor
     pp_mod.FFmpegMetadataPP = MockPostProcessor
     pp_mod.EmbedThumbnailPP = MockPostProcessor
 
 for mod_name in ['markdown', 'dotenv', 'pymysql', 'dbutils', 'dbutils.pooled_db', 'fastapi', 'pydantic',
-                 'services.common.api', 'services.common.api.config_store', 'services.common.api.jobs', 
+                 'services.common.api', 'services.common.api.config_store', 'services.common.api.jobs',
                  'services.common.api.server', 'services.common.api.step',
                  'services.common.Helpers.NotificationService']:
     if mod_name not in sys.modules:
@@ -65,8 +66,8 @@ if 'mutagen' not in sys.modules:
     sys.modules['mutagen.easyid3'].EasyID3 = MockEasyID3
 
     MockMP3 = type('MP3', (dict,), {
-        '__init__': lambda self, *a, **k: (super(type(self), self).__init__(), 
-                                          setattr(self, 'tags', MockEasyID3()), 
+        '__init__': lambda self, *a, **k: (super(type(self), self).__init__(),
+                                          setattr(self, 'tags', MockEasyID3()),
                                           setattr(self, 'info', MagicMock(length=180)),
                                           None)[-1],
         'save': lambda self, *a, **k: None
@@ -137,23 +138,23 @@ def setup_mocks():
     pass # Already done at module level
 
 def reset_database_helpers():
-    from services.common.Helpers.Cache import databaseHelpers
-    for helper_name, helper in databaseHelpers.items():
-        if isinstance(helper, MagicMock):
-            helper.reset_mock(return_value=True, side_effect=True)
+    helpers = sys.modules['services.common.Helpers.Cache'].databaseHelpers
+    for h_name, h in helpers.items():
+        if isinstance(h, MagicMock):
+            h.reset_mock(return_value=True, side_effect=True)
             # Basic defaults for all
-            helper.exists.return_value = False
-            helper.get_all_values.return_value = []
-            helper.get_all.return_value = []
-            
+            h.exists.return_value = False
+            h.get_all_values.return_value = []
+            h.get_all.return_value = []
+
             # Specific defaults based on helper type
-            if helper_name in ['library_artists', 'rules_ignored_artists', 'rules_genres', 'rules_ignored_genres', 'rules_genre_backlog']:
-                helper.get.side_effect = lambda x: x
-                helper.get_corrected.side_effect = lambda x: x
-                helper.get_corrected_or_exists.side_effect = lambda x: x
+            if h_name in ['library_artists', 'rules_ignored_artists', 'rules_genres', 'rules_ignored_genres', 'rules_genre_backlog']:
+                h.get.side_effect = lambda x: x
+                h.get_corrected.side_effect = lambda x: x
+                h.get_corrected_or_exists.side_effect = lambda x: x
             else:
                 # artistGenreHelper, subgenreHelper etc should return lists
-                helper.get.return_value = []
-                helper.get.side_effect = None
-                
-    databaseHelpers['rules_genres'].exists.return_value = True
+                h.get.return_value = []
+                h.get.side_effect = None
+
+    helpers['rules_genres'].exists.return_value = True

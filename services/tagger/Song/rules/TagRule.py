@@ -8,7 +8,6 @@ class TagRule(ABC):
     @abstractmethod
     def apply(self, song: 'BaseSong') -> None:
         """Pas de regel toe op een BaseSong."""
-        pass
 
     @property
     def name(self) -> str:

@@ -15,6 +15,7 @@ os.environ.setdefault('DB_DB', 'db')
 sys.modules['dotenv'] = types.ModuleType('dotenv')
 sys.modules['dotenv'].load_dotenv = lambda *a, **k: None
 sys.modules.pop('postprocessing.Song.YoutubeSong', None)
+# pylint: disable=wrong-import-position
 from services.tagger.constants import ALBUM
 from services.tagger.Song.YoutubeSong import YoutubeSong
 
@@ -23,7 +24,7 @@ class YoutubeSongTest(unittest.TestCase):
     @patch('services.tagger.Song.BaseSong.BaseSong.parse')
     @patch('services.tagger.Song.BaseSong.TagCollection')
     @patch('services.tagger.Song.BaseSong.MP4')
-    def test_album_set_to_youtube_channel(self, mock_mp4, mock_tag_collection_cls, mock_base_parse):
+    def test_album_set_to_youtube_channel(self, mock_mp4, mock_tag_collection_cls, _mock_base_parse):
         mock_file = MagicMock()
         mock_file.tags = {}
         mock_mp4.return_value = mock_file

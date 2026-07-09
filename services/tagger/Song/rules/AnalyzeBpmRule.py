@@ -1,6 +1,7 @@
 import sys
 import types
-
+import logging
+from services.common.settings import Settings
 from services.tagger.Song.rules.TagRule import TagRule
 from services.tagger.constants import BPM
 
@@ -27,7 +28,5 @@ class AnalyzeBpmRule(TagRule):
             tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
             song.tag_collection.set_item(BPM, str(round(tempo)))
         except Exception as e:
-            from services.common.settings import Settings
             if Settings().debug:
-                import logging
                 logging.info(f'Failed to parse bpm for {song.path()}: {str(e)}')

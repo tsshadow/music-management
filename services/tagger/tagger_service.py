@@ -123,12 +123,14 @@ class TaggerService:
             result = self.tagger.parse_song(path, song_type, extra_info=extra_info)
             logging.info("Finished tagging file '%s' (%s)", path, song_type.name)
             return result
-        elif path.is_dir():
+
+        if path.is_dir():
             logging.info("Tagging folder '%s' as type '%s'", path, song_type.name)
             self.tagger.parse_folder(path, song_type, extra_info=extra_info)
             logging.info("Finished tagging folder '%s' (%s)", path, song_type.name)
-        else:
-            raise ValueError(f"Path is neither a file nor a directory: {path}")
+            return None
+
+        raise ValueError(f"Path is neither a file nor a directory: {path}")
 
     def run_full(
         self,

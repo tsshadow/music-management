@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import MagicMock
+from services.tagger.Song.rules.CheckArtistRule import CheckArtistRule
 
 class CheckArtistRuleTest(unittest.TestCase):
 

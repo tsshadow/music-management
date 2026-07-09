@@ -1,4 +1,3 @@
-import os
 from sqlalchemy import text, inspect
 from analyzer import TrackAnalyzer
 from dotenv import load_dotenv
@@ -30,18 +29,18 @@ def fix_schema():
 
     inspector = inspect(analyzer.engine)
     added_count = 0
-    
+
     with analyzer.engine.begin() as conn:
         for table_name, columns in tables_to_fix.items():
             print(f"\nControleren van tabel: {table_name}")
-            
+
             # Check of tabel bestaat
             if not inspector.has_table(table_name):
                 print(f"Tabel {table_name} bestaat nog niet. Sla over (gebruik db_init.sql voor nieuwe installatie).")
                 continue
-                
+
             existing_columns = [c['name'] for c in inspector.get_columns(table_name)]
-            
+
             for col_name, col_type in columns:
                 if col_name not in existing_columns:
                     print(f"Kolom '{col_name}' ontbreekt in {table_name}. Toevoegen...")

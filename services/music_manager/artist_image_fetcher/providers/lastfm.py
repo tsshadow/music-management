@@ -30,7 +30,7 @@ class LastFmArtistImageProvider(ArtistImageProvider):
             }
             if mbid:
                 params['mbid'] = mbid
-                
+
             response = requests.get(self.API_URL, params=params, timeout=5)
             if response.status_code != 200:
                 return []
@@ -38,7 +38,7 @@ class LastFmArtistImageProvider(ArtistImageProvider):
             data = response.json()
             artist = data.get('artist', {})
             images = artist.get('image', [])
-            
+
             # Last.fm returns images in different sizes: small, medium, large, extralarge, mega
             # We want the largest ones
             for img in images:
@@ -49,7 +49,7 @@ class LastFmArtistImageProvider(ArtistImageProvider):
                         'name': artist.get('name'),
                         'mbid': artist.get('mbid'),
                         'url': img.get('#text'),
-                        'width': None, 
+                        'width': None,
                         'height': None,
                         'confidence': 0,
                         'metadata': {

@@ -1,14 +1,14 @@
+import os
+from typing import Optional, Dict, Any
+
 from fastapi import APIRouter, HTTPException, Header, Depends, Body, BackgroundTasks
 from fastapi.responses import HTMLResponse
-from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
-import os
-import docker
-import requests
 import markdown
-from datetime import datetime
-from services.music_manager.database import get_db_connection
+import docker
+
 from services.common.api.version_helper import get_version, get_release_notes, get_changelog
+from services.music_manager.database import get_db_connection
 
 router = APIRouter(prefix="/api", tags=["management"])
 
@@ -27,115 +27,116 @@ def verify_api_key(x_api_key: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Missing API Key")
     if API_KEY and x_api_key == API_KEY:
         return {"type": "system"}
-    
+
     # Check users table for this API Key
-    from services.music_manager.routers.users import verify_token
+    from services.music_manager.routers.users import verify_token # pylint: disable=import-outside-toplevel
     try:
         res = verify_token(x_api_key)
         if res.get("status") == "ok":
             return res
-    except:
+    except Exception: # pylint: disable=broad-except
         pass
-        
+
     raise HTTPException(status_code=401, detail="Invalid API key")
 
-def init_db(cursor):
+def init_db(_cursor):
     pass
 
 @router.post("/auth/login")
 def login_proxy(req: Dict[str, Any] = Body(...)):
-    from services.music_manager.routers.users import login, LoginRequest
+    from services.music_manager.routers.users import login, LoginRequest # pylint: disable=import-outside-toplevel
     return login(LoginRequest(**req))
 
 @router.get("/auth/verify")
 def verify_proxy(x_api_key: str = Header(None)):
-    from services.music_manager.routers.users import verify_token
+    from services.music_manager.routers.users import verify_token # pylint: disable=import-outside-toplevel
     return verify_token(x_api_key)
 
 @router.get("/users")
-def get_users_proxy(auth: dict = Depends(verify_api_key)):
-    from services.music_manager.routers.users import get_users
-    return get_users(auth)
+def get_users_proxy(_auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.users import get_users # pylint: disable=import-outside-toplevel
+    return get_users(_auth)
 
 @router.post("/users")
-def create_user_proxy(user: Dict[str, Any] = Body(...), auth: dict = Depends(verify_api_key)):
-    from services.music_manager.routers.users import create_user, UserCreate
-    return create_user(UserCreate(**user), auth)
+def create_user_proxy(user: Dict[str, Any] = Body(...), _auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.users import create_user, UserCreate # pylint: disable=import-outside-toplevel
+    return create_user(UserCreate(**user), _auth)
 
 @router.get("/users/{user_id}/dynamic-playlists")
-def get_playlists_proxy(user_id: int, auth: dict = Depends(verify_api_key)):
-    from services.music_manager.routers.users import get_dynamic_playlists
-    return get_dynamic_playlists(user_id, auth)
+def get_playlists_proxy(user_id: int, _auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.users import get_dynamic_playlists # pylint: disable=import-outside-toplevel
+    return get_dynamic_playlists(user_id, _auth)
 
 @router.get("/users/{user_id}/lb-account")
-def get_lb_account_proxy(user_id: int, auth: dict = Depends(verify_api_key)):
-    from services.music_manager.routers.users import get_lb_account
-    return get_lb_account(user_id, auth)
+def get_lb_account_proxy(user_id: int, _auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.users import get_lb_account # pylint: disable=import-outside-toplevel
+    return get_lb_account(user_id, _auth)
 
 @router.put("/users/{user_id}/lb-account")
-def update_lb_account_proxy(user_id: int, lb_data: Dict[str, Any] = Body(...), auth: dict = Depends(verify_api_key)):
-    from services.music_manager.routers.users import update_lb_account, LBAccountUpdate
-    return update_lb_account(user_id, LBAccountUpdate(**lb_data), auth)
+def update_lb_account_proxy(user_id: int, lb_data: Dict[str, Any] = Body(...), _auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.users import update_lb_account, LBAccountUpdate # pylint: disable=import-outside-toplevel
+    return update_lb_account(user_id, LBAccountUpdate(**lb_data), _auth)
 
 @router.delete("/users/{user_id}")
-def delete_user_proxy(user_id: int, auth: dict = Depends(verify_api_key)):
-    from services.music_manager.routers.users import delete_user
-    return delete_user(user_id, auth)
+def delete_user_proxy(user_id: int, _auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.users import delete_user # pylint: disable=import-outside-toplevel
+    return delete_user(user_id, _auth)
 
 @router.put("/users/{user_id}/password")
-def update_password_proxy(user_id: int, req: Dict[str, Any] = Body(...), auth: dict = Depends(verify_api_key)):
-    from services.music_manager.routers.users import update_password, PasswordUpdate
-    return update_password(user_id, PasswordUpdate(**req), auth)
+def update_password_proxy(user_id: int, req: Dict[str, Any] = Body(...), _auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.users import update_password, PasswordUpdate # pylint: disable=import-outside-toplevel
+    return update_password(user_id, PasswordUpdate(**req), _auth)
 
 @router.get("/users/{user_id}/settings/{app_id}")
-def get_user_settings_proxy(user_id: int, app_id: str, auth: dict = Depends(verify_api_key)):
-    from services.music_manager.routers.users import get_user_app_settings
-    return get_user_app_settings(user_id, app_id, auth)
+def get_user_settings_proxy(user_id: int, app_id: str, _auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.users import get_user_app_settings # pylint: disable=import-outside-toplevel
+    return get_user_app_settings(user_id, app_id, _auth)
 
 @router.post("/users/{user_id}/settings/{app_id}")
-def update_user_settings_proxy(user_id: int, app_id: str, req: Dict[str, Any] = Body(...), auth: dict = Depends(verify_api_key)):
-    from services.music_manager.routers.users import update_user_app_settings, AppSettingsUpdate
-    return update_user_app_settings(user_id, app_id, AppSettingsUpdate(**req), auth)
+def update_user_settings_proxy(user_id: int, app_id: str, req: Dict[str, Any] = Body(...), _auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.users import update_user_app_settings, AppSettingsUpdate # pylint: disable=import-outside-toplevel
+    return update_user_app_settings(user_id, app_id, AppSettingsUpdate(**req), _auth)
 
 @router.get("/users/{user_id}/dynamic-playlists/{playlist_id}/tracks")
-def get_playlist_tracks_proxy(user_id: int, playlist_id: int, auth: dict = Depends(verify_api_key)):
-    from services.music_manager.routers.users import get_playlist_tracks
-    return get_playlist_tracks(user_id, playlist_id, auth)
+def get_playlist_tracks_proxy(user_id: int, playlist_id: int, _auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.users import get_playlist_tracks # pylint: disable=import-outside-toplevel
+    return get_playlist_tracks(user_id, playlist_id, _auth)
 
 @router.post("/users/{user_id}/dynamic-playlists")
-def create_playlist_proxy(user_id: int, playlist: Dict[str, Any] = Body(...), auth: dict = Depends(verify_api_key)):
-    from services.music_manager.routers.users import create_dynamic_playlist, DynamicPlaylistCreate
-    return create_dynamic_playlist(user_id, DynamicPlaylistCreate(**playlist), auth)
+def create_playlist_proxy(user_id: int, playlist: Dict[str, Any] = Body(...), _auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.users import create_dynamic_playlist, DynamicPlaylistCreate # pylint: disable=import-outside-toplevel
+    return create_dynamic_playlist(user_id, DynamicPlaylistCreate(**playlist), _auth)
 
 @router.put("/users/{user_id}/dynamic-playlists/{playlist_id}")
-def update_playlist_proxy(user_id: int, playlist_id: int, playlist: Dict[str, Any] = Body(...), auth: dict = Depends(verify_api_key)):
-    from services.music_manager.routers.users import update_dynamic_playlist, DynamicPlaylistUpdate
-    return update_dynamic_playlist(user_id, playlist_id, DynamicPlaylistUpdate(**playlist), auth)
+def update_playlist_proxy(user_id: int, playlist_id: int, playlist: Dict[str, Any] = Body(...), _auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.users import update_dynamic_playlist, DynamicPlaylistUpdate # pylint: disable=import-outside-toplevel
+    return update_dynamic_playlist(user_id, playlist_id, DynamicPlaylistUpdate(**playlist), _auth)
 
 @router.delete("/users/{user_id}/dynamic-playlists/{playlist_id}")
-def delete_playlist_proxy(user_id: int, playlist_id: int, auth: dict = Depends(verify_api_key)):
-    from services.music_manager.routers.users import delete_dynamic_playlist
-    return delete_dynamic_playlist(user_id, playlist_id, auth)
+def delete_playlist_proxy(user_id: int, playlist_id: int, _auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.users import delete_dynamic_playlist # pylint: disable=import-outside-toplevel
+    return delete_dynamic_playlist(user_id, playlist_id, _auth)
 
 @router.post("/users/{user_id}/dynamic-playlists/seed-defaults")
-def seed_defaults_proxy(user_id: int, auth: dict = Depends(verify_api_key)):
-    from services.music_manager.routers.users import seed_defaults
-    return seed_defaults(user_id, auth)
+def seed_defaults_proxy(user_id: int, _auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.users import seed_defaults # pylint: disable=import-outside-toplevel
+    return seed_defaults(user_id, _auth)
 
 @router.post("/users/sync/lms-db")
-def sync_lms_db_proxy(background_tasks: BackgroundTasks, auth: dict = Depends(verify_api_key)):
-    from services.music_manager.routers.users import sync_lms_db
-    return sync_lms_db(background_tasks, auth)
+def sync_lms_db_proxy(background_tasks: BackgroundTasks, _auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.users import sync_lms_db # pylint: disable=import-outside-toplevel
+    return sync_lms_db(background_tasks, _auth)
 
 @router.post("/users/sync/lms")
-def sync_lms_proxy(background_tasks: BackgroundTasks, auth: dict = Depends(verify_api_key)):
-    from services.music_manager.routers.users import sync_lms_db
-    return sync_lms_db(background_tasks, auth)
+def sync_lms_proxy(background_tasks: BackgroundTasks, _auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.users import sync_lms_db # pylint: disable=import-outside-toplevel
+    return sync_lms_db(background_tasks, _auth)
 
 @router.get("/rules")
-def get_genre_rules(auth: dict = Depends(verify_api_key)):
+def get_genre_rules(_auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT id, name, corrected_genre FROM rules_genres ORDER BY name")
@@ -150,9 +151,10 @@ def get_genre_rules(auth: dict = Depends(verify_api_key)):
         conn.close()
 
 @router.get("/artists")
-def search_artists(q: str = "", auth: dict = Depends(verify_api_key)):
+def search_artists(q: str = "", _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT id, name FROM library_artists WHERE name LIKE %s LIMIT 50", (f"%{q}%",))
@@ -161,9 +163,10 @@ def search_artists(q: str = "", auth: dict = Depends(verify_api_key)):
         conn.close()
 
 @router.get("/labels")
-def search_labels(q: str = "", auth: dict = Depends(verify_api_key)):
+def search_labels(q: str = "", _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT id, name FROM library_labels WHERE name LIKE %s LIMIT 50", (f"%{q}%",))
@@ -172,14 +175,14 @@ def search_labels(q: str = "", auth: dict = Depends(verify_api_key)):
         conn.close()
 
 @router.get("/config")
-def get_config(auth: dict = Depends(verify_api_key)):
+def get_config(_auth: dict = Depends(verify_api_key)):
     version = "1.3.0"
     try:
-        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "VERSION"), "r") as f:
+        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "VERSION"), "r", encoding="utf-8") as f:
             version = f.read().strip()
-    except:
+    except Exception: # pylint: disable=broad-except
         pass
-        
+
     return {
         "DB_HOST": os.getenv("DB_HOST"),
         "DB_NAME": os.getenv("DB_DB"),
@@ -188,24 +191,24 @@ def get_config(auth: dict = Depends(verify_api_key)):
     }
 
 @router.get("/about", response_class=HTMLResponse)
-def get_about(auth: dict = Depends(verify_api_key)):
+def get_about(_auth: dict = Depends(verify_api_key)):
     readme_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "README.md")
     content = "# Music Manager\nDocumentation not found."
     if os.path.exists(readme_path):
-        with open(readme_path, "r") as f:
+        with open(readme_path, "r", encoding="utf-8") as f:
             content = f.read()
-    
+
     html = markdown.markdown(content, extensions=['fenced_code', 'tables'])
     return html
 
 @router.get("/stats")
-def get_stats_proxy(auth: dict = Depends(verify_api_key)):
+def get_stats_proxy(_auth: dict = Depends(verify_api_key)):
     # Internal call to stats router logic
-    from services.music_manager.routers.stats import get_stats
-    return get_stats(auth)
+    from services.music_manager.routers.stats import get_stats # pylint: disable=import-outside-toplevel
+    return get_stats(_auth)
 
 @router.get("/system/containers")
-def get_containers(auth: dict = Depends(verify_api_key)):
+def get_containers(_auth: dict = Depends(verify_api_key)):
     try:
         client = docker.from_env()
         containers = []
@@ -219,22 +222,23 @@ def get_containers(auth: dict = Depends(verify_api_key)):
                 })
         return sorted(containers, key=lambda x: x["name"])
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.get("/system/logs/{name}")
-def get_logs(name: str, tail: int = 200, auth: dict = Depends(verify_api_key)):
+def get_logs(name: str, tail: int = 200, _auth: dict = Depends(verify_api_key)):
     try:
         client = docker.from_env()
         container = client.containers.get(name)
         logs = container.logs(tail=tail).decode('utf-8')
         return {"logs": logs}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.get("/system/activity")
-def get_activity(limit: int = 20, auth: dict = Depends(verify_api_key)):
+def get_activity(limit: int = 20, _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             # Recent added
@@ -264,21 +268,21 @@ def get_activity(limit: int = 20, auth: dict = Depends(verify_api_key)):
         conn.close()
 
 @router.get("/notes")
-def get_notes(auth: dict = Depends(verify_api_key)):
+def get_notes(_auth: dict = Depends(verify_api_key)):
     return {
         "release_notes": get_release_notes(),
         "changelog": get_changelog()
     }
 
 @router.get("/all-notes")
-def get_all_notes(auth: dict = Depends(verify_api_key)):
+def get_all_notes(_auth: dict = Depends(verify_api_key)):
     return {
         "release_notes": get_release_notes(),
         "changelog": get_changelog()
     }
 
 @router.get("/versions")
-def get_versions(auth: dict = Depends(verify_api_key)):
+def get_versions(_auth: dict = Depends(verify_api_key)):
     version = get_version()
     return {
         "music-manager": version,
@@ -290,9 +294,10 @@ def get_versions(auth: dict = Depends(verify_api_key)):
     }
 
 @router.get("/soundcloud")
-def get_soundcloud_accounts(auth: dict = Depends(verify_api_key)):
+def get_soundcloud_accounts(_auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT name, soundcloud_id FROM downloads_soundcloud_accounts")
@@ -301,13 +306,14 @@ def get_soundcloud_accounts(auth: dict = Depends(verify_api_key)):
         conn.close()
 
 @router.post("/soundcloud")
-def add_soundcloud_account(req: Dict[str, Any] = Body(...), auth: dict = Depends(verify_api_key)):
+def add_soundcloud_account(req: Dict[str, Any] = Body(...), _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("""
-                INSERT INTO downloads_soundcloud_accounts (name, soundcloud_id) 
+                INSERT INTO downloads_soundcloud_accounts (name, soundcloud_id)
                 VALUES (%s, %s)
                 ON DUPLICATE KEY UPDATE soundcloud_id = VALUES(soundcloud_id)
             """, (req.get('name'), req.get('soundcloud_id')))
@@ -317,9 +323,10 @@ def add_soundcloud_account(req: Dict[str, Any] = Body(...), auth: dict = Depends
         conn.close()
 
 @router.delete("/soundcloud/{name}")
-def delete_soundcloud_account(name: str, auth: dict = Depends(verify_api_key)):
+def delete_soundcloud_account(name: str, _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("DELETE FROM downloads_soundcloud_accounts WHERE name = %s", (name,))
@@ -329,9 +336,10 @@ def delete_soundcloud_account(name: str, auth: dict = Depends(verify_api_key)):
         conn.close()
 
 @router.get("/youtube")
-def get_youtube_accounts(auth: dict = Depends(verify_api_key)):
+def get_youtube_accounts(_auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT name, channel_id FROM downloads_youtube_accounts")
@@ -340,13 +348,14 @@ def get_youtube_accounts(auth: dict = Depends(verify_api_key)):
         conn.close()
 
 @router.post("/youtube")
-def add_youtube_account(req: Dict[str, Any] = Body(...), auth: dict = Depends(verify_api_key)):
+def add_youtube_account(req: Dict[str, Any] = Body(...), _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("""
-                INSERT INTO downloads_youtube_accounts (name, download_type) 
+                INSERT INTO downloads_youtube_accounts (name, download_type)
                 VALUES (%s, 'audio')
                 ON DUPLICATE KEY UPDATE name = name
             """, (req.get('name'),))
@@ -356,9 +365,10 @@ def add_youtube_account(req: Dict[str, Any] = Body(...), auth: dict = Depends(ve
         conn.close()
 
 @router.delete("/youtube/{name}")
-def delete_youtube_account(name: str, auth: dict = Depends(verify_api_key)):
+def delete_youtube_account(name: str, _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("DELETE FROM downloads_youtube_accounts WHERE name = %s", (name,))
@@ -369,9 +379,10 @@ def delete_youtube_account(name: str, auth: dict = Depends(verify_api_key)):
 
 
 @router.get("/rules/artist-genres")
-def get_artist_genre_rules(auth: dict = Depends(verify_api_key)):
+def get_artist_genre_rules(_auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("""
@@ -385,9 +396,10 @@ def get_artist_genre_rules(auth: dict = Depends(verify_api_key)):
         conn.close()
 
 @router.post("/rules/artist-genres")
-def add_artist_genre_rule(rule: ArtistGenreRule, auth: dict = Depends(verify_api_key)):
+def add_artist_genre_rule(rule: ArtistGenreRule, _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("""
@@ -401,9 +413,10 @@ def add_artist_genre_rule(rule: ArtistGenreRule, auth: dict = Depends(verify_api
         conn.close()
 
 @router.delete("/rules/artist-genres/{rule_id}")
-def delete_artist_genre_rule(rule_id: int, auth: dict = Depends(verify_api_key)):
+def delete_artist_genre_rule(rule_id: int, _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("DELETE FROM rules_artist_genres WHERE id = %s", (rule_id,))
@@ -413,9 +426,10 @@ def delete_artist_genre_rule(rule_id: int, auth: dict = Depends(verify_api_key))
         conn.close()
 
 @router.get("/rules/label-genres")
-def get_label_genre_rules(auth: dict = Depends(verify_api_key)):
+def get_label_genre_rules(_auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("""
@@ -429,9 +443,10 @@ def get_label_genre_rules(auth: dict = Depends(verify_api_key)):
         conn.close()
 
 @router.post("/rules/label-genres")
-def add_label_genre_rule(rule: LabelGenreRule, auth: dict = Depends(verify_api_key)):
+def add_label_genre_rule(rule: LabelGenreRule, _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("""
@@ -445,9 +460,10 @@ def add_label_genre_rule(rule: LabelGenreRule, auth: dict = Depends(verify_api_k
         conn.close()
 
 @router.delete("/rules/label-genres/{rule_id}")
-def delete_label_genre_rule(rule_id: int, auth: dict = Depends(verify_api_key)):
+def delete_label_genre_rule(rule_id: int, _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("DELETE FROM rules_label_genres WHERE id = %s", (rule_id,))
@@ -458,11 +474,11 @@ def delete_label_genre_rule(rule_id: int, auth: dict = Depends(verify_api_key)):
 
 
 @router.get("/scrobble/import/latest")
-def get_latest_scrobble_imports_proxy(auth: dict = Depends(verify_api_key)):
-    from services.music_manager.routers.scrobbler import get_latest_imports
+def get_latest_scrobble_imports_proxy(_auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.scrobbler import get_latest_imports # pylint: disable=import-outside-toplevel
     return get_latest_imports()
 
 @router.post("/scrobble/import/listenbrainz")
-def trigger_lb_import_proxy(background_tasks: BackgroundTasks, req: Dict[str, Any] = Body(...), auth: dict = Depends(verify_api_key)):
-    from services.music_manager.routers.scrobbler import trigger_lb_import, ImportRequest
+def trigger_lb_import_proxy(background_tasks: BackgroundTasks, req: Dict[str, Any] = Body(...), _auth: dict = Depends(verify_api_key)):
+    from services.music_manager.routers.scrobbler import trigger_lb_import, ImportRequest # pylint: disable=import-outside-toplevel
     return trigger_lb_import(ImportRequest(**req), background_tasks)

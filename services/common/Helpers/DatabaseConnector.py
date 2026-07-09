@@ -1,6 +1,6 @@
+import logging
 import os
 import pymysql
-import logging
 
 class DatabaseConnector:
 

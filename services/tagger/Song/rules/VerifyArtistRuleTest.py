@@ -3,6 +3,7 @@ import types
 import unittest
 from unittest.mock import MagicMock, patch
 sys.modules.setdefault('requests', types.ModuleType('requests'))
+# pylint: disable=wrong-import-position
 from services.tagger.Song.rules.VerifyArtistRule import VerifyArtistRule
 from services.tagger.Song.rules.TagResult import TagResultType
 
@@ -14,7 +15,7 @@ class VerifyArtistRuleTest(unittest.TestCase):
         self.song.artist.return_value = 'Unknown'
         self.song.tag_collection.get_item.return_value = self.tag
         self.artist_db = MagicMock()
-        patcher = patch('postprocessing.Song.rules.ExternalArtistLookup.ExternalArtistLookup.is_known_artist', return_value=False)
+        patcher = patch('services.tagger.Song.rules.ExternalArtistLookup.ExternalArtistLookup.is_known_artist', return_value=False)
         self.addCleanup(patcher.stop)
         self.mock_lookup_default = patcher.start()
 
@@ -29,8 +30,8 @@ class VerifyArtistRuleTest(unittest.TestCase):
         self.assertEqual(result.result_type, TagResultType.UPDATED)
         self.assertEqual(result.value, 'Angerfist')
 
-    @patch('postprocessing.Song.rules.ExternalArtistLookup.ExternalArtistLookup.is_known_artist', return_value=True)
-    def test_external_lookup_adds_artist(self, mock_lookup):
+    @patch('services.tagger.Song.rules.ExternalArtistLookup.ExternalArtistLookup.is_known_artist', return_value=True)
+    def test_external_lookup_adds_artist(self, _mock_lookup):
         self.song.artist.return_value = 'New Artist'
         self.artist_db.exists.return_value = False
         self.artist_db.insert_if_not_exists = MagicMock()

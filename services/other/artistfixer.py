@@ -39,9 +39,7 @@ class ArtistFixer:
     def _fix_file(self, path: Path):
         try:
             song = BaseSong(str(path))
-            original = song.artist()
-            was_known = self.artist_db.exists(original) if original else True
-            result = self.rule.apply(song)
+            self.rule.apply(song)
             song.save_file()
         except (PermissionError, MutagenError, FileNotFoundError, ExtensionNotSupportedException) as e:
             logging.warning(f'{type(e).__name__}: {e} -> {path}')

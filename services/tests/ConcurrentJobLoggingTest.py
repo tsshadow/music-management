@@ -7,9 +7,8 @@ import importlib
 import logging
 from fastapi.testclient import TestClient
 
-from services.downloader.soundcloud.soundcloud import SoundcloudDownloader
-from services.downloader.telegram.telegram import TelegramDownloader
-from services.downloader.youtube.youtube import YoutubeDownloader
+from services.common.api import db_init
+from services.common.api.step import Step as RealStep
 
 os.environ.setdefault('import_folder_path', '/tmp')
 os.environ.setdefault('music_folder_path', '/tmp')
@@ -29,7 +28,10 @@ class ConcurrentJobLoggingTest(unittest.TestCase):
         def _make_stub_module(module_name, class_names):
             mod = types.ModuleType(module_name)
             for cls, message in class_names.items():
-                attrs = {'__init__': lambda self, *a, **k: None, 'run': lambda self, *a, **k: logging.info(message) or time.sleep(0.1) if message else None}
+                attrs = {
+                    '__init__': lambda self, *a, **k: None,
+                    'run': lambda self, *a, msg=message, **k: logging.info(msg) or time.sleep(0.1) if msg else None
+                }
                 if module_name == 'soundcloud.youtube' and cls == 'YoutubeDownloader':
                     attrs['download_link'] = lambda self, *a, **k: None
                 mod_class = type(cls, (), attrs)
@@ -39,20 +41,16 @@ class ConcurrentJobLoggingTest(unittest.TestCase):
         for mod_name, classes in modules_to_stub.items():
             self.original_modules[mod_name] = sys.modules.get(mod_name)
             sys.modules[mod_name] = _make_stub_module(mod_name, classes)
-        import services.common.api.db_init as db_init
-        self._orig_ensure_tables = db_init.ensure_tables_exist
-        db_init.ensure_tables_exist = lambda: None
-        from services.common.api.step import Step as RealStep
+
         self.original_modules['main'] = sys.modules.get('main')
         main_mod = types.ModuleType('main')
         main_mod.Step = RealStep
         sys.modules['main'] = main_mod
-        import services.common.api.server as server_module
+        import services.common.api.server as server_module # pylint: disable=import-outside-toplevel
         self.server = importlib.reload(server_module)
         self.server.jobs.clear()
 
     def tearDown(self):
-        import services.common.api.db_init as db_init
         db_init.ensure_tables_exist = self._orig_ensure_tables
         for name, mod in self.original_modules.items():
             if mod is None:

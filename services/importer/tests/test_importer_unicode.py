@@ -24,7 +24,7 @@ class TestImporterUnicode(unittest.TestCase):
         song = LabelSong(file_path)
         # Artist with zero-width non-breaking space or similar
         song.tag_collection.set_item(ARTIST, "Artist\ufeffName")
-        
+
         song.parse()
         # Rule replaces \ufeff with ;
         self.assertEqual(song.artist(), 'Artist;Name')

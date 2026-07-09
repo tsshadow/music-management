@@ -1,3 +1,4 @@
+from services.tagger.Song.SongHelper import merge_and_sort_genres
 from services.tagger.Song.rules.TagRule import TagRule
 from services.tagger.constants import GENRE, ALBUM_ARTIST
 from services.common.Helpers.LookupTableHelper import LookupTableHelper
@@ -13,6 +14,7 @@ class InferGenreFromAlbumArtistRule(TagRule):
     """
 
     def __init__(self, helper=None):
+        # pylint: disable=import-outside-toplevel
         from services.common.Helpers.Cache import databaseHelpers
         self.labelGenreHelper = helper or databaseHelpers.get('labelGenreHelper') or LookupTableHelper('rules_label_genre', 'label', 'genre')
 
@@ -21,5 +23,5 @@ class InferGenreFromAlbumArtistRule(TagRule):
         rules_genres = self.labelGenreHelper.get(artist)
         if rules_genres:
             current = song.tag_collection.get_item_as_array(GENRE)
-            merged = song.merge_and_sort_genres(current, rules_genres)
+            merged = merge_and_sort_genres(current, rules_genres)
             song.tag_collection.set_item(GENRE, ';'.join(merged))

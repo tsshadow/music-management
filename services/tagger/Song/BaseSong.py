@@ -1,12 +1,11 @@
 import logging
 import os
-import re
-import mutagen
 from mutagen.easyid3 import EasyID3
 from mutagen.easymp4 import EasyMP4Tags
 from mutagen.flac import FLAC
+from mutagen.id3 import TXXX, TextFrame
 from mutagen.mp3 import MP3
-from mutagen.mp4 import MP4, MP4StreamInfoError
+from mutagen.mp4 import MP4, MP4StreamInfoError, MP4FreeForm
 from mutagen.oggopus import OggOpus
 from mutagen.wave import WAVE
 
@@ -17,8 +16,8 @@ from services.tagger.Song.rules.AnalyzeBpmRule import AnalyzeBpmRule
 from services.tagger.Song.rules.CleanTitleRule import CleanTitleRule
 from services.tagger.Song.rules.NormalizeFlacTagsRule import NormalizeFlacTagsRule
 from services.tagger.Song.rules.TagRule import TagRule
-from services.tagger.constants import MusicFileType, ARTIST_REGEX, GENRE, FLACTags, ARTIST, TRACK_NUMBER, TITLE, DATE, \
-    MP4Tags, ALBUM, ALBUM_ARTIST, BPM, CATALOG_NUMBER, FESTIVAL, PUBLISHER, REMIXER, PARSED, COPYRIGHT, WAVTags, OPUSTags
+from services.tagger.constants import MusicFileType, GENRE, FLACTags, ARTIST, TRACK_NUMBER, TITLE, DATE, \
+    MP4Tags, ALBUM, ALBUM_ARTIST, BPM, CATALOG_NUMBER, FESTIVAL, PUBLISHER, REMIXER, PARSED, COPYRIGHT, WAVTags, OPUSTags, RATING
 
 LOG_FILE = 'broken-files.log'
 s = Settings()
@@ -37,12 +36,12 @@ EasyMP4Tags.RegisterTextKey('festival', 'festival')
 EasyMP4Tags.RegisterTextKey('original_title', 'original_title')
 class ExtensionNotSupportedException(Exception):
     """Raised when an unsupported music file extension is encountered."""
-    pass
 
 def log_broken_file(pad: str):
     with open(LOG_FILE, 'a', encoding='utf-8') as f:
         f.write(pad + '\n')
 
+# pylint: disable=too-many-public-methods
 class BaseSong:
     """
     Represents a single audio file and its associated metadata.
@@ -66,8 +65,8 @@ class BaseSong:
         music_file_classes = {'.mp3': lambda p: (MP3(p, ID3=EasyID3), MusicFileType.MP3), '.flac': lambda p: (FLAC(p), MusicFileType.FLAC), '.wav': lambda p: (WAVE(p), MusicFileType.WAV), '.m4a': lambda p: (MP4(p), MusicFileType.M4A), '.opus': lambda p: (OggOpus(p), MusicFileType.OPUS)}
         try:
             self.music_file, self.type = music_file_classes[self._extension](path)
-        except KeyError:
-            raise ExtensionNotSupportedException(f'{self._extension} is not supported')
+        except KeyError as exc:
+            raise ExtensionNotSupportedException(f'{self._extension} is not supported') from exc
         except MP4StreamInfoError:
             print('MP4StreamInfoError' + path)
             try:
@@ -100,14 +99,6 @@ class BaseSong:
         if tag in self.tag_collection.get():
             del self.tag_collection.get()[tag]
 
-    def split_artists(self, artist_str: str) -> list[str]:
-        raw = re.sub(ARTIST_REGEX, ';', artist_str)
-        return [name.strip() for name in raw.split(';') if name.strip()]
-
-    def merge_and_sort_genres(self, a, b):
-        """Merges and sorts two lists of rules_genres, removing duplicates."""
-        return sorted(set(list(a) + list(b)))
-
     def sort_genres(self):
         """Sorts the genre tag array alphabetically if the tag exists."""
         if self.tag_collection.has_item(GENRE):
@@ -133,32 +124,43 @@ class BaseSong:
         if not value.strip():
             self.delete_tag(tag.tag)
             return
+
         if self.type == MusicFileType.MP3:
             self.music_file[tag.tag] = value
         elif self.type == MusicFileType.FLAC:
-            flac_key = FLACTags.get(tag.tag)
-            if flac_key:
-                self.music_file[flac_key] = value
+            self._set_flac_tag(tag.tag, value)
         elif self.type == MusicFileType.OPUS:
-            opus_key = OPUSTags.get(tag.tag)
-            if opus_key:
-                self.music_file[opus_key] = value
+            self._set_opus_tag(tag.tag, value)
         elif self.type == MusicFileType.WAV:
-            wav_key = WAVTags.get(tag.tag)
-            if wav_key:
-                if wav_key.startswith('TXXX:'):
-                    from mutagen.id3 import TXXX
-                    self.music_file.tags.add(TXXX(encoding=3, desc=wav_key[5:], text=[value]))
-                else:
-                    self.music_file.tags[wav_key] = mutagen.id3.TextFrame(encoding=3, text=[value])
+            self._set_wav_tag(tag.tag, value)
         elif self.type == MusicFileType.M4A:
-            mp4_key = MP4Tags.get(tag.tag)
-            if mp4_key:
-                self.music_file.tags[mp4_key] = value
+            self._set_m4a_tag(tag.tag, value)
+
+    def _set_flac_tag(self, tag_name, value):
+        flac_key = FLACTags.get(tag_name)
+        if flac_key:
+            self.music_file[flac_key] = value
+
+    def _set_opus_tag(self, tag_name, value):
+        opus_key = OPUSTags.get(tag_name)
+        if opus_key:
+            self.music_file[opus_key] = value
+
+    def _set_wav_tag(self, tag_name, value):
+        wav_key = WAVTags.get(tag_name)
+        if wav_key:
+            if wav_key.startswith('TXXX:'):
+                self.music_file.tags.add(TXXX(encoding=3, desc=wav_key[5:], text=[value]))
             else:
-                from mutagen.mp4 import MP4FreeForm
-                custom_key = f'----:com.apple.iTunes:{tag.tag.upper()}'
-                self.music_file.tags[custom_key] = [MP4FreeForm(value.encode('utf-8'))]
+                self.music_file.tags[wav_key] = TextFrame(encoding=3, text=[value])
+
+    def _set_m4a_tag(self, tag_name, value):
+        mp4_key = MP4Tags.get(tag_name)
+        if mp4_key:
+            self.music_file.tags[mp4_key] = value
+        else:
+            custom_key = f'----:com.apple.iTunes:{tag_name.upper()}'
+            self.music_file.tags[custom_key] = [MP4FreeForm(value.encode('utf-8'))]
 
     def length(self):
         try:

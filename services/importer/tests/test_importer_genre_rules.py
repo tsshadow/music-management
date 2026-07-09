@@ -25,10 +25,10 @@ class TestGenreRules(unittest.TestCase):
         file_path = '/tmp/Label/CAT/song.mp3'
         song = LabelSong(file_path)
         song.tag_collection.set_item(ARTIST, 'Headhunterz')
-        
+
         # Mock artistGenreHelper to return Hardstyle for Headhunterz
         self.db_helpers['artistGenreHelper'].get.return_value = ['Hardstyle']
-        
+
         song.parse()
         self.assertEqual(song.genre(), 'Hardstyle')
 
@@ -37,10 +37,10 @@ class TestGenreRules(unittest.TestCase):
         file_path = '/tmp/Label/CAT/song.mp3'
         song = LabelSong(file_path)
         song.tag_collection.set_item(GENRE, 'Rawstyle')
-        
+
         # Mock subgenreHelper to return Hardstyle for Rawstyle
         self.db_helpers['subgenreHelper'].get.return_value = ['Hardstyle']
-        
+
         song.parse()
         self.assertIn('Hardstyle', song.genre())
         self.assertIn('Rawstyle', song.genre())
@@ -50,11 +50,11 @@ class TestGenreRules(unittest.TestCase):
         file_path = '/tmp/Label/CAT/song.mp3'
         song = LabelSong(file_path)
         song.tag_collection.set_item(GENRE, 'Invalid Genre;Hardstyle')
-        
+
         # Mock rules_genres to only contain Hardstyle
         self.db_helpers['rules_genres'].exists.side_effect = lambda x: x == 'Hardstyle'
         self.db_helpers['rules_genres'].get_corrected_or_exists.side_effect = lambda x: x if x == 'Hardstyle' else None
-        
+
         song.parse()
         self.assertEqual(song.genre(), 'Hardstyle')
 
@@ -63,12 +63,12 @@ class TestGenreRules(unittest.TestCase):
         file_path = '/tmp/Label/CAT/song.mp3'
         song = LabelSong(file_path)
         song.tag_collection.set_item(GENRE, 'Unknown Genre')
-        
+
         # Mock everything to say it's unknown
         self.db_helpers['rules_genres'].exists.return_value = False
         self.db_helpers['rules_ignored_genres'].exists.return_value = False
         self.db_helpers['rules_genre_backlog'].exists.return_value = False
-        
+
         song.parse()
         self.db_helpers['rules_genre_backlog'].add.assert_called_with('Unknown Genre')
 

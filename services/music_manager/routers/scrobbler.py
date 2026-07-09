@@ -1,10 +1,12 @@
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Header, Depends
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
-from datetime import datetime
 import os
 import time
-import json
+from datetime import datetime
+from typing import Optional
+
+import requests
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Header, Depends
+from pydantic import BaseModel
+
 from services.music_manager.database import get_db_connection
 
 router = APIRouter(prefix="/scrobble", tags=["scrobble"])
@@ -16,15 +18,15 @@ def verify_api_key(x_api_key: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Missing API Key")
     if API_KEY and x_api_key == API_KEY:
         return {"type": "system"}
-    
-    from services.music_manager.routers.users import verify_token
+
+    from services.music_manager.routers.users import verify_token # pylint: disable=import-outside-toplevel
     try:
         res = verify_token(x_api_key)
         if res.get("status") == "ok":
             return res
-    except:
+    except Exception: # pylint: disable=broad-except
         pass
-        
+
     raise HTTPException(status_code=401, detail="Invalid API key")
 
 class ScrobbleEvent(BaseModel):
@@ -81,11 +83,11 @@ def init_db(cursor):
     """)
 
 @router.post("/api/event")
-def handle_scrobble_event(event: ScrobbleEvent, auth: dict = Depends(verify_api_key)):
+def handle_scrobble_event(event: ScrobbleEvent, _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
-    
+
     try:
         with conn.cursor() as cursor:
             # Simple matching for now
@@ -96,9 +98,9 @@ def handle_scrobble_event(event: ScrobbleEvent, auth: dict = Depends(verify_api_
                 LIMIT 1
             """, (event.artist_name, event.track_title))
             row = cursor.fetchone()
-            
+
             listened_at = datetime.fromtimestamp(event.listened_at) if event.listened_at else datetime.now()
-            
+
             if row:
                 track_id = row['id']
                 cursor.execute("""
@@ -112,132 +114,134 @@ def handle_scrobble_event(event: ScrobbleEvent, auth: dict = Depends(verify_api_
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     ON DUPLICATE KEY UPDATE artist_name = VALUES(artist_name)
                 """, (event.artist_name, event.track_title, event.album_name, event.mbid_track, event.mbid_artist, listened_at, event.username, event.source))
-            
+
             conn.commit()
             return {"status": "success", "matched": row is not None}
     finally:
         conn.close()
 
-def run_listenbrainz_import(import_id: int, username: str, lb_username: str, token: Optional[str] = None):
+def _process_listens_page(listens, conn, username, import_id, total_found): # pylint: disable=too-many-locals
+    processed = 0
+    max_ts = None
+    with conn.cursor() as cursor:
+        # Update total found
+        cursor.execute("UPDATE scrobble_imports SET total_found = %s WHERE id = %s", (total_found, import_id))
+        conn.commit()
+
+        for listen in listens:
+            metadata = listen.get('track_metadata', {})
+            artist_name = metadata.get('artist_name')
+            track_title = metadata.get('track_name')
+            album_name = metadata.get('release_name')
+            listened_at_ts = listen.get('listened_at')
+
+            # Update max_ts for next page
+            if max_ts is None or listened_at_ts < max_ts:
+                max_ts = listened_at_ts
+
+            if not artist_name or not track_title or not listened_at_ts:
+                continue
+
+            listened_at = datetime.fromtimestamp(listened_at_ts)
+
+            # Match track
+            cursor.execute("""
+                SELECT t.id FROM library_tracks t
+                JOIN library_artists a ON t.primary_artist_id = a.id
+                WHERE a.name = %s AND t.title = %s
+                LIMIT 1
+            """, (artist_name, track_title))
+            row = cursor.fetchone()
+
+            if row:
+                track_id = row['id']
+                cursor.execute("""
+                    INSERT INTO scrobble_listens (track_id, listened_at, username, source)
+                    VALUES (%s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE track_id = track_id
+                """, (track_id, listened_at, username, 'listenbrainz'))
+            else:
+                cursor.execute("""
+                    INSERT INTO scrobble_unmatched_listens (artist_name, track_title, album_name, listened_at, username, source)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE artist_name = artist_name
+                """, (artist_name, track_title, album_name, listened_at, username, 'listenbrainz'))
+
+            processed += 1
+            if processed % 10 == 0:
+                cursor.execute("UPDATE scrobble_imports SET processed = %s WHERE id = %s", (processed, import_id))
+                conn.commit()
+    return processed, max_ts
+
+def run_listenbrainz_import(import_id: int, username: str, lb_username: str, token: Optional[str] = None): # pylint: disable=too-many-locals
     conn = get_db_connection()
     if not conn:
         print(f"Failed to connect to DB for import {import_id}")
         return
-    
+
     try:
         # Update status to 'running'
         with conn.cursor() as cursor:
             cursor.execute("UPDATE scrobble_imports SET status = 'running' WHERE id = %s", (import_id,))
             conn.commit()
-            
-        import requests
+
         base_url = "https://api.listenbrainz.org/1"
         headers = {}
         if token:
             headers['Authorization'] = f"Token {token}"
-            
-        processed = 0
+
+        processed_total = 0
         total_found = 0
         max_ts = None
         pages_to_fetch = 100 # Fetch up to 10000 tracks
-        
+
         for page in range(pages_to_fetch):
             params = {'count': 100}
             if max_ts:
                 params['max_ts'] = max_ts
-                
+
             print(f"Fetching listens for {lb_username} from ListenBrainz (page {page+1}, max_ts={max_ts})...")
             response = requests.get(f"{base_url}/user/{lb_username}/listens", params=params, headers=headers, timeout=30)
             response.raise_for_status()
-            
+
             data = response.json()
             listens = data.get('payload', {}).get('listens', [])
-            
+
             if not listens:
                 print("No more listens found.")
                 break
-                
+
             total_found += len(listens)
-            
-            with conn.cursor() as cursor:
-                # Update total found
-                cursor.execute("UPDATE scrobble_imports SET total_found = %s WHERE id = %s", (total_found, import_id))
-                conn.commit()
-                
-                for listen in listens:
-                    metadata = listen.get('track_metadata', {})
-                    artist_name = metadata.get('artist_name')
-                    track_title = metadata.get('track_name')
-                    album_name = metadata.get('release_name')
-                    listened_at_ts = listen.get('listened_at')
-                    
-                    # Update max_ts for next page
-                    if max_ts is None or listened_at_ts < max_ts:
-                        max_ts = listened_at_ts
-                    
-                    if not artist_name or not track_title or not listened_at_ts:
-                        continue
-                    
-                    listened_at = datetime.fromtimestamp(listened_at_ts)
-                    
-                    # Match track
-                    cursor.execute("""
-                        SELECT t.id FROM library_tracks t
-                        JOIN library_artists a ON t.primary_artist_id = a.id
-                        WHERE a.name = %s AND t.title = %s
-                        LIMIT 1
-                    """, (artist_name, track_title))
-                    row = cursor.fetchone()
-                    
-                    if row:
-                        track_id = row['id']
-                        cursor.execute("""
-                            INSERT INTO scrobble_listens (track_id, listened_at, username, source)
-                            VALUES (%s, %s, %s, %s)
-                            ON DUPLICATE KEY UPDATE track_id = track_id
-                        """, (track_id, listened_at, username, 'listenbrainz'))
-                    else:
-                        cursor.execute("""
-                            INSERT INTO scrobble_unmatched_listens (artist_name, track_title, album_name, listened_at, username, source)
-                            VALUES (%s, %s, %s, %s, %s, %s)
-                            ON DUPLICATE KEY UPDATE artist_name = artist_name
-                        """, (artist_name, track_title, album_name, listened_at, username, 'listenbrainz'))
-                    
-                    processed += 1
-                    if processed % 10 == 0:
-                        cursor.execute("UPDATE scrobble_imports SET processed = %s WHERE id = %s", (processed, import_id))
-                        conn.commit()
-            
+            processed_page, page_max_ts = _process_listens_page(listens, conn, username, import_id, total_found)
+            processed_total += processed_page
+            max_ts = page_max_ts
+
             # Rate limiting
             time.sleep(1)
-            
+
             # If we got less than requested, we reached the end
             if len(listens) < 100:
                 break
-            
-            # Decrement max_ts slightly to avoid getting the same track twice if multiple tracks have the same timestamp
-            # though ListenBrainz usually handles this with max_ts being exclusive or inclusive differently.
-            # Actually ListenBrainz max_ts is inclusive for tracks <= max_ts.
-            # So we should use the timestamp of the last track minus 1 if we want to be sure, 
-            # but usually it's better to just use the last timestamp and handle duplicates (which we do with ON DUPLICATE KEY).
+
+            # Decrement max_ts slightly to avoid getting the same track twice
             max_ts = max_ts - 1
 
         with conn.cursor() as cursor:
             cursor.execute("""
-                UPDATE scrobble_imports 
-                SET status = 'completed', processed = %s, finished_at = CURRENT_TIMESTAMP 
+                UPDATE scrobble_imports
+                SET status = 'completed', processed = %s, finished_at = CURRENT_TIMESTAMP
                 WHERE id = %s
-            """, (processed, import_id))
+            """, (processed_total, import_id))
             conn.commit()
-            print(f"Import {import_id} completed. Processed {processed} listens.")
-            
+            print(f"Import {import_id} completed. Processed {processed_total} listens.")
+
     except Exception as e:
         print(f"Error during import {import_id}: {str(e)}")
         try:
             with conn.cursor() as cursor:
                 cursor.execute("UPDATE scrobble_imports SET status = 'failed', last_error = %s WHERE id = %s", (str(e), import_id))
                 conn.commit()
-        except:
+        except Exception: # pylint: disable=broad-except
             pass
     finally:
         conn.close()
@@ -250,7 +254,8 @@ class ImportRequest(BaseModel):
 @router.get("/import/latest")
 def get_latest_imports():
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT * FROM scrobble_imports ORDER BY started_at DESC LIMIT 10")
@@ -261,7 +266,8 @@ def get_latest_imports():
 @router.post("/import/listenbrainz")
 def trigger_lb_import(req: ImportRequest, background_tasks: BackgroundTasks):
     conn = get_db_connection()
-    if not conn: raise HTTPException(status_code=500)
+    if not conn:
+        raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute("""
@@ -270,10 +276,10 @@ def trigger_lb_import(req: ImportRequest, background_tasks: BackgroundTasks):
             """, (req.username, req.lb_username or req.username, 'pending'))
             import_id = cursor.lastrowid
             conn.commit()
-            
+
             # Trigger background task
             background_tasks.add_task(run_listenbrainz_import, import_id, req.username, req.lb_username or req.username, req.token)
-            
+
             return {"status": "ok", "import_id": import_id, "lb_username": req.lb_username or req.username}
     finally:
         conn.close()

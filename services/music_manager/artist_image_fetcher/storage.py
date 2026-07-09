@@ -20,35 +20,35 @@ class ImageStorage:
 
         try:
             img = Image.open(BytesIO(image_data))
-            
+
             # Basic info
             width, height = img.size
             mime_type = Image.MIME.get(img.format, 'image/jpeg')
-            
+
             # Generate a unique hash for the filename to avoid duplicates/caching issues
             file_hash = hashlib.md5(image_data).hexdigest()
             ext = "jpg" # Always save as jpg for consistency
-            
+
             base_filename = f"{source}-{file_hash}"
             if filename_prefix:
                 base_filename = f"{filename_prefix}-{base_filename}"
-            
+
             full_filename = f"{base_filename}.{ext}"
             cached_path = os.path.join(artist_dir, full_filename)
-            
+
             # Convert to RGB if necessary (e.g. for PNG with transparency)
             if img.mode in ("RGBA", "P"):
                 img = img.convert("RGB")
-            
+
             # Square crop if requested (recommended)
             img = self._square_crop(img)
-            
+
             # Save original (resized to a max if needed)
             img.save(cached_path, "JPEG", quality=90)
-            
+
             # Generate thumbnails
             thumbnails = self._generate_thumbnails(img, artist_dir, base_filename)
-            
+
             # Also save as primary.jpg for LMS convention
             primary_path = os.path.join(artist_dir, "primary.jpg")
             img.save(primary_path, "JPEG", quality=90)
@@ -69,32 +69,32 @@ class ImageStorage:
         width, height = img.size
         if width == height:
             return img
-        
+
         new_size = min(width, height)
         left = (width - new_size) / 2
         top = (height - new_size) / 2
         right = (width + new_size) / 2
         bottom = (height + new_size) / 2
-        
+
         return img.crop((left, top, right, bottom))
 
     def _generate_thumbnails(self, img, artist_dir, base_filename):
         sizes = [64, 160, 300, 640]
         paths = {}
-        
+
         for size in sizes:
             thumb = img.copy()
             thumb.thumbnail((size, size), Image.Resampling.LANCZOS)
             thumb_filename = f"{base_filename}_{size}.jpg"
             thumb_path = os.path.join(artist_dir, thumb_filename)
             thumb.save(thumb_path, "JPEG", quality=85)
-            
+
             # Also save stable thumbnail paths
             stable_thumb_path = os.path.join(artist_dir, f"thumb_{size}.jpg")
             thumb.save(stable_thumb_path, "JPEG", quality=85)
-            
+
             paths[size] = thumb_path
-            
+
         return paths
 
 class ImageDownloader:

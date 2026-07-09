@@ -1,4 +1,5 @@
-#!/bin/bash
++#!/bin/bash
+
 set -e
 
 # MuMaFi Music Management Install Script
@@ -20,6 +21,7 @@ show_help() {
     echo "  --help          Show this help message"
     echo "  --remote        Offload build and publish to remote LXC"
     echo "  --semi-remote   Use semi-remote mode (heavy images remote, others local)"
+    echo "  --all           Force build and publish of all applications"
     echo "  --debug         Enable debug output"
     echo "  --app=<app>     Specify an application to install"
     echo "  --list          List available applications"
@@ -59,6 +61,9 @@ for i in "$@"; do
             ;;
         --semi-remote)
             REMOTE_FLAG="--semi-remote"
+            ;;
+        --all)
+            SELECTED_APPS=("all")
             ;;
         --debug)
             DEBUG_FLAG="--debug"
@@ -112,6 +117,9 @@ if [ ${#SELECTED_APPS[@]} -eq 0 ]; then
         # Split AFFECTED into SELECTED_APPS array
         read -r -a SELECTED_APPS <<< "$AFFECTED"
     fi
+elif [ "${SELECTED_APPS[0]}" == "all" ]; then
+    echo "Forcing build of all modules."
+    SELECTED_APPS=() # Empty SELECTED_APPS means all in build.sh/publish.sh
 fi
 
 # Construct arguments for sub-scripts

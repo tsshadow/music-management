@@ -143,7 +143,7 @@ run_tests() {
     echo "--- Running tests ---"
     export PYTHONPATH=$PYTHONPATH:$(pwd)
     # Focus on downloader and importer tests as requested
-    TEST_TARGETS="services/downloader/soundcloud/tests/ services/tests/YoutubeDownloaderTest.py services/tests/ImporterTest.py"
+    TEST_TARGETS="services/downloader/soundcloud/tests/ services/importer/tests/ services/tests/YoutubeDownloaderTest.py"
     if ! python3 -m pytest -p no:warnings $TEST_TARGETS; then
         echo ""
         echo "❌ ERROR: Tests failed! Build aborted."

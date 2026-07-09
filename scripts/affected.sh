@@ -56,7 +56,7 @@ for file in $CHANGED_FILES; do
 done
 
 # Check for module changes
-AFFECTED=()
+AFFECTED=("manager" "app")
 for file in $CHANGED_FILES; do
     for entry in "${MODULE_MAP[@]}"; do
         path="${entry%%:*}"

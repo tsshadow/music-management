@@ -4,9 +4,10 @@ import sys
 import tempfile
 import types
 import unittest
+from unittest.mock import patch
 from yt_dlp.utils import sanitize_filename
-_orig_youtube_song_module = sys.modules.get('postprocessing.Song.YoutubeSong')
-_orig_youtube_archive_module = sys.modules.get('soundcloud.YoutubeArchive')
+_orig_youtube_song_module = sys.modules.get('services.tagger.Song.YoutubeSong')
+_orig_youtube_archive_module = sys.modules.get('services.downloader.youtube.YoutubeArchive')
 
 class DummyTagCollection:
 
@@ -39,13 +40,13 @@ class DummyYoutubeArchive:
     @staticmethod
     def insert(account, video_id, path, url, title):
         DummyYoutubeArchive.inserted.append((account, video_id, path, url, title))
-dummy_song_module = types.ModuleType('postprocessing.Song.YoutubeSong')
+dummy_song_module = types.ModuleType('services.tagger.Song.YoutubeSong')
 dummy_song_module.YoutubeSong = DummySong
-sys.modules['postprocessing.Song.YoutubeSong'] = dummy_song_module
-dummy_archive_module = types.ModuleType('soundcloud.YoutubeArchive')
+sys.modules['services.tagger.Song.YoutubeSong'] = dummy_song_module
+dummy_archive_module = types.ModuleType('services.downloader.youtube.YoutubeArchive')
 dummy_archive_module.YoutubeArchive = DummyYoutubeArchive
-sys.modules['soundcloud.YoutubeArchive'] = dummy_archive_module
-from downloader.YoutubeSongProcessor import YoutubeSongProcessor
+sys.modules['services.downloader.youtube.YoutubeArchive'] = dummy_archive_module
+from downloader.youtube import YoutubeSongProcessor
 
 class DummyDownloader:
 
@@ -87,7 +88,7 @@ class YoutubeSongProcessorTest(unittest.TestCase):
         html = '<html><head><meta property="og:title" content="Noiseflow | Defqon.1 2025"></head><body></body></html>'
         processor = YoutubeSongProcessor()
         processor._downloader = DummyDownloader(self.temp_dir.name, html)
-        info = {'id': '5mKayZadF4g', 'title': 'youtube video #5mKayZadF4g', 'fulltitle': 'youtube video #5mKayZadF4g', 'extractor': 'youtube, 'uploader': 'Q-dance', 'uploader_id': 'qdance', 'ext': 'm4a', 'webpage_url': 'https://www.youtube.com/watch?v=5mKayZadF4g'}
+        info = {'id': '5mKayZadF4g', 'title': 'youtube video #5mKayZadF4g', 'fulltitle': 'youtube video #5mKayZadF4g', 'extractor': 'youtube', 'uploader': 'Q-dance', 'uploader_id': 'qdance', 'ext': 'm4a', 'webpage_url': 'https://www.youtube.com/watch?v=5mKayZadF4g'}
         original_path = processor._downloader.prepare_filename(info)
         with open(original_path, 'wb') as handle:
             handle.write(b'data')
@@ -97,7 +98,12 @@ class YoutubeSongProcessorTest(unittest.TestCase):
         expected_info = dict(info)
         expected_info['title'] = 'Noiseflow | Defqon.1 2025'
         expected_path = processor._downloader.prepare_filename(expected_info)
-        processor.run(info)
+        with patch('services.downloader.youtube.YoutubeSongProcessor.TaggerService') as mock_tagger_service:
+            mock_tagger_instance = mock_tagger_service.return_value
+            processor.run(info)
+            # Verify tagger_service.tag was called
+            mock_tagger_instance.tag.assert_called_with("youtube", info['filepath'], info)
+
         self.assertEqual(info['title'], 'Noiseflow | Defqon.1 2025')
         self.assertEqual(info['fulltitle'], 'Noiseflow | Defqon.1 2025')
         self.assertEqual(os.path.normpath(info['filepath']), os.path.normpath(expected_path))
@@ -106,19 +112,15 @@ class YoutubeSongProcessorTest(unittest.TestCase):
         self.assertEqual(os.path.normpath(info['requested_downloads'][0]['filepath']), os.path.normpath(expected_path))
         self.assertEqual(os.path.normpath(info['requested_downloads'][0]['_filename']), os.path.normpath(expected_path))
         self.assertEqual(DummyYoutubeArchive.inserted[-1], ('qdance', '5mKayZadF4g', info['filepath'], info['webpage_url'], 'Noiseflow | Defqon.1 2025'))
-        self.assertIsNotNone(DummySong.last_instance)
-        self.assertIs(DummySong.last_instance.extra_info, info)
-        self.assertEqual(DummySong.last_instance.tag_collection.values.get('title'), 'Noiseflow | Defqon.1 2025')
-        self.assertTrue(DummySong.last_instance.parse_called)
 
 def tearDownModule():
     if _orig_youtube_song_module is not None:
-        sys.modules['postprocessing.Song.YoutubeSong'] = _orig_youtube_song_module
+        sys.modules['services.tagger.Song.YoutubeSong'] = _orig_youtube_song_module
     else:
-        sys.modules.pop('postprocessing.Song.YoutubeSong', None)
+        sys.modules.pop('services.tagger.Song.YoutubeSong', None)
     if _orig_youtube_archive_module is not None:
-        sys.modules['soundcloud.YoutubeArchive'] = _orig_youtube_archive_module
+        sys.modules['services.downloader.youtube.YoutubeArchive'] = _orig_youtube_archive_module
     else:
-        sys.modules.pop('soundcloud.YoutubeArchive', None)
+        sys.modules.pop('services.downloader.youtube.YoutubeArchive', None)
 if __name__ == '__main__':
     unittest.main()

@@ -11,8 +11,13 @@ os.environ.setdefault('delimiter', '/')
 sys.modules['dotenv'] = types.ModuleType('dotenv')
 sys.modules['dotenv'].load_dotenv = lambda *a, **k: None
 sys.modules.setdefault('requests', types.ModuleType('requests'))
-mutagen_mod = sys.modules.setdefault('mutagen', types.ModuleType('mutagen'))
-setattr(mutagen_mod, 'MutagenError', Exception)
+try:
+    import mutagen
+except ImportError:
+    mutagen = types.ModuleType('mutagen')
+    mutagen.__path__ = []
+    sys.modules['mutagen'] = mutagen
+mutagen.MutagenError = getattr(mutagen, 'MutagenError', Exception)
 cache_mod = types.ModuleType('postprocessing.Song.Helpers.Cache')
 cache_mod.databaseHelpers = {'library_artists': MagicMock()}
 sys.modules['postprocessing.Song.Helpers.Cache'] = cache_mod

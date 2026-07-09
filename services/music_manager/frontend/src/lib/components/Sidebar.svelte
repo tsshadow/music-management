@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Database, Home, Activity, Image, List, Tag, Cloud, Radio, ShieldCheck, Users, LayoutTemplate, Info, ExternalLink } from 'lucide-svelte';
+  import { Bell, Database, Home, Activity, Image, List, Tag, Cloud, Radio, ShieldCheck, Users, LayoutTemplate, Info, ExternalLink } from 'lucide-svelte';
 
   export let activeTab: string;
   export let onTabChange: (tab: string) => void;
@@ -32,6 +32,12 @@
       class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'stats' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
     >
       <Activity size={20} /> Bibliotheek Stats
+    </button>
+    <button 
+      on:click={() => onTabChange('notifications')}
+      class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'notifications' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+    >
+      <Bell size={20} /> Meldingen
     </button>
 
     <div class="pt-4 pb-1 px-4 text-[10px] font-bold text-spotify-lightgray uppercase tracking-widest">Bibliotheek</div>

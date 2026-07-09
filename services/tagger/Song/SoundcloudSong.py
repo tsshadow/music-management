@@ -6,12 +6,14 @@ from services.tagger.Song.rules.AddMissingGenreToDatabaseRule import AddMissingG
 from services.tagger.Song.rules.CheckArtistRule import CheckArtistRule
 from services.tagger.Song.rules.CleanAndFilterGenreRule import CleanAndFilterGenreRule
 from services.tagger.Song.rules.CleanTagsRule import CleanTagsRule
+from services.tagger.Song.rules.CleanTitleRule import CleanTitleRule
 from services.tagger.Song.rules.InferArtistFromTitleRule import InferArtistFromTitleRule
+from services.tagger.Song.rules.InferFeatureFromTitleRule import InferFeatureFromTitleRule
 from services.tagger.Song.rules.InferGenreFromArtistRule import InferGenreFromArtistRule
 from services.tagger.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
 from services.tagger.Song.rules.InferRemixerFromTitleRule import InferRemixerFromTitleRule
 from services.tagger.Song.rules.ReplaceInvalidUnicodeRule import ReplaceInvalidUnicodeRule
-from services.tagger.constants import ALBUM_ARTIST, PUBLISHER, COPYRIGHT, ALBUM
+from services.tagger.constants import ALBUM_ARTIST, PUBLISHER, COPYRIGHT, ALBUM, ARTIST
 s = Settings()
 
 class SoundcloudSong(BaseSong):
@@ -30,14 +32,18 @@ class SoundcloudSong(BaseSong):
     def parse(self):
         if not self.album_artist():
             self.tag_collection.set_item(ALBUM_ARTIST, self._album_artist_from_path)
+        if not self.artist():
+            self.tag_collection.set_item(ARTIST, self._uploader)
         if not self.album():
             self.tag_collection.set_item(ALBUM, self._album)
         if not self.copyright():
             if self.calculate_copyright():
                 self.tag_collection.set_item(COPYRIGHT, self.calculate_copyright())
         self.tag_collection.set_item(PUBLISHER, self._publisher)
+        self.rules.append(CleanTitleRule())
         self.rules.append(InferArtistFromTitleRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists'], genre_db=databaseHelpers['rules_genres']))
         self.rules.append(InferRemixerFromTitleRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']))
+        self.rules.append(InferFeatureFromTitleRule())
         self.rules.append(CleanTagsRule())
         self.rules.append(InferGenreFromArtistRule(helper=databaseHelpers['artistGenreHelper']))
         self.rules.append(InferGenreFromSubgenreRule(databaseHelpers['subgenreHelper']))

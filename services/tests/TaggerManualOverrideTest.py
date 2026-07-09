@@ -31,7 +31,7 @@ class TaggerManualOverrideTest(unittest.TestCase):
             mod = types.ModuleType(mod_name)
             setattr(mod, class_name, type(class_name, (), {}))
             sys.modules[mod_name] = mod
-        from services.tagger_service import tagger as tagger_module
+        from services.tagger import tagger as tagger_module
         with patch.object(tagger_module, 'LabelSong', return_value=dummy_song):
             tagger_module.Tagger.parse_song(Path('file.mp3'), SongTypeEnum.LABEL, {'genre': 'Trance'})
         dummy_song.parse.assert_called_once()

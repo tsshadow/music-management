@@ -7,6 +7,7 @@ from os.path import isfile, join
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.settings import Settings
 from services.tagger.Song.LabelSong import LabelSong
+from services.common.Helpers.NotificationService import notification_service
 
 
 def get_cat_id(folder: str):
@@ -49,6 +50,7 @@ def post_processing_songs(folder_path):
                     logging.info(f'Processing file with LabelSong: {full_path}')
                     s = LabelSong(str(full_path))
                     s.parse()
+                    notification_service.notify(str(s), title="Import Complete")
                 except Exception as e:
                     logging.error(f'Failed to process {full_path} with LabelSong: {e}')
 

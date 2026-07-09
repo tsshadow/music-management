@@ -11,6 +11,7 @@ from services.tagger.constants import TITLE
 from yt_dlp.utils import sanitize_filename
 
 from services.tagger.tagger_service import TaggerService
+from services.common.Helpers.NotificationService import notification_service
 
 
 class YoutubeSongProcessor(PostProcessor):
@@ -37,7 +38,9 @@ class YoutubeSongProcessor(PostProcessor):
         tagger_service = TaggerService()
         if corrected_title:
             info['title'] = corrected_title
-        tagger_service.tag("youtube", path, info)
+        song = tagger_service.tag("youtube", path, info)
+        if song:
+            notification_service.notify(str(song), title="YouTube Download Complete")
         # if corrected_title:
         #     try:
         #         song.tag_collection.set_item(TITLE, corrected_title)

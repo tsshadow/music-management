@@ -1,6 +1,6 @@
 from pathlib import Path
 import logging
-from data.settings import Settings
+from services.common.settings import Settings
 s = Settings()
 
 class Sanitizer:

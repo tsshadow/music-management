@@ -22,7 +22,7 @@ class Tag:
         """
         self.tag: str = tag
         if isinstance(value, str):
-            self.value = value.split(';')
+            self.value = [v for v in value.split(';') if v]
         elif isinstance(value, list):
             self.value = list(value)
             try:

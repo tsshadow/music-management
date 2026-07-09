@@ -13,6 +13,7 @@
   import HealthTab from './lib/tabs/HealthTab.svelte';
   import UsersTab from './lib/tabs/UsersTab.svelte';
   import WorkerVersionsTab from './lib/tabs/WorkerVersionsTab.svelte';
+  import NotificationsTab from './lib/tabs/NotificationsTab.svelte';
   import AboutTab from './lib/tabs/AboutTab.svelte';
 
   // Import Components
@@ -368,7 +369,8 @@
       fetchStats={fetchStats}
       fetchPlaylists={fetchPlaylists}
       refreshSystemStatus={refreshSystemStatus}
-      fetchAbout={() => {}} 
+      onMessage={(m) => message = m} 
+      onError={(e) => error = e}
     />
 
     <main class="flex-1 overflow-y-auto bg-gradient-to-b from-spotify-gray to-spotify-dark p-8 relative">
@@ -469,6 +471,8 @@
           <WorkerVersionsTab {versions} />
         {:else if activeTab === 'about'}
           <AboutTab {API_BASE} {apiKey} />
+        {:else if activeTab === 'notifications'}
+          <NotificationsTab {API_BASE} {getHeaders} {onMessage} {onError} {config} />
         {/if}
       {/if}
     </main>

@@ -22,7 +22,7 @@ app.add_middleware(
 )
 
 # Import routers (we will create these)
-from services.music_manager.routers import users, scrobbler, rating, stats, management, artist_images
+from services.music_manager.routers import users, scrobbler, rating, stats, management, artist_images, notifications
 
 app.include_router(users.router)
 app.include_router(scrobbler.router)
@@ -30,6 +30,7 @@ app.include_router(rating.router)
 app.include_router(stats.router)
 app.include_router(management.router)
 app.include_router(artist_images.router)
+app.include_router(notifications.router)
 
 @app.on_event("startup")
 def startup_event():
@@ -45,6 +46,7 @@ def startup_event():
                 # stats doesn't have its own tables usually, it reads from others
                 management.init_db(cursor)
                 artist_images.init_db(cursor)
+                notifications.init_db(cursor)
             conn.commit()
             print("Music Manager: Database initialized")
         finally:
@@ -52,8 +54,10 @@ def startup_event():
     
     # Start LMS sync in background
     from services.music_manager.routers.users import run_lms_db_sync
+    from services.music_manager.ntfy_listener import start_ntfy_listener
     import threading
     threading.Thread(target=run_lms_db_sync, daemon=True).start()
+    start_ntfy_listener()
 
 @app.get("/health")
 def health():

@@ -278,6 +278,22 @@ def _config_fields() -> List[ConfigField]:
             group="3rd Party APIs",
             description="Spotify client secret for artist lookup.",
         ),
+        ConfigField(
+            key="notify_url",
+            type="string",
+            default="",
+            env="notify_url",
+            group="Notifications",
+            description="URL for ntfy.sh integration.",
+        ),
+        ConfigField(
+            key="notify_topic",
+            type="string",
+            default="music-management",
+            env="notify_topic",
+            group="Notifications",
+            description="Topic name for ntfy.sh notifications.",
+        ),
     ]
 
 

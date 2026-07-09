@@ -50,18 +50,11 @@ class JobAPIHandler(BaseHTTPRequestHandler):
         else:
             self._send(404, {'error': 'Not found'})
 
-def start_api_server(host: str='0.0.0.0', port: int=8001) -> None:
-    """Start the FastAPI app in a background thread."""
-    if app is None:
-        logging.error("FastAPI app is not available, cannot start API server.")
-        return
-
-    import uvicorn
-    
-    def run():
-        uvicorn.run(app, host=host, port=port, log_level="error")
-
-    thread = threading.Thread(target=run, daemon=True)
+def start_api_server(host: str='127.0.0.1', port: int=8001) -> HTTPServer:
+    """Start a small HTTP server for job tracking (used in tests)."""
+    server = HTTPServer((host, port), JobAPIHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    logging.info(f"Started API server on {host}:{port}")
+    logging.info(f"Started mock API server on {host}:{server.server_port}")
+    return server
 __all__ = ['app', 'start_api_server']

@@ -5,9 +5,9 @@ import importlib
 import sys
 sys.modules.pop('requests', None)
 requests = importlib.import_module('requests')
-from step import Step
-from api import start_api_server
-from api.job_manager import job_manager
+from services.common.api.step import Step
+from services.common.api import start_api_server
+from services.common.api.job_manager import job_manager
 
 class JobApiTest(unittest.TestCase):
 
@@ -20,7 +20,7 @@ class JobApiTest(unittest.TestCase):
 
             def action():
                 time.sleep(0.2)
-            step = Step('Example', ['test'], action)
+            step = Step('Example', action, ['test'])
             t = threading.Thread(target=lambda: step.run(['test']))
             t.start()
             time.sleep(0.05)
@@ -49,7 +49,7 @@ class JobApiTest(unittest.TestCase):
 
             def failing_action():
                 raise RuntimeError('boom')
-            step = Step('FailStep', ['test'], failing_action)
+            step = Step('FailStep', failing_action, ['test'])
             result = []
             t = threading.Thread(target=lambda: result.append(step.run(['test'])))
             t.start()

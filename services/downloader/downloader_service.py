@@ -9,7 +9,7 @@ import faulthandler
 from services.common.api import start_api_server
 from services.common.settings import Settings
 from services.downloader.youtube.youtube import YoutubeDownloader
-from soundcloud.soundcloud import SoundcloudDownloader
+from services.downloader.soundcloud.soundcloud import SoundcloudDownloader
 from services.downloader.telegram.telegram import TelegramDownloader
 
 faulthandler.register(signal.SIGUSR1)

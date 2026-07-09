@@ -1,27 +1,16 @@
-import os
-import sys
-import types
 import unittest
 from unittest.mock import MagicMock, patch
-os.environ.setdefault('import_folder_path', '/tmp')
-os.environ.setdefault('music_folder_path', '/tmp')
-os.environ.setdefault('eps_folder_path', '/tmp')
-os.environ.setdefault('delimiter', '/')
-os.environ.setdefault('DB_HOST', 'localhost')
-os.environ.setdefault('DB_USER', 'user')
-os.environ.setdefault('DB_PORT', '0')
-os.environ.setdefault('DB_PASS', '')
-os.environ.setdefault('DB_DB', 'db')
-sys.modules['dotenv'] = types.ModuleType('dotenv')
-sys.modules['dotenv'].load_dotenv = lambda *a, **k: None
-cache_mod = types.ModuleType('services.common.Helpers.Cache')
-cache_mod.databaseHelpers = {'library_artists': MagicMock(), 'rules_ignored_artists': MagicMock(), 'rules_genres': MagicMock(), 'rules_ignored_genres': MagicMock(), 'artistGenreHelper': MagicMock(), 'subgenreHelper': MagicMock()}
-sys.modules['services.common.Helpers.Cache'] = cache_mod
-sys.modules.pop('postprocessing.Song.SoundcloudSong', None)
+from services.tests.mock_base import setup_mocks, reset_database_helpers
+
+setup_mocks()
+
 from services.tagger.constants import ALBUM
 from services.tagger.Song.SoundcloudSong import SoundcloudSong
 
 class SoundcloudSongTest(unittest.TestCase):
+
+    def setUp(self):
+        reset_database_helpers()
 
     @patch('services.tagger.Song.BaseSong.BaseSong.parse')
     @patch('services.tagger.Song.BaseSong.TagCollection')

@@ -11,7 +11,7 @@ from yt_dlp.postprocessor import FFmpegMetadataPP, EmbedThumbnailPP
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.api.config_store import ConfigStore
 from services.common.api.jobs import job_manager
-from services.downloader.soundcloud.SoundcloudSongProcessor import SoundcloudSongProcessor
+from .SoundcloudSongProcessor import SoundcloudSongProcessor
 
 
 def get_accounts_from_db():

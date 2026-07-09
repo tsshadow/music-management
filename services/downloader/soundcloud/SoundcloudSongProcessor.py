@@ -5,8 +5,9 @@ from urllib.parse import urlparse
 from yt_dlp.postprocessor import PostProcessor
 
 from services.tagger.tagger_service import TaggerService
-from services.downloader.soundcloud.SoundcloudArchive import SoundcloudArchive
+from .SoundcloudArchive import SoundcloudArchive
 from services.tagger.Song.SoundcloudSong import SoundcloudSong
+from services.common.Helpers.NotificationService import notification_service
 
 class SoundcloudSongProcessor(PostProcessor):
     """
@@ -32,7 +33,9 @@ class SoundcloudSongProcessor(PostProcessor):
         enriched_info = self._fetch_enriched_info(url)
         if not enriched_info:
             tagger_service = TaggerService()
-            tagger_service.tag("soundcloud", path)
+            song = tagger_service.tag("soundcloud", path)
+            if song:
+                notification_service.notify(str(song), title="SoundCloud Download Complete")
             return ([], info)
         info.update(enriched_info)
         account_name = self._extract_account_name_from_url(enriched_info.get('uploader_url'))
@@ -43,7 +46,9 @@ class SoundcloudSongProcessor(PostProcessor):
         else:
             SoundcloudArchive.insert(account_name=account_name, account_id=account_id, video_id=video_id, path=path, url=enriched_info.get('original_url'), title=enriched_info.get('title'))
         tagger_service = TaggerService()
-        tagger_service.tag("soundcloud", path, enriched_info)
+        song = tagger_service.tag("soundcloud", path, enriched_info)
+        if song:
+            notification_service.notify(str(song), title="SoundCloud Download Complete")
         return ([], info)
 
     @staticmethod

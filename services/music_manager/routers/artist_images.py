@@ -1,4 +1,5 @@
 import os
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Header, Depends
@@ -6,6 +7,7 @@ from fastapi.responses import FileResponse
 from services.music_manager.database import get_db_connection
 
 router = APIRouter(prefix="/api/artists", tags=["artists"])
+logger = logging.getLogger(__name__)
 
 # Global state for background tasks progress
 fetch_progress = {
@@ -13,7 +15,8 @@ fetch_progress = {
     "total": 0,
     "current": 0,
     "last_artist": None,
-    "status": "idle"
+    "status": "idle",
+    "message": None
 }
 
 API_KEY = os.getenv("API_KEY") or os.getenv("MUMA_API_KEY") or "453ecd33-3cb2-4ca4-a531-1677330bbaee"
@@ -92,14 +95,23 @@ def search_artist_images(q: str = "", _auth: dict = Depends(verify_api_key)):
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
-            cursor.execute("""
-                SELECT a.id, a.name, a.primary_image_id, i.width, i.height, i.mime_type
-                FROM library_artists a
-                JOIN library_artist_images i ON a.primary_image_id = i.id
-                WHERE a.name LIKE %s
-                ORDER BY a.name
-                LIMIT 100
-            """, (f"%{q}%",))
+            if q == "":
+                cursor.execute("""
+                    SELECT a.id, a.name, a.primary_image_id, i.width, i.height, i.mime_type, a.image_status
+                    FROM library_artists a
+                    JOIN library_artist_images i ON a.primary_image_id = i.id
+                    ORDER BY a.name
+                    LIMIT 100
+                """)
+            else:
+                cursor.execute("""
+                    SELECT a.id, a.name, a.primary_image_id, i.width, i.height, i.mime_type, a.image_status
+                    FROM library_artists a
+                    JOIN library_artist_images i ON a.primary_image_id = i.id
+                    WHERE a.name LIKE %s
+                    ORDER BY a.name
+                    LIMIT 100
+                """, (f"%{q}%",))
             return cursor.fetchall()
     finally:
         conn.close()
@@ -111,14 +123,22 @@ def search_all_artists(q: str = "", _auth: dict = Depends(verify_api_key)):
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
-            cursor.execute("""
-                SELECT a.id, a.name, a.primary_image_id, i.width, i.height, i.mime_type, a.image_status
-                FROM library_artists a
-                LEFT JOIN library_artist_images i ON a.primary_image_id = i.id
-                WHERE a.name LIKE %s
-                ORDER BY a.name
-                LIMIT 100
-            """, (f"%{q}%",))
+
+            if q == "":
+                cursor.execute("""
+                    SELECT a.id, a.name, a.primary_image_id, a.image_status
+                    FROM library_artists a
+                    ORDER BY a.name
+                    LIMIT 100
+                """)
+            else:
+                cursor.execute("""
+                    SELECT a.id, a.name, a.primary_image_id, a.image_status
+                    FROM library_artists a
+                    WHERE a.name LIKE %s
+                    ORDER BY a.name
+                    LIMIT 100
+                """, (f"%{q}%",))
             return cursor.fetchall()
     finally:
         conn.close()
@@ -178,7 +198,9 @@ def fetch_missing_images(background_tasks: BackgroundTasks, _auth: dict = Depend
     """
     Triggers a background task to fetch missing artist images for all artists.
     """
+    logger.info("fetch-missing images endpoint called")
     if fetch_progress["active"]:
+        logger.warning("Fetch already in progress")
         return {"status": "error", "message": "Fetch already in progress"}
 
     background_tasks.add_task(run_fetch_missing)
@@ -190,52 +212,125 @@ def fetch_artist_image_manual(artist_id: int, background_tasks: BackgroundTasks,
     return {"status": "ok", "message": f"Fetching image for artist ID {artist_id} started"}
 
 def run_fetch_missing():
+    logger.info("Background task run_fetch_missing started")
+    fetch_progress.update({
+        "active": True,
+        "total": 0,
+        "current": 0,
+        "last_artist": None,
+        "status": "initializing",
+        "message": "Starting background fetch process..."
+    })
     try:
+        logger.info("Importing ArtistImageFetcher...")
         from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetcher # pylint: disable=import-outside-toplevel
+        logger.info("Connecting to database...")
         conn = get_db_connection()
         if not conn:
+            logger.error("Global background fetch failed: Database connection failed")
+            fetch_progress.update({
+                "active": False,
+                "status": "failed",
+                "message": "Database connection failed"
+            })
             return
+
         try:
             fetcher = ArtistImageFetcher(db_conn=conn)
             # Find all artists without a primary image
             with conn.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) as count FROM library_artists")
+                total_artists = cursor.fetchone()['count']
+                logger.info(f"Database contains {total_artists} total artists in library_artists")
+
                 cursor.execute("""
                     SELECT id, name
                     FROM library_artists
                     WHERE primary_image_id IS NULL
-                    AND (image_status IS NULL OR image_status != 'failed')
+                """)
+                all_missing = cursor.fetchall()
+                logger.info(f"Total artists with primary_image_id IS NULL: {len(all_missing)}")
+
+                cursor.execute("""
+                    SELECT id, name
+                    FROM library_artists
+                    WHERE primary_image_id IS NULL
+                    AND (image_status IS NULL OR image_status = 'failed')
                     ORDER BY name
                 """)
                 artists = cursor.fetchall()
+                logger.info(f"Query (filtered by status) returned {len(artists)} artists needing images")
+
+                if not artists:
+                    logger.info("No artists found with missing images.")
+                    if all_missing:
+                        # Log some statuses of the missing ones to see why they are filtered out
+                        cursor.execute("""
+                            SELECT image_status, COUNT(*) as count 
+                            FROM library_artists 
+                            WHERE primary_image_id IS NULL 
+                            GROUP BY image_status
+                        """)
+                        stats = cursor.fetchall()
+                        logger.info(f"Stats for NULL primary_image_id: {stats}")
+                        logger.info("Tip: If many are 'active' but primary_image_id is NULL, there might be a database inconsistency.")
+                    fetch_progress.update({
+                        "active": False,
+                        "status": "completed",
+                        "message": "No artists found with missing images."
+                    })
+                    return
 
                 fetch_progress.update({
                     "active": True,
                     "total": len(artists),
                     "current": 0,
                     "last_artist": None,
-                    "status": "running"
+                    "status": "running",
+                    "message": f"Processing {len(artists)} artists"
                 })
 
-                print(f"Starting background fetch for {len(artists)} artists")
+                logger.info(f"Starting background fetch for {len(artists)} artists")
+                success_count = 0
+                failed_count = 0
+
                 for i, artist in enumerate(artists):
                     fetch_progress["current"] = i + 1
                     fetch_progress["last_artist"] = artist['name']
+                    fetch_progress["message"] = f"Fetching for {artist['name']} ({i + 1}/{len(artists)})"
                     try:
-                        fetcher.fetch_for_artist(artist['id'], artist['name'])
+                        if fetcher.fetch_for_artist(artist['id'], artist['name']):
+                            success_count += 1
+                        else:
+                            failed_count += 1
                     except Exception as e:
-                        print(f"Failed to fetch for {artist['name']}: {e}")
+                        logger.error(f"Failed to fetch for {artist['name']}: {e}")
+                        failed_count += 1
 
+                logger.info("Background fetch for missing artist images completed.")
                 fetch_progress.update({
                     "active": False,
-                    "status": "completed"
+                    "status": "completed",
+                    "message": f"Completed: {success_count} succeeded, {failed_count} failed"
                 })
+
+                try:
+                    from services.common.Helpers.NotificationService import notification_service # pylint: disable=import-outside-toplevel
+                    notification_service.send_notification(
+                        title="Artist Image Fetcher",
+                        message=f"Background fetch completed.\nSucceeded: {success_count}\nFailed: {failed_count}",
+                        topic="artist-images"
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to send completion notification: {e}")
         finally:
             conn.close()
     except Exception as e:
-        print(f"Global background fetch failed: {e}")
+        logger.error(f"Global background fetch failed: {e}")
         fetch_progress.update({
             "active": False,
-            "status": "failed"
+            "status": "failed",
+            "message": str(e)
         })
 
 def trigger_fetch_by_id(artist_id: int):

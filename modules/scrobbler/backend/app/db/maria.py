@@ -294,7 +294,6 @@ class MariaDBAdapter(DatabaseAdapter):
         if not rows:
             return rows
         listen_ids = [int(row['id']) for row in rows]
-        track_ids = {int(row['track_id']) for row in rows if row.get('track_id') is not None}
         listen_artist_stmt = select(listen_artists.c.listen_id, library_artists.c.id, library_artists.c.name).select_from(listen_artists.join(library_artists, library_artists.c.id == listen_artists.c.artist_id)).where(listen_artists.c.listen_id.in_(listen_ids)).order_by(listen_artists.c.listen_id, listen_artists.c.artist_id)
         listen_artist_rows = await session.execute(listen_artist_stmt)
         listen_artist_map: dict[int, list[tuple[int | None, str]]] = defaultdict(list)

@@ -36,64 +36,95 @@ def main():
     # Fetch-missing command
     missing_parser = subparsers.add_parser('fetch-missing', help='Fetch images for artists missing them')
     missing_parser.add_argument('--limit', type=int, default=100, help='Limit number of artists to process')
+    missing_parser.add_argument('--include-failed', action='store_true', help='Include artists that previously failed')
 
     # Refresh command
     refresh_parser = subparsers.add_parser('refresh', help='Refresh stale images')
     refresh_parser.add_argument('--older-than-days', type=int, default=90, help='Refresh images older than X days')
     refresh_parser.add_argument('--limit', type=int, default=100, help='Limit number of artists to process')
 
+    # Daemon options (shared)
+    parser.add_argument('--repeat', '--daemon', action='store_true', dest='repeat', help='Keep running in a loop')
+    parser.add_argument('--sleeptime', type=int, default=3600, help='Time to sleep between scans (seconds)')
+
     args = parser.parse_args()
 
     fetcher = ArtistImageFetcher()
 
-    if args.command == 'fetch':
-        if args.artist_id:
-            fetcher.fetch_for_artist(args.artist_id, args.name, force_refresh=args.force)
-        elif args.name:
-            # Find ID by name
+    while True:
+        if args.command == 'fetch':
+            if args.artist_id:
+                fetcher.fetch_for_artist(args.artist_id, args.name, force_refresh=args.force)
+            elif args.name:
+                # Find ID by name
+                db = DatabaseConnector().connect()
+                with db.cursor(pymysql.cursors.DictCursor) as cursor:
+                    cursor.execute("SELECT id FROM library_artists WHERE name = %s", (args.name,))
+                    row = cursor.fetchone()
+                    if row:
+                        fetcher.fetch_for_artist(row['id'], args.name, force_refresh=args.force)
+                    else:
+                        print(f"Artist '{args.name}' not found in database")
+            else:
+                print("Either --artist-id or --name must be provided")
+
+        elif args.command == 'fetch-missing':
             db = DatabaseConnector().connect()
             with db.cursor(pymysql.cursors.DictCursor) as cursor:
-                cursor.execute("SELECT id FROM library_artists WHERE name = %s", (args.name,))
-                row = cursor.fetchone()
-                if row:
-                    fetcher.fetch_for_artist(row['id'], args.name, force_refresh=args.force)
+                status_filter = "(image_status IS NULL OR image_status != 'failed')"
+                if args.include_failed:
+                    status_filter = "(image_status IS NULL OR image_status = 'failed')"
+
+                query = f"""
+                    SELECT id, name FROM library_artists
+                    WHERE primary_image_id IS NULL AND {status_filter}
+                    LIMIT %s
+                """
+                cursor.execute(query, (args.limit,))
+                artists = cursor.fetchall()
+
+                if not artists:
+                    print("Found 0 artists missing images.")
+                    # Log stats to help debug
+                    cursor.execute("""
+                        SELECT image_status, COUNT(*) as count 
+                        FROM library_artists 
+                        WHERE primary_image_id IS NULL 
+                        GROUP BY image_status
+                    """)
+                    stats = cursor.fetchall()
+                    if stats:
+                        print(f"Stats for NULL primary_image_id: {stats}")
                 else:
-                    print(f"Artist '{args.name}' not found in database")
+                    print(f"Found {len(artists)} artists missing images")
+                    for artist in artists:
+                        fetcher.fetch_for_artist(artist['id'], artist['name'])
+
+        elif args.command == 'refresh':
+            db = DatabaseConnector().connect()
+            with db.cursor(pymysql.cursors.DictCursor) as cursor:
+                query = """
+                    SELECT id, name FROM library_artists
+                    WHERE image_updated_at < DATE_SUB(NOW(), INTERVAL %s DAY)
+                    LIMIT %s
+                """
+                cursor.execute(query, (args.older_than_days, args.limit))
+                artists = cursor.fetchall()
+
+                print(f"Refreshing {len(artists)} stale artist images")
+                for artist in artists:
+                    fetcher.fetch_for_artist(artist['id'], artist['name'], force_refresh=True)
+
         else:
-            print("Either --artist-id or --name must be provided")
+            parser.print_help()
+            break
 
-    elif args.command == 'fetch-missing':
-        db = DatabaseConnector().connect()
-        with db.cursor(pymysql.cursors.DictCursor) as cursor:
-            query = """
-                SELECT id, name FROM library_artists
-                WHERE primary_image_id IS NULL AND (image_status IS NULL OR image_status != 'failed')
-                LIMIT %s
-            """
-            cursor.execute(query, (args.limit,))
-            artists = cursor.fetchall()
+        if not args.repeat:
+            break
 
-            print(f"Found {len(artists)} artists missing images")
-            for artist in artists:
-                fetcher.fetch_for_artist(artist['id'], artist['name'])
-
-    elif args.command == 'refresh':
-        db = DatabaseConnector().connect()
-        with db.cursor(pymysql.cursors.DictCursor) as cursor:
-            query = """
-                SELECT id, name FROM library_artists
-                WHERE image_updated_at < DATE_SUB(NOW(), INTERVAL %s DAY)
-                LIMIT %s
-            """
-            cursor.execute(query, (args.older_than_days, args.limit))
-            artists = cursor.fetchall()
-
-            print(f"Refreshing {len(artists)} stale artist images")
-            for artist in artists:
-                fetcher.fetch_for_artist(artist['id'], artist['name'], force_refresh=True)
-
-    else:
-        parser.print_help()
+        print(f"Sleeping for {args.sleeptime} seconds...")
+        import time
+        time.sleep(args.sleeptime)
 
 if __name__ == '__main__':
     main()

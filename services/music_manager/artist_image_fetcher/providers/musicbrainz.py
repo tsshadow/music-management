@@ -1,9 +1,12 @@
 import requests
 import logging
+import time
 from .base import ArtistImageProvider
 
 class MusicBrainzArtistProvider(ArtistImageProvider):
     API_URL = 'https://musicbrainz.org/ws/2/artist'
+    _last_call_time = 0
+    _min_delay = 1.1 # 1 request per second + buffer
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
@@ -12,12 +15,19 @@ class MusicBrainzArtistProvider(ArtistImageProvider):
     def name(self):
         return "musicbrainz"
 
+    def _rate_limit(self):
+        elapsed = time.time() - MusicBrainzArtistProvider._last_call_time
+        if elapsed < self._min_delay:
+            time.sleep(self._min_delay - elapsed)
+        MusicBrainzArtistProvider._last_call_time = time.time()
+
     def get_artist_images(self, artist_name, mbid=None, external_ids=None):
         # MusicBrainz is mainly for metadata, but we can check for links
         # Returns empty image list but can be used to enrich external_ids
         return []
 
     def get_artist_metadata(self, artist_name, mbid=None):
+        self._rate_limit()
         try:
             headers = {'User-Agent': 'MusicManagementArtistImageFetcher/1.0 (https://github.com/tsshadow/music-management)'}
             if mbid:

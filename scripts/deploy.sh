@@ -56,14 +56,13 @@ for arg in "$@"; do
                 SERVICE_NAME="$arg"
                 # Map shorthand names to service names in docker-compose.yml
                 if [ "$SERVICE_NAME" == "manager" ]; then SERVICE_NAME="music-manager"; fi
-                if [ "$SERVICE_NAME" == "app" ]; then SERVICE_NAME="importer_api"; fi
             fi
             ;;
     esac
 done
 TAG="${TAG:-latest}"
 SEARCH_STRING="${SEARCH_STRING:-tsshadow/muma}"
-LOCAL_COMPOSE_FILE="${LOCAL_COMPOSE_FILE:-docker-compose.yml}"
+LOCAL_COMPOSE_FILE="${LOCAL_COMPOSE_FILE:-docker/docker-compose.yml}"
 LOCAL_ENV_FILE="${LOCAL_ENV_FILE:-.env}"
 
 # 1. Trigger Portainer Webhook if configured

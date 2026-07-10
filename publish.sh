@@ -178,14 +178,6 @@ push_tools() {
     $cmd push "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}"
 }
 
-push_app() {
-    local cmd=$DOCKER_CMD
-    if [ "$SEMI_REMOTE_MODE" = true ]; then cmd="docker -c remote-lxc"; fi
-    echo "--- Pushing Main Application ($VERSION) ---"
-    $cmd push "${DOCKER_USER}/${IMAGE_APP}:latest"
-    $cmd push "${DOCKER_USER}/${IMAGE_APP}:${VERSION}"
-}
-
 push_manager() {
     echo "--- Pushing Music Manager ($VERSION) ---"
     $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_CORE}:latest"
@@ -203,7 +195,7 @@ done
 
 if [ "$SEMI_REMOTE_MODE" = true ]; then
     echo "--- Semi-remote push mode enabled ---"
-    echo "--- Pushing ML, Tools, and App from remote, others local ---"
+    echo "--- Pushing ML, Tools, and Manager from remote, others local ---"
 fi
 
 if [ ${#REQUESTED_MODULES[@]} -eq 0 ]; then
@@ -224,7 +216,6 @@ else
         case $arg in
             ml) push_ml & ;;
             tools) push_tools & ;;
-            app) push_app & ;;
             manager|music-manager) push_manager & ;;
             scanner) push_scanner & ;;
             tagger) push_tagger & ;;

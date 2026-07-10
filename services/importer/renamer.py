@@ -6,7 +6,6 @@ from os.path import isfile, join
 import re
 
 from services.common.settings import Settings
-from services.common.Helpers.NotificationService import notification_service
 
 
 def has_numbers(input_string):
@@ -54,4 +53,4 @@ class Renamer:
                 except Exception as e:
                     error_msg = f"Failed to rename folder '{folder}': {e}"
                     logging.info(error_msg)
-                    notification_service.notify(error_msg, title="Import Error")
+                    # notification_service.notify(error_msg, title="Import Error")

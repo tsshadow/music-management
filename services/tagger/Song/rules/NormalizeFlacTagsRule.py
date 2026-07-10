@@ -7,13 +7,13 @@ class NormalizeFlacTagsRule(TagRule):
     def apply(self, song):
         if song.type != MusicFileType.FLAC:
             return
-        
+
         tags = song.music_file.tags
         if tags is None:
             return
 
         new_tags = {tag.upper(): value for tag, value in tags.items()}
-        
+
         # Check if anything actually changed (keys or values)
         if new_tags != dict(tags):
             tags.clear()

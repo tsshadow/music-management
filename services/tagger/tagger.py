@@ -10,6 +10,7 @@ from services.common.settings import Settings
 from services.tagger.Song.BaseSong import ExtensionNotSupportedException
 from services.tagger.Song.GenericSong import GenericSong
 from services.common.Helpers.BrokenSongHelper import BrokenSongHelper
+from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 from services.tagger.Song.LabelSong import LabelSong
 from services.tagger.Song.SoundcloudSong import SoundcloudSong
 from services.tagger.Song.TelegramSong import TelegramSong
@@ -31,6 +32,7 @@ parse_m4a = True
 parse_wav = False
 parse_aac = False
 broken_song_helper = BrokenSongHelper()
+processed_files_helper = ProcessedFilesHelper()
 
 class Tagger:
     """
@@ -40,6 +42,7 @@ class Tagger:
 
     def __init__(self):
         self.parallel = True
+        processed_files_helper.create_table()
 
     def run(self, parse_labels=True, parse_soundcloud=True, parse_youtube=True, parse_generic=True, parse_telegram=True):
         """
@@ -133,7 +136,11 @@ class Tagger:
 
     def _try_parse(self, file: Path, song_type: SongTypeEnum, extra_info=None):
         try:
+            mtime = file.stat().st_mtime
+            if not processed_files_helper.needs_processing(str(file), mtime):
+                return
             self.parse_song(file, song_type, extra_info)
+            processed_files_helper.mark_processed(str(file), mtime)
         except KeyboardInterrupt:
             logging.info('KeyboardInterrupt')
             sys.exit(1)
@@ -174,8 +181,13 @@ class Tagger:
     @staticmethod
     def _parse_worker(file: str, song_type_str: str, manual_tags: dict[str, str] | None=None, extra_info=None):
         try:
+            path = Path(file)
+            mtime = path.stat().st_mtime
+            if not processed_files_helper.needs_processing(file, mtime):
+                return (file, 'SKIPPED')
             song_type = SongTypeEnum[song_type_str]
-            Tagger.parse_song(Path(file), song_type, manual_tags, extra_info)
+            Tagger.parse_song(path, song_type, manual_tags, extra_info)
+            processed_files_helper.mark_processed(file, mtime)
             return (file, 'OK')
         except Exception as e:
             return (file, f'{type(e).__name__}: {e}')

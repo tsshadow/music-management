@@ -472,7 +472,12 @@
         {:else if activeTab === 'about'}
           <AboutTab {API_BASE} {apiKey} />
         {:else if activeTab === 'notifications'}
-          <NotificationsTab {API_BASE} {getHeaders} {onMessage} {onError} {config} />
+          <NotificationsTab 
+            {API_BASE} {getHeaders} 
+            onMessage={(m) => message = m} 
+            onError={(e) => error = e} 
+            {config} 
+          />
         {/if}
       {/if}
     </main>

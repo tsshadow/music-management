@@ -52,6 +52,7 @@ class LastFmArtistImageProvider(ArtistImageProvider):
                         'width': None,
                         'height': None,
                         'confidence': 0,
+                        'is_known_match': bool(mbid),
                         'metadata': {
                             'artist_name': artist.get('name'),
                             'listeners': artist.get('stats', {}).get('listeners'),

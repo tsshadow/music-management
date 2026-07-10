@@ -57,6 +57,11 @@ class DynamicPlaylistCreate(BaseModel):
 class DynamicPlaylistUpdate(BaseModel):
     name: Optional[str] = None
     params: Optional[str] = None
+    rating_range: Optional[list[int]] = None # [min, max]
+    genres: Optional[list[str]] = None
+    size: Optional[int] = None
+    sort_method: Optional[str] = None
+    song_type: Optional[str] = None # 'track', 'set', 'both'
 
 class DynamicPlaylistSync(BaseModel):
     remote_id: int
@@ -279,7 +284,7 @@ def delete_dynamic_playlist(user_id: int, playlist_id: int, auth: dict = Depends
         conn.close()
 
 @router.get("/{user_id}/dynamic-playlists/{playlist_id}/tracks")
-def get_playlist_tracks(user_id: int, playlist_id: int, auth: dict = Depends(verify_api_key)):
+def get_playlist_tracks(user_id: int, playlist_id: int, auth: dict = Depends(verify_api_key)): # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     if auth.get("type") == "user" and auth['user']['id'] != user_id and not auth['user'].get('is_admin'):
         raise HTTPException(status_code=403, detail="Forbidden")
     conn = get_db_connection()
@@ -287,6 +292,11 @@ def get_playlist_tracks(user_id: int, playlist_id: int, auth: dict = Depends(ver
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
+            # Get username for rating lookup
+            cursor.execute("SELECT username FROM users WHERE id = %s", (user_id,))
+            user_row = cursor.fetchone()
+            username = user_row['username'] if user_row else "unknown"
+
             cursor.execute("SELECT params FROM dynamic_playlists WHERE id = %s AND user_id = %s", (playlist_id, user_id))
             row = cursor.fetchone()
             if not row:
@@ -296,35 +306,80 @@ def get_playlist_tracks(user_id: int, playlist_id: int, auth: dict = Depends(ver
             try:
                 params = json.loads(params_str)
             except json.JSONDecodeError:
+                # Handle old format (query string like)
                 params = {}
+                if '&' in params_str or '=' in params_str:
+                    for part in params_str.split('&'):
+                        if '=' in part:
+                            k, v = part.split('=', 1)
+                            params[k] = v
 
-            rules = params.get('rules', [])
+            # New structured params
+            genres = params.get('genres', [])
+            rating_range = params.get('rating_range', [0, 100])
+            size = int(params.get('size', 500))
+            sort_method = params.get('sort_method', 'newest')
+            song_type = params.get('song_type', 'both')
+            rules = params.get('rules', []) # Compatibility with old format
 
             query = """
-                SELECT t.id, t.title, COALESCE(a.name, 'Unknown Artist') as artist, CAST(t.created_at AS CHAR) as created_at
+                SELECT DISTINCT t.id, t.title, COALESCE(a.name, 'Unknown Artist') as artist, 
+                       CAST(t.created_at AS CHAR) as created_at, t.duration_secs,
+                       rt.rating
                 FROM library_tracks t
                 LEFT JOIN library_artists a ON t.primary_artist_id = a.id
+                LEFT JOIN rating_tracks rt ON rt.entity_id = t.track_uid AND rt.username = %s
                 WHERE 1=1
             """
-            q_params = []
+            q_params = [username]
 
+            # Genre filter
+            if genres:
+                genre_placeholders = ", ".join(["%s"] * len(genres))
+                query += f""" AND (
+                    EXISTS (SELECT 1 FROM library_track_genres tg JOIN rules_genres rg ON tg.genre_id = rg.id 
+                            WHERE tg.track_id = t.id AND rg.name IN ({genre_placeholders}))
+                    OR EXISTS (SELECT 1 FROM library_track_ml_labels ml 
+                               WHERE ml.track_id = t.track_uid AND ml.ml_genre IN ({genre_placeholders}))
+                )"""
+                q_params.extend(genres)
+                q_params.extend(genres)
+
+            # Old rules compatibility
             for rule in rules:
                 col = rule.get('column')
                 val = rule.get('value')
-                if not col or not val:
-                    continue
-
-                if col == 'genre':
+                if col == 'genre' and val not in genres:
                     query += """ AND (
                         EXISTS (SELECT 1 FROM library_track_genres tg JOIN rules_genres rg ON tg.genre_id = rg.id WHERE tg.track_id = t.id AND rg.name = %s)
                         OR EXISTS (SELECT 1 FROM library_track_ml_labels ml WHERE ml.track_id = t.track_uid AND ml.ml_genre = %s)
                     )"""
                     q_params.extend([val, val])
-                elif col == 'artist':
-                    query += " AND a.name LIKE %s"
-                    q_params.append(f"%{val}%")
 
-            query += " ORDER BY t.created_at DESC LIMIT 500"
+            # Rating filter
+            if rating_range:
+                query += " AND (rt.rating >= %s AND rt.rating <= %s)"
+                q_params.extend([rating_range[0], rating_range[1]])
+
+            # Song Type filter
+            if song_type == 'track':
+                query += " AND t.duration_secs < 600" # Less than 10 minutes
+            elif song_type == 'set':
+                query += " AND t.duration_secs >= 600" # More than 10 minutes
+
+            # Sorting
+            if sort_method == 'random':
+                query += " ORDER BY RAND()"
+            elif sort_method == 'highest_rated':
+                query += " ORDER BY rt.rating DESC, t.created_at DESC"
+            elif sort_method == 'oldest':
+                query += " ORDER BY t.created_at ASC"
+            else: # newest
+                query += " ORDER BY t.created_at DESC"
+
+            query += " LIMIT %s"
+            q_params.append(size)
+
             cursor.execute(query, tuple(q_params))
             return cursor.fetchall()
     finally:
@@ -340,10 +395,10 @@ def seed_defaults(user_id: int, auth: dict = Depends(verify_api_key)):
     try:
         with conn.cursor() as cursor:
             defaults = [
-                ("Hardstyle", json.dumps({"rules":[{"column":"genre","operator":"is","value":"Hardstyle"}]})),
-                ("Hardcore", json.dumps({"rules":[{"column":"genre","operator":"is","value":"Hardcore"}]})),
-                ("Techno", json.dumps({"rules":[{"column":"genre","operator":"is","value":"Techno"}]})),
-                ("Recently Added", json.dumps({"rules":[], "sort":"created_at", "order":"desc"}))
+                ("Hardstyle", json.dumps({"genres":["Hardstyle"], "rating_range":[0,100], "size":500, "sort_method":"newest", "song_type":"both"})),
+                ("Hardcore", json.dumps({"genres":["Hardcore"], "rating_range":[0,100], "size":500, "sort_method":"newest", "song_type":"both"})),
+                ("Techno", json.dumps({"genres":["Techno"], "rating_range":[0,100], "size":500, "sort_method":"newest", "song_type":"both"})),
+                ("Recently Added", json.dumps({"genres":[], "rating_range":[0,100], "size":100, "sort_method":"newest", "song_type":"both"}))
             ]
             for name, params in defaults:
                 cursor.execute("""

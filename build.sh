@@ -118,20 +118,13 @@ build_tools() {
     local cmd=$DOCKER_CMD
     if [ "$SEMI_REMOTE_MODE" = true ]; then cmd="docker -c remote-lxc"; fi
     echo "--- Building Tools ($VERSION) ---"
-    $cmd build $DOCKER_FLAGS -t "${DOCKER_USER}/${IMAGE_TOOLS}:latest" -t "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}" -f Dockerfile.tools .
+    $cmd build $DOCKER_FLAGS -t "${DOCKER_USER}/${IMAGE_TOOLS}:latest" -t "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}" -f docker/Dockerfile.tools .
 }
 
-build_app() {
-    local cmd=$DOCKER_CMD
-    if [ "$SEMI_REMOTE_MODE" = true ]; then cmd="docker -c remote-lxc"; fi
-    echo "--- Building Main Application ($VERSION) ---"
-    echo "Note: This build might take a while and requires a stable internet connection for pnpm install."
-    $cmd build $DOCKER_FLAGS -t "${DOCKER_USER}/${IMAGE_APP}:latest" -t "${DOCKER_USER}/${IMAGE_APP}:${VERSION}" -f Dockerfile.music-management .
-}
 
 build_manager() {
     echo "--- Building Music Manager ($VERSION) ---"
-    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_CORE}:latest" -t "${DOCKER_USER}/${IMAGE_CORE}:${VERSION}" -f Dockerfile.music-manager .
+    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_CORE}:latest" -t "${DOCKER_USER}/${IMAGE_CORE}:${VERSION}" -f docker/Dockerfile.music-manager .
 }
 
 run_linter() {
@@ -148,7 +141,7 @@ run_tests() {
     echo "--- Running tests ---"
     export PYTHONPATH=$PYTHONPATH:$(pwd)
     # Focus on downloader and importer tests as requested
-    TEST_TARGETS="services/downloader/soundcloud/tests/ services/importer/tests/ services/tests/YoutubeDownloaderTest.py"
+    TEST_TARGETS="services/downloader/soundcloud/tests/ services/importer/tests/ services/tests/YoutubeDownloaderTest.py services/music_manager/tests/"
     if ! python3 -m pytest -p no:warnings $TEST_TARGETS; then
         echo ""
         echo "❌ ERROR: Tests failed! Build aborted."
@@ -168,7 +161,7 @@ done
 
 if [ "$SEMI_REMOTE_MODE" = true ]; then
     echo "--- Semi-remote build mode enabled ---"
-    echo "--- Building ML, Tools, and App remote, others local ---"
+    echo "--- Building ML, Tools, and Manager remote, others local ---"
 fi
 
 # All builds require passing tests and linting
@@ -180,7 +173,6 @@ if [ ${#REQUESTED_MODULES[@]} -eq 0 ]; then
     # Group 1: Independent builds
     build_ml &
     build_tools &
-    build_app &
     
     # Group 2: Base-dependent builds
     build_base
@@ -199,7 +191,7 @@ else
     NEED_BASE=false
     for arg in "${REQUESTED_MODULES[@]}"; do
         case $arg in
-            scanner|tagger|downloader|telegram|importer) NEED_BASE=true ;;
+            scanner|tagger|downloader|telegram|importer|base) NEED_BASE=true ;;
         esac
     done
     
@@ -211,7 +203,6 @@ else
         case $arg in
             ml) build_ml & ;;
             tools) build_tools & ;;
-            app) build_app & ;;
             manager|music-manager) build_manager & ;;
             scanner) build_scanner & ;;
             tagger) build_tagger & ;;

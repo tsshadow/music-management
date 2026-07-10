@@ -1,16 +1,16 @@
+"""Dependency providers for FastAPI route handlers."""
 from __future__ import annotations
-'Dependency providers for FastAPI route handlers.'
 from fastapi import Header, HTTPException, Request, status
-from services.analyzer_service.analyzer.services.library_admin_service import AnalyzerLibraryAdminService
-from services.analyzer_service.analyzer.services.library_stats_service import AnalyzerLibraryStatsService
-from services.analyzer_service.analyzer.services.summary_service import AnalyzerSummaryService
 from ..core.settings import get_settings
 from ..services.deduplication_service import DeduplicationService
 from ..services.enrichment_queue_service import EnrichmentQueueService
 from ..services.listenbrainz_export_service import ListenBrainzExportService
 from ..services.listenbrainz_service import ListenBrainzImportService
+from services.analyzer_service.analyzer.services.library_admin_service import AnalyzerLibraryAdminService
+from services.analyzer_service.analyzer.services.library_stats_service import AnalyzerLibraryStatsService
+from services.analyzer_service.analyzer.services.summary_service import AnalyzerSummaryService
 
-async def verify_api_key(request: Request, x_api_key: str | None=Header(default=None)) -> None:
+async def verify_api_key(_request: Request, x_api_key: str | None=Header(default=None)) -> None:
     """Validate the optional API key header against the configured value."""
     settings = get_settings()
     expected = settings.effective_api_key

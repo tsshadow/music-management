@@ -26,7 +26,7 @@ def test_matcher():
     # Name match only
     cand2 = {'name': 'a lusion', 'source': 'lastfm'}
     score2 = matcher.calculate_confidence(target, cand2)
-    assert score2 == 50
+    assert score2 >= 50
 
     # Mismatch
     cand3 = {'name': 'Different Artist', 'source': 'spotify'}

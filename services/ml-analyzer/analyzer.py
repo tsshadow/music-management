@@ -6,7 +6,6 @@ from pathlib import Path
 
 import librosa
 import numpy as np
-import torch
 from sqlalchemy import text, MetaData, Table, Column, Float, String, Integer, Text, Boolean, create_engine
 from sqlalchemy.dialects.mysql import insert
 from tqdm import tqdm
@@ -18,8 +17,6 @@ load_dotenv()
 
 class TrackAnalyzer:
     def __init__(self, max_workers=4):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"Using device: {self.device}")
         self.engine = self._get_db_engine()
         self.max_workers = max_workers
         self.verbose = True

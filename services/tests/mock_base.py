@@ -3,51 +3,6 @@ import sys
 import types
 from unittest.mock import MagicMock
 
-# --- SETUP (Mocking Environment and Modules) ---
-# This MUST happen before any services are imported
-os.environ.setdefault('import_folder_path', '/tmp/import')
-os.environ.setdefault('music_folder_path', '/tmp/music')
-os.environ.setdefault('eps_folder_path', '/tmp/eps')
-os.environ.setdefault('delimiter', '/')
-os.environ.setdefault('DB_HOST', 'localhost')
-os.environ.setdefault('DB_USER', 'user')
-os.environ.setdefault('DB_PORT', '0')
-os.environ.setdefault('DB_PASS', '')
-os.environ.setdefault('DB_DB', 'db')
-
-# Mock missing/heavy modules
-for mod_name in ['yt_dlp', 'yt_dlp.postprocessor', 'yt_dlp.utils']:
-    if mod_name not in sys.modules:
-        m = types.ModuleType(mod_name)
-        sys.modules[mod_name] = m
-
-if 'yt_dlp' in sys.modules:
-    sys.modules['yt_dlp'].YoutubeDL = MagicMock
-
-if 'yt_dlp.postprocessor' in sys.modules:
-    pp_mod = sys.modules['yt_dlp.postprocessor']
-    class MockPostProcessor:
-        def __init__(self, *args, **kwargs):
-            pass
-    pp_mod.PostProcessor = MockPostProcessor
-    pp_mod.FFmpegMetadataPP = MockPostProcessor
-    pp_mod.EmbedThumbnailPP = MockPostProcessor
-
-for mod_name in ['markdown', 'dotenv', 'pymysql', 'dbutils', 'dbutils.pooled_db', 'fastapi', 'pydantic',
-                 'services.common.api', 'services.common.api.config_store', 'services.common.api.jobs',
-                 'services.common.api.server', 'services.common.api.step',
-                 'services.common.Helpers.NotificationService']:
-    if mod_name not in sys.modules:
-        sys.modules[mod_name] = MagicMock()
-
-if 'yt_dlp.utils' in sys.modules:
-    sys.modules['yt_dlp.utils'].sanitize_filename = lambda x, **k: x
-if 'dotenv' in sys.modules:
-    sys.modules['dotenv'].load_dotenv = lambda *a, **k: None
-
-if 'services.common.Helpers.NotificationService' in sys.modules:
-    sys.modules['services.common.Helpers.NotificationService'].notification_service = MagicMock()
-
 # Mock mutagen package
 if 'mutagen' not in sys.modules:
     mutagen_mod = types.ModuleType('mutagen')
@@ -91,6 +46,72 @@ if 'mutagen' not in sys.modules:
     sys.modules['mutagen.wave']._WaveID3 = MagicMock
     sys.modules['mutagen.id3'].TXXX = MagicMock
     sys.modules['mutagen.id3'].TextFrame = MagicMock
+
+# --- SETUP (Mocking Environment and Modules) ---
+# This MUST happen before any services are imported
+os.environ.setdefault('import_folder_path', '/tmp/import')
+os.environ.setdefault('music_folder_path', '/tmp/music')
+os.environ.setdefault('eps_folder_path', '/tmp/eps')
+os.environ.setdefault('delimiter', '/')
+os.environ.setdefault('DB_HOST', 'localhost')
+os.environ.setdefault('DB_USER', 'user')
+os.environ.setdefault('DB_PORT', '0')
+os.environ.setdefault('DB_PASS', '')
+os.environ.setdefault('DB_DB', 'db')
+
+# Mock missing/heavy modules
+for mod_name in ['yt_dlp', 'yt_dlp.postprocessor', 'yt_dlp.utils']:
+    if mod_name not in sys.modules:
+        m = types.ModuleType(mod_name)
+        sys.modules[mod_name] = m
+
+if 'yt_dlp' in sys.modules:
+    sys.modules['yt_dlp'].YoutubeDL = MagicMock
+
+if 'yt_dlp.postprocessor' in sys.modules:
+    pp_mod = sys.modules['yt_dlp.postprocessor']
+    class MockPostProcessor:
+        def __init__(self, *args, **kwargs):
+            pass
+    pp_mod.PostProcessor = MockPostProcessor
+    pp_mod.FFmpegMetadataPP = MockPostProcessor
+    pp_mod.EmbedThumbnailPP = MockPostProcessor
+
+for mod_name in ['markdown', 'dotenv', 'pymysql', 'dbutils', 'dbutils.pooled_db']:
+    if mod_name not in sys.modules:
+        sys.modules[mod_name] = MagicMock()
+
+# Specifically avoid starting the API server and using real config during tests
+try:
+    import services.common.api
+    services.common.api.start_api_server = lambda *a, **k: MagicMock()
+except ImportError:
+    pass
+
+for mod_name in ['services.common.api.config_store', 'services.common.Helpers.NotificationService', 'services.common.Helpers.ProcessedFilesHelper']:
+    if mod_name not in sys.modules:
+        sys.modules[mod_name] = MagicMock()
+
+if 'services.common.api.config_store' in sys.modules:
+    mock_cs = sys.modules['services.common.api.config_store']
+    if isinstance(mock_cs, MagicMock):
+        mock_cs.ConfigStore.return_value.get_many.return_value = {
+            'youtube_folder': '/tmp/youtube',
+            'youtube_archive': '/tmp/archive',
+            'soundcloud_folder': '/tmp/soundcloud',
+            'soundcloud_archive': '/tmp/archive'
+        }
+
+if 'yt_dlp.utils' in sys.modules:
+    sys.modules['yt_dlp.utils'].sanitize_filename = lambda x, **k: x
+if 'dotenv' in sys.modules:
+    sys.modules['dotenv'].load_dotenv = lambda *a, **k: None
+
+if 'services.common.Helpers.NotificationService' in sys.modules:
+    # Ensure it's a mock but with the notification_service attribute
+    if not isinstance(sys.modules['services.common.Helpers.NotificationService'], MagicMock):
+         sys.modules['services.common.Helpers.NotificationService'] = MagicMock()
+    sys.modules['services.common.Helpers.NotificationService'].notification_service = MagicMock()
 
 # Mock Database and Cache
 if 'services.common.Helpers.Cache' not in sys.modules:
@@ -138,6 +159,9 @@ def setup_mocks():
     pass # Already done at module level
 
 def reset_database_helpers():
+    if 'services.common.Helpers.NotificationService' in sys.modules:
+        sys.modules['services.common.Helpers.NotificationService'].notification_service.reset_mock()
+
     helpers = sys.modules['services.common.Helpers.Cache'].databaseHelpers
     for h_name, h in helpers.items():
         if isinstance(h, MagicMock):

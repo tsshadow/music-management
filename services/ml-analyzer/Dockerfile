@@ -1,4 +1,4 @@
-FROM pytorch/pytorch:latest
+FROM python:3.12-slim
 
 # Installeer systeem afhankelijkheden voor audioverwerking
 RUN apt-get update && apt-get install -y \

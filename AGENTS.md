@@ -86,7 +86,30 @@ To maintain high code quality, the system employs an automated test suite:
     - **Pre-commit Hook**: A Git `pre-commit` hook ensures all tests pass before allowing a commit to be finalized.
 
 ---
- 
+
+## 🚀 Running Locally
+
+To run services locally with the same environment as in Docker, you can use the following targets:
+
+### 1. Shell Script
+Use `scripts/run_local.sh` to launch any service with the correct `PYTHONPATH` and environment variables:
+```bash
+./scripts/run_local.sh importer
+./scripts/run_local.sh soundcloud
+./scripts/run_local.sh youtube
+```
+
+### 2. PyCharm Run Configurations
+Pre-configured "Run Configurations" are available in the `.run/` directory. These will appear automatically in your IDE:
+- **Importer Worker**: Runs `importer_service.py` with repeat enabled.
+- **SoundCloud Worker**: Runs `downloader_service.py` for SoundCloud.
+- **YouTube Worker**: Runs `downloader_service.py` for YouTube.
+- **Tagger Worker**: Runs `tagger_service.py` with repeat enabled.
+
+These configurations automatically load environment variables from your `.env` file and set the correct `PYTHONPATH`.
+
+---
+
 ## 🔌 API Specification
 The full API specification for the `music-manager` service can be found in [docs/api-specification.md](docs/api-specification.md).
 

@@ -15,18 +15,23 @@ class ArtistMatcher:
         target_name_norm = self.normalizer.normalize(target_artist.get('name', ''))
         candidate_name_norm = self.normalizer.normalize(candidate_artist.get('name', ''))
 
+        target_name_slug = "".join(filter(str.isalnum, target_name_norm))
+        candidate_name_slug = "".join(filter(str.isalnum, candidate_name_norm))
+
         # Name matching
         import difflib
         ratio = difflib.SequenceMatcher(None, target_name_norm, candidate_name_norm).ratio()
 
         if target_name_norm == candidate_name_norm:
-            score += 50
+            score += 60
+        elif target_name_slug == candidate_name_slug:
+            score += 55
         elif ratio > 0.9:
-            score += 40
+            score += 45
         elif ratio > 0.8:
-            score += 30
+            score += 35
         elif ratio > 0.7:
-            score += 20
+            score += 25
         elif ratio < 0.5:
             score -= 40
 

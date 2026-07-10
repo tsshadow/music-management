@@ -90,6 +90,21 @@
       onError("Kon regel niet verwijderen.");
     }
   }
+
+  async function triggerRescan() {
+    if (!confirm("Weet je zeker dat je alle bestanden opnieuw wilt scannen? Dit kan even duren.")) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/tagger/rescan`, {
+        method: 'POST',
+        headers: getHeaders()
+      });
+      if (res.ok) {
+        onMessage("Rescan voor alle bestanden getriggerd.");
+      }
+    } catch (err) {
+      onError("Kon rescan niet triggeren.");
+    }
+  }
 </script>
 
 <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
@@ -97,6 +112,14 @@
     <div>
       <h1 class="text-6xl font-extrabold mb-4 tracking-tighter">Tagger Config</h1>
       <p class="text-spotify-lightgray text-lg">Beheer genres, artiesten en tag-regels voor je bibliotheek.</p>
+    </div>
+    <div class="pb-2">
+      <button 
+        on:click={triggerRescan}
+        class="bg-white text-black text-xs font-bold px-4 py-2 rounded-full hover:bg-spotify-lightgray transition-colors"
+      >
+        FORCEER VOLLEDIGE RESCAN
+      </button>
     </div>
   </header>
 

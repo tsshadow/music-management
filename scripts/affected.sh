@@ -17,7 +17,7 @@ GLOBAL_PATTERNS=(
 MODULE_MAP=(
     "services/ml-analyzer/:ml"
     "services/music_manager/:manager"
-    "Dockerfile.music-manager:manager"
+    "docker/Dockerfile.music-manager:manager"
     "services/music_manager/frontend/:manager"
     "services/scanner/:scanner"
     "docker/Dockerfile.scanner:scanner"
@@ -29,11 +29,10 @@ MODULE_MAP=(
     "docker/Dockerfile.downloader:downloader"
     "services/importer/:importer"
     "docker/Dockerfile.importer:importer"
-    "frontend/:app"
-    "modules/music-management/:app"
-    "Dockerfile.music-management:app"
+    "modules/music-management/:manager"
+    "modules/music-management/Dockerfile:manager"
     "tools/:tools"
-    "Dockerfile.tools:tools"
+    "docker/Dockerfile.tools:tools"
 )
 
 # Get changed files (including untracked and changes compared to upstream/main)
@@ -56,7 +55,7 @@ for file in $CHANGED_FILES; do
 done
 
 # Check for module changes
-AFFECTED=("manager" "app")
+AFFECTED=()
 for file in $CHANGED_FILES; do
     for entry in "${MODULE_MAP[@]}"; do
         path="${entry%%:*}"

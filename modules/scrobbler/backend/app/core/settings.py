@@ -13,7 +13,7 @@ class AppSettings(BaseSettings):
     db_dsn: str = Field(default='sqlite+aiosqlite:///./scrobbler.db', alias='SCROBBLER_DB_DSN')
     muma_api_key: str | None = Field(default='00000000-0000-4000-8000-000000000000', alias='MUMA_API_KEY')
     api_key: str | None = Field(default=None, alias='API_KEY')
-    
+
     @property
     def effective_api_key(self) -> str | None:
         return self.api_key or self.muma_api_key

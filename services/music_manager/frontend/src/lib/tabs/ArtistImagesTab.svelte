@@ -122,7 +122,7 @@
             <div class="p-4">
               <h3 class="font-bold truncate text-lg" title={artist.name}>{artist.name}</h3>
               <p class="text-xs text-spotify-lightgray mt-1">
-                {artist.width}x{artist.height} • {artist.mime_type.split('/')[1].toUpperCase()}
+                {artist.width}x{artist.height} • {artist.mime_type ? artist.mime_type.split('/')[1].toUpperCase() : 'JPG'}
               </p>
             </div>
           </div>

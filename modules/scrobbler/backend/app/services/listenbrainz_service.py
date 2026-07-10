@@ -42,13 +42,13 @@ class ListenBrainzImportService:
                     response.raise_for_status()
                 except httpx.HTTPError:
                     break
-                    
+
                 payload = response.json().get('payload', {})
                 listens = payload.get('listens') or []
                 if not listens:
                     break
                 earliest: int | None = None
-                
+
                 # Parallelize ingestion of the current batch
                 tasks = []
                 for listen in listens:
@@ -58,7 +58,7 @@ class ListenBrainzImportService:
                         continue
                     processed += 1
                     tasks.append(self.ingest_service.ingest_with_status(scrobble))
-                    
+
                     ts = listen.get('listened_at')
                     if isinstance(ts, int):
                         earliest = ts if earliest is None else min(earliest, ts)
@@ -72,10 +72,10 @@ class ListenBrainzImportService:
                             _, created = res
                             if created:
                                 imported += 1
-                                # We can't easily track earliest_created_at here without more logic, 
-                                # but it's mainly for informational purposes. 
+                                # We can't easily track earliest_created_at here without more logic,
+                                # but it's mainly for informational purposes.
                                 # Let's skip updating earliest_created for now or just use a simple check.
-                
+
                 pages += 1
                 if max_pages is not None and pages >= max_pages:
                     break
@@ -100,12 +100,12 @@ class ListenBrainzImportService:
         isrc = additional.get('isrc')
         source_track_id = listen.get('recording_msid') or additional.get('track_msid')
         library_artists = [ArtistInput(name=name) for name in self._extract_artist_names(metadata)]
-        
+
         # Optimization: Only extract genres already present in the payload.
         # Synchronous remote fetching is skipped during initial import to avoid timeouts.
         # The enrichment job will fill in missing metadata later.
         rules_genres = self._extract_genres(listen)
-        
+
         track = TrackInput(title=track_title, album=self._normalize_album_title(metadata.get('release_name')), album_year=None, track_no=track_no, disc_no=disc_no, duration_secs=duration, mbid=mbid, isrc=isrc)
         return ScrobblePayload(user=user, source='listenbrainz', listened_at=listened_dt, duration_secs=duration, track=track, source_track_id=source_track_id, library_artists=library_artists, rules_genres=rules_genres)
 

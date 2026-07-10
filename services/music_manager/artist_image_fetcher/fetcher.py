@@ -22,7 +22,7 @@ class ArtistImageFetcher:
         self.matcher = ArtistMatcher(self.db_conn)
 
         # Load config from env
-        storage_path = os.getenv('ARTIST_IMAGE_STORAGE_PATH') or os.getenv('STORAGE_PATH') or '/var/lib/music-management/artist-images'
+        storage_path = os.getenv('ARTIST_IMAGE_STORAGE_PATH') or os.getenv('STORAGE_PATH') or '/music/artists'
         public_base_url = os.getenv('ARTIST_IMAGE_PUBLIC_BASE_URL', '/media/artist-images')
 
         self.storage = ImageStorage(storage_path, public_base_url)
@@ -35,6 +35,9 @@ class ArtistImageFetcher:
             SoundCloudArtistImageProvider(self.db_conn),
             LastFmArtistImageProvider(),
         ]
+        
+        enabled_providers = [p.name for p in self.providers if getattr(p, 'api_key', True) or getattr(p, 'client_id', True)]
+        self.logger.info(f"ArtistImageFetcher initialized with providers: {enabled_providers}")
 
     def fetch_for_artist(self, artist_id, artist_name=None, force_refresh=False):
         # 1. Get artist info from DB if not provided
@@ -83,10 +86,14 @@ class ArtistImageFetcher:
         target_artist = {'id': artist_id, 'name': artist_name, 'mbid': mbid}
 
         for provider in self.providers:
-            provider_candidates = provider.get_artist_images(artist_name, mbid, external_ids)
-            for cand in provider_candidates:
-                cand['confidence'] = self.matcher.calculate_confidence(target_artist, cand)
-                candidates.append(cand)
+            try:
+                provider_candidates = provider.get_artist_images(artist_name, mbid, external_ids)
+                self.logger.info(f"Provider {provider.name} found {len(provider_candidates)} candidates for {artist_name}")
+                for cand in provider_candidates:
+                    cand['confidence'] = self.matcher.calculate_confidence(target_artist, cand)
+                    candidates.append(cand)
+            except Exception as e:
+                self.logger.error(f"Provider {provider.name} failed for {artist_name}: {e}")
 
         # Sort by confidence descending, then source priority
         source_priority = {'spotify': 1, 'soundcloud': 2, 'lastfm': 3, 'musicbrainz': 4}

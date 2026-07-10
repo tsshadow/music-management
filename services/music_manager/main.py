@@ -87,7 +87,7 @@ def serve_frontend(fastapi_app: FastAPI):
             return "<h1>Music Manager</h1><p>Frontend not found. API is active.</p>"
 
 # Serve Artist Images
-artist_images_path = os.getenv('STORAGE_PATH', '/music/images/artists')
+artist_images_path = os.getenv('STORAGE_PATH', '/music/artists')
 try:
     os.makedirs(artist_images_path, exist_ok=True)
     logger.info(f"Mounting artist images from {artist_images_path} at /media/artist-images")

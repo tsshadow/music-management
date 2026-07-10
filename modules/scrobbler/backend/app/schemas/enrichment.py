@@ -9,6 +9,7 @@ class EnrichmentRequest(BaseModel):
     limit: int = Field(default=500, ge=1)
 
     @field_validator('limit')
+    @classmethod
     def validate_limit(cls, value: int) -> int:
         """Ensure the enrichment batch size stays within a sensible range."""
         if value > 10000:

@@ -84,35 +84,50 @@ class Mover:
         except Exception as e:
             logging.error(f'Error removing {src}: {e}')
 
+    def _move_folder(self, folder, cat_id, dry_run):
+        """Processes and moves a single folder based on its CAT ID."""
+        label = self.get_label(cat_id)
+        if label is None:
+            error_msg = (f'CAT ID {cat_id} not found in database for folder {folder}. '
+                         'Please add it to rules_catid_label.')
+            logging.warning(error_msg)
+            return
+
+        src = join(self.settings.import_folder_path, folder)
+        dst = join(self.settings.eps_folder_path, label, folder)
+        try:
+            if not dry_run:
+                shutil.move(src, dst)
+                logging.info(f'Successfully moved: {src} -> {dst}')
+            else:
+                logging.info(f'Dry run - would move: {src} -> {dst}')
+
+            try:
+                post_processing_songs(dst)
+            except Exception as e:
+                logging.error(f'Post-processing failed for {dst}: {e}')
+        except FileExistsError:
+            logging.warning(f'Conflict: {dst} already exists. Removing {src}')
+            if not dry_run:
+                self.remove(folder)
+        except PermissionError as e:
+            logging.error(f'Permission denied when moving {src} to {dst}: {e}')
+        except OSError as e:
+            logging.error(f'OS error when moving {src} to {dst} (check disk space/filesystem): {e}')
+        except Exception as e:
+            logging.error(f'Unexpected error moving {src} to {dst}: {e}')
+
     def run(self, dry_run=False):
         """
         Move folders to categorized destinations based on their library_labels.
         """
         logging.info('Starting Move Step')
-        only_folders = [f for f in listdir(self.settings.import_folder_path) if not isfile(join(self.settings.import_folder_path, f))]
+        only_folders = [f for f in listdir(self.settings.import_folder_path)
+                        if not isfile(join(self.settings.import_folder_path, f))]
         for folder in only_folders:
             cat_id = get_cat_id(folder)
             if cat_id:
-                label = self.get_label(cat_id)
-                if label is None:
-                    error_msg = f'CAT ID {cat_id} not found in database for folder {folder}. Please add it to rules_catid_label.'
-                    logging.warning(error_msg)
-                    # notification_service.notify(error_msg, title="Import Error")
-                else:
-                    src = join(self.settings.import_folder_path, folder)
-                    dst = join(self.settings.eps_folder_path, label, folder)
-                    try:
-                        if not dry_run:
-                            shutil.move(src, dst)
-                        logging.info(f'Moved: {src} -> {dst}')
-                        post_processing_songs(dst)
-                    except FileExistsError:
-                        logging.warning(f'Conflict: {dst} already exists. Removing {src}')
-                        if not dry_run:
-                            self.remove(folder)
-                    except Exception as e:
-                        logging.error(f'Error moving {src} to {dst}: {e}')
+                self._move_folder(folder, cat_id, dry_run)
             else:
                 error_msg = f'No valid CAT ID found for folder: {folder}. Manual intervention required.'
                 logging.warning(error_msg)
-                # notification_service.notify(error_msg, title="Import Error")

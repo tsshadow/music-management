@@ -1,12 +1,8 @@
 pymysql
 requests
 pydantic
-torchaudio
 librosa
-essentia-tensorflow  # Large package (~300MB), optional for basic analyzer.py
 pandas
-numpy
-scipy
 scikit-learn
 joblib
 sqlalchemy
@@ -14,7 +10,6 @@ mysql-connector-python
 python-dotenv
 mutagen
 tqdm
-matplotlib
 fastapi
 uvicorn
 markdown

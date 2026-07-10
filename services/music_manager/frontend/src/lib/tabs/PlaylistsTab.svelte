@@ -18,14 +18,41 @@
   let viewingPlaylist: any = null;
   let editingPlaylist: any = null;
   let playlistName = '';
-  let playlistParams = '';
+  let playlistParams: any = {}; // Changed to object
 
-  function formatParams(params: string) {
-    if (!params) return '-';
+  let availableGenres: any[] = [];
+
+  async function fetchGenres() {
     try {
-      return params.split('&').join(' • ');
+      const res = await fetch(`${API_BASE}/api/rules`, { headers: getHeaders() });
+      const data = await res.json();
+      availableGenres = data.genres || [];
+    } catch (err) {
+      console.error("Failed to fetch genres:", err);
+    }
+  }
+
+  function formatParams(paramsStr: string) {
+    if (!paramsStr) return '-';
+    try {
+      const params = JSON.parse(paramsStr);
+      let parts = [];
+      if (params.song_type && params.song_type !== 'both') parts.push(params.song_type);
+      if (params.genres && params.genres.length > 0) parts.push(params.genres.join(', '));
+      if (params.rating_range) parts.push(`Rating: ${params.rating_range[0]}-${params.rating_range[1]}`);
+      if (params.sort_method) parts.push(`Sort: ${params.sort_method}`);
+      if (params.size) parts.push(`Size: ${params.size}`);
+      
+      if (parts.length > 0) return parts.join(' • ');
+      
+      // Fallback for old rules format
+      if (params.rules) {
+        return params.rules.map((r: any) => `${r.column}=${r.value}`).join(' • ');
+      }
+      return paramsStr;
     } catch(e) {
-      return params;
+      if (paramsStr.includes('&')) return paramsStr.split('&').join(' • ');
+      return paramsStr;
     }
   }
 
@@ -55,7 +82,7 @@
         headers: getHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           name: playlistName,
-          params: playlistParams
+          params: JSON.stringify(playlistParams)
         })
       });
 
@@ -93,11 +120,16 @@
     editingPlaylist = playlist;
     if (playlist) {
       playlistName = playlist.name;
-      playlistParams = playlist.params;
+      try {
+        playlistParams = JSON.parse(playlist.params);
+      } catch (e) {
+        playlistParams = { genres: [], rating_range: [0, 100], size: 500, sort_method: 'newest', song_type: 'both' };
+      }
     } else {
       playlistName = '';
-      playlistParams = '';
+      playlistParams = { genres: [], rating_range: [0, 100], size: 500, sort_method: 'newest', song_type: 'both' };
     }
+    fetchGenres();
     isPlaylistModalOpen = true;
   }
 </script>
@@ -226,7 +258,7 @@
         <h3 class="text-2xl font-bold">{editingPlaylist ? 'Afspeellijst Bewerken' : 'Nieuwe Dynamic Playlist'}</h3>
         <button on:click={() => isPlaylistModalOpen = false} class="text-spotify-lightgray hover:text-white text-3xl">&times;</button>
       </header>
-      <div class="p-6 space-y-6">
+      <div class="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
         <div>
           <label class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Playlist Naam</label>
           <input 
@@ -236,15 +268,79 @@
             class="w-full bg-spotify-dark border border-white border-opacity-10 rounded-md p-3 text-white focus:outline-none focus:border-spotify-green transition-all"
           />
         </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Type</label>
+            <select 
+              bind:value={playlistParams.song_type}
+              class="w-full bg-spotify-dark border border-white border-opacity-10 rounded-md p-3 text-white focus:outline-none focus:border-spotify-green transition-all"
+            >
+              <option value="both">Alle (Tracks & Sets)</option>
+              <option value="track">Alleen Tracks (&lt; 10 min)</option>
+              <option value="set">Alleen Sets (&gt; 10 min)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Maximum Grootte</label>
+            <input 
+              type="number" 
+              bind:value={playlistParams.size}
+              class="w-full bg-spotify-dark border border-white border-opacity-10 rounded-md p-3 text-white focus:outline-none focus:border-spotify-green transition-all"
+            />
+          </div>
+        </div>
+
         <div>
-          <label class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Dynamic Rules (Params)</label>
-          <textarea 
-            bind:value={playlistParams}
-            placeholder="Bijv. genre=Trance&rating=5"
-            rows="4"
-            class="w-full bg-spotify-dark border border-white border-opacity-10 rounded-md p-3 text-white font-mono text-sm focus:outline-none focus:border-spotify-green transition-all"
-          ></textarea>
-          <p class="mt-2 text-xs text-spotify-lightgray">Gebruik & om meerdere filters te combineren. Mogelijke filters: genre, artist, label, year.</p>
+          <label class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Genres</label>
+          <div class="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 bg-spotify-dark rounded-md border border-white border-opacity-10">
+            {#each availableGenres as genre}
+              <button 
+                on:click={() => {
+                  if (playlistParams.genres.includes(genre.name)) {
+                    playlistParams.genres = playlistParams.genres.filter(g => g !== genre.name);
+                  } else {
+                    playlistParams.genres = [...playlistParams.genres, genre.name];
+                  }
+                }}
+                class="px-3 py-1 rounded-full text-xs font-bold transition-colors 
+                  {playlistParams.genres.includes(genre.name) ? 'bg-spotify-green text-black' : 'bg-spotify-gray text-spotify-lightgray hover:text-white'}"
+              >
+                {genre.name}
+              </button>
+            {/each}
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Sorteer op</label>
+            <select 
+              bind:value={playlistParams.sort_method}
+              class="w-full bg-spotify-dark border border-white border-opacity-10 rounded-md p-3 text-white focus:outline-none focus:border-spotify-green transition-all"
+            >
+              <option value="newest">Nieuwste eerst</option>
+              <option value="oldest">Oudste eerst</option>
+              <option value="highest_rated">Hoogste rating</option>
+              <option value="random">Willekeurig (Shuffle)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Rating Bereik</label>
+            <div class="flex items-center gap-2">
+              <input 
+                type="number" min="0" max="100"
+                bind:value={playlistParams.rating_range[0]}
+                class="w-16 bg-spotify-dark border border-white border-opacity-10 rounded-md p-3 text-white text-center"
+              />
+              <span class="text-spotify-lightgray">tot</span>
+              <input 
+                type="number" min="0" max="100"
+                bind:value={playlistParams.rating_range[1]}
+                class="w-16 bg-spotify-dark border border-white border-opacity-10 rounded-md p-3 text-white text-center"
+              />
+            </div>
+          </div>
         </div>
       </div>
       <footer class="p-6 bg-black bg-opacity-20 flex justify-end gap-4">

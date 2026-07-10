@@ -70,6 +70,7 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
                         'width': img.get('width'),
                         'height': img.get('height'),
                         'confidence': 0,
+                        'is_known_match': bool(spotify_id),
                         'popularity': artist.get('popularity'),
                         'genres': artist.get('genres'),
                         'metadata': {

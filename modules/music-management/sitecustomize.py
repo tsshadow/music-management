@@ -20,7 +20,7 @@ if importlib.util.find_spec('mutagen') is None and 'mutagen' not in sys.modules:
 
     class FLAC:
 
-        def __init__(self, *a, **k):
+        def __init__(self, *unused_a, **unused_k):
             self.tags = VCFLACDict()
     mutagen.flac.VCFLACDict = VCFLACDict
     mutagen.flac.FLAC = FLAC
@@ -33,7 +33,7 @@ if importlib.util.find_spec('mutagen') is None and 'mutagen' not in sys.modules:
 
     class WAVE:
 
-        def __init__(self, *a, **k):
+        def __init__(self, *unused_a, **unused_k):
             self.tags = _WaveID3()
     mutagen.wave._WaveID3 = _WaveID3
     mutagen.wave.WAVE = WAVE
@@ -59,12 +59,12 @@ if importlib.util.find_spec('mutagen') is None and 'mutagen' not in sys.modules:
 
     class MP3:
 
-        def __init__(self, *a, **k):
+        def __init__(self, *unused_a, **unused_k):
             self.tags = ID3Tags()
 
     class MP4:
 
-        def __init__(self, *a, **k):
+        def __init__(self, *unused_a, **unused_k):
             self.tags = MP4Tags()
     mutagen.mp4.MP4 = MP4
 
@@ -88,12 +88,12 @@ if 'pymysql' not in sys.modules:
 if 'librosa' not in sys.modules:
     librosa = types.ModuleType('librosa')
 
-    def load(*a, **k):
+    def load(*unused_a, **unused_k):
         return ([], 0)
     librosa.load = load
     beat_mod = types.ModuleType('librosa.beat')
 
-    def beat_track(*a, **k):
+    def beat_track(*unused_a, **unused_k):
         return (0, None)
     beat_mod.beat_track = beat_track
     librosa.beat = beat_mod

@@ -9,6 +9,7 @@ import docker
 
 from services.common.api.version_helper import get_version, get_release_notes, get_changelog
 from services.music_manager.database import get_db_connection
+from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 
 router = APIRouter(prefix="/api", tags=["management"])
 
@@ -482,3 +483,15 @@ def get_latest_scrobble_imports_proxy(_auth: dict = Depends(verify_api_key)):
 def trigger_lb_import_proxy(background_tasks: BackgroundTasks, req: Dict[str, Any] = Body(...), _auth: dict = Depends(verify_api_key)):
     from services.music_manager.routers.scrobbler import trigger_lb_import, ImportRequest # pylint: disable=import-outside-toplevel
     return trigger_lb_import(ImportRequest(**req), background_tasks)
+
+@router.post("/tagger/rescan")
+def trigger_tagger_rescan(_auth: dict = Depends(verify_api_key)):
+    helper = ProcessedFilesHelper()
+    helper.mark_for_rescan()
+    return {"status": "ok", "message": "All files marked for rescan"}
+
+@router.post("/tagger/rescan/file")
+def trigger_file_rescan(filepath: str = Body(..., embed=True), _auth: dict = Depends(verify_api_key)):
+    helper = ProcessedFilesHelper()
+    helper.mark_for_rescan(filepath)
+    return {"status": "ok", "message": f"File '{filepath}' marked for rescan"}

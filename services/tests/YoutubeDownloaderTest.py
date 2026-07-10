@@ -14,10 +14,20 @@ from services.common.Helpers.NotificationService import notification_service
 class YoutubeDownloaderTest(unittest.TestCase):
 
     def setUp(self):
-        reset_database_helpers()
-        self.processor = None
         # Use a list to store patchers for easy cleanup
         self.patchers = []
+
+        # Mock ConfigStore
+        config_patcher = patch('services.downloader.youtube.youtube.ConfigStore')
+        self.mock_config = config_patcher.start()
+        self.patchers.append(config_patcher)
+        self.mock_config.return_value.get_many.return_value = {
+            'youtube_folder': '/tmp/youtube',
+            'youtube_archive': '/tmp/archive'
+        }
+
+        reset_database_helpers()
+        self.processor = None
 
         archive_patcher = patch('services.downloader.youtube.YoutubeSongProcessor.YoutubeArchive')
         self.mock_archive = archive_patcher.start()
@@ -87,6 +97,7 @@ class YoutubeDownloaderTest(unittest.TestCase):
 
         # 2. DO RUN
         downloader = YoutubeDownloader(break_on_existing=False)
+        downloader.downloader_config['enabled'] = True
         with patch('time.sleep'):
             downloader.run(account='Noisia')
 

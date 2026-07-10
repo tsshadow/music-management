@@ -1,0 +1,223 @@
+************* Module backend.app.main
+modules/scrobbler/backend/app/main.py:93:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/app/main.py:8:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/app/main.py:9:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/app/main.py:10:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/app/main.py:11:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+************* Module backend.app.services.listenbrainz_service
+modules/scrobbler/backend/app/services/listenbrainz_service.py:45:0: C0303: Trailing whitespace (trailing-whitespace)
+modules/scrobbler/backend/app/services/listenbrainz_service.py:51:0: C0303: Trailing whitespace (trailing-whitespace)
+modules/scrobbler/backend/app/services/listenbrainz_service.py:61:0: C0303: Trailing whitespace (trailing-whitespace)
+modules/scrobbler/backend/app/services/listenbrainz_service.py:75:100: C0303: Trailing whitespace (trailing-whitespace)
+modules/scrobbler/backend/app/services/listenbrainz_service.py:76:77: C0303: Trailing whitespace (trailing-whitespace)
+modules/scrobbler/backend/app/services/listenbrainz_service.py:78:0: C0303: Trailing whitespace (trailing-whitespace)
+modules/scrobbler/backend/app/services/listenbrainz_service.py:103:0: C0303: Trailing whitespace (trailing-whitespace)
+modules/scrobbler/backend/app/services/listenbrainz_service.py:108:0: C0303: Trailing whitespace (trailing-whitespace)
+modules/scrobbler/backend/app/services/listenbrainz_service.py:331:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/app/services/listenbrainz_service.py:20:50: W0108: Lambda may not be necessary (unnecessary-lambda)
+modules/scrobbler/backend/app/services/listenbrainz_service.py:23:4: R0914: Too many local variables (27/15) (too-many-locals)
+modules/scrobbler/backend/app/services/listenbrainz_service.py:23:4: R0912: Too many branches (15/12) (too-many-branches)
+modules/scrobbler/backend/app/services/listenbrainz_service.py:87:4: R0914: Too many local variables (17/15) (too-many-locals)
+************* Module backend.app.services.stats_service
+modules/scrobbler/backend/app/services/stats_service.py:75:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/app/services/stats_service.py:44:4: R0911: Too many return statements (7/6) (too-many-return-statements)
+************* Module backend.app.services.ingest_service
+modules/scrobbler/backend/app/services/ingest_service.py:50:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/app/services/ingest_service.py:2:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/app/services/ingest_service.py:18:4: R0914: Too many local variables (16/15) (too-many-locals)
+************* Module backend.app.services.listenbrainz_export_service
+modules/scrobbler/backend/app/services/listenbrainz_export_service.py:110:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/app/services/listenbrainz_export_service.py:13:50: W0108: Lambda may not be necessary (unnecessary-lambda)
+modules/scrobbler/backend/app/services/listenbrainz_export_service.py:15:4: R0914: Too many local variables (18/15) (too-many-locals)
+************* Module backend.app.services.enrichment_queue_service
+modules/scrobbler/backend/app/services/enrichment_queue_service.py:22:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/app/services/enrichment_queue_service.py:5:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+************* Module backend.app.services.deduplication_service
+modules/scrobbler/backend/app/services/deduplication_service.py:14:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.app.api.routes_analyzer
+modules/scrobbler/backend/app/api/routes_analyzer.py:4:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/app/api/routes_analyzer.py:2:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/app/api/routes_analyzer.py:4:0: W0404: Reimport 'router' (imported line 2) (reimported)
+************* Module backend.app.api.routes_library
+modules/scrobbler/backend/app/api/routes_library.py:53:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/app/api/routes_library.py:3:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/app/api/routes_library.py:4:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+************* Module backend.app.api.routes_subsonic
+modules/scrobbler/backend/app/api/routes_subsonic.py:25:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/app/api/routes_subsonic.py:15:0: R0913: Too many arguments (8/5) (too-many-arguments)
+modules/scrobbler/backend/app/api/routes_subsonic.py:15:0: R0917: Too many positional arguments (8/5) (too-many-positional-arguments)
+modules/scrobbler/backend/app/api/routes_subsonic.py:15:58: W0622: Redefining built-in 'id' (redefined-builtin)
+************* Module backend.app.api.routes_export
+modules/scrobbler/backend/app/api/routes_export.py:20:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.app.api.__init__
+modules/scrobbler/backend/app/api/__init__.py:2:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.app.api.deps
+modules/scrobbler/backend/app/api/deps.py:58:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/app/api/deps.py:2:0: W0105: String statement has no effect (pointless-string-statement)
+modules/scrobbler/backend/app/api/deps.py:3:0: C0413: Import "from fastapi import Header, HTTPException, Request, status" should be placed at the top of the module (wrong-import-position)
+modules/scrobbler/backend/app/api/deps.py:4:0: C0413: Import "from services.analyzer_service.analyzer.services.library_admin_service import AnalyzerLibraryAdminService" should be placed at the top of the module (wrong-import-position)
+modules/scrobbler/backend/app/api/deps.py:4:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/app/api/deps.py:5:0: C0413: Import "from services.analyzer_service.analyzer.services.library_stats_service import AnalyzerLibraryStatsService" should be placed at the top of the module (wrong-import-position)
+modules/scrobbler/backend/app/api/deps.py:5:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/app/api/deps.py:6:0: C0413: Import "from services.analyzer_service.analyzer.services.summary_service import AnalyzerSummaryService" should be placed at the top of the module (wrong-import-position)
+modules/scrobbler/backend/app/api/deps.py:6:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/app/api/deps.py:7:0: C0413: Import "from ..core.settings import get_settings" should be placed at the top of the module (wrong-import-position)
+modules/scrobbler/backend/app/api/deps.py:8:0: C0413: Import "from ..services.deduplication_service import DeduplicationService" should be placed at the top of the module (wrong-import-position)
+modules/scrobbler/backend/app/api/deps.py:9:0: C0413: Import "from ..services.enrichment_queue_service import EnrichmentQueueService" should be placed at the top of the module (wrong-import-position)
+modules/scrobbler/backend/app/api/deps.py:10:0: C0413: Import "from ..services.listenbrainz_export_service import ListenBrainzExportService" should be placed at the top of the module (wrong-import-position)
+modules/scrobbler/backend/app/api/deps.py:11:0: C0413: Import "from ..services.listenbrainz_service import ListenBrainzImportService" should be placed at the top of the module (wrong-import-position)
+modules/scrobbler/backend/app/api/deps.py:13:25: W0613: Unused argument 'request' (unused-argument)
+************* Module backend.app.api.routes_stats
+modules/scrobbler/backend/app/api/routes_stats.py:51:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.app.api.routes_config
+modules/scrobbler/backend/app/api/routes_config.py:23:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.app.api.routes_enrichment
+modules/scrobbler/backend/app/api/routes_enrichment.py:14:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.app.api.routes_listens
+modules/scrobbler/backend/app/api/routes_listens.py:53:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.app.api.routes_scrobble
+modules/scrobbler/backend/app/api/routes_scrobble.py:16:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.app.api.routes_analyzer_summary
+modules/scrobbler/backend/app/api/routes_analyzer_summary.py:11:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/app/api/routes_analyzer_summary.py:4:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+************* Module backend.app.api.routes_import
+modules/scrobbler/backend/app/api/routes_import.py:31:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.app.schemas.listenbrainz
+modules/scrobbler/backend/app/schemas/listenbrainz.py:20:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.app.schemas.enrichment
+modules/scrobbler/backend/app/schemas/enrichment.py:20:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/app/schemas/enrichment.py:12:4: E0213: Method 'validate_limit' should have "self" as first argument (no-self-argument)
+************* Module backend.app.schemas.config
+modules/scrobbler/backend/app/schemas/config.py:12:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.app.schemas.common
+modules/scrobbler/backend/app/schemas/common.py:29:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.app.models.__init__
+modules/scrobbler/backend/app/models/__init__.py:63:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.app.db.sqlite_test
+modules/scrobbler/backend/app/db/sqlite_test.py:9:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.app.db.schema
+modules/scrobbler/backend/app/db/schema.py:29:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.app.db.adapter
+modules/scrobbler/backend/app/db/adapter.py:89:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/app/db/adapter.py:43:4: R0913: Too many arguments (13/5) (too-many-arguments)
+modules/scrobbler/backend/app/db/adapter.py:5:0: R0904: Too many public methods (28/20) (too-many-public-methods)
+************* Module backend.app.db.maria
+modules/scrobbler/backend/app/db/maria.py:707:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/app/db/maria.py:10:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/app/db/maria.py:83:4: W0221: Number of parameters was 4 in 'DatabaseAdapter.lookup_album_id' and is now 4 in overriding 'MariaDBAdapter.lookup_album_id' method (arguments-differ)
+modules/scrobbler/backend/app/db/maria.py:140:4: R0913: Too many arguments (13/5) (too-many-arguments)
+modules/scrobbler/backend/app/db/maria.py:140:4: R0914: Too many local variables (28/15) (too-many-locals)
+modules/scrobbler/backend/app/db/maria.py:140:4: R0912: Too many branches (14/12) (too-many-branches)
+modules/scrobbler/backend/app/db/maria.py:195:4: R0914: Too many local variables (25/15) (too-many-locals)
+modules/scrobbler/backend/app/db/maria.py:195:4: R0912: Too many branches (23/12) (too-many-branches)
+modules/scrobbler/backend/app/db/maria.py:195:4: R0915: Too many statements (69/50) (too-many-statements)
+modules/scrobbler/backend/app/db/maria.py:292:4: R0914: Too many local variables (28/15) (too-many-locals)
+modules/scrobbler/backend/app/db/maria.py:292:4: R0912: Too many branches (17/12) (too-many-branches)
+modules/scrobbler/backend/app/db/maria.py:292:4: R0915: Too many statements (51/50) (too-many-statements)
+modules/scrobbler/backend/app/db/maria.py:297:8: W0612: Unused variable 'track_ids' (unused-variable)
+modules/scrobbler/backend/app/db/maria.py:393:4: R0914: Too many local variables (16/15) (too-many-locals)
+modules/scrobbler/backend/app/db/maria.py:414:4: R0914: Too many local variables (24/15) (too-many-locals)
+modules/scrobbler/backend/app/db/maria.py:414:4: R0912: Too many branches (17/12) (too-many-branches)
+modules/scrobbler/backend/app/db/maria.py:414:4: R0915: Too many statements (57/50) (too-many-statements)
+modules/scrobbler/backend/app/db/maria.py:488:4: R0914: Too many local variables (27/15) (too-many-locals)
+modules/scrobbler/backend/app/db/maria.py:625:4: R0914: Too many local variables (23/15) (too-many-locals)
+modules/scrobbler/backend/app/db/maria.py:664:4: R0914: Too many local variables (23/15) (too-many-locals)
+modules/scrobbler/backend/app/db/maria.py:14:0: R0904: Too many public methods (28/20) (too-many-public-methods)
+************* Module backend.app.core.settings
+modules/scrobbler/backend/app/core/settings.py:16:0: C0303: Trailing whitespace (trailing-whitespace)
+modules/scrobbler/backend/app/core/settings.py:49:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.app.core.startup
+modules/scrobbler/backend/app/core/startup.py:23:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.tests.test_listenbrainz_export_service
+modules/scrobbler/backend/tests/test_listenbrainz_export_service.py:49:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.tests.test_db_adapter
+modules/scrobbler/backend/tests/test_db_adapter.py:257:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/tests/test_db_adapter.py:4:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/tests/test_db_adapter.py:5:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/tests/test_db_adapter.py:32:0: R0913: Too many arguments (11/5) (too-many-arguments)
+modules/scrobbler/backend/tests/test_db_adapter.py:32:0: R0914: Too many local variables (19/15) (too-many-locals)
+modules/scrobbler/backend/tests/test_db_adapter.py:6:0: C0411: third party import "backend.app.core.startup.init_database" should be placed before first party imports "services.analyzer_service.analyzer.matching.normalizer.normalize_text", "services.analyzer_service.analyzer.matching.uid.make_track_uid"  (wrong-import-order)
+modules/scrobbler/backend/tests/test_db_adapter.py:7:0: C0411: third party import "backend.app.db.sqlite_test.create_sqlite_memory_adapter" should be placed before first party imports "services.analyzer_service.analyzer.matching.normalizer.normalize_text", "services.analyzer_service.analyzer.matching.uid.make_track_uid"  (wrong-import-order)
+modules/scrobbler/backend/tests/test_db_adapter.py:8:0: C0411: third party import "backend.app.models.release_groups" should be placed before first party imports "services.analyzer_service.analyzer.matching.normalizer.normalize_text", "services.analyzer_service.analyzer.matching.uid.make_track_uid"  (wrong-import-order)
+modules/scrobbler/backend/tests/test_db_adapter.py:9:0: C0411: third party import "sqlalchemy.insert" should be placed before first party imports "services.analyzer_service.analyzer.matching.normalizer.normalize_text", "services.analyzer_service.analyzer.matching.uid.make_track_uid"  (wrong-import-order)
+************* Module backend.tests.test_listenbrainz_export_api
+modules/scrobbler/backend/tests/test_listenbrainz_export_api.py:37:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.tests.test_listenbrainz_service
+modules/scrobbler/backend/tests/test_listenbrainz_service.py:141:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/tests/test_listenbrainz_service.py:119:20: E1121: Too many positional arguments for method call (too-many-function-args)
+modules/scrobbler/backend/tests/test_listenbrainz_service.py:126:20: E1121: Too many positional arguments for method call (too-many-function-args)
+modules/scrobbler/backend/tests/test_listenbrainz_service.py:133:20: E1121: Too many positional arguments for method call (too-many-function-args)
+modules/scrobbler/backend/tests/test_listenbrainz_service.py:140:20: E1121: Too many positional arguments for method call (too-many-function-args)
+************* Module backend.tests.test_schema_updates
+modules/scrobbler/backend/tests/test_schema_updates.py:23:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.tests.test_config_api
+modules/scrobbler/backend/tests/test_config_api.py:15:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.tests.test_enrichment_api
+modules/scrobbler/backend/tests/test_enrichment_api.py:28:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.tests.conftest
+modules/scrobbler/backend/tests/conftest.py:47:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/tests/conftest.py:17:0: C0413: Import "from backend.app.main import app" should be placed at the top of the module (wrong-import-position)
+modules/scrobbler/backend/tests/conftest.py:18:0: C0413: Import "from backend.app.core.settings import get_settings" should be placed at the top of the module (wrong-import-position)
+************* Module backend.tests.test_analyzer_queue_api
+modules/scrobbler/backend/tests/test_analyzer_queue_api.py:48:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/tests/test_analyzer_queue_api.py:4:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+************* Module backend.tests.test_analyzer_utils
+modules/scrobbler/backend/tests/test_analyzer_utils.py:15:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/tests/test_analyzer_utils.py:1:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/tests/test_analyzer_utils.py:2:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+************* Module backend.tests.test_analyzer_summary_api
+modules/scrobbler/backend/tests/test_analyzer_summary_api.py:22:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/tests/test_analyzer_summary_api.py:5:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/tests/test_analyzer_summary_api.py:6:0: C0411: third party import "backend.app.main.app" should be placed before first party import "services.analyzer_service.analyzer.db.repo.AnalyzerRepository"  (wrong-import-order)
+modules/scrobbler/backend/tests/test_analyzer_summary_api.py:7:0: C0411: third party import "backend.tests.fixtures.seed_dataset" should be placed before first party import "services.analyzer_service.analyzer.db.repo.AnalyzerRepository"  (wrong-import-order)
+************* Module backend.tests.test_integration_flows
+modules/scrobbler/backend/tests/test_integration_flows.py:209:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/tests/test_integration_flows.py:4:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/tests/test_integration_flows.py:5:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/tests/test_integration_flows.py:6:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/tests/test_integration_flows.py:45:45: W0621: Redefining name 'isolated_database' from outer scope (line 17) (redefined-outer-name)
+modules/scrobbler/backend/tests/test_integration_flows.py:63:41: W0621: Redefining name 'isolated_database' from outer scope (line 17) (redefined-outer-name)
+modules/scrobbler/backend/tests/test_integration_flows.py:79:51: W0621: Redefining name 'isolated_database' from outer scope (line 17) (redefined-outer-name)
+modules/scrobbler/backend/tests/test_integration_flows.py:99:48: W0621: Redefining name 'isolated_database' from outer scope (line 17) (redefined-outer-name)
+modules/scrobbler/backend/tests/test_integration_flows.py:120:47: W0621: Redefining name 'isolated_database' from outer scope (line 17) (redefined-outer-name)
+modules/scrobbler/backend/tests/test_integration_flows.py:140:57: W0621: Redefining name 'isolated_database' from outer scope (line 17) (redefined-outer-name)
+modules/scrobbler/backend/tests/test_integration_flows.py:160:69: W0621: Redefining name 'isolated_database' from outer scope (line 17) (redefined-outer-name)
+modules/scrobbler/backend/tests/test_integration_flows.py:178:0: R0914: Too many local variables (20/15) (too-many-locals)
+modules/scrobbler/backend/tests/test_integration_flows.py:178:59: W0621: Redefining name 'isolated_database' from outer scope (line 17) (redefined-outer-name)
+modules/scrobbler/backend/tests/test_integration_flows.py:7:0: C0411: third party import "backend.app.core.startup.init_database" should be placed before first party imports "services.analyzer_service.analyzer.db.repo.AnalyzerRepository", "services.analyzer_service.analyzer.matching.normalizer.normalize_text", "services.analyzer_service.analyzer.matching.uid.make_track_uid"  (wrong-import-order)
+modules/scrobbler/backend/tests/test_integration_flows.py:8:0: C0411: third party import "backend.app.db.sqlite_test.create_sqlite_memory_adapter" should be placed before first party imports "services.analyzer_service.analyzer.db.repo.AnalyzerRepository", "services.analyzer_service.analyzer.matching.normalizer.normalize_text", "services.analyzer_service.analyzer.matching.uid.make_track_uid"  (wrong-import-order)
+modules/scrobbler/backend/tests/test_integration_flows.py:9:0: C0411: third party import "backend.app.models.library_artists" should be placed before first party imports "services.analyzer_service.analyzer.db.repo.AnalyzerRepository", "services.analyzer_service.analyzer.matching.normalizer.normalize_text", "services.analyzer_service.analyzer.matching.uid.make_track_uid"  (wrong-import-order)
+modules/scrobbler/backend/tests/test_integration_flows.py:10:0: C0411: third party import "backend.app.schemas.common.ArtistInput" should be placed before first party imports "services.analyzer_service.analyzer.db.repo.AnalyzerRepository", "services.analyzer_service.analyzer.matching.normalizer.normalize_text", "services.analyzer_service.analyzer.matching.uid.make_track_uid"  (wrong-import-order)
+modules/scrobbler/backend/tests/test_integration_flows.py:11:0: C0411: third party import "backend.app.services.deduplication_service.DeduplicationService" should be placed before first party imports "services.analyzer_service.analyzer.db.repo.AnalyzerRepository", "services.analyzer_service.analyzer.matching.normalizer.normalize_text", "services.analyzer_service.analyzer.matching.uid.make_track_uid"  (wrong-import-order)
+modules/scrobbler/backend/tests/test_integration_flows.py:12:0: C0411: third party import "backend.app.services.ingest_service.IngestService" should be placed before first party imports "services.analyzer_service.analyzer.db.repo.AnalyzerRepository", "services.analyzer_service.analyzer.matching.normalizer.normalize_text", "services.analyzer_service.analyzer.matching.uid.make_track_uid"  (wrong-import-order)
+modules/scrobbler/backend/tests/test_integration_flows.py:13:0: C0411: third party import "sqlalchemy.func" should be placed before first party imports "services.analyzer_service.analyzer.db.repo.AnalyzerRepository", "services.analyzer_service.analyzer.matching.normalizer.normalize_text", "services.analyzer_service.analyzer.matching.uid.make_track_uid"  (wrong-import-order)
+************* Module backend.tests.test_listenbrainz_import
+modules/scrobbler/backend/tests/test_listenbrainz_import.py:65:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/tests/test_listenbrainz_import.py:6:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/tests/test_listenbrainz_import.py:7:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/tests/test_listenbrainz_import.py:8:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/tests/test_listenbrainz_import.py:16:0: R0914: Too many local variables (23/15) (too-many-locals)
+modules/scrobbler/backend/tests/test_listenbrainz_import.py:9:0: C0411: third party import "backend.app.main.app" should be placed before first party imports "services.analyzer_service.analyzer.db.repo.AnalyzerRepository", "services.analyzer_service.analyzer.matching.normalizer.normalize_text", "services.analyzer_service.analyzer.matching.uid.make_track_uid"  (wrong-import-order)
+modules/scrobbler/backend/tests/test_listenbrainz_import.py:10:0: C0411: third party import "backend.app.services.listenbrainz_service.ListenBrainzImportService" should be placed before first party imports "services.analyzer_service.analyzer.db.repo.AnalyzerRepository", "services.analyzer_service.analyzer.matching.normalizer.normalize_text", "services.analyzer_service.analyzer.matching.uid.make_track_uid"  (wrong-import-order)
+************* Module backend.tests.test_stats_api
+modules/scrobbler/backend/tests/test_stats_api.py:45:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/tests/test_stats_api.py:6:0: R0914: Too many local variables (19/15) (too-many-locals)
+************* Module backend.tests.test_scrobble_api
+modules/scrobbler/backend/tests/test_scrobble_api.py:31:0: C0304: Final newline missing (missing-final-newline)
+************* Module backend.tests.fixtures
+modules/scrobbler/backend/tests/fixtures.py:39:0: C0304: Final newline missing (missing-final-newline)
+modules/scrobbler/backend/tests/fixtures.py:2:0: W0105: String statement has no effect (pointless-string-statement)
+modules/scrobbler/backend/tests/fixtures.py:3:0: C0413: Import "from datetime import datetime, timezone" should be placed at the top of the module (wrong-import-position)
+modules/scrobbler/backend/tests/fixtures.py:4:0: C0413: Import "from httpx import AsyncClient" should be placed at the top of the module (wrong-import-position)
+modules/scrobbler/backend/tests/fixtures.py:5:0: C0413: Import "from services.analyzer_service.analyzer.db.repo import AnalyzerRepository" should be placed at the top of the module (wrong-import-position)
+modules/scrobbler/backend/tests/fixtures.py:5:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/tests/fixtures.py:6:0: C0413: Import "from services.analyzer_service.analyzer.matching.normalizer import normalize_text" should be placed at the top of the module (wrong-import-position)
+modules/scrobbler/backend/tests/fixtures.py:6:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/tests/fixtures.py:7:0: C0413: Import "from services.analyzer_service.analyzer.matching.uid import make_track_uid" should be placed at the top of the module (wrong-import-position)
+modules/scrobbler/backend/tests/fixtures.py:7:0: E0611: No name 'analyzer_service' in module 'services' (no-name-in-module)
+modules/scrobbler/backend/tests/fixtures.py:8:0: C0413: Import "from backend.app.main import app" should be placed at the top of the module (wrong-import-position)
+modules/scrobbler/backend/tests/fixtures.py:8:0: C0411: third party import "backend.app.main.app" should be placed before first party imports "services.analyzer_service.analyzer.db.repo.AnalyzerRepository", "services.analyzer_service.analyzer.matching.normalizer.normalize_text", "services.analyzer_service.analyzer.matching.uid.make_track_uid"  (wrong-import-order)
+
+------------------------------------------------------------------
+Your code has been rated at 8.83/10 (previous run: 8.83/10, +0.00)
+

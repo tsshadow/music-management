@@ -256,7 +256,7 @@ class YoutubeDownloader:
 
     def run(self, break_on_existing_arg: Optional[bool] = None, redownload: bool = False, account: str = ''):
         if not getattr(self, 'downloader_config', {}).get('enabled', True):
-            logging.warning('YouTube soundcloud is not configured; skipping run().')
+            logging.warning('YouTube downloader is not configured; skipping run().')
             return
 
         # Defensive: initial wait up to 1 minute

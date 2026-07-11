@@ -9,6 +9,15 @@ This project is now modularized. Detailed release notes for each module can be f
 - [Music Manager](services/music_manager/RELEASE_NOTES.md)
 - [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
 
+## Global Version 2.5.0 (2026-07-11)
+### 🚀 Structural Modernization & Path Migration
+- **Major Path Migration**: The entire system has been migrated from `/music` to `/mnt/music`. This ensures consistency with host mounts and simplifies path resolution across all services.
+- **API Architecture Consolidation**: We've removed the redundant `common/api` layer. All workers now push their status and progress directly to the `music-manager` hub, resulting in a cleaner, more robust architecture.
+- **Streamlined Project Layout**: The verwarrende `music-management/` intermediate folder is gone. By moving `services/` to the root, we've simplified the project structure, `PYTHONPATH` management, and Docker builds.
+- **Enhanced Test Reliability**: A new unified testing configuration (`conftest.py`) allows the full test suite to run in isolated environments by automatically mocking heavy system dependencies.
+- **Worker Hub Integration**: YouTube and SoundCloud downloaders are now fully integrated with the centralized Job Manager, providing real-time progress bars in the dashboard.
+- **Codebase Optimization**: Removed over 80 redundant proxy methods and standardized all internal API routing under the `/api` prefix for better maintainability.
+
 ## Global Version 2.3.0 (2026-07-05)
 ### 🚀 The Cloud Sync & Security Update
 - **MuMa Cloud Sync**: Introduced a new server-side backup system for application settings. Clients like Ultrasonic can now securely store and restore their full configuration in the MuMa database.

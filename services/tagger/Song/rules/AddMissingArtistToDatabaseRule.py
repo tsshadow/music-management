@@ -1,11 +1,9 @@
 import select
 import sys
-
 from services.common.Helpers.FilterTableHelper import FilterTableHelper
 from services.common.Helpers.TableHelper import TableHelper
 from services.tagger.Song.rules.TagRule import TagRule
 from services.tagger.constants import ARTIST
-
 
 class AddMissingArtistToDatabaseRule(TagRule):
     """
@@ -20,7 +18,6 @@ class AddMissingArtistToDatabaseRule(TagRule):
     """
 
     def __init__(self, artist_db=None, ignored_db=None, ask_for_missing: bool=False):
-        # pylint: disable=import-outside-toplevel
         from services.common.Helpers.Cache import databaseHelpers
         self.artist_table = artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
         self.ignored_table = ignored_db or databaseHelpers.get('rules_ignored_artists') or FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name')

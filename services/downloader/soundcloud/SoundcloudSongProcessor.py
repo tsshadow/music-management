@@ -4,7 +4,6 @@ import subprocess
 from urllib.parse import urlparse
 from pathlib import Path
 from yt_dlp.postprocessor import PostProcessor
-
 from services.common.Helpers.NotificationService import notification_service
 from services.tagger.tagger import Tagger
 from services.tagger.constants import SongTypeEnum
@@ -35,7 +34,7 @@ class SoundcloudSongProcessor(PostProcessor):
         if not enriched_info:
             song = Tagger.parse_song(Path(path), SongTypeEnum.SOUNDCLOUD)
             if song:
-                notification_service.notify(str(song), title="SoundCloud Download Complete")
+                notification_service.notify(str(song), title='SoundCloud Download Complete')
             return ([], info)
         info.update(enriched_info)
         account_name = self._extract_account_name_from_url(enriched_info.get('uploader_url'))
@@ -44,17 +43,10 @@ class SoundcloudSongProcessor(PostProcessor):
         if SoundcloudArchive.exists(account_id, video_id):
             logging.info(f'Track already in downloads_soundcloud_archive: {account_name}/{video_id} — skipping.')
         else:
-            SoundcloudArchive.insert({
-                'account_name': account_name,
-                'account_id': account_id,
-                'video_id': video_id,
-                'path': path,
-                'url': enriched_info.get('original_url'),
-                'title': enriched_info.get('title')
-            })
+            SoundcloudArchive.insert({'account_name': account_name, 'account_id': account_id, 'video_id': video_id, 'path': path, 'url': enriched_info.get('original_url'), 'title': enriched_info.get('title')})
         song = Tagger.parse_song(Path(path), SongTypeEnum.SOUNDCLOUD, extra_info=enriched_info)
         if song:
-            notification_service.notify(str(song), title="SoundCloud Download Complete")
+            notification_service.notify(str(song), title='SoundCloud Download Complete')
         return ([], info)
 
     @staticmethod

@@ -38,6 +38,7 @@ class BaseSongTest(unittest.TestCase):
         song = BaseSong.__new__(BaseSong)
         mock_tag = MagicMock()
         mock_tag.value = ['Techno', 'Hardcore', 'Ambient']
+
         def mock_sort():
             mock_tag.value.sort()
         mock_tag.sort.side_effect = mock_sort

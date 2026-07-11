@@ -17,7 +17,6 @@ class InferRemixerFromTitleRule(TagRule):
     SUFFIX_CLEANUP_SIMPLE = re.compile('\\s*\\b(edit|remix|refix|bootleg)\\b\\s*$', re.IGNORECASE)
 
     def __init__(self, artist_db=None, ignored_db=None, ask_for_missing: bool=False):
-        # pylint: disable=import-outside-toplevel
         from services.common.Helpers.Cache import databaseHelpers
         self.artist_db = artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
         self.ignored_db = ignored_db or databaseHelpers.get('rules_ignored_artists') or FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name')
@@ -45,7 +44,6 @@ class InferRemixerFromTitleRule(TagRule):
                 artist_tag.add(canonical)
                 artist_tag.regex()
                 artist_tag.deduplicate()
-
             remixer_tag = song.tag_collection.get_item(REMIXER)
             if canonical not in remixer_tag.to_array():
                 remixer_tag.add(canonical)

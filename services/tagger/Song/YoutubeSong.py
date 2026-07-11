@@ -1,4 +1,4 @@
-from services.common.settings import Settings
+from services.common.config_store import ConfigStore as Settings
 from services.tagger.Song.BaseSong import BaseSong
 from services.tagger.Song.rules.AddMissingGenreToDatabaseRule import AddMissingGenreToDatabaseRule
 from services.tagger.Song.rules.CleanAndFilterGenreRule import CleanAndFilterGenreRule
@@ -44,7 +44,6 @@ class YoutubeSong(BaseSong):
         self.rules.append(InferGenreFromAlbumArtistRule())
         self.rules.append(InferGenreFromSubgenreRule())
         self.rules.append(CleanTagsRule())
-        # pylint: disable=import-outside-toplevel
         from services.common.Helpers.Cache import databaseHelpers
         self.rules.append(AddMissingGenreToDatabaseRule(genre_db=databaseHelpers['rules_genres'], ignored_db=databaseHelpers['rules_ignored_genres'], backlog_db=databaseHelpers.get('rules_genre_backlog')))
         self.rules.append(CleanAndFilterGenreRule(databaseHelpers['rules_genres'], databaseHelpers.get('rules_genre_backlog'), databaseHelpers.get('rules_ignored_genres')))

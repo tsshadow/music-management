@@ -1,7 +1,6 @@
 import logging
 import inspect
-from services.common.api.job_manager import job_manager
-
+from services.common.job_manager import job_manager
 
 class Step:
     """Represents an executable step in the importer workflow."""

@@ -46,7 +46,6 @@ sys.modules['services.tagger.Song.YoutubeSong'] = dummy_song_module
 dummy_archive_module = types.ModuleType('services.downloader.youtube.YoutubeArchive')
 dummy_archive_module.YoutubeArchive = DummyYoutubeArchive
 sys.modules['services.downloader.youtube.YoutubeArchive'] = dummy_archive_module
-# pylint: disable=wrong-import-position
 from downloader.youtube import YoutubeSongProcessor
 
 class DummyDownloader:
@@ -78,7 +77,6 @@ class DummyDownloader:
 class YoutubeSongProcessorTest(unittest.TestCase):
 
     def setUp(self):
-        # pylint: disable=consider-using-with
         self.temp_dir = tempfile.TemporaryDirectory()
         DummyYoutubeArchive.inserted.clear()
         DummySong.last_instance = None
@@ -103,9 +101,7 @@ class YoutubeSongProcessorTest(unittest.TestCase):
         with patch('services.downloader.youtube.YoutubeSongProcessor.TaggerService') as mock_tagger_service:
             mock_tagger_instance = mock_tagger_service.return_value
             processor.run(info)
-            # Verify tagger_service.tag was called
-            mock_tagger_instance.tag.assert_called_with("youtube", info['filepath'], info)
-
+            mock_tagger_instance.tag.assert_called_with('youtube', info['filepath'], info)
         self.assertEqual(info['title'], 'Noiseflow | Defqon.1 2025')
         self.assertEqual(info['fulltitle'], 'Noiseflow | Defqon.1 2025')
         self.assertEqual(os.path.normpath(info['filepath']), os.path.normpath(expected_path))

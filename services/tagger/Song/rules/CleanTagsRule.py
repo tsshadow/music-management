@@ -1,7 +1,6 @@
 from services.tagger.Song.rules.TagRule import TagRule
 from services.tagger.constants import ARTIST, ALBUM_ARTIST, GENRE, REMIXER
 
-
 class CleanTagsRule(TagRule):
     """Cleans artist- and genre-related tags using regex and stripping."""
 

@@ -8,21 +8,17 @@ from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4, MP4StreamInfoError, MP4FreeForm
 from mutagen.oggopus import OggOpus
 from mutagen.wave import WAVE
-
-from services.common.settings import Settings
+from services.common.config_store import ConfigStore as Settings
 from services.tagger.Song.Tag import Tag
 from services.tagger.Song.TagCollection import TagCollection
 from services.tagger.Song.rules.AnalyzeBpmRule import AnalyzeBpmRule
 from services.tagger.Song.rules.CleanTitleRule import CleanTitleRule
 from services.tagger.Song.rules.NormalizeFlacTagsRule import NormalizeFlacTagsRule
 from services.tagger.Song.rules.TagRule import TagRule
-from services.tagger.constants import MusicFileType, GENRE, FLACTags, ARTIST, TRACK_NUMBER, TITLE, DATE, \
-    MP4Tags, ALBUM, ALBUM_ARTIST, BPM, CATALOG_NUMBER, FESTIVAL, PUBLISHER, REMIXER, PARSED, COPYRIGHT, WAVTags, OPUSTags, RATING
-
+from services.tagger.constants import MusicFileType, GENRE, FLACTags, ARTIST, TRACK_NUMBER, TITLE, DATE, MP4Tags, ALBUM, ALBUM_ARTIST, BPM, CATALOG_NUMBER, FESTIVAL, PUBLISHER, REMIXER, PARSED, COPYRIGHT, WAVTags, OPUSTags, RATING
 LOG_FILE = 'broken-files.log'
 s = Settings()
 analyze_bpm = False
-
 EasyID3.RegisterTXXXKey('publisher', 'publisher')
 EasyID3.RegisterTXXXKey('rating', 'RATING')
 EasyID3.RegisterTXXXKey('parsed', 'parsed')
@@ -34,6 +30,7 @@ EasyMP4Tags.RegisterTextKey('rating', 'rating')
 EasyMP4Tags.RegisterTextKey('parsed', 'parsed')
 EasyMP4Tags.RegisterTextKey('festival', 'festival')
 EasyMP4Tags.RegisterTextKey('original_title', 'original_title')
+
 class ExtensionNotSupportedException(Exception):
     """Raised when an unsupported music file extension is encountered."""
 
@@ -41,7 +38,6 @@ def log_broken_file(pad: str):
     with open(LOG_FILE, 'a', encoding='utf-8') as f:
         f.write(pad + '\n')
 
-# pylint: disable=too-many-public-methods
 class BaseSong:
     """
     Represents a single audio file and its associated metadata.
@@ -125,7 +121,6 @@ class BaseSong:
         if not value.strip():
             self.delete_tag(tag.tag)
             return
-
         if self.type == MusicFileType.MP3:
             self.music_file[tag.tag] = value
         elif self.type == MusicFileType.FLAC:
@@ -179,19 +174,15 @@ class BaseSong:
         artist = info.get('library_artists', [None])[0] if isinstance(info.get('library_artists'), list) else info.get('artist')
         if not artist:
             artist = info.get('uploader') or info.get('channel')
-
-        if artist and not self.tag_collection.get_item_as_string(ARTIST):
+        if artist and (not self.tag_collection.get_item_as_string(ARTIST)):
             self.tag_collection.set_item(ARTIST, artist)
-
         title = info.get('title')
-        if title and not self.tag_collection.get_item_as_string(TITLE):
+        if title and (not self.tag_collection.get_item_as_string(TITLE)):
             self.tag_collection.set_item(TITLE, title)
-
         genre = info.get('genre')
         if genre:
             self.tag_collection.get_item(GENRE).add(genre)
-
-        if info.get('upload_date') and not self.tag_collection.get_item_as_string(DATE):
+        if info.get('upload_date') and (not self.tag_collection.get_item_as_string(DATE)):
             self.tag_collection.set_item(DATE, info.get('upload_date'))
 
     def album(self):
@@ -262,15 +253,8 @@ class BaseSong:
             rule.apply(self)
 
     def __str__(self):
-        fields = [
-            ("Title", self.title()),
-            ("Artists", self.artist()),
-            ("Album", self.album()),
-            ("Genre", self.genre()),
-            ("Publisher", self.publisher()),
-            ("Path", self.path()),
-        ]
-        return "\n".join([f"{label}={value}" for label, value in fields if value])
+        fields = [('Title', self.title()), ('Artists', self.artist()), ('Album', self.album()), ('Genre', self.genre()), ('Publisher', self.publisher()), ('Path', self.path())]
+        return '\n'.join([f'{label}={value}' for label, value in fields if value])
 
     def __del__(self):
         """Ensure changes are saved when the object is deleted."""

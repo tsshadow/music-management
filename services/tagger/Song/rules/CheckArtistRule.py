@@ -3,11 +3,9 @@ from services.common.Helpers.TableHelper import TableHelper
 from services.tagger.Song.rules.TagRule import TagRule
 from services.tagger.constants import ARTIST
 
-
 class CheckArtistRule(TagRule):
 
     def __init__(self, artist_db=None, ignored_db=None):
-        # pylint: disable=import-outside-toplevel
         from services.common.Helpers.Cache import databaseHelpers
         self.artist_table = artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
         self.ignored_table = ignored_db or databaseHelpers.get('rules_ignored_artists') or FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name')

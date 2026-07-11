@@ -1,4 +1,4 @@
-from services.common.settings import Settings
+from services.common.config_store import ConfigStore as Settings
 from services.tagger.Song.BaseSong import BaseSong
 from services.common.Helpers.Cache import databaseHelpers
 from services.tagger.Song.rules.AddMissingArtistToDatabaseRule import AddMissingArtistToDatabaseRule

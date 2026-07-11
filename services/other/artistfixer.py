@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 from mutagen import MutagenError
-from services.common.settings import Settings
+from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.Cache import databaseHelpers
 from services.tagger.Song.rules.VerifyArtistRule import VerifyArtistRule
 from services.tagger.Song.BaseSong import BaseSong, ExtensionNotSupportedException

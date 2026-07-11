@@ -8,9 +8,7 @@ class CleanTitleRule(TagRule):
         if song.tag_collection.has_item(TITLE):
             tag = song.tag_collection.get_item(TITLE)
             title = tag.to_string()
-
-            prefixes = ["Premiere:", "MOTZ Exclusive:", "MOTZ Premiere:"]
-
+            prefixes = ['Premiere:', 'MOTZ Exclusive:', 'MOTZ Premiere:']
             modified = False
             still_checking = True
             while still_checking:
@@ -21,6 +19,5 @@ class CleanTitleRule(TagRule):
                         modified = True
                         still_checking = True
                         break
-
             if modified:
                 tag.set(title)

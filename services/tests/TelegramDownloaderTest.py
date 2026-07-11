@@ -24,13 +24,11 @@ class DummyClient:
         pass
 telethon_mod.TelegramClient = DummyClient
 sys.modules['telethon'] = telethon_mod
-# pylint: disable=wrong-import-position
 from downloader.telegram import TelegramDownloader
 
 class TelegramDownloaderTest(unittest.TestCase):
 
     def setUp(self):
-        # pylint: disable=consider-using-with
         self.tempdir = tempfile.TemporaryDirectory()
         os.environ['telegram_folder'] = self.tempdir.name
         os.environ['telegram_api_id'] = '1'

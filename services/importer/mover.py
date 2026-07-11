@@ -5,10 +5,9 @@ import shutil
 from os import listdir
 from os.path import isfile, join
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
-from services.common.settings import Settings
+from services.common.config_store import ConfigStore as Settings
 from services.tagger.Song.LabelSong import LabelSong
 from services.common.Helpers.NotificationService import notification_service
-
 
 def get_cat_id(folder: str):
     """
@@ -49,7 +48,7 @@ def post_processing_songs(folder_path):
                     logging.info(f'Processing file with LabelSong: {full_path}')
                     s = LabelSong(str(full_path))
                     s.parse()
-                    notification_service.notify(str(s), title="Import Complete")
+                    notification_service.notify(str(s), title='Import Complete')
                 except Exception as e:
                     logging.error(f'Failed to process {full_path} with LabelSong: {e}')
 
@@ -88,11 +87,9 @@ class Mover:
         """Processes and moves a single folder based on its CAT ID."""
         label = self.get_label(cat_id)
         if label is None:
-            error_msg = (f'CAT ID {cat_id} not found in database for folder {folder}. '
-                         'Please add it to rules_catid_label.')
+            error_msg = f'CAT ID {cat_id} not found in database for folder {folder}. Please add it to rules_catid_label.'
             logging.warning(error_msg)
             return
-
         src = join(self.settings.import_folder_path, folder)
         dst = join(self.settings.eps_folder_path, label, folder)
         try:
@@ -101,7 +98,6 @@ class Mover:
                 logging.info(f'Successfully moved: {src} -> {dst}')
             else:
                 logging.info(f'Dry run - would move: {src} -> {dst}')
-
             try:
                 post_processing_songs(dst)
             except Exception as e:
@@ -122,8 +118,7 @@ class Mover:
         Move folders to categorized destinations based on their library_labels.
         """
         logging.info('Starting Move Step')
-        only_folders = [f for f in listdir(self.settings.import_folder_path)
-                        if not isfile(join(self.settings.import_folder_path, f))]
+        only_folders = [f for f in listdir(self.settings.import_folder_path) if not isfile(join(self.settings.import_folder_path, f))]
         for folder in only_folders:
             cat_id = get_cat_id(folder)
             if cat_id:

@@ -3,9 +3,7 @@ import os
 from os import listdir
 from os.path import join, isfile
 import patoolib
-
-from services.common.settings import Settings
-
+from services.common.config_store import ConfigStore as Settings
 
 class Extractor:
 
@@ -30,13 +28,10 @@ class Extractor:
             except patoolib.util.PatoolError as e:
                 error_msg = f'Extraction failed for {file}: {e}'
                 logging.error(error_msg)
-                # notification_service.notify(error_msg, title="Import/ Error")
             except OSError as e:
                 error_msg = f'Failed to delete {file}: {e}'
                 logging.error(error_msg)
-                # notification_service.notify(error_msg, title="Import Error")
             except Exception as e:
                 error_msg = f'Unexpected error with {file}: {e}'
                 logging.error(error_msg)
-                # notification_service.notify(error_msg, title="Import Error")
         logging.info('Extraction step completed.')

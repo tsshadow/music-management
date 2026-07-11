@@ -22,14 +22,12 @@ mutagen.MutagenError = getattr(mutagen, 'MutagenError', Exception)
 cache_mod = types.ModuleType('services.common.Helpers.Cache')
 cache_mod.databaseHelpers = {'library_artists': MagicMock()}
 sys.modules['services.common.Helpers.Cache'] = cache_mod
-# pylint: disable=wrong-import-position
 from services.tagger.Song.rules.TagResult import TagResult, TagResultType
 from services.other import artistfixer
 
 class ArtistFixerTest(unittest.TestCase):
 
     def setUp(self):
-        # pylint: disable=consider-using-with
         self.tempdir = tempfile.TemporaryDirectory()
         os.environ['music_folder_path'] = self.tempdir.name
         Path(self.tempdir.name, 'one.mp3').touch()

@@ -14,7 +14,6 @@ class InferGenreFromAlbumArtistRule(TagRule):
     """
 
     def __init__(self, helper=None):
-        # pylint: disable=import-outside-toplevel
         from services.common.Helpers.Cache import databaseHelpers
         self.labelGenreHelper = helper or databaseHelpers.get('labelGenreHelper') or LookupTableHelper('rules_label_genre', 'label', 'genre')
 

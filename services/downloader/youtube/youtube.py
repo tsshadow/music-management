@@ -6,14 +6,13 @@ import time
 from typing import Optional
 from yt_dlp import YoutubeDL
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
-from services.common.api.config_store import ConfigStore
+from services.common.config_store import ConfigStore
 from services.downloader.youtube.YoutubeArchive import YoutubeArchive
 from services.downloader.youtube.YoutubeSongProcessor import YoutubeSongProcessor
 
-
 class YoutubeDownloader:
 
-    def __init__(self, break_on_existing: bool = True, **kwargs):
+    def __init__(self, break_on_existing: bool=True, **kwargs):
         """
         Initializes the YoutubeDownloader instance with configuration settings.
 
@@ -27,31 +26,13 @@ class YoutubeDownloader:
                 socket_timeout (int): Timeout value (in seconds) for network connections.
         """
         self._config = ConfigStore()
-        values = self._config.get_many([
-            'youtube_folder', 'youtube_archive', 'ffmpeg_location',
-            'yt_cookies', 'yt_user_agent'
-        ])
-        self.downloader_config = {
-            'output_folder': values.get('youtube_folder'),
-            'archive_dir': values.get('youtube_archive'),
-            'ffmpeg_location': values.get('ffmpeg_location') or '/usr/bin',
-            'cookies_file': values.get('yt_cookies'),
-            'user_agent': values.get('yt_user_agent'),
-            'enabled': False
-        }
-
-        self.batch_settings = {
-            'max_workers': kwargs.get('max_workers', 1),
-            'burst_size': kwargs.get('burst_size', 10),
-            'min_pause': kwargs.get('min_pause', 1),
-            'max_pause': kwargs.get('max_pause', 5),
-            'socket_timeout': kwargs.get('socket_timeout', 30)
-        }
+        values = self._config.get_many(['youtube_folder', 'youtube_archive', 'ffmpeg_location', 'yt_cookies', 'yt_user_agent'])
+        self.downloader_config = {'output_folder': values.get('youtube_folder'), 'archive_dir': values.get('youtube_archive'), 'ffmpeg_location': values.get('ffmpeg_location') or '/usr/bin', 'cookies_file': values.get('yt_cookies'), 'user_agent': values.get('yt_user_agent'), 'enabled': False}
+        self.batch_settings = {'max_workers': kwargs.get('max_workers', 1), 'burst_size': kwargs.get('burst_size', 10), 'min_pause': kwargs.get('min_pause', 1), 'max_pause': kwargs.get('max_pause', 5), 'socket_timeout': kwargs.get('socket_timeout', 30)}
         self.default_break_on_existing = break_on_existing
         self.redownload_mode = False
         if not self.downloader_config['output_folder'] or not self.downloader_config['archive_dir']:
-            logging.warning(
-                'Missing required configuration for youtube_folder or youtube_archive. YouTube downloads will be disabled.')
+            logging.warning('Missing required configuration for youtube_folder or youtube_archive. YouTube downloads will be disabled.')
             self.downloader_config['output_folder'] = None
             self.downloader_config['archive_dir'] = None
             self.downloader_config['enabled'] = False
@@ -62,25 +43,7 @@ class YoutubeDownloader:
         if not self.downloader_config['enabled']:
             self._base_ydl_opts = {}
             return
-        self._base_ydl_opts = {'outtmpl': f"{self.downloader_config['output_folder']}/%(uploader)s/%(title)s.%(ext)s",
-                               'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'm4a'},
-                                                  {'key': 'EmbedThumbnail'}, {'key': 'FFmpegMetadata'}],
-                               'compat_opts': ['filename'], 'nooverwrites': True, 'keepvideo': False,
-                               'ffmpeg_location': self.downloader_config['ffmpeg_location'], 'match_filter': self._match_filter,
-                               'ignoreerrors': True,
-                               'socket_timeout': self.batch_settings['socket_timeout'],
-                               'sleep_interval': 10,
-                               'max_sleep_interval': 60,
-                               'sleep_requests': 1,
-                               'ratelimit': 1024 * 1024,  # Limit to 1MB/s
-                               'playlist_random': True,
-                               'http_chunk_size': 10 * 1024 * 1024,  # 10MB chunks (YouTube throttling bypass)
-                               'extractor_args': {
-                                   'youtubetab': {
-                                       'skip': ['authcheck'],
-                                   }
-                               }
-                               }
+        self._base_ydl_opts = {'outtmpl': f"{self.downloader_config['output_folder']}/%(uploader)s/%(title)s.%(ext)s", 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'm4a'}, {'key': 'EmbedThumbnail'}, {'key': 'FFmpegMetadata'}], 'compat_opts': ['filename'], 'nooverwrites': True, 'keepvideo': False, 'ffmpeg_location': self.downloader_config['ffmpeg_location'], 'match_filter': self._match_filter, 'ignoreerrors': True, 'socket_timeout': self.batch_settings['socket_timeout'], 'sleep_interval': 10, 'max_sleep_interval': 60, 'sleep_requests': 1, 'ratelimit': 1024 * 1024, 'playlist_random': True, 'http_chunk_size': 10 * 1024 * 1024, 'extractor_args': {'youtubetab': {'skip': ['authcheck']}}}
         self._base_ydl_opts.update(self._cookie_options())
         if self.downloader_config['user_agent']:
             self._base_ydl_opts['user_agent'] = self.downloader_config['user_agent']
@@ -106,14 +69,12 @@ class YoutubeDownloader:
                 logging.info(f'Using cookies.txt from YT_COOKIES: {cookies_file}')
                 opts['cookies'] = cookies_file
                 return opts
-            logging.warning(
-                f'YT_COOKIES is set but file not found: {cookies_file}. Falling back to cookiesfrombrowser=firefox.')
-
+            logging.warning(f'YT_COOKIES is set but file not found: {cookies_file}. Falling back to cookiesfrombrowser=firefox.')
         opts['cookiesfrombrowser'] = ('firefox',)
         logging.info('Using cookiesfrombrowser=firefox (no YT_COOKIES file).')
         return opts
 
-    def _build_ydl_opts(self, archive_file: str, break_on_existing: bool = True, redownload: bool = False) -> dict:
+    def _build_ydl_opts(self, archive_file: str, break_on_existing: bool=True, redownload: bool=False) -> dict:
         """
         Constructs yt-dlp options based on the given download requirements.
 
@@ -127,8 +88,7 @@ class YoutubeDownloader:
         """
         opts = {**self._base_ydl_opts}
         if 'postprocessors' in self._base_ydl_opts:
-            opts['postprocessors'] = [pp.copy() if isinstance(pp, dict) else pp for pp in
-                                      self._base_ydl_opts['postprocessors']]
+            opts['postprocessors'] = [pp.copy() if isinstance(pp, dict) else pp for pp in self._base_ydl_opts['postprocessors']]
         if not redownload:
             opts['download_archive'] = archive_file
         else:
@@ -168,17 +128,14 @@ class YoutubeDownloader:
         if not duration or duration < 60 or duration > 21600:
             logging.info(f"Skipping video '{title}' (duration: {duration}s)")
             return 'Outside allowed duration range'
-
-        # Check if already in database archive to avoid downloading
         account = info.get('uploader_id') or info.get('channel_id') or info.get('uploader') or info.get('channel')
         video_id = info.get('id')
         if not self.redownload_mode and account and video_id and YoutubeArchive.exists(account, video_id):
             logging.info(f"Skipping video '{title}' (already in database archive)")
             return 'Already in database archive'
-
         return None
 
-    def download_account(self, name: str, ydl_opts: dict = None):
+    def download_account(self, name: str, ydl_opts: dict=None):
         """
         Downloads videos from a specific YouTube account.
 
@@ -195,8 +152,7 @@ class YoutubeDownloader:
             try:
                 opts = dict(opts_template)
                 if 'postprocessors' in opts_template:
-                    opts['postprocessors'] = [pp.copy() if isinstance(pp, dict) else pp for pp in
-                                              opts_template['postprocessors']]
+                    opts['postprocessors'] = [pp.copy() if isinstance(pp, dict) else pp for pp in opts_template['postprocessors']]
                 with self._create_ydl(opts) as ydl:
                     logging.info(f'Downloading from account: {name} ({link})')
                     ydl.download([link])
@@ -227,7 +183,7 @@ class YoutubeDownloader:
                     time.sleep(5 * attempt)
         logging.error(f'YouTube download failed for {name} after 3 attempts.')
 
-    def download_link(self, url: str, breakOnExisting: bool = True, redownload: bool = False):
+    def download_link(self, url: str, breakOnExisting: bool=True, redownload: bool=False):
         """
         Download a single video using a direct URL.
 
@@ -266,22 +222,17 @@ class YoutubeDownloader:
             logging.error(f'Failed to fetch Youtube accounts from DB: {e}')
             return []
 
-    def run(self, break_on_existing_arg: Optional[bool] = None, redownload: bool = False, account: str = ''):
+    def run(self, break_on_existing_arg: Optional[bool]=None, redownload: bool=False, account: str=''):
         if not getattr(self, 'downloader_config', {}).get('enabled', True):
             logging.warning('YouTube downloader is not configured; skipping run().')
             return
-
         self.redownload_mode = redownload
-
-        # Defensive: initial wait up to 1 minute
         init_wait = random.randint(5, 60)
         logging.info(f'Defensive start: waiting {init_wait}s before first download...')
         time.sleep(init_wait)
-
         accounts = self._get_accounts(account)
         if not accounts:
             return
-
         total_accounts = len(accounts)
         burst_size = self.batch_settings['burst_size']
         total_batches = (total_accounts + burst_size - 1) // burst_size
@@ -290,7 +241,6 @@ class YoutubeDownloader:
             batch_index = i // burst_size + 1
             logging.info('Processing YouTube batch %s of %s', batch_index, total_batches)
             self._process_batch(batch, break_on_existing_arg, redownload)
-
             if i + burst_size < total_accounts:
                 self._throttle()
 
@@ -325,8 +275,7 @@ class YoutubeDownloader:
     def _prepare_ydl_opts(self, acc, break_on_existing_arg, redownload):
         account_archive = os.path.join(self.downloader_config['archive_dir'], f'{acc}.txt')
         effective_break = self.default_break_on_existing if break_on_existing_arg is None else break_on_existing_arg
-        return self._build_ydl_opts(account_archive, break_on_existing=effective_break,
-                                    redownload=redownload)
+        return self._build_ydl_opts(account_archive, break_on_existing=effective_break, redownload=redownload)
 
     def _throttle(self):
         pause = random.randint(self.batch_settings['min_pause'], self.batch_settings['max_pause'])

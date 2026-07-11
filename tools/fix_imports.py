@@ -89,6 +89,15 @@ MODULE_MAP = {
     "analyzer.api.router": "services.analyzer_service.analyzer.api.router",
     "analyzer.jobs.queue": "services.analyzer_service.analyzer.jobs.queue",
     "analyzer.ingestion.filesystem": "services.analyzer_service.analyzer.ingestion.filesystem",
+
+    # services.common.api.* -> services.common.*
+    "services.common.api.config_store": "services.common.config_store",
+    "services.common.api.version_helper": "services.common.version_helper",
+    "services.common.api.db_init": "services.common.db_init",
+    "services.common.api.job_manager": "services.common.job_manager",
+    "services.common.api.step": "services.common.step",
+    "services.common.api.run_tagger": "services.tagger.run_tagger",
+    "services.common.api.jobs": "services.music_manager.routers.jobs",
 }
 
 

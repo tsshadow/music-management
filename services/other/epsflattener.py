@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 import shutil
 from concurrent.futures import ThreadPoolExecutor
-from services.common.settings import Settings
+from services.common.config_store import ConfigStore as Settings
 
 class EpsFlattener:
 
@@ -45,7 +45,7 @@ class EpsFlattener:
             logging.error(f'Error while processing {subdir}: {e}')
 
     def run(self):
-        logging.info('Starting EPS flattener... %s', ('(dry run)' if self.dry_run else ''))
+        logging.info('Starting EPS flattener... %s', '(dry run)' if self.dry_run else '')
         work = []
         for dirpath, dirnames, _ in os.walk(self.eps_root):
             dirnames[:] = [d for d in dirnames if d.lower() != '@eadir']

@@ -1,6 +1,13 @@
 # Release Notes - LMS 3.82.9
 
-## Version 3.82.9 (2026-07-05)
+## Version 3.82.9 (2026-07-11)
+### 🎨 Major UI Migration & Refactoring
+- **New Svelte UI**: Successfully migrated the web interface to a modern Svelte-based architecture, now located in `src/lms/ui`.
+- **Legacy UI Removal**: Retired the old Wt-based interface for better performance and a cleaner codebase.
+- **Refactored MuMa Core**: Improved modularity by refactoring the MuMa module into a standalone static library.
+- **Build System Updates**: Optimized Docker builds and deployment scripts for the new UI structure.
+
+## v3.82.9 (2026-07-05)
 ### 🔗 MuMa Integration & UI Enhancements
 - **MuMa Resource API**: Integrated a new `/muma` API endpoint for seamless communication with the MuMa Control Center. This enables centralized authentication and cross-app settings synchronization.
 - **Smart Playlist Migration**: Migrated all dynamic playlist logic to the MuMa core. LMS now acts as a dedicated playback engine while offloading complex playlist rules to the management layer.

@@ -4,7 +4,14 @@
     "date": "2026-07-11",
     "notes": {
       "Added": [
-        "New version started."
+        "Major UI Migration: Successfully moved the MuMa Spotify interface to a modern Svelte-based architecture.",
+        "Refactored MuMa Core: Improved modularity by refactoring the MuMa module into a standalone static library."
+      ],
+      "Changed": [
+        "Optimized build and deployment scripts for the new UI structure."
+      ],
+      "Removed": [
+        "Retired the legacy Wt-based web interface."
       ]
     }
   },

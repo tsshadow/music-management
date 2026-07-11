@@ -11,6 +11,7 @@ from yt_dlp.postprocessor import FFmpegMetadataPP, EmbedThumbnailPP
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.api.config_store import ConfigStore
 from services.common.api.jobs import job_manager
+from services.downloader.soundcloud.SoundcloudArchive import SoundcloudArchive
 from .SoundcloudSongProcessor import SoundcloudSongProcessor
 
 
@@ -40,6 +41,7 @@ class SoundcloudDownloader:
     def __init__(self, break_on_existing=True, **kwargs):
         self._config = ConfigStore()
         self.default_break_on_existing = break_on_existing
+        self.redownload_mode = False
         self.batch_settings = {
             'max_workers': kwargs.get('max_workers', 1),
             'burst_size': kwargs.get('burst_size', 10),
@@ -57,46 +59,61 @@ class SoundcloudDownloader:
         if not duration or duration < 60 or duration > 21600:
             logging.info(f"Skipping track '{title}' (duration: {duration}s)")
             return 'Outside allowed duration range'
+
+        # Check if already in database archive to avoid downloading
+        account_id = info.get('channel_id') or info.get('uploader_id')
+        video_id = info.get('id')
+        if not self.redownload_mode and account_id and video_id and SoundcloudArchive.exists(account_id, video_id):
+            logging.info(f"Skipping track '{title}' (already in database archive)")
+            return 'Already in database archive'
+
         return None
 
     def download_account(self, name: str, yt_dl_opts: dict=None):
         link = f'http://soundcloud.com/{name}/tracks'
         logging.info(f'Downloading from SoundCloud account: {name}')
+        self.download_url(link, yt_dl_opts)
+        logging.info(f'Finished downloading from: {name}')
+
+    def download_url(self, url: str, yt_dl_opts: dict=None):
+        """
+        Download tracks from a specific SoundCloud URL (account, playlist, or single track).
+        """
         for attempt in range(1, 4):
             try:
                 with YoutubeDL(yt_dl_opts) as ydl:
                     ydl.add_post_processor(FFmpegMetadataPP(ydl))
                     ydl.add_post_processor(EmbedThumbnailPP(ydl))
                     ydl.add_post_processor(SoundcloudSongProcessor())
-                    ydl.download([link])
-                logging.info(f'Finished downloading from: {name}')
+                    ydl.download([url])
                 return
             except Exception as e:
                 msg = str(e)
                 if '429' in msg:
                     wait_time = random.randint(3600, 7200)
-                    logging.warning(f'HTTP Error 429: Too Many Requests for {name}. Extremely long pause for {wait_time}s...')
+                    logging.warning(f'HTTP Error 429: Too Many Requests for {url}. Extremely long pause for {wait_time}s...')
                     time.sleep(wait_time)
                 elif '403' in msg:
                     wait_time = random.randint(60, 600)
-                    logging.warning(f'403 Forbidden for {name}. Pausing {wait_time}s before retry...')
+                    logging.warning(f'403 Forbidden for {url}. Pausing {wait_time}s before retry...')
                     time.sleep(wait_time)
                 elif '404' in msg:
-                    logging.info(f'Got 404 for {name} — skip song.')
+                    logging.info(f'Got 404 for {url} — skip.')
+                    return
                 elif 'already in the archive' in msg:
-                    wait_time = random.randint(10, 30)
-                    logging.info(f'All tracks for {name} already in archive — skipping.')
-                    time.sleep(wait_time)
+                    logging.info(f'Track for {url} already in archive — skipping.')
                     return
                 else:
-                    logging.warning(f'Attempt {attempt} failed for {name}: {e}', exc_info=True)
+                    logging.warning(f'Attempt {attempt} failed for {url}: {e}', exc_info=True)
                     time.sleep(5 * attempt)
-        logging.error(f'SoundCloud download failed for {name} after 3 attempts.')
+        logging.error(f'SoundCloud download failed for {url} after 3 attempts.')
 
     def run(self, account: str='', break_on_existing_arg: Optional[bool]=None, redownload: bool=False):
         if not getattr(self, 'downloader_config', {}).get('enabled', True):
             logging.warning('SoundCloud soundcloud is not configured; skipping run().')
             return
+        
+        self.redownload_mode = redownload
 
         # Defensive: initial wait up to 1 minute
         init_wait = random.randint(5, 60)
@@ -207,6 +224,7 @@ class SoundcloudDownloader:
             'format': 'bestaudio[ext=mp3]',
             'match_filter': self._match_filter,
             'quiet': False,
+            'ignoreerrors': True,
             'set_file_timestamp': True,
             'ffmpeg_location': self.downloader_config['ffmpeg_location'],
             'sleep_interval': 10,

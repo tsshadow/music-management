@@ -62,9 +62,10 @@ def parse_args() -> argparse.Namespace:
 
 
 class DownloaderService:
-    def __init__(self) -> None:
+    def __init__(self, start_api: bool = False) -> None:
         self.settings = Settings()
-        start_api_server()
+        if start_api:
+            start_api_server()
 
     def download(self, source: str, account: str | None, break_on_existing: bool) -> None:
         if source == "youtube":
@@ -108,7 +109,7 @@ def main() -> None:
     )
 
     args = parse_args()
-    downloader_service = DownloaderService()
+    downloader_service = DownloaderService(start_api=True)
 
     if args.step:
         steps = {s.strip() for s in args.step.split(",") if s.strip()}

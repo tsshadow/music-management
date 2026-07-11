@@ -11,7 +11,7 @@ cd "$ROOT_DIR"
 
 # Application-specific configuration
 PROJECT_NAME="Music Management"
-AVAILABLE_APPS=("ml" "tools" "manager" "scanner" "tagger" "downloader" "telegram" "importer")
+AVAILABLE_APPS=("ml" "tools" "manager" "downloader" "telegram" "importer")
 
 show_help() {
     echo "MuMaFi $PROJECT_NAME Install Script"

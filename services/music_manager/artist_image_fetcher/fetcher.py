@@ -203,7 +203,7 @@ class ArtistImageFetcher:
 
     def _update_artist_image_status(self, artist_id, status):
         with self.db_conn.cursor() as cursor:
-            cursor.execute("UPDATE library_artists SET image_status = %s WHERE id = %s", (status, artist_id))
+            cursor.execute("UPDATE library_artists SET image_status = %s, image_updated_at = NOW() WHERE id = %s", (status, artist_id))
         self.db_conn.commit()
 
     def _update_manifest(self, artist_id, artist_name, candidate, meta):

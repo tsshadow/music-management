@@ -7,6 +7,7 @@ from typing import Optional
 from yt_dlp import YoutubeDL
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.api.config_store import ConfigStore
+from services.downloader.youtube.YoutubeArchive import YoutubeArchive
 from services.downloader.youtube.YoutubeSongProcessor import YoutubeSongProcessor
 
 
@@ -47,6 +48,7 @@ class YoutubeDownloader:
             'socket_timeout': kwargs.get('socket_timeout', 30)
         }
         self.default_break_on_existing = break_on_existing
+        self.redownload_mode = False
         if not self.downloader_config['output_folder'] or not self.downloader_config['archive_dir']:
             logging.warning(
                 'Missing required configuration for youtube_folder or youtube_archive. YouTube downloads will be disabled.')
@@ -65,6 +67,7 @@ class YoutubeDownloader:
                                                   {'key': 'EmbedThumbnail'}, {'key': 'FFmpegMetadata'}],
                                'compat_opts': ['filename'], 'nooverwrites': True, 'keepvideo': False,
                                'ffmpeg_location': self.downloader_config['ffmpeg_location'], 'match_filter': self._match_filter,
+                               'ignoreerrors': True,
                                'socket_timeout': self.batch_settings['socket_timeout'],
                                'sleep_interval': 10,
                                'max_sleep_interval': 60,
@@ -165,6 +168,14 @@ class YoutubeDownloader:
         if not duration or duration < 60 or duration > 21600:
             logging.info(f"Skipping video '{title}' (duration: {duration}s)")
             return 'Outside allowed duration range'
+
+        # Check if already in database archive to avoid downloading
+        account = info.get('uploader_id') or info.get('channel_id') or info.get('uploader') or info.get('channel')
+        video_id = info.get('id')
+        if not self.redownload_mode and account and video_id and YoutubeArchive.exists(account, video_id):
+            logging.info(f"Skipping video '{title}' (already in database archive)")
+            return 'Already in database archive'
+
         return None
 
     def download_account(self, name: str, ydl_opts: dict = None):
@@ -227,6 +238,7 @@ class YoutubeDownloader:
 
         Logs errors if the download fails.
         """
+        self.redownload_mode = redownload
         archive_file = os.path.join(self.downloader_config['archive_dir'], 'manual.txt')
         try:
             opts = self._build_ydl_opts(archive_file, break_on_existing=breakOnExisting, redownload=redownload)
@@ -258,6 +270,8 @@ class YoutubeDownloader:
         if not getattr(self, 'downloader_config', {}).get('enabled', True):
             logging.warning('YouTube downloader is not configured; skipping run().')
             return
+
+        self.redownload_mode = redownload
 
         # Defensive: initial wait up to 1 minute
         init_wait = random.randint(5, 60)

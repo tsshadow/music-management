@@ -59,8 +59,6 @@ IMAGE_CORE="music-manager"
 IMAGE_TOOLS="${IMAGE_TOOLS}"
 IMAGE_APP="${IMAGE_APP}"
 IMAGE_BASE="${IMAGE_BASE}"
-IMAGE_SCANNER="${IMAGE_SCANNER}"
-IMAGE_TAGGER="${IMAGE_TAGGER}"
 IMAGE_DOWNLOADER="${IMAGE_DOWNLOADER}"
 IMAGE_TELEGRAM="${IMAGE_TELEGRAM}"
 IMAGE_IMPORTER="${IMAGE_IMPORTER}"
@@ -72,24 +70,14 @@ if [ "$REMOTE_MODE" = true ] || [ "$SEMI_REMOTE_MODE" = true ]; then
     export DOCKER_FLAGS="--network host"
 fi
 
-if [ "$REMOTE_MODE" = true ]; then
-    echo "--- Remote build mode enabled ---"
-    DOCKER_CMD="docker -c remote-lxc"
-fi
+#if [ "$REMOTE_MODE" = true ]; then
+#    echo "--- Remote build mode enabled ---"
+#    DOCKER_CMD="docker -c remote-lxc"
+#fi
 
 build_base() {
     echo "--- Building Base Image ($VERSION) ---"
     $DOCKER_CMD build $DOCKER_FLAGS -t "${DOCKER_USER}/${IMAGE_BASE}:latest" -t "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}" -f docker/Dockerfile.base .
-}
-
-build_scanner() {
-    echo "--- Building Scanner ($VERSION) ---"
-    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_SCANNER}:latest" -t "${DOCKER_USER}/${IMAGE_SCANNER}:${VERSION}" -f docker/Dockerfile.scanner .
-}
-
-build_tagger() {
-    echo "--- Building Tagger ($VERSION) ---"
-    $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_TAGGER}:latest" -t "${DOCKER_USER}/${IMAGE_TAGGER}:${VERSION}" -f docker/Dockerfile.tagger .
 }
 
 build_downloader() {
@@ -178,8 +166,6 @@ if [ ${#REQUESTED_MODULES[@]} -eq 0 ]; then
     build_base
     
     build_manager &
-    build_scanner &
-    build_tagger &
     build_downloader &
     build_telegram &
     build_importer &
@@ -191,7 +177,7 @@ else
     NEED_BASE=false
     for arg in "${REQUESTED_MODULES[@]}"; do
         case $arg in
-            scanner|tagger|downloader|telegram|importer|base) NEED_BASE=true ;;
+            downloader|telegram|importer|base) NEED_BASE=true ;;
         esac
     done
     
@@ -204,8 +190,6 @@ else
             ml) build_ml & ;;
             tools) build_tools & ;;
             manager|music-manager) build_manager & ;;
-            scanner) build_scanner & ;;
-            tagger) build_tagger & ;;
             downloader) build_downloader & ;;
             telegram) build_telegram & ;;
             importer) build_importer & ;;

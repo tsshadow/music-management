@@ -42,6 +42,7 @@ class Tagger:
 
     def __init__(self):
         self.parallel = True
+        self.stop_requested = False
         processed_files_helper.create_table()
 
     def run(self, parse_labels=True, parse_soundcloud=True, parse_youtube=True, parse_generic=True, parse_telegram=True):
@@ -49,17 +50,21 @@ class Tagger:
         Entrypoint for the tagging process.
         Scans various music directories (library_labels, YouTube, SoundCloud, generic) and applies appropriate tag parsing.
         """
+        self.stop_requested = False
         logging.info('Starting Tag Step with options: %s, %s, %s, %s, %s', parse_labels, parse_soundcloud, parse_youtube, parse_generic, parse_telegram)
-        if parse_labels:
+        if parse_labels and not self.stop_requested:
             self._parse_label_folders()
-        if parse_soundcloud:
+        if parse_soundcloud and not self.stop_requested:
             self._parse_channel_folders('Soundcloud', SongTypeEnum.SOUNDCLOUD)
-        if parse_youtube:
+        if parse_youtube and not self.stop_requested:
             self._parse_channel_folders('Youtube', SongTypeEnum.YOUTUBE)
-        if parse_telegram:
+        if parse_telegram and not self.stop_requested:
             self._parse_channel_folders('Telegram', SongTypeEnum.TELEGRAM)
-        if parse_generic:
+        if parse_generic and not self.stop_requested:
             self._parse_generic_folders()
+        
+        if self.stop_requested:
+            logging.info('Tagging process was interrupted by user')
 
     def _parse_label_folders(self):
         """
@@ -68,6 +73,8 @@ class Tagger:
         eps_root = Path(s.eps_folder_path)
         label_folders = sorted([f for f in eps_root.iterdir() if f.is_dir()])
         for label in label_folders:
+            if self.stop_requested:
+                break
             song_type = SongTypeEnum.LABEL if not label.name.startswith('_') else SongTypeEnum.GENERIC
             print(label)
             self.parse_folder(label, song_type)
@@ -84,6 +91,8 @@ class Tagger:
             logging.warning(f"Folder '{root}' does not exist, skipping.")
             return
         for channel in sorted([f for f in root.iterdir() if f.is_dir()]):
+            if self.stop_requested:
+                break
             self.parse_folder(channel, song_type)
 
     def _parse_generic_folders(self):
@@ -93,10 +102,14 @@ class Tagger:
         generic_folders = ['Livesets', 'Podcasts', 'Top 100', 'Warm Up Mixes']
         music_root = Path(s.music_folder_path)
         for folder_name in generic_folders:
+            if self.stop_requested:
+                break
             root_path = music_root / folder_name
             if not root_path.exists():
                 continue
             for subfolder in [f for f in root_path.iterdir() if f.is_dir()]:
+                if self.stop_requested:
+                    break
                 self.parse_folder(subfolder, SongTypeEnum.GENERIC)
 
     def parse_folder(self, folder: Path, song_type: SongTypeEnum, extra_info=None):
@@ -107,6 +120,9 @@ class Tagger:
         @param song_type: Enum to define tag strategy
         @param extra_info:
         """
+        if self.stop_requested:
+            return
+
         if folder.is_file():
             self._try_parse(folder, song_type, extra_info)
             return
@@ -123,13 +139,24 @@ class Tagger:
                 with ThreadPoolExecutor(max_workers=16) as executor:
                     futures = [executor.submit(Tagger._parse_worker, str(file), song_type.name, None, extra_info) for file in files]
                     for future in as_completed(futures):
+                        if self.stop_requested:
+                            executor.shutdown(wait=False, cancel_futures=True)
+                            break
                         _, status = future.result()
-                        if status != 'OK':
-                            logging.warning(f'Error: {status}')
+                        # if status != 'OK':
+                        #     logging.warning(f'Error: {status}')
             else:
                 for file in files:
+                    if self.stop_requested:
+                        break
                     self._try_parse(file, song_type, extra_info)
+            
+            if self.stop_requested:
+                return
+
             for subfolder in [f for f in folder.iterdir() if f.is_dir() and (not f.name.startswith('_'))]:
+                if self.stop_requested:
+                    break
                 self.parse_folder(subfolder, song_type, extra_info)
         except Exception as e:
             logging.error(f'Error parsing folder {folder}: {e}', exc_info=True)
@@ -191,3 +218,63 @@ class Tagger:
             return (file, 'OK')
         except Exception as e:
             return (file, f'{type(e).__name__}: {e}')
+
+def TagSingleFile(path: str | Path, extra_info=None):
+    print('Tagging single file"', path)
+    """
+    Automatically detects the source type of a music file based on its location
+    and applies the appropriate tagging rules (SoundCloud, YouTube, Label, etc).
+
+    @param path: Absolute or relative path to the music file.
+    @param extra_info: Optional metadata dictionary (e.g., from downloader).
+    """
+    if isinstance(path, str):
+        path = Path(path)
+
+    # Use resolve() to handle relative paths and ensure consistent comparison
+    try:
+        path_obj = path.resolve()
+    except (FileNotFoundError, RuntimeError):
+        path_obj = path.absolute()
+
+    settings = Settings()
+    eps_root = Path(settings.eps_folder_path).resolve()
+    music_root = Path(settings.music_folder_path).resolve()
+
+    song_type = SongTypeEnum.GENERIC
+
+    try:
+        path_str = str(path_obj)
+        if path_str.startswith(str(eps_root)):
+            # If it's under EPS root, check if the top-level folder is generic (starts with _)
+            relative = path_obj.relative_to(eps_root)
+            if relative.parts and not relative.parts[0].startswith('_'):
+                song_type = SongTypeEnum.LABEL
+        elif path_str.startswith(str(music_root / 'Soundcloud')):
+            song_type = SongTypeEnum.SOUNDCLOUD
+        elif path_str.startswith(str(music_root / 'Youtube')):
+            song_type = SongTypeEnum.YOUTUBE
+        elif path_str.startswith(str(music_root / 'Telegram')):
+            song_type = SongTypeEnum.TELEGRAM
+        else:
+            # Check other known generic subfolders under music_root
+            generic_subfolders = ['Livesets', 'Podcasts', 'Top 100', 'Warm Up Mixes']
+            for gf in generic_subfolders:
+                if path_str.startswith(str(music_root / gf)):
+                    song_type = SongTypeEnum.GENERIC
+                    break
+    except (ValueError, RuntimeError):
+        # Fallback to GENERIC if path comparison fails
+        pass
+
+    logging.info("Auto-detected song type for '%s': %s", path_obj, song_type.name)
+    song = Tagger.parse_song(path_obj, song_type, extra_info=extra_info)
+    
+    # Mark as processed to clear needs_rescan flag and update mtime
+    try:
+        mtime = path_obj.stat().st_mtime
+        processed_files_helper.mark_processed(str(path_obj), mtime)
+    except Exception as e:
+        logging.error(f"Failed to mark file as processed after tagging: {e}")
+        
+    return song

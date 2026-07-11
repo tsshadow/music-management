@@ -9,8 +9,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 
 from services.music_manager.database import get_db_connection
-from services.music_manager.routers import users, scrobbler, rating, stats, management, artist_images, notifications
+from services.music_manager.routers import users, scrobbler, rating, stats, management, artist_images, notifications, library, tagger, scanner
 from services.music_manager.routers.users import run_lms_db_sync
+from services.music_manager.routers.tagger import run_tagger_loop
+from services.music_manager.routers.scanner import run_scanner_loop
 from services.music_manager.ntfy_listener import start_ntfy_listener
 
 load_dotenv()
@@ -34,7 +36,10 @@ app.include_router(rating.router)
 app.include_router(stats.router)
 app.include_router(management.router)
 app.include_router(artist_images.router)
+app.include_router(library.router)
 app.include_router(notifications.router)
+app.include_router(tagger.router)
+app.include_router(scanner.router)
 
 @app.on_event("startup")
 def startup_event():
@@ -57,6 +62,11 @@ def startup_event():
 
     # Start LMS sync in background
     threading.Thread(target=run_lms_db_sync, daemon=True).start()
+    
+    # Start Tagger and Scanner loops in background
+    threading.Thread(target=run_tagger_loop, args=(int(os.getenv("TAGGER_SLEEPTIME", "300")),), daemon=True).start()
+    threading.Thread(target=run_scanner_loop, args=(int(os.getenv("SCANNER_SLEEPTIME", "3600")),), daemon=True).start()
+    
     start_ntfy_listener()
 
 @app.get("/health")

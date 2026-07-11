@@ -112,8 +112,6 @@ IMAGE_CORE="music-manager"
 IMAGE_TOOLS="${IMAGE_TOOLS}"
 IMAGE_APP="${IMAGE_APP}"
 IMAGE_BASE="${IMAGE_BASE}"
-IMAGE_SCANNER="${IMAGE_SCANNER}"
-IMAGE_TAGGER="${IMAGE_TAGGER}"
 IMAGE_DOWNLOADER="${IMAGE_DOWNLOADER}"
 IMAGE_TELEGRAM="${IMAGE_TELEGRAM}"
 IMAGE_IMPORTER="${IMAGE_IMPORTER}"
@@ -132,17 +130,6 @@ push_base() {
     $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}"
 }
 
-push_scanner() {
-    echo "--- Pushing Scanner ($VERSION) ---"
-    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_SCANNER}:latest"
-    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_SCANNER}:${VERSION}"
-}
-
-push_tagger() {
-    echo "--- Pushing Tagger ($VERSION) ---"
-    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_TAGGER}:latest"
-    $DOCKER_CMD push "${DOCKER_USER}/${IMAGE_TAGGER}:${VERSION}"
-}
 
 push_downloader() {
     echo "--- Pushing Downloader ($VERSION) ---"
@@ -204,8 +191,6 @@ if [ ${#REQUESTED_MODULES[@]} -eq 0 ]; then
     push_tools &
     push_manager &
     push_base &
-    push_scanner &
-    push_tagger &
     push_downloader &
     push_telegram &
     push_importer &
@@ -217,8 +202,6 @@ else
             ml) push_ml & ;;
             tools) push_tools & ;;
             manager|music-manager) push_manager & ;;
-            scanner) push_scanner & ;;
-            tagger) push_tagger & ;;
             downloader) push_downloader & ;;
             telegram) push_telegram & ;;
             importer) push_importer & ;;

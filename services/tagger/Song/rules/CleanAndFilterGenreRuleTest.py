@@ -22,6 +22,5 @@ class CleanAndFilterGenreRuleTest(unittest.TestCase):
         rule = CleanAndFilterGenreRule(helper, backlog_helper, ignored_helper)
         rule.apply(song)
         tag.set.assert_called_once_with(['Hardstyle', 'Rawstyle'])
-
 if __name__ == '__main__':
     unittest.main()

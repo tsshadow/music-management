@@ -14,14 +14,7 @@ class ProcessedFilesHelper:
 
     def create_table(self):
         """Creates the table if it doesn't exist."""
-        query = f"""
-            CREATE TABLE IF NOT EXISTS {self.table_name} (
-                filepath VARCHAR(767) PRIMARY KEY,
-                mtime FLOAT,
-                last_processed TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                needs_rescan BOOLEAN DEFAULT FALSE
-            )
-        """
+        query = f'\n            CREATE TABLE IF NOT EXISTS {self.table_name} (\n                filepath VARCHAR(767) PRIMARY KEY,\n                mtime FLOAT,\n                last_processed TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n                needs_rescan BOOLEAN DEFAULT FALSE\n            )\n        '
         connection = self.db_connector.connect()
         try:
             with connection.cursor() as cursor:
@@ -46,26 +39,19 @@ class ProcessedFilesHelper:
                 result = cursor.fetchone()
                 if not result:
                     return True
-                
                 db_mtime, needs_rescan = result
                 if needs_rescan:
                     return True
-                
-                # Use a small epsilon for float comparison if necessary, but mtime is usually exact
                 return mtime > db_mtime
         except Exception as e:
             logging.error(f'Error checking if song needs processing: {e}')
-            return True # Default to True on error to be safe
+            return True
         finally:
             connection.close()
 
     def mark_processed(self, song_path: str, mtime: float):
         """Marks a song as processed in the database."""
-        query = f"""
-            INSERT INTO {self.table_name} (filepath, mtime, needs_rescan)
-            VALUES (%s, %s, FALSE)
-            ON DUPLICATE KEY UPDATE mtime = VALUES(mtime), needs_rescan = FALSE
-        """
+        query = f'\n            INSERT INTO {self.table_name} (filepath, mtime, needs_rescan)\n            VALUES (%s, %s, FALSE)\n            ON DUPLICATE KEY UPDATE mtime = VALUES(mtime), needs_rescan = FALSE\n        '
         connection = self.db_connector.connect()
         try:
             with connection.cursor() as cursor:
@@ -76,7 +62,7 @@ class ProcessedFilesHelper:
         finally:
             connection.close()
 
-    def mark_for_rescan(self, song_path: str = None):
+    def mark_for_rescan(self, song_path: str=None):
         """Marks one or all songs for rescan."""
         if song_path:
             query = f'UPDATE {self.table_name} SET needs_rescan = TRUE WHERE filepath = %s'
@@ -84,7 +70,6 @@ class ProcessedFilesHelper:
         else:
             query = f'UPDATE {self.table_name} SET needs_rescan = TRUE'
             args = None
-            
         connection = self.db_connector.connect()
         try:
             with connection.cursor() as cursor:

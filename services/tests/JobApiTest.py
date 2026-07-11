@@ -5,10 +5,9 @@ import importlib
 import sys
 sys.modules.pop('requests', None)
 requests = importlib.import_module('requests')
-# pylint: disable=wrong-import-position
-from services.common.api.step import Step
+from services.common.step import Step
 from services.common.api import start_api_server
-from services.common.api.job_manager import job_manager
+from services.common.job_manager import job_manager
 
 class JobApiTest(unittest.TestCase):
 
@@ -65,7 +64,6 @@ class JobApiTest(unittest.TestCase):
             server.server_close()
 
     def test_api_server_idempotency(self):
-        # Default port is 8001
         s1 = start_api_server(port=8001)
         try:
             s2 = start_api_server(port=8001)
@@ -74,7 +72,6 @@ class JobApiTest(unittest.TestCase):
             if s1:
                 s1.shutdown()
                 s1.server_close()
-            # Clear from global cache to not affect other tests if they use 8001
             from services.common.api import _servers
             _servers.pop(8001, None)
 if __name__ == '__main__':

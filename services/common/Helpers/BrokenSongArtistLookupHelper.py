@@ -29,13 +29,13 @@ class BrokenSongArtistLookupHelper:
             connection.close()
         return raw_name.strip().lower().replace(' ', '-')
 
-    def insert_if_missing(self, raw_name: str, normalized_name: str = ""):
+    def insert_if_missing(self, raw_name: str, normalized_name: str=''):
         """
         Inserts a raw artist name into the table if it doesn't already exist.
         The normalized_name will be left empty if not provided.
         """
         check_query = f'\n             SELECT 1 FROM {self.table_name}\n             WHERE LOWER(raw_name) = LOWER(%s)\n             LIMIT 1\n         '
-        insert_query = f"\n             INSERT INTO {self.table_name} (raw_name, normalized_name)\n             VALUES (%s, %s)\n         "
+        insert_query = f'\n             INSERT INTO {self.table_name} (raw_name, normalized_name)\n             VALUES (%s, %s)\n         '
         connection = self.db_connector.connect()
         try:
             with connection.cursor() as cursor:

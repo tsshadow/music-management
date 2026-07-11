@@ -4,9 +4,7 @@ import shutil
 from os import listdir
 from os.path import isfile, join
 import re
-
-from services.common.settings import Settings
-
+from services.common.config_store import ConfigStore as Settings
 
 def has_numbers(input_string):
     return any((char.isdigit() for char in input_string))
@@ -53,4 +51,3 @@ class Renamer:
                 except Exception as e:
                     error_msg = f"Failed to rename folder '{folder}': {e}"
                     logging.info(error_msg)
-                    # notification_service.notify(error_msg, title="Import Error")

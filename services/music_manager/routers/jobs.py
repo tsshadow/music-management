@@ -100,7 +100,7 @@ class JobManager:
     def recent(self) -> List[Dict[str, Any]]:
         return [self.results[jid] for jid in self.history]
 job_manager = JobManager()
-router = APIRouter()
+router = APIRouter(prefix='/jobs', tags=['jobs'])
 
 @router.websocket('/ws/jobs/{job_id}')
 async def job_updates(websocket: WebSocket, job_id: str):
@@ -110,3 +110,22 @@ async def job_updates(websocket: WebSocket, job_id: str):
             await websocket.receive_text()
     except WebSocketDisconnect:
         job_manager.disconnect(job_id, websocket)
+
+@router.post("/register/{job_id}")
+async def register_external_job(job_id: str, payload: Dict[str, Any]):
+    """Allow external workers to register their job status."""
+    job_manager.jobs[job_id] = payload
+    if payload.get('status') in ('finished', 'completed', 'done', 'failed', 'error'):
+        job_manager.results[job_id] = payload
+        if job_id not in job_manager.history:
+            job_manager.history.appendleft(job_id)
+    await job_manager._notify(job_id)
+    return {"status": "ok"}
+
+@router.get("/active")
+async def list_active_jobs():
+    return {"jobs": job_manager.jobs}
+
+@router.get("/history")
+async def list_job_history():
+    return {"history": job_manager.recent()}

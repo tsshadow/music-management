@@ -1,8 +1,6 @@
 import unittest
 from services.tests.mock_base import setup_mocks, reset_database_helpers
-
 setup_mocks()
-
 from services.downloader.soundcloud.SoundcloudArchive import SoundcloudArchive
 
 class SoundcloudArchiveTest(unittest.TestCase):

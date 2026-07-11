@@ -14,9 +14,6 @@ def ensure_tables_exist() -> None:
                     try:
                         cursor.execute(query)
                     except Exception as e:
-                        # If it's a permission error (1142) or similar, it might be because
-                        # the table/view already exists and we don't have CREATE permission.
-                        # We can ignore it as long as the migrations handled it.
                         logging.debug('Query failed (might already exist): %s', e)
             conn.commit()
         finally:

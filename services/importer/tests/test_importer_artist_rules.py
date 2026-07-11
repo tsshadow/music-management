@@ -1,9 +1,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
 from services.tests.mock_base import setup_mocks, reset_database_helpers
-
 setup_mocks()
-
 from services.tagger.Song.LabelSong import LabelSong
 from services.tagger.constants import ARTIST, TITLE, REMIXER
 
@@ -24,13 +22,10 @@ class TestArtistRules(unittest.TestCase):
         """Test that remixer is extracted from title via LabelSong rules."""
         file_path = '/tmp/Label/CAT/song.mp3'
         song = LabelSong(file_path)
-        song.tag_collection.set_item(TITLE, "Song Name (Headhunterz Remix)")
-        song.tag_collection.set_item(ARTIST, "Original Artist")
-
-        # Mock library_artists to contain Headhunterz
+        song.tag_collection.set_item(TITLE, 'Song Name (Headhunterz Remix)')
+        song.tag_collection.set_item(ARTIST, 'Original Artist')
         self.db_helpers['library_artists'].get.side_effect = lambda x: x if x == 'Headhunterz' else x
         self.db_helpers['library_artists'].exists.side_effect = lambda x: x == 'Headhunterz'
-
         song.parse()
         self.assertIn('Headhunterz', song.artist())
         self.assertEqual(song.tag_collection.get_item_as_string(REMIXER), 'Headhunterz')
@@ -39,11 +34,8 @@ class TestArtistRules(unittest.TestCase):
         """Test that missing artists are NOT added to the database by default (ask_for_missing=False)."""
         file_path = '/tmp/Label/CAT/song.mp3'
         song = LabelSong(file_path)
-        song.tag_collection.set_item(ARTIST, "New Artist")
-
-        # Mock library_artists to NOT contain New Artist
+        song.tag_collection.set_item(ARTIST, 'New Artist')
         self.db_helpers['library_artists'].exists.return_value = False
-
         song.parse()
         self.db_helpers['library_artists'].add.assert_not_called()
 
@@ -51,14 +43,10 @@ class TestArtistRules(unittest.TestCase):
         """Test that artists are corrected if they exist in the database with different casing."""
         file_path = '/tmp/Label/CAT/song.mp3'
         song = LabelSong(file_path)
-        song.tag_collection.set_item(ARTIST, "d-block")
-
-        # Mock library_artists to return corrected casing
-        self.db_helpers['library_artists'].get.side_effect = lambda x: "D-Block" if x.lower() == "d-block" else x
-        self.db_helpers['library_artists'].exists.side_effect = lambda x: x.lower() == "d-block"
-
+        song.tag_collection.set_item(ARTIST, 'd-block')
+        self.db_helpers['library_artists'].get.side_effect = lambda x: 'D-Block' if x.lower() == 'd-block' else x
+        self.db_helpers['library_artists'].exists.side_effect = lambda x: x.lower() == 'd-block'
         song.parse()
         self.assertEqual(song.artist(), 'D-Block')
-
 if __name__ == '__main__':
     unittest.main()

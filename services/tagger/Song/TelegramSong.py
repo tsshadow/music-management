@@ -1,4 +1,4 @@
-from services.common.settings import Settings
+from services.common.config_store import ConfigStore as Settings
 from services.tagger.Song.SoundcloudSong import SoundcloudSong
 s = Settings()
 

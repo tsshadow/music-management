@@ -13,7 +13,6 @@ class InferGenreFromTitleRule(TagRule):
         self.genre_set = set((g.lower() for g in all_genres if g))
         self.genre_patterns = {genre: re.compile(f'\\b{re.escape(genre)}\\b', flags=re.IGNORECASE) for genre in self.genre_set}
         if self.dryrun:
-            # pylint: disable=consider-using-with
             self._output_file = open(self.dryrun_output_path, 'w', encoding='utf-8')
         else:
             self._output_file = None

@@ -6,12 +6,10 @@ from typing import Optional
 from pathlib import Path
 from yt_dlp.postprocessor import PostProcessor
 from yt_dlp.utils import sanitize_filename
-
 from services.common.Helpers.NotificationService import notification_service
 from services.downloader.youtube.YoutubeArchive import YoutubeArchive
 from services.tagger.tagger import Tagger
 from services.tagger.constants import SongTypeEnum
-
 
 class YoutubeSongProcessor(PostProcessor):
     """Postprocessor that archives metadata and tags downloaded YouTube songs."""
@@ -22,11 +20,9 @@ class YoutubeSongProcessor(PostProcessor):
         url = info.get('webpage_url')
         if not path or not url:
             logging.warning('Postprocessor: no path or URL found in info dict')
-            return [], info
+            return ([], info)
         logging.info(f'Postprocessing downloaded file: {path}')
         corrected_title = self._ensure_real_title(info, url)
-        # if corrected_title:
-        #     path = self._apply_title_correction(path, info, corrected_title)
         title_for_archive = info.get('title')
         account = info.get('uploader_id') or info.get('channel_id') or info.get('uploader') or info.get('channel')
         video_id = info.get('id')
@@ -38,13 +34,7 @@ class YoutubeSongProcessor(PostProcessor):
             info['title'] = corrected_title
         song = Tagger.parse_song(Path(path), SongTypeEnum.YOUTUBE, extra_info=info)
         if song:
-            notification_service.notify(str(song), title="YouTube Download Complete")
-        # if corrected_title:
-        #     try:
-        #         song.tag_collection.set_item(TITLE, corrected_title)
-        #     except Exception as exc:
-        #         logging.warning('Failed to apply corrected title tag for %s: %s', path, exc)
-        # song.parse()
+            notification_service.notify(str(song), title='YouTube Download Complete')
         return ([], info)
 
     def _ensure_real_title(self, info: dict, url: str) -> Optional[str]:

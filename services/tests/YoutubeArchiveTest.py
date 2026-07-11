@@ -31,7 +31,6 @@ class DummyConnector:
         return DummyConn()
 mock_db.DatabaseConnector = DummyConnector
 sys.modules['services.common.Helpers.DatabaseConnector'] = mock_db
-# pylint: disable=wrong-import-position
 from downloader.youtube import YoutubeArchive
 
 class YoutubeArchiveTest(unittest.TestCase):

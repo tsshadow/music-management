@@ -36,7 +36,6 @@ class SoundcloudArchive:
         path = info.get('path')
         url = info.get('url')
         title = info.get('title')
-
         if not all([account_name, video_id, url]):
             logging.warning(f'Missing fields for archive insert: account_id={account_id!r}, video_id={video_id!r}, url={url!r}')
             return

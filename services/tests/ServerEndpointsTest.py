@@ -5,7 +5,7 @@ import types
 import unittest
 from fastapi.testclient import TestClient
 from services.common.api import db_init
-from services.common.api.step import Step as RealStep
+from services.common.step import Step as RealStep
 os.environ.setdefault('import_folder_path', '/tmp')
 os.environ.setdefault('music_folder_path', '/tmp')
 os.environ.setdefault('eps_folder_path', '/tmp')
@@ -53,15 +53,12 @@ class ServerEndpointsTest(unittest.TestCase):
         for full_name, classes in modules_to_stub.items():
             self.original_modules[full_name] = sys.modules.get(full_name)
             sys.modules[full_name] = _make_stub_module(full_name, classes)
-
         self._orig_ensure_tables = db_init.ensure_tables_exist
         db_init.ensure_tables_exist = lambda: None
-
         self.original_modules['main'] = sys.modules.get('main')
         main_mod = types.ModuleType('main')
         main_mod.Step = RealStep
         sys.modules['main'] = main_mod
-        # pylint: disable=import-outside-toplevel
         import services.common.api.server as server_module
         self.server = importlib.reload(server_module)
         self.Step = RealStep

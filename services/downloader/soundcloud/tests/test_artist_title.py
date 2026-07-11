@@ -1,13 +1,10 @@
 import unittest
 from unittest.mock import MagicMock, patch
 from services.tests.mock_base import setup_mocks, reset_database_helpers
-
 setup_mocks()
-
 from services.tagger.Song.SoundcloudSong import SoundcloudSong
 from services.tagger.Song.BaseSong import BaseSong
 from services.tagger.constants import TITLE, ARTIST, REMIXER
-
 
 class TestSoundcloudArtistTitle(unittest.TestCase):
 
@@ -23,38 +20,24 @@ class TestSoundcloudArtistTitle(unittest.TestCase):
         Test that 'Artist - Title' in SoundCloud title is correctly split.
         """
         path = '/tmp/soundcloud/Albino/Albino - RIJE MOAT.mp3'
-        extra_info = {
-            'uploader': 'Albino',
-            'title': 'Albino - RIJE MOAT'
-        }
-
+        extra_info = {'uploader': 'Albino', 'title': 'Albino - RIJE MOAT'}
         song = SoundcloudSong(path, extra_info)
-        # In SoundcloudSong, the title is initially taken from extra_info or file name
         song.tag_collection.set_item(TITLE, extra_info['title'])
         song.parse()
-
         print(song)
-
         self.assertEqual(song.artist(), 'Albino')
         self.assertEqual(song.title(), 'RIJE MOAT')
-
 
     def test_multi_artist_title_split(self):
         """
         Test that 'Artist - Title' in SoundCloud title is correctly split.
         """
         path = '/tmp/soundcloud/Albino/Albino - RIJE MOAT.mp3'
-        extra_info = {
-            'uploader': 'Albino',
-            'title': 'Albino & Qriminal - RIJE MOAT'
-        }
-
+        extra_info = {'uploader': 'Albino', 'title': 'Albino & Qriminal - RIJE MOAT'}
         song = SoundcloudSong(path, extra_info)
-        # In SoundcloudSong, the title is initially taken from extra_info or file name
         song.tag_collection.set_item(TITLE, extra_info['title'])
         song.parse()
         print(song)
-
         self.assertEqual(song.artist(), 'Albino;Qriminal')
         self.assertEqual(song.title(), 'RIJE MOAT')
 
@@ -128,8 +111,6 @@ class TestSoundcloudArtistTitle(unittest.TestCase):
         song.tag_collection.set_item(TITLE, extra_info['title'])
         song.parse()
         self.assertEqual(song.artist(), 'Albino')
-        # Title might be 'RIJE MOAT - Blue' or 'RIJE MOAT | Blue' depending on pipe replacement
-        # SingleDashRule replaces | with -
         self.assertEqual(song.title(), 'RIJE MOAT - Blue')
 
     def test_complex_multi_part(self):
@@ -139,7 +120,6 @@ class TestSoundcloudArtistTitle(unittest.TestCase):
         song.tag_collection.set_item(TITLE, extra_info['title'])
         song.parse()
         self.assertEqual(song.artist(), 'Devin Wild')
-        # Title should contain the remaining parts
         self.assertIn('Defqon 2025', song.title())
         self.assertIn('Blue', song.title())
 
@@ -149,10 +129,8 @@ class TestSoundcloudArtistTitle(unittest.TestCase):
         song = SoundcloudSong('/tmp/soundcloud/Albino/track.mp3', extra_info)
         song.tag_collection.set_item(TITLE, extra_info['title'])
         song.parse()
-        # If CleanTitleRule is not there, this might fail or 'Premiere: Albino' might be artist
         self.assertEqual(song.artist(), 'Albino')
         self.assertEqual(song.title(), 'RIJE MOAT')
-
 
     def test_multi_artist_with_feat(self):
         """Test 'Artist & Artist2 feat. Artist3 - Title'"""
@@ -184,8 +162,6 @@ class TestSoundcloudArtistTitle(unittest.TestCase):
 
     def test_label_in_brackets(self):
         """Test 'Artist [Label] - Title'"""
-        # If 'Scantraxx' is not in artists, it should be filtered or kept as part of artist?
-        # Actually set_cleaned_artist removes brackets content.
         extra_info = {'uploader': 'Albino', 'title': 'Albino [Scantraxx] - RIJE MOAT'}
         song = SoundcloudSong('/tmp/soundcloud/Albino/track.mp3', extra_info)
         song.tag_collection.set_item(TITLE, extra_info['title'])
@@ -204,7 +180,6 @@ class TestSoundcloudArtistTitle(unittest.TestCase):
 
     def test_artist_with_and_in_name(self):
         """Test artist that has 'and' in their name (if they were in DB)"""
-        # Added 'Sub Zero Project' to mock_artists in setUp
         extra_info = {'uploader': 'Sub Zero Project', 'title': 'Sub Zero Project - RIJE MOAT'}
         song = SoundcloudSong('/tmp/soundcloud/Sub Zero Project/track.mp3', extra_info)
         song.tag_collection.set_item(TITLE, extra_info['title'])
@@ -274,6 +249,5 @@ class TestSoundcloudArtistTitle(unittest.TestCase):
         song.parse()
         self.assertEqual(song.artist(), 'Albino;Qriminal')
         self.assertEqual(song.title(), 'RIJE MOAT')
-
 if __name__ == '__main__':
     unittest.main()

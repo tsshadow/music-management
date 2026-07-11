@@ -9,7 +9,6 @@ class ReadonlySong(BaseSong):
 
     def __init__(self, path, extra_info=None):
         super().__init__(path, extra_info)
-        # We don't want any rules applied by default in scanner mode
         self.rules = []
 
     def save_file(self):

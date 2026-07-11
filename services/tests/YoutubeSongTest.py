@@ -15,7 +15,6 @@ os.environ.setdefault('DB_DB', 'db')
 sys.modules['dotenv'] = types.ModuleType('dotenv')
 sys.modules['dotenv'].load_dotenv = lambda *a, **k: None
 sys.modules.pop('postprocessing.Song.YoutubeSong', None)
-# pylint: disable=wrong-import-position
 from services.tagger.constants import ALBUM
 from services.tagger.Song.YoutubeSong import YoutubeSong
 

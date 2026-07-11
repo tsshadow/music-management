@@ -2,10 +2,7 @@ import sys
 import types
 import unittest
 from services.tests.mock_base import setup_mocks, reset_database_helpers
-
-# Ensure mocks are setup before importing anything from services
 setup_mocks()
-
 from services.downloader.soundcloud.SoundcloudSongProcessor import SoundcloudSongProcessor
 
 class SoundcloudProcessorTest(unittest.TestCase):

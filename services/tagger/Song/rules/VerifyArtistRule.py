@@ -39,7 +39,6 @@ class VerifyArtistRule(TagRule):
             if not name:
                 return (original, False, True)
             changed = True
-
         if name.count('(') != name.count(')'):
             name = name.replace('(', ';').replace(')', ';')
             changed = True
@@ -49,11 +48,9 @@ class VerifyArtistRule(TagRule):
         if name.count('"') % 2 == 1:
             name = name.replace('"', '')
             changed = True
-
-        is_invalid = (len(name) <= 2 and (not re.search('[A-Za-z]', name))) or (not re.search('[A-Za-z]', name))
+        is_invalid = len(name) <= 2 and (not re.search('[A-Za-z]', name)) or not re.search('[A-Za-z]', name)
         if is_invalid:
             return (original, False, True)
-
         return (name, changed, False)
 
     def apply(self, song) -> TagResult:
@@ -62,7 +59,6 @@ class VerifyArtistRule(TagRule):
             return TagResult(None, TagResultType.UNKNOWN)
         tag_item = song.tag_collection.get_item(ARTIST)
         self.seen_counts[artist.lower()] += 1
-
         if self.artist_db.exists(artist):
             canonical = self.artist_db.get(artist)
             if canonical != artist:
@@ -71,7 +67,6 @@ class VerifyArtistRule(TagRule):
                 logger.info("Updated artist casing '%s' -> '%s'", artist, canonical)
                 return TagResult(canonical, TagResultType.UPDATED)
             return TagResult(artist, TagResultType.VALID)
-
         if self.lookup.is_known_artist(artist):
             if hasattr(self.artist_db, 'insert_if_not_exists'):
                 self.artist_db.insert_if_not_exists(artist)
@@ -79,15 +74,12 @@ class VerifyArtistRule(TagRule):
                 self.artist_db.add(artist)
             logger.info("Added artist '%s' from external lookup", artist)
             return TagResult(artist, TagResultType.VALID)
-
         if artist.lower() in {'unknown artist', 'various artists'}:
             tag_item.remove(artist)
             return TagResult(artist, TagResultType.IGNORED)
-
         cleaned, changed, invalid = self._heuristic_check(artist)
         res_type = TagResultType.UNKNOWN
         res_val = artist
-
         if invalid:
             tag_item.remove(artist)
             logger.info("Ignored invalid artist '%s'", artist)
@@ -98,5 +90,4 @@ class VerifyArtistRule(TagRule):
             logger.info("Cleaned artist '%s' -> '%s'", artist, cleaned)
             res_type = TagResultType.UPDATED
             res_val = cleaned
-
         return TagResult(res_val, res_type)

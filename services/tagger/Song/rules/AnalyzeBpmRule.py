@@ -1,10 +1,9 @@
 import sys
 import types
 import logging
-from services.common.settings import Settings
+from services.common.config_store import ConfigStore as Settings
 from services.tagger.Song.rules.TagRule import TagRule
 from services.tagger.constants import BPM
-
 try:
     import librosa
 except Exception:

@@ -35,7 +35,6 @@ def set_cleaned_artist(song, library_artists: str | list[str], artist_db=None) -
 class InferArtistFromTitleRule(TagRule):
 
     def __init__(self, artist_db=None, ignored_db: FilterTableHelper=None, genre_db: FilterTableHelper=None):
-        # pylint: disable=import-outside-toplevel
         from services.common.Helpers.Cache import databaseHelpers
         self.artist_db = artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
         all_names = self.artist_db.get_all_values()
@@ -186,7 +185,7 @@ class InferArtistFromTitleMultiDashRule(TagRule):
 
     def _clean_raw_title(self, title):
         if not title:
-            return ""
+            return ''
         title = title.replace('|', '-')
         title = title.replace('｜', '-')
         title = title.replace(' I ', ' - ')
@@ -211,7 +210,7 @@ class InferArtistFromTitleMultiDashRule(TagRule):
                         best_match_score = score
                         best_match_index = idx
                         best_artists = filtered_artists
-        return best_match_index, best_artists
+        return (best_match_index, best_artists)
 
     def _get_filtered_artists(self, segment):
         library_artists = extract_artists_from_string(segment)

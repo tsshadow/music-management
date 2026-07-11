@@ -1,9 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 from services.tests.mock_base import setup_mocks, reset_database_helpers
-
 setup_mocks()
-
 from services.tagger.Song.SoundcloudSong import SoundcloudSong
 from services.tagger.constants import TITLE, ARTIST
 
@@ -21,25 +19,12 @@ class TestSoundcloudMultiPart(unittest.TestCase):
         Example: 'Defqon 2025 | Devin Wild | Blue'
         """
         path = '/tmp/soundcloud/Q-dance/Defqon 2025 | Devin Wild | Blue.mp3'
-        extra_info = {
-            'uploader': 'Q-dance',
-            'title': 'Defqon 2025 | Devin Wild | Blue'
-        }
-
+        extra_info = {'uploader': 'Q-dance', 'title': 'Defqon 2025 | Devin Wild | Blue'}
         song = SoundcloudSong(path, extra_info)
         song.tag_collection.set_item(TITLE, extra_info['title'])
         song.parse()
-
-        # InferArtistFromTitleMultiDashRule should:
-        # 1. Replace | with - -> 'Defqon 2025 - Devin Wild - Blue'
-        # 2. Find 'Devin Wild' in library_artists.
-        # 3. Set Artist to 'Devin Wild'.
-        # 4. Set Title to 'Defqon 2025 - Blue' (remaining segments joined by -).
-
         self.assertEqual(song.artist(), 'Devin Wild')
-        # Depending on how the rule joins remaining segments, it might be 'Defqon 2025 - Blue'
         self.assertIn('Defqon 2025', song.title())
         self.assertIn('Blue', song.title())
-
 if __name__ == '__main__':
     unittest.main()

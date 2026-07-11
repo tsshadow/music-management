@@ -65,7 +65,7 @@ The modern MuMa Spotify is built with Svelte and Vite.
 
 #### Development
 ```sh
-cd src/lms/ui/spotify-ui
+cd src/lms/ui/ui
 npm install
 npm run dev
 ```

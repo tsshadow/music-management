@@ -49,5 +49,5 @@ Om de kwaliteit te waarborgen zonder de ontwikkelaar te vertragen:
 
 1.  [x] **Stap 1: Statische Analyse & CI**: `oxlint`, `oxfmt` en `clang-format` geïntegreerd in CI en pre-commit hooks.
 2.  [ ] **BDD Pilot**: Schrijf één kernfunctionaliteit uit in Gherkin (bijv. de `scanner` library).
-3.  [ ] **E2E Setup**: Initialiseer Cypress of Playwright in `src/lms/ui/spotify-ui`.
+3.  [ ] **E2E Setup**: Initialiseer Cypress of Playwright in `src/lms/ui/ui`.
 4.  [ ] **Test Dekking**: GTest integratie in CI voor de backend libraries.

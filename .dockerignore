@@ -4,7 +4,7 @@ cmake-build-*/
 .idea/
 .vscode/
 node_modules/
-src/lms/ui/spotify-ui/node_modules/
-src/lms/ui/spotify-ui/dist/
+src/lms/ui/ui/node_modules/
+src/lms/ui/ui/dist/
 *.swp
 *.log

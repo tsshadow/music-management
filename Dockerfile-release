@@ -1,6 +1,6 @@
 FROM	node:24-alpine AS svelte-build
 WORKDIR	/app
-COPY	src/lms/ui/spotify-ui /app
+COPY	src/lms/ui /app
 RUN	npm install && npm run build
 
 FROM	alpine:3.23 AS build

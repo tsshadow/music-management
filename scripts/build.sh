@@ -3,11 +3,6 @@ set -e
 
 cd "$(dirname "$(readlink -f "$0")")/.."
 
-# Always copy styleguide to ultrasonic if it exists
-if [ -d ~/git/ultrasonic/ ]; then
-    echo "Copying STYLEGUIDE.md to ~/git/ultrasonic/..."
-    cp src/lms/ui/spotify-ui/STYLEGUIDE.md ~/git/ultrasonic/STYLEGUIDE.md
-fi
 
 # Check for docker permissions
 if ! docker info >/dev/null 2>&1; then

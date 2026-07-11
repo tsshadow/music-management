@@ -54,7 +54,7 @@ if [ -f "RELEASE_NOTES.md" ]; then
 fi
 
 # 4. Update UI release-notes.json
-JSON_FILE="src/lms/ui/spotify-ui/public/release-notes.json"
+JSON_FILE="src/lms/ui/public/release-notes.json"
 if [ -f "$JSON_FILE" ]; then
     # Prepend new version entry to the JSON array
     TEMP_JSON=$(mktemp)

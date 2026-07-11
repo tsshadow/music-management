@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Refactored `muma` module into a standalone static library for better modularity.
+- Improved build system integration for MuMa resource handling.
+
 ## [3.82.9] - 2026-07-08
 
 ## [3.82.8] - 2026-07-07

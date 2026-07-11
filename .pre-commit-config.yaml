@@ -18,15 +18,15 @@ repos:
     hooks:
       - id: oxlint
         args: [--deny-warnings]
-        files: ^src/lms/ui/spotify-ui/
+        files: ^src/lms/ui/ui/
 
   - repo: local
     hooks:
       - id: oxfmt
         name: oxfmt
-        entry: bash -c "cd src/lms/ui/spotify-ui && npx oxfmt --write \"$@\"" --
+        entry: bash -c "cd src/lms/ui/ui && npx oxfmt --write \"$@\"" --
         language: system
-        files: ^src/lms/ui/spotify-ui/
+        files: ^src/lms/ui/ui/
         types_or: [javascript, ts, svelte]
 
       - id: clang-tidy

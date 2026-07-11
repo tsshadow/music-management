@@ -18,21 +18,21 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
-          cache-dependency-path: src/lms/ui/spotify-ui/package-lock.json
+          cache-dependency-path: src/lms/ui/ui/package-lock.json
 
       - name: Install dependencies
         run: |
-          cd src/lms/ui/spotify-ui
+          cd src/lms/ui/ui
           npm ci
 
       - name: Run oxlint
         run: |
-          cd src/lms/ui/spotify-ui
+          cd src/lms/ui/ui
           npx oxlint .
 
       - name: Run oxfmt check
         run: |
-          cd src/lms/ui/spotify-ui
+          cd src/lms/ui/ui
           npm run format:check
 
   backend:

@@ -17,13 +17,13 @@ class FileRepairTest(unittest.TestCase):
 
     def test_derive_soundcloud_url(self):
         fr = FileRepair()
-        path = '/Music/Soundcloud/artist/Track Title.m4a'
+        path = '/mnt/music/Soundcloud/artist/Track Title.m4a'
         expected = 'https://soundcloud.com/artist/track-title'
         self.assertEqual(fr.derive_soundcloud_url(path), expected)
 
     def test_derive_youtube_url(self):
         fr = FileRepair()
-        path = '/Music/Youtube/uploader/Video Title.m4a'
+        path = '/mnt/music/Youtube/uploader/Video Title.m4a'
         expected = 'https://www.youtube.com/watch?v=video-title'
         self.assertEqual(fr.derive_youtube_url(path), expected)
 if __name__ == '__main__':

@@ -20,7 +20,7 @@ class ArtistImageFetcher:
         self.logger = logging.getLogger(__name__)
         self.normalizer = ArtistNameNormalizer()
         self.matcher = ArtistMatcher(self.db_conn)
-        storage_path = os.getenv('ARTIST_IMAGE_STORAGE_PATH') or os.getenv('STORAGE_PATH') or '/music/artists'
+        storage_path = os.getenv('ARTIST_IMAGE_STORAGE_PATH') or os.getenv('STORAGE_PATH') or '/mnt/music/artists'
         public_base_url = os.getenv('ARTIST_IMAGE_PUBLIC_BASE_URL', '/media/artist-images')
         self.storage = ImageStorage(storage_path, public_base_url)
         self.downloader = ImageDownloader()

@@ -2,7 +2,7 @@ import os
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Header, Depends
 from services.music_manager.database import get_db_connection
-router = APIRouter(prefix='/stats', tags=['stats'])
+router = APIRouter(tags=['stats'])
 API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
 
 def verify_api_key(x_api_key: Optional[str]=Header(None)):

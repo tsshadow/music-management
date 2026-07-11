@@ -100,7 +100,7 @@ class JobManager:
     def recent(self) -> List[Dict[str, Any]]:
         return [self.results[jid] for jid in self.history]
 job_manager = JobManager()
-router = APIRouter(prefix='/jobs', tags=['jobs'])
+router = APIRouter(tags=['jobs'])
 
 @router.websocket('/ws/jobs/{job_id}')
 async def job_updates(websocket: WebSocket, job_id: str):

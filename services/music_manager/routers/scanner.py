@@ -10,7 +10,7 @@ from services.common.config_store import ConfigStore as Settings
 from services.music_manager.database import get_db_connection
 from services.scanner.Song.ReadonlySong import ReadonlySong
 from services.tagger.Song.BaseSong import ExtensionNotSupportedException
-router = APIRouter(prefix='/api/scanner', tags=['scanner'])
+router = APIRouter(tags=['scanner'])
 logger = logging.getLogger('music-manager.scanner')
 
 class ScannerManager:

@@ -55,7 +55,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /docker/lms/var/lms:/app/data:rw
-      - ${HOST_MUSIC_PATH}:/music:ro
+      - ${HOST_MUSIC_PATH}:/mnt/music:ro
     networks:
       - music-management_db
 

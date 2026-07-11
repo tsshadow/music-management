@@ -255,7 +255,3 @@ class BaseSong:
     def __str__(self):
         fields = [('Title', self.title()), ('Artists', self.artist()), ('Album', self.album()), ('Genre', self.genre()), ('Publisher', self.publisher()), ('Path', self.path())]
         return '\n'.join([f'{label}={value}' for label, value in fields if value])
-
-    def __del__(self):
-        """Ensure changes are saved when the object is deleted."""
-        self.save_file()

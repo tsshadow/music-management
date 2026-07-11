@@ -10,7 +10,7 @@ from yt_dlp import YoutubeDL
 from yt_dlp.postprocessor import FFmpegMetadataPP, EmbedThumbnailPP
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.config_store import ConfigStore
-from services.music_manager.routers.jobs import job_manager
+from services.common.job_manager import job_manager
 from services.downloader.soundcloud.SoundcloudArchive import SoundcloudArchive
 from .SoundcloudSongProcessor import SoundcloudSongProcessor
 

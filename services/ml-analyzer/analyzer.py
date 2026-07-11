@@ -9,17 +9,16 @@ from sqlalchemy import text, MetaData, Table, Column, Float, String, Integer, Te
 from sqlalchemy.dialects.mysql import insert
 from tqdm import tqdm
 from dotenv import load_dotenv
-from services.common.api import start_api_server
+from services.common.config_store import ConfigStore
 load_dotenv()
 
 class TrackAnalyzer:
 
-    def __init__(self, max_workers=4, start_api=False):
+    def __init__(self, max_workers=4):
+        self._config = ConfigStore()
         self.engine = self._get_db_engine()
         self.max_workers = max_workers
         self.verbose = True
-        if start_api:
-            start_api_server()
 
     def _get_db_engine(self):
         host = os.getenv('DB_HOST', 'db')
@@ -353,7 +352,7 @@ if __name__ == '__main__':
     parser.add_argument('--repeat', action='store_true', help='Repeat the scan in a loop')
     parser.add_argument('--sleeptime', type=int, default=3600, help='Time to sleep between runs (default: 3600)')
     args = parser.parse_args()
-    analyzer = TrackAnalyzer(max_workers=4, start_api=True)
+    analyzer = TrackAnalyzer(max_workers=4)
     while True:
         if args.all:
             analyzer.run_full_scan(save=args.save, parallel=args.parallel, tags_only=args.tags_only)

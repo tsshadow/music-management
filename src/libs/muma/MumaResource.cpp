@@ -1,4 +1,4 @@
-#include "MumaResource.hpp"
+#include "api/muma/MumaResource.hpp"
 
 #include <Wt/Http/Request.h>
 #include <Wt/Http/Response.h>
@@ -17,10 +17,14 @@
 #include "core/Service.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Artist.hpp"
+#include "database/objects/Cluster.hpp"
+#include "database/objects/MediaLibrary.hpp"
+#include "database/objects/Track.hpp"
 #include "database/objects/TrackList.hpp"
 #include "database/objects/User.hpp"
 #include "database/objects/UIState.hpp"
 #include "services/auth/IPasswordService.hpp"
+#include "services/scanner/IScannerService.hpp"
 
 namespace lms::api::muma
 {
@@ -155,18 +159,111 @@ namespace lms::api::muma
             return;
         }
 
-        if (pathInfo.find("/api/artists/") == 0 && pathInfo.ends_with("/image"))
+        if (pathInfo == "/api/admin/libraries")
         {
-            size_t start = std::string("/api/artists/").length();
-            size_t end = pathInfo.length() - std::string("/image").length();
-            if (end <= start)
+            if (!dbUser || !dbUser->isAdmin())
             {
-                response.setStatus(400);
-                response.out() << "Invalid artist name in path";
+                response.setStatus(403);
+                response.out() << "Forbidden";
                 return;
             }
 
-            std::string artistName = pathInfo.substr(start, end - start);
+            if (request.method() == "GET")
+            {
+                Wt::Json::Array result;
+                db::MediaLibrary::find(session, [&](const db::MediaLibrary::pointer& lib) {
+                    Wt::Json::Object obj;
+                    obj["id"] = Wt::Json::Value((long long)lib->getId().getValue());
+                    obj["name"] = Wt::Json::Value(std::string{ lib->getName() });
+                    obj["path"] = Wt::Json::Value(std::string{ lib->getPath() });
+                    result.push_back(std::move(obj));
+                });
+                response.out() << Wt::Json::serialize(result);
+                return;
+            }
+            else if (request.method() == "POST")
+            {
+                Wt::Json::Object root;
+                std::string jsonStr((std::istreambuf_iterator<char>(request.in())), std::istreambuf_iterator<char>());
+                Wt::Json::ParseError error;
+                if (!Wt::Json::parse(jsonStr, root, error))
+                {
+                    response.setStatus(400);
+                    response.out() << "Invalid JSON";
+                    return;
+                }
+
+                std::string name = root.get("name").toString().orIfNull("");
+                std::string path = root.get("path").toString().orIfNull("");
+
+                if (name.empty() || path.empty())
+                {
+                    response.setStatus(400);
+                    response.out() << "Name and path are required";
+                    return;
+                }
+
+                {
+                    auto writeTransaction{ session.createWriteTransaction() };
+                    session.create<db::MediaLibrary>(name, path);
+                }
+
+                core::Service<scanner::IScannerService>::get()->requestReload();
+                response.out() << "{\"status\":\"ok\"}";
+                return;
+            }
+        }
+
+        if (pathInfo.find("/api/admin/libraries/") == 0 && request.method() == "DELETE")
+        {
+            if (!dbUser || !dbUser->isAdmin())
+            {
+                response.setStatus(403);
+                response.out() << "Forbidden";
+                return;
+            }
+
+            std::string idStr = pathInfo.substr(21);
+            db::MediaLibraryId id;
+            try {
+                id = db::MediaLibraryId{ std::stoll(idStr) };
+            } catch (...) {
+                response.setStatus(400);
+                response.out() << "Invalid library ID";
+                return;
+            }
+
+            {
+                auto writeTransaction{ session.createWriteTransaction() };
+                if (auto lib = db::MediaLibrary::find(session, id))
+                    lib.remove();
+                else
+                {
+                    response.setStatus(404);
+                    response.out() << "Library not found";
+                    return;
+                }
+            }
+
+            core::Service<scanner::IScannerService>::get()->requestReload();
+            response.out() << "{\"status\":\"ok\"}";
+            return;
+        }
+
+        if (pathInfo.find("/api/artists/") == 0)
+        {
+            size_t start = std::string("/api/artists/").length();
+            if (pathInfo.ends_with("/image"))
+            {
+                size_t end = pathInfo.length() - std::string("/image").length();
+                if (end <= start)
+                {
+                    response.setStatus(400);
+                    response.out() << "Invalid artist name in path";
+                    return;
+                }
+
+                std::string artistName = pathInfo.substr(start, end - start);
             // Decode it first as Wt might have decoded it if it was a path parameter (but Wt::WResource doesn't do that automatically for us here)
             // Actually pathInfo is already decoded by Wt!
             
@@ -242,6 +339,146 @@ namespace lms::api::muma
             }
             return;
         }
+        else
+        {
+            std::string artistIdStr = pathInfo.substr(start);
+            if (const size_t pos{ artistIdStr.find('-') }; pos != std::string::npos)
+                artistIdStr = artistIdStr.substr(pos + 1);
+
+            db::ArtistId artistId;
+            try
+            {
+                artistId = db::ArtistId{ std::stoll(artistIdStr) };
+            }
+            catch (const std::exception&)
+            {
+                response.setStatus(400);
+                response.out() << "Invalid artist ID";
+                return;
+            }
+
+            db::Artist::pointer artist = db::Artist::find(session, artistId);
+            if (!artist)
+            {
+                response.setStatus(404);
+                response.out() << "Artist not found";
+                return;
+            }
+
+            Wt::Json::Object result;
+            result["id"] = Wt::Json::Value(artistIdStr);
+            result["name"] = Wt::Json::Value(std::string{ artist->getName() });
+
+            Wt::Json::Array genres;
+            if (const auto genreType{ db::ClusterType::find(session, "GENRE") })
+            {
+                const std::array<db::ClusterTypeId, 1> clusterTypeIds{ genreType->getId() };
+                const std::vector<std::vector<db::Cluster::pointer>> clusterGroups{ artist->getClusterGroups(clusterTypeIds, 10) };
+                if (!clusterGroups.empty())
+                {
+                    for (const db::Cluster::pointer& cluster : clusterGroups.front())
+                    {
+                        Wt::Json::Object genre;
+                        genre["name"] = Wt::Json::Value(std::string{ cluster->getName() });
+                        genres.push_back(std::move(genre));
+                    }
+                }
+            }
+            result["genres"] = std::move(genres);
+
+            response.out() << Wt::Json::serialize(result);
+            return;
+        }
+    }
+
+        if (pathInfo.find("/api/tracks/") == 0 && pathInfo.ends_with("/refresh"))
+        {
+            size_t start = std::string("/api/tracks/").length();
+            size_t end = pathInfo.length() - std::string("/refresh").length();
+            if (end <= start)
+            {
+                response.setStatus(400);
+                response.out() << "Invalid track ID in path";
+                return;
+            }
+
+            std::string trackIdStr = pathInfo.substr(start, end - start);
+            if (const size_t pos{ trackIdStr.find('-') }; pos != std::string::npos)
+                trackIdStr = trackIdStr.substr(pos + 1);
+
+            db::TrackId trackId;
+            try
+            {
+                trackId = db::TrackId{ std::stoll(trackIdStr) };
+            }
+            catch (const std::exception&)
+            {
+                response.setStatus(400);
+                response.out() << "Invalid track ID format";
+                return;
+            }
+
+            db::Track::pointer track = db::Track::find(session, trackId);
+            if (!track)
+            {
+                response.setStatus(404);
+                response.out() << "Track not found in LMS database";
+                return;
+            }
+
+            if (!_httpClient)
+            {
+                response.setStatus(500);
+                response.out() << "Music Management not configured";
+                return;
+            }
+
+            std::string absolutePath = track->getAbsoluteFilePath().string();
+            std::string encodedPath = Wt::Utils::urlEncode(absolutePath);
+            for (size_t i = 0; i < encodedPath.length(); ++i) {
+                if (encodedPath[i] == '+') {
+                    encodedPath.replace(i, 1, "%20");
+                }
+            }
+            std::string relativeUrl = "/api/library/tracks/rerun-parse-path?path=" + encodedPath;
+
+            auto resultPromise = std::make_shared<std::promise<int>>();
+            auto resultFuture = resultPromise->get_future();
+
+            core::http::ClientPOSTRequestParameters postParams;
+            postParams.relativeUrl = relativeUrl;
+            if (!_mumaApiKey.empty())
+                postParams.message.addHeader("X-API-Key", _mumaApiKey);
+
+            postParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
+                resultPromise->set_value(msg.status());
+            };
+            postParams.onFailureFunc = [resultPromise]() {
+                resultPromise->set_value(502);
+            };
+
+            _httpClient->sendPOSTRequest(std::move(postParams));
+
+            if (resultFuture.wait_for(std::chrono::seconds(15)) == std::future_status::ready)
+            {
+                int status = resultFuture.get();
+                response.setStatus(status);
+                if (status == 200)
+                    response.out() << "{\"status\":\"ok\"}";
+                else
+                {
+                    LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: MuMa returned status " << status << " for track refresh: " << absolutePath);
+                    response.out() << "{\"status\":\"error\", \"detail\": \"MuMa returned " << status << "\"}";
+                }
+            }
+            else
+            {
+                LMS_LOG(API_SUBSONIC, ERROR, "MumaResource: Timeout waiting for MuMa response for track refresh: " << absolutePath);
+                response.setStatus(504);
+                response.out() << "{\"status\":\"error\", \"detail\": \"Timeout waiting for MuMa\"}";
+            }
+            return;
+        }
 
         if (pathInfo.find("/users/") == 0)
         {
@@ -257,6 +494,9 @@ namespace lms::api::muma
             if (slashPos != std::string::npos)
             {
                 std::string userIdStr = remaining.substr(0, slashPos);
+                if (const size_t pos{ userIdStr.find('-') }; pos != std::string::npos)
+                    userIdStr = userIdStr.substr(pos + 1);
+
                 std::string appId = remaining.substr(slashPos + 10);
                 
                 std::optional<db::UserId> userId;

@@ -1,69 +1,11 @@
 
 add_executable(lms
 	main.cpp
-	ui/Auth.cpp
-	ui/LmsApplication.cpp
-	ui/LmsApplicationManager.cpp
-	ui/LmsInitApplication.cpp
-	ui/LmsTheme.cpp
-	ui/MediaPlayer.cpp
-	ui/ModalManager.cpp
-	ui/NotificationContainer.cpp
-	ui/PlayQueue.cpp
-	ui/SettingsView.cpp
-	ui/State.cpp
-	ui/Tooltip.cpp
-	ui/Utils.cpp
-	ui/admin/debug/Database.cpp
-	ui/admin/debug/Tracing.cpp
-	ui/admin/About.cpp
-	ui/admin/DebugToolsView.cpp
-	ui/admin/InitWizardView.cpp
-	ui/admin/MediaLibrariesView.cpp
-	ui/admin/MediaLibraryModal.cpp
-	ui/admin/ScannerController.cpp
-	ui/admin/ScannerReportResource.cpp
-	ui/admin/ScanSettingsView.cpp
-	ui/admin/UserView.cpp
-	ui/admin/UsersView.cpp
-	ui/common/DoubleValidator.cpp
-	ui/common/InfiniteScrollingContainer.cpp
-	ui/common/LoadingIndicator.cpp
-	ui/common/LoginNameValidator.cpp
-	ui/common/MandatoryValidator.cpp
-	ui/common/PasswordValidator.cpp
-	ui/common/Template.cpp
-	ui/common/UppercaseValidator.cpp
-	ui/common/UUIDValidator.cpp
-	ui/explore/ArtistCollector.cpp
-	ui/explore/ArtistListHelpers.cpp
-	ui/explore/ArtistType.cpp
-	ui/explore/ArtistView.cpp
-	ui/explore/ArtistsView.cpp
-	ui/explore/DatabaseCollectorBase.cpp
-	ui/explore/Explore.cpp
-	ui/explore/Filters.cpp
-	ui/explore/PlayQueueController.cpp
-	ui/explore/ReleaseCollector.cpp
-	ui/explore/ReleaseHelpers.cpp
-	ui/explore/ReleasesView.cpp
-	ui/explore/ReleaseView.cpp
-	ui/explore/ReleaseTypes.cpp
-	ui/explore/TrackArtistTypeSelector.cpp
-	ui/explore/TrackCollector.cpp
-	ui/explore/TrackListHelpers.cpp
-	ui/explore/TrackListView.cpp
-	ui/explore/TrackListsView.cpp
-	ui/explore/TracksView.cpp
-	ui/resource/AudioFileResource.cpp
-	ui/resource/AudioTranscodingResource.cpp
-	ui/resource/ArtworkResource.cpp
-	ui/resource/DownloadResource.cpp
-	api/muma/MumaResource.cpp
+	LmsInitApplication.cpp
 	)
 
 target_include_directories(lms PRIVATE
-	ui/
+	.
 	)
 
 target_link_libraries(lms PRIVATE
@@ -77,6 +19,7 @@ target_link_libraries(lms PRIVATE
 	lmsdatabase
 	lmsfeedback
 	lmsjukebox
+	lmsmuma
 	lmspodcast
 	lmsrecommendation
 	lmsscanner

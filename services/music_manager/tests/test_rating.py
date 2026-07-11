@@ -31,7 +31,7 @@ class TestRating(unittest.TestCase):
         mock_get_db.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         payload = {'event': 'rating_changed', 'object_type': 'track', 'object_id': 'track123', 'username': 'teun', 'rating': 80}
-        response = self.client.post('/rating/api/lms-event', json=payload, headers={'x-api-key': self.api_key})
+        response = self.client.post('/api/rating/lms-event', json=payload, headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {'status': 'success', 'entity_id': 'track123'})
         mock_cursor.execute.assert_called()
@@ -46,8 +46,8 @@ class TestRating(unittest.TestCase):
         mock_get_db.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         mock_cursor.fetchone.return_value = {'track_uid': 'resolved-uid'}
-        payload = {'event': 'rating_changed', 'object_type': 'track', 'object_id': 'lms-id', 'username': 'teun', 'rating': 90, 'path': '/music/artist/album/song.mp3'}
-        response = self.client.post('/rating/api/lms-event', json=payload, headers={'x-api-key': self.api_key})
+        payload = {'event': 'rating_changed', 'object_type': 'track', 'object_id': 'lms-id', 'username': 'teun', 'rating': 90, 'path': '/mnt/music/artist/album/song.mp3'}
+        response = self.client.post('/api/rating/lms-event', json=payload, headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {'status': 'success', 'entity_id': 'resolved-uid'})
         path_res_call = next((call for call in mock_cursor.execute.call_args_list if 'SELECT t.track_uid' in call[0][0]))
@@ -57,7 +57,7 @@ class TestRating(unittest.TestCase):
 
     def test_handle_lms_event_invalid_event(self):
         payload = {'event': 'some_other_event', 'object_type': 'track', 'object_id': '123', 'username': 'teun', 'rating': 50}
-        response = self.client.post('/rating/api/lms-event', json=payload, headers={'x-api-key': self.api_key})
+        response = self.client.post('/api/rating/lms-event', json=payload, headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {'status': 'ignored', 'reason': 'unsupported event type'})
 
@@ -65,13 +65,13 @@ class TestRating(unittest.TestCase):
     def test_handle_lms_event_db_failure(self, mock_get_db):
         mock_get_db.return_value = None
         payload = {'event': 'rating_changed', 'object_type': 'track', 'object_id': '123', 'username': 'teun', 'rating': 50}
-        response = self.client.post('/rating/api/lms-event', json=payload, headers={'x-api-key': self.api_key})
+        response = self.client.post('/api/rating/lms-event', json=payload, headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 500)
         self.assertIn('Database connection failed', response.json()['detail'])
 
     def test_handle_lms_event_no_auth(self):
         payload = {'event': 'rating_changed', 'object_type': 'track', 'object_id': '123', 'username': 'teun', 'rating': 50}
-        response = self.client.post('/rating/api/lms-event', json=payload)
+        response = self.client.post('/api/rating/lms-event', json=payload)
         self.assertEqual(response.status_code, 401)
 
     @patch('services.music_manager.routers.users.get_db_connection')

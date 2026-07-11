@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Header, Depends
 from pydantic import BaseModel
 from services.music_manager.database import get_db_connection
-router = APIRouter(prefix='/rating', tags=['rating'])
+router = APIRouter(tags=['rating'])
 API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '453ecd33-3cb2-4ca4-a531-1677330bbaee'
 
 def verify_api_key(x_api_key: Optional[str]=Header(None)):
@@ -37,23 +37,21 @@ class LMSEvent(BaseModel):
 def init_db(cursor):
     cursor.execute('\n        CREATE TABLE IF NOT EXISTS rating_tracks (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            entity_type VARCHAR(50) NOT NULL,\n            entity_id VARCHAR(255) NOT NULL,\n            username VARCHAR(255) NOT NULL,\n            rating INT NOT NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            UNIQUE KEY (entity_type, entity_id, username)\n        )\n    ')
 
-@router.post('/api/lms-event')
+@router.post('/lms-event')
 def handle_lms_event(event: LMSEvent, _auth: dict=Depends(verify_api_key)):
     if event.event != 'rating_changed':
         return {'status': 'ignored', 'reason': 'unsupported event type'}
     entity_id = event.object_id
     if event.object_type == 'track' and event.path:
         clean_path = event.path
-        for p in ['/music/', '/mnt/music/']:
-            if clean_path.startswith(p):
-                clean_path = clean_path[len(p):]
-                break
-        possible_paths = [event.path, clean_path, f'/music/{clean_path}', f'/mnt/music/{clean_path}']
+        if clean_path.startswith('/mnt/music/'):
+            clean_path = clean_path[len('/mnt/music/'):]
+        possible_paths = [event.path, clean_path, f'/mnt/music/{clean_path}']
         conn = get_db_connection()
         if conn:
             try:
                 with conn.cursor() as cursor:
-                    sql = '\n                        SELECT t.track_uid\n                        FROM library_media_files f\n                        JOIN library_tracks t ON f.track_id = t.id\n                        WHERE f.file_path IN (%s, %s, %s, %s)\n                    '
+                    sql = '\n                        SELECT t.track_uid\n                        FROM library_media_files f\n                        JOIN library_tracks t ON f.track_id = t.id\n                        WHERE f.file_path IN (%s, %s, %s)\n                    '
                     cursor.execute(sql, tuple(possible_paths))
                     row = cursor.fetchone()
                     if row:

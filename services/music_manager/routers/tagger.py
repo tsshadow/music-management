@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, Query, HTTPException
 from services.tagger.tagger import Tagger, TagSingleFile
-router = APIRouter(prefix='/api/tagger', tags=['tagger'])
+router = APIRouter(tags=['tagger'])
 logger = logging.getLogger('music-manager.tagger')
 
 class TaggerManager:

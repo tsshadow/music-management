@@ -93,7 +93,7 @@ class Tag:
         Returns:
             str: The values joined by ';'.
         """
-        return ';'.join(self.value)
+        return ';'.join([str(v) if not isinstance(v, str) else v for v in self.value])
 
     def sort(self):
         """

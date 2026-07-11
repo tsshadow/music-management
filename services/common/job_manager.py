@@ -32,6 +32,11 @@ class JobManager:
                     job['error'] = error
                 self._push(job_id, job)
 
+    def publish(self, payload: Dict[str, Any], job_id: Optional[str] = None):
+        """Send an ad-hoc update to the hub."""
+        jid = job_id or "global"
+        self._push(jid, payload)
+
     def _push(self, job_id: str, job_data: Dict[str, Any]):
         if not self.hub_url:
             return

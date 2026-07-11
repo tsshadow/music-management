@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from services.music_manager.database import get_db_connection
 from services.music_manager.routers.management import verify_api_key
-router = APIRouter(prefix='/api/notifications', tags=['notifications'])
+router = APIRouter(tags=['notifications'])
 
 def init_db(cursor):
     cursor.execute('\n        CREATE TABLE IF NOT EXISTS notifications (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            title VARCHAR(255),\n            message TEXT,\n            topic VARCHAR(255),\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        )\n    ')

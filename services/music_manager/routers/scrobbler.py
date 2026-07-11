@@ -6,7 +6,7 @@ import requests
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Header, Depends
 from pydantic import BaseModel
 from services.music_manager.database import get_db_connection
-router = APIRouter(prefix='/scrobble', tags=['scrobble'])
+router = APIRouter(tags=['scrobble'])
 API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '453ecd33-3cb2-4ca4-a531-1677330bbaee'
 
 def verify_api_key(x_api_key: Optional[str]=Header(None)):
@@ -38,7 +38,7 @@ def init_db(cursor):
     cursor.execute('\n        CREATE TABLE IF NOT EXISTS scrobble_unmatched_listens (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            artist_name VARCHAR(512),\n            track_title VARCHAR(512),\n            album_name VARCHAR(512),\n            mbid_track VARCHAR(36),\n            mbid_artist VARCHAR(36),\n            listened_at TIMESTAMP NOT NULL,\n            username VARCHAR(255) NOT NULL,\n            source VARCHAR(50),\n            data JSON,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            UNIQUE KEY (username, listened_at, artist_name, track_title)\n        )\n    ')
     cursor.execute('\n        CREATE TABLE IF NOT EXISTS scrobble_imports (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            username VARCHAR(255) NOT NULL,\n            lb_username VARCHAR(255) NOT NULL,\n            status VARCHAR(50) NOT NULL,\n            total_found INT DEFAULT 0,\n            processed INT DEFAULT 0,\n            last_error TEXT,\n            started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            finished_at TIMESTAMP NULL\n        )\n    ')
 
-@router.post('/api/event')
+@router.post('/event')
 def handle_scrobble_event(event: ScrobbleEvent, _auth: dict=Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:

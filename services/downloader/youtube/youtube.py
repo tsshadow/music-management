@@ -9,6 +9,7 @@ from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.config_store import ConfigStore
 from services.downloader.youtube.YoutubeArchive import YoutubeArchive
 from services.downloader.youtube.YoutubeSongProcessor import YoutubeSongProcessor
+from services.common.job_manager import job_manager
 
 class YoutubeDownloader:
 
@@ -236,11 +237,12 @@ class YoutubeDownloader:
         total_accounts = len(accounts)
         burst_size = self.batch_settings['burst_size']
         total_batches = (total_accounts + burst_size - 1) // burst_size
+        processed = 0
         for i in range(0, total_accounts, burst_size):
             batch = accounts[i:i + burst_size]
             batch_index = i // burst_size + 1
             logging.info('Processing YouTube batch %s of %s', batch_index, total_batches)
-            self._process_batch(batch, break_on_existing_arg, redownload)
+            processed = self._process_batch(batch, break_on_existing_arg, redownload, processed, total_accounts)
             if i + burst_size < total_accounts:
                 self._throttle()
 
@@ -259,7 +261,7 @@ class YoutubeDownloader:
         accounts.sort()
         return accounts
 
-    def _process_batch(self, batch, break_on_existing_arg, redownload):
+    def _process_batch(self, batch, break_on_existing_arg, redownload, processed, total_accounts):
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.batch_settings['max_workers']) as executor:
             futures = {}
             for acc in batch:
@@ -267,10 +269,13 @@ class YoutubeDownloader:
                 futures[executor.submit(self.download_account, acc, ydl_opts)] = acc
             for future in concurrent.futures.as_completed(futures):
                 acc = futures[future]
+                processed += 1
+                job_manager.publish({'type': 'youtube-account', 'account': acc, 'current': processed, 'total': total_accounts})
                 try:
                     future.result()
                 except Exception as exc:
                     logging.error(f'Unhandled error downloading {acc}: {exc}')
+        return processed
 
     def _prepare_ydl_opts(self, acc, break_on_existing_arg, redownload):
         account_archive = os.path.join(self.downloader_config['archive_dir'], f'{acc}.txt')

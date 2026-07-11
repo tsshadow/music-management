@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Header, Depends
 from fastapi.responses import FileResponse
 from services.music_manager.database import get_db_connection
-router = APIRouter(prefix='/api/artists', tags=['artists'])
+router = APIRouter(tags=['artists'])
 logger = logging.getLogger(__name__)
 fetch_progress = {'active': False, 'total': 0, 'current': 0, 'last_artist': None, 'status': 'idle', 'message': None}
 API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '453ecd33-3cb2-4ca4-a531-1677330bbaee'
@@ -22,7 +22,7 @@ def verify_api_key(x_api_key: Optional[str]=Header(None)):
     except Exception:
         pass
     raise HTTPException(status_code=401, detail='Invalid API key')
-STORAGE_PATH = os.getenv('STORAGE_PATH', '/music/artists')
+STORAGE_PATH = os.getenv('STORAGE_PATH', '/mnt/music/artists')
 
 def init_db(cursor):
     cursor.execute('\n        CREATE TABLE IF NOT EXISTS library_artist_images (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            artist_id INT NOT NULL,\n            source VARCHAR(50),\n            source_id VARCHAR(255),\n            original_url TEXT,\n            cached_path TEXT,\n            public_path TEXT,\n            width INT,\n            height INT,\n            mime_type VARCHAR(50),\n            file_size INT,\n            confidence INT DEFAULT 0,\n            is_primary TINYINT(1) DEFAULT 0,\n            created_at DATETIME,\n            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            INDEX (artist_id),\n            INDEX (is_primary)\n        )\n    ')

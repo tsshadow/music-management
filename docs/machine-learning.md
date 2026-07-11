@@ -28,7 +28,7 @@ For each track, I would store a record like:
 ```json
 {
   "track_id": "uuid",
-  "path": "/music/Hardcore/Artist - Title.m4a",
+  "path": "/mnt/music/Hardcore/Artist - Title.m4a",
   "artist": "Artist",
   "title": "Title",
   "duration_sec": 312,

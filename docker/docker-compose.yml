@@ -75,7 +75,7 @@ services:
     environment:
       <<: [*environment-db, *environment-paths]
       LMS_DB_ROOT: /app/data
-      STORAGE_PATH: /music/artists
+      STORAGE_PATH: /mnt/music/artists
       PYTHONPATH: /app
       API_KEY: ${API_KEY}
       LMS_HOSTS: ${LMS_HOSTS}
@@ -84,7 +84,7 @@ services:
     volumes:
       - /docker/lms/var/lms:/app/data/stable:rw
       - /docker/alpha-lms/var/lms:/app/data/alpha:rw
-      - ${HOST_MUSIC_PATH}:/music
+      - ${HOST_MUSIC_PATH}:/mnt/music
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - music-management_db
@@ -474,10 +474,10 @@ services:
   #     - db
   #   environment:
   #     <<: [*environment-db]
-  #     STORAGE_PATH: /music/pictures/artists
+  #     STORAGE_PATH: /mnt/music/pictures/artists
   #     PYTHONPATH: /app
   #   volumes:
-  #     - ${HOST_MUSIC_PATH}:/music
+  #     - ${HOST_MUSIC_PATH}:/mnt/music
   #   networks:
   #     - music-management_db
 

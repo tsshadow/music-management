@@ -19,7 +19,7 @@ Run the analyzer on your music folder:
 
 ```bash
 cd services/ml-analyzer
-python analyzer.py /path/to/your/music --save --parallel
+python analyzer.py /mnt/music --save --parallel
 ```
 
 *   `--save`: Saves the results in the database (`library_track_audio_features`). Including metadata and the file path.
@@ -75,7 +75,7 @@ Afterwards, you will see a report on how accurate the model is.
 Now you can use the model on new tracks that don't have a genre yet.
 
 ```bash
-python predict.py /path/to/new/track.mp3
+python predict.py /mnt/music/new-track.mp3
 ```
 
 The script will:

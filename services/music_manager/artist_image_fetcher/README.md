@@ -21,7 +21,7 @@ SPOTIFY_CLIENT_SECRET=your_secret
 LASTFM_API_KEY=your_key
 
 # Storage Paths
-ARTIST_IMAGE_STORAGE_PATH=/var/lib/music-management/artist-images
+ARTIST_IMAGE_STORAGE_PATH=/mnt/music/artists
 ARTIST_IMAGE_PUBLIC_BASE_URL=/media/artist-images
 ARTIST_IMAGE_REFRESH_DAYS=90
 ```

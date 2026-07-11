@@ -8,7 +8,7 @@ import docker
 from services.common.version_helper import get_version, get_release_notes, get_changelog
 from services.music_manager.database import get_db_connection
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
-router = APIRouter(prefix='/api', tags=['management'])
+router = APIRouter(tags=['management'])
 
 class ArtistGenreRule(BaseModel):
     artist_name: str
@@ -35,96 +35,6 @@ def verify_api_key(x_api_key: Optional[str]=Header(None)):
 
 def init_db(_cursor):
     pass
-
-@router.post('/auth/login')
-def login_proxy(req: Dict[str, Any]=Body(...)):
-    from services.music_manager.routers.users import login, LoginRequest
-    return login(LoginRequest(**req))
-
-@router.get('/auth/verify')
-def verify_proxy(x_api_key: str=Header(None)):
-    from services.music_manager.routers.users import verify_token
-    return verify_token(x_api_key)
-
-@router.get('/users')
-def get_users_proxy(_auth: dict=Depends(verify_api_key)):
-    from services.music_manager.routers.users import get_users
-    return get_users(_auth)
-
-@router.post('/users')
-def create_user_proxy(user: Dict[str, Any]=Body(...), _auth: dict=Depends(verify_api_key)):
-    from services.music_manager.routers.users import create_user, UserCreate
-    return create_user(UserCreate(**user), _auth)
-
-@router.get('/users/{user_id}/dynamic-playlists')
-def get_playlists_proxy(user_id: int, _auth: dict=Depends(verify_api_key)):
-    from services.music_manager.routers.users import get_dynamic_playlists
-    return get_dynamic_playlists(user_id, _auth)
-
-@router.get('/users/{user_id}/lb-account')
-def get_lb_account_proxy(user_id: int, _auth: dict=Depends(verify_api_key)):
-    from services.music_manager.routers.users import get_lb_account
-    return get_lb_account(user_id, _auth)
-
-@router.put('/users/{user_id}/lb-account')
-def update_lb_account_proxy(user_id: int, lb_data: Dict[str, Any]=Body(...), _auth: dict=Depends(verify_api_key)):
-    from services.music_manager.routers.users import update_lb_account, LBAccountUpdate
-    return update_lb_account(user_id, LBAccountUpdate(**lb_data), _auth)
-
-@router.delete('/users/{user_id}')
-def delete_user_proxy(user_id: int, _auth: dict=Depends(verify_api_key)):
-    from services.music_manager.routers.users import delete_user
-    return delete_user(user_id, _auth)
-
-@router.put('/users/{user_id}/password')
-def update_password_proxy(user_id: int, req: Dict[str, Any]=Body(...), _auth: dict=Depends(verify_api_key)):
-    from services.music_manager.routers.users import update_password, PasswordUpdate
-    return update_password(user_id, PasswordUpdate(**req), _auth)
-
-@router.get('/users/{user_id}/settings/{app_id}')
-def get_user_settings_proxy(user_id: int, app_id: str, _auth: dict=Depends(verify_api_key)):
-    from services.music_manager.routers.users import get_user_app_settings
-    return get_user_app_settings(user_id, app_id, _auth)
-
-@router.post('/users/{user_id}/settings/{app_id}')
-def update_user_settings_proxy(user_id: int, app_id: str, req: Dict[str, Any]=Body(...), _auth: dict=Depends(verify_api_key)):
-    from services.music_manager.routers.users import update_user_app_settings, AppSettingsUpdate
-    return update_user_app_settings(user_id, app_id, AppSettingsUpdate(**req), _auth)
-
-@router.get('/users/{user_id}/dynamic-playlists/{playlist_id}/tracks')
-def get_playlist_tracks_proxy(user_id: int, playlist_id: int, _auth: dict=Depends(verify_api_key)):
-    from services.music_manager.routers.users import get_playlist_tracks
-    return get_playlist_tracks(user_id, playlist_id, _auth)
-
-@router.post('/users/{user_id}/dynamic-playlists')
-def create_playlist_proxy(user_id: int, playlist: Dict[str, Any]=Body(...), _auth: dict=Depends(verify_api_key)):
-    from services.music_manager.routers.users import create_dynamic_playlist, DynamicPlaylistCreate
-    return create_dynamic_playlist(user_id, DynamicPlaylistCreate(**playlist), _auth)
-
-@router.put('/users/{user_id}/dynamic-playlists/{playlist_id}')
-def update_playlist_proxy(user_id: int, playlist_id: int, playlist: Dict[str, Any]=Body(...), _auth: dict=Depends(verify_api_key)):
-    from services.music_manager.routers.users import update_dynamic_playlist, DynamicPlaylistUpdate
-    return update_dynamic_playlist(user_id, playlist_id, DynamicPlaylistUpdate(**playlist), _auth)
-
-@router.delete('/users/{user_id}/dynamic-playlists/{playlist_id}')
-def delete_playlist_proxy(user_id: int, playlist_id: int, _auth: dict=Depends(verify_api_key)):
-    from services.music_manager.routers.users import delete_dynamic_playlist
-    return delete_dynamic_playlist(user_id, playlist_id, _auth)
-
-@router.post('/users/{user_id}/dynamic-playlists/seed-defaults')
-def seed_defaults_proxy(user_id: int, _auth: dict=Depends(verify_api_key)):
-    from services.music_manager.routers.users import seed_defaults
-    return seed_defaults(user_id, _auth)
-
-@router.post('/users/sync/lms-db')
-def sync_lms_db_proxy(background_tasks: BackgroundTasks, _auth: dict=Depends(verify_api_key)):
-    from services.music_manager.routers.users import sync_lms_db
-    return sync_lms_db(background_tasks, _auth)
-
-@router.post('/users/sync/lms')
-def sync_lms_proxy(background_tasks: BackgroundTasks, _auth: dict=Depends(verify_api_key)):
-    from services.music_manager.routers.users import sync_lms_db
-    return sync_lms_db(background_tasks, _auth)
 
 @router.get('/rules')
 def get_genre_rules(_auth: dict=Depends(verify_api_key)):

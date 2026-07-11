@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Header, Depends, Query, Background
 from services.music_manager.database import get_db_connection
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 from services.common.config_store import ConfigStore as Settings
-router = APIRouter(prefix='/api/library', tags=['library'])
+router = APIRouter(tags=['library'])
 settings = Settings()
 API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '453ecd33-3cb2-4ca4-a531-1677330bbaee'
 

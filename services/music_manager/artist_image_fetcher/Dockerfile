@@ -14,6 +14,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 ENV PYTHONPATH=/app
-ENV STORAGE_PATH=/music/artists
+ENV STORAGE_PATH=/mnt/music/artists
 
 CMD ["python", "main.py", "--daemon"]

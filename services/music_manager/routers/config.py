@@ -3,7 +3,7 @@ from typing import Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Header, Body, Depends
 from pydantic import BaseModel, Field
 from services.common.config_store import ConfigStore
-router = APIRouter(prefix='/config', tags=['config'])
+router = APIRouter(tags=['config'])
 config_store = ConfigStore()
 API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '453ecd33-3cb2-4ca4-a531-1677330bbaee'
 

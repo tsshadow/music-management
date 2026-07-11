@@ -37,7 +37,7 @@ class FileRepair:
             logging.error(f'Error during repair run: {e}')
 
     def import_accounts(self):
-        path = '/volume1/Music/Soundcloud/accounts.txt'
+        path = '/mnt/music/Soundcloud/accounts.txt'
         if not os.path.exists(path):
             logging.warning('No Accounts.txt file found.')
             return
@@ -60,7 +60,7 @@ class FileRepair:
         logging.info(f'[SoundCloud] Attempting redownload from {url}')
         success = self.download_from_soundcloud(url, path)
         if not success:
-            artist = path.split('/Music/Soundcloud/')[-1].split('/')[0].strip().lower()
+            artist = path.split('/mnt/music/Soundcloud/')[-1].split('/')[0].strip().lower()
             self.artist_lookup.insert_if_missing(artist)
             self.failed_downloads.append((song_id, path, url))
         return success
@@ -77,7 +77,7 @@ class FileRepair:
 
     def derive_soundcloud_url(self, path: str) -> str:
         try:
-            parts = path.split('/Music/Soundcloud/')[-1].split('/')
+            parts = path.split('/mnt/music/Soundcloud/')[-1].split('/')
             artist = parts[0].strip().lower()
             title = os.path.splitext(parts[1])[0].strip().lower()
             normalized_artist = self.artist_lookup.get_normalized_name(artist)

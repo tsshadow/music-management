@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.83.0] - 2026-07-11
+
 ### Changed
 - **UI**: Migrated MuMa Spotify UI from `src/lms/ui/spotify-ui` to `src/lms/ui` and updated build scripts.
 - Refactored `muma` module into a standalone static library for better modularity.

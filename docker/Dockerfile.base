@@ -12,13 +12,12 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy common requirements and logic
-COPY modules/music-management/requirements.txt /tmp/requirements.txt
+COPY services/music_manager/requirements.txt /tmp/requirements.txt
 # Install only the common core dependencies to keep base image small
 RUN grep -E "pymysql|python-dotenv|requests|fastapi|uvicorn|anyio|mutagen|markdown|pydantic|yt-dlp|telethon|patool" /tmp/requirements.txt > /tmp/base_reqs.txt && \
     pip install --no-cache-dir -r /tmp/base_reqs.txt
 
 COPY services/ /app/services/
-COPY modules/music-management/ /app/modules/music-management/
 COPY VERSION RELEASE_NOTES.md CHANGELOG.md /app/
 
 ENV PYTHONPATH=/app

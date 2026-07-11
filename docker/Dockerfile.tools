@@ -18,8 +18,8 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o 
 WORKDIR /app
 
 # Kopieer requirements (indien aanwezig in de root of specifieke module)
-# We gaan ervan uit dat we de requirements uit modules/music-management nodig hebben
-COPY modules/music-management/requirements.txt .
+# We gaan ervan uit dat we de requirements uit services/music_manager nodig hebben
+COPY services/music_manager/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Kopieer de rest van de applicatie

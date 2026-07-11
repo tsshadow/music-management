@@ -4,10 +4,10 @@
 # Global files that trigger a full rebuild
 GLOBAL_PATTERNS=(
     "VERSION"
-    "requirements.txt"
+    "services/music_manager/requirements.txt"
     "docker/Dockerfile.base"
     "services/common/"
-    "modules/music-management/"
+    "services/"
     "build.sh"
     "publish.sh"
     "install.sh"
@@ -29,8 +29,6 @@ MODULE_MAP=(
     "docker/Dockerfile.downloader:downloader"
     "services/importer/:importer"
     "docker/Dockerfile.importer:importer"
-    "modules/music-management/:manager"
-    "modules/music-management/Dockerfile:manager"
     "tools/:tools"
     "docker/Dockerfile.tools:tools"
 )

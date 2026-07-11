@@ -37,24 +37,24 @@ services:
     tty: true
     networks:
       - music-management_db
-
-  ml-analyzer:
-    image: ${DOCKER_USER}/${IMAGE_ML}:latest
-    container_name: muma-ml-analyzer
-    depends_on:
-      - db
-    environment:
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_USER=${DB_USER}
-      - DB_PASS=${DB_PASS}
-      - DB_DB=${DB_DB}
-      - PYTHONPATH=/app
-    volumes:
-      - ${HOST_MUSIC_PATH}:/mnt/music
-      - ${HOST_DATA_PATH}/shared:/shared
-    networks:
-      - music-management_db
+#
+#  ml-analyzer:
+#    image: ${DOCKER_USER}/${IMAGE_ML}:latest
+#    container_name: muma-ml-analyzer
+#    depends_on:
+#      - db
+#    environment:
+#      - DB_HOST=${DB_HOST}
+#      - DB_PORT=${DB_PORT}
+#      - DB_USER=${DB_USER}
+#      - DB_PASS=${DB_PASS}
+#      - DB_DB=${DB_DB}
+#      - PYTHONPATH=/app
+#    volumes:
+#      - ${HOST_MUSIC_PATH}:/mnt/music
+#      - ${HOST_DATA_PATH}/shared:/shared
+#    networks:
+#      - music-management_db
 
   firefox:
     image: jlesage/firefox:latest

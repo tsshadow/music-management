@@ -73,7 +73,7 @@ services:
     depends_on:
       - db
     environment:
-      <<: [*environment-db]
+      <<: [*environment-db, *environment-paths]
       LMS_DB_ROOT: /app/data
       STORAGE_PATH: /music/artists
       PYTHONPATH: /app
@@ -299,59 +299,63 @@ services:
     stdin_open: true
     tty: true
 
-  tagger_worker:
-    image: ${DOCKER_USER}/${IMAGE_TAGGER}:latest
-    container_name: muma-tagger-worker
-    restart: unless-stopped
-    depends_on:
-      - db
-    command:
-      [
-        "python",
-        "services/tagger/tagger_service.py",
-        "--repeat",
-        "--sleeptime",
-        "300"
-      ]
-    environment:
-      <<: [*environment-db, *environment-paths]
-      NOTIFY_URL: ${NOTIFY_URL}
-      PYTHONPATH: /app
-      debug: "${debug}"
-      delimiter: "${delimiter}"
-    volumes:
-      - ${HOST_DATA_PATH}/importer:/app/data
-      - ${HOST_MUSIC_PATH}:/mnt/music
-      - ${HOST_DATA_PATH}/shared:/shared
-    networks:
-      - music-management_db
+  # taggerF_worker:
+  #   image: ${DOCKER_USER}/${IMAGE_TAGGER}:latest
+  #   container_name: muma-tagger
+  #   restart: unless-stopped
+  #   ports:
+  #     - "10001:8001"
+  #   depends_on:
+  #     - db
+  #   command:
+  #     [
+  #       "python",
+  #       "services/tagger/tagger_service.py",
+  #       "--repeat",
+  #       "--sleeptime",
+  #       "300"
+  #     ]
+  #   environment:
+  #     <<: [*environment-db, *environment-paths]
+  #     NOTIFY_URL: ${NOTIFY_URL}
+  #     PYTHONPATH: /app
+  #     debug: "${debug}"
+  #     delimiter: "${delimiter}"
+  #   volumes:
+  #     - ${HOST_DATA_PATH}/importer:/app/data
+  #     - ${HOST_MUSIC_PATH}:/mnt/music
+  #     - ${HOST_DATA_PATH}/shared:/shared
+  #   networks:
+  #     - music-management_db
 
-  scanner_service:
-    image: ${DOCKER_USER}/${IMAGE_SCANNER}:latest
-    container_name: muma-scanner
-    restart: unless-stopped
-    depends_on:
-      - db
-    command:
-      [
-        "python",
-        "services/scanner/scanner_service.py",
-        "--repeat",
-        "--sleeptime",
-        "3600"
-      ]
-    environment:
-      <<: [*environment-db]
-      NOTIFY_URL: ${NOTIFY_URL}
-      PYTHONPATH: /app
-      debug: "${debug}"
-      delimiter: "${delimiter}"
-      music_folder_path: ${music_folder_path}
-    volumes:
-      - ${HOST_MUSIC_PATH}:/mnt/music
-      - ${HOST_DATA_PATH}/shared:/shared
-    networks:
-      - music-management_db
+  # scanner_service:
+  #   image: ${DOCKER_USER}/${IMAGE_SCANNER}:latest
+  #   container_name: muma-scanner
+  #   restart: unless-stopped
+  #   ports:
+  #     - "10002:8002"
+  #   depends_on:
+  #     - db
+  #   command:
+  #     [
+  #       "python",
+  #       "services/scanner/scanner_service.py",
+  #       "--repeat",
+  #       "--sleeptime",
+  #       "3600"
+  #     ]
+  #   environment:
+  #     <<: [*environment-db]
+  #     NOTIFY_URL: ${NOTIFY_URL}
+  #     PYTHONPATH: /app
+  #     debug: "${debug}"
+  #     delimiter: "${delimiter}"
+  #     music_folder_path: ${music_folder_path}
+  #   volumes:
+  #     - ${HOST_MUSIC_PATH}:/mnt/music
+  #     - ${HOST_DATA_PATH}/shared:/shared
+  #   networks:
+  #     - music-management_db
 
   soundcloud-fetcher:
     image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest

@@ -63,5 +63,19 @@ class JobApiTest(unittest.TestCase):
         finally:
             server.shutdown()
             server.server_close()
+
+    def test_api_server_idempotency(self):
+        # Default port is 8001
+        s1 = start_api_server(port=8001)
+        try:
+            s2 = start_api_server(port=8001)
+            self.assertIs(s1, s2)
+        finally:
+            if s1:
+                s1.shutdown()
+                s1.server_close()
+            # Clear from global cache to not affect other tests if they use 8001
+            from services.common.api import _servers
+            _servers.pop(8001, None)
 if __name__ == '__main__':
     unittest.main()

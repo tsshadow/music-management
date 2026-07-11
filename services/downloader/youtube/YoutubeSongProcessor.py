@@ -3,12 +3,14 @@ import logging
 import os
 import re
 from typing import Optional
+from pathlib import Path
 from yt_dlp.postprocessor import PostProcessor
 from yt_dlp.utils import sanitize_filename
 
 from services.common.Helpers.NotificationService import notification_service
 from services.downloader.youtube.YoutubeArchive import YoutubeArchive
-from services.tagger.tagger_service import TaggerService
+from services.tagger.tagger import Tagger
+from services.tagger.constants import SongTypeEnum
 
 
 class YoutubeSongProcessor(PostProcessor):
@@ -32,10 +34,9 @@ class YoutubeSongProcessor(PostProcessor):
             YoutubeArchive.insert(account, video_id, path, url, title_for_archive)
         else:
             logging.info(f'Track already in downloads_youtube_archive: {account}/{video_id} — skipping insert.')
-        tagger_service = TaggerService()
         if corrected_title:
             info['title'] = corrected_title
-        song = tagger_service.tag("youtube", path, info)
+        song = Tagger.parse_song(Path(path), SongTypeEnum.YOUTUBE, extra_info=info)
         if song:
             notification_service.notify(str(song), title="YouTube Download Complete")
         # if corrected_title:

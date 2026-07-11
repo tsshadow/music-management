@@ -256,7 +256,7 @@ def run_fetch_missing():
                     FROM library_artists
                     WHERE primary_image_id IS NULL
                     AND (image_status IS NULL OR image_status = 'failed')
-                    ORDER BY name
+                    ORDER BY image_updated_at ASC, name ASC
                 """)
                 artists = cursor.fetchall()
                 logger.info(f"Query (filtered by status) returned {len(artists)} artists needing images")

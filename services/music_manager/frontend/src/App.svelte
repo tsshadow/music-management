@@ -4,6 +4,7 @@
 
   // Import Tabs
   import OverviewTab from './lib/tabs/OverviewTab.svelte';
+  import LibraryTab from './lib/tabs/LibraryTab.svelte';
   import StatsTab from './lib/tabs/StatsTab.svelte';
   import ArtistImagesTab from './lib/tabs/ArtistImagesTab.svelte';
   import PlaylistsTab from './lib/tabs/PlaylistsTab.svelte';
@@ -412,6 +413,8 @@
       {:else}
         {#if activeTab === 'home'}
           <OverviewTab {containers} {activity} {config} {allNotes} {selectedServiceNotes} {notes} onNavigateToStats={() => activeTab = 'stats'} />
+        {:else if activeTab === 'library'}
+          <LibraryTab {API_BASE} {getHeaders} onMessage={(m) => message = m} onError={(e) => error = e} />
         {:else if activeTab === 'stats'}
           <StatsTab {stats} {fetchStats} {fetchArtistImages} />
         {:else if activeTab === 'images'}

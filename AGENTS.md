@@ -20,8 +20,14 @@ The system is split into specialized services, each handling a specific part of 
     - **Tagging**: Uses `LabelSong` to apply rule-based metadata.
 - **Workflow**: `Monitor` -> `Extract` -> `Tag` -> `Move` to the final library destination.
 
-### 3. `tagger` (`services/tagger`)
+### 3. `tagger` (Integrated in `music-manager`)
 - **Engine**: The core metadata enforcement system.
+- **Features**:
+    - **Auto-Detection**: `TagSingleFile(path)` automatically detects the song type (SoundCloud, YouTube, Label, etc.) based on its file location and applies appropriate tagging rules.
+    - **REST API**: Integrated into `music-manager` (Port 8000) under `/api/tagger`:
+        - `POST /api/tagger/tag/all`: Runs the full tagging pipeline in background.
+        - `POST /api/tagger/tag/file?path=...`: Tags a single file with auto-detection.
+        - `GET /api/tagger/health`: Health check and status.
 - **Song Types**:
     - `SoundcloudSong`: Specialized in SoundCloud metadata (e.g., handling "Premiere" prefixes).
     - `YoutubeSong`: Splitting "Artist - Title" strings and handling channel attribution.
@@ -31,15 +37,31 @@ The system is split into specialized services, each handling a specific part of 
     - Artist normalization (casing, splitting featured artists).
     - Remixer extraction from titles and assignment to `REMIXER` tag.
     - Cleanup of invalid characters (e.g., zero-width spaces).
+- **Background Task**: Managed via a background thread in `music-manager`.
 
-### 4. `music-manager` (`services/music_manager`)
+### 4. `scanner` (Integrated in `music-manager`)
+- **Role**: Synchronizes the filesystem with the database.
+- **Features**:
+    - **Metadata Extraction**: Reads tags from audio files and updates the `library_tracks`, `library_artists`, etc., tables.
+    - **REST API**: Integrated into `music-manager` (Port 8000) under `/api/scanner`:
+        - `POST /api/scanner/scan/all`: Runs a full library scan in background.
+        - `POST /api/scanner/scan/file?path=...`: Scans a single file and updates its database record.
+        - `GET /api/scanner/health`: Health check and status.
+    - **Redownload Service**: Allows triggering redownloads for tracks that originated from SoundCloud or YouTube.
+        - Automatically matches library tracks to original source URLs using the download archive.
+        - `POST /api/library/tracks/{id}/redownload`: Starts a background redownload task.
+
+### 5. `music-manager` (`services/music_manager`)
 - **Role**: The "Source of Truth" and central hub.
 - **Backend**: FastAPI service managing:
     - User authentication (synchronizing with `lms.db`).
     - Song ratings and scrobbling history.
     - Real-time notifications via `ntfy.sh`.
     - Dashboard API for the Svelte frontend.
-- **Background Listeners**: Streams notifications and events (e.g., from `ntfy.sh` or LMS webhooks) to keep the database and UI in sync.
+    - **Integrated Services**: Now hosts the `tagger` and `scanner` logic and APIs.
+- **Background Listeners**:
+    - Streams notifications and events (e.g., from `ntfy.sh` or LMS webhooks).
+    - Periodic tagging and scanning tasks.
 
 ### 5. `ml-analyzer` (`services/ml-analyzer`)
 - **Purpose**: Audio analysis for advanced metadata.
@@ -104,7 +126,6 @@ Pre-configured "Run Configurations" are available in the `.run/` directory. Thes
 - **Importer Worker**: Runs `importer_service.py` with repeat enabled.
 - **SoundCloud Worker**: Runs `downloader_service.py` for SoundCloud.
 - **YouTube Worker**: Runs `downloader_service.py` for YouTube.
-- **Tagger Worker**: Runs `tagger_service.py` with repeat enabled.
 
 These configurations automatically load environment variables from your `.env` file and set the correct `PYTHONPATH`.
 

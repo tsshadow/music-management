@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1] - 2026-07-10
+
+### Added
+- **Redownload Feature**: Added a "Redownload" button to the Library UI for SoundCloud and YouTube tracks.
+- **Archive Integration**: The system now automatically finds the original source URL from the download archives to facilitate redownloads.
+- **Downloader Enhancements**: Added `redownload_mode` to SoundCloud and YouTube downloaders to allow bypassing existing archive entries when explicitly requested.
+
+## [2.4.0] - 2026-07-10
+
+### Changed
+- **Architecture**: Integrated the `tagger` and `scanner` services directly into the `music-manager` service.
+- **Workflow**: Tagger and Scanner now run as background threads within the music manager process, reducing inter-service communication overhead and simplifying Docker deployment.
+- **API**: Moved `/tag/*` and `/scan/*` endpoints to `/api/tagger/*` and `/api/scanner/*` respectively within the music manager API.
+- **Performance**: Track rescan in the library now uses direct function calls for tagging and scanning instead of internal HTTP requests.
+
+## [2.3.4] - 2026-07-10
+
+### Fixed
+- **Rescan Workflow**: Fixed a race condition where the scanner would run before the tagger finished by making single-file API calls synchronous.
+- **Tagger Metadata**: Fixed an issue where manual rescans wouldn't clear the `needs_rescan` flag in the database.
+- **Docker Networking**: Corrected internal service URLs in `docker-compose.yml` to use internal container ports instead of host-mapped ports.
+
+## [2.3.3] - 2026-07-10
+
+### Added
+- **Scanner Service API**: Integrated a FastAPI-based REST API on port 8002 for the scanner service.
+- **Immediate DB Sync**: Library track rescan now triggers both the tagger and the scanner for instant database updates.
+
+## [2.3.2] - 2026-07-10
+
+### Added
+- **Tagger Service API**: Integrated a FastAPI-based REST API on port 8001 for the tagger service.
+- **On-Startup Full Scan**: Service now explicitly performs a full tagging scan immediately upon startup.
+- **Tagging Control Endpoints**: New `/tag/all` and `/tag/file` endpoints to trigger metadata enforcement via API.
+
+## [2.3.1] - 2026-07-10
+
+### Added
+- **Tagger Auto-Detection**: New `TagSingleFile(path)` utility function that automatically determines the song source (SoundCloud, YouTube, Label, etc.) based on its file location and applies the appropriate tagging rules.
+
 ## [2.3.0] - 2026-07-05
 
 ### Added

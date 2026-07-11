@@ -16,11 +16,12 @@ from services.common.api import start_api_server
 load_dotenv()
 
 class TrackAnalyzer:
-    def __init__(self, max_workers=4):
+    def __init__(self, max_workers=4, start_api=False):
         self.engine = self._get_db_engine()
         self.max_workers = max_workers
         self.verbose = True
-        start_api_server()
+        if start_api:
+            start_api_server()
 
     def _get_db_engine(self):
         host = os.getenv("DB_HOST", "db")
@@ -582,7 +583,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    analyzer = TrackAnalyzer(max_workers=4)
+    analyzer = TrackAnalyzer(max_workers=4, start_api=True)
 
     while True:
         if args.all:

@@ -57,7 +57,7 @@ class ImporterService:
     These steps are designed to be executed together and in this order.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, start_api: bool = False) -> None:
         # Load global settings (database, paths, etc.)
         self.settings = Settings()
 
@@ -74,7 +74,8 @@ class ImporterService:
         ]
 
         # Start the API server for health checks, metrics, control, etc.
-        start_api_server()
+        if start_api:
+            start_api_server()
 
     def run_import(self) -> None:
         """
@@ -102,7 +103,7 @@ def main() -> None:
     args = parse_args()
     logging.info("Starting music importer service")
 
-    importer_service = ImporterService()
+    importer_service = ImporterService(start_api=True)
 
     while True:
         try:

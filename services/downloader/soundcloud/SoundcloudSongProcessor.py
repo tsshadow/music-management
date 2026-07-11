@@ -2,10 +2,12 @@ import json
 import logging
 import subprocess
 from urllib.parse import urlparse
+from pathlib import Path
 from yt_dlp.postprocessor import PostProcessor
 
 from services.common.Helpers.NotificationService import notification_service
-from services.tagger.tagger_service import TaggerService
+from services.tagger.tagger import Tagger
+from services.tagger.constants import SongTypeEnum
 from .SoundcloudArchive import SoundcloudArchive
 
 class SoundcloudSongProcessor(PostProcessor):
@@ -31,8 +33,7 @@ class SoundcloudSongProcessor(PostProcessor):
         logging.info(f'Postprocessing downloaded file: {path}')
         enriched_info = self._fetch_enriched_info(url)
         if not enriched_info:
-            tagger_service = TaggerService()
-            song = tagger_service.tag("soundcloud", path)
+            song = Tagger.parse_song(Path(path), SongTypeEnum.SOUNDCLOUD)
             if song:
                 notification_service.notify(str(song), title="SoundCloud Download Complete")
             return ([], info)
@@ -51,8 +52,7 @@ class SoundcloudSongProcessor(PostProcessor):
                 'url': enriched_info.get('original_url'),
                 'title': enriched_info.get('title')
             })
-        tagger_service = TaggerService()
-        song = tagger_service.tag("soundcloud", path, enriched_info)
+        song = Tagger.parse_song(Path(path), SongTypeEnum.SOUNDCLOUD, extra_info=enriched_info)
         if song:
             notification_service.notify(str(song), title="SoundCloud Download Complete")
         return ([], info)

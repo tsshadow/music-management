@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 import logging
-from . import job_manager
+from .job_manager import job_manager
 try:
     from .server import app
 except Exception as e:
@@ -50,11 +50,29 @@ class JobAPIHandler(BaseHTTPRequestHandler):
         else:
             self._send(404, {'error': 'Not found'})
 
-def start_api_server(host: str='127.0.0.1', port: int=8001) -> HTTPServer:
+_servers: dict[int, HTTPServer] = {}
+_server_lock = threading.Lock()
+
+def start_api_server(host: str = "127.0.0.1", port: int = 8001) -> HTTPServer | None:
     """Start a small HTTP server for job tracking (used in tests)."""
-    server = HTTPServer((host, port), JobAPIHandler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    logging.info(f"Started mock API server on {host}:{server.server_port}")
-    return server
+    global _servers
+    with _server_lock:
+        if port != 0 and port in _servers:
+            return _servers[port]
+        try:
+            server = HTTPServer((host, port), JobAPIHandler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            logging.info(f"Started mock API server on {host}:{server.server_port}")
+            if port != 0:
+                _servers[port] = server
+            return server
+        except OSError as e:
+            if e.errno == 98:  # Address already in use
+                logging.warning(
+                    f"Mock API server could not start on {host}:{port}: {e}. "
+                    "It may already be running."
+                )
+                return None
+            raise
 __all__ = ['app', 'start_api_server']

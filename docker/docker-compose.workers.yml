@@ -16,7 +16,7 @@ services:
         "300"
       ]
     environment:
-      PYTHONPATH: /app:/app/services/downloader
+      PYTHONPATH: /app
       debug: "${debug}"
       dryrun: "False"
       rescan: "True"
@@ -70,7 +70,7 @@ services:
         "--break-on-existing"
       ]
     environment:
-      PYTHONPATH: /app:/app/services/downloader
+      PYTHONPATH: /app
       debug: "${debug}"
       dryrun: "False"
       rescan: "True"
@@ -126,7 +126,7 @@ services:
         "--break-on-existing"
       ]
     environment:
-      PYTHONPATH: /app:/app/services/downloader
+      PYTHONPATH: /app
       debug: "${debug}"
       dryrun: "False"
       rescan: "True"
@@ -179,7 +179,7 @@ services:
         "--no-break-on-existing"
       ]
     environment:
-      PYTHONPATH: /app:/app/services/downloader
+      PYTHONPATH: /app
       debug: "${debug}"
       dryrun: "False"
       rescan: "True"
@@ -234,7 +234,7 @@ services:
         "300"
       ]
     environment:
-      PYTHONPATH: /app:/app/services/downloader
+      PYTHONPATH: /app
       debug: "${debug}"
       dryrun: "False"
       delimiter: "${delimiter}"
@@ -275,7 +275,7 @@ services:
         "300"
       ]
     environment:
-      PYTHONPATH: /app:/app/services/downloader
+      PYTHONPATH: /app
       debug: "${debug}"
       delimiter: "${delimiter}"
       import_folder_path: ${import_folder_path}
@@ -310,7 +310,7 @@ services:
         "3600"
       ]
     environment:
-      PYTHONPATH: /app:/app/services/downloader
+      PYTHONPATH: /app
       debug: "${debug}"
       delimiter: "${delimiter}"
       music_folder_path: ${music_folder_path}

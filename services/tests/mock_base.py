@@ -73,7 +73,8 @@ for mod_name in ['services.common.config_store', 'services.common.Helpers.Notifi
 if 'services.common.config_store' in sys.modules:
     mock_cs = sys.modules['services.common.config_store']
     if isinstance(mock_cs, MagicMock):
-        mock_cs.ConfigStore.return_value.get_many.return_value = {'youtube_folder': '/tmp/youtube', 'youtube_archive': '/tmp/archive', 'soundcloud_folder': '/tmp/soundcloud', 'soundcloud_archive': '/tmp/archive'}
+        mock_cs.ConfigStore.return_value.get_many.return_value = {'youtube_folder': '/tmp/youtube', 'youtube_archive': '/tmp/archive', 'soundcloud_folder': '/tmp/soundcloud', 'soundcloud_archive': '/tmp/archive', 'delimiter': '/'}
+        mock_cs.ConfigStore.return_value.delimiter = '/'
 if 'yt_dlp.utils' in sys.modules:
     sys.modules['yt_dlp.utils'].sanitize_filename = lambda x, **k: x
 if 'dotenv' in sys.modules:
@@ -119,7 +120,7 @@ def reset_database_helpers():
     helpers = sys.modules['services.common.Helpers.Cache'].databaseHelpers
     for h_name, h in helpers.items():
         if isinstance(h, MagicMock):
-            h.reset_mock(return_value=True, side_effect=True)
+            h.reset_mock()
             h.exists.return_value = False
             h.get_all_values.return_value = []
             h.get_all.return_value = []

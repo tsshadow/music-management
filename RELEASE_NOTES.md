@@ -1,6 +1,6 @@
-# Release Notes - LMS 3.83.0
+# Release Notes - LMS 3.83.1
 
-## Version 3.83.0 (2026-07-11)
+## Version 3.83.1 (2026-07-11)
 ### 🎨 Major UI Migration & Refactoring
 - **New Svelte UI**: Successfully migrated the web interface to a modern Svelte-based architecture, now located in `src/lms/ui`.
 - **Legacy UI Removal**: Retired the old Wt-based interface for better performance and a cleaner codebase.

@@ -5,9 +5,6 @@ import signal
 from time import sleep
 import faulthandler
 from services.common.config_store import ConfigStore as Settings
-from services.downloader.youtube.youtube import YoutubeDownloader
-from services.downloader.soundcloud.soundcloud import SoundcloudDownloader
-from services.downloader.telegram.telegram import TelegramDownloader
 faulthandler.register(signal.SIGUSR1)
 
 def parse_args() -> argparse.Namespace:
@@ -29,12 +26,15 @@ class DownloaderService:
 
     def download(self, source: str, account: str | None, break_on_existing: bool) -> None:
         if source == 'youtube':
+            from services.downloader.youtube.youtube import YoutubeDownloader
             youtube_downloader = YoutubeDownloader(break_on_existing=break_on_existing)
             youtube_downloader.run(account=account)
         elif source == 'soundcloud':
+            from services.downloader.soundcloud.soundcloud import SoundcloudDownloader
             soundcloud_downloader = SoundcloudDownloader(break_on_existing=break_on_existing)
             soundcloud_downloader.run(account=account)
         elif source == 'telegram':
+            from services.downloader.telegram.telegram import TelegramDownloader
             telegram_downloader = TelegramDownloader()
             if account:
                 accounts = [account]

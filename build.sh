@@ -22,6 +22,8 @@ fi
     DEBUG_MODE=false
     REMOTE_MODE=false
     SEMI_REMOTE_MODE=false
+    SKIP_LINT=false
+    SKIP_TEST=false
     for arg in "$@"; do
         if [ "$arg" == "--debug" ]; then
             DEBUG_MODE=true
@@ -29,6 +31,10 @@ fi
             REMOTE_MODE=true
         elif [ "$arg" == "--semi-remote" ]; then
             SEMI_REMOTE_MODE=true
+        elif [ "$arg" == "--skip-lint" ]; then
+            SKIP_LINT=true
+        elif [ "$arg" == "--skip-test" ]; then
+            SKIP_TEST=true
         fi
     done
 
@@ -142,7 +148,7 @@ run_tests() {
 REQUESTED_MODULES=()
 for arg in "$@"; do
     case $arg in
-        --debug|--remote|--semi-remote|patch) ;;
+        --debug|--remote|--semi-remote|--skip-lint|--skip-test|patch) ;;
         *) REQUESTED_MODULES+=("$arg") ;;
     esac
 done
@@ -152,9 +158,18 @@ if [ "$SEMI_REMOTE_MODE" = true ]; then
     echo "--- Building ML, Tools, and Manager remote, others local ---"
 fi
 
-# All builds require passing tests and linting
-run_linter
-run_tests
+# All builds require passing tests and linting (unless skipped)
+if [ "$SKIP_LINT" = false ]; then
+    run_linter
+else
+    echo "--- Skipping pylint ---"
+fi
+
+if [ "$SKIP_TEST" = false ]; then
+    run_tests
+else
+    echo "--- Skipping tests ---"
+fi
 
 if [ ${#REQUESTED_MODULES[@]} -eq 0 ]; then
     echo "--- Building all modules in parallel ---"

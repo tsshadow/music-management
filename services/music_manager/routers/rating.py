@@ -68,3 +68,23 @@ def handle_lms_event(event: LMSEvent, _auth: dict=Depends(verify_api_key)):
             return {'status': 'success', 'entity_id': entity_id}
     finally:
         conn.close()
+
+@router.get('/ratings/{username}')
+def get_user_ratings(username: str, _auth: dict=Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail='Database connection failed')
+    try:
+        with conn.cursor() as cursor:
+            # Join with library_media_files to get paths for tracks
+            sql = """
+                SELECT r.entity_type, r.entity_id, r.rating, f.file_path
+                FROM rating_tracks r
+                LEFT JOIN library_tracks t ON r.entity_id = t.track_uid AND r.entity_type = 'track'
+                LEFT JOIN library_media_files f ON t.id = f.track_id
+                WHERE r.username = %s
+            """
+            cursor.execute(sql, (username,))
+            return cursor.fetchall()
+    finally:
+        conn.close()

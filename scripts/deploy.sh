@@ -50,7 +50,7 @@ IMAGE_NAME="${IMAGE_NAME}"
 # Parse positional arguments for service name
 for arg in "$@"; do
     case $arg in
-        --debug|--remote|--semi-remote) ;;
+        --debug|--remote|--semi-remote|--skip-lint|--skip-test) ;;
         *) 
             if [ -z "$SERVICE_NAME" ]; then
                 SERVICE_NAME="$arg"

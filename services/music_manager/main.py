@@ -12,6 +12,7 @@ from services.music_manager.routers import users, scrobbler, rating, stats, mana
 from services.music_manager.routers.users import run_lms_db_sync
 from services.music_manager.routers.tagger import run_tagger_loop
 from services.music_manager.routers.scanner import run_scanner_loop
+from services.music_manager.routers.artist_images import run_fetch_missing
 from services.music_manager.ntfy_listener import start_ntfy_listener
 from services.common.db_init import ensure_tables_exist
 from services.common.version_helper import get_version, get_release_notes, get_changelog
@@ -54,6 +55,7 @@ def startup_event():
     threading.Thread(target=run_lms_db_sync, daemon=True).start()
     threading.Thread(target=run_tagger_loop, args=(int(os.getenv('TAGGER_SLEEPTIME', '300')),), daemon=True).start()
     threading.Thread(target=run_scanner_loop, args=(int(os.getenv('SCANNER_SLEEPTIME', '3600')),), daemon=True).start()
+    threading.Thread(target=run_fetch_missing, daemon=True).start()
     start_ntfy_listener()
 
 @app.get('/health')

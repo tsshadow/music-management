@@ -14,10 +14,12 @@
 
   let newUsername = '';
   let newDisplayName = '';
-  let userPassword = '';
+  let newUserPassword = '';
+  let updateUserPassword = '';
   let lbUsername = '';
   let lbToken = '';
   let userLBAccount: any = null;
+  let lastSelectedUserId = null;
 
   async function addUser() {
     if (!newUsername) return;
@@ -28,14 +30,14 @@
         body: JSON.stringify({
           username: newUsername,
           display_name: newDisplayName,
-          password: userPassword
+          password: newUserPassword
         })
       });
       if (res.ok) {
         onMessage(`Gebruiker ${newUsername} toegevoegd!`);
         newUsername = '';
         newDisplayName = '';
-        userPassword = '';
+        newUserPassword = '';
         fetchUsers();
       } else {
         const data = await res.json();
@@ -88,16 +90,16 @@
   }
 
   async function updatePassword() {
-    if (!selectedUser || !userPassword) return;
+    if (!selectedUser || !updateUserPassword) return;
     try {
       const res = await fetch(`${API_BASE}/api/users/${selectedUser.id}/password`, {
         method: 'POST',
         headers: getHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ password: userPassword })
+        body: JSON.stringify({ password: updateUserPassword })
       });
       if (res.ok) {
         onMessage("Wachtwoord bijgewerkt!");
-        userPassword = '';
+        updateUserPassword = '';
       } else {
         onError("Kon wachtwoord niet bijwerken.");
       }
@@ -163,8 +165,13 @@
   }
 
   $: if (selectedUser) {
-    fetchLBAccount();
-    userPassword = '';
+    if (selectedUser.id !== lastSelectedUserId) {
+      lastSelectedUserId = selectedUser.id;
+      fetchLBAccount();
+      updateUserPassword = '';
+    }
+  } else {
+    lastSelectedUserId = null;
   }
 </script>
 
@@ -250,7 +257,7 @@
           <div>
             <input 
               type="password" 
-              bind:value={userPassword}
+              bind:value={newUserPassword}
               placeholder="Standaard Wachtwoord"
               class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
             />
@@ -288,14 +295,14 @@
                     <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">Nieuw Wachtwoord</label>
                     <input 
                       type="password" 
-                      bind:value={userPassword}
+                      bind:value={updateUserPassword}
                       placeholder="••••••••"
                       class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
                     />
                   </div>
                   <button 
                     on:click={updatePassword}
-                    disabled={!userPassword}
+                    disabled={!updateUserPassword}
                     class="w-full bg-spotify-green text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
                   >
                     WACHTWOORD OPSLAAN

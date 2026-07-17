@@ -3,6 +3,7 @@ import logging
 import math
 import os
 import random
+import threading
 import time
 from pathlib import Path
 from typing import Optional
@@ -13,6 +14,50 @@ from services.common.config_store import ConfigStore
 from services.common.job_manager import job_manager
 from services.downloader.soundcloud.SoundcloudArchive import SoundcloudArchive
 from .SoundcloudSongProcessor import SoundcloudSongProcessor
+
+_403_lock = threading.Lock()
+CONSECUTIVE_403_ERRORS = 0
+
+def get_403_wait_time(count: int) -> int:
+    """
+    Returns wait time in seconds based on consecutive 403 errors.
+    Sequence: 4min, 30min, 3h, 6h, 12h, 24h (cap)
+    """
+    if count <= 1:
+        return 240  # 4 min
+    if count == 2:
+        return 1800 # 30 min
+    if count == 3:
+        return 10800 # 3 hours
+    if count == 4:
+        return 21600 # 6 hours
+    if count == 5:
+        return 43200 # 12 hours
+    return 86400    # 24 hours (max)
+
+class SoundcloudYdlLogger:
+    """
+    Custom logger for yt-dlp to detect 403 Forbidden errors even when ignoreerrors is True.
+    """
+    def __init__(self):
+        self.had_403 = False
+
+    def debug(self, msg):
+        if not msg.startswith('[debug] '):
+            logging.debug(msg)
+
+    def info(self, msg):
+        logging.info(msg)
+
+    def warning(self, msg):
+        logging.warning(msg)
+        if '403' in msg:
+            self.had_403 = True
+
+    def error(self, msg):
+        logging.error(msg)
+        if '403' in msg:
+            self.had_403 = True
 
 def get_accounts_from_db():
     try:
@@ -70,13 +115,26 @@ class SoundcloudDownloader:
         """
         Download tracks from a specific SoundCloud URL (account, playlist, or single track).
         """
+        global CONSECUTIVE_403_ERRORS
         for attempt in range(1, 4):
+            ydl_logger = SoundcloudYdlLogger()
+            opts = (yt_dl_opts or {}).copy()
+            opts['logger'] = ydl_logger
             try:
-                with YoutubeDL(yt_dl_opts) as ydl:
+                with YoutubeDL(opts) as ydl:
                     ydl.add_post_processor(FFmpegMetadataPP(ydl))
                     ydl.add_post_processor(EmbedThumbnailPP(ydl))
                     ydl.add_post_processor(SoundcloudSongProcessor())
                     ydl.download([url])
+
+                if ydl_logger.had_403:
+                    raise Exception('HTTP Error 403: Forbidden detected in logs')
+
+                # If we reach here, it succeeded without 403
+                with _403_lock:
+                    if CONSECUTIVE_403_ERRORS > 0:
+                        logging.info(f'Success after previous 403 errors. Resetting counter from {CONSECUTIVE_403_ERRORS} to 0.')
+                    CONSECUTIVE_403_ERRORS = 0
                 return
             except Exception as e:
                 msg = str(e)
@@ -85,8 +143,11 @@ class SoundcloudDownloader:
                     logging.warning(f'HTTP Error 429: Too Many Requests for {url}. Extremely long pause for {wait_time}s...')
                     time.sleep(wait_time)
                 elif '403' in msg:
-                    wait_time = random.randint(60, 600)
-                    logging.warning(f'403 Forbidden for {url}. Pausing {wait_time}s before retry...')
+                    with _403_lock:
+                        CONSECUTIVE_403_ERRORS += 1
+                        count = CONSECUTIVE_403_ERRORS
+                    wait_time = get_403_wait_time(count)
+                    logging.warning(f'403 Forbidden for {url} (consecutive: {count}). Pausing {wait_time}s before retry...')
                     time.sleep(wait_time)
                 elif '404' in msg:
                     logging.info(f'Got 404 for {url} — skip.')

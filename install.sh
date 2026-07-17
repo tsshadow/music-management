@@ -23,6 +23,8 @@ show_help() {
     echo "  --semi-remote   Use semi-remote mode (heavy images remote, others local)"
     echo "  --all           Force build and publish of all applications"
     echo "  --debug         Enable debug output"
+    echo "  --skip-lint     Skip pylint check"
+    echo "  --skip-test     Skip pytest suite"
     echo "  --app=<app>     Specify an application to install"
     echo "  --list          List available applications"
     echo "  --show-stats    Show music library statistics (CLI)"
@@ -47,6 +49,8 @@ list_apps() {
 # Default values
 REMOTE_FLAG=""
 DEBUG_FLAG=""
+SKIP_LINT_FLAG=""
+SKIP_TEST_FLAG=""
 SELECTED_APPS=()
 
 # Parse arguments
@@ -67,6 +71,12 @@ for i in "$@"; do
             ;;
         --debug)
             DEBUG_FLAG="--debug"
+            ;;
+        --skip-lint)
+            SKIP_LINT_FLAG="--skip-lint"
+            ;;
+        --skip-test)
+            SKIP_TEST_FLAG="--skip-test"
             ;;
         --list)
             list_apps
@@ -126,6 +136,8 @@ fi
 BP_ARGS=()
 [ -n "$REMOTE_FLAG" ] && BP_ARGS+=("$REMOTE_FLAG")
 [ -n "$DEBUG_FLAG" ] && BP_ARGS+=("$DEBUG_FLAG")
+[ -n "$SKIP_LINT_FLAG" ] && BP_ARGS+=("$SKIP_LINT_FLAG")
+[ -n "$SKIP_TEST_FLAG" ] && BP_ARGS+=("$SKIP_TEST_FLAG")
 [ ${#SELECTED_APPS[@]} -gt 0 ] && BP_ARGS+=("${SELECTED_APPS[@]}")
 
 # Execute stages

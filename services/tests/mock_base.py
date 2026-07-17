@@ -32,7 +32,7 @@ sys.modules['mutagen.wave']._WaveID3 = MagicMock
 sys.modules['mutagen.id3'].TXXX = MagicMock
 sys.modules['mutagen.id3'].TextFrame = MagicMock
 os.environ.setdefault('import_folder_path', '/tmp/import')
-os.environ.setdefault('music_folder_path', '/tmp/music')
+os.environ.setdefault('music_folder_path', '/mnt/music')
 os.environ.setdefault('eps_folder_path', '/tmp/eps')
 os.environ.setdefault('delimiter', '/')
 os.environ.setdefault('DB_HOST', 'localhost')

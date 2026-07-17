@@ -175,7 +175,7 @@ push_manager() {
 REQUESTED_MODULES=()
 for arg in "$@"; do
     case $arg in
-        --debug|--remote|--semi-remote|patch) ;;
+        --debug|--remote|--semi-remote|--skip-lint|--skip-test|patch) ;;
         *) REQUESTED_MODULES+=("$arg") ;;
     esac
 done

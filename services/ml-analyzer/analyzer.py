@@ -23,6 +23,12 @@ class TrackAnalyzer:
     def _get_db_engine(self):
         host = os.getenv('DB_HOST', 'db')
         port = os.getenv('DB_PORT', '3306')
+        
+        # Handle host:port format
+        if ':' in host and not host.startswith('['):
+            host, port_str = host.split(':', 1)
+            port = port_str
+
         user = os.getenv('DB_USER', 'music-management')
         password = os.getenv('DB_PASS', '')
         db_name = os.getenv('DB_DB', 'music-management')

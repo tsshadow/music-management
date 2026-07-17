@@ -128,8 +128,6 @@ def login(req: LoginRequest):
                 raise HTTPException(status_code=401, detail='Invalid username or password')
             stored_hash = user['password_hash']
             if bcrypt.checkpw(req.password.encode('utf-8'), stored_hash.encode('utf-8')):
-                if not user['is_admin']:
-                    raise HTTPException(status_code=403, detail='Admin rechten vereist')
                 api_key = user['api_key']
                 if not api_key:
                     api_key = secrets.token_hex(32)
@@ -326,6 +324,7 @@ def sync_dynamic_playlist(user_id: int, playlist: DynamicPlaylistSync, auth: dic
     finally:
         conn.close()
 
+@router.get('')
 @router.get('/')
 def get_users(auth: dict=Depends(verify_api_key)):
     if auth.get('type') == 'user' and (not auth['user'].get('is_admin')):
@@ -340,6 +339,7 @@ def get_users(auth: dict=Depends(verify_api_key)):
     finally:
         conn.close()
 
+@router.post('')
 @router.post('/')
 def create_user(user: UserCreate, auth: dict=Depends(verify_api_key)):
     if auth.get('type') == 'user' and (not auth['user'].get('is_admin')):
@@ -359,6 +359,7 @@ def create_user(user: UserCreate, auth: dict=Depends(verify_api_key)):
     finally:
         conn.close()
 
+@router.get('/{user_id}/listenbrainz')
 @router.get('/{user_id}/lb-account')
 def get_lb_account(user_id: int, auth: dict=Depends(verify_api_key)):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not auth['user'].get('is_admin')):
@@ -374,6 +375,8 @@ def get_lb_account(user_id: int, auth: dict=Depends(verify_api_key)):
     finally:
         conn.close()
 
+@router.post('/{user_id}/listenbrainz')
+@router.put('/{user_id}/listenbrainz')
 @router.put('/{user_id}/lb-account')
 def update_lb_account(user_id: int, lb_data: LBAccountUpdate, auth: dict=Depends(verify_api_key)):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not auth['user'].get('is_admin')):
@@ -404,6 +407,7 @@ def delete_user(user_id: int, auth: dict=Depends(verify_api_key)):
     finally:
         conn.close()
 
+@router.post('/{user_id}/password')
 @router.put('/{user_id}/password')
 def update_password(user_id: int, req: PasswordUpdate, auth: dict=Depends(verify_api_key)):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not auth['user'].get('is_admin')):
@@ -452,14 +456,17 @@ def update_user_app_settings(user_id: int, app_id: str, req: AppSettingsUpdate, 
     finally:
         conn.close()
 
+@router.post('/sync/lms')
 @router.post('/sync/lms-db')
 def sync_lms_db(background_tasks: BackgroundTasks, _api_key: str=Depends(verify_api_key)):
-    background_tasks.add_task(run_lms_db_sync)
-    return {'message': 'LMS DB sync started in background'}
+    # Run synchronously to return count to UI
+    synced = run_lms_db_sync()
+    return {'message': 'LMS DB sync completed', 'synced': synced}
 
 def _sync_lms_users(cursor, sqlite_cursor):
     sqlite_cursor.execute('SELECT id, login_name, listenbrainz_token FROM user')
     lms_users = sqlite_cursor.fetchall()
+    count = 0
     for lms_id, username, lb_token in lms_users:
         cursor.execute('\n            INSERT INTO users (username, display_name, lms_user_id)\n            VALUES (%s, %s, %s)\n            ON DUPLICATE KEY UPDATE lms_user_id = VALUES(lms_user_id)\n        ', (username, username, lms_id))
         if lb_token:
@@ -467,6 +474,8 @@ def _sync_lms_users(cursor, sqlite_cursor):
             user_row = cursor.fetchone()
             if user_row:
                 cursor.execute('\n                    INSERT INTO user_listenbrainz_accounts (user_id, lb_username, lb_token)\n                    VALUES (%s, %s, %s)\n                    ON DUPLICATE KEY UPDATE lb_token = VALUES(lb_token)\n                ', (user_row['id'], username, lb_token))
+        count += 1
+    return count
 
 def _sync_lms_playlists(cursor, sqlite_cursor, source):
     try:
@@ -484,11 +493,12 @@ def _sync_lms_playlists(cursor, sqlite_cursor, source):
 
 def sync_single_lms_db(muma_conn, db_path, source):
     print(f'Syncing LMS DB: {db_path} ({source})')
+    synced_users = 0
     try:
         sqlite_conn = sqlite3.connect(db_path)
         sqlite_cursor = sqlite_conn.cursor()
         with muma_conn.cursor() as cursor:
-            _sync_lms_users(cursor, sqlite_cursor)
+            synced_users = _sync_lms_users(cursor, sqlite_cursor)
             muma_conn.commit()
             _sync_lms_playlists(cursor, sqlite_cursor, source)
             muma_conn.commit()
@@ -497,10 +507,17 @@ def sync_single_lms_db(muma_conn, db_path, source):
         sqlite_conn.close()
     except Exception as e:
         print(f'Sync failed for {db_path}: {e}')
+    return synced_users
 
 def run_lms_db_sync():
     db_root = os.getenv('LMS_DB_ROOT', '/app/data')
     targets = []
+    
+    # Check for a direct database path first
+    direct_db = os.getenv('LMS_DB_PATH')
+    if direct_db and os.path.exists(direct_db):
+        targets.append((direct_db, 'lms-direct'))
+
     if os.path.exists(db_root):
         for entry in os.listdir(db_root):
             full_path = os.path.join(db_root, entry)
@@ -508,11 +525,14 @@ def run_lms_db_sync():
                 db_file = os.path.join(full_path, 'lms.db')
                 if os.path.exists(db_file):
                     targets.append((db_file, f'lms-{entry}'))
+    
     conn = get_db_connection()
     if not conn:
-        return
+        return 0
+    total_synced = 0
     try:
         for db_path, source in targets:
-            sync_single_lms_db(conn, db_path, source)
+            total_synced += sync_single_lms_db(conn, db_path, source)
     finally:
         conn.close()
+    return total_synced

@@ -6,8 +6,14 @@ class DatabaseConnector:
 
     def __init__(self):
         self.host = os.getenv('DB_HOST')
-        self.user = os.getenv('DB_USER')
         port = os.getenv('DB_PORT')
+        
+        # Handle host:port format
+        if self.host and ':' in self.host and not self.host.startswith('['):
+            self.host, port_str = self.host.split(':', 1)
+            port = port_str
+
+        self.user = os.getenv('DB_USER')
         try:
             self.port = int(port) if port else None
         except (TypeError, ValueError):

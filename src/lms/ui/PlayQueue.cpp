@@ -331,7 +331,7 @@ namespace lms::ui
             {
                 queue = LmsApp->getDbSession().create<db::TrackList>(queueName, db::TrackListType::Internal);
                 queue.modify()->setVisibility(db::TrackList::Visibility::Private);
-                queue.modify()->setUser(LmsApp->getUser());
+                queue.modify()->setUserId(LmsApp->getUser());
             }
         }
         else
@@ -339,7 +339,7 @@ namespace lms::ui
             static const std::string queueName{ "__temp_queue__" };
             queue = LmsApp->getDbSession().create<db::TrackList>(queueName, db::TrackListType::Internal);
             queue.modify()->setVisibility(db::TrackList::Visibility::Private);
-            queue.modify()->setUser(LmsApp->getUser());
+            queue.modify()->setUserId(LmsApp->getUser());
         }
 
         _queueId = queue->getId();
@@ -768,7 +768,7 @@ namespace lms::ui
             auto transaction{ session.createWriteTransaction() };
             TrackList::pointer trackList{ session.create<TrackList>(name.toUTF8(), TrackListType::PlayList) };
             trackList.modify()->setVisibility(TrackList::Visibility::Private);
-            trackList.modify()->setUser(LmsApp->getUser());
+            trackList.modify()->setUserId(LmsApp->getUser());
             trackListId = trackList->getId();
         }
 

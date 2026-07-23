@@ -165,7 +165,10 @@ namespace lms
 
             args.push_back(execPath);
             args.push_back("--config=" + wtConfigPath.string());
-            args.push_back("--docroot=" + std::string{ config.getString("docroot", "/usr/share/lms/docroot/;/resources,/css,/images,/js,/favicon.ico") });
+            std::string docroot{ config.getString("docroot", "/usr/share/lms/docroot/;/resources,/css,/images,/js,/favicon.ico") };
+            if (docroot.starts_with(';'))
+                docroot = docroot.substr(1);
+            args.push_back("--docroot=" + docroot);
             args.push_back("--approot=" + appRootPath.string());
             args.push_back("--deploy-path=" + std::string{ config.getString("deploy-path", "/") });
             if (!wtResourcesPath.empty())
@@ -362,11 +365,15 @@ namespace lms
             {
                 std::string pathInfo = request.pathInfo();
                 std::string docRoot = _docRoot;
+
+                if (docRoot.starts_with(';'))
+                    docRoot = docRoot.substr(1);
+
                 size_t semiColonPos = docRoot.find(';');
                 if (semiColonPos != std::string::npos)
                     docRoot = docRoot.substr(0, semiColonPos);
 
-                std::filesystem::path filePath = std::filesystem::path(docRoot) / "muma-spotify";
+                std::filesystem::path filePath = std::filesystem::path(docRoot) / "spotify";
 
                 if (pathInfo.empty() || pathInfo == "/")
                     filePath /= "index.html";
@@ -377,7 +384,7 @@ namespace lms
                 {
                     // Only fallback to index.html if it doesn't look like a static asset request
                     if (!filePath.has_extension() || filePath.extension() == ".html")
-                        filePath = std::filesystem::path(docRoot) / "muma-spotify" / "index.html";
+                        filePath = std::filesystem::path(docRoot) / "spotify" / "index.html";
                     else
                     {
                         response.setStatus(404);
@@ -531,7 +538,7 @@ namespace lms
             core::Service<core::IChildProcessManager> childProcessManagerService{ core::createChildProcessManager(ioContext) };
 
             const ui::AuthenticationBackend uiAuthenticationBackend{ getUIAuthenticationBackend() };
-            core::Service<auth::IAuthTokenService> authTokenService{ auth::createAuthTokenService(*database, config->getULong("login-throttler-max-entriees", 10'000)) };
+            core::Service<auth::IAuthTokenService> authTokenService{ auth::createAuthTokenService(*database, config->getULong("login-throttler-max-entries", 10'000)) };
             core::Service<auth::IUserSynchronizer> userSynchronizer{ auth::createUserSynchronizer(ioContext, *database) };
             core::Service<auth::IPasswordService> authPasswordService;
             core::Service<auth::IEnvService> authEnvService;
@@ -549,10 +556,10 @@ namespace lms
             switch (uiAuthenticationBackend)
             {
             case ui::AuthenticationBackend::Internal:
-                authPasswordService.assign(auth::createPasswordService("internal", *database, loginThrottlerMaxEntries));
+                authPasswordService.assign(auth::createPasswordService(ioContext, "music-management", *database, loginThrottlerMaxEntries));
                 break;
             case ui::AuthenticationBackend::PAM:
-                authPasswordService.assign(auth::createPasswordService("PAM", *database, loginThrottlerMaxEntries));
+                authPasswordService.assign(auth::createPasswordService(ioContext, "PAM", *database, loginThrottlerMaxEntries));
                 break;
             case ui::AuthenticationBackend::Env:
                 authEnvService.assign(auth::createEnvService("http-headers", *database));
@@ -597,18 +604,20 @@ namespace lms
                 server.addResource(subsonicResource.get(), "/rest");
             }
 
-            mumaResource = std::make_unique<api::muma::MumaResource>(ioContext, *database);
+            mumaResource = std::make_unique<api::muma::MumaResource>(ioContext, *database, *userSynchronizer);
             server.addResource(mumaResource.get(), "/muma");
 
             spotifyResource = std::make_unique<SpotifyResource>(server.docRoot());
-            server.addResource(spotifyResource.get(), "/muma-spotify");
-            server.addResource(spotifyResource.get(), "/spotify");
-
-            // Redirect root to muma-spotify
-            server.addEntryPoint(Wt::EntryPointType::Application, [](const Wt::WEnvironment& env) {
-                                     auto app = std::make_unique<Wt::WApplication>(env);
-                                     app->redirect("/muma-spotify/");
-                                     return app; }, "/");
+            try
+            {
+                server.addResource(spotifyResource.get(), "/");
+            }
+            catch (const std::exception& e)
+            {
+                LMS_LOG(MAIN, WARNING, "Could not add SpotifyResource on /: " << e.what());
+                LMS_LOG(MAIN, INFO, "Attempting to register SpotifyResource on /spotify instead");
+                server.addResource(spotifyResource.get(), "/spotify");
+            }
 
             // bind UI entry point
             server.addEntryPoint(Wt::EntryPointType::Application, [&database, &appManager, uiAuthenticationBackend](const Wt::WEnvironment& env) { return ui::LmsApplication::create(env, *database, appManager, uiAuthenticationBackend); }, "/legacy");

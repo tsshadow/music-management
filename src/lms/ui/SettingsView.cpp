@@ -275,7 +275,7 @@ namespace lms::ui
 
                 auto subsonicTranscodingOutputFormatRow{ _transcodingOutputFormatModel->getRowFromString(valueText(SubsonicTranscodingOutputFormatField)) };
                 if (subsonicTranscodingOutputFormatRow)
-                    user.modify()->setSubsonicDefaultTranscodintOutputFormat(_transcodingOutputFormatModel->getValue(*subsonicTranscodingOutputFormatRow));
+                    user.modify()->setSubsonicDefaultTranscodingOutputFormat(_transcodingOutputFormatModel->getValue(*subsonicTranscodingOutputFormatRow));
 
                 auto subsonicArtistListModeRow{ _subsonicArtistListModeModel->getRowFromString(valueText(SubsonicArtistListModeField)) };
                 if (subsonicArtistListModeRow)

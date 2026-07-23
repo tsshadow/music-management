@@ -1,0 +1,79 @@
+#!/bin/bash
+# scripts/test/frontend-browser.sh
+# Frontend browser test (Task 7 / Phase 5.2): starts the test stack, creates
+# the admin user, imports + scans the fixture track, then runs the Playwright
+# browser suite against the frontend dev server, and tears everything down.
+# Usage: ./scripts/test/frontend-browser.sh
+
+set -e
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+COMPOSE_FILE="$ROOT_DIR/docker/compose.test.yml"
+COMPOSE="docker compose -f $COMPOSE_FILE -p muma-test"
+FIXTURE="$ROOT_DIR/tests/fixtures/music/ci-test-track-001.mp3"
+FRONTEND_DIR="$ROOT_DIR/services/frontend"
+
+cleanup() {
+    echo "--- Tearing down test stack ---"
+    $COMPOSE down -v --remove-orphans
+}
+trap cleanup EXIT
+
+echo "--- Building and starting test stack from a clean state ---"
+$COMPOSE down -v --remove-orphans 2>/dev/null || true
+$COMPOSE up -d --build
+
+echo "--- Waiting for services to become healthy ---"
+DEADLINE=$((SECONDS + 300))
+for service in $($COMPOSE config --services); do
+    while true; do
+        cid=$($COMPOSE ps -q "$service")
+        status=$(docker inspect -f '{{.State.Health.Status}}' "$cid" 2>/dev/null || echo "none")
+        [ "$status" = "healthy" ] && { echo "✔ $service is healthy"; break; }
+        if [ "$status" = "unhealthy" ] || [ $SECONDS -ge $DEADLINE ]; then
+            echo "❌ ERROR: $service did not become healthy in time (status: $status)"
+            $COMPOSE logs "$service"
+            exit 1
+        fi
+        sleep 2
+    done
+done
+
+echo "--- Creating admin user ---"
+curl -sf -X POST http://localhost:18000/api/auth/setup \
+    -H "Content-Type: application/json" \
+    -d '{"username":"ci-contract-admin","password":"ci-contract-password"}' >/dev/null
+
+echo "--- Waiting for admin to sync into LMS ---"
+DEADLINE=$((SECONDS + 30))
+while true; do
+    status=$(curl -s "http://localhost:15082/rest/ping.view?u=ci-contract-admin&p=ci-contract-password&v=1.16.1&c=test&f=json" \
+        | python3 -c "import json,sys; print(json.load(sys.stdin)['subsonic-response']['status'])" 2>/dev/null || echo "")
+    [ "$status" = "ok" ] && break
+    [ $SECONDS -ge $DEADLINE ] && { echo "❌ ERROR: admin user did not sync into LMS in time"; exit 1; }
+    sleep 1
+done
+
+echo "--- Copying fixture track and triggering a scan ---"
+docker cp "$FIXTURE" muma-test-lms:/music/ci-test-track-001.mp3
+curl -sf -X POST "http://localhost:15082/muma/api/admin/libraries?u=ci-contract-admin&p=ci-contract-password" \
+    -H "Content-Type: application/json" \
+    -d '{"name":"ci-test-library","path":"/music"}' >/dev/null
+curl -sf "http://localhost:15082/rest/startScan.view?u=ci-contract-admin&p=ci-contract-password&v=1.16.1&c=test&f=json" >/dev/null
+
+echo "--- Waiting for the fixture track to be scanned ---"
+DEADLINE=$((SECONDS + 60))
+while true; do
+    found=$(curl -s "http://localhost:15082/rest/search3.view?u=ci-contract-admin&p=ci-contract-password&v=1.16.1&c=test&f=json&query=CI%20Test%20Track" \
+        | python3 -c "import json,sys; d=json.load(sys.stdin); print(bool(d['subsonic-response'].get('searchResult3',{}).get('song')))" 2>/dev/null || echo "False")
+    [ "$found" = "True" ] && break
+    [ $SECONDS -ge $DEADLINE ] && { echo "❌ ERROR: fixture track was not scanned in time"; exit 1; }
+    sleep 2
+done
+
+echo "--- Running Playwright browser tests ---"
+cd "$FRONTEND_DIR"
+if [ ! -d node_modules ]; then
+    npm install
+fi
+VITE_API_TARGET=http://localhost:18000 VITE_LMS_TARGET=http://localhost:15082 npx playwright test

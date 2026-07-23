@@ -57,11 +57,32 @@ case "$1" in
         echo "Starting Music Manager..."
         uvicorn services.music_manager.main:app --host 0.0.0.0 --port 8000 --reload
         ;;
+    frontend)
+        echo "Starting frontend dev server (Vite)..."
+        cd services/frontend
+        [ -d node_modules ] || npm install
+        npm run dev
+        ;;
+    lms)
+        echo "Starting LMS (music-management-server) locally..."
+        LMS_DIR="$ROOT_DIR/services/music-management-server"
+        LMS_BUILD_DIR="${LMS_BUILD_DIR:-$LMS_DIR/build}"
+        if [ ! -d "$LMS_BUILD_DIR" ]; then
+            echo "No build directory found, configuring first (see scripts/test/lms-unit.sh for the same steps)..."
+            cmake -S "$LMS_DIR" -B "$LMS_BUILD_DIR" -DCMAKE_BUILD_TYPE=Debug
+        fi
+        cmake --build "$LMS_BUILD_DIR" -j"$(nproc)" --target lms
+        "$LMS_BUILD_DIR/src/lms/lms" --config "$LMS_DIR/conf/lms.conf"
+        ;;
     *)
-        echo "Usage: $0 {importer|youtube|soundcloud|telegram|tagger|manager}"
+        echo "Usage: $0 {importer|youtube|soundcloud|telegram|tagger|manager|frontend|lms}"
         echo ""
         echo "This script runs the services locally using the same environment variables"
         echo "as defined in docker-compose.yml and .env."
+        echo ""
+        echo "Note: 'frontend' and 'lms' proxy to/expect 'manager' (port 8000) and each other"
+        echo "(see services/frontend/vite.config.js VITE_API_TARGET / VITE_LMS_TARGET);"
+        echo "run 'manager' in another terminal first for a full local dev setup."
         exit 1
         ;;
 esac

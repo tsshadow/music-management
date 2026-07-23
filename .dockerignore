@@ -10,7 +10,10 @@ backup.sql
 /mnt/music/
 /docker/
 node_modules/
-services/music_manager/frontend/node_modules/
-services/music_manager/frontend/.svelte-kit/
-services/music_manager/frontend/.vite/
-services/music_manager/frontend/dist/
+services/frontend/node_modules/
+services/frontend/.svelte-kit/
+services/frontend/.vite/
+services/frontend/dist/
+**/build/
+**/bin/
+**/obj/

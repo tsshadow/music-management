@@ -41,6 +41,147 @@ def get_tracks(q: str='', page: int=1, limit: int=50, _auth: dict=Depends(verify
     finally:
         conn.close()
 
+@router.get('/advanced')
+def get_advanced_library(
+    q: str = '',
+    genres: Optional[str] = None,
+    bpm_min: Optional[float] = None,
+    bpm_max: Optional[float] = None,
+    page: int = 1,
+    limit: int = 100,
+    _auth: dict = Depends(verify_api_key)
+):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500)
+    
+    offset = (page - 1) * limit
+    try:
+        with conn.cursor() as cursor:
+            # Build dynamic where clause
+            where_clauses = []
+            params = []
+            
+            # Advanced Query Parsing
+            if q:
+                terms = q.split(' ')
+                for term in terms:
+                    if not term: continue
+                    # Check if term is a number (BPM)
+                    try:
+                        bpm_val = float(term)
+                        if bpm_val > 50 and bpm_val < 300:
+                            where_clauses.append("(COALESCE(af.tempo, af.bpm_tag) BETWEEN %s AND %s)")
+                            params.extend([bpm_val - 2, bpm_val + 2])
+                            continue
+                    except ValueError:
+                        pass
+                    
+                    # Otherwise search in title/artist/label/genre
+                    where_clauses.append("(t.title LIKE %s OR a.name LIKE %s OR EXISTS (SELECT 1 FROM library_track_labels tl JOIN library_labels l ON tl.label_id = l.id WHERE tl.track_id = t.id AND l.name LIKE %s) OR EXISTS (SELECT 1 FROM library_track_genres tg JOIN rules_genres rg ON tg.genre_id = rg.id WHERE tg.track_id = t.id AND rg.name LIKE %s) OR ml.ml_genre LIKE %s)")
+                    params.extend([f'%{term}%', f'%{term}%', f'%{term}%', f'%{term}%', f'%{term}%'])
+            
+            if not where_clauses:
+                where_clauses.append("1=1")
+            
+            if genres:
+                genre_list = [g.strip() for g in genres.split(',')]
+                genre_placeholders = ', '.join(['%s'] * len(genre_list))
+                where_clauses.append(f"EXISTS (SELECT 1 FROM library_track_genres tg JOIN rules_genres rg ON tg.genre_id = rg.id WHERE tg.track_id = t.id AND rg.name IN ({genre_placeholders}))")
+                params.extend(genre_list)
+            
+            if bpm_min is not None:
+                where_clauses.append("COALESCE(af.tempo, af.bpm_tag) >= %s")
+                params.append(bpm_min)
+            
+            if bpm_max is not None:
+                where_clauses.append("COALESCE(af.tempo, af.bpm_tag) <= %s")
+                params.append(bpm_max)
+                
+            where_str = " AND ".join(where_clauses)
+            
+            query = f"""
+                SELECT 
+                    t.id, t.title, a.name as artist,
+                    (SELECT l.name FROM library_labels l 
+                     JOIN library_track_labels tl ON l.id = tl.label_id 
+                     WHERE tl.track_id = t.id LIMIT 1) as label,
+                    (SELECT GROUP_CONCAT(g.name SEPARATOR ', ') FROM rules_genres g 
+                     JOIN library_track_genres tg ON g.id = tg.genre_id 
+                     WHERE tg.track_id = t.id) as genre,
+                    (SELECT mf.file_path FROM library_media_files mf WHERE mf.track_id = t.id LIMIT 1) as file_path,
+                    ml.ml_genre, 
+                    COALESCE(af.tempo, af.bpm_tag) as bpm,
+                    COALESCE(af.musical_key, '') as musical_key,
+                    COALESCE(af.energy, af.mean_rms * 100) as energy,
+                    COALESCE(af.danceability, 0) as danceability,
+                    COALESCE(af.valence, 0) as valence,
+                    COALESCE(af.popularity, 0) as popularity,
+                    CAST(t.created_at AS CHAR) as created_at
+                FROM library_tracks t
+                LEFT JOIN library_artists a ON t.primary_artist_id = a.id
+                LEFT JOIN library_track_ml_labels ml ON t.track_uid = ml.track_id
+                LEFT JOIN library_track_audio_features af ON t.track_uid = af.track_id
+                WHERE {where_str}
+                ORDER BY t.created_at DESC
+                LIMIT %s OFFSET %s
+            """
+            cursor.execute(query, (*params, limit, offset))
+            tracks = cursor.fetchall()
+            
+            # Get total
+            count_query = f"""
+                SELECT COUNT(*) as total
+                FROM library_tracks t
+                LEFT JOIN library_artists a ON t.primary_artist_id = a.id
+                LEFT JOIN library_track_audio_features af ON t.track_uid = af.track_id
+                WHERE {where_str}
+            """
+            cursor.execute(count_query, params)
+            total = cursor.fetchone()['total']
+            
+            # Quick stats for this filter
+            cursor.execute(f"""
+                SELECT 
+                    AVG(COALESCE(af.tempo, af.bpm_tag)) as avg_bpm,
+                    COUNT(DISTINCT a.id) as artist_count
+                FROM library_tracks t
+                LEFT JOIN library_artists a ON t.primary_artist_id = a.id
+                LEFT JOIN library_track_audio_features af ON t.track_uid = af.track_id
+                WHERE {where_str}
+            """, params)
+            quick_stats = cursor.fetchone()
+            
+            return {
+                'tracks': tracks, 
+                'total': total, 
+                'page': page, 
+                'limit': limit,
+                'stats': {
+                    'avg_bpm': quick_stats['avg_bpm'],
+                    'artist_count': quick_stats['artist_count']
+                }
+            }
+    finally:
+        conn.close()
+
+@router.get('/genres')
+def get_library_genres(_auth: dict = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT DISTINCT g.name 
+                FROM rules_genres g
+                JOIN library_track_genres tg ON g.id = tg.genre_id
+                ORDER BY g.name
+            """)
+            return [row['name'] for row in cursor.fetchall()]
+    finally:
+        conn.close()
+
 @router.post('/tracks/{track_id}/rerun-parse')
 def rerun_parse(track_id: int, _auth: dict=Depends(verify_api_key)):
     conn = get_db_connection()

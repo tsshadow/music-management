@@ -26,7 +26,7 @@ class Rating(BaseModel):
     username: str
     rating: int
 
-class LMSEvent(BaseModel):
+class MuMaServerEvent(BaseModel):
     event: str
     object_type: str
     object_id: str
@@ -37,8 +37,9 @@ class LMSEvent(BaseModel):
 def init_db(cursor):
     cursor.execute('\n        CREATE TABLE IF NOT EXISTS rating_tracks (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            entity_type VARCHAR(50) NOT NULL,\n            entity_id VARCHAR(255) NOT NULL,\n            username VARCHAR(255) NOT NULL,\n            rating INT NOT NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            UNIQUE KEY (entity_type, entity_id, username)\n        )\n    ')
 
+@router.post('/server-event')
 @router.post('/lms-event')
-def handle_lms_event(event: LMSEvent, _auth: dict=Depends(verify_api_key)):
+def handle_server_event(event: MuMaServerEvent, _auth: dict=Depends(verify_api_key)):
     if event.event != 'rating_changed':
         return {'status': 'ignored', 'reason': 'unsupported event type'}
     entity_id = event.object_id

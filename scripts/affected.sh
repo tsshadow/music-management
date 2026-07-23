@@ -18,7 +18,7 @@ MODULE_MAP=(
     "services/ml-analyzer/:ml"
     "services/music_manager/:manager"
     "docker/Dockerfile.music-manager:manager"
-    "services/music_manager/frontend/:manager"
+    "services/frontend/:server"
     "services/scanner/:scanner"
     "docker/Dockerfile.scanner:scanner"
     "services/tagger/:tagger"

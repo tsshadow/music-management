@@ -74,18 +74,44 @@ services:
       - db
     environment:
       <<: [*environment-db, *environment-paths]
-      LMS_DB_ROOT: /app/data
+      MUMA_SERVER_DB_ROOT: /app/data
       STORAGE_PATH: /mnt/music/artists
       PYTHONPATH: /app
       API_KEY: ${API_KEY}
-      LMS_HOSTS: ${LMS_HOSTS}
-      LMS_SUBSONIC_API_KEY: ${LMS_SUBSONIC_API_KEY}
+      MUMA_SERVER_HOSTS: "music-management-server:5082"
+      MUMA_SERVER_SUBSONIC_API_KEY: ${MUMA_SERVER_SUBSONIC_API_KEY:-${LMS_SUBSONIC_API_KEY}}
       NOTIFY_URL: ${NOTIFY_URL}
     volumes:
-      - /docker/lms/var/lms:/app/data/stable:rw
-      - /docker/alpha-lms/var/lms:/app/data/alpha:rw
+      - ${HOST_DATA_PATH}/music-management-server/var/lms:/app/data/stable:rw
+      - ${HOST_DATA_PATH}/alpha-music-management-server/var/lms:/app/data/alpha:rw
       - ${HOST_MUSIC_PATH}:/mnt/music
       - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - music-management_db
+
+  # Integrated Music Management Server Service
+  music-management-server:
+    container_name: music-management-server-1
+    image: ${DOCKER_USER}/music-management-server:latest
+    restart: unless-stopped
+    ports:
+      - "5082:5082"
+    depends_on:
+      - db
+    environment:
+      - LMS_API_KEY=${API_KEY}
+      - LMS_SUBSONIC_API_KEY=${LMS_SUBSONIC_API_KEY}
+      - LMS_MUSIC_MANAGEMENT_URL=http://music-manager:8000/api
+      - LMS_MUSIC_MANAGEMENT_API_URL=http://music-manager:8000/api/lms-event
+      - LMS_MUSIC_MANAGEMENT_API_KEY=${API_KEY}
+      # Backward compatibility
+      - MUMA_SERVER_API_KEY=${API_KEY}
+      - MUMA_SERVER_SUBSONIC_API_KEY=${LMS_SUBSONIC_API_KEY}
+      - MUMA_SERVER_MUSIC_MANAGEMENT_URL=http://music-manager:8000
+      - MUMA_SERVER_MUSIC_MANAGEMENT_API_KEY=${API_KEY}
+    volumes:
+      - ${HOST_MUSIC_PATH}:/music
+      - ${HOST_DATA_PATH}/music-management-server/var/lms:/var/lms
     networks:
       - music-management_db
 

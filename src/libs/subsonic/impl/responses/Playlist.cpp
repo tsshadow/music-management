@@ -24,6 +24,7 @@
 #include "database/objects/Artwork.hpp"
 #include "database/objects/TrackList.hpp"
 #include "database/objects/User.hpp"
+#include "database/Session.hpp"
 #include "services/artwork/IArtworkService.hpp"
 
 #include "CoverArtId.hpp"
@@ -44,7 +45,9 @@ namespace lms::api::subsonic
         playlistNode.setAttribute("changed", core::stringUtils::toISO8601String(tracklist->getLastModifiedDateTime()));
         playlistNode.setAttribute("created", core::stringUtils::toISO8601String(tracklist->getCreationDateTime()));
 
-        const db::User::pointer trackListUser{ tracklist->getUser() };
+        db::Session& session{ context.getDbSession() };
+        auto transaction{ session.createReadTransaction() };
+        const db::User::pointer trackListUser{ db::User::find(session, tracklist->getUserId()) };
         if (trackListUser)
             playlistNode.setAttribute("owner", trackListUser->getLoginName());
 

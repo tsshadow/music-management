@@ -133,7 +133,7 @@ namespace lms::api::subsonic
             if (subsonicEnableTranscodingByDefault)
                 user.modify()->setSubsonicEnableTranscodingByDefault(*subsonicEnableTranscodingByDefault);
             if (subsonicDefaultTranscodeFormat)
-                user.modify()->setSubsonicDefaultTranscodintOutputFormat(static_cast<TranscodingOutputFormat>(*subsonicDefaultTranscodeFormat));
+                user.modify()->setSubsonicDefaultTranscodingOutputFormat(static_cast<TranscodingOutputFormat>(*subsonicDefaultTranscodeFormat));
             if (subsonicDefaultTranscodeBitrate)
                 user.modify()->setSubsonicDefaultTranscodingOutputBitrate(static_cast<Bitrate>(*subsonicDefaultTranscodeBitrate));
             if (subsonicArtistListMode)

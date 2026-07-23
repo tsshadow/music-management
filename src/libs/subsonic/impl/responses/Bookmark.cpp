@@ -35,7 +35,7 @@ namespace lms::api::subsonic
             trackBookmarkNode.setAttribute("comment", trackBookmark->getComment());
         trackBookmarkNode.setAttribute("created", reportedDummyDate);
         trackBookmarkNode.setAttribute("changed", reportedDummyDate);
-        trackBookmarkNode.setAttribute("username", trackBookmark->getUser()->getLoginName());
+        trackBookmarkNode.setAttribute("username", "admin"); // Dummy, username is not stored in db anymore, only ID
 
         return trackBookmarkNode;
     }

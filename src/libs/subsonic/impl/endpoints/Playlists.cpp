@@ -163,7 +163,7 @@ namespace lms::api::subsonic
         else
         {
             trackList = context.getDbSession().create<TrackList>(*name, TrackListType::PlayList);
-            trackList.modify()->setUser(context.getUser());
+            trackList.modify()->setUserId(context.getUser());
             trackList.modify()->setVisibility(TrackList::Visibility::Private);
         }
 

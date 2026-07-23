@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-07-20
+
+### Added
+- **Mobile Integration (Ultrasonic)**: Formalized the integration of the Ultrasonic Android app into the ecosystem documentation.
+- **Client Settings Sync**: Enabled server-side backup and synchronization for mobile application settings via the Music Manager API.
+- **Subsonic API Support**: Standardized Subsonic API responses in the Music Management Server for seamless compatibility with mobile clients.
+- **APK Distribution**: Integrated `apk-hoster` for independent distribution of mobile updates.
+
 ## [2.5.0] - 2026-07-11
 
 ### Changed

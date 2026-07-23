@@ -51,17 +51,22 @@ The system is split into specialized services, each handling a specific part of 
         - Automatically matches library tracks to original source URLs using the download archive.
         - `POST /api/library/tracks/{id}/redownload`: Starts a background redownload task.
 
-### 5. `music-manager` (`services/music_manager`)
-- **Role**: The "Source of Truth" and central hub.
+### 5. `music-management-server` (`services/music-management-server`)
+- **Role**: The high-performance playback and streaming engine.
+- **Backend**: C++/SQLite based server providing audio streaming and Subsonic API.
+- **Data Scope**: Maintains a volatile database (`lms.db`) for indexing local files and managing playback state.
+- **UI**: Unified Svelte-based "Spotify UI" that includes both playback and system management.
+
+### 6. `music-manager` (`services/music_manager`)
+- **Role**: The "Source of Truth" and central hub for long-term library maintenance and management logic.
 - **Backend**: FastAPI service managing:
-    - User authentication (synchronizing with `lms.db`).
-    - Song ratings and scrobbling history.
+    - User authentication (synchronizing with `music-management-server`).
+    - Permanent track ratings and consolidated scrobbling history.
+    - Master copies of metadata rules (genres, labels, artist normalization).
     - Real-time notifications via `ntfy.sh`.
     - Dashboard API for the Svelte frontend.
-    - **Integrated Services**: Now hosts the `tagger` and `scanner` logic and APIs.
-- **Background Listeners**:
-    - Streams notifications and events (e.g., from `ntfy.sh` or LMS webhooks).
-    - Periodic tagging and scanning tasks.
+    - **Integrated Services**: Hosts the `tagger` and `scanner` logic to enforce library standards.
+- **See Also**: [docs/architecture/responsibilities.md](docs/architecture/responsibilities.md) for data boundary details.
 
 ### 5. `ml-analyzer` (`services/ml-analyzer`)
 - **Purpose**: Audio analysis for advanced metadata.
@@ -75,7 +80,7 @@ The system is split into specialized services, each handling a specific part of 
 2. **Standardization**: The `tagger` service applies site-specific or label-specific rules to ensure metadata consistency.
 3. **Database Update**: Metadata and tracking information are saved to the MariaDB `music_management` database.
 4. **Library Placement**: The file is moved to its permanent location in the music library.
-5. **LMS Sync**: Logitech Media Server rescans the library, making the music available for playback.
+5. **Server Sync**: Music Management Server rescans the library, making the music available for playback.
 6. **Notification**: A success message (formatted via `BaseSong.__str__`) is sent to the user's mobile device via `ntfy.sh`.
 
 ---
@@ -84,17 +89,23 @@ The system is split into specialized services, each handling a specific part of 
 
 The system is designed to work in tandem with other projects in the developer's ecosystem:
 
-### KMS(`~/git/lms`)
+### Music Management Server
 - **Playback Engine**: The primary server for audio streaming and library management.
 - **Data Sync**:
-    - `music-manager` directly mounts and interacts with `lms.db` (SQLite) to synchronize users and permissions.
-    - Synchronizes song ratings bidirectionally between the local database and LMS.
-    - Uses the Subsonic API provided by LMS for client authentication and playback.
+    - `music-manager` directly mounts and interacts with the Server database (SQLite) to synchronize users and permissions.
+    - Synchronizes song ratings bidirectionally between the local database and the Server.
+    - Uses the Subsonic API provided by the Server for client authentication and playback.
 
 ### Ultrasonic (`~/git/ultrasonic`)
-- **Mobile Client**: An Android application for interacting with the music collection on the go.
-- **Settings Backup**: Ultrasonic synchronizes its application settings (stored as JSON) to the `music-manager` API, providing a server-side backup.
-- **Interactions**: Ratings changed within Ultrasonic are propagated to LMS and subsequently synced to the central `music-manager` database.
+- **Mobile Client**: A native Android application for interacting with the music collection on the go.
+- **Subsonic Integration**: Connects directly to the `music-management-server` for audio streaming and library browsing.
+- **Settings Backup & Sync**:
+    - Synchronizes application settings (stored as JSON) to the `music-manager` API (`POST /api/users/{id}/app-settings/ultrasonic`).
+    - Provides a seamless transition when switching devices or re-installing the app.
+- **Real-time Feedback**:
+    - **Ratings**: Star ratings changed within Ultrasonic are sent to LMS via the Subsonic API and then webhooked to `music-manager`.
+    - **Scrobbles**: Playback history is reported via LMS to the central scrobbling engine.
+- **Distribution**: Updates are managed via a dedicated `apk-hoster` service, allowing for independent delivery outside of app stores.
 
 ---
 
@@ -106,6 +117,19 @@ To maintain high code quality, the system employs an automated test suite:
 - **Enforcement**: 
     - **Build Check**: `build.sh` executes the full test suite and aborts the container build if any tests fail.
     - **Pre-commit Hook**: A Git `pre-commit` hook ensures all tests pass before allowing a commit to be finalized.
+
+### Full test inventory & local commands
+- **Inventory**: See [docs/testing-inventory.md](docs/testing-inventory.md) for a per-module breakdown (build/start/test/lint commands, ports, health endpoints, databases, Docker findings).
+- **Uniform local test scripts** (`scripts/test/`), run the same way locally and in CI:
+    - `./scripts/test/music-management-unit.sh` — Python unit tests (music-manager, importer, downloader).
+    - `./scripts/test/lms-unit.sh` — LMS C++ unit tests (existing upstream CTest/GTest suite).
+    - `./scripts/test/frontend-unit.sh` — frontend lint + typecheck (no unit test runner configured yet).
+    - `./scripts/test/android-unit.sh` — Ultrasonic JVM unit tests.
+    - `./scripts/test/core-smoke.sh` — builds and starts `docker/compose.test.yml` from a clean state, waits for all healthchecks, then tears down.
+    - `./scripts/test/contracts.sh` — LMS/OpenSubsonic contract tests + listen/scrobble flow, against the test stack + fixture track.
+    - `./scripts/test/frontend-browser.sh` — Playwright browser tests (login, fixture track visible) against the test stack.
+- **Test stack**: `docker/compose.test.yml` — temporary MariaDB, `music-manager` and `music-management-server`, all built from the current checkout, disposable volumes, healthchecks. Never mounts real music/library paths or production data.
+- **Fixture track**: `tests/fixtures/music/ci-test-track-001.mp3` (generated tone, no commercial audio) with expected metadata documented in `tests/fixtures/expected/ci-test-track-001.json`.
 
 ---
 
@@ -128,6 +152,12 @@ Pre-configured "Run Configurations" are available in the `.run/` directory. Thes
 - **YouTube Worker**: Runs `downloader_service.py` for YouTube.
 
 These configurations automatically load environment variables from your `.env` file and set the correct `PYTHONPATH`.
+
+### 3. Password Management
+Use `scripts/set_user_password.sh` to change a user's password directly from the terminal:
+```bash
+./scripts/set_user_password.sh <username>
+```
 
 ---
 

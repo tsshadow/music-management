@@ -14,3 +14,10 @@ node_modules/
 .pytest_cache/
 package-lock.json
 .production
+# Local runtime data (dev/music bind-mount contents for docker/docker-compose.dev.yml).
+/data/
+# The frontend, LMS backend and Ultrasonic app are now their own git repos
+# (with their own gitlab remotes), not submodules of this one.
+/services/frontend/
+/services/music-management-server/
+/services/ultrasonic/

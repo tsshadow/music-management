@@ -95,14 +95,14 @@ Verification will be done by simulating multiple clients (tabs) and checking the
 ###   Step 1: Update syncMode states in store.js
 Update the store to support the new synchronization model and ensure persistence.
 
-- Modify `src/lms/ui/spotify-ui/src/lib/store.js` to replace `radioMode` (boolean) with `syncMode` (string).
+- Modify `src/lms/ui/ui/src/lib/store.js` to replace `radioMode` (boolean) with `syncMode` (string).
 - Set default value to `'off'`.
 - Ensure the state is persisted in `localStorage`.
 
 ###   Step 2: Implement Host and Follower logic in Player.svelte
 Implement the core logic for the authoritative Host and the command-based Follower.
 
-- Update `src/lms/ui/spotify-ui/src/lib/Player.svelte`:
+- Update `src/lms/ui/ui/src/lib/Player.svelte`:
 - Modify `pushRadioState` to:
     - Push everything (including position) periodically if in `'host'` mode.
     - Only push specific changes (no periodic position) if in `'follower'` mode.

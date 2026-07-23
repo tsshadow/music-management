@@ -1,6 +1,6 @@
 FROM	node:24-alpine AS svelte-build
 WORKDIR	/app
-COPY	src/lms/ui /app
+COPY	services/frontend /app
 RUN	npm install && npm run build
 
 FROM	alpine:3.23 AS build
@@ -119,7 +119,7 @@ RUN \
 	make -j$(nproc) install
 
 # LMS
-COPY . /tmp/lms/
+COPY services/music-management-server /tmp/lms/
 RUN \
 	DIR=/tmp/lms/build && mkdir -p ${DIR} && cd ${DIR} && \
 	PKG_CONFIG_PATH=/tmp/install/lib/pkgconfig CXXFLAGS="-I${PREFIX}/include" LDFLAGS="-L${PREFIX}/lib -Wl,--rpath-link=${PREFIX}/lib" cmake /tmp/lms/ -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=TRUE -DCMAKE_UNITY_BUILD=ON -DCMAKE_INSTALL_PREFIX=${PREFIX} -DCMAKE_PREFIX_PATH=${PREFIX} && \
@@ -173,25 +173,25 @@ ARG	RUNTIME_PACKAGES=" \
 	sqlite-libs \
 	zlib"
 
-ARG	LMS_USER=lms
-ARG	LMS_GROUP=lms
+ARG	MUMA_SERVER_USER=muma-server
+ARG	MUMA_SERVER_GROUP=muma-server
 
 RUN	apk add --no-cache --update ${RUNTIME_PACKAGES}
 
-RUN	addgroup -S ${LMS_GROUP} && \
-	adduser -S -H ${LMS_USER} && \
-	adduser ${LMS_USER} ${LMS_GROUP} && \
-	mkdir -p /var/lms && chown -R ${LMS_USER}:${LMS_GROUP} /var/lms
+RUN	addgroup -S ${MUMA_SERVER_GROUP} && \
+	adduser -S -H ${MUMA_SERVER_USER} && \
+	adduser ${MUMA_SERVER_USER} ${MUMA_SERVER_GROUP} && \
+	mkdir -p /var/lms && chown -R ${MUMA_SERVER_USER}:${MUMA_SERVER_GROUP} /var/lms
 
 VOLUME	/var/lms
 VOLUME	/music
 VOLUME	/usr/local/etc
 
-USER	${LMS_USER}:${LMS_GROUP}
+USER	${MUMA_SERVER_USER}:${MUMA_SERVER_GROUP}
 
 COPY	--from=build /tmp/fakeroot/ /usr
 COPY	--from=build /tmp/fakeroot/share/lms/lms.conf /etc/lms.conf
-COPY	--from=svelte-build /app/dist /usr/share/lms/docroot/muma-spotify
+COPY	--from=svelte-build /app/dist /usr/share/lms/docroot/spotify
 
 EXPOSE	5082
 

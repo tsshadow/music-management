@@ -34,19 +34,22 @@ if [ -z "$TAG" ] || [ "$TAG" == "latest" ] || [ "$TAG" == "stable" ] || [ "$TAG"
 fi
 
 # Service name selection and Tag assignment based on mode
+# NOTE: since production-lms-consolidation, docker-compose.yml only defines a
+# single "lms" service (the old "lms_alpha" service was removed). Debug-mode
+# deploys still build/push an "alpha"-tagged image, but there is no separate
+# alpha container left to deploy it to.
 if [ "$MODE" == "release" ]; then
     export LMS_TAG="$TAG"
     echo "Release mode: using tag '$LMS_TAG' for lms"
 else
-    export LMS_ALPHA_TAG="$TAG"
-    echo "Debug mode: using tag '$LMS_ALPHA_TAG' for lms_alpha"
+    echo "Debug mode: image tagged '$TAG' was pushed, but is not deployed (no lms_alpha service anymore)."
 fi
 
-# Ensure both tags and image name are passed to the remote host
-export EXTRA_VARS="LMS_TAG=$LMS_TAG LMS_ALPHA_TAG=$LMS_ALPHA_TAG IMAGE_NAME=$IMAGE_NAME MUSIC_PATH=$MUSIC_PATH DOCKER_DATA_PATH=$DOCKER_DATA_PATH"
+# Ensure the tag and image name are passed to the remote host
+export EXTRA_VARS="LMS_TAG=$LMS_TAG IMAGE_NAME=$IMAGE_NAME MUSIC_PATH=$MUSIC_PATH DOCKER_DATA_PATH=$DOCKER_DATA_PATH"
 
-# We don't restrict to a single service name by default anymore, 
-# to ensure the whole stack (lms and lms_alpha) is recreated if needed.
+# We don't restrict to a single service name by default,
+# to ensure the whole stack (just "lms" now) is recreated if needed.
 unset SERVICE_NAME
 
 TARGET=$(echo "${DEPLOY_TARGET_NAME}" | tr '[:upper:]' '[:lower:]')

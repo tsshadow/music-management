@@ -147,6 +147,20 @@ class EditServerModel(val app: Application) :
 
         val client = SubsonicAPIClient(configuration)
 
+        if (serverSetting.url.contains("example.com")) {
+            val req = org.moire.ultrasonic.api.muma.LoginRequest(
+                serverSetting.userName,
+                serverSetting.password
+            )
+            val response = client.mumaApi.api.login(req).execute()
+            if (!response.isSuccessful || response.body() == null) {
+                throw IOException("MuMa login failed")
+            }
+            val body = response.body()!!
+            serverSetting.apiKey = body.api_key
+            serverSetting.mumaUserId = body.id
+        }
+
         // Execute a ping to retrieve the API version.
         // This is accepted to fail if the authentication is incorrect yet.
         val pingResponse = client.api.pingSuspend()

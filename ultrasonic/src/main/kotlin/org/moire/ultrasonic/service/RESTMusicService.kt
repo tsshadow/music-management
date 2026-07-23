@@ -71,6 +71,10 @@ open class RESTMusicService(
     @Throws(Exception::class)
     override fun ping() {
         API.ping().execute().throwOnFailure()
+        val activeServer = activeServerProvider.getActiveServer()
+        if (activeServer.url.contains("example.com")) {
+            ensureMumaLogin()
+        }
     }
 
     @Throws(Exception::class)

@@ -77,7 +77,7 @@ namespace lms::db
         _session.mapClass<Artist>("artist");
         _session.mapClass<ArtistInfo>("artist_info");
         _session.mapClass<Artwork>("artwork");
-        _session.mapClass<AuthToken>("auth_token");
+        _session.mapClass<AuthToken>("volatile.auth_token");
         _session.mapClass<Cluster>("cluster");
         _session.mapClass<ClusterType>("cluster_type");
         _session.mapClass<Country>("country");
@@ -110,7 +110,7 @@ namespace lms::db
         _session.mapClass<TrackList>("tracklist");
         _session.mapClass<TrackListEntry>("tracklist_entry");
         _session.mapClass<TrackLyrics>("track_lyrics");
-        _session.mapClass<UIState>("ui_state");
+        _session.mapClass<UIState>("volatile.ui_state");
         _session.mapClass<User>("user");
         _session.mapClass<VersionInfo>("version_info");
     }
@@ -152,15 +152,19 @@ namespace lms::db
         {
             auto transaction{ createWriteTransaction() };
             _session.createTables();
-            LMS_LOG(DB, INFO, "Tables created");
+            LMS_LOG(DB, INFO, "Tables created (or already existed)");
         }
         catch (Wt::Dbo::Exception& e)
         {
-            LMS_LOG(DB, DEBUG, "Cannot create tables: " << e.what());
-            if (std::string_view{ e.what() }.find("already exists") == std::string_view::npos)
+            std::string_view errorMsg{ e.what() };
+            if (errorMsg.find("already exists") == std::string_view::npos)
             {
                 LMS_LOG(DB, ERROR, "Cannot create tables: " << e.what());
                 throw e;
+            }
+            else
+            {
+                LMS_LOG(DB, DEBUG, "Tables already exist: " << e.what());
             }
         }
     }
@@ -183,150 +187,165 @@ namespace lms::db
     void Session::createIndexesIfNeeded()
     {
         LMS_SCOPED_TRACE_OVERVIEW("Database", "IndexCreation");
+        LMS_LOG(DB, INFO, "Ensuring core tables exist...");
+
+        {
+            auto transaction{ createWriteTransaction() };
+            utils::executeCommand(_session, "CREATE TABLE IF NOT EXISTS user (id INTEGER PRIMARY KEY AUTOINCREMENT, version INTEGER, type INTEGER, login_name TEXT, last_login DATETIME, subsonic_enable_transcoding_by_default INTEGER, subsonic_default_transcode_format INTEGER, subsonic_default_transcode_bitrate INTEGER, subsonic_artist_list_mode INTEGER, ui_theme INTEGER, ui_artist_release_sort_method INTEGER, ui_enable_inline_artist_relationships INTEGER, ui_inline_artist_relationships BLOB, feedback_backend INTEGER, scrobbling_backend INTEGER, muma_scrobbling_enabled INTEGER, listenbrainz_token TEXT, muma_id INTEGER, ui_transcoding_mode INTEGER, ui_transcoding_format INTEGER, ui_transcoding_bitrate INTEGER, ui_replaygain_mode INTEGER, ui_replaygain_preamp_gain REAL, ui_replaygain_preamp_gain_no_info REAL, scrobbling_backend_id INTEGER, feedback_backend_id INTEGER, subsonic_default_transcode_output_format INTEGER)");
+            utils::executeCommand(_session, "CREATE TABLE IF NOT EXISTS volatile.auth_token (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, value TEXT, expiry DATETIME, domain TEXT)");
+            utils::executeCommand(_session, "CREATE TABLE IF NOT EXISTS volatile.ui_state (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, key TEXT, value TEXT)");
+        }
+
         LMS_LOG(DB, INFO, "Creating indexes... This may take a while...");
 
         {
             auto transaction{ createWriteTransaction() };
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS artist_id_idx ON artist(id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS artist_name_mbid_idx ON artist(name, mbid)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS artist_sort_name_nocase_idx ON artist(sort_name COLLATE NOCASE)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS artist_mbid_idx ON artist(mbid)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS artist_info_path_idx ON artist_info(absolute_file_path)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS artist_info_directory_id_idx ON artist_info(directory_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS artist_info_artist_id_idx ON artist_info(artist_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS artist_info_mbid_matched_artist_idx ON artist_info(mbid_matched, artist_id)");
+            auto tryExecute = [&](std::string_view cmd) {
+                try {
+                    utils::executeCommand(_session, std::string{cmd});
+                } catch (const std::exception& e) {
+                    LMS_LOG(DB, WARNING, "Failed to create index '" << cmd << "': " << e.what());
+                }
+            };
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS artwork_id_idx ON artwork(id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS artwork_image_idx ON artwork(image_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS artwork_track_embedded_image_idx ON artwork(track_embedded_image_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS artist_id_idx ON artist(id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS artist_name_mbid_idx ON artist(name, mbid)");
+            tryExecute("CREATE INDEX IF NOT EXISTS artist_sort_name_nocase_idx ON artist(sort_name COLLATE NOCASE)");
+            tryExecute("CREATE INDEX IF NOT EXISTS artist_mbid_idx ON artist(mbid)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS auth_token_user_domain_idx ON auth_token(user_id, domain)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS auth_token_domain_expiry_idx ON auth_token(domain, expiry)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS auth_token_domain_value_idx ON auth_token(domain, value)");
+            tryExecute("CREATE INDEX IF NOT EXISTS artist_info_path_idx ON artist_info(absolute_file_path)");
+            tryExecute("CREATE INDEX IF NOT EXISTS artist_info_directory_id_idx ON artist_info(directory_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS artist_info_artist_id_idx ON artist_info(artist_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS artist_info_mbid_matched_artist_idx ON artist_info(mbid_matched, artist_id)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS cluster_id_idx ON cluster(id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS cluster_cluster_type_idx ON cluster(cluster_type_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS cluster_type_name_idx ON cluster_type(name)");
+            tryExecute("CREATE INDEX IF NOT EXISTS artwork_id_idx ON artwork(id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS artwork_image_idx ON artwork(image_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS artwork_track_embedded_image_idx ON artwork(track_embedded_image_id)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS country_id_idx ON country(id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS country_name_idx ON country(name COLLATE NOCASE)");
+            tryExecute("CREATE INDEX IF NOT EXISTS volatile.auth_token_user_domain_idx ON auth_token(user_id, domain)");
+            tryExecute("CREATE INDEX IF NOT EXISTS volatile.auth_token_domain_expiry_idx ON auth_token(domain, expiry)");
+            tryExecute("CREATE INDEX IF NOT EXISTS volatile.auth_token_domain_value_idx ON auth_token(domain, value)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS directory_id_idx ON directory(id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS directory_parent_directory_idx ON directory(parent_directory_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS directory_path_idx ON directory(absolute_path)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS directory_media_library_idx ON directory(media_library_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS directory_name_idx ON directory(name COLLATE NOCASE)");
+            tryExecute("CREATE INDEX IF NOT EXISTS cluster_id_idx ON cluster(id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS cluster_cluster_type_idx ON cluster(cluster_type_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS cluster_type_name_idx ON cluster_type(name)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_embedded_image_id_idx ON track_embedded_image(id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_embedded_image_hash_idx ON track_embedded_image(hash)");
+            tryExecute("CREATE INDEX IF NOT EXISTS country_id_idx ON country(id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS country_name_idx ON country(name COLLATE NOCASE)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_embedded_image_link_id_idx ON track_embedded_image_link(id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_embedded_image_link_track_id_idx ON track_embedded_image_link(track_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_embedded_image_link_track_embedded_image_id_track_id_idx ON track_embedded_image_link(track_embedded_image_id, track_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_embedded_image_link_track_track_embedded_image_id_idx ON track_embedded_image_link(track_id, track_embedded_image_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS directory_id_idx ON directory(id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS directory_parent_directory_idx ON directory(parent_directory_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS directory_path_idx ON directory(absolute_path)");
+            tryExecute("CREATE INDEX IF NOT EXISTS directory_media_library_id_idx ON directory(media_library_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS directory_name_idx ON directory(name COLLATE NOCASE)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS image_directory_stem_idx ON image(directory_id, stem COLLATE NOCASE)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS image_id_idx ON image(id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS image_path_idx ON image(absolute_file_path)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS image_stem_idx ON image(stem COLLATE NOCASE)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_embedded_image_id_idx ON track_embedded_image(id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_embedded_image_hash_idx ON track_embedded_image(hash)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS label_id_idx ON label(id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS label_name_idx ON label(name COLLATE NOCASE)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_embedded_image_link_id_idx ON track_embedded_image_link(id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_embedded_image_link_track_id_idx ON track_embedded_image_link(track_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_embedded_image_link_track_embedded_image_id_track_id_idx ON track_embedded_image_link(track_embedded_image_id, track_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_embedded_image_link_track_track_embedded_image_id_idx ON track_embedded_image_link(track_id, track_embedded_image_id)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS listen_backend_idx ON listen(backend)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS listen_id_idx ON listen(id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS listen_user_backend_idx ON listen(user_id,backend)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS listen_user_backend_date_time_idx ON listen(user_id, backend, date_time DESC)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS listen_track_user_backend_idx ON listen(track_id,user_id,backend)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS listen_user_track_backend_date_time_idx ON listen(user_id,track_id,backend,date_time)");
+            tryExecute("CREATE INDEX IF NOT EXISTS image_directory_stem_idx ON image(directory_id, stem COLLATE NOCASE)");
+            tryExecute("CREATE INDEX IF NOT EXISTS image_id_idx ON image(id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS image_path_idx ON image(absolute_file_path)");
+            tryExecute("CREATE INDEX IF NOT EXISTS image_stem_idx ON image(stem COLLATE NOCASE)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS media_library_id_idx ON media_library(id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS label_id_idx ON label(id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS label_name_idx ON label(name COLLATE NOCASE)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS medium_release_position_idx ON medium(release_id, position)");
+            tryExecute("CREATE INDEX IF NOT EXISTS listen_backend_idx ON listen(backend)");
+            tryExecute("CREATE INDEX IF NOT EXISTS listen_id_idx ON listen(id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS listen_user_backend_idx ON listen(user_id,backend)");
+            tryExecute("CREATE INDEX IF NOT EXISTS listen_user_backend_date_time_idx ON listen(user_id, backend, date_time DESC)");
+            tryExecute("CREATE INDEX IF NOT EXISTS listen_track_user_backend_idx ON listen(track_id,user_id,backend)");
+            tryExecute("CREATE INDEX IF NOT EXISTS listen_user_track_backend_date_time_idx ON listen(user_id,track_id,backend,date_time)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS playlist_file_id_idx ON playlist_file(id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS playlist_file_directory_idx ON playlist_file(directory_id);");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS playlist_file_absolute_file_path_idx ON playlist_file(absolute_file_path)");
+            tryExecute("CREATE INDEX IF NOT EXISTS media_library_id_idx ON media_library(id)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS rated_artist_user_artist_idx ON rated_artist(user_id,artist_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS rated_release_user_release_idx ON rated_release(user_id,release_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS rated_track_user_track_idx ON rated_track(user_id,track_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS medium_release_position_idx ON medium(release_id, position)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_id_idx ON release(id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_group_mbid_idx ON release(group_mbid)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_mbid_idx ON release(mbid)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_name_idx ON release(name)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_name_nocase_idx ON release(name COLLATE NOCASE)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_sort_name_idx ON release(sort_name)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_sort_name_nocase_idx ON release(sort_name COLLATE NOCASE)");
+            tryExecute("CREATE INDEX IF NOT EXISTS playlist_file_id_idx ON playlist_file(id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS playlist_file_directory_idx ON playlist_file(directory_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS playlist_file_absolute_file_path_idx ON playlist_file(absolute_file_path)");
 
-            try
-            {
-                utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_artist_link_id_idx ON release_artist_link(id)");
-                utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_artist_link_artist_idx ON release_artist_link(artist_id)");
-                utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_artist_link_release_idx ON release_artist_link(release_id)");
-            }
-            catch (const std::exception& e)
-            {
+            tryExecute("CREATE INDEX IF NOT EXISTS rated_artist_user_artist_idx ON rated_artist(user_id,artist_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS rated_release_user_release_idx ON rated_release(user_id,release_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS rated_track_user_track_idx ON rated_track(user_id,track_id)");
+
+            tryExecute("CREATE INDEX IF NOT EXISTS release_id_idx ON release(id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS release_group_mbid_idx ON release(group_mbid)");
+            tryExecute("CREATE INDEX IF NOT EXISTS release_mbid_idx ON release(mbid)");
+            tryExecute("CREATE INDEX IF NOT EXISTS release_name_idx ON release(name)");
+            tryExecute("CREATE INDEX IF NOT EXISTS release_name_nocase_idx ON release(name COLLATE NOCASE)");
+            tryExecute("CREATE INDEX IF NOT EXISTS release_sort_name_idx ON release(sort_name)");
+            tryExecute("CREATE INDEX IF NOT EXISTS release_sort_name_nocase_idx ON release(sort_name COLLATE NOCASE)");
+
+            try {
+                tryExecute("CREATE INDEX IF NOT EXISTS release_artist_link_id_idx ON release_artist_link(id)");
+                tryExecute("CREATE INDEX IF NOT EXISTS release_artist_link_artist_idx ON release_artist_link(artist_id)");
+                tryExecute("CREATE INDEX IF NOT EXISTS release_artist_link_release_idx ON release_artist_link(release_id)");
+            } catch (const std::exception& e) {
                 LMS_LOG(DB, INFO, "Could not create release_artist_link indexes: " << e.what());
             }
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_type_id_idx ON release_type(id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS release_type_name_idx ON release_type(name COLLATE NOCASE)");
+            tryExecute("CREATE INDEX IF NOT EXISTS release_type_id_idx ON release_type(id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS release_type_name_idx ON release_type(name COLLATE NOCASE)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_id_idx ON track(id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_absolute_path_idx ON track(absolute_file_path)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_date_idx ON track(date)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_directory_release_idx ON track(directory_id, release_id);");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_file_added_idx ON track(file_added)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_file_last_write_idx ON track(file_last_write)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_media_library_idx ON track(media_library_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_media_library_release_idx ON track(media_library_id, release_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_medium_idx ON track(medium_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_mbid_idx ON track(mbid)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_name_file_size_idx ON track(name, file_size)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_name_nocase_idx ON track(name COLLATE NOCASE)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_original_date_idx ON track(original_date)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_recording_mbid_idx ON track(recording_mbid)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_release_date_idx ON track(release_id, date)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_release_file_last_write_idx ON track(release_id, file_last_write)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_release_file_added_idx ON track(release_id, file_added)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_id_idx ON track(id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_absolute_path_idx ON track(absolute_file_path)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_date_idx ON track(date)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_directory_release_idx ON track(directory_id, release_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_file_added_idx ON track(file_added)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_file_last_write_idx ON track(file_last_write)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_media_library_id_idx ON track(media_library_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_media_library_release_idx ON track(media_library_id, release_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_medium_idx ON track(medium_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_mbid_idx ON track(mbid)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_name_file_size_idx ON track(name, file_size)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_name_nocase_idx ON track(name COLLATE NOCASE)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_original_date_idx ON track(original_date)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_recording_mbid_idx ON track(recording_mbid)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_release_date_idx ON track(release_id, date)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_release_file_last_write_idx ON track(release_id, file_last_write)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_release_file_added_idx ON track(release_id, file_added)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS tracklist_id_idx ON tracklist(id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS tracklist_name_idx ON tracklist(name)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS tracklist_user_type_idx ON tracklist(user_id, type)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS tracklist_last_modified_date_time_idx ON tracklist(last_modified_date_time)");
+            tryExecute("CREATE INDEX IF NOT EXISTS tracklist_id_idx ON tracklist(id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS tracklist_name_idx ON tracklist(name)");
+            tryExecute("CREATE INDEX IF NOT EXISTS tracklist_user_type_idx ON tracklist(user_id, type)");
+            tryExecute("CREATE INDEX IF NOT EXISTS tracklist_last_modified_date_time_idx ON tracklist(last_modified_date_time)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS tracklist_entry_idx ON tracklist_entry(id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS tracklist_entry_tracklist_track_idx ON tracklist_entry(tracklist_id, track_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS tracklist_entry_idx ON tracklist_entry(id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS tracklist_entry_tracklist_track_idx ON tracklist_entry(tracklist_id, track_id)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_artist_link_id_idx ON track_artist_link(id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_artist_link_artist_idx ON track_artist_link(artist_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_artist_link_artist_mbid_matched_artist_idx ON track_artist_link(artist_mbid_matched, artist_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_artist_link_artist_track_idx ON track_artist_link(artist_id, track_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_artist_link_artist_type_track_idx ON track_artist_link(artist_id, type, track_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_artist_link_track_artist_idx ON track_artist_link(track_id, artist_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_artist_link_track_type_idx ON track_artist_link(track_id, type)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_artist_link_id_idx ON track_artist_link(id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_artist_link_artist_idx ON track_artist_link(artist_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_artist_link_artist_mbid_matched_artist_idx ON track_artist_link(artist_mbid_matched, artist_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_artist_link_artist_track_idx ON track_artist_link(artist_id, track_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_artist_link_artist_type_track_idx ON track_artist_link(artist_id, type, track_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_artist_link_track_artist_idx ON track_artist_link(track_id, artist_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_artist_link_track_type_idx ON track_artist_link(track_id, type)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_features_track_idx ON track_features(track_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_features_track_idx ON track_features(track_id)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_lyrics_id_idx ON track_lyrics(id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_lyrics_absolute_file_path_idx ON track_lyrics(absolute_file_path)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_lyrics_directory_idx ON track_lyrics(directory_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_lyrics_track_idx ON track_lyrics(track_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_lyrics_id_idx ON track_lyrics(id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_lyrics_absolute_file_path_idx ON track_lyrics(absolute_file_path)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_lyrics_directory_idx ON track_lyrics(directory_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_lyrics_track_idx ON track_lyrics(track_id)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_bookmark_user_idx ON track_bookmark(user_id)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS track_bookmark_user_track_idx ON track_bookmark(user_id,track_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_bookmark_user_idx ON track_bookmark(user_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_bookmark_user_track_idx ON track_bookmark(user_id,track_id)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS starred_artist_user_backend_idx ON starred_artist(user_id,backend)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS starred_artist_artist_user_backend_idx ON starred_artist(artist_id,user_id,backend)");
+            tryExecute("CREATE INDEX IF NOT EXISTS starred_artist_user_backend_idx ON starred_artist(user_id,backend)");
+            tryExecute("CREATE INDEX IF NOT EXISTS starred_artist_artist_user_backend_idx ON starred_artist(artist_id,user_id,backend)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS starred_release_user_backend_idx ON starred_release(user_id,backend)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS starred_release_release_user_backend_idx ON starred_release(release_id,user_id,backend)");
+            tryExecute("CREATE INDEX IF NOT EXISTS starred_release_user_backend_idx ON starred_release(user_id,backend)");
+            tryExecute("CREATE INDEX IF NOT EXISTS starred_release_release_user_backend_idx ON starred_release(release_id,user_id,backend)");
 
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS starred_track_user_backend_idx ON starred_track(user_id,backend)");
-            utils::executeCommand(_session, "CREATE INDEX IF NOT EXISTS starred_track_track_user_backend_idx ON starred_track(track_id,user_id,backend)");
+            tryExecute("CREATE INDEX IF NOT EXISTS starred_track_user_backend_idx ON starred_track(user_id,backend)");
+            tryExecute("CREATE INDEX IF NOT EXISTS starred_track_track_user_backend_idx ON starred_track(track_id,user_id,backend)");
         }
 
         LMS_LOG(DB, INFO, "Indexes created!");

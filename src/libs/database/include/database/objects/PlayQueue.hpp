@@ -54,7 +54,7 @@ namespace lms::db
         std::size_t getCurrentIndex() const { return _currentIndex; }
         std::chrono::milliseconds getCurrentPositionInTrack() const { return _currentPositionInTrack; }
         bool isPlaying() const { return _isPlaying; }
-        ObjectPtr<User> getUser() const { return _user; }
+        UserId getUserId() const { return _userId; }
         ObjectPtr<Track> getTrack(std::size_t index) const;
         ObjectPtr<Track> getTrackAtCurrentIndex() const;
         // Get tracks, ordered by position
@@ -79,15 +79,15 @@ namespace lms::db
             Wt::Dbo::field(a, _currentPositionInTrack, "current_position_in_track");
             Wt::Dbo::field(a, _isPlaying, "is_playing");
             Wt::Dbo::field(a, _lastModifiedDateTime, "last_modified_date_time");
+            Wt::Dbo::field(a, _userId, "user_id");
 
-            Wt::Dbo::belongsTo(a, _user, "user", Wt::Dbo::OnDeleteCascade);
             Wt::Dbo::hasMany(a, _tracks, Wt::Dbo::ManyToMany, "playqueue_track", "", Wt::Dbo::OnDeleteCascade);
         }
 
     private:
         friend class Session;
-        PlayQueue(const ObjectPtr<User>& user, std::string_view name);
-        static pointer create(Session& session, const ObjectPtr<User>& user, std::string_view name);
+        PlayQueue(UserId userId, std::string_view name);
+        static pointer create(Session& session, UserId userId, std::string_view name);
 
         std::string _name;
         int _currentIndex{};
@@ -95,7 +95,7 @@ namespace lms::db
         bool _isPlaying{};
         Wt::WDateTime _lastModifiedDateTime;
 
-        Wt::Dbo::ptr<User> _user;
+        UserId _userId;
         Wt::Dbo::collection<Wt::Dbo::ptr<Track>> _tracks;
     };
 } // namespace lms::db

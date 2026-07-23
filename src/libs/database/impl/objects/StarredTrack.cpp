@@ -33,16 +33,16 @@ DBO_INSTANTIATE_TEMPLATES(lms::db::StarredTrack)
 
 namespace lms::db
 {
-    StarredTrack::StarredTrack(ObjectPtr<Track> track, ObjectPtr<User> user, FeedbackBackend backend)
+    StarredTrack::StarredTrack(ObjectPtr<Track> track, UserId userId, FeedbackBackend backend)
         : _backend{ backend }
         , _track{ getDboPtr(track) }
-        , _user{ getDboPtr(user) }
+        , _userId{ userId }
     {
     }
 
-    StarredTrack::pointer StarredTrack::create(Session& session, ObjectPtr<Track> track, ObjectPtr<User> user, FeedbackBackend backend)
+    StarredTrack::pointer StarredTrack::create(Session& session, ObjectPtr<Track> track, UserId userId, FeedbackBackend backend)
     {
-        return session.getDboSession()->add(std::unique_ptr<StarredTrack>{ new StarredTrack{ track, user, backend } });
+        return session.getDboSession()->add(std::unique_ptr<StarredTrack>{ new StarredTrack{ track, userId, backend } });
     }
 
     std::size_t StarredTrack::getCount(Session& session)
@@ -60,7 +60,9 @@ namespace lms::db
     StarredTrack::pointer StarredTrack::find(Session& session, TrackId trackId, UserId userId)
     {
         session.checkReadTransaction();
-        return utils::fetchQuerySingleResult(session.getDboSession()->query<Wt::Dbo::ptr<StarredTrack>>("SELECT s_t from starred_track s_t").join("user u ON u.id = s_t.user_id").where("s_t.track_id = ?").bind(trackId).where("s_t.user_id = ?").bind(userId).where("s_t.backend = u.feedback_backend"));
+        if (auto user = User::find(session, userId))
+            return find(session, trackId, userId, user->getFeedbackBackend());
+        return {};
     }
 
     StarredTrack::pointer StarredTrack::find(Session& session, TrackId trackId, UserId userId, FeedbackBackend backend)

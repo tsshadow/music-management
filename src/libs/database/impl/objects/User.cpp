@@ -21,20 +21,21 @@
 
 #include <cassert>
 
-#include <Wt/Dbo/Impl.h>
-#include <Wt/Dbo/WtSqlTraits.h>
+#include "Utils.hpp"
+#include "traits/EnumSetTraits.hpp"
+#include "traits/IdTypeTraits.hpp"
+#include "traits/StringViewTraits.hpp"
 
-#include "database/Session.hpp"
 #include "database/objects/Artist.hpp"
 #include "database/objects/AuthToken.hpp"
 #include "database/objects/Release.hpp"
 #include "database/objects/Track.hpp"
 #include "database/objects/UIState.hpp"
 
-#include "Utils.hpp"
-#include "traits/EnumSetTraits.hpp"
-#include "traits/IdTypeTraits.hpp"
-#include "traits/StringViewTraits.hpp"
+#include <Wt/Dbo/Impl.h>
+#include <Wt/Dbo/WtSqlTraits.h>
+
+#include "database/Session.hpp"
 
 DBO_INSTANTIATE_TEMPLATES(lms::db::User)
 

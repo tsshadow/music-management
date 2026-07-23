@@ -33,16 +33,16 @@ DBO_INSTANTIATE_TEMPLATES(lms::db::StarredRelease)
 
 namespace lms::db
 {
-    StarredRelease::StarredRelease(ObjectPtr<Release> release, ObjectPtr<User> user, FeedbackBackend backend)
+    StarredRelease::StarredRelease(ObjectPtr<Release> release, UserId userId, FeedbackBackend backend)
         : _backend{ backend }
         , _release{ getDboPtr(release) }
-        , _user{ getDboPtr(user) }
+        , _userId{ userId }
     {
     }
 
-    StarredRelease::pointer StarredRelease::create(Session& session, ObjectPtr<Release> release, ObjectPtr<User> user, FeedbackBackend backend)
+    StarredRelease::pointer StarredRelease::create(Session& session, ObjectPtr<Release> release, UserId userId, FeedbackBackend backend)
     {
-        return session.getDboSession()->add(std::unique_ptr<StarredRelease>{ new StarredRelease{ release, user, backend } });
+        return session.getDboSession()->add(std::unique_ptr<StarredRelease>{ new StarredRelease{ release, userId, backend } });
     }
 
     std::size_t StarredRelease::getCount(Session& session)
@@ -60,7 +60,9 @@ namespace lms::db
     StarredRelease::pointer StarredRelease::find(Session& session, ReleaseId releaseId, UserId userId)
     {
         session.checkReadTransaction();
-        return utils::fetchQuerySingleResult(session.getDboSession()->query<Wt::Dbo::ptr<StarredRelease>>("SELECT s_r from starred_release s_r").join("user u ON u.id = s_r.user_id").where("s_r.release_id = ?").bind(releaseId).where("s_r.user_id = ?").bind(userId).where("s_r.backend = u.feedback_backend"));
+        if (auto user = User::find(session, userId))
+            return find(session, releaseId, userId, user->getFeedbackBackend());
+        return {};
     }
 
     StarredRelease::pointer StarredRelease::find(Session& session, ReleaseId releaseId, UserId userId, FeedbackBackend backend)

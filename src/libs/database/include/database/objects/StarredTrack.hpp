@@ -77,7 +77,7 @@ namespace lms::db
 
         // Accessors
         ObjectPtr<Track> getTrack() const { return _track; }
-        ObjectPtr<User> getUser() const { return _user; }
+        UserId getUserId() const { return _userId; }
         FeedbackBackend getBackend() const { return _backend; }
         const Wt::WDateTime& getDateTime() const { return _dateTime; }
         SyncState getSyncState() const { return _syncState; }
@@ -94,19 +94,19 @@ namespace lms::db
             Wt::Dbo::field(a, _dateTime, "date_time");
 
             Wt::Dbo::belongsTo(a, _track, "track", Wt::Dbo::OnDeleteCascade);
-            Wt::Dbo::belongsTo(a, _user, "user", Wt::Dbo::OnDeleteCascade);
+            Wt::Dbo::field(a, _userId, "user_id");
         }
 
     private:
         friend class Session;
-        StarredTrack(ObjectPtr<Track> track, ObjectPtr<User> user, FeedbackBackend backend);
-        static pointer create(Session& session, ObjectPtr<Track> track, ObjectPtr<User> user, FeedbackBackend backend);
+        StarredTrack(ObjectPtr<Track> track, UserId userId, FeedbackBackend backend);
+        static pointer create(Session& session, ObjectPtr<Track> track, UserId userId, FeedbackBackend backend);
 
         FeedbackBackend _backend; // for which backend
         SyncState _syncState{ SyncState::PendingAdd };
         Wt::WDateTime _dateTime; // when it was starred
 
         Wt::Dbo::ptr<Track> _track;
-        Wt::Dbo::ptr<User> _user;
+        UserId _userId;
     };
 } // namespace lms::db

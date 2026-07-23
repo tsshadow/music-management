@@ -33,16 +33,16 @@ DBO_INSTANTIATE_TEMPLATES(lms::db::StarredArtist)
 
 namespace lms::db
 {
-    StarredArtist::StarredArtist(ObjectPtr<Artist> artist, ObjectPtr<User> user, FeedbackBackend backend)
+    StarredArtist::StarredArtist(ObjectPtr<Artist> artist, UserId userId, FeedbackBackend backend)
         : _backend{ backend }
         , _artist{ getDboPtr(artist) }
-        , _user{ getDboPtr(user) }
+        , _userId{ userId }
     {
     }
 
-    StarredArtist::pointer StarredArtist::create(Session& session, ObjectPtr<Artist> artist, ObjectPtr<User> user, FeedbackBackend backend)
+    StarredArtist::pointer StarredArtist::create(Session& session, ObjectPtr<Artist> artist, UserId userId, FeedbackBackend backend)
     {
-        return session.getDboSession()->add(std::unique_ptr<StarredArtist>{ new StarredArtist{ artist, user, backend } });
+        return session.getDboSession()->add(std::unique_ptr<StarredArtist>{ new StarredArtist{ artist, userId, backend } });
     }
 
     std::size_t StarredArtist::getCount(Session& session)
@@ -60,7 +60,9 @@ namespace lms::db
     StarredArtist::pointer StarredArtist::find(Session& session, ArtistId artistId, UserId userId)
     {
         session.checkReadTransaction();
-        return utils::fetchQuerySingleResult(session.getDboSession()->query<Wt::Dbo::ptr<StarredArtist>>("SELECT s_a from starred_artist s_a").join("user u ON u.id = s_a.user_id").where("s_a.artist_id = ?").bind(artistId).where("s_a.user_id = ?").bind(userId).where("s_a.backend = u.feedback_backend"));
+        if (auto user = User::find(session, userId))
+            return find(session, artistId, userId, user->getFeedbackBackend());
+        return {};
     }
 
     StarredArtist::pointer StarredArtist::find(Session& session, ArtistId artistId, UserId userId, FeedbackBackend backend)

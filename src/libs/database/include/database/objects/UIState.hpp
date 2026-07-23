@@ -53,17 +53,16 @@ namespace lms::db
         {
             Wt::Dbo::field(a, _item, "item");
             Wt::Dbo::field(a, _value, "value");
-
-            Wt::Dbo::belongsTo(a, _user, "user", Wt::Dbo::OnDeleteCascade);
+            Wt::Dbo::field(a, _userId, "user_id");
         }
 
     private:
         friend class Session;
-        UIState(std::string_view item, ObjectPtr<User> user);
-        static pointer create(Session& session, std::string_view item, ObjectPtr<User> user);
+        UIState(std::string_view item, UserId userId);
+        static pointer create(Session& session, std::string_view item, UserId userId);
 
         std::string _item;
         std::string _value;
-        Wt::Dbo::ptr<User> _user;
+        UserId _userId;
     };
 } // namespace lms::db

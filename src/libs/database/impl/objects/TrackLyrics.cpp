@@ -21,6 +21,10 @@
 
 #include <Wt/Dbo/Impl.h>
 #include <Wt/Dbo/WtSqlTraits.h>
+#include <Wt/Json/Array.h>
+#include <Wt/Json/Object.h>
+#include <Wt/Json/Parser.h>
+#include <Wt/Json/Serializer.h>
 
 #include "database/Session.hpp"
 #include "database/objects/Artist.hpp"

@@ -57,28 +57,28 @@ namespace lms::db
         std::chrono::milliseconds getOffset() const { return _offset; }
         std::string_view getComment() const { return _comment; }
         ObjectPtr<Track> getTrack() const { return _track; }
-        ObjectPtr<User> getUser() const { return _user; }
+        UserId getUserId() const { return _userId; }
 
         template<class Action>
         void persist(Action& a)
         {
             Wt::Dbo::field(a, _offset, "offset");
             Wt::Dbo::field(a, _comment, "comment");
+            Wt::Dbo::field(a, _userId, "user_id");
             Wt::Dbo::belongsTo(a, _track, "track", Wt::Dbo::OnDeleteCascade);
-            Wt::Dbo::belongsTo(a, _user, "user", Wt::Dbo::OnDeleteCascade);
         }
 
     private:
         friend class Session;
-        TrackBookmark(ObjectPtr<User> user, ObjectPtr<Track> track);
-        static pointer create(Session& session, ObjectPtr<User> user, ObjectPtr<Track> track);
+        TrackBookmark(UserId userId, ObjectPtr<Track> track);
+        static pointer create(Session& session, UserId userId, ObjectPtr<Track> track);
 
         static const std::size_t _maxCommentLength = 128;
 
         std::chrono::duration<int, std::milli> _offset;
         std::string _comment;
 
-        Wt::Dbo::ptr<User> _user;
+        UserId _userId;
         Wt::Dbo::ptr<Track> _track;
     };
 

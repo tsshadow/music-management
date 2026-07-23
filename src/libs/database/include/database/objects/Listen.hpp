@@ -160,7 +160,7 @@ namespace lms::db
         static pointer getMostRecentListen(Session& session, UserId userId, ScrobblingBackend backend, TrackId releaseId);
 
         SyncState getSyncState() const { return _syncState; }
-        ObjectPtr<User> getUser() const { return _user; }
+        UserId getUserId() const { return _userId; }
         ObjectPtr<Track> getTrack() const { return _track; }
         const Wt::WDateTime& getDateTime() const { return _dateTime; }
 
@@ -172,21 +172,21 @@ namespace lms::db
             Wt::Dbo::field(a, _dateTime, "date_time");
             Wt::Dbo::field(a, _backend, "backend");      // TODO rename
             Wt::Dbo::field(a, _syncState, "sync_state"); // TODO rename
+            Wt::Dbo::field(a, _userId, "user_id");
 
             Wt::Dbo::belongsTo(a, _track, "track", Wt::Dbo::OnDeleteCascade);
-            Wt::Dbo::belongsTo(a, _user, "user", Wt::Dbo::OnDeleteCascade);
         }
 
     private:
         friend class Session;
-        Listen(ObjectPtr<User> user, ObjectPtr<Track> track, ScrobblingBackend backend, const Wt::WDateTime& dateTime);
-        static pointer create(Session& session, ObjectPtr<User> user, ObjectPtr<Track> track, ScrobblingBackend backend, const Wt::WDateTime& dateTime);
+        Listen(UserId userId, ObjectPtr<Track> track, ScrobblingBackend backend, const Wt::WDateTime& dateTime);
+        static pointer create(Session& session, UserId userId, ObjectPtr<Track> track, ScrobblingBackend backend, const Wt::WDateTime& dateTime);
 
         Wt::WDateTime _dateTime;
         ScrobblingBackend _backend;
         SyncState _syncState{ SyncState::PendingAdd };
 
-        Wt::Dbo::ptr<User> _user;
+        UserId _userId;
         Wt::Dbo::ptr<Track> _track;
     };
 

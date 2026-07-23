@@ -35,7 +35,7 @@ namespace lms::db
 {
     namespace
     {
-        static constexpr Version LMS_DATABASE_VERSION{ 114 };
+        static constexpr Version LMS_DATABASE_VERSION{ 115 };
     }
 
     VersionInfo::VersionInfo()
@@ -695,8 +695,7 @@ SELECT
   "last_updated" text,
   "artist_id" bigint,
   "user_id" bigint,
-  constraint "fk_rated_artist_artist" foreign key ("artist_id") references "artist" ("id") on delete cascade deferrable initially deferred,
-  constraint "fk_rated_artist_user" foreign key ("user_id") references "user" ("id") on delete cascade deferrable initially deferred
+  constraint "fk_rated_artist_artist" foreign key ("artist_id") references "artist" ("id") on delete cascade deferrable initially deferred
 ))");
 
         utils::executeCommand(*session.getDboSession(), R"(CREATE TABLE IF NOT EXISTS "rated_release" (
@@ -706,8 +705,7 @@ SELECT
   "last_updated" text,
   "release_id" bigint,
   "user_id" bigint,
-  constraint "fk_rated_release_release" foreign key ("release_id") references "release" ("id") on delete cascade deferrable initially deferred,
-  constraint "fk_rated_release_user" foreign key ("user_id") references "user" ("id") on delete cascade deferrable initially deferred
+  constraint "fk_rated_release_release" foreign key ("release_id") references "release" ("id") on delete cascade deferrable initially deferred
 ))");
 
         utils::executeCommand(*session.getDboSession(), R"(CREATE TABLE IF NOT EXISTS "rated_track" (
@@ -717,8 +715,7 @@ SELECT
   "last_updated" text,
   "track_id" bigint,
   "user_id" bigint,
-  constraint "fk_rated_track_track" foreign key ("track_id") references "track" ("id") on delete cascade deferrable initially deferred,
-  constraint "fk_rated_track_user" foreign key ("user_id") references "user" ("id") on delete cascade deferrable initially deferred
+  constraint "fk_rated_track_track" foreign key ("track_id") references "track" ("id") on delete cascade deferrable initially deferred
 ))");
 
         // Drop badly named index, will be recreated
@@ -763,8 +760,7 @@ SELECT
   "version" integer not null,
   "item" text not null,
   "value" text not null,
-  "user_id" bigint,
-  constraint "fk_ui_state_user" foreign key ("user_id") references "user" ("id") on delete cascade deferrable initially deferred
+  "user_id" bigint
 ))");
 
         utils::executeCommand(*session.getDboSession(), "ALTER TABLE user DROP COLUMN repeat_all");
@@ -928,8 +924,7 @@ SELECT
   "current_index" integer not null,
   "current_position_in_track" integer,
   "last_modified_date_time" text,
-  "user_id" bigint,
-  constraint "fk_playqueue_user" foreign key ("user_id") references "user" ("id") on delete cascade deferrable initially deferred
+  "user_id" bigint
 ))");
 
         utils::executeCommand(*session.getDboSession(), R"(CREATE TABLE IF NOT EXISTS "playqueue_track" (
@@ -1014,7 +1009,6 @@ SELECT
   "last_modified_date_time" text,
   "user_id" bigint,
   "playlist_file_id" bigint,
-  constraint "fk_tracklist_user" foreign key ("user_id") references "user" ("id") on delete cascade deferrable initially deferred,
   constraint "fk_tracklist_playlist_file" foreign key ("playlist_file_id") references "playlist_file" ("id") on delete cascade deferrable initially deferred))");
 
         utils::executeCommand(*session.getDboSession(), R"(INSERT INTO tracklist_backup
@@ -1848,8 +1842,8 @@ FROM track)");
   "version" integer not null,
   "item" text not null,
   "value" text not null,
-  "user_id" bigint,
-  constraint "fk_ui_state_user" foreign key ("user_id") references "user" ("id") on delete cascade deferrable initially deferred))");
+  "user_id" bigint
+))");
 
         try
         {
@@ -1858,6 +1852,17 @@ FROM track)");
         catch (...)
         {
         }
+    }
+
+    void migrateFromV114(Session& session)
+    {
+        // Ratings/stars are only forwarded to MusicManagement if a user's feedback_backend
+        // is explicitly set to MusicManagement (2); it otherwise defaults to Internal (0) and
+        // is never bridged, unlike scrobbling which always forwards regardless of any setting
+        // (see ScrobblingService::_mumaScrobbler). Default every existing user still on the
+        // Internal default over to MusicManagement, so ratings behave the same way for everyone
+        // (matches defaultFeedbackBackend in User.hpp, used for newly-created users going forward).
+        utils::executeCommand(*session.getDboSession(), "UPDATE user SET feedback_backend = 2 WHERE feedback_backend = 0");
     }
 
 
@@ -1951,6 +1956,7 @@ FROM track)");
             { 111, migrateFromV111 },
             { 112, migrateFromV112 },
             { 113, migrateFromV113 },
+            { 114, migrateFromV114 },
         };
 
         bool migrationPerformed{};

@@ -32,22 +32,22 @@ DBO_INSTANTIATE_TEMPLATES(lms::db::UIState)
 
 namespace lms::db
 {
-    UIState::UIState(std::string_view item, ObjectPtr<User> user)
+    UIState::UIState(std::string_view item, UserId userId)
         : _item{ item }
-        , _user{ getDboPtr(user) }
+        , _userId{ userId }
     {
     }
 
-    UIState::pointer UIState::create(Session& session, std::string_view item, ObjectPtr<User> user)
+    UIState::pointer UIState::create(Session& session, std::string_view item, UserId userId)
     {
-        return session.getDboSession()->add(std::unique_ptr<UIState>{ new UIState{ item, user } });
+        return session.getDboSession()->add(std::unique_ptr<UIState>{ new UIState{ item, userId } });
     }
 
     std::size_t UIState::getCount(Session& session)
     {
         session.checkReadTransaction();
 
-        return utils::fetchQuerySingleResult(session.getDboSession()->query<int>("SELECT COUNT(*) FROM ui_state"));
+        return utils::fetchQuerySingleResult(session.getDboSession()->query<int>("SELECT COUNT(*) FROM volatile.ui_state"));
     }
 
     UIState::pointer UIState::find(Session& session, UIStateId settingId)

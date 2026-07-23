@@ -69,6 +69,8 @@ namespace lms::db
                 LMS_LOG(DB, DEBUG, "Setting per-connection settings...");
                 executeSql("PRAGMA journal_mode=WAL");
                 executeSql("PRAGMA synchronous=normal");
+                executeSql("PRAGMA uri=ON");
+                executeSql("ATTACH DATABASE 'file::memory:?cache=shared' AS volatile");
                 LMS_LOG(DB, DEBUG, "Setting per-connection settings done!");
             }
 

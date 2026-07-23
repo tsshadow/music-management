@@ -33,15 +33,15 @@ DBO_INSTANTIATE_TEMPLATES(lms::db::RatedTrack)
 
 namespace lms::db
 {
-    RatedTrack::RatedTrack(ObjectPtr<Track> track, ObjectPtr<User> user)
+    RatedTrack::RatedTrack(ObjectPtr<Track> track, UserId userId)
         : _track{ getDboPtr(track) }
-        , _user{ getDboPtr(user) }
+        , _userId{ userId }
     {
     }
 
-    RatedTrack::pointer RatedTrack::create(Session& session, ObjectPtr<Track> track, ObjectPtr<User> user)
+    RatedTrack::pointer RatedTrack::create(Session& session, ObjectPtr<Track> track, UserId userId)
     {
-        return session.getDboSession()->add(std::unique_ptr<RatedTrack>{ new RatedTrack{ track, user } });
+        return session.getDboSession()->add(std::unique_ptr<RatedTrack>{ new RatedTrack{ track, userId } });
     }
 
     std::size_t RatedTrack::getCount(Session& session)

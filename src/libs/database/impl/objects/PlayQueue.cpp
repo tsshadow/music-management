@@ -45,15 +45,15 @@ DBO_INSTANTIATE_TEMPLATES(lms::db::PlayQueue)
 
 namespace lms::db
 {
-    PlayQueue::PlayQueue(const ObjectPtr<User>& user, std::string_view name)
+    PlayQueue::PlayQueue(UserId userId, std::string_view name)
         : _name{ name }
-        , _user{ getDboPtr(user) }
+        , _userId{ userId }
     {
     }
 
-    PlayQueue::pointer PlayQueue::create(Session& session, const ObjectPtr<User>& user, std::string_view name)
+    PlayQueue::pointer PlayQueue::create(Session& session, UserId userId, std::string_view name)
     {
-        return session.getDboSession()->add(std::unique_ptr<PlayQueue>{ new PlayQueue{ user, name } });
+        return session.getDboSession()->add(std::unique_ptr<PlayQueue>{ new PlayQueue{ userId, name } });
     }
 
     std::size_t PlayQueue::getCount(Session& session)

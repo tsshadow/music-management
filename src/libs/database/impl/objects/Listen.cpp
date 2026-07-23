@@ -242,18 +242,18 @@ namespace lms::db
         }
     } // namespace
 
-    Listen::Listen(ObjectPtr<User> user, ObjectPtr<Track> track, ScrobblingBackend backend, const Wt::WDateTime& dateTime)
+    Listen::Listen(UserId userId, ObjectPtr<Track> track, ScrobblingBackend backend, const Wt::WDateTime& dateTime)
         : _dateTime{ Wt::WDateTime::fromTime_t(dateTime.toTime_t()) }
         , _backend{ backend }
-        , _user{ getDboPtr(user) }
+        , _userId{ userId }
         , _track{ getDboPtr(track) }
     {
     }
 
-    Listen::pointer Listen::create(Session& session, ObjectPtr<User> user, ObjectPtr<Track> track, ScrobblingBackend backend, const Wt::WDateTime& dateTime)
+    Listen::pointer Listen::create(Session& session, UserId userId, ObjectPtr<Track> track, ScrobblingBackend backend, const Wt::WDateTime& dateTime)
     {
         session.checkWriteTransaction();
-        return session.getDboSession()->add(std::unique_ptr<Listen>{ new Listen{ user, track, backend, dateTime } });
+        return session.getDboSession()->add(std::unique_ptr<Listen>{ new Listen{ userId, track, backend, dateTime } });
     }
 
     std::size_t Listen::getCount(Session& session)

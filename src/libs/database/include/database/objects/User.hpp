@@ -81,7 +81,13 @@ namespace lms::db
         static inline constexpr ReleaseSortMethod _defaultUIArtistReleaseSortMethod{ ReleaseSortMethod::OriginalDateDesc };
         static inline constexpr SubsonicArtistListMode defaultSubsonicArtistListMode{ SubsonicArtistListMode::AllArtists };
         static inline constexpr ScrobblingBackend defaultScrobblingBackend{ ScrobblingBackend::Internal };
-        static inline constexpr FeedbackBackend defaultFeedbackBackend{ FeedbackBackend::Internal };
+        // NOTE: unlike scrobbling (which always additionally forwards to MusicManagement
+        // regardless of this setting, see ScrobblingService::_mumaScrobbler), ratings/stars
+        // are ONLY forwarded if feedback_backend == MusicManagement. Defaulting to
+        // MusicManagement here means every new user behaves the same way for ratings as for
+        // scrobbling; see Migration.cpp migrateFromV114 for the equivalent fix applied to
+        // already-existing users.
+        static inline constexpr FeedbackBackend defaultFeedbackBackend{ FeedbackBackend::MusicManagement };
 
         User() = default;
 
@@ -96,23 +102,17 @@ namespace lms::db
 
         // accessors
         const std::string& getLoginName() const { return _loginName; }
-        PasswordHash getPasswordHash() const { return PasswordHash{ .bcryptRoundCount = static_cast<std::size_t>(_bcryptRoundCount), .salt = _passwordSalt, .hash = _passwordHash }; }
+        PasswordHash getPasswordHash() const { return {}; } // No longer stored
         const Wt::WDateTime& getLastLogin() const { return _lastLogin; }
-        std::size_t getAuthTokensCount() const { return _authTokens.size(); }
 
         // write
         void setMumaId(std::optional<int> mumaId) { _mumaId = mumaId; }
         void setLoginName(std::string_view loginName);
         void setLastLogin(const Wt::WDateTime& dateTime) { _lastLogin = dateTime; }
-        void setPasswordHash(const PasswordHash& passwordHash)
-        {
-            _bcryptRoundCount = passwordHash.bcryptRoundCount;
-            _passwordSalt = passwordHash.salt;
-            _passwordHash = passwordHash.hash;
-        }
+        void setPasswordHash(const PasswordHash& /*passwordHash*/) {} // Does nothing
         void setType(UserType type) { _type = type; }
         void setSubsonicEnableTranscodingByDefault(bool value) { _subsonicEnableTranscodingByDefault = value; }
-        void setSubsonicDefaultTranscodintOutputFormat(TranscodingOutputFormat encoding) { _subsonicDefaultTranscodingOutputFormat = encoding; }
+        void setSubsonicDefaultTranscodingOutputFormat(TranscodingOutputFormat encoding) { _subsonicDefaultTranscodingOutputFormat = encoding; }
         void setSubsonicDefaultTranscodingOutputBitrate(Bitrate bitrate);
         void setUITheme(UITheme uiTheme) { _uiTheme = uiTheme; }
         void setUIArtistReleaseSortMethod(ReleaseSortMethod method) { _uiArtistReleaseSortMethod = method; }
@@ -160,11 +160,17 @@ namespace lms::db
         template<class Action>
         void persist(Action& a)
         {
+            // NOTE: password_salt/password_hash are legacy columns from before local
+            // password storage was removed in favor of delegated auth via MusicManagement
+            // (see getPasswordHash()/setPasswordHash() above). Older, already-existing
+            // databases still have these columns defined as NOT NULL with no default,
+            // so they must still be written on every insert (with a harmless empty
+            // placeholder), or new user rows created via delegated auth (e.g.
+            // UserSynchronizer) fail to insert.
+            Wt::Dbo::field(a, _passwordSaltLegacy, "password_salt");
+            Wt::Dbo::field(a, _passwordHashLegacy, "password_hash");
             Wt::Dbo::field(a, _type, "type");
             Wt::Dbo::field(a, _loginName, "login_name");
-            Wt::Dbo::field(a, _bcryptRoundCount, "bcrypt_round_count");
-            Wt::Dbo::field(a, _passwordSalt, "password_salt");
-            Wt::Dbo::field(a, _passwordHash, "password_hash");
             Wt::Dbo::field(a, _lastLogin, "last_login");
             Wt::Dbo::field(a, _subsonicEnableTranscodingByDefault, "subsonic_enable_transcoding_by_default");
             Wt::Dbo::field(a, _subsonicDefaultTranscodingOutputFormat, "subsonic_default_transcode_format");
@@ -186,9 +192,6 @@ namespace lms::db
             Wt::Dbo::field(a, _uiReplayGainMode, "ui_replaygain_mode");
             Wt::Dbo::field(a, _uiReplayGainPreAmpGain, "ui_replaygain_preamp_gain");
             Wt::Dbo::field(a, _uiReplayGainPreAmpGainIfNoInfo, "ui_replaygain_preamp_gain_no_info");
-
-            Wt::Dbo::hasMany(a, _authTokens, Wt::Dbo::ManyToOne, "user");
-            Wt::Dbo::hasMany(a, _uiStates, Wt::Dbo::ManyToOne, "user");
         }
 
     private:
@@ -197,9 +200,10 @@ namespace lms::db
         static pointer create(Session& session, std::string_view loginName);
 
         std::string _loginName;
-        int _bcryptRoundCount{};
-        std::string _passwordSalt;
-        std::string _passwordHash;
+        // Legacy password columns, no longer used (see persist() comment above),
+        // kept only to satisfy older databases' NOT NULL constraint on insert.
+        std::string _passwordSaltLegacy;
+        std::string _passwordHashLegacy;
         Wt::WDateTime _lastLogin;
         UITheme _uiTheme{ defaultUITheme };
         ReleaseSortMethod _uiArtistReleaseSortMethod{ _defaultUIArtistReleaseSortMethod };
@@ -227,8 +231,5 @@ namespace lms::db
         bool _subsonicEnableTranscodingByDefault{ defaultSubsonicEnableTranscodingByDefault };
         TranscodingOutputFormat _subsonicDefaultTranscodingOutputFormat{ defaultSubsonicTranscodingOutputFormat };
         int _subsonicDefaultTranscodingOutputBitrate{ defaultSubsonicTranscodingOutputBitrate };
-
-        Wt::Dbo::collection<Wt::Dbo::ptr<AuthToken>> _authTokens;
-        Wt::Dbo::collection<Wt::Dbo::ptr<UIState>> _uiStates;
     };
 } // namespace lms::db

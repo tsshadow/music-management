@@ -41,6 +41,7 @@ namespace lms::db
 
         // Utility
         static std::size_t getCount(Session& session);
+        static std::size_t getCount(Session& session, UserId userId);
         static pointer find(Session& session, AuthTokenId tokenId);
         static pointer find(Session& session, std::string_view domain, std::string_view value);
         static void find(Session& session, std::string_view domain, UserId userId, std::function<void(const AuthToken::pointer&)> visitor);
@@ -49,7 +50,7 @@ namespace lms::db
 
         // Accessors
         const Wt::WDateTime& getExpiry() const { return _expiry; }
-        ObjectPtr<User> getUser() const { return _user; }
+        UserId getUserId() const { return _userId; }
         const std::string& getValue() const { return _value; }
         std::size_t getUseCount() const { return _useCount; }
         Wt::WDateTime getLastUsed() const { return _lastUsed; }
@@ -68,13 +69,13 @@ namespace lms::db
             Wt::Dbo::field(a, _useCount, "use_count");
             Wt::Dbo::field(a, _lastUsed, "last_used");
             Wt::Dbo::field(a, _maxUseCount, "max_use_count");
-            Wt::Dbo::belongsTo(a, _user, "user", Wt::Dbo::OnDeleteCascade);
+            Wt::Dbo::field(a, _userId, "user_id");
         }
 
     private:
         friend class Session;
-        AuthToken(std::string_view domain, std::string_view value, const Wt::WDateTime& expiry, std::optional<long> maxUseCount, ObjectPtr<User> user);
-        static pointer create(Session& session, std::string_view domain, std::string_view value, const Wt::WDateTime& expiry, std::optional<long> maxUseCount, ObjectPtr<User> user);
+        AuthToken(std::string_view domain, std::string_view value, const Wt::WDateTime& expiry, std::optional<long> maxUseCount, UserId userId);
+        static pointer create(Session& session, std::string_view domain, std::string_view value, const Wt::WDateTime& expiry, std::optional<long> maxUseCount, UserId userId);
 
         std::string _domain;
         std::string _value;
@@ -82,6 +83,6 @@ namespace lms::db
         long _useCount{};
         Wt::WDateTime _lastUsed;
         std::optional<long> _maxUseCount;
-        Wt::Dbo::ptr<User> _user;
+        UserId _userId;
     };
 } // namespace lms::db

@@ -32,15 +32,15 @@ DBO_INSTANTIATE_TEMPLATES(lms::db::TrackBookmark)
 
 namespace lms::db
 {
-    TrackBookmark::TrackBookmark(ObjectPtr<User> user, ObjectPtr<Track> track)
-        : _user{ getDboPtr(user) }
+    TrackBookmark::TrackBookmark(UserId userId, ObjectPtr<Track> track)
+        : _userId{ userId }
         , _track{ getDboPtr(track) }
     {
     }
 
-    TrackBookmark::pointer TrackBookmark::create(Session& session, ObjectPtr<User> user, ObjectPtr<Track> track)
+    TrackBookmark::pointer TrackBookmark::create(Session& session, UserId userId, ObjectPtr<Track> track)
     {
-        return session.getDboSession()->add(std::unique_ptr<TrackBookmark>{ new TrackBookmark{ user, track } });
+        return session.getDboSession()->add(std::unique_ptr<TrackBookmark>{ new TrackBookmark{ userId, track } });
     }
 
     std::size_t TrackBookmark::getCount(Session& session)

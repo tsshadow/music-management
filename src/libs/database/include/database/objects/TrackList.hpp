@@ -123,13 +123,12 @@ namespace lms::db
         std::string_view getName() const { return _name; }
         Visibility getVisibility() const { return _visibility; }
         TrackListType getType() const { return _type; }
-        ObjectPtr<User> getUser() const { return _user; }
-        UserId getUserId() const { return _user.id(); }
+        UserId getUserId() const { return _userId; }
         Wt::WDateTime getLastModifiedDateTime() const { return _lastModifiedDateTime; }
         Wt::WDateTime getCreationDateTime() const { return _creationDateTime; }
 
         // Modifiers
-        void setUser(ObjectPtr<User> user) { _user = getDboPtr(user); }
+        void setUserId(UserId userId) { _userId = userId; }
         void setName(std::string_view name) { _name = name; }
         void setVisibility(Visibility visibility) { _visibility = visibility; }
         void clear() { _entries.clear(); }
@@ -161,8 +160,8 @@ namespace lms::db
             Wt::Dbo::field(a, _visibility, "visibility");
             Wt::Dbo::field(a, _creationDateTime, "creation_date_time");
             Wt::Dbo::field(a, _lastModifiedDateTime, "last_modified_date_time");
+            Wt::Dbo::field(a, _userId, "user_id");
 
-            Wt::Dbo::belongsTo(a, _user, "user", Wt::Dbo::OnDeleteCascade);                  // optional
             Wt::Dbo::belongsTo(a, _playListFile, "playlist_file", Wt::Dbo::OnDeleteCascade); // optional
 
             Wt::Dbo::hasMany(a, _entries, Wt::Dbo::ManyToOne, "tracklist");
@@ -179,7 +178,7 @@ namespace lms::db
         Wt::WDateTime _creationDateTime;
         Wt::WDateTime _lastModifiedDateTime;
 
-        Wt::Dbo::ptr<User> _user;
+        UserId _userId;
         Wt::Dbo::ptr<PlayListFile> _playListFile;
         Wt::Dbo::collection<Wt::Dbo::ptr<TrackListEntry>> _entries;
     };

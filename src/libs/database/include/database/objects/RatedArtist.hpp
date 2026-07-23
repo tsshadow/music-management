@@ -67,7 +67,7 @@ namespace lms::db
 
         // Accessors
         ObjectPtr<Artist> getArtist() const { return _artist; }
-        ObjectPtr<User> getUser() const { return _user; }
+        UserId getUserId() const { return _userId; }
         Rating getRating() const { return _rating; }
         const Wt::WDateTime& getLastUpdated() const { return _lastUpdated; }
 
@@ -80,20 +80,20 @@ namespace lms::db
         {
             Wt::Dbo::field(a, _rating, "rating");
             Wt::Dbo::field(a, _lastUpdated, "last_updated");
+            Wt::Dbo::field(a, _userId, "user_id");
 
             Wt::Dbo::belongsTo(a, _artist, "artist", Wt::Dbo::OnDeleteCascade);
-            Wt::Dbo::belongsTo(a, _user, "user", Wt::Dbo::OnDeleteCascade);
         }
 
     private:
         friend class Session;
-        RatedArtist(ObjectPtr<Artist> artist, ObjectPtr<User> user);
-        static pointer create(Session& session, ObjectPtr<Artist> artist, ObjectPtr<User> user);
+        RatedArtist(ObjectPtr<Artist> artist, UserId userId);
+        static pointer create(Session& session, ObjectPtr<Artist> artist, UserId userId);
 
         Rating _rating{};
         Wt::WDateTime _lastUpdated; // when it was rated for the last time
 
         Wt::Dbo::ptr<Artist> _artist;
-        Wt::Dbo::ptr<User> _user;
+        UserId _userId;
     };
 } // namespace lms::db

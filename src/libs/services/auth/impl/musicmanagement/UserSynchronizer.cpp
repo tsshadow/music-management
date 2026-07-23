@@ -96,7 +96,7 @@ namespace lms::auth
                         }
                         else
                         {
-                            LMS_LOG(AUTH, INFO, "Creating new user '" << username << "' from MusicManagement.");
+                            LMS_LOG(AUTH, INFO, "Creating new user '" << username << "' from MusicManagement with ID " << mumaId);
                             db::User::pointer newUser{ session.create<db::User>(username) };
                             newUser.modify()->setMumaId(mumaId);
                             newUser.modify()->setType(isAdmin ? db::UserType::ADMIN : db::UserType::REGULAR);

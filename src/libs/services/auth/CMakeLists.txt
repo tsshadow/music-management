@@ -8,6 +8,7 @@ add_library(lmsauth STATIC
 	impl/http-headers/HttpHeadersEnvService.cpp
 	impl/internal/InternalPasswordService.cpp
 	impl/musicmanagement/UserSynchronizer.cpp
+	impl/musicmanagement/MusicManagementPasswordService.cpp
 	)
 
 target_include_directories(lmsauth INTERFACE

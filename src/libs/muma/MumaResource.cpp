@@ -23,35 +23,36 @@
 #include "database/objects/TrackList.hpp"
 #include "database/objects/User.hpp"
 #include "database/objects/UIState.hpp"
+#include "services/auth/IUserSynchronizer.hpp"
 #include "services/auth/IPasswordService.hpp"
 #include "services/scanner/IScannerService.hpp"
 
 namespace lms::api::muma
 {
-    MumaResource::MumaResource(boost::asio::io_context& ioContext, db::IDb& db)
+    MumaResource::MumaResource(boost::asio::io_context& ioContext, db::IDb& db, auth::IUserSynchronizer& userSynchronizer)
         : _db{ db }
+        , _userSynchronizer{ userSynchronizer }
     {
         _mumaApiUrl = std::string{ core::Service<core::IConfig>::get()->getString("music-management-url", "") };
         if (_mumaApiUrl.empty())
         {
-            std::string apiUrl = std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-url", "") };
-            size_t pos = apiUrl.find("/api/");
-            if (pos != std::string::npos)
-                _mumaApiUrl = apiUrl.substr(0, pos);
-            else
-                _mumaApiUrl = apiUrl;
+            _mumaApiUrl = std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-url", "") };
         }
 
-        if (!_mumaApiUrl.empty() && _mumaApiUrl.back() == '/')
-            _mumaApiUrl.pop_back();
-
-        _mumaApiKey = std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-key", "") };
-        
         if (!_mumaApiUrl.empty())
         {
+            size_t pos = _mumaApiUrl.find("/api");
+            if (pos != std::string::npos)
+                _mumaApiUrl = _mumaApiUrl.substr(0, pos);
+
+            if (_mumaApiUrl.back() == '/')
+                _mumaApiUrl.pop_back();
+
             LMS_LOG(API_SUBSONIC, INFO, "MumaResource: Using MuMa API URL: " << _mumaApiUrl);
             _httpClient = core::http::createClient(ioContext, _mumaApiUrl);
         }
+
+        _mumaApiKey = std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-key", "") };
     }
 
     MumaResource::~MumaResource()
@@ -482,6 +483,13 @@ namespace lms::api::muma
 
         if (pathInfo.find("/users/") == 0)
         {
+            if (pathInfo == "/users/sync")
+            {
+                _userSynchronizer.syncUsers();
+                response.out() << "{\"status\":\"ok\"}";
+                return;
+            }
+
             if (!dbUser)
             {
                 response.setStatus(401);
@@ -520,44 +528,164 @@ namespace lms::api::muma
 
                 if (request.method() == "GET")
                 {
-                    db::UIState::pointer state = db::UIState::find(session, "muma_settings_" + appId, *userId);
-                    Wt::Json::Object result;
-                    result["settings"] = state ? Wt::Json::Value(std::string{ state->getValue() }) : Wt::Json::Value::Null;
-                    response.out() << Wt::Json::serialize(result);
-                }
-                else if (request.method() == "POST")
-                {
-                    auto writeTransaction{ session.createWriteTransaction() };
-                    
-                    Wt::Json::Object root;
-                    std::string jsonStr((std::istreambuf_iterator<char>(request.in())), std::istreambuf_iterator<char>());
-                    Wt::Json::ParseError error;
-                    if (!Wt::Json::parse(jsonStr, root, error))
+                    if (!_httpClient)
                     {
-                        response.setStatus(400);
-                        response.out() << "Invalid JSON";
+                        response.setStatus(500);
                         return;
                     }
 
-                    std::string settings = root.get("settings").toString().orIfNull("");
-                    
-                    db::UIState::pointer state = db::UIState::find(session, "muma_settings_" + appId, *userId);
-                    if (state)
+                    auto resultPromise = std::make_shared<std::promise<std::string>>();
+                    auto resultFuture = resultPromise->get_future();
+
+                    core::http::ClientGETRequestParameters getParams;
+                    getParams.relativeUrl = "/api/users/" + std::to_string(userId->getValue()) + "/settings/" + appId;
+                    if (!_mumaApiKey.empty())
+                        getParams.headers.push_back(Wt::Http::Message::Header("X-API-Key", _mumaApiKey));
+
+                    getParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
+                        resultPromise->set_value(msg.body());
+                    };
+                    getParams.onFailureFunc = [resultPromise]() {
+                        resultPromise->set_value("{\"settings\": null}");
+                    };
+
+                    _httpClient->sendGETRequest(std::move(getParams));
+                    if (resultFuture.wait_for(std::chrono::seconds(10)) == std::future_status::ready)
                     {
-                        state.modify()->setValue(settings);
+                        response.out() << resultFuture.get();
                     }
                     else
                     {
-                        db::User::pointer targetUser = db::User::find(session, *userId);
-                        if (targetUser)
-                        {
-                            auto state = session.create<db::UIState>("muma_settings_" + appId, targetUser);
-                            state.modify()->setValue(settings);
-                        }
+                        response.setStatus(504);
                     }
-                    response.out() << "{\"status\":\"ok\"}";
+                }
+                else if (request.method() == "POST")
+                {
+                    if (!_httpClient)
+                    {
+                        response.setStatus(500);
+                        return;
+                    }
+
+                    std::string jsonStr((std::istreambuf_iterator<char>(request.in())), std::istreambuf_iterator<char>());
+
+                    auto resultPromise = std::make_shared<std::promise<int>>();
+                    auto resultFuture = resultPromise->get_future();
+
+                    core::http::ClientPOSTRequestParameters postParams;
+                    postParams.relativeUrl = "/api/users/" + std::to_string(userId->getValue()) + "/settings/" + appId;
+                    if (!_mumaApiKey.empty())
+                        postParams.message.addHeader("X-API-Key", _mumaApiKey);
+                    postParams.message.addHeader("Content-Type", "application/json");
+                    postParams.message.addBodyText(jsonStr);
+
+                    postParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
+                        resultPromise->set_value(msg.status());
+                    };
+                    postParams.onFailureFunc = [resultPromise]() {
+                        resultPromise->set_value(502);
+                    };
+
+                    _httpClient->sendPOSTRequest(std::move(postParams));
+                    if (resultFuture.wait_for(std::chrono::seconds(10)) == std::future_status::ready)
+                    {
+                        response.setStatus(resultFuture.get());
+                        response.out() << "{\"status\":\"ok\"}";
+                    }
+                    else
+                    {
+                        response.setStatus(504);
+                    }
                 }
             }
+        }
+        else if (pathInfo.find("/api/") == 0)
+        {
+            if (!_httpClient)
+            {
+                response.setStatus(500);
+                response.out() << "Music Management not configured";
+                return;
+            }
+
+            // Generic proxy for all other /api/ calls
+            auto resultPromise = std::make_shared<std::promise<std::pair<int, std::string>>>();
+            auto resultFuture = resultPromise->get_future();
+
+            if (request.method() == "GET")
+            {
+                core::http::ClientGETRequestParameters getParams;
+                getParams.relativeUrl = pathInfo;
+                std::string query = request.queryString();
+                if (!query.empty())
+                    getParams.relativeUrl += "?" + query;
+
+                if (!_mumaApiKey.empty())
+                    getParams.headers.push_back(Wt::Http::Message::Header("X-API-Key", _mumaApiKey));
+                else if (!xApiKeyHeader.empty())
+                     getParams.headers.push_back(Wt::Http::Message::Header("X-API-Key", xApiKeyHeader));
+
+                getParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
+                    resultPromise->set_value({msg.status(), msg.body()});
+                };
+                getParams.onFailureFunc = [resultPromise]() {
+                    resultPromise->set_value({502, "Bad Gateway"});
+                };
+                _httpClient->sendGETRequest(std::move(getParams));
+            }
+            else if (request.method() == "POST" || request.method() == "PUT" || request.method() == "DELETE")
+            {
+                core::http::ClientPOSTRequestParameters postParams;
+                postParams.relativeUrl = pathInfo;
+                std::string query = request.queryString();
+                if (!query.empty())
+                    postParams.relativeUrl += "?" + query;
+
+                if (!_mumaApiKey.empty())
+                    postParams.message.addHeader("X-API-Key", _mumaApiKey);
+                else if (!xApiKeyHeader.empty())
+                     postParams.message.addHeader("X-API-Key", xApiKeyHeader);
+
+                std::string contentType = request.headerValue("Content-Type");
+                if (!contentType.empty())
+                    postParams.message.addHeader("Content-Type", contentType);
+
+                std::string jsonStr((std::istreambuf_iterator<char>(request.in())), std::istreambuf_iterator<char>());
+                postParams.message.addBodyText(jsonStr);
+
+                postParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
+                    resultPromise->set_value({msg.status(), msg.body()});
+                };
+                postParams.onFailureFunc = [resultPromise]() {
+                    resultPromise->set_value({502, "Bad Gateway"});
+                };
+
+                if (request.method() == "POST")
+                    _httpClient->sendPOSTRequest(std::move(postParams));
+                else if (request.method() == "PUT")
+                {
+                    // Wt doesn't have a direct PUT helper in our wrapper maybe? 
+                    // Let's assume sendPOSTRequest handles it or we use generic sendRequest
+                    _httpClient->sendPOSTRequest(std::move(postParams)); 
+                }
+                else if (request.method() == "DELETE")
+                {
+                    _httpClient->sendPOSTRequest(std::move(postParams)); // Our wrapper might need update for DELETE
+                }
+            }
+
+            if (resultFuture.wait_for(std::chrono::seconds(30)) == std::future_status::ready)
+            {
+                auto res = resultFuture.get();
+                response.setStatus(res.first);
+                response.out() << res.second;
+            }
+            else
+            {
+                response.setStatus(504);
+                response.out() << "Gateway Timeout";
+            }
+            return;
         }
         else
         {

@@ -23,6 +23,7 @@
 
 #include <Wt/Dbo/ptr.h>
 #include <Wt/WDateTime.h>
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/address.hpp>
 
 #include "database/objects/UserId.hpp"
@@ -69,5 +70,5 @@ namespace lms::auth
         virtual void setPassword(db::UserId userId, std::string_view newPassword) = 0;
     };
 
-    std::unique_ptr<IPasswordService> createPasswordService(std::string_view backend, db::IDb& db, std::size_t maxThrottlerEntryCount);
+    std::unique_ptr<IPasswordService> createPasswordService(boost::asio::io_context& ioContext, std::string_view backend, db::IDb& db, std::size_t maxThrottlerEntryCount);
 } // namespace lms::auth

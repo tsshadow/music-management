@@ -23,6 +23,7 @@
 #include <Wt/WRandom.h>
 
 #include "internal/InternalPasswordService.hpp"
+#include "musicmanagement/MusicManagementPasswordService.hpp"
 #ifdef LMS_SUPPORT_PAM
     #include "pam/PAMPasswordService.hpp"
 #endif // LMS_SUPPORT_PAM
@@ -35,10 +36,12 @@ namespace lms::auth
 {
     static const Wt::Auth::SHA1HashFunction sha1Function;
 
-    std::unique_ptr<IPasswordService> createPasswordService(std::string_view backend, db::IDb& db, std::size_t maxThrottlerEntryCount)
+    std::unique_ptr<IPasswordService> createPasswordService(boost::asio::io_context& ioContext, std::string_view backend, db::IDb& db, std::size_t maxThrottlerEntryCount)
     {
         if (backend == "internal")
             return std::make_unique<InternalPasswordService>(db, maxThrottlerEntryCount);
+        if (backend == "music-management")
+            return std::make_unique<musicManagement::MusicManagementPasswordService>(ioContext, db, maxThrottlerEntryCount);
 #ifdef LMS_SUPPORT_PAM
         if (backend == "PAM")
             return std::make_unique<PAMPasswordService>(db, maxThrottlerEntryCount);

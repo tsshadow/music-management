@@ -35,7 +35,7 @@ namespace lms::auth
         AuthTokenService::AuthTokenInfo createAuthTokenInfo(const db::AuthToken::pointer& authToken)
         {
             return AuthTokenService::AuthTokenInfo{
-                .userId = authToken->getUser()->getId(),
+                .userId = authToken->getUserId(),
                 .expiry = authToken->getExpiry(),
                 .lastUsed = authToken->getLastUsed(),
                 .useCount = authToken->getUseCount(),
@@ -82,7 +82,7 @@ namespace lms::auth
             LMS_LOG(UI, DEBUG, "Created auth token for user '" << user->getLoginName() << "', expiry = " << authToken->getExpiry().toString() << ", maxUseCount = " << (authToken->getMaxUseCount() ? std::to_string(*authToken->getMaxUseCount()) : "<unset>"));
 
             // TODO per domain
-            if (user->getAuthTokensCount() >= 50)
+            if (db::AuthToken::getCount(session, user->getId()) >= 50)
                 db::AuthToken::removeExpiredTokens(session, domain.str(), Wt::WDateTime::currentDateTime());
         }
     }
@@ -102,7 +102,7 @@ namespace lms::auth
             return std::nullopt;
         }
 
-        LMS_LOG(UI, DEBUG, "Found auth token for user '" << authToken->getUser()->getLoginName() << "' on domain '" << domain.str() << "'");
+        LMS_LOG(UI, DEBUG, "Found auth token for user ID '" << authToken->getUserId().getValue() << "' on domain '" << domain.str() << "'");
 
         AuthTokenInfo res{ createAuthTokenInfo(authToken) };
 

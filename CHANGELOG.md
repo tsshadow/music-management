@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **UI**: Restored the legacy Wt-based admin/explore UI (library, user and
+  scan administration) as a separate entry point on `/legacy`, alongside the
+  Svelte-based MuMa Spotify UI.
+- **MuMa/Auth**: New `MusicManagementPasswordService` validates Subsonic/MuMa
+  logins directly against the music-management user directory; `MumaResource`
+  gained a `/muma/users/sync` endpoint.
+
+### Changed
+- **Deployment**: Consolidated to a single `lms` container (the separate
+  `lms_alpha` compose service was removed) fronted by a new `nginx`
+  reverse-proxy service, so `spotify.<domain>` now serves the Svelte frontend
+  directly at `/` instead of LMS's bare Wt bootstrap page, while `/rest` and
+  `/muma` are still proxied through unchanged. See `docs/deployment.md`.
+- **UI**: Moved the embedded Svelte "MuMa Spotify" frontend from
+  `src/lms/ui/src` to `src/lms/ui/spotify-ui/src`; it is now served from the
+  docroot's `spotify` folder (previously `muma-spotify`).
+- **Database**: Strengthened ID type safety across all database objects
+  (`AuthToken`, `Listen`, `PlayQueue`, rated/starred artists/releases/tracks,
+  `TrackBookmark`, `TrackLyrics`, `UIState`, `User`); owners are now resolved
+  by ID instead of a cached object reference.
+
+### Fixed
+- **MuMa Integration**: Corrected the feedback/scrobbling API paths sent to
+  music-management (`music-management-url` already includes the `/api`
+  prefix, so the extra `/api/` segment produced wrong routes).
+- **Scrobbling**: `listenStarted` no longer forwards a "now playing" event to
+  music-management, since its `/scrobble/event` endpoint can't distinguish
+  it from a real listen; only `listenFinished` reports a listen now.
+- **Subsonic API**: Fixed the `setSubsonicDefaultTranscodingOutputFormat`
+  typo and adapted playlist/bookmark endpoints to the new ID-based
+  user/track-list references.
+
 ## [3.83.1] - 2026-07-14
 
 ## [3.83.0] - 2026-07-11

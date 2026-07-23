@@ -1,0 +1,90 @@
+# GitLab CI pipeline (Task 8 of the test plan).
+#
+# Only wires up commands that are already verified to work locally via the
+# scripts under scripts/test/ (see AGENTS.md -> "Full test inventory & local
+# commands" and docs/testing-inventory.md). CI must never be the place where a
+# script is tried for the first time: run it locally first, then add it here.
+#
+# Requires a Linux GitLab Runner with Docker + Docker Compose available
+# (shell or docker executor with access to the host's Docker daemon).
+
+default:
+  interruptible: true
+
+stages:
+  - unit
+  - integration
+  - e2e
+
+# --- Unit tests -------------------------------------------------------------
+
+music-management:unit:
+  stage: unit
+  rules:
+    - changes:
+        - services/music_manager/**/*
+        - services/importer/**/*
+        - services/downloader/**/*
+        - services/tagger/**/*
+        - services/scanner/**/*
+        - services/common/**/*
+        - pytest.ini
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/test/music-management-unit.sh
+
+lms:unit:
+  stage: unit
+  rules:
+    - changes:
+        - services/music-management-server/**/*
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/test/lms-unit.sh
+
+frontend:unit:
+  stage: unit
+  rules:
+    - changes:
+        - services/frontend/**/*
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/test/frontend-unit.sh
+
+# --- Integration / contract tests -------------------------------------------
+# These build and start docker/compose.test.yml from a clean state, so they
+# always run on the default branch, and on any merge request that touches
+# something the test stack itself depends on.
+
+contracts:
+  stage: integration
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - changes:
+        - services/music-management-server/**/*
+        - services/music_manager/**/*
+        - docker/compose.test.yml
+        - tests/fixtures/**/*
+        - tests/contracts/**/*
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/test/contracts.sh
+
+# --- Browser end-to-end ------------------------------------------------------
+
+frontend:browser:
+  stage: e2e
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - changes:
+        - services/frontend/**/*
+        - docker/compose.test.yml
+        - tests/fixtures/**/*
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/test/frontend-browser.sh
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths:
+      - services/frontend/test-results/

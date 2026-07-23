@@ -360,7 +360,7 @@ namespace lms::scrobbling::listenBrainz
 
                 TimedListen timedListen;
                 timedListen.listenedAt = listen->getDateTime();
-                timedListen.userId = listen->getUser()->getId();
+                timedListen.userId = listen->getUserId();
                 timedListen.trackId = listen->getTrack()->getId();
 
                 pendingListens.push_back(std::move(timedListen));

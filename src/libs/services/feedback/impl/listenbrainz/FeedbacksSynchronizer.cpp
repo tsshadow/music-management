@@ -118,7 +118,11 @@ namespace lms::feedback::listenBrainz
                 return;
             }
 
-            const std::string listenBrainzToken{ starredTrack->getUser()->getListenBrainzToken() };
+            db::User::pointer user{ db::User::find(session, starredTrack->getUserId()) };
+            if (!user)
+                return;
+
+            const std::string listenBrainzToken{ user->getListenBrainzToken() };
             if (listenBrainzToken.empty())
                 return;
 
@@ -160,7 +164,7 @@ namespace lms::feedback::listenBrainz
             return;
         }
 
-        UserContext& userContext{ getUserContext(starredTrack->getUser()->getId()) };
+        UserContext& userContext{ getUserContext(starredTrack->getUserId()) };
 
         switch (type)
         {

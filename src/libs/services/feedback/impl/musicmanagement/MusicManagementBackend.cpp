@@ -32,7 +32,11 @@ namespace lms::feedback::musicManagement
     MusicManagementBackend::MusicManagementBackend(boost::asio::io_context& ioContext, db::IDb& db)
         : _ioContext{ ioContext }
         , _db{ db }
-        , _apiUrl{ std::string{ core::Service<core::IConfig>::get()->getString("music-management-url", "") } + "/rating/api/lms-event" }
+        // NOTE: "music-management-url" already includes the "/api" prefix (see
+        // UserSynchronizer.cpp / MusicManagementPasswordService.cpp). The real
+        // route is "/api/rating/lms-event", so only "/rating/lms-event" must
+        // be appended here (was incorrectly "/rating/api/lms-event").
+        , _apiUrl{ std::string{ core::Service<core::IConfig>::get()->getString("music-management-url", "") } + "/rating/lms-event" }
         , _apiKey{ std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-key", "") } }
     {
         LMS_LOG(SCROBBLING, INFO, "Starting MusicManagement feedback backend... API endpoint = '" << _apiUrl << "'");
@@ -75,7 +79,9 @@ namespace lms::feedback::musicManagement
             {
                 std::string artistName{ artist->getName() };
                 int rating = ratedArtist->getRating();
-                std::string username = ratedArtist->getUser()->getLoginName();
+                std::string username;
+                if (auto user = db::User::find(session, ratedArtist->getUserId()))
+                    username = user->getLoginName();
 
                 LMS_LOG(SCROBBLING, INFO, "Rating changed for artist " << artistName << " (rating: " << rating << ", user: " << username << ")");
                 sendEvent("rating_changed", "artist", artistName, username, rating);
@@ -95,7 +101,9 @@ namespace lms::feedback::musicManagement
             {
                 std::string releaseName{ release->getName() };
                 int rating = ratedRelease->getRating();
-                std::string username = ratedRelease->getUser()->getLoginName();
+                std::string username;
+                if (auto user = db::User::find(session, ratedRelease->getUserId()))
+                    username = user->getLoginName();
 
                 LMS_LOG(SCROBBLING, INFO, "Rating changed for release " << releaseName << " (rating: " << rating << ", user: " << username << ")");
                 sendEvent("rating_changed", "release", releaseName, username, rating);
@@ -116,7 +124,9 @@ namespace lms::feedback::musicManagement
                 std::string trackId = track->getId().toString();
                 int rating = ratedTrack->getRating();
                 std::string path = track->getAbsoluteFilePath().string();
-                std::string username = ratedTrack->getUser()->getLoginName();
+                std::string username;
+                if (auto user = db::User::find(session, ratedTrack->getUserId()))
+                    username = user->getLoginName();
 
                 LMS_LOG(SCROBBLING, INFO, "Rating changed for track " << trackId << " (rating: " << rating << ", path: " << path << ", user: " << username << ")");
                 sendEvent("rating_changed", "track", trackId, username, rating, path);

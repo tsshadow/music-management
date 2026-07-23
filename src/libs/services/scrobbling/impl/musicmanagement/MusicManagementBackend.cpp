@@ -30,7 +30,11 @@ namespace lms::scrobbling::musicManagement
     MusicManagementBackend::MusicManagementBackend(boost::asio::io_context& ioContext, db::IDb& db)
         : _ioContext{ ioContext }
         , _db{ db }
-        , _apiUrl{ std::string{ core::Service<core::IConfig>::get()->getString("music-management-url", "") } + "/scrobble/api/event" }
+        // NOTE: "music-management-url" already includes the "/api" prefix
+        // (see UserSynchronizer.cpp / MusicManagementPasswordService.cpp, which
+        // append "/users/" and "/auth/login" directly onto it). The real route
+        // is "/api/scrobble/event", so only "/scrobble/event" must be appended here.
+        , _apiUrl{ std::string{ core::Service<core::IConfig>::get()->getString("music-management-url", "") } + "/scrobble/event" }
         , _apiKey{ std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-key", "") } }
     {
         if (!_apiUrl.empty())
@@ -44,7 +48,13 @@ namespace lms::scrobbling::musicManagement
 
     void MusicManagementBackend::listenStarted(const Listen& listen)
     {
-        sendScrobble(listen, {});
+        // Intentionally not forwarded: music-manager's /scrobble/event has no
+        // way to distinguish a "now playing" ping from a real listen (it
+        // always records a `listened_at` timestamp, defaulting to "now" when
+        // none is given). Forwarding this used to cause every started
+        // playback to be counted as a definitive listen, even if skipped
+        // immediately. Only listenFinished()/addTimedListen() should report a listen.
+        (void)listen;
     }
 
     void MusicManagementBackend::listenFinished(const Listen& listen, std::optional<std::chrono::seconds> duration)

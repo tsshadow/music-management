@@ -37,7 +37,7 @@ namespace lms::podcast::utils
     std::filesystem::path getPodcastRelativePath(const db::Podcast::pointer& podcast)
     {
         assert(podcast);
-        return podcast->getId().toString();
+        return std::to_string(podcast->getId().getValue());
     }
 
     static std::optional<image::ImageProperties> probeImage(const std::filesystem::path& path)

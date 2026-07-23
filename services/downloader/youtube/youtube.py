@@ -13,12 +13,13 @@ from services.common.job_manager import job_manager
 
 class YoutubeDownloader:
 
-    def __init__(self, break_on_existing: bool=True, **kwargs):
+    def __init__(self, break_on_existing: bool=True, dry_run: bool=False, **kwargs):
         """
         Initializes the YoutubeDownloader instance with configuration settings.
 
         Args:
             break_on_existing (bool): Whether to stop processing if existing content is detected.
+            dry_run (bool): If True, only simulate the download process.
             **kwargs: Additional settings:
                 max_workers (int): Maximum number of worker threads for concurrency.
                 burst_size (int): Number of accounts to process in one batch.
@@ -31,6 +32,7 @@ class YoutubeDownloader:
         self.downloader_config = {'output_folder': values.get('youtube_folder'), 'archive_dir': values.get('youtube_archive'), 'ffmpeg_location': values.get('ffmpeg_location') or '/usr/bin', 'cookies_file': values.get('yt_cookies'), 'user_agent': values.get('yt_user_agent'), 'enabled': False}
         self.batch_settings = {'max_workers': kwargs.get('max_workers', 1), 'burst_size': kwargs.get('burst_size', 10), 'min_pause': kwargs.get('min_pause', 1), 'max_pause': kwargs.get('max_pause', 5), 'socket_timeout': kwargs.get('socket_timeout', 30)}
         self.default_break_on_existing = break_on_existing
+        self.dry_run = dry_run
         self.redownload_mode = False
         if not self.downloader_config['output_folder'] or not self.downloader_config['archive_dir']:
             logging.warning('Missing required configuration for youtube_folder or youtube_archive. YouTube downloads will be disabled.')
@@ -88,6 +90,7 @@ class YoutubeDownloader:
             dict: A dictionary containing yt-dlp configuration options.
         """
         opts = {**self._base_ydl_opts}
+        opts['simulate'] = self.dry_run
         if 'postprocessors' in self._base_ydl_opts:
             opts['postprocessors'] = [pp.copy() if isinstance(pp, dict) else pp for pp in self._base_ydl_opts['postprocessors']]
         if not redownload:

@@ -10,7 +10,7 @@ class Extractor:
     def __init__(self):
         self.settings = Settings()
 
-    def run(self):
+    def run(self, dry_run=False):
         logging.info('Starting Extract Step')
         try:
             only_files = [f for f in listdir(self.settings.import_folder_path) if isfile(join(self.settings.import_folder_path, f))]
@@ -21,6 +21,9 @@ class Extractor:
         for idx, file in enumerate(only_files, start=1):
             try:
                 file_with_path = join(self.settings.import_folder_path, file)
+                if dry_run:
+                    logging.info(f'[{idx}/{len(only_files)}] Dry run - would extract: {file_with_path}')
+                    continue
                 logging.info(f'[{idx}/{len(only_files)}] Extracting: {file_with_path}')
                 patoolib.extract_archive(file_with_path, outdir=self.settings.import_folder_path, interactive=False)
                 logging.info(f'[{idx}/{len(only_files)}] Removing: {file_with_path}')

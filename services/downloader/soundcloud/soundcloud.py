@@ -82,9 +82,10 @@ class SoundcloudDownloader:
     - Skips tracks outside a configurable duration range.
     """
 
-    def __init__(self, break_on_existing=True, **kwargs):
+    def __init__(self, break_on_existing=True, dry_run=False, **kwargs):
         self._config = ConfigStore()
         self.default_break_on_existing = break_on_existing
+        self.dry_run = dry_run
         self.redownload_mode = False
         self.batch_settings = {'max_workers': kwargs.get('max_workers', 1), 'burst_size': kwargs.get('burst_size', 10), 'min_pause': kwargs.get('min_pause', 1), 'max_pause': kwargs.get('max_pause', 5)}
         self._subscriptions = []
@@ -207,6 +208,7 @@ class SoundcloudDownloader:
 
     def _prepare_ydl_opts(self, acc, break_on_existing_arg, redownload):
         ydl_opts = self.downloader_config['ydl_opts'].copy()
+        ydl_opts['simulate'] = self.dry_run
         effective_break = self.default_break_on_existing if break_on_existing_arg is None else break_on_existing_arg
         if effective_break:
             ydl_opts['break_on_existing'] = True

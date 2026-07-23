@@ -29,17 +29,21 @@ class Renamer:
     def __init__(self):
         self.settings = Settings()
 
-    def run(self):
+    def run(self, dry_run=False):
         logging.info('Starting Rename Step')
         only_folders = [f for f in listdir(self.settings.import_folder_path) if not isfile(join(self.settings.import_folder_path, f))]
         for folder in only_folders:
             if '@eaDir' in folder:
                 logging.info('skipping @eaDir')
             elif not is_parsed(folder):
+                new_name = find_cat_id(folder)
                 logging.info('input: %s', folder)
-                logging.info('parsed: %s', find_cat_id(folder))
+                logging.info('parsed: %s', new_name)
+                if dry_run:
+                    logging.info('Dry run - would rename: %s -> %s', folder, new_name)
+                    continue
                 try:
-                    os.rename(self.settings.import_folder_path + self.settings.delimiter + folder, self.settings.import_folder_path + self.settings.delimiter + find_cat_id(folder))
+                    os.rename(self.settings.import_folder_path + self.settings.delimiter + folder, self.settings.import_folder_path + self.settings.delimiter + new_name)
                 except FileExistsError:
                     src = self.settings.import_folder_path + self.settings.delimiter + folder
                     logging.info('File exists: %s', src)

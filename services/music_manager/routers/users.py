@@ -8,6 +8,8 @@ import bcrypt
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Header
 from pydantic import BaseModel
 from services.music_manager.database import get_db_connection
+from services.music_manager import rbac
+from services.music_manager.rbac import has_permission, require_permission, require_admin
 router = APIRouter(tags=['users'])
 MUMA_API_KEY = os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
 MUMA_SERVER_API_KEY = os.getenv('MUMA_SERVER_API_KEY') or os.getenv('LMS_API_KEY') or MUMA_API_KEY
@@ -39,6 +41,21 @@ class UserUpdate(BaseModel):
     is_admin: Optional[bool] = None
     server_user_id: Optional[str] = None
     api_key: Optional[str] = None
+
+class RoleAssign(BaseModel):
+    role: str
+
+class EnabledUpdate(BaseModel):
+    enabled: bool
+
+class GoogleLoginRequest(BaseModel):
+    id_token: str
+
+class AccessRequestCreate(BaseModel):
+    id_token: str
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
 
 class LBAccountUpdate(BaseModel):
     lb_username: str
@@ -124,6 +141,39 @@ def init_db(cursor):
         pass
     cursor.execute('\n        CREATE TABLE IF NOT EXISTS user_app_settings (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            user_id INT NOT NULL,\n            app_id VARCHAR(50) NOT NULL,\n            settings_json LONGTEXT NOT NULL,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            UNIQUE KEY (user_id, app_id),\n            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE\n        )\n    ')
 
+    # Roles/permissions, Google identities, access requests, refresh tokens, audit log.
+    rbac.init_db(cursor)
+
+def _role_name(cursor, role_id):
+    if not role_id:
+        return None
+    cursor.execute('SELECT name FROM roles WHERE id = %s', (role_id,))
+    row = cursor.fetchone()
+    return row['name'] if row else None
+
+def build_auth_user(cursor, user_row):
+    """Build the permission-bearing user payload used by verify_token/login/etc.
+
+    ``is_admin`` is kept only as a derived, read-only convenience field for
+    existing UI code; it must never be written back or trusted for
+    authorization decisions -- that always goes through role/permissions.
+    """
+    role_name = _role_name(cursor, user_row.get('role_id'))
+    permissions = sorted(rbac.get_permissions_for_role(cursor, user_row.get('role_id')))
+    return {
+        'id': user_row['id'],
+        'username': user_row['username'],
+        'display_name': user_row.get('display_name'),
+        'email': user_row.get('email'),
+        'avatar_url': user_row.get('avatar_url'),
+        'server_user_id': user_row.get('server_user_id'),
+        'role_id': user_row.get('role_id'),
+        'role_name': role_name,
+        'is_admin': role_name == rbac.ADMIN_ROLE_NAME,
+        'enabled': bool(user_row.get('enabled', True)),
+        'permissions': permissions,
+    }
+
 @router.get('/auth/verify')
 def verify_token(x_api_key: str=Header(None)):
     if not x_api_key:
@@ -134,10 +184,12 @@ def verify_token(x_api_key: str=Header(None)):
     if conn:
         try:
             with conn.cursor() as cursor:
-                cursor.execute('SELECT id, username, display_name, is_admin FROM users WHERE api_key = %s', (x_api_key,))
+                cursor.execute('SELECT * FROM users WHERE api_key = %s', (x_api_key,))
                 user = cursor.fetchone()
                 if user:
-                    return {'status': 'ok', 'type': 'user', 'user': user}
+                    if not user.get('enabled', True):
+                        raise HTTPException(status_code=403, detail='Account disabled')
+                    return {'status': 'ok', 'type': 'user', 'user': build_auth_user(cursor, user)}
         finally:
             conn.close()
     raise HTTPException(status_code=403, detail='Invalid API Key')
@@ -153,15 +205,44 @@ def login(req: LoginRequest):
             user = cursor.fetchone()
             if not user or not user['password_hash']:
                 raise HTTPException(status_code=401, detail='Invalid username or password')
+            if not user.get('enabled', True):
+                raise HTTPException(status_code=403, detail='Account disabled')
             stored_hash = user['password_hash']
             if bcrypt.checkpw(req.password.encode('utf-8'), stored_hash.encode('utf-8')):
                 api_key = user['api_key']
                 if not api_key:
                     api_key = secrets.token_hex(32)
                     cursor.execute('UPDATE users SET api_key = %s WHERE id = %s', (api_key, user['id']))
-                    conn.commit()
-                return {'id': user['id'], 'username': user['username'], 'display_name': user['display_name'], 'is_admin': bool(user['is_admin']), 'api_key': api_key}
+                cursor.execute('UPDATE users SET last_login_at = NOW() WHERE id = %s', (user['id'],))
+                refresh_token = secrets.token_hex(32)
+                cursor.execute('INSERT INTO user_refresh_tokens (user_id, token) VALUES (%s, %s)', (user['id'], refresh_token))
+                conn.commit()
+                auth_user = build_auth_user(cursor, user)
+                return {**auth_user, 'api_key': api_key, 'access_token': api_key, 'refresh_token': refresh_token}
             raise HTTPException(status_code=401, detail='Invalid username or password')
+    finally:
+        conn.close()
+
+@router.post('/auth/refresh')
+def refresh_access_token(req: RefreshRequest):
+    """Exchange a refresh token for a fresh access token (api_key)."""
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail='Database connection failed')
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT * FROM user_refresh_tokens WHERE token = %s AND revoked_at IS NULL', (req.refresh_token,))
+            token_row = cursor.fetchone()
+            if not token_row:
+                raise HTTPException(status_code=401, detail='Invalid or revoked refresh token')
+            cursor.execute('SELECT * FROM users WHERE id = %s', (token_row['user_id'],))
+            user = cursor.fetchone()
+            if not user or not user.get('enabled', True):
+                raise HTTPException(status_code=403, detail='Account disabled')
+            cursor.execute('UPDATE user_refresh_tokens SET last_used_at = NOW() WHERE id = %s', (token_row['id'],))
+            conn.commit()
+            auth_user = build_auth_user(cursor, user)
+            return {**auth_user, 'api_key': user['api_key'], 'access_token': user['api_key']}
     finally:
         conn.close()
 
@@ -194,10 +275,11 @@ def setup_admin(user: UserCreate):
 
             password_hash = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             token = user.api_key or secrets.token_hex(32)
+            admin_role = rbac.get_role_by_name(cursor, rbac.ADMIN_ROLE_NAME)
 
             cursor.execute(
-                'INSERT INTO users (username, display_name, is_admin, password_hash, api_key, server_user_id) VALUES (%s, %s, %s, %s, %s, %s)',
-                (user.username, user.display_name or user.username, True, password_hash, token, user.server_user_id)
+                'INSERT INTO users (username, display_name, is_admin, role_id, enabled, password_hash, api_key, server_user_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
+                (user.username, user.display_name or user.username, True, admin_role['id'] if admin_role else None, True, password_hash, token, user.server_user_id)
             )
             conn.commit()
 
@@ -209,6 +291,7 @@ def setup_admin(user: UserCreate):
                 'id': cursor.lastrowid,
                 'username': user.username,
                 'display_name': user.display_name or user.username,
+                'role_name': rbac.ADMIN_ROLE_NAME,
                 'is_admin': True,
                 'api_key': token
             }
@@ -217,7 +300,7 @@ def setup_admin(user: UserCreate):
 
 @router.get('/{user_id}/dynamic-playlists')
 def get_dynamic_playlists(user_id: int, auth: dict=Depends(verify_api_key)):
-    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not auth['user'].get('is_admin')):
+    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
@@ -231,7 +314,7 @@ def get_dynamic_playlists(user_id: int, auth: dict=Depends(verify_api_key)):
 
 @router.get('/{user_id}/dynamic-playlists/{playlist_id}')
 def get_dynamic_playlist(user_id: int, playlist_id: int, auth: dict=Depends(verify_api_key)):
-    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not auth['user'].get('is_admin')):
+    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
@@ -248,7 +331,7 @@ def get_dynamic_playlist(user_id: int, playlist_id: int, auth: dict=Depends(veri
 
 @router.post('/{user_id}/dynamic-playlists')
 def create_dynamic_playlist(user_id: int, playlist: DynamicPlaylistCreate, auth: dict=Depends(verify_api_key)):
-    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not auth['user'].get('is_admin')):
+    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
@@ -263,7 +346,7 @@ def create_dynamic_playlist(user_id: int, playlist: DynamicPlaylistCreate, auth:
 
 @router.put('/{user_id}/dynamic-playlists/{playlist_id}')
 def update_dynamic_playlist(user_id: int, playlist_id: int, playlist: DynamicPlaylistUpdate, auth: dict=Depends(verify_api_key)):
-    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not auth['user'].get('is_admin')):
+    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
@@ -283,7 +366,7 @@ def update_dynamic_playlist(user_id: int, playlist_id: int, playlist: DynamicPla
 
 @router.delete('/{user_id}/dynamic-playlists/{playlist_id}')
 def delete_dynamic_playlist(user_id: int, playlist_id: int, auth: dict=Depends(verify_api_key)):
-    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not auth['user'].get('is_admin')):
+    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
@@ -298,7 +381,7 @@ def delete_dynamic_playlist(user_id: int, playlist_id: int, auth: dict=Depends(v
 
 @router.get('/{user_id}/dynamic-playlists/{playlist_id}/tracks')
 def get_playlist_tracks(user_id: int, playlist_id: int, auth: dict=Depends(verify_api_key)):
-    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not auth['user'].get('is_admin')):
+    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
@@ -365,7 +448,7 @@ def get_playlist_tracks(user_id: int, playlist_id: int, auth: dict=Depends(verif
 
 @router.post('/{user_id}/dynamic-playlists/seed-defaults')
 def seed_defaults(user_id: int, auth: dict=Depends(verify_api_key)):
-    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not auth['user'].get('is_admin')):
+    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
@@ -382,7 +465,7 @@ def seed_defaults(user_id: int, auth: dict=Depends(verify_api_key)):
 
 @router.post('/{user_id}/dynamic-playlists/sync')
 def sync_dynamic_playlist(user_id: int, playlist: DynamicPlaylistSync, auth: dict=Depends(verify_api_key)):
-    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not auth['user'].get('is_admin')):
+    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
@@ -404,14 +487,14 @@ def sync_dynamic_playlist(user_id: int, playlist: DynamicPlaylistSync, auth: dic
 @router.get('')
 @router.get('/')
 def get_users(auth: dict=Depends(verify_api_key)):
-    if auth.get('type') == 'user' and (not auth['user'].get('is_admin')):
+    if auth.get('type') == 'user' and (not has_permission(auth, 'users.read')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='DB failed')
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT id, username, display_name, is_admin, server_user_id, api_key FROM users')
+            cursor.execute('SELECT u.id, u.username, u.display_name, u.email, u.avatar_url, u.is_admin, u.role_id, r.name as role_name, u.enabled, u.server_user_id, u.api_key, CAST(u.created_at AS CHAR) as created_at, CAST(u.last_login_at AS CHAR) as last_login_at FROM users u LEFT JOIN roles r ON u.role_id = r.id')
             return cursor.fetchall()
     finally:
         conn.close()
@@ -419,7 +502,7 @@ def get_users(auth: dict=Depends(verify_api_key)):
 @router.post('')
 @router.post('/')
 def create_user(user: UserCreate, auth: dict=Depends(verify_api_key)):
-    if auth.get('type') == 'user' and (not auth['user'].get('is_admin')):
+    if auth.get('type') == 'user' and (not has_permission(auth, 'users.create')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
@@ -430,16 +513,131 @@ def create_user(user: UserCreate, auth: dict=Depends(verify_api_key)):
             password_hash = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         token = user.api_key or secrets.token_hex(16)
         with conn.cursor() as cursor:
-            cursor.execute('\n                INSERT INTO users (username, display_name, is_admin, password_hash, api_key, server_user_id)\n                VALUES (%s, %s, %s, %s, %s, %s)\n            ', (user.username, user.display_name, user.is_admin, password_hash, token, user.server_user_id))
+            # New users are never given the admin role here: role assignment
+            # (including admin) is a separate action gated by users.assign-role.
+            default_role = rbac.get_role_by_name(cursor, rbac.DEFAULT_ROLE_NAME)
+            cursor.execute('\n                INSERT INTO users (username, display_name, is_admin, role_id, enabled, password_hash, api_key, server_user_id)\n                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)\n            ', (user.username, user.display_name, False, default_role['id'] if default_role else None, True, password_hash, token, user.server_user_id))
             conn.commit()
             return {'status': 'ok', 'id': cursor.lastrowid}
+    finally:
+        conn.close()
+
+@router.get('/roles')
+def list_roles(auth: dict=Depends(require_permission('roles.read'))):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail='DB failed')
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT id, name, description FROM roles ORDER BY id')
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+@router.get('/permissions')
+def list_permissions(auth: dict=Depends(require_permission('permissions.read'))):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail='DB failed')
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT id, name, description FROM permissions ORDER BY name')
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+@router.put('/{user_id}/role')
+def assign_role(user_id: int, req: RoleAssign, auth: dict=Depends(require_permission('users.assign-role'))):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail='DB failed')
+    try:
+        with conn.cursor() as cursor:
+            role = rbac.get_role_by_name(cursor, req.role)
+            if not role:
+                raise HTTPException(status_code=404, detail=f"Unknown role: {req.role}")
+            cursor.execute('UPDATE users SET role_id = %s, is_admin = %s WHERE id = %s', (role['id'], req.role == rbac.ADMIN_ROLE_NAME, user_id))
+            actor_id = (auth.get('user') or {}).get('id')
+            rbac.record_audit_event(cursor, 'user.role_assigned', actor_user_id=actor_id, target_user_id=user_id, details=f"role={req.role}")
+            conn.commit()
+            return {'status': 'ok'}
+    finally:
+        conn.close()
+
+@router.post('/{user_id}/enable')
+def enable_user(user_id: int, auth: dict=Depends(require_permission('users.disable'))):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail='DB failed')
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('UPDATE users SET enabled = TRUE WHERE id = %s', (user_id,))
+            actor_id = (auth.get('user') or {}).get('id')
+            rbac.record_audit_event(cursor, 'user.enabled', actor_user_id=actor_id, target_user_id=user_id)
+            conn.commit()
+            return {'status': 'ok'}
+    finally:
+        conn.close()
+
+@router.post('/{user_id}/disable')
+def disable_user(user_id: int, auth: dict=Depends(require_permission('users.disable'))):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail='DB failed')
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('UPDATE users SET enabled = FALSE WHERE id = %s', (user_id,))
+            actor_id = (auth.get('user') or {}).get('id')
+            rbac.record_audit_event(cursor, 'user.disabled', actor_user_id=actor_id, target_user_id=user_id)
+            conn.commit()
+            return {'status': 'ok'}
+    finally:
+        conn.close()
+
+@router.post('/{user_id}/sessions/revoke')
+def revoke_sessions(user_id: int, auth: dict=Depends(verify_api_key)):
+    """Revoke all active sessions for a user (their api_key + refresh tokens).
+
+    Allowed for the user themselves (sessions.manage-own) or an admin acting
+    on someone else's account (users.revoke-sessions).
+    """
+    is_self = auth.get('type') == 'user' and auth['user']['id'] == user_id
+    if not is_self and not has_permission(auth, 'users.revoke-sessions'):
+        raise HTTPException(status_code=403, detail='Forbidden')
+    if is_self and not has_permission(auth, 'sessions.manage-own') and not has_permission(auth, 'users.revoke-sessions'):
+        raise HTTPException(status_code=403, detail='Forbidden')
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail='DB failed')
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('UPDATE users SET api_key = NULL WHERE id = %s', (user_id,))
+            cursor.execute('UPDATE user_refresh_tokens SET revoked_at = NOW() WHERE user_id = %s AND revoked_at IS NULL', (user_id,))
+            actor_id = (auth.get('user') or {}).get('id')
+            rbac.record_audit_event(cursor, 'user.sessions_revoked', actor_user_id=actor_id, target_user_id=user_id)
+            conn.commit()
+            return {'status': 'ok'}
+    finally:
+        conn.close()
+
+@router.get('/{user_id}/identities')
+def list_identities(user_id: int, auth: dict=Depends(verify_api_key)):
+    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.read')):
+        raise HTTPException(status_code=403, detail='Forbidden')
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail='DB failed')
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT id, provider, provider_subject, email_at_provider, CAST(created_at AS CHAR) as created_at, CAST(last_used_at AS CHAR) as last_used_at FROM user_identities WHERE user_id = %s', (user_id,))
+            return cursor.fetchall()
     finally:
         conn.close()
 
 @router.get('/{user_id}/listenbrainz')
 @router.get('/{user_id}/lb-account')
 def get_lb_account(user_id: int, auth: dict=Depends(verify_api_key)):
-    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not auth['user'].get('is_admin')):
+    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
@@ -456,7 +654,7 @@ def get_lb_account(user_id: int, auth: dict=Depends(verify_api_key)):
 @router.put('/{user_id}/listenbrainz')
 @router.put('/{user_id}/lb-account')
 def update_lb_account(user_id: int, lb_data: LBAccountUpdate, auth: dict=Depends(verify_api_key)):
-    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not auth['user'].get('is_admin')):
+    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
@@ -471,7 +669,7 @@ def update_lb_account(user_id: int, lb_data: LBAccountUpdate, auth: dict=Depends
 
 @router.delete('/{user_id}')
 def delete_user(user_id: int, auth: dict=Depends(verify_api_key)):
-    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not auth['user'].get('is_admin')):
+    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
@@ -487,7 +685,7 @@ def delete_user(user_id: int, auth: dict=Depends(verify_api_key)):
 @router.post('/{user_id}/password')
 @router.put('/{user_id}/password')
 def update_password(user_id: int, req: PasswordUpdate, auth: dict=Depends(verify_api_key)):
-    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not auth['user'].get('is_admin')):
+    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
@@ -503,7 +701,7 @@ def update_password(user_id: int, req: PasswordUpdate, auth: dict=Depends(verify
 
 @router.get('/{user_id}/settings/{app_id}')
 def get_user_app_settings(user_id: int, app_id: str, auth: dict=Depends(verify_api_key)):
-    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not auth['user'].get('is_admin')):
+    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
@@ -520,7 +718,7 @@ def get_user_app_settings(user_id: int, app_id: str, auth: dict=Depends(verify_a
 
 @router.post('/{user_id}/settings/{app_id}')
 def update_user_app_settings(user_id: int, app_id: str, req: AppSettingsUpdate, auth: dict=Depends(verify_api_key)):
-    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not auth['user'].get('is_admin')):
+    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:

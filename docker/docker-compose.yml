@@ -81,6 +81,7 @@ services:
       MUMA_SERVER_HOSTS: "music-management-server:5082"
       MUMA_SERVER_SUBSONIC_API_KEY: ${MUMA_SERVER_SUBSONIC_API_KEY:-${LMS_SUBSONIC_API_KEY}}
       NOTIFY_URL: ${NOTIFY_URL}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     volumes:
       - ${HOST_DATA_PATH}/music-management-server/var/lms:/app/data/stable:rw
       - ${HOST_DATA_PATH}/alpha-music-management-server/var/lms:/app/data/alpha:rw

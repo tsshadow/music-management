@@ -2,6 +2,7 @@ import os
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Header, Depends
 from services.music_manager.database import get_db_connection
+from services.music_manager.rbac import has_permission
 router = APIRouter(tags=['stats'])
 API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
 
@@ -24,7 +25,7 @@ def init_db(_cursor):
 
 @router.get('/')
 def get_stats(auth: dict=Depends(verify_api_key)):
-    if auth.get('type') == 'user' and (not auth['user'].get('is_admin')):
+    if auth.get('type') == 'user' and (not has_permission(auth, 'users.read')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:

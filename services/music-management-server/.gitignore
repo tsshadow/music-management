@@ -1,0 +1,13 @@
+*.sw?
+*.*~
+CMakeCache.txt
+CMakeFiles/
+build/
+build_junie/
+.cache/
+.vscode/
+.junie/
+.idea/
+.env
+docs
+/.production

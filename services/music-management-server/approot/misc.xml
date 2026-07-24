@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<messages xmlns:if="Wt.WTemplate.conditions">
+
+<message id="Lms.LoadingIndicator.template">
+	<div class="my-5 text-center">
+		<div class="spinner-border" role="status">
+			<span class="visually-hidden">${tr:Lms.loading}</span>
+		</div>
+	</div>
+</message>
+
+<message id="Lms.infinite-scrolling-container.template">
+	${elements}
+	${loading-indicator}
+</message>
+
+<message id="Lms.template.trash-btn"><i class="fa fa-fw fa-trash"></i></message>
+<message id="Lms.template.delete-btn"><i class="fa fa-fw fa-times"></i></message>
+<message id="Lms.template.edit-btn"><i class="fa fa-fw fa-edit"></i></message>
+<message id="Lms.template.more-btn"><i class="fa fa-fw fa-ellipsis-v"></i></message>
+<message id="Lms.template.play-btn"><i class="fa fa-fw fa-play"></i></message>
+<message id="Lms.template.star-btn"><i class="fa fa-fw fa-star-o"></i></message>
+<message id="Lms.template.toggle-visibility-btn"><i class="fa fa-fw fa-eye"></i></message>
+<message id="Lms.template.unstar-btn"><i class="fa fa-fw fa-star"></i></message>
+
+</messages>

@@ -1,0 +1,117 @@
+
+<?xml version="1.0" encoding="UTF-8" ?>
+<messages xmlns:if="Wt.WTemplate.conditions">
+<!--FORMS message blocks-->
+
+<message id="Lms.Admin.Database.template">
+	<form class="row g-3 mb-3">
+		<legend>${tr:Lms.Admin.Database.scan-settings}</legend>
+		<div class="col-sm-6">
+			<label class="form-label" for="${id:update-period}">
+				${tr:Lms.Admin.Database.update-period}
+			</label>
+			${update-period class="form-control"}
+			<div class="invalid-feedback">
+				${update-period-info"}
+			</div>
+		</div>
+		<div class="col-sm-6">
+			<label class="form-label" for="${id:update-start-time}">
+				${tr:Lms.Admin.Database.update-start-time}
+			</label>
+			${update-start-time class="form-control"}
+			<div class="invalid-feedback">
+				${update-start-time-info}
+			</div>
+		</div>
+		<legend>${tr:Lms.Admin.Database.tag-parsing}</legend>
+		<div class="col-12">
+			<label class="form-label" for="${id:extra-tags-to-scan}">
+				${tr:Lms.Admin.Database.extra-tags-to-scan}
+				${extra-tags-to-scan-add-btn class="ms-1 btn btn-sm btn-secondary"}
+			</label>
+			${extra-tags-to-scan-container class="row gy-3"}
+		</div>
+		<div class="col-12">
+			<label class="form-label">
+				${tr:Lms.Admin.Database.artist-tag-delimiters}
+				${artist-tag-delimiter-add-btn class="ms-1 btn btn-sm btn-secondary"}
+			</label>
+			${artist-tag-delimiter-container class="row gy-3"}
+		</div>
+		<div class="col-12">
+			<label class="form-label" for="${id:artists-to-not-split}">
+				${tr:Lms.Admin.Database.artists-to-not-split}
+			</label>
+			${artists-to-not-split class="form-control"}
+			<div class="invalid-feedback">
+				${artists-to-not-split-info}
+			</div>
+		</div>
+		<div class="col-12">
+			<label class="form-label">
+				${tr:Lms.Admin.Database.default-tag-delimiters}
+				${default-tag-delimiter-add-btn class="ms-1 btn btn-sm btn-secondary"}
+			</label>
+			${default-tag-delimiter-container class="row gy-3"}
+		</div>
+		<legend>${tr:Lms.Admin.Database.misc}</legend>
+		<div class="col-12">
+			<div class="form-check">
+				${skip-single-release-playlists class="form-check-input"}
+				<label class="form-check-label" for="${id:skip-single-release-playlists}">
+					${tr:Lms.Admin.Database.skip-single-release-playlists}
+				</label>
+				<div class="invalid-feedback">
+					${skip-single-release-playlists-info}
+				</div>
+			</div>
+		</div>
+		<div class="col-12">
+			<div class="form-check">
+				${allow-mbid-artist-merge class="form-check-input"}
+				<label class="form-check-label" for="${id:allow-mbid-artist-merge}">
+					${tr:Lms.Admin.Database.allow-mbid-artist-merge}
+				</label>
+				<div class="invalid-feedback">
+					${allow-mbid-artist-merge-info}
+				</div>
+			</div>
+		</div>
+		<div class="col-12">
+			<div class="form-check">
+				${artist-image-fallback-to-release class="form-check-input"}
+				<label class="form-check-label" for="${id:artist-image-fallback-to-release}">
+					${tr:Lms.Admin.Database.artist-image-fallback-to-release}
+				</label>
+				<div class="invalid-feedback">
+					${artist-image-fallback-to-release-info}
+				</div>
+			</div>
+		</div>
+		<div class="col-12">
+			<label class="form-label" for="${id:similarity-engine-type}">
+				${tr:Lms.Admin.Database.similarity-engine-type}
+			</label>
+			${similarity-engine-type class="form-control"}
+			<div class="invalid-feedback">
+				${similarity-engine-type-info}
+			</div>
+		</div>
+	</form>
+	<hr/>
+	${save-btn class="btn btn-primary me-1"}${discard-btn class="btn btn-secondary"}
+</message>
+
+<message id="Lms.Admin.Database.template.line-edit-entry">
+	<div class="input-group has-validation">
+		${value class="form-control"}
+		${del-btn class="btn btn-sm btn-outline-warning"}
+		<div class="invalid-feedback">
+			${value-info}
+		</div>
+	</div>
+
+</message>
+
+</messages>

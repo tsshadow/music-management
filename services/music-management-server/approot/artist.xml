@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<messages xmlns:if="Wt.WTemplate.conditions">
+<!--FORMS message blocks-->
+
+<message id="Lms.Explore.Artist.template">
+	<div class="row mb-3 gy-3">
+		<div class="col-lg-3 col-md-4">
+			${artwork class="rounded d-block mx-auto"}
+		</div>
+		<div class="col">
+			<h2>${name}</h2>
+			${clusters class="mb-2"}
+			${<if-has-biography>}
+			${biography class="mb-2 Lms-multiline-clamp Lms-cursor-pointer"}
+			${</if-has-biography>}
+			<div class="btn-group">
+				${play-btn class="btn btn-primary"}
+				<button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" aria-label="${tr:Lms.more}"/>
+				<ul class="dropdown-menu">
+					<li>${play-next class="dropdown-item"}</li>
+					<li>${play-last class="dropdown-item"}</li>
+					<li>${play-shuffled class="dropdown-item"}</li>
+					<li>${star class="dropdown-item"}</li>
+					${<if-has-mbid>}
+					<li><a href="${mbid-link}" target="_blank" class="dropdown-item">${tr:Lms.Explore.musicbrainz-artist}</a></li>
+					${</if-has-mbid>}
+					${<if-has-download>}
+					<li>${download class="dropdown-item"}</li>
+					${</if-has-download>}
+				</ul>
+			</div>
+		</div>
+	</div>
+	${release-containers}
+	${appears-on-releases}
+	${<if-has-all-tracks>}
+	<h3>${tr:Lms.Explore.all-tracks}</h3>
+	${all-tracks class="mb-3"}
+	${</if-has-all-tracks>}
+	${<if-has-non-release-tracks>}
+	<h3>${tr:Lms.Explore.tracks}</h3>
+	${tracks class="mb-3"}
+	${</if-has-non-release-tracks>}
+	${<if-has-similar-artists>}
+	<h3>${tr:Lms.Explore.Artist.similar-artists}</h3>
+	${similar-artists class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-6 gx-2 gy-4"}
+	${</if-has-similar-artists>}
+</message>
+
+<message id="Lms.Explore.Artist.template.release-container">
+	<div class="mb-3">
+		<h3>${release-type}</h3>
+		${releases}
+	</div>
+</message>
+
+<message id="Lms.Explore.Artist.template.appears-on-container">
+	<div class="mb-3">
+		<h3>${tr:Lms.Explore.Artist.appears-on}${artist-type class="ms-2 d-inline-block"}</h3>
+		${releases}
+	</div>
+</message>
+
+<message id="Lms.Explore.Artist.template.track-artist-type-selector">
+	<div class="dropdown">
+		<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+			${selected-item}
+		</button>
+		<ul class="dropdown-menu">
+			<li>${artist-type-all class="dropdown-item"}</li>
+			<li class="dropdown-divider"></li>
+			${<if-has-track-artist>}<li>${artist-type-track-artist class="dropdown-item"}</li>${</if-has-track-artist>}
+			${<if-has-composer>}<li>${artist-type-composer class="dropdown-item"}</li>${</if-has-composer>}
+			${<if-has-conductor>}<li>${artist-type-conductor class="dropdown-item"}</li>${</if-has-conductor>}
+			${<if-has-lyricist>}<li>${artist-type-lyricist class="dropdown-item"}</li>${</if-has-lyricist>}
+			${<if-has-mixer>}<li>${artist-type-mixer class="dropdown-item"}</li>${</if-has-mixer>}
+			${<if-has-performer>}<li>${artist-type-performer class="dropdown-item"}</li>${</if-has-performer>}
+			${<if-has-producer>}<li>${artist-type-producer class="dropdown-item"}</li>${</if-has-producer>}
+			${<if-has-remixer>}<li>${artist-type-remixer class="dropdown-item"}</li>${</if-has-remixer>}
+		</ul>
+	</div>
+</message>
+
+
+</messages>

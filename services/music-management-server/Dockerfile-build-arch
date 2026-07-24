@@ -1,0 +1,36 @@
+FROM archlinux:latest
+
+ARG BUILD_PACKAGES="\
+	benchmark \
+	boost \
+	clang \
+	cmake \
+	ffmpeg \
+	gtest \
+	graphicsmagick \
+	libarchive \
+	libconfig \
+	libpulse \
+	make \
+	pkgconfig \
+	pugixml \
+	stb \
+	taglib \
+	wt \
+	xxhash"
+
+RUN pacman -Syu --noconfirm ${BUILD_PACKAGES} && \
+	pacman -Scc --noconfirm && \
+	rm -rf /var/cache/pacman/pkg/*
+
+# LMS
+COPY . /tmp/lms/
+RUN mkdir -p /tmp/lms/build
+WORKDIR /tmp/lms/build
+
+ARG LMS_BUILD_TYPE=Release
+ARG LMS_UNITY_BUILD=ON
+ARG LMS_IMAGE_BACKEND=stb
+RUN cmake .. -DCMAKE_BUILD_TYPE=${LMS_BUILD_TYPE} -DCMAKE_UNITY_BUILD=${LMS_UNITY_BUILD} -DLMS_IMAGE_BACKEND=${LMS_IMAGE_BACKEND} -DBUILD_BENCHMARKS=ON
+RUN VERBOSE=1 make -j$(nproc)
+RUN make test

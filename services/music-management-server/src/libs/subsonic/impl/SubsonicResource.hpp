@@ -1,0 +1,74 @@
+/*
+ * Copyright (C) 2019 Emeric Poupon
+ *
+ * This file is part of LMS.
+ *
+ * LMS is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * LMS is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with LMS.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#pragma once
+
+#include <chrono>
+#include <mutex>
+#include <string>
+#include <unordered_map>
+
+#include <Wt/Http/Request.h>
+#include <Wt/Http/Response.h>
+#include <Wt/WResource.h>
+
+#include "database/objects/UserId.hpp"
+
+#include "SubsonicResourceConfig.hpp"
+
+namespace boost::asio
+{
+    class io_context;
+}
+
+namespace lms::db
+{
+    class IDb;
+}
+
+namespace lms::api::subsonic
+{
+    class RequestContext;
+
+    class SubsonicResource final : public Wt::WResource
+    {
+    public:
+        SubsonicResource(boost::asio::io_context& ioContext, db::IDb& db);
+
+    private:
+        struct AuthCacheEntry
+        {
+            db::UserId userId;
+            std::chrono::steady_clock::time_point expiry;
+        };
+
+        void handleRequest(const Wt::Http::Request& request, Wt::Http::Response& response) override;
+
+        bool handleMediaRetrievalRequest(const std::string& requestPath, const Wt::Http::Request& request, Wt::Http::Response& response);
+        void handleRequest(const std::string& requestPath, const Wt::Http::Request& request, Wt::Http::Response& response);
+
+        db::UserId authenticateUser(const Wt::Http::Request& request);
+
+        const SubsonicResourceConfig _config;
+        db::IDb& _db;
+        boost::asio::io_context& _ioContext;
+
+        std::mutex _authCacheMutex;
+        std::unordered_map<std::string, AuthCacheEntry> _authCache;
+    };
+} // namespace lms::api::subsonic

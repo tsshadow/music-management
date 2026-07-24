@@ -10,6 +10,9 @@ kotlinxSerializationJson = "1.11.0"
 lifecycleLivedataKtx   = "2.11.0"
 media                  = "1.8.0"
 navigation             = "2.9.8"
+credentials            = "1.3.0"
+googleid               = "1.1.1"
+security               = "1.1.0-alpha06"
 gradlePlugin           = "9.2.0"
 androidxcar            = "1.7.0"
 appcompat              = "1.7.1"
@@ -92,6 +95,10 @@ media3exoplayer         = { module = "androidx.media3:media3-exoplayer", version
 media3datasource        = { module = "androidx.media3:media3-datasource", version.ref = "media3" }
 media3okhttp            = { module = "androidx.media3:media3-datasource-okhttp", version.ref = "media3" }
 media3session           = { module = "androidx.media3:media3-session", version.ref = "media3" }
+credentials            = { module = "androidx.credentials:credentials", version.ref = "credentials" }
+credentialsPlayServicesAuth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }
+googleid               = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
+securityCrypto         = { module = "androidx.security:security-crypto", version.ref = "security" }
 swipeRefresh            = { module = "androidx.swiperefreshlayout:swiperefreshlayout", version.ref = "swipeRefresh" }
 kotlinStdlib            = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
 kotlinReflect           = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }

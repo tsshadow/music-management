@@ -2,6 +2,7 @@ package org.moire.ultrasonic.api.muma
 
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import org.moire.ultrasonic.util.SecureSettings
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import com.google.gson.Gson
@@ -17,14 +18,50 @@ class MumaAPIClient(
     private val mumaOkHttpClient = okHttpClient.newBuilder()
         .addInterceptor { chain ->
             val request = chain.request()
-            val newRequest = if (apiKey != null) {
+            val isAuthEndpoint = request.url.encodedPath.contains("/api/auth/")
+            val currentApiKey = if (isAuthEndpoint) null else (SecureSettings.mumaAccessToken ?: apiKey)
+            val newRequest = if (currentApiKey != null) {
                 request.newBuilder()
-                    .header("X-API-Key", apiKey!!)
+                    .header("X-API-Key", currentApiKey)
                     .build()
             } else {
                 request
             }
             chain.proceed(newRequest)
+        }
+        .authenticator { _, response ->
+            synchronized(this) {
+                val currentAccessToken = SecureSettings.mumaAccessToken
+                val requestAccessToken = response.request.header("X-API-Key")
+
+                if (currentAccessToken != null && requestAccessToken != currentAccessToken) {
+                    // Token was already refreshed by another thread
+                    return@synchronized response.request.newBuilder()
+                        .header("X-API-Key", currentAccessToken)
+                        .build()
+                }
+
+                val refreshToken = SecureSettings.mumaRefreshToken
+                if (refreshToken != null) {
+                    // Using the lazy api instance here
+                    val refreshCall = api.refresh(RefreshRequest(refreshToken))
+                    val refreshResponse = refreshCall.execute()
+                    if (refreshResponse.isSuccessful) {
+                        val authResponse = refreshResponse.body()
+                        if (authResponse?.status == "ok") {
+                            val newAccessToken = authResponse.access_token ?: authResponse.api_key
+                            if (newAccessToken != null) {
+                                SecureSettings.mumaAccessToken = newAccessToken
+                                authResponse.refresh_token?.let { SecureSettings.mumaRefreshToken = it }
+                                return@synchronized response.request.newBuilder()
+                                    .header("X-API-Key", newAccessToken)
+                                    .build()
+                            }
+                        }
+                    }
+                }
+                null
+            }
         }
         .apply {
             if (debug) {

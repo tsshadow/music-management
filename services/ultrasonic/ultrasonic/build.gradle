@@ -44,6 +44,7 @@ android {
         buildConfigField "String", "APK_HOST_URL", "\"${envOrProp('APK_HOSTER_URL', 'https://apk.example.com')}\""
         buildConfigField "String", "APK_HOST_USER", "\"${envOrProp('APK_HOSTER_USER', 'ultrasonic')}\""
         buildConfigField "String", "APK_HOST_PASSWORD", "\"${envOrProp('APK_HOSTER_PASSWORD', '')}\""
+        buildConfigField "String", "GOOGLE_WEB_CLIENT_ID", "\"${envOrProp('GOOGLE_WEB_CLIENT_ID', 'placeholder-id')}\""
     }
 
     def getServerJson = { boolean includePassword ->
@@ -226,6 +227,10 @@ dependencies {
     implementation libs.media3okhttp
     implementation libs.swipeRefresh
     implementation libs.lifecycleLivedataKtx
+    implementation libs.credentials
+    implementation libs.credentialsPlayServicesAuth
+    implementation libs.googleid
+    implementation libs.securityCrypto
 
     implementation libs.navigationFragment
     implementation libs.navigationUi

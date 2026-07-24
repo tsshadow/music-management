@@ -142,6 +142,20 @@
         </com.google.android.material.textfield.TextInputLayout>
 
 
+        <com.google.android.material.button.MaterialButton
+            a:id="@+id/google_signin_button"
+            style="@style/Widget.Material3.Button.TonalButton.Icon"
+            a:layout_width="match_parent"
+            a:layout_height="wrap_content"
+            a:layout_marginTop="16dp"
+            a:layout_marginBottom="16dp"
+            a:text="@string/google_signin_button"
+            app:icon="@android:drawable/btn_star"
+            app:layout_constraintBottom_toTopOf="@id/edit_advanced_header"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/edit_server_muma_userid" />
+
         <TextView
             a:id="@+id/edit_advanced_header"
             style="@style/Ultrasonic.AllCapsLabel.Inset"

@@ -607,4 +607,15 @@
     <string name="muma_sync.write_settings">Write Settings to Server</string>
     <string name="muma_sync.logon_success">Successfully logged on to MuMa</string>
     <string name="muma_sync.logon_error">Failed to logon to MuMa: %1$s</string>
+
+    <string name="google_signin_button">Sign in with Google</string>
+    <string name="request_access_title">Request Access</string>
+    <string name="request_access_message">You don\'t have an account yet. Would you like to request access as %1$s (%2$s)?</string>
+    <string name="request_access_button">Request Access</string>
+    <string name="pending_review_title">Request Pending</string>
+    <string name="pending_review_message">Your access request is currently pending review. Please check back later.</string>
+    <string name="rejected_title">Request Rejected</string>
+    <string name="rejected_message">Your access request has been rejected.</string>
+    <string name="try_again_button">Try Again</string>
+    <string name="approved_retry_message">Your request was approved! Please try signing in again.</string>
 </resources>

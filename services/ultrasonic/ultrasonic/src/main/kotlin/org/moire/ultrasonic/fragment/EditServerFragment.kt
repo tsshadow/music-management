@@ -16,6 +16,10 @@ import android.widget.Button
 import android.widget.ImageView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import com.google.android.libraries.identity.googleid.GetGoogleIdTokenRequest
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -75,6 +79,7 @@ class EditServerFragment : Fragment() {
     private var saveButton: Button? = null
     private var testButton: Button? = null
     private var cancelButton: Button? = null
+    private var googleSignInButton: Button? = null
     private var isInstanceStateSaved: Boolean = false
     private var currentColor: Int = 0
     private var selectedColor: Int? = null
@@ -118,6 +123,7 @@ class EditServerFragment : Fragment() {
         saveButton = view.findViewById(R.id.edit_save)
         testButton = view.findViewById(R.id.edit_test)
         cancelButton = view.findViewById(R.id.edit_cancel)
+        googleSignInButton = view.findViewById(R.id.google_signin_button)
 
         if (navArgs.index != -1) {
             // Editing an existing server
@@ -197,6 +203,10 @@ class EditServerFragment : Fragment() {
 
         cancelButton!!.setOnClickListener {
             finishActivity()
+        }
+
+        googleSignInButton!!.setOnClickListener {
+            startGoogleSignIn()
         }
 
         serverColorImageView!!.setOnClickListener {
@@ -563,6 +573,102 @@ class EditServerFragment : Fragment() {
                 .show()
         } else {
             findNavController().navigateUp()
+        }
+    }
+
+    private fun startGoogleSignIn() {
+        val credentialManager = CredentialManager.create(requireContext())
+        val googleIdTokenRequest = GetGoogleIdTokenRequest.Builder()
+            .setFilterByAuthorizedAccounts(false)
+            .setServerClientId(org.moire.ultrasonic.BuildConfig.GOOGLE_WEB_CLIENT_ID)
+            .build()
+
+        val request = GetCredentialRequest.Builder()
+            .addCredentialOption(googleIdTokenRequest)
+            .build()
+
+        lifecycleScope.launch {
+            try {
+                val result = credentialManager.getCredential(
+                    requireContext(),
+                    request
+                )
+                handleGoogleSignInResult(result.credential)
+            } catch (e: Exception) {
+                Timber.e(e, "Google Sign-In failed")
+                Util.toast(R.string.background_task.network_error)
+            }
+        }
+    }
+
+    private fun handleGoogleSignInResult(credential: androidx.credentials.Credential) {
+        if (credential is GoogleIdTokenCredential) {
+            val idToken = credential.idToken
+            performMumaGoogleAuth(idToken)
+        }
+    }
+
+    private fun performMumaGoogleAuth(idToken: String) {
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                try {
+                    val mumaApi = subsonicAPIClient.mumaApi?.api
+                    val response = mumaApi?.googleAuth(org.moire.ultrasonic.api.muma.GoogleAuthRequest(idToken))?.execute()
+                    if (response?.isSuccessful == true) {
+                        response.body()
+                    } else {
+                        null
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "MuMa Google Auth failed")
+                    null
+                }
+            }
+
+            if (result != null) {
+                when (result.status) {
+                    "ok" -> {
+                        // Logged in!
+                        org.moire.ultrasonic.util.SecureSettings.mumaAccessToken = result.access_token ?: result.api_key
+                        org.moire.ultrasonic.util.SecureSettings.mumaRefreshToken = result.refresh_token
+                        result.id?.let {
+                            org.moire.ultrasonic.util.Settings.mumaUserId = it
+                            currentServerSetting?.mumaUserId = it
+                        }
+                        val apiKey = result.api_key ?: result.access_token
+                        apiKey?.let {
+                            org.moire.ultrasonic.util.Settings.mumaApiKey = it
+                            currentServerSetting?.apiKey = it
+                            apiKeyEditText?.editText?.setText(it)
+                        }
+                        Util.toast(R.string.muma_sync_logon_success)
+                    }
+                    "unknown" -> {
+                        findNavController().navigate(
+                            EditServerFragmentDirections.toGoogleAuth(
+                                status = "unknown",
+                                displayName = result.google?.display_name,
+                                email = result.google?.email,
+                                avatarUrl = result.google?.avatar_url,
+                                idToken = idToken
+                            )
+                        )
+                    }
+                    "request_pending", "request_approved", "request_rejected" -> {
+                        findNavController().navigate(
+                            EditServerFragmentDirections.toGoogleAuth(
+                                status = result.status,
+                                displayName = result.request?.display_name,
+                                email = result.request?.email,
+                                avatarUrl = result.request?.avatar_url,
+                                idToken = idToken
+                            )
+                        )
+                    }
+                }
+            } else {
+                Util.toast(R.string.background_task.network_error)
+            }
         }
     }
 }

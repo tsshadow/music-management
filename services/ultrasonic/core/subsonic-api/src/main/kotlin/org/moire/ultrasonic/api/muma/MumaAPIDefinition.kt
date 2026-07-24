@@ -14,6 +14,21 @@ interface MumaAPIDefinition {
     fun login(
         @Body request: LoginRequest
     ): Call<LoginResponse>
+    
+    @POST("api/auth/google")
+    fun googleAuth(
+        @Body request: GoogleAuthRequest
+    ): Call<MumaAuthResponse>
+
+    @POST("api/auth/access-request")
+    fun accessRequest(
+        @Body request: GoogleAuthRequest
+    ): Call<MumaAccessRequestResponse>
+
+    @POST("api/auth/refresh")
+    fun refresh(
+        @Body request: RefreshRequest
+    ): Call<MumaAuthResponse>
 
     @GET("api/users/{user_id}/dynamic-playlists")
     fun getTiles(
@@ -80,4 +95,56 @@ data class LoginResponse(
     val display_name: String,
     val is_admin: Boolean,
     val api_key: String
+)
+
+data class GoogleAuthRequest(
+    @SerializedName("id_token") val idToken: String
+)
+
+data class RefreshRequest(
+    @SerializedName("refresh_token") val refreshToken: String
+)
+
+data class MumaAuthResponse(
+    val status: String,
+    val id: Int? = null,
+    val username: String? = null,
+    val display_name: String? = null,
+    val email: String? = null,
+    val avatar_url: String? = null,
+    val role_id: Int? = null,
+    val role_name: String? = null,
+    val is_admin: Boolean? = null,
+    val enabled: Boolean? = null,
+    val permissions: List<String>? = null,
+    val api_key: String? = null,
+    val access_token: String? = null,
+    val refresh_token: String? = null,
+    val google: MumaGoogleInfo? = null,
+    val request: MumaAccessRequest? = null
+)
+
+data class MumaGoogleInfo(
+    val subject: String,
+    val email: String,
+    val display_name: String,
+    val avatar_url: String?
+)
+
+data class MumaAccessRequest(
+    val id: Int,
+    val google_subject: String,
+    val email: String,
+    val display_name: String,
+    val avatar_url: String?,
+    val status: String,
+    val requested_at: String,
+    val reviewed_at: String? = null,
+    val reviewed_by_user_id: Int? = null,
+    val created_user_id: Int? = null
+)
+
+data class MumaAccessRequestResponse(
+    val status: String,
+    val request: MumaAccessRequest
 )

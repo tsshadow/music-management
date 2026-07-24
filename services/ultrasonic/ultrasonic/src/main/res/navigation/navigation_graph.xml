@@ -391,6 +391,37 @@
             android:name="index"
             android:defaultValue="-1"
             app:argType="integer" />
+        <action
+            android:id="@+id/toGoogleAuth"
+            app:destination="@id/googleAuthFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/googleAuthFragment"
+        android:name="org.moire.ultrasonic.fragment.GoogleAuthFragment">
+        <argument
+            android:name="status"
+            app:argType="string" />
+        <argument
+            android:name="displayName"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="email"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="avatarUrl"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="idToken"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
     </fragment>
     <fragment
         android:id="@+id/mumaSyncFragment"

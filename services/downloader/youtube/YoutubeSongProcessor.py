@@ -23,6 +23,8 @@ class YoutubeSongProcessor(PostProcessor):
             return ([], info)
         logging.info(f'Postprocessing downloaded file: {path}')
         corrected_title = self._ensure_real_title(info, url)
+        if corrected_title:
+            path = self._apply_title_correction(path, info, corrected_title)
         title_for_archive = info.get('title')
         account = info.get('uploader_id') or info.get('channel_id') or info.get('uploader') or info.get('channel')
         video_id = info.get('id')
@@ -30,8 +32,6 @@ class YoutubeSongProcessor(PostProcessor):
             YoutubeArchive.insert(account, video_id, path, url, title_for_archive)
         else:
             logging.info(f'Track already in downloads_youtube_archive: {account}/{video_id} — skipping insert.')
-        if corrected_title:
-            info['title'] = corrected_title
         song = Tagger.parse_song(Path(path), SongTypeEnum.YOUTUBE, extra_info=info)
         if song:
             notification_service.notify(str(song), title='YouTube Download Complete')

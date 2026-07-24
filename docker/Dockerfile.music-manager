@@ -17,8 +17,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend code
 COPY VERSION /app/VERSION
 COPY services/ /app/services/
-COPY .env /app/.env
 
+# NOTE: intentionally NOT copying a .env file into the image.
+# /.env is gitignored (see .gitignore) and is never present on a fresh clone,
+# which made this COPY fail the build entirely (e.g. in CI, see the
+# "contracts" pipeline job). All runtime configuration is already injected
+# via the container "environment:" block in docker/docker-compose*.yml and
+# docker/compose.test.yml; the app's load_dotenv() calls (main.py,
+# database.py, config_store.py, ...) are no-ops when no .env file exists, so
+# nothing relies on this file being baked into the image.
 ENV PYTHONPATH=/app
 EXPOSE 8000
 

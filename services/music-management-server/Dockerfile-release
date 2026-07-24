@@ -1,6 +1,11 @@
 FROM	node:24-alpine AS svelte-build
 WORKDIR	/app
 COPY	services/frontend /app
+# Google Sign-In (RBAC / UserRequest flow): the OAuth "Web application" Client
+# ID is a public identifier and safe to inline into the built bundle via Vite.
+# Must match the GOOGLE_CLIENT_ID configured on the music-manager backend.
+ARG	VITE_GOOGLE_CLIENT_ID=""
+ENV	VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
 RUN	npm install && npm run build
 
 FROM	alpine:3.23 AS build

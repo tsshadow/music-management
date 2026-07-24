@@ -1,7 +1,7 @@
 <script>
   import { onMount, untrack } from 'svelte';
   import { RefreshCw } from '@lucide/svelte';
-  import { activeManagementTab, credentials, isAdmin, mumaApiKey, mumaApiUrl } from '../store.js';
+  import { activeManagementTab, credentials, isAdmin, mumaApiKey, mumaApiUrl, userPermissions, mumaUser, hasPermission } from '../store.js';
 
   // Import Tabs
   import OverviewTab from './tabs/OverviewTab.svelte';
@@ -15,6 +15,7 @@
   import ScrobbleTab from './tabs/ScrobbleTab.svelte';
   import HealthTab from './tabs/HealthTab.svelte';
   import UsersTab from './tabs/UsersTab.svelte';
+  import UserRequestsTab from './tabs/UserRequestsTab.svelte';
   import WorkerVersionsTab from './tabs/WorkerVersionsTab.svelte';
   import NotificationsTab from './tabs/NotificationsTab.svelte';
   import AboutTab from './tabs/AboutTab.svelte';
@@ -40,6 +41,7 @@
   let labelGenreRules = $state([]);
   let latestImports = $state([]);
   let users = $state([]);
+  let roles = $state([]);
   let playlists = $state([]);
   let containers = $state([]);
   let activity = $state({ recent_added: [], recent_tagged: [] });
@@ -267,6 +269,15 @@
     }
   }
 
+  async function fetchRoles() {
+    try {
+      const res = await fetch(`${$mumaApiUrl}/api/roles`, { headers: getHeaders() });
+      roles = await res.json();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   async function selectUser(user) {
     selectedUser = user;
     if (user) {
@@ -342,10 +353,13 @@
             const authData = await authRes.json();
             if (authData.type === 'user') {
               currentUser = authData.user;
+              userPermissions.set(authData.user.permissions);
+              mumaUser.set(authData.user);
               if (!selectedUser) selectedUser = currentUser;
             }
           }
           await fetchData();
+          await fetchRoles();
           await fetchImageStats();
           startProgressPolling();
         } else {
@@ -368,7 +382,7 @@
 </script>
 
 <div class="flex flex-col gap-8 w-full h-full min-h-0 overflow-y-auto">
-  {#if $isAdmin === false}
+  {#if $isAdmin === false && !hasPermission('users.read')}
     <div class="flex items-center justify-center h-full">
       <div class="bg-[#181818] p-8 rounded-xl border border-white/5 max-w-md w-full text-center">
         <h2 class="text-2xl font-bold mb-4">Geen toegang</h2>
@@ -457,11 +471,17 @@
         <HealthTab {containers} {activity} {API_BASE} getHeaders={getHeaders} {refreshSystemStatus} />
       {:else if $activeManagementTab === 'users'}
         <UsersTab 
-          {users} {selectedUser} {API_BASE} getHeaders={getHeaders} {fetchUsers} 
+          {users} {roles} {selectedUser} {API_BASE} getHeaders={getHeaders} {fetchUsers} 
           onMessage={(m) => message = m} 
           onError={(e) => error = e} 
           onSelectUser={selectUser} 
           navigateToScrobbleImport={navigateToScrobbleImport} 
+        />
+      {:else if $activeManagementTab === 'user-requests'}
+        <UserRequestsTab 
+          {API_BASE} getHeaders={getHeaders} 
+          onMessage={(m) => message = m} 
+          onError={(e) => error = e} 
         />
       {:else if $activeManagementTab === 'versions'}
         <WorkerVersionsTab {versions} />

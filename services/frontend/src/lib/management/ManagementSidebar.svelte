@@ -1,5 +1,5 @@
 <script>
-  import { activeManagementTab, activeView } from '../store.js';
+  import { activeManagementTab, activeView, hasPermission } from '../store.js';
   import SidebarHeader from '../SidebarHeader.svelte';
   import { 
     LayoutDashboard, 
@@ -12,6 +12,7 @@
     History, 
     HeartPulse, 
     Users, 
+    UserPlus,
     GitBranch, 
     Bell, 
     Info 
@@ -19,7 +20,7 @@
 
   const { onnavigate } = $props();
 
-  const tabs = [
+  const tabs = $derived([
     { id: 'overview', label: 'Overzicht', icon: LayoutDashboard },
     { id: 'advanced-library', label: 'Advanced Library', icon: Library },
     { id: 'library', label: 'Bibliotheek', icon: Library },
@@ -30,11 +31,12 @@
     { id: 'downloaders', label: 'Downloaders', icon: Download },
     { id: 'scrobble', label: 'Scrobble Import', icon: History },
     { id: 'health', label: 'Gezondheid', icon: HeartPulse },
-    { id: 'users', label: 'Gebruikers', icon: Users },
+    { id: 'users', label: 'Gebruikers', icon: Users, show: hasPermission('users.read') },
+    { id: 'user-requests', label: 'Toegangsverzoeken', icon: UserPlus, show: hasPermission('user-requests.read') },
     { id: 'versions', label: 'Versies', icon: GitBranch },
     { id: 'notifications', label: 'Notificaties', icon: Bell },
     { id: 'about', label: 'Over', icon: Info }
-  ];
+  ].filter(t => t.show !== false));
 
   function goBack() {
     activeView.set('home');

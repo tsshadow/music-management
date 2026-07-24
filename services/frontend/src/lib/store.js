@@ -1,4 +1,4 @@
-import { writable, derived } from "svelte/store";
+import { writable, derived, get } from "svelte/store";
 
 // Helper to persist store to localStorage
 /**
@@ -42,6 +42,26 @@ persist("muma_api_url", mumaApiUrl);
 
 export const mumaApiKey = writable("");
 persist("muma_api_key", mumaApiKey);
+
+export const mumaRefreshToken = writable("");
+persist("muma_refresh_token", mumaRefreshToken);
+
+export const mumaSessionActive = writable(false);
+persist("muma_session_active", mumaSessionActive);
+
+export const userPermissions = writable([]);
+export const mumaUser = writable(null);
+
+/**
+ * Checks if the current user has a specific permission.
+ * @param {string} permissionName
+ * @returns {boolean}
+ */
+export function hasPermission(permissionName) {
+  const permissions = get(userPermissions);
+  const user = get(mumaUser);
+  return permissions.includes(permissionName) || user?.is_admin || user?.role_name === 'admin';
+}
 
 export const currentTrack = writable(null);
 persist("lms_current_track", currentTrack);

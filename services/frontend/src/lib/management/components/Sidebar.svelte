@@ -2,7 +2,7 @@
   import { Bell, Database, Home, Activity, Image, List, Tag, Cloud, Radio, ShieldCheck, Users, LayoutTemplate, Info, ExternalLink, Music } from '@lucide/svelte';
 
   export let activeTab;
-  export let onTabChange: (tab) => void;
+  export let onTabChange;
   export let fetchStats;
   export let fetchPlaylists;
   export let refreshSystemStatus;

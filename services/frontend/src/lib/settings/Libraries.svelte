@@ -146,8 +146,9 @@
       <h3 class="text-2xl font-bold mb-6">Bibliotheek toevoegen</h3>
       <div class="space-y-4">
         <div>
-          <label class="block text-xs font-bold uppercase text-[#b3b3b3] mb-2">Naam</label>
+          <label for="lib-name" class="block text-xs font-bold uppercase text-[#b3b3b3] mb-2">Naam</label>
           <input 
+            id="lib-name"
             type="text" 
             bind:value={newLibName}
             placeholder="Bijv. Mijn Muziek"
@@ -155,8 +156,9 @@
           />
         </div>
         <div>
-          <label class="block text-xs font-bold uppercase text-[#b3b3b3] mb-2">Pad</label>
+          <label for="lib-path" class="block text-xs font-bold uppercase text-[#b3b3b3] mb-2">Pad</label>
           <input 
+            id="lib-path"
             type="text" 
             bind:value={newLibPath}
             placeholder="Bijv. /music/jazz"

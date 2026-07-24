@@ -80,7 +80,7 @@
       </h3>
       <div class="max-h-[300px] overflow-y-auto">
         <ul class="divide-y divide-spotify-gray divide-opacity-30">
-          {#each activity.recent_added.slice(0, 5) as item}
+          {#each activity.recent_added.slice(0, 5) as item (item.file_path)}
             <li class="p-4 hover:bg-white hover:bg-opacity-5 flex justify-between items-center gap-4">
               <div class="truncate">
                 <div class="font-bold text-sm truncate">{item.title || item.file_path.split('/').pop()}</div>
@@ -109,7 +109,7 @@
           bind:value={selectedServiceNotes}
           class="bg-spotify-dark border border-white border-opacity-10 rounded-md p-1 text-xs text-white focus:outline-none focus:border-spotify-green"
         >
-          {#each Object.keys(allNotes) as service}
+          {#each Object.keys(allNotes) as service (service)}
             <option value={service}>{service.replace('-', ' ')}</option>
           {/each}
         </select>

@@ -100,7 +100,7 @@
 
     {#if artistsWithImages.length > 0}
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-        {#each artistsWithImages as artist}
+        {#each artistsWithImages as artist (artist.id)}
           <div class="bg-spotify-gray bg-opacity-30 rounded-xl overflow-hidden border border-white border-opacity-5 hover:bg-opacity-50 transition-all group shadow-lg">
             <div class="aspect-square bg-black flex items-center justify-center overflow-hidden relative">
               <img 
@@ -137,7 +137,7 @@
           Alle Artiesten Resultaten
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {#each allArtists.filter(a => !artistsWithImages.some(ai => ai.id === a.id)) as artist}
+          {#each allArtists.filter(a => !artistsWithImages.some(ai => ai.id === a.id)) as artist (artist.id)}
             <div class="bg-spotify-gray bg-opacity-20 p-4 rounded-xl border border-white border-opacity-5 flex items-center justify-between group hover:bg-opacity-30 transition-all">
               <div class="flex items-center gap-4">
                 <div class="w-12 h-12 bg-black rounded-lg flex items-center justify-center text-spotify-lightgray">

@@ -151,7 +151,7 @@
           class="bg-spotify-dark border border-spotify-gray rounded-full px-4 py-1 text-white text-sm focus:outline-none focus:border-spotify-green transition-colors"
         >
           <option value={null}>Selecteer gebruiker...</option>
-          {#each users as user}
+          {#each users as user (user.id)}
             <option value={user}>{user.username}</option>
           {/each}
         </select>
@@ -194,7 +194,7 @@
         </tr>
       </thead>
       <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-        {#each playlists as playlist}
+        {#each playlists as playlist (playlist.id)}
           <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
             <td class="p-4 font-bold text-white">
               <div class="flex items-center gap-2">
@@ -260,8 +260,9 @@
       </header>
       <div class="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
         <div>
-          <label class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Playlist Naam</label>
+          <label for="playlistName" class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Playlist Naam</label>
           <input 
+            id="playlistName"
             type="text" 
             bind:value={playlistName}
             placeholder="Bijv. Favorites, Hard Trance, etc."
@@ -271,8 +272,9 @@
         
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Type</label>
+            <label for="playlistType" class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Type</label>
             <select 
+              id="playlistType"
               bind:value={playlistParams.song_type}
               class="w-full bg-spotify-dark border border-white border-opacity-10 rounded-md p-3 text-white focus:outline-none focus:border-spotify-green transition-all"
             >
@@ -282,8 +284,9 @@
             </select>
           </div>
           <div>
-            <label class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Maximum Grootte</label>
+            <label for="playlistSize" class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Maximum Grootte</label>
             <input 
+              id="playlistSize"
               type="number" 
               bind:value={playlistParams.size}
               class="w-full bg-spotify-dark border border-white border-opacity-10 rounded-md p-3 text-white focus:outline-none focus:border-spotify-green transition-all"
@@ -292,9 +295,9 @@
         </div>
 
         <div>
-          <label class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Genres</label>
+          <span class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Genres</span>
           <div class="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 bg-spotify-dark rounded-md border border-white border-opacity-10">
-            {#each availableGenres as genre}
+            {#each availableGenres as genre (genre.name)}
               <button 
                 on:click={() => {
                   if (playlistParams.genres.includes(genre.name)) {
@@ -314,8 +317,9 @@
 
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Sorteer op</label>
+            <label for="playlistSort" class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Sorteer op</label>
             <select 
+              id="playlistSort"
               bind:value={playlistParams.sort_method}
               class="w-full bg-spotify-dark border border-white border-opacity-10 rounded-md p-3 text-white focus:outline-none focus:border-spotify-green transition-all"
             >
@@ -326,7 +330,7 @@
             </select>
           </div>
           <div>
-            <label class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Rating Bereik</label>
+            <span class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Rating Bereik</span>
             <div class="flex items-center gap-2">
               <input 
                 type="number" min="0" max="100"
@@ -382,7 +386,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-            {#each playlistTracks as track}
+            {#each playlistTracks as track (track.id || track.path)}
               <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
                 <td class="p-4 font-bold">{track.title}</td>
                 <td class="p-4 text-spotify-lightgray">{track.artist}</td>

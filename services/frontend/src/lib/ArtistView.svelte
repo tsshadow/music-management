@@ -1,6 +1,7 @@
 <script>
   import { untrack } from 'svelte';
-  import { authParams, viewMode, deduplicateEnabled, mumaApiUrl } from './store.js';
+  import { SvelteMap } from 'svelte/reactivity';
+  import { authParams, viewMode, deduplicateEnabled, mumaApiUrl, currentTrack, playlist, playerState } from './store.js';
   import { getArtistImageUrl } from './utils.js';
   import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
   import TrackList from './TrackList.svelte';
@@ -14,7 +15,7 @@
   let allTracks = $state([]);
   let allTracksOffset = $state(0);
   let allTracksHasMore = $state(false);
-  let seenKeys = new Map();
+  let seenKeys = new SvelteMap();
   let biography = $state("");
   let mbid = $state("");
   let isLoading = $state(true);
@@ -92,7 +93,7 @@
     if (!append) {
         allTracksOffset = 0;
         allTracksHasMore = true;
-        seenKeys = new Map();
+        seenKeys = new SvelteMap();
     }
     const pageSize = append ? 100 : 25;
     const durationFilter = $viewMode === 'sets' ? 'minDuration=10' : 'maxDuration=10';
@@ -278,7 +279,7 @@
          </div>
          {#if artist.genres}
            <div class="flex flex-wrap gap-2 mt-4">
-             {#each (Array.isArray(artist.genres) ? artist.genres : [artist.genres]) as genre}
+             {#each (Array.isArray(artist.genres) ? artist.genres : [artist.genres]) as genre (genre.name)}
                <span class="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-full text-xs font-bold transition-colors cursor-default border border-white/5">
                  {genre.name}
                </span>
@@ -335,7 +336,7 @@
             {/if}
         </section>
 
-        {#each Object.entries(albumGroups).sort() as [type, groupAlbums]}
+        {#each Object.entries(albumGroups).sort() as [type, groupAlbums] (type)}
             <section>
                 <h2 class="text-2xl font-bold mb-4">{type}s</h2>
                 <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">

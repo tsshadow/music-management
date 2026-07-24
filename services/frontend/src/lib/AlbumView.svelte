@@ -1,6 +1,6 @@
 <script>
   import { untrack } from 'svelte';
-  import { authParams, viewMode } from './store.js';
+  import { authParams, viewMode, currentTrack, playlist, playerState } from './store.js';
   import TrackList from './TrackList.svelte';
   import ArtistList from './ArtistList.svelte';
 
@@ -119,7 +119,7 @@
    * Navigates to the artist detail view for the album's primary artist.
    */
   function openArtist() {
-     const id_to_use = album.artistId || (tracks.length > 0 ? tracks[0].artistId : null);
+     const id_to_use = album.artistId || (allTracks.length > 0 ? allTracks[0].artistId : null);
      if (id_to_use && onnavigate) onnavigate(`artist:${id_to_use}`);
   }
 </script>
@@ -142,9 +142,9 @@
            <button 
              class="w-12 h-12 md:w-14 md:h-14 bg-brand rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg border-none cursor-pointer"
              onclick={() => {
-                if (tracks.length > 0) {
-                  currentTrack.set(tracks[0]);
-                  playlist.set(tracks);
+                if (allTracks.length > 0) {
+                  currentTrack.set(allTracks[0]);
+                  playlist.set(allTracks);
                   playerState.update(s => ({ ...s, playing: true }));
                 }
              }}
@@ -158,8 +158,8 @@
            <button 
              class="w-10 h-10 md:w-12 md:h-12 bg-transparent border border-white/20 rounded-full flex items-center justify-center hover:border-white hover:scale-105 transition-all cursor-pointer text-[#b3b3b3] hover:text-white"
              onclick={() => {
-                if (tracks.length > 0) {
-                  const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+                if (allTracks.length > 0) {
+                  const shuffled = [...allTracks].sort(() => Math.random() - 0.5);
                   currentTrack.set(shuffled[0]);
                   playlist.set(shuffled);
                   playerState.update(s => ({ ...s, playing: true, shuffle: true }));
@@ -203,7 +203,7 @@
 
     <div class="p-6 md:p-8 pt-0">
       {#if groupedTracks.length > 0}
-        {#each groupedTracks as [disc, tracks]}
+        {#each groupedTracks as [disc, tracks] (disc)}
           <div class={hasMultipleDiscs ? "mt-8 first:mt-0" : ""}>
             {#if hasMultipleDiscs}
               <div class="flex items-center gap-4 mb-4 text-[#b3b3b3]">

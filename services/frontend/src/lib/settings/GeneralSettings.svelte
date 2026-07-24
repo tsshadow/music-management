@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { SvelteURLSearchParams } from 'svelte/reactivity';
   import { deduplicateEnabled, authParams, credentials } from '../store.js';
 
   let settings = $state({
@@ -82,7 +83,7 @@
     isSaving = true;
     message = '';
     try {
-      const params = new URLSearchParams();
+      const params = new SvelteURLSearchParams();
       params.append('username', $credentials.username);
       
       Object.entries(settings).forEach(([k, v]) => {
@@ -123,7 +124,7 @@
 
   function regenSubsonicToken() {
     settings.subsonicToken = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        let r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
     });
   }
@@ -195,7 +196,7 @@
 
             {#if settings.uiEnableInlineArtistRelationships}
                 <div class="flex flex-wrap gap-2 mt-2">
-                    {#each artistRoles as role}
+                    {#each artistRoles as role (role.id)}
                         <button 
                             onclick={() => toggleRole(role.id)}
                             class="px-4 py-2 rounded-full text-xs font-bold transition-all {settings.uiInlineArtistRelationships.includes(role.id) ? 'bg-brand text-black' : 'bg-[#282828] text-white hover:bg-[#333]'}"

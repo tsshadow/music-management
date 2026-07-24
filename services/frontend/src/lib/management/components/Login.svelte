@@ -2,7 +2,7 @@
   import { Music } from '@lucide/svelte';
   
   export let API_BASE;
-  export let onLoginSuccess: (apiKey) => void;
+  export let onLoginSuccess;
 
   let username = '';
   let password = '';
@@ -44,8 +44,9 @@
     
     <form on:submit|preventDefault={login} class="space-y-6">
       <div class="space-y-2">
-        <label class="text-xs font-bold text-spotify-lightgray uppercase tracking-widest ml-1">Username</label>
+        <label for="username" class="text-xs font-bold text-spotify-lightgray uppercase tracking-widest ml-1">Username</label>
         <input 
+          id="username"
           type="text" 
           bind:value={username} 
           class="w-full bg-spotify-dark border border-white border-opacity-10 rounded-md p-4 text-white focus:outline-none focus:border-spotify-green transition-all"
@@ -53,8 +54,9 @@
         />
       </div>
       <div class="space-y-2">
-        <label class="text-xs font-bold text-spotify-lightgray uppercase tracking-widest ml-1">Password</label>
+        <label for="password" class="text-xs font-bold text-spotify-lightgray uppercase tracking-widest ml-1">Password</label>
         <input 
+          id="password"
           type="password" 
           bind:value={password} 
           class="w-full bg-spotify-dark border border-white border-opacity-10 rounded-md p-4 text-white focus:outline-none focus:border-spotify-green transition-all"

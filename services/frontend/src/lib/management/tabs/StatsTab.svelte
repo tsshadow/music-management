@@ -51,7 +51,7 @@
       <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Top 10 Artiesten</h3>
       <table class="w-full text-left">
         <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-          {#each stats.top_artists as artist, i}
+          {#each stats.top_artists as artist, i (artist.name)}
             <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
               <td class="p-4 w-12 text-spotify-lightgray font-mono">{i + 1}.</td>
               <td class="p-4 font-bold">{artist.name}</td>
@@ -66,7 +66,7 @@
     <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
       <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Populaire Genres</h3>
       <div class="p-6 space-y-4">
-        {#each stats.top_genres as genre}
+        {#each stats.top_genres as genre (genre.genre)}
           <div class="space-y-1">
             <div class="flex justify-between text-sm font-bold">
               <span>{genre.genre}</span>
@@ -106,7 +106,7 @@
       <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20">Nieuw in Bibliotheek</h3>
       <table class="w-full text-left">
         <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-          {#each stats.recently_added as track}
+          {#each stats.recently_added as track (track.title + track.artist)}
             <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
               <td class="p-4">
                 <div class="font-bold">{track.title}</div>

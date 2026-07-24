@@ -51,18 +51,18 @@
       <div class="mt-8">
         <h4 class="text-white text-xl font-bold mb-4">Release Notes</h4>
         <div class="flex flex-col gap-6">
-          {#each releaseNotes as release}
+          {#each releaseNotes as release (release.version)}
             <div class="border-l-2 border-[#1DB954] pl-4">
               <div class="flex items-center gap-3 mb-2">
                 <span class="text-white font-bold">{release.version}</span>
                 <span class="text-xs text-[#b3b3b3]">{release.date}</span>
               </div>
               <div class="text-sm space-y-3">
-                {#each Object.entries(release.notes) as [category, items]}
+                {#each Object.entries(release.notes) as [category, items] (category)}
                   <div>
                     <span class="text-[#1DB954] uppercase text-[10px] font-bold tracking-wider">{category}</span>
                     <ul class="list-disc list-inside mt-1 text-[#e5e5e5]">
-                      {#each items as item}
+                      {#each items as item, i (i)}
                         <li>{item}</li>
                       {/each}
                     </ul>

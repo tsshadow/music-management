@@ -81,7 +81,7 @@
             class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
           >
             <option value="">Kies gebruiker...</option>
-            {#each users as user}
+            {#each users as user (user.username)}
               <option value={user.username}>{user.username}</option>
             {/each}
           </select>
@@ -133,7 +133,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-spotify-gray divide-opacity-30 text-sm">
-            {#each latestImports as imp}
+            {#each latestImports as imp (imp.started_at)}
               <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
                 <td class="p-4">
                   <div class="font-bold">{imp.username}</div>

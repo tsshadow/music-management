@@ -1,5 +1,6 @@
 <script>
   import { untrack } from 'svelte';
+  import { SvelteMap } from 'svelte/reactivity';
   import TrackCard from './TrackCard.svelte';
   import TrackList from './TrackList.svelte';
   import FilterBar from './FilterBar.svelte';
@@ -53,7 +54,7 @@
   let currentAlbumSearch = $state('');
 
   let isLoading = $state(false);
-  let seenKeys = new Map();
+  let seenKeys = new SvelteMap();
 
   let tracksController;
   let albumsController;
@@ -91,7 +92,7 @@
     if (!append) {
       tracksOffset = 0;
       tracksHasMore = true;
-      seenKeys = new Map();
+      seenKeys = new SvelteMap();
       if (tracksController) {
         tracksController.abort();
       }

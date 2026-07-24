@@ -11,7 +11,7 @@
   </header>
 
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    {#each Object.entries(versions) as [name, version]}
+    {#each Object.entries(versions) as [name, version] (name)}
       <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 flex flex-col gap-1">
         <span class="text-xs font-bold text-spotify-lightgray uppercase tracking-wider">{name}</span>
         <span class="text-xl font-mono {version === 'offline' ? 'text-red-500' : 'text-spotify-green'}">

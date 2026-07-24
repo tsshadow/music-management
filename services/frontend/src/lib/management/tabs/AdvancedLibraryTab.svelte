@@ -17,12 +17,13 @@
     Volume2,
     Disc,
     User,
-    Hash
+    Hash,
+    RefreshCw
   } from '@lucide/svelte';
 
   export let API_BASE;
   export let getHeaders;
-  export let onMessage;
+  export const onMessage = undefined;
   export let onError;
 
   // State
@@ -231,7 +232,7 @@
         <div>
           <h3 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-4">Genres</h3>
           <div class="flex flex-col gap-1 max-h-60 overflow-y-auto pr-2 scrollbar-thin">
-            {#each availableGenres as genre}
+            {#each availableGenres as genre (genre)}
               <label class="flex items-center gap-3 cursor-pointer group py-1">
                 <input 
                   type="checkbox" 
@@ -266,7 +267,7 @@
         <div>
           <h3 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-4">Key / Camelot</h3>
           <div class="grid grid-cols-4 gap-1">
-            {#each ['C', 'Cm', 'C#', 'C#m', 'D', 'Dm', 'D#', 'D#m', 'E', 'Em', 'F', 'Fm'] as key}
+            {#each ['C', 'Cm', 'C#', 'C#m', 'D', 'Dm', 'D#', 'D#m', 'E', 'Em', 'F', 'Fm'] as key (key)}
               <button class="text-[10px] p-1 border border-white/10 rounded hover:border-brand/50 hover:bg-brand/10 transition-all">
                 {key}
               </button>
@@ -277,7 +278,7 @@
         <div>
           <h3 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-4">Mood</h3>
           <div class="flex flex-wrap gap-2">
-            {#each ['Happy', 'Sad', 'Dark', 'Epic', 'Chill', 'Energetic'] as mood}
+            {#each ['Happy', 'Sad', 'Dark', 'Epic', 'Chill', 'Energetic'] as mood (mood)}
               <button class="px-3 py-1 bg-[#242424] text-[11px] rounded-full border border-white/5 hover:border-brand/50 transition-all">
                 {mood}
               </button>
@@ -288,7 +289,7 @@
         <div>
           <h3 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-4">Vocals</h3>
           <div class="flex flex-col gap-2">
-            {#each ['Male', 'Female', 'Instrumental', 'Choir', 'Rap'] as vocal}
+            {#each ['Male', 'Female', 'Instrumental', 'Choir', 'Rap'] as vocal (vocal)}
               <label class="flex items-center gap-3 cursor-pointer group">
                 <input type="checkbox" class="accent-brand rounded" />
                 <span class="text-sm text-[#b3b3b3] group-hover:text-white transition-colors">{vocal}</span>
@@ -330,7 +331,7 @@
                 <td colspan="8" class="px-4 py-20 text-center text-[#b3b3b3]">No tracks found matching your filters.</td>
               </tr>
             {:else}
-              {#each tracks as track}
+              {#each tracks as track (track.id)}
                 <tr 
                   class="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer group {selectedTrack?.id === track.id ? 'bg-white/10' : ''}"
                   on:click={() => selectTrack(track)}
@@ -380,7 +381,7 @@
               Genre Distribution
             </h3>
             <div class="flex flex-col gap-4">
-              {#each [['House', 42], ['Techno', 28], ['Trance', 15], ['DnB', 10], ['Ambient', 5]] as [genre, pct]}
+              {#each [['House', 42], ['Techno', 28], ['Trance', 15], ['DnB', 10], ['Ambient', 5]] as [genre, pct] (genre)}
                 <div class="flex flex-col gap-1">
                   <div class="flex justify-between text-xs mb-1">
                     <span class="text-white font-bold">{genre}</span>
@@ -400,7 +401,7 @@
               BPM Distribution
             </h3>
             <div class="flex items-end gap-2 h-48 pt-8">
-              {#each [5, 12, 45, 80, 100, 60, 30, 10, 2] as val}
+              {#each [5, 12, 45, 80, 100, 60, 30, 10, 2] as val, i (i)}
                 <div class="flex-1 bg-brand/20 hover:bg-brand/50 transition-colors rounded-t cursor-help relative group" style="height: {val}%">
                   <div class="absolute -top-6 left-1/2 -translate-x-1/2 bg-white text-black text-[9px] font-bold px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                     {val} tracks
@@ -496,7 +497,7 @@
             <div>
               <h3 class="text-[10px] uppercase tracking-widest text-[#b3b3b3] font-bold mb-3">Tags</h3>
               <div class="flex flex-wrap gap-1">
-                {#each ['Remix', 'Workout', 'Favorite', 'HQ'] as tag}
+                {#each ['Remix', 'Workout', 'Favorite', 'HQ'] as tag (tag)}
                   <span class="text-[10px] bg-[#242424] px-2 py-0.5 rounded border border-white/5 text-[#b3b3b3]">{tag}</span>
                 {/each}
               </div>

@@ -459,7 +459,7 @@
         </div>
       {:else if lyricsLines.length > 0}
         <div class="max-w-2xl w-full text-center space-y-4">
-          {#each lyricsLines as line}
+          {#each lyricsLines as line, i (i)}
             <p class="text-xl md:text-3xl font-bold text-white hover:scale-105 transition-transform cursor-default">
               {line.value}
             </p>

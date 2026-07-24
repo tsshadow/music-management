@@ -128,7 +128,7 @@
         <p class="text-spotify-lightgray">Geen nieuwe meldingen.</p>
       </div>
     {:else}
-      {#each notifications as notification}
+      {#each notifications as notification (notification.id)}
         <div class="bg-black bg-opacity-40 hover:bg-opacity-60 transition-all rounded-xl p-5 border border-white border-opacity-10 group relative">
           <div class="flex justify-between items-start mb-2">
             <h4 class="font-bold text-lg text-white pr-10">{notification.title}</h4>

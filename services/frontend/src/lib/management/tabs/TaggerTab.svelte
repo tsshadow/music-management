@@ -159,8 +159,9 @@
         <h3 class="text-xl font-bold flex items-center gap-2"><Search size={20} class="text-spotify-green" /> Zoeken</h3>
         <div class="space-y-4">
           <div>
-            <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Artiest</label>
+            <label for="artistSearchInput" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Artiest</label>
             <input 
+              id="artistSearchInput"
               type="text" 
               bind:value={artistSearch} 
               on:input={searchArtists}
@@ -172,14 +173,15 @@
               class="w-full bg-spotify-dark border border-spotify-gray rounded-md mt-2 p-2 h-40 focus:outline-none focus:border-spotify-green"
               size="5"
             >
-              {#each artists as artist}
+              {#each artists as artist (artist.name)}
                 <option value={artist.name}>{artist.name}</option>
               {/each}
             </select>
           </div>
           <div>
-            <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Label</label>
+            <label for="labelSearchInput" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Label</label>
             <input 
+              id="labelSearchInput"
               type="text" 
               bind:value={labelSearch} 
               on:input={searchLabels}
@@ -191,7 +193,7 @@
               class="w-full bg-spotify-dark border border-spotify-gray rounded-md mt-2 p-2 h-40 focus:outline-none focus:border-spotify-green"
               size="5"
             >
-              {#each labels as label}
+              {#each labels as label (label.name)}
                 <option value={label.name}>{label.name}</option>
               {/each}
             </select>
@@ -203,13 +205,14 @@
         <h3 class="text-xl font-bold flex items-center gap-2"><Tag size={20} class="text-spotify-green" /> Genre Toewijzen</h3>
         <div class="p-6 bg-black bg-opacity-20 rounded-xl space-y-6">
           <div>
-            <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Kies Genre</label>
+            <label for="genreSelect" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Kies Genre</label>
             <select 
+              id="genreSelect"
               bind:value={selectedGenreId}
               class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
             >
               <option value={null}>Selecteer...</option>
-              {#each rules.genres as genre}
+              {#each rules.genres as genre (genre.id)}
                 <option value={genre.id}>{genre.name}</option>
               {/each}
             </select>
@@ -247,7 +250,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-          {#each rules.genres as genre}
+          {#each rules.genres as genre (genre.id)}
             <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
               <td class="p-4 font-bold">{genre.name}</td>
               <td class="p-4">
@@ -272,7 +275,7 @@
         <div class="max-h-[600px] overflow-y-auto">
           <table class="w-full text-left text-sm">
             <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-              {#each artistGenreRules as rule}
+              {#each artistGenreRules as rule (rule.id)}
                 <tr class="hover:bg-white hover:bg-opacity-5">
                   <td class="p-4 font-bold">{rule.artist_name}</td>
                   <td class="p-4">
@@ -295,7 +298,7 @@
         <div class="max-h-[600px] overflow-y-auto">
           <table class="w-full text-left text-sm">
             <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-              {#each labelGenreRules as rule}
+              {#each labelGenreRules as rule (rule.id)}
                 <tr class="hover:bg-white hover:bg-opacity-5">
                   <td class="p-4 font-bold">{rule.label_name}</td>
                   <td class="p-4">

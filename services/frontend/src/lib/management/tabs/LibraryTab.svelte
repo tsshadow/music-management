@@ -220,7 +220,7 @@
             <td colspan="6" class="px-6 py-20 text-center text-spotify-lightgray">Geen tracks gevonden.</td>
           </tr>
         {:else}
-          {#each tracks as track}
+          {#each tracks as track (track.id)}
             <tr class="border-b border-white border-opacity-5 hover:bg-white hover:bg-opacity-5 transition-colors group">
               <td class="px-6 py-3">
                 <div class="flex flex-col">

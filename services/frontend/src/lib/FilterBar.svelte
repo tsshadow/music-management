@@ -172,7 +172,7 @@
       <label for="sort" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">Sorteer op</label>
       <div class="flex items-center gap-1.5">
         <select id="sort" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={sort} onchange={handleChange}>
-          {#each allSortOptions[view] || [] as option}
+          {#each allSortOptions[view] || [] as option (option.id)}
             {#if $visibleSortOptions[view]?.includes(option.id)}
               <option value={option.id}>{option.label}</option>
             {/if}

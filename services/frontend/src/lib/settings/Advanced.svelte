@@ -182,16 +182,18 @@
           <h3 class="text-lg font-bold mb-4">Wachtwoord Wijzigen</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
             <div class="flex flex-col gap-2">
-              <label class="text-xs font-bold text-[#b3b3b3] uppercase">Nieuw Wachtwoord</label>
+              <label for="new-password" class="text-xs font-bold text-[#b3b3b3] uppercase">Nieuw Wachtwoord</label>
               <input 
+                id="new-password"
                 type="password" 
                 bind:value={newPassword}
                 class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand" 
               />
             </div>
             <div class="flex flex-col gap-2">
-              <label class="text-xs font-bold text-[#b3b3b3] uppercase">Bevestig Wachtwoord</label>
+              <label for="confirm-password" class="text-xs font-bold text-[#b3b3b3] uppercase">Bevestig Wachtwoord</label>
               <input 
+                id="confirm-password"
                 type="password" 
                 bind:value={confirmPassword}
                 class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand" 
@@ -218,13 +220,13 @@
       <p class="text-[#b3b3b3] mb-8 text-sm">Kies welke sorteeropties zichtbaar moeten zijn in de interface.</p>
 
       <div class="flex flex-col gap-8">
-        {#each Object.entries(allSortOptions) as [type, options]}
+        {#each Object.entries(allSortOptions) as [type, options] (type)}
           <div>
             <h4 class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider mb-4">
               {type === 'songs' ? 'Nummers' : type === 'albums' ? 'Albums' : 'Artiesten'}
             </h4>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {#each options as option}
+              {#each options as option (option.id)}
                 <label class="flex items-center gap-3 p-3 bg-[#282828] rounded-md border border-transparent hover:border-[#3e3e3e] cursor-pointer transition-colors">
                   <input
                     type="checkbox"
@@ -271,5 +273,4 @@
 
 <style>
   .text-brand { color: #1ed760; }
-  .bg-brand { background-color: #1ed760; }
 </style>

@@ -116,12 +116,12 @@
         <h3 class="text-xl font-bold flex items-center gap-2"><Plus class="text-spotify-green" /> Account Toevoegen</h3>
         <form on:submit|preventDefault={addAccount} class="space-y-4">
           <div>
-            <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Account Slug (URL)</label>
-            <input type="text" bind:value={newAccountName} placeholder="bijv: monstercat" class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
+            <label for="accountSlug" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Account Slug (URL)</label>
+            <input id="accountSlug" type="text" bind:value={newAccountName} placeholder="bijv: monstercat" class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
           </div>
           <div>
-            <label class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">SoundCloud ID (Optioneel)</label>
-            <input type="text" bind:value={newAccountId} placeholder="123456" class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
+            <label for="soundcloudId" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">SoundCloud ID (Optioneel)</label>
+            <input id="soundcloudId" type="text" bind:value={newAccountId} placeholder="123456" class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
           </div>
           <button type="submit" class="w-full bg-spotify-green text-black font-extrabold py-3 rounded-full hover:scale-105 transition-transform">TOEVOEGEN</button>
         </form>
@@ -132,7 +132,7 @@
             <tr><th class="p-4">Account</th><th class="p-4 text-right">Acties</th></tr>
           </thead>
           <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-            {#each accounts as account}
+            {#each accounts as account (account.name)}
               <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
                 <td class="p-4 font-bold">
                   <a href="https://soundcloud.com/{account.name}" target="_blank" class="flex items-center gap-2 hover:text-spotify-green">
@@ -176,7 +176,7 @@
             <tr><th class="p-4">Kanaal</th><th class="p-4 text-right">Acties</th></tr>
           </thead>
           <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-            {#each youtubeAccounts as account}
+            {#each youtubeAccounts as account (account.name)}
               <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
                 <td class="p-4 font-bold">
                   <a href="https://youtube.com/{account.name.startsWith('@') ? account.name : 'channel/'+account.name}" target="_blank" class="flex items-center gap-2 hover:text-spotify-green">

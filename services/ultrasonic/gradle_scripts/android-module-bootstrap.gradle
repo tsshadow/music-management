@@ -1,0 +1,61 @@
+/**
+ * This module provides a base for for submodules which depend on the Android runtime
+ */
+apply plugin: 'com.android.library'
+apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'org.jetbrains.kotlin.kapt'
+apply from: "${project.rootDir}/gradle_scripts/code_quality.gradle"
+apply plugin: 'com.google.devtools.ksp'
+
+android {
+    compileSdk = libs.versions.appCompileSdk.get().toInteger()
+
+    defaultConfig {
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        minSdk = libs.versions.appMinSdk.get().toInteger()
+        targetSdk = libs.versions.appTargetSdk.get().toInteger()
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
+
+    sourceSets {
+        main.java.srcDirs += "${projectDir}/src/main/kotlin"
+        test.java.srcDirs += "${projectDir}/src/test/kotlin"
+        test.java.srcDirs += "${projectDir}/src/integrationTest/kotlin"
+        test.resources.srcDirs += "${projectDir}/src/integrationTest/resources"
+    }
+
+    buildTypes {
+        debug {
+            minifyEnabled = false
+            debuggable = true
+        }
+        release {
+            minifyEnabled = false
+        }
+    }
+
+    buildFeatures {
+        buildConfig = false
+        viewBinding = true
+        dataBinding = true
+    }
+}
+
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+
+dependencies {
+    api libs.kotlinStdlib
+
+    testImplementation libs.junit
+    testRuntimeOnly libs.junitVintage
+    testRuntimeOnly libs.junitPlatformLauncher
+}
+
+

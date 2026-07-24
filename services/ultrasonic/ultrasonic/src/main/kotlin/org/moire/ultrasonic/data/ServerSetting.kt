@@ -1,0 +1,50 @@
+package org.moire.ultrasonic.data
+
+import androidx.room.ColumnInfo
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+/**
+ * Contains the data model of a Server Setting
+ * @param id: Unique Id of the Server Setting
+ * @param index: The index of the Server Setting on the Selection Activity
+ * @param name: The user readable Name of the Server
+ * @param url: The Url of the server
+ * @param userName: The UserName that can be used to connect to the server
+ * @param password: The Password of the User
+ * @param apiKey: The API Key of the Server
+ * @param jukeboxByDefault: True if the JukeBox mode should be turned on for the server
+ * @param allowSelfSignedCertificate: True if the server uses self-signed certificate
+ * @param forcePlainTextPassword: True if the server authenticates the user using old Ldap-like way
+ * @param musicFolderId: The Id of the MusicFolder to be used with the server
+ *
+ */
+@Entity
+data class ServerSetting(
+    // Default ID is 0, which will trigger SQLite to generate a unique ID.
+    @PrimaryKey(autoGenerate = true) var id: Int = 0,
+    @ColumnInfo(name = "index") var index: Int,
+    @ColumnInfo(name = "name") var name: String,
+    @ColumnInfo(name = "url") var url: String,
+    @ColumnInfo(name = "color") var color: Int? = null,
+    @ColumnInfo(name = "userName") var userName: String,
+    @ColumnInfo(name = "password") var password: String,
+    @ColumnInfo(name = "apiKey") var apiKey: String? = null,
+    @ColumnInfo(name = "jukeboxByDefault") var jukeboxByDefault: Boolean,
+    @ColumnInfo(name = "allowSelfSignedCertificate") var allowSelfSignedCertificate: Boolean,
+    @ColumnInfo(name = "forcePlainTextPassword") var forcePlainTextPassword: Boolean,
+    @ColumnInfo(name = "musicFolderId") var musicFolderId: String?,
+    @ColumnInfo(name = "minimumApiVersion") var minimumApiVersion: String?,
+    @ColumnInfo(name = "chatSupport") var chatSupport: Boolean? = null,
+    @ColumnInfo(name = "bookmarkSupport") var bookmarkSupport: Boolean? = null,
+    @ColumnInfo(name = "shareSupport") var shareSupport: Boolean? = null,
+    @ColumnInfo(name = "podcastSupport") var podcastSupport: Boolean? = null,
+    @ColumnInfo(name = "jukeboxSupport") var jukeboxSupport: Boolean? = null,
+    @ColumnInfo(name = "videoSupport") var videoSupport: Boolean? = null,
+    @ColumnInfo(name = "mumaUserId") var mumaUserId: Int? = null
+) {
+
+    constructor() : this (
+        0, 0, "", "", null, "", "", null, false, false, false, null, null, null, null, null, null, null, null, null
+    )
+}

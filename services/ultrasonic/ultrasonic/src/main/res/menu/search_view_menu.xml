@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:a="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        a:id="@+id/settingsFragment"
+        a:icon="@drawable/ic_menu_settings"
+        a:title="@string/menu.settings"
+        app:showAsAction="always" />
+
+    <item
+        a:id="@+id/action_sets_toggle"
+        a:title="Sets"
+        app:actionLayout="@layout/menu_switch"
+        app:showAsAction="always" />
+
+    <item
+        a:id="@+id/action_search"
+        a:icon="@drawable/ic_menu_search"
+        a:title="@string/button_bar.search"
+        app:actionViewClass="androidx.appcompat.widget.SearchView"
+        app:showAsAction="ifRoom|collapseActionView" />
+
+</menu>

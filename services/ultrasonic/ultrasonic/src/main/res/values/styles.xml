@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <style name="Ultrasonic.AllCapsLabel" parent="">
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
+        <item name="android:textAppearance">?android:attr/textAppearanceSmall</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
+    <style name="Ultrasonic.AllCapsLabel.Inset" parent="Ultrasonic.AllCapsLabel">
+        <item name="android:paddingStart">16dp</item>
+    </style>
+
+    <style name="Widget.AppWidget.AppWidget.Container" parent="android:Widget">
+        <item name="android:id">@android:id/background</item>
+        <item name="android:padding">?attr/appWidgetPadding</item>
+        <item name="android:background">@drawable/app_widget_background</item>
+    </style>
+
+    <style name="Theme.AppWidget.AppWidgetContainerParent" parent="Theme.Material3.DynamicColors.DayNight">
+        <!-- Radius of the outer bound of widgets to make the rounded corners -->
+        <item name="appWidgetRadius">4dp</item>
+        <item name="appWidgetBackground">?attr/colorSurfaceVariant</item>
+        <item name="colorControlNormal">?attr/colorOnPrimary</item>
+        <item name="android:colorButtonNormal">?attr/colorPrimary</item>
+
+        <!--
+        Radius of the inner view's bound of widgets to make the rounded corners.
+        It needs to be 8dp or less than the value of appWidgetRadius
+        -->
+        <item name="appWidgetInnerRadius">8dp</item>
+    </style>
+
+    <style name="Theme.AppWidget.AppWidgetContainer" parent="Theme.AppWidget.AppWidgetContainerParent">
+        <item name="appWidgetRadius">0dp</item>
+        <item name="appWidgetInnerRadius">0dp</item>
+        <!-- Apply padding to avoid the content of the widget colliding with the rounded corners -->
+        <item name="appWidgetPadding">4dp</item>
+        <item name="android:imageButtonStyle">@style/Theme.AppWidget.ImageButton</item>
+    </style>
+
+    <style name="Theme.AppWidget.ImageButton" parent="Widget.AppCompat.ImageButton">
+        <item name="android:tint">?attr/colorPrimary</item>
+        <item name="android:background">@null</item>
+        <item name="android:scaleType">fitXY</item>
+        <item name="android:adjustViewBounds">true</item>
+    </style>
+
+    <style tools:ignore="PrivateResource" name="Widget.ChipDropdown" parent="Widget.Material3.TextInputLayout.OutlinedBox.Dense.ExposedDropdownMenu">
+        <item name="shapeAppearance">?attr/shapeAppearanceSmallComponent</item>
+        <item name="boxStrokeColor">@color/m3_textfield_stroke_color</item>
+    </style>
+
+    <style name="Theme.AppWidget.AppWidgetContainerCropped" parent="Theme.AppWidget.AppWidgetContainer">
+        <!-- Apply padding to avoid the content of the widget colliding with the rounded corners -->
+        <item name="appWidgetPadding">4dp</item>
+    </style>
+
+    <style name="TileStyle">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textAppearance">?android:attr/textAppearanceMedium</item>
+        <item name="android:padding">16dp</item>
+    </style>
+
+    <style name="UltrasonicFilterDialogTheme" parent="Theme.MaterialComponents.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowElevation">0dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Circle" parent="">
+        <item name="cornerSize">50%</item>
+    </style>
+</resources>
+

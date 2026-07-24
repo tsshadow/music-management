@@ -1,0 +1,28 @@
+plugins {
+    alias libs.plugins.ksp
+}
+
+apply from: bootstrap.androidModule
+
+dependencies {
+    implementation libs.core
+    implementation libs.roomRuntime
+    implementation libs.roomKtx
+    ksp libs.room
+}
+android {
+    namespace = 'org.moire.ultrasonic.domain'
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
+
+
+    ksp {
+        arg("ksp.jvmTarget", "21") // Ensure KSP targets JVM 21
+    }
+}
+
+android {
+    sourceSets["main"].java.srcDirs("src/main/kotlin")
+}

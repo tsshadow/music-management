@@ -1,6 +1,16 @@
 # 🤖 Agent Information & System Workflow
 
-This document provides a high-level overview of the Music Management System's internal logic, module interactions, and external integrations for AI agents and developers.
+This document provides a high-level overview of the Music Management System's internal logic, module interactions, and integrations for AI agents and developers.
+
+## 📦 Repository Layout
+
+This is a single monorepo containing every application in the ecosystem: the Python backend services, the
+C++ `music-management-server` (LMS fork), the Svelte `frontend`, and the `ultrasonic` Android app all live
+directly under `services/`, with one shared Git history. There are no submodules and no separate, split-out
+repositories — a change that touches multiple apps (e.g. a new rating feature spanning the backend, the web
+player and the Android client) is made and committed as a single, atomic change here. Each part still has
+its own independent build/deploy pipeline (see `build.sh`, `docker/`, and each service's own `scripts/`), only
+the source code and history are shared.
 
 ## 🏗 Core Modules & Responsibilities
 
@@ -85,9 +95,10 @@ The system is split into specialized services, each handling a specific part of 
 
 ---
 
-## 🔗 External Integrations
+## 🔗 Integrations
 
-The system is designed to work in tandem with other projects in the developer's ecosystem:
+These apps live in this same monorepo (see [Repository Layout](#-repository-layout) above) but are still
+separately built/deployed, and talk to each other only over HTTP/Subsonic APIs:
 
 ### Music Management Server
 - **Playback Engine**: The primary server for audio streaming and library management.
@@ -96,7 +107,7 @@ The system is designed to work in tandem with other projects in the developer's 
     - Synchronizes song ratings bidirectionally between the local database and the Server.
     - Uses the Subsonic API provided by the Server for client authentication and playback.
 
-### Ultrasonic (`~/git/ultrasonic`)
+### Ultrasonic (`services/ultrasonic`)
 - **Mobile Client**: A native Android application for interacting with the music collection on the go.
 - **Subsonic Integration**: Connects directly to the `music-management-server` for audio streaming and library browsing.
 - **Settings Backup & Sync**:

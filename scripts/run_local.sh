@@ -68,7 +68,7 @@ case "$1" in
         LMS_DIR="$ROOT_DIR/services/music-management-server"
         LMS_BUILD_DIR="${LMS_BUILD_DIR:-$LMS_DIR/build}"
         if [ ! -d "$LMS_BUILD_DIR" ]; then
-            echo "No build directory found, configuring first (see scripts/test/lms-unit.sh for the same steps)..."
+            echo "No build directory found, configuring first (requires the native LMS toolchain - GTest/Boost/Wt/pugixml/... - installed locally; scripts/test/lms-unit.sh instead builds/tests LMS inside Docker, since Wt isn't packaged for Debian/Ubuntu)..."
             cmake -S "$LMS_DIR" -B "$LMS_BUILD_DIR" -DCMAKE_BUILD_TYPE=Debug
         fi
         cmake --build "$LMS_BUILD_DIR" -j"$(nproc)" --target lms

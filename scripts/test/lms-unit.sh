@@ -1,24 +1,27 @@
 #!/bin/bash
 # scripts/test/lms-unit.sh
-# Configures (if needed) and runs the existing upstream CTest/GTest suite for the
-# music-management-server (LMS) C++ code.
-# Usage: ./scripts/test/lms-unit.sh [ctest-args...]
+# Builds and runs the upstream CTest/GTest suite for the music-management-server
+# (LMS) C++ code, inside the same Alpine image used for Dockerfile-build-alpine.
+#
+# LMS's native dependencies (in particular Wt, but also GTest/Boost/pugixml/...)
+# are not packaged for Debian/Ubuntu at all, so building this natively on a
+# generic Debian CI runner would require compiling the whole stack from source
+# (like Dockerfile-release does for FFmpeg/Wt), which is heavy and slow. The
+# existing Dockerfile-build-alpine already installs every dependency via apk
+# and runs "make test" as part of its build step, so it is reused here as a
+# self-contained, already-verified build+test recipe. This only requires a
+# working Docker daemon on the host running this script (no native C++
+# toolchain needed locally).
+#
+# Usage: ./scripts/test/lms-unit.sh
 
 set -e
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 LMS_DIR="$ROOT_DIR/services/music-management-server"
-BUILD_DIR="${LMS_BUILD_DIR:-$LMS_DIR/build}"
+IMAGE_TAG="${LMS_UNIT_IMAGE_TAG:-lms-unit-test:latest}"
 
-cd "$LMS_DIR"
+echo "--- Building LMS and running its CTest/GTest suite (via Dockerfile-build-alpine) ---"
+docker build -f "$LMS_DIR/Dockerfile-build-alpine" -t "$IMAGE_TAG" "$LMS_DIR"
 
-if [ ! -d "$BUILD_DIR" ]; then
-    echo "--- Configuring LMS build directory ($BUILD_DIR) ---"
-    cmake -S "$LMS_DIR" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Debug
-fi
-
-echo "--- Building LMS test targets ---"
-cmake --build "$BUILD_DIR" -j"$(nproc)"
-
-echo "--- Running LMS unit tests (ctest) ---"
-ctest --test-dir "$BUILD_DIR" --output-on-failure "$@"
+echo "--- LMS unit tests passed (executed during the image build above) ---"

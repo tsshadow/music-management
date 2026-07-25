@@ -10,7 +10,7 @@
 
 variables:
   # Final attempt to unblock runner by moving gradle home outside project tree
-  # and using a fresh pipeline trigger.
+  # and using a fresh pipeline trigger. Fresh trigger v2.
 
 default:
   interruptible: true

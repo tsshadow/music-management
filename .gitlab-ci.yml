@@ -52,6 +52,17 @@ frontend:unit:
   script:
     - ./scripts/test/frontend-unit.sh
 
+ultrasonic:check:
+  stage: unit
+  rules:
+    - changes:
+        - services/ultrasonic/**/*
+        - .gitlab-ci.yml
+  script:
+    # Basic check to confirm files are present.
+    # Full Android build/test requires an Android SDK runner.
+    - cd services/ultrasonic && ./gradlew --version
+
 # --- Integration / contract tests -------------------------------------------
 # These build and start docker/compose.test.yml from a clean state, so they
 # always run on the default branch, and on any merge request that touches

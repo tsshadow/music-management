@@ -164,6 +164,7 @@ docker-compose -f docker-compose.yml -f docker-compose.workers.yml logs -f impor
 │   ├── tagger/             # Rule-based tagging engine
 │   ├── ml-analyzer/        # ML audio feature extraction
 │   ├── scanner/            # Library scan and sync
+│   ├── ultrasonic/         # Android mobile client
 │   └── common/             # Shared logic and internal API
 ├── docs/                   # Detailed documentation and diagrams
 └── tools/                  # Utility scripts

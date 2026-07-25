@@ -57,6 +57,7 @@ RUN \
 		xx-verify src/lms/lms && \
 		if [ "${BUILD_TESTS}" = "ON" ]; then \
 			make test && \
-			gcovr -r /tmp/lms --xml-pretty -o /tmp/lms/coverage-lms.xml --gcov-executable $(xx-info g++ | sed 's/g++/gcov/') && \
-			gcovr -r /tmp/lms --gcov-executable $(xx-info g++ | sed 's/g++/gcov/'); \
+			if xx-info is-cross; then GCOV=$(xx-info)-gcov; else GCOV=gcov; fi && \
+			gcovr -r /tmp/lms --xml-pretty -o /tmp/lms/coverage-lms.xml --gcov-executable $GCOV && \
+			gcovr -r /tmp/lms --gcov-executable $GCOV; \
 		fi

@@ -26,3 +26,11 @@ npm run check
 
 echo "--- Running frontend unit tests with coverage ---"
 npm run coverage
+
+# Fix paths in Cobertura XML for GitLab visualization
+COVERAGE_FILE="coverage/cobertura-coverage.xml"
+if [ -f "$COVERAGE_FILE" ]; then
+    echo "--- Fixing paths in $COVERAGE_FILE ---"
+    sed -i 's|filename="|filename="services/frontend/|g' "$COVERAGE_FILE"
+    sed -i 's|<source>.*</source>|<source>./</source>|g' "$COVERAGE_FILE"
+fi

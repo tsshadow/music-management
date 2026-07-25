@@ -38,3 +38,12 @@ python3 -m pytest -p no:warnings \
     --cov-report=term \
     --cov-report=xml:coverage-python.xml \
     "${TEST_TARGETS[@]}" "$@"
+
+# Fix paths in Cobertura XML for GitLab visualization
+# It changes filename="path/to/file" to filename="services/path/to/file"
+# and sets <source> to the project root.
+if [ -f coverage-python.xml ]; then
+    echo "--- Fixing paths in coverage-python.xml ---"
+    sed -i 's|filename="|filename="services/|g' coverage-python.xml
+    sed -i 's|<source>.*</source>|<source>./</source>|g' coverage-python.xml
+fi

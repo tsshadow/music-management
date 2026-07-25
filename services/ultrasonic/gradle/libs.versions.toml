@@ -2,8 +2,8 @@
 gradle                 = "8.11.1"
 
 appMinSdk = "33"
-appTargetSdk = "33"
-appCompileSdk = "33"
+appTargetSdk = "34"
+appCompileSdk = "34"
 
 gson                   = "2.14.0"
 kotlinxSerializationJson = "1.11.0"

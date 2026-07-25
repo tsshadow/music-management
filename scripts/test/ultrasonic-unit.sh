@@ -9,14 +9,15 @@ cd "$ROOT_DIR"
 
 echo "--- Running Ultrasonic Android unit tests with coverage (via Docker) ---"
 
-# Ensure the gradle home directory exists and is writable by the current user
+# Ensure the gradle home directory exists and is writable
 mkdir -p "$ROOT_DIR/services/ultrasonic/.gradle_home"
+chmod -R 777 "$ROOT_DIR/services/ultrasonic/.gradle_home"
+
+echo "--- Running Ultrasonic Android unit tests with coverage (via Docker) ---"
 
 # We use a docker image with Android SDK to avoid installing it on the runner.
-# We mount the root dir to /workspace and run from services/ultrasonic.
-# Note: we use --user to ensure files created in the volume are owned by the host user.
+# We run as root to allow sdkmanager to install missing components, then fix permissions.
 docker run --rm \
-    --user "$(id -u):$(id -g)" \
     -v "$ROOT_DIR:/workspace" \
     -w "/workspace/services/ultrasonic" \
     -e GRADLE_USER_HOME="/workspace/services/ultrasonic/.gradle_home" \
@@ -24,7 +25,13 @@ docker run --rm \
     -e SIGNING_KEY_ALIAS=dummy \
     -e SIGNING_KEY_PASSWORD=dummy \
     mobiledevops/android-sdk-image:latest \
-    ./gradlew :ultrasonic:jacocoTestReport
+    /bin/bash -c "sdkmanager \"build-tools;34.0.0\" \"platforms;android-34\" && ./gradlew :ultrasonic:jacocoTestReport"
+
+# Fix permissions for files created by root in the container
+if [ -d "$ROOT_DIR/services/ultrasonic/ultrasonic/build" ]; then
+    sudo chown -R "$(id -u):$(id -g)" "$ROOT_DIR/services/ultrasonic/ultrasonic/build" || true
+fi
+sudo chown -R "$(id -u):$(id -g)" "$ROOT_DIR/services/ultrasonic/.gradle_home" || true
 
 # Extract and fix the report
 REPORT_SRC="services/ultrasonic/ultrasonic/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml"

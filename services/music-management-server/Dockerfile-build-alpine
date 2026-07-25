@@ -3,6 +3,7 @@ FROM --platform=$BUILDPLATFORM alpine:3.21
 
 ARG BUILD_PACKAGES="\
 	clang \
+	llvm \
 	make \
 	cmake \
 	lld \
@@ -57,8 +58,9 @@ RUN \
 		xx-verify src/lms/lms && \
 		if [ "${BUILD_TESTS}" = "ON" ]; then \
 			make test && \
-			if xx-info is-cross; then GCOV=$(xx-info)-gcov; else GCOV=gcov; fi && \
+			GCOV=$(command -v llvm-cov 2>/dev/null) && [ -n "$GCOV" ] && GCOV="$GCOV gcov" || GCOV=gcov; \
+			if xx-info is-cross; then GCOV=$(xx-info)-gcov; fi && \
 			cd /tmp/lms && \
-			gcovr -r . --xml-pretty -o /tmp/lms/coverage-lms.xml --gcov-executable $GCOV --object-directory build && \
-			gcovr -r . --gcov-executable $GCOV --object-directory build; \
+			gcovr -r . --xml-pretty -o /tmp/lms/coverage-lms.xml --gcov-executable "$GCOV" --object-directory build && \
+			gcovr -r . --gcov-executable "$GCOV" --object-directory build; \
 		fi

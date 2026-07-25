@@ -9,7 +9,7 @@
 # (shell or docker executor with access to the host's Docker daemon).
 
 variables:
-  GIT_STRATEGY: clone
+  # No global GIT_STRATEGY
 
 default:
   interruptible: true

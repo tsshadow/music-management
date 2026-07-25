@@ -9,23 +9,25 @@ cd "$ROOT_DIR"
 
 echo "--- Running Ultrasonic Android unit tests with coverage (via Docker) ---"
 
-# Ensure the gradle home directory exists and is writable
-mkdir -p "$ROOT_DIR/services/ultrasonic/.gradle_home"
-chmod -R 777 "$ROOT_DIR/services/ultrasonic/.gradle_home"
+# Use a gradle home directory outside the project tree to avoid git checkout permission issues
+GRADLE_HOME_DIR="/tmp/.gradle_muma"
+mkdir -p "$GRADLE_HOME_DIR"
+chmod -R 777 "$GRADLE_HOME_DIR"
 
 # We use a docker image with Android SDK to avoid installing it on the runner.
 # We run as root and then fix permissions for the host.
 docker run --rm \
     -v "$ROOT_DIR:/workspace" \
+    -v "$GRADLE_HOME_DIR:/gradle_home" \
     -w "/workspace/services/ultrasonic" \
-    -e GRADLE_USER_HOME="/workspace/services/ultrasonic/.gradle_home" \
+    -e GRADLE_USER_HOME="/gradle_home" \
     -e SIGNING_STORE_PASSWORD=dummy \
     -e SIGNING_KEY_ALIAS=dummy \
     -e SIGNING_KEY_PASSWORD=dummy \
     mobiledevops/android-sdk-image:latest \
     /bin/bash -c "export ANDROID_SDK_ROOT=\$(find /opt /usr /usr/local -name platforms -type d -print -quit 2>/dev/null | sed 's|/platforms||'); [ -z \"\$ANDROID_SDK_ROOT\" ] && export ANDROID_SDK_ROOT=/opt/android; sdkmanager --sdk_root=\$ANDROID_SDK_ROOT \"build-tools;34.0.0\" \"platforms;android-34\" && ./gradlew :ultrasonic:jacocoTestReport"
 
-# Fix permissions for files created by root in the container
+# Fix permissions for files created by root in the container (build artifacts)
 docker run --rm -v "$ROOT_DIR:/workspace" alpine chown -R "$(id -u):$(id -g)" /workspace
 
 # Extract and fix the report

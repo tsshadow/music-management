@@ -8,10 +8,11 @@
 # Requires a Linux GitLab Runner with Docker + Docker Compose available
 # (shell or docker executor with access to the host's Docker daemon).
 
+variables:
+  GIT_STRATEGY: clone
+
 default:
   interruptible: true
-  variables:
-    GIT_STRATEGY: clone
 
 stages:
   - unit

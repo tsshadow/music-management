@@ -38,7 +38,7 @@ swipeRefresh           = "1.2.0"
 retrofit               = "3.0.0"
 jackson                = "2.22.1"
 okhttp                 = "5.4.0"
-koin                   = "4.2.2"
+koin                   = "4.0.4"
 picasso               = "2.71828"
 
 junit4                 = "4.13.2"

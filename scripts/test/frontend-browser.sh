@@ -71,9 +71,28 @@ while true; do
     sleep 2
 done
 
-echo "--- Running Playwright browser tests ---"
+echo "--- Installing frontend dependencies (exact lockfile versions) ---"
 cd "$FRONTEND_DIR"
-if [ ! -d node_modules ]; then
-    npm install
-fi
+# Always run "npm ci" instead of a conditional "npm install": a plain
+# "npm install" does not strictly pin to package-lock.json and can silently
+# pull a newer @playwright/test off the registry if one satisfies the
+# package.json semver range (e.g. "^1.61.1" -> 1.62.0). When that happens,
+# the browser binaries expected by the installed package (a specific
+# Chromium/"chromium-headless-shell" revision) can differ from whatever was
+# previously downloaded on this machine, and the browser tests fail with
+# "Executable doesn't exist at .../chromium_headless_shell-XXXX/...". "npm
+# ci" always installs exactly what package-lock.json pins, so this can't
+# drift between runs/build directories, and it also always starts from a
+# clean node_modules instead of relying on a leftover one being "good
+# enough" (see also: this is what a previous CI run actually hit).
+npm ci
+
+echo "--- Ensuring the matching Playwright browser binaries are installed ---"
+# Idempotent/self-healing: downloads only if the currently installed
+# @playwright/test version's expected browser revision isn't already cached
+# locally (~/.cache/ms-playwright), so this is cheap on repeat runs but
+# always correct even after a @playwright/test version bump.
+npx playwright install chromium
+
+echo "--- Running Playwright browser tests ---"
 VITE_API_TARGET=http://localhost:18000 VITE_LMS_TARGET=http://localhost:15082 npx playwright test

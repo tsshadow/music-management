@@ -15,6 +15,7 @@ stages:
   - unit
   - integration
   - e2e
+  - deploy
 
 # --- Unit tests -------------------------------------------------------------
 
@@ -88,3 +89,13 @@ frontend:browser:
     expire_in: 14 days
     paths:
       - services/frontend/test-results/
+
+# --- Deployment --------------------------------------------------------------
+
+deploy:prod:
+  stage: deploy
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"'
+      when: manual
+  script:
+    - ./scripts/ci-deploy.sh

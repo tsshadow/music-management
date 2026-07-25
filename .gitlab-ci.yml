@@ -36,6 +36,13 @@ music-management:unit:
         - pytest.ini
         - .gitlab-ci.yml
   script:
+    - echo "--- ENV DEBUG ---"
+    - hostname
+    - ip addr
+    - whoami
+    - pwd
+    - ls -la /home/gitlab-runner/builds || true
+    - echo "--- END ENV DEBUG ---"
     - ./scripts/test/music-management-unit.sh
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:

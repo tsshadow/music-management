@@ -12,7 +12,6 @@ __pycache__/
 services/ml-analyzer/.env
 node_modules/
 .pytest_cache/
-package-lock.json
 .production
 # Local runtime data (dev/music bind-mount contents for docker/docker-compose.dev.yml).
 /data/

@@ -58,6 +58,7 @@ RUN \
 		if [ "${BUILD_TESTS}" = "ON" ]; then \
 			make test && \
 			if xx-info is-cross; then GCOV=$(xx-info)-gcov; else GCOV=gcov; fi && \
-			gcovr -r /tmp/lms --xml-pretty -o /tmp/lms/coverage-lms.xml --gcov-executable $GCOV && \
-			gcovr -r /tmp/lms --gcov-executable $GCOV; \
+			cd /tmp/lms && \
+			gcovr -r . --xml-pretty -o /tmp/lms/coverage-lms.xml --gcov-executable $GCOV && \
+			gcovr -r . --gcov-executable $GCOV; \
 		fi

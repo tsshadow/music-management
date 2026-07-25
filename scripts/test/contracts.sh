@@ -10,6 +10,19 @@ set -e
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 COMPOSE_FILE="$ROOT_DIR/docker/compose.test.yml"
 COMPOSE_PROJECT_NAME="muma-test${CI_JOB_ID:+-}${CI_JOB_ID:-}"
+
+# Function to find a free port
+find_free_port() {
+    python3 -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()'
+}
+
+MUMA_TEST_PORT_MANAGER=$(find_free_port)
+MUMA_TEST_PORT_LMS=$(find_free_port)
+export MUMA_TEST_PORT_MANAGER
+export MUMA_TEST_PORT_LMS
+
+echo "--- Using dynamic ports: Manager=$MUMA_TEST_PORT_MANAGER, LMS=$MUMA_TEST_PORT_LMS ---"
+
 COMPOSE="docker compose -f $COMPOSE_FILE -p $COMPOSE_PROJECT_NAME"
 FIXTURE="$ROOT_DIR/tests/fixtures/music/ci-test-track-001.mp3"
 
@@ -45,4 +58,7 @@ docker cp "$FIXTURE" "$LMS_CID":/music/ci-test-track-001.mp3
 
 echo "--- Running contract tests ---"
 cd "$ROOT_DIR"
+# Pass the dynamic ports to the tests as well
+export MUMA_TEST_PORT_MANAGER
+export MUMA_TEST_PORT_LMS
 COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" python3 -m pytest -p no:warnings tests/contracts/ -v

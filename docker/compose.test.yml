@@ -64,7 +64,7 @@ services:
     volumes:
       - shared-music:/mnt/music
     ports:
-      - "18000:8000"
+      - "${MUMA_TEST_PORT_MANAGER:-18000}:8000"
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 5s
@@ -100,7 +100,7 @@ services:
       LMS_MUSIC_MANAGEMENT_URL: http://music-manager:8000/api
       LMS_MUSIC_MANAGEMENT_API_KEY: test-api-key
     ports:
-      - "15082:5082"
+      - "${MUMA_TEST_PORT_LMS:-15082}:5082"
     healthcheck:
       # NOTE: use 127.0.0.1, not "localhost": in this Alpine image "localhost"
       # resolves to ::1 first and LMS does not appear to accept IPv6 connections

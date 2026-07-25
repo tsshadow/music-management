@@ -19,14 +19,18 @@ Assertions are made against individual fields, not full literal response
 snapshots (see plan 4.2), so an unrelated extra property never breaks this test.
 """
 import json
+import os
 import time
 from pathlib import Path
 
 import pytest
 import requests
 
-MUSIC_MANAGER_URL = "http://localhost:18000/api"
-LMS_URL = "http://localhost:15082"
+MUSIC_MANAGER_PORT = os.environ.get("MUMA_TEST_PORT_MANAGER", "18000")
+LMS_PORT = os.environ.get("MUMA_TEST_PORT_LMS", "15082")
+
+MUSIC_MANAGER_URL = f"http://localhost:{MUSIC_MANAGER_PORT}/api"
+LMS_URL = f"http://localhost:{LMS_PORT}"
 SUBSONIC_CLIENT = "muma-contract-test"
 SUBSONIC_VERSION = "1.16.1"
 

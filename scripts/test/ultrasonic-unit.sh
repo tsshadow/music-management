@@ -18,7 +18,7 @@ docker run --rm \
     -e SIGNING_STORE_PASSWORD=dummy \
     -e SIGNING_KEY_ALIAS=dummy \
     -e SIGNING_KEY_PASSWORD=dummy \
-    mobiledevops/android-sdk-image:35 \
+    mobiledevops/android-sdk-image:latest \
     ./gradlew :ultrasonic:jacocoTestReport
 
 # Extract and fix the report

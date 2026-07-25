@@ -54,14 +54,14 @@ for service in $($COMPOSE config --services); do
 done
 
 echo "--- Creating admin user ---"
-curl -sf -X POST http://localhost:18000/api/auth/setup \
+curl -sf -X POST "http://localhost:$MUMA_TEST_PORT_MANAGER/api/auth/setup" \
     -H "Content-Type: application/json" \
     -d '{"username":"ci-contract-admin","password":"ci-contract-password"}' >/dev/null
 
 echo "--- Waiting for admin to sync into LMS ---"
 DEADLINE=$((SECONDS + 30))
 while true; do
-    status=$(curl -s "http://localhost:15082/rest/ping.view?u=ci-contract-admin&p=ci-contract-password&v=1.16.1&c=test&f=json" \
+    status=$(curl -s "http://localhost:$MUMA_TEST_PORT_LMS/rest/ping.view?u=ci-contract-admin&p=ci-contract-password&v=1.16.1&c=test&f=json" \
         | python3 -c "import json,sys; print(json.load(sys.stdin)['subsonic-response']['status'])" 2>/dev/null || echo "")
     [ "$status" = "ok" ] && break
     [ $SECONDS -ge $DEADLINE ] && { echo "❌ ERROR: admin user did not sync into LMS in time"; exit 1; }
@@ -71,15 +71,15 @@ done
 echo "--- Copying fixture track and triggering a scan ---"
 LMS_CID=$($COMPOSE ps -q music-management-server)
 docker cp "$FIXTURE" "$LMS_CID":/music/ci-test-track-001.mp3
-curl -sf -X POST "http://localhost:15082/muma/api/admin/libraries?u=ci-contract-admin&p=ci-contract-password" \
+curl -sf -X POST "http://localhost:$MUMA_TEST_PORT_LMS/muma/api/admin/libraries?u=ci-contract-admin&p=ci-contract-password" \
     -H "Content-Type: application/json" \
     -d '{"name":"ci-test-library","path":"/music"}' >/dev/null
-curl -sf "http://localhost:15082/rest/startScan.view?u=ci-contract-admin&p=ci-contract-password&v=1.16.1&c=test&f=json" >/dev/null
+curl -sf "http://localhost:$MUMA_TEST_PORT_LMS/rest/startScan.view?u=ci-contract-admin&p=ci-contract-password&v=1.16.1&c=test&f=json" >/dev/null
 
 echo "--- Waiting for the fixture track to be scanned ---"
 DEADLINE=$((SECONDS + 60))
 while true; do
-    found=$(curl -s "http://localhost:15082/rest/search3.view?u=ci-contract-admin&p=ci-contract-password&v=1.16.1&c=test&f=json&query=CI%20Test%20Track" \
+    found=$(curl -s "http://localhost:$MUMA_TEST_PORT_LMS/rest/search3.view?u=ci-contract-admin&p=ci-contract-password&v=1.16.1&c=test&f=json&query=CI%20Test%20Track" \
         | python3 -c "import json,sys; d=json.load(sys.stdin); print(bool(d['subsonic-response'].get('searchResult3',{}).get('song')))" 2>/dev/null || echo "False")
     [ "$found" = "True" ] && break
     [ $SECONDS -ge $DEADLINE ] && { echo "❌ ERROR: fixture track was not scanned in time"; exit 1; }

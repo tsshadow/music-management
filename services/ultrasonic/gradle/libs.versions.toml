@@ -1,9 +1,9 @@
 [versions]
-gradle                 = "8.11.1"
+gradle                 = "8.10.2"
 
 appMinSdk = "33"
-appTargetSdk = "35"
-appCompileSdk = "35"
+appTargetSdk = "33"
+appCompileSdk = "33"
 
 gson                   = "2.14.0"
 kotlinxSerializationJson = "1.11.0"
@@ -13,7 +13,7 @@ navigation             = "2.9.8"
 credentials            = "1.3.0"
 googleid               = "1.1.1"
 security               = "1.1.0-alpha06"
-gradlePlugin           = "8.7.3"
+gradlePlugin           = "8.7.2"
 androidxcar            = "1.7.0"
 appcompat              = "1.7.1"
 activity               = "1.13.0"

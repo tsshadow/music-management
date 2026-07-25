@@ -1,5 +1,5 @@
 #!/bin/bash
-# scripts/test/music-management-unit.sh
+# scripts/test/music-management-unit.sh 
 # Runs the Python unit tests for music_manager, tagger, scanner, importer and downloader.
 # Usage: ./scripts/test/music-management-unit.sh [pytest-args...]
 

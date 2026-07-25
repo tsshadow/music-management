@@ -13,6 +13,7 @@ echo "--- Running Ultrasonic Android unit tests with coverage (via Docker) ---"
 # We mount the root dir to /workspace and run from services/ultrasonic.
 # Note: we use --user to ensure files created in the volume are owned by the host user.
 docker run --rm \
+    --user "$(id -u):$(id -g)" \
     -v "$ROOT_DIR:/workspace" \
     -w "/workspace/services/ultrasonic" \
     -e SIGNING_STORE_PASSWORD=dummy \

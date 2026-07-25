@@ -207,4 +207,36 @@ abstract class JukeboxUnimplementedFunctions : Player {
     override fun clearVideoTextureView(textureView: TextureView?) {
         TODO("Not yet implemented")
     }
+
+    override fun hasPrevious(): Boolean {
+        return hasPreviousMediaItem()
+    }
+
+    override fun hasPreviousWindow(): Boolean {
+        return hasPreviousMediaItem()
+    }
+
+    override fun previous() {
+        seekToPreviousMediaItem()
+    }
+
+    override fun seekToPreviousWindow() {
+        seekToPreviousMediaItem()
+    }
+
+    override fun hasNext(): Boolean {
+        return hasNextMediaItem()
+    }
+
+    override fun hasNextWindow(): Boolean {
+        return hasNextMediaItem()
+    }
+
+    override fun next() {
+        seekToNextMediaItem()
+    }
+
+    override fun seekToNextWindow() {
+        seekToNextMediaItem()
+    }
 }

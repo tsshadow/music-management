@@ -17,6 +17,15 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
+    // This module is pure domain logic with no UI layouts, and must stay
+    // platform-independent (see ArchitectureTest). Data/view binding would
+    // generate a DataBinderMapperImpl class directly in this module's
+    // namespace package, which would violate that rule by depending on
+    // android.* types.
+    buildFeatures {
+        dataBinding = false
+        viewBinding = false
+    }
 
     ksp {
         arg("ksp.jvmTarget", "21") // Ensure KSP targets JVM 21

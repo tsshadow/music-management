@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
 import org.moire.ultrasonic.R
+import org.moire.ultrasonic.util.Util.toast
 import org.moire.ultrasonic.api.subsonic.SubsonicAPIClient
 import org.moire.ultrasonic.databinding.GoogleAuthFragmentBinding
 import org.moire.ultrasonic.util.SecureSettings
@@ -48,7 +49,7 @@ class GoogleAuthFragment : Fragment() {
         val idToken = navArgs.idToken
 
         if (!avatarUrl.isNullOrEmpty()) {
-            Picasso.get().load(avatarUrl).placeholder(R.drawable.chat_user_avatar).into(binding.googleAvatar)
+            Picasso.get().load(avatarUrl).placeholder(R.drawable.ic_contact_picture).into(binding.googleAvatar)
         }
 
         when (status) {
@@ -118,7 +119,7 @@ class GoogleAuthFragment : Fragment() {
             } else {
                 binding.authActionButton.isEnabled = true
                 // Show error
-                org.moire.ultrasonic.util.Util.toast(R.string.background_task.network_error)
+                toast(R.string.background_task_network_error)
             }
         }
     }

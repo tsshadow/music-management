@@ -422,6 +422,9 @@
             app:argType="string"
             app:nullable="true"
             android:defaultValue="@null" />
+        <action
+            android:id="@+id/toGoogleAuth"
+            app:destination="@id/googleAuthFragment" />
     </fragment>
     <fragment
         android:id="@+id/mumaSyncFragment"

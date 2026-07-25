@@ -18,7 +18,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
-import com.google.android.libraries.identity.googleid.GetGoogleIdTokenRequest
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -42,6 +42,7 @@ import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import org.moire.ultrasonic.R
+import org.moire.ultrasonic.api.subsonic.SubsonicAPIClient
 import org.moire.ultrasonic.data.ActiveServerProvider
 import org.moire.ultrasonic.data.ServerSetting
 import org.moire.ultrasonic.model.EditServerModel
@@ -52,6 +53,7 @@ import org.moire.ultrasonic.util.ErrorDialog
 import org.moire.ultrasonic.util.InfoDialog
 import org.moire.ultrasonic.util.ServerColor
 import org.moire.ultrasonic.util.Util
+import org.moire.ultrasonic.util.Util.toast
 import timber.log.Timber
 
 private const val DIALOG_PADDING = 12
@@ -63,6 +65,7 @@ class EditServerFragment : Fragment() {
 
     private val serverSettingsModel: ServerSettingsModel by viewModel()
     private val activeServerProvider: ActiveServerProvider by inject()
+    private val subsonicAPIClient: SubsonicAPIClient by inject()
 
     private var currentServerSetting: ServerSetting? = null
 
@@ -578,7 +581,7 @@ class EditServerFragment : Fragment() {
 
     private fun startGoogleSignIn() {
         val credentialManager = CredentialManager.create(requireContext())
-        val googleIdTokenRequest = GetGoogleIdTokenRequest.Builder()
+        val googleIdTokenRequest = GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(false)
             .setServerClientId(org.moire.ultrasonic.BuildConfig.GOOGLE_WEB_CLIENT_ID)
             .build()
@@ -596,7 +599,7 @@ class EditServerFragment : Fragment() {
                 handleGoogleSignInResult(result.credential)
             } catch (e: Exception) {
                 Timber.e(e, "Google Sign-In failed")
-                Util.toast(R.string.background_task.network_error)
+                toast(R.string.background_task_network_error)
             }
         }
     }
@@ -641,7 +644,7 @@ class EditServerFragment : Fragment() {
                             currentServerSetting?.apiKey = it
                             apiKeyEditText?.editText?.setText(it)
                         }
-                        Util.toast(R.string.muma_sync_logon_success)
+                        toast(R.string.muma_sync_logon_success)
                     }
                     "unknown" -> {
                         findNavController().navigate(
@@ -667,7 +670,7 @@ class EditServerFragment : Fragment() {
                     }
                 }
             } else {
-                Util.toast(R.string.background_task.network_error)
+                toast(R.string.background_task_network_error)
             }
         }
     }

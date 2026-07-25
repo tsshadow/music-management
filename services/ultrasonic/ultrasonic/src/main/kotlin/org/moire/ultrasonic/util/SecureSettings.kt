@@ -25,11 +25,11 @@ object SecureSettings : MumaTokenStorage {
         )
     }
 
-    var mumaAccessToken: String?
+    override var mumaAccessToken: String?
         get() = sharedPreferences.getString("muma_access_token", null)
         set(value) = sharedPreferences.edit().putString("muma_access_token", value).apply()
 
-    var mumaRefreshToken: String?
+    override var mumaRefreshToken: String?
         get() = sharedPreferences.getString("muma_refresh_token", null)
         set(value) = sharedPreferences.edit().putString("muma_refresh_token", value).apply()
 

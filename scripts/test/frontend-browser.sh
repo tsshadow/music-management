@@ -110,4 +110,7 @@ echo "--- Ensuring the matching Playwright browser binaries are installed ---"
 npx playwright install chromium
 
 echo "--- Running Playwright browser tests ---"
-VITE_API_TARGET=http://localhost:18000 VITE_LMS_TARGET=http://localhost:15082 npx playwright test
+# Must point at the dynamic ports picked above (find_free_port), not fixed
+# ones - otherwise the frontend dev server proxies to the wrong/unbound
+# ports and every API call (login, search, ...) fails with ECONNREFUSED.
+VITE_API_TARGET="http://localhost:$MUMA_TEST_PORT_MANAGER" VITE_LMS_TARGET="http://localhost:$MUMA_TEST_PORT_LMS" npx playwright test

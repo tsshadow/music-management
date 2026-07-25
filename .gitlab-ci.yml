@@ -9,7 +9,8 @@
 # (shell or docker executor with access to the host's Docker daemon).
 
 variables:
-  # No global GIT_STRATEGY
+  # Final attempt to unblock runner by moving gradle home outside project tree
+  # and using a fresh pipeline trigger.
 
 default:
   interruptible: true

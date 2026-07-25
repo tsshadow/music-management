@@ -21,6 +21,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
+    kotlinOptions {
+        jvmTarget = "21"
+    }
+
     sourceSets {
         main.java.srcDirs += "${projectDir}/src/main/kotlin"
         test.java.srcDirs += "${projectDir}/src/test/kotlin"

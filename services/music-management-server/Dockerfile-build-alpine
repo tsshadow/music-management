@@ -61,6 +61,6 @@ RUN \
 			GCOV=$(command -v llvm-cov 2>/dev/null) && [ -n "$GCOV" ] && GCOV="$GCOV gcov" || GCOV=gcov; \
 			if xx-info is-cross; then GCOV=$(xx-info)-gcov; fi && \
 			cd /tmp/lms && \
-			gcovr -r . --xml-pretty -o /tmp/lms/coverage-lms.xml --gcov-executable "$GCOV" --object-directory build && \
-			gcovr -r . --gcov-executable "$GCOV" --object-directory build; \
+			gcovr -r . --xml-pretty -o /tmp/lms/coverage-lms.xml --gcov-executable "$GCOV" --object-directory build --gcov-ignore-errors=no_working_dir_found && \
+			gcovr -r . --gcov-executable "$GCOV" --object-directory build --gcov-ignore-errors=no_working_dir_found; \
 		fi

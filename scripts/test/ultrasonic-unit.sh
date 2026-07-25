@@ -13,8 +13,6 @@ echo "--- Running Ultrasonic Android unit tests with coverage (via Docker) ---"
 mkdir -p "$ROOT_DIR/services/ultrasonic/.gradle_home"
 chmod -R 777 "$ROOT_DIR/services/ultrasonic/.gradle_home"
 
-echo "--- Running Ultrasonic Android unit tests with coverage (via Docker) ---"
-
 # We use a docker image with Android SDK to avoid installing it on the runner.
 # We run as root to allow sdkmanager to install missing components, then fix permissions.
 docker run --rm \
@@ -25,7 +23,7 @@ docker run --rm \
     -e SIGNING_KEY_ALIAS=dummy \
     -e SIGNING_KEY_PASSWORD=dummy \
     mobiledevops/android-sdk-image:latest \
-    /bin/bash -c "sdkmanager \"build-tools;34.0.0\" \"platforms;android-34\" && ./gradlew :ultrasonic:jacocoTestReport"
+    /bin/bash -c "export ANDROID_SDK_ROOT=\$(find /opt /usr /usr/local -name platforms -type d -print -quit 2>/dev/null | sed 's|/platforms||'); [ -z \"\$ANDROID_SDK_ROOT\" ] && export ANDROID_SDK_ROOT=/opt/android-sdk; sdkmanager --sdk_root=\$ANDROID_SDK_ROOT \"build-tools;34.0.0\" \"platforms;android-34\" && ./gradlew :ultrasonic:jacocoTestReport"
 
 # Fix permissions for files created by root in the container
 if [ -d "$ROOT_DIR/services/ultrasonic/ultrasonic/build" ]; then

@@ -9,8 +9,12 @@ cd "$ROOT_DIR"
 
 echo "--- Running Ultrasonic Android unit tests with coverage (via Docker) ---"
 
-# Use a gradle home directory outside the project tree to avoid git checkout permission issues
-GRADLE_HOME_DIR="/tmp/.gradle_muma"
+# Use a gradle home directory outside the project tree to avoid git checkout permission issues.
+# Suffix it with CI_CONCURRENT_ID (unique per concurrent job slot on a runner) so that two
+# ultrasonic jobs running at the same time (e.g. a branch pipeline and its MR pipeline for the
+# same commit) never share a Gradle cache/daemon - concurrent access to the same GRADLE_USER_HOME
+# causes "Timeout waiting to lock journal cache" failures.
+GRADLE_HOME_DIR="/tmp/.gradle_muma_${CI_CONCURRENT_ID:-local}"
 mkdir -p "$GRADLE_HOME_DIR"
 # Files inside here are written by root from inside the container below, so the
 # host user (running this script) generally can't chmod them itself once they

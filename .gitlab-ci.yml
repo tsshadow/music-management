@@ -48,6 +48,12 @@ lms:unit:
         - .gitlab-ci.yml
   script:
     - ./scripts/test/lms-unit.sh
+  coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)\%/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage-lms.xml
 
 frontend:unit:
   stage: unit
@@ -71,9 +77,13 @@ ultrasonic:check:
         - services/ultrasonic/**/*
         - .gitlab-ci.yml
   script:
-    # Basic check to confirm files are present.
-    # Full Android build/test requires an Android SDK runner.
-    - cd services/ultrasonic && ./gradlew --version
+    - ./scripts/test/ultrasonic-unit.sh
+  coverage: '/Total.*?(\d+(?:\.\d+)?\%)/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: cobertura-ultrasonic.xml
 
 # --- Integration / contract tests -------------------------------------------
 # These build and start docker/compose.test.yml from a clean state, so they

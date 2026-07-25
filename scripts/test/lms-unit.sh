@@ -24,4 +24,19 @@ IMAGE_TAG="${LMS_UNIT_IMAGE_TAG:-lms-unit-test:latest}"
 echo "--- Building LMS and running its CTest/GTest suite (via Dockerfile-build-alpine) ---"
 docker build -f "$LMS_DIR/Dockerfile-build-alpine" -t "$IMAGE_TAG" "$LMS_DIR"
 
-echo "--- LMS unit tests passed (executed during the image build above) ---"
+echo "--- Extracting coverage report ---"
+# Use a temporary container to extract the coverage XML generated during the build
+CONTAINER_ID=$(docker create "$IMAGE_TAG")
+docker cp "$CONTAINER_ID":/tmp/lms/coverage-lms.xml "$ROOT_DIR/coverage-lms.xml"
+docker rm "$CONTAINER_ID"
+
+# Fix paths in Cobertura XML for GitLab visualization.
+# Files inside the container were at /tmp/lms/...
+# We map them to services/music-management-server/... relative to repo root.
+if [ -f "$ROOT_DIR/coverage-lms.xml" ]; then
+    echo "--- Fixing paths in coverage-lms.xml ---"
+    sed -i 's|filename="|filename="services/music-management-server/|g' "$ROOT_DIR/coverage-lms.xml"
+    sed -i 's|<source>.*</source>|<source>./</source>|g' "$ROOT_DIR/coverage-lms.xml"
+fi
+
+echo "--- LMS unit tests passed and coverage extracted ---"

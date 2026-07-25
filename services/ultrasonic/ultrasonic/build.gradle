@@ -10,6 +10,7 @@ plugins {
     alias libs.plugins.kotlinParcelize
     alias libs.plugins.kotlinKapt
     alias libs.plugins.navigationSafeArgs
+    id 'jacoco'
 }
 
 apply from: "${project.rootDir}/gradle_scripts/code_quality.gradle"
@@ -204,6 +205,8 @@ tasks.withType(Test).configureEach {
 dependencies {
     implementation project(':core:domain')
     implementation project(':core:subsonic-api')
+    
+    testImplementation "org.jacoco:org.jacoco.ant:0.8.12"
 
     api(libs.picasso) {
         exclude group: "com.android.support"
@@ -273,3 +276,28 @@ dependencies {
     implementation(libs.kotlinxSerializationJson)
 }
 
+
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+tasks.register('jacocoTestReport', JacocoReport) {
+    dependsOn 'testDebugUnitTest'
+
+    reports {
+        xml.required = true
+        html.required = true
+    }
+
+    def fileFilter = ['**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*', '**/*Test*.*', 'android/**/*.*']
+    def debugTree = fileTree(dir: "${project.layout.buildDirectory.get().asFile}/intermediates/javac/debug/classes", excludes: fileFilter)
+    def kotlinDebugTree = fileTree(dir: "${project.layout.buildDirectory.get().asFile}/tmp/kotlin-classes/debug", excludes: fileFilter)
+    def mainSrc = "${project.projectDir}/src/main/kotlin"
+
+    sourceDirectories.setFrom(files([mainSrc]))
+    classDirectories.setFrom(files([debugTree, kotlinDebugTree]))
+    executionData.setFrom(fileTree(dir: "${project.layout.buildDirectory.get().asFile}", include: [
+            "jacoco/testDebugUnitTest.exec",
+            "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec"
+    ]))
+}

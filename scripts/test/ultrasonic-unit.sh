@@ -12,7 +12,10 @@ echo "--- Running Ultrasonic Android unit tests with coverage (via Docker) ---"
 # Use a gradle home directory outside the project tree to avoid git checkout permission issues
 GRADLE_HOME_DIR="/tmp/.gradle_muma"
 mkdir -p "$GRADLE_HOME_DIR"
-chmod -R 777 "$GRADLE_HOME_DIR"
+# Files inside here are written by root from inside the container below, so the
+# host user (running this script) generally can't chmod them itself once they
+# exist - do it via a throwaway root container instead, which can.
+docker run --rm -v "$GRADLE_HOME_DIR:/gradle_home" alpine chmod -R 777 /gradle_home
 
 # Always hand the workspace back to the host user, even if the test run below
 # fails - otherwise root-owned files/directories left behind by the container

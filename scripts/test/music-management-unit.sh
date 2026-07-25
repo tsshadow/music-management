@@ -33,4 +33,8 @@ TEST_TARGETS=(
 )
 
 echo "--- Running music-management Python unit tests ---"
-python3 -m pytest -p no:warnings "${TEST_TARGETS[@]}" "$@"
+python3 -m pytest -p no:warnings \
+    --cov=services \
+    --cov-report=term \
+    --cov-report=xml:coverage-python.xml \
+    "${TEST_TARGETS[@]}" "$@"

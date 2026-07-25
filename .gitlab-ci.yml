@@ -33,6 +33,12 @@ music-management:unit:
         - .gitlab-ci.yml
   script:
     - ./scripts/test/music-management-unit.sh
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage-python.xml
 
 lms:unit:
   stage: unit
@@ -51,6 +57,12 @@ frontend:unit:
         - .gitlab-ci.yml
   script:
     - ./scripts/test/frontend-unit.sh
+  coverage: '/All files\s*\|\s*[\d\.]+\s*\|\s*[\d\.]+\s*\|\s*[\d\.]+\s*\|\s*([\d\.]+)/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: services/frontend/coverage/cobertura-coverage.xml
 
 ultrasonic:check:
   stage: unit

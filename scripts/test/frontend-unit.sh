@@ -24,4 +24,5 @@ npm run lint
 echo "--- Running frontend typecheck (svelte-check) ---"
 npm run check
 
-echo "--- NOTE: no unit test runner configured yet (see docs/testing-inventory.md) ---"
+echo "--- Running frontend unit tests with coverage ---"
+npm run coverage

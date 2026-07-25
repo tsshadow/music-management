@@ -28,5 +28,17 @@ export default defineConfig(({ mode }) => {
       outDir: "dist",
       emptyOutDir: true,
     },
+    test: {
+      environment: "jsdom",
+      globals: true,
+      setupFiles: ["tests/unit/setup.js"],
+      include: ["tests/unit/**/*.{test,spec}.{js,ts}"],
+      coverage: {
+        provider: "v8",
+        reporter: ["text", "json", "html", "cobertura"],
+        reportsDirectory: "./coverage",
+        include: ["src/**/*.{js,svelte}"],
+      },
+    },
   };
 });

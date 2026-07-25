@@ -11,10 +11,16 @@ if (UNIX AND NOT APPLE)
 endif ()
 
 option(ENABLE_TESTS "Enable tests" ON)
+option(ENABLE_COVERAGE "Enable coverage reporting" OFF)
 
 if(ENABLE_TESTS)
 	include(CTest)
 	find_package(GTest REQUIRED)
+endif()
+
+if(ENABLE_COVERAGE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fprofile-arcs -ftest-coverage")
 endif()
 
 # Common dependencies

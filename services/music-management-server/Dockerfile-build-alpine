@@ -42,11 +42,6 @@ ARG LMS_BUILD_TYPE="Release"
 RUN \
 	DIR=/tmp/lms/build && mkdir -p ${DIR} && cd ${DIR}  && \
 		if xx-info is-cross; then export BUILD_TESTS=OFF; else export BUILD_TESTS=ON; fi && \
-		if [ "${BUILD_TESTS}" = "ON" ]; then \
-			export COV_FLAGS="-fprofile-arcs -ftest-coverage"; \
-		else \
-			export COV_FLAGS=""; \
-		fi && \
 		PKG_CONFIG_PATH=/$(xx-info)/usr/lib/pkgconfig \
 		cmake /tmp/lms/ \
 			-DCMAKE_INCLUDE_PATH=/$(xx-info)/usr/include \
@@ -56,8 +51,7 @@ RUN \
 			-DCMAKE_PREFIX_PATH=/$(xx-info)/usr/lib/cmake \
 			-DBUILD_TESTING=${BUILD_TESTS} \
 			-DBUILD_BENCHMARKS=ON \
-			-DCMAKE_CXX_FLAGS="${COV_FLAGS}" \
-			-DCMAKE_EXE_LINKER_FLAGS="${COV_FLAGS}" && \
+			-DENABLE_COVERAGE=${BUILD_TESTS} && \
 		VERBOSE=1 make -j$(nproc) && \
 		xx-verify src/lms/lms && \
 		if [ "${BUILD_TESTS}" = "ON" ]; then \

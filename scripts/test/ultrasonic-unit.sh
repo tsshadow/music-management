@@ -9,6 +9,9 @@ cd "$ROOT_DIR"
 
 echo "--- Running Ultrasonic Android unit tests with coverage (via Docker) ---"
 
+# Ensure the gradle home directory exists and is writable by the current user
+mkdir -p "$ROOT_DIR/services/ultrasonic/.gradle_home"
+
 # We use a docker image with Android SDK to avoid installing it on the runner.
 # We mount the root dir to /workspace and run from services/ultrasonic.
 # Note: we use --user to ensure files created in the volume are owned by the host user.
@@ -16,6 +19,7 @@ docker run --rm \
     --user "$(id -u):$(id -g)" \
     -v "$ROOT_DIR:/workspace" \
     -w "/workspace/services/ultrasonic" \
+    -e GRADLE_USER_HOME="/workspace/services/ultrasonic/.gradle_home" \
     -e SIGNING_STORE_PASSWORD=dummy \
     -e SIGNING_KEY_ALIAS=dummy \
     -e SIGNING_KEY_PASSWORD=dummy \
@@ -33,6 +37,12 @@ if [ -f "$ROOT_DIR/$REPORT_SRC" ]; then
     # Repo path: services/ultrasonic/ultrasonic/src/main/kotlin/org/moire/ultrasonic/SomeFile.kt
     sed -i 's|filename="|filename="services/ultrasonic/ultrasonic/src/main/kotlin/|g' "$ROOT_DIR/$REPORT_DEST"
     sed -i 's|<source>.*</source>|<source>./</source>|g' "$ROOT_DIR/$REPORT_DEST"
+    
+    # Print summary for GitLab coverage regex parsing
+    python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('$ROOT_DIR/$REPORT_DEST'); root = tree.getroot(); \
+        c = [cnt for cnt in root.findall('counter') if cnt.get('type') == 'LINE'][0]; \
+        cov = int(c.get('covered')); total = cov + int(c.get('missed')); \
+        print(f'Total Jacoco Line Coverage: {100*cov/total:.2f}%')"
 else
     echo "❌ ERROR: Coverage report not found at $REPORT_SRC"
     # List files to help debugging if it fails

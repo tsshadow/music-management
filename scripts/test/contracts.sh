@@ -9,7 +9,8 @@ set -e
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 COMPOSE_FILE="$ROOT_DIR/docker/compose.test.yml"
-COMPOSE="docker compose -f $COMPOSE_FILE -p muma-test"
+COMPOSE_PROJECT_NAME="muma-test${CI_JOB_ID:+-}${CI_JOB_ID:-}"
+COMPOSE="docker compose -f $COMPOSE_FILE -p $COMPOSE_PROJECT_NAME"
 FIXTURE="$ROOT_DIR/tests/fixtures/music/ci-test-track-001.mp3"
 
 cleanup() {
@@ -39,8 +40,9 @@ for service in $($COMPOSE config --services); do
 done
 
 echo "--- Copying fixture track into the LMS music volume ---"
-docker cp "$FIXTURE" muma-test-lms:/music/ci-test-track-001.mp3
+LMS_CID=$($COMPOSE ps -q music-management-server)
+docker cp "$FIXTURE" "$LMS_CID":/music/ci-test-track-001.mp3
 
 echo "--- Running contract tests ---"
 cd "$ROOT_DIR"
-python3 -m pytest -p no:warnings tests/contracts/ -v
+COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" python3 -m pytest -p no:warnings tests/contracts/ -v

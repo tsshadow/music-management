@@ -9,7 +9,8 @@ set -e
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 COMPOSE_FILE="$ROOT_DIR/docker/compose.test.yml"
-COMPOSE="docker compose -f $COMPOSE_FILE -p muma-test"
+COMPOSE_PROJECT_NAME="muma-test${CI_JOB_ID:+-}${CI_JOB_ID:-}"
+COMPOSE="docker compose -f $COMPOSE_FILE -p $COMPOSE_PROJECT_NAME"
 FIXTURE="$ROOT_DIR/tests/fixtures/music/ci-test-track-001.mp3"
 FRONTEND_DIR="$ROOT_DIR/services/frontend"
 
@@ -55,7 +56,8 @@ while true; do
 done
 
 echo "--- Copying fixture track and triggering a scan ---"
-docker cp "$FIXTURE" muma-test-lms:/music/ci-test-track-001.mp3
+LMS_CID=$($COMPOSE ps -q music-management-server)
+docker cp "$FIXTURE" "$LMS_CID":/music/ci-test-track-001.mp3
 curl -sf -X POST "http://localhost:15082/muma/api/admin/libraries?u=ci-contract-admin&p=ci-contract-password" \
     -H "Content-Type: application/json" \
     -d '{"name":"ci-test-library","path":"/music"}' >/dev/null

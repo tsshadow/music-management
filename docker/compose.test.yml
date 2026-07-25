@@ -17,7 +17,6 @@
 services:
   test-db:
     image: mariadb:10.6
-    container_name: muma-test-db
     environment:
       MYSQL_ROOT_PASSWORD: test-root-password
       MYSQL_USER: muma_test
@@ -38,7 +37,6 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.music-manager
-    container_name: muma-test-music-manager
     depends_on:
       test-db:
         condition: service_healthy
@@ -80,7 +78,6 @@ services:
     build:
       context: ..
       dockerfile: services/music-management-server/Dockerfile-release
-    container_name: muma-test-lms
     depends_on:
       test-db:
         condition: service_healthy
@@ -118,7 +115,6 @@ services:
 
 networks:
   muma-test:
-    name: muma-test
     driver: bridge
 
 volumes:

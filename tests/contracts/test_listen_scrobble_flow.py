@@ -15,6 +15,7 @@ Proves:
   (enforced by the `UNIQUE KEY (username, listened_at, track_id)` constraint).
 """
 import json
+import os
 import subprocess
 import time
 from pathlib import Path
@@ -33,10 +34,27 @@ from test_lms_subsonic_contract import (  # noqa: F401 (reused fixtures)
 )
 
 SCAN_TARGET_PATH = "/mnt/music/ci-test-track-001.mp3"
-DB_CONTAINER = "muma-test-db"
+DB_SERVICE = "test-db"
 DB_USER = "muma_test"
 DB_PASS = "muma_test"
 DB_NAME = "muma_test"
+
+
+def _get_container_id(service_name):
+    """Finds a container ID by its Docker Compose project and service name labels.
+    Defaults to the 'muma-test' project used by scripts/test/*.sh.
+    """
+    project = os.environ.get("COMPOSE_PROJECT_NAME", "muma-test")
+    cmd = [
+        "docker", "ps", "-q",
+        "-f", f"label=com.docker.compose.project={project}",
+        "-f", f"label=com.docker.compose.service={service_name}",
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    cid = result.stdout.strip()
+    if not cid:
+        raise RuntimeError(f"Could not find container for service '{service_name}' in project '{project}'")
+    return cid
 
 
 def _query_listen_count(username):
@@ -46,9 +64,10 @@ def _query_listen_count(username):
     per plan section 2.3/6.2 allowance to check "via de bedoelde API of
     database-interface").
     """
+    cid = _get_container_id(DB_SERVICE)
     sql = f"SELECT COUNT(*) FROM scrobble_listens WHERE username='{username}';"
     result = subprocess.run(
-        ["docker", "exec", DB_CONTAINER, "mysql", f"-u{DB_USER}", f"-p{DB_PASS}", DB_NAME, "-N", "-e", sql],
+        ["docker", "exec", cid, "mysql", f"-u{DB_USER}", f"-p{DB_PASS}", DB_NAME, "-N", "-e", sql],
         capture_output=True,
         text=True,
         timeout=10,

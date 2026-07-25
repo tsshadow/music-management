@@ -27,6 +27,7 @@ import org.moire.ultrasonic.api.subsonic.response.SubsonicResponse
 import org.moire.ultrasonic.data.ActiveServerProvider
 import org.moire.ultrasonic.data.ServerSetting
 import org.moire.ultrasonic.util.Constants
+import org.moire.ultrasonic.util.SecureSettings
 import retrofit2.HttpException
 import timber.log.Timber
 
@@ -142,7 +143,8 @@ class EditServerModel(val app: Application) :
             Constants.REST_CLIENT_ID,
             serverSetting.allowSelfSignedCertificate,
             serverSetting.forcePlainTextPassword,
-            BuildConfig.DEBUG
+            BuildConfig.DEBUG,
+            tokenStorage = SecureSettings
         )
 
         val client = SubsonicAPIClient(configuration)

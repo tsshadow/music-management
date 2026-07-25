@@ -53,7 +53,8 @@ val musicServiceModule = module {
             allowSelfSignedCertificate = server.allowSelfSignedCertificate,
             forcePlainTextPassword = server.forcePlainTextPassword,
             debug = BuildConfig.DEBUG,
-            isRealProtocolVersion = server.minimumApiVersion != null
+            isRealProtocolVersion = server.minimumApiVersion != null,
+            tokenStorage = org.moire.ultrasonic.util.SecureSettings
         )
     }
 

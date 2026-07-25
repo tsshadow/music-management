@@ -130,7 +130,7 @@ class SubsonicAPIClient(
             config.baseUrl.contains("example.com") -> "https://muma.example.com"
             else -> "${config.baseUrl.removeSuffix("/")}/muma"
         }
-        MumaAPIClient(mumaBaseUrl, baseOkClient, config.apiKey, config.debug, okLogger)
+        MumaAPIClient(mumaBaseUrl, baseOkClient, config.tokenStorage, config.apiKey, config.debug, okLogger)
     }
 
     private fun OkHttpClient.Builder.addLogging() {

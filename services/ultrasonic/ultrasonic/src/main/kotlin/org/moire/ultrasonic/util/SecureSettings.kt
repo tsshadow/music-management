@@ -3,9 +3,10 @@ package org.moire.ultrasonic.util
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import org.moire.ultrasonic.api.muma.MumaTokenStorage
 import org.moire.ultrasonic.app.UApp
 
-object SecureSettings {
+object SecureSettings : MumaTokenStorage {
     private const val PREFS_FILE = "secure_settings"
 
     private val masterKey by lazy {

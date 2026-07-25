@@ -1,5 +1,7 @@
 package org.moire.ultrasonic.api.subsonic
 
+import org.moire.ultrasonic.api.muma.MumaTokenStorage
+
 /**
  * Provides configuration for [SubsonicAPIClient].
  */
@@ -14,5 +16,6 @@ data class SubsonicClientConfiguration(
     val forcePlainTextPassword: Boolean = false,
     val debug: Boolean = false,
     val isRealProtocolVersion: Boolean = false,
-    val mumaUserId: Int? = null
+    val mumaUserId: Int? = null,
+    val tokenStorage: MumaTokenStorage? = null
 )

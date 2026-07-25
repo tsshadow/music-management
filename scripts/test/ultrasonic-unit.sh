@@ -14,8 +14,16 @@ GRADLE_HOME_DIR="/tmp/.gradle_muma"
 mkdir -p "$GRADLE_HOME_DIR"
 chmod -R 777 "$GRADLE_HOME_DIR"
 
+# Always hand the workspace back to the host user, even if the test run below
+# fails - otherwise root-owned files/directories left behind by the container
+# break the *next* job's `git clean`/checkout step with "Permission denied".
+fix_permissions() {
+    docker run --rm -v "$ROOT_DIR:/workspace" alpine chown -R "$(id -u):$(id -g)" /workspace
+}
+trap fix_permissions EXIT
+
 # We use a docker image with Android SDK to avoid installing it on the runner.
-# We run as root and then fix permissions for the host.
+# We run as root and then fix permissions for the host (see trap above).
 docker run --rm \
     -v "$ROOT_DIR:/workspace" \
     -v "$GRADLE_HOME_DIR:/gradle_home" \
@@ -26,9 +34,6 @@ docker run --rm \
     -e SIGNING_KEY_PASSWORD=dummy \
     mobiledevops/android-sdk-image:latest \
     /bin/bash -c "export ANDROID_SDK_ROOT=\$(find /opt /usr /usr/local -name platforms -type d -print -quit 2>/dev/null | sed 's|/platforms||'); [ -z \"\$ANDROID_SDK_ROOT\" ] && export ANDROID_SDK_ROOT=/opt/android; sdkmanager --sdk_root=\$ANDROID_SDK_ROOT \"build-tools;34.0.0\" \"platforms;android-34\" && ./gradlew :ultrasonic:jacocoTestReport"
-
-# Fix permissions for files created by root in the container (build artifacts)
-docker run --rm -v "$ROOT_DIR:/workspace" alpine chown -R "$(id -u):$(id -g)" /workspace
 
 # Extract and fix the report
 REPORT_SRC="services/ultrasonic/ultrasonic/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml"

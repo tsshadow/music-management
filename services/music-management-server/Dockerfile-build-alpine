@@ -46,7 +46,7 @@ RUN \
 		PKG_CONFIG_PATH=/$(xx-info)/usr/lib/pkgconfig \
 		cmake /tmp/lms/ \
 			-DCMAKE_INCLUDE_PATH=/$(xx-info)/usr/include \
-			-DCMAKE_UNITY_BUILD=ON \
+			-DCMAKE_UNITY_BUILD=OFF \
 			-DCMAKE_BUILD_TYPE=${LMS_BUILD_TYPE} \
 			$(xx-clang --print-cmake-defines) \
 			-DCMAKE_PREFIX_PATH=/$(xx-info)/usr/lib/cmake \

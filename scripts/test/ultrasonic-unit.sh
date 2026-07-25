@@ -22,8 +22,8 @@ docker run --rm \
     -e SIGNING_STORE_PASSWORD=dummy \
     -e SIGNING_KEY_ALIAS=dummy \
     -e SIGNING_KEY_PASSWORD=dummy \
-    mobiledevops/android-sdk-image:34 \
-    ./gradlew :ultrasonic:jacocoTestReport
+    mobiledevops/android-sdk-image:latest \
+    /bin/bash -c "export ANDROID_SDK_ROOT=\$(find /opt /usr /usr/local -name platforms -type d -print -quit 2>/dev/null | sed 's|/platforms||'); [ -z \"\$ANDROID_SDK_ROOT\" ] && export ANDROID_SDK_ROOT=/opt/android; sdkmanager --sdk_root=\$ANDROID_SDK_ROOT \"build-tools;34.0.0\" \"platforms;android-34\" && ./gradlew :ultrasonic:jacocoTestReport"
 
 # Fix permissions for files created by root in the container
 docker run --rm -v "$ROOT_DIR:/workspace" alpine chown -R "$(id -u):$(id -g)" /workspace

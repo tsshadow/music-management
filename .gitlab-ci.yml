@@ -138,8 +138,8 @@ frontend:browser:
 
 deploy:prod:
   stage: deploy
+  interruptible: false
   rules:
     - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"'
-      when: manual
   script:
     - ./scripts/ci-deploy.sh

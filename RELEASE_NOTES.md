@@ -9,6 +9,19 @@ This project is now modularized. Detailed release notes for each module can be f
 - [Music Manager](services/music_manager/RELEASE_NOTES.md)
 - [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
 
+## Global Version 0.0.2 (2026-07-26)
+### 🛠 Fix: Production Now Actually Deploys What You Released
+Right after `0.0.1`, production kept looking like it was running old code even after a successful
+deploy. The cause: the release pipeline never built and published fresh Docker images — it only
+told the server to "pull", which just re-fetched whatever image had last been pushed by hand.
+- **Automated image build + publish**: every `release/*` branch now automatically builds and
+  publishes fresh `music-manager` and `lms` images to Docker Hub as part of the pipeline, before
+  production ever gets told to pull. No more manual `docker push` step, and no more risk of
+  deploying stale code.
+- **Deploy now depends on a successful build**: if the image build/publish step fails or is
+  misconfigured, the production deploy step no longer runs at all — it can never silently deploy
+  an old image again.
+
 ## Global Version 0.0.1 (2026-07-26)
 ### 🚀 A New Beginning: Single Monorepo & Official Release Process
 This release intentionally restarts the overarching version number at `0.0.1` — it is the first

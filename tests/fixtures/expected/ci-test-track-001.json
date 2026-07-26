@@ -1,0 +1,15 @@
+{
+  "$comment": "Expected metadata for tests/fixtures/music/ci-test-track-001.mp3. Used as the single source of truth by contract/e2e tests (Tasks 5-7).",
+  "file": "tests/fixtures/music/ci-test-track-001.mp3",
+  "music_management_id": "test-track-001",
+  "title": "CI Test Track",
+  "artist": "CI Test Artist",
+  "album": "CI Test Album",
+  "genre": "Electronic",
+  "year": 2026,
+  "duration_seconds_min": 4,
+  "duration_seconds_max": 6,
+  "format": "mp3",
+  "sample_rate": 44100,
+  "channels": 2
+}

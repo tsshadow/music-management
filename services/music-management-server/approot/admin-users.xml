@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<messages xmlns:if="Wt.WTemplate.conditions">
+
+<message id="Lms.Admin.Users.template">
+	<legend>${tr:Lms.Admin.Users.users}</legend>
+	${users class="d-grid gap-1 mb-3 Lms-row-container"}
+	${<if-can-create-user>}
+	${add-btn class="btn btn-primary"}
+	${</if-can-create-user>}
+</message>
+
+<message id="Lms.Admin.Users.template.entry">
+	<div class="d-flex align-items-center Lms-bg-dark-hover rounded">
+		<div class="p-2 flex-fill">
+			${name}${<if-tag>}<span class="badge bg-info ms-2">${tag}</span>${</if-tag>}
+		</div>
+		${<if-edit>}
+		<div class="p-2">
+			${edit-btn class="btn btn-sm btn-outline-secondary border-0"}
+			${del-btn class="btn btn-sm btn-outline-danger border-0"}
+		</div>
+		${</if-edit>}
+	</div>
+</message>
+
+<message id="Lms.Admin.Users.template.delete-user">
+	<div class="modal fade" tabindex="-1">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">${tr:Lms.Admin.Users.del-user-confirm}</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="modal-footer">
+					${del-btn class="btn btn-danger me-1"}${cancel-btn class="btn btn-secondary"}
+				</div>
+			</div>
+		</div>
+	</div>
+</message>
+
+</messages>

@@ -6,7 +6,8 @@ from telethon import TelegramClient
 
 class TelegramDownloader:
 
-    def __init__(self):
+    def __init__(self, dry_run=False):
+        self.dry_run = dry_run
         self.output_folder = os.getenv('telegram_folder')
         self.api_id = os.getenv('telegram_api_id')
         self.api_hash = os.getenv('telegram_api_hash')
@@ -40,6 +41,9 @@ class TelegramDownloader:
                 return
             print(f'⚠️ Onvolledig of onbekend bestand gevonden, opnieuw downloaden: {safe_path}')
         else:
+            if self.dry_run:
+                print(f'⬇️ [DRY RUN] Downloaden: {safe_path}')
+                return
             print(f'⬇️ Downloaden: {safe_path}')
         async with semaphore:
             try:

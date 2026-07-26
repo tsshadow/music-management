@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Repository**: Merged the previously split-out `music-management-server` (LMS) and `ultrasonic`
+  Android app repositories directly into this repository as a single monorepo, with their full commit
+  history preserved (via `git subtree`). The `frontend` (which never had its own separate history) is
+  now tracked here too. There are no more submodules or separate gitlab remotes for these projects —
+  see `AGENTS.md` for the rationale (solo developer, tightly-coupled apps, one shared history).
+
+## [2.6.0] - 2026-07-20
+
+### Added
+- **Mobile Integration (Ultrasonic)**: Formalized the integration of the Ultrasonic Android app into the ecosystem documentation.
+- **Client Settings Sync**: Enabled server-side backup and synchronization for mobile application settings via the Music Manager API.
+- **Subsonic API Support**: Standardized Subsonic API responses in the Music Management Server for seamless compatibility with mobile clients.
+- **APK Distribution**: Integrated `apk-hoster` for independent distribution of mobile updates.
+
 ## [2.5.0] - 2026-07-11
 
 ### Changed

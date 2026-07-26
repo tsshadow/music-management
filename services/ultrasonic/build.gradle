@@ -1,0 +1,113 @@
+import org.gradle.process.ExecOperations
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
+
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+buildscript {
+    ext.bootstrap = [
+            kotlinModule : "${project.rootDir}/gradle_scripts/kotlin-module-bootstrap.gradle",
+            androidModule : "${project.rootDir}/gradle_scripts/android-module-bootstrap.gradle"
+    ]
+
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    dependencies {
+        classpath libs.ktlintGradle
+        classpath libs.detekt
+    }
+}
+
+plugins {
+    id "com.github.ben-manes.versions" version "0.54.0"
+    alias libs.plugins.androidApplication apply false
+    alias libs.plugins.androidLibrary apply false
+    alias libs.plugins.kotlinAndroid apply false
+    alias libs.plugins.ksp apply false
+    alias libs.plugins.kotlinSerialization apply false
+    alias libs.plugins.navigationSafeArgs apply false
+    alias libs.plugins.kotlinKapt apply false
+    alias libs.plugins.kotlinParcelize apply false
+}
+
+allprojects {
+    // Buildscript here is required by detekt
+    buildscript {
+        repositories {
+            mavenCentral()
+            gradlePluginPortal()
+            google()
+        }
+    }
+
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+        google()
+    }
+
+    configurations.all {
+        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
+        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
+    }
+
+    // Set Kotlin JVM target to the same for all subprojects
+    tasks.withType(KotlinCompile).configureEach {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_21)
+        }
+    }
+
+    tasks.withType(JavaCompile).tap {
+        configureEach {
+            options.compilerArgs.add("-Xlint:deprecation")
+        }
+    }
+}
+
+tasks.register("generateKeystore") {
+    def keystoreFile = layout.projectDirectory.file("keystore.jks").asFile
+    outputs.file(keystoreFile)
+    
+    doLast {
+        if (keystoreFile.exists()) {
+            println "keystore.jks bestaat al"
+            return
+        }
+
+        def storePass = System.getenv("SIGNING_STORE_PASSWORD") ?: "changeit"
+        def keyPass = System.getenv("SIGNING_KEY_PASSWORD") ?: storePass
+        def alias = System.getenv("SIGNING_KEY_ALIAS") ?: "upload"
+
+        services.get(ExecOperations).exec {
+            commandLine "keytool", "-genkeypair",
+                    "-v", "-keystore", keystoreFile.absolutePath,
+                    "-storepass", storePass,
+                    "-keypass", keyPass,
+                    "-alias", alias,
+                    "-keyalg", "RSA", "-keysize", "2048",
+                    "-validity", "36500",
+                    "-dname", "CN=Android,O=App,C=NL"
+        }
+        println "keystore.jks aangemaakt"
+    }
+}
+
+tasks.register("installGitHooks", Copy) {
+    from new File(rootProject.rootDir, "scripts/pre-commit")
+    into new File(rootProject.rootDir, ".git/hooks")
+    fileMode 0775
+}
+
+// Automatically install git hooks after project evaluation
+afterEvaluate {
+    tasks.named("installGitHooks")
+}
+
+wrapper {
+    gradleVersion = libs.versions.gradle.get()
+    distributionType = "all"
+}

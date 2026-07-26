@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu
+    xmlns:a="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    >
+
+    <item
+        a:id="@+id/menu_item_share"
+        app:showAsAction="ifRoom|withText"
+        a:title="@string/menu.share"
+        a:icon="@drawable/ic_menu_share"/>
+
+    <item
+        a:id="@+id/select_album_play_all"
+        a:icon="@drawable/media_start"
+        app:showAsAction="ifRoom|withText"
+        a:title="@string/select_album.play_all"/>
+
+</menu>

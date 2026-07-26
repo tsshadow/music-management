@@ -18,7 +18,7 @@ services:
     environment:
       PYTHONPATH: /app
       debug: "${debug}"
-      dryrun: "False"
+      dryrun: "${dryrun:-False}"
       rescan: "True"
       delimiter: "${delimiter}"
       import_folder_path: ${import_folder_path}
@@ -72,7 +72,7 @@ services:
     environment:
       PYTHONPATH: /app
       debug: "${debug}"
-      dryrun: "False"
+      dryrun: "${dryrun:-False}"
       rescan: "True"
       delimiter: "${delimiter}"
       import_folder_path: ${import_folder_path}
@@ -128,7 +128,7 @@ services:
     environment:
       PYTHONPATH: /app
       debug: "${debug}"
-      dryrun: "False"
+      dryrun: "${dryrun:-False}"
       rescan: "True"
       delimiter: "${delimiter}"
       import_folder_path: ${import_folder_path}
@@ -181,7 +181,7 @@ services:
     environment:
       PYTHONPATH: /app
       debug: "${debug}"
-      dryrun: "False"
+      dryrun: "${dryrun:-False}"
       rescan: "True"
       delimiter: "${delimiter}"
       import_folder_path: ${import_folder_path}
@@ -236,7 +236,7 @@ services:
     environment:
       PYTHONPATH: /app
       debug: "${debug}"
-      dryrun: "False"
+      dryrun: "${dryrun:-False}"
       delimiter: "${delimiter}"
       music_folder_path: ${music_folder_path}
       telegram_folder: ${telegram_folder}
@@ -260,72 +260,6 @@ services:
     stdin_open: true
     tty: true
 
-  tagger_worker:
-    image: ${DOCKER_USER}/${IMAGE_TAGGER}:latest
-    container_name: muma-tagger-worker
-    restart: unless-stopped
-    depends_on:
-      - db
-    command:
-      [
-        "python",
-        "services/tagger/tagger_service.py",
-        "--repeat",
-        "--sleeptime",
-        "300"
-      ]
-    environment:
-      PYTHONPATH: /app
-      debug: "${debug}"
-      delimiter: "${delimiter}"
-      import_folder_path: ${import_folder_path}
-      eps_folder_path: ${eps_folder_path}
-      music_folder_path: ${music_folder_path}
-      DB_HOST: ${DB_HOST}
-      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
-      DB_PORT: ${DB_PORT}
-      DB_USER: ${DB_USER}
-      DB_PASS: ${DB_PASS}
-      DB_DB: ${DB_DB}
-      NOTIFY_URL: ${NOTIFY_URL}
-    volumes:
-      - ${HOST_DATA_PATH}/importer:/app/data
-      - ${HOST_MUSIC_PATH}:/mnt/music
-      - ${HOST_DATA_PATH}/shared:/shared
-    networks:
-      - music-management_db
-
-  scanner_service:
-    image: ${DOCKER_USER}/${IMAGE_SCANNER}:latest
-    container_name: muma-scanner
-    restart: unless-stopped
-    depends_on:
-      - db
-    command:
-      [
-        "python",
-        "services/scanner/scanner_service.py",
-        "--repeat",
-        "--sleeptime",
-        "3600"
-      ]
-    environment:
-      PYTHONPATH: /app
-      debug: "${debug}"
-      delimiter: "${delimiter}"
-      music_folder_path: ${music_folder_path}
-      DB_HOST: ${DB_HOST}
-      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
-      DB_PORT: ${DB_PORT}
-      DB_USER: ${DB_USER}
-      DB_PASS: ${DB_PASS}
-      DB_DB: ${DB_DB}
-      NOTIFY_URL: ${NOTIFY_URL}
-    volumes:
-      - ${HOST_MUSIC_PATH}:/mnt/music
-      - ${HOST_DATA_PATH}/shared:/shared
-    networks:
-      - music-management_db
 
 networks:
   music-management_db:

@@ -68,6 +68,7 @@ IMAGE_BASE="${IMAGE_BASE}"
 IMAGE_DOWNLOADER="${IMAGE_DOWNLOADER}"
 IMAGE_TELEGRAM="${IMAGE_TELEGRAM}"
 IMAGE_IMPORTER="${IMAGE_IMPORTER}"
+IMAGE_SERVER="music-management-server"
 VERSION=$(cat VERSION 2>/dev/null || echo "latest")
 
 # Docker command configuration
@@ -119,6 +120,11 @@ build_tools() {
 build_manager() {
     echo "--- Building Music Manager ($VERSION) ---"
     $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_CORE}:latest" -t "${DOCKER_USER}/${IMAGE_CORE}:${VERSION}" -f docker/Dockerfile.music-manager .
+}
+
+build_server() {
+    echo "--- Building Music Management Server ($VERSION) ---"
+    $DOCKER_CMD build $DOCKER_FLAGS -t "${DOCKER_USER}/${IMAGE_SERVER}:latest" -t "${DOCKER_USER}/${IMAGE_SERVER}:${VERSION}" -f services/music-management-server/Dockerfile-release .
 }
 
 run_linter() {
@@ -181,6 +187,7 @@ if [ ${#REQUESTED_MODULES[@]} -eq 0 ]; then
     build_base
     
     build_manager &
+    build_server &
     build_downloader &
     build_telegram &
     build_importer &
@@ -204,6 +211,7 @@ else
         case $arg in
             ml) build_ml & ;;
             tools) build_tools & ;;
+            lms|server|music-management-server) build_server & ;;
             manager|music-manager) build_manager & ;;
             downloader) build_downloader & ;;
             telegram) build_telegram & ;;

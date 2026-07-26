@@ -1,0 +1,42 @@
+
+<?xml version="1.0" encoding="UTF-8" ?>
+<messages xmlns:if="Wt.WTemplate.conditions">
+
+<message id="Lms.Explore.Releases.template">
+	<div class="d-flex justify-content-between align-items-start mb-3">
+		<div class="btn-group me-1">
+			${play-btn class="btn btn-primary"}
+			<button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" aria-label="${tr:Lms.more}"/>
+			<ul class="dropdown-menu">
+				<li>${play-next class="dropdown-item"}</li>
+				<li>${play-last class="dropdown-item"}</li>
+				<li>${play-shuffled class="dropdown-item"}</li>
+			</ul>
+		</div>
+		<div class="d-flex">
+			${search class="form-control form-control-sm me-1" type="search"}
+			${sort-mode}
+		</div>
+	</div>
+	${releases}
+</message>
+
+<message id="Lms.Explore.Releases.template.entry-grid">
+	<div class="col h-100 Lms-bg-dark-hover rounded">
+		<div class="p-2">
+			<div class="Lms-responsive-square Lms-cover-container mb-1">
+				${cover class="shadow-sm"}
+			</div>
+			${release-name class="Lms-multiline-clamp text-decoration-none link-success"}
+			${<if-has-artist>}${artist-name class="Lms-multiline-clamp"}${</if-has-artist>}
+			${<if-has-year>}<div class="small text-muted">${year}</div>${</if-has-year>}
+		</div>
+	</div>
+</message>
+
+<message id="Lms.Explore.Releases.template.container">
+	${elements class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 gx-2 gy-4"}
+	${loading-indicator}
+</message>
+
+</messages>

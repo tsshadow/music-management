@@ -6,9 +6,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
 from services.music_manager.database import get_db_connection
-from services.music_manager.routers import users, scrobbler, rating, stats, management, artist_images, notifications, library, tagger, scanner, jobs, config
+from services.music_manager.routers import users, scrobbler, rating, stats, management, artist_images, notifications, library, tagger, scanner, jobs, config, user_requests
 from services.music_manager.routers.users import run_lms_db_sync
 from services.music_manager.routers.tagger import run_tagger_loop
 from services.music_manager.routers.scanner import run_scanner_loop
@@ -34,6 +33,7 @@ app.include_router(tagger.router, prefix="/api/tagger")
 app.include_router(scanner.router, prefix="/api/scanner")
 app.include_router(jobs.router, prefix="/api/jobs")
 app.include_router(config.router, prefix="/api/config")
+app.include_router(user_requests.router, prefix="/api") # /api/auth/google, /api/user-requests/*
 
 @app.on_event('startup')
 def startup_event():
@@ -42,12 +42,13 @@ def startup_event():
     if conn:
         try:
             with conn.cursor() as cursor:
-                users.init_db(cursor)
+                users.init_db(cursor) # also seeds RBAC roles/permissions, see rbac.init_db
                 scrobbler.init_db(cursor)
                 rating.init_db(cursor)
                 management.init_db(cursor)
                 artist_images.init_db(cursor)
                 notifications.init_db(cursor)
+                user_requests.init_db(cursor)
             conn.commit()
             print('Music Manager: Database initialized')
         finally:
@@ -62,24 +63,14 @@ def startup_event():
 def health():
     return {'status': 'ok', 'service': 'music-manager', 'version': get_version()}
 
-def serve_frontend(fastapi_app: FastAPI):
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    frontend_path = os.path.join(base_dir, 'frontend', 'dist')
-    logger.info(f'Checking for frontend at: {frontend_path}')
-    logger.info(f'Current Working Directory: {os.getcwd()}')
-    logger.info(f'__file__: {__file__}')
-    if os.path.exists(frontend_path):
-        logger.info(f'Frontend found at {frontend_path}. Mounting at /')
-        fastapi_app.mount('/', StaticFiles(directory=frontend_path, html=True), name='frontend')
-    else:
-        logger.warning(f'Frontend build directory not found at {frontend_path}; static files will not be served.')
-        parent = os.path.dirname(frontend_path)
-        if os.path.exists(parent):
-            logger.info(f'Parent directory {parent} exists. Contents: {os.listdir(parent)}')
+# Music Manager is API-only and must never serve a UI of its own: the single
+# unified web interface (player + management views) lives in services/frontend
+# and is built/served by music-management-server (see Dockerfile-release's
+# svelte-build stage, docroot/spotify). Do not add static-file/UI mounting here.
+@app.get('/')
+def root():
+    return {'service': 'music-manager', 'status': 'ok', 'message': 'API only, no UI is served here.'}
 
-        @fastapi_app.get('/', response_class=HTMLResponse)
-        def root_fallback():
-            return '<h1>Music Manager</h1><p>Frontend not found. API is active.</p>'
 artist_images_path = os.getenv('STORAGE_PATH', '/mnt/music/artists')
 try:
     os.makedirs(artist_images_path, exist_ok=True)
@@ -87,6 +78,5 @@ try:
     app.mount('/media/artist-images', StaticFiles(directory=artist_images_path), name='artist-images')
 except Exception as e:
     logger.error(f'Could not setup artist images storage at {artist_images_path}: {e}')
-serve_frontend(app)
 if __name__ == '__main__':
     uvicorn.run(app, host='0.0.0.0', port=8000)

@@ -13,3 +13,4 @@ DBUtils
 mutagen
 librosa
 numpy
+google-auth

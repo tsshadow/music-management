@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:a="http://schemas.android.com/apk/res/android"
+    a:layout_width="fill_parent"
+    a:layout_height="wrap_content">
+
+    <ImageView
+        a:id="@+id/select_album_art"
+        a:layout_width="160dip"
+        a:layout_height="160dip"
+        a:layout_alignParentStart="true"
+        a:layout_alignParentTop="true"
+        a:layout_marginEnd="10dip"
+        a:contentDescription="@null"
+        a:scaleType="fitCenter"
+        a:src="@drawable/unknown_album" />
+
+    <TextView
+        a:id="@+id/select_album_title"
+        a:layout_width="wrap_content"
+        a:layout_height="wrap_content"
+        a:layout_toEndOf="@+id/select_album_art"
+        a:ellipsize="end"
+        a:paddingTop="10dip"
+        a:paddingEnd="4dip"
+        a:singleLine="true"
+        a:textAppearance="?android:attr/textAppearanceMedium" />
+
+    <TextView
+        a:id="@+id/select_album_artist"
+        a:layout_width="wrap_content"
+        a:layout_height="wrap_content"
+        a:layout_below="@+id/select_album_title"
+        a:layout_toEndOf="@+id/select_album_art"
+        a:ellipsize="end"
+        a:paddingEnd="4dip"
+        a:singleLine="true"
+        a:textAppearance="?android:attr/textAppearanceSmall" />
+
+    <TextView
+        a:id="@+id/select_album_genre"
+        a:layout_width="wrap_content"
+        a:layout_height="wrap_content"
+        a:layout_below="@+id/select_album_artist"
+        a:layout_toEndOf="@+id/select_album_art"
+        a:ellipsize="end"
+        a:paddingEnd="4dip"
+        a:singleLine="true"
+        a:textAppearance="?android:attr/textAppearanceSmall" />
+
+    <TextView
+        a:id="@+id/select_album_year"
+        a:layout_width="wrap_content"
+        a:layout_height="wrap_content"
+        a:layout_below="@+id/select_album_genre"
+        a:layout_toEndOf="@+id/select_album_art"
+        a:ellipsize="end"
+        a:paddingEnd="4dip"
+        a:singleLine="true"
+        a:textAppearance="?android:attr/textAppearanceSmall" />
+
+    <TextView
+        a:id="@+id/select_album_song_count"
+        a:layout_width="wrap_content"
+        a:layout_height="wrap_content"
+        a:layout_below="@+id/select_album_year"
+        a:layout_toEndOf="@+id/select_album_art"
+        a:ellipsize="none"
+        a:paddingEnd="4dip"
+        a:singleLine="true"
+        a:textAppearance="?android:attr/textAppearanceSmall" />
+
+    <TextView
+        a:id="@+id/select_album_duration"
+        a:layout_width="wrap_content"
+        a:layout_height="wrap_content"
+        a:layout_below="@+id/select_album_song_count"
+        a:layout_toEndOf="@+id/select_album_art"
+        a:ellipsize="none"
+        a:paddingEnd="4dip"
+        a:singleLine="true"
+        a:textAppearance="?android:attr/textAppearanceSmall" />
+
+</RelativeLayout>

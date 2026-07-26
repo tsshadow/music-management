@@ -1,0 +1,22 @@
+apply from: bootstrap.kotlinModule
+
+dependencies {
+    api libs.retrofit
+    api libs.gson
+    api libs.gsonConverter
+    api libs.jacksonConverter
+    api libs.koinCore
+
+    implementation(libs.jacksonKotlin) {
+        exclude module: 'kotlin-reflect'
+    }
+    implementation libs.kotlinReflect // for jackson kotlin, but to use the same version
+    implementation libs.okhttpLogging
+
+    testImplementation libs.kotlinJunit
+    testImplementation libs.mockito
+    testImplementation libs.mockitoKotlin
+    testImplementation libs.kluent
+    testImplementation libs.mockWebServer
+    testImplementation libs.apacheCodecs
+}

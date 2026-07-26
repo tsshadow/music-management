@@ -1,0 +1,11 @@
+build/
+build*/
+cmake-build-*/
+.git/
+.idea/
+.vscode/
+node_modules/
+src/lms/ui/ui/node_modules/
+src/lms/ui/ui/dist/
+*.swp
+*.log

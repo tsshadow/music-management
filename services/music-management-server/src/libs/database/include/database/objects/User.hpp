@@ -1,0 +1,235 @@
+/*
+ * Copyright (C) 2013 Emeric Poupon
+ *
+ * This file is part of LMS.
+ *
+ * LMS is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * LMS is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with LMS.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include <optional>
+#include <string_view>
+
+#include <Wt/Dbo/Field.h>
+#include <Wt/Dbo/collection.h>
+#include <Wt/WDateTime.h>
+
+#include "core/EnumSet.hpp"
+
+#include "database/Object.hpp"
+#include "database/Types.hpp"
+#include "database/objects/Types.hpp"
+#include "database/objects/UserId.hpp"
+
+namespace lms::db
+{
+    class AuthToken;
+    class Session;
+    class UIState;
+
+    class User final : public Object<User, UserId>
+    {
+    public:
+        struct PasswordHash
+        {
+            std::size_t bcryptRoundCount;
+            std::string salt;
+            std::string hash;
+        };
+
+        struct FindParameters
+        {
+            std::optional<ScrobblingBackend> scrobblingBackend;
+            std::optional<FeedbackBackend> feedbackBackend;
+            std::optional<Range> range;
+
+            FindParameters& setFeedbackBackend(FeedbackBackend _feedbackBackend)
+            {
+                feedbackBackend = _feedbackBackend;
+                return *this;
+            }
+            FindParameters& setScrobblingBackend(ScrobblingBackend _scrobblingBackend)
+            {
+                scrobblingBackend = _scrobblingBackend;
+                return *this;
+            }
+            FindParameters& setRange(std::optional<Range> _range)
+            {
+                range = _range;
+                return *this;
+            }
+        };
+
+        static inline constexpr std::size_t minNameLength{ 3 };
+        static inline constexpr std::size_t maxNameLength{ 32 };
+        static inline constexpr bool defaultSubsonicEnableTranscodingByDefault{ false };
+        static inline constexpr TranscodingOutputFormat defaultSubsonicTranscodingOutputFormat{ TranscodingOutputFormat::OGG_OPUS };
+        static inline constexpr Bitrate defaultSubsonicTranscodingOutputBitrate{ 128000 };
+        static inline constexpr UITheme defaultUITheme{ UITheme::Dark };
+        static inline constexpr ReleaseSortMethod _defaultUIArtistReleaseSortMethod{ ReleaseSortMethod::OriginalDateDesc };
+        static inline constexpr SubsonicArtistListMode defaultSubsonicArtistListMode{ SubsonicArtistListMode::AllArtists };
+        static inline constexpr ScrobblingBackend defaultScrobblingBackend{ ScrobblingBackend::Internal };
+        // NOTE: unlike scrobbling (which always additionally forwards to MusicManagement
+        // regardless of this setting, see ScrobblingService::_mumaScrobbler), ratings/stars
+        // are ONLY forwarded if feedback_backend == MusicManagement. Defaulting to
+        // MusicManagement here means every new user behaves the same way for ratings as for
+        // scrobbling; see Migration.cpp migrateFromV114 for the equivalent fix applied to
+        // already-existing users.
+        static inline constexpr FeedbackBackend defaultFeedbackBackend{ FeedbackBackend::MusicManagement };
+
+        User() = default;
+
+        static std::size_t getCount(Session& session);
+        static pointer find(Session& session, UserId id);
+        static pointer find(Session& session, std::string_view loginName);
+        static pointer findByMumaId(Session& session, int mumaId);
+        static UserId findAdminUserId(Session& session);
+        static RangeResults<UserId> find(Session& session, const FindParameters& params);
+        static void find(Session& session, const FindParameters& params, const std::function<void(const pointer&)>& func);
+        static pointer findDemoUser(Session& session);
+
+        // accessors
+        const std::string& getLoginName() const { return _loginName; }
+        PasswordHash getPasswordHash() const { return {}; } // No longer stored
+        const Wt::WDateTime& getLastLogin() const { return _lastLogin; }
+
+        // write
+        void setMumaId(std::optional<int> mumaId) { _mumaId = mumaId; }
+        void setLoginName(std::string_view loginName);
+        void setLastLogin(const Wt::WDateTime& dateTime) { _lastLogin = dateTime; }
+        void setPasswordHash(const PasswordHash& /*passwordHash*/) {} // Does nothing
+        void setType(UserType type) { _type = type; }
+        void setSubsonicEnableTranscodingByDefault(bool value) { _subsonicEnableTranscodingByDefault = value; }
+        void setSubsonicDefaultTranscodingOutputFormat(TranscodingOutputFormat encoding) { _subsonicDefaultTranscodingOutputFormat = encoding; }
+        void setSubsonicDefaultTranscodingOutputBitrate(Bitrate bitrate);
+        void setUITheme(UITheme uiTheme) { _uiTheme = uiTheme; }
+        void setUIArtistReleaseSortMethod(ReleaseSortMethod method) { _uiArtistReleaseSortMethod = method; }
+        void setUIEnableInlineArtistRelationships(bool enable) { _uiEnableInlineArtistRelationships = enable; }
+        void setUIInlineArtistRelationships(core::EnumSet<TrackArtistLinkType> types) { _uiInlineArtistRelationships = types; }
+        void setSubsonicArtistListMode(SubsonicArtistListMode mode) { _subsonicArtistListMode = mode; }
+        void setFeedbackBackend(FeedbackBackend feedbackBackend) { _feedbackBackend = feedbackBackend; }
+        void setScrobblingBackend(ScrobblingBackend scrobblingBackend) { _scrobblingBackend = scrobblingBackend; }
+        void setMumaScrobblingEnabled(bool enabled) { _mumaScrobblingEnabled = enabled; }
+        void setListenBrainzToken(std::string_view token) { _listenbrainzToken = token; }
+
+        // Web player settings
+        void setUITranscodingMode(int mode) { _uiTranscodingMode = mode; }
+        void setUITranscodingFormat(TranscodingOutputFormat format) { _uiTranscodingFormat = format; }
+        void setUITranscodingBitrate(Bitrate bitrate) { _uiTranscodingBitrate = static_cast<int>(bitrate); }
+        void setUIReplayGainMode(int mode) { _uiReplayGainMode = mode; }
+        void setUIReplayGainPreAmpGain(float gain) { _uiReplayGainPreAmpGain = gain; }
+        void setUIReplayGainPreAmpGainIfNoInfo(float gain) { _uiReplayGainPreAmpGainIfNoInfo = gain; }
+
+        // read
+        bool isAdmin() const { return _type == UserType::ADMIN; }
+        bool isDemo() const { return _type == UserType::DEMO; }
+        UserType getType() const { return _type; }
+        bool getSubsonicEnableTranscodingByDefault() const { return _subsonicEnableTranscodingByDefault; }
+        TranscodingOutputFormat getSubsonicDefaultTranscodingOutputFormat() const { return _subsonicDefaultTranscodingOutputFormat; }
+        Bitrate getSubsonicDefaultTranscodingOutputBitrate() const { return _subsonicDefaultTranscodingOutputBitrate; }
+        UITheme getUITheme() const { return _uiTheme; }
+        ReleaseSortMethod getUIArtistReleaseSortMethod() const { return _uiArtistReleaseSortMethod; }
+        bool getUIEnableInlineArtistRelationships() const { return _uiEnableInlineArtistRelationships; }
+        core::EnumSet<TrackArtistLinkType> getUIInlineArtistRelationships() const { return _uiInlineArtistRelationships; }
+        SubsonicArtistListMode getSubsonicArtistListMode() const { return _subsonicArtistListMode; }
+        FeedbackBackend getFeedbackBackend() const { return _feedbackBackend; }
+        ScrobblingBackend getScrobblingBackend() const { return _scrobblingBackend; }
+        bool getMumaScrobblingEnabled() const { return _mumaScrobblingEnabled; }
+        std::string_view getListenBrainzToken() const { return _listenbrainzToken; }
+
+        int getUITranscodingMode() const { return _uiTranscodingMode; }
+        TranscodingOutputFormat getUITranscodingFormat() const { return _uiTranscodingFormat; }
+        Bitrate getUITranscodingBitrate() const { return static_cast<Bitrate>(_uiTranscodingBitrate); }
+        int getUIReplayGainMode() const { return _uiReplayGainMode; }
+        float getUIReplayGainPreAmpGain() const { return _uiReplayGainPreAmpGain; }
+        float getUIReplayGainPreAmpGainIfNoInfo() const { return _uiReplayGainPreAmpGainIfNoInfo; }
+        std::optional<int> getMumaId() const { return _mumaId; }
+
+        template<class Action>
+        void persist(Action& a)
+        {
+            // NOTE: password_salt/password_hash are legacy columns from before local
+            // password storage was removed in favor of delegated auth via MusicManagement
+            // (see getPasswordHash()/setPasswordHash() above). Older, already-existing
+            // databases still have these columns defined as NOT NULL with no default,
+            // so they must still be written on every insert (with a harmless empty
+            // placeholder), or new user rows created via delegated auth (e.g.
+            // UserSynchronizer) fail to insert.
+            Wt::Dbo::field(a, _passwordSaltLegacy, "password_salt");
+            Wt::Dbo::field(a, _passwordHashLegacy, "password_hash");
+            Wt::Dbo::field(a, _type, "type");
+            Wt::Dbo::field(a, _loginName, "login_name");
+            Wt::Dbo::field(a, _lastLogin, "last_login");
+            Wt::Dbo::field(a, _subsonicEnableTranscodingByDefault, "subsonic_enable_transcoding_by_default");
+            Wt::Dbo::field(a, _subsonicDefaultTranscodingOutputFormat, "subsonic_default_transcode_format");
+            Wt::Dbo::field(a, _subsonicDefaultTranscodingOutputBitrate, "subsonic_default_transcode_bitrate");
+            Wt::Dbo::field(a, _subsonicArtistListMode, "subsonic_artist_list_mode");
+            Wt::Dbo::field(a, _uiTheme, "ui_theme");
+            Wt::Dbo::field(a, _uiArtistReleaseSortMethod, "ui_artist_release_sort_method");
+            Wt::Dbo::field(a, _uiEnableInlineArtistRelationships, "ui_enable_inline_artist_relationships");
+            Wt::Dbo::field(a, _uiInlineArtistRelationships, "ui_inline_artist_relationships");
+            Wt::Dbo::field(a, _feedbackBackend, "feedback_backend");
+            Wt::Dbo::field(a, _scrobblingBackend, "scrobbling_backend");
+            Wt::Dbo::field(a, _mumaScrobblingEnabled, "muma_scrobbling_enabled");
+            Wt::Dbo::field(a, _listenbrainzToken, "listenbrainz_token");
+            Wt::Dbo::field(a, _mumaId, "muma_id");
+
+            Wt::Dbo::field(a, _uiTranscodingMode, "ui_transcoding_mode");
+            Wt::Dbo::field(a, _uiTranscodingFormat, "ui_transcoding_format");
+            Wt::Dbo::field(a, _uiTranscodingBitrate, "ui_transcoding_bitrate");
+            Wt::Dbo::field(a, _uiReplayGainMode, "ui_replaygain_mode");
+            Wt::Dbo::field(a, _uiReplayGainPreAmpGain, "ui_replaygain_preamp_gain");
+            Wt::Dbo::field(a, _uiReplayGainPreAmpGainIfNoInfo, "ui_replaygain_preamp_gain_no_info");
+        }
+
+    private:
+        friend class Session;
+        User(std::string_view loginName);
+        static pointer create(Session& session, std::string_view loginName);
+
+        std::string _loginName;
+        // Legacy password columns, no longer used (see persist() comment above),
+        // kept only to satisfy older databases' NOT NULL constraint on insert.
+        std::string _passwordSaltLegacy;
+        std::string _passwordHashLegacy;
+        Wt::WDateTime _lastLogin;
+        UITheme _uiTheme{ defaultUITheme };
+        ReleaseSortMethod _uiArtistReleaseSortMethod{ _defaultUIArtistReleaseSortMethod };
+        bool _uiEnableInlineArtistRelationships{};
+        core::EnumSet<TrackArtistLinkType> _uiInlineArtistRelationships{ TrackArtistLinkType::Composer, TrackArtistLinkType::Performer };
+        FeedbackBackend _feedbackBackend{ defaultFeedbackBackend };
+        ScrobblingBackend _scrobblingBackend{ defaultScrobblingBackend };
+        bool _mumaScrobblingEnabled{ true };
+        std::string _listenbrainzToken; // Musicbrainz Identifier
+        std::optional<int> _mumaId;
+
+        // UI player settings
+        int _uiTranscodingMode{ 2 }; // IfFormatNotSupported
+        TranscodingOutputFormat _uiTranscodingFormat{ TranscodingOutputFormat::OGG_OPUS };
+        int _uiTranscodingBitrate{ 128000 };
+        int _uiReplayGainMode{ 0 }; // None
+        float _uiReplayGainPreAmpGain{ 0 };
+        float _uiReplayGainPreAmpGainIfNoInfo{ 0 };
+
+        // Admin defined settings
+        UserType _type{ UserType::REGULAR };
+
+        // User defined settings
+        SubsonicArtistListMode _subsonicArtistListMode{ defaultSubsonicArtistListMode };
+        bool _subsonicEnableTranscodingByDefault{ defaultSubsonicEnableTranscodingByDefault };
+        TranscodingOutputFormat _subsonicDefaultTranscodingOutputFormat{ defaultSubsonicTranscodingOutputFormat };
+        int _subsonicDefaultTranscodingOutputBitrate{ defaultSubsonicTranscodingOutputBitrate };
+    };
+} // namespace lms::db

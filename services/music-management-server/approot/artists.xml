@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<messages xmlns:if="Wt.WTemplate.conditions">
+<!--FORMS message blocks-->
+
+<message id="Lms.Explore.Artists.template">
+	<div class="d-flex justify-content-between align-items-center mb-3">
+		${artist-type class="me-1"}
+		<div class="d-flex">
+			${search class="form-control form-control-sm me-1" type="search"}
+			${sort-mode}
+		</div>
+	</div>
+	${artists}
+</message>
+
+<message id="Lms.Explore.Artists.template.entry">
+	<div class="col h-100 Lms-bg-dark-hover">
+		<div class="p-2">
+			<div class="Lms-responsive-circle Lms-cover-container mb-1">
+				${image class="shadow-sm"}
+			</div>
+			${name class="d-block text-center text-truncate text-decoration-none link-secondary"}
+		</div>
+	</div>
+</message>
+
+<message id="Lms.Explore.Artists.template.container">
+	${elements class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-6 gx-2 gy-4"}
+	${loading-indicator}
+</message>
+
+<message id="Lms.Explore.Artists.template.artist-type-selector">
+	<div class="dropdown">
+		<button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+			${selected-item}
+		</button>
+		<ul class="dropdown-menu">
+			<li>${artist-type-all class="dropdown-item"}</li>
+			<li class="dropdown-divider"></li>
+			<li>${artist-type-release-artist class="dropdown-item"}</li>
+			<li class="dropdown-divider"></li>
+			<li>${artist-type-track-artist class="dropdown-item"}</li>
+			<li>${artist-type-composer class="dropdown-item"}</li>
+			<li>${artist-type-conductor class="dropdown-item"}</li>
+			<li>${artist-type-lyricist class="dropdown-item"}</li>
+			<li>${artist-type-mixer class="dropdown-item"}</li>
+			<li>${artist-type-performer class="dropdown-item"}</li>
+			<li>${artist-type-producer class="dropdown-item"}</li>
+			<li>${artist-type-remixer class="dropdown-item"}</li>
+		</ul>
+	</div>
+</message>
+
+</messages>

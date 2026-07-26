@@ -43,6 +43,7 @@ class ImporterService:
         self.extractor = Extractor()
         self.renamer = Renamer()
         self.mover = Mover()
+        self.dry_run = getattr(self.settings, 'dryrun', False)
         self.steps: list[Step] = [Step('Extractor', self.extractor.run), Step('Renamer', self.renamer.run), Step('Mover', self.mover.run)]
 
     def run_import(self) -> None:
@@ -53,10 +54,10 @@ class ImporterService:
         implementation. This allows a step to inspect or control the rest
         of the pipeline if needed.
         """
-        logging.info('Starting importer pipeline...')
+        logging.info(f"Starting importer pipeline... {'(DRY RUN)' if self.dry_run else ''}")
         for step in self.steps:
             logging.info('Running step: %s', step.name)
-            step.run(self.steps)
+            step.run(self.steps, dry_run=self.dry_run)
         logging.info('Importer pipeline completed.')
 
 def main() -> None:

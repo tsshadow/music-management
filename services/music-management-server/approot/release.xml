@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<messages xmlns:if="Wt.WTemplate.conditions">
+<!--FORMS message blocks-->
+
+<message id="Lms.Explore.Release.template.link-btn">
+	<i class="fa fa-external-link"></i>
+</message>
+
+<message id="Lms.Explore.Release.template">
+	<div class="row mb-3 gy-3">
+		<div class="col-lg-3 col-md-4">
+			${artwork class="rounded d-block mx-auto"}
+		</div>
+		<div class="col">
+			<h2>${name}${<if-has-release-comment>}<span class="ms-1 text-muted">[${comment}]</span>${</if-has-release-comment>}</h2>
+			${<if-has-release-artists>}${artists}${</if-has-release-artists>}
+			<div class="small text-muted">${<if-has-year>}${year} · ${</if-has-year>}${duration}</div>
+			${clusters class="mb-2"}
+			<div class="btn-group">
+				${play-btn class="btn btn-primary"}
+				<button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" aria-label="${tr:Lms.more}"/>
+				<ul class="dropdown-menu">
+					<li>${play-next class="dropdown-item"}</li>
+					<li>${play-last class="dropdown-item"}</li>
+					<li>${play-shuffled class="dropdown-item"}</li>
+					<li>${star class="dropdown-item"}</li>
+					${<if-has-mbid>}
+					<li><a href="${mbid-link}" target="_blank" class="dropdown-item">${tr:Lms.Explore.musicbrainz-release}</a></li>
+					${</if-has-mbid>}
+					${<if-has-download>}
+					<li>${download class="dropdown-item"}</li>
+					${</if-has-download>}
+					<li>${release-info class="dropdown-item"}</li>
+				</ul>
+			</div>
+		</div>
+		<div class="col-12">
+			${disc-container class="d-grid gap-3"}
+			${<if-has-copyright>}
+			<div class="pt-1 mt-1 border-top border-dark small text-muted fw-lighter fst-italic">${copyright class="text-reset"}</div>
+			${</if-has-copyright>}
+		</div>
+	</div>
+	${<if-has-other-versions>}
+	<h3>${tr:Lms.Explore.Release.other-versions}</h3>
+	${other-versions class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 gx-2 gy-4"}
+	${</if-has-other-versions>}
+	${<if-has-similar-releases>}
+	<h3>${tr:Lms.Explore.Release.similar-releases}</h3>
+	${similar-releases class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 gx-2 gy-4"}
+	${</if-has-similar-releases>}
+</message>
+
+<message id="Lms.Explore.Release.template.entry-release-artist">
+	${artist class="text-decoration-none link-success"}
+</message>
+
+<message id="Lms.Explore.Release.template.entry-disc">
+	<h4 class="d-flex align-items-center">
+		${<if-has-artwork>}
+		<div class="p-1">${artwork class="Lms-cursor-pointer"}</div>
+		${</if-has-artwork>}
+		<div class="p-2 flex-fill">${disc-title}</div>
+		<div class="p-2 d-flex">
+			${play-btn class="d-none d-sm-block btn btn-sm btn-outline-secondary border-0"}
+			<div class="dropdown d-inline-block">
+				${more-btn data-bs-toggle="dropdown" aria-expanded="false" class="btn btn-sm btn-outline-secondary border-0"}
+				<ul class="dropdown-menu" aria-labelledby="${id:more-btn}">
+					<li class="d-block d-sm-none">${play class="dropdown-item"}</li>
+					<li>${play-next class="dropdown-item"}</li>
+					<li>${play-last class="dropdown-item"}</li>
+					<li>${play-shuffled class="dropdown-item"}</li>
+				</ul>
+			</div>
+		</div>
+	</h4>
+	${tracks class="d-grid gap-1 Lms-row-container"}
+</message>
+
+<message id="Lms.Explore.Release.template.entry-nodisc">
+	${tracks class="d-grid gap-1 Lms-row-container"}
+</message>
+
+<message id="Lms.Explore.Release.template.entry">
+	<div class="d-flex align-items-center">
+		<div class="p-2 text-muted text-end Lms-tracks-entry-position">
+			${<if-has-track-number>}${track-number}${</if-has-track-number>}
+		</div>
+		<div class="row align-items-center flex-fill overflow-hidden">
+			<div class="col-12 col-md-8">
+				<div class="p-2">
+					${name}
+					${<if-has-artists>}${artists class="d-block d-md-none"}${</if-has-artists>}
+					${<if-has-artist-links>}${artist-links}${</if-has-artist-links>}
+				</div>
+			</div>
+			<div class="col-md-4">
+				${<if-has-artists>}${artists-md class="d-none d-md-block"}${</if-has-artists>}
+			</div>
+		</div>
+		<div class="p-2 d-none d-sm-block text-muted text-center Lms-tracks-entry-rating">
+			${<if-has-rating>}${rating}${</if-has-rating>}
+		</div>
+		<div class="p-2 d-none d-sm-block text-muted text-center Lms-tracks-entry-year">
+			${<if-has-year>}${year}${</if-has-year>}
+		</div>
+		<div class="p-2 d-none d-sm-block text-muted text-center Lms-tracks-entry-duration">
+			${duration}
+		</div>
+		<div class="p-2 d-flex">
+			${play-btn class="d-none d-sm-block btn btn-sm btn-outline-secondary border-0"}
+			${star-btn class="d-none d-sm-block btn btn-sm btn-outline-secondary border-0"}
+			<div class="dropdown d-inline-block">
+				${more-btn data-bs-toggle="dropdown" aria-expanded="false" class="btn btn-sm btn-outline-secondary border-0"}
+				<ul class="dropdown-menu" aria-labelledby="${id:more-btn}">
+					<li class="d-block d-sm-none">${play class="dropdown-item"}</li>
+					<li>${play-next class="dropdown-item"}</li>
+					<li>${play-last class="dropdown-item"}</li>
+					<li>${star class="dropdown-item"}</li>
+					${<if-has-download>}
+					<li>${download class="dropdown-item"}</li>
+					${</if-has-download>}
+					<li>${track-info class="dropdown-item"}</li>
+					${<if-has-lyrics>}<li>${track-lyrics class="dropdown-item"}</li>${</if-has-lyrics>}
+				</ul>
+			</div>
+		</div>
+	</div>
+</message>
+
+<message id="Lms.Explore.Release.template.artist-links-entry">
+	<div class=" text-muted small ms-2 d-flex">
+		<span class="text-nowrap text-muted">${role} — </span>${anchors class="ms-1"}
+	</div>
+</message>
+
+<message id="Lms.Explore.Release.template.release-info">
+	<div class="modal fade" tabindex="-1">
+		<div class="modal-dialog modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">${tr:Lms.Explore.release-info}</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					<div class="container-fluid d-grid gap-2">
+						${<if-has-release-type>}
+						<div class="row align-items-center">
+							<div class="col-4">
+								${tr:Lms.Explore.Release.type}
+							</div>
+							<div class="col">
+								${release-type}
+							</div>
+						</div>
+						${</if-has-release-type>}
+						${<if-has-artist>}
+						${artist-table class="d-grid gap-2"}
+						${</if-has-artist>}
+						${<if-has-labels>}
+						<div class="row align-items-center">
+							<div class="col-4">
+								${tr:Lms.Explore.label}
+							</div>
+							<div class="col">
+								${release-labels}
+							</div>
+						</div>
+						${</if-has-labels>}
+						${<if-has-codec>}
+						<div class="row align-items-center">
+							<div class="col-4">
+								${tr:Lms.Explore.codec}
+							</div>
+							<div class="col">
+								${codec}
+							</div>
+						</div>
+						${</if-has-codec>}
+						${<if-has-bitrate>}
+						<div class="row align-items-center">
+							<div class="col-4">
+								${tr:Lms.Explore.bitrate}
+							</div>
+							<div class="col">
+								${bitrate}
+							</div>
+						</div>
+						${</if-has-bitrate>}
+						<div class="row align-items-center">
+							<div class="col-4">
+								${tr:Lms.Explore.playcount}
+							</div>
+							<div class="col">
+								${playcount}
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					${ok-btn class="btn btn-primary"}
+				</div>
+			</div>
+		</div>
+	</div>
+</message>
+
+</messages>

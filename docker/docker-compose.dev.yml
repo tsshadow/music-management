@@ -1,0 +1,23 @@
+version: "3.9"
+services:
+  music-manager:
+    volumes:
+      - ../services:/app/services
+  importer_worker:
+    volumes:
+      - ../services:/app/services
+  youtube_worker:
+    volumes:
+      - ../services:/app/services
+  soundcloud_worker:
+    volumes:
+      - ../services:/app/services
+  soundcloud_worker_full_once:
+    volumes:
+      - ../services:/app/services
+  telegram_worker:
+    volumes:
+      - ../services:/app/services
+  music-management-server:
+    volumes:
+      - ../services/frontend/dist:/usr/share/lms/docroot/spotify:ro

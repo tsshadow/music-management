@@ -1,0 +1,295 @@
+<script>
+  import { credentials, mumaApiUrl, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser } from './store.js';
+
+  let username = $state('');
+  let password = $state('');
+  let error = $state('');
+  let isLoading = $state(false);
+  let setupRequired = $state(false);
+
+  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  let requestStatus = $state(null); // 'unknown', 'pending', 'approved', 'rejected'
+  let googleUser = $state(null);
+  let googleRequest = $state(null);
+  let idToken = '';
+
+  const SUBSONIC_BASE = import.meta.env.VITE_SUBSONIC_URL || (import.meta.env.DEV ? '' : window.location.origin);
+
+  /**
+   * Verifies the provided credentials by pinging the Subsonic API.
+   */
+  async function verifyLogin() {
+    error = '';
+    isLoading = true;
+
+    const params = `u=${encodeURIComponent(username)}&p=${encodeURIComponent(password)}&v=1.12.0&c=spotify&f=json`;
+    try {
+      const response = await fetch(`${SUBSONIC_BASE}/rest/ping?${params}`);
+      const data = await response.json();
+
+      if (data['subsonic-response'] && data['subsonic-response'].status === 'ok') {
+        // Also try to login to music-manager to get permissions
+        try {
+          const loginRes = await fetch(`${$mumaApiUrl}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+          });
+          if (loginRes.ok) {
+            const loginData = await loginRes.json();
+            mumaApiKey.set(loginData.api_key);
+            mumaRefreshToken.set(loginData.refresh_token);
+            userPermissions.set(loginData.user.permissions);
+            mumaUser.set(loginData.user);
+            mumaSessionActive.set(true);
+          }
+        } catch (e) {
+          console.warn('Management API login failed during Subsonic login', e);
+        }
+        save();
+      } else {
+        const errorMsg = data['subsonic-response']?.error?.message || 'Ongeldige gebruikersnaam of wachtwoord';
+        error = `Fout: ${errorMsg}`;
+      }
+    } catch (e) {
+      error = 'Kon geen verbinding maken met de server';
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  /**
+   * Performs the initial administrative setup.
+   */
+  async function performSetup() {
+    error = '';
+    isLoading = true;
+
+    try {
+      const response = await fetch(`${$mumaApiUrl}/api/auth/setup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          username,
+          password,
+          display_name: username,
+          role_name: 'admin'
+        })
+      });
+
+      if (response.ok) {
+        setupRequired = false;
+        // Give the server a moment to sync the new user
+        error = '';
+        setTimeout(verifyLogin, 1000);
+      } else {
+        const data = await response.json();
+        error = data.detail || 'Setup mislukt';
+      }
+    } catch (e) {
+      error = 'Kon geen verbinding maken met de management API';
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  /**
+   * Handles the response from Google Identity Services.
+   */
+  async function handleGoogleResponse(response) {
+    idToken = response.credential;
+    isLoading = true;
+    error = '';
+    
+    try {
+      const res = await fetch(`${$mumaApiUrl}/api/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_token: idToken })
+      });
+      
+      const data = await res.json();
+      
+      if (data.status === 'ok') {
+        mumaApiKey.set(data.api_key);
+        mumaRefreshToken.set(data.refresh_token);
+        userPermissions.set(data.user.permissions);
+        mumaUser.set(data.user);
+        mumaSessionActive.set(true);
+      } else if (data.status === 'unknown') {
+        requestStatus = 'unknown';
+        googleUser = data.google;
+      } else if (['request_pending', 'request_approved', 'request_rejected'].includes(data.status)) {
+        requestStatus = data.status.replace('request_', '');
+        googleRequest = data.request;
+      }
+    } catch (e) {
+      error = 'Kon geen verbinding maken met de Google login API';
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  /**
+   * Submits an access request using the Google ID token.
+   */
+  async function requestAccess() {
+    isLoading = true;
+    error = '';
+    try {
+      const res = await fetch(`${$mumaApiUrl}/api/auth/access-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_token: idToken })
+      });
+      const data = await res.json();
+      if (data.status === 'ok') {
+        requestStatus = 'pending';
+        googleRequest = data.request;
+      } else {
+        error = data.detail || 'Toegangsaanvraag mislukt';
+      }
+    } catch (e) {
+      error = 'Fout bij indienen toegangsaanvraag';
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  function retryGoogleLogin() {
+    requestStatus = null;
+    googleUser = null;
+    googleRequest = null;
+    // The button will be re-rendered, user clicks again or we could trigger it
+    // But GSI usually needs user interaction for the popup
+  }
+
+  /**
+   * Saves the verified credentials to the global store.
+   */
+  function save() {
+    credentials.update(c => ({ ...c, username, password }));
+  }
+
+  // Load from store on init
+  import { onMount } from 'svelte';
+  onMount(async () => {
+    if ($credentials.username) {
+        username = $credentials.username;
+        password = $credentials.password;
+    }
+
+    if (GOOGLE_CLIENT_ID) {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        // `google` is injected as a global by the GSI script itself (not part
+        // of any known JS/browser global set), so it's accessed via `window`
+        // here to keep the no-undef lint rule happy.
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleResponse
+        });
+        window.google.accounts.id.renderButton(
+          document.getElementById("googleBtn"),
+          { theme: "outline", size: "large", width: 336, text: "signin_with", locale: "nl" }
+        );
+      };
+      document.head.appendChild(script);
+    }
+
+    try {
+      const res = await fetch(`${$mumaApiUrl}/api/auth/setup-status`);
+      if (res.ok) {
+        const data = await res.json();
+        setupRequired = data.setup_required;
+      }
+    } catch (e) {
+      console.warn('Could not check setup status', e);
+    }
+  });
+</script>
+
+{#if !$credentials.username && !$mumaSessionActive}
+<div class="fixed inset-0 w-screen h-screen bg-black/80 flex justify-center items-center z-[1000]">
+  <div class="bg-[#282828] p-8 rounded-lg w-[400px] flex flex-col gap-5 max-h-[90vh] overflow-y-auto">
+    <h2 class="m-0">{setupRequired ? 'MuMa Systeem Setup' : 'MuMa Spotify Inloggen'}</h2>
+    
+    {#if requestStatus === 'unknown'}
+      <div class="flex flex-col gap-4 text-center">
+        {#if googleUser.avatar_url}
+          <img src={googleUser.avatar_url} alt="Avatar" class="w-20 h-20 rounded-full mx-auto" />
+        {/if}
+        <p class="text-sm">Hallo <b>{googleUser.display_name}</b> ({googleUser.email}). Je hebt nog geen toegang tot dit systeem.</p>
+        <button class="bg-brand text-black border-none rounded-[500px] p-3.5 text-base font-bold cursor-pointer transition-transform hover:scale-[1.04] disabled:bg-brand/50" onclick={requestAccess} disabled={isLoading}>
+          {isLoading ? 'Bezig...' : 'Toegang aanvragen'}
+        </button>
+        <button class="text-[#b3b3b3] text-sm hover:underline bg-transparent border-none cursor-pointer" onclick={retryGoogleLogin}>Terug naar inloggen</button>
+      </div>
+    {:else if requestStatus === 'pending'}
+      <div class="flex flex-col gap-4 text-center">
+        <div class="bg-blue-500/20 text-blue-400 p-4 rounded-lg text-sm">
+          Je toegangsaanvraag is in behandeling. Een beheerder moet deze goedkeuren voordat je kunt inloggen.
+        </div>
+        <p class="text-xs text-[#b3b3b3]">Aangevraagd op: {new Date(googleRequest.requested_at).toLocaleString('nl-NL')}</p>
+        <button class="text-[#b3b3b3] text-sm hover:underline bg-transparent border-none cursor-pointer" onclick={retryGoogleLogin}>Terug naar inloggen</button>
+      </div>
+    {:else if requestStatus === 'rejected'}
+      <div class="flex flex-col gap-4 text-center">
+        <div class="bg-red-500/20 text-red-400 p-4 rounded-lg text-sm">
+          Je toegangsaanvraag is afgewezen. Neem contact op met een beheerder voor meer informatie.
+        </div>
+        <button class="text-[#b3b3b3] text-sm hover:underline bg-transparent border-none cursor-pointer" onclick={retryGoogleLogin}>Terug naar inloggen</button>
+      </div>
+    {:else if requestStatus === 'approved'}
+      <div class="flex flex-col gap-4 text-center">
+        <div class="bg-green-500/20 text-green-400 p-4 rounded-lg text-sm">
+          Je aanvraag is goedgekeurd! Je kunt nu inloggen.
+        </div>
+        <button class="bg-brand text-black border-none rounded-[500px] p-3.5 text-base font-bold cursor-pointer transition-transform hover:scale-[1.04]" onclick={retryGoogleLogin}>
+          Nu inloggen
+        </button>
+      </div>
+    {:else}
+      <p class="text-sm">
+        {setupRequired 
+          ? 'Er zijn nog geen gebruikers gevonden. Maak de eerste beheerder aan om te beginnen.' 
+          : 'Log in met je Subsonic gegevens of gebruik Google.'}
+      </p>
+
+      {#if error}
+        <div class="bg-[#e91429] text-white p-2.5 rounded text-sm">{error}</div>
+      {/if}
+
+      <div class="flex flex-col gap-2">
+        <label for="username" class="text-[12px] font-bold text-[#b3b3b3] uppercase">Gebruikersnaam</label>
+        <input id="username" type="text" value={username} oninput={(e) => username = e.target.value} placeholder="Username" class="bg-[#3e3e3e] border border-transparent rounded p-3 text-white text-sm focus:outline-none focus:border-brand disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading} />
+      </div>
+      <div class="flex flex-col gap-2">
+        <label for="password" class="text-[12px] font-bold text-[#b3b3b3] uppercase">Wachtwoord</label>
+        <input id="password" type="password" value={password} oninput={(e) => password = e.target.value} placeholder="Password" class="bg-[#3e3e3e] border border-transparent rounded p-3 text-white text-sm focus:outline-none focus:border-brand disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading} onkeydown={(e) => e.key === 'Enter' && (setupRequired ? performSetup() : verifyLogin())} />
+      </div>
+      <button class="bg-brand text-black border-none rounded-[500px] p-3.5 text-base font-bold cursor-pointer transition-transform hover:scale-[1.04] disabled:bg-brand/50 disabled:cursor-not-allowed disabled:transform-none" onclick={setupRequired ? performSetup : verifyLogin} disabled={isLoading}>
+        {isLoading ? (setupRequired ? 'Bezig met instellen...' : 'Verificeren...') : (setupRequired ? 'Account Aanmaken' : 'Verbinden')}
+      </button>
+
+      {#if !setupRequired && GOOGLE_CLIENT_ID}
+        <div class="flex items-center gap-4 my-2">
+          <div class="h-[1px] bg-[#3e3e3e] flex-1"></div>
+          <span class="text-[12px] text-[#b3b3b3] font-bold uppercase">OF</span>
+          <div class="h-[1px] bg-[#3e3e3e] flex-1"></div>
+        </div>
+
+        <div id="googleBtn" class="flex justify-center"></div>
+      {/if}
+    {/if}
+  </div>
+</div>
+{/if}
+
+<style>
+</style>

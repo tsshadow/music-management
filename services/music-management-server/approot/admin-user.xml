@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<messages xmlns:if="Wt.WTemplate.conditions">
+
+<message id="Lms.Admin.User.template">
+	<form class="row g-3">
+		<legend>${title}</legend>
+		${<if-has-last-login>}
+			<div class="col-lg-6">
+				<label class="form-label" for="${id:last-login}">
+					${tr:Lms.Admin.User.last-login}
+				</label>
+				<input type="text" readonly="readonly" class="form-control" id="status" value="${last-login}"/>
+			</div>
+		${</if-has-last-login>}
+		${<if-has-login>}
+			<div class="col-lg-6">
+				<label class="form-label"  for="${id:login}">
+					${tr:Lms.login}
+				</label>
+				${login class="form-control"}
+				<div class="invalid-feedback">
+					${login-info}
+				</div>
+			</div>
+		${</if-has-login>}
+		${<if-has-password>}
+			<div class="col-lg-6">
+				<label class="form-label"  for="${id:password}">
+					${tr:Lms.password-new}
+				</label>
+				${password class="form-control"}
+				<div class="invalid-feedback">
+					${password-info}
+				</div>
+			</div>
+		${</if-has-password>}
+		${<if-demo>}
+			<div class="col-12">
+				<div class="form-check">
+					${demo class="form-check-input"}
+					<label class="form-check-label" for="${id:demo}">
+						${tr:Lms.Admin.User.demo-account}
+					</label>
+					<div class="invalid-feedback">
+						${demo-info}
+					</div>
+				</div>
+			</div>
+		${</if-demo>}
+		<div class="col-12">
+			${save-btn class="btn btn-primary"}
+		</div>
+	</form>
+</message>
+
+</messages>

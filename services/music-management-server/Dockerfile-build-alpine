@@ -1,0 +1,66 @@
+FROM --platform=$BUILDPLATFORM tonistiigi/xx AS xx
+FROM --platform=$BUILDPLATFORM alpine:3.21
+
+ARG BUILD_PACKAGES="\
+	clang \
+	llvm \
+	make \
+	cmake \
+	lld \
+	curl \
+	py3-pip \
+	compiler-rt \
+	pkgconfig"
+
+RUN	apk add --no-cache ${BUILD_PACKAGES} && \
+	pip install --break-system-packages gcovr
+
+ARG	LMS_BUILD_PACKAGES=" \
+	gcc \
+	g++ \
+	alsa-lib-dev \
+	benchmark-dev \
+	boost-dev \
+	ffmpeg-dev \
+	gtest-dev \
+	libarchive-dev \
+	libconfig-dev \
+	musl-dev \
+	pugixml-dev \
+	pulseaudio-dev \
+	stb \
+	taglib-dev \
+	wt-dev \
+	xxhash-dev"
+
+COPY --from=xx / /
+
+ARG TARGETPLATFORM
+RUN	xx-apk add --no-scripts --no-cache ${LMS_BUILD_PACKAGES}
+
+# LMS
+COPY . /tmp/lms/
+ARG LMS_BUILD_TYPE="Release"
+RUN \
+	DIR=/tmp/lms/build && mkdir -p ${DIR} && cd ${DIR}  && \
+		if xx-info is-cross; then export BUILD_TESTS=OFF; else export BUILD_TESTS=ON; fi && \
+		PKG_CONFIG_PATH=/$(xx-info)/usr/lib/pkgconfig \
+		cmake /tmp/lms/ \
+			-DCMAKE_INCLUDE_PATH=/$(xx-info)/usr/include \
+			-DCMAKE_UNITY_BUILD=ON \
+			-DCMAKE_BUILD_TYPE=${LMS_BUILD_TYPE} \
+			$(xx-clang --print-cmake-defines) \
+			-DCMAKE_PREFIX_PATH=/$(xx-info)/usr/lib/cmake \
+			-DBUILD_TESTING=${BUILD_TESTS} \
+			-DBUILD_BENCHMARKS=ON \
+			-DENABLE_COVERAGE=${BUILD_TESTS} && \
+		VERBOSE=1 make -j$(nproc) && \
+		xx-verify src/lms/lms && \
+		if [ "${BUILD_TESTS}" = "ON" ]; then \
+			make test && \
+			GCOV=$(command -v llvm-cov 2>/dev/null) && [ -n "$GCOV" ] && GCOV="$GCOV gcov" || GCOV=gcov; \
+			if xx-info is-cross; then GCOV=$(xx-info)-gcov; fi && \
+			cd /tmp/lms && \
+			gcovr -r . --xml-pretty -o /tmp/lms/coverage-lms.xml --gcov-executable "$GCOV" --object-directory build --gcov-ignore-errors=no_working_dir_found && \
+			gcovr -r . --gcov-executable "$GCOV" --object-directory build --gcov-ignore-errors=no_working_dir_found; \
+		fi

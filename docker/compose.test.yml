@@ -1,0 +1,126 @@
+# docker/compose.test.yml
+#
+# Test-only compose file (Task 3 / Phase 1.2 of the test plan).
+#
+# This file is intentionally separate from docker-compose.yml / docker-compose.core.yml:
+# - only temporary databases, temporary volumes and disposable test credentials;
+# - never mounts real music/library paths or production data;
+# - every image is built from the current checkout (no ":latest" prebuilt pulls);
+# - includes healthchecks so dependents only start once a service is actually ready.
+#
+# Usage: see scripts/test/core-smoke.sh
+#
+# NOTE: services/music-management-server (LMS) itself has no HTTP health endpoint yet
+# (see docs/testing-inventory.md, open question). The healthcheck below uses the
+# Subsonic "ping" endpoint, which requires the server to be fully initialized to respond.
+
+services:
+  test-db:
+    image: mariadb:10.6
+    environment:
+      MYSQL_ROOT_PASSWORD: test-root-password
+      MYSQL_USER: muma_test
+      MYSQL_PASSWORD: muma_test
+      MYSQL_DATABASE: muma_test
+    tmpfs:
+      - /var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - muma-test
+
+  music-manager:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.music-manager
+    depends_on:
+      test-db:
+        condition: service_healthy
+    environment:
+      DB_HOST: test-db
+      DB_PORT: "3306"
+      DB_USER: muma_test
+      DB_PASS: muma_test
+      DB_DB: muma_test
+      API_KEY: test-api-key
+      AUTH_SERVICE_URL: http://music-manager:8000
+      PYTHONPATH: /app
+      # Points music-manager at the test LMS instance so a new admin/user is
+      # pushed to it immediately after setup (see notify_server_sync_users()).
+      MUMA_SERVER_HOSTS: music-management-server:5082
+      # Shared with the LMS container's /music via the "shared-music" volume
+      # below, so both services' scanners see the exact same fixture files
+      # (music-manager's own scanner keeps a separate library_tracks table
+      # used for scrobble matching, see routers/scrobbler.py).
+      music_folder_path: /mnt/music
+      import_folder_path: /mnt/music
+      eps_folder_path: /mnt/music
+    tmpfs:
+      - /app/data
+    volumes:
+      - shared-music:/mnt/music
+    ports:
+      - "${MUMA_TEST_PORT_MANAGER:-18000}:8000"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    networks:
+      - muma-test
+
+  music-management-server:
+    build:
+      context: ..
+      dockerfile: services/music-management-server/Dockerfile-release
+    depends_on:
+      test-db:
+        condition: service_healthy
+    # NOTE: /var/lms is NOT a tmpfs mount here: LMS runs as a non-root user
+    # (muma-server, chown'd by the image at build time) and a tmpfs mount would
+    # reset ownership to root, causing "Permission denied" on startup.
+    # An anonymous volume inherits the image's ownership instead and is still
+    # fully temporary/disposable (removed by `docker compose down -v`).
+    volumes:
+      - lms-data:/var/lms
+      - shared-music:/music
+    environment:
+      # Delegates auth to the test music-manager (see MusicManagementPasswordService
+      # and UserSynchronizer): users/passwords are never stored locally in LMS.
+      LMS_API_KEY: test-api-key
+      # NOTE: must include the "/api" prefix, consistent with production
+      # docker-compose.yml: all music-management-server backends (auth,
+      # scrobbling, feedback/rating) append their own sub-path directly onto
+      # this base URL.
+      LMS_MUSIC_MANAGEMENT_URL: http://music-manager:8000/api
+      LMS_MUSIC_MANAGEMENT_API_KEY: test-api-key
+    ports:
+      - "${MUMA_TEST_PORT_LMS:-15082}:5082"
+    healthcheck:
+      # NOTE: use 127.0.0.1, not "localhost": in this Alpine image "localhost"
+      # resolves to ::1 first and LMS does not appear to accept IPv6 connections
+      # even with listen-addr = 0.0.0.0, causing "Connection refused" with wget.
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:5082/rest/ping.view"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - muma-test
+
+networks:
+  muma-test:
+    driver: bridge
+
+volumes:
+  # Named (but disposable) volumes: removed entirely by `docker compose down -v`,
+  # never shared with the production docker-compose.yml volumes/paths.
+  lms-data:
+  # Shared between LMS (/music) and music-manager (/mnt/music) so a fixture
+  # file copied once is visible to both services' independent scanners.
+  shared-music:

@@ -1,34 +1,11 @@
 import io
 import os
-import sys
 import tempfile
-import types
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 from yt_dlp.utils import sanitize_filename
-_orig_youtube_song_module = sys.modules.get('services.tagger.Song.YoutubeSong')
-_orig_youtube_archive_module = sys.modules.get('services.downloader.youtube.YoutubeArchive')
-
-class DummyTagCollection:
-
-    def __init__(self):
-        self.values = {}
-
-    def set_item(self, tag, value):
-        self.values[tag] = value
-
-class DummySong:
-    last_instance = None
-
-    def __init__(self, path, extra_info=None):
-        self.path = path
-        self.extra_info = extra_info
-        self.tag_collection = DummyTagCollection()
-        self.parse_called = False
-        DummySong.last_instance = self
-
-    def parse(self):
-        self.parse_called = True
+from services.tagger.constants import SongTypeEnum
 
 class DummyYoutubeArchive:
     inserted = []
@@ -40,13 +17,14 @@ class DummyYoutubeArchive:
     @staticmethod
     def insert(account, video_id, path, url, title):
         DummyYoutubeArchive.inserted.append((account, video_id, path, url, title))
-dummy_song_module = types.ModuleType('services.tagger.Song.YoutubeSong')
-dummy_song_module.YoutubeSong = DummySong
-sys.modules['services.tagger.Song.YoutubeSong'] = dummy_song_module
-dummy_archive_module = types.ModuleType('services.downloader.youtube.YoutubeArchive')
-dummy_archive_module.YoutubeArchive = DummyYoutubeArchive
-sys.modules['services.downloader.youtube.YoutubeArchive'] = dummy_archive_module
-from downloader.youtube import YoutubeSongProcessor
+
+# Import via the fully-qualified "services." path (matching every other test in
+# this suite, e.g. YoutubeDownloaderTest.py) rather than a bare top-level alias:
+# since services/ and the repo root are both on sys.path, importing under two
+# different dotted names would create two separate module objects for the same
+# file, so a unittest.mock.patch() targeting the "services.downloader..." path
+# (as used below) would silently miss the module actually executed by this test.
+from services.downloader.youtube import YoutubeSongProcessor
 
 class DummyDownloader:
 
@@ -79,9 +57,17 @@ class YoutubeSongProcessorTest(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         DummyYoutubeArchive.inserted.clear()
-        DummySong.last_instance = None
+        # Patch YoutubeArchive/Tagger on the actual module used by
+        # YoutubeSongProcessor.run() via unittest.mock.patch (reverted in
+        # tearDown), rather than pre-seeding sys.modules at import time: the
+        # latter only affects the *first* import of this module across the
+        # whole pytest session, so it silently stops working whenever another
+        # test file imports YoutubeSongProcessor first.
+        self.archive_patcher = patch('services.downloader.youtube.YoutubeSongProcessor.YoutubeArchive', DummyYoutubeArchive)
+        self.archive_patcher.start()
 
     def tearDown(self):
+        self.archive_patcher.stop()
         self.temp_dir.cleanup()
 
     def test_recovers_title_and_renames_file(self):
@@ -98,10 +84,9 @@ class YoutubeSongProcessorTest(unittest.TestCase):
         expected_info = dict(info)
         expected_info['title'] = 'Noiseflow | Defqon.1 2025'
         expected_path = processor._downloader.prepare_filename(expected_info)
-        with patch('services.downloader.youtube.YoutubeSongProcessor.TaggerService') as mock_tagger_service:
-            mock_tagger_instance = mock_tagger_service.return_value
+        with patch('services.downloader.youtube.YoutubeSongProcessor.Tagger') as mock_tagger:
             processor.run(info)
-            mock_tagger_instance.tag.assert_called_with('youtube', info['filepath'], info)
+            mock_tagger.parse_song.assert_called_with(Path(info['filepath']), SongTypeEnum.YOUTUBE, extra_info=info)
         self.assertEqual(info['title'], 'Noiseflow | Defqon.1 2025')
         self.assertEqual(info['fulltitle'], 'Noiseflow | Defqon.1 2025')
         self.assertEqual(os.path.normpath(info['filepath']), os.path.normpath(expected_path))
@@ -111,14 +96,5 @@ class YoutubeSongProcessorTest(unittest.TestCase):
         self.assertEqual(os.path.normpath(info['requested_downloads'][0]['_filename']), os.path.normpath(expected_path))
         self.assertEqual(DummyYoutubeArchive.inserted[-1], ('qdance', '5mKayZadF4g', info['filepath'], info['webpage_url'], 'Noiseflow | Defqon.1 2025'))
 
-def tearDownModule():
-    if _orig_youtube_song_module is not None:
-        sys.modules['services.tagger.Song.YoutubeSong'] = _orig_youtube_song_module
-    else:
-        sys.modules.pop('services.tagger.Song.YoutubeSong', None)
-    if _orig_youtube_archive_module is not None:
-        sys.modules['services.downloader.youtube.YoutubeArchive'] = _orig_youtube_archive_module
-    else:
-        sys.modules.pop('services.downloader.youtube.YoutubeArchive', None)
 if __name__ == '__main__':
     unittest.main()

@@ -1,14 +1,15 @@
 # 🎵 Music Management System
 
-A comprehensive, modular system for automated music library management, including downloading, rule-based tagging, ML analysis, and listening history tracking (scrobbling).
+A comprehensive, modular system for automated music library management, featuring a unified "Spotify-style" UI, automated downloading, rule-based tagging, ML analysis, and Subsonic-compatible playback.
 
 ## 🧩 Modular System Architecture
 
-The project has been refactored into specialized, lightweight Docker containers sharing a common base image. This ensures high performance and easy maintenance.
+The project is built as a set of specialized services that work together to manage the full music lifecycle.
 
-### Core Images
-- **`music-manager`**: The central "Music Manager" & "Control Center". Consolidates management, authentication, ratings, scrobbling, and stats into a single FastAPI service.
-- **`muma-base`**: Shared foundation containing core music logic and common dependencies.
+### Core Services
+- **`frontend`**: A unified Svelte-based "Spotify UI" that handles both playback and system management.
+- **`music-manager`**: The central hub and "Source of Truth". Manages metadata, ratings, scrobbling, and coordinates background tasks.
+- **`music-management-server`**: The high-performance C++ playback engine. Provides audio streaming and the Subsonic API.
 
 ### Specialized Workers
 - **`muma-scanner`**: High-performance library scanning and database synchronization.
@@ -18,24 +19,34 @@ The project has been refactored into specialized, lightweight Docker containers 
 - **`muma-importer`**: Archive extraction and automated file movement.
 - **`muma-ml-analyzer`**: Machine learning pipeline for BPM, key, and mood detection.
 
-### Utility
-- **`muma-tools`**: Collection of maintenance and database utility scripts.
-
 ---
 
 ## 🏗 Project Modules
-The core of the system that handles the lifecycle of music files:
-- **Downloaders**: Automated fetching from YouTube, SoundCloud, and Telegram.
-- **Importer**: Monitors incoming files, extracts archives, and moves them to the library.
-- **Tagger**: A rule-based engine that cleans metadata, guesses missing tags (artist, title, genre) from filenames, and enforces library standards.
-- **Common**: Shared utilities and the internal API.
+
+### 1. Unified Frontend (`services/frontend`)
+A modern, responsive Svelte application that provides:
+- **Playback Control**: Integrated player with queue management.
+- **System Management**: Dedicated "Systeembeheer" (System Management) dashboard for Tagger, Scanner, User management, and Worker status.
+- **Library View**: Rich browsing by artist, album, and genre.
 
 ### 2. Music Manager (`services/music_manager`)
-A central dashboard and API for the system:
-- Consolidates management, authentication, ratings, scrobbling, stats, and artist image enrichment.
-- Provides a unified API endpoint for frontends and external services.
-- View release notes, track system versions, and manage system status.
-- Integrates the **Artist Image Fetcher** for high-quality metadata enrichment.
+A FastAPI service acting as the management backend:
+- Consolidates ratings, scrobbling history, and stats.
+- Manages the "Artist Image Fetcher" for metadata enrichment.
+- Provides real-time notifications via `ntfy.sh`.
+
+### 3. Music Management Server (`services/music-management-server`)
+The core streaming component:
+- Provides a stable Subsonic-compatible API for mobile apps like Ultrasonic.
+- Handles high-performance audio streaming.
+- Integrated directly into the management ecosystem.
+
+### 4. Mobile Client: Ultrasonic
+The ecosystem includes a dedicated mobile experience via the **Ultrasonic** Android app:
+- **Subsonic API**: Connects to the Music Management Server for streaming.
+- **Settings Sync**: Automatically synchronizes application settings (themes, bookmarks, player preferences) to the Music Manager API.
+- **Rating Integration**: Ratings changed in the app are propagated back to the central database.
+- **Update Management**: Distributed via a built-in APK Hoster for easy updates.
 
 ---
 
@@ -90,9 +101,20 @@ You can also target specific components with `build.sh` and `publish.sh`:
 - `./build.sh app` (Main Application only)
 
 The following services will be available:
-- **Music Manager / Control Center**: Port 8000 (main API) / 8003 (Dashboard)
+- **Music Management Server (Spotify UI)**: Port 5082
+- **Music Manager (API)**: Port 8000
 - **phpMyAdmin**: Port 8002 (to inspect the database)
-- **Firefox (GUI)**: Port 7003
+
+### User Management
+
+You can manage users via the Systeembeheer dashboard in the frontend. 
+If you need to set or reset a user's password via the command line, use the provided script:
+
+```bash
+./scripts/set_user_password.sh <username>
+```
+
+The script will prompt you for a password and confirmation. You can also provide the password directly with `--password <pass>`, but this is less secure as it might be stored in your shell history.
 
 ---
 
@@ -100,8 +122,8 @@ The following services will be available:
 
 The system is split into modular Docker Compose files for better resource management:
 
-1. **`docker-compose.yml`**: Core infrastructure (MariaDB, phpMyAdmin, Control Center).
-2. **`docker-compose.workers.yml`**: Background workers (Importer, YouTube/SoundCloud/Telegram downloaders, Tagger).
+1. **`docker-compose.yml`**: Core infrastructure (MariaDB, phpMyAdmin, Music Management Server, Music Manager).
+2. **`docker-compose.workers.yml`**: Background workers (Importer, YouTube/SoundCloud/Telegram downloaders, Tagger, Scanner).
 3. **`docker-compose.tools.yml`**: Utility services (Fetchers, ML Analyzer, Firefox).
 
 ### Database Backups
@@ -133,17 +155,17 @@ docker-compose -f docker-compose.yml -f docker-compose.workers.yml logs -f impor
 ## 📂 Repository Structure
 
 ```text
-├── services/               # Backend microservices
-│   ├── music_manager/      # Consolidated Core API & Dashboard
-│   │   ├── artist_image_fetcher/ # Artist image enrichment logic
-│   │   └── frontend/       # Svelte-based Control Center
+├── services/               # System components
+│   ├── frontend/           # Unified Svelte UI (Spotify UI + Management)
+│   ├── music_manager/      # Management API, Ratings, Scrobbling
+│   ├── music-management-server/ # Playback Engine & Subsonic API
 │   ├── downloader/         # YouTube, SoundCloud, Telegram workers
 │   ├── importer/           # File movement and extraction
 │   ├── tagger/             # Rule-based tagging engine
 │   ├── ml-analyzer/        # ML audio feature extraction
 │   ├── scanner/            # Library scan and sync
+│   ├── ultrasonic/         # Android mobile client
 │   └── common/             # Shared logic and internal API
-├── modules/                # Specialized/Standalone modules
 ├── docs/                   # Detailed documentation and diagrams
 └── tools/                  # Utility scripts
 ```

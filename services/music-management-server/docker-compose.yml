@@ -1,0 +1,56 @@
+services:
+  lms:
+    container_name: lms
+    image: ${IMAGE_NAME}:${LMS_TAG}
+    expose:
+      - "5082"
+    ports:
+      # Direct root passthrough, used for lms.<domain> (OpenSubsonic API + legacy Wt UI).
+      # Port 80 is intentionally NOT bound here anymore: it is now served by the
+      # "reverse-proxy" service below, which rewrites requests to /spotify so that
+      # spotify.<domain> serves the actual frontend at "/" instead of LMS's bare
+      # Wt bootstrap page. See docs/deployment.md.
+      - "${LMS_SUBSONIC_PORT:-8080}:5082"
+    volumes:
+      - ${MUSIC_PATH:-/music}:/music
+      - ${DOCKER_DATA_PATH:-/docker}/lms/usr/local/etc:/usr/local/etc
+      - ${DOCKER_DATA_PATH:-/docker}/lms/var/lms:/var/lms
+    environment:
+      - LMS_API_KEY=${LMS_API_KEY}
+      - LMS_SUBSONIC_API_KEY=${LMS_SUBSONIC_API_KEY}
+      - LMS_MUSIC_MANAGEMENT_URL=${MUSIC_MANAGEMENT_URL}
+      - LMS_MUSIC_MANAGEMENT_API_KEY=${MUSIC_MANAGEMENT_API_KEY}
+    networks:
+      - default
+      - music-management_db
+    user: "0:0"
+    restart: unless-stopped
+
+  # Serves spotify.<domain> at "/" by rewriting requests to LMS's "/spotify"
+  # docroot mount, since Wt's WServer already reserves the deploy-path "/" for
+  # its own WApplication routing and cannot serve the frontend there directly
+  # (see main.cpp SpotifyResource fallback). See docs/deployment.md.
+  reverse-proxy:
+    container_name: lms-reverse-proxy
+    image: nginx:alpine
+    ports:
+      - "${LMS_PORT:-80}:80"
+    volumes:
+      - ${DOCKER_DATA_PATH:-/docker}/lms/nginx/reverse-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - lms
+    networks:
+      - default
+    restart: unless-stopped
+# NOTE: the "lms_alpha" service (previously used for testing an unstable/alpha
+# LMS build alongside the stable one) has been removed as part of the
+# production-lms-consolidation plan: production now runs a single LMS
+# instance (serving both the OpenSubsonic API and the frontend from its
+# docroot) on ${LMS_SUBSONIC_PORT:-8080}, fronted by "reverse-proxy" on
+# ${LMS_PORT:-80} for the frontend. See docs/deployment.md for the rollback
+# procedure and .junie/plans/production-lms-consolidation.md for context.
+
+networks:
+  music-management_db:
+    external: true
+    name: music-management_db

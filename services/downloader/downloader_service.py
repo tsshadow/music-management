@@ -23,19 +23,20 @@ class DownloaderService:
 
     def __init__(self) -> None:
         self.settings = Settings()
+        self.dry_run = getattr(self.settings, 'dryrun', False)
 
     def download(self, source: str, account: str | None, break_on_existing: bool) -> None:
         if source == 'youtube':
             from services.downloader.youtube.youtube import YoutubeDownloader
-            youtube_downloader = YoutubeDownloader(break_on_existing=break_on_existing)
+            youtube_downloader = YoutubeDownloader(break_on_existing=break_on_existing, dry_run=self.dry_run)
             youtube_downloader.run(account=account)
         elif source == 'soundcloud':
             from services.downloader.soundcloud.soundcloud import SoundcloudDownloader
-            soundcloud_downloader = SoundcloudDownloader(break_on_existing=break_on_existing)
+            soundcloud_downloader = SoundcloudDownloader(break_on_existing=break_on_existing, dry_run=self.dry_run)
             soundcloud_downloader.run(account=account)
         elif source == 'telegram':
             from services.downloader.telegram.telegram import TelegramDownloader
-            telegram_downloader = TelegramDownloader()
+            telegram_downloader = TelegramDownloader(dry_run=self.dry_run)
             if account:
                 accounts = [account]
             else:

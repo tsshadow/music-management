@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ navigation_header.xml
+  ~ Copyright (C) 2009-2023 Ultrasonic developers
+  ~
+  ~ Distributed under terms of the GNU GPLv3 license.
+  -->
+
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:a="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    a:id="@+id/view_container"
+    a:layout_width="match_parent"
+    a:layout_height="wrap_content"
+    a:gravity="bottom"
+    a:orientation="vertical">
+
+    <ImageView
+        a:id="@+id/img_header_bg"
+        a:layout_width="match_parent"
+        a:layout_height="0dp"
+        a:importantForAccessibility="no"
+        a:scaleType="fitXY"
+        a:background="@color/spotify_black"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <com.google.android.material.button.MaterialButton
+        a:id="@+id/header_select_server"
+        style="@style/Widget.Material3.Button.TextButton.Icon"
+        a:layout_width="0dp"
+        a:layout_height="wrap_content"
+        a:layout_marginTop="32dp"
+        a:background="@drawable/default_ripple"
+        a:gravity="center_vertical"
+        a:paddingHorizontal="22dp"
+        a:paddingTop="12dp"
+        a:paddingBottom="12dp"
+        a:text="@string/main.offline"
+        a:textAppearance="@style/TextAppearance.Material3.TitleLarge"
+        a:textColor="#FFFFFF"
+        a:textSize="20sp"
+        a:textStyle="bold"
+        app:icon="@drawable/ic_menu_select_server"
+        app:iconPadding="12dp"
+        app:iconSize="28dp"
+        app:iconTint="@color/spotify_green"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/edit_server_button"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:textColor="#FFFFFF" />
+
+    <com.google.android.material.button.MaterialButton
+        a:id="@+id/edit_server_button"
+        style="@style/Widget.Material3.Button.TextButton.Icon"
+        a:layout_width="wrap_content"
+        a:layout_height="0dp"
+        a:layout_marginTop="6dp"
+        a:layout_marginBottom="6dp"
+        a:contentDescription="@string/server_menu.edit"
+        app:icon="@drawable/arrow_drop_down"
+        app:layout_constraintBottom_toBottomOf="@id/header_select_server"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/header_select_server"
+        app:layout_constraintTop_toTopOf="@id/header_select_server"
+        app:iconTint="@color/selected_menu_dark" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -5,8 +5,10 @@
 # production deploy or official Ultrasonic upload happens) if the stabilization
 # work required by docs/release-management.md wasn't actually done:
 #   - root VERSION must have been bumped compared to develop.
-#   - CHANGELOG.md must have been touched, and its [Unreleased] section must no
-#     longer be empty (i.e. it was finalized into a dated entry).
+#   - CHANGELOG.md must have been touched, and must contain a dated entry for
+#     the bumped VERSION (i.e. [Unreleased] was finalized into that entry -
+#     [Unreleased] itself is expected to be empty again afterwards, ready for
+#     the next cycle).
 #   - RELEASE_NOTES.md must have been touched.
 #   - if anything under services/ultrasonic/ changed, build.gradle's
 #     versionCode/versionName must also have been bumped.
@@ -30,17 +32,17 @@ if git diff --quiet "$BASE" -- VERSION; then
 fi
 echo "OK: VERSION bumped to $(cat VERSION)."
 
-# 2. CHANGELOG.md must be touched, and [Unreleased] must not still be empty.
+# 2. CHANGELOG.md must be touched, and contain a dated entry for VERSION
+# (this is how we know [Unreleased] was actually finalized into a release,
+# rather than just edited some other way).
 if git diff --quiet "$BASE" -- CHANGELOG.md; then
     fail "CHANGELOG.md was not updated on this release branch."
 fi
-if grep -q "^## \[Unreleased\]" CHANGELOG.md; then
-    UNRELEASED_BODY=$(awk '/^## \[Unreleased\]/{flag=1; next} /^## \[/{flag=0} flag' CHANGELOG.md | sed '/^\s*$/d')
-    if [ -z "$UNRELEASED_BODY" ]; then
-        fail "CHANGELOG.md's [Unreleased] section is still empty."
-    fi
+RELEASE_VERSION=$(cat VERSION)
+if ! grep -q "^## \[${RELEASE_VERSION}\]" CHANGELOG.md; then
+    fail "CHANGELOG.md has no dated entry for [${RELEASE_VERSION}] (VERSION was bumped, but [Unreleased] wasn't finalized into a matching entry)."
 fi
-echo "OK: CHANGELOG.md updated."
+echo "OK: CHANGELOG.md has a dated [${RELEASE_VERSION}] entry."
 
 # 3. RELEASE_NOTES.md must be touched.
 if git diff --quiet "$BASE" -- RELEASE_NOTES.md; then

@@ -143,16 +143,3 @@ deploy:prod:
     - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"'
   script:
     - ./scripts/ci-deploy.sh
-
-# TEMPORARY job for this MR only: validates that deploy:prod (SSH key, both
-# .env CI/CD variables, idempotent redeploy of both stacks) actually works
-# from a merge request branch, before relying on the real deploy:prod job on
-# main/develop. Remove this job again once the MR has been merged and
-# deploy:prod has been confirmed working on main.
-deploy:prod:mr-test:
-  stage: deploy
-  interruptible: false
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "fix/ci-deploy-ssh-idempotent"'
-  script:
-    - ./scripts/ci-deploy.sh

@@ -9,6 +9,33 @@ This project is now modularized. Detailed release notes for each module can be f
 - [Music Manager](services/music_manager/RELEASE_NOTES.md)
 - [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
 
+## Global Version 0.0.1 (2026-07-26)
+### 🚀 A New Beginning: Single Monorepo & Official Release Process
+This release intentionally restarts the overarching version number at `0.0.1` — it is the first
+**official** release cut under the new `develop` → `release/*` → `master` branching and deployment
+model, and marks the point where this project became one single, unified monorepo.
+- **One Repository, One History**: `music-management-server` (LMS) and the `ultrasonic` Android app were
+  merged directly into this repository (full commit history preserved via `git subtree`), alongside the
+  `frontend`. There are no more submodules or separate remotes for these projects — everything that
+  touches the ecosystem (backend, player/manager frontend, mobile client) is now developed and released
+  from one place.
+- **Ultrasonic Fully Coupled**: the Android client connects to `music-management-server`'s Subsonic API
+  through the same `music.example.com` reverse proxy used by the web player/manager, with settings
+  backup/sync and star-rating/scrobble feedback already wired end-to-end to Music Manager.
+- **Official, Automated Production Deploys**: production is now deployed exclusively from `release/*`
+  branches, using dedicated CI-managed SSH credentials — no manual steps or handmade `.env` copying are
+  required, and the deploy is idempotent (safe to re-run, and safe to redeploy from scratch without
+  losing the database).
+- **Release Governance**: a release can no longer reach production without an updated `CHANGELOG.md`,
+  these release notes, and a bumped `VERSION` — enforced automatically by a new pipeline check. Every
+  release that reaches `master` is now also automatically tagged (`release-vX.Y.Z`), giving a permanent,
+  unambiguous record of what has actually shipped.
+- **Automated Ultrasonic Distribution**: debug builds are now uploaded to `apk-hoster` automatically on
+  every `develop` merge (for day-to-day testing on your own device), with official signed builds
+  reserved for `release/*` branches going forward.
+
+See [docs/release-management.md](docs/release-management.md) for the full branching/release model.
+
 ## Global Version 2.5.0 (2026-07-11)
 ### 🚀 Structural Modernization & Path Migration
 - **Major Path Migration**: The entire system has been migrated from `/music` to `/mnt/music`. This ensures consistency with host mounts and simplifies path resolution across all services.

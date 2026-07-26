@@ -78,7 +78,12 @@ services:
       STORAGE_PATH: /mnt/music/artists
       PYTHONPATH: /app
       API_KEY: ${API_KEY}
-      MUMA_SERVER_HOSTS: "music-management-server:5082"
+      # "lms" is the container_name of the LMS service defined in the separate
+      # "lms" stack (services/music-management-server/docker-compose.yml),
+      # which shares the "music-management_db" network with this stack. See
+      # docs/deployment.md for why LMS is deployed as its own stack instead of
+      # an inline service here.
+      MUMA_SERVER_HOSTS: "lms:5082"
       MUMA_SERVER_SUBSONIC_API_KEY: ${MUMA_SERVER_SUBSONIC_API_KEY:-${LMS_SUBSONIC_API_KEY}}
       NOTIFY_URL: ${NOTIFY_URL}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
@@ -90,31 +95,13 @@ services:
     networks:
       - music-management_db
 
-  # Integrated Music Management Server Service
-  music-management-server:
-    container_name: music-management-server-1
-    image: ${DOCKER_USER}/music-management-server:latest
-    restart: unless-stopped
-    ports:
-      - "5082:5082"
-    depends_on:
-      - db
-    environment:
-      - LMS_API_KEY=${API_KEY}
-      - LMS_SUBSONIC_API_KEY=${LMS_SUBSONIC_API_KEY}
-      - LMS_MUSIC_MANAGEMENT_URL=http://music-manager:8000/api
-      - LMS_MUSIC_MANAGEMENT_API_URL=http://music-manager:8000/api/lms-event
-      - LMS_MUSIC_MANAGEMENT_API_KEY=${API_KEY}
-      # Backward compatibility
-      - MUMA_SERVER_API_KEY=${API_KEY}
-      - MUMA_SERVER_SUBSONIC_API_KEY=${LMS_SUBSONIC_API_KEY}
-      - MUMA_SERVER_MUSIC_MANAGEMENT_URL=http://music-manager:8000
-      - MUMA_SERVER_MUSIC_MANAGEMENT_API_KEY=${API_KEY}
-    volumes:
-      - ${HOST_MUSIC_PATH}:/music
-      - ${HOST_DATA_PATH}/music-management-server/var/lms:/var/lms
-    networks:
-      - music-management_db
+  # NOTE: LMS (the "Spotify UI" + Subsonic API, spotify.<domain>/lms.<domain>)
+  # is NOT defined here. It is deployed as its own, separate stack from
+  # services/music-management-server/docker-compose.yml ("lms" project: "lms"
+  # + "reverse-proxy" services), which is why it joins this stack's
+  # "music-management_db" network as an external network below. Both stacks
+  # are deployed together by the CI "deploy:prod" job (scripts/ci-deploy.sh).
+  # See docs/deployment.md for the full rationale and rollback procedure.
 
   # The following services are now integrated into music-manager:
   # - control-center (management-api)

@@ -42,6 +42,9 @@ class UserUpdate(BaseModel):
     server_user_id: Optional[str] = None
     api_key: Optional[str] = None
 
+class MergeUsersRequest(BaseModel):
+    secondary_user_id: int
+
 class RoleAssign(BaseModel):
     role: str
 
@@ -673,12 +676,164 @@ def delete_user(user_id: int, auth: dict=Depends(verify_api_key)):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
-        raise HTTPException(status_code=500)
+        raise HTTPException(status_code=500, detail='DB failed')
     try:
         with conn.cursor() as cursor:
+            cursor.execute('SELECT id, username, role_id FROM users WHERE id = %s', (user_id,))
+            target = cursor.fetchone()
+            if not target:
+                raise HTTPException(status_code=404, detail='User not found')
+
+            # Refuse to delete the last remaining admin account -- otherwise
+            # the whole system could be left without anyone able to manage
+            # users/roles at all.
+            admin_role = rbac.get_role_by_name(cursor, rbac.ADMIN_ROLE_NAME)
+            if admin_role and target.get('role_id') == admin_role['id']:
+                cursor.execute('SELECT COUNT(*) as cnt FROM users WHERE role_id = %s', (admin_role['id'],))
+                if cursor.fetchone()['cnt'] <= 1:
+                    raise HTTPException(status_code=400, detail='Kan de laatste beheerder niet verwijderen')
+
+            # Defensively remove dependent rows ourselves first, instead of
+            # relying only on the FK ON DELETE CASCADE/SET NULL constraints:
+            # those are declared on CREATE TABLE IF NOT EXISTS, which never
+            # retrofits an already-existing table on older deployments, so a
+            # stray leftover row there could otherwise turn this into an
+            # unhandled 500 with no clear cause ("verwijderen gaat niet altijd
+            # goed").
+            for table in ('user_identities', 'user_refresh_tokens', 'dynamic_playlists', 'user_app_settings', 'user_listenbrainz_accounts'):
+                cursor.execute(f'DELETE FROM {table} WHERE user_id = %s', (user_id,))
+            cursor.execute('UPDATE user_requests SET reviewed_by_user_id = NULL WHERE reviewed_by_user_id = %s', (user_id,))
+            cursor.execute('UPDATE user_requests SET created_user_id = NULL WHERE created_user_id = %s', (user_id,))
+
             cursor.execute('DELETE FROM users WHERE id = %s', (user_id,))
+            actor_id = (auth.get('user') or {}).get('id')
+            rbac.record_audit_event(cursor, 'user.deleted', actor_user_id=actor_id, target_user_id=user_id, details=f"username={target['username']}")
             conn.commit()
             return {'status': 'ok'}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'Verwijderen mislukt: {e}')
+    finally:
+        conn.close()
+
+@router.post('/{user_id}/merge')
+def merge_users(user_id: int, req: MergeUsersRequest, auth: dict=Depends(require_permission('users.merge'))):
+    """Merge ``req.secondary_user_id`` into ``user_id`` (the account that survives).
+
+    This is the fix for ending up with two separate accounts for the same
+    person -- e.g. one created via ``/api/auth/access-request`` approval for
+    a Google identity, and a pre-existing local/Subsonic account -- because
+    approving a request always creates a brand new user with no way to link
+    it to an already-existing one.
+
+    Every piece of data owned by the secondary account (login identities,
+    sessions, dynamic playlists, per-app settings, ListenBrainz link, ratings
+    and scrobble history) is moved onto the primary account, then the
+    secondary account is deleted. Data the primary account already has for
+    the same provider/app/track simply wins, so a conflict can never make the
+    merge fail.
+    """
+    primary_id = user_id
+    secondary_id = req.secondary_user_id
+    if primary_id == secondary_id:
+        raise HTTPException(status_code=400, detail='Kan een gebruiker niet met zichzelf samenvoegen')
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail='DB failed')
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT * FROM users WHERE id = %s', (primary_id,))
+            primary = cursor.fetchone()
+            cursor.execute('SELECT * FROM users WHERE id = %s', (secondary_id,))
+            secondary = cursor.fetchone()
+            if not primary or not secondary:
+                raise HTTPException(status_code=404, detail='Gebruiker niet gevonden')
+
+            # 1) Login identities (e.g. Google): keep the primary's own link
+            #    to a given provider if it already has one, otherwise adopt
+            #    the secondary's.
+            cursor.execute('SELECT provider FROM user_identities WHERE user_id = %s', (primary_id,))
+            existing_providers = {row['provider'] for row in cursor.fetchall()}
+            cursor.execute('SELECT id, provider FROM user_identities WHERE user_id = %s', (secondary_id,))
+            for identity in cursor.fetchall():
+                if identity['provider'] in existing_providers:
+                    cursor.execute('DELETE FROM user_identities WHERE id = %s', (identity['id'],))
+                else:
+                    cursor.execute('UPDATE user_identities SET user_id = %s WHERE id = %s', (primary_id, identity['id']))
+
+            # 2) Sessions: the secondary's refresh tokens/api_key are dropped;
+            #    whoever was logged in on it needs to log in again, on the
+            #    now-merged primary account.
+            cursor.execute('DELETE FROM user_refresh_tokens WHERE user_id = %s', (secondary_id,))
+
+            # 3) Dynamic playlists are unique on (source, remote_id), not on
+            #    user_id, so re-pointing them is always safe.
+            cursor.execute('UPDATE dynamic_playlists SET user_id = %s WHERE user_id = %s', (primary_id, secondary_id))
+
+            # 4) Per-app settings (unique on user_id+app_id): keep the
+            #    primary's if it already has settings for that app.
+            cursor.execute('SELECT app_id FROM user_app_settings WHERE user_id = %s', (primary_id,))
+            existing_apps = {row['app_id'] for row in cursor.fetchall()}
+            cursor.execute('SELECT id, app_id FROM user_app_settings WHERE user_id = %s', (secondary_id,))
+            for setting in cursor.fetchall():
+                if setting['app_id'] in existing_apps:
+                    cursor.execute('DELETE FROM user_app_settings WHERE id = %s', (setting['id'],))
+                else:
+                    cursor.execute('UPDATE user_app_settings SET user_id = %s WHERE id = %s', (primary_id, setting['id']))
+
+            # 5) ListenBrainz link (unique on user_id): keep the primary's if set.
+            cursor.execute('SELECT user_id FROM user_listenbrainz_accounts WHERE user_id = %s', (primary_id,))
+            if cursor.fetchone():
+                cursor.execute('DELETE FROM user_listenbrainz_accounts WHERE user_id = %s', (secondary_id,))
+            else:
+                cursor.execute('UPDATE user_listenbrainz_accounts SET user_id = %s WHERE user_id = %s', (primary_id, secondary_id))
+
+            # 6) Ratings & scrobble history are keyed by *username* (not
+            #    user_id) -- repoint them to the primary's username. Wherever
+            #    the primary already has a row for the same unique key, the
+            #    primary's row simply wins and the secondary's leftover is
+            #    dropped, so this can never fail on a duplicate-key conflict.
+            for table, key_cols in (
+                ('rating_tracks', ('entity_type', 'entity_id')),
+                ('scrobble_listens', ('listened_at', 'track_id')),
+                ('scrobble_unmatched_listens', ('listened_at', 'artist_name', 'track_title')),
+            ):
+                cols = ', '.join(key_cols)
+                cursor.execute(f'SELECT id, {cols} FROM {table} WHERE username = %s', (secondary['username'],))
+                for row in cursor.fetchall():
+                    where_clause = ' AND '.join(f'{c} = %s' for c in key_cols)
+                    cursor.execute(
+                        f'SELECT id FROM {table} WHERE username = %s AND {where_clause}',
+                        (primary['username'], *[row[c] for c in key_cols])
+                    )
+                    if cursor.fetchone():
+                        cursor.execute(f'DELETE FROM {table} WHERE id = %s', (row['id'],))
+                    else:
+                        cursor.execute(f'UPDATE {table} SET username = %s WHERE id = %s', (primary['username'], row['id']))
+            cursor.execute('UPDATE scrobble_imports SET username = %s WHERE username = %s', (primary['username'], secondary['username']))
+
+            # 7) Historical references to the secondary account.
+            cursor.execute('UPDATE user_requests SET reviewed_by_user_id = %s WHERE reviewed_by_user_id = %s', (primary_id, secondary_id))
+            cursor.execute('UPDATE user_requests SET created_user_id = %s WHERE created_user_id = %s', (primary_id, secondary_id))
+
+            cursor.execute('DELETE FROM users WHERE id = %s', (secondary_id,))
+
+            actor_id = (auth.get('user') or {}).get('id')
+            rbac.record_audit_event(
+                cursor, 'user.merged', actor_user_id=actor_id, target_user_id=primary_id,
+                details=f"merged user_id={secondary_id} (username={secondary['username']}) into user_id={primary_id} (username={primary['username']})"
+            )
+            conn.commit()
+            cursor.execute(
+                'SELECT u.id, u.username, u.display_name, u.email, u.avatar_url, u.is_admin, u.role_id, r.name as role_name, u.enabled, u.server_user_id, u.api_key FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.id = %s',
+                (primary_id,)
+            )
+            return {'status': 'ok', 'user': cursor.fetchone()}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'Samenvoegen mislukt: {e}')
     finally:
         conn.close()
 

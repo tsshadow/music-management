@@ -99,6 +99,7 @@ LMS_VERSION=$(grep "project(lms VERSION" services/music-management-server/CMakeL
 
 echo "--- Building lms image (${IMAGE_NAME}:${LMS_VERSION}) ---"
 docker build \
+    --build-arg VITE_GOOGLE_CLIENT_ID="${VITE_GOOGLE_CLIENT_ID}" \
     -t "${IMAGE_NAME}:latest" \
     -t "${IMAGE_NAME}:stable" \
     -t "${IMAGE_NAME}:${LMS_VERSION}" \

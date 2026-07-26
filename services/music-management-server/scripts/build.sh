@@ -85,7 +85,7 @@ echo "Building Docker image ${IMAGE_NAME}:${ADDITIONAL_TAG} and ${IMAGE_NAME}:${
 # so the build context must be the monorepo root, not this directory.
 REPO_ROOT="$(cd ../.. && pwd)"
 if [ "$MODE" == "release" ]; then
-    docker build ${DOCKER_FLAGS} -t "${IMAGE_NAME}:${ADDITIONAL_TAG}" -t "${IMAGE_NAME}:${STABLE_TAG}" -t "${IMAGE_NAME}:${VERSION}" -f Dockerfile-release "$REPO_ROOT"
+    docker build ${DOCKER_FLAGS} --build-arg VITE_GOOGLE_CLIENT_ID="${VITE_GOOGLE_CLIENT_ID}" -t "${IMAGE_NAME}:${ADDITIONAL_TAG}" -t "${IMAGE_NAME}:${STABLE_TAG}" -t "${IMAGE_NAME}:${VERSION}" -f Dockerfile-release "$REPO_ROOT"
 else
-    docker build ${DOCKER_FLAGS} -t "${IMAGE_NAME}:${ADDITIONAL_TAG}" -t "${IMAGE_NAME}:${UNSTABLE_TAG}" -t "${IMAGE_NAME}:${VERSION}" -f Dockerfile-release "$REPO_ROOT"
+    docker build ${DOCKER_FLAGS} --build-arg VITE_GOOGLE_CLIENT_ID="${VITE_GOOGLE_CLIENT_ID}" -t "${IMAGE_NAME}:${ADDITIONAL_TAG}" -t "${IMAGE_NAME}:${UNSTABLE_TAG}" -t "${IMAGE_NAME}:${VERSION}" -f Dockerfile-release "$REPO_ROOT"
 fi

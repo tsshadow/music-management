@@ -23,6 +23,7 @@
   let userLBAccount = null;
   let userIdentities = [];
   let lastSelectedUserId = null;
+  let mergeSecondaryId = '';
 
   async function addUser() {
     if (!newUsername) return;
@@ -243,6 +244,31 @@
     }
   }
 
+  async function mergeUsers() {
+    if (!selectedUser || !mergeSecondaryId) return;
+    const secondary = users.find(u => u.id === parseInt(mergeSecondaryId));
+    if (!secondary) return;
+    if (!confirm(`Weet je zeker dat je ${secondary.username} wilt samenvoegen in ${selectedUser.username}? Alle koppelingen, ratings en luistergeschiedenis van ${secondary.username} worden overgezet en het account ${secondary.username} wordt daarna verwijderd. Dit kan niet ongedaan worden gemaakt.`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/users/${selectedUser.id}/merge`, {
+        method: 'POST',
+        headers: getHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ secondary_user_id: parseInt(mergeSecondaryId) })
+      });
+      if (res.ok) {
+        onMessage(`${secondary.username} is samengevoegd in ${selectedUser.username}.`);
+        mergeSecondaryId = '';
+        await fetchUsers();
+        fetchIdentities();
+      } else {
+        const data = await res.json();
+        onError(data.detail || "Kon gebruikers niet samenvoegen.");
+      }
+    } catch (err) {
+      onError("Netwerkfout bij samenvoegen.");
+    }
+  }
+
   $: if (selectedUser) {
     if (selectedUser.id !== lastSelectedUserId) {
       lastSelectedUserId = selectedUser.id;
@@ -314,7 +340,7 @@
                         on:click|stopPropagation={() => deleteUser(user)}
                         class="text-spotify-lightgray hover:text-red-500 transition-colors p-2"
                         title="Verwijder gebruiker"
-                        disabled={!hasPermission('users.create')}
+                        disabled={!hasPermission('users.update')}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -582,6 +608,42 @@
                   {/if}
                 </div>
               </div>
+
+              <!-- Merge duplicate accounts -->
+              {#if hasPermission('users.merge')}
+              <div class="space-y-4">
+                <h4 class="text-xl font-bold flex items-center gap-2 text-white">
+                  <Users size={20} class="text-yellow-400" /> Accounts samenvoegen
+                </h4>
+                <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
+                  <p class="text-xs text-spotify-lightgray">
+                    Heeft dezelfde persoon per ongeluk twee accounts (bijv. een lokaal account en een via Google
+                    aangevraagd account)? Kies hieronder het account dat verwijderd mag worden; alle koppelingen,
+                    ratings en luistergeschiedenis daarvan worden overgezet naar <strong>{selectedUser.username}</strong>.
+                  </p>
+                  <div>
+                    <label for="merge-secondary" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">Samenvoegen met</label>
+                    <select
+                      id="merge-secondary"
+                      bind:value={mergeSecondaryId}
+                      class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors text-sm"
+                    >
+                      <option value="">Selecteer een ander account</option>
+                      {#each users.filter(u => u.id !== selectedUser.id) as user (user.id)}
+                        <option value={user.id}>{user.username}{user.display_name ? ` (${user.display_name})` : ''}</option>
+                      {/each}
+                    </select>
+                  </div>
+                  <button
+                    on:click={mergeUsers}
+                    disabled={!mergeSecondaryId}
+                    class="w-full bg-yellow-500 text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
+                  >
+                    SAMENVOEGEN EN VERWIJDEREN
+                  </button>
+                </div>
+              </div>
+              {/if}
             </div>
           </div>
         </div>

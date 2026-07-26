@@ -160,11 +160,19 @@ export const authParams = derived(credentials, ($c) => {
 // Centralized here (instead of every component doing its own /rest/getUser
 // call) so the player/beheer toggle and the management view can be gated
 // consistently. Automatically re-checked whenever the credentials change.
-export const isAdmin = writable(null);
+//
+// This is only HALF the story: it only ever reflects Subsonic's own
+// `adminRole`, which is never set for users who signed in via Google (they
+// never populate `credentials` at all -- see AuthOverlay.svelte's
+// `handleGoogleResponse`, which only sets `mumaUser`/`userPermissions`).
+// `isAdmin` below combines this with the RBAC role coming from `mumaUser`
+// (set by both Subsonic+MuMa login and Google login) so admins are
+// recognized regardless of which login method they used.
+const subsonicIsAdmin = writable(null);
 
 /**
- * Fetches the current user's Subsonic adminRole and updates the `isAdmin`
- * store accordingly.
+ * Fetches the current user's Subsonic adminRole and updates the
+ * `subsonicIsAdmin` store accordingly.
  *
  * @param {{username: string, password: string}} creds - The credentials to check.
  */
@@ -173,10 +181,10 @@ async function checkAdminStatus(creds) {
     const params = `u=${encodeURIComponent(creds.username)}&p=${encodeURIComponent(creds.password)}&v=1.12.0&c=spotify&f=json`;
     const resp = await fetch(`/rest/getUser?${params}&username=${encodeURIComponent(creds.username)}`);
     const data = await resp.json();
-    isAdmin.set(data['subsonic-response']?.user?.adminRole === true);
+    subsonicIsAdmin.set(data['subsonic-response']?.user?.adminRole === true);
   } catch (e) {
     console.error('Kon adminstatus niet bepalen', e);
-    isAdmin.set(false);
+    subsonicIsAdmin.set(false);
   }
 }
 
@@ -186,9 +194,55 @@ credentials.subscribe(($c) => {
   if (key === lastAdminCheckKey) return;
   lastAdminCheckKey = key;
   if (key) {
-    isAdmin.set(null);
+    subsonicIsAdmin.set(null);
     checkAdminStatus($c);
   } else {
-    isAdmin.set(false);
+    subsonicIsAdmin.set(false);
   }
+});
+
+// `mumaUser`/`userPermissions` are intentionally NOT persisted (unlike
+// `mumaApiKey`), so after a page reload a Google-only user (no Subsonic
+// credentials, see above) would have a `null` `mumaUser` until they happen
+// to open the management view (which re-fetches it, see Management.svelte's
+// onMount). Re-hydrate it here too, from the persisted `mumaApiKey`, so
+// `isAdmin` (and the "Beheer" nav entry) resolves correctly right after
+// startup, not only once already inside the management view.
+export const mumaUserHydrated = writable(!get(mumaApiKey));
+
+async function hydrateMumaUserFromApiKey() {
+  const key = get(mumaApiKey);
+  if (!key) return;
+  try {
+    const res = await fetch(`${get(mumaApiUrl)}/api/auth/verify`, {
+      headers: { 'X-API-Key': key }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.type === 'user') {
+        userPermissions.set(data.user.permissions || []);
+        mumaUser.set(data.user);
+      } else if (data.type === 'system') {
+        // See the matching comment in Management.svelte's onMount: every
+        // Subsonic-authenticated admin actually authenticates with the
+        // shared system key, which MuMa itself always treats as an
+        // always-allowed superuser.
+        userPermissions.set([]);
+        mumaUser.set({ is_admin: true });
+      }
+    }
+  } catch (e) {
+    console.warn('Kon gebruikersgegevens niet verversen bij opstarten', e);
+  } finally {
+    mumaUserHydrated.set(true);
+  }
+}
+hydrateMumaUserFromApiKey();
+
+export const isAdmin = derived([subsonicIsAdmin, mumaUser, mumaUserHydrated], ([$subsonicIsAdmin, $mumaUser, $mumaUserHydrated]) => {
+  if ($subsonicIsAdmin === true) return true;
+  if ($mumaUser && ($mumaUser.is_admin || $mumaUser.role_name === 'admin')) return true;
+  if ($subsonicIsAdmin === null) return null;
+  if (!$mumaUserHydrated) return null;
+  return false;
 });

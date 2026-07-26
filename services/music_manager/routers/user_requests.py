@@ -35,6 +35,7 @@ class GoogleAuthRequest(BaseModel):
 
 class RequestReview(BaseModel):
     reason: Optional[str] = None
+    link_user_id: Optional[int] = None
 
 
 def _verify_google_id_token(id_token_str: str) -> dict:
@@ -180,7 +181,15 @@ def list_user_requests(status: Optional[str] = None, auth: dict = Depends(requir
 
 
 @router.post('/user-requests/{request_id}/approve')
-def approve_user_request(request_id: int, _body: RequestReview = RequestReview(), auth: dict = Depends(require_permission('user-requests.approve'))):
+def approve_user_request(request_id: int, body: RequestReview = RequestReview(), auth: dict = Depends(require_permission('user-requests.approve'))):
+    """Approve a pending access request.
+
+    By default this creates a brand new 'user'-role account. If the person
+    requesting access already has an existing account (e.g. they normally log
+    in locally/via Subsonic and are now also requesting access with Google),
+    pass ``link_user_id`` to link the Google identity to that existing
+    account instead of creating a duplicate one.
+    """
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')
@@ -193,27 +202,44 @@ def approve_user_request(request_id: int, _body: RequestReview = RequestReview()
             if req['status'] != 'pending':
                 raise HTTPException(status_code=400, detail=f"Request is already {req['status']}")
 
-            default_role = rbac.get_role_by_name(cursor, rbac.DEFAULT_ROLE_NAME)
-            username = req.get('email') or f"google-{req['google_subject'][:12]}"
-            api_key = secrets.token_hex(32)
-            cursor.execute(
-                'INSERT INTO users (username, display_name, email, avatar_url, is_admin, role_id, enabled, api_key) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
-                (username, req.get('display_name') or username, req.get('email'), req.get('avatar_url'), False, default_role['id'] if default_role else None, True, api_key)
-            )
-            new_user_id = cursor.lastrowid
-            cursor.execute(
-                'INSERT INTO user_identities (user_id, provider, provider_subject, email_at_provider) VALUES (%s, %s, %s, %s)',
-                (new_user_id, 'google', req['google_subject'], req.get('email'))
-            )
+            if body.link_user_id:
+                cursor.execute('SELECT * FROM users WHERE id = %s', (body.link_user_id,))
+                target_user = cursor.fetchone()
+                if not target_user:
+                    raise HTTPException(status_code=404, detail='Te koppelen gebruiker niet gevonden')
+                cursor.execute(
+                    'INSERT INTO user_identities (user_id, provider, provider_subject, email_at_provider) VALUES (%s, %s, %s, %s)',
+                    (target_user['id'], 'google', req['google_subject'], req.get('email'))
+                )
+                approved_user_id = target_user['id']
+            else:
+                default_role = rbac.get_role_by_name(cursor, rbac.DEFAULT_ROLE_NAME)
+                username = req.get('email') or f"google-{req['google_subject'][:12]}"
+                api_key = secrets.token_hex(32)
+                cursor.execute(
+                    'INSERT INTO users (username, display_name, email, avatar_url, is_admin, role_id, enabled, api_key) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
+                    (username, req.get('display_name') or username, req.get('email'), req.get('avatar_url'), False, default_role['id'] if default_role else None, True, api_key)
+                )
+                approved_user_id = cursor.lastrowid
+                cursor.execute(
+                    'INSERT INTO user_identities (user_id, provider, provider_subject, email_at_provider) VALUES (%s, %s, %s, %s)',
+                    (approved_user_id, 'google', req['google_subject'], req.get('email'))
+                )
+
             actor_id = (auth.get('user') or {}).get('id')
             cursor.execute(
                 'UPDATE user_requests SET status = %s, reviewed_at = NOW(), reviewed_by_user_id = %s, created_user_id = %s WHERE id = %s',
-                ('approved', actor_id, new_user_id, request_id)
+                ('approved', actor_id, approved_user_id, request_id)
             )
-            rbac.record_audit_event(cursor, 'user_request.approved', actor_user_id=actor_id, target_user_id=new_user_id, details=f"request_id={request_id}")
+            event_type = 'user_request.linked' if body.link_user_id else 'user_request.approved'
+            rbac.record_audit_event(cursor, event_type, actor_user_id=actor_id, target_user_id=approved_user_id, details=f"request_id={request_id}")
             conn.commit()
             cursor.execute('SELECT * FROM user_requests WHERE id = %s', (request_id,))
             return {'status': 'ok', 'request': _request_to_dict(cursor.fetchone())}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'Goedkeuren mislukt: {e}')
     finally:
         conn.close()
 

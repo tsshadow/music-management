@@ -111,8 +111,15 @@ echo "--- Deploying stack: lms ---"
 
 # 6. Post-deploy verification: confirm both stacks report freshly (re)started
 #    containers, so a silently-failed "up -d" doesn't get reported as success.
+#    (Two separate "docker ps" calls: multiple "--filter label=..." on the
+#    same key are AND'ed by the Docker CLI, not OR'ed, so a single combined
+#    filter for two different project names would always return nothing.)
 echo "--- Verifying container state on $REMOTE_HOST ---"
-ssh -o StrictHostKeyChecking=no "${REMOTE_USER}@${REMOTE_HOST}" \
-    "docker ps --filter 'label=com.docker.compose.project=music-management' --filter 'label=com.docker.compose.project=lms' --format '{{.Names}}\t{{.Status}}'"
+ssh -o StrictHostKeyChecking=no "${REMOTE_USER}@${REMOTE_HOST}" "
+    echo '[music-management stack]'
+    docker ps --filter 'label=com.docker.compose.project=music-management' --format '{{.Names}}\t{{.Status}}'
+    echo '[lms stack]'
+    docker ps --filter 'label=com.docker.compose.project=lms' --format '{{.Names}}\t{{.Status}}'
+"
 
 echo "--- CI Deployment finished successfully ---"

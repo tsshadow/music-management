@@ -9,6 +9,27 @@ This project is now modularized. Detailed release notes for each module can be f
 - [Music Manager](services/music_manager/RELEASE_NOTES.md)
 - [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
 
+## Global Version 0.0.3 (2026-07-26)
+### 🔐 Google Sign-In werkt nu écht, end-to-end
+De "Sign in with Google"-flow bestond al, maar de knop verscheen niet in productie (de Client ID werd
+nooit meegebouwd), en zodra dat gefixt was, gaf inloggen alsnog `401 Unauthorized` en misten admins hun
+beheerknoppen. Daarnaast kon je twee accounts van dezelfde persoon niet meer samenvoegen.
+- **Google-knop verschijnt nu écht**: elke plek die het `lms`-image bouwt (lokaal, LMS build-script en
+  CI) geeft de Client ID nu mee als build-arg, zodat deze daadwerkelijk in de gebouwde bundel terechtkomt.
+  Gedocumenteerd in een nieuwe "Google Sign-In setup"-sectie in `docs/deployment.md`.
+- **Google/access-request logins zijn niet langer geblokkeerd**: de proxy tussen de webapp en de
+  beheerbackend laat een nieuwe Google-login nu daadwerkelijk door in plaats van deze te blokkeren
+  voordat hij zelfs gecontroleerd wordt.
+- **Je eigen login wordt niet meer omgewisseld voor een generieke**: elk verzoek via die proxy behoudt nu
+  je eigen identiteit, zodat de backend je echte rol en rechten correct laat zien.
+- **Beheerknoppen zijn terug**: de Beheer-tab herkent admins (via Subsonic of Google) nu weer correct en
+  toont de gebruikersbeheer-knoppen die voorheen verborgen waren.
+- **Accounts samenvoegen**: dubbele accounts (bijv. door een Google-toegangsaanvraag voor iemand die al
+  een lokaal account had) kunnen nu samengevoegd worden tot één account; een toegangsaanvraag kan ook
+  direct aan een bestaand account gekoppeld worden in plaats van er altijd een nieuw account van te maken.
+- **Verwijderen van gebruikers is robuuster**: mislukte verwijderingen geven nu een duidelijke
+  foutmelding, en de laatste beheerder kan niet meer per ongeluk verwijderd worden.
+
 ## Global Version 0.0.2 (2026-07-26)
 ### 🛠 Fix: Production Now Actually Deploys What You Released
 Right after `0.0.1`, production kept looking like it was running old code even after a successful

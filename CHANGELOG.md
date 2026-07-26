@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.3] - 2026-07-26
+
 > **Google Sign-In is now fully wired up end-to-end: the button actually renders, the login it produces
 > actually works, and duplicate accounts can be cleaned up.** The frontend/backend code for "Sign in with
 > Google" already existed, but the `VITE_GOOGLE_CLIENT_ID` build-arg was never passed to any of the three

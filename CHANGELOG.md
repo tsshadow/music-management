@@ -7,6 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+> **Google Sign-In is now fully wired up end-to-end: the button actually renders, the login it produces
+> actually works, and duplicate accounts can be cleaned up.** The frontend/backend code for "Sign in with
+> Google" already existed, but the `VITE_GOOGLE_CLIENT_ID` build-arg was never passed to any of the three
+> places that build the `lms` image (so the button never rendered), the LMS proxy layer blocked the
+> Google auth endpoints and swapped every caller's identity for a generic one (so logins that did render
+> failed with `401` and admins lost their management buttons), and there was no way to merge an account
+> created via a Google access request into an already-existing local/Subsonic account for the same person.
+
+### Added
+- **Google Sign-In build wiring**: `build.sh`, `services/music-management-server/scripts/build.sh`, and
+  `scripts/ci/build-and-push-images.sh` now all pass `--build-arg VITE_GOOGLE_CLIENT_ID=...` when building
+  the `lms` image, sourced from a new `VITE_GOOGLE_CLIENT_ID` entry in
+  `services/music-management-server/.env` (mirroring the backend's existing `GOOGLE_CLIENT_ID`). Documented
+  in a new "Google Sign-In setup" subsection of `docs/deployment.md`.
+- **Merge duplicate user accounts**: new `POST /api/users/{id}/merge` endpoint (permission `users.merge`)
+  moves everything owned by a secondary account (login identities, sessions, dynamic playlists, per-app
+  settings, ListenBrainz link, ratings and scrobble history) onto the primary account and then deletes the
+  secondary account. Conflicts on a shared unique key are resolved by keeping the primary account's
+  existing data. Exposed in the "Beheer" tab as an "Accounts samenvoegen" panel.
+- **Link a Google access request to an existing account**: approving a pending access request
+  (`POST /api/user-requests/{id}/approve`) now accepts an optional `link_user_id`, which links the Google
+  identity to that account instead of always creating a brand-new one — preventing this kind of duplicate
+  from happening again.
+
+### Fixed
+- **`/api/auth/google` / `/api/auth/access-request` / `/api/auth/setup*` were never reachable**: the LMS
+  proxy (`MumaResource::handleRequest`) required an already-authenticated caller for every endpoint, which
+  made it impossible for a brand-new Google identity (which by definition has no credentials yet) to ever
+  call the very endpoints meant to grant it access. These are now explicitly treated as public,
+  unauthenticated pass-throughs, exactly like the existing `/api/auth/login`.
+- **Caller identity was discarded on every proxied request**: `MumaResource` always forwarded the
+  server-wide `MUSIC_MANAGEMENT_API_KEY` to MuMa instead of the caller's own `X-API-Key`, so MuMa saw every
+  request (Subsonic or Google-authenticated) as a generic, permission-less "system" caller rather than the
+  actual logged-in user. The caller's own key is now forwarded first, falling back to the system key only
+  when the caller didn't send one.
+- **Frontend never recognized the "system" identity as an admin**: because Subsonic admins authenticate via
+  the shared system key (which MuMa itself always grants full access to), the "Beheer" tab's
+  `hasPermission()` checks (gating "add user", "delete user", role changes, ...) always evaluated to
+  `false` for them, hiding those actions even for a real admin. The frontend now mirrors MuMa's own "system
+  key = full access" rule.
+- **`isAdmin` never accounted for a Google-authenticated admin's RBAC role**, and was never refreshed from
+  a persisted session after a page reload — both are now covered so the "Beheer" nav entry and page gating
+  work the same regardless of login method.
+- **Deleting a user could fail with a generic, unhelpful error**: `DELETE /api/users/{id}` now explicitly
+  cleans up dependent rows (login identities, sessions, dynamic playlists, per-app settings, ListenBrainz
+  link) before deleting the account, protects the last remaining admin account from being deleted, and
+  returns a clear `Verwijderen mislukt: ...` message instead of a bare `500` on failure.
+- **Delete-user button visibility check used the wrong permission**: the "Beheer" tab's delete button was
+  gated on `users.create` instead of `users.update`, which no longer matched what the backend actually
+  requires.
+
+### Notes
+- A separate, lower-severity issue was found but intentionally **not** fixed here: the shared HTTP client
+  used by `MumaResource` (`core::http::SendQueue`) treats any non-2xx response from MuMa as a transport
+  failure, collapsing it into a generic `502 Bad Gateway` instead of relaying the real status code/body.
+  This doesn't block real logins (a valid Google token returns `200`), but it does hide legitimate error
+  details (e.g. an actually-invalid token, or a `403`) behind a generic gateway error. Fixing it would
+  touch a shared component used by every other `IClient` consumer in the codebase, so it's flagged here as
+  a follow-up rather than changed as part of this fix.
+
 ## [0.0.2] - 2026-07-26
 
 > **Fix: production was deploying stale images.** After cutting `0.0.1`, `music.example.com`

@@ -8,6 +8,8 @@
 #include <Wt/Json/Parser.h>
 #include <Wt/Utils.h>
 #include <boost/asio/ip/address.hpp>
+#include <algorithm>
+#include <array>
 #include <future>
 #include <cstring>
 
@@ -109,16 +111,43 @@ namespace lms::api::muma
             return;
         }
 
+        // Public, unauthenticated auth endpoints: these are the entry points for
+        // users who don't have any credentials yet (initial setup, and the
+        // Google Sign-In / access-request flow for a brand-new Google identity),
+        // so they must be reachable without an existing Subsonic apiKey/u+p.
+        // They are simply proxied through, unauthenticated, to MuMa below (same
+        // generic "/api/" proxy used for everything else), which does its own
+        // validation (Google ID token verification, setup-already-done checks, ...).
+        static const std::array<std::string_view, 4> publicAuthPaths{
+            "/api/auth/setup-status",
+            "/api/auth/setup",
+            "/api/auth/google",
+            "/api/auth/access-request",
+        };
+        const bool isPublicAuthPath = std::find(publicAuthPaths.begin(), publicAuthPaths.end(), pathInfo) != publicAuthPaths.end();
+
         // Simple auth for other endpoints
         const std::string* apiKeyParam = request.getParameter("apiKey");
         const std::string* userParam = request.getParameter("u");
         const std::string* passParam = request.getParameter("p");
         const std::string xApiKeyHeader = request.headerValue("X-API-Key");
 
-        bool authenticated = false;
-        if (!xApiKeyHeader.empty() && !configMumaApiKey.empty() && xApiKeyHeader == configMumaApiKey)
+        // NOTE: matching the single, shared `configMumaApiKey` (LMS_API_KEY) is
+        // only ONE valid way in -- it's what `/api/auth/login` (handled locally,
+        // just above) hands back to every locally-authenticated Subsonic user.
+        // But MuMa (music_manager) also issues its own, per-user API keys (e.g.
+        // to Google Sign-In users via `/api/auth/google`/`/api/auth/access-request`,
+        // see the public-path list above), which will never equal the shared
+        // key. Any non-empty key is therefore accepted here and simply
+        // forwarded on to MuMa for every proxied "/api/" endpoint below --
+        // MuMa re-validates X-API-Key itself on every request (see
+        // rbac.require_permission / verify_token) and is the real
+        // authority here; this local check only exists to keep fully
+        // anonymous requests (no key, no Subsonic u/p) from being proxied at all.
+        bool authenticated = isPublicAuthPath;
+        if (!xApiKeyHeader.empty())
             authenticated = true;
-        else if (apiKeyParam && !configMumaApiKey.empty() && *apiKeyParam == configMumaApiKey)
+        else if (apiKeyParam && !apiKeyParam->empty())
             authenticated = true;
         
         db::User::pointer dbUser;
@@ -620,10 +649,15 @@ namespace lms::api::muma
                 if (!query.empty())
                     getParams.relativeUrl += "?" + query;
 
-                if (!_mumaApiKey.empty())
+                // Forward the CALLER's own key first (Subsonic-shared LMS key or a
+                // per-user MuMa key from Google Sign-In) so MuMa sees the real caller
+                // identity/permissions instead of a generic system identity for every
+                // request; only fall back to the configured system key when the
+                // caller didn't send one at all (e.g. an internal/system-only call).
+                if (!xApiKeyHeader.empty())
+                    getParams.headers.push_back(Wt::Http::Message::Header("X-API-Key", xApiKeyHeader));
+                else if (!_mumaApiKey.empty())
                     getParams.headers.push_back(Wt::Http::Message::Header("X-API-Key", _mumaApiKey));
-                else if (!xApiKeyHeader.empty())
-                     getParams.headers.push_back(Wt::Http::Message::Header("X-API-Key", xApiKeyHeader));
 
                 getParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
                     resultPromise->set_value({msg.status(), msg.body()});
@@ -641,10 +675,12 @@ namespace lms::api::muma
                 if (!query.empty())
                     postParams.relativeUrl += "?" + query;
 
-                if (!_mumaApiKey.empty())
+                // See the matching comment in the GET branch above: prefer the
+                // caller's own key over the system key.
+                if (!xApiKeyHeader.empty())
+                    postParams.message.addHeader("X-API-Key", xApiKeyHeader);
+                else if (!_mumaApiKey.empty())
                     postParams.message.addHeader("X-API-Key", _mumaApiKey);
-                else if (!xApiKeyHeader.empty())
-                     postParams.message.addHeader("X-API-Key", xApiKeyHeader);
 
                 std::string contentType = request.headerValue("Content-Type");
                 if (!contentType.empty())

@@ -58,6 +58,19 @@ if [ -f .env ]; then
     done < .env
 fi
 
+# Also load services/music-management-server/.env, which holds
+# VITE_GOOGLE_CLIENT_ID (the frontend build-arg counterpart of the root
+# .env's GOOGLE_CLIENT_ID). See docs/deployment.md.
+if [ -f services/music-management-server/.env ]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Strip trailing comments and whitespace
+        clean_line=$(echo "$line" | sed 's/[[:space:]]*#.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        if [[ -n "$clean_line" && ! "$clean_line" =~ ^# ]]; then
+            export "$clean_line"
+        fi
+    done < services/music-management-server/.env
+fi
+
 # Configuration
 DOCKER_USER="${DOCKER_USER}"
 IMAGE_ML="${IMAGE_ML}"
@@ -124,7 +137,7 @@ build_manager() {
 
 build_server() {
     echo "--- Building Music Management Server ($VERSION) ---"
-    $DOCKER_CMD build $DOCKER_FLAGS -t "${DOCKER_USER}/${IMAGE_SERVER}:latest" -t "${DOCKER_USER}/${IMAGE_SERVER}:${VERSION}" -f services/music-management-server/Dockerfile-release .
+    $DOCKER_CMD build $DOCKER_FLAGS --build-arg VITE_GOOGLE_CLIENT_ID="${VITE_GOOGLE_CLIENT_ID}" -t "${DOCKER_USER}/${IMAGE_SERVER}:latest" -t "${DOCKER_USER}/${IMAGE_SERVER}:${VERSION}" -f services/music-management-server/Dockerfile-release .
 }
 
 run_linter() {

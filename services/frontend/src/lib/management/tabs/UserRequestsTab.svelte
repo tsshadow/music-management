@@ -12,12 +12,13 @@
   } from '@lucide/svelte';
   import { hasPermission } from '../../store.js';
 
-  let { API_BASE, getHeaders, onMessage, onError } = $props();
+  let { API_BASE, getHeaders, onMessage, onError, users = [] } = $props();
 
   let requests = $state([]);
   let loading = $state(false);
   let statusFilter = $state('pending'); // 'pending', 'approved', 'rejected'
   let confirmingAction = $state(null); // { type: 'approve'|'reject', request: object }
+  let linkUserId = $state(''); // when approving: existing user to link the Google identity to, instead of creating a new account
 
   async function fetchRequests() {
     loading = true;
@@ -41,11 +42,17 @@
     try {
       const res = await fetch(`${API_BASE}/api/user-requests/${request.id}/approve`, {
         method: 'POST',
-        headers: getHeaders()
+        headers: getHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ link_user_id: linkUserId ? parseInt(linkUserId) : null })
       });
       if (res.ok) {
-        onMessage(`Verzoek van ${request.display_name} goedgekeurd!`);
+        onMessage(
+          linkUserId
+            ? `Verzoek van ${request.display_name} gekoppeld aan bestaand account!`
+            : `Verzoek van ${request.display_name} goedgekeurd!`
+        );
         confirmingAction = null;
+        linkUserId = '';
         fetchRequests();
       } else {
         const data = await res.json();
@@ -192,7 +199,7 @@
                       <div class="flex justify-end gap-2">
                         {#if hasPermission('user-requests.approve')}
                           <button 
-                            onclick={() => confirmingAction = { type: 'approve', request }}
+                            onclick={() => { linkUserId = ''; confirmingAction = { type: 'approve', request }; }}
                             class="bg-spotify-green text-black px-3 py-1.5 rounded-full font-bold text-xs transition-transform hover:scale-105 flex items-center gap-1"
                           >
                             <CheckCircle size={14} /> Goedkeuren
@@ -231,11 +238,33 @@
     </h3>
     <p class="text-spotify-lightgray mb-6">
       {#if confirmingAction.type === 'approve'}
-        Weet je zeker dat je de toegangsaanvraag van <b>{confirmingAction.request.display_name}</b> wilt goedkeuren? Er wordt direct een nieuw gebruikersaccount aangemaakt.
+        Weet je zeker dat je de toegangsaanvraag van <b>{confirmingAction.request.display_name}</b> wilt goedkeuren?
+        {#if linkUserId}
+          De Google-koppeling wordt toegevoegd aan het bestaande account, er wordt geen nieuw account aangemaakt.
+        {:else}
+          Er wordt direct een nieuw gebruikersaccount aangemaakt.
+        {/if}
       {:else}
         Weet je zeker dat je de toegangsaanvraag van <b>{confirmingAction.request.display_name}</b> wilt afwijzen?
       {/if}
     </p>
+    {#if confirmingAction.type === 'approve' && users.length > 0}
+      <div class="mb-6">
+        <label for="link-user" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">
+          Is dit dezelfde persoon als een bestaand account?
+        </label>
+        <select
+          id="link-user"
+          bind:value={linkUserId}
+          class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors text-sm text-white"
+        >
+          <option value="">Nee, nieuw account aanmaken</option>
+          {#each users as user (user.id)}
+            <option value={user.id}>Koppel aan {user.username}{user.display_name ? ` (${user.display_name})` : ''}</option>
+          {/each}
+        </select>
+      </div>
+    {/if}
     <div class="flex gap-4">
       <button 
         class="flex-1 py-3 rounded-full font-bold transition-all {confirmingAction.type === 'approve' ? 'bg-spotify-green text-black hover:scale-105' : 'bg-red-600 text-white hover:bg-red-700'}"

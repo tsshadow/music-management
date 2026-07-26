@@ -29,6 +29,7 @@ PERMISSIONS = [
     ('users.disable', 'Enable/disable users'),
     ('users.assign-role', 'Assign a role to a user'),
     ('users.revoke-sessions', 'Revoke sessions of any user'),
+    ('users.merge', 'Merge two user accounts into one'),
 
     ('user-requests.read', 'View pending/approved/rejected access requests'),
     ('user-requests.approve', 'Approve an access request'),

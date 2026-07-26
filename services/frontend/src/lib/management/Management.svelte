@@ -356,6 +356,16 @@
               userPermissions.set(authData.user.permissions);
               mumaUser.set(authData.user);
               if (!selectedUser) selectedUser = currentUser;
+            } else if (authData.type === 'system') {
+              // The MuMa backend itself treats the shared system API key as an
+              // always-allowed superuser (see rbac.has_permission/is_admin_auth),
+              // which is what every Subsonic-authenticated admin actually
+              // authenticates with (see AuthOverlay/store.js login flow). Mirror
+              // that here so `hasPermission()` (gating individual user-management
+              // actions below) doesn't stay stuck at "no permissions" just
+              // because there's no specific `user` record for this key.
+              userPermissions.set([]);
+              mumaUser.set({ ...(currentUser || {}), is_admin: true });
             }
           }
           await fetchData();
@@ -479,7 +489,7 @@
         />
       {:else if $activeManagementTab === 'user-requests'}
         <UserRequestsTab 
-          {API_BASE} getHeaders={getHeaders} 
+          {API_BASE} getHeaders={getHeaders} {users}
           onMessage={(m) => message = m} 
           onError={(e) => error = e} 
         />

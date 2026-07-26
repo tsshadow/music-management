@@ -179,12 +179,46 @@ The full API specification for the `music-manager` service can be found in [docs
 
 ## 📜 Development Guidelines
 
-To ensure consistency and reliability, all contributions must adhere to these rules:
+To ensure consistency and reliability, all contributions (human or AI agent) must follow these rules. Each
+rule is phrased as a concrete, checkable statement — if a rule is ambiguous for the change you're making, or
+a design doc doesn't cover the case you're facing, **ask a clarifying question instead of guessing** (see
+rule 11).
 
-1. **Code must be tested**: Every new feature or bug fix must include corresponding tests in the relevant `tests/` directory.
-2. **Code must be linted**: Follow PEP 8 guidelines and ensure `pylint` passes with a score above 8.5.
-3. **Code must be documented**: Use clear function/class docstrings and update `AGENTS.md`, `README.md`, or the `docs/` folder if system behavior changes.
-4. **Release notes / changelog should be written**: Document significant changes in `CHANGELOG.md` or `RELEASE_NOTES.md` before merging.
+1. **Tests required**: every new feature or bug fix includes corresponding tests in the relevant `tests/`
+   directory (see [Testing & Stability](#-testing--stability) above); a change to backend/CLI logic without
+   a test is not considered done.
+2. **English-only repository**: all code, comments, docstrings, commit messages, and documentation are
+   written in English, regardless of the language used when the change was requested.
+3. **Documentation kept current**: update `AGENTS.md`, `README.md`, or the relevant `docs/` file in the same
+   change whenever system behavior changes — outdated documentation is treated as a bug.
+4. **Design-first for non-trivial features**: a new feature, or any change to an existing flow's behavior,
+   gets a functional design (`docs/designs/<feature>/functional.md`) and a technical design
+   (`docs/designs/<feature>/technical.md`) — using the templates in `docs/designs/_template/` — written and
+   agreed before implementation starts. Trivial fixes (typo, config value, dependency bump) are exempt. See
+   [docs/designs/README.md](docs/designs/README.md) for the process and
+   [docs/designs/authentication/](docs/designs/authentication/) for a worked example.
+5. **Every function/class/component has a description**: a docstring or comment stating its purpose — no
+   undocumented public function, class, or Svelte component.
+6. **Frontend is Svelte**: `services/frontend` and the LMS-bundled UI stay Svelte + Tailwind, following
+   [docs/styleguide.md](docs/styleguide.md); no other frontend framework is introduced.
+7. **Cross-app API changes are atomic**: a change to an API contract shared between apps (e.g.
+   `music-manager` REST endpoints consumed by `frontend`, LMS's Subsonic/`muma` proxy, or Ultrasonic) updates
+   *all* consumers in the same commit — matches the existing monorepo/atomic-change convention described
+   under [Repository Layout](#-repository-layout).
+8. **No secrets, ever, in code, commits, or docs**: credentials, tokens, and keys are never committed or
+   written into `AGENTS.md`/`docs/`; they live only in a gitignored `.env` or in password manager, referenced by
+   name only. Treat `AGENTS.md` and everything under `docs/` as potentially public.
+9. **Changelog required**: every functional change updates `CHANGELOG.md`/`RELEASE_NOTES.md` in the same
+   change.
+10. **API versioning / contract discipline**: a breaking change to a shared API (request/response shape,
+    auth requirements) is called out explicitly in the technical design and the changelog, and is verified
+    against [docs/testing-inventory.md](docs/testing-inventory.md)'s contract tests
+    (`scripts/test/contracts.sh`) before it's considered complete.
+11. **Ask, don't guess**: when a design doc doesn't cover a case, or a rule conflicts with a specific
+    request, ask a clarifying question rather than silently choosing an interpretation.
+12. **Living document**: this rule list is updated whenever the process changes — a stale rule is worse than
+    no rule. If a single service's rules ever outgrow this root file, a nested `services/<name>/AGENTS.md`
+    can be added later (none is needed today).
 
 ## Production
 

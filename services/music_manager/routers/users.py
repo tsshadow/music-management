@@ -670,6 +670,47 @@ def update_lb_account(user_id: int, lb_data: LBAccountUpdate, auth: dict=Depends
     finally:
         conn.close()
 
+def delete_user_row(cursor, user_id: int, actor_id=None, protect_last_admin: bool = True):
+    """Delete a user and all its dependent rows; shared by ``delete_user`` and
+    the ``user-requests`` unapprove flow so both get the exact same, robust
+    cleanup (and the same clear error on failure) instead of two diverging
+    implementations of "verwijderen gaat niet altijd goed".
+
+    Returns the deleted user's row (as fetched before deletion). Raises
+    ``HTTPException`` on a not-found user or (when ``protect_last_admin``) on
+    an attempt to delete the last remaining admin account.
+    """
+    cursor.execute('SELECT id, username, role_id FROM users WHERE id = %s', (user_id,))
+    target = cursor.fetchone()
+    if not target:
+        raise HTTPException(status_code=404, detail='User not found')
+
+    if protect_last_admin:
+        # Refuse to delete the last remaining admin account -- otherwise
+        # the whole system could be left without anyone able to manage
+        # users/roles at all.
+        admin_role = rbac.get_role_by_name(cursor, rbac.ADMIN_ROLE_NAME)
+        if admin_role and target.get('role_id') == admin_role['id']:
+            cursor.execute('SELECT COUNT(*) as cnt FROM users WHERE role_id = %s', (admin_role['id'],))
+            if cursor.fetchone()['cnt'] <= 1:
+                raise HTTPException(status_code=400, detail='Kan de laatste beheerder niet verwijderen')
+
+    # Defensively remove dependent rows ourselves first, instead of
+    # relying only on the FK ON DELETE CASCADE/SET NULL constraints:
+    # those are declared on CREATE TABLE IF NOT EXISTS, which never
+    # retrofits an already-existing table on older deployments, so a
+    # stray leftover row there could otherwise turn this into an
+    # unhandled 500 with no clear cause ("verwijderen gaat niet altijd
+    # goed").
+    for table in ('user_identities', 'user_refresh_tokens', 'dynamic_playlists', 'user_app_settings', 'user_listenbrainz_accounts'):
+        cursor.execute(f'DELETE FROM {table} WHERE user_id = %s', (user_id,))
+    cursor.execute('UPDATE user_requests SET reviewed_by_user_id = NULL WHERE reviewed_by_user_id = %s', (user_id,))
+    cursor.execute('UPDATE user_requests SET created_user_id = NULL WHERE created_user_id = %s', (user_id,))
+
+    cursor.execute('DELETE FROM users WHERE id = %s', (user_id,))
+    rbac.record_audit_event(cursor, 'user.deleted', actor_user_id=actor_id, target_user_id=user_id, details=f"username={target['username']}")
+    return target
+
 @router.delete('/{user_id}')
 def delete_user(user_id: int, auth: dict=Depends(verify_api_key)):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
@@ -679,35 +720,8 @@ def delete_user(user_id: int, auth: dict=Depends(verify_api_key)):
         raise HTTPException(status_code=500, detail='DB failed')
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT id, username, role_id FROM users WHERE id = %s', (user_id,))
-            target = cursor.fetchone()
-            if not target:
-                raise HTTPException(status_code=404, detail='User not found')
-
-            # Refuse to delete the last remaining admin account -- otherwise
-            # the whole system could be left without anyone able to manage
-            # users/roles at all.
-            admin_role = rbac.get_role_by_name(cursor, rbac.ADMIN_ROLE_NAME)
-            if admin_role and target.get('role_id') == admin_role['id']:
-                cursor.execute('SELECT COUNT(*) as cnt FROM users WHERE role_id = %s', (admin_role['id'],))
-                if cursor.fetchone()['cnt'] <= 1:
-                    raise HTTPException(status_code=400, detail='Kan de laatste beheerder niet verwijderen')
-
-            # Defensively remove dependent rows ourselves first, instead of
-            # relying only on the FK ON DELETE CASCADE/SET NULL constraints:
-            # those are declared on CREATE TABLE IF NOT EXISTS, which never
-            # retrofits an already-existing table on older deployments, so a
-            # stray leftover row there could otherwise turn this into an
-            # unhandled 500 with no clear cause ("verwijderen gaat niet altijd
-            # goed").
-            for table in ('user_identities', 'user_refresh_tokens', 'dynamic_playlists', 'user_app_settings', 'user_listenbrainz_accounts'):
-                cursor.execute(f'DELETE FROM {table} WHERE user_id = %s', (user_id,))
-            cursor.execute('UPDATE user_requests SET reviewed_by_user_id = NULL WHERE reviewed_by_user_id = %s', (user_id,))
-            cursor.execute('UPDATE user_requests SET created_user_id = NULL WHERE created_user_id = %s', (user_id,))
-
-            cursor.execute('DELETE FROM users WHERE id = %s', (user_id,))
             actor_id = (auth.get('user') or {}).get('id')
-            rbac.record_audit_event(cursor, 'user.deleted', actor_user_id=actor_id, target_user_id=user_id, details=f"username={target['username']}")
+            delete_user_row(cursor, user_id, actor_id=actor_id)
             conn.commit()
             return {'status': 'ok'}
     except HTTPException:

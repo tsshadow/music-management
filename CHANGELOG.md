@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-07-26
+
+> **Fix: production was deploying stale images.** After cutting `0.0.1`, `music.example.com`
+> kept showing old behavior post-deploy. Root cause: `deploy:prod` only ever ran
+> `docker compose pull`, but nothing in the pipeline actually *built and pushed* fresh
+> `music-manager`/`lms` images first — it silently kept re-pulling whatever image had last been
+> pushed **manually**, so a release could "deploy successfully" while production kept running old
+> code.
+
+### Fixed
+- **Missing image build/publish step in the release pipeline**: added a new `release:build-images`
+  CI job (stage `release`, before `deploy`) that builds and pushes fresh `music-manager` and `lms`
+  (`music-management-server`) Docker images to Docker Hub on every `release/*` branch, via the new
+  `scripts/ci/build-and-push-images.sh`. `deploy:prod` now always pulls an image that was just built
+  from the code actually being released, instead of a possibly-stale, manually-pushed one.
+- `release:build-images` is gated on the new `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` CI/CD variables
+  and runs in the same `release` stage as `release:version-check`, so `deploy:prod` (stage `deploy`)
+  cannot start until both have succeeded — a failed or skipped image build blocks the deploy.
+
 ## [0.0.1] - 2026-07-26
 
 > **Version reset.** This release intentionally restarts the overarching monorepo version number at

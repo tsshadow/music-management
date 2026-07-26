@@ -148,6 +148,14 @@ release:version-check:
   script:
     - ./scripts/ci/release-version-check.sh
 
+release:build-images:
+  stage: release
+  interruptible: false
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^release\// && $DOCKERHUB_USERNAME && $DOCKERHUB_TOKEN'
+  script:
+    - ./scripts/ci/build-and-push-images.sh
+
 ultrasonic:build-debug:
   stage: release
   rules:

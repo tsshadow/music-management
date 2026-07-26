@@ -7,12 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.1] - 2026-07-26
+
+> **Version reset.** This release intentionally restarts the overarching monorepo version number at
+> `0.0.1`, replacing the previous `2.x` line. It marks the first official release produced under the
+> new `develop` → `release/*` → `master` branching/release-management flow described in
+> `docs/release-management.md`, and the first release of this project as a single, unified monorepo
+> (backend services + Music Management Server + frontend + Ultrasonic client, one shared history). The
+> root `VERSION` is the *overarching* version for this monorepo release line; individual components
+> (e.g. Ultrasonic's own `versionName`/`versionCode`) keep their own, independent version numbers, as
+> documented in the versioning policy.
+
+### Added
+- **Unified release process**: introduced the `develop` (integration) → `release/x.y.z` (stabilization +
+  production deploy) → `master` (tagged, append-only production record) branch model. Production deploys
+  now only happen from `release/*` branches, gated by an automated `release:version-check` that fails the
+  pipeline if `VERSION`, `CHANGELOG.md`, or `RELEASE_NOTES.md` weren't updated. See
+  `docs/release-management.md` for the full design and rationale.
+- **CI-driven git tagging**: merges into `master` now automatically create an immutable `release-vX.Y.Z`
+  tag (and `ultrasonic-vX.Y.Z` when an Ultrasonic release is included), so "what's actually live" can
+  always be answered from `master`'s tag history, with no manual `git tag` step.
+- **Automated Ultrasonic APK distribution**: CI now automatically builds and uploads a debug Ultrasonic
+  APK to `apk-hoster` on every `develop` merge, and the official, signed APK on every `release/*` branch
+  (previously both were fully manual, local-only steps).
+
 ### Changed
-- **Repository**: Merged the previously split-out `music-management-server` (LMS) and `ultrasonic`
+- **Repository**: merged the previously split-out `music-management-server` (LMS) and `ultrasonic`
   Android app repositories directly into this repository as a single monorepo, with their full commit
   history preserved (via `git subtree`). The `frontend` (which never had its own separate history) is
   now tracked here too. There are no more submodules or separate gitlab remotes for these projects —
   see `AGENTS.md` for the rationale (solo developer, tightly-coupled apps, one shared history).
+- **Production deployment**: the `deploy:prod` pipeline job was fixed to use dedicated, CI-managed SSH
+  key authentication and now reliably deploys both production stacks (`music-management` and `lms`)
+  idempotently from a `release/*` branch, instead of the previously broken/manual `main`/`develop` flow.
 
 ## [2.6.0] - 2026-07-20
 

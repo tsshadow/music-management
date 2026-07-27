@@ -107,7 +107,7 @@ def google_login(req: GoogleAuthRequest):
 
                 from services.music_manager.routers.users import build_auth_user
                 auth_user = build_auth_user(cursor, user)
-                return {'status': 'ok', **auth_user, 'api_key': api_key, 'access_token': api_key, 'refresh_token': refresh_token}
+                return {'status': 'ok', 'user': auth_user, 'api_key': api_key, 'access_token': api_key, 'refresh_token': refresh_token}
 
             # No linked identity yet: report any existing access request status.
             cursor.execute('SELECT * FROM user_requests WHERE google_subject = %s', (subject,))

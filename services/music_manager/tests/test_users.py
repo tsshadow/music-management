@@ -138,7 +138,7 @@ class TestLoginFlows(unittest.TestCase):
         body = response.json()
         self.assertEqual(body['api_key'], 'existing-api-key')
         self.assertIn('refresh_token', body)
-        self.assertEqual(body['username'], 'plain-user')
+        self.assertEqual(body['user']['username'], 'plain-user')
         insert_calls = [c for c in mock_cursor.execute.call_args_list if 'INSERT INTO user_refresh_tokens' in c[0][0]]
         self.assertEqual(len(insert_calls), 1, 'a successful login must issue a refresh token')
 

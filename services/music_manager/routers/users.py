@@ -221,7 +221,7 @@ def login(req: LoginRequest):
                 cursor.execute('INSERT INTO user_refresh_tokens (user_id, token) VALUES (%s, %s)', (user['id'], refresh_token))
                 conn.commit()
                 auth_user = build_auth_user(cursor, user)
-                return {**auth_user, 'api_key': api_key, 'access_token': api_key, 'refresh_token': refresh_token}
+                return {'status': 'ok', 'user': auth_user, 'api_key': api_key, 'access_token': api_key, 'refresh_token': refresh_token}
             raise HTTPException(status_code=401, detail='Invalid username or password')
     finally:
         conn.close()
@@ -245,7 +245,7 @@ def refresh_access_token(req: RefreshRequest):
             cursor.execute('UPDATE user_refresh_tokens SET last_used_at = NOW() WHERE id = %s', (token_row['id'],))
             conn.commit()
             auth_user = build_auth_user(cursor, user)
-            return {**auth_user, 'api_key': user['api_key'], 'access_token': user['api_key']}
+            return {'status': 'ok', 'user': auth_user, 'api_key': user['api_key'], 'access_token': user['api_key']}
     finally:
         conn.close()
 

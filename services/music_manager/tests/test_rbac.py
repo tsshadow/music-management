@@ -127,6 +127,37 @@ class TestGoogleLoginAndUserRequests(unittest.TestCase):
 
     @patch('services.music_manager.routers.user_requests._verify_google_id_token')
     @patch('services.music_manager.routers.user_requests.get_db_connection')
+    def test_linked_google_identity_returns_nested_user(self, mock_get_db, mock_verify):
+        """A successful Google login must return {status, user, api_key, ...}, with
+        the account fields nested under `user` -- matching /api/auth/login and
+        /api/auth/verify -- and not spread onto the top level of the response.
+        """
+        mock_verify.return_value = self.google_claims
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_db.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        identity_row = {'id': 1, 'user_id': 1, 'provider': 'google', 'provider_subject': 'google-subject-123'}
+        user_row = {
+            'id': 1, 'username': 'user', 'display_name': 'user', 'email': None, 'avatar_url': None,
+            'server_user_id': '1', 'api_key': 'existing-api-key', 'role_id': 1, 'enabled': True,
+        }
+        # 1) identity lookup, 2) user lookup, 3) role-name lookup (inside build_auth_user)
+        mock_cursor.fetchone.side_effect = [identity_row, user_row, {'name': 'admin'}]
+        mock_cursor.fetchall.return_value = []
+
+        response = self.client.post('/api/auth/google', json={'id_token': 'fake-token'})
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['status'], 'ok')
+        self.assertIn('api_key', body)
+        self.assertIn('refresh_token', body)
+        self.assertNotIn('username', body, 'account fields must be nested under `user`, not spread onto the top level')
+        self.assertEqual(body['user']['username'], 'user')
+        self.assertEqual(body['user']['role_name'], 'admin')
+
+    @patch('services.music_manager.routers.user_requests._verify_google_id_token')
+    @patch('services.music_manager.routers.user_requests.get_db_connection')
     def test_access_request_is_idempotent_per_subject(self, mock_get_db, mock_verify):
         mock_verify.return_value = self.google_claims
         mock_conn = MagicMock()

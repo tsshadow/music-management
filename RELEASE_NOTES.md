@@ -11,6 +11,21 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.5 (2026-07-27)
+### 🔐 De Google-inlogknop was weer verdwenen — en de server controleerde niet meer echt wie er inlogde
+Na de vorige uitrol stond alleen nog gebruikersnaam/wachtwoord op het inlogscherm; de Google-knop was weg.
+Oorzaak: de instelling met de Google Client ID stond nergens in de configuratie die automatisch gebruikt
+wordt bij het bouwen en uitrollen — die stond alleen (handmatig) op de server zelf, en werd bij de eerste
+automatische heruitrol overschreven met een lege waarde.
+- **Fix**: de Google Client ID staat nu in de centrale configuratie die bij elke automatische build en
+  uitrol wordt gebruikt, zodat de knop weer verschijnt en blijft verschijnen bij volgende releases.
+- **Extra beveiliging**: zolang deze instelling ontbreekt, accepteerde de server stilzwijgend een
+  Google-login van *elke* Google-app, niet alleen de onze. Inloggen met Google geeft nu een duidelijke
+  foutmelding als deze instelling ooit weer zou ontbreken, in plaats van dit onopgemerkt te laten gebeuren.
+- Inloggen met gebruikersnaam/wachtwoord én inloggen met Google gebruiken al hetzelfde onderliggende
+  account zodra ze gekoppeld zijn (zie 0.0.3) — deze fix zorgt er alleen voor dat beide manieren van
+  inloggen weer daadwerkelijk beschikbaar zijn.
+
 ## Global Version 0.0.4 (2026-07-27)
 ### 🔐 Succesvolle Google-login toonde toch een foutmelding
 Een geldige, gekoppelde Google-login kwam soms met status `200 OK` netjes terug van de server, maar de

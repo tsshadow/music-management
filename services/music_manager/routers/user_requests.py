@@ -41,6 +41,13 @@ class RequestReview(BaseModel):
 
 def _verify_google_id_token(id_token_str: str) -> dict:
     """Validate a Google ID token and return its claims (sub, email, name, picture)."""
+    if not GOOGLE_CLIENT_ID:
+        # google.oauth2.id_token.verify_oauth2_token() silently skips the `aud` check
+        # when audience=None, which would accept a Google ID token issued for ANY
+        # client, not just ours. Fail loudly instead of degrading into that
+        # unauthenticated-by-omission state (see CHANGELOG 0.0.5).
+        raise HTTPException(status_code=500, detail='Google auth is not configured on the server (GOOGLE_CLIENT_ID is missing)')
+
     try:
         from google.oauth2 import id_token as google_id_token
         from google.auth.transport import requests as google_requests

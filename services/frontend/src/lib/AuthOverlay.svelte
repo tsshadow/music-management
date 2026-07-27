@@ -118,6 +118,15 @@
         userPermissions.set(data.user.permissions);
         mumaUser.set(data.user);
         mumaSessionActive.set(true);
+        // A Google sign-in never learns the account's real Subsonic password, but the
+        // `credentials` store (username/password) drives every Subsonic/LMS call (genres,
+        // albums, streaming, ...) and the profile display name -- without this, the user
+        // would appear logged in but see no music and "Gebruiker" instead of their name.
+        // The backend accepts the api_key itself as a valid password for this account (see
+        // `login()` in users.py), so use that as the Subsonic credential.
+        username = data.user.username;
+        password = data.api_key;
+        save();
       } else if (data.status === 'unknown') {
         requestStatus = 'unknown';
         googleUser = data.google;

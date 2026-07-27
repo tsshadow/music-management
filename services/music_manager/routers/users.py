@@ -199,6 +199,17 @@ def verify_token(x_api_key: str=Header(None)):
 
 @router.post('/auth/login')
 def login(req: LoginRequest):
+    """Log in with username/password, used both by the login form and, indirectly, by
+    Subsonic/LMS clients (LMS forwards its own username/password login attempts here, see
+    MusicManagementPasswordService.cpp).
+
+    A Google-only (or Google-linked) account has no known plaintext password on this side --
+    see AuthOverlay.svelte's handleGoogleResponse, which never learns one -- so ``req.password``
+    is also accepted if it matches the account's current ``api_key``. This grants no additional
+    privilege: knowing the api_key already grants full API access via the X-API-Key header, and
+    it's how the frontend authenticates Subsonic/LMS calls (genres, streaming, ...) after a
+    Google sign-in, so both login methods end up with a fully working session for the same user.
+    """
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')
@@ -206,23 +217,30 @@ def login(req: LoginRequest):
         with conn.cursor() as cursor:
             cursor.execute('SELECT * FROM users WHERE username = %s', (req.username,))
             user = cursor.fetchone()
-            if not user or not user['password_hash']:
+            if not user:
                 raise HTTPException(status_code=401, detail='Invalid username or password')
             if not user.get('enabled', True):
                 raise HTTPException(status_code=403, detail='Account disabled')
-            stored_hash = user['password_hash']
-            if bcrypt.checkpw(req.password.encode('utf-8'), stored_hash.encode('utf-8')):
-                api_key = user['api_key']
-                if not api_key:
-                    api_key = secrets.token_hex(32)
-                    cursor.execute('UPDATE users SET api_key = %s WHERE id = %s', (api_key, user['id']))
-                cursor.execute('UPDATE users SET last_login_at = NOW() WHERE id = %s', (user['id'],))
-                refresh_token = secrets.token_hex(32)
-                cursor.execute('INSERT INTO user_refresh_tokens (user_id, token) VALUES (%s, %s)', (user['id'], refresh_token))
-                conn.commit()
-                auth_user = build_auth_user(cursor, user)
-                return {'status': 'ok', 'user': auth_user, 'api_key': api_key, 'access_token': api_key, 'refresh_token': refresh_token}
-            raise HTTPException(status_code=401, detail='Invalid username or password')
+
+            password_valid = False
+            if user.get('password_hash') and bcrypt.checkpw(req.password.encode('utf-8'), user['password_hash'].encode('utf-8')):
+                password_valid = True
+            elif user.get('api_key') and secrets.compare_digest(req.password, user['api_key']):
+                password_valid = True
+
+            if not password_valid:
+                raise HTTPException(status_code=401, detail='Invalid username or password')
+
+            api_key = user['api_key']
+            if not api_key:
+                api_key = secrets.token_hex(32)
+                cursor.execute('UPDATE users SET api_key = %s WHERE id = %s', (api_key, user['id']))
+            cursor.execute('UPDATE users SET last_login_at = NOW() WHERE id = %s', (user['id'],))
+            refresh_token = secrets.token_hex(32)
+            cursor.execute('INSERT INTO user_refresh_tokens (user_id, token) VALUES (%s, %s)', (user['id'], refresh_token))
+            conn.commit()
+            auth_user = build_auth_user(cursor, user)
+            return {'status': 'ok', 'user': auth_user, 'api_key': api_key, 'access_token': api_key, 'refresh_token': refresh_token}
     finally:
         conn.close()
 

@@ -35,7 +35,7 @@ Related tables:
 
 | Endpoint | Request | Response | Error cases |
 |---|---|---|---|
-| `POST /api/auth/login` | `{username, password}` | `200 {api_key, refresh_token, user}` | `401` unknown username or wrong password (same generic message for both, to avoid username enumeration); `403` account disabled |
+| `POST /api/auth/login` | `{username, password}` — `password` may be either the account's real password (checked against `password_hash`) or its current `api_key` (checked with a constant-time compare); the latter lets a Google-only/Google-linked account authenticate Subsonic/LMS calls (LMS forwards its own login attempts here, see `MusicManagementPasswordService.cpp`) without ever knowing a real password, since `AuthOverlay.svelte`'s Google flow only ever learns the `api_key` | `200 {api_key, refresh_token, user}` | `401` unknown username or wrong password/api_key (same generic message for all three, to avoid username enumeration); `403` account disabled |
 | `POST /api/auth/google` | `{id_token}` (Google ID token) | `200 {status: "unknown", google: {...}}` if no identity/request exists; `200 {status: "request_<status>", request: {...}}` if a request already exists; `200 {api_key, refresh_token, user}` if the identity is linked and enabled | `404` linked user no longer exists; `403` account disabled |
 | `POST /api/auth/access-request` | `{id_token}` | `200 {request: {...}}` (idempotent per Google subject — returns the existing request instead of creating a duplicate) | — |
 | `GET /api/user-requests` | requires `user-requests.read` | list of requests | `403` missing permission |
@@ -46,10 +46,19 @@ Related tables:
 
 ## Cross-App Impact
 
-None — authentication is entirely internal to `music-manager`. `music-management-server` (LMS) and
-Ultrasonic authenticate against LMS's own Subsonic credentials, which are synchronized from `music-manager`
-separately (see [AGENTS.md](../../../AGENTS.md), "Music Management Server" data sync); they do not call
-these endpoints directly.
+`music-management-server` (LMS) does not store its own Subsonic passwords: every Subsonic/OpenSubsonic login
+attempt (`u=`/`p=`) is forwarded live, in real time, to `POST /api/auth/login` by
+`MusicManagementPasswordService` (`services/music-management-server/src/libs/services/auth/impl/musicmanagement/`)
+and only succeeds if that call returns `200`. This means the frontend's `credentials` store
+(`services/frontend/src/lib/store.js`), which every Subsonic call (genres, albums, streaming, ...) is built
+from, must always hold a `{username, password}` pair this endpoint accepts — for a Subsonic/MuMa
+username+password login that's the account's real password (`AuthOverlay.svelte`'s `verifyLogin`); for a
+Google sign-in, which never learns a real password, `AuthOverlay.svelte`'s `handleGoogleResponse` instead
+populates `credentials` with `{username: user.username, password: api_key}`, relying on `/api/auth/login`'s
+`api_key` fallback above. Without this, a Google-signed-in user authenticates fine against `music-manager`
+(gets a session, permissions, admin badge, ...) but every Subsonic call fails as unauthenticated, since LMS
+has no username/password to forward. Ultrasonic authenticates the same way but always uses a real
+username/password the user typed into the app, so it is unaffected by this.
 
 ## Technical Acceptance Criteria
 

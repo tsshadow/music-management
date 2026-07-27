@@ -11,6 +11,19 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.6 (2026-07-27)
+### 🎵 Inloggen met Google liet je zien als "Gebruiker" zonder muziek
+Inloggen met Google werkte, en je rechten/rol klopten, maar je zag jouw naam niet en er kwam geen
+enkel nummer, album of genre in beeld — `getGenres` gaf zelfs een foutmelding over een ontbrekende
+parameter.
+- **Oorzaak**: na een Google-login werd je gebruikersnaam/wachtwoord nergens in de webapp
+  opgeslagen — en precies die twee velden gebruikt de webapp voor élke aanroep naar de muziekbibliotheek
+  (en om je naam te tonen), omdat een Google-login nooit je echte wachtwoord te weten komt.
+- **Fix**: bij een geslaagde Google-login gebruikt de webapp nu een speciale, al bestaande sleutel van
+  je account als vervangend wachtwoord voor deze aanroepen. Je ziet nu weer gewoon je eigen
+  gebruikersnaam, en je muziekbibliotheek (albums, genres, afspelen) werkt weer — precies zoals bij
+  inloggen met gebruikersnaam/wachtwoord.
+
 ## Global Version 0.0.5 (2026-07-27)
 ### 🔐 De Google-inlogknop was weer verdwenen — en de server controleerde niet meer echt wie er inlogde
 Na de vorige uitrol stond alleen nog gebruikersnaam/wachtwoord op het inlogscherm; de Google-knop was weg.

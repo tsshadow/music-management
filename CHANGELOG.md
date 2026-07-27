@@ -7,33 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.0.5] - 2026-07-27
-
-> **The "Sign in with Google" button disappeared from production again, and the server would have
-> silently accepted a Google ID token from ANY Google OAuth client, not just ours.** Root cause: the
-> `GOOGLE_CLIENT_ID` (backend) and `VITE_GOOGLE_CLIENT_ID` (frontend build-arg) CI/CD variables were never
-> actually populated in `PROD_ENV_FILE`/`PROD_ENV_FILE_LMS` -- they were only ever set directly on the
-> production host, outside of the CI/CD pipeline, so the first CI-driven rebuild after 0.0.2 wiped them out.
-
-### Fixed
-- **Google Sign-In button missing in production, username/password-only login shown**: `VITE_GOOGLE_CLIENT_ID`
-  was empty when the `lms` image's frontend bundle was built by `release:build-images`, so Vite's dead-code
-  elimination stripped the entire `if (GOOGLE_CLIENT_ID) { ... }` branch in `AuthOverlay.svelte` (including
-  the Google Identity Services script load and the `#googleBtn` render call) out of the production bundle.
-  The `PROD_ENV_FILE_LMS` CI/CD variable now includes `VITE_GOOGLE_CLIENT_ID`, matching the value already
-  configured directly on Google Cloud Console for this app.
-- **Google login would have silently accepted a token issued for a *different* Google OAuth client**:
-  `GOOGLE_CLIENT_ID` was empty for the same reason, and `google.oauth2.id_token.verify_oauth2_token()`
-  silently skips its `aud` (audience) check entirely when `audience=None` -- so the backend was verifying
-  only the token's signature and issuer, not that it was actually issued for *our* app.
-  `_verify_google_id_token()` (`services/music_manager/routers/user_requests.py`) now raises a `500` with a
-  clear message instead of degrading into that unauthenticated-by-omission state, and `PROD_ENV_FILE` now
-  includes `GOOGLE_CLIENT_ID` too.
-- Both username/password (Subsonic) login and Google Sign-In already resolved to the exact same underlying
-  `User` row (see 0.0.3's "Merge duplicate user accounts" / "Link a Google access request to an existing
-  account"); this fix restores that both methods are actually *available* on the login screen again, with
-  identical resulting permissions/session regardless of which one was used.
-
 ## [0.0.4] - 2026-07-27
 
 ### Fixed

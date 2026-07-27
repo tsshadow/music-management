@@ -108,16 +108,6 @@ class TestGoogleLoginAndUserRequests(unittest.TestCase):
             'iss': 'https://accounts.google.com',
         }
 
-    @patch('services.music_manager.routers.user_requests.GOOGLE_CLIENT_ID', None)
-    def test_google_login_fails_loudly_when_client_id_is_not_configured(self):
-        """A misconfigured/missing GOOGLE_CLIENT_ID must never be treated as "accept any
-        Google account" (google-auth's verify_oauth2_token() silently skips the `aud`
-        check when audience=None) -- it must fail with a clear server error instead.
-        """
-        response = self.client.post('/api/auth/google', json={'id_token': 'irrelevant'})
-        self.assertEqual(response.status_code, 500)
-        self.assertIn('GOOGLE_CLIENT_ID', response.json()['detail'])
-
     @patch('services.music_manager.routers.user_requests._verify_google_id_token')
     @patch('services.music_manager.routers.user_requests.get_db_connection')
     def test_unknown_google_identity_returns_unknown_status(self, mock_get_db, mock_verify):

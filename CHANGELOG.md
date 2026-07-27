@@ -33,6 +33,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `User` row (see 0.0.3's "Merge duplicate user accounts" / "Link a Google access request to an existing
   account"); this fix restores that both methods are actually *available* on the login screen again, with
   identical resulting permissions/session regardless of which one was used.
+- **The LMS `/api/...` proxy (`MumaResource`) collapsed every non-`200` response from MuMa into a generic
+  `502 Bad Gateway`**, discarding the real status code and error body MuMa returned (e.g. `401 Invalid
+  username or password`, `404 Track not found`). Root cause: `core::http::SendQueue` only ever invoked
+  `onSuccessFunc` for a `200` response and routed everything else through `onFailureFunc` (which every proxy
+  call in `MumaResource` hard-codes to `502`) — appropriate for the client's other, non-proxy callers (which
+  only care "worked" vs. "didn't"), but wrong for a reverse proxy, where the exact upstream status/body must
+  reach the original caller. Added an opt-in `ClientRequestParameters::treatAnyStatusAsSuccess` flag (default
+  `false`, so every existing caller is unaffected) and set it on all of `MumaResource`'s raw pass-through
+  proxy calls (generic `/api/*` GET/POST/PUT/DELETE, artist image, track refresh, per-app user settings).
+- **Added a `release:check-secrets` CI job** (`scripts/ci/check-required-secrets.sh`) that fails a
+  `release/*` pipeline immediately, before any image is built, if `GOOGLE_CLIENT_ID`
+  (`PROD_ENV_FILE`) or `VITE_GOOGLE_CLIENT_ID` (`PROD_ENV_FILE_LMS`) is missing or empty — the actual root
+  cause of the button disappearing again was an unrelated edit to one of those CI/CD variables silently
+  dropping this key, with nothing in the pipeline noticing. See `docs/deployment.md` and `AGENTS.md`
+  ("Testing & Stability") for the policy: this job's pass/fail result is a hard requirement for a release,
+  the same as any other check in this list, even though GitLab itself has no way to enforce it structurally.
 
 ## [0.0.4] - 2026-07-27
 

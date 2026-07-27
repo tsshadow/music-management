@@ -25,6 +25,13 @@ automatische heruitrol overschreven met een lege waarde.
 - Inloggen met gebruikersnaam/wachtwoord én inloggen met Google gebruiken al hetzelfde onderliggende
   account zodra ze gekoppeld zijn (zie 0.0.3) — deze fix zorgt er alleen voor dat beide manieren van
   inloggen weer daadwerkelijk beschikbaar zijn.
+- **Bonus-fix**: als de webinterface een foutmelding van de beheerserver doorstuurde (bijvoorbeeld
+  "verkeerd wachtwoord" of "nummer niet gevonden"), werd die foutmelding onderweg vervangen door een
+  onduidelijke generieke storingsmelding. De echte foutmelding komt nu correct door.
+- **Om herhaling te voorkomen**: er is een extra, verplichte controle toegevoegd die bij elke uitrol
+  vanaf een release-tak automatisch checkt of deze Google-instelling daadwerkelijk aanwezig is, en die
+  de uitrol direct en duidelijk blokkeert als dat niet zo is — in plaats van dat de knop stilletjes
+  verdwijnt bij de volgende build.
 
 ## Global Version 0.0.4 (2026-07-27)
 ### 🔐 Succesvolle Google-login toonde toch een foutmelding

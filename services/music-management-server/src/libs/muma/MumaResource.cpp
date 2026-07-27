@@ -328,6 +328,9 @@ namespace lms::api::muma
             if (!_mumaApiKey.empty())
                 getParams.headers.push_back(Wt::Http::Message::Header("X-API-Key", _mumaApiKey));
 
+            // This is a raw pass-through proxy: forward MuMa's real status verbatim
+            // (e.g. 404 for a missing image) instead of collapsing it into a 502.
+            getParams.treatAnyStatusAsSuccess = true;
             getParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
                 ProxyResult res;
                 res.status = msg.status();
@@ -480,6 +483,8 @@ namespace lms::api::muma
             if (!_mumaApiKey.empty())
                 postParams.message.addHeader("X-API-Key", _mumaApiKey);
 
+            // Raw pass-through proxy: forward MuMa's real status verbatim.
+            postParams.treatAnyStatusAsSuccess = true;
             postParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
                 resultPromise->set_value(msg.status());
             };
@@ -608,6 +613,8 @@ namespace lms::api::muma
                     postParams.message.addHeader("Content-Type", "application/json");
                     postParams.message.addBodyText(jsonStr);
 
+                    // Raw pass-through proxy: forward MuMa's real status verbatim.
+                    postParams.treatAnyStatusAsSuccess = true;
                     postParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
                         resultPromise->set_value(msg.status());
                     };
@@ -659,6 +666,10 @@ namespace lms::api::muma
                 else if (!_mumaApiKey.empty())
                     getParams.headers.push_back(Wt::Http::Message::Header("X-API-Key", _mumaApiKey));
 
+                // This is a raw pass-through proxy: MuMa's exact status code (401,
+                // 403, 404, ...) and body are meaningful to the original caller and
+                // must be forwarded verbatim, not collapsed into a generic 502.
+                getParams.treatAnyStatusAsSuccess = true;
                 getParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
                     resultPromise->set_value({msg.status(), msg.body()});
                 };
@@ -689,6 +700,9 @@ namespace lms::api::muma
                 std::string jsonStr((std::istreambuf_iterator<char>(request.in())), std::istreambuf_iterator<char>());
                 postParams.message.addBodyText(jsonStr);
 
+                // See the matching comment in the GET branch above: forward MuMa's
+                // real status/body verbatim instead of collapsing it into a 502.
+                postParams.treatAnyStatusAsSuccess = true;
                 postParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
                     resultPromise->set_value({msg.status(), msg.body()});
                 };

@@ -128,6 +128,15 @@ To maintain high code quality, the system employs an automated test suite:
 - **Enforcement**: 
     - **Build Check**: `build.sh` executes the full test suite and aborts the container build if any tests fail.
     - **Pre-commit Hook**: A Git `pre-commit` hook ensures all tests pass before allowing a commit to be finalized.
+    - **Required deployment secrets**: the `release:check-secrets` CI job (`scripts/ci/check-required-secrets.sh`)
+      verifies that specific keys required inside file-type CI/CD variables (e.g. `GOOGLE_CLIENT_ID` inside
+      `PROD_ENV_FILE`, `VITE_GOOGLE_CLIENT_ID` inside `PROD_ENV_FILE_LMS`) are actually set, and fails the
+      `release/*` pipeline immediately if not. GitLab itself has no mechanism to enforce this (a file-type
+      variable being non-empty says nothing about a specific key inside it), so **this job's pass/fail result
+      is treated as a hard requirement by project convention, on par with any other required check in this
+      list** — a release is not "done" if this job was skipped, allowed to fail, or removed without a
+      replacement check covering the same secrets. Add new required keys to that script (and to
+      `docs/deployment.md`) whenever a new secret becomes load-bearing for production.
 
 ### Full test inventory & local commands
 - **Inventory**: See [docs/testing-inventory.md](docs/testing-inventory.md) for a per-module breakdown (build/start/test/lint commands, ports, health endpoints, databases, Docker findings).

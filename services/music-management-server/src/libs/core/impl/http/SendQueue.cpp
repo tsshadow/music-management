@@ -290,8 +290,10 @@ namespace lms::core::http
 
         if (!mustThrottle)
         {
-            if (msg.status() == 200)
+            if (msg.status() == 200 || requestParameters.treatAnyStatusAsSuccess)
             {
+                if (msg.status() != 200)
+                    LOG(DEBUG, "Forwarding non-200 status = " << msg.status() << ", body = '" << msg.body() << "'");
                 if (requestParameters.onSuccessFunc)
                     requestParameters.onSuccessFunc(msg);
             }

@@ -97,6 +97,20 @@ ultrasonic:check:
         coverage_format: cobertura
         path: cobertura-ultrasonic.xml
 
+# Runs first, in the very first stage, so a release pipeline fails fast (before
+# any image is built) if a required deployment secret (e.g. GOOGLE_CLIENT_ID)
+# is missing -- see scripts/ci/check-required-secrets.sh for the rationale.
+# GitLab has no built-in way to require a key inside a file-type CI/CD
+# variable to be set, so this job IS that requirement (AGENTS.md rule 1/10):
+# a release pipeline that skips or ignores this job is not considered passing.
+release:check-secrets:
+  stage: unit
+  interruptible: false
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^release\//'
+  script:
+    - ./scripts/ci/check-required-secrets.sh
+
 # --- Integration / contract tests -------------------------------------------
 # These build and start docker/compose.test.yml from a clean state, so they
 # always run on the default branch, and on any merge request that touches

@@ -119,6 +119,46 @@ class TestLoginFlows(unittest.TestCase):
         self.assertEqual(response.json()['detail'], 'Invalid username or password')
 
     @patch('services.music_manager.routers.users.get_db_connection')
+    def test_login_google_only_account_can_authenticate_with_its_api_key(self, mock_get_db):
+        """A Google-only account has no plaintext password the frontend can ever learn (see
+        AuthOverlay.svelte's handleGoogleResponse), so it must be able to log in (and, via LMS's
+        MusicManagementPasswordService, authenticate Subsonic calls) using its own `api_key` as
+        the password -- this is what makes Google-authenticated users actually see their music.
+        """
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_db.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        user_row = {
+            'id': 7, 'username': 'google-user', 'display_name': 'Google User', 'email': 'g@example.com',
+            'avatar_url': None, 'server_user_id': None, 'password_hash': None,
+            'api_key': 'the-api-key', 'role_id': 2, 'enabled': True,
+        }
+        mock_cursor.fetchone.side_effect = [user_row, {'name': 'user'}]
+        mock_cursor.fetchall.return_value = []
+
+        response = self.client.post('/api/auth/login', json={'username': 'google-user', 'password': 'the-api-key'})
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['api_key'], 'the-api-key')
+        self.assertEqual(body['user']['username'], 'google-user')
+
+    @patch('services.music_manager.routers.users.get_db_connection')
+    def test_login_google_only_account_rejects_wrong_password(self, mock_get_db):
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_db.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        mock_cursor.fetchone.return_value = {
+            'id': 8, 'username': 'google-user-2', 'password_hash': None,
+            'api_key': 'the-real-api-key', 'enabled': True,
+        }
+
+        response = self.client.post('/api/auth/login', json={'username': 'google-user-2', 'password': 'not-the-api-key'})
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()['detail'], 'Invalid username or password')
+
+    @patch('services.music_manager.routers.users.get_db_connection')
     def test_login_correct_credentials_issue_tokens(self, mock_get_db):
         mock_conn = MagicMock()
         mock_cursor = MagicMock()

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.6] - 2026-07-27
+
+> **A Google-authenticated user was logged in as "Gebruiker" and could not see any music.** Google
+> Sign-In correctly authenticated against `music-manager` (permissions, admin badge, etc.), but the
+> frontend's `credentials` (username/password) store -- which every Subsonic call (`getGenres`,
+> albums, streaming, ...) and the profile display name are derived from -- was never populated after
+> a Google login, since a Google sign-in never learns the account's real password.
+
+### Fixed
+- **Google-signed-in users saw "Gebruiker" and no music at all (`getGenres` failing with "Required
+  parameter 'c' is missing")**: `AuthOverlay.svelte`'s `handleGoogleResponse` only ever set
+  `mumaUser`/`userPermissions`/`mumaApiKey`, never the `credentials` store that `authParams`
+  (and therefore every Subsonic/LMS REST call across the app) and `ProfileButton`'s displayed
+  username are derived from -- so a Google-authenticated session had no way to actually talk to
+  Subsonic at all. `POST /api/auth/login` now also accepts a user's own `api_key` as a valid
+  `password` (in addition to the real, bcrypt-hashed password), and `handleGoogleResponse` uses
+  that to populate `credentials` with `{username: user.username, password: api_key}` right after a
+  successful Google login -- restoring the user's real username in the UI and making all Subsonic
+  calls (and, through LMS's `MusicManagementPasswordService`, Subsonic streaming itself) work
+  exactly the same regardless of which login method was used, per the linked-account requirement
+  from 0.0.3/0.0.5.
+
 ## [0.0.5] - 2026-07-27
 
 > **The "Sign in with Google" button disappeared from production again, and the server would have

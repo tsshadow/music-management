@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-07-27
+
 ### Fixed
 - **A successful Google login could still show "Kon geen verbinding maken met de Google login API"**:
   `POST /api/auth/google` (and `/api/auth/login`, `/api/auth/refresh`) returned the account fields spread

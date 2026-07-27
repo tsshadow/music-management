@@ -36,6 +36,7 @@ class GoogleAuthRequest(BaseModel):
 class RequestReview(BaseModel):
     reason: Optional[str] = None
     link_user_id: Optional[int] = None
+    display_name: Optional[str] = None
 
 
 def _verify_google_id_token(id_token_str: str) -> dict:
@@ -69,6 +70,7 @@ def _request_to_dict(row):
         'reviewed_at': str(row.get('reviewed_at')) if row.get('reviewed_at') else None,
         'reviewed_by_user_id': row.get('reviewed_by_user_id'),
         'created_user_id': row.get('created_user_id'),
+        'linked_existing': bool(row.get('linked_existing')),
     }
 
 
@@ -105,7 +107,7 @@ def google_login(req: GoogleAuthRequest):
 
                 from services.music_manager.routers.users import build_auth_user
                 auth_user = build_auth_user(cursor, user)
-                return {'status': 'ok', **auth_user, 'api_key': api_key, 'access_token': api_key, 'refresh_token': refresh_token}
+                return {'status': 'ok', 'user': auth_user, 'api_key': api_key, 'access_token': api_key, 'refresh_token': refresh_token}
 
             # No linked identity yet: report any existing access request status.
             cursor.execute('SELECT * FROM user_requests WHERE google_subject = %s', (subject,))
@@ -211,14 +213,17 @@ def approve_user_request(request_id: int, body: RequestReview = RequestReview(),
                     'INSERT INTO user_identities (user_id, provider, provider_subject, email_at_provider) VALUES (%s, %s, %s, %s)',
                     (target_user['id'], 'google', req['google_subject'], req.get('email'))
                 )
+                if body.display_name:
+                    cursor.execute('UPDATE users SET display_name = %s WHERE id = %s', (body.display_name, target_user['id']))
                 approved_user_id = target_user['id']
             else:
                 default_role = rbac.get_role_by_name(cursor, rbac.DEFAULT_ROLE_NAME)
                 username = req.get('email') or f"google-{req['google_subject'][:12]}"
+                display_name = body.display_name or req.get('display_name') or username
                 api_key = secrets.token_hex(32)
                 cursor.execute(
                     'INSERT INTO users (username, display_name, email, avatar_url, is_admin, role_id, enabled, api_key) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
-                    (username, req.get('display_name') or username, req.get('email'), req.get('avatar_url'), False, default_role['id'] if default_role else None, True, api_key)
+                    (username, display_name, req.get('email'), req.get('avatar_url'), False, default_role['id'] if default_role else None, True, api_key)
                 )
                 approved_user_id = cursor.lastrowid
                 cursor.execute(
@@ -228,8 +233,8 @@ def approve_user_request(request_id: int, body: RequestReview = RequestReview(),
 
             actor_id = (auth.get('user') or {}).get('id')
             cursor.execute(
-                'UPDATE user_requests SET status = %s, reviewed_at = NOW(), reviewed_by_user_id = %s, created_user_id = %s WHERE id = %s',
-                ('approved', actor_id, approved_user_id, request_id)
+                'UPDATE user_requests SET status = %s, reviewed_at = NOW(), reviewed_by_user_id = %s, created_user_id = %s, linked_existing = %s WHERE id = %s',
+                ('approved', actor_id, approved_user_id, bool(body.link_user_id), request_id)
             )
             event_type = 'user_request.linked' if body.link_user_id else 'user_request.approved'
             rbac.record_audit_event(cursor, event_type, actor_user_id=actor_id, target_user_id=approved_user_id, details=f"request_id={request_id}")
@@ -267,5 +272,59 @@ def reject_user_request(request_id: int, body: RequestReview = RequestReview(), 
             conn.commit()
             cursor.execute('SELECT * FROM user_requests WHERE id = %s', (request_id,))
             return {'status': 'ok', 'request': _request_to_dict(cursor.fetchone())}
+    finally:
+        conn.close()
+
+
+@router.post('/user-requests/{request_id}/unapprove')
+def unapprove_user_request(request_id: int, body: RequestReview = RequestReview(), auth: dict = Depends(require_permission('user-requests.unapprove'))):
+    """Undo a previously approved access request.
+
+    - If the approval had linked the Google identity to an *existing* account
+      (``link_user_id`` was used), only that identity link is removed; the
+      pre-existing account itself is left untouched.
+    - If the approval had created a *brand new* account, that account (and
+      everything depending on it) is deleted, using the exact same cleanup
+      as ``DELETE /api/users/{id}``.
+
+    Either way the request goes back to ``pending`` so it can be reviewed
+    (and approved/rejected/linked) again.
+    """
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail='Database connection failed')
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT * FROM user_requests WHERE id = %s', (request_id,))
+            req = cursor.fetchone()
+            if not req:
+                raise HTTPException(status_code=404, detail='Request not found')
+            if req['status'] != 'approved':
+                raise HTTPException(status_code=400, detail=f"Request is {req['status']}, not approved")
+
+            actor_id = (auth.get('user') or {}).get('id')
+            created_user_id = req.get('created_user_id')
+            if created_user_id:
+                if req.get('linked_existing'):
+                    cursor.execute(
+                        'DELETE FROM user_identities WHERE user_id = %s AND provider = %s AND provider_subject = %s',
+                        (created_user_id, 'google', req['google_subject'])
+                    )
+                else:
+                    from services.music_manager.routers.users import delete_user_row
+                    delete_user_row(cursor, created_user_id, actor_id=actor_id, protect_last_admin=False)
+
+            cursor.execute(
+                'UPDATE user_requests SET status = %s, reviewed_at = NOW(), reviewed_by_user_id = %s, created_user_id = NULL, linked_existing = FALSE WHERE id = %s',
+                ('pending', actor_id, request_id)
+            )
+            rbac.record_audit_event(cursor, 'user_request.unapproved', actor_user_id=actor_id, target_user_id=created_user_id, details=f"request_id={request_id}, reason={body.reason}")
+            conn.commit()
+            cursor.execute('SELECT * FROM user_requests WHERE id = %s', (request_id,))
+            return {'status': 'ok', 'request': _request_to_dict(cursor.fetchone())}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'Ongedaan maken mislukt: {e}')
     finally:
         conn.close()

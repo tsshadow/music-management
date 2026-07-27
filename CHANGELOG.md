@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-07-27
+
+### Fixed
+- **A successful Google login could still show "Kon geen verbinding maken met de Google login API"**:
+  `POST /api/auth/google` (and `/api/auth/login`, `/api/auth/refresh`) returned the account fields spread
+  directly onto the top-level response object instead of nested under a `user` key, while
+  `AuthOverlay.svelte` (and every other frontend caller) reads `data.user.permissions`/`data.user` — matching
+  what `/api/auth/verify` already returns. That mismatch made `data.user` `undefined`, throwing inside the
+  `try` block right after a `200 OK` response and landing in the generic connection-error `catch`, even
+  though the login itself had actually succeeded server-side (the user was left stuck on the login screen
+  despite the account being valid and linked). `login`, `refresh_access_token`
+  (`services/music_manager/routers/users.py`) and `google_login`
+  (`services/music_manager/routers/user_requests.py`) now all return `{status: "ok", user: {...}, api_key,
+  access_token, refresh_token}`, matching the documented contract in
+  `docs/designs/authentication/technical.md`.
+- **Google Sign-In popup could silently fail with "Cross-Origin-Opener-Policy policy would block the
+  window.postMessage call."**: no response served by the LMS reverse proxy set a `Cross-Origin-Opener-Policy`
+  header at all, which some browsers treat as reason to sever the window reference to Google's Sign-In
+  popup, breaking the postMessage-based token hand-off back to `AuthOverlay.svelte` before the ID token
+  ever reaches `/api/auth/google`. `services/music-management-server/nginx/reverse-proxy.conf` now sends
+  `Cross-Origin-Opener-Policy: same-origin-allow-popups`, which keeps same-origin window isolation while
+  explicitly allowing the trusted Google popup to keep talking back to the page.
+
 ## [0.0.3] - 2026-07-26
 
 > **Google Sign-In is now fully wired up end-to-end: the button actually renders, the login it produces

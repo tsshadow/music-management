@@ -127,6 +127,37 @@ class TestGoogleLoginAndUserRequests(unittest.TestCase):
 
     @patch('services.music_manager.routers.user_requests._verify_google_id_token')
     @patch('services.music_manager.routers.user_requests.get_db_connection')
+    def test_linked_google_identity_returns_nested_user(self, mock_get_db, mock_verify):
+        """A successful Google login must return {status, user, api_key, ...}, with
+        the account fields nested under `user` -- matching /api/auth/login and
+        /api/auth/verify -- and not spread onto the top level of the response.
+        """
+        mock_verify.return_value = self.google_claims
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_db.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        identity_row = {'id': 1, 'user_id': 1, 'provider': 'google', 'provider_subject': 'google-subject-123'}
+        user_row = {
+            'id': 1, 'username': 'user', 'display_name': 'user', 'email': None, 'avatar_url': None,
+            'server_user_id': '1', 'api_key': 'existing-api-key', 'role_id': 1, 'enabled': True,
+        }
+        # 1) identity lookup, 2) user lookup, 3) role-name lookup (inside build_auth_user)
+        mock_cursor.fetchone.side_effect = [identity_row, user_row, {'name': 'admin'}]
+        mock_cursor.fetchall.return_value = []
+
+        response = self.client.post('/api/auth/google', json={'id_token': 'fake-token'})
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['status'], 'ok')
+        self.assertIn('api_key', body)
+        self.assertIn('refresh_token', body)
+        self.assertNotIn('username', body, 'account fields must be nested under `user`, not spread onto the top level')
+        self.assertEqual(body['user']['username'], 'user')
+        self.assertEqual(body['user']['role_name'], 'admin')
+
+    @patch('services.music_manager.routers.user_requests._verify_google_id_token')
+    @patch('services.music_manager.routers.user_requests.get_db_connection')
     def test_access_request_is_idempotent_per_subject(self, mock_get_db, mock_verify):
         mock_verify.return_value = self.google_claims
         mock_conn = MagicMock()
@@ -171,6 +202,130 @@ class TestGoogleLoginAndUserRequests(unittest.TestCase):
         params = insert_call[0][1]
         self.assertFalse(params[4], 'approval must never set is_admin=True')
         self.assertEqual(params[5], 2, 'approval must assign the default user role id')
+
+    @patch('services.music_manager.rbac.get_role_by_name')
+    @patch('services.music_manager.routers.user_requests.get_db_connection')
+    def test_approving_a_request_accepts_a_custom_display_name(self, mock_get_db, mock_get_role):
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_db.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        mock_get_role.return_value = {'id': 2, 'name': 'user'}
+        pending_request = {
+            'id': 8, 'google_subject': 'google-subject-456', 'email': 'weird.name@example.com',
+            'display_name': 'weird google name', 'avatar_url': None, 'status': 'pending',
+        }
+        approved_request = {**pending_request, 'status': 'approved'}
+        mock_cursor.fetchone.side_effect = [pending_request, approved_request]
+        mock_cursor.lastrowid = 43
+
+        response = self.client.post(
+            '/api/user-requests/8/approve', json={'display_name': 'Nice Name'}, headers={'x-api-key': self.api_key}
+        )
+        self.assertEqual(response.status_code, 200)
+        insert_call = next(c for c in mock_cursor.execute.call_args_list if 'INSERT INTO users' in c[0][0])
+        params = insert_call[0][1]
+        self.assertEqual(params[1], 'Nice Name', 'a supplied display_name must override the Google profile name')
+
+    @patch('services.music_manager.routers.user_requests.get_db_connection')
+    def test_approving_with_link_user_id_links_instead_of_creating(self, mock_get_db):
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_db.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        pending_request = {
+            'id': 9, 'google_subject': 'google-subject-789', 'email': 'user@example.com',
+            'display_name': 'Teun', 'avatar_url': None, 'status': 'pending',
+        }
+        existing_user = {'id': 1, 'username': 'user', 'display_name': 'Teun Schriks'}
+        approved_request = {**pending_request, 'status': 'approved', 'created_user_id': 1, 'linked_existing': True}
+        mock_cursor.fetchone.side_effect = [pending_request, existing_user, approved_request]
+
+        response = self.client.post(
+            '/api/user-requests/9/approve', json={'link_user_id': 1}, headers={'x-api-key': self.api_key}
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertTrue(body['request']['linked_existing'])
+        create_calls = [c for c in mock_cursor.execute.call_args_list if 'INSERT INTO users' in c[0][0]]
+        self.assertEqual(len(create_calls), 0, 'linking to an existing account must never create a new one')
+        identity_calls = [c for c in mock_cursor.execute.call_args_list if 'INSERT INTO user_identities' in c[0][0]]
+        self.assertEqual(len(identity_calls), 1)
+        self.assertEqual(identity_calls[0][0][1][0], 1, 'the identity must be linked to the existing user id')
+
+    @patch('services.music_manager.routers.user_requests.get_db_connection')
+    def test_reject_pending_request(self, mock_get_db):
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_db.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        pending_request = {
+            'id': 10, 'google_subject': 'google-subject-000', 'email': 'nope@example.com',
+            'display_name': 'Nope', 'avatar_url': None, 'status': 'pending',
+        }
+        rejected_request = {**pending_request, 'status': 'rejected'}
+        mock_cursor.fetchone.side_effect = [pending_request, rejected_request]
+
+        response = self.client.post('/api/user-requests/10/reject', headers={'x-api-key': self.api_key})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['request']['status'], 'rejected')
+
+    @patch('services.music_manager.routers.user_requests.get_db_connection')
+    def test_unapprove_a_pending_request_is_rejected(self, mock_get_db):
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_db.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        mock_cursor.fetchone.return_value = {'id': 11, 'status': 'pending'}
+
+        response = self.client.post('/api/user-requests/11/unapprove', headers={'x-api-key': self.api_key})
+        self.assertEqual(response.status_code, 400)
+
+    @patch('services.music_manager.rbac.get_role_by_name')
+    @patch('services.music_manager.routers.user_requests.get_db_connection')
+    def test_unapprove_a_newly_created_account_deletes_it(self, mock_get_db, mock_get_role):
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_db.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        approved_request = {
+            'id': 12, 'google_subject': 'google-subject-111', 'email': 'newacc@example.com',
+            'status': 'approved', 'created_user_id': 55, 'linked_existing': False,
+        }
+        pending_again = {**approved_request, 'status': 'pending', 'created_user_id': None, 'linked_existing': False}
+        # 1) the request itself, 2) delete_user_row's own "SELECT id, username, role_id" lookup, 3) final re-fetch
+        mock_cursor.fetchone.side_effect = [
+            approved_request,
+            {'id': 55, 'username': 'google-newacc', 'role_id': 2},
+            pending_again,
+        ]
+        mock_get_role.return_value = {'id': 1, 'name': 'admin'}
+
+        response = self.client.post('/api/user-requests/12/unapprove', headers={'x-api-key': self.api_key})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['request']['status'], 'pending')
+        delete_calls = [c for c in mock_cursor.execute.call_args_list if c[0][0].strip().startswith('DELETE FROM users')]
+        self.assertEqual(len(delete_calls), 1, 'unapproving a freshly-created account must delete it')
+
+    @patch('services.music_manager.routers.user_requests.get_db_connection')
+    def test_unapprove_a_linked_account_only_removes_the_identity(self, mock_get_db):
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_db.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        approved_request = {
+            'id': 13, 'google_subject': 'google-subject-222', 'email': 'user@example.com',
+            'status': 'approved', 'created_user_id': 1, 'linked_existing': True,
+        }
+        pending_again = {**approved_request, 'status': 'pending', 'created_user_id': None, 'linked_existing': False}
+        mock_cursor.fetchone.side_effect = [approved_request, pending_again]
+
+        response = self.client.post('/api/user-requests/13/unapprove', headers={'x-api-key': self.api_key})
+        self.assertEqual(response.status_code, 200)
+        delete_user_calls = [c for c in mock_cursor.execute.call_args_list if c[0][0].strip().startswith('DELETE FROM users')]
+        self.assertEqual(len(delete_user_calls), 0, 'a merely-linked account must never be deleted')
+        delete_identity_calls = [c for c in mock_cursor.execute.call_args_list if 'DELETE FROM user_identities' in c[0][0]]
+        self.assertEqual(len(delete_identity_calls), 1)
 
 
 if __name__ == '__main__':

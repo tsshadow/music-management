@@ -9,6 +9,25 @@ This project is now modularized. Detailed release notes for each module can be f
 - [Music Manager](services/music_manager/RELEASE_NOTES.md)
 - [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
 
+## Unreleased
+
+## Global Version 0.0.4 (2026-07-27)
+### 🔐 Succesvolle Google-login toonde toch een foutmelding
+Een geldige, gekoppelde Google-login kwam soms met status `200 OK` netjes terug van de server, maar de
+webapp toonde alsnog "Kon geen verbinding maken met de Google login API" en je bleef op het inlogscherm
+staan.
+- **Fix**: `/api/auth/google` (en `/api/auth/login`, `/api/auth/refresh`) geven de gebruikersgegevens nu
+  altijd genest onder een `user`-veld terug, zoals de webapp al overal verwacht en zoals ook
+  `/api/auth/verify` al deed — in plaats van deze los boven het antwoord te plaatsen.
+
+### 🔐 Google Sign-In popup blokkeerde soms zichzelf
+Sommige browsers lieten in de console de melding "Cross-Origin-Opener-Policy policy would block the
+window.postMessage call." zien tijdens het inloggen met Google — hierdoor kwam het ID-token soms niet
+correct terug bij de webapp.
+- **Fix**: de reverse proxy voor de webapp stuurt nu expliciet `Cross-Origin-Opener-Policy:
+  same-origin-allow-popups` mee, zodat de Google-inlogpopup altijd met de pagina kan blijven
+  communiceren.
+
 ## Global Version 0.0.3 (2026-07-26)
 ### 🔐 Google Sign-In werkt nu écht, end-to-end
 De "Sign in with Google"-flow bestond al, maar de knop verscheen niet in productie (de Client ID werd

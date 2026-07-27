@@ -34,6 +34,7 @@ PERMISSIONS = [
     ('user-requests.read', 'View pending/approved/rejected access requests'),
     ('user-requests.approve', 'Approve an access request'),
     ('user-requests.reject', 'Reject an access request'),
+    ('user-requests.unapprove', 'Undo an approved access request (deletes/unlinks the resulting account)'),
 
     ('roles.read', 'View roles'),
     ('roles.manage', 'Manage roles and their permissions'),
@@ -150,10 +151,14 @@ def init_db(cursor):
             reviewed_at TIMESTAMP NULL,
             reviewed_by_user_id INT,
             created_user_id INT,
+            linked_existing BOOLEAN DEFAULT FALSE,
             FOREIGN KEY (reviewed_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
             FOREIGN KEY (created_user_id) REFERENCES users(id) ON DELETE SET NULL
         )
     ''')
+    cursor.execute("SHOW COLUMNS FROM user_requests LIKE 'linked_existing'")
+    if not cursor.fetchone():
+        cursor.execute('ALTER TABLE user_requests ADD COLUMN linked_existing BOOLEAN DEFAULT FALSE AFTER created_user_id')
 
     # Internal refresh tokens issued alongside an access token (api_key) so
     # clients (Android, web) can obtain a fresh access token without

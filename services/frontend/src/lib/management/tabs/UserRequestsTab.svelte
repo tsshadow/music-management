@@ -17,8 +17,9 @@
   let requests = $state([]);
   let loading = $state(false);
   let statusFilter = $state('pending'); // 'pending', 'approved', 'rejected'
-  let confirmingAction = $state(null); // { type: 'approve'|'reject', request: object }
+  let confirmingAction = $state(null); // { type: 'approve'|'reject'|'unapprove', request: object }
   let linkUserId = $state(''); // when approving: existing user to link the Google identity to, instead of creating a new account
+  let approveDisplayName = $state(''); // optional override for the display name shown for the (new or linked) account
 
   async function fetchRequests() {
     loading = true;
@@ -43,7 +44,10 @@
       const res = await fetch(`${API_BASE}/api/user-requests/${request.id}/approve`, {
         method: 'POST',
         headers: getHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ link_user_id: linkUserId ? parseInt(linkUserId) : null })
+        body: JSON.stringify({
+          link_user_id: linkUserId ? parseInt(linkUserId) : null,
+          display_name: approveDisplayName || null
+        })
       });
       if (res.ok) {
         onMessage(
@@ -53,10 +57,31 @@
         );
         confirmingAction = null;
         linkUserId = '';
+        approveDisplayName = '';
         fetchRequests();
       } else {
         const data = await res.json();
         onError(data.detail || "Goedkeuren mislukt.");
+      }
+    } catch (err) {
+      onError("Netwerkfout.");
+    }
+  }
+
+  async function unapproveRequest(request) {
+    try {
+      const res = await fetch(`${API_BASE}/api/user-requests/${request.id}/unapprove`, {
+        method: 'POST',
+        headers: getHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({})
+      });
+      if (res.ok) {
+        onMessage(`Goedkeuring van ${request.display_name} ongedaan gemaakt.`);
+        confirmingAction = null;
+        fetchRequests();
+      } else {
+        const data = await res.json();
+        onError(data.detail || "Ongedaan maken mislukt.");
       }
     } catch (err) {
       onError("Netwerkfout.");
@@ -158,7 +183,7 @@
                   <th class="p-4">Beoordeeld door</th>
                   <th class="p-4">Datum beoordeeld</th>
                 {/if}
-                {#if statusFilter === 'pending'}
+                {#if statusFilter === 'pending' || statusFilter === 'approved'}
                   <th class="p-4 text-right">Acties</th>
                 {/if}
               </tr>
@@ -199,7 +224,7 @@
                       <div class="flex justify-end gap-2">
                         {#if hasPermission('user-requests.approve')}
                           <button 
-                            onclick={() => { linkUserId = ''; confirmingAction = { type: 'approve', request }; }}
+                            onclick={() => { linkUserId = ''; approveDisplayName = ''; confirmingAction = { type: 'approve', request }; }}
                             class="bg-spotify-green text-black px-3 py-1.5 rounded-full font-bold text-xs transition-transform hover:scale-105 flex items-center gap-1"
                           >
                             <CheckCircle size={14} /> Goedkeuren
@@ -214,6 +239,18 @@
                           </button>
                         {/if}
                       </div>
+                    </td>
+                  {/if}
+                  {#if statusFilter === 'approved'}
+                    <td class="p-4 text-right">
+                      {#if hasPermission('user-requests.unapprove')}
+                        <button 
+                          onclick={() => confirmingAction = { type: 'unapprove', request }}
+                          class="bg-red-500/10 text-red-500 border border-red-500/20 px-3 py-1.5 rounded-full font-bold text-xs transition-transform hover:scale-105 flex items-center gap-1 ml-auto"
+                        >
+                          <XCircle size={14} /> Ongedaan maken
+                        </button>
+                      {/if}
                     </td>
                   {/if}
                 </tr>
@@ -232,6 +269,8 @@
     <h3 class="text-2xl font-bold mb-4 flex items-center gap-2">
       {#if confirmingAction.type === 'approve'}
         <CheckCircle class="text-spotify-green" /> Verzoek goedkeuren?
+      {:else if confirmingAction.type === 'unapprove'}
+        <ShieldAlert class="text-red-500" /> Goedkeuring ongedaan maken?
       {:else}
         <ShieldAlert class="text-red-500" /> Verzoek afwijzen?
       {/if}
@@ -244,10 +283,31 @@
         {:else}
           Er wordt direct een nieuw gebruikersaccount aangemaakt.
         {/if}
+      {:else if confirmingAction.type === 'unapprove'}
+        Weet je zeker dat je de goedkeuring van <b>{confirmingAction.request.display_name}</b> ongedaan wilt maken?
+        {#if confirmingAction.request.linked_existing}
+          Alleen de Google-koppeling wordt verwijderd; het bestaande account blijft bestaan.
+        {:else}
+          Het account dat hiervoor is aangemaakt wordt volledig verwijderd.
+        {/if}
       {:else}
         Weet je zeker dat je de toegangsaanvraag van <b>{confirmingAction.request.display_name}</b> wilt afwijzen?
       {/if}
     </p>
+    {#if confirmingAction.type === 'approve'}
+      <div class="mb-6">
+        <label for="approve-display-name" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">
+          Weergavenaam (optioneel)
+        </label>
+        <input
+          id="approve-display-name"
+          type="text"
+          bind:value={approveDisplayName}
+          placeholder={confirmingAction.request.display_name}
+          class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors text-sm text-white"
+        />
+      </div>
+    {/if}
     {#if confirmingAction.type === 'approve' && users.length > 0}
       <div class="mb-6">
         <label for="link-user" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">
@@ -268,9 +328,13 @@
     <div class="flex gap-4">
       <button 
         class="flex-1 py-3 rounded-full font-bold transition-all {confirmingAction.type === 'approve' ? 'bg-spotify-green text-black hover:scale-105' : 'bg-red-600 text-white hover:bg-red-700'}"
-        onclick={() => confirmingAction.type === 'approve' ? approveRequest(confirmingAction.request) : rejectRequest(confirmingAction.request)}
+        onclick={() => {
+          if (confirmingAction.type === 'approve') approveRequest(confirmingAction.request);
+          else if (confirmingAction.type === 'unapprove') unapproveRequest(confirmingAction.request);
+          else rejectRequest(confirmingAction.request);
+        }}
       >
-        {confirmingAction.type === 'approve' ? 'Bevestig goedkeuring' : 'Bevestig afwijzing'}
+        {#if confirmingAction.type === 'approve'}Bevestig goedkeuring{:else if confirmingAction.type === 'unapprove'}Bevestig ongedaan maken{:else}Bevestig afwijzing{/if}
       </button>
       <button 
         class="flex-1 py-3 rounded-full font-bold bg-white/10 text-white hover:bg-white/20 transition-all"

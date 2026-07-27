@@ -10,6 +10,8 @@ This project is now modularized. Detailed release notes for each module can be f
 - [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
 
 ## Unreleased
+
+## Global Version 0.0.4 (2026-07-27)
 ### 🔐 Succesvolle Google-login toonde toch een foutmelding
 Een geldige, gekoppelde Google-login kwam soms met status `200 OK` netjes terug van de server, maar de
 webapp toonde alsnog "Kon geen verbinding maken met de Google login API" en je bleef op het inlogscherm

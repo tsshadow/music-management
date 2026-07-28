@@ -11,7 +11,7 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
-## Global Version 0.0.10 (2026-07-28)
+## Global Version 0.0.11 (2026-07-28)
 ### 🐛 Gestructureerde bugreports & fetch-progress fix
 - **Gestructureerde bugreports**: Geïntroduceerd volgens een 2-staps workflow onder `docs/bug-reports/00#-<title>.md` met velden voor status, probleem, oorzaak en oplossing (`AGENTS.md` bijgewerkt).
 - **Artist fetch-progress fix**: Voorkomt dat het pollen van fetch-progress onterecht een foutmelding geeft na afronding.

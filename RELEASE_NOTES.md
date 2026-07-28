@@ -11,7 +11,7 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
-## Global Version 0.0.22 (2026-07-28)
+## Global Version 0.0.23 (2026-07-28)
 ### 📱 Inloggen met Google werkt nu ook echt in de telefoon-app
 Er bestond al een knop om met Google in te loggen in de telefoon-app, maar door twee kleine
 foutjes werkte deze eigenlijk nooit helemaal goed.

@@ -22,6 +22,8 @@ ondertekeningssleutel was nergens meer terug te vinden.
   ondertekende APK meteen online op https://apk.example.com.
 - Bugfix: de sleutel werd op de verkeerde manier doorgegeven aan het bouwscript (rauwe bytes in
   plaats van tekst), waardoor de build altijd zou zijn mislukt; dit is opgelost.
+- Bugfix: een verwijzing naar een map op de laptop van Teun stond per ongeluk in de broncode,
+  waardoor de publicatiestap in elke andere omgeving (waaronder CI) altijd faalde; verwijderd.
 - Alle oude, handmatig geüploade APK's zijn van apk-hoster verwijderd (schone lei), en de
   app-versie is opgehoogd naar 6.5.3 (233) als eerste officiële, automatisch gebouwde release.
 - ⚠️ Let op: door de nieuwe sleutel moet iedereen die een eerdere, handmatig ondertekende versie

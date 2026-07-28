@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.0.22] - 2026-07-28
+## [0.0.23] - 2026-07-28
 
 > **Ultrasonic (Android) now supports "Sign in with Google", functionally equivalent to the web frontend.**
 > A native Credential Manager-based Google Sign-In flow already existed in the Ultrasonic codebase (button,

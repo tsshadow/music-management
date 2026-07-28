@@ -11,6 +11,11 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.8 (2026-07-28)
+### 🚪 Uitloggen na Google Auth liet sessiedata achter ("Gebruiker")
+Wanneer je ingelogd was via Google Auth en uitlogde, bleef de webapp sessiegegevens (`mumaSessionActive`, `mumaApiKey`, `mumaRefreshToken`, `userPermissions`, `mumaUser`) en localStorage-waarden vasthouden. Hierdoor bleef je hangen als 'Gebruiker' zonder muziekrechten.
+- **Fix**: de uitlogfunctie (`handleLogout` in `ProfileButton.svelte`) wist nu grondig alle sessiestores en bijbehorende localStorage-items (`muma_api_key`, `muma_refresh_token`, `muma_session_active`), zodat uitloggen ook echt de volledige sessie opschoonde.
+
 ## Global Version 0.0.7 (2026-07-28)
 ### 🔐 Vaste inlogpagina in plaats van inlogmodal
 De inlogmodal is losgekoppeld van de hoofdweergave en omgevormd tot een vaste, volwaardige inlogpagina.

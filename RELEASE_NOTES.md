@@ -11,7 +11,7 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
-## Global Version 0.0.24 (2026-07-28)
+## Global Version 0.0.25 (2026-07-28)
 ### 📱 Standaard server aangepast + Google-knop nu al bij de allereerste keer inloggen
 - De vaste server in de telefoon-app is nu `music.example.com`; de losse "alpha"-testserver
   (die op de productieomgeving al niet meer bestond) is uit de app verwijderd.

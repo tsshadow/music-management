@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.0.24] - 2026-07-28
+## [0.0.25] - 2026-07-28
 
 > **Two Ultrasonic (Android) fixes, requested together: the default server was still pointing at
 > the retired "alpha" test instance, and the "Sign in with Google" option was missing from the

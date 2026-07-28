@@ -134,19 +134,16 @@ def run_fetch_missing():
                 cursor.execute('SELECT COUNT(*) as count FROM library_artists')
                 total_artists = cursor.fetchone()['count']
                 logger.info(f'Database contains {total_artists} total artists in library_artists')
-                cursor.execute('\n                    SELECT id, name\n                    FROM library_artists\n                    WHERE primary_image_id IS NULL\n                ')
-                all_missing = cursor.fetchall()
-                logger.info(f'Total artists with primary_image_id IS NULL: {len(all_missing)}')
-                cursor.execute("\n                    SELECT id, name\n                    FROM library_artists\n                    WHERE primary_image_id IS NULL\n                    AND (image_status IS NULL OR image_status = 'failed')\n                    ORDER BY image_updated_at ASC, name ASC\n                ")
+                cursor.execute('''
+                    SELECT id, name
+                    FROM library_artists
+                    WHERE primary_image_id IS NULL
+                    ORDER BY image_updated_at ASC, name ASC
+                ''')
                 artists = cursor.fetchall()
-                logger.info(f'Query (filtered by status) returned {len(artists)} artists needing images')
+                logger.info(f'Query returned {len(artists)} artists needing images (primary_image_id IS NULL)')
                 if not artists:
                     logger.info('No artists found with missing images.')
-                    if all_missing:
-                        cursor.execute('\n                            SELECT image_status, COUNT(*) as count \n                            FROM library_artists \n                            WHERE primary_image_id IS NULL \n                            GROUP BY image_status\n                        ')
-                        stats = cursor.fetchall()
-                        logger.info(f'Stats for NULL primary_image_id: {stats}')
-                        logger.info("Tip: If many are 'active' but primary_image_id is NULL, there might be a database inconsistency.")
                     fetch_progress.update({'active': False, 'status': 'completed', 'message': 'No artists found with missing images.'})
                     return
                 fetch_progress.update({'active': True, 'total': len(artists), 'current': 0, 'last_artist': None, 'status': 'running', 'message': f'Processing {len(artists)} artists'})

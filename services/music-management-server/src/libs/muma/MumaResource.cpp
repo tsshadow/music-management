@@ -10,6 +10,7 @@
 #include <boost/asio/ip/address.hpp>
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <future>
 #include <cstring>
 
@@ -283,6 +284,23 @@ namespace lms::api::muma
         if (pathInfo.find("/api/artists/") == 0)
         {
             size_t start = std::string("/api/artists/").length();
+            const std::string remainder = pathInfo.substr(start);
+            // Only intercept the two path shapes this handler actually implements: a straight
+            // artist image request ("...*/image") and a plain (optionally slug-"-"-prefixed)
+            // numeric artist ID with no further path segments (used by the player's own Artist
+            // detail view for a native genre lookup, e.g. "/api/artists/123" or "/api/artists/some-slug-123").
+            // Any other "/api/artists/*" path (e.g. "/images/stats", "/search", "/search-all",
+            // "/fetch-progress", "/fetch-missing", "/{id}/fetch-image") must fall through to the
+            // generic "/api/*" MuMa proxy further below instead of being wrongly swallowed here
+            // and rejected with "Invalid artist ID" (see docs/bug-reports/006-artist-images-tab-zero-stats.md).
+            // NOTE: it is not enough to just check for the absence of a '/' - static routes like
+            // "search", "search-all", "fetch-progress" and "fetch-missing" also have no '/', so the
+            // remaining (post slug-prefix) segment must actually be all-digits to count as an ID.
+            std::string idCandidate = remainder;
+            if (const size_t pos{ idCandidate.find('-') }; pos != std::string::npos)
+                idCandidate = idCandidate.substr(pos + 1);
+            const bool isNumericId = !idCandidate.empty() && std::all_of(idCandidate.begin(), idCandidate.end(), [](unsigned char c) { return std::isdigit(c) != 0; });
+            const bool isPlainIdSegment = isNumericId && !pathInfo.ends_with("/image") && remainder.find('/') == std::string::npos;
             if (pathInfo.ends_with("/image"))
             {
                 size_t end = pathInfo.length() - std::string("/image").length();
@@ -372,7 +390,7 @@ namespace lms::api::muma
             }
             return;
         }
-        else
+        else if (isPlainIdSegment)
         {
             std::string artistIdStr = pathInfo.substr(start);
             if (const size_t pos{ artistIdStr.find('-') }; pos != std::string::npos)

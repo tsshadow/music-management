@@ -171,8 +171,6 @@
     requestStatus = null;
     googleUser = null;
     googleRequest = null;
-    // The button will be re-rendered, user clicks again or we could trigger it
-    // But GSI usually needs user interaction for the popup
   }
 
   /**
@@ -182,7 +180,6 @@
     credentials.update(c => ({ ...c, username, password }));
   }
 
-  // Load from store on init
   import { onMount } from 'svelte';
   onMount(async () => {
     if ($credentials.username) {
@@ -196,9 +193,6 @@
       script.async = true;
       script.defer = true;
       script.onload = () => {
-        // `google` is injected as a global by the GSI script itself (not part
-        // of any known JS/browser global set), so it's accessed via `window`
-        // here to keep the no-undef lint rule happy.
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
           callback: handleGoogleResponse
@@ -223,10 +217,12 @@
   });
 </script>
 
-{#if !$credentials.username && !$mumaSessionActive}
-<div class="fixed inset-0 w-screen h-screen bg-black/80 flex justify-center items-center z-[1000]">
-  <div class="bg-[#282828] p-8 rounded-lg w-[400px] flex flex-col gap-5 max-h-[90vh] overflow-y-auto">
-    <h2 class="m-0">{setupRequired ? 'MuMa Systeem Setup' : 'MuMa Spotify Inloggen'}</h2>
+<div class="min-h-screen w-screen bg-black flex flex-col justify-center items-center p-4 text-white">
+  <div class="bg-[#181818] border border-[#282828] p-10 rounded-2xl w-full max-w-md flex flex-col gap-6 shadow-2xl">
+    <div class="flex flex-col items-center gap-2 mb-2">
+      <h1 class="text-3xl font-extrabold tracking-tight m-0">MuMa</h1>
+      <h2 class="text-sm font-medium text-[#b3b3b3] m-0">{setupRequired ? 'Systeem Setup' : 'Inloggen'}</h2>
+    </div>
     
     {#if requestStatus === 'unknown'}
       <div class="flex flex-col gap-4 text-center">
@@ -234,7 +230,7 @@
           <img src={googleUser.avatar_url} alt="Avatar" class="w-20 h-20 rounded-full mx-auto" />
         {/if}
         <p class="text-sm">Hallo <b>{googleUser.display_name}</b> ({googleUser.email}). Je hebt nog geen toegang tot dit systeem.</p>
-        <button class="bg-brand text-black border-none rounded-[500px] p-3.5 text-base font-bold cursor-pointer transition-transform hover:scale-[1.04] disabled:bg-brand/50" onclick={requestAccess} disabled={isLoading}>
+        <button class="bg-[#1db954] hover:bg-[#1ed760] text-black border-none rounded-full p-3.5 text-base font-bold cursor-pointer transition-transform hover:scale-[1.02] disabled:opacity-50" onclick={requestAccess} disabled={isLoading}>
           {isLoading ? 'Bezig...' : 'Toegang aanvragen'}
         </button>
         <button class="text-[#b3b3b3] text-sm hover:underline bg-transparent border-none cursor-pointer" onclick={retryGoogleLogin}>Terug naar inloggen</button>
@@ -259,46 +255,45 @@
         <div class="bg-green-500/20 text-green-400 p-4 rounded-lg text-sm">
           Je aanvraag is goedgekeurd! Je kunt nu inloggen.
         </div>
-        <button class="bg-brand text-black border-none rounded-[500px] p-3.5 text-base font-bold cursor-pointer transition-transform hover:scale-[1.04]" onclick={retryGoogleLogin}>
+        <button class="bg-[#1db954] hover:bg-[#1ed760] text-black border-none rounded-full p-3.5 text-base font-bold cursor-pointer transition-transform hover:scale-[1.02]" onclick={retryGoogleLogin}>
           Nu inloggen
         </button>
       </div>
     {:else}
-      <p class="text-sm">
+      <p class="text-sm text-[#b3b3b3] text-center m-0">
         {setupRequired 
           ? 'Er zijn nog geen gebruikers gevonden. Maak de eerste beheerder aan om te beginnen.' 
           : 'Log in met je Subsonic gegevens of gebruik Google.'}
       </p>
 
       {#if error}
-        <div class="bg-[#e91429] text-white p-2.5 rounded text-sm">{error}</div>
+        <div class="bg-[#e91429] text-white p-3 rounded-lg text-sm font-medium">{error}</div>
       {/if}
 
       <div class="flex flex-col gap-2">
-        <label for="username" class="text-[12px] font-bold text-[#b3b3b3] uppercase">Gebruikersnaam</label>
-        <input id="username" type="text" value={username} oninput={(e) => username = e.target.value} placeholder="Username" class="bg-[#3e3e3e] border border-transparent rounded p-3 text-white text-sm focus:outline-none focus:border-brand disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading} />
+        <label for="username" class="text-xs font-bold text-[#b3b3b3] uppercase tracking-wider">Gebruikersnaam</label>
+        <input id="username" type="text" value={username} oninput={(e) => username = e.target.value} placeholder="Username" class="bg-[#2a2a2a] border border-transparent rounded-lg p-3 text-white text-sm focus:outline-none focus:border-[#1db954] disabled:opacity-50" disabled={isLoading} />
       </div>
       <div class="flex flex-col gap-2">
-        <label for="password" class="text-[12px] font-bold text-[#b3b3b3] uppercase">Wachtwoord</label>
-        <input id="password" type="password" value={password} oninput={(e) => password = e.target.value} placeholder="Password" class="bg-[#3e3e3e] border border-transparent rounded p-3 text-white text-sm focus:outline-none focus:border-brand disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading} onkeydown={(e) => e.key === 'Enter' && (setupRequired ? performSetup() : verifyLogin())} />
+        <label for="password" class="text-xs font-bold text-[#b3b3b3] uppercase tracking-wider">Wachtwoord</label>
+        <input id="password" type="password" value={password} oninput={(e) => password = e.target.value} placeholder="Password" class="bg-[#2a2a2a] border border-transparent rounded-lg p-3 text-white text-sm focus:outline-none focus:border-[#1db954] disabled:opacity-50" disabled={isLoading} onkeydown={(e) => e.key === 'Enter' && (setupRequired ? performSetup() : verifyLogin())} />
       </div>
-      <button class="bg-brand text-black border-none rounded-[500px] p-3.5 text-base font-bold cursor-pointer transition-transform hover:scale-[1.04] disabled:bg-brand/50 disabled:cursor-not-allowed disabled:transform-none" onclick={setupRequired ? performSetup : verifyLogin} disabled={isLoading}>
+      <button class="bg-[#1db954] hover:bg-[#1ed760] text-black border-none rounded-full p-3.5 text-base font-extrabold cursor-pointer transition-transform hover:scale-[1.02] disabled:opacity-50 mt-2" onclick={setupRequired ? performSetup : verifyLogin} disabled={isLoading}>
         {isLoading ? (setupRequired ? 'Bezig met instellen...' : 'Verificeren...') : (setupRequired ? 'Account Aanmaken' : 'Verbinden')}
       </button>
 
       {#if !setupRequired && GOOGLE_CLIENT_ID}
         <div class="flex items-center gap-4 my-2">
-          <div class="h-[1px] bg-[#3e3e3e] flex-1"></div>
-          <span class="text-[12px] text-[#b3b3b3] font-bold uppercase">OF</span>
-          <div class="h-[1px] bg-[#3e3e3e] flex-1"></div>
+          <div class="h-[1px] bg-[#2a2a2a] flex-1"></div>
+          <span class="text-xs text-[#b3b3b3] font-bold uppercase">OF</span>
+          <div class="h-[1px] bg-[#2a2a2a] flex-1"></div>
         </div>
 
-        <div id="googleBtn" class="flex justify-center"></div>
+        <div id="googleBtn" class="flex justify-center w-full"></div>
       {/if}
     {/if}
   </div>
 </div>
-{/if}
 
 <style>
 </style>

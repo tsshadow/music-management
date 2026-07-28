@@ -11,6 +11,19 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.20 (2026-07-28)
+### 📦 Importer bleef dubbele mappen voor altijd als foutmelding herhalen
+Bij het verder doorspitten van de productielogs bleek de import-dienst dezelfde ~15 misleidende
+"schijfruimte/bestandssysteem"-foutmeldingen te blijven herhalen bij elke controle, voor releases
+die eigenlijk allang succesvol waren geïmporteerd.
+- **Oorzaak**: er bestond al een specifieke afhandeling voor "deze release is al eerder
+  geïmporteerd", maar die werd voor dit specifieke type conflict niet aangeroepen, waardoor de map
+  nooit werd opgeruimd en bij elke ronde opnieuw als fout in de logs verscheen.
+- **Fix**: dit type conflict wordt nu op dezelfde manier afgehandeld als het al bestaande geval —
+  de dubbele map wordt automatisch opgeruimd zodat deze niet steeds opnieuw als fout terugkomt. Een
+  echt schijfruimteprobleem blijft gewoon als fout gemeld — zie
+  `docs/bug-reports/008-importer-duplicate-folder-stuck-forever.md`.
+
 ## Global Version 0.0.19 (2026-07-28)
 ### 📡 Telegram-achtergronddienst crashte bij het opstarten (versieconflict in inlogbestand)
 Tijdens het doorspitten van de productielogs bleek de Telegram-achtergronddienst te crashen bij het

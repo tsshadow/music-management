@@ -585,6 +585,7 @@
     <string name="welcome_password">Password</string>
     <string name="welcome_fields_required">Username and password are required</string>
     <string name="welcome_connection_failed">Could not connect to LMS. Please check your credentials.</string>
+    <string name="welcome_or_divider">OR</string>
     <string name="settings.muma_sync_title">MuMa Cloud Sync</string>
     <string name="settings.save_to_muma_title">Save settings to MuMa</string>
     <string name="settings.save_to_muma_summary">Backup your current settings to the MuMa server</string>

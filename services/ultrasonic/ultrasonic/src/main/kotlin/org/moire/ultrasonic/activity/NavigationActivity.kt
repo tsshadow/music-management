@@ -28,6 +28,10 @@ import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.core.view.MenuProvider
@@ -64,6 +68,8 @@ import org.koin.androidx.viewmodel.ext.android.viewModel
 import org.moire.ultrasonic.BuildConfig
 import org.moire.ultrasonic.NavigationGraphDirections
 import org.moire.ultrasonic.R
+import org.moire.ultrasonic.api.muma.GoogleAuthRequest
+import org.moire.ultrasonic.api.subsonic.SubsonicAPIClient
 import org.moire.ultrasonic.app.UApp
 import org.moire.ultrasonic.data.ActiveServerProvider
 import org.moire.ultrasonic.data.ServerSetting
@@ -126,6 +132,7 @@ class NavigationActivity : ScopeActivity() {
     private val mediaPlayerManager: MediaPlayerManager by inject()
     private val activeServerProvider: ActiveServerProvider by inject()
     private val serverRepository: ServerSettingDao by inject()
+    private val subsonicAPIClient: SubsonicAPIClient by inject()
 
     private var currentFragmentId: Int = 0
     private var cachedServerCount: Int = 0
@@ -612,6 +619,7 @@ class NavigationActivity : ScopeActivity() {
             val progressBar = view.findViewById<ProgressBar>(R.id.welcome_progress)
             val errorText = view.findViewById<TextView>(R.id.welcome_error)
             val targetUrlText = view.findViewById<TextView>(R.id.welcome_target_url)
+            val googleSignInButton = view.findViewById<MaterialButton>(R.id.welcome_google_signin)
 
             val dialog = MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.welcome_title)
@@ -621,6 +629,13 @@ class NavigationActivity : ScopeActivity() {
                 .create()
 
             dialog.show()
+
+            // There is now only one, fixed production server (no more separate "alpha" server)
+            val targetServer = ServerSettingsModel.STATIC_SERVERS.find { it.id == 0 }
+            if (targetServer != null) {
+                targetUrlText.text = getString(R.string.main_setup_server, targetServer.url)
+                targetUrlText.visibility = View.VISIBLE
+            }
 
             dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val username = usernameField.text.toString()
@@ -635,17 +650,10 @@ class NavigationActivity : ScopeActivity() {
                 progressBar.visibility = View.VISIBLE
                 errorText.visibility = View.GONE
 
-                // Connect to the preferred one (alpha for debug, LMS for release)
-                val targetServerId = if (BuildConfig.DEBUG) 1 else 0
-                val targetServer = ServerSettingsModel.STATIC_SERVERS.find { it.id == targetServerId }
-                if (targetServer != null) {
-                    targetUrlText.text = getString(R.string.main_setup_server, targetServer.url)
-                    targetUrlText.visibility = View.VISIBLE
-                }
-
                 usernameField.isEnabled = false
                 passwordField.isEnabled = false
                 dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).isEnabled = false
+                googleSignInButton?.isEnabled = false
 
                 lifecycleScope.launch {
                     val result = withContext(Dispatchers.IO) {
@@ -655,11 +663,8 @@ class NavigationActivity : ScopeActivity() {
                             Settings.staticPassword = password
                             activeServerProvider.invalidateCache()
 
-                            // Connect to the preferred one (alpha for debug, LMS for release)
-                            val targetServerId = if (BuildConfig.DEBUG) 1 else 0
-
                             withContext(Dispatchers.Main) {
-                                activeServerProvider.setActiveServerById(targetServerId)
+                                activeServerProvider.setActiveServerById(0)
                             }
 
                             // Now test connection
@@ -683,7 +688,160 @@ class NavigationActivity : ScopeActivity() {
                         usernameField.isEnabled = true
                         passwordField.isEnabled = true
                         dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).isEnabled = true
+                        googleSignInButton?.isEnabled = true
                     }
+                }
+            }
+
+            googleSignInButton?.setOnClickListener {
+                performWelcomeGoogleSignIn(
+                    dialog = dialog,
+                    progressBar = progressBar,
+                    errorText = errorText,
+                    usernameField = usernameField,
+                    passwordField = passwordField,
+                    googleSignInButton = googleSignInButton
+                )
+            }
+        }
+    }
+
+    /**
+     * Handles "Sign in with Google" on the very first login screen (the welcome dialog).
+     * Mirrors [org.moire.ultrasonic.fragment.EditServerFragment.performMumaGoogleAuth]: on a
+     * successful ("ok") response, the account's api_key is also accepted as a valid Subsonic/LMS
+     * password (see /api/auth/login), so it is written into the username/password fields exactly
+     * like the web frontend does, making Google login functionally identical to a manual login.
+     * For a not-yet-linked/pending Google identity, this dismisses the welcome dialog and
+     * navigates to the existing access-request flow ([org.moire.ultrasonic.fragment.GoogleAuthFragment]).
+     */
+    private fun performWelcomeGoogleSignIn(
+        dialog: androidx.appcompat.app.AlertDialog,
+        progressBar: ProgressBar,
+        errorText: TextView,
+        usernameField: TextInputEditText,
+        passwordField: TextInputEditText,
+        googleSignInButton: MaterialButton
+    ) {
+        val credentialManager = CredentialManager.create(this)
+        val googleIdTokenRequest = GetGoogleIdOption.Builder()
+            .setFilterByAuthorizedAccounts(false)
+            .setServerClientId(BuildConfig.GOOGLE_WEB_CLIENT_ID)
+            .build()
+
+        val request = GetCredentialRequest.Builder()
+            .addCredentialOption(googleIdTokenRequest)
+            .build()
+
+        lifecycleScope.launch {
+            val credential = try {
+                credentialManager.getCredential(this@NavigationActivity, request).credential
+            } catch (e: Exception) {
+                Timber.e(e, "Google Sign-In failed")
+                errorText.text = getString(R.string.background_task_network_error)
+                errorText.visibility = View.VISIBLE
+                return@launch
+            }
+
+            if (credential !is GoogleIdTokenCredential) return@launch
+            val idToken = credential.idToken
+
+            progressBar.visibility = View.VISIBLE
+            errorText.visibility = View.GONE
+
+            val authResult = withContext(Dispatchers.IO) {
+                try {
+                    val mumaApi = subsonicAPIClient.mumaApi?.api
+                    val response = mumaApi?.googleAuth(GoogleAuthRequest(idToken))?.execute()
+                    if (response?.isSuccessful == true) response.body() else null
+                } catch (e: Exception) {
+                    Timber.e(e, "MuMa Google Auth failed")
+                    null
+                }
+            }
+
+            if (authResult == null) {
+                progressBar.visibility = View.GONE
+                errorText.text = getString(R.string.background_task_network_error)
+                errorText.visibility = View.VISIBLE
+                return@launch
+            }
+
+            when (authResult.status) {
+                "ok" -> {
+                    val username = authResult.user?.username
+                    val apiKey = authResult.api_key ?: authResult.access_token
+                    if (username == null || apiKey == null) {
+                        progressBar.visibility = View.GONE
+                        errorText.text = getString(R.string.background_task_network_error)
+                        errorText.visibility = View.VISIBLE
+                        return@launch
+                    }
+
+                    usernameField.setText(username)
+                    passwordField.setText(apiKey)
+
+                    val pingOk = withContext(Dispatchers.IO) {
+                        try {
+                            Settings.staticUserName = username
+                            Settings.staticPassword = apiKey
+                            activeServerProvider.invalidateCache()
+
+                            withContext(Dispatchers.Main) {
+                                activeServerProvider.setActiveServerById(0)
+                            }
+
+                            MusicServiceFactory.resetMusicService()
+                            MusicServiceFactory.getMusicService().ping()
+                            true
+                        } catch (e: Exception) {
+                            Timber.e(e, "Connection test failed after Google Sign-In")
+                            false
+                        }
+                    }
+
+                    progressBar.visibility = View.GONE
+
+                    if (pingOk) {
+                        UApp.instance!!.setupDialogDisplayed = true
+                        dialog.dismiss()
+                    } else {
+                        errorText.text = getString(R.string.welcome_connection_failed)
+                        errorText.visibility = View.VISIBLE
+                        googleSignInButton.isEnabled = true
+                    }
+                }
+                "unknown" -> {
+                    progressBar.visibility = View.GONE
+                    dialog.dismiss()
+                    findNavController(R.id.nav_host_fragment).navigate(
+                        NavigationGraphDirections.toGoogleAuthGlobal(
+                            status = "unknown",
+                            displayName = authResult.google?.display_name,
+                            email = authResult.google?.email,
+                            avatarUrl = authResult.google?.avatar_url,
+                            idToken = idToken
+                        )
+                    )
+                }
+                "request_pending", "request_approved", "request_rejected" -> {
+                    progressBar.visibility = View.GONE
+                    dialog.dismiss()
+                    findNavController(R.id.nav_host_fragment).navigate(
+                        NavigationGraphDirections.toGoogleAuthGlobal(
+                            status = authResult.status,
+                            displayName = authResult.request?.display_name,
+                            email = authResult.request?.email,
+                            avatarUrl = authResult.request?.avatar_url,
+                            idToken = idToken
+                        )
+                    )
+                }
+                else -> {
+                    progressBar.visibility = View.GONE
+                    errorText.text = getString(R.string.background_task_network_error)
+                    errorText.visibility = View.VISIBLE
+                    googleSignInButton.isEnabled = true
                 }
             }
         }

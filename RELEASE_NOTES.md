@@ -11,6 +11,15 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.25 (2026-07-28)
+### 📱 Standaard server aangepast + Google-knop nu al bij de allereerste keer inloggen
+- De vaste server in de telefoon-app is nu `music.example.com`; de losse "alpha"-testserver
+  (die op de productieomgeving al niet meer bestond) is uit de app verwijderd.
+- "Inloggen met Google" staat nu ook al op het allereerste inlogscherm dat je ziet bij een nieuwe
+  installatie, in plaats van pas verderop in de app - precies zoals gevraagd, zodat je die keuze
+  direct kunt maken.
+- De app-versie is opgehoogd naar 6.5.5 (235).
+
 ## Global Version 0.0.23 (2026-07-28)
 ### 📱 Inloggen met Google werkt nu ook echt in de telefoon-app
 Er bestond al een knop om met Google in te loggen in de telefoon-app, maar door twee kleine

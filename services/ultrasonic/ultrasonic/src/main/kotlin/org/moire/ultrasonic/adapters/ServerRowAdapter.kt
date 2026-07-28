@@ -56,9 +56,8 @@ internal class ServerRowAdapter(
         val sortedData = data.toMutableList()
         sortedData.sortBy { it.index }
 
-        // We want LMS, alpha, offline, others
-        // LMS and alpha have index 0 and 1
-        // Offline has index 2
+        // We want LMS, offline, others
+        // LMS has index 0, offline has index 1
         
         var offlineAdded = false
         for (server in sortedData) {

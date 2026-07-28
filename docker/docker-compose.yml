@@ -88,8 +88,15 @@ services:
       NOTIFY_URL: ${NOTIFY_URL}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     volumes:
-      - ${HOST_DATA_PATH}/music-management-server/var/lms:/app/data/stable:rw
-      - ${HOST_DATA_PATH}/alpha-music-management-server/var/lms:/app/data/alpha:rw
+      # NOTE: these must point at the *actual* host directories used by the separate
+      # "lms" stack (services/music-management-server/docker-compose.yml,
+      # `${DOCKER_DATA_PATH:-/docker}/lms/var/lms` and `.../alpha-lms/var/lms`), NOT at a
+      # path under this stack's own ${HOST_DATA_PATH}. A previous mismatch here (pointing at
+      # `${HOST_DATA_PATH}/music-management-server/var/lms`, which never existed) silently
+      # broke the LMS DB sync (users/playlists/artist image sync into the player's native
+      # DB) in production - see docs/bug-reports/004-artist-images-not-working.md.
+      - ${LMS_DATA_PATH:-/docker/lms}/var/lms:/app/data/stable:rw
+      - ${ALPHA_LMS_DATA_PATH:-/docker/alpha-lms}/var/lms:/app/data/alpha:rw
       - ${HOST_MUSIC_PATH}:/mnt/music
       - /var/run/docker.sock:/var/run/docker.sock
     networks:

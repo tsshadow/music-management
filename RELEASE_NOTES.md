@@ -11,6 +11,11 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.16 (2026-07-28)
+### 🐛 Artiestenafbeeldingen werken weer in het beheerscherm en de player
+- **Beheerscherm (`bug 004`)**: afbeeldingsverzoeken voor artiesten misten authenticatie en kregen daardoor altijd een `401 Unauthorized`; de API-key wordt nu meegegeven als `apiKey` queryparameter.
+- **Synchronisatiepad productie (`bug 004`)**: het pad waarmee `music-manager` de eigen database van de `lms`/`alpha-lms` stacks benadert (voor gebruikers/afspeellijsten en artiestenafbeeldingen) wees naar een map die op productie nooit heeft bestaan; dit wijst nu standaard naar de daadwerkelijke datamappen van de `lms`/`alpha-lms` stacks.
+
 ## Global Version 0.0.15 (2026-07-28)
 ### 🔗 "Alles tonen" knoppen op de homepagina doorverwijzen naar juiste tabs en views
 - **Release Radar**: knop "Alles tonen" opent direct de Release Radar tab.

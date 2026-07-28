@@ -31,6 +31,23 @@ if [ -z "$APK_HOSTER_URL" ] || [ -z "$APK_HOSTER_PASSWORD" ]; then
     exit 1
 fi
 
+# Ultrasonic's native "Sign in with Google" flow (EditServerFragment.startGoogleSignIn())
+# intentionally reuses the SAME Google OAuth Web Client ID already configured for the web
+# frontend/backend (GOOGLE_CLIENT_ID) as its Credential Manager `serverClientId`, so the ID
+# token it produces has the same audience the backend already verifies against - no separate
+# Android OAuth client/SHA-1 registration or extra CI/CD variable is needed. GOOGLE_CLIENT_ID
+# itself isn't a plain CI/CD variable but a key inside the PROD_ENV_FILE file-type variable
+# (same one release:build-images/deploy:prod already require), so extract it from there.
+# NOTE: PROD_ENV_FILE may not be available/set for a debug build on develop (only APK_HOSTER_URL
+# is required by .gitlab-ci.yml's ultrasonic:build-debug rule) - fall back to the app's own
+# "placeholder-id" default in that case rather than failing the build.
+if [ -n "$PROD_ENV_FILE" ] && [ -f "$PROD_ENV_FILE" ]; then
+    GOOGLE_WEB_CLIENT_ID=$(grep -E '^GOOGLE_CLIENT_ID=' "$PROD_ENV_FILE" | tail -n1 | cut -d= -f2- | xargs)
+fi
+if [ -z "$GOOGLE_WEB_CLIENT_ID" ]; then
+    echo "Warning: GOOGLE_CLIENT_ID not found in PROD_ENV_FILE; building with Google Sign-In disabled (placeholder client ID)."
+fi
+
 # Use a gradle home directory outside the project tree (same pattern as
 # scripts/test/ultrasonic-unit.sh) to avoid checkout permission issues, and
 # to give each concurrent job slot its own Gradle cache/daemon.
@@ -80,6 +97,7 @@ docker run --rm \
     -e SIGNING_KEY_PASSWORD="${SIGNING_KEY_PASSWORD:-dummy}" \
     -e APK_HOSTER_URL="${APK_HOSTER_URL}" \
     -e APK_HOSTER_PASSWORD="${APK_HOSTER_PASSWORD}" \
+    -e GOOGLE_WEB_CLIENT_ID="${GOOGLE_WEB_CLIENT_ID}" \
     -e DIST_DIR="dist" \
     mobiledevops/android-sdk-image:latest \
     /bin/bash -c "export ANDROID_SDK_ROOT=\$(find /opt /usr /usr/local -name platforms -type d -print -quit 2>/dev/null | sed 's|/platforms||'); [ -z \"\$ANDROID_SDK_ROOT\" ] && export ANDROID_SDK_ROOT=/opt/android; sdkmanager --sdk_root=\$ANDROID_SDK_ROOT \"build-tools;35.0.0\" \"platforms;android-35\" \"build-tools;34.0.0\" \"platforms;android-34\" && ./scripts/build.sh $BUILD_TYPE && ./scripts/publish.sh $BUILD_TYPE && ./scripts/deploy.sh $BUILD_TYPE"

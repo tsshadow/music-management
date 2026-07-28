@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.22] - 2026-07-28
+
+> **Ultrasonic (Android) now supports "Sign in with Google", functionally equivalent to the web frontend.**
+> A native Credential Manager-based Google Sign-In flow already existed in the Ultrasonic codebase (button,
+> access-request UX, token handling), but had two bugs that meant it could never actually work end-to-end.
+
+### Fixed
+- **Ultrasonic's `MumaAuthResponse` used a stale, flat response shape**: `/api/auth/google`/`/api/auth/refresh`
+  return account fields nested under `user` (per the `0.0.4` fix to `/api/auth/login`/`/api/auth/google`), but
+  the Android DTO still declared `id`/`username`/`display_name`/etc. as top-level fields, so they always
+  deserialized as `null` after a successful Google sign-in. Added a `MumaAuthUser` nested type matching the
+  real backend contract.
+- **Ultrasonic never populated Subsonic/LMS credentials after a Google sign-in** (the exact same class of bug
+  fixed for the web frontend in `0.0.6`): `EditServerFragment.performMumaGoogleAuth()`'s `"ok"` branch stored
+  the MuMa access/refresh token but never wrote a username/password into the server's Subsonic fields, so
+  streaming/library calls (and every other Subsonic request) stayed unauthenticated after a Google login. Now
+  mirrors the web frontend exactly: writes `result.user.username`/`api_key` into `userNameEditText`/
+  `passwordEditText`/`ServerSetting.userName`/`.password`, relying on the same `api_key`-as-password fallback
+  in `/api/auth/login`.
+- **Wired up the missing `GOOGLE_WEB_CLIENT_ID` build config value in CI**: the app's Google Sign-In flow
+  already read `BuildConfig.GOOGLE_WEB_CLIENT_ID` (intended to equal the web's `GOOGLE_CLIENT_ID`), but no CI
+  job ever provided a real value, so every CI-built APK shipped with the `build.gradle` default
+  `"placeholder-id"`, making Google Sign-In silently non-functional. `scripts/ci/ultrasonic-build-upload.sh`
+  now extracts `GOOGLE_CLIENT_ID` from the existing `PROD_ENV_FILE` CI/CD variable and passes it through — no
+  new secret or Android-specific OAuth client registration required, since the Android flow reuses the web
+  client ID as its Credential Manager `serverClientId` by design.
+- Updated `docs/designs/authentication/technical.md`'s Cross-App Impact section, which incorrectly stated
+  Ultrasonic was unaffected by the Google/Subsonic-credential-forwarding requirement.
+- Bumped Ultrasonic's own `versionCode`/`versionName` (`233`/`6.5.3` -> `234`/`6.5.4`).
+
 ## [0.0.21] - 2026-07-28
 
 > **Automated the Ultrasonic Android release APK build and publish flow, end to end.** This CI/CD automation already existed in the codebase from earlier work, but had never actually produced a real signed release: the original signing keystore could no longer be located anywhere, so official release APKs were never built by CI before.

@@ -11,6 +11,21 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.18 (2026-07-28)
+### 🖼️ Artiestenafbeeldingen-tab stond permanent vast op "0 / 0 artiesten"
+Het beheerscherm "Artist Images" toonde altijd "0 / 0 artiesten", zoeken gaf nooit resultaten en de
+RESCAN-knop liet geen voortgang zien — terwijl de artiesten- en afbeeldingsgegevens zelf wél gewoon
+correct in de database stonden.
+- **Oorzaak**: een stuk tussenlaag-code in de player onderschepte élk verzoek dat begint met
+  `/api/artists/`, nog vóórdat het bij de normale doorstuurlaag naar `music-manager` kon komen. Die
+  tussenlaag kende maar twee specifieke gevallen (een afbeeldingsverzoek, of een los numeriek
+  artiest-ID voor de speler zelf) — alle andere aanroepen zoals de statistieken, zoekfunctie en
+  scanvoortgang werden daardoor altijd afgewezen met een foutmelding, nog vóór ze de beheertool
+  bereikten.
+- **Fix**: de tussenlaag onderschept nu alleen nog die twee specifieke gevallen; alle andere
+  artiest-gerelateerde aanroepen worden weer gewoon normaal doorgestuurd — zie
+  `docs/bug-reports/006-artist-images-tab-zero-stats.md`.
+
 ## Global Version 0.0.17 (2026-07-28)
 ### 🚨 Inloggen deed het niet meer op productie (`no such column: u.password_salt`)
 Elke inlogpoging — met gebruikersnaam/wachtwoord én via Google — crashte met een databasefout.

@@ -11,6 +11,22 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.21 (2026-07-28)
+### 📱 Officiële Ultrasonic release-APK wordt nu volledig automatisch gebouwd en gepubliceerd
+De automatisering om een ondertekende Ultrasonic-APK te bouwen en naar apk-hoster te uploaden
+bestond al in de code, maar heeft nog nooit echt een release opgeleverd: de originele
+ondertekeningssleutel was nergens meer terug te vinden.
+- Een gloednieuwe ondertekeningssleutel gegenereerd en samen met de apk-hoster inloggegevens
+  veilig ingesteld als CI/CD-variabelen (nooit in de code).
+- `ultrasonic:build-release` draait nu automatisch bij elke release-pipeline en zet de
+  ondertekende APK meteen online op https://apk.example.com.
+- Bugfix: de sleutel werd op de verkeerde manier doorgegeven aan het bouwscript (rauwe bytes in
+  plaats van tekst), waardoor de build altijd zou zijn mislukt; dit is opgelost.
+- Alle oude, handmatig geüploade APK's zijn van apk-hoster verwijderd (schone lei), en de
+  app-versie is opgehoogd naar 6.5.3 (233) als eerste officiële, automatisch gebouwde release.
+- ⚠️ Let op: door de nieuwe sleutel moet iedereen die een eerdere, handmatig ondertekende versie
+  (bv. v6.5.2-214) had geïnstalleerd, de app eenmalig verwijderen en opnieuw installeren.
+
 ## Global Version 0.0.20 (2026-07-28)
 ### 📦 Importer bleef dubbele mappen voor altijd als foutmelding herhalen
 Bij het verder doorspitten van de productielogs bleek de import-dienst dezelfde ~15 misleidende

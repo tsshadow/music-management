@@ -45,13 +45,25 @@ trap fix_permissions EXIT
 
 # For release builds, write the keystore from the SIGNING_STORE_FILE file-type
 # CI/CD variable into the ultrasonic module directory so gradle can find it.
+# NOTE: SIGNING_STORE_FILE must hold the keystore *base64-encoded* (a single
+# line of plain ASCII), not the raw .jks bytes - GitLab CI/CD variables (even
+# file-type ones) are stored/transmitted as text, so raw binary content is not
+# guaranteed to round-trip correctly. We base64-decode it here to reconstruct
+# the real keystore; this also transparently supports a raw (non-base64) file
+# for local/manual testing, since base64 -d simply fails on non-base64 input.
 STORE_FILE_NAME=""
 if [ "$BUILD_TYPE" == "release" ]; then
     if [ -z "$SIGNING_STORE_FILE" ] || [ ! -f "$SIGNING_STORE_FILE" ]; then
         echo "Error: SIGNING_STORE_FILE (file-type CI/CD variable) is required for release builds."
         exit 1
     fi
-    cp "$SIGNING_STORE_FILE" "$ROOT_DIR/services/ultrasonic/keystore.jks"
+    if base64 -d "$SIGNING_STORE_FILE" > "$ROOT_DIR/services/ultrasonic/keystore.jks" 2>/dev/null \
+        && [ -s "$ROOT_DIR/services/ultrasonic/keystore.jks" ]; then
+        echo "Decoded base64-encoded SIGNING_STORE_FILE into keystore.jks."
+    else
+        cp "$SIGNING_STORE_FILE" "$ROOT_DIR/services/ultrasonic/keystore.jks"
+        echo "SIGNING_STORE_FILE was not base64; copied raw content into keystore.jks."
+    fi
     STORE_FILE_NAME="keystore.jks"
 fi
 

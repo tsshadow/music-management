@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { credentials, isAdmin } from './store.js';
+  import { credentials, isAdmin, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser } from './store.js';
 
   const { onNavigate } = $props();
 
@@ -32,6 +32,16 @@
     const emptyCreds = { url: import.meta.env.VITE_SUBSONIC_URL || (import.meta.env.DEV ? '' : window.location.origin), username: '', password: '' };
     credentials.set(emptyCreds);
     localStorage.setItem('lms_credentials', JSON.stringify(emptyCreds));
+
+    // Clear MuMa / Google session state and localStorage
+    mumaApiKey.set('');
+    localStorage.setItem('muma_api_key', JSON.stringify(''));
+    mumaRefreshToken.set('');
+    localStorage.setItem('muma_refresh_token', JSON.stringify(''));
+    mumaSessionActive.set(false);
+    localStorage.setItem('muma_session_active', JSON.stringify(false));
+    userPermissions.set([]);
+    mumaUser.set(null);
 
     // Clear view state to return to home on next login
     localStorage.removeItem('lms_active_view');

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.24] - 2026-07-28
+
+> **Two Ultrasonic (Android) fixes, requested together: the default server was still pointing at
+> the retired "alpha" test instance, and the "Sign in with Google" option was missing from the
+> very first login screen users see on a fresh install.**
+
+### Changed
+- **Default server is now `music.example.com`**: the separate "alpha" server entry (already
+  retired at the infrastructure level, see `docs/deployment.md`'s "production-lms-consolidation")
+  has been removed from Ultrasonic's static server list; there is now exactly one, fixed
+  production server. Adjusted the (previously hard-coded) debug-build server selection, the
+  "offline" pseudo-server's list index, and updated `docs/architecture.md`/`docs/OVERVIEW.md`
+  which still described a live Alpha instance.
+- **"Sign in with Google" is now available on the very first login screen** (the welcome dialog
+  shown on a fresh install / after a full logout), not just from deep inside the server-edit
+  screen — this was the actual requirement: a first-time user must be able to choose Google login
+  immediately, without first setting up a username/password server entry. The new button reuses
+  the exact same Credential Manager flow, response handling (nested `user`/`api_key` fields,
+  access-request navigation for not-yet-linked accounts) and Subsonic-credential-population logic
+  already fixed for the in-app flow in `0.0.23`.
+- Bumped Ultrasonic's own `versionCode`/`versionName` (`234`/`6.5.4` -> `235`/`6.5.5`).
+
 ## [0.0.23] - 2026-07-28
 
 > **Ultrasonic (Android) now supports "Sign in with Google", functionally equivalent to the web frontend.**

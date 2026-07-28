@@ -84,8 +84,7 @@ class ServerSettingsModel(
     fun deleteItemById(id: Int) {}
 
     private fun isRequiredServer(server: ServerSetting): Boolean {
-        return (server.name == LMS_NAME && server.url == LMS_URL) ||
-            (server.name == LMS_ALPHA_NAME && server.url == LMS_ALPHA_URL)
+        return server.name == LMS_NAME && server.url == LMS_URL
     }
 
     /**
@@ -137,30 +136,17 @@ class ServerSettingsModel(
 
     companion object {
         const val LMS_NAME = "LMS"
-        const val LMS_URL = "http://lms.example.com"
-        const val LMS_ALPHA_NAME = "alpha"
-        const val LMS_ALPHA_URL = "http://lms-alpha.example.com"
+        const val LMS_URL = "https://music.example.com"
 
+        // There is only one production server now (no more separate "alpha" server) - keep this
+        // a single-element list rather than a plain ServerSetting so existing STATIC_SERVERS.find
+        // {} lookups (by id/index) elsewhere keep working unchanged.
         val STATIC_SERVERS = listOf(
             ServerSetting(
                 id = 0,
                 index = 0,
                 name = LMS_NAME,
                 url = LMS_URL,
-                userName = "",
-                password = "",
-                allowSelfSignedCertificate = true,
-                forcePlainTextPassword = true,
-                shareSupport = true,
-                jukeboxByDefault = false,
-                musicFolderId = null,
-                minimumApiVersion = "1.13.0"
-            ),
-            ServerSetting(
-                id = 1,
-                index = 1,
-                name = LMS_ALPHA_NAME,
-                url = LMS_ALPHA_URL,
                 userName = "",
                 password = "",
                 allowSelfSignedCertificate = true,

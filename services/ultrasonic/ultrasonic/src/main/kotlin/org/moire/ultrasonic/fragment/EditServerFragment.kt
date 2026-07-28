@@ -132,8 +132,8 @@ class EditServerFragment : Fragment() {
             // Editing an existing server
             FragmentTitle.setTitle(this, R.string.server_editor_label)
 
-            // Disable fields for static servers (LMS and alpha)
-            if (navArgs.index == 0 || navArgs.index == 1) {
+            // Disable fields for the static LMS server
+            if (navArgs.index == 0) {
                 serverNameEditText?.isEnabled = false
                 serverAddressEditText?.isEnabled = false
                 serverColorImageView?.isEnabled = false

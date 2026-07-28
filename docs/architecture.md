@@ -32,8 +32,9 @@ The core management functions are consolidated into a unified service to streaml
 #### 3. Audio Engine & Frontends (`lms`)
 Lightweight media server (lms) acts as the audio engine, but the user experience is provided by a custom Spotify-style interface.
 
-- **Stable Instance (`lms.example.com`)**: The stable version for daily use.
-- **Alpha Instance (`lms-alpha.example.com`)**: Used for testing new UI features.
+- **Single production instance (`music.example.com`)**: as of the production-lms-consolidation
+  change, the separate `lms_alpha` testing instance has been retired; there is only one `lms`
+  service now (see `docs/deployment.md`).
 - **Data Volatility**: The data within LMS (such as the library database) is considered volatile. If the LMS container is deleted, it can be rebuilt from the music collection on disk. The actual metadata and listening history are stored in the MuMa services.
 
 ---
@@ -107,8 +108,7 @@ graph TD
     end
 
     subgraph "Playback Layer (LMS)"
-        LMS_Stable[LMS Stable]
-        LMS_Alpha[LMS Alpha]
+        LMS_Stable[LMS]
         LMS_DB[(LMS SQLite DB)]
     end
 
@@ -123,7 +123,6 @@ graph TD
     end
 
     WebUI --> LMS_Stable
-    WebUI --> LMS_Alpha
     WebUI -- Ratings/Scrobbles/Stats --> MuMaCore
     Mobile --> LMS_Stable
     

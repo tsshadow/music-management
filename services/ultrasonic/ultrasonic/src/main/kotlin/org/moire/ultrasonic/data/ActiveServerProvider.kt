@@ -226,7 +226,10 @@ class ActiveServerProvider(private val repository: ServerSettingDao) : Coroutine
     companion object {
         const val METADATA_DB = "$DB_FILENAME-meta-"
         const val OFFLINE_DB_ID = -1
-        const val OFFLINE_DB_INDEX = 2
+
+        // There is now only one static server (LMS, index 0) - no more separate "alpha" server -
+        // so Offline moves down to index 1 (was 2, when LMS=0/alpha=1/offline=2).
+        const val OFFLINE_DB_INDEX = 1
 
         val OFFLINE_DB = ServerSetting(
             id = OFFLINE_DB_ID,

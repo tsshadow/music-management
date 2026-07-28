@@ -44,7 +44,24 @@
             android:maxLines="1" />
 
     </com.google.android.material.textfield.TextInputLayout>
-    
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="8dp"
+        android:gravity="center"
+        android:text="@string/welcome_or_divider"
+        android:textAppearance="?attr/textAppearanceCaption" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/welcome_google_signin"
+        style="@style/Widget.Material3.Button.TonalButton.Icon"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/google_signin_button"
+        app:icon="@android:drawable/btn_star" />
+
     <ProgressBar
         android:id="@+id/welcome_progress"
         style="?android:attr/progressBarStyleHorizontal"

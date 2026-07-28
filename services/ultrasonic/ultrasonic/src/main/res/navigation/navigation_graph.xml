@@ -31,6 +31,12 @@
     <action
         android:id="@+id/toPlaylistFragment"
         app:destination="@id/playlistsFragment" />
+    <!-- Global action so NavigationActivity's first-run welcome dialog (login) can navigate to
+         the Google access-request flow directly, the same way EditServerFragment's local
+         "toGoogleAuth" action does. -->
+    <action
+        android:id="@+id/toGoogleAuthGlobal"
+        app:destination="@id/googleAuthFragment" />
 
     <fragment
         android:id="@+id/mainFragment"

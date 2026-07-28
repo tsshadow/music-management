@@ -11,6 +11,12 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.9 (2026-07-28)
+### 🎨 Kleine UI-opschoning in zijbalk en profielmenu
+- **Legacy UI knop verwijderd**: de knop "Oude UI (Legacy)" in het profielmenu is definitief weggehaald.
+- **Geïntegreerde bibliotheek**: alle bibliotheek-onderdelen (afspeellijsten, artiesten, albums, genres, geschiedenis, favorieten) staan nu direct in de hoofd-zijbalk met duidelijke iconen; de kop "JOUW BIBLIOTHEEK" is vervallen.
+- **Overbodig Systeembeheer-item weg**: het menu-item "Systeembeheer" in de zijbalk is verwijderd aangezien de schakelaar (Player/Beheer) in de header dit al regelt.
+
 ## Global Version 0.0.8 (2026-07-28)
 ### 🚪 Uitloggen na Google Auth liet sessiedata achter ("Gebruiker")
 Wanneer je ingelogd was via Google Auth en uitlogde, bleef de webapp sessiegegevens (`mumaSessionActive`, `mumaApiKey`, `mumaRefreshToken`, `userPermissions`, `mumaUser`) en localStorage-waarden vasthouden. Hierdoor bleef je hangen als 'Gebruiker' zonder muziekrechten.

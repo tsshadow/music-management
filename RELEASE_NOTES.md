@@ -11,6 +11,21 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.17 (2026-07-28)
+### 🚨 Inloggen deed het niet meer op productie (`no such column: u.password_salt`)
+Elke inlogpoging — met gebruikersnaam/wachtwoord én via Google — crashte met een databasefout.
+- **Oorzaak**: een achtergrondtaak in `music-manager` verwijderde per ongeluk de echte, permanente
+  gebruikerstabel van de player rechtstreeks uit de live database (op basis van een verkeerde aanname
+  dat die tabel net als sessie-gegevens alleen tijdelijk in het geheugen zou bestaan). Dit gebeurde
+  precies op het moment dat de player zelf ook zijn database aan het initialiseren was, waardoor een
+  onvolledige noodgreep in de player de tabel herstelde zonder een aantal verplichte kolommen.
+- **Fix**: de destructieve opschoning in `music-manager` is volledig verwijderd (die diende sowieso
+  geen functioneel doel meer), en de noodgreep in de player is bijgewerkt zodat die nooit meer een
+  onvolledig tabelontwerp kan aanmaken.
+- **Productie**: direct handmatig herstel toegepast (ontbrekende kolommen teruggezet, player herstart)
+  zodra het probleem bevestigd was, ruim vóór deze release werd uitgerold — zie
+  `docs/bug-reports/005-lms-user-table-corruption.md`.
+
 ## Global Version 0.0.16 (2026-07-28)
 ### 🐛 Artiestenafbeeldingen werken weer in het beheerscherm en de player
 - **Beheerscherm (`bug 004`)**: afbeeldingsverzoeken voor artiesten misten authenticatie en kregen daardoor altijd een `401 Unauthorized`; de API-key wordt nu meegegeven als `apiKey` queryparameter.

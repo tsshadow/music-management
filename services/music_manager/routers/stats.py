@@ -42,8 +42,26 @@ def get_stats(auth: dict=Depends(verify_api_key)):
             stats['avg_track_duration'] = round(cursor.fetchone()['avg_dur'] or 0, 2)
             cursor.execute('\n                SELECT a.name, COUNT(t.id) as track_count\n                FROM library_artists a\n                JOIN library_tracks t ON a.id = t.primary_artist_id\n                GROUP BY a.id\n                ORDER BY track_count DESC\n                LIMIT 10\n            ')
             stats['top_artists'] = cursor.fetchall()
-            cursor.execute('\n                SELECT genre, COUNT(*) as count\n                FROM (\n                    SELECT g.name as genre FROM library_track_genres tg JOIN rules_genres g ON tg.genre_id = g.id\n                    UNION ALL\n                    SELECT ml_genre as genre FROM library_track_ml_labels WHERE ml_genre IS NOT NULL\n                ) as combined\n                GROUP BY genre\n                ORDER BY count DESC\n                LIMIT 10\n            ')
-            stats['top_genres'] = cursor.fetchall()
+            cursor.execute('''
+                SELECT genre
+                FROM (
+                    SELECT g.name as genre FROM library_track_genres tg JOIN rules_genres g ON tg.genre_id = g.id
+                    UNION ALL
+                    SELECT ml_genre as genre FROM library_track_ml_labels WHERE ml_genre IS NOT NULL
+                ) as combined
+            ''')
+            genre_rows = cursor.fetchall()
+            from collections import Counter
+            genre_counts = Counter()
+            for row in genre_rows:
+                g_str = row.get('genre')
+                if not g_str:
+                    continue
+                for part in g_str.replace(',', ';').split(';'):
+                    cleaned = part.strip()
+                    if cleaned:
+                        genre_counts[cleaned] += 1
+            stats['top_genres'] = [{'genre': g, 'count': c} for g, c in genre_counts.most_common(10)]
             cursor.execute('\n                SELECT COUNT(DISTINCT t.id) as count\n                FROM library_tracks t\n                LEFT JOIN library_track_genres tg ON t.id = tg.track_id\n                LEFT JOIN library_track_ml_labels ml ON t.track_uid = ml.track_id\n                WHERE tg.track_id IS NOT NULL OR ml.track_id IS NOT NULL\n            ')
             matched_count = cursor.fetchone()['count']
             if stats['total_tracks'] > 0:

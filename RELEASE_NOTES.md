@@ -11,6 +11,21 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.15 (2026-07-28)
+### 🔗 "Alles tonen" knoppen op de homepagina doorverwijzen naar juiste tabs en views
+- **Release Radar**: knop "Alles tonen" opent direct de Release Radar tab.
+- **Songs**: knop "Alles tonen" schakelt de view mode naar nummers en opent de songstip.
+- **Sets**: knop "Alles tonen" schakelt de view mode naar sets en opent de setstab.
+
+## Global Version 0.0.14 (2026-07-28)
+### 🎨 "MuMa Beheer" knop in profielmenu verwijderd
+- **Profielmenu (`ProfileButton.svelte`)**: de "MuMa Beheer" knop in het dropdownmenu van het profiel is verwijderd, aangezien het beheren van het systeem al volledig bereikbaar is via de Player/Beheer schakelaar in de hoofd-zijbalk.
+
+## Global Version 0.0.13 (2026-07-28)
+### 🐛 Populair genres semicolon-delimiter & ontbrekende artiestenafbeeldingen gefixed
+- **Populair genres (`bug 002`)**: statistieken top-genres (`stats.py`) splitst samengestelde genre-strings gescheiden door puntkommas (`;` / `,`), trimt spaties en telt individuele subgenres correct.
+- **Artiestenafbeeldingen (`bug 003`)**: achtergrond- en handmatige taken voor ontbrekende artiestenafbeeldingen (`run_fetch_missing` in `artist_images.py`) verwerken nu alle artiesten waarbij `primary_image_id IS NULL`, ongeacht hun eerdere `image_status`.
+
 ## Global Version 0.0.12 (2026-07-28)
 ### 🐛 Gestructureerde bugreports & fetch-progress fix
 - **Gestructureerde bugreports**: Geïntroduceerd volgens een 2-staps workflow onder `docs/bug-reports/00#-<title>.md` met velden voor status, probleem, oorzaak en oplossing (`AGENTS.md` bijgewerkt).

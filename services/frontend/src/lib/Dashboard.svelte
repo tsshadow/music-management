@@ -417,7 +417,20 @@
       <section class="flex flex-col gap-4">
         <div class="flex justify-between items-end mb-4">
           <h2 class="text-2xl font-bold m-0">{section.title}</h2>
-          <button class="bg-transparent border-none text-[#b3b3b3] text-[12px] font-bold cursor-pointer uppercase tracking-[0.1em] hover:underline">Alles tonen</button>
+          <button
+            class="bg-transparent border-none text-[#b3b3b3] text-[12px] font-bold cursor-pointer uppercase tracking-[0.1em] hover:underline"
+            onclick={() => {
+              if (section.id === 'spotify:release_radar') {
+                activeView = 'radar';
+              } else if (section.id === 'spotify:songs') {
+                viewMode.set('songs');
+                activeView = 'songs';
+              } else if (section.id === 'spotify:sets') {
+                viewMode.set('sets');
+                activeView = 'sets';
+              }
+            }}
+          >Alles tonen</button>
         </div>
         <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
           {#each section.tracks.slice(0, 6) as track (track.id)}

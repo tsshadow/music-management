@@ -1,11 +1,20 @@
 #!/bin/bash
 # scripts/ci/build-and-push-images.sh
 #
-# Builds and pushes the two Docker images that production actually pulls, from
-# CI, on a release/* branch, *before* deploy:prod runs. This closes the gap
-# that caused deploy:prod to only ever "docker compose pull" whatever image
-# was last pushed manually (often stale/old) - see docs/release-management.md
-# and CHANGELOG.md 0.0.2 for the full story.
+# Builds and pushes ALL Docker images that production actually pulls, from CI,
+# on a release/* branch, *before* deploy:prod runs. This closes the gap that
+# caused deploy:prod to only ever "docker compose pull" whatever image was
+# last pushed manually (often stale/old) - see docs/release-management.md and
+# CHANGELOG.md 0.0.2 for the full story.
+#
+# NOTE: this originally only covered music-manager/lms (bullets 1-2 below).
+# See docs/bug-reports/007-telegram-session-schema-mismatch.md: a fix to the
+# telegram worker's Dockerfile/dependencies went through a full green
+# release/deploy:prod pipeline but never actually reached production, because
+# nothing in CI ever rebuilt+pushed the muma-telegram (or muma-downloader/
+# muma-importer/muma-tools/muma-base) images - "docker compose pull" just kept
+# re-pulling the same old manually-pushed ":latest" tag. Bullets 3-6 close
+# that gap for every image docker/docker-compose.yml actually references.
 #
 #   1. music-manager  (docker/Dockerfile.music-manager, build context: repo root)
 #      -> pushed as "${DOCKER_USER}/${IMAGE_CORE}:latest" and ":${VERSION}"
@@ -16,12 +25,25 @@
 #         (matches services/music-management-server/docker-compose.yml's
 #         `image: ${IMAGE_NAME}:${LMS_TAG}` - both "latest" and "stable" are
 #         pushed so this works regardless of which one LMS_TAG is set to).
+#   3. muma-base (docker/Dockerfile.base) - common base image for 4-6 below.
+#      Not referenced directly by docker-compose.yml, but must be rebuilt
+#      first and pushed so the FROM ${DOCKER_USER}/muma-base:latest in the
+#      Dockerfiles below actually picks up the current requirements.txt/code.
+#   4. muma-downloader (docker/Dockerfile.downloader) -> "${DOCKER_USER}/${IMAGE_DOWNLOADER}"
+#      (soundcloud/youtube/generic downloader workers).
+#   5. muma-telegram (docker/Dockerfile.telegram) -> "${DOCKER_USER}/${IMAGE_TELEGRAM}"
+#      (telegram_worker).
+#   6. muma-importer (docker/Dockerfile.importer) -> "${DOCKER_USER}/${IMAGE_IMPORTER}"
+#      (importer_worker).
+#   7. muma-tools (docker/Dockerfile.tools) -> "${DOCKER_USER}/${IMAGE_TOOLS}"
+#      (soundcloud-fetcher, process_genres tools).
 #
 # Required CI/CD variables (see docs/deployment.md):
 #   - DOCKERHUB_USERNAME, DOCKERHUB_TOKEN: Docker Hub login used to push.
 #   - PROD_ENV_FILE, PROD_ENV_FILE_LMS: same file-type variables deploy:prod
-#     already uses, needed here too so IMAGE_CORE/IMAGE_NAME resolve to the
-#     exact same values docker-compose.yml will pull on the production host.
+#     already uses, needed here too so IMAGE_CORE/IMAGE_NAME/IMAGE_* resolve
+#     to the exact same values docker-compose.yml will pull on the
+#     production host.
 #
 # This job is gated in .gitlab-ci.yml on DOCKERHUB_USERNAME/DOCKERHUB_TOKEN
 # being present, but since it runs before deploy:prod (same "release" stage,
@@ -110,4 +132,76 @@ docker push "${IMAGE_NAME}:latest"
 docker push "${IMAGE_NAME}:stable"
 docker push "${IMAGE_NAME}:${LMS_VERSION}"
 
-echo "--- build-and-push-images.sh completed: music-manager and lms images are now up to date on Docker Hub ---"
+# 3. Build + push muma-base ----------------------------------------------------
+# (re-source root .env: sourcing PROD_ENV_FILE_LMS above may have shadowed
+# some of its variables since both files are sourced into the same shell)
+# shellcheck disable=SC1091
+set -a; source "$PROJECT_ROOT/.env"; set +a
+DOCKER_USER="${DOCKER_USER:-$DOCKERHUB_USERNAME}"
+IMAGE_BASE="${IMAGE_BASE:-muma-base}"
+IMAGE_DOWNLOADER="${IMAGE_DOWNLOADER:-muma-downloader}"
+IMAGE_TELEGRAM="${IMAGE_TELEGRAM:-muma-telegram}"
+IMAGE_IMPORTER="${IMAGE_IMPORTER:-muma-importer}"
+IMAGE_TOOLS="${IMAGE_TOOLS:-muma-tools}"
+
+echo "--- Building muma-base image (${DOCKER_USER}/${IMAGE_BASE}:${VERSION}) ---"
+docker build \
+    -t "${DOCKER_USER}/${IMAGE_BASE}:latest" \
+    -t "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}" \
+    -f docker/Dockerfile.base .
+
+echo "--- Pushing muma-base image ---"
+docker push "${DOCKER_USER}/${IMAGE_BASE}:latest"
+docker push "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}"
+
+# 4. Build + push muma-downloader ----------------------------------------------
+echo "--- Building muma-downloader image (${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}) ---"
+docker build \
+    --build-arg DOCKER_USER="${DOCKER_USER}" \
+    --build-arg VERSION="${VERSION}" \
+    -t "${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest" \
+    -t "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}" \
+    -f docker/Dockerfile.downloader .
+
+echo "--- Pushing muma-downloader image ---"
+docker push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest"
+docker push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}"
+
+# 5. Build + push muma-telegram -------------------------------------------------
+echo "--- Building muma-telegram image (${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSION}) ---"
+docker build \
+    --build-arg DOCKER_USER="${DOCKER_USER}" \
+    --build-arg VERSION="${VERSION}" \
+    -t "${DOCKER_USER}/${IMAGE_TELEGRAM}:latest" \
+    -t "${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSION}" \
+    -f docker/Dockerfile.telegram .
+
+echo "--- Pushing muma-telegram image ---"
+docker push "${DOCKER_USER}/${IMAGE_TELEGRAM}:latest"
+docker push "${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSION}"
+
+# 6. Build + push muma-importer -------------------------------------------------
+echo "--- Building muma-importer image (${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}) ---"
+docker build \
+    --build-arg DOCKER_USER="${DOCKER_USER}" \
+    --build-arg VERSION="${VERSION}" \
+    -t "${DOCKER_USER}/${IMAGE_IMPORTER}:latest" \
+    -t "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}" \
+    -f docker/Dockerfile.importer .
+
+echo "--- Pushing muma-importer image ---"
+docker push "${DOCKER_USER}/${IMAGE_IMPORTER}:latest"
+docker push "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}"
+
+# 7. Build + push muma-tools ----------------------------------------------------
+echo "--- Building muma-tools image (${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}) ---"
+docker build \
+    -t "${DOCKER_USER}/${IMAGE_TOOLS}:latest" \
+    -t "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}" \
+    -f docker/Dockerfile.tools .
+
+echo "--- Pushing muma-tools image ---"
+docker push "${DOCKER_USER}/${IMAGE_TOOLS}:latest"
+docker push "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}"
+
+echo "--- build-and-push-images.sh completed: music-manager, lms, and all background worker images (base/downloader/telegram/importer/tools) are now up to date on Docker Hub ---"

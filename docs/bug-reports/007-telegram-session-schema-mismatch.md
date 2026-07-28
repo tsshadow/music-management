@@ -26,6 +26,18 @@ because the code path in `SQLiteSession.set_dc()`/`_upgrade_database()` only run
 logic when the on-disk version is *older* than `CURRENT_VERSION`; when the on-disk version is
 *newer* it is left untouched and the row is read assuming the old, narrower column layout.
 
+**Second, compounding bug found while verifying the fix on production**: after deploying the code
+change above through a full green `release/*` pipeline (including `deploy:prod`), the running
+`muma-telegram-worker` container on production was still the exact same 13-day-old image and still
+crashed with a (slightly different) unpack error. `scripts/ci/build-and-push-images.sh` - the script
+introduced to fix an earlier, analogous problem for `music-manager`/`lms` (see `CHANGELOG.md` 0.0.2)
+- only ever built and pushed those two images. It never covered `muma-base`, `muma-downloader`,
+`muma-telegram`, `muma-importer`, or `muma-tools` (the images `docker/docker-compose.yml` actually
+uses for the Telegram/SoundCloud/YouTube/importer workers and CLI tools). `deploy:prod`'s
+`docker compose pull` therefore only ever re-pulled whatever `:latest` tag had last been pushed
+*manually* (via the local-only `build.sh`/`publish.sh` scripts) - so this code fix, despite a fully
+green pipeline, would never have actually reached production.
+
 # solution
 1. Pinned `telethon` in `requirements.txt` to `~=1.44.0` (the latest release, which uses schema
    version 8 - the same version already present in the on-disk production session file), so all
@@ -37,3 +49,7 @@ logic when the on-disk version is *older* than `CURRENT_VERSION`; when the on-di
 3. Verified directly against a locally rebuilt image that `telethon==1.44.0` opens a
    schema-version-8 `.session` file (with a populated `sessions` table including the empty
    `tmp_auth_key` column) without raising an error.
+4. Extended `scripts/ci/build-and-push-images.sh` to also build and push `muma-base`,
+   `muma-downloader`, `muma-telegram`, `muma-importer`, and `muma-tools` (in addition to
+   `music-manager`/`lms`), so every image `docker/docker-compose.yml` references on production is
+   kept in sync by every `release/*` pipeline, closing this deployment gap for good.

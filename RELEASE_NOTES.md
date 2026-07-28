@@ -24,6 +24,11 @@ laden van zijn inlogbestand, in plaats van gewoon te verbinden.
   inlogbestand, en de overbodige, niet-vastgelegde installatie is verwijderd zodat elke bouw voortaan
   altijd exact dezelfde, geteste versie gebruikt — zie
   `docs/bug-reports/007-telegram-session-schema-mismatch.md`.
+- **Extra ontdekking**: deze fix bleek na een volledig geslaagde uitrol tóch nog niet op productie
+  te staan. Het bleek dat de automatische uitrol tot nu toe alleen de twee hoofdonderdelen ververste
+  en alle overige achtergronddiensten (waaronder Telegram) nooit automatisch opnieuw bouwde en
+  publiceerde. Dit is nu gerepareerd: voortaan worden al deze onderdelen bij elke release automatisch
+  meegenomen.
 
 ## Global Version 0.0.18 (2026-07-28)
 ### 🖼️ Artiestenafbeeldingen-tab stond permanent vast op "0 / 0 artiesten"

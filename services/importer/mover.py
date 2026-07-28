@@ -102,8 +102,18 @@ class Mover:
                 post_processing_songs(dst)
             except Exception as e:
                 logging.error(f'Post-processing failed for {dst}: {e}')
-        except FileExistsError:
-            logging.warning(f'Conflict: {dst} already exists. Removing {src}')
+        except (FileExistsError, shutil.Error) as e:
+            # shutil.move(src, dst) treats an existing "dst" directory as a target to move
+            # INTO (i.e. src ends up at dst/basename(src)), not as an in-place conflict. If
+            # that folder (from a previous successful import of the same release) already
+            # exists too, shutil.move raises shutil.Error (a subclass of OSError on modern
+            # Python, so it used to be silently swallowed by the generic "except OSError"
+            # branch below as a bogus "check disk space/filesystem" error) instead of
+            # FileExistsError. Either way this means the release was already imported
+            # previously, so the conflicting leftover source folder is a genuine duplicate:
+            # treat both exceptions identically and remove the source so it stops being
+            # retried (and logged as an error) on every single import cycle forever.
+            logging.warning(f'Conflict: {dst} already exists ({e}). Removing {src}')
             if not dry_run:
                 self.remove(folder)
         except PermissionError as e:

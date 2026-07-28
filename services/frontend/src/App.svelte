@@ -3,14 +3,14 @@
   import Sidebar from './lib/Sidebar.svelte';
   import Player from './lib/Player.svelte';
   import Dashboard from './lib/Dashboard.svelte';
-  import AuthOverlay from './lib/AuthOverlay.svelte';
+  import LoginPage from './lib/LoginPage.svelte';
   import TopBar from './lib/TopBar.svelte';
   import TrackList from './lib/TrackList.svelte';
   import MobileNav from './lib/MobileNav.svelte';
   import SettingsSidebar from './lib/SettingsSidebar.svelte';
   import ManagementSidebar from './lib/management/ManagementSidebar.svelte';
   import SearchMoreModal from './lib/SearchMoreModal.svelte';
-  import { playlist, activeView, currentPlaylist, isMobile, authParams, viewMode, activeModal, isAdmin } from './lib/store.js';
+  import { playlist, activeView, currentPlaylist, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive } from './lib/store.js';
   import { get } from 'svelte/store';
 
   let greeting = $state("");
@@ -68,6 +68,8 @@
   const base = '';
 
   function viewToPath(view, _playlistObj) {
+    if (!$credentials.username && !$mumaSessionActive) return base + '/login';
+    if (view === 'login') return base + '/login';
     if (view === 'home') return base + '/';
     if (view === 'songs') return base + '/songs';
     if (view === 'sets') return base + '/sets';
@@ -84,6 +86,7 @@
   }
 
   function pathToView(path) {
+    if (path === base + '/login') return 'login';
     if (path === base || path === base + '/') return 'home';
     if (path === base + '/songs') return 'songs';
     if (path === base + '/sets') return 'sets';
@@ -112,17 +115,21 @@
     window.addEventListener('resize', updateMobile);
 
     const initialView = pathToView(window.location.pathname);
-    if (initialView === 'sets') {
-        viewMode.set('sets');
-    } else if (initialView === 'songs') {
-        viewMode.set('songs');
-    }
-
-    if (typeof initialView === 'object') {
-        currentPlaylist.set({ id: initialView.id });
-        activeView.set(initialView.view);
+    if (!get(credentials).username && !get(mumaSessionActive)) {
+        activeView.set('login');
     } else {
-        activeView.set(initialView);
+        if (initialView === 'sets') {
+            viewMode.set('sets');
+        } else if (initialView === 'songs') {
+            viewMode.set('songs');
+        }
+
+        if (typeof initialView === 'object') {
+            currentPlaylist.set({ id: initialView.id });
+            activeView.set(initialView.view);
+        } else {
+            activeView.set(initialView);
+        }
     }
 
     window.addEventListener('popstate', () => {
@@ -188,9 +195,10 @@
   }
 </script>
 
+{#if !$credentials.username && !$mumaSessionActive}
+  <LoginPage />
+{:else}
 <main class="grid grid-cols-1 md:grid-cols-[240px_1fr_auto] grid-rows-[1fr_auto_auto] md:grid-rows-[1fr_90px] h-dvh w-screen overflow-hidden bg-black text-white">
-  <AuthOverlay />
-
   <div class="bg-black row-start-1 row-end-2 col-start-1 col-end-2 overflow-y-auto min-h-0 hidden md:block">
     {#if $activeView === 'settings'}
       <SettingsSidebar onnavigate={handleNavigate} />
@@ -257,6 +265,7 @@
     <MobileNav activeView={$activeView} onnavigate={handleNavigate} />
   </div>
 </main>
+{/if}
 
 {#if $activeModal}
   {#if $activeModal.type === 'search-results'}

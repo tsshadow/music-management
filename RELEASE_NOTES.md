@@ -11,6 +11,12 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.7 (2026-07-28)
+### 🔐 Vaste inlogpagina in plaats van inlogmodal
+De inlogmodal is losgekoppeld van de hoofdweergave en omgevormd tot een vaste, volwaardige inlogpagina.
+- **Vaste inlogpagina**: wanneer je niet bent ingelogd, toont de webapp altijd een dedicated full-screen inlogpagina (`LoginPage.svelte`) in plaats van een overlay bovenop de app.
+- **Automatische doorverwijzing**: bezoek je de app zonder geldige sessie, dan word je automatisch doorgestuurd naar `/login`.
+
 ## Global Version 0.0.6 (2026-07-27)
 ### 🎵 Inloggen met Google liet je zien als "Gebruiker" zonder muziek
 Inloggen met Google werkte, en je rechten/rol klopten, maar je zag jouw naam niet en er kwam geen

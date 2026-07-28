@@ -436,7 +436,7 @@
         <StatsTab {stats} {fetchStats} {fetchArtistImages} />
       {:else if $activeManagementTab === 'images'}
         <ArtistImagesTab 
-          {API_BASE} bind:artistImageSearch 
+          {API_BASE} {apiKey} bind:artistImageSearch 
           {artistsWithImages} {allArtists} 
           {fetchArtistImages} {manualFetchImage}
           {fetchProgress} {imageStats}

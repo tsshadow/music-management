@@ -970,15 +970,17 @@ def sync_single_server_db(muma_conn, db_path, source):
     try:
         sqlite_conn = sqlite3.connect(db_path)
         sqlite_cursor = sqlite_conn.cursor()
-        
-        # Drop persistent user-related tables to ensure they are only in-memory in the server
-        # The server now uses volatile.user, volatile.auth_token, volatile.ui_state
-        for table in ['user', 'auth_token', 'ui_state']:
-            try:
-                sqlite_cursor.execute(f'DROP TABLE IF EXISTS {table}')
-            except Exception as te:
-                print(f'Failed to drop table {table} in {db_path}: {te}')
-        sqlite_conn.commit()
+
+        # NOTE: this used to DROP TABLE the server's "user" table here on the theory that
+        # it (along with auth_token/ui_state) was purely volatile/in-memory server-side state.
+        # That is only true for auth_token/ui_state, which live in the server's private
+        # `ATTACH DATABASE 'file::memory:...' AS volatile` schema and are therefore never
+        # actually visible/droppable through this on-disk connection anyway (a harmless
+        # no-op). "user" is a real, persistent, non-volatile table the running server reads
+        # and writes directly -- dropping it here (while the server may have it open) caused
+        # a production outage (see docs/bug-reports/005-lms-user-table-corruption.md). Users
+        # are managed by Music Manager and delegated-auth-synced into that table by the
+        # server itself (UserSynchronizer); this sync must never touch it.
 
         with muma_conn.cursor() as cursor:
             synced_users = _sync_server_users(cursor, sqlite_cursor)

@@ -191,7 +191,15 @@ namespace lms::db
 
         {
             auto transaction{ createWriteTransaction() };
-            utils::executeCommand(_session, "CREATE TABLE IF NOT EXISTS user (id INTEGER PRIMARY KEY AUTOINCREMENT, version INTEGER, type INTEGER, login_name TEXT, last_login DATETIME, subsonic_enable_transcoding_by_default INTEGER, subsonic_default_transcode_format INTEGER, subsonic_default_transcode_bitrate INTEGER, subsonic_artist_list_mode INTEGER, ui_theme INTEGER, ui_artist_release_sort_method INTEGER, ui_enable_inline_artist_relationships INTEGER, ui_inline_artist_relationships BLOB, feedback_backend INTEGER, scrobbling_backend INTEGER, muma_scrobbling_enabled INTEGER, listenbrainz_token TEXT, muma_id INTEGER, ui_transcoding_mode INTEGER, ui_transcoding_format INTEGER, ui_transcoding_bitrate INTEGER, ui_replaygain_mode INTEGER, ui_replaygain_preamp_gain REAL, ui_replaygain_preamp_gain_no_info REAL, scrobbling_backend_id INTEGER, feedback_backend_id INTEGER, subsonic_default_transcode_output_format INTEGER)");
+            // NOTE: password_salt/password_hash must stay in sync with the mapped columns
+            // in database/objects/User.hpp::User::persist() (legacy NOT NULL columns that
+            // the ORM always writes on insert, see the comment there). This raw fallback is
+            // normally a no-op ("IF NOT EXISTS") since prepareTablesIfNeeded() already
+            // creates "user" via the ORM mapping first, but if it is ever the one to
+            // actually create the table (e.g. table missing/dropped externally), omitting
+            // these columns here previously produced a schema the ORM could no longer query
+            // against ("no such column: u.password_salt"), taking down production.
+            utils::executeCommand(_session, "CREATE TABLE IF NOT EXISTS user (id INTEGER PRIMARY KEY AUTOINCREMENT, version INTEGER, type INTEGER, login_name TEXT, password_salt TEXT NOT NULL DEFAULT '', password_hash TEXT NOT NULL DEFAULT '', last_login DATETIME, subsonic_enable_transcoding_by_default INTEGER, subsonic_default_transcode_format INTEGER, subsonic_default_transcode_bitrate INTEGER, subsonic_artist_list_mode INTEGER, ui_theme INTEGER, ui_artist_release_sort_method INTEGER, ui_enable_inline_artist_relationships INTEGER, ui_inline_artist_relationships BLOB, feedback_backend INTEGER, scrobbling_backend INTEGER, muma_scrobbling_enabled INTEGER, listenbrainz_token TEXT, muma_id INTEGER, ui_transcoding_mode INTEGER, ui_transcoding_format INTEGER, ui_transcoding_bitrate INTEGER, ui_replaygain_mode INTEGER, ui_replaygain_preamp_gain REAL, ui_replaygain_preamp_gain_no_info REAL, scrobbling_backend_id INTEGER, feedback_backend_id INTEGER, subsonic_default_transcode_output_format INTEGER)");
             utils::executeCommand(_session, "CREATE TABLE IF NOT EXISTS volatile.auth_token (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, value TEXT, expiry DATETIME, domain TEXT)");
             utils::executeCommand(_session, "CREATE TABLE IF NOT EXISTS volatile.ui_state (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, key TEXT, value TEXT)");
         }

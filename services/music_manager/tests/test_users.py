@@ -1,7 +1,9 @@
 import unittest
 from unittest.mock import MagicMock, patch
 import os
+import sqlite3
 import sys
+import tempfile
 import json
 
 # Mock external modules to avoid import errors, but only when they aren't already
@@ -181,6 +183,45 @@ class TestLoginFlows(unittest.TestCase):
         self.assertEqual(body['user']['username'], 'plain-user')
         insert_calls = [c for c in mock_cursor.execute.call_args_list if 'INSERT INTO user_refresh_tokens' in c[0][0]]
         self.assertEqual(len(insert_calls), 1, 'a successful login must issue a refresh token')
+
+
+class TestServerDbSyncNeverDropsUserTable(unittest.TestCase):
+    """Regression test for docs/bug-reports/005-lms-user-table-corruption.md: sync_single_server_db
+    used to run `DROP TABLE IF EXISTS user` against the player's on-disk SQLite database. That
+    table is real, persistent, non-volatile state the running player process reads/writes
+    directly (unlike auth_token/ui_state, which live in its own private in-memory "volatile"
+    schema and are never touched by this on-disk connection at all) -- dropping it caused a
+    production outage. This must never happen again, regardless of table contents/schema.
+    """
+
+    def test_sync_single_server_db_does_not_drop_or_touch_user_table(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            db_path = os.path.join(tmp_dir, 'lms.db')
+            conn = sqlite3.connect(db_path)
+            conn.execute("CREATE TABLE user (id INTEGER PRIMARY KEY, login_name TEXT, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL)")
+            conn.execute("INSERT INTO user (id, login_name, password_salt, password_hash) VALUES (1, 'user', 'salt', 'hash')")
+            conn.commit()
+            conn.close()
+
+            mock_muma_conn = MagicMock()
+            mock_muma_cursor = MagicMock()
+            mock_muma_conn.cursor.return_value.__enter__.return_value = mock_muma_cursor
+            mock_muma_cursor.fetchall.return_value = []
+
+            with patch('services.music_manager.routers.artist_images.sync_artist_images_to_server', MagicMock()):
+                services.music_manager.routers.users.sync_single_server_db(mock_muma_conn, db_path, 'server-stable')
+
+            check_conn = sqlite3.connect(db_path)
+            cur = check_conn.cursor()
+            cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='user'")
+            self.assertIsNotNone(cur.fetchone(), 'the "user" table must still exist after sync')
+            cur.execute('PRAGMA table_info(user)')
+            columns = {row[1] for row in cur.fetchall()}
+            self.assertIn('password_salt', columns)
+            self.assertIn('password_hash', columns)
+            cur.execute('SELECT login_name FROM user WHERE id = 1')
+            self.assertEqual(cur.fetchone()[0], 'user', 'existing user rows must be left untouched')
+            check_conn.close()
 
 
 if __name__ == '__main__':

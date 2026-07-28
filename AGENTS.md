@@ -234,6 +234,7 @@ rule 11).
     - `# reported problem`
     - `# Possible reason`
     - `# solution`
+14. **Style Guide Adherence & Workflow**: All UI updates and new components across both the Web frontend (`services/frontend`) and the Android client (`services/ultrasonic`) must strictly adhere to [docs/styleguide.md](docs/styleguide.md). Any new styles or design changes (after dev approval) must first be updated in the style guide (or recorded as a pending item/todo in `docs/styleguide.md`) before being implemented in code.
 
 ## Production
 

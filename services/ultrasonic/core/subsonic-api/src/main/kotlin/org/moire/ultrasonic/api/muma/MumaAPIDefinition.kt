@@ -107,21 +107,30 @@ data class RefreshRequest(
 
 data class MumaAuthResponse(
     val status: String,
-    val id: Int? = null,
-    val username: String? = null,
-    val display_name: String? = null,
-    val email: String? = null,
-    val avatar_url: String? = null,
-    val role_id: Int? = null,
-    val role_name: String? = null,
-    val is_admin: Boolean? = null,
-    val enabled: Boolean? = null,
-    val permissions: List<String>? = null,
+    // NOTE: the account fields (id/username/display_name/...) are nested under "user" by the
+    // backend (see services/music_manager/routers/users.py build_auth_user() and
+    // docs/designs/authentication/technical.md), not flat at the top level of this response --
+    // matching /api/auth/login and /api/auth/verify. Keep this in sync with those.
+    val user: MumaAuthUser? = null,
     val api_key: String? = null,
     val access_token: String? = null,
     val refresh_token: String? = null,
     val google: MumaGoogleInfo? = null,
     val request: MumaAccessRequest? = null
+)
+
+data class MumaAuthUser(
+    val id: Int,
+    val username: String,
+    val display_name: String? = null,
+    val email: String? = null,
+    val avatar_url: String? = null,
+    val server_user_id: String? = null,
+    val role_id: Int? = null,
+    val role_name: String? = null,
+    val is_admin: Boolean? = null,
+    val enabled: Boolean? = null,
+    val permissions: List<String>? = null
 )
 
 data class MumaGoogleInfo(

@@ -634,7 +634,7 @@ class EditServerFragment : Fragment() {
                         // Logged in!
                         org.moire.ultrasonic.util.SecureSettings.mumaAccessToken = result.access_token ?: result.api_key
                         org.moire.ultrasonic.util.SecureSettings.mumaRefreshToken = result.refresh_token
-                        result.id?.let {
+                        result.user?.id?.let {
                             org.moire.ultrasonic.util.Settings.mumaUserId = it
                             currentServerSetting?.mumaUserId = it
                         }
@@ -643,6 +643,20 @@ class EditServerFragment : Fragment() {
                             org.moire.ultrasonic.util.Settings.mumaApiKey = it
                             currentServerSetting?.apiKey = it
                             apiKeyEditText?.editText?.setText(it)
+                        }
+                        // Mirror the web frontend's handleGoogleResponse: a Google-only account
+                        // has no known plaintext Subsonic/LMS password on our side, but its
+                        // api_key is also accepted as a valid password by /api/auth/login (see
+                        // users.py login()), which LMS forwards live for every Subsonic call.
+                        // Without this, a Google sign-in would authenticate against
+                        // music-manager but leave streaming/library calls unauthenticated.
+                        result.user?.username?.let { username ->
+                            userNameEditText?.editText?.setText(username)
+                            currentServerSetting?.userName = username
+                        }
+                        apiKey?.let {
+                            passwordEditText?.editText?.setText(it)
+                            currentServerSetting?.password = it
                         }
                         toast(R.string.muma_sync_logon_success)
                     }

@@ -11,6 +11,16 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.23 (2026-07-28)
+### 📱 Inloggen met Google werkt nu ook echt in de telefoon-app
+Er bestond al een knop om met Google in te loggen in de telefoon-app, maar door twee kleine
+foutjes werkte deze eigenlijk nooit helemaal goed.
+- Na inloggen met Google op je telefoon werkte je muziek (afspelen, bibliotheek) nu ook echt,
+  precies zoals op de website - eerder bleef dit onterecht op "niet ingelogd" staan.
+- De bouwstraat geeft nu automatisch de juiste Google-instelling mee aan de telefoon-app, zodat
+  dit ook werkt in de versies die vanaf nu automatisch gebouwd worden.
+- De app-versie is opgehoogd naar 6.5.4 (234).
+
 ## Global Version 0.0.21 (2026-07-28)
 ### 📱 Officiële Ultrasonic release-APK wordt nu volledig automatisch gebouwd en gepubliceerd
 De automatisering om een ondertekende Ultrasonic-APK te bouwen en naar apk-hoster te uploaden

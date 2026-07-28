@@ -57,8 +57,18 @@ Google sign-in, which never learns a real password, `AuthOverlay.svelte`'s `hand
 populates `credentials` with `{username: user.username, password: api_key}`, relying on `/api/auth/login`'s
 `api_key` fallback above. Without this, a Google-signed-in user authenticates fine against `music-manager`
 (gets a session, permissions, admin badge, ...) but every Subsonic call fails as unauthenticated, since LMS
-has no username/password to forward. Ultrasonic authenticates the same way but always uses a real
-username/password the user typed into the app, so it is unaffected by this.
+has no username/password to forward.
+
+**Ultrasonic** also supports native Google Sign-In (`EditServerFragment.startGoogleSignIn()`, Android
+Credential Manager + `androidx.credentials`/`googleid`), and is subject to the exact same requirement: it
+reuses `GOOGLE_CLIENT_ID`/`VITE_GOOGLE_CLIENT_ID`'s value as the Credential Manager `serverClientId`
+(`GOOGLE_WEB_CLIENT_ID` build config field — see `docs/deployment.md`), so the resulting Google ID token has
+the same audience the backend already verifies against, and no separate Android OAuth client/SHA-1
+registration is needed. `performMumaGoogleAuth()` mirrors `handleGoogleResponse()` exactly: on a `status:
+"ok"` response, alongside storing the MuMa access/refresh token, it also writes `result.user.username`/
+`api_key` into the server's Subsonic username/password fields (`userNameEditText`/`passwordEditText`/
+`ServerSetting.userName`/`.password`), so streaming/library calls work immediately after a Google sign-in,
+exactly like username/password login.
 
 ## Technical Acceptance Criteria
 

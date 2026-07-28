@@ -2,6 +2,7 @@
   import { Search, Image, RefreshCw, User, Loader2 } from '@lucide/svelte';
   
   export let API_BASE;
+  export let apiKey;
   export let artistImageSearch;
   export let artistsWithImages;
   export let allArtists;
@@ -104,7 +105,7 @@
           <div class="bg-spotify-gray bg-opacity-30 rounded-xl overflow-hidden border border-white border-opacity-5 hover:bg-opacity-50 transition-all group shadow-lg">
             <div class="aspect-square bg-black flex items-center justify-center overflow-hidden relative">
               <img 
-                src={`${API_BASE}/api/artists/${encodeURIComponent(artist.name)}/image`} 
+                src={`${API_BASE}/api/artists/${encodeURIComponent(artist.name)}/image?apiKey=${encodeURIComponent(apiKey)}`} 
                 alt={artist.name}
                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 on:error={(e) => e.target.src = 'https://via.placeholder.com/300?text=Geen+Afbeelding'}
@@ -143,7 +144,7 @@
                 <div class="w-12 h-12 bg-black rounded-lg flex items-center justify-center text-spotify-lightgray">
                   {#if artist.primary_image_id}
                     <img 
-                      src={`${API_BASE}/api/artists/${encodeURIComponent(artist.name)}/image`} 
+                      src={`${API_BASE}/api/artists/${encodeURIComponent(artist.name)}/image?apiKey=${encodeURIComponent(apiKey)}`} 
                       alt="" 
                       class="w-full h-full object-cover rounded-lg"
                     />

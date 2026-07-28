@@ -5,10 +5,16 @@ FROM ${DOCKER_USER}/muma-base:${VERSION}
 
 WORKDIR /app
 
-# Telegram specific dependencies
-RUN pip install --no-cache-dir telethon
-
 # Telegram specific code
+# NOTE: telethon itself is already installed by muma-base from the pinned version in
+# requirements.txt (see docker/Dockerfile.base). This image used to additionally run an
+# UNPINNED `pip install telethon`, which silently overwrote that pin with whatever the
+# latest release happened to be at build time. That made the installed version, and
+# therefore the on-disk .session file's SQLite schema version it writes, non-reproducible
+# across rebuilds -- an older rebuild (pinned/oldest-latest at the time) could no longer
+# read a .session file that a newer rebuild had upgraded to a newer schema version,
+# crashing with e.g. "not enough values to unpack" when reading the `sessions` table. Removed
+# so this image always uses the single pinned version from requirements.txt.
 COPY services/downloader/ /app/services/downloader/
 COPY services/downloader/RELEASE_NOTES.md /app/services/downloader/
 

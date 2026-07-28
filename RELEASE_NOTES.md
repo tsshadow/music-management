@@ -11,6 +11,25 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.19 (2026-07-28)
+### 📡 Telegram-achtergronddienst crashte bij het opstarten (versieconflict in inlogbestand)
+Tijdens het doorspitten van de productielogs bleek de Telegram-achtergronddienst te crashen bij het
+laden van zijn inlogbestand, in plaats van gewoon te verbinden.
+- **Oorzaak**: bij het bouwen van deze specifieke dienst werd, naast de vastgelegde versie van de
+  gebruikte bibliotheek, per ongeluk ook nog een tweede, niet-vastgelegde installatie uitgevoerd.
+  Daardoor kon elke nieuwe bouw een andere versie van die bibliotheek installeren, en die bibliotheek
+  slaat het inlogbestand op in een formaat dat per versie kan verschillen — waardoor een oudere bouw
+  het bestand van een nieuwere bouw niet meer kon lezen.
+- **Fix**: de vastgelegde bibliotheekversie is bijgewerkt naar een versie die past bij het bestaande
+  inlogbestand, en de overbodige, niet-vastgelegde installatie is verwijderd zodat elke bouw voortaan
+  altijd exact dezelfde, geteste versie gebruikt — zie
+  `docs/bug-reports/007-telegram-session-schema-mismatch.md`.
+- **Extra ontdekking**: deze fix bleek na een volledig geslaagde uitrol tóch nog niet op productie
+  te staan. Het bleek dat de automatische uitrol tot nu toe alleen de twee hoofdonderdelen ververste
+  en alle overige achtergronddiensten (waaronder Telegram) nooit automatisch opnieuw bouwde en
+  publiceerde. Dit is nu gerepareerd: voortaan worden al deze onderdelen bij elke release automatisch
+  meegenomen.
+
 ## Global Version 0.0.18 (2026-07-28)
 ### 🖼️ Artiestenafbeeldingen-tab stond permanent vast op "0 / 0 artiesten"
 Het beheerscherm "Artist Images" toonde altijd "0 / 0 artiesten", zoeken gaf nooit resultaten en de

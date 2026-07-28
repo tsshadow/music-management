@@ -228,6 +228,12 @@ rule 11).
 12. **Living document**: this rule list is updated whenever the process changes — a stale rule is worse than
     no rule. If a single service's rules ever outgrow this root file, a nested `services/<name>/AGENTS.md`
     can be added later (none is needed today).
+13. **Structured Bug Reports**: Every bug report is captured in a 2-step process using `docs/bug-reports/00#-<title>.md`, containing:
+    - `# title`
+    - `# status: reported/analysed/fixed`
+    - `# reported problem`
+    - `# Possible reason`
+    - `# solution`
 
 ## Production
 

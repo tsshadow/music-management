@@ -283,6 +283,15 @@ namespace lms::api::muma
         if (pathInfo.find("/api/artists/") == 0)
         {
             size_t start = std::string("/api/artists/").length();
+            const std::string remainder = pathInfo.substr(start);
+            // Only intercept the two path shapes this handler actually implements: a straight
+            // artist image request ("...*/image") and a plain artist ID with no further path
+            // segments (used by the player's own Artist detail view for a native genre lookup).
+            // Any other "/api/artists/*" path (e.g. "/images/stats", "/search", "/search-all",
+            // "/fetch-progress", "/fetch-missing", "/{id}/fetch-image") must fall through to the
+            // generic "/api/*" MuMa proxy further below instead of being wrongly swallowed here
+            // and rejected with "Invalid artist ID" (see docs/bug-reports/006-artist-images-tab-zero-stats.md).
+            const bool isPlainIdSegment = !remainder.empty() && !pathInfo.ends_with("/image") && remainder.find('/') == std::string::npos;
             if (pathInfo.ends_with("/image"))
             {
                 size_t end = pathInfo.length() - std::string("/image").length();
@@ -372,7 +381,7 @@ namespace lms::api::muma
             }
             return;
         }
-        else
+        else if (isPlainIdSegment)
         {
             std::string artistIdStr = pathInfo.substr(start);
             if (const size_t pos{ artistIdStr.find('-') }; pos != std::string::npos)

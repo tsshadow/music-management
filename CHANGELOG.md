@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.32] - 2026-07-29
+
+### Added
+- **Artist face images in the web player bar**: `Player.svelte` previously rendered only track
+  cover art and plain artist-name text — no artist photo, unlike `ArtistView`, `Dashboard`,
+  `SearchResults`, and `StarredView`, which already fetch artist images from `music_manager` via
+  the shared `getArtistImageUrl()` helper. Reused that same helper to show a small circular
+  avatar next to the artist name in both the mobile mini player and the desktop player bar, using
+  the primary (first) artist of the currently playing track. No backend changes were needed — the
+  manager's image-fetching/caching pipeline was already working, it just wasn't wired into the
+  player UI.
+
 ## [0.0.30] - 2026-07-29
 
 ### Fixed

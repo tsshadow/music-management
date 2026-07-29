@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.33] - 2026-07-29
+
+### Fixed
+- **Ultrasonic Google Sign-In selected an account in the picker but then silently returned to the
+  login dialog, with no error shown (`bug 013`)**: both `NavigationActivity.performWelcomeGoogleSignIn()`
+  and `EditServerFragment.handleGoogleSignInResult()` checked the credential returned by
+  `CredentialManager.getCredential()` with a naive `is GoogleIdTokenCredential`. Android's Credential
+  Manager never delivers third-party credential types (like Google's) as their concrete subclass
+  across the IPC boundary — they always arrive as a generic `CustomCredential` (a `type` string plus
+  a raw `data: Bundle`), even though `GoogleIdTokenCredential` extends `CustomCredential` in the
+  `googleid` library's own class hierarchy. The cast always failed, silently discarding a
+  successful account selection before the ID token was extracted and before `/api/auth/google` was
+  ever called. Replaced both checks with the documented pattern
+  (`credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL`,
+  then `GoogleIdTokenCredential.createFrom(credential.data)`), with an explicit logged/user-visible
+  error path for any unexpected credential type or parse failure.
+- Bumped Ultrasonic's own `versionCode`/`versionName` (`239`/`6.5.9` -> `240`/`6.5.10`).
+
 ## [0.0.32] - 2026-07-29
 
 ### Added

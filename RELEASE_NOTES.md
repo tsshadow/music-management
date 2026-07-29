@@ -11,6 +11,18 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.33 (2026-07-29)
+### 📱 Inloggen met Google: account kiezen leidde terug naar het inlogscherm
+- Na het kiezen van een account in het Google-accountvenster kwam je terug op het inlogscherm, dat
+  alleen te verlaten was door alsnog handmatig een gebruikersnaam en wachtwoord in te vullen —
+  zonder enige foutmelding.
+- Oorzaak: de app herkende het accountgegeven dat Android teruggaf niet, door een subtiele fout in
+  hoe dat gegeven wordt uitgelezen. Hierdoor werd de Google-inlog stilletjes afgebroken vlak nadat
+  je een account had gekozen, nog voordat er contact werd gemaakt met de server.
+- Dit is nu gecorrigeerd, en bij een onverwachte fout verschijnt voortaan ook een duidelijke
+  foutmelding in plaats van niets.
+- De app-versie is opgehoogd naar 6.5.10 (240).
+
 ## Global Version 0.0.32 (2026-07-29)
 ### 🖼️ Artiestenfoto's in de webspeler
 - In de webinterface toonde de afspeelbalk onderin alleen de albumhoes en de naam van de

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.37] - 2026-07-29
+
+### Fixed
+- **`genre-processor` and `muma-soundcloud-fetcher` production containers crashed on start with
+  `ModuleNotFoundError` (`bug 015`)**: an earlier refactor (commit `cb345cf79`) removed
+  `services/common/settings.py` (replaced by `services.common.config_store.ConfigStore`) and moved
+  `services/common/api/db_init.py` to `services/common/db_init.py`, updating all call sites under
+  `services/`, but missed `tools/soundcloud_fetcher.py` and `tools/process_genres.py` — these
+  `tools/` scripts aren't covered by the regular unit test suite, so the stale imports only
+  surfaced as a container-runtime crash, not a CI failure. Fixed both imports and added
+  `tools/test_tools_imports.py` (wired into `scripts/test/music-management-unit.sh`) to catch this
+  class of regression going forward.
+
 ## [0.0.36] - 2026-07-29
 
 ### Fixed

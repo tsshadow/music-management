@@ -30,6 +30,7 @@ TEST_TARGETS=(
     "services/tests/YoutubeSongProcessorTest.py"
     "services/tests/YoutubeArchiveTest.py"
     "services/tests/TelegramDownloaderTest.py"
+    "tools/test_tools_imports.py"
 )
 
 echo "--- Running music-management Python unit tests ---"

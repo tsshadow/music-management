@@ -34,8 +34,13 @@ export function getArtistImageUrl(artist, authParams) {
   if (artist && artist.coverArt) {
     return `/rest/getCoverArt?id=${artist.coverArt}&size=300&${authParams}`;
   }
-  if (artist && artist.id) {
-    return `/media/artist-images/${artist.id}/primary.jpg`;
+  if (artist && artist.name) {
+    // Must go through the authenticated /muma proxy (MumaResource.cpp), not a bare
+    // "/media/artist-images/{id}/..." path -- nothing on the LMS server serves that
+    // path (it's only mounted on music_manager itself), so it fell through to the
+    // SPA's index.html fallback and rendered as a broken image for every artist
+    // without native LMS artwork.
+    return `/muma/api/artists/${encodeURIComponent(artist.name)}/image?${authParams}`;
   }
   return '/images/unknown-artist.svg';
 }

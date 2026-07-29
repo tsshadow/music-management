@@ -93,6 +93,17 @@ To maintain clean design governance and prevent ad-hoc style drift:
   hairline-flanked "OF" divider, a `spotify_light`-background rounded dialog card
   (`ThemeOverlay.Ultrasonic.WelcomeDialog`, scoped to this one dialog only), and a circular avatar on the
   Google access-request screen (`google_auth_fragment.xml`).
-- **Not yet done** — the rest of the Android UI (library/track lists, filter bar, player, navigation) has not
-  been brought in line with this style guide's component patterns; see `services/ultrasonic/STYLEGUIDE.md`
-  for the full reference these should eventually follow.
+- **Done** — Android filter/search panel (`muma_filters.xml`, `muma_search.xml`,
+  `filter_button_bar.xml`) had its buttons, the favorite-star icon tint, and the "show filters" FAB
+  hardcoded to `design_default_color_primary_dark` (a generic Material default color, not a brand token) -
+  an actual style-guide violation ("Don't introduce unauthorized color palettes"). Recolored to
+  `spotify_green`, and the filter panel/popup background (`rounded_background_popup.xml`, previously a
+  hardcoded `#333333`) and the filter bar container (`filter_button_bar.xml`) now use the `spotify_light`
+  (`#181818`) token per the Filter Bar component spec above, instead of the hardcoded gray/card color.
+- **Not yet done** — track-row/list-item tap feedback (the style guide's `bg-white/10` hover-state pattern)
+  wasn't added in this pass: `list_item_track.xml`'s row background has no ripple/press state today, and the
+  existing `default_ripple.xml`/`select_ripple.xml` drawables reference a `?attr/backgroundColor` that isn't
+  a standard theme attribute in this app, so wiring one in without being able to visually verify it felt too
+  risky for this pass. The rest of the Android UI (track/album cards, player, navigation) also hasn't been
+  brought in line with this style guide's component patterns; see `services/ultrasonic/STYLEGUIDE.md` for the
+  full reference these should eventually follow.

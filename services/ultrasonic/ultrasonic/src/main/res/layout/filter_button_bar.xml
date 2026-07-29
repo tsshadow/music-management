@@ -13,7 +13,7 @@
     a:id="@+id/filter_layout"
     a:layout_width="match_parent"
     a:layout_height="wrap_content"
-    a:background="@drawable/song_card_background"
+    a:background="@drawable/rounded_background_popup"
     a:padding="8dp"
     a:layout_marginHorizontal="8dp"
     a:layout_marginBottom="8dp"

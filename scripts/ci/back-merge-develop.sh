@@ -51,14 +51,40 @@ else
     echo "Opened MR !${MR_IID}."
 fi
 
+echo "Waiting for GitLab to finish computing mergeability of !${MR_IID}..."
+
+# GitLab computes merge_status asynchronously right after an MR is opened
+# (or a source branch changes); a merge attempted immediately can fail with
+# "Branch cannot be merged" purely because that computation hasn't finished
+# yet, not because of a real conflict. Poll briefly before giving up.
+MERGE_STATUS="checking"
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+    MERGE_STATUS=$(curl -sf --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
+        "${API}/merge_requests/${MR_IID}" \
+        | python3 -c "import json,sys; print(json.load(sys.stdin).get('detailed_merge_status', ''))")
+    if [ "$MERGE_STATUS" = "mergeable" ]; then
+        break
+    fi
+    echo "  merge status: ${MERGE_STATUS:-unknown}, retrying in 3s..."
+    sleep 3
+done
+
 echo "Merging..."
 
-MERGE_RESPONSE=$(curl -s --request PUT --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
-    --data-urlencode "merge_commit_message=Merge branch 'master' into 'develop'" \
-    --data-urlencode "should_remove_source_branch=false" \
-    "${API}/merge_requests/${MR_IID}/merge")
-
-STATE=$(echo "$MERGE_RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('state', ''))")
+MERGE_RESPONSE=""
+STATE=""
+for _ in 1 2 3; do
+    MERGE_RESPONSE=$(curl -s --request PUT --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
+        --data-urlencode "merge_commit_message=Merge branch 'master' into 'develop'" \
+        --data-urlencode "should_remove_source_branch=false" \
+        "${API}/merge_requests/${MR_IID}/merge")
+    STATE=$(echo "$MERGE_RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('state', ''))")
+    if [ "$STATE" = "merged" ]; then
+        break
+    fi
+    echo "  merge attempt failed (state: ${STATE:-unknown}), retrying in 3s..."
+    sleep 3
+done
 
 if [ "$STATE" != "merged" ]; then
     echo "Could not auto-merge !${MR_IID} (state: ${STATE:-unknown})."

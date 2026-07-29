@@ -30,6 +30,8 @@ import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import androidx.core.content.ContextCompat
@@ -69,6 +71,7 @@ import org.moire.ultrasonic.BuildConfig
 import org.moire.ultrasonic.NavigationGraphDirections
 import org.moire.ultrasonic.R
 import org.moire.ultrasonic.api.muma.GoogleAuthRequest
+import org.moire.ultrasonic.api.muma.MumaAPIClient
 import org.moire.ultrasonic.api.subsonic.SubsonicAPIClient
 import org.moire.ultrasonic.app.UApp
 import org.moire.ultrasonic.data.ActiveServerProvider
@@ -714,6 +717,12 @@ class NavigationActivity : ScopeActivity() {
      * like the web frontend does, making Google login functionally identical to a manual login.
      * For a not-yet-linked/pending Google identity, this dismisses the welcome dialog and
      * navigates to the existing access-request flow ([org.moire.ultrasonic.fragment.GoogleAuthFragment]).
+     *
+     * Note: at this point in a fresh install no server has been configured yet, so the
+     * Koin-injected [subsonicAPIClient] (and its `mumaApi`) may still be pointing at the
+     * offline/localhost fallback from [ActiveServerProvider]. A dedicated [MumaAPIClient] is
+     * built here against the fixed production server address instead, so the request always
+     * reaches the real Muma backend regardless of the app's current active-server state.
      */
     private fun performWelcomeGoogleSignIn(
         dialog: androidx.appcompat.app.AlertDialog,
@@ -723,6 +732,23 @@ class NavigationActivity : ScopeActivity() {
         passwordField: TextInputEditText,
         googleSignInButton: MaterialButton
     ) {
+        if (BuildConfig.GOOGLE_WEB_CLIENT_ID == "placeholder-id") {
+            Timber.e("GOOGLE_WEB_CLIENT_ID is not configured! Google Sign-In will fail.")
+        }
+        val targetServer = ServerSettingsModel.STATIC_SERVERS.find { it.id == 0 }
+        if (targetServer == null) {
+            errorText.text = getString(R.string.background_task_network_error)
+            errorText.visibility = View.VISIBLE
+            return
+        }
+        val mumaBaseUrl = SubsonicAPIClient.mumaBaseUrlFor(targetServer.url)
+        val welcomeMumaApi = MumaAPIClient(
+            mumaBaseUrl,
+            subsonicAPIClient.okHttpClient,
+            org.moire.ultrasonic.util.SecureSettings,
+            debug = BuildConfig.DEBUG
+        ).api
+
         val credentialManager = CredentialManager.create(this)
         val googleIdTokenRequest = GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(false)
@@ -736,6 +762,13 @@ class NavigationActivity : ScopeActivity() {
         lifecycleScope.launch {
             val credential = try {
                 credentialManager.getCredential(this@NavigationActivity, request).credential
+            } catch (e: GetCredentialCancellationException) {
+                return@launch
+            } catch (e: NoCredentialException) {
+                Timber.e(e, "Google Sign-In failed: No credentials available")
+                errorText.text = getString(R.string.google_signin_no_accounts)
+                errorText.visibility = View.VISIBLE
+                return@launch
             } catch (e: Exception) {
                 Timber.e(e, "Google Sign-In failed")
                 errorText.text = getString(R.string.background_task_network_error)
@@ -751,9 +784,8 @@ class NavigationActivity : ScopeActivity() {
 
             val authResult = withContext(Dispatchers.IO) {
                 try {
-                    val mumaApi = subsonicAPIClient.mumaApi?.api
-                    val response = mumaApi?.googleAuth(GoogleAuthRequest(idToken))?.execute()
-                    if (response?.isSuccessful == true) response.body() else null
+                    val response = welcomeMumaApi.googleAuth(GoogleAuthRequest(idToken)).execute()
+                    if (response.isSuccessful) response.body() else null
                 } catch (e: Exception) {
                     Timber.e(e, "MuMa Google Auth failed")
                     null

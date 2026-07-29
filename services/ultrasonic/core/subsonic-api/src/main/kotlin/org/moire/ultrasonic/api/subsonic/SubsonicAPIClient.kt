@@ -126,11 +126,7 @@ class SubsonicAPIClient(
     val api: SubsonicAPIDefinition get() = wrappedApi
 
     val mumaApi: MumaAPIClient by lazy {
-        val mumaBaseUrl = when {
-            config.baseUrl.contains("example.com") -> "https://muma.example.com"
-            else -> "${config.baseUrl.removeSuffix("/")}/muma"
-        }
-        MumaAPIClient(mumaBaseUrl, baseOkClient, config.tokenStorage, config.apiKey, config.debug, okLogger)
+        MumaAPIClient(mumaBaseUrlFor(config.baseUrl), baseOkClient, config.tokenStorage, config.apiKey, config.debug, okLogger)
     }
 
     private fun OkHttpClient.Builder.addLogging() {
@@ -174,5 +170,16 @@ class SubsonicAPIClient(
             .registerModule(KotlinModule.Builder().build())
 
         const val OFFLINE_DB_URL = "http://localhost"
+
+        /**
+         * Derives the base URL of the Muma (`music-manager`) API from a Subsonic/LMS server URL.
+         * Extracted so it can be reused wherever a Muma request needs to target a specific,
+         * known-good server URL rather than whatever server happens to be currently active
+         * (e.g. the "Sign in with Google" button on the very first, pre-setup welcome screen).
+         */
+        fun mumaBaseUrlFor(serverBaseUrl: String): String = when {
+            serverBaseUrl.contains("example.com") -> "https://muma.example.com"
+            else -> "${serverBaseUrl.removeSuffix("/")}/muma"
+        }
     }
 }

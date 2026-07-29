@@ -18,6 +18,8 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import androidx.core.content.ContextCompat
@@ -580,6 +582,9 @@ class EditServerFragment : Fragment() {
     }
 
     private fun startGoogleSignIn() {
+        if (org.moire.ultrasonic.BuildConfig.GOOGLE_WEB_CLIENT_ID == "placeholder-id") {
+            Timber.e("GOOGLE_WEB_CLIENT_ID is not configured! Google Sign-In will fail.")
+        }
         val credentialManager = CredentialManager.create(requireContext())
         val googleIdTokenRequest = GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(false)
@@ -597,6 +602,11 @@ class EditServerFragment : Fragment() {
                     request
                 )
                 handleGoogleSignInResult(result.credential)
+            } catch (e: GetCredentialCancellationException) {
+                // Do nothing
+            } catch (e: NoCredentialException) {
+                Timber.e(e, "Google Sign-In failed: No credentials available")
+                toast(R.string.google_signin_no_accounts)
             } catch (e: Exception) {
                 Timber.e(e, "Google Sign-In failed")
                 toast(R.string.background_task_network_error)

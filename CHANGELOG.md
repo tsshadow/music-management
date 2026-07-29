@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.28] - 2026-07-29
+
+### Fixed
+- **Ultrasonic Google Sign-In showed a generic network error when no Google account exists on
+  the device (`bug 010`)**: `CredentialManager.getCredential()` throws typed exceptions for
+  distinct failure modes, but `NavigationActivity.performWelcomeGoogleSignIn()` and
+  `EditServerFragment.startGoogleSignIn()` only had a catch-all `catch (e: Exception)`, so a
+  device with no Google account (e.g. an emulator used for testing) always showed the same
+  "network error" message as a real backend outage. Added explicit `catch` branches for
+  `GetCredentialCancellationException` (silently ignored — user-initiated cancellation) and
+  `NoCredentialException` (new, specific `google_signin_no_accounts` string: "No Google accounts
+  found on this device."), both ordered before the generic fallback. Also logs a `Timber.e`
+  warning in both call sites whenever `BuildConfig.GOOGLE_WEB_CLIENT_ID` is still the
+  `"placeholder-id"` default, making a misconfigured build immediately visible in the logs.
+- Bumped Ultrasonic's own `versionCode`/`versionName` (`236`/`6.5.6` -> `237`/`6.5.7`).
+
+## [0.0.27] - 2026-07-29
+
+### Fixed
+- **Ultrasonic welcome-screen "Sign in with Google" always failed with a network error
+  (`bug 009`)**: the button added in `0.0.25` reused the app's shared, Koin-injected
+  `SubsonicAPIClient.mumaApi`, which on a fresh install (before any server had been configured)
+  was still built against the offline/`localhost` fallback server, so the Google auth request
+  never reached the real backend. `NavigationActivity.performWelcomeGoogleSignIn()` now builds a
+  dedicated Muma API client targeting the fixed production server address directly; extracted the
+  Muma base-URL derivation into a reusable `SubsonicAPIClient.mumaBaseUrlFor()` so both call sites
+  stay consistent.
+- Bumped Ultrasonic's own `versionCode`/`versionName` (`235`/`6.5.5` -> `236`/`6.5.6`).
+
 ## [0.0.25] - 2026-07-28
 
 > **Two Ultrasonic (Android) fixes, requested together: the default server was still pointing at

@@ -12,294 +12,318 @@ This project is now modularized. Detailed release notes for each module can be f
 ## Unreleased
 
 ## Global Version 0.0.33 (2026-07-29)
-### 📱 Inloggen met Google: account kiezen leidde terug naar het inlogscherm
-- Na het kiezen van een account in het Google-accountvenster kwam je terug op het inlogscherm, dat
-  alleen te verlaten was door alsnog handmatig een gebruikersnaam en wachtwoord in te vullen —
-  zonder enige foutmelding.
-- Oorzaak: de app herkende het accountgegeven dat Android teruggaf niet, door een subtiele fout in
-  hoe dat gegeven wordt uitgelezen. Hierdoor werd de Google-inlog stilletjes afgebroken vlak nadat
-  je een account had gekozen, nog voordat er contact werd gemaakt met de server.
-- Dit is nu gecorrigeerd, en bij een onverwachte fout verschijnt voortaan ook een duidelijke
-  foutmelding in plaats van niets.
-- De app-versie is opgehoogd naar 6.5.10 (240).
+### 📱 Google Sign-In: choosing an account led back to the login screen
+- After choosing an account in the Google account picker, you ended up back on the login screen,
+  which could only be left by manually entering a username and password anyway — with no error
+  message at all.
+- Cause: the app didn't recognize the account data returned by Android, due to a subtle bug in how
+  that data is read. This silently aborted the Google sign-in right after you picked an account,
+  before the server was even contacted.
+- This has now been fixed, and an unexpected error now also shows a clear error message instead of
+  nothing.
+- App version bumped to 6.5.10 (240).
 
 ## Global Version 0.0.32 (2026-07-29)
-### 🖼️ Artiestenfoto's in de webspeler
-- In de webinterface toonde de afspeelbalk onderin alleen de albumhoes en de naam van de
-  artiest(en) als tekst — nergens een foto van de artiest zelf, terwijl dat elders in de app
-  (artiestenpagina, dashboard, zoekresultaten) al wel werkte.
-- De afspeelbalk (zowel mobiel als desktop) toont nu ook een klein rond artiestenfotootje naast de
-  naam, via dezelfde bestaande koppeling met de manager die de foto's ophaalt en cachet.
+### 🖼️ Artist photos in the web player
+- In the web interface, the bottom playback bar only showed the album art and the artist name(s)
+  as text — no photo of the artist itself anywhere, even though that already worked elsewhere in
+  the app (artist page, dashboard, search results).
+- The playback bar (both mobile and desktop) now also shows a small round artist photo next to the
+  name, via the same existing integration with the manager that fetches and caches the photos.
 
 ## Global Version 0.0.30 (2026-07-29)
-### 📱 Inloggen met Google op het welkomstscherm bleef "hangen"
-- Na het kiezen van een Google-account op het allereerste welkomstscherm sloot het venster niet en
-  bleef de app om inloggen vragen, ook al was het inloggen zelf eigenlijk al gelukt.
-- Oorzaak: er zat een extra verbindingstest achter de Google-inlog die niets met de Google-inlog
-  zelf te maken had, en die soms mislukte om andere redenen — waardoor een geslaagde Google-inlog
-  alsnog werd afgewezen.
-- Deze onnodige test is verwijderd; het welkomstscherm sluit nu direct na een geslaagde
-  Google-inlog, precies zoals dat al werkte op het inlogscherm van een bestaande server en in de
-  webversie.
-- De app-versie is opgehoogd naar 6.5.9 (239).
+### 📱 Google Sign-In on the welcome screen kept the dialog stuck open
+- After choosing a Google account on the very first welcome screen, the dialog didn't close and
+  the app kept asking you to log in, even though the sign-in itself had actually already succeeded.
+- Cause: there was an extra connectivity check behind the Google sign-in that had nothing to do
+  with the Google sign-in itself, and that sometimes failed for unrelated reasons — causing a
+  successful Google sign-in to be rejected anyway.
+- This unnecessary check has been removed; the welcome screen now closes immediately after a
+  successful Google sign-in, exactly as it already worked on the existing-server login screen and
+  in the web version.
+- App version bumped to 6.5.9 (239).
 
 ## Global Version 0.0.29 (2026-07-29)
-### 📱 Inloggen met Google werkte nog steeds niet op een echt toestel
-- Ook met een correct ingestelde Google-inlogsleutel (`GOOGLE_WEB_CLIENT_ID`) en een echt
-  Google-account op het toestel, gaf "Inloggen met Google" nog steeds de melding "Geen
-  Google-accounts gevonden op dit apparaat."
-- Oorzaak was tweeledig: de app gebruikte een inlogoptie die alleen betrouwbaar werkt voor accounts
-  die de app al eerder hadden goedgekeurd (nu gecorrigeerd), én Google vereist daarnaast een losse
-  registratie van de app zelf (pakketnaam + ondertekeningssleutel) in het Google Cloud-project,
-  naast de al bestaande inlogsleutel.
-- ⚠️ Let op: de code-fix alleen is niet genoeg — er is ook een eenmalige, handmatige stap nodig in
-  Google Cloud Console (twee Android OAuth-clients registreren, één voor de officiële build en één
-  voor debug-builds) voordat inloggen met Google daadwerkelijk werkt. Zie
-  `docs/bug-reports/011-google-signin-no-credential-real-device.md` voor de exacte stappen.
-- De app-versie is opgehoogd naar 6.5.8 (238).
+### 📱 Google Sign-In still didn't work on a real device
+- Even with a correctly configured Google sign-in key (`GOOGLE_WEB_CLIENT_ID`) and a real
+  Google account on the device, "Sign in with Google" still showed "No Google accounts found on
+  this device."
+- The cause was twofold: the app used a sign-in option that only reliably works for accounts that
+  had already authorized the app before (now fixed), and Google also requires a separate
+  registration of the app itself (package name + signing key) in the Google Cloud project, in
+  addition to the existing sign-in key.
+- ⚠️ Note: the code fix alone isn't enough — a one-time manual step is also needed in Google Cloud
+  Console (registering two Android OAuth clients, one for the official build and one for debug
+  builds) before Google Sign-In actually works. See
+  `docs/bug-reports/011-google-signin-no-credential-real-device.md` for the exact steps.
+- App version bumped to 6.5.8 (238).
 
 ## Global Version 0.0.28 (2026-07-29)
-### 📱 "Geen Google account gevonden" in plaats van een verwarrende netwerkfout
-- Bij het testen in een simulator zonder Google-account gaf de "Inloggen met Google"-knop altijd
-  dezelfde netwerkfoutmelding als bij een echte serverstoring, waardoor het leek of de server niet
-  bereikbaar was.
-- De app herkent nu specifiek het geval dat er geen Google-account op het toestel staat, en toont
-  daarvoor de duidelijke melding "Geen Google-accounts gevonden op dit apparaat." in plaats van de
-  netwerkfout. Het annuleren van het Google-inlogscherm wordt nu ook gewoon stil afgehandeld
-  (geen foutmelding meer).
-- De app logt nu ook een duidelijke waarschuwing als de Google-inlogsleutel (`GOOGLE_WEB_CLIENT_ID`)
-  niet correct is ingesteld in de build, zodat een verkeerde configuratie voortaan direct in de
-  logs zichtbaar is in plaats van alleen als een mislukte inlogpoging - zie
+### 📱 "No Google account found" instead of a confusing network error
+- When testing in a simulator without a Google account, the "Sign in with Google" button always
+  showed the same network error as a real server outage, making it look like the server was
+  unreachable.
+- The app now specifically recognizes the case where there's no Google account on the device, and
+  shows the clear message "No Google accounts found on this device." instead of the network error.
+  Cancelling the Google sign-in screen is now also just handled silently (no more error message).
+- The app now also logs a clear warning if the Google sign-in key (`GOOGLE_WEB_CLIENT_ID`) isn't
+  correctly configured in the build, so a misconfiguration is now visible directly in the logs
+  instead of only showing up as a failed sign-in attempt - see
   `docs/bug-reports/010-google-signin-no-account-generic-error.md`.
-- ⚠️ Let op: als er nog steeds geen Google-account op het testtoestel/de simulator staat, of
-  `GOOGLE_WEB_CLIENT_ID` niet is ingesteld, blijft inloggen met Google zelf onmogelijk — dat zijn
-  omgevings-/apparaatinstellingen die buiten deze code-fix vallen.
-- De app-versie is opgehoogd naar 6.5.7 (237).
+- ⚠️ Note: if there's still no Google account on the test device/simulator, or
+  `GOOGLE_WEB_CLIENT_ID` isn't configured, signing in with Google itself remains impossible —
+  those are environment/device settings outside the scope of this code fix.
+- App version bumped to 6.5.7 (237).
 
 ## Global Version 0.0.27 (2026-07-29)
-### 📱 "Inloggen met Google" op het allereerste inlogscherm gaf een netwerkfout
-- De Google-inlogknop op het allereerste welkomstscherm van een nieuwe installatie gaf altijd
-  "Er is een netwerkfout opgetreden. Controleer het server adres en probeer het later opnieuw.",
-  terwijl dezelfde knop verderop in de app (na het instellen van een server) wel gewoon werkte.
-- Oorzaak: op dat allereerste scherm was er nog geen server ingesteld, waardoor de aanvraag
-  per ongeluk naar een lokale testadres werd gestuurd in plaats van naar de echte server.
-- Dit scherm stuurt de Google-inlogaanvraag nu altijd naar de juiste, vaste productieserver, zodat
-  inloggen met Google al bij de allereerste keer meteen werkt.
-- De app-versie is opgehoogd naar 6.5.6 (236).
+### 📱 "Sign in with Google" on the very first login screen gave a network error
+- The Google sign-in button on the very first welcome screen of a new install always showed
+  "A network error occurred. Check the server address and try again later.", while the same
+  button further into the app (after setting up a server) worked fine.
+- Cause: on that very first screen there was no server configured yet, causing the request to
+  accidentally be sent to a local test address instead of the real server.
+- This screen now always sends the Google sign-in request to the correct, fixed production
+  server, so signing in with Google works right away the very first time.
+- App version bumped to 6.5.6 (236).
 
 ## Global Version 0.0.25 (2026-07-28)
-### 📱 Standaard server aangepast + Google-knop nu al bij de allereerste keer inloggen
-- De vaste server in de telefoon-app is nu `music.example.com`; de losse "alpha"-testserver
-  (die op de productieomgeving al niet meer bestond) is uit de app verwijderd.
-- "Inloggen met Google" staat nu ook al op het allereerste inlogscherm dat je ziet bij een nieuwe
-  installatie, in plaats van pas verderop in de app - precies zoals gevraagd, zodat je die keuze
-  direct kunt maken.
-- De app-versie is opgehoogd naar 6.5.5 (235).
+### 📱 Default server changed + Google button now shown on the very first sign-in
+- The fixed server in the phone app is now `music.example.com`; the separate "alpha" test
+  server (which no longer existed on the production environment anyway) has been removed from the
+  app.
+- "Sign in with Google" is now also shown on the very first login screen you see on a new install,
+  instead of only further into the app - exactly as requested, so you can make that choice right
+  away.
+- App version bumped to 6.5.5 (235).
 
 ## Global Version 0.0.23 (2026-07-28)
-### 📱 Inloggen met Google werkt nu ook echt in de telefoon-app
-Er bestond al een knop om met Google in te loggen in de telefoon-app, maar door twee kleine
-foutjes werkte deze eigenlijk nooit helemaal goed.
-- Na inloggen met Google op je telefoon werkte je muziek (afspelen, bibliotheek) nu ook echt,
-  precies zoals op de website - eerder bleef dit onterecht op "niet ingelogd" staan.
-- De bouwstraat geeft nu automatisch de juiste Google-instelling mee aan de telefoon-app, zodat
-  dit ook werkt in de versies die vanaf nu automatisch gebouwd worden.
-- De app-versie is opgehoogd naar 6.5.4 (234).
+### 📱 Signing in with Google now actually works in the phone app
+A button to sign in with Google already existed in the phone app, but two small bugs meant it
+never really worked properly.
+- After signing in with Google on your phone, your music (playback, library) now actually works,
+  exactly like on the website - previously this incorrectly stayed on "not logged in".
+- The build pipeline now automatically passes the correct Google setting to the phone app, so this
+  also works in the versions built automatically from now on.
+- App version bumped to 6.5.4 (234).
 
 ## Global Version 0.0.21 (2026-07-28)
-### 📱 Officiële Ultrasonic release-APK wordt nu volledig automatisch gebouwd en gepubliceerd
-De automatisering om een ondertekende Ultrasonic-APK te bouwen en naar apk-hoster te uploaden
-bestond al in de code, maar heeft nog nooit echt een release opgeleverd: de originele
-ondertekeningssleutel was nergens meer terug te vinden.
-- Een gloednieuwe ondertekeningssleutel gegenereerd en samen met de apk-hoster inloggegevens
-  veilig ingesteld als CI/CD-variabelen (nooit in de code).
-- `ultrasonic:build-release` draait nu automatisch bij elke release-pipeline en zet de
-  ondertekende APK meteen online op https://apk.example.com.
-- Bugfix: de sleutel werd op de verkeerde manier doorgegeven aan het bouwscript (rauwe bytes in
-  plaats van tekst), waardoor de build altijd zou zijn mislukt; dit is opgelost.
-- Bugfix: een verwijzing naar een map op de laptop van Teun stond per ongeluk in de broncode,
-  waardoor de publicatiestap in elke andere omgeving (waaronder CI) altijd faalde; verwijderd.
-- Alle oude, handmatig geüploade APK's zijn van apk-hoster verwijderd (schone lei), en de
-  app-versie is opgehoogd naar 6.5.3 (233) als eerste officiële, automatisch gebouwde release.
-- ⚠️ Let op: door de nieuwe sleutel moet iedereen die een eerdere, handmatig ondertekende versie
-  (bv. v6.5.2-214) had geïnstalleerd, de app eenmalig verwijderen en opnieuw installeren.
+### 📱 Official Ultrasonic release APK is now fully automatically built and published
+The automation to build a signed Ultrasonic APK and upload it to apk-hoster already existed in
+the code, but had never actually produced a release: the original signing key could no longer be
+found anywhere.
+- Generated a brand-new signing key and securely configured it, together with the apk-hoster
+  credentials, as CI/CD variables (never in the code).
+- `ultrasonic:build-release` now runs automatically on every release pipeline and immediately
+  publishes the signed APK online at https://apk.example.com.
+- Bugfix: the key was passed to the build script in the wrong way (raw bytes instead of text),
+  which would have always made the build fail; this is now fixed.
+- Bugfix: a reference to a folder on Teun's laptop had accidentally ended up in the source code,
+  causing the publish step to always fail in every other environment (including CI); removed.
+- All old, manually uploaded APKs have been removed from apk-hoster (clean slate), and the app
+  version has been bumped to 6.5.3 (233) as the first official, automatically built release.
+- ⚠️ Note: because of the new key, anyone who had installed an earlier, manually signed version
+  (e.g. v6.5.2-214) needs to uninstall and reinstall the app once.
 
 ## Global Version 0.0.20 (2026-07-28)
-### 📦 Importer bleef dubbele mappen voor altijd als foutmelding herhalen
-Bij het verder doorspitten van de productielogs bleek de import-dienst dezelfde ~15 misleidende
-"schijfruimte/bestandssysteem"-foutmeldingen te blijven herhalen bij elke controle, voor releases
-die eigenlijk allang succesvol waren geïmporteerd.
-- **Oorzaak**: er bestond al een specifieke afhandeling voor "deze release is al eerder
-  geïmporteerd", maar die werd voor dit specifieke type conflict niet aangeroepen, waardoor de map
-  nooit werd opgeruimd en bij elke ronde opnieuw als fout in de logs verscheen.
-- **Fix**: dit type conflict wordt nu op dezelfde manier afgehandeld als het al bestaande geval —
-  de dubbele map wordt automatisch opgeruimd zodat deze niet steeds opnieuw als fout terugkomt. Een
-  echt schijfruimteprobleem blijft gewoon als fout gemeld — zie
+### 📦 Importer kept repeating duplicate-folder errors forever
+While further digging through production logs, it turned out the import service kept repeating
+the same ~15 misleading "disk space/filesystem" error messages on every check, for releases that
+had actually already been imported successfully long ago.
+- **Cause**: specific handling for "this release was already imported before" already existed,
+  but it wasn't invoked for this particular type of conflict, so the folder was never cleaned up
+  and kept reappearing as an error in the logs on every pass.
+- **Fix**: this type of conflict is now handled the same way as the existing case — the duplicate
+  folder is now automatically cleaned up so it doesn't keep coming back as an error. A genuine
+  disk space problem is still reported as an error as before — see
   `docs/bug-reports/008-importer-duplicate-folder-stuck-forever.md`.
 
 ## Global Version 0.0.19 (2026-07-28)
-### 📡 Telegram-achtergronddienst crashte bij het opstarten (versieconflict in inlogbestand)
-Tijdens het doorspitten van de productielogs bleek de Telegram-achtergronddienst te crashen bij het
-laden van zijn inlogbestand, in plaats van gewoon te verbinden.
-- **Oorzaak**: bij het bouwen van deze specifieke dienst werd, naast de vastgelegde versie van de
-  gebruikte bibliotheek, per ongeluk ook nog een tweede, niet-vastgelegde installatie uitgevoerd.
-  Daardoor kon elke nieuwe bouw een andere versie van die bibliotheek installeren, en die bibliotheek
-  slaat het inlogbestand op in een formaat dat per versie kan verschillen — waardoor een oudere bouw
-  het bestand van een nieuwere bouw niet meer kon lezen.
-- **Fix**: de vastgelegde bibliotheekversie is bijgewerkt naar een versie die past bij het bestaande
-  inlogbestand, en de overbodige, niet-vastgelegde installatie is verwijderd zodat elke bouw voortaan
-  altijd exact dezelfde, geteste versie gebruikt — zie
+### 📡 Telegram background service crashed on startup (session-file version mismatch)
+While digging through production logs, it turned out the Telegram background service was crashing
+while loading its session file, instead of just connecting.
+- **Cause**: when building this particular service, alongside the pinned version of the library
+  used, a second, unpinned install was accidentally also run. This meant every new build could
+  install a different version of that library, and that library stores the session file in a
+  format that can differ between versions — so an older build could no longer read the file
+  produced by a newer build.
+- **Fix**: the pinned library version has been updated to a version compatible with the existing
+  session file, and the redundant, unpinned install has been removed so every build now always
+  uses exactly the same, tested version — see
   `docs/bug-reports/007-telegram-session-schema-mismatch.md`.
-- **Extra ontdekking**: deze fix bleek na een volledig geslaagde uitrol tóch nog niet op productie
-  te staan. Het bleek dat de automatische uitrol tot nu toe alleen de twee hoofdonderdelen ververste
-  en alle overige achtergronddiensten (waaronder Telegram) nooit automatisch opnieuw bouwde en
-  publiceerde. Dit is nu gerepareerd: voortaan worden al deze onderdelen bij elke release automatisch
-  meegenomen.
+- **Extra discovery**: after a fully successful rollout, this fix turned out to still not be live
+  in production. It turned out the automatic deploy so far only refreshed the two main components
+  and never automatically rebuilt and published any of the other background services (including
+  Telegram). This has now been fixed: all these components are now automatically included in
+  every release from now on.
 
 ## Global Version 0.0.18 (2026-07-28)
-### 🖼️ Artiestenafbeeldingen-tab stond permanent vast op "0 / 0 artiesten"
-Het beheerscherm "Artist Images" toonde altijd "0 / 0 artiesten", zoeken gaf nooit resultaten en de
-RESCAN-knop liet geen voortgang zien — terwijl de artiesten- en afbeeldingsgegevens zelf wél gewoon
-correct in de database stonden.
-- **Oorzaak**: een stuk tussenlaag-code in de player onderschepte élk verzoek dat begint met
-  `/api/artists/`, nog vóórdat het bij de normale doorstuurlaag naar `music-manager` kon komen. Die
-  tussenlaag kende maar twee specifieke gevallen (een afbeeldingsverzoek, of een los numeriek
-  artiest-ID voor de speler zelf) — alle andere aanroepen zoals de statistieken, zoekfunctie en
-  scanvoortgang werden daardoor altijd afgewezen met een foutmelding, nog vóór ze de beheertool
-  bereikten.
-- **Fix**: de tussenlaag onderschept nu alleen nog die twee specifieke gevallen; alle andere
-  artiest-gerelateerde aanroepen worden weer gewoon normaal doorgestuurd — zie
+### 🖼️ Artist Images tab was permanently stuck at "0 / 0 artists"
+The "Artist Images" admin screen always showed "0 / 0 artists", search never returned results, and
+the RESCAN button showed no progress — even though the artist and image data itself was actually
+correctly stored in the database.
+- **Cause**: a piece of middleware code in the player intercepted every request starting with
+  `/api/artists/`, before it could even reach the normal forwarding layer to `music-manager`. That
+  middleware only handled two specific cases (an image request, or a bare numeric artist ID for
+  the player itself) — all other calls such as statistics, search, and scan progress were
+  therefore always rejected with an error before they reached the admin tool.
+- **Fix**: the middleware now only intercepts those two specific cases; all other artist-related
+  calls are forwarded normally again — see
   `docs/bug-reports/006-artist-images-tab-zero-stats.md`.
 
 ## Global Version 0.0.17 (2026-07-28)
-### 🚨 Inloggen deed het niet meer op productie (`no such column: u.password_salt`)
-Elke inlogpoging — met gebruikersnaam/wachtwoord én via Google — crashte met een databasefout.
-- **Oorzaak**: een achtergrondtaak in `music-manager` verwijderde per ongeluk de echte, permanente
-  gebruikerstabel van de player rechtstreeks uit de live database (op basis van een verkeerde aanname
-  dat die tabel net als sessie-gegevens alleen tijdelijk in het geheugen zou bestaan). Dit gebeurde
-  precies op het moment dat de player zelf ook zijn database aan het initialiseren was, waardoor een
-  onvolledige noodgreep in de player de tabel herstelde zonder een aantal verplichte kolommen.
-- **Fix**: de destructieve opschoning in `music-manager` is volledig verwijderd (die diende sowieso
-  geen functioneel doel meer), en de noodgreep in de player is bijgewerkt zodat die nooit meer een
-  onvolledig tabelontwerp kan aanmaken.
-- **Productie**: direct handmatig herstel toegepast (ontbrekende kolommen teruggezet, player herstart)
-  zodra het probleem bevestigd was, ruim vóór deze release werd uitgerold — zie
+### 🚨 Login was broken in production (`no such column: u.password_salt`)
+Every login attempt — with username/password and via Google — crashed with a database error.
+- **Cause**: a background task in `music-manager` accidentally deleted the player's real,
+  permanent user table directly from the live database (based on an incorrect assumption that,
+  like session data, that table only existed temporarily in memory). This happened right at the
+  moment the player itself was also initializing its own database, causing an incomplete fallback
+  in the player to recreate the table without several required columns.
+- **Fix**: the destructive cleanup in `music-manager` has been completely removed (it no longer
+  served any functional purpose anyway), and the fallback in the player has been updated so it can
+  never again create an incomplete table schema.
+- **Production**: an immediate manual recovery was applied (missing columns restored, player
+  restarted) as soon as the problem was confirmed, well before this release was rolled out — see
   `docs/bug-reports/005-lms-user-table-corruption.md`.
 
 ## Global Version 0.0.16 (2026-07-28)
-### 🐛 Artiestenafbeeldingen werken weer in het beheerscherm en de player
-- **Beheerscherm (`bug 004`)**: afbeeldingsverzoeken voor artiesten misten authenticatie en kregen daardoor altijd een `401 Unauthorized`; de API-key wordt nu meegegeven als `apiKey` queryparameter.
-- **Synchronisatiepad productie (`bug 004`)**: het pad waarmee `music-manager` de eigen database van de `lms`/`alpha-lms` stacks benadert (voor gebruikers/afspeellijsten en artiestenafbeeldingen) wees naar een map die op productie nooit heeft bestaan; dit wijst nu standaard naar de daadwerkelijke datamappen van de `lms`/`alpha-lms` stacks.
+### 🐛 Artist images work again in the admin screen and the player
+- **Admin screen (`bug 004`)**: artist image requests were missing authentication and therefore
+  always got a `401 Unauthorized`; the API key is now passed as an `apiKey` query parameter.
+- **Production sync path (`bug 004`)**: the path `music-manager` uses to access the `lms`/
+  `alpha-lms` stacks' own database (for users/playlists and artist images) pointed to a folder
+  that never existed in production; this now defaults to the actual data folders of the
+  `lms`/`alpha-lms` stacks.
 
 ## Global Version 0.0.15 (2026-07-28)
-### 🔗 "Alles tonen" knoppen op de homepagina doorverwijzen naar juiste tabs en views
-- **Release Radar**: knop "Alles tonen" opent direct de Release Radar tab.
-- **Songs**: knop "Alles tonen" schakelt de view mode naar nummers en opent de songstip.
-- **Sets**: knop "Alles tonen" schakelt de view mode naar sets en opent de setstab.
+### 🔗 "Show all" buttons on the homepage now link to the correct tabs and views
+- **Release Radar**: the "Show all" button now opens the Release Radar tab directly.
+- **Songs**: the "Show all" button switches the view mode to songs and opens the songs tab.
+- **Sets**: the "Show all" button switches the view mode to sets and opens the sets tab.
 
 ## Global Version 0.0.14 (2026-07-28)
-### 🎨 "MuMa Beheer" knop in profielmenu verwijderd
-- **Profielmenu (`ProfileButton.svelte`)**: de "MuMa Beheer" knop in het dropdownmenu van het profiel is verwijderd, aangezien het beheren van het systeem al volledig bereikbaar is via de Player/Beheer schakelaar in de hoofd-zijbalk.
+### 🎨 "MuMa Admin" button removed from profile menu
+- **Profile menu (`ProfileButton.svelte`)**: the "MuMa Admin" button in the profile dropdown menu
+  has been removed, since system administration is already fully accessible via the Player/Admin
+  switch in the main sidebar.
 
 ## Global Version 0.0.13 (2026-07-28)
-### 🐛 Populair genres semicolon-delimiter & ontbrekende artiestenafbeeldingen gefixed
-- **Populair genres (`bug 002`)**: statistieken top-genres (`stats.py`) splitst samengestelde genre-strings gescheiden door puntkommas (`;` / `,`), trimt spaties en telt individuele subgenres correct.
-- **Artiestenafbeeldingen (`bug 003`)**: achtergrond- en handmatige taken voor ontbrekende artiestenafbeeldingen (`run_fetch_missing` in `artist_images.py`) verwerken nu alle artiesten waarbij `primary_image_id IS NULL`, ongeacht hun eerdere `image_status`.
+### 🐛 Fixed popular-genres semicolon delimiter & missing artist images
+- **Popular genres (`bug 002`)**: top-genre statistics (`stats.py`) now splits compound genre
+  strings separated by semicolons (`;` / `,`), trims whitespace, and counts individual subgenres
+  correctly.
+- **Artist images (`bug 003`)**: background and manual tasks for missing artist images
+  (`run_fetch_missing` in `artist_images.py`) now process all artists where
+  `primary_image_id IS NULL`, regardless of their previous `image_status`.
 
 ## Global Version 0.0.12 (2026-07-28)
-### 🐛 Gestructureerde bugreports & fetch-progress fix
-- **Gestructureerde bugreports**: Geïntroduceerd volgens een 2-staps workflow onder `docs/bug-reports/00#-<title>.md` met velden voor status, probleem, oorzaak en oplossing (`AGENTS.md` bijgewerkt).
-- **Artist fetch-progress fix**: Voorkomt dat het pollen van fetch-progress onterecht een foutmelding geeft na afronding.
+### 🐛 Structured bug reports & fetch-progress fix
+- **Structured bug reports**: introduced a 2-step workflow under
+  `docs/bug-reports/00#-<title>.md` with fields for status, problem, cause, and solution
+  (`AGENTS.md` updated).
+- **Artist fetch-progress fix**: prevents polling for fetch progress from incorrectly showing an
+  error after completion.
 
 ## Global Version 0.0.9 (2026-07-28)
-### 🎨 Kleine UI-opschoning in zijbalk en profielmenu
-- **Legacy UI knop verwijderd**: de knop "Oude UI (Legacy)" in het profielmenu is definitief weggehaald.
-- **Geïntegreerde bibliotheek**: alle bibliotheek-onderdelen (afspeellijsten, artiesten, albums, genres, geschiedenis, favorieten) staan nu direct in de hoofd-zijbalk met duidelijke iconen; de kop "JOUW BIBLIOTHEEK" is vervallen.
-- **Overbodig Systeembeheer-item weg**: het menu-item "Systeembeheer" in de zijbalk is verwijderd aangezien de schakelaar (Player/Beheer) in de header dit al regelt.
+### 🎨 Minor UI cleanup in sidebar and profile menu
+- **Legacy UI button removed**: the "Old UI (Legacy)" button in the profile menu has been
+  permanently removed.
+- **Integrated library**: all library sections (playlists, artists, albums, genres, history,
+  favorites) are now directly in the main sidebar with clear icons; the "YOUR LIBRARY" heading has
+  been dropped.
+- **Redundant System Admin item removed**: the "System Admin" menu item in the sidebar has been
+  removed since the Player/Admin switch in the header already covers this.
 
 ## Global Version 0.0.8 (2026-07-28)
-### 🚪 Uitloggen na Google Auth liet sessiedata achter ("Gebruiker")
-Wanneer je ingelogd was via Google Auth en uitlogde, bleef de webapp sessiegegevens (`mumaSessionActive`, `mumaApiKey`, `mumaRefreshToken`, `userPermissions`, `mumaUser`) en localStorage-waarden vasthouden. Hierdoor bleef je hangen als 'Gebruiker' zonder muziekrechten.
-- **Fix**: de uitlogfunctie (`handleLogout` in `ProfileButton.svelte`) wist nu grondig alle sessiestores en bijbehorende localStorage-items (`muma_api_key`, `muma_refresh_token`, `muma_session_active`), zodat uitloggen ook echt de volledige sessie opschoonde.
+### 🚪 Logging out after Google Auth left session data behind ("User")
+When you were logged in via Google Auth and logged out, the webapp kept holding on to session data
+(`mumaSessionActive`, `mumaApiKey`, `mumaRefreshToken`, `userPermissions`, `mumaUser`) and
+localStorage values. This left you stuck as 'User' with no music permissions.
+- **Fix**: the logout function (`handleLogout` in `ProfileButton.svelte`) now thoroughly clears
+  all session stores and associated localStorage items (`muma_api_key`, `muma_refresh_token`,
+  `muma_session_active`), so logging out now actually cleans up the entire session.
 
 ## Global Version 0.0.7 (2026-07-28)
-### 🔐 Vaste inlogpagina in plaats van inlogmodal
-De inlogmodal is losgekoppeld van de hoofdweergave en omgevormd tot een vaste, volwaardige inlogpagina.
-- **Vaste inlogpagina**: wanneer je niet bent ingelogd, toont de webapp altijd een dedicated full-screen inlogpagina (`LoginPage.svelte`) in plaats van een overlay bovenop de app.
-- **Automatische doorverwijzing**: bezoek je de app zonder geldige sessie, dan word je automatisch doorgestuurd naar `/login`.
+### 🔐 Dedicated login page instead of a login modal
+The login modal has been decoupled from the main view and turned into a dedicated, full-fledged
+login page.
+- **Dedicated login page**: when you're not logged in, the webapp now always shows a dedicated
+  full-screen login page (`LoginPage.svelte`) instead of an overlay on top of the app.
+- **Automatic redirect**: if you visit the app without a valid session, you're now automatically
+  redirected to `/login`.
 
 ## Global Version 0.0.6 (2026-07-27)
-### 🎵 Inloggen met Google liet je zien als "Gebruiker" zonder muziek
-Inloggen met Google werkte, en je rechten/rol klopten, maar je zag jouw naam niet en er kwam geen
-enkel nummer, album of genre in beeld — `getGenres` gaf zelfs een foutmelding over een ontbrekende
-parameter.
-- **Oorzaak**: na een Google-login werd je gebruikersnaam/wachtwoord nergens in de webapp
-  opgeslagen — en precies die twee velden gebruikt de webapp voor élke aanroep naar de muziekbibliotheek
-  (en om je naam te tonen), omdat een Google-login nooit je echte wachtwoord te weten komt.
-- **Fix**: bij een geslaagde Google-login gebruikt de webapp nu een speciale, al bestaande sleutel van
-  je account als vervangend wachtwoord voor deze aanroepen. Je ziet nu weer gewoon je eigen
-  gebruikersnaam, en je muziekbibliotheek (albums, genres, afspelen) werkt weer — precies zoals bij
-  inloggen met gebruikersnaam/wachtwoord.
+### 🎵 Signing in with Google showed you as "User" with no music
+Signing in with Google worked, and your permissions/role were correct, but you didn't see your
+name and no songs, albums, or genres appeared at all — `getGenres` even returned an error about a
+missing parameter.
+- **Cause**: after a Google login, your username/password were never stored anywhere in the
+  webapp — and the webapp uses exactly those two fields for every call to the music library (and
+  to show your name), because a Google login never learns your real password.
+- **Fix**: on a successful Google login, the webapp now uses a special, already-existing key from
+  your account as a substitute password for these calls. You now see your own username again, and
+  your music library (albums, genres, playback) works again — exactly as with username/password
+  login.
 
 ## Global Version 0.0.5 (2026-07-27)
-### 🔐 De Google-inlogknop was weer verdwenen — en de server controleerde niet meer echt wie er inlogde
-Na de vorige uitrol stond alleen nog gebruikersnaam/wachtwoord op het inlogscherm; de Google-knop was weg.
-Oorzaak: de instelling met de Google Client ID stond nergens in de configuratie die automatisch gebruikt
-wordt bij het bouwen en uitrollen — die stond alleen (handmatig) op de server zelf, en werd bij de eerste
-automatische heruitrol overschreven met een lege waarde.
-- **Fix**: de Google Client ID staat nu in de centrale configuratie die bij elke automatische build en
-  uitrol wordt gebruikt, zodat de knop weer verschijnt en blijft verschijnen bij volgende releases.
-- **Extra beveiliging**: zolang deze instelling ontbreekt, accepteerde de server stilzwijgend een
-  Google-login van *elke* Google-app, niet alleen de onze. Inloggen met Google geeft nu een duidelijke
-  foutmelding als deze instelling ooit weer zou ontbreken, in plaats van dit onopgemerkt te laten gebeuren.
-- Inloggen met gebruikersnaam/wachtwoord én inloggen met Google gebruiken al hetzelfde onderliggende
-  account zodra ze gekoppeld zijn (zie 0.0.3) — deze fix zorgt er alleen voor dat beide manieren van
-  inloggen weer daadwerkelijk beschikbaar zijn.
-- **Bonus-fix**: als de webinterface een foutmelding van de beheerserver doorstuurde (bijvoorbeeld
-  "verkeerd wachtwoord" of "nummer niet gevonden"), werd die foutmelding onderweg vervangen door een
-  onduidelijke generieke storingsmelding. De echte foutmelding komt nu correct door.
-- **Om herhaling te voorkomen**: er is een extra, verplichte controle toegevoegd die bij elke uitrol
-  vanaf een release-tak automatisch checkt of deze Google-instelling daadwerkelijk aanwezig is, en die
-  de uitrol direct en duidelijk blokkeert als dat niet zo is — in plaats van dat de knop stilletjes
-  verdwijnt bij de volgende build.
+### 🔐 The Google sign-in button had disappeared again — and the server no longer actually verified who was signing in
+After the previous rollout, only username/password showed on the login screen; the Google button
+was gone. Cause: the setting containing the Google Client ID wasn't present anywhere in the
+configuration automatically used during build and deploy — it only existed (manually) on the
+server itself, and was overwritten with an empty value on the first automatic redeploy.
+- **Fix**: the Google Client ID is now part of the central configuration used on every automatic
+  build and deploy, so the button reappears and keeps appearing on subsequent releases.
+- **Extra security**: as long as this setting was missing, the server silently accepted a Google
+  login from *any* Google app, not just ours. Signing in with Google now gives a clear error if
+  this setting is ever missing again, instead of letting this happen unnoticed.
+- Signing in with username/password and signing in with Google already use the same underlying
+  account once linked (see 0.0.3) — this fix only ensures both sign-in methods are actually
+  available again.
+- **Bonus fix**: if the web interface forwarded an error message from the admin server (e.g.
+  "wrong password" or "song not found"), that error message was replaced along the way with a
+  vague generic failure message. The real error message now comes through correctly.
+- **To prevent recurrence**: an extra, mandatory check has been added that automatically verifies,
+  on every deploy from a release branch, that this Google setting is actually present, and blocks
+  the deploy immediately and clearly if it isn't — instead of the button silently disappearing on
+  the next build.
 
 ## Global Version 0.0.4 (2026-07-27)
-### 🔐 Succesvolle Google-login toonde toch een foutmelding
-Een geldige, gekoppelde Google-login kwam soms met status `200 OK` netjes terug van de server, maar de
-webapp toonde alsnog "Kon geen verbinding maken met de Google login API" en je bleef op het inlogscherm
-staan.
-- **Fix**: `/api/auth/google` (en `/api/auth/login`, `/api/auth/refresh`) geven de gebruikersgegevens nu
-  altijd genest onder een `user`-veld terug, zoals de webapp al overal verwacht en zoals ook
-  `/api/auth/verify` al deed — in plaats van deze los boven het antwoord te plaatsen.
+### 🔐 A successful Google login still showed an error message
+A valid, linked Google login sometimes came back from the server cleanly with status `200 OK`,
+but the webapp still showed "Could not connect to the Google login API" and you stayed on the
+login screen.
+- **Fix**: `/api/auth/google` (and `/api/auth/login`, `/api/auth/refresh`) now always return user
+  data nested under a `user` field, as the webapp already expected everywhere and as
+  `/api/auth/verify` already did — instead of placing it loose at the top level of the response.
 
-### 🔐 Google Sign-In popup blokkeerde soms zichzelf
-Sommige browsers lieten in de console de melding "Cross-Origin-Opener-Policy policy would block the
-window.postMessage call." zien tijdens het inloggen met Google — hierdoor kwam het ID-token soms niet
-correct terug bij de webapp.
-- **Fix**: de reverse proxy voor de webapp stuurt nu expliciet `Cross-Origin-Opener-Policy:
-  same-origin-allow-popups` mee, zodat de Google-inlogpopup altijd met de pagina kan blijven
-  communiceren.
+### 🔐 Google Sign-In popup sometimes blocked itself
+Some browsers showed the console message "Cross-Origin-Opener-Policy policy would block the
+window.postMessage call." while signing in with Google — this sometimes prevented the ID token
+from correctly making it back to the webapp.
+- **Fix**: the reverse proxy for the webapp now explicitly sends
+  `Cross-Origin-Opener-Policy: same-origin-allow-popups`, so the Google sign-in popup can always
+  keep communicating with the page.
 
 ## Global Version 0.0.3 (2026-07-26)
-### 🔐 Google Sign-In werkt nu écht, end-to-end
-De "Sign in with Google"-flow bestond al, maar de knop verscheen niet in productie (de Client ID werd
-nooit meegebouwd), en zodra dat gefixt was, gaf inloggen alsnog `401 Unauthorized` en misten admins hun
-beheerknoppen. Daarnaast kon je twee accounts van dezelfde persoon niet meer samenvoegen.
-- **Google-knop verschijnt nu écht**: elke plek die het `lms`-image bouwt (lokaal, LMS build-script en
-  CI) geeft de Client ID nu mee als build-arg, zodat deze daadwerkelijk in de gebouwde bundel terechtkomt.
-  Gedocumenteerd in een nieuwe "Google Sign-In setup"-sectie in `docs/deployment.md`.
-- **Google/access-request logins zijn niet langer geblokkeerd**: de proxy tussen de webapp en de
-  beheerbackend laat een nieuwe Google-login nu daadwerkelijk door in plaats van deze te blokkeren
-  voordat hij zelfs gecontroleerd wordt.
-- **Je eigen login wordt niet meer omgewisseld voor een generieke**: elk verzoek via die proxy behoudt nu
-  je eigen identiteit, zodat de backend je echte rol en rechten correct laat zien.
-- **Beheerknoppen zijn terug**: de Beheer-tab herkent admins (via Subsonic of Google) nu weer correct en
-  toont de gebruikersbeheer-knoppen die voorheen verborgen waren.
-- **Accounts samenvoegen**: dubbele accounts (bijv. door een Google-toegangsaanvraag voor iemand die al
-  een lokaal account had) kunnen nu samengevoegd worden tot één account; een toegangsaanvraag kan ook
-  direct aan een bestaand account gekoppeld worden in plaats van er altijd een nieuw account van te maken.
-- **Verwijderen van gebruikers is robuuster**: mislukte verwijderingen geven nu een duidelijke
-  foutmelding, en de laatste beheerder kan niet meer per ongeluk verwijderd worden.
+### 🔐 Google Sign-In now really works, end-to-end
+The "Sign in with Google" flow already existed, but the button didn't appear in production (the
+Client ID was never built in), and once that was fixed, signing in still gave `401 Unauthorized`
+and admins were missing their admin buttons. On top of that, you could no longer merge two
+accounts belonging to the same person.
+- **Google button now really appears**: every place that builds the `lms` image (locally, the LMS
+  build script, and CI) now passes the Client ID as a build arg, so it actually ends up in the
+  built bundle. Documented in a new "Google Sign-In setup" section in `docs/deployment.md`.
+- **Google/access-request logins are no longer blocked**: the proxy between the webapp and the
+  admin backend now actually lets a new Google login through instead of blocking it before it's
+  even checked.
+- **Your own login is no longer swapped for a generic one**: every request through that proxy now
+  retains your own identity, so the backend correctly shows your real role and permissions.
+- **Admin buttons are back**: the Admin tab now correctly recognizes admins again (via Subsonic or
+  Google) and shows the user-management buttons that had previously been hidden.
+- **Merging accounts**: duplicate accounts (e.g. from a Google access request for someone who
+  already had a local account) can now be merged into a single account; an access request can also
+  now be linked directly to an existing account instead of always creating a new one.
+- **Deleting users is more robust**: failed deletions now show a clear error message, and the last
+  remaining admin can no longer be accidentally deleted.
 
 ## Global Version 0.0.2 (2026-07-26)
 ### 🛠 Fix: Production Now Actually Deploys What You Released
@@ -345,7 +369,7 @@ See [docs/release-management.md](docs/release-management.md) for the full branch
 ### 🚀 Structural Modernization & Path Migration
 - **Major Path Migration**: The entire system has been migrated from `/music` to `/mnt/music`. This ensures consistency with host mounts and simplifies path resolution across all services.
 - **API Architecture Consolidation**: We've removed the redundant `common/api` layer. All workers now push their status and progress directly to the `music-manager` hub, resulting in a cleaner, more robust architecture.
-- **Streamlined Project Layout**: The verwarrende `music-management/` intermediate folder is gone. By moving `services/` to the root, we've simplified the project structure, `PYTHONPATH` management, and Docker builds.
+- **Streamlined Project Layout**: The confusing `music-management/` intermediate folder is gone. By moving `services/` to the root, we've simplified the project structure, `PYTHONPATH` management, and Docker builds.
 - **Enhanced Test Reliability**: A new unified testing configuration (`conftest.py`) allows the full test suite to run in isolated environments by automatically mocking heavy system dependencies.
 - **Worker Hub Integration**: YouTube and SoundCloud downloaders are now fully integrated with the centralized Job Manager, providing real-time progress bars in the dashboard.
 - **Codebase Optimization**: Removed over 80 redundant proxy methods and standardized all internal API routing under the `/api` prefix for better maintainability.

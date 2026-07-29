@@ -11,6 +11,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.32 (2026-07-29)
+### 🖼️ Artiestenfoto's in de webspeler
+- In de webinterface toonde de afspeelbalk onderin alleen de albumhoes en de naam van de
+  artiest(en) als tekst — nergens een foto van de artiest zelf, terwijl dat elders in de app
+  (artiestenpagina, dashboard, zoekresultaten) al wel werkte.
+- De afspeelbalk (zowel mobiel als desktop) toont nu ook een klein rond artiestenfotootje naast de
+  naam, via dezelfde bestaande koppeling met de manager die de foto's ophaalt en cachet.
+
 ## Global Version 0.0.30 (2026-07-29)
 ### 📱 Inloggen met Google op het welkomstscherm bleef "hangen"
 - Na het kiezen van een Google-account op het allereerste welkomstscherm sloot het venster niet en

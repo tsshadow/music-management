@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.11] - 2026-07-29
+
 ### Changed
 - **Dependencies**: Updated `activity-ktx`, `core-ktx`, `gson`, `okhttp`, `rxjava`, and other core libraries to latest stable versions.
 - **Target SDK**: Updated to Android 17 (API 37).
+- **Login/auth UI**: Restyled the login/welcome dialog, edit-server screen, and Google
+  access-request screen to match the web frontend: filled pill-shaped inputs, a real "Sign in with
+  Google" button with the brand G logo, a proper divider, a red error banner, and colored
+  info/success/error status banners for pending/rejected/approved access requests. Replaced a
+  stray non-brand color in the filter dialog/search FAB with `spotify_green`, and aligned the nav
+  drawer's item tinting with the bottom nav's brand colors.
+- **Settings**: `autoSwitchOffline` now defaults to `false` instead of `true`.
 
 ### Added
 - **Export to Media Device**: New feature to export the current playlist to external USB devices (e.g., Shokz OpenSwim Pro) via SAF. Includes an option to clear the destination folder before exporting.

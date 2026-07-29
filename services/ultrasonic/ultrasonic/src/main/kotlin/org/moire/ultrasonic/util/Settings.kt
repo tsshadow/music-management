@@ -105,7 +105,7 @@ object Settings {
     @JvmStatic
     var autoSwitchOffline by BooleanSetting(
         getKey(R.string.setting_key_auto_switch_offline),
-        true
+        false
     )
 
     @JvmStatic

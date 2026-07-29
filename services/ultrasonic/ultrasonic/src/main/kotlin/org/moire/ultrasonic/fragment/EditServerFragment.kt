@@ -17,11 +17,13 @@ import android.widget.ImageView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -619,9 +621,25 @@ class EditServerFragment : Fragment() {
     }
 
     private fun handleGoogleSignInResult(credential: androidx.credentials.Credential) {
-        if (credential is GoogleIdTokenCredential) {
-            val idToken = credential.idToken
+        // Credential Manager always returns third-party credential types (like Google's) as a
+        // generic CustomCredential over the IPC boundary - it is never delivered as the concrete
+        // GoogleIdTokenCredential subclass, even though that class extends CustomCredential
+        // locally. It must be parsed explicitly via createFrom().
+        if (
+            credential is CustomCredential &&
+            credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+        ) {
+            val idToken = try {
+                GoogleIdTokenCredential.createFrom(credential.data).idToken
+            } catch (e: GoogleIdTokenParsingException) {
+                Timber.e(e, "Failed to parse Google ID token credential")
+                toast(R.string.background_task_network_error)
+                return
+            }
             performMumaGoogleAuth(idToken)
+        } else {
+            Timber.e("Google Sign-In returned an unexpected credential type: ${credential.javaClass.name}")
+            toast(R.string.background_task_network_error)
         }
     }
 

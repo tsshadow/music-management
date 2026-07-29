@@ -239,6 +239,108 @@ async function hydrateMumaUserFromApiKey() {
 }
 hydrateMumaUserFromApiKey();
 
+// Syncs `favoriteGenres` with the logged-in user's account (via the generic
+// per-user app-settings endpoint, `app_id = 'frontend'`) so the same
+// favorites follow them across devices/browsers instead of staying stuck in
+// this browser's `localStorage`. See docs/designs/favorite-genres/.
+let favoriteGenresSyncedUserId = null;
+// True while a value just fetched from the server is being applied to the
+// store, so that write doesn't get echoed straight back to the server.
+let favoriteGenresLoading = false;
+let favoriteGenresSaveTimer = null;
+
+/**
+ * Fetches `userId`'s favorite genres from their account and applies them. If
+ * the account has none saved yet, uploads whatever is already stored
+ * locally instead, so a pre-existing local-only selection isn't lost the
+ * first time this user logs in after the feature shipped.
+ *
+ * @param {number} userId
+ */
+async function loadFavoriteGenresForUser(userId) {
+  try {
+    const res = await fetch(`${get(mumaApiUrl)}/api/users/${userId}/settings/frontend`, {
+      headers: { 'X-API-Key': get(mumaApiKey) }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const settings = data.settings ? JSON.parse(data.settings) : null;
+    if (settings && Array.isArray(settings.favoriteGenres)) {
+      favoriteGenresLoading = true;
+      favoriteGenres.set(settings.favoriteGenres);
+      favoriteGenresLoading = false;
+    } else {
+      const local = get(favoriteGenres);
+      if (local.length > 0) {
+        await saveFavoriteGenresForUser(userId, local);
+      }
+    }
+  } catch (e) {
+    console.warn('Kon favoriete genres niet laden', e);
+  }
+}
+
+/**
+ * Saves `genres` as `userId`'s favorite genres. Reads the current
+ * `frontend` app-settings first and merges into it, so unrelated settings
+ * that might be added under the same key later aren't clobbered.
+ *
+ * @param {number} userId
+ * @param {string[]} genres
+ */
+async function saveFavoriteGenresForUser(userId, genres) {
+  try {
+    const headers = { 'X-API-Key': get(mumaApiKey) };
+    const getRes = await fetch(`${get(mumaApiUrl)}/api/users/${userId}/settings/frontend`, { headers });
+    let settings = {};
+    if (getRes.ok) {
+      const data = await getRes.json();
+      if (data.settings) {
+        try {
+          settings = JSON.parse(data.settings);
+        } catch (_e) {
+          settings = {};
+        }
+      }
+    }
+    settings.favoriteGenres = genres;
+    await fetch(`${get(mumaApiUrl)}/api/users/${userId}/settings/frontend`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ settings: JSON.stringify(settings) })
+    });
+  } catch (e) {
+    console.warn('Kon favoriete genres niet opslaan', e);
+  }
+}
+
+mumaUser.subscribe(($user) => {
+  if ($user === null) {
+    // Real logout (see ProfileButton.svelte's handleLogout): don't leak
+    // this account's favorites to whoever uses this browser next.
+    if (favoriteGenresSyncedUserId !== null) {
+      favoriteGenresSyncedUserId = null;
+      favoriteGenresLoading = true;
+      favoriteGenres.set([]);
+      favoriteGenresLoading = false;
+    }
+    return;
+  }
+  // No `id` means an anonymous/system-key session (e.g. the shared admin
+  // key used in Management.svelte) rather than a specific account -- leave
+  // whatever favorites are currently shown untouched.
+  if (!$user.id || $user.id === favoriteGenresSyncedUserId) return;
+  favoriteGenresSyncedUserId = $user.id;
+  loadFavoriteGenresForUser($user.id);
+});
+
+favoriteGenres.subscribe(($genres) => {
+  if (favoriteGenresLoading || !favoriteGenresSyncedUserId) return;
+  const userId = favoriteGenresSyncedUserId;
+  clearTimeout(favoriteGenresSaveTimer);
+  favoriteGenresSaveTimer = setTimeout(() => saveFavoriteGenresForUser(userId, $genres), 400);
+});
+
 export const isAdmin = derived([subsonicIsAdmin, mumaUser, mumaUserHydrated], ([$subsonicIsAdmin, $mumaUser, $mumaUserHydrated]) => {
   if ($subsonicIsAdmin === true) return true;
   if ($mumaUser && ($mumaUser.is_admin || $mumaUser.role_name === 'admin')) return true;

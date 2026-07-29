@@ -10,6 +10,14 @@ This project is now modularized. Detailed release notes for each module can be f
 - [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
 
 ## Unreleased
+### ⭐ Favoriete genres worden nu bij je account bewaard
+- Genres die je als favoriet markeert in de webspeler werden tot nu toe alleen in je browser
+  onthouden, en waren dus weg zodra je een andere browser of apparaat gebruikte, of je
+  browsergegevens wiste.
+- Je favoriete genres worden nu opgeslagen bij je account, en automatisch weer ingeladen zodra je
+  inlogt op de webinterface — op elk apparaat.
+- Had je al favoriete genres ingesteld voordat deze wijziging er was? Die worden bij je eerstvolgende
+  inlog automatisch overgenomen naar je account, zodat er niets verloren gaat.
 
 ## Global Version 0.0.33 (2026-07-29)
 ### 📱 Inloggen met Google: account kiezen leidde terug naar het inlogscherm

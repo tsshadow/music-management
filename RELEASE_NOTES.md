@@ -11,6 +11,19 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.38 (2026-07-29)
+### 🔁 De vorige fix werd per ongeluk teruggedraaid door een oude, vergeten release
+- Na het uitrollen van de vorige fix (versie 0.0.37) stond er even later toch weer de oude,
+  kapotte versie op de server, alsof de fix niet had gewerkt.
+- Oorzaak: er stond nog een héél oude, al lang niet meer gebruikte tussenversie klaar op de
+  server om verwerkt te worden, en die kwam toevallig precies ná de nieuwe fix aan de beurt,
+  waardoor hij de oude code er per ongeluk weer overheen zette.
+- Alle van dat soort oude, al verwerkte tussenversies zijn nu opgeruimd, en het proces zorgt er
+  vanaf nu automatisch voor dat zo'n tussenversie meteen wordt opgeruimd zodra hij is verwerkt,
+  zodat dit niet meer kan gebeuren.
+- Er is geen zichtbare functionele wijziging in de app zelf in deze versie — dit is puur het
+  opnieuw correct uitrollen van de vorige fix, plus deze structurele bescherming.
+
 ## Global Version 0.0.37 (2026-07-29)
 ### 🛠️ Twee achtergrondtools op de server crashten steeds bij het opstarten
 - Bij een controle van de productieomgeving bleken de `genre-processor`- en

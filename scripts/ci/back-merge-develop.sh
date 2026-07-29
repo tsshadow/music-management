@@ -68,3 +68,42 @@ if [ "$STATE" != "merged" ]; then
 fi
 
 echo "Merged master into develop via MR !${MR_IID}."
+
+# Delete the release/* (or hotfix/*) branch that was just merged into master,
+# so merged release branches never accumulate on the remote. A forgotten,
+# already-merged release branch left lying around is a real production risk:
+# any later, delayed/re-run pipeline against it (e.g. queued behind other jobs
+# on a busy shared runner) re-triggers release:build-images/deploy:prod from
+# that branch's now-stale checkout, silently overwriting `latest` and
+# redeploying old code - see docs/bug-reports/016-stale-release-branch-clobbered-latest-deploy.md
+# for the incident this guards against.
+echo "Looking up the release/hotfix branch merged into master at ${CI_COMMIT_SHA}..."
+SOURCE_BRANCH=$(curl -sf --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
+    "${API}/merge_requests?target_branch=master&state=merged&order_by=updated_at&sort=desc&per_page=20" \
+    | python3 -c "
+import json, sys
+mrs = json.load(sys.stdin)
+target_sha = '${CI_COMMIT_SHA}'
+for mr in mrs:
+    sha = mr.get('merge_commit_sha') or mr.get('sha')
+    branch = mr.get('source_branch', '')
+    if sha == target_sha and (branch.startswith('release/') or branch.startswith('hotfix/')):
+        print(branch)
+        break
+")
+
+if [ -z "$SOURCE_BRANCH" ]; then
+    echo "No matching merged release/hotfix branch found for this commit, nothing to delete."
+elif [ "$SOURCE_BRANCH" = "master" ] || [ "$SOURCE_BRANCH" = "develop" ]; then
+    echo "Refusing to delete protected branch '${SOURCE_BRANCH}'."
+else
+    echo "Deleting merged branch '${SOURCE_BRANCH}'..."
+    DELETE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --request DELETE \
+        --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
+        "${API}/repository/branches/$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$SOURCE_BRANCH")")
+    if [ "$DELETE_STATUS" = "204" ]; then
+        echo "Deleted branch '${SOURCE_BRANCH}'."
+    else
+        echo "Warning: could not delete branch '${SOURCE_BRANCH}' (HTTP ${DELETE_STATUS}); leaving it - delete manually."
+    fi
+fi

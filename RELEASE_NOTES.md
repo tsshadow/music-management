@@ -11,6 +11,16 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.34 (2026-07-29)
+### 🎨 Ultrasonic-app: inlogschermen in nieuwe stijl
+- Het welkomstscherm, het scherm om een server te bewerken, en het scherm voor toegang aanvragen
+  zien er nu hetzelfde uit als de webversie: afgeronde invulvelden, een echte "Inloggen met
+  Google"-knop met het Google-logo, en duidelijke gekleurde meldingen bij een openstaande,
+  afgewezen of goedgekeurde toegangsaanvraag.
+- De app schakelt niet langer automatisch over naar offline-modus; dit kan nog steeds handmatig
+  aangezet worden in de instellingen.
+- De app-versie is opgehoogd naar 6.5.11 (241).
+
 ## Global Version 0.0.33 (2026-07-29)
 ### 📱 Inloggen met Google: account kiezen leidde terug naar het inlogscherm
 - Na het kiezen van een account in het Google-accountvenster kwam je terug op het inlogscherm, dat

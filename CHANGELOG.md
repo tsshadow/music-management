@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.34] - 2026-07-29
+
 ### Added
 - **Automated `master` -> `develop` back-merge**: previously, after a `release/*` branch was merged
   into `master`, keeping `develop` in sync required manually opening and merging a second MR from
@@ -16,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reusing the existing `TAG_CREATION_TOKEN`. It's a no-op if `develop` already contains `master`'s
   tip, and leaves the MR open for manual conflict resolution if the merge can't be done
   automatically.
+
+### Changed
+- **Ultrasonic UI**: Restyled the login/welcome dialog, edit-server screen, and Google
+  access-request screen to match the web frontend's `LoginPage.svelte` and
+  `docs/styleguide.md`: filled pill-shaped inputs, a real "Sign in with Google" button with the
+  brand G logo, a proper divider, a red error banner, and colored info/success/error status
+  banners for pending/rejected/approved access requests. Also replaced a stray non-brand color
+  in the filter dialog/search FAB with the app's `spotify_green` token, and aligned the nav
+  drawer's item tinting with the bottom nav's existing brand colors.
+- **Ultrasonic settings**: `autoSwitchOffline` now defaults to `false` instead of `true`.
+- Bumped Ultrasonic's own `versionCode`/`versionName` (`240`/`6.5.10` -> `241`/`6.5.11`).
 
 ## [0.0.33] - 2026-07-29
 

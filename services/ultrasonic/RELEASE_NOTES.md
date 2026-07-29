@@ -1,3 +1,13 @@
+## [6.5.11] - 2026-07-29
+### Changed
+- **Dependencies**: Updated `activity-ktx`, `core-ktx`, `gson`, `okhttp`, `rxjava`, and other core libraries to latest stable versions.
+- **Target SDK**: Updated to Android 17 (API 37).
+- **Login/auth UI**: Restyled the login/welcome dialog, edit-server screen, and Google access-request screen to match the web frontend, including a branded "Sign in with Google" button and colored status banners for access requests.
+- **Settings**: `autoSwitchOffline` now defaults to `false` instead of `true`.
+
+### Added
+- **Export to Media Device**: New feature to export the current playlist to external USB devices (e.g., Shokz OpenSwim Pro) via SAF. Includes an option to clear the destination folder before exporting.
+
 ## [6.5.2-232] - 2026-07-16
 ### Fixed
 - **Update Checker**: Added `u=guest` and `p=guest` credentials to APK download URL to prevent access errors.

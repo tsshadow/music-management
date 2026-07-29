@@ -198,7 +198,7 @@
             a:title="@string/settings.wifi_required_title"
             app:iconSpaceReserved="false"/>
         <CheckBoxPreference
-            a:defaultValue="true"
+            a:defaultValue="false"
             a:key="@string/setting_key_auto_switch_offline"
             a:summary="@string/settings.auto_switch_offline_summary"
             a:title="@string/settings.auto_switch_offline"

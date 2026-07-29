@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Automated `master` -> `develop` back-merge**: previously, after a `release/*` branch was merged
+  into `master`, keeping `develop` in sync required manually opening and merging a second MR from
+  the release branch (or `master`) into `develop`. Added `release:back-merge-develop`
+  (`scripts/ci/back-merge-develop.sh`), a new CI job that runs on `master` right after
+  `release:tag` and automatically opens+merges a `master` -> `develop` MR via the GitLab API,
+  reusing the existing `TAG_CREATION_TOKEN`. It's a no-op if `develop` already contains `master`'s
+  tip, and leaves the MR open for manual conflict resolution if the merge can't be done
+  automatically.
+
 ## [0.0.33] - 2026-07-29
 
 ### Fixed

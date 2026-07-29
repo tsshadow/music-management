@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.29] - 2026-07-29
+
+### Fixed
+- **Ultrasonic Google Sign-In still failed with "No Google accounts found" on a real device with
+  a real Google account already signed in, even with a correct (non-placeholder)
+  `GOOGLE_WEB_CLIENT_ID` (`bug 011`)**: two combined causes. First, `GetGoogleIdOption` (used by
+  both `NavigationActivity.performWelcomeGoogleSignIn()` and
+  `EditServerFragment.startGoogleSignIn()`), even with `setFilterByAuthorizedAccounts(false)`, only
+  reliably returns a credential for an account that has already authorized this app before —
+  switched both call sites to `GetSignInWithGoogleOption`, Google's dedicated option for
+  not-yet-authorized/first-time sign-ins. Second, and more fundamentally, Google's Credential
+  Manager backend refuses to issue any credential to a native Android app unless a separate
+  **Android**-type OAuth client (package name + signing certificate SHA-1) is registered in the
+  same Google Cloud project as the Web client ID — this is a manual, one-time Google Cloud Console
+  step (not fixable purely in code/CI), documented in `docs/deployment.md` and
+  `docs/bug-reports/011-google-signin-no-credential-real-device.md`, along with the two client
+  registrations needed (one for the release keystore, one for the debug keystore).
+- Corrected `docs/deployment.md` and `docs/designs/authentication/technical.md`, which previously
+  (incorrectly) stated no separate Android OAuth client/SHA-1 registration was needed for
+  Ultrasonic's Google Sign-In.
+- Bumped Ultrasonic's own `versionCode`/`versionName` (`237`/`6.5.7` -> `238`/`6.5.8`).
+
 ## [0.0.28] - 2026-07-29
 
 ### Fixed

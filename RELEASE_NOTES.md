@@ -11,6 +11,21 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.29 (2026-07-29)
+### 📱 Inloggen met Google werkte nog steeds niet op een echt toestel
+- Ook met een correct ingestelde Google-inlogsleutel (`GOOGLE_WEB_CLIENT_ID`) en een echt
+  Google-account op het toestel, gaf "Inloggen met Google" nog steeds de melding "Geen
+  Google-accounts gevonden op dit apparaat."
+- Oorzaak was tweeledig: de app gebruikte een inlogoptie die alleen betrouwbaar werkt voor accounts
+  die de app al eerder hadden goedgekeurd (nu gecorrigeerd), én Google vereist daarnaast een losse
+  registratie van de app zelf (pakketnaam + ondertekeningssleutel) in het Google Cloud-project,
+  naast de al bestaande inlogsleutel.
+- ⚠️ Let op: de code-fix alleen is niet genoeg — er is ook een eenmalige, handmatige stap nodig in
+  Google Cloud Console (twee Android OAuth-clients registreren, één voor de officiële build en één
+  voor debug-builds) voordat inloggen met Google daadwerkelijk werkt. Zie
+  `docs/bug-reports/011-google-signin-no-credential-real-device.md` voor de exacte stappen.
+- De app-versie is opgehoogd naar 6.5.8 (238).
+
 ## Global Version 0.0.28 (2026-07-29)
 ### 📱 "Geen Google account gevonden" in plaats van een verwarrende netwerkfout
 - Bij het testen in een simulator zonder Google-account gaf de "Inloggen met Google"-knop altijd

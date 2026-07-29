@@ -11,6 +11,12 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.36 (2026-07-29)
+### 🖥️ Beheer: Overzicht-tabblad crashte
+- Het "Overview"-tabblad in het beheerpaneel gaf een foutmelding zodra er meerdere recente
+  activiteiten waren om te tonen, in plaats van gewoon de lijst te laten zien.
+- Dit is nu verholpen; het tabblad laadt weer gewoon.
+
 ## Global Version 0.0.34 (2026-07-29)
 ### 🎨 Ultrasonic-app: inlogschermen in nieuwe stijl
 - Het welkomstscherm, het scherm om een server te bewerken, en het scherm voor toegang aanvragen

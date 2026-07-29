@@ -32,7 +32,7 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.NoCredentialException
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
@@ -750,9 +750,12 @@ class NavigationActivity : ScopeActivity() {
         ).api
 
         val credentialManager = CredentialManager.create(this)
-        val googleIdTokenRequest = GetGoogleIdOption.Builder()
-            .setFilterByAuthorizedAccounts(false)
-            .setServerClientId(BuildConfig.GOOGLE_WEB_CLIENT_ID)
+        // GetGoogleIdOption (even with setFilterByAuthorizedAccounts(false)) only reliably
+        // surfaces a credential for accounts that have already signed into this app before -
+        // for a first-time sign-in it throws NoCredentialException regardless of the device
+        // having a real, usable Google account. GetSignInWithGoogleOption is Google's dedicated
+        // option for this "not yet authorized" case and always shows the account chooser.
+        val googleIdTokenRequest = GetSignInWithGoogleOption.Builder(BuildConfig.GOOGLE_WEB_CLIENT_ID)
             .build()
 
         val request = GetCredentialRequest.Builder()
@@ -813,7 +816,17 @@ class NavigationActivity : ScopeActivity() {
                     usernameField.setText(username)
                     passwordField.setText(apiKey)
 
-                    val pingOk = withContext(Dispatchers.IO) {
+                    // Unlike the manual username/password submit above, a successful "ok"
+                    // response here already proves the credential is valid (verified
+                    // server-side by Google + MuMa) - mirrors
+                    // EditServerFragment.performMumaGoogleAuth() and the web frontend's
+                    // handleGoogleResponse(), neither of which re-verify via a Subsonic ping
+                    // before considering the sign-in successful. Gating on ping() here (as
+                    // previously done, copied from the manual-entry flow above) meant a
+                    // transient/unrelated connectivity hiccup on this first request could
+                    // silently discard an otherwise-successful Google sign-in and leave the
+                    // user stuck back at the login dialog.
+                    withContext(Dispatchers.IO) {
                         try {
                             Settings.staticUserName = username
                             Settings.staticPassword = apiKey
@@ -824,24 +837,14 @@ class NavigationActivity : ScopeActivity() {
                             }
 
                             MusicServiceFactory.resetMusicService()
-                            MusicServiceFactory.getMusicService().ping()
-                            true
                         } catch (e: Exception) {
-                            Timber.e(e, "Connection test failed after Google Sign-In")
-                            false
+                            Timber.e(e, "Failed to activate server after Google Sign-In")
                         }
                     }
 
                     progressBar.visibility = View.GONE
-
-                    if (pingOk) {
-                        UApp.instance!!.setupDialogDisplayed = true
-                        dialog.dismiss()
-                    } else {
-                        errorText.text = getString(R.string.welcome_connection_failed)
-                        errorText.visibility = View.VISIBLE
-                        googleSignInButton.isEnabled = true
-                    }
+                    UApp.instance!!.setupDialogDisplayed = true
+                    dialog.dismiss()
                 }
                 "unknown" -> {
                     progressBar.visibility = View.GONE

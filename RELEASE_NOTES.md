@@ -11,6 +11,18 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.30 (2026-07-29)
+### 📱 Inloggen met Google op het welkomstscherm bleef "hangen"
+- Na het kiezen van een Google-account op het allereerste welkomstscherm sloot het venster niet en
+  bleef de app om inloggen vragen, ook al was het inloggen zelf eigenlijk al gelukt.
+- Oorzaak: er zat een extra verbindingstest achter de Google-inlog die niets met de Google-inlog
+  zelf te maken had, en die soms mislukte om andere redenen — waardoor een geslaagde Google-inlog
+  alsnog werd afgewezen.
+- Deze onnodige test is verwijderd; het welkomstscherm sluit nu direct na een geslaagde
+  Google-inlog, precies zoals dat al werkte op het inlogscherm van een bestaande server en in de
+  webversie.
+- De app-versie is opgehoogd naar 6.5.9 (239).
+
 ## Global Version 0.0.29 (2026-07-29)
 ### 📱 Inloggen met Google werkte nog steeds niet op een echt toestel
 - Ook met een correct ingestelde Google-inlogsleutel (`GOOGLE_WEB_CLIENT_ID`) en een echt

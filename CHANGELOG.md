@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.30] - 2026-07-29
+
+### Fixed
+- **Ultrasonic welcome-screen Google Sign-In succeeded but the dialog never closed, leaving the
+  app stuck requiring login (`bug 012`)**: `NavigationActivity.performWelcomeGoogleSignIn()`'s
+  `"ok"` branch had been copied from the manual username/password submit handler just above it,
+  including a `MusicServiceFactory.getMusicService().ping()` connectivity check gating whether the
+  dialog was allowed to dismiss. That gate makes sense for manual credential entry (verifying
+  arbitrary user-typed input), but not for Google Sign-In, where a `status: "ok"` response from
+  `/api/auth/google` is already a server-verified, guaranteed-valid credential — the same trust
+  model already used by `EditServerFragment.performMumaGoogleAuth()` and the web frontend's
+  `handleGoogleResponse()`, neither of which re-verifies with a ping. A transient/unrelated
+  connectivity hiccup on that extra ping call could silently discard an already-successful Google
+  sign-in. Removed the ping-gating; the dialog now always closes on `"ok"`, exactly like the other
+  two flows.
+- Bumped Ultrasonic's own `versionCode`/`versionName` (`238`/`6.5.8` -> `239`/`6.5.9`).
+
 ## [0.0.29] - 2026-07-29
 
 ### Fixed

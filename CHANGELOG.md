@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.39] - 2026-07-29
+
+### Fixed
+- **`release:back-merge-develop` intermittently failed with "Branch cannot be merged"**: right
+  after opening (or reusing) the automated `master` -> `develop` MR, `scripts/ci/back-merge-
+  develop.sh` attempted the merge immediately, but GitLab computes an MR's `merge_status`
+  asynchronously, so the merge could be rejected purely because that computation hadn't finished
+  yet — not because of a real conflict. Observed on `release/0.0.38`'s `master` pipeline: MR !65
+  became mergeable within a second of the failed attempt. Added a short poll loop (up to 10 x 3s)
+  waiting for `detailed_merge_status == "mergeable"` before merging, plus up to 3 retries on the
+  merge call itself, before falling back to leaving the MR open for manual resolution.
+
 ## [0.0.38] - 2026-07-29
 
 ### Fixed

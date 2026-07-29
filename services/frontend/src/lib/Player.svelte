@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { currentTrack, playerState, audio, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView } from './store.js';
   import ArtistList from './ArtistList.svelte';
+  import { getArtistImageUrl } from './utils.js';
 
   const { onnavigate, ontoggleQueue } = $props();
 
@@ -494,6 +495,14 @@
   }
 
   const track = $derived($currentTrack);
+  const primaryArtist = $derived.by(() => {
+    if (track?.artists && track.artists.length > 0) return track.artists[0];
+    if (track?.artist) {
+      const firstName = track.artist.split(', ')[0];
+      return firstName ? { name: firstName, id: track.artistId } : null;
+    }
+    return null;
+  });
   const playing = $derived($playerState.playing);
   const progress = $derived(track ? $playerState.progress : 0);
   const duration = $derived(track ? $playerState.duration : 0);
@@ -750,7 +759,17 @@
         <img src={coverUrl} alt={track.title} class="w-11 h-11 rounded shadow-lg" onerror={(e) => e.target.src = '/images/spotify-fallback.svg'} />
         <div class="flex-1 min-w-0 cursor-pointer" onclick={goToAlbum} role="button" tabindex="0" onkeydown={(e) => e.key === 'Enter' && goToAlbum()}>
           <div class="text-[13px] font-bold text-white truncate">{track.title}</div>
-          <div class="text-[11px] text-[#b3b3b3] truncate">{track.artist}</div>
+          <div class="flex items-center gap-1.5 min-w-0">
+            {#if primaryArtist}
+              <img
+                src={getArtistImageUrl(primaryArtist, $authParams)}
+                alt={primaryArtist.name}
+                class="w-4 h-4 rounded-full object-cover flex-shrink-0"
+                onerror={(e) => e.target.src = '/images/unknown-artist.svg'}
+              />
+            {/if}
+            <div class="text-[11px] text-[#b3b3b3] truncate">{track.artist}</div>
+          </div>
         </div>
       {:else}
         <div class="flex-1 flex items-center gap-3 min-w-0">
@@ -812,12 +831,22 @@
             onclick={goToAlbum}
             onkeydown={(e) => e.key === 'Enter' && goToAlbum()}
           >{track.title}</div>
-          <ArtistList
-            artist={track.artist}
-            artistId={track.artistId}
-            artists={track.artists}
-            onnavigate={onnavigate}
-          />
+          <div class="flex items-center gap-1.5 min-w-0">
+            {#if primaryArtist}
+              <img
+                src={getArtistImageUrl(primaryArtist, $authParams)}
+                alt={primaryArtist.name}
+                class="w-5 h-5 rounded-full object-cover flex-shrink-0"
+                onerror={(e) => e.target.src = '/images/unknown-artist.svg'}
+              />
+            {/if}
+            <ArtistList
+              artist={track.artist}
+              artistId={track.artistId}
+              artists={track.artists}
+              onnavigate={onnavigate}
+            />
+          </div>
         </div>
       {/if}
     </div>

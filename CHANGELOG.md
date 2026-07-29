@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.38] - 2026-07-29
+
+### Fixed
+- **A stale, already-merged-but-never-deleted `release/0.0.35` branch's delayed pipeline
+  re-pushed old code as `muma/muma-tools:latest` and redeployed it to production right after
+  `bug 015`'s fix went live (`bug 016`)**: `release:build-images`/`deploy:prod` trigger on any
+  `release/*` branch push or pipeline run, and the repository had accumulated many old, merged
+  `release/*` branches; one of them (`release/0.0.35`) had a job stuck queued on the shared
+  runner that finally executed *after* the `0.0.37` fix's pipeline, overwriting `latest` with its
+  stale, pre-fix checkout. Deleted `release/0.0.35` and all other already-merged stale branches,
+  and made `release:back-merge-develop` (`scripts/ci/back-merge-develop.sh`) automatically delete
+  the `release/*`/`hotfix/*` branch it just merged into `master`, so merged release branches can no
+  longer accumulate and race a later release's build/deploy. No functional application code
+  change in this release — this is purely the automated re-deploy of `bug 015`'s already-merged
+  fix plus the branch-cleanup safeguard.
+
 ## [0.0.37] - 2026-07-29
 
 ### Fixed

@@ -151,9 +151,9 @@
   }
 </script>
 
-<div class="flex flex-col h-full overflow-hidden -m-8">
+<div class="flex flex-col gap-6">
   <!-- Header / Quick Stats -->
-  <div class="bg-black/40 border-b border-white/10 p-4 flex justify-between items-center shrink-0">
+  <div class="bg-[#181818] border border-white/5 rounded-xl p-4 flex flex-col md:flex-row justify-between md:items-center gap-4">
     <div class="flex gap-8 overflow-x-auto no-scrollbar py-2">
       <div class="flex flex-col">
         <span class="text-[10px] uppercase tracking-widest text-[#b3b3b3] font-bold">Songs</span>
@@ -196,39 +196,41 @@
   </div>
 
   <!-- Global Search Bar -->
-  <div class="bg-[#121212] border-b border-white/5 p-4 flex gap-4 items-center shrink-0">
+  <div class="bg-[#181818] border border-white/5 rounded-xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center">
     <div class="relative flex-1">
       <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-[#b3b3b3]" size={18} />
-      <input 
-        type="text" 
+      <input
+        type="text"
         bind:value={searchQuery}
         on:keydown={handleSearch}
         placeholder="Search title, artist, album, tags, bpm, key... (Press Enter)"
         class="w-full bg-[#242424] border-none rounded-full py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-brand transition-all outline-none"
       />
     </div>
-    <button 
-      on:click={toggleFilters}
-      class="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 hover:bg-white/5 transition-all text-sm font-bold {showFilters ? 'text-brand border-brand/50' : 'text-white'}"
-    >
-      <Filter size={16} />
-      Filters
-    </button>
-    <button 
-      on:click={toggleInspector}
-      class="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 hover:bg-white/5 transition-all text-sm font-bold {showInspector ? 'text-brand border-brand/50' : 'text-white'}"
-    >
-      <Info size={16} />
-      Inspector
-    </button>
+    <div class="flex gap-4">
+      <button
+        on:click={toggleFilters}
+        class="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 hover:bg-white/5 transition-all text-sm font-bold {showFilters ? 'text-brand border-brand/50' : 'text-white'}"
+      >
+        <Filter size={16} />
+        Filters
+      </button>
+      <button
+        on:click={toggleInspector}
+        class="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 hover:bg-white/5 transition-all text-sm font-bold {showInspector ? 'text-brand border-brand/50' : 'text-white'}"
+      >
+        <Info size={16} />
+        Inspector
+      </button>
+    </div>
   </div>
 
   <!-- Main Content Area -->
-  <div class="flex flex-1 min-h-0 overflow-hidden">
-    
+  <div class="flex flex-col lg:flex-row gap-6 items-start">
+
     <!-- Left Column: Filters -->
     {#if showFilters}
-      <div class="w-64 border-r border-white/5 bg-[#121212] overflow-y-auto p-6 flex flex-col gap-8 shrink-0">
+      <div class="w-full lg:w-64 shrink-0 bg-[#181818] border border-white/5 rounded-xl p-6 flex flex-col gap-8 lg:sticky lg:top-4">
         <div>
           <h3 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-4">Genres</h3>
           <div class="flex flex-col gap-1 max-h-60 overflow-y-auto pr-2 scrollbar-thin">
@@ -301,10 +303,10 @@
     {/if}
 
     <!-- Central Column: Table or Analytics -->
-    <div class="flex-1 min-w-0 overflow-y-auto bg-black/20 flex flex-col">
+    <div class="flex-1 min-w-0 w-full bg-[#181818] border border-white/5 rounded-xl overflow-hidden flex flex-col">
       {#if activeTab === 'library'}
         <table class="w-full text-left text-sm border-collapse">
-          <thead class="sticky top-0 bg-[#121212] z-10 border-b border-white/10 shadow-xl">
+          <thead class="bg-[#121212] border-b border-white/10">
             <tr class="text-[#b3b3b3] uppercase text-[10px] tracking-widest font-black">
               <th class="px-4 py-4 w-8"><Star size={14} /></th>
               <th class="px-4 py-4">Title</th>
@@ -423,7 +425,7 @@
 
     <!-- Right Column: Inspector -->
     {#if showInspector}
-      <div class="w-80 border-l border-white/5 bg-[#121212] overflow-y-auto shrink-0 flex flex-col">
+      <div class="w-full lg:w-80 shrink-0 bg-[#181818] border border-white/5 rounded-xl overflow-hidden lg:sticky lg:top-4 flex flex-col">
         {#if selectedTrack}
           <div class="p-6 flex flex-col gap-6">
             <div class="aspect-square bg-[#282828] rounded-xl overflow-hidden shadow-2xl border border-white/10 group relative">
@@ -519,7 +521,7 @@
             </div>
           </div>
         {:else}
-          <div class="flex-1 flex flex-col items-center justify-center p-8 text-center text-[#b3b3b3] gap-4">
+          <div class="flex-1 min-h-[280px] flex flex-col items-center justify-center p-8 text-center text-[#b3b3b3] gap-4">
             <div class="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center">
               <Info size={32} />
             </div>

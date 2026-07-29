@@ -14,4 +14,8 @@
     <color name="spotify_hover_light">#3e3e3e</color>
     <color name="spotify_text_primary">#ffffff</color>
     <color name="spotify_text_secondary">#b3b3b3</color>
+
+    <!-- Google brand button colors (per Google Identity sign-in button guidelines) -->
+    <color name="google_button_border">#dadce0</color>
+    <color name="google_button_text">#3c4043</color>
 </resources>

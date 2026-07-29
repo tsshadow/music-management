@@ -15,6 +15,7 @@
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/welcome_username_layout"
+        style="@style/Widget.Ultrasonic.TextInputLayout.Filled"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/welcome_username">
@@ -30,6 +31,7 @@
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/welcome_password_layout"
+        style="@style/Widget.Ultrasonic.TextInputLayout.Filled"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
@@ -45,22 +47,45 @@
 
     </com.google.android.material.textfield.TextInputLayout>
 
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="8dp"
-        android:gravity="center"
-        android:text="@string/welcome_or_divider"
-        android:textAppearance="?attr/textAppearanceCaption" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1"
+            android:background="@color/spotify_card" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="12dp"
+            android:letterSpacing="0.1"
+            android:text="@string/welcome_or_divider"
+            android:textColor="@color/spotify_text_secondary"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1"
+            android:background="@color/spotify_card" />
+
+    </LinearLayout>
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/welcome_google_signin"
-        style="@style/Widget.Material3.Button.TonalButton.Icon"
+        style="@style/Widget.Ultrasonic.Button.GoogleSignIn"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/google_signin_button"
-        app:icon="@android:drawable/btn_star" />
+        android:text="@string/google_signin_button" />
 
     <ProgressBar
         android:id="@+id/welcome_progress"

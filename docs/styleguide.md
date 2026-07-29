@@ -83,3 +83,16 @@ To maintain clean design governance and prevent ad-hoc style drift:
 1. **Proposal & Approval**: Any new style, component variation, or design token must be proposed and receive dev approval.
 2. **Style Guide & Todo Tracking**: Upon approval, new or pending styles must first be registered in this style guide (under a pending todo section or design backlog) before code implementation begins. This acts as a design contract and checklist.
 3. **Code Implementation**: Once documented, implement the approved styles in code (`services/frontend` or `services/ultrasonic`), then mark the item as completed in the style guide.
+
+### Design Backlog
+
+- **Done** — Android login/welcome screens brought in line with the web's `LoginPage.svelte`: filled/rounded
+  dark inputs (`Widget.Ultrasonic.TextInputLayout.Filled`), a solid-green pill CTA
+  (`Widget.Ultrasonic.Button.Primary`), a branded white "Sign in with Google" pill button with the real
+  Google "G" logo instead of a placeholder star icon (`Widget.Ultrasonic.Button.GoogleSignIn`), a
+  hairline-flanked "OF" divider, a `spotify_light`-background rounded dialog card
+  (`ThemeOverlay.Ultrasonic.WelcomeDialog`, scoped to this one dialog only), and a circular avatar on the
+  Google access-request screen (`google_auth_fragment.xml`).
+- **Not yet done** — the rest of the Android UI (library/track lists, filter bar, player, navigation) has not
+  been brought in line with this style guide's component patterns; see `services/ultrasonic/STYLEGUIDE.md`
+  for the full reference these should eventually follow.

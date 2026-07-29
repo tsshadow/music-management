@@ -6,14 +6,16 @@
     android:layout_height="match_parent"
     android:padding="24dp">
 
-    <ImageView
+    <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/google_avatar"
         android:layout_width="96dp"
         android:layout_height="96dp"
         android:layout_marginTop="48dp"
+        android:scaleType="centerCrop"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
+        app:shapeAppearanceOverlay="@style/ShapeAppearance.Circle"
         tools:src="@tools:sample/avatars" />
 
     <TextView
@@ -41,6 +43,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/auth_action_button"
+        style="@style/Widget.Ultrasonic.Button.Primary"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="32dp"

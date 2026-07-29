@@ -79,5 +79,58 @@
     <style name="ShapeAppearance.Circle" parent="">
         <item name="cornerSize">50%</item>
     </style>
+
+    <!-- Spotify-web-style pill CTA: solid brand green, bold black text (matches
+         LoginPage.svelte's "Verbinden" / "Toegang aanvragen" buttons). -->
+    <style name="Widget.Ultrasonic.Button.Primary" parent="Widget.Material3.Button">
+        <item name="backgroundTint">@color/spotify_green</item>
+        <item name="android:textColor">@android:color/black</item>
+        <item name="android:textStyle">bold</item>
+        <item name="cornerRadius">24dp</item>
+    </style>
+
+    <!-- Branded "Sign in with Google" button: white pill, Google's standard border/text
+         colors, real "G" logo - matches the Google Identity Services button rendered on
+         the web login page, instead of a green tonal button with a placeholder star icon. -->
+    <style name="Widget.Ultrasonic.Button.GoogleSignIn" parent="Widget.Material3.Button.OutlinedButton.Icon">
+        <item name="backgroundTint">@android:color/white</item>
+        <item name="android:textColor">@color/google_button_text</item>
+        <item name="strokeColor">@color/google_button_border</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cornerRadius">24dp</item>
+        <item name="icon">@drawable/ic_google_logo</item>
+        <item name="iconTint">@null</item>
+    </style>
+
+    <!-- Filled, rounded, dark input box matching the web login form's inputs
+         (bg-[#2a2a2a], rounded-lg, focus:border-[#1db954]). -->
+    <style name="Widget.Ultrasonic.TextInputLayout.Filled" parent="Widget.Material3.TextInputLayout.FilledBox">
+        <item name="boxBackgroundColor">@color/spotify_card</item>
+        <item name="boxCornerRadiusTopStart">8dp</item>
+        <item name="boxCornerRadiusTopEnd">8dp</item>
+        <item name="boxCornerRadiusBottomStart">8dp</item>
+        <item name="boxCornerRadiusBottomEnd">8dp</item>
+        <item name="boxStrokeColor">@color/spotify_green</item>
+        <item name="hintTextColor">@color/spotify_text_secondary</item>
+    </style>
+
+    <!-- Applied to the welcome/login dialog only (passed as the MaterialAlertDialogBuilder
+         theme resId) so this styling stays scoped to that one screen instead of every
+         AlertDialog in the app. Mirrors the web login card's bg-[#181818] rounded-2xl panel. -->
+    <style name="ThemeOverlay.Ultrasonic.WelcomeDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorSurface">@color/spotify_light</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.Ultrasonic.WelcomeDialog</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.Ultrasonic.Button.Primary</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/TextAppearance.Ultrasonic.WelcomeDialog.Title</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.Ultrasonic.WelcomeDialog" parent="">
+        <item name="cornerSize">20dp</item>
+    </style>
+
+    <style name="TextAppearance.Ultrasonic.WelcomeDialog.Title" parent="MaterialAlertDialog.Material3.Title.Text">
+        <item name="android:textColor">@color/spotify_text_primary</item>
+        <item name="android:textStyle">bold</item>
+    </style>
 </resources>
 

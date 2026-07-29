@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.36] - 2026-07-29
+
+### Fixed
+- **Manager "Overview" tab crashed on load**: the recent-activity list's `{#each}` block was keyed
+  on `item.file_path`, but `/api/system/activity` never returns that field (only `title`, `artist`,
+  `timestamp`). Every row therefore shared the identical `undefined` key, and Svelte 5 throws a
+  runtime error on duplicate keyed-each keys — crashing the whole Overview tab as soon as there
+  were 2+ recent items (the normal case). Keyed the loop on array index instead, and guarded the
+  filename fallback so it can't throw even if `file_path` is ever absent.
+
 ## [0.0.34] - 2026-07-29
 
 ### Added

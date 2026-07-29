@@ -29,11 +29,13 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
 import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.core.view.MenuProvider
@@ -779,8 +781,31 @@ class NavigationActivity : ScopeActivity() {
                 return@launch
             }
 
-            if (credential !is GoogleIdTokenCredential) return@launch
-            val idToken = credential.idToken
+            // Credential Manager always returns third-party credential types (like Google's)
+            // as a generic CustomCredential over the IPC boundary - it is never delivered as
+            // the concrete GoogleIdTokenCredential subclass, even though that class extends
+            // CustomCredential locally. It must be parsed explicitly via createFrom().
+            val googleIdTokenCredential = if (
+                credential is CustomCredential &&
+                credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+            ) {
+                try {
+                    GoogleIdTokenCredential.createFrom(credential.data)
+                } catch (e: GoogleIdTokenParsingException) {
+                    Timber.e(e, "Failed to parse Google ID token credential")
+                    null
+                }
+            } else {
+                null
+            }
+
+            if (googleIdTokenCredential == null) {
+                Timber.e("Google Sign-In returned an unexpected credential type: ${credential.javaClass.name}")
+                errorText.text = getString(R.string.background_task_network_error)
+                errorText.visibility = View.VISIBLE
+                return@launch
+            }
+            val idToken = googleIdTokenCredential.idToken
 
             progressBar.visibility = View.VISIBLE
             errorText.visibility = View.GONE

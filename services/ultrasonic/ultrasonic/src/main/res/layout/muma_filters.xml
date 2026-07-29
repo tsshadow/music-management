@@ -34,7 +34,7 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/favorite"
                 android:src="@drawable/ic_star_hollow"
-                app:tint="@color/design_default_color_primary_dark" />
+                app:tint="@color/spotify_green" />
 
             <!-- Title -->
             <TextView
@@ -234,7 +234,7 @@
                 android:layout_weight="1"
                 android:layout_margin="4dp"
                 android:background="@drawable/rounded_button"
-                android:backgroundTint="@color/design_default_color_primary_dark"
+                android:backgroundTint="@color/spotify_green"
                 android:text="@string/save_preset" />
 
             <Button
@@ -245,7 +245,7 @@
                 android:layout_weight="1"
                 android:layout_margin="4dp"
                 android:background="@drawable/rounded_button"
-                android:backgroundTint="@color/design_default_color_primary_dark"
+                android:backgroundTint="@color/spotify_green"
                 android:text="@string/search" />
 
             <Button
@@ -256,7 +256,7 @@
                 android:layout_weight="1"
                 android:layout_margin="4dp"
                 android:background="@drawable/rounded_button"
-                android:backgroundTint="@color/design_default_color_primary_dark"
+                android:backgroundTint="@color/spotify_green"
                 android:text="@string/update" />
 
 
@@ -268,7 +268,7 @@
                 android:layout_weight="1"
                 android:layout_margin="4dp"
                 android:background="@drawable/rounded_button"
-                android:backgroundTint="@color/design_default_color_primary_dark"
+                android:backgroundTint="@color/spotify_green"
                 android:text="@string/delete" />
         </LinearLayout>
     </LinearLayout>

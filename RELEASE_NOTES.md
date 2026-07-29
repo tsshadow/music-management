@@ -11,7 +11,7 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
-## Global Version 0.0.26 (2026-07-29)
+## Global Version 0.0.27 (2026-07-29)
 ### 📱 "Inloggen met Google" op het allereerste inlogscherm gaf een netwerkfout
 - De Google-inlogknop op het allereerste welkomstscherm van een nieuwe installatie gaf altijd
   "Er is een netwerkfout opgetreden. Controleer het server adres en probeer het later opnieuw.",

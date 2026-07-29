@@ -11,7 +11,25 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
-## Global Version 0.0.26 (2026-07-29)
+## Global Version 0.0.28 (2026-07-29)
+### 📱 "Geen Google account gevonden" in plaats van een verwarrende netwerkfout
+- Bij het testen in een simulator zonder Google-account gaf de "Inloggen met Google"-knop altijd
+  dezelfde netwerkfoutmelding als bij een echte serverstoring, waardoor het leek of de server niet
+  bereikbaar was.
+- De app herkent nu specifiek het geval dat er geen Google-account op het toestel staat, en toont
+  daarvoor de duidelijke melding "Geen Google-accounts gevonden op dit apparaat." in plaats van de
+  netwerkfout. Het annuleren van het Google-inlogscherm wordt nu ook gewoon stil afgehandeld
+  (geen foutmelding meer).
+- De app logt nu ook een duidelijke waarschuwing als de Google-inlogsleutel (`GOOGLE_WEB_CLIENT_ID`)
+  niet correct is ingesteld in de build, zodat een verkeerde configuratie voortaan direct in de
+  logs zichtbaar is in plaats van alleen als een mislukte inlogpoging - zie
+  `docs/bug-reports/010-google-signin-no-account-generic-error.md`.
+- ⚠️ Let op: als er nog steeds geen Google-account op het testtoestel/de simulator staat, of
+  `GOOGLE_WEB_CLIENT_ID` niet is ingesteld, blijft inloggen met Google zelf onmogelijk — dat zijn
+  omgevings-/apparaatinstellingen die buiten deze code-fix vallen.
+- De app-versie is opgehoogd naar 6.5.7 (237).
+
+## Global Version 0.0.27 (2026-07-29)
 ### 📱 "Inloggen met Google" op het allereerste inlogscherm gaf een netwerkfout
 - De Google-inlogknop op het allereerste welkomstscherm van een nieuwe installatie gaf altijd
   "Er is een netwerkfout opgetreden. Controleer het server adres en probeer het later opnieuw.",

@@ -30,6 +30,8 @@ import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import androidx.core.content.ContextCompat
@@ -730,6 +732,9 @@ class NavigationActivity : ScopeActivity() {
         passwordField: TextInputEditText,
         googleSignInButton: MaterialButton
     ) {
+        if (BuildConfig.GOOGLE_WEB_CLIENT_ID == "placeholder-id") {
+            Timber.e("GOOGLE_WEB_CLIENT_ID is not configured! Google Sign-In will fail.")
+        }
         val targetServer = ServerSettingsModel.STATIC_SERVERS.find { it.id == 0 }
         if (targetServer == null) {
             errorText.text = getString(R.string.background_task_network_error)
@@ -757,6 +762,13 @@ class NavigationActivity : ScopeActivity() {
         lifecycleScope.launch {
             val credential = try {
                 credentialManager.getCredential(this@NavigationActivity, request).credential
+            } catch (e: GetCredentialCancellationException) {
+                return@launch
+            } catch (e: NoCredentialException) {
+                Timber.e(e, "Google Sign-In failed: No credentials available")
+                errorText.text = getString(R.string.google_signin_no_accounts)
+                errorText.visibility = View.VISIBLE
+                return@launch
             } catch (e: Exception) {
                 Timber.e(e, "Google Sign-In failed")
                 errorText.text = getString(R.string.background_task_network_error)

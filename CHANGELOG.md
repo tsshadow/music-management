@@ -7,7 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.0.26] - 2026-07-29
+## [0.0.28] - 2026-07-29
+
+### Fixed
+- **Ultrasonic Google Sign-In showed a generic network error when no Google account exists on
+  the device (`bug 010`)**: `CredentialManager.getCredential()` throws typed exceptions for
+  distinct failure modes, but `NavigationActivity.performWelcomeGoogleSignIn()` and
+  `EditServerFragment.startGoogleSignIn()` only had a catch-all `catch (e: Exception)`, so a
+  device with no Google account (e.g. an emulator used for testing) always showed the same
+  "network error" message as a real backend outage. Added explicit `catch` branches for
+  `GetCredentialCancellationException` (silently ignored — user-initiated cancellation) and
+  `NoCredentialException` (new, specific `google_signin_no_accounts` string: "No Google accounts
+  found on this device."), both ordered before the generic fallback. Also logs a `Timber.e`
+  warning in both call sites whenever `BuildConfig.GOOGLE_WEB_CLIENT_ID` is still the
+  `"placeholder-id"` default, making a misconfigured build immediately visible in the logs.
+- Bumped Ultrasonic's own `versionCode`/`versionName` (`236`/`6.5.6` -> `237`/`6.5.7`).
+
+## [0.0.27] - 2026-07-29
 
 ### Fixed
 - **Ultrasonic welcome-screen "Sign in with Google" always failed with a network error

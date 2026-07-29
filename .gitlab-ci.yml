@@ -208,3 +208,13 @@ release:tag:
     - if: '$CI_COMMIT_BRANCH == "master"'
   script:
     - ./scripts/ci/create-release-tags.sh
+
+release:back-merge-develop:
+  stage: deploy
+  interruptible: false
+  needs:
+    - release:tag
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+  script:
+    - ./scripts/ci/back-merge-develop.sh

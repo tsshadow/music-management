@@ -179,6 +179,9 @@ Use `scripts/set_user_password.sh` to change a user's password directly from the
 ./scripts/set_user_password.sh <username>
 ```
 
+### 4. Log Files
+Log files should me located in the log directory.
+If for dome reason a log file is not saved at that location, and you are done with it, move it to the log directory
 ---
 
 ## 🔌 API Specification

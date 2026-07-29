@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.26] - 2026-07-29
+
+### Fixed
+- **Ultrasonic welcome-screen "Sign in with Google" always failed with a network error
+  (`bug 009`)**: the button added in `0.0.25` reused the app's shared, Koin-injected
+  `SubsonicAPIClient.mumaApi`, which on a fresh install (before any server had been configured)
+  was still built against the offline/`localhost` fallback server, so the Google auth request
+  never reached the real backend. `NavigationActivity.performWelcomeGoogleSignIn()` now builds a
+  dedicated Muma API client targeting the fixed production server address directly; extracted the
+  Muma base-URL derivation into a reusable `SubsonicAPIClient.mumaBaseUrlFor()` so both call sites
+  stay consistent.
+- Bumped Ultrasonic's own `versionCode`/`versionName` (`235`/`6.5.5` -> `236`/`6.5.6`).
+
 ## [0.0.25] - 2026-07-28
 
 > **Two Ultrasonic (Android) fixes, requested together: the default server was still pointing at

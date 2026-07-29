@@ -11,6 +11,17 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.26 (2026-07-29)
+### 📱 "Inloggen met Google" op het allereerste inlogscherm gaf een netwerkfout
+- De Google-inlogknop op het allereerste welkomstscherm van een nieuwe installatie gaf altijd
+  "Er is een netwerkfout opgetreden. Controleer het server adres en probeer het later opnieuw.",
+  terwijl dezelfde knop verderop in de app (na het instellen van een server) wel gewoon werkte.
+- Oorzaak: op dat allereerste scherm was er nog geen server ingesteld, waardoor de aanvraag
+  per ongeluk naar een lokale testadres werd gestuurd in plaats van naar de echte server.
+- Dit scherm stuurt de Google-inlogaanvraag nu altijd naar de juiste, vaste productieserver, zodat
+  inloggen met Google al bij de allereerste keer meteen werkt.
+- De app-versie is opgehoogd naar 6.5.6 (236).
+
 ## Global Version 0.0.25 (2026-07-28)
 ### 📱 Standaard server aangepast + Google-knop nu al bij de allereerste keer inloggen
 - De vaste server in de telefoon-app is nu `music.example.com`; de losse "alpha"-testserver

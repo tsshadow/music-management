@@ -11,6 +11,18 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.37 (2026-07-29)
+### 🛠️ Twee achtergrondtools op de server crashten steeds bij het opstarten
+- Bij een controle van de productieomgeving bleken de `genre-processor`- en
+  `muma-soundcloud-fetcher`-containers steeds direct af te breken met een foutmelding, terwijl al
+  het andere (afspelen, downloaden, importeren, taggen) gewoon goed draaide.
+- Oorzaak: een eerdere opschoning van de code had een instellingenbestand verplaatst/hernoemd, maar
+  deze twee losstaande hulpscripts waren daarbij per ongeluk niet meegenomen, waardoor ze naar een
+  bestand verwezen dat niet meer bestond.
+- Beide scripts zijn hersteld zodat ze weer normaal opstarten; er is ook een automatische test
+  toegevoegd zodat een soortgelijke fout voortaan meteen bij het bouwen wordt opgemerkt in plaats
+  van pas op de server.
+
 ## Global Version 0.0.36 (2026-07-29)
 ### 🖥️ Beheer: Overzicht-tabblad crashte
 - Het "Overview"-tabblad in het beheerpaneel gaf een foutmelding zodra er meerdere recente

@@ -7,7 +7,7 @@ import sys
 sys.path.append(os.getcwd())
 
 try:
-    from services.common.settings import Settings
+    from services.common.config_store import ConfigStore as Settings
     Settings() # This calls load_dotenv()
     # Force reload environment variables just in case
     from dotenv import load_dotenv
@@ -121,7 +121,7 @@ def process_genres(json_file=None, dry_run=True, interactive=False):
         ignored_helper = MockHelper('rules_ignored_genres')
         backlog_helper = MockHelper('rules_genre_backlog')
     else:
-        from services.common.api.db_init import ensure_tables_exist
+        from services.common.db_init import ensure_tables_exist
         ensure_tables_exist()
         
         from services.common.Helpers.FilterTableHelper import FilterTableHelper

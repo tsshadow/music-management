@@ -9,7 +9,7 @@ import time
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
-from services.common.settings import Settings
+from services.common.config_store import ConfigStore as Settings
 from services.tagger.Song.SoundcloudSong import SoundcloudSong
 from services.common.Helpers.Cache import databaseHelpers
 from services.common.Helpers.FilterTableHelper import FilterTableHelper

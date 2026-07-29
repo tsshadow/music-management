@@ -11,6 +11,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.39 (2026-07-29)
+### 🛠️ Kleine interne verbetering aan het releaseproces
+- Een van de automatische opruimstappen na een release faalde af en toe met een technische
+  foutmelding, terwijl er in werkelijkheid niets mis was — GitLab had alleen nog even tijd nodig
+  om te controleren of de wijziging kon worden samengevoegd.
+- Het script wacht nu even en probeert het opnieuw voordat het opgeeft, zodat deze stap
+  betrouwbaar slaagt. Geen zichtbare wijziging voor gebruikers.
+
 ## Global Version 0.0.38 (2026-07-29)
 ### 🔁 De vorige fix werd per ongeluk teruggedraaid door een oude, vergeten release
 - Na het uitrollen van de vorige fix (versie 0.0.37) stond er even later toch weer de oude,

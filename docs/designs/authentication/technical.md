@@ -60,11 +60,16 @@ populates `credentials` with `{username: user.username, password: api_key}`, rel
 has no username/password to forward.
 
 **Ultrasonic** also supports native Google Sign-In (`EditServerFragment.startGoogleSignIn()`, Android
-Credential Manager + `androidx.credentials`/`googleid`), and is subject to the exact same requirement: it
-reuses `GOOGLE_CLIENT_ID`/`VITE_GOOGLE_CLIENT_ID`'s value as the Credential Manager `serverClientId`
+Credential Manager + `androidx.credentials`/`googleid`, via `GetSignInWithGoogleOption`). It reuses
+`GOOGLE_CLIENT_ID`/`VITE_GOOGLE_CLIENT_ID`'s value as the Credential Manager `serverClientId`
 (`GOOGLE_WEB_CLIENT_ID` build config field — see `docs/deployment.md`), so the resulting Google ID token has
-the same audience the backend already verifies against, and no separate Android OAuth client/SHA-1
-registration is needed. `performMumaGoogleAuth()` mirrors `handleGoogleResponse()` exactly: on a `status:
+the same audience the backend already verifies against. Unlike the web frontend, though, Ultrasonic **does**
+need a separate Android-type OAuth client (package name + signing certificate SHA-1) registered in the same
+Google Cloud project — Google's Credential Manager backend refuses to issue a credential to a native Android
+app otherwise, even though that Android client ID is never referenced in code (see bug report
+[011](../../bug-reports/011-google-signin-no-credential-real-device.md) and `docs/deployment.md`'s "Google
+Sign-In on Ultrasonic (Android)" section for the two required client registrations, one per signing key).
+`performMumaGoogleAuth()` mirrors `handleGoogleResponse()` exactly: on a `status:
 "ok"` response, alongside storing the MuMa access/refresh token, it also writes `result.user.username`/
 `api_key` into the server's Subsonic username/password fields (`userNameEditText`/`passwordEditText`/
 `ServerSetting.userName`/`.password`), so streaming/library calls work immediately after a Google sign-in,

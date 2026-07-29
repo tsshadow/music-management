@@ -20,7 +20,7 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.NoCredentialException
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -586,9 +586,13 @@ class EditServerFragment : Fragment() {
             Timber.e("GOOGLE_WEB_CLIENT_ID is not configured! Google Sign-In will fail.")
         }
         val credentialManager = CredentialManager.create(requireContext())
-        val googleIdTokenRequest = GetGoogleIdOption.Builder()
-            .setFilterByAuthorizedAccounts(false)
-            .setServerClientId(org.moire.ultrasonic.BuildConfig.GOOGLE_WEB_CLIENT_ID)
+        // GetGoogleIdOption (even with setFilterByAuthorizedAccounts(false)) only reliably
+        // surfaces a credential for accounts that have already signed into this app before -
+        // for a first-time sign-in it throws NoCredentialException regardless of the device
+        // having a real, usable Google account. GetSignInWithGoogleOption is Google's dedicated
+        // option for this "not yet authorized" case and always shows the account chooser.
+        val googleIdTokenRequest = GetSignInWithGoogleOption
+            .Builder(org.moire.ultrasonic.BuildConfig.GOOGLE_WEB_CLIENT_ID)
             .build()
 
         val request = GetCredentialRequest.Builder()

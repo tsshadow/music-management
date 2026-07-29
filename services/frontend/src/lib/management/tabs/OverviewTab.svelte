@@ -80,10 +80,10 @@
       </h3>
       <div class="max-h-[300px] overflow-y-auto">
         <ul class="divide-y divide-spotify-gray divide-opacity-30">
-          {#each activity.recent_added.slice(0, 5) as item (item.file_path)}
+          {#each activity.recent_added.slice(0, 5) as item, i (i)}
             <li class="p-4 hover:bg-white hover:bg-opacity-5 flex justify-between items-center gap-4">
               <div class="truncate">
-                <div class="font-bold text-sm truncate">{item.title || item.file_path.split('/').pop()}</div>
+                <div class="font-bold text-sm truncate">{item.title || (item.file_path ? item.file_path.split('/').pop() : 'Onbekend')}</div>
                 <div class="text-xs text-spotify-lightgray truncate">{item.artist || item.source}</div>
               </div>
               <div class="text-[10px] text-spotify-lightgray whitespace-nowrap text-right">

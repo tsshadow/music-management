@@ -1,3 +1,10 @@
+## [6.5.14] - 2026-07-30
+### Added
+- **Crashes tijdens achtergrondafspelen worden nu gemeld**: crashte de app terwijl hij op de achtergrond speelde, dan bleef daar tot nu toe niets van over. De app houdt nu een klein logboek bij en merkt bij de volgende start dat hij stilletjes is afgeschoten, waarna hij het logboek en de foutmelding als één rapport doorstuurt.
+
+### Changed
+- **Eenvoudiger navigatie**: het uitschuifmenu aan de zijkant is weg; die items zitten nu in het menu rechtsboven. Onderin staat een Favorieten-tab in plaats van Downloads, en Bladwijzers bereik je vanaf het Afspeellijsten-scherm.
+
 ## [6.5.2-232] - 2026-07-16
 ### Fixed
 - **Update Checker**: Added `u=guest` and `p=guest` credentials to APK download URL to prevent access errors.

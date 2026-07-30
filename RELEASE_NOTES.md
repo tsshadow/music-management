@@ -11,6 +11,33 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.45 (2026-07-30)
+### 🏷️ Labels zijn nu een eigen manier om je bibliotheek te doorzoeken
+- Er is een Label-tab bijgekomen, naast artiesten en genres. Je vindt hem in de zijbalk en op het
+  dashboard.
+- De zoekbalk zoekt voortaan ook op labels, en labeltreffers verschijnen gewoon tussen je
+  zoekresultaten.
+- De mobiele apps kunnen dezelfde labelgegevens opvragen, dus dit blijft niet beperkt tot de webUI.
+
+### 📱 Ultrasonic stuurt voortaan een crashrapport na een crash tijdens achtergrondafspelen
+- Crashte de app terwijl hij op de achtergrond muziek speelde, dan was er tot nu toe niets terug te
+  vinden — de app was simpelweg weg. Dat maakte zulke crashes vrijwel niet te onderzoeken.
+- De app houdt nu doorlopend een klein logboek bij en onthoudt of hij netjes is afgesloten. Wordt hij
+  door het systeem stilletjes afgeschoten, dan merkt hij dat bij de volgende start en stuurt hij het
+  logboek plus de foutmelding als één rapport door.
+
+### 🧭 Eenvoudiger navigatie in de Ultrasonic-app
+- Het uitschuifmenu aan de zijkant is verdwenen. Alles wat erin stond zit nu in het menu rechtsboven
+  in de balk.
+- Onderin staat nu een Favorieten-tab. Downloads is daar weggehaald.
+- Bladwijzers zijn voortaan bereikbaar vanaf het Afspeellijsten-scherm.
+
+### 🔧 Testpijplijn liet releases ten onrechte falen
+- Draaiden er twee pijplijnen tegelijk, dan sloopten hun browsertests elkaar omdat ze dezelfde
+  netwerkpoort claimden. Dat liet werk stranden dat inhoudelijk prima in orde was, waaronder de
+  labelfunctie en de crashrapportage hierboven.
+- Elke testrun kiest nu zijn eigen vrije poort, dus gelijktijdige pijplijnen storen elkaar niet meer.
+
 ## Global Version 0.0.44 (2026-07-30)
 ### 🔧 Officiële Ultrasonic-release werd soms ongemerkt overgeslagen in het releaseproces
 - Een release-branch die geen bestanden binnen de Ultrasonic-app zelf wijzigde, sloeg de officiële,

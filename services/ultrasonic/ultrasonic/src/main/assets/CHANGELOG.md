@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.14] - 2026-07-30
+
+### Added
+- **Crash reporting for background playback crashes**: a crash while the playback service was in the
+  background previously left nothing behind — the process was simply gone, so the crash could not be
+  investigated. The app now keeps an always-on, disk-backed ring buffer of recent log output and
+  marks clean playback-service shutdowns, so a silent kill by the OS can be distinguished from a
+  normal stop. On the next start a pending crash is detected, the stacktrace and ring buffer are
+  combined into a single report, and it is uploaded via the Muma API.
+
+### Changed
+- **Navigation simplified**: the navigation drawer has been removed and its items moved into the
+  toolbar overflow menu. The bottom navigation gained a Favorieten tab and no longer carries
+  Downloads, and Bookmarks is now reachable from the Playlists screen.
+
+### Fixed
+- **`CachedMusicService` did not implement `uploadCrashReport()`**, which broke `compileDebugKotlin`
+  once crash reporting was added to the `MusicService` interface. Crash reports are not cacheable, so
+  the decorator delegates straight through to the wrapped service.
+
 ## [6.5.11] - 2026-07-29
 
 ### Changed

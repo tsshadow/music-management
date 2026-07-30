@@ -247,3 +247,8 @@ rule 11).
 ## Production
 
 Production info can be found at .production
+
+Secrets not already in `.production` (or anything else in password manager) can be pulled via
+`scripts/vw.sh` — a wrapper around the `bw` CLI. It needs a one-time, human-only setup (see the
+script's header comment); an agent should never create or populate that local credentials file
+itself.

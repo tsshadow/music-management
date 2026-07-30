@@ -20,13 +20,27 @@
             a:layout_height="?attr/actionBarSize"
             a:background="@color/spotify_black" />
 
+        <TextView
+            a:id="@+id/offline_mode_banner"
+            a:layout_width="match_parent"
+            a:layout_height="wrap_content"
+            a:layout_below="@+id/toolbar"
+            a:background="@color/status_info_bg"
+            a:textColor="@color/status_info_text"
+            a:padding="8dp"
+            a:gravity="center"
+            a:textStyle="bold"
+            a:textAppearance="?attr/textAppearanceBodySmall"
+            a:text="@string/offline_mode_banner"
+            a:visibility="gone" />
+
         <androidx.fragment.app.FragmentContainerView
             a:id="@+id/nav_host_fragment"
             a:name="androidx.navigation.fragment.NavHostFragment"
             a:layout_width="match_parent"
             a:layout_height="match_parent"
             a:layout_above="@+id/now_playing_fragment"
-            a:layout_below="@+id/toolbar"
+            a:layout_below="@+id/offline_mode_banner"
             app:defaultNavHost="true"
             app:navGraph="@navigation/navigation_graph" />
 

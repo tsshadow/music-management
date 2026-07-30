@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.43] - 2026-07-30
+
+### Added
+- **Ultrasonic welcome dialog is now full-page, with a secondary "skip login" action**: previously,
+  if both Google Sign-In and manual username/password login failed (e.g. server down, misconfigured
+  Google OAuth client), the welcome dialog (`NavigationActivity.showWelcomeDialog()`) had no way to
+  dismiss without a successful login (`setCancelable(false)`, no close affordance) - a hard lockout.
+  Added a small, de-emphasized, confirmation-gated close ("X") button that switches to the app's
+  existing offline mode (`ActiveServerProvider.OFFLINE_DB_ID`) instead of writing any credentials,
+  so the same dialog naturally reappears on the next app start to try again. Also added an
+  always-visible connectivity status line at the bottom of the dialog (reachable/unreachable/
+  checking, via the existing unauthenticated `isServerReachable()` probe from `0.0.40`) so it's
+  clear before even submitting anything whether a problem would be the server or the login itself.
+- **App-wide offline-mode banner**: whenever the active server is the offline pseudo-server -
+  whether reached via the new skip button or the existing manual "Offline" entry in the server
+  selector - a banner now appears below the toolbar ("Offline mode — limited functionality. Tap to
+  log in.") so degraded functionality is never silent. Tapping it reopens the welcome dialog.
+
+### Fixed
+- **Google Sign-In failures were hard to diagnose remotely**: `performWelcomeGoogleSignIn()` now
+  logs the concrete exception class for Credential Manager failures and the HTTP status/body for a
+  failed `/api/auth/google` call, instead of only a generic message. Investigated a report of
+  Google Sign-In failing again on the release APK after previously working
+  (`docs/bug-reports/019-google-signin-release-regression-external.md`) - no application code
+  regression was found (every Google Sign-In code path is unchanged since `0.0.40`, and every prior
+  Google Sign-In bug, 009-013, remains fixed); the likely cause is external (Google Cloud Console
+  OAuth client registration or a Google Play Services behavior change on the affected device),
+  which this release cannot fix directly but is now easier to confirm from device logs.
+
 ## [0.0.42] - 2026-07-30
 
 ### Fixed

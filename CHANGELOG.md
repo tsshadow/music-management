@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.44] - 2026-07-30
+
+### Fixed
+- **`ultrasonic:build-release` was silently skippable on `release/*`**: the job had a
+  `changes: - services/ultrasonic/**/*` filter, so a release branch that didn't happen to touch
+  `services/ultrasonic/` would skip the official, signed Ultrasonic build+upload entirely — contrary
+  to `docs/release-management.md`'s job-to-branch mapping, where `ultrasonic:build-release` is meant
+  to run unconditionally on `release/*` (same as `release:build-images` and `deploy:prod`, neither of
+  which has a `changes` filter). The optional, manual debug build on merge requests
+  (`ultrasonic:build-debug`) was already correct and is unchanged. Removed the `changes` filter so
+  the official build+upload always runs on `release/*` when the required secrets are present.
+
 ## [0.0.43] - 2026-07-30
 
 ### Added

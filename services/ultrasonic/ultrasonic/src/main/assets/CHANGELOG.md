@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Rebuilt home screen**: a shortcuts grid of the eight items you most recently opened (albums,
+  artists, labels, static playlists and dynamic playlists), followed by a "Recently updated" and a
+  "Recently added" carousel covering artists, labels and albums. Every section is drawn by one
+  reusable card component built on a single card model, so new sections need no new UI. Shortcuts
+  are stored whole, so the grid renders instantly and offline instead of refetching each item.
+- **"Separate home history per mode" setting**: controls whether the shortcuts grid keeps separate
+  histories for songs and livesets. On by default.
+
+### Removed
+- **Home screen filter chips** (Recent / Favorites / New / Genres / Playlists) and the per-type
+  "recently played" lists behind them. Genres remain browsable elsewhere in the app.
+
 ## [6.5.14] - 2026-07-30
 
 ### Added

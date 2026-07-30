@@ -16,6 +16,7 @@ package org.moire.ultrasonic.api.subsonic.models
 enum class AlbumListType(val typeName: String) {
     RANDOM("random"),
     NEWEST("newest"),
+    UPDATED("updated"),
     HIGHEST("highest"),
     FREQUENT("frequent"),
     RECENT("recent"),
@@ -33,6 +34,7 @@ enum class AlbumListType(val typeName: String) {
         fun fromName(typeName: String): AlbumListType = when (typeName) {
             in RANDOM.typeName -> RANDOM
             in NEWEST.typeName -> NEWEST
+            in UPDATED.typeName -> UPDATED
             in HIGHEST.typeName -> HIGHEST
             in FREQUENT.typeName -> FREQUENT
             in RECENT.typeName -> RECENT

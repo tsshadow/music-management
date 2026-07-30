@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Rebuilt Ultrasonic home screen**: the Android home screen is now a Spotify-style shortcuts grid
+  of the eight items you most recently opened (albums, artists, labels, static playlists and
+  dynamic playlists), followed by a "Recently updated" and a "Recently added" carousel covering
+  artists, labels and albums. All sections render from one generic card model and one reusable card
+  component, so future sections need no new UI. Shortcuts are stored whole, so the grid renders
+  instantly and offline instead of refetching every item on each visit. Adds a "Separate home
+  history per mode" setting that controls whether songs and livesets keep separate histories.
+- **LMS: `getLabelList` endpoint and label recency sorting**: labels can now be ordered by how
+  recently their music was added to or rewritten in the library (`Label::findIds` with the new
+  `AddedDesc`/`LastWrittenDesc` sort methods). `getAlbumList`/`getAlbumList2` gained a matching
+  `type=updated`.
+
+### Removed
+- **Ultrasonic home screen filter chips** (Recent / Favorites / New / Genres / Playlists) and the
+  old per-type "recently played" lists they drove. Genres remain browsable elsewhere in the app.
+
 ## [0.0.45] - 2026-07-30
 
 ### Added

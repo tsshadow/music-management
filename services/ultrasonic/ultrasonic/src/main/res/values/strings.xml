@@ -204,6 +204,12 @@
     <string name="select_year.empty">No years found</string>
     <string name="select_playlist.empty">No saved playlists on server</string>
     <string name="settings.appearance_title">Appearance</string>
+    <string name="settings.separate_home_history_title">Separate home history per mode</string>
+    <string name="settings.separate_home_history_summary">Keep recently opened items apart for songs and livesets</string>
+    <string name="home.shortcuts">Recently played</string>
+    <string name="home.recently_updated">Recently updated</string>
+    <string name="home.recently_added">Recently added</string>
+    <string name="home.card_label">Label</string>
     <string name="settings.increment_time_0">Disabled</string>
     <string name="settings.increment_time_1">1 second</string>
     <string name="settings.increment_time_10">10 seconds</string>

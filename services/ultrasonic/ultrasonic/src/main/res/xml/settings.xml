@@ -26,6 +26,12 @@
             app:iconSpaceReserved="false"/>
         <CheckBoxPreference
             a:defaultValue="true"
+            a:key="@string/setting_key.separate_home_history"
+            a:summary="@string/settings.separate_home_history_summary"
+            a:title="@string/settings.separate_home_history_title"
+            app:iconSpaceReserved="false"/>
+        <CheckBoxPreference
+            a:defaultValue="true"
             a:key="@string/setting_key.server_scaling"
             a:summary="@string/settings.server_scaling_summary"
             a:title="@string/settings.server_scaling_title"

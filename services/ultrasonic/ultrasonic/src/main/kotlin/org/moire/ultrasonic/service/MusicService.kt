@@ -16,6 +16,7 @@ import org.moire.ultrasonic.domain.ChatMessage
 import org.moire.ultrasonic.domain.Genre
 import org.moire.ultrasonic.domain.Index
 import org.moire.ultrasonic.domain.JukeboxStatus
+import org.moire.ultrasonic.domain.Label
 import org.moire.ultrasonic.domain.Lineup
 import org.moire.ultrasonic.domain.Lyrics
 import org.moire.ultrasonic.domain.Mood
@@ -72,6 +73,19 @@ interface MusicService {
 
     @Throws(Exception::class)
     fun getArtists(refresh: Boolean, offset: Int? = null, count: Int? = null): List<Artist>
+
+    /**
+     * Artists ordered by library activity. [type] is "newest" (recently added) or
+     * "updated" (recently rewritten metadata).
+     */
+    @Throws(Exception::class)
+    fun getArtistList(type: String, size: Int): List<Artist>
+
+    /**
+     * Record labels ordered by library activity, using the same [type] values as [getArtistList].
+     */
+    @Throws(Exception::class)
+    fun getLabelList(type: String, size: Int): List<Label>
 
     @Throws(Exception::class)
     fun getArtistInfo(id: String): Artist?

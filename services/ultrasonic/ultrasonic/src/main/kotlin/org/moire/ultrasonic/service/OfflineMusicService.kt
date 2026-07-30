@@ -34,6 +34,7 @@ import org.moire.ultrasonic.domain.ChatMessage
 import org.moire.ultrasonic.domain.Genre
 import org.moire.ultrasonic.domain.Index
 import org.moire.ultrasonic.domain.JukeboxStatus
+import org.moire.ultrasonic.domain.Label
 import org.moire.ultrasonic.domain.Lineup
 import org.moire.ultrasonic.domain.Lyrics
 import org.moire.ultrasonic.domain.Mood
@@ -141,6 +142,11 @@ class OfflineMusicService :
 
     @Throws(OfflineException::class)
     override fun getArtists(refresh: Boolean, offset: Int?, count: Int?): List<Artist> = cachedArtists.get()
+
+    // Library activity ordering is a server-side concept; there is nothing meaningful to show offline.
+    override fun getArtistList(type: String, size: Int): List<Artist> = emptyList()
+
+    override fun getLabelList(type: String, size: Int): List<Label> = emptyList()
 
     @Throws(OfflineException::class)
     override fun getArtistInfo(id: String): Artist? = throw OfflineException("Artist info not available in offline mode")

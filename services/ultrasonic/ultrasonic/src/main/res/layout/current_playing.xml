@@ -34,6 +34,7 @@
                 a:id="@+id/album_art_inside"
                 a:layout_width="fill_parent"
                 a:layout_height="fill_parent"
+                a:elevation="13dp"
                 a:gravity="bottom"
                 a:orientation="vertical" >
 

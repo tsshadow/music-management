@@ -11,6 +11,21 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.43 (2026-07-30)
+### 🔓 Inloggen in de Ultrasonic-app kan nu nooit meer helemaal vastlopen
+- Als inloggen (met Google of met gebruikersnaam/wachtwoord) niet lukte, kon je eerder nergens
+  anders heen: het inlogscherm liet zich niet sluiten zonder geslaagde login.
+- Het inlogscherm is nu een volledig scherm geworden, laat onderin meteen zien of de server
+  bereikbaar is, en heeft nu een klein "overslaan"-knopje rechtsboven waarmee je (na een
+  bevestiging) verder kunt in een beperkte offline modus - met eerder gedownloade muziek. De
+  volgende keer dat je de app opent, wordt gewoon weer gevraagd om in te loggen.
+- Zit je in offline modus, dan zie je dat nu altijd duidelijk bovenin de app, met een knop om
+  direct weer in te loggen.
+- We hebben ook uitgezocht waarom inloggen met Google recent weer misging: in de code zelf is geen
+  fout gevonden (alles wat eerder al gerepareerd was, werkt nog steeds correct) - de oorzaak lijkt
+  buiten de app te liggen (bijvoorbeeld bij Google zelf). De app legt bij een volgende mislukking nu
+  wel veel specifiekere details vast, zodat dit sneller te achterhalen is.
+
 ## Global Version 0.0.42 (2026-07-30)
 ### 🔁 Vorige fix (0.0.41) werd niet daadwerkelijk uitgerold naar productie
 - Door een race condition in het releaseproces zelf werd de vorige versie (met de fix voor zwarte

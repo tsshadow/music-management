@@ -31,8 +31,8 @@ def get_config(_auth: dict=Depends(verify_api_key)):
 @router.post('/')
 def update_config(payload: ConfigUpdatePayload, _auth: dict=Depends(verify_api_key)):
     try:
-        config_store.update_many(payload.updates)
-        return {'status': 'success'}
+        updated = config_store.update(payload.updates)
+        return {'status': 'success', 'config': updated}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

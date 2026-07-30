@@ -195,8 +195,6 @@ ultrasonic:build-release:
     - release:version-check
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^release\// && $APK_HOSTER_URL && $SIGNING_STORE_FILE'
-      changes:
-        - services/ultrasonic/**/*
   script:
     - ./scripts/ci/ultrasonic-build-upload.sh release
 

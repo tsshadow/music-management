@@ -11,6 +11,15 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.44 (2026-07-30)
+### 🔧 Officiële Ultrasonic-release werd soms ongemerkt overgeslagen in het releaseproces
+- Een release-branch die geen bestanden binnen de Ultrasonic-app zelf wijzigde, sloeg de officiële,
+  ondertekende Ultrasonic-build+upload stilzwijgend over — terwijl een release altijd de officiële
+  build hoort te bouwen en uit te rollen.
+- Dit is nu gecorrigeerd: elke release bouwt en publiceert voortaan altijd de officiële Ultrasonic-app.
+  Het optioneel, handmatig bouwen van een test(debug)-versie vanuit een merge request blijft
+  ongewijzigd mogelijk.
+
 ## Global Version 0.0.43 (2026-07-30)
 ### 🔓 Inloggen in de Ultrasonic-app kan nu nooit meer helemaal vastlopen
 - Als inloggen (met Google of met gebruikersnaam/wachtwoord) niet lukte, kon je eerder nergens

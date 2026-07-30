@@ -12,6 +12,7 @@
     <string name="button_bar.browse">Mediabibliotheek</string>
     <string name="button_bar.chat">Chat</string>
     <string name="button_bar.now_playing">Nu aan het afspelen</string>
+    <string name="filter.favorites">Favorieten</string>
     <string name="buttons.play">Afspelen</string>
     <string name="buttons.pause">Pauzeren</string>
     <string name="buttons.repeat">Herhalen</string>

@@ -36,6 +36,7 @@ import org.koin.core.component.KoinScopeComponent
 import org.koin.core.component.inject
 import org.moire.ultrasonic.NavigationGraphDirections
 import org.moire.ultrasonic.R
+import org.moire.ultrasonic.data.ActiveServerProvider
 import org.moire.ultrasonic.data.ActiveServerProvider.Companion.isOffline
 import org.moire.ultrasonic.domain.Playlist
 import org.moire.ultrasonic.fragment.FragmentTitle.setTitle
@@ -64,6 +65,7 @@ class PlaylistsFragment :
     private var playlistsListView: ListView? = null
     private var emptyTextView: View? = null
     private var playlistAdapter: ArrayAdapter<Playlist>? = null
+    private val activeServerProvider: ActiveServerProvider by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -81,6 +83,18 @@ class PlaylistsFragment :
         playlistsListView = view.findViewById(R.id.select_playlist_list)
         swipeRefresh?.setOnRefreshListener { load(true) }
         emptyTextView = view.findViewById(R.id.select_playlist_empty)
+
+        val bookmarksRow: View = view.findViewById(R.id.select_playlist_bookmarks_row)
+        bookmarksRow.visibility =
+            if (activeServerProvider.getActiveServer().bookmarkSupport != false) {
+                View.VISIBLE
+            } else {
+                View.GONE
+            }
+        bookmarksRow.setOnClickListener {
+            findNavController().navigate(NavigationGraphDirections.toBookmarks())
+        }
+
         playlistsListView?.setOnItemClickListener { parent, _, position, _ ->
             val (id, name) = parent.getItemAtPosition(position) as Playlist
 

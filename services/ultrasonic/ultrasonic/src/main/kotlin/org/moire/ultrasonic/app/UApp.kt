@@ -19,6 +19,7 @@ import org.moire.ultrasonic.di.baseNetworkModule
 import org.moire.ultrasonic.di.mediaPlayerModule
 import org.moire.ultrasonic.di.musicServiceModule
 import org.moire.ultrasonic.log.FileLoggerTree
+import org.moire.ultrasonic.log.RingBufferLoggerTree
 import org.moire.ultrasonic.log.TimberKoinLogger
 import org.moire.ultrasonic.util.FileUtil
 import org.moire.ultrasonic.util.Settings
@@ -54,6 +55,8 @@ class UApp : Application() {
         if (BuildConfig.DEBUG) {
             Timber.plant(DebugTree())
         }
+
+        RingBufferLoggerTree.plantToTimberForest()
 
         Timber.d("onCreate called")
 

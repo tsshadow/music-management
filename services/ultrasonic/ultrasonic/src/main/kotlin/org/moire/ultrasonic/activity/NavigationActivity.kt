@@ -77,6 +77,7 @@ import org.moire.ultrasonic.api.subsonic.SubsonicAPIClient
 import org.moire.ultrasonic.app.UApp
 import org.moire.ultrasonic.data.ActiveServerProvider
 import org.moire.ultrasonic.data.ServerSetting
+import org.moire.ultrasonic.diagnostics.CrashReportManager
 import org.moire.ultrasonic.model.ServerSettingsModel
 import org.moire.ultrasonic.provider.SearchSuggestionProvider
 import org.moire.ultrasonic.service.MediaPlayerLifecycleSupport
@@ -137,6 +138,7 @@ class NavigationActivity : ScopeActivity() {
         }
 
         setUncaughtExceptionHandler()
+        CrashReportManager.maybeHandlePendingReport(this)
         Util.applyTheme(this)
 
         // Ensure servers are configured early if none exist

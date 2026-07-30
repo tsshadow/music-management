@@ -18,7 +18,9 @@ import org.moire.ultrasonic.di.applicationModule
 import org.moire.ultrasonic.di.baseNetworkModule
 import org.moire.ultrasonic.di.mediaPlayerModule
 import org.moire.ultrasonic.di.musicServiceModule
+import org.moire.ultrasonic.diagnostics.CrashReportManager
 import org.moire.ultrasonic.log.FileLoggerTree
+import org.moire.ultrasonic.log.RingBufferLoggerTree
 import org.moire.ultrasonic.log.TimberKoinLogger
 import org.moire.ultrasonic.util.FileUtil
 import org.moire.ultrasonic.util.Settings
@@ -55,7 +57,11 @@ class UApp : Application() {
             Timber.plant(DebugTree())
         }
 
+        RingBufferLoggerTree.plantToTimberForest()
+
         Timber.d("onCreate called")
+
+        CrashReportManager.detectAndArmPendingReport()
 
         // In general we should not access the settings from the main thread to avoid blocking...
         ioScope.launch {

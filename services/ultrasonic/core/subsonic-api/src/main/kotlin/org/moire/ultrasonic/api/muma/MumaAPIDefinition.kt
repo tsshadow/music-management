@@ -59,6 +59,11 @@ interface MumaAPIDefinition {
         @retrofit2.http.Path("app_id") appId: String,
         @Body settings: MumaSettingsRequest
     ): Call<MumaStatusResponse>
+
+    @POST("api/diagnostics/crash-reports")
+    fun uploadCrashReport(
+        @Body request: CrashReportRequest
+    ): Call<MumaStatusResponse>
 }
 
 data class MumaTile(
@@ -82,6 +87,16 @@ data class MumaSettingsResponse(
 
 data class MumaStatusResponse(
     val status: String
+)
+
+data class CrashReportRequest(
+    val device_model: String,
+    val os_version: String,
+    val app_version_name: String,
+    val app_version_code: Int,
+    val build_type: String,
+    val ring_buffer_text: String,
+    val stacktrace_text: String? = null
 )
 
 data class LoginRequest(

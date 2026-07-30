@@ -849,6 +849,30 @@ open class RESTMusicService(
         if (!response.isSuccessful) throw IOException("Failed to save settings: ${response.code()}")
     }
 
+    @Throws(Exception::class)
+    override fun uploadCrashReport(
+        deviceModel: String,
+        osVersion: String,
+        appVersionName: String,
+        appVersionCode: Int,
+        buildType: String,
+        ringBufferText: String,
+        stacktraceText: String?
+    ) {
+        ensureMumaLogin()
+        val req = org.moire.ultrasonic.api.muma.CrashReportRequest(
+            device_model = deviceModel,
+            os_version = osVersion,
+            app_version_name = appVersionName,
+            app_version_code = appVersionCode,
+            build_type = buildType,
+            ring_buffer_text = ringBufferText,
+            stacktrace_text = stacktraceText
+        )
+        val response = subsonicAPIClient.mumaApi.api.uploadCrashReport(req).execute()
+        if (!response.isSuccessful) throw IOException("Failed to upload crash report: ${response.code()}")
+    }
+
     private val activeServerId: Int
         get() = ActiveServerProvider.getActiveServerId()
 

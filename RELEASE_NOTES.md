@@ -26,6 +26,14 @@ This project is now modularized. Detailed release notes for each module can be f
   buiten de app te liggen (bijvoorbeeld bij Google zelf). De app legt bij een volgende mislukking nu
   wel veel specifiekere details vast, zodat dit sneller te achterhalen is.
 
+### ⭐ Sterren-rating was onzichtbaar op Android
+- Op het "nu afspelen"-scherm van de Ultrasonic-app zat de 5-sterren beoordeling er wel, maar zat
+  hij verstopt achter de albumhoes - je kon er dus niet bij.
+- De albumhoes en de sterren streden om dezelfde plek op het scherm; de albumhoes won altijd. Dat
+  is nu omgedraaid, dus de sterren zijn weer gewoon zichtbaar en aan te tikken.
+- Ook in de webspeler (mobiel) stond de sterren-rating er nog helemaal niet bij; die is nu ook
+  toegevoegd naast titel/artiest.
+
 ## Global Version 0.0.42 (2026-07-30)
 ### 🔁 Vorige fix (0.0.41) werd niet daadwerkelijk uitgerold naar productie
 - Door een race condition in het releaseproces zelf werd de vorige versie (met de fix voor zwarte

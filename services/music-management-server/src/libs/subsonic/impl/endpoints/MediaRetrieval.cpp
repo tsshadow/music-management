@@ -375,17 +375,29 @@ namespace lms::api::subsonic
         {
             std::string mumaApiUrl = std::string{ core::Service<core::IConfig>::get()->getString("music-management-url", "") };
             if (mumaApiUrl.empty())
-            {
-                std::string apiUrl = std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-url", "") };
-                size_t pos = apiUrl.find("/api/");
-                if (pos != std::string::npos)
-                    mumaApiUrl = apiUrl.substr(0, pos);
-                else
-                    mumaApiUrl = apiUrl;
-            }
+                mumaApiUrl = std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-url", "") };
 
-            if (!mumaApiUrl.empty() && mumaApiUrl.back() == '/')
-                mumaApiUrl.pop_back();
+            // Both config keys are documented/used with a trailing "/api" (or a longer API
+            // path, e.g. music-management-api-url's default ".../api/lms-event") - see
+            // .env.example and conf/lms.conf. That suffix must be stripped here exactly like
+            // MumaResource's constructor (api/muma/MumaResource.cpp) already does for the
+            // *same* two config keys, since relativeUrl below already starts with "/api/...".
+            // This branch previously only stripped it from the music-management-api-url
+            // fallback, not from music-management-url itself, so whenever the latter was set
+            // (the common case), the client's base URL kept its "/api" suffix and every
+            // request below was actually sent to ".../api/api/artists/.../image" - which
+            // failed at the connection/URL-parsing level (observed as a 502 "Bad Gateway"
+            // from onFailureFunc, not a 404), breaking every artist's native-artwork cover
+            // image (coverArt starting with "muma-...", see CoverArtId.cpp) while the
+            // identical request through MumaResource's already-correct URL kept working.
+            if (!mumaApiUrl.empty())
+            {
+                if (const size_t pos{ mumaApiUrl.find("/api") }; pos != std::string::npos)
+                    mumaApiUrl = mumaApiUrl.substr(0, pos);
+
+                if (mumaApiUrl.back() == '/')
+                    mumaApiUrl.pop_back();
+            }
 
             if (mumaApiUrl.empty())
             {

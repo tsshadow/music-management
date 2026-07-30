@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Ultrasonic welcome dialog now distinguishes "server unreachable" from "login failed"**:
+  both the manual username/password submit and "Sign in with Google" previously collapsed every
+  failure (a real network/server outage, wrong credentials, an expired Google OAuth client, an
+  unexpected response shape, ...) into the same generic message. Added an unauthenticated
+  reachability probe (`NavigationActivity.isServerReachable()`, a `/rest/ping.view` request with
+  its own short 5s timeouts) that runs whenever a login attempt fails, so the dialog can now show
+  a distinct "kan de server niet bereiken" message when the server truly isn't reachable, versus
+  a "login mislukt" message when the server responded but the login itself didn't succeed.
 - **Favorite genres now saved per user in the web player**: previously `favoriteGenres`
   (`services/frontend/src/lib/store.js`) only lived in the browser's `localStorage`, so it was lost when
   switching devices/browsers or reinstalling. Now synced to the user's account via the existing generic

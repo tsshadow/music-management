@@ -106,6 +106,10 @@ class MainFragment :
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         FragmentTitle.setTitle(this, R.string.music_library_label)
+        if (arguments?.getBoolean(ARG_SELECT_FAVORITES_CHIP) == true) {
+            currentFilter = R.id.chip_favorites
+            updateVisibilityByFilter()
+        }
         updateLayoutManagers(view)
         setupFilters(view)
 
@@ -565,6 +569,10 @@ class MainFragment :
         super.onDestroyView()
         rxBusSubscription.clear()
         binding = null
+    }
+
+    companion object {
+        const val ARG_SELECT_FAVORITES_CHIP = "selectFavoritesChip"
     }
 }
 

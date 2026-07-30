@@ -62,10 +62,13 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.navigation.NavigationView
 import com.google.android.material.textfield.TextInputEditText
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import java.io.IOException
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.Request
 import org.koin.android.ext.android.inject
 import org.koin.androidx.scope.ScopeActivity
 import org.koin.androidx.viewmodel.ext.android.viewModel
@@ -672,9 +675,15 @@ class NavigationActivity : ScopeActivity() {
                                 activeServerProvider.setActiveServerById(0)
                             }
 
-                            // Now test connection
+                            // Now test connection. Uses getOnlineMusicService() rather than
+                            // getMusicService() deliberately: the latter can silently hand back
+                            // the no-op OfflineMusicService (see its ping()) whenever
+                            // "auto-switch offline" is enabled and isNetworkAvailable() reads
+                            // false, even transiently/incorrectly - which would make this whole
+                            // login test report "success" without ever having contacted the
+                            // server.
                             MusicServiceFactory.resetMusicService()
-                            val musicService = MusicServiceFactory.getMusicService()
+                            val musicService = MusicServiceFactory.getOnlineMusicService()
                             musicService.ping()
                             true
                         } catch (e: Exception) {
@@ -687,8 +696,19 @@ class NavigationActivity : ScopeActivity() {
                         UApp.instance!!.setupDialogDisplayed = true
                         dialog.dismiss()
                     } else {
+                        // A failed ping() alone doesn't say whether the server was unreachable
+                        // or the credentials were simply wrong - probe the server directly
+                        // (no auth required) to tell the two apart instead of always blaming
+                        // "your credentials", which sends people on a wild goose chase when the
+                        // real problem is connectivity.
+                        val reachable = withContext(Dispatchers.IO) {
+                            isServerReachable(targetServer?.url ?: ServerSettingsModel.LMS_URL)
+                        }
                         progressBar.visibility = View.GONE
-                        errorText.text = getString(R.string.welcome_connection_failed)
+                        errorText.text = getString(
+                            if (reachable) R.string.welcome_connection_failed
+                            else R.string.welcome_server_unreachable
+                        )
                         errorText.visibility = View.VISIBLE
                         usernameField.isEnabled = true
                         passwordField.isEnabled = true
@@ -708,6 +728,31 @@ class NavigationActivity : ScopeActivity() {
                     googleSignInButton = googleSignInButton
                 )
             }
+        }
+    }
+
+    /**
+     * Lightweight, unauthenticated reachability probe used to tell a genuine network/server
+     * problem apart from a login failure. Hits the Subsonic ping endpoint without credentials -
+     * any HTTP response (even Subsonic's own "missing parameter" error) proves the server was
+     * actually reached, so only a transport-level failure (DNS, timeout, connection refused, ...)
+     * counts as "unreachable". Uses its own short timeouts so this never makes the welcome
+     * dialog hang as long as the app's normal (60s) request timeout.
+     */
+    private fun isServerReachable(serverUrl: String): Boolean {
+        val probeClient = subsonicAPIClient.okHttpClient.newBuilder()
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(5, TimeUnit.SECONDS)
+            .build()
+        val request = Request.Builder()
+            .url("${serverUrl.removeSuffix("/")}/rest/ping.view?v=1.16.1&c=ultrasonic&f=json")
+            .get()
+            .build()
+        return try {
+            probeClient.newCall(request).execute().use { true }
+        } catch (e: IOException) {
+            Timber.w(e, "Server reachability probe failed")
+            false
         }
     }
 
@@ -776,7 +821,16 @@ class NavigationActivity : ScopeActivity() {
                 return@launch
             } catch (e: Exception) {
                 Timber.e(e, "Google Sign-In failed")
-                errorText.text = getString(R.string.background_task_network_error)
+                // This exception comes from Android's Credential Manager / Google Play
+                // Services, not from our own server - but probing our server anyway tells the
+                // user whether it's worth checking their connection at all, or whether the
+                // problem is specific to Google Sign-In (misconfigured/expired OAuth client,
+                // outdated Play Services, ...) and they should fall back to username/password.
+                val reachable = withContext(Dispatchers.IO) { isServerReachable(targetServer.url) }
+                errorText.text = getString(
+                    if (reachable) R.string.welcome_google_signin_failed
+                    else R.string.welcome_server_unreachable
+                )
                 errorText.visibility = View.VISIBLE
                 return@launch
             }
@@ -801,7 +855,10 @@ class NavigationActivity : ScopeActivity() {
 
             if (googleIdTokenCredential == null) {
                 Timber.e("Google Sign-In returned an unexpected credential type: ${credential.javaClass.name}")
-                errorText.text = getString(R.string.background_task_network_error)
+                // Purely a device-side parsing mismatch - our server was never contacted, so
+                // there's nothing to probe and no "network" involved despite the generic name
+                // of the fallback string.
+                errorText.text = getString(R.string.welcome_google_signin_failed)
                 errorText.visibility = View.VISIBLE
                 return@launch
             }
@@ -822,7 +879,15 @@ class NavigationActivity : ScopeActivity() {
 
             if (authResult == null) {
                 progressBar.visibility = View.GONE
-                errorText.text = getString(R.string.background_task_network_error)
+                // The call to our own /api/auth/google either threw or returned a non-2xx
+                // status - probe the server (no auth needed) to tell a real outage/DNS/TLS
+                // problem apart from e.g. an expired/misconfigured Google OAuth client, which
+                // would fail here with the server otherwise being perfectly reachable.
+                val reachable = withContext(Dispatchers.IO) { isServerReachable(targetServer.url) }
+                errorText.text = getString(
+                    if (reachable) R.string.welcome_google_signin_failed
+                    else R.string.welcome_server_unreachable
+                )
                 errorText.visibility = View.VISIBLE
                 return@launch
             }
@@ -832,8 +897,10 @@ class NavigationActivity : ScopeActivity() {
                     val username = authResult.user?.username
                     val apiKey = authResult.api_key ?: authResult.access_token
                     if (username == null || apiKey == null) {
+                        // The server responded successfully, so this isn't a connectivity
+                        // problem - it's a genuinely unexpected response shape.
                         progressBar.visibility = View.GONE
-                        errorText.text = getString(R.string.background_task_network_error)
+                        errorText.text = getString(R.string.welcome_google_signin_failed)
                         errorText.visibility = View.VISIBLE
                         return@launch
                     }
@@ -898,8 +965,10 @@ class NavigationActivity : ScopeActivity() {
                     )
                 }
                 else -> {
+                    // Again, a successful response with an unrecognized status - not a
+                    // connectivity issue.
                     progressBar.visibility = View.GONE
-                    errorText.text = getString(R.string.background_task_network_error)
+                    errorText.text = getString(R.string.welcome_google_signin_failed)
                     errorText.visibility = View.VISIBLE
                     googleSignInButton.isEnabled = true
                 }

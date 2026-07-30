@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Ultrasonic welcome dialog now distinguishes "server unreachable" from "login failed"**:
+  both the manual username/password submit and "Sign in with Google" previously collapsed every
+  failure (a real network/server outage, wrong credentials, an expired Google OAuth client, an
+  unexpected response shape, ...) into the same generic message. Added an unauthenticated
+  reachability probe (`NavigationActivity.isServerReachable()`, a `/rest/ping.view` request with
+  its own short 5s timeouts) that runs whenever a login attempt fails, so the dialog can now show
+  a distinct "kan de server niet bereiken" message when the server truly isn't reachable, versus
+  a "login mislukt" message when the server responded but the login itself didn't succeed.
 - **Favorite genres now saved per user in the web player**: previously `favoriteGenres`
   (`services/frontend/src/lib/store.js`) only lived in the browser's `localStorage`, so it was lost when
   switching devices/browsers or reinstalling. Now synced to the user's account via the existing generic
@@ -16,6 +24,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a user's pre-existing local-only favorites are uploaded on first login after the update so nothing is
   lost. Logging out clears the locally-shown favorites so they aren't shown to the next browser user.
   See [docs/designs/favorite-genres/](docs/designs/favorite-genres/).
+
+### Fixed
+- **Ultrasonic's welcome-dialog login test could silently "succeed" without ever contacting the
+  server**: `MusicServiceFactory.getMusicService()` falls back to `OfflineMusicService` - whose
+  `ping()` is a no-op that always returns without error - whenever "Auto-switch server
+  online/offline" is enabled and a `ConnectivityManager` capability check transiently/incorrectly
+  reports no network. That setting defaulted to enabled before version 0.0.34, so any install from
+  before that update carried it forward as `true`. The welcome dialog's login test now calls the
+  new `MusicServiceFactory.getOnlineMusicService()`, which always uses the real, network-backed
+  service - a first-time login/setup check's entire purpose is proving the server is reachable and
+  the credentials are valid, so it must never be satisfiable by a no-op.
 
 ## [0.0.39] - 2026-07-29
 

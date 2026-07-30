@@ -1,6 +1,7 @@
 <script >
   import { Search, Image, RefreshCw, User, Loader2 } from '@lucide/svelte';
-  
+  import { SvelteSet } from 'svelte/reactivity';
+
   export let API_BASE;
   export let apiKey;
   export let artistImageSearch;
@@ -17,7 +18,7 @@
   // Tracks artists whose image failed to load, so we can show a local icon instead of
   // retrying/falling back to an external placeholder host (avoids an extra, unnecessary
   // network request - and one that fails outright when offline).
-  let brokenImageIds = new Set();
+  let brokenImageIds = new SvelteSet();
 </script>
 
 <section class="space-y-8 animate-in fade-in duration-500">
@@ -119,7 +120,7 @@
                   src={`${API_BASE}/api/artists/${encodeURIComponent(artist.name)}/image?apiKey=${encodeURIComponent(apiKey)}`}
                   alt={artist.name}
                   class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  on:error={() => (brokenImageIds = new Set(brokenImageIds).add(artist.id))}
+                  on:error={() => brokenImageIds.add(artist.id)}
                 />
               {/if}
               <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity"></div>

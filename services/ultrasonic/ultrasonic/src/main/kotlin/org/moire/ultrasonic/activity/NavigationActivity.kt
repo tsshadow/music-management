@@ -22,6 +22,8 @@ import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -263,6 +265,7 @@ class NavigationActivity : ScopeActivity() {
         rxBusSubscription += RxBus.activeServerChangedObservable.subscribe {
             updateNavigationHeaderForServer()
             setMenuForServerCapabilities()
+            updateOfflineBanner()
             checkMumaLogin()
         }
 
@@ -397,6 +400,7 @@ class NavigationActivity : ScopeActivity() {
         }
 
         setMenuForServerCapabilities()
+        updateOfflineBanner()
 
         // Lifecycle support's constructor registers some event receivers so it should be created early
         lifecycleSupport.onCreate()
@@ -617,6 +621,20 @@ class NavigationActivity : ScopeActivity() {
         finishAndRemoveTask()
     }
 
+    /**
+     * Updates the welcome dialog's always-visible bottom status line. `reachable == null` means
+     * "not checked yet" (the initial state, before the first probe completes).
+     */
+    private fun updateConnectivityStatus(statusText: TextView, reachable: Boolean?) {
+        statusText.text = getString(
+            when (reachable) {
+                null -> R.string.welcome_status_checking
+                true -> R.string.welcome_status_reachable
+                false -> R.string.welcome_status_unreachable
+            }
+        )
+    }
+
     private fun showWelcomeDialog() {
         if (!UApp.instance!!.setupDialogDisplayed) {
             Settings.firstInstalledVersion = Util.getVersionCode(UApp.applicationContext())
@@ -628,21 +646,31 @@ class NavigationActivity : ScopeActivity() {
             val errorText = view.findViewById<TextView>(R.id.welcome_error)
             val targetUrlText = view.findViewById<TextView>(R.id.welcome_target_url)
             val googleSignInButton = view.findViewById<MaterialButton>(R.id.welcome_google_signin)
+            val skipButton = view.findViewById<ImageButton>(R.id.welcome_skip_button)
+            val connectivityStatusText = view.findViewById<TextView>(R.id.welcome_connectivity_status)
 
             val dialog = MaterialAlertDialogBuilder(this, R.style.ThemeOverlay_Ultrasonic_WelcomeDialog)
-                .setTitle(R.string.welcome_title)
                 .setView(view)
                 .setCancelable(false)
                 .setPositiveButton(R.string.common_ok, null)
                 .create()
 
             dialog.show()
+            dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
 
             // There is now only one, fixed production server (no more separate "alpha" server)
             val targetServer = ServerSettingsModel.STATIC_SERVERS.find { it.id == 0 }
             if (targetServer != null) {
                 targetUrlText.text = getString(R.string.main_setup_server, targetServer.url)
                 targetUrlText.visibility = View.VISIBLE
+            }
+
+            updateConnectivityStatus(connectivityStatusText, null)
+            lifecycleScope.launch {
+                val reachable = withContext(Dispatchers.IO) {
+                    isServerReachable(targetServer?.url ?: ServerSettingsModel.LMS_URL)
+                }
+                updateConnectivityStatus(connectivityStatusText, reachable)
             }
 
             dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
@@ -704,6 +732,7 @@ class NavigationActivity : ScopeActivity() {
                         val reachable = withContext(Dispatchers.IO) {
                             isServerReachable(targetServer?.url ?: ServerSettingsModel.LMS_URL)
                         }
+                        updateConnectivityStatus(connectivityStatusText, reachable)
                         progressBar.visibility = View.GONE
                         errorText.text = getString(
                             if (reachable) R.string.welcome_connection_failed
@@ -725,8 +754,28 @@ class NavigationActivity : ScopeActivity() {
                     errorText = errorText,
                     usernameField = usernameField,
                     passwordField = passwordField,
-                    googleSignInButton = googleSignInButton
+                    googleSignInButton = googleSignInButton,
+                    connectivityStatusText = connectivityStatusText
                 )
+            }
+
+            // Deliberately secondary/de-emphasized (small icon, confirmation required) - this is
+            // an escape hatch for when login is broken (server down, misconfigured Google OAuth
+            // client, ...), not a normal part of the flow. Staying in offline mode never writes
+            // Settings.staticUserName/staticPassword, so the existing "showWelcomeScreen" check in
+            // onCreate (isFirstRun || Settings.staticPassword.isBlank()) already re-shows this
+            // exact dialog on the next full app start, without any extra persisted flag.
+            skipButton?.setOnClickListener {
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.welcome_skip_confirm_title)
+                    .setMessage(R.string.welcome_skip_confirm_message)
+                    .setPositiveButton(R.string.welcome_skip_confirm_positive) { _, _ ->
+                        activeServerProvider.setActiveServerById(ActiveServerProvider.OFFLINE_DB_ID)
+                        UApp.instance!!.setupDialogDisplayed = true
+                        dialog.dismiss()
+                    }
+                    .setNegativeButton(R.string.welcome_skip_confirm_negative, null)
+                    .show()
             }
         }
     }
@@ -777,7 +826,8 @@ class NavigationActivity : ScopeActivity() {
         errorText: TextView,
         usernameField: TextInputEditText,
         passwordField: TextInputEditText,
-        googleSignInButton: MaterialButton
+        googleSignInButton: MaterialButton,
+        connectivityStatusText: TextView
     ) {
         if (BuildConfig.GOOGLE_WEB_CLIENT_ID == "placeholder-id") {
             Timber.e("GOOGLE_WEB_CLIENT_ID is not configured! Google Sign-In will fail.")
@@ -820,13 +870,18 @@ class NavigationActivity : ScopeActivity() {
                 errorText.visibility = View.VISIBLE
                 return@launch
             } catch (e: Exception) {
-                Timber.e(e, "Google Sign-In failed")
+                // Logged with the concrete exception class (not just the message) so a future
+                // failure is diagnosable from `adb logcat` alone - e.g. telling a Play Services-
+                // side "no credential issued" apart from a locally thrown parsing/IO error,
+                // without needing a live repro session.
+                Timber.e(e, "Google Sign-In failed: %s", e.javaClass.name)
                 // This exception comes from Android's Credential Manager / Google Play
                 // Services, not from our own server - but probing our server anyway tells the
                 // user whether it's worth checking their connection at all, or whether the
                 // problem is specific to Google Sign-In (misconfigured/expired OAuth client,
                 // outdated Play Services, ...) and they should fall back to username/password.
                 val reachable = withContext(Dispatchers.IO) { isServerReachable(targetServer.url) }
+                updateConnectivityStatus(connectivityStatusText, reachable)
                 errorText.text = getString(
                     if (reachable) R.string.welcome_google_signin_failed
                     else R.string.welcome_server_unreachable
@@ -870,9 +925,18 @@ class NavigationActivity : ScopeActivity() {
             val authResult = withContext(Dispatchers.IO) {
                 try {
                     val response = welcomeMumaApi.googleAuth(GoogleAuthRequest(idToken)).execute()
-                    if (response.isSuccessful) response.body() else null
+                    if (response.isSuccessful) {
+                        response.body()
+                    } else {
+                        Timber.e(
+                            "MuMa Google Auth failed: HTTP %d %s",
+                            response.code(),
+                            response.errorBody()?.string().orEmpty()
+                        )
+                        null
+                    }
                 } catch (e: Exception) {
-                    Timber.e(e, "MuMa Google Auth failed")
+                    Timber.e(e, "MuMa Google Auth failed: %s", e.javaClass.name)
                     null
                 }
             }
@@ -884,6 +948,7 @@ class NavigationActivity : ScopeActivity() {
                 // problem apart from e.g. an expired/misconfigured Google OAuth client, which
                 // would fail here with the server otherwise being perfectly reachable.
                 val reachable = withContext(Dispatchers.IO) { isServerReachable(targetServer.url) }
+                updateConnectivityStatus(connectivityStatusText, reachable)
                 errorText.text = getString(
                     if (reachable) R.string.welcome_google_signin_failed
                     else R.string.welcome_server_unreachable
@@ -1029,6 +1094,19 @@ class NavigationActivity : ScopeActivity() {
         playlistsMenuItem?.isVisible = isOnline
         downloadsMenuItem?.isVisible = isOnline
         videoMenuItem?.isVisible = activeServer.videoSupport != false
+    }
+
+    /**
+     * Keeps the app-wide "you're in offline mode" banner (added below the toolbar in
+     * navigation_activity.xml) in sync with the active server. Works regardless of *how* offline
+     * mode was entered - the welcome dialog's skip button, or the existing manual "Offline" entry
+     * in the server selector - since both go through the same ActiveServerProvider mechanism.
+     */
+    private fun updateOfflineBanner() {
+        findViewById<TextView>(R.id.offline_mode_banner)?.apply {
+            visibility = if (ActiveServerProvider.isOffline()) View.VISIBLE else View.GONE
+            setOnClickListener { showWelcomeDialog() }
+        }
     }
 
     private fun checkMumaLogin() {

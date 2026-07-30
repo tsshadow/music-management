@@ -278,5 +278,16 @@ interface MusicService {
     fun getMumaSettings(userId: Int, appId: String): String?
 
     @Throws(Exception::class)
+    fun uploadCrashReport(
+        deviceModel: String,
+        osVersion: String,
+        appVersionName: String,
+        appVersionCode: Int,
+        buildType: String,
+        ringBufferText: String,
+        stacktraceText: String?
+    )
+
+    @Throws(Exception::class)
     fun saveMumaSettings(userId: Int, appId: String, settings: String)
 }

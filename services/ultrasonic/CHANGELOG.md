@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.12] - 2026-07-30
+
+### Added
+- **Welcome dialog now distinguishes "server unreachable" from "login failed"**: both the manual
+  username/password submit and "Sign in with Google" previously collapsed every failure into the
+  same generic network-error message. Added an unauthenticated `/rest/ping.view` reachability
+  probe that runs on login failure to tell the two apart.
+
+### Fixed
+- **The welcome dialog's login test could report success without ever contacting the server**:
+  when "Auto-switch server online/offline" was enabled (the default before 6.5.11/version 0.0.34)
+  and a `ConnectivityManager` capability check transiently/incorrectly reported no network, the
+  login test silently used the no-op `OfflineMusicService.ping()` instead of actually validating
+  the server/credentials. The login test now always uses the real, network-backed service.
+
 ## [6.5.11] - 2026-07-29
 
 ### Changed

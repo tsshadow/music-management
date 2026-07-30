@@ -11,6 +11,15 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.41 (2026-07-30)
+### 🖼️ Artiestenfoto's waren zwart
+- De grote profielfoto op een artiestenpagina, en foto's van gerelateerde artiesten, toonden een
+  zwart vlak in plaats van de echte foto — terwijl de foto's zelf wel gewoon aanwezig en op te
+  vragen waren.
+- Oorzaak: een adres-verwerkingsfout in de server, waardoor het verzoek om de foto op te halen
+  intern naar een verkeerd samengesteld adres ging en nooit aankwam.
+- Dit is nu gerepareerd; artiestenfoto's die eerder zwart waren, laden nu weer gewoon.
+
 ## Global Version 0.0.40 (2026-07-30)
 ### ⭐ Favorite genres are now saved to your account
 - Genres you mark as favorite in the web player used to only be remembered in your browser, so they

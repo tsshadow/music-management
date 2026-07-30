@@ -11,6 +11,12 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.42 (2026-07-30)
+### 🔁 Vorige fix (0.0.41) werd niet daadwerkelijk uitgerold naar productie
+- Door een race condition in het releaseproces zelf werd de vorige versie (met de fix voor zwarte
+  artiestenfoto's) wel samengevoegd en getagd, maar niet daadwerkelijk naar productie gedeployed.
+- Geen functionele wijziging in deze versie — dit rolt puur de al samengevoegde fix opnieuw uit.
+
 ## Global Version 0.0.41 (2026-07-30)
 ### 🖼️ Artiestenfoto's waren zwart
 - De grote profielfoto op een artiestenpagina, en foto's van gerelateerde artiesten, toonden een

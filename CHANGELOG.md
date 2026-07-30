@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.42] - 2026-07-30
+
+### Fixed
+- **Re-deploy 0.0.41 after its own `deploy:prod` job failed (`bug 018`)**: `release/0.0.41`'s MR
+  merged into `master` while its own, still-running full pipeline's `release:build-images` job was
+  still going — because GitLab associated the MR's mergeability with a smaller, faster duplicate
+  pipeline for the same commit rather than the full one. `release:back-merge-develop` then deleted
+  the (already-merged) `release/0.0.41` branch as usual, so by the time the full pipeline reached
+  `deploy:prod`, `git fetch`/checkout for that branch failed outright (`fatal: couldn't find remote
+  ref refs/heads/release/0.0.41`) — production was never actually redeployed with 0.0.41's artist-
+  images fix, even though `master`/`develop` and the `release-v0.0.41` tag were correct. No
+  functional code change in this release — this is purely the automated re-deploy of 0.0.41's
+  already-merged fix. See
+  [docs/bug-reports/018-release-branch-deleted-before-own-deploy-prod-ran.md](docs/bug-reports/018-release-branch-deleted-before-own-deploy-prod-ran.md).
+
 ## [0.0.41] - 2026-07-30
 
 ### Fixed

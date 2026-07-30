@@ -35,6 +35,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Google Sign-In bug, 009-013, remains fixed); the likely cause is external (Google Cloud Console
   OAuth client registration or a Google Play Services behavior change on the affected device),
   which this release cannot fix directly but is now easier to confirm from device logs.
+- **Ultrasonic 5-star rating hidden behind the album art on the Now Playing screen**: `current_playing.xml`
+  gave the album art `ShapeableImageView` `a:elevation="12dp"` (for its Material shadow) while the sibling
+  `song_rating` star row stayed at the default elevation. Android's view elevation controls Z-order
+  independent of XML declaration order, so the album art always rendered on top of the rating row,
+  making it impossible to tap a star. Gave the `album_art_inside` container a higher elevation (`13dp`)
+  so the rating row draws above the art again. Also added a manual (opt-in) `ultrasonic:build-debug`
+  pipeline rule for non-default branches, so a debug APK for a specific MR can be built and installed
+  to verify a fix like this one against prod before merging.
+- **Web player: mobile mini player had no rating control at all**: the 5-star rating in
+  `services/frontend/src/lib/Player.svelte` only existed in the desktop layout branch; the mobile
+  mini-player rendered no rating UI whatsoever. Added a compact 5-star row next to the track title/artist
+  for parity with desktop.
 
 ## [0.0.42] - 2026-07-30
 

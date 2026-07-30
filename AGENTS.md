@@ -238,7 +238,17 @@ rule 11).
     - `# Possible reason`
     - `# solution`
 14. **Style Guide Adherence & Workflow**: All UI updates and new components across both the Web frontend (`services/frontend`) and the Android client (`services/ultrasonic`) must strictly adhere to [docs/styleguide.md](docs/styleguide.md). Any new styles or design changes (after dev approval) must first be updated in the style guide (or recorded as a pending item/todo in `docs/styleguide.md`) before being implemented in code.
+15. **Ask which environment before touching live data**: any question that involves live data — the
+    database, running containers, logs, checking whether something "actually works" — is ambiguous between
+    production (192.0.2.27, see [.production](.production)) and the local dev stack (localhost) until
+    stated otherwise. Ask which environment is meant before querying either one; do not assume localhost
+    just because that's where the checkout lives.
 
 ## Production
 
 Production info can be found at .production
+
+Secrets not already in `.production` (or anything else in password manager) can be pulled via
+`scripts/vw.sh` — a wrapper around the `bw` CLI. It needs a one-time, human-only setup (see the
+script's header comment); an agent should never create or populate that local credentials file
+itself.

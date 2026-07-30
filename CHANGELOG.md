@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.45] - 2026-07-30
+
+### Added
+- **Label tab and label search in the web UI**: labels are now a first-class way to browse the
+  library, alongside artists and genres. Adds a Label entry to the sidebar and dashboard, lets the
+  search bar match labels, and renders label hits in the search results. Backed by new Subsonic
+  endpoints in the LMS server (`Browsing.cpp`/`Spotify.cpp`) so the mobile clients can use the same
+  data.
+- **Android crash log reporting for background playback crashes**: the app now keeps an always-on,
+  disk-backed ring buffer of recent log output, marks clean playback-service shutdowns so a
+  silent kill by the OS can be told apart from a normal stop, and on the next start detects a
+  pending crash, combines the stacktrace and ring buffer into a single report, and uploads it. Adds
+  the backend upload endpoint and the matching Muma API client call. This exists because
+  background-playback crashes leave no trace the user can hand over.
+- **`scripts/vw.sh`**: wrapper for on-demand password manager CLI access.
+
+### Changed
+- **Simplified Android navigation**: the nav drawer is gone; its items moved into the toolbar
+  overflow menu. The bottom navigation now carries a Favorieten tab and no longer carries Downloads,
+  and Bookmarks got an entry point on the Playlists screen.
+- **AGENTS.md now requires asking which environment to use before querying live data**, so a
+  read-only question can't silently end up pointed at production.
+
+### Fixed
+- **CI browser tests killed each other when two pipelines shared a runner**:
+  `scripts/test/frontend-browser.sh` already picked free ports for the manager and LMS containers,
+  but the Playwright dev server stayed hardcoded on 5174 with `--strictPort` and
+  `reuseExistingServer: false`, so concurrent jobs failed with
+  `Error: http://localhost:5174 is already used`. This took out the label-tab and crash-log merge
+  requests and the 0.0.43 tag pipeline as false failures. The script now picks a third free port and
+  exports it as `MUMA_TEST_PORT_FRONTEND`, which `playwright.config.js` uses for the base URL, the
+  dev server command and the readiness URL, falling back to 5174 for local runs.
+- **Ultrasonic failed to compile once crash reporting landed**: `MusicService` gained
+  `uploadCrashReport()`, implemented in `RESTMusicService` and `OfflineMusicService` but not in the
+  `CachedMusicService` decorator. Crash reports aren't cacheable, so it now delegates straight
+  through to the wrapped service, matching `scrobble`/`star`/`saveMumaSettings`.
+
 ## [0.0.44] - 2026-07-30
 
 ### Fixed

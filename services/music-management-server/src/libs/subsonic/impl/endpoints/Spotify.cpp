@@ -26,6 +26,7 @@
 #include "database/Session.hpp"
 #include "database/objects/Cluster.hpp"
 #include "database/objects/Listen.hpp"
+#include "database/objects/Release.hpp"
 #include "database/objects/Track.hpp"
 #include "database/objects/User.hpp"
 #include "responses/Playlist.hpp"
@@ -380,6 +381,14 @@ namespace lms::api::subsonic
                 {
                     clusterGroups["GENRE"].insert(cluster->getId());
                 }
+            }
+        }
+
+        if (auto label = getParameterAs<std::string>(ctx.getParameters(), "label"))
+        {
+            if (auto labelObj = db::Label::find(session, *label))
+            {
+                params.filters.setLabel(labelObj->getId());
             }
         }
 

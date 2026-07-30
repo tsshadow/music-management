@@ -658,6 +658,27 @@ class CachedMusicService(private val musicService: MusicService) :
         musicService.saveMumaSettings(userId, appId, settings)
     }
 
+    @Throws(Exception::class)
+    override fun uploadCrashReport(
+        deviceModel: String,
+        osVersion: String,
+        appVersionName: String,
+        appVersionCode: Int,
+        buildType: String,
+        ringBufferText: String,
+        stacktraceText: String?
+    ) {
+        musicService.uploadCrashReport(
+            deviceModel,
+            osVersion,
+            appVersionName,
+            appVersionCode,
+            buildType,
+            ringBufferText,
+            stacktraceText
+        )
+    }
+
     companion object {
         private const val MUSIC_DIR_CACHE_SIZE = 100
         const val CACHE_KEY_VIDEOS = "VIDEOS"

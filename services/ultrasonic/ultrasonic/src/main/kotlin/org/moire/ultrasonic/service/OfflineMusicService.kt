@@ -668,6 +668,17 @@ class OfflineMusicService :
     }
 
     @Throws(OfflineException::class)
+    override fun uploadCrashReport(
+        deviceModel: String,
+        osVersion: String,
+        appVersionName: String,
+        appVersionCode: Int,
+        buildType: String,
+        ringBufferText: String,
+        stacktraceText: String?
+    ): Unit = throw OfflineException("uploadCrashReport isn't available in offline mode")
+
+    @Throws(OfflineException::class)
     override fun getDownloadInputStream(
         song: Track,
         offset: Long,

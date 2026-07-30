@@ -10,10 +10,15 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.navigation.NavController
 import androidx.recyclerview.widget.RecyclerView
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import org.moire.ultrasonic.R
 
 import org.moire.ultrasonic.domain.Playlist
 import org.moire.ultrasonic.NavigationGraphDirections
+import org.moire.ultrasonic.home.RecentActivityStore
+import org.moire.ultrasonic.home.toHomeCard
+import org.moire.ultrasonic.util.Settings
 
 interface TileAdapterCallback {
     fun onEditTile(tile: TileInfo, position: Int)
@@ -25,7 +30,10 @@ class TileAdapter(
     private val navController: NavController,
     private val pageKey: String,
     private val callback: TileAdapterCallback
-) : RecyclerView.Adapter<TileAdapter.TileViewHolder>() {
+) : RecyclerView.Adapter<TileAdapter.TileViewHolder>(),
+    KoinComponent {
+
+    private val recentActivityStore: RecentActivityStore by inject()
 
     inner class TileViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val iconContainer: View = view.findViewById(R.id.tile_icon_container)
@@ -39,6 +47,7 @@ class TileAdapter(
             if (item is TileInfo) {
                 setupIconAndText(item)
                 itemView.setOnClickListener {
+                    recentActivityStore.record(item.toHomeCard(), Settings.isSetsMode)
                     navController.navigate(navigateToGenre(item))
                 }
                 itemView.setOnLongClickListener {
@@ -50,6 +59,7 @@ class TileAdapter(
                 tileText.text = item.name
                 subtext.text = "Static Playlist"
                 itemView.setOnClickListener {
+                    recentActivityStore.record(item.toHomeCard(), Settings.isSetsMode)
                     val action = NavigationGraphDirections.toTrackCollection(
                         id = item.id,
                         playlistId = item.id,

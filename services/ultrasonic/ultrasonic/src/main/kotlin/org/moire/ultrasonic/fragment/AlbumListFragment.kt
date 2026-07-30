@@ -20,6 +20,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
 import org.moire.ultrasonic.NavigationGraphDirections
 import org.moire.ultrasonic.R
 import org.moire.ultrasonic.adapters.AlbumGridDelegate
@@ -27,6 +28,8 @@ import org.moire.ultrasonic.adapters.AlbumRowDelegate
 import org.moire.ultrasonic.api.subsonic.models.AlbumListType
 import org.moire.ultrasonic.data.ActiveServerProvider
 import org.moire.ultrasonic.domain.Album
+import org.moire.ultrasonic.home.RecentActivityStore
+import org.moire.ultrasonic.home.toHomeCard
 import org.moire.ultrasonic.model.AlbumListModel
 import org.moire.ultrasonic.util.LayoutType
 import org.moire.ultrasonic.util.Settings
@@ -45,6 +48,8 @@ class AlbumListFragment(
     FilterableFragment {
 
     private var filterButtonBar: FilterButtonBar? = null
+
+    private val recentActivityStore: RecentActivityStore by inject()
 
     /**
      * The ViewModel to use to get the data
@@ -239,6 +244,8 @@ class AlbumListFragment(
     }
 
     override fun onItemClick(item: Album) {
+        recentActivityStore.record(item.toHomeCard(), Settings.isSetsMode)
+
         val action = NavigationGraphDirections.toTrackCollection(
             item.id,
             isAlbum = item.isDirectory,

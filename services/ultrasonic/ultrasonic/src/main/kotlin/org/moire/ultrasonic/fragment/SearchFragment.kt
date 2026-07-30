@@ -36,12 +36,15 @@ import org.moire.ultrasonic.domain.Index
 import org.moire.ultrasonic.domain.SearchResult
 import org.moire.ultrasonic.domain.Track
 import org.moire.ultrasonic.fragment.FragmentTitle.setTitle
+import org.moire.ultrasonic.home.RecentActivityStore
+import org.moire.ultrasonic.home.toHomeCard
 import org.moire.ultrasonic.model.SearchListModel
 import org.moire.ultrasonic.service.MediaPlayerManager
 import org.moire.ultrasonic.subsonic.VideoPlayer.Companion.playVideo
 import org.moire.ultrasonic.util.ContextMenuUtil.handleContextMenu
 import org.moire.ultrasonic.util.ContextMenuUtil.handleContextMenuTracks
 import org.moire.ultrasonic.util.RefreshableFragment
+import org.moire.ultrasonic.util.Settings
 import org.moire.ultrasonic.util.Util
 import org.moire.ultrasonic.util.Util.toast
 import org.moire.ultrasonic.util.toastingExceptionHandler
@@ -57,6 +60,7 @@ class SearchFragment :
     private var searchResult: SearchResult? = null
     override var swipeRefresh: SwipeRefreshLayout? = null
     private val mediaPlayerManager: MediaPlayerManager by inject()
+    private val recentActivityStore: RecentActivityStore by inject()
     private val navArgs by navArgs<SearchFragmentArgs>()
     override val listModel: SearchListModel by viewModels()
     override val mainLayout: Int = R.layout.search
@@ -189,6 +193,8 @@ class SearchFragment :
     }
 
     private fun onArtistSelected(item: ArtistOrIndex) {
+        recentActivityStore.record(item.toHomeCard(), Settings.isSetsMode)
+
         // Create action based on type
         val action = if (item is Index) {
             SearchFragmentDirections.searchToTrackCollection(
@@ -215,6 +221,8 @@ class SearchFragment :
     }
 
     private fun onAlbumSelected(album: Album, autoplay: Boolean) {
+        recentActivityStore.record(album.toHomeCard(), Settings.isSetsMode)
+
         val action = SearchFragmentDirections.searchToTrackCollection(
             id = album.id,
             name = album.title,

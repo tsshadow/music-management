@@ -40,6 +40,8 @@ import org.moire.ultrasonic.data.ActiveServerProvider
 import org.moire.ultrasonic.data.ActiveServerProvider.Companion.isOffline
 import org.moire.ultrasonic.domain.Playlist
 import org.moire.ultrasonic.fragment.FragmentTitle.setTitle
+import org.moire.ultrasonic.home.RecentActivityStore
+import org.moire.ultrasonic.home.toHomeCard
 import org.moire.ultrasonic.service.MusicServiceFactory.getMusicService
 import org.moire.ultrasonic.util.CacheCleaner
 import org.moire.ultrasonic.util.ConfirmationDialog
@@ -47,6 +49,7 @@ import org.moire.ultrasonic.util.DownloadAction
 import org.moire.ultrasonic.util.DownloadUtil
 import org.moire.ultrasonic.util.InfoDialog
 import org.moire.ultrasonic.util.RefreshableFragment
+import org.moire.ultrasonic.util.Settings
 import org.moire.ultrasonic.util.Util.applyTheme
 import org.moire.ultrasonic.util.Util.toast
 import org.moire.ultrasonic.util.toastingExceptionHandler
@@ -66,6 +69,7 @@ class PlaylistsFragment :
     private var emptyTextView: View? = null
     private var playlistAdapter: ArrayAdapter<Playlist>? = null
     private val activeServerProvider: ActiveServerProvider by inject()
+    private val recentActivityStore: RecentActivityStore by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,7 +100,10 @@ class PlaylistsFragment :
         }
 
         playlistsListView?.setOnItemClickListener { parent, _, position, _ ->
-            val (id, name) = parent.getItemAtPosition(position) as Playlist
+            val playlist = parent.getItemAtPosition(position) as Playlist
+            val (id, name) = playlist
+
+            recentActivityStore.record(playlist.toHomeCard(), Settings.isSetsMode)
 
             val action = NavigationGraphDirections.toTrackCollection(
                 id = id,

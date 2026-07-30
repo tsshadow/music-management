@@ -417,11 +417,49 @@ namespace lms::db
             break;
         case LabelSortMethod::Name:
             query.orderBy("name COLLATE NOCASE");
+            break;
+        case LabelSortMethod::AddedDesc:
+        case LabelSortMethod::LastWrittenDesc:
+            // Recency needs an aggregate over the label's tracks, which this simple
+            // find<Label>() query cannot express -- use findIds() for those.
+            assert(false);
+            break;
         }
 
         utils::forEachQueryResult(query, [&](const Label::pointer& label) {
             func(label);
         });
+    }
+
+    RangeResults<LabelId> Label::findIds(Session& session, const FindParameters& params)
+    {
+        session.checkReadTransaction();
+
+        auto query{ session.getDboSession()->query<LabelId>("SELECT l.id FROM label l") };
+
+        switch (params.sortMethod)
+        {
+        case LabelSortMethod::None:
+            break;
+        case LabelSortMethod::Name:
+            query.orderBy("l.name COLLATE NOCASE");
+            break;
+        case LabelSortMethod::AddedDesc:
+            // A label is as recent as the most recently added track on any of its releases.
+            query.join("release_label r_l ON r_l.label_id = l.id")
+                .join("track t ON t.release_id = r_l.release_id")
+                .groupBy("l.id")
+                .orderBy("MAX(t.file_added) DESC");
+            break;
+        case LabelSortMethod::LastWrittenDesc:
+            query.join("release_label r_l ON r_l.label_id = l.id")
+                .join("track t ON t.release_id = r_l.release_id")
+                .groupBy("l.id")
+                .orderBy("MAX(t.file_last_write) DESC");
+            break;
+        }
+
+        return utils::execRangeQuery<LabelId>(query, params.range);
     }
 
     RangeResults<LabelId> Label::findOrphanIds(Session& session, std::optional<Range> range)

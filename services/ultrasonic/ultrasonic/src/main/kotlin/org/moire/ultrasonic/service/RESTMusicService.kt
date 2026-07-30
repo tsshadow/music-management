@@ -27,6 +27,7 @@ import org.moire.ultrasonic.domain.ChatMessage
 import org.moire.ultrasonic.domain.Genre
 import org.moire.ultrasonic.domain.Index
 import org.moire.ultrasonic.domain.JukeboxStatus
+import org.moire.ultrasonic.domain.Label
 import org.moire.ultrasonic.domain.Lineup
 import org.moire.ultrasonic.domain.Lyrics
 import org.moire.ultrasonic.domain.Mood
@@ -109,6 +110,20 @@ open class RESTMusicService(
         val response = API.getArtists(null, offset, count).execute().throwOnFailure()
 
         return response.body()!!.indexes.toArtistList(activeServerId)
+    }
+
+    @Throws(Exception::class)
+    override fun getArtistList(type: String, size: Int): List<Artist> {
+        val response = API.getArtistList(type, size, 0).execute().throwOnFailure()
+
+        return response.body()!!.artistList.map { it.toDomainEntity(activeServerId) }
+    }
+
+    @Throws(Exception::class)
+    override fun getLabelList(type: String, size: Int): List<Label> {
+        val response = API.getLabelList(type, size, 0).execute().throwOnFailure()
+
+        return response.body()!!.labelList.toDomainEntityList()
     }
 
     @Throws(Exception::class)

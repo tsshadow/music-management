@@ -15,14 +15,18 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import org.koin.android.ext.android.inject
 import org.moire.ultrasonic.NavigationGraphDirections
 import org.moire.ultrasonic.R
 import org.moire.ultrasonic.adapters.ArtistRowBinder
 import org.moire.ultrasonic.domain.Artist
 import org.moire.ultrasonic.domain.ArtistOrIndex
 import org.moire.ultrasonic.domain.Index
+import org.moire.ultrasonic.home.RecentActivityStore
+import org.moire.ultrasonic.home.toHomeCard
 import org.moire.ultrasonic.model.ArtistListModel
 import org.moire.ultrasonic.service.MusicServiceFactory.getMusicService
+import org.moire.ultrasonic.util.Settings
 import timber.log.Timber
 
 /**
@@ -33,6 +37,7 @@ class ArtistListFragment : EntryListFragment<ArtistOrIndex>() {
     private var offset = 0
     private val pageSize = 100
     override val listModel: ArtistListModel by viewModels()
+    private val recentActivityStore: RecentActivityStore by inject()
 
     /**
      * The id of the main layout
@@ -95,6 +100,7 @@ class ArtistListFragment : EntryListFragment<ArtistOrIndex>() {
                 artistId = item.id
             )
         } else {
+            recentActivityStore.record(item.toHomeCard(), Settings.isSetsMode)
             NavigationGraphDirections.toArtistDetail(
                 artistId = item.id
             )

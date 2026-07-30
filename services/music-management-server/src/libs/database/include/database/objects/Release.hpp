@@ -98,10 +98,28 @@ namespace lms::db
     public:
         Label() = default;
 
+        struct FindParameters
+        {
+            std::optional<Range> range;
+            LabelSortMethod sortMethod{ LabelSortMethod::None };
+
+            FindParameters& setRange(std::optional<Range> _range)
+            {
+                range = _range;
+                return *this;
+            }
+            FindParameters& setSortMethod(LabelSortMethod _method)
+            {
+                sortMethod = _method;
+                return *this;
+            }
+        };
+
         static std::size_t getCount(Session& session);
         static pointer find(Session& session, LabelId id);
         static pointer find(Session& session, std::string_view name);
         static void find(Session& session, LabelSortMethod sortMethod, std::function<void(const Label::pointer& label)> func);
+        static RangeResults<LabelId> findIds(Session& session, const FindParameters& params);
         static RangeResults<LabelId> findOrphanIds(Session& session, std::optional<Range> range = std::nullopt);
 
         // Accessors

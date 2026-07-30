@@ -115,5 +115,24 @@
         <item name="iconTint">@null</item>
         <item name="android:textAllCaps">false</item>
     </style>
+
+    <!-- Applied to the welcome/login dialog only (passed as the MaterialAlertDialogBuilder
+         theme resId) so this styling stays scoped to that one screen instead of every
+         AlertDialog in the app. Mirrors the web login card's bg-[#181818] rounded-2xl panel. -->
+    <style name="ThemeOverlay.Ultrasonic.WelcomeDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorSurface">@color/spotify_light</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.Ultrasonic.WelcomeDialog</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Ultrasonic.Button.Primary</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/TextAppearance.Ultrasonic.WelcomeDialog.Title</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.Ultrasonic.WelcomeDialog" parent="">
+        <item name="cornerSize">20dp</item>
+    </style>
+
+    <style name="TextAppearance.Ultrasonic.WelcomeDialog.Title" parent="MaterialAlertDialog.Material3.Title.Text">
+        <item name="android:textColor">@color/spotify_text_primary</item>
+        <item name="android:textStyle">bold</item>
+    </style>
 </resources>
 

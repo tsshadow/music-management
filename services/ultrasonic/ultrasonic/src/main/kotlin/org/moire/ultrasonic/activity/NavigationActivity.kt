@@ -626,7 +626,7 @@ class NavigationActivity : ScopeActivity() {
             val targetUrlText = view.findViewById<TextView>(R.id.welcome_target_url)
             val googleSignInButton = view.findViewById<MaterialButton>(R.id.welcome_google_signin)
 
-            val dialog = MaterialAlertDialogBuilder(this)
+            val dialog = MaterialAlertDialogBuilder(this, R.style.ThemeOverlay_Ultrasonic_WelcomeDialog)
                 .setTitle(R.string.welcome_title)
                 .setView(view)
                 .setCancelable(false)

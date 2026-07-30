@@ -83,3 +83,27 @@ To maintain clean design governance and prevent ad-hoc style drift:
 1. **Proposal & Approval**: Any new style, component variation, or design token must be proposed and receive dev approval.
 2. **Style Guide & Todo Tracking**: Upon approval, new or pending styles must first be registered in this style guide (under a pending todo section or design backlog) before code implementation begins. This acts as a design contract and checklist.
 3. **Code Implementation**: Once documented, implement the approved styles in code (`services/frontend` or `services/ultrasonic`), then mark the item as completed in the style guide.
+
+### Design Backlog
+
+- **Done** — Android login/welcome screens brought in line with the web's `LoginPage.svelte`: filled/rounded
+  dark inputs (`Ultrasonic.TextInputLayout`), a solid-green pill CTA
+  (`Ultrasonic.Button.Primary`), a branded white "Sign in with Google" pill button with the real
+  Google "G" logo (`Ultrasonic.Button.Google`), a hairline-flanked "OF" divider, a `spotify_light`-background
+  rounded dialog card (`ThemeOverlay.Ultrasonic.WelcomeDialog`, scoped to this one dialog only via the
+  `MaterialAlertDialogBuilder` theme resId), and a circular avatar on the Google access-request screen
+  (`google_auth_fragment.xml`).
+- **Done** — Android filter/search panel (`muma_filters.xml`, `muma_search.xml`,
+  `filter_button_bar.xml`) had its buttons, the favorite-star icon tint, and the "show filters" FAB
+  hardcoded to `design_default_color_primary_dark` (a generic Material default color, not a brand token) -
+  an actual style-guide violation ("Don't introduce unauthorized color palettes"). Recolored to
+  `spotify_green`, and the filter panel/popup background (`rounded_background_popup.xml`, previously a
+  hardcoded `#333333`) and the filter bar container (`filter_button_bar.xml`) now use the `spotify_light`
+  (`#181818`) token per the Filter Bar component spec above, instead of the hardcoded gray/card color.
+- **Not yet done** — track-row/list-item tap feedback (the style guide's `bg-white/10` hover-state pattern)
+  wasn't added in this pass: `list_item_track.xml`'s row background has no ripple/press state today, and the
+  existing `default_ripple.xml`/`select_ripple.xml` drawables reference a `?attr/backgroundColor` that isn't
+  a standard theme attribute in this app, so wiring one in without being able to visually verify it felt too
+  risky for this pass. The rest of the Android UI (track/album cards, player, navigation) also hasn't been
+  brought in line with this style guide's component patterns; see `services/ultrasonic/STYLEGUIDE.md` for the
+  full reference these should eventually follow.

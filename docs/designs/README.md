@@ -58,6 +58,15 @@ undecided behavior that were flagged, not silently resolved, during this documen
 were written directly from the code (there was no equivalent prior document), so treat their "Open Questions"
 sections as a starting point for follow-up review, not a fully agreed design.
 
+### New feature designs (written before implementation)
+
+Features designed and agreed through the process in this document, ahead of writing the code (as opposed to
+the retroactive documentation above):
+
+| Feature | Covers |
+|---|---|
+| [`favorite-genres/`](favorite-genres/) | Per-user favorite genres in the web player, persisted to the account instead of only `localStorage` (`services/frontend/src/lib/store.js`), reusing the existing generic `/api/users/{id}/settings/{app_id}` endpoints. |
+
 ## Relationship to `.ai/docs` and `.ai/requirements`
 
 Some AI-agent tools look for design/requirement content under a conventional `.ai/` directory. This repo

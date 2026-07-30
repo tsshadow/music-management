@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { get, writable } from 'svelte/store';
-import { hasPermission, userPermissions, mumaUser, authParams, credentials, mumaApiUrl } from '../../src/lib/store';
+import { hasPermission, userPermissions, mumaUser, authParams, credentials, mumaApiUrl, mumaApiKey, favoriteGenres } from '../../src/lib/store';
 
 describe('store - hasPermission', () => {
   beforeEach(() => {
@@ -61,5 +61,91 @@ describe('store - mumaApiUrl', () => {
     const url = get(mumaApiUrl);
     expect(url).toBeDefined();
     expect(typeof url).toBe('string');
+  });
+});
+
+describe('store - favoriteGenres account sync', () => {
+  /**
+   * Builds a fetch mock: GET calls resolve with `getSettings` (a JSON
+   * string or null, mirroring the real `{ settings }` response shape), POST
+   * calls just acknowledge success.
+   */
+  function mockFetch(getSettings = null) {
+    global.fetch = vi.fn((_url, opts = {}) => {
+      if ((opts.method || 'GET') === 'GET') {
+        return Promise.resolve({ ok: true, json: async () => ({ settings: getSettings, updated_at: null }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ status: 'ok' }) });
+    });
+  }
+
+  beforeEach(() => {
+    // Drive any previously-synced user back to logged-out first, so each
+    // test starts from a clean slate regardless of test order (the sync
+    // state lives in module-private variables, only reachable through the
+    // public `mumaUser`/`favoriteGenres` stores).
+    mumaUser.set(null);
+    favoriteGenres.set([]);
+    mumaApiKey.set('test-api-key');
+    mockFetch(null);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('loads favorite genres from the account when a user with an id logs in', async () => {
+    mockFetch(JSON.stringify({ favoriteGenres: ['Techno', 'House'] }));
+    mumaUser.set({ id: 42 });
+    await vi.waitFor(() => expect(get(favoriteGenres)).toEqual(['Techno', 'House']));
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/users/42/settings/frontend'),
+      expect.objectContaining({ headers: { 'X-API-Key': 'test-api-key' } })
+    );
+  });
+
+  it('uploads pre-existing local favorites when the account has none saved yet', async () => {
+    favoriteGenres.set(['Trance']);
+    mockFetch(null);
+    mumaUser.set({ id: 7 });
+    await vi.waitFor(() => {
+      const postCall = fetch.mock.calls.find(([, opts]) => opts?.method === 'POST');
+      expect(postCall).toBeDefined();
+    });
+    const [, postOpts] = fetch.mock.calls.find(([, opts]) => opts?.method === 'POST');
+    expect(JSON.parse(JSON.parse(postOpts.body).settings)).toEqual({ favoriteGenres: ['Trance'] });
+    // The local value is kept, not wiped out while waiting for the upload.
+    expect(get(favoriteGenres)).toEqual(['Trance']);
+  });
+
+  it('saves changes made while logged in, debounced', async () => {
+    vi.useFakeTimers();
+    mumaUser.set({ id: 3 });
+    await vi.advanceTimersByTimeAsync(0);
+    fetch.mockClear();
+
+    favoriteGenres.set(['Dubstep']);
+    favoriteGenres.set(['Dubstep', 'DnB']);
+    await vi.advanceTimersByTimeAsync(400);
+
+    const postCalls = fetch.mock.calls.filter(([, opts]) => opts?.method === 'POST');
+    expect(postCalls).toHaveLength(1);
+    expect(JSON.parse(JSON.parse(postCalls[0][1].body).settings)).toEqual({ favoriteGenres: ['Dubstep', 'DnB'] });
+  });
+
+  it('does not touch the backend while logged out', async () => {
+    mumaUser.set(null);
+    favoriteGenres.set(['Hardstyle']);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('clears favorites on logout so they are not shown to the next browser user', async () => {
+    mockFetch(JSON.stringify({ favoriteGenres: ['Techno'] }));
+    mumaUser.set({ id: 9 });
+    await vi.waitFor(() => expect(get(favoriteGenres)).toEqual(['Techno']));
+
+    mumaUser.set(null);
+    expect(get(favoriteGenres)).toEqual([]);
   });
 });

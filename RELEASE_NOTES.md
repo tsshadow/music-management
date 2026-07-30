@@ -10,6 +10,13 @@ This project is now modularized. Detailed release notes for each module can be f
 - [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
 
 ## Unreleased
+### ⭐ Favorite genres are now saved to your account
+- Genres you mark as favorite in the web player used to only be remembered in your browser, so they
+  were gone as soon as you used a different browser or device, or cleared your browser data.
+- Your favorite genres are now saved to your account, and loaded automatically as soon as you log in
+  to the web interface — on any device.
+- Already had favorite genres set before this change? Those are automatically carried over to your
+  account the next time you log in, so nothing gets lost.
 
 ## Global Version 0.0.39 (2026-07-29)
 ### 🛠️ Kleine interne verbetering aan het releaseproces

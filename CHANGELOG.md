@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Favorite genres now saved per user in the web player**: previously `favoriteGenres`
+  (`services/frontend/src/lib/store.js`) only lived in the browser's `localStorage`, so it was lost when
+  switching devices/browsers or reinstalling. Now synced to the user's account via the existing generic
+  `GET/POST /api/users/{id}/settings/{app_id}` endpoints (`app_id = 'frontend'`, already used by
+  Ultrasonic for its own settings backup) — no backend changes needed. Loaded automatically on login;
+  a user's pre-existing local-only favorites are uploaded on first login after the update so nothing is
+  lost. Logging out clears the locally-shown favorites so they aren't shown to the next browser user.
+  See [docs/designs/favorite-genres/](docs/designs/favorite-genres/).
+
 ## [0.0.39] - 2026-07-29
 
 ### Fixed

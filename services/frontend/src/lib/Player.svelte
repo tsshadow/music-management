@@ -788,6 +788,19 @@
             <div class="text-[11px] text-[#b3b3b3] truncate">{track.artist}</div>
           </div>
         </div>
+        <div class="flex items-center gap-0.5 flex-shrink-0">
+          {#each [1, 2, 3, 4, 5] as star (star)}
+            <button
+              aria-label="{star} sterren"
+              class="bg-transparent border-none p-0 cursor-pointer transition-colors { (track?.userRating || 0) >= star ? 'text-brand' : 'text-white/10' }"
+              onclick={() => updateRating(star)}
+            >
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor">
+                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+              </svg>
+            </button>
+          {/each}
+        </div>
       {:else}
         <div class="flex-1 flex items-center gap-3 min-w-0">
           <div class="w-11 h-11 bg-white/5 rounded flex items-center justify-center">

@@ -24,6 +24,7 @@ export PYTHONPATH="$ROOT_DIR:$ROOT_DIR/services:$PYTHONPATH"
 TEST_TARGETS=(
     "services/music_manager/tests/"
     "services/importer/tests/"
+    "services/downloader/tests/"
     "services/downloader/soundcloud/tests/"
     "services/tests/YoutubeDownloaderTest.py"
     "services/tests/YoutubeSongTest.py"

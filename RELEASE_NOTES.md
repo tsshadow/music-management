@@ -10,6 +10,8 @@ This project is now modularized. Detailed release notes for each module can be f
 - [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
 
 ## Unreleased
+
+## Global Version 0.0.40 (2026-07-30)
 ### ⭐ Favorite genres are now saved to your account
 - Genres you mark as favorite in the web player used to only be remembered in your browser, so they
   were gone as soon as you used a different browser or device, or cleared your browser data.
@@ -17,6 +19,15 @@ This project is now modularized. Detailed release notes for each module can be f
   to the web interface — on any device.
 - Already had favorite genres set before this change? Those are automatically carried over to your
   account the next time you log in, so nothing gets lost.
+
+### 📶 Ultrasonic: duidelijkere foutmelding bij inloggen, plus een verborgen bug gevonden
+- Bij een mislukte login in de Ultrasonic-app kreeg je altijd dezelfde vage "netwerkfout"-melding,
+  ongeacht of de server écht onbereikbaar was of dat er iets anders mis ging. De app laat nu apart
+  zien of de server niet bereikbaar was, of dat het inloggen zelf niet lukte.
+- Daarnaast gevonden en gefixt: als de instelling "Automatisch schakelen tussen online/offline" nog
+  aan stond (de standaardinstelling van vóór versie 0.0.34), kon de allereerste login-controle in
+  de welkomstpop-up stilletjes "geslaagd" melden zonder ooit echt contact met de server te maken.
+- App-versie opgehoogd naar 6.5.12 (242).
 
 ## Global Version 0.0.39 (2026-07-29)
 ### 🛠️ Kleine interne verbetering aan het releaseproces

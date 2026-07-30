@@ -177,6 +177,15 @@ ultrasonic:build-debug:
       changes:
         - services/ultrasonic/**/*
         - .gitlab-ci.yml
+    # Manual opt-in for merge request / feature branches: lets a reviewer build
+    # and upload a debug APK for a specific MR (e.g. to test a UI fix against
+    # prod before merging) without doing it for every push on every branch.
+    - if: '$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH && $APK_HOSTER_URL'
+      changes:
+        - services/ultrasonic/**/*
+        - .gitlab-ci.yml
+      when: manual
+      allow_failure: true
   script:
     - ./scripts/ci/ultrasonic-build-upload.sh debug
 

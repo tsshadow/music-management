@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.46] - 2026-07-31
+
 ### Added
 - **Rebuilt Ultrasonic home screen**: the Android home screen is now a Spotify-style shortcuts grid
   of the eight items you most recently opened (albums, artists, labels, static playlists and

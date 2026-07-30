@@ -1,3 +1,12 @@
+## [6.5.15] - 2026-07-31
+### Changed
+- **De startpagina is opnieuw opgebouwd**: bovenaan een raster met de acht dingen die je het laatst geopend hebt (albums, artiesten, labels en afspeellijsten), daaronder twee schuifrijen: "Recent bijgewerkt" en "Recent toegevoegd", allebei met artiesten, labels en albums.
+- **Het raster staat er meteen, ook zonder verbinding**: je recent geopende items worden lokaal bewaard, in plaats van bij elk bezoek stuk voor stuk bij de server opgevraagd te worden.
+- **De filterknoppen bovenaan zijn weg** (Recent, Favorieten, Nieuw, Genres, Afspeellijsten). Genres blijven elders in de app gewoon te doorzoeken.
+
+### Added
+- **Nieuwe instelling "Geschiedenis per modus scheiden"**: bepaalt of losse nummers en livesets elk een eigen lijstje recent geopende items houden. Staat standaard aan.
+
 ## [6.5.14] - 2026-07-30
 ### Added
 - **Crashes tijdens achtergrondafspelen worden nu gemeld**: crashte de app terwijl hij op de achtergrond speelde, dan bleef daar tot nu toe niets van over. De app houdt nu een klein logboek bij en merkt bij de volgende start dat hij stilletjes is afgeschoten, waarna hij het logboek en de foutmelding als één rapport doorstuurt.

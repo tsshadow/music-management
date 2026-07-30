@@ -5,8 +5,32 @@
     <item
         a:id="@+id/settingsFragment"
         a:icon="@drawable/ic_menu_settings"
-        a:title="@string/menu.settings"
-        app:showAsAction="always" />
+        a:title="@string/menu.settings" />
+
+    <item
+        a:id="@+id/downloadsFragment"
+        a:icon="@drawable/ic_menu_download"
+        a:title="@string/menu.downloads" />
+
+    <item
+        a:id="@+id/serverSelectorFragment"
+        a:icon="@drawable/ic_menu_select_server"
+        a:title="@string/server_selector.label" />
+
+    <item
+        a:id="@+id/mumaSyncFragment"
+        a:icon="@drawable/ic_menu_chat"
+        a:title="@string/menu.muma_sync" />
+
+    <item
+        a:id="@+id/aboutFragment"
+        a:icon="@drawable/ic_menu_about"
+        a:title="@string/menu.about" />
+
+    <item
+        a:id="@+id/menu_exit"
+        a:icon="@drawable/ic_menu_exit"
+        a:title="@string/menu.exit" />
 
     <item
         a:id="@+id/action_sets_toggle"

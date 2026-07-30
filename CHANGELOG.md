@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.44] - 2026-07-30
+
+### Fixed
+- **`ultrasonic:build-release` was silently skippable on `release/*`**: the job had a
+  `changes: - services/ultrasonic/**/*` filter, so a release branch that didn't happen to touch
+  `services/ultrasonic/` would skip the official, signed Ultrasonic build+upload entirely — contrary
+  to `docs/release-management.md`'s job-to-branch mapping, where `ultrasonic:build-release` is meant
+  to run unconditionally on `release/*` (same as `release:build-images` and `deploy:prod`, neither of
+  which has a `changes` filter). The optional, manual debug build on merge requests
+  (`ultrasonic:build-debug`) was already correct and is unchanged. Removed the `changes` filter so
+  the official build+upload always runs on `release/*` when the required secrets are present.
+
+## [0.0.43] - 2026-07-30
+
+### Added
+- **Ultrasonic welcome dialog is now full-page, with a secondary "skip login" action**: previously,
+  if both Google Sign-In and manual username/password login failed (e.g. server down, misconfigured
+  Google OAuth client), the welcome dialog (`NavigationActivity.showWelcomeDialog()`) had no way to
+  dismiss without a successful login (`setCancelable(false)`, no close affordance) - a hard lockout.
+  Added a small, de-emphasized, confirmation-gated close ("X") button that switches to the app's
+  existing offline mode (`ActiveServerProvider.OFFLINE_DB_ID`) instead of writing any credentials,
+  so the same dialog naturally reappears on the next app start to try again. Also added an
+  always-visible connectivity status line at the bottom of the dialog (reachable/unreachable/
+  checking, via the existing unauthenticated `isServerReachable()` probe from `0.0.40`) so it's
+  clear before even submitting anything whether a problem would be the server or the login itself.
+- **App-wide offline-mode banner**: whenever the active server is the offline pseudo-server -
+  whether reached via the new skip button or the existing manual "Offline" entry in the server
+  selector - a banner now appears below the toolbar ("Offline mode — limited functionality. Tap to
+  log in.") so degraded functionality is never silent. Tapping it reopens the welcome dialog.
+
+### Fixed
+- **Google Sign-In failures were hard to diagnose remotely**: `performWelcomeGoogleSignIn()` now
+  logs the concrete exception class for Credential Manager failures and the HTTP status/body for a
+  failed `/api/auth/google` call, instead of only a generic message. Investigated a report of
+  Google Sign-In failing again on the release APK after previously working
+  (`docs/bug-reports/019-google-signin-release-regression-external.md`) - no application code
+  regression was found (every Google Sign-In code path is unchanged since `0.0.40`, and every prior
+  Google Sign-In bug, 009-013, remains fixed); the likely cause is external (Google Cloud Console
+  OAuth client registration or a Google Play Services behavior change on the affected device),
+  which this release cannot fix directly but is now easier to confirm from device logs.
+- **Ultrasonic 5-star rating hidden behind the album art on the Now Playing screen**: `current_playing.xml`
+  gave the album art `ShapeableImageView` `a:elevation="12dp"` (for its Material shadow) while the sibling
+  `song_rating` star row stayed at the default elevation. Android's view elevation controls Z-order
+  independent of XML declaration order, so the album art always rendered on top of the rating row,
+  making it impossible to tap a star. Gave the `album_art_inside` container a higher elevation (`13dp`)
+  so the rating row draws above the art again. Also added a manual (opt-in) `ultrasonic:build-debug`
+  pipeline rule for non-default branches, so a debug APK for a specific MR can be built and installed
+  to verify a fix like this one against prod before merging.
+- **Web player: mobile mini player had no rating control at all**: the 5-star rating in
+  `services/frontend/src/lib/Player.svelte` only existed in the desktop layout branch; the mobile
+  mini-player rendered no rating UI whatsoever. Added a compact 5-star row next to the track title/artist
+  for parity with desktop.
+
 ## [0.0.42] - 2026-07-30
 
 ### Fixed

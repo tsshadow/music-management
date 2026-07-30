@@ -11,6 +11,38 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.44 (2026-07-30)
+### 🔧 Officiële Ultrasonic-release werd soms ongemerkt overgeslagen in het releaseproces
+- Een release-branch die geen bestanden binnen de Ultrasonic-app zelf wijzigde, sloeg de officiële,
+  ondertekende Ultrasonic-build+upload stilzwijgend over — terwijl een release altijd de officiële
+  build hoort te bouwen en uit te rollen.
+- Dit is nu gecorrigeerd: elke release bouwt en publiceert voortaan altijd de officiële Ultrasonic-app.
+  Het optioneel, handmatig bouwen van een test(debug)-versie vanuit een merge request blijft
+  ongewijzigd mogelijk.
+
+## Global Version 0.0.43 (2026-07-30)
+### 🔓 Inloggen in de Ultrasonic-app kan nu nooit meer helemaal vastlopen
+- Als inloggen (met Google of met gebruikersnaam/wachtwoord) niet lukte, kon je eerder nergens
+  anders heen: het inlogscherm liet zich niet sluiten zonder geslaagde login.
+- Het inlogscherm is nu een volledig scherm geworden, laat onderin meteen zien of de server
+  bereikbaar is, en heeft nu een klein "overslaan"-knopje rechtsboven waarmee je (na een
+  bevestiging) verder kunt in een beperkte offline modus - met eerder gedownloade muziek. De
+  volgende keer dat je de app opent, wordt gewoon weer gevraagd om in te loggen.
+- Zit je in offline modus, dan zie je dat nu altijd duidelijk bovenin de app, met een knop om
+  direct weer in te loggen.
+- We hebben ook uitgezocht waarom inloggen met Google recent weer misging: in de code zelf is geen
+  fout gevonden (alles wat eerder al gerepareerd was, werkt nog steeds correct) - de oorzaak lijkt
+  buiten de app te liggen (bijvoorbeeld bij Google zelf). De app legt bij een volgende mislukking nu
+  wel veel specifiekere details vast, zodat dit sneller te achterhalen is.
+
+### ⭐ Sterren-rating was onzichtbaar op Android
+- Op het "nu afspelen"-scherm van de Ultrasonic-app zat de 5-sterren beoordeling er wel, maar zat
+  hij verstopt achter de albumhoes - je kon er dus niet bij.
+- De albumhoes en de sterren streden om dezelfde plek op het scherm; de albumhoes won altijd. Dat
+  is nu omgedraaid, dus de sterren zijn weer gewoon zichtbaar en aan te tikken.
+- Ook in de webspeler (mobiel) stond de sterren-rating er nog helemaal niet bij; die is nu ook
+  toegevoegd naast titel/artiest.
+
 ## Global Version 0.0.42 (2026-07-30)
 ### 🔁 Vorige fix (0.0.41) werd niet daadwerkelijk uitgerold naar productie
 - Door een race condition in het releaseproces zelf werd de vorige versie (met de fix voor zwarte

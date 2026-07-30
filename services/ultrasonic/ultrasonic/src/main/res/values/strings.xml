@@ -591,6 +591,15 @@
     <string name="welcome_connection_failed">Could not connect to LMS. Please check your credentials.</string>
     <string name="welcome_server_unreachable">Could not reach the server. Check your internet connection or try again later.</string>
     <string name="welcome_google_signin_failed">Google sign-in failed. Please try again, or sign in with username/password instead.</string>
+    <string name="welcome_skip_button">Skip login</string>
+    <string name="welcome_skip_confirm_title">Continue without logging in?</string>
+    <string name="welcome_skip_confirm_message">The app will work in a limited, offline mode: only previously downloaded music will be available until you log in again.</string>
+    <string name="welcome_skip_confirm_positive">Continue offline</string>
+    <string name="welcome_skip_confirm_negative">Back to login</string>
+    <string name="welcome_status_checking">Server status: checking…</string>
+    <string name="welcome_status_reachable">Server status: reachable</string>
+    <string name="welcome_status_unreachable">Server status: unreachable</string>
+    <string name="offline_mode_banner">Offline mode — limited functionality. Tap to log in.</string>
     <string name="welcome_or_divider">OR</string>
     <string name="settings.muma_sync_title">MuMa Cloud Sync</string>
     <string name="settings.save_to_muma_title">Save settings to MuMa</string>

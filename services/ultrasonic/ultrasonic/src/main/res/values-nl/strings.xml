@@ -12,6 +12,7 @@
     <string name="button_bar.browse">Mediabibliotheek</string>
     <string name="button_bar.chat">Chat</string>
     <string name="button_bar.now_playing">Nu aan het afspelen</string>
+    <string name="filter.favorites">Favorieten</string>
     <string name="buttons.play">Afspelen</string>
     <string name="buttons.pause">Pauzeren</string>
     <string name="buttons.repeat">Herhalen</string>
@@ -482,6 +483,15 @@
     <string name="welcome_connection_failed">Kon geen verbinding maken met LMS. Controleer je gegevens.</string>
     <string name="welcome_server_unreachable">Kan de server niet bereiken. Controleer je internetverbinding of probeer het later opnieuw.</string>
     <string name="welcome_google_signin_failed">Inloggen met Google is mislukt. Probeer het opnieuw, of log in met gebruikersnaam/wachtwoord.</string>
+    <string name="welcome_skip_button">Inloggen overslaan</string>
+    <string name="welcome_skip_confirm_title">Doorgaan zonder inloggen?</string>
+    <string name="welcome_skip_confirm_message">De app werkt dan beperkt en offline: alleen eerder gedownloade muziek is beschikbaar totdat je opnieuw inlogt.</string>
+    <string name="welcome_skip_confirm_positive">Offline doorgaan</string>
+    <string name="welcome_skip_confirm_negative">Terug naar inloggen</string>
+    <string name="welcome_status_checking">Serverstatus: controleren…</string>
+    <string name="welcome_status_reachable">Serverstatus: bereikbaar</string>
+    <string name="welcome_status_unreachable">Serverstatus: niet bereikbaar</string>
+    <string name="offline_mode_banner">Offline modus — beperkte functionaliteit. Tik om in te loggen.</string>
 
     <string name="welcome_morning">Goedemorgen</string>
     <string name="welcome_afternoon">Goedemiddag</string>

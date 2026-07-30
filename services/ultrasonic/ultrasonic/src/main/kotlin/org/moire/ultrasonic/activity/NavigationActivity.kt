@@ -22,10 +22,10 @@ import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
-import android.widget.ImageView
+import android.view.ViewGroup
+import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.TextView
-import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
 import androidx.credentials.CredentialManager
@@ -36,10 +36,7 @@ import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
-import androidx.core.content.ContextCompat
-import androidx.core.view.GravityCompat
 import androidx.core.view.MenuProvider
-import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.FragmentContainerView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -59,7 +56,6 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.navigation.NavigationView
 import com.google.android.material.textfield.TextInputEditText
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import java.io.IOException
@@ -81,7 +77,6 @@ import org.moire.ultrasonic.api.subsonic.SubsonicAPIClient
 import org.moire.ultrasonic.app.UApp
 import org.moire.ultrasonic.data.ActiveServerProvider
 import org.moire.ultrasonic.data.ServerSetting
-import org.moire.ultrasonic.data.ServerSettingDao
 import org.moire.ultrasonic.diagnostics.CrashReportManager
 import org.moire.ultrasonic.model.ServerSettingsModel
 import org.moire.ultrasonic.provider.SearchSuggestionProvider
@@ -92,7 +87,6 @@ import org.moire.ultrasonic.service.RxBus
 import org.moire.ultrasonic.service.plusAssign
 import org.moire.ultrasonic.util.Constants
 import org.moire.ultrasonic.util.LocaleHelper
-import org.moire.ultrasonic.util.ServerColor
 import org.moire.ultrasonic.util.Settings
 import org.moire.ultrasonic.util.ShortcutUtil
 import org.moire.ultrasonic.util.Storage
@@ -108,24 +102,12 @@ import timber.log.Timber
  */
 @Suppress("TooManyFunctions")
 class NavigationActivity : ScopeActivity() {
-    private var videoMenuItem: MenuItem? = null
-    private var chatMenuItem: MenuItem? = null
-    private var bookmarksMenuItem: MenuItem? = null
-    private var sharesMenuItem: MenuItem? = null
-    private var podcastsMenuItem: MenuItem? = null
-    private var playlistsMenuItem: MenuItem? = null
-    private var downloadsMenuItem: MenuItem? = null
     private var setsToggleItem: MenuItem? = null
 
     private var nowPlayingView: FragmentContainerView? = null
     private var nowPlayingHidden = false
-    private var navigationView: NavigationView? = null
     private var bottomNavigationView: BottomNavigationView? = null
-    private var drawerLayout: DrawerLayout? = null
     private var host: NavHostFragment? = null
-    private var selectServerButton: MaterialButton? = null
-    private var dropDownButton: MaterialButton? = null
-    private var headerBackgroundImage: ImageView? = null
     var setsToggle: MaterialSwitch? = null
 
     // We store the last search string in this variable.
@@ -140,11 +122,9 @@ class NavigationActivity : ScopeActivity() {
     private val lifecycleSupport: MediaPlayerLifecycleSupport by inject()
     private val mediaPlayerManager: MediaPlayerManager by inject()
     private val activeServerProvider: ActiveServerProvider by inject()
-    private val serverRepository: ServerSettingDao by inject()
     private val subsonicAPIClient: SubsonicAPIClient by inject()
 
     private var currentFragmentId: Int = 0
-    private var cachedServerCount: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         Timber.d("onCreate called")
@@ -176,11 +156,7 @@ class NavigationActivity : ScopeActivity() {
         volumeControlStream = AudioManager.STREAM_MUSIC
         setContentView(R.layout.navigation_activity)
         nowPlayingView = findViewById(R.id.now_playing_fragment)
-        navigationView = findViewById(R.id.nav_view)
         bottomNavigationView = findViewById(R.id.bottom_navigation)
-        drawerLayout = findViewById(R.id.drawer_layout)
-
-        setupDrawerLayout(drawerLayout!!)
 
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
@@ -193,24 +169,14 @@ class NavigationActivity : ScopeActivity() {
         appBarConfiguration = AppBarConfiguration(
             setOf(
                 R.id.mainFragment,
-                R.id.mediaLibraryFragment,
                 R.id.searchFragment,
                 R.id.playlistsFragment,
-                R.id.downloadsFragment,
-                R.id.sharesFragment,
-                R.id.bookmarksFragment,
-                R.id.chatFragment,
-                R.id.podcastFragment,
-                R.id.settingsFragment,
-                R.id.aboutFragment,
-                R.id.playerFragment
-            ),
-            drawerLayout
+                R.id.favoritesFragment
+            )
         )
 
         setupActionBar(navController, appBarConfiguration)
 
-        setupNavigationMenu(navController)
         bottomNavigationView?.setupWithNavController(navController)
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
@@ -263,14 +229,9 @@ class NavigationActivity : ScopeActivity() {
         }
 
         rxBusSubscription += RxBus.activeServerChangedObservable.subscribe {
-            updateNavigationHeaderForServer()
             setMenuForServerCapabilities()
+            updateOfflineBanner()
             checkMumaLogin()
-        }
-
-        serverRepository.liveServerCount().observe(this) { count ->
-            cachedServerCount = count ?: 0
-            updateNavigationHeaderForServer()
         }
 
         // Setup app shortcuts on supported devices, but not on first start, when the server
@@ -294,6 +255,7 @@ class NavigationActivity : ScopeActivity() {
     private val searchMenuProvider: MenuProvider = object : MenuProvider {
         override fun onPrepareMenu(menu: Menu) {
             setupSearchField(menu)
+            menu.findItem(R.id.downloadsFragment)?.isVisible = !ActiveServerProvider.isOffline()
             setsToggleItem = menu.findItem(R.id.action_sets_toggle)
             setsToggleItem?.isVisible = currentFragmentId == R.id.mainFragment
             setsToggle = setsToggleItem?.actionView?.findViewById(R.id.switch_sets)
@@ -316,6 +278,13 @@ class NavigationActivity : ScopeActivity() {
         }
 
         override fun onMenuItemSelected(item: MenuItem): Boolean {
+            if (item.itemId == R.id.menu_exit) {
+                setResult(Constants.RESULT_CLOSE_ALL)
+                mediaPlayerManager.onDestroy()
+                finish()
+                exit()
+                return true
+            }
             return item.onNavDestinationSelected(host!!.navController)
         }
     }
@@ -357,33 +326,6 @@ class NavigationActivity : ScopeActivity() {
         }
     }
 
-    private fun setupDrawerLayout(drawerLayout: DrawerLayout) {
-        // Set initial state passed on drawer state
-        closeNavigationDrawerOnBack.isEnabled = drawerLayout.isOpen
-
-        // Add the back press listener
-        onBackPressedDispatcher.addCallback(this, closeNavigationDrawerOnBack)
-
-        // Listen to changes in the drawer state and enable the back press listener accordingly.
-        drawerLayout.addDrawerListener(object : DrawerLayout.DrawerListener {
-            override fun onDrawerSlide(drawerView: View, slideOffset: Float) {
-                // Nothing
-            }
-
-            override fun onDrawerOpened(drawerView: View) {
-                closeNavigationDrawerOnBack.isEnabled = true
-            }
-
-            override fun onDrawerClosed(drawerView: View) {
-                closeNavigationDrawerOnBack.isEnabled = false
-            }
-
-            override fun onDrawerStateChanged(newState: Int) {
-                // Nothing
-            }
-        })
-    }
-
     override fun onResume() {
         Timber.d("onResume called")
         super.onResume()
@@ -399,6 +341,7 @@ class NavigationActivity : ScopeActivity() {
         }
 
         setMenuForServerCapabilities()
+        updateOfflineBanner()
 
         // Lifecycle support's constructor registers some event receivers so it should be created early
         lifecycleSupport.onCreate()
@@ -420,117 +363,8 @@ class NavigationActivity : ScopeActivity() {
         super.onDestroy()
     }
 
-    private fun updateNavigationHeaderForServer() {
-        val showVectorBackground = false
-
-        val activeServer = activeServerProvider.getActiveServer()
-
-        if (cachedServerCount == 0) {
-            selectServerButton?.text = getString(R.string.main_setup_server, activeServer.name)
-        } else {
-            selectServerButton?.text = activeServer.name
-        }
-
-        val foregroundColor =
-            ServerColor.getForegroundColor(this, activeServer.color, showVectorBackground)
-        val backgroundColor =
-            ServerColor.getBackgroundColor(this, activeServer.color)
-
-        if (activeServer.index == 0) {
-            selectServerButton?.icon =
-                ContextCompat.getDrawable(this, R.drawable.ic_menu_screen_on_off)
-        } else {
-            selectServerButton?.icon =
-                ContextCompat.getDrawable(this, R.drawable.ic_menu_select_server)
-        }
-
-        selectServerButton?.iconTint = ColorStateList.valueOf(foregroundColor)
-        selectServerButton?.setTextColor(foregroundColor)
-        dropDownButton?.iconTint = ColorStateList.valueOf(foregroundColor)
-        headerBackgroundImage?.setBackgroundColor(backgroundColor)
-
-        // Hide the vector graphic on Android 12 or later
-        if (!showVectorBackground) {
-            headerBackgroundImage?.setImageDrawable(null)
-        }
-    }
-
-    private fun setupNavigationMenu(navController: NavController) {
-        navigationView?.setupWithNavController(navController)
-
-        // The fragments which expect SafeArgs need to be navigated to with SafeArgs (even when
-        // they are empty)!
-        navigationView?.setNavigationItemSelectedListener {
-            when (it.itemId) {
-                R.id.mediaLibraryFragment -> {
-                    navController.navigate(NavigationGraphDirections.toMediaLibrary())
-                }
-                R.id.bookmarksFragment -> {
-                    navController.navigate(NavigationGraphDirections.toBookmarks())
-                }
-                R.id.trackCollectionFragment -> {
-                    navController.navigate(
-                        NavigationGraphDirections.toTrackCollection(
-                            getVideos = true
-                        )
-                    )
-                }
-                R.id.menu_exit -> {
-                    setResult(Constants.RESULT_CLOSE_ALL)
-                    mediaPlayerManager.onDestroy()
-                    finish()
-                    exit()
-                }
-                else -> navController.navigate(it.itemId)
-            }
-            drawerLayout?.closeDrawer(GravityCompat.START)
-            true
-        }
-
-        chatMenuItem = navigationView?.menu?.findItem(R.id.chatFragment)
-        bookmarksMenuItem = navigationView?.menu?.findItem(R.id.bookmarksFragment)
-        sharesMenuItem = navigationView?.menu?.findItem(R.id.sharesFragment)
-        podcastsMenuItem = navigationView?.menu?.findItem(R.id.podcastFragment)
-        playlistsMenuItem = navigationView?.menu?.findItem(R.id.playlistsFragment)
-        downloadsMenuItem = navigationView?.menu?.findItem(R.id.downloadsFragment)
-        videoMenuItem = navigationView?.menu?.findItem(R.id.trackCollectionFragment)
-
-        selectServerButton =
-            navigationView?.getHeaderView(0)?.findViewById(R.id.header_select_server)
-        dropDownButton =
-            navigationView?.getHeaderView(0)?.findViewById(R.id.edit_server_button)
-
-        val onClick: (View) -> Unit = {
-            if (drawerLayout?.isDrawerVisible(GravityCompat.START) == true) {
-                this.drawerLayout?.closeDrawer(GravityCompat.START)
-            }
-            navController.navigate(R.id.serverSelectorFragment)
-        }
-
-        selectServerButton?.setOnClickListener(onClick)
-        dropDownButton?.setOnClickListener(onClick)
-
-        headerBackgroundImage =
-            navigationView?.getHeaderView(0)?.findViewById(R.id.img_header_bg)
-    }
-
     private fun setupActionBar(navController: NavController, appBarConfig: AppBarConfiguration) {
         setupActionBarWithNavController(navController, appBarConfig)
-    }
-
-    private val closeNavigationDrawerOnBack = object : OnBackPressedCallback(true) {
-        override fun handleOnBackPressed() {
-            drawerLayout?.closeDrawer(GravityCompat.START)
-        }
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        val retValue = super.onCreateOptionsMenu(menu)
-        if (navigationView == null) {
-            menuInflater.inflate(R.menu.navigation_drawer, menu)
-            return true
-        }
-        return retValue
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = item.onNavDestinationSelected(findNavController(R.id.nav_host_fragment)) ||
@@ -619,6 +453,20 @@ class NavigationActivity : ScopeActivity() {
         finishAndRemoveTask()
     }
 
+    /**
+     * Updates the welcome dialog's always-visible bottom status line. `reachable == null` means
+     * "not checked yet" (the initial state, before the first probe completes).
+     */
+    private fun updateConnectivityStatus(statusText: TextView, reachable: Boolean?) {
+        statusText.text = getString(
+            when (reachable) {
+                null -> R.string.welcome_status_checking
+                true -> R.string.welcome_status_reachable
+                false -> R.string.welcome_status_unreachable
+            }
+        )
+    }
+
     private fun showWelcomeDialog() {
         if (!UApp.instance!!.setupDialogDisplayed) {
             Settings.firstInstalledVersion = Util.getVersionCode(UApp.applicationContext())
@@ -630,21 +478,31 @@ class NavigationActivity : ScopeActivity() {
             val errorText = view.findViewById<TextView>(R.id.welcome_error)
             val targetUrlText = view.findViewById<TextView>(R.id.welcome_target_url)
             val googleSignInButton = view.findViewById<MaterialButton>(R.id.welcome_google_signin)
+            val skipButton = view.findViewById<ImageButton>(R.id.welcome_skip_button)
+            val connectivityStatusText = view.findViewById<TextView>(R.id.welcome_connectivity_status)
 
             val dialog = MaterialAlertDialogBuilder(this, R.style.ThemeOverlay_Ultrasonic_WelcomeDialog)
-                .setTitle(R.string.welcome_title)
                 .setView(view)
                 .setCancelable(false)
                 .setPositiveButton(R.string.common_ok, null)
                 .create()
 
             dialog.show()
+            dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
 
             // There is now only one, fixed production server (no more separate "alpha" server)
             val targetServer = ServerSettingsModel.STATIC_SERVERS.find { it.id == 0 }
             if (targetServer != null) {
                 targetUrlText.text = getString(R.string.main_setup_server, targetServer.url)
                 targetUrlText.visibility = View.VISIBLE
+            }
+
+            updateConnectivityStatus(connectivityStatusText, null)
+            lifecycleScope.launch {
+                val reachable = withContext(Dispatchers.IO) {
+                    isServerReachable(targetServer?.url ?: ServerSettingsModel.LMS_URL)
+                }
+                updateConnectivityStatus(connectivityStatusText, reachable)
             }
 
             dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
@@ -706,6 +564,7 @@ class NavigationActivity : ScopeActivity() {
                         val reachable = withContext(Dispatchers.IO) {
                             isServerReachable(targetServer?.url ?: ServerSettingsModel.LMS_URL)
                         }
+                        updateConnectivityStatus(connectivityStatusText, reachable)
                         progressBar.visibility = View.GONE
                         errorText.text = getString(
                             if (reachable) R.string.welcome_connection_failed
@@ -727,8 +586,28 @@ class NavigationActivity : ScopeActivity() {
                     errorText = errorText,
                     usernameField = usernameField,
                     passwordField = passwordField,
-                    googleSignInButton = googleSignInButton
+                    googleSignInButton = googleSignInButton,
+                    connectivityStatusText = connectivityStatusText
                 )
+            }
+
+            // Deliberately secondary/de-emphasized (small icon, confirmation required) - this is
+            // an escape hatch for when login is broken (server down, misconfigured Google OAuth
+            // client, ...), not a normal part of the flow. Staying in offline mode never writes
+            // Settings.staticUserName/staticPassword, so the existing "showWelcomeScreen" check in
+            // onCreate (isFirstRun || Settings.staticPassword.isBlank()) already re-shows this
+            // exact dialog on the next full app start, without any extra persisted flag.
+            skipButton?.setOnClickListener {
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.welcome_skip_confirm_title)
+                    .setMessage(R.string.welcome_skip_confirm_message)
+                    .setPositiveButton(R.string.welcome_skip_confirm_positive) { _, _ ->
+                        activeServerProvider.setActiveServerById(ActiveServerProvider.OFFLINE_DB_ID)
+                        UApp.instance!!.setupDialogDisplayed = true
+                        dialog.dismiss()
+                    }
+                    .setNegativeButton(R.string.welcome_skip_confirm_negative, null)
+                    .show()
             }
         }
     }
@@ -779,7 +658,8 @@ class NavigationActivity : ScopeActivity() {
         errorText: TextView,
         usernameField: TextInputEditText,
         passwordField: TextInputEditText,
-        googleSignInButton: MaterialButton
+        googleSignInButton: MaterialButton,
+        connectivityStatusText: TextView
     ) {
         if (BuildConfig.GOOGLE_WEB_CLIENT_ID == "placeholder-id") {
             Timber.e("GOOGLE_WEB_CLIENT_ID is not configured! Google Sign-In will fail.")
@@ -822,13 +702,18 @@ class NavigationActivity : ScopeActivity() {
                 errorText.visibility = View.VISIBLE
                 return@launch
             } catch (e: Exception) {
-                Timber.e(e, "Google Sign-In failed")
+                // Logged with the concrete exception class (not just the message) so a future
+                // failure is diagnosable from `adb logcat` alone - e.g. telling a Play Services-
+                // side "no credential issued" apart from a locally thrown parsing/IO error,
+                // without needing a live repro session.
+                Timber.e(e, "Google Sign-In failed: %s", e.javaClass.name)
                 // This exception comes from Android's Credential Manager / Google Play
                 // Services, not from our own server - but probing our server anyway tells the
                 // user whether it's worth checking their connection at all, or whether the
                 // problem is specific to Google Sign-In (misconfigured/expired OAuth client,
                 // outdated Play Services, ...) and they should fall back to username/password.
                 val reachable = withContext(Dispatchers.IO) { isServerReachable(targetServer.url) }
+                updateConnectivityStatus(connectivityStatusText, reachable)
                 errorText.text = getString(
                     if (reachable) R.string.welcome_google_signin_failed
                     else R.string.welcome_server_unreachable
@@ -872,9 +757,18 @@ class NavigationActivity : ScopeActivity() {
             val authResult = withContext(Dispatchers.IO) {
                 try {
                     val response = welcomeMumaApi.googleAuth(GoogleAuthRequest(idToken)).execute()
-                    if (response.isSuccessful) response.body() else null
+                    if (response.isSuccessful) {
+                        response.body()
+                    } else {
+                        Timber.e(
+                            "MuMa Google Auth failed: HTTP %d %s",
+                            response.code(),
+                            response.errorBody()?.string().orEmpty()
+                        )
+                        null
+                    }
                 } catch (e: Exception) {
-                    Timber.e(e, "MuMa Google Auth failed")
+                    Timber.e(e, "MuMa Google Auth failed: %s", e.javaClass.name)
                     null
                 }
             }
@@ -886,6 +780,7 @@ class NavigationActivity : ScopeActivity() {
                 // problem apart from e.g. an expired/misconfigured Google OAuth client, which
                 // would fail here with the server otherwise being perfectly reachable.
                 val reachable = withContext(Dispatchers.IO) { isServerReachable(targetServer.url) }
+                updateConnectivityStatus(connectivityStatusText, reachable)
                 errorText.text = getString(
                     if (reachable) R.string.welcome_google_signin_failed
                     else R.string.welcome_server_unreachable
@@ -1019,18 +914,24 @@ class NavigationActivity : ScopeActivity() {
 
     private fun setMenuForServerCapabilities() {
         val isOnline = !ActiveServerProvider.isOffline()
-        val activeServer = activeServerProvider.getActiveServer()
 
-        // Note: Offline capabilities are defined in ActiveServerProvider, OFFLINE_DB.
-        // If you add Offline support for some of these features you need
-        // to switch the boolean to true there.
-        chatMenuItem?.isVisible = activeServer.chatSupport != false
-        bookmarksMenuItem?.isVisible = activeServer.bookmarkSupport != false
-        sharesMenuItem?.isVisible = activeServer.shareSupport != false
-        podcastsMenuItem?.isVisible = activeServer.podcastSupport != false
-        playlistsMenuItem?.isVisible = isOnline
-        downloadsMenuItem?.isVisible = isOnline
-        videoMenuItem?.isVisible = activeServer.videoSupport != false
+        bottomNavigationView?.menu?.findItem(R.id.playlistsFragment)?.isVisible = isOnline
+        // Refreshes the toolbar overflow menu so the downloadsFragment isOnline check in
+        // searchMenuProvider.onPrepareMenu (above) re-runs with the new state.
+        invalidateOptionsMenu()
+    }
+
+    /**
+     * Keeps the app-wide "you're in offline mode" banner (added below the toolbar in
+     * navigation_activity.xml) in sync with the active server. Works regardless of *how* offline
+     * mode was entered - the welcome dialog's skip button, or the existing manual "Offline" entry
+     * in the server selector - since both go through the same ActiveServerProvider mechanism.
+     */
+    private fun updateOfflineBanner() {
+        findViewById<TextView>(R.id.offline_mode_banner)?.apply {
+            visibility = if (ActiveServerProvider.isOffline()) View.VISIBLE else View.GONE
+            setOnClickListener { showWelcomeDialog() }
+        }
     }
 
     private fun checkMumaLogin() {

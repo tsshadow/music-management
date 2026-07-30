@@ -45,6 +45,16 @@
     </fragment>
 
     <fragment
+        android:id="@+id/favoritesFragment"
+        android:name="org.moire.ultrasonic.fragment.MainFragment"
+        android:label="@string/filter.favorites">
+        <argument
+            android:name="selectFavoritesChip"
+            android:defaultValue="true"
+            app:argType="boolean" />
+    </fragment>
+
+    <fragment
         android:id="@+id/mediaLibraryFragment"
         android:name="org.moire.ultrasonic.fragment.ArtistListFragment"
         android:label="@string/music_library.label" />

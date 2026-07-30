@@ -1,65 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.drawerlayout.widget.DrawerLayout
+<RelativeLayout
     xmlns:a="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    a:id="@+id/drawer_layout"
     a:layout_width="match_parent"
     a:layout_height="match_parent"
     tools:context="org.moire.ultrasonic.activity.NavigationActivity"
     a:fitsSystemWindows="true">
 
-    <RelativeLayout
+    <com.google.android.material.appbar.MaterialToolbar
+        a:id="@+id/toolbar"
+        a:layout_width="match_parent"
+        a:layout_height="?attr/actionBarSize"
+        a:background="@color/spotify_black" />
+
+    <TextView
+        a:id="@+id/offline_mode_banner"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:layout_below="@+id/toolbar"
+        a:background="@color/status_info_bg"
+        a:textColor="@color/status_info_text"
+        a:padding="8dp"
+        a:gravity="center"
+        a:textStyle="bold"
+        a:textAppearance="?attr/textAppearanceBodySmall"
+        a:text="@string/offline_mode_banner"
+        a:visibility="gone" />
+
+    <androidx.fragment.app.FragmentContainerView
+        a:id="@+id/nav_host_fragment"
+        a:name="androidx.navigation.fragment.NavHostFragment"
         a:layout_width="match_parent"
         a:layout_height="match_parent"
-        a:orientation="vertical">
+        a:layout_above="@+id/now_playing_fragment"
+        a:layout_below="@+id/offline_mode_banner"
+        app:defaultNavHost="true"
+        app:navGraph="@navigation/navigation_graph" />
 
-        <com.google.android.material.appbar.MaterialToolbar
-            a:id="@+id/toolbar"
-            a:layout_width="match_parent"
-            a:layout_height="?attr/actionBarSize"
-            a:background="@color/spotify_black" />
+    <androidx.fragment.app.FragmentContainerView
+        a:id="@+id/now_playing_fragment"
+        a:name="org.moire.ultrasonic.fragment.NowPlayingFragment"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:layout_above="@+id/bottom_navigation"
+        app:defaultNavHost="true"
+        app:navGraph="@navigation/navigation_graph" />
 
-        <androidx.fragment.app.FragmentContainerView
-            a:id="@+id/nav_host_fragment"
-            a:name="androidx.navigation.fragment.NavHostFragment"
-            a:layout_width="match_parent"
-            a:layout_height="match_parent"
-            a:layout_above="@+id/now_playing_fragment"
-            a:layout_below="@+id/toolbar"
-            app:defaultNavHost="true"
-            app:navGraph="@navigation/navigation_graph" />
-
-        <androidx.fragment.app.FragmentContainerView
-            a:id="@+id/now_playing_fragment"
-            a:name="org.moire.ultrasonic.fragment.NowPlayingFragment"
-            a:layout_width="match_parent"
-            a:layout_height="wrap_content"
-            a:layout_above="@+id/bottom_navigation"
-            app:defaultNavHost="true"
-            app:navGraph="@navigation/navigation_graph" />
-
-        <com.google.android.material.bottomnavigation.BottomNavigationView
-            a:id="@+id/bottom_navigation"
-            a:layout_width="match_parent"
-            a:layout_height="wrap_content"
-            a:layout_alignParentBottom="true"
-            a:background="@color/spotify_black"
-            app:itemIconTint="@color/spotify_green"
-            app:itemTextColor="@color/spotify_text_primary"
-            app:menu="@menu/bottom_navigation" />
-    </RelativeLayout>
-
-    <com.google.android.material.navigation.NavigationView
-        a:id="@+id/nav_view"
-        a:layout_width="wrap_content"
-        a:maxWidth="300dp"
-        a:layout_height="match_parent"
-        a:layout_gravity="start"
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        a:id="@+id/bottom_navigation"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:layout_alignParentBottom="true"
         a:background="@color/spotify_black"
-        a:fitsSystemWindows="true"
         app:itemIconTint="@color/spotify_green"
         app:itemTextColor="@color/spotify_text_primary"
-        app:headerLayout="@layout/navigation_header"
-        app:menu="@menu/navigation_drawer"/>
-</androidx.drawerlayout.widget.DrawerLayout>
+        app:menu="@menu/bottom_navigation" />
+</RelativeLayout>

@@ -1,6 +1,7 @@
 <script >
   import { Search, Image, RefreshCw, User, Loader2 } from '@lucide/svelte';
-  
+  import { SvelteSet } from 'svelte/reactivity';
+
   export let API_BASE;
   export let apiKey;
   export let artistImageSearch;
@@ -13,6 +14,11 @@
   export let imageStats;
 
   $: progressPercent = fetchProgress.total > 0 ? Math.round((fetchProgress.current / fetchProgress.total) * 100) : 0;
+
+  // Tracks artists whose image failed to load, so we can show a local icon instead of
+  // retrying/falling back to an external placeholder host (avoids an extra, unnecessary
+  // network request - and one that fails outright when offline).
+  let brokenImageIds = new SvelteSet();
 </script>
 
 <section class="space-y-8 animate-in fade-in duration-500">
@@ -104,12 +110,19 @@
         {#each artistsWithImages as artist (artist.id)}
           <div class="bg-spotify-gray bg-opacity-30 rounded-xl overflow-hidden border border-white border-opacity-5 hover:bg-opacity-50 transition-all group shadow-lg">
             <div class="aspect-square bg-black flex items-center justify-center overflow-hidden relative">
-              <img 
-                src={`${API_BASE}/api/artists/${encodeURIComponent(artist.name)}/image?apiKey=${encodeURIComponent(apiKey)}`} 
-                alt={artist.name}
-                class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                on:error={(e) => e.target.src = 'https://via.placeholder.com/300?text=Geen+Afbeelding'}
-              />
+              {#if brokenImageIds.has(artist.id)}
+                <div class="flex flex-col items-center justify-center gap-2 text-spotify-lightgray opacity-40">
+                  <Image size={40} />
+                  <span class="text-xs">Geen afbeelding</span>
+                </div>
+              {:else}
+                <img
+                  src={`${API_BASE}/api/artists/${encodeURIComponent(artist.name)}/image?apiKey=${encodeURIComponent(apiKey)}`}
+                  alt={artist.name}
+                  class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  on:error={() => brokenImageIds.add(artist.id)}
+                />
+              {/if}
               <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity"></div>
               
               <button 

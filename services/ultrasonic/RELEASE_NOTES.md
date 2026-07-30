@@ -1,3 +1,8 @@
+## [6.5.12] - 2026-07-30
+### Fixed
+- **Login screen showed a generic "network error" for every kind of login problem**: it's now able to tell you when the server itself is unreachable, versus when the server responded but the login didn't succeed.
+- **A hidden bug could make the first-time login check silently report "success" without actually contacting the server**, if "Auto-switch server online/offline" was left on from an older install. This no longer happens.
+
 ## [6.5.11] - 2026-07-29
 ### Changed
 - **Dependencies**: Updated `activity-ktx`, `core-ktx`, `gson`, `okhttp`, `rxjava`, and other core libraries to latest stable versions.

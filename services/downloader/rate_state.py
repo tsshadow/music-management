@@ -18,6 +18,20 @@ from typing import Callable, Dict, Optional
 from services.downloader.timing import DownloaderTiming
 
 
+class RateLimited(Exception):
+    """Raised when a source told us to go away, so the sweep can stop early."""
+
+    def __init__(self, source: str, wait: int, reason: str) -> None:
+        super().__init__(f'{source} is rate limited ({reason}); staying away for {wait}s')
+        self.source = source
+        self.wait = wait
+        self.reason = reason
+
+
+class SweepAborted(Exception):
+    """Raised for accounts that were skipped because the sweep was already stopping."""
+
+
 def next_multiplier_on_429(multiplier: int, max_multiplier: int) -> int:
     """Double the multiplier, never past the ceiling."""
     return min(max(1, multiplier) * 2, max_multiplier)
@@ -177,11 +191,13 @@ class RateState:
         return wait
 
     def record_403(self) -> int:
-        """Register a 403 and return how long to wait before retrying."""
+        """Register a 403 and return how long to stay away."""
+        now = self._now()
         self._snapshot.consecutive_403 += 1
-        self._snapshot.last_403_at = self._now()
+        self._snapshot.last_403_at = now
         wait = backoff_403_wait(self._snapshot.consecutive_403, self.timing.backoff_403_base,
                                 self.timing.backoff_403_factor, self.timing.backoff_403_cap)
+        self._snapshot.cooldown_until = now + timedelta(seconds=wait)
         self._persist()
         return wait
 

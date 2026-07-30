@@ -117,6 +117,15 @@ class RateStateTest(unittest.TestCase):
         self._state().record_403()
         self.assertEqual(self._state().record_403(), 960)
 
+    def test_403_also_parks_the_source_for_the_wait_time(self):
+        state = self._state()
+        state.record_403()
+        self.assertEqual(state.cooldown_remaining(), 240)
+
+    def test_a_403_cooldown_survives_a_restart(self):
+        self._state().record_403()
+        self.assertEqual(self._state().cooldown_remaining(), 240)
+
     def test_success_clears_the_403_count(self):
         state = self._state()
         state.record_403()

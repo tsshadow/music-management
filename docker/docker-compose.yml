@@ -202,8 +202,6 @@ services:
         "--step",
         "youtube",
         "--repeat",
-        "--sleeptime",
-        "300",
         "--break-on-existing"
       ]
     environment:
@@ -236,8 +234,6 @@ services:
         "--step",
         "soundcloud",
         "--repeat",
-        "--sleeptime",
-        "300",
         "--break-on-existing"
       ]
     environment:
@@ -301,8 +297,6 @@ services:
         "--step",
         "telegram",
         "--repeat",
-        "--sleeptime",
-        "300"
       ]
     environment:
       <<: [*environment-db, *environment-telegram]

@@ -279,16 +279,13 @@ class DownloaderTiming:
         return DownloaderTiming(source=self.source, values=self.values, multiplier=multiplier)
 
 
-def load_timing(source: str, *, overrides: Optional[Mapping[str, Any]] = None,
+def load_timing(source: str, *, overrides: Mapping[str, Any],
                 multiplier: int = 1) -> DownloaderTiming:
-    """Build the effective timing for ``source``.
+    """Build the effective timing for ``source`` from what came out of storage.
 
-    ``overrides`` is what came out of storage. When omitted the stored settings
-    are fetched from the database; pass an explicit mapping to stay off the
-    database entirely.
+    ``overrides`` is required so this module never has to reach for the database
+    itself; `services.downloader.settings_store.load_timing_for` is the version
+    that does.
     """
-    if overrides is None:
-        from services.downloader.settings_store import load_settings
-        overrides = load_settings(source)
     return DownloaderTiming(source=source, values=sanitize_settings(source, overrides),
                             multiplier=max(1, multiplier))

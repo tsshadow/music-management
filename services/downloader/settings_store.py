@@ -11,12 +11,17 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Iterable, Mapping, Optional, Tuple
 
-from services.downloader.timing import sanitize_settings, validate_settings
+from services.downloader.timing import (
+    DownloaderTiming,
+    load_timing,
+    sanitize_settings,
+    validate_settings,
+)
 
 
 def rows_to_settings(rows: Iterable[Tuple[str, Any]]) -> Dict[str, Any]:
     """Turn ``(setting_key, value)`` rows into a mapping."""
-    return {key: value for key, value in rows}
+    return dict(rows)
 
 
 class InMemorySettingsStore:
@@ -88,6 +93,11 @@ def load_settings(source: str, store=None) -> Dict[str, int]:
         logging.warning('Could not read timing settings for %s; using defaults: %s', source, exc)
         return {}
     return sanitize_settings(source, raw)
+
+
+def load_timing_for(source: str, multiplier: int=1, store=None) -> DownloaderTiming:
+    """The effective timing of ``source``, with the stored overrides applied."""
+    return load_timing(source, overrides=load_settings(source, store=store), multiplier=multiplier)
 
 
 def save_settings(source: str, updates: Mapping[str, Any], store=None) -> Dict[str, int]:

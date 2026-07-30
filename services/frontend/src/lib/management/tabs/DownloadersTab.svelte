@@ -1,6 +1,8 @@
 <script >
-  import { Cloud, ExternalLink, Trash2, Plus, Search, Play } from '@lucide/svelte';
-  
+  import { onDestroy } from 'svelte';
+  import { Cloud, ExternalLink, Trash2, Plus, Search, Play, Timer, RotateCcw } from '@lucide/svelte';
+  import { formatDuration, describeBackoff, changedValues } from '../downloaderTiming';
+
   export let API_BASE;
   export let getHeaders;
   export let accounts;
@@ -12,6 +14,117 @@
   let downloaderSubTab = 'soundcloud';
   let newAccountName = '';
   let newAccountId = '';
+
+  const SOURCE_LABELS = { soundcloud: 'SoundCloud', youtube: 'YouTube', telegram: 'Telegram' };
+  const RATE_STATE_POLL_MS = 30000;
+
+  let timingSources = [];
+  let rateStates = {};
+  let edited = {};
+  let timingLoaded = false;
+  let timingLoading = false;
+  let savingSource = '';
+  let pollTimer = null;
+
+  $: if (downloaderSubTab === 'timing' && !timingLoaded && !timingLoading) loadTiming();
+  $: syncPolling(downloaderSubTab);
+
+  function syncPolling(tab) {
+    if (tab === 'timing' && !pollTimer) {
+      pollTimer = setInterval(loadRateState, RATE_STATE_POLL_MS);
+    } else if (tab !== 'timing' && pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }
+
+  onDestroy(() => {
+    if (pollTimer) clearInterval(pollTimer);
+  });
+
+  async function loadTiming() {
+    timingLoading = true;
+    try {
+      const res = await fetch(`${API_BASE}/api/downloaders/settings`, { headers: getHeaders() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      timingSources = data.sources || [];
+      edited = Object.fromEntries(
+        timingSources.map((entry) => [
+          entry.source,
+          Object.fromEntries(entry.fields.map((field) => [field.key, field.value])),
+        ])
+      );
+      timingLoaded = true;
+      await loadRateState();
+    } catch (err) {
+      onError("Kon de timing-instellingen niet laden.");
+    } finally {
+      timingLoading = false;
+    }
+  }
+
+  async function loadRateState() {
+    try {
+      const res = await fetch(`${API_BASE}/api/downloaders/rate-state`, { headers: getHeaders() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      rateStates = Object.fromEntries((data.sources || []).map((entry) => [entry.source, entry]));
+    } catch (err) {
+      // The status panel is informational; a hiccup here must not clear the form.
+    }
+  }
+
+  async function saveTiming(source) {
+    const entry = timingSources.find((item) => item.source === source);
+    if (!entry) return;
+    const updates = changedValues(entry.fields, edited[source] || {});
+    if (!Object.keys(updates).length) {
+      onMessage("Niets gewijzigd.");
+      return;
+    }
+    savingSource = source;
+    try {
+      const res = await fetch(`${API_BASE}/api/downloaders/settings`, {
+        method: 'POST',
+        headers: getHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ source, updates }),
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail.detail || `HTTP ${res.status}`);
+      }
+      onMessage(`${SOURCE_LABELS[source] || source} timing opgeslagen.`);
+      timingLoaded = false;
+      await loadTiming();
+    } catch (err) {
+      onError(`Opslaan mislukt: ${err.message}`);
+    } finally {
+      savingSource = '';
+    }
+  }
+
+  async function resetBackoff(source) {
+    if (!confirm(`Backoff van ${SOURCE_LABELS[source] || source} terugzetten naar normaal tempo?`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/downloaders/rate-state/${source}/reset`, {
+        method: 'POST',
+        headers: getHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      onMessage("Backoff teruggezet.");
+      await loadRateState();
+    } catch (err) {
+      onError("Kon de backoff niet terugzetten.");
+    }
+  }
+
+  function toneClass(tone) {
+    if (tone === 'parked') return 'text-red-400';
+    if (tone === 'slowed') return 'text-yellow-400';
+    if (tone === 'ok') return 'text-spotify-green';
+    return 'text-spotify-lightgray';
+  }
 
   async function addAccount() {
     if (!newAccountName) return;
@@ -108,6 +221,15 @@
         <div class="absolute bottom-0 left-0 right-0 h-1 bg-spotify-green rounded-full animate-in fade-in duration-300"></div>
       {/if}
     </button>
+    <button
+      on:click={() => downloaderSubTab = 'timing'}
+      class="pb-4 font-bold text-sm transition-colors relative {downloaderSubTab === 'timing' ? 'text-white' : 'text-spotify-lightgray hover:text-white'}"
+    >
+      Timing
+      {#if downloaderSubTab === 'timing'}
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-spotify-green rounded-full animate-in fade-in duration-300"></div>
+      {/if}
+    </button>
   </div>
 
   {#if downloaderSubTab === 'soundcloud'}
@@ -193,6 +315,82 @@
           </tbody>
         </table>
       </div>
+    </div>
+  {:else if downloaderSubTab === 'timing'}
+    <div class="space-y-6 animate-in fade-in duration-300">
+      <p class="text-spotify-lightgray text-sm max-w-3xl">
+        Hoe vaak en hoe snel de downloaders bij SoundCloud, YouTube en Telegram langsgaan.
+        Bij een 429 verdubbelt het systeem de wachttijden zelf en onthoudt dat over herstarts heen;
+        na genoeg schone rondes zakt het weer terug.
+      </p>
+
+      {#if timingLoading && !timingLoaded}
+        <p class="text-spotify-lightgray">Instellingen laden...</p>
+      {/if}
+
+      {#each timingSources as entry (entry.source)}
+        {@const state = rateStates[entry.source]}
+        {@const backoff = describeBackoff(state)}
+        <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+          <div class="flex flex-wrap items-center justify-between gap-4 p-6 bg-black bg-opacity-20">
+            <div>
+              <h3 class="text-xl font-bold flex items-center gap-2">
+                <Timer class="text-spotify-green" size={20} /> {SOURCE_LABELS[entry.source] || entry.source}
+              </h3>
+              <p class="text-sm font-bold mt-1 {toneClass(backoff.tone)}">{backoff.label}</p>
+              {#if state}
+                <p class="text-xs text-spotify-lightgray mt-1">
+                  Ronde elke {formatDuration(state.effective_sweep_interval)} ·
+                  account elke {formatDuration(state.effective_account_cooldown)}
+                  {#if state.last_429_at} · laatste 429: {new Date(state.last_429_at).toLocaleString('nl-NL')}{/if}
+                </p>
+              {/if}
+            </div>
+            <div class="flex gap-3">
+              <button
+                on:click={() => resetBackoff(entry.source)}
+                class="flex items-center gap-2 text-sm font-bold text-spotify-lightgray hover:text-white border border-white border-opacity-10 rounded-full px-4 py-2"
+              >
+                <RotateCcw size={14} /> Reset backoff
+              </button>
+              <button
+                on:click={() => saveTiming(entry.source)}
+                disabled={savingSource === entry.source}
+                class="bg-spotify-green text-black font-extrabold px-6 py-2 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+              >
+                {savingSource === entry.source ? 'OPSLAAN...' : 'OPSLAAN'}
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 p-6">
+            {#each entry.fields as field (field.key)}
+              <div>
+                <label for="{entry.source}-{field.key}" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">
+                  {field.key.replace(/_/g, ' ')}
+                </label>
+                <div class="flex items-center gap-2">
+                  <input
+                    id="{entry.source}-{field.key}"
+                    type="number"
+                    min={field.minimum}
+                    max={field.maximum}
+                    bind:value={edited[entry.source][field.key]}
+                    class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 text-white focus:outline-none focus:border-spotify-green"
+                  />
+                  <span class="text-xs text-spotify-lightgray whitespace-nowrap">{field.unit}</span>
+                </div>
+                <p class="text-xs text-spotify-lightgray mt-1">{field.description}</p>
+                <p class="text-xs text-spotify-lightgray opacity-60 mt-1">
+                  standaard {field.default}
+                  {#if field.unit === 'seconden'} ({formatDuration(field.default)}){/if}
+                  · toegestaan {field.minimum}–{field.maximum}
+                </p>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/each}
     </div>
   {/if}
 </section>

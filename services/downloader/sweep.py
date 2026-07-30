@@ -15,7 +15,8 @@ from typing import Iterable, List, Optional
 
 from services.downloader.account_schedule import AccountSchedule
 from services.downloader.rate_state import RateLimited, RateState, SweepAborted
-from services.downloader.timing import DownloaderTiming, load_timing
+from services.downloader.settings_store import load_timing_for
+from services.downloader.timing import DownloaderTiming
 
 
 class SweepPolicy:
@@ -28,7 +29,7 @@ class SweepPolicy:
     def __init__(self, source: str, timing: Optional[DownloaderTiming] = None,
                  rate_state=None, schedule=None) -> None:
         self.source = source
-        self.timing = timing if timing is not None else load_timing(source)
+        self.timing = timing if timing is not None else load_timing_for(source)
         self.rate_state = rate_state if rate_state is not None else RateState(source, self.timing)
         if timing is None:
             # The stored multiplier decides how far the stored waits get stretched.

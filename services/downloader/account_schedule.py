@@ -55,7 +55,7 @@ class DatabaseCheckStore:
                 cursor.execute(
                     'SELECT account, last_checked_at FROM downloads_account_checks WHERE source = %s',
                     (source,))
-                return {account: checked_at for account, checked_at in cursor.fetchall()}
+                return dict(cursor.fetchall())
         finally:
             connection.close()
 

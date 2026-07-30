@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Downloader timing is configurable from the UI**: a new *Timing* tab under
+  Systeembeheer → Downloaders exposes the sweep interval, per-account cooldown, batch size,
+  pauses, yt-dlp sleeps, rate limit and backoff ladders for SoundCloud, YouTube and Telegram.
+  The settings live in the new `downloads_settings` table rather than in `ConfigStore`, because
+  the manager and the worker containers mount different host directories for `/app/data` and so
+  do not share `config.json`.
+- **Self-regulating backoff that survives a restart**: a 429 now doubles a per-source multiplier
+  and parks that source until a cooldown expires, both stored in `downloads_rate_state`. The
+  multiplier stretches every wait time, and halves again after enough clean sweeps. The Timing tab
+  shows the current multiplier, when the source wakes up and when the last 429 was, with a reset
+  button. Exposed over `GET /api/downloaders/rate-state`.
+- **Per-account check schedule**: `downloads_account_checks` records when each account was last
+  visited, so a sweep only touches accounts past their cooldown instead of all of them every time.
+
+### Changed
+- **SoundCloud is swept far less aggressively by default**: the workers used to run
+  `--repeat --sleeptime 300`, so every SoundCloud account was queried every five minutes. The
+  interval now comes from the settings (default 15 minutes) and each account has its own six-hour
+  cooldown on top, which is roughly 72 times less traffic before the self-regulation even starts.
+  `--sleeptime` remains as an explicit override for manual runs.
+- **The 403 ladder is now configurable**: the hardcoded 240 / 1800 / 10800 / 21600 / 43200 / 86400
+  sequence is replaced by a geometric one with a configurable base, factor and cap
+  (240 / 960 / 3840 / … by default).
+- **A rate limit no longer blocks a worker thread**: SoundCloud used to `time.sleep()` for up to two
+  hours inside the thread pool. The wait is now recorded in the database and the sweep ends instead.
+- **Telegram reads ConfigStore** instead of `os.getenv`, and takes its concurrency and flood
+  threshold from the timing settings. A Telethon flood wait is treated like a 429.
+
+### Fixed
+- **Batch pacing settings were never applied**: `DownloaderService` never passed its keyword
+  arguments, so `max_workers`, `burst_size`, `min_pause` and `max_pause` always sat on their
+  defaults — a pause of one to five seconds between batches.
+- **SoundCloud never throttled between batches**: `_throttle()` existed but was only called by the
+  YouTube downloader.
+- **YouTube did not recognise a 429 at all**: it fell through to the generic branch and slept
+  `5 * attempt` seconds.
+- **Backoff state was lost on restart**: the 403 counter lived in a module global and 429 had no
+  counter at all, so a container restart resumed at full speed.
+- **`POST /api/config` always failed**: it called `config_store.update_many()`, which does not exist
+  on `ConfigStore`. The resulting `AttributeError` was swallowed by a broad `except` and returned as
+  a 400, so saving a setting over the API could never work.
+
 ## [0.0.44] - 2026-07-30
 
 ### Fixed

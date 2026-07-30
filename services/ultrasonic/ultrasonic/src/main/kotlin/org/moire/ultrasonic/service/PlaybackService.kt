@@ -50,6 +50,7 @@ import org.moire.ultrasonic.service.MusicServiceFactory.getMusicService
 import org.moire.ultrasonic.service.androidauto.MediaLibrarySessionCallback
 import org.moire.ultrasonic.util.Constants
 import org.moire.ultrasonic.util.Settings
+import org.moire.ultrasonic.util.SessionMarker
 import org.moire.ultrasonic.util.Util
 import org.moire.ultrasonic.util.Util.stopForegroundRemoveNotification
 import org.moire.ultrasonic.util.toTrack
@@ -83,6 +84,7 @@ class PlaybackService :
 
     override fun onDestroy() {
         Timber.i("onDestroy called")
+        SessionMarker.markSessionEndedCleanly()
         releasePlayerAndSession()
         super.onDestroy()
     }

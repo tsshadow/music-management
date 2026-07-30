@@ -6,8 +6,7 @@
     a:layout_width="match_parent"
     a:layout_height="match_parent"
     tools:context="org.moire.ultrasonic.activity.NavigationActivity"
-    a:fitsSystemWindows="true"
-    a:orientation="vertical">
+    a:fitsSystemWindows="true">
 
     <com.google.android.material.appbar.MaterialToolbar
         a:id="@+id/toolbar"

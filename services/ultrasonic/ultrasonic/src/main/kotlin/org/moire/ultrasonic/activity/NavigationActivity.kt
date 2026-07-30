@@ -165,17 +165,9 @@ class NavigationActivity : ScopeActivity() {
         appBarConfiguration = AppBarConfiguration(
             setOf(
                 R.id.mainFragment,
-                R.id.mediaLibraryFragment,
                 R.id.searchFragment,
                 R.id.playlistsFragment,
-                R.id.downloadsFragment,
-                R.id.sharesFragment,
-                R.id.bookmarksFragment,
-                R.id.chatFragment,
-                R.id.podcastFragment,
-                R.id.settingsFragment,
-                R.id.aboutFragment,
-                R.id.playerFragment
+                R.id.favoritesFragment
             )
         )
 

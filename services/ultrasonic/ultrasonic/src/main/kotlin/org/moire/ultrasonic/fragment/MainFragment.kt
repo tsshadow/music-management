@@ -105,8 +105,12 @@ class MainFragment :
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        FragmentTitle.setTitle(this, R.string.music_library_label)
-        if (arguments?.getBoolean(ARG_SELECT_FAVORITES_CHIP) == true) {
+        val isFavoritesTab = arguments?.getBoolean(ARG_SELECT_FAVORITES_CHIP) == true
+        FragmentTitle.setTitle(
+            this,
+            if (isFavoritesTab) R.string.filter_favorites else R.string.music_library_label
+        )
+        if (isFavoritesTab) {
             currentFilter = R.id.chip_favorites
             updateVisibilityByFilter()
         }

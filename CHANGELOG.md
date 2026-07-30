@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.41] - 2026-07-30
+
+### Fixed
+- **Artist images (profile photo, similar artists, ...) rendered as a black square**: `/rest/getCoverArt`'s
+  MuMa-artwork proxy (`handleGetCoverArt` in `services/music-management-server/src/libs/subsonic/impl/endpoints/MediaRetrieval.cpp`)
+  only stripped a `/api` suffix from the `music-management-api-url` *fallback* config key, not from
+  the primary `music-management-url` key — which is documented/used *with* a `/api` suffix. Whenever
+  the primary key was set (the normal case), the resulting base URL kept its `/api` suffix, and the
+  outgoing request became `.../api/api/artists/.../image` — a double-prefixed URL that failed at the
+  connection level (a `502` from the proxy itself, not a `404` from MuMa). Applied the same stripping
+  `MumaResource.cpp`'s constructor already does correctly, for either config key. Affects every artist
+  whose artwork only exists via MuMa's cache (no native LMS artwork) — the common case. See
+  [docs/bug-reports/017-getcoverart-muma-url-double-api-prefix.md](docs/bug-reports/017-getcoverart-muma-url-double-api-prefix.md).
+
 ## [0.0.40] - 2026-07-30
 
 ### Added

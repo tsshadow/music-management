@@ -11,6 +11,21 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.46 (2026-07-31)
+### 🏠 De Ultrasonic-startpagina is opnieuw opgebouwd
+- Bovenaan staat nu een raster met de acht dingen die je het laatst geopend hebt: albums, artiesten,
+  labels, gewone afspeellijsten en filter-afspeellijsten door elkaar. Open je iets opnieuw, dan
+  schuift het vooraan; dubbel verschijnen doet niets meer.
+- Daaronder staan twee schuifrijen: "Recent bijgewerkt" laat zien waarvan de gegevens onlangs zijn
+  aangepast, "Recent toegevoegd" laat zien wat er nieuw in de bibliotheek is. Beide tonen artiesten,
+  labels en albums.
+- Het raster wordt lokaal bewaard, dus het staat er meteen — ook zonder verbinding. Voorheen moest de
+  app bij elk bezoek elk item apart bij de server opvragen.
+- De filterknoppen bovenaan (Recent, Favorieten, Nieuw, Genres, Afspeellijsten) zijn verdwenen.
+  Genres blijven gewoon elders in de app te doorzoeken.
+- Nieuwe instelling **"Geschiedenis per modus scheiden"**: bepaalt of losse nummers en livesets een
+  eigen lijstje recent geopende items houden. Staat standaard aan.
+
 ## Global Version 0.0.45 (2026-07-30)
 ### 🏷️ Labels zijn nu een eigen manier om je bibliotheek te doorzoeken
 - Er is een Label-tab bijgekomen, naast artiesten en genres. Je vindt hem in de zijbalk en op het

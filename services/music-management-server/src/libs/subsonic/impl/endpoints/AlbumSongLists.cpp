@@ -154,6 +154,16 @@ namespace lms::api::subsonic
 
                 releases = Release::findIds(context.getDbSession(), params);
             }
+            else if (type == "updated")
+            {
+                Release::FindParameters params;
+                params.setSortMethod(ReleaseSortMethod::LastWrittenDesc);
+                params.setRange(range);
+                params.filters.setMediaLibrary(mediaLibraryId);
+                params.setKeywords(keywords);
+
+                releases = Release::findIds(context.getDbSession(), params);
+            }
             else if (type == "random")
             {
                 // Random results are paginated, but there is no acceptable way to handle the pagination params without repeating some albums

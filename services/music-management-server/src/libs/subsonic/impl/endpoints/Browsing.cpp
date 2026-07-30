@@ -426,6 +426,61 @@ namespace lms::api::subsonic
         return response;
     }
 
+    // Unlike getRecordLabels (which is the OpenSubsonic-compatible, name-sorted, unpaged
+    // endpoint), this one exists to feed the mobile home screen: it is paged and can order
+    // labels by how recently their music was added to or rewritten in the library.
+    Response handleGetLabelListRequest(RequestContext& context)
+    {
+        const std::string type{ getParameterAs<std::string>(context.getParameters(), "type").value_or("newest") };
+        const std::size_t offset{ getParameterAs<std::size_t>(context.getParameters(), "offset").value_or(0) };
+        const std::size_t count{ getParameterAs<std::size_t>(context.getParameters(), "size").value_or(100) };
+
+        Label::FindParameters params;
+        params.setRange(Range{ offset, count });
+
+        if (type == "newest")
+            params.setSortMethod(LabelSortMethod::AddedDesc);
+        else if (type == "updated" || type == "recent")
+            params.setSortMethod(LabelSortMethod::LastWrittenDesc);
+        else
+            params.setSortMethod(LabelSortMethod::Name);
+
+        auto transaction{ context.getDbSession().createReadTransaction() };
+
+        const auto labels{ Label::findIds(context.getDbSession(), params) };
+
+        Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
+        Response::Node& labelListNode{ response.createNode("labelList") };
+
+        for (const LabelId labelId : labels.results)
+        {
+            const Label::pointer label{ Label::find(context.getDbSession(), labelId) };
+            if (!label)
+                continue;
+
+            Response::Node labelNode;
+            // Plain id rather than a prefixed subsonic id: labels are addressed by name (the
+            // PUBLISHER tag) everywhere they are used as a filter, so there is nothing to parse
+            // this back into.
+            labelNode.setAttribute("id", labelId.toString());
+            labelNode.setAttribute("name", label->getName());
+
+            // Give the card some artwork by borrowing the cover of the label's newest release.
+            Release::FindParameters releaseParams;
+            releaseParams.filters.setLabel(labelId);
+            releaseParams.setSortMethod(ReleaseSortMethod::AddedDesc);
+            releaseParams.setRange(Range{ 0, 1 });
+
+            const auto releases{ Release::findIds(context.getDbSession(), releaseParams) };
+            if (!releases.results.empty())
+                labelNode.setAttribute("coverArt", idToString(releases.results.front()));
+
+            labelListNode.addArrayChild("label", std::move(labelNode));
+        }
+
+        return response;
+    }
+
     Response handleGetTagsRequest(RequestContext& context)
     {
         Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };

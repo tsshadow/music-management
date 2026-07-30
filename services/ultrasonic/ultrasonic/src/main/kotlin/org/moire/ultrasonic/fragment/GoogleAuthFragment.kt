@@ -1,9 +1,11 @@
 package org.moire.ultrasonic.fragment
 
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
@@ -65,23 +67,39 @@ class GoogleAuthFragment : Fragment() {
             }
             "request_pending" -> {
                 binding.authTitle.setText(R.string.pending_review_title)
-                binding.authMessage.setText(R.string.pending_review_message)
+                binding.authMessage.visibility = View.GONE
+                showStatusBanner(R.string.pending_review_message, R.color.status_info_bg, R.color.status_info_text)
                 binding.authActionButton.visibility = View.GONE
             }
             "request_rejected" -> {
                 binding.authTitle.setText(R.string.rejected_title)
-                binding.authMessage.setText(R.string.rejected_message)
+                binding.authMessage.visibility = View.GONE
+                showStatusBanner(R.string.rejected_message, R.color.status_error_bg, R.color.status_error_text)
                 binding.authActionButton.visibility = View.GONE
             }
             "request_approved" -> {
                 binding.authTitle.setText(R.string.common_ok)
-                binding.authMessage.setText(R.string.approved_retry_message)
+                binding.authMessage.visibility = View.GONE
+                showStatusBanner(R.string.approved_retry_message, R.color.status_success_bg, R.color.status_success_text)
                 binding.authActionButton.setText(R.string.try_again_button)
                 binding.authActionButton.setOnClickListener {
                     findNavController().popBackStack()
                 }
             }
         }
+    }
+
+    /**
+     * Mirrors the web frontend's colored request-status banners
+     * (LoginPage.svelte's bg-blue-500/20 / bg-green-500/20 / bg-red-500/20 blocks) -
+     * the "unknown" first-time state has no banner there either, just a plain paragraph.
+     */
+    private fun showStatusBanner(messageRes: Int, backgroundColorRes: Int, textColorRes: Int) {
+        binding.authStatusBanner.setText(messageRes)
+        binding.authStatusBanner.setTextColor(ContextCompat.getColor(requireContext(), textColorRes))
+        binding.authStatusBanner.backgroundTintList =
+            ColorStateList.valueOf(ContextCompat.getColor(requireContext(), backgroundColorRes))
+        binding.authStatusBanner.visibility = View.VISIBLE
     }
 
     private fun performAccessRequest(idToken: String) {

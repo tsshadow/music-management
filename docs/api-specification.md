@@ -8,7 +8,7 @@ The `music-manager` service provides a REST API (FastAPI) for managing the music
 
 ### 👤 User & Settings Management
 - **GET `/users/`**: List all registered users (Admin only).
-- **GET `/users/{user_id}/settings/{app_id}`**: Retrieve application-specific settings (e.g., for Ultrasonic).
+- **GET `/users/{user_id}/settings/{app_id}`**: Retrieve application-specific settings (e.g., `app_id=ultrasonic` for Ultrasonic's settings backup, `app_id=frontend` for the web player's favorite genres).
 - **POST `/users/{user_id}/settings/{app_id}`**: Backup application-specific settings.
 - **GET `/users/{user_id}/lb-account`**: Get ListenBrainz integration details.
 

@@ -7,6 +7,159 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Favorite genres now saved per user in the web player**: previously `favoriteGenres`
+  (`services/frontend/src/lib/store.js`) only lived in the browser's `localStorage`, so it was lost when
+  switching devices/browsers or reinstalling. Now synced to the user's account via the existing generic
+  `GET/POST /api/users/{id}/settings/{app_id}` endpoints (`app_id = 'frontend'`, already used by
+  Ultrasonic for its own settings backup) — no backend changes needed. Loaded automatically on login;
+  a user's pre-existing local-only favorites are uploaded on first login after the update so nothing is
+  lost. Logging out clears the locally-shown favorites so they aren't shown to the next browser user.
+  See [docs/designs/favorite-genres/](docs/designs/favorite-genres/).
+
+## [0.0.39] - 2026-07-29
+
+### Fixed
+- **`release:back-merge-develop` intermittently failed with "Branch cannot be merged"**: right
+  after opening (or reusing) the automated `master` -> `develop` MR, `scripts/ci/back-merge-
+  develop.sh` attempted the merge immediately, but GitLab computes an MR's `merge_status`
+  asynchronously, so the merge could be rejected purely because that computation hadn't finished
+  yet — not because of a real conflict. Observed on `release/0.0.38`'s `master` pipeline: MR !65
+  became mergeable within a second of the failed attempt. Added a short poll loop (up to 10 x 3s)
+  waiting for `detailed_merge_status == "mergeable"` before merging, plus up to 3 retries on the
+  merge call itself, before falling back to leaving the MR open for manual resolution.
+
+## [0.0.38] - 2026-07-29
+
+### Fixed
+- **A stale, already-merged-but-never-deleted `release/0.0.35` branch's delayed pipeline
+  re-pushed old code as `muma/muma-tools:latest` and redeployed it to production right after
+  `bug 015`'s fix went live (`bug 016`)**: `release:build-images`/`deploy:prod` trigger on any
+  `release/*` branch push or pipeline run, and the repository had accumulated many old, merged
+  `release/*` branches; one of them (`release/0.0.35`) had a job stuck queued on the shared
+  runner that finally executed *after* the `0.0.37` fix's pipeline, overwriting `latest` with its
+  stale, pre-fix checkout. Deleted `release/0.0.35` and all other already-merged stale branches,
+  and made `release:back-merge-develop` (`scripts/ci/back-merge-develop.sh`) automatically delete
+  the `release/*`/`hotfix/*` branch it just merged into `master`, so merged release branches can no
+  longer accumulate and race a later release's build/deploy. No functional application code
+  change in this release — this is purely the automated re-deploy of `bug 015`'s already-merged
+  fix plus the branch-cleanup safeguard.
+
+## [0.0.37] - 2026-07-29
+
+### Fixed
+- **`genre-processor` and `muma-soundcloud-fetcher` production containers crashed on start with
+  `ModuleNotFoundError` (`bug 015`)**: an earlier refactor (commit `cb345cf79`) removed
+  `services/common/settings.py` (replaced by `services.common.config_store.ConfigStore`) and moved
+  `services/common/api/db_init.py` to `services/common/db_init.py`, updating all call sites under
+  `services/`, but missed `tools/soundcloud_fetcher.py` and `tools/process_genres.py` — these
+  `tools/` scripts aren't covered by the regular unit test suite, so the stale imports only
+  surfaced as a container-runtime crash, not a CI failure. Fixed both imports and added
+  `tools/test_tools_imports.py` (wired into `scripts/test/music-management-unit.sh`) to catch this
+  class of regression going forward.
+
+## [0.0.36] - 2026-07-29
+
+### Fixed
+- **Manager "Overview" tab crashed on load**: the recent-activity list's `{#each}` block was keyed
+  on `item.file_path`, but `/api/system/activity` never returns that field (only `title`, `artist`,
+  `timestamp`). Every row therefore shared the identical `undefined` key, and Svelte 5 throws a
+  runtime error on duplicate keyed-each keys — crashing the whole Overview tab as soon as there
+  were 2+ recent items (the normal case). Keyed the loop on array index instead, and guarded the
+  filename fallback so it can't throw even if `file_path` is ever absent.
+
+## [0.0.34] - 2026-07-29
+
+### Added
+- **Automated `master` -> `develop` back-merge**: previously, after a `release/*` branch was merged
+  into `master`, keeping `develop` in sync required manually opening and merging a second MR from
+  the release branch (or `master`) into `develop`. Added `release:back-merge-develop`
+  (`scripts/ci/back-merge-develop.sh`), a new CI job that runs on `master` right after
+  `release:tag` and automatically opens+merges a `master` -> `develop` MR via the GitLab API,
+  reusing the existing `TAG_CREATION_TOKEN`. It's a no-op if `develop` already contains `master`'s
+  tip, and leaves the MR open for manual conflict resolution if the merge can't be done
+  automatically.
+
+### Changed
+- **Ultrasonic UI**: Restyled the login/welcome dialog, edit-server screen, and Google
+  access-request screen to match the web frontend's `LoginPage.svelte` and
+  `docs/styleguide.md`: filled pill-shaped inputs, a real "Sign in with Google" button with the
+  brand G logo, a proper divider, a red error banner, and colored info/success/error status
+  banners for pending/rejected/approved access requests. Also replaced a stray non-brand color
+  in the filter dialog/search FAB with the app's `spotify_green` token, and aligned the nav
+  drawer's item tinting with the bottom nav's existing brand colors.
+- **Ultrasonic settings**: `autoSwitchOffline` now defaults to `false` instead of `true`.
+- Bumped Ultrasonic's own `versionCode`/`versionName` (`240`/`6.5.10` -> `241`/`6.5.11`).
+
+## [0.0.33] - 2026-07-29
+
+### Fixed
+- **Ultrasonic Google Sign-In selected an account in the picker but then silently returned to the
+  login dialog, with no error shown (`bug 013`)**: both `NavigationActivity.performWelcomeGoogleSignIn()`
+  and `EditServerFragment.handleGoogleSignInResult()` checked the credential returned by
+  `CredentialManager.getCredential()` with a naive `is GoogleIdTokenCredential`. Android's Credential
+  Manager never delivers third-party credential types (like Google's) as their concrete subclass
+  across the IPC boundary — they always arrive as a generic `CustomCredential` (a `type` string plus
+  a raw `data: Bundle`), even though `GoogleIdTokenCredential` extends `CustomCredential` in the
+  `googleid` library's own class hierarchy. The cast always failed, silently discarding a
+  successful account selection before the ID token was extracted and before `/api/auth/google` was
+  ever called. Replaced both checks with the documented pattern
+  (`credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL`,
+  then `GoogleIdTokenCredential.createFrom(credential.data)`), with an explicit logged/user-visible
+  error path for any unexpected credential type or parse failure.
+- Bumped Ultrasonic's own `versionCode`/`versionName` (`239`/`6.5.9` -> `240`/`6.5.10`).
+
+## [0.0.32] - 2026-07-29
+
+### Added
+- **Artist face images in the web player bar**: `Player.svelte` previously rendered only track
+  cover art and plain artist-name text — no artist photo, unlike `ArtistView`, `Dashboard`,
+  `SearchResults`, and `StarredView`, which already fetch artist images from `music_manager` via
+  the shared `getArtistImageUrl()` helper. Reused that same helper to show a small circular
+  avatar next to the artist name in both the mobile mini player and the desktop player bar, using
+  the primary (first) artist of the currently playing track. No backend changes were needed — the
+  manager's image-fetching/caching pipeline was already working, it just wasn't wired into the
+  player UI.
+
+## [0.0.30] - 2026-07-29
+
+### Fixed
+- **Ultrasonic welcome-screen Google Sign-In succeeded but the dialog never closed, leaving the
+  app stuck requiring login (`bug 012`)**: `NavigationActivity.performWelcomeGoogleSignIn()`'s
+  `"ok"` branch had been copied from the manual username/password submit handler just above it,
+  including a `MusicServiceFactory.getMusicService().ping()` connectivity check gating whether the
+  dialog was allowed to dismiss. That gate makes sense for manual credential entry (verifying
+  arbitrary user-typed input), but not for Google Sign-In, where a `status: "ok"` response from
+  `/api/auth/google` is already a server-verified, guaranteed-valid credential — the same trust
+  model already used by `EditServerFragment.performMumaGoogleAuth()` and the web frontend's
+  `handleGoogleResponse()`, neither of which re-verifies with a ping. A transient/unrelated
+  connectivity hiccup on that extra ping call could silently discard an already-successful Google
+  sign-in. Removed the ping-gating; the dialog now always closes on `"ok"`, exactly like the other
+  two flows.
+- Bumped Ultrasonic's own `versionCode`/`versionName` (`238`/`6.5.8` -> `239`/`6.5.9`).
+
+## [0.0.29] - 2026-07-29
+
+### Fixed
+- **Ultrasonic Google Sign-In still failed with "No Google accounts found" on a real device with
+  a real Google account already signed in, even with a correct (non-placeholder)
+  `GOOGLE_WEB_CLIENT_ID` (`bug 011`)**: two combined causes. First, `GetGoogleIdOption` (used by
+  both `NavigationActivity.performWelcomeGoogleSignIn()` and
+  `EditServerFragment.startGoogleSignIn()`), even with `setFilterByAuthorizedAccounts(false)`, only
+  reliably returns a credential for an account that has already authorized this app before —
+  switched both call sites to `GetSignInWithGoogleOption`, Google's dedicated option for
+  not-yet-authorized/first-time sign-ins. Second, and more fundamentally, Google's Credential
+  Manager backend refuses to issue any credential to a native Android app unless a separate
+  **Android**-type OAuth client (package name + signing certificate SHA-1) is registered in the
+  same Google Cloud project as the Web client ID — this is a manual, one-time Google Cloud Console
+  step (not fixable purely in code/CI), documented in `docs/deployment.md` and
+  `docs/bug-reports/011-google-signin-no-credential-real-device.md`, along with the two client
+  registrations needed (one for the release keystore, one for the debug keystore).
+- Corrected `docs/deployment.md` and `docs/designs/authentication/technical.md`, which previously
+  (incorrectly) stated no separate Android OAuth client/SHA-1 registration was needed for
+  Ultrasonic's Google Sign-In.
+- Bumped Ultrasonic's own `versionCode`/`versionName` (`237`/`6.5.7` -> `238`/`6.5.8`).
+
 ## [0.0.28] - 2026-07-29
 
 ### Fixed

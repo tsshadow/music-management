@@ -87,12 +87,12 @@ To maintain clean design governance and prevent ad-hoc style drift:
 ### Design Backlog
 
 - **Done** — Android login/welcome screens brought in line with the web's `LoginPage.svelte`: filled/rounded
-  dark inputs (`Widget.Ultrasonic.TextInputLayout.Filled`), a solid-green pill CTA
-  (`Widget.Ultrasonic.Button.Primary`), a branded white "Sign in with Google" pill button with the real
-  Google "G" logo instead of a placeholder star icon (`Widget.Ultrasonic.Button.GoogleSignIn`), a
-  hairline-flanked "OF" divider, a `spotify_light`-background rounded dialog card
-  (`ThemeOverlay.Ultrasonic.WelcomeDialog`, scoped to this one dialog only), and a circular avatar on the
-  Google access-request screen (`google_auth_fragment.xml`).
+  dark inputs (`Ultrasonic.TextInputLayout`), a solid-green pill CTA
+  (`Ultrasonic.Button.Primary`), a branded white "Sign in with Google" pill button with the real
+  Google "G" logo (`Ultrasonic.Button.Google`), a hairline-flanked "OF" divider, a `spotify_light`-background
+  rounded dialog card (`ThemeOverlay.Ultrasonic.WelcomeDialog`, scoped to this one dialog only via the
+  `MaterialAlertDialogBuilder` theme resId), and a circular avatar on the Google access-request screen
+  (`google_auth_fragment.xml`).
 - **Done** — Android filter/search panel (`muma_filters.xml`, `muma_search.xml`,
   `filter_button_bar.xml`) had its buttons, the favorite-star icon tint, and the "show filters" FAB
   hardcoded to `design_default_color_primary_dark` (a generic Material default color, not a brand token) -

@@ -15,7 +15,21 @@
     <color name="spotify_text_primary">#ffffff</color>
     <color name="spotify_text_secondary">#b3b3b3</color>
 
-    <!-- Google brand button colors (per Google Identity sign-in button guidelines) -->
-    <color name="google_button_border">#dadce0</color>
-    <color name="google_button_text">#3c4043</color>
+    <!-- Status banners (Google auth request states) - mirrors the web frontend's
+         bg-*-500/20 text-*-400 Tailwind pattern (docs/styleguide.md semantic colors) -->
+    <color name="status_info_bg">#3329b6f6</color>
+    <color name="status_info_text">#29b6f6</color>
+    <color name="status_success_bg">#331db954</color>
+    <color name="status_success_text">#1db954</color>
+    <color name="status_error_bg">#33e53935</color>
+    <color name="status_error_text">#e53935</color>
+
+    <!-- Matches the web frontend's error banner (bg-[#e91429]) -->
+    <color name="spotify_error_banner">#e91429</color>
+
+    <!-- "Sign in with Google" button, per Google's own branding guidelines
+         (light theme, neutral text/border regardless of the app's dark theme) -->
+    <color name="google_button_background">#ffffff</color>
+    <color name="google_button_text">#1f1f1f</color>
+    <color name="google_button_stroke">#747775</color>
 </resources>

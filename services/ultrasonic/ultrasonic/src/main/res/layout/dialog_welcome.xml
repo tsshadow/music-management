@@ -9,13 +9,15 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingBottom="8dp"
+        android:paddingBottom="12dp"
+        android:gravity="center"
         android:text="@string/welcome_login_info"
-        android:textAppearance="?attr/textAppearanceSubtitle1" />
+        android:textColor="@color/spotify_text_secondary"
+        android:textAppearance="?attr/textAppearanceBodyMedium" />
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/welcome_username_layout"
-        style="@style/Widget.Ultrasonic.TextInputLayout.Filled"
+        style="@style/Ultrasonic.TextInputLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/welcome_username">
@@ -31,7 +33,7 @@
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/welcome_password_layout"
-        style="@style/Widget.Ultrasonic.TextInputLayout.Filled"
+        style="@style/Ultrasonic.TextInputLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
@@ -51,7 +53,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:layout_marginBottom="8dp"
+        android:layout_marginBottom="12dp"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
@@ -66,11 +68,11 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
             android:layout_marginEnd="12dp"
-            android:letterSpacing="0.1"
             android:text="@string/welcome_or_divider"
+            android:textAllCaps="true"
             android:textColor="@color/spotify_text_secondary"
-            android:textSize="11sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:textAppearance="?attr/textAppearanceLabelSmall" />
 
         <View
             android:layout_width="0dp"
@@ -82,10 +84,11 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/welcome_google_signin"
-        style="@style/Widget.Ultrasonic.Button.GoogleSignIn"
+        style="@style/Ultrasonic.Button.Google"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/google_signin_button" />
+        android:text="@string/google_signin_button"
+        app:icon="@drawable/ic_google_logo" />
 
     <ProgressBar
         android:id="@+id/welcome_progress"
@@ -101,7 +104,11 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:textColor="?attr/colorError"
+        android:background="@drawable/rounded_error_banner"
+        android:padding="12dp"
+        android:textColor="@android:color/white"
+        android:textStyle="bold"
+        android:textAppearance="?attr/textAppearanceBodySmall"
         android:visibility="gone" />
 
     <TextView

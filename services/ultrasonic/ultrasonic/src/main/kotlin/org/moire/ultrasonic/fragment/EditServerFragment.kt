@@ -17,11 +17,13 @@ import android.widget.ImageView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.NoCredentialException
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -586,9 +588,13 @@ class EditServerFragment : Fragment() {
             Timber.e("GOOGLE_WEB_CLIENT_ID is not configured! Google Sign-In will fail.")
         }
         val credentialManager = CredentialManager.create(requireContext())
-        val googleIdTokenRequest = GetGoogleIdOption.Builder()
-            .setFilterByAuthorizedAccounts(false)
-            .setServerClientId(org.moire.ultrasonic.BuildConfig.GOOGLE_WEB_CLIENT_ID)
+        // GetGoogleIdOption (even with setFilterByAuthorizedAccounts(false)) only reliably
+        // surfaces a credential for accounts that have already signed into this app before -
+        // for a first-time sign-in it throws NoCredentialException regardless of the device
+        // having a real, usable Google account. GetSignInWithGoogleOption is Google's dedicated
+        // option for this "not yet authorized" case and always shows the account chooser.
+        val googleIdTokenRequest = GetSignInWithGoogleOption
+            .Builder(org.moire.ultrasonic.BuildConfig.GOOGLE_WEB_CLIENT_ID)
             .build()
 
         val request = GetCredentialRequest.Builder()
@@ -615,9 +621,25 @@ class EditServerFragment : Fragment() {
     }
 
     private fun handleGoogleSignInResult(credential: androidx.credentials.Credential) {
-        if (credential is GoogleIdTokenCredential) {
-            val idToken = credential.idToken
+        // Credential Manager always returns third-party credential types (like Google's) as a
+        // generic CustomCredential over the IPC boundary - it is never delivered as the concrete
+        // GoogleIdTokenCredential subclass, even though that class extends CustomCredential
+        // locally. It must be parsed explicitly via createFrom().
+        if (
+            credential is CustomCredential &&
+            credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+        ) {
+            val idToken = try {
+                GoogleIdTokenCredential.createFrom(credential.data).idToken
+            } catch (e: GoogleIdTokenParsingException) {
+                Timber.e(e, "Failed to parse Google ID token credential")
+                toast(R.string.background_task_network_error)
+                return
+            }
             performMumaGoogleAuth(idToken)
+        } else {
+            Timber.e("Google Sign-In returned an unexpected credential type: ${credential.javaClass.name}")
+            toast(R.string.background_task_network_error)
         }
     }
 

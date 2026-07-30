@@ -28,6 +28,7 @@
   let albums = $state([]);
   let artists = $state([]);
   let allGenres = $state([]);
+  let allLabels = $state([]);
   let playlists = $state([]);
   let tracksOffset = $state(0);
   let tracksHasMore = $state(true);
@@ -116,6 +117,10 @@
         else if (activeView.startsWith('genre:')) {
           const genreName = activeView.split(':')[1];
           url += `&genre=${encodeURIComponent(genreName)}`;
+        }
+        if (activeView.startsWith('label:')) {
+          const labelName = activeView.split(':')[1];
+          url += `&label=${encodeURIComponent(labelName)}`;
         }
 
         if (currentYear) url += `&year=${encodeURIComponent(currentYear)}`;
@@ -294,6 +299,25 @@
   }
 
   /**
+   * Loads all record labels from the server.
+   */
+  async function loadAllLabels() {
+    if (!$authParams) return;
+    isLoading = true;
+    try {
+      const response = await fetch(`/rest/getRecordLabels?${$authParams}`);
+      const data = await response.json();
+      const result = data['subsonic-response']?.recordLabels?.recordLabel || [];
+      const resultArr = Array.isArray(result) ? result : [result];
+      allLabels = resultArr.sort((a, b) => a.value.localeCompare(b.value));
+    } catch (e) {
+      console.error("Failed to load labels:", e);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  /**
    * Toggles a genre as favorite.
    *
    * @param {string} genre - The genre name.
@@ -374,7 +398,7 @@
       untrack(() => {
         if (view === 'home') {
             loadCurated();
-        } else if (view === 'songs' || view === 'sets' || view.startsWith('genre:')) {
+        } else if (view === 'songs' || view === 'sets' || view.startsWith('genre:') || view.startsWith('label:')) {
             loadAllTracks();
         } else if (view === 'radar') {
             openRadar();
@@ -382,6 +406,8 @@
             loadAlbums();
         } else if (view === 'genres') {
             loadAllGenres();
+        } else if (view === 'labels') {
+            loadAllLabels();
         } else if (view === 'artists') {
             loadArtists();
         } else if (view === 'playlists') {
@@ -399,7 +425,7 @@
   });
 
   $effect(() => {
-    if (sentinel && tracksHasMore && !isLoading && (activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('search:'))) {
+    if (sentinel && tracksHasMore && !isLoading && (activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('search:'))) {
       const observer = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting) {
           loadAllTracks(true);
@@ -442,12 +468,12 @@
         </div>
       </section>
     {/each}
-  {:else if activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:')}
+  {:else if activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:')}
     <div class="flex flex-col gap-4 mb-6">
         <h2 class="text-2xl font-bold m-0 flex items-center gap-3">
             {#if activeView === 'songs' || activeView === 'sets'}
               {$viewMode === 'sets' ? 'Sets' : 'Alle Nummers'}
-            {:else}
+            {:else if activeView.startsWith('genre:')}
               {@const genreName = activeView.split(':')[1]}
               <span>{genreName}</span>
               <button
@@ -459,9 +485,12 @@
                     <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
                 </svg>
               </button>
+            {:else}
+              {@const labelName = activeView.split(':')[1]}
+              <span>{labelName}</span>
             {/if}
         </h2>
-        <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} showGenre={!activeView.startsWith('genre:')} onchange={handleFilterChange} />
+        <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} showGenre={!activeView.startsWith('genre:') && !activeView.startsWith('label:')} onchange={handleFilterChange} />
     </div>
     {#if isLoading && tracks.length === 0}
         <p>Laden...</p>
@@ -558,6 +587,34 @@
                     </div>
                     <span class="font-bold text-center break-words w-full">{g.value}</span>
                     <span class="text-xs text-[#b3b3b3]">{g.songCount} nummers</span>
+                </div>
+            {/each}
+        </div>
+    {/if}
+  {:else if activeView === 'labels'}
+    <div class="flex flex-col gap-4 mb-6">
+      <h2 class="text-2xl font-bold m-0">Labels</h2>
+    </div>
+    {#if isLoading && allLabels.length === 0}
+        <p>Laden...</p>
+    {:else if allLabels.length === 0}
+        <p class="text-[#b3b3b3]">Geen labels gevonden in je bibliotheek.</p>
+    {:else}
+        <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+            {#each allLabels as l (l.value)}
+                <div
+                  role="button"
+                  tabindex="0"
+                  class="bg-[#181818] p-6 rounded-lg flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors hover:bg-[#282828] aspect-square"
+                  onclick={() => activeView = `label:${l.value}`}
+                  onkeydown={(e) => e.key === 'Enter' && (activeView = `label:${l.value}`)}
+                >
+                    <div class="w-16 h-16 rounded-full bg-brand flex items-center justify-center text-black mb-2 shadow-lg">
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"></path>
+                        </svg>
+                    </div>
+                    <span class="font-bold text-center break-words w-full">{l.value}</span>
                 </div>
             {/each}
         </div>

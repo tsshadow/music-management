@@ -82,7 +82,9 @@ namespace lms::db
                 std::string escaped = "%" + utils::escapeForLikeKeyword(keyword) + "%";
                 query.where("(LOWER(t.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "'"
                             " OR EXISTS (SELECT 1 FROM track_artist_link t_a_l JOIN artist a ON a.id = t_a_l.artist_id WHERE t_a_l.track_id = t.id AND (LOWER(a.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' OR LOWER(a.sort_name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "'))"
-                            " OR EXISTS (SELECT 1 FROM release r WHERE r.id = t.release_id AND (LOWER(r.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' OR LOWER(r.sort_name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "')))")
+                            " OR EXISTS (SELECT 1 FROM release r WHERE r.id = t.release_id AND (LOWER(r.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' OR LOWER(r.sort_name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "'))"
+                            " OR EXISTS (SELECT 1 FROM release_label r_l JOIN label l ON l.id = r_l.label_id WHERE r_l.release_id = t.release_id AND LOWER(l.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "'))")
+                    .bind(escaped)
                     .bind(escaped)
                     .bind(escaped)
                     .bind(escaped)

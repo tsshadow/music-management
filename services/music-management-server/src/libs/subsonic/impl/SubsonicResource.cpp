@@ -147,6 +147,7 @@ namespace lms::api::subsonic
             { "/getIndexes", { handleGetIndexesRequest } },
             { "/getMusicDirectory", { handleGetMusicDirectoryRequest } },
             { "/getGenres", { handleGetGenresRequest } },
+            { "/getRecordLabels", { handleGetRecordLabelsRequest } },
             { "/getTags", { handleGetTagsRequest } },
             { "/getMoods", { handleGetMoodRequest } },
             { "/getYears", { handleGetYearsRequest } },

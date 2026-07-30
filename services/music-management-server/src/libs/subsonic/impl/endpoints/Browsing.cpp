@@ -399,6 +399,33 @@ namespace lms::api::subsonic
         return response;
     }
 
+    Response handleGetRecordLabelsRequest(RequestContext& context)
+    {
+        Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
+
+        Response::Node& recordLabelsNode{ response.createNode("recordLabels") };
+
+        auto transaction{ context.getDbSession().createReadTransaction() };
+
+        Label::find(context.getDbSession(), LabelSortMethod::Name, [&](const Label::pointer& label) {
+            Response::Node labelNode;
+
+            switch (context.getResponseFormat())
+            {
+            case ResponseFormat::json:
+                labelNode.setAttribute("value", label->getName());
+                break;
+            case ResponseFormat::xml:
+                labelNode.setValue(label->getName());
+                break;
+            }
+
+            recordLabelsNode.addArrayChild("recordLabel", std::move(labelNode));
+        });
+
+        return response;
+    }
+
     Response handleGetTagsRequest(RequestContext& context)
     {
         Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };

@@ -25,6 +25,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lost. Logging out clears the locally-shown favorites so they aren't shown to the next browser user.
   See [docs/designs/favorite-genres/](docs/designs/favorite-genres/).
 
+### Fixed
+- **Ultrasonic's welcome-dialog login test could silently "succeed" without ever contacting the
+  server**: `MusicServiceFactory.getMusicService()` falls back to `OfflineMusicService` - whose
+  `ping()` is a no-op that always returns without error - whenever "Auto-switch server
+  online/offline" is enabled and a `ConnectivityManager` capability check transiently/incorrectly
+  reports no network. That setting defaulted to enabled before version 0.0.34, so any install from
+  before that update carried it forward as `true`. The welcome dialog's login test now calls the
+  new `MusicServiceFactory.getOnlineMusicService()`, which always uses the real, network-backed
+  service - a first-time login/setup check's entire purpose is proving the server is reachable and
+  the credentials are valid, so it must never be satisfiable by a no-op.
+
 ## [0.0.39] - 2026-07-29
 
 ### Fixed

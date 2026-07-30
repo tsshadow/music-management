@@ -116,6 +116,20 @@ object MusicServiceFactory : KoinComponent {
     }
 
     /**
+     * Always returns the real, network-backed [MusicService], bypassing the "auto-switch
+     * offline" fallback in [getMusicService] entirely. [OfflineMusicService.ping] is a no-op
+     * that always succeeds without ever touching the network - fine for normal browsing (where
+     * falling back to cached data on a flaky connection is the whole point), but wrong for a
+     * first-time login/setup test, whose entire purpose is proving the server is actually
+     * reachable and the credentials are valid. Silently "succeeding" via the offline no-op there
+     * left users unable to tell a real login failure from a stale/incorrect
+     * `Settings.autoSwitchOffline` (defaulted to `true` before version 0.0.34) plus a transient/
+     * incorrect [isNetworkAvailable] read.
+     */
+    @JvmStatic
+    fun getOnlineMusicService(): MusicService = get(named(ONLINE_MUSIC_SERVICE))
+
+    /**
      * Resets [MusicService] to initial state, so on next call to [.getMusicService]
      * it will return updated instance of it.
      */

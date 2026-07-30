@@ -675,9 +675,15 @@ class NavigationActivity : ScopeActivity() {
                                 activeServerProvider.setActiveServerById(0)
                             }
 
-                            // Now test connection
+                            // Now test connection. Uses getOnlineMusicService() rather than
+                            // getMusicService() deliberately: the latter can silently hand back
+                            // the no-op OfflineMusicService (see its ping()) whenever
+                            // "auto-switch offline" is enabled and isNetworkAvailable() reads
+                            // false, even transiently/incorrectly - which would make this whole
+                            // login test report "success" without ever having contacted the
+                            // server.
                             MusicServiceFactory.resetMusicService()
-                            val musicService = MusicServiceFactory.getMusicService()
+                            val musicService = MusicServiceFactory.getOnlineMusicService()
                             musicService.ping()
                             true
                         } catch (e: Exception) {

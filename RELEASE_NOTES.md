@@ -18,6 +18,45 @@ This project is now modularized. Detailed release notes for each module can be f
 - Already had favorite genres set before this change? Those are automatically carried over to your
   account the next time you log in, so nothing gets lost.
 
+## Global Version 0.0.39 (2026-07-29)
+### 🛠️ Kleine interne verbetering aan het releaseproces
+- Een van de automatische opruimstappen na een release faalde af en toe met een technische
+  foutmelding, terwijl er in werkelijkheid niets mis was — GitLab had alleen nog even tijd nodig
+  om te controleren of de wijziging kon worden samengevoegd.
+- Het script wacht nu even en probeert het opnieuw voordat het opgeeft, zodat deze stap
+  betrouwbaar slaagt. Geen zichtbare wijziging voor gebruikers.
+
+## Global Version 0.0.38 (2026-07-29)
+### 🔁 De vorige fix werd per ongeluk teruggedraaid door een oude, vergeten release
+- Na het uitrollen van de vorige fix (versie 0.0.37) stond er even later toch weer de oude,
+  kapotte versie op de server, alsof de fix niet had gewerkt.
+- Oorzaak: er stond nog een héél oude, al lang niet meer gebruikte tussenversie klaar op de
+  server om verwerkt te worden, en die kwam toevallig precies ná de nieuwe fix aan de beurt,
+  waardoor hij de oude code er per ongeluk weer overheen zette.
+- Alle van dat soort oude, al verwerkte tussenversies zijn nu opgeruimd, en het proces zorgt er
+  vanaf nu automatisch voor dat zo'n tussenversie meteen wordt opgeruimd zodra hij is verwerkt,
+  zodat dit niet meer kan gebeuren.
+- Er is geen zichtbare functionele wijziging in de app zelf in deze versie — dit is puur het
+  opnieuw correct uitrollen van de vorige fix, plus deze structurele bescherming.
+
+## Global Version 0.0.37 (2026-07-29)
+### 🛠️ Twee achtergrondtools op de server crashten steeds bij het opstarten
+- Bij een controle van de productieomgeving bleken de `genre-processor`- en
+  `muma-soundcloud-fetcher`-containers steeds direct af te breken met een foutmelding, terwijl al
+  het andere (afspelen, downloaden, importeren, taggen) gewoon goed draaide.
+- Oorzaak: een eerdere opschoning van de code had een instellingenbestand verplaatst/hernoemd, maar
+  deze twee losstaande hulpscripts waren daarbij per ongeluk niet meegenomen, waardoor ze naar een
+  bestand verwezen dat niet meer bestond.
+- Beide scripts zijn hersteld zodat ze weer normaal opstarten; er is ook een automatische test
+  toegevoegd zodat een soortgelijke fout voortaan meteen bij het bouwen wordt opgemerkt in plaats
+  van pas op de server.
+
+## Global Version 0.0.36 (2026-07-29)
+### 🖥️ Beheer: Overzicht-tabblad crashte
+- Het "Overview"-tabblad in het beheerpaneel gaf een foutmelding zodra er meerdere recente
+  activiteiten waren om te tonen, in plaats van gewoon de lijst te laten zien.
+- Dit is nu verholpen; het tabblad laadt weer gewoon.
+
 ## Global Version 0.0.34 (2026-07-29)
 ### 🎨 Ultrasonic-app: inlogschermen in nieuwe stijl
 - Het welkomstscherm, het scherm om een server te bewerken, en het scherm voor toegang aanvragen

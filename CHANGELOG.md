@@ -17,6 +17,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lost. Logging out clears the locally-shown favorites so they aren't shown to the next browser user.
   See [docs/designs/favorite-genres/](docs/designs/favorite-genres/).
 
+## [0.0.39] - 2026-07-29
+
+### Fixed
+- **`release:back-merge-develop` intermittently failed with "Branch cannot be merged"**: right
+  after opening (or reusing) the automated `master` -> `develop` MR, `scripts/ci/back-merge-
+  develop.sh` attempted the merge immediately, but GitLab computes an MR's `merge_status`
+  asynchronously, so the merge could be rejected purely because that computation hadn't finished
+  yet — not because of a real conflict. Observed on `release/0.0.38`'s `master` pipeline: MR !65
+  became mergeable within a second of the failed attempt. Added a short poll loop (up to 10 x 3s)
+  waiting for `detailed_merge_status == "mergeable"` before merging, plus up to 3 retries on the
+  merge call itself, before falling back to leaving the MR open for manual resolution.
+
+## [0.0.38] - 2026-07-29
+
+### Fixed
+- **A stale, already-merged-but-never-deleted `release/0.0.35` branch's delayed pipeline
+  re-pushed old code as `muma/muma-tools:latest` and redeployed it to production right after
+  `bug 015`'s fix went live (`bug 016`)**: `release:build-images`/`deploy:prod` trigger on any
+  `release/*` branch push or pipeline run, and the repository had accumulated many old, merged
+  `release/*` branches; one of them (`release/0.0.35`) had a job stuck queued on the shared
+  runner that finally executed *after* the `0.0.37` fix's pipeline, overwriting `latest` with its
+  stale, pre-fix checkout. Deleted `release/0.0.35` and all other already-merged stale branches,
+  and made `release:back-merge-develop` (`scripts/ci/back-merge-develop.sh`) automatically delete
+  the `release/*`/`hotfix/*` branch it just merged into `master`, so merged release branches can no
+  longer accumulate and race a later release's build/deploy. No functional application code
+  change in this release — this is purely the automated re-deploy of `bug 015`'s already-merged
+  fix plus the branch-cleanup safeguard.
+
+## [0.0.37] - 2026-07-29
+
+### Fixed
+- **`genre-processor` and `muma-soundcloud-fetcher` production containers crashed on start with
+  `ModuleNotFoundError` (`bug 015`)**: an earlier refactor (commit `cb345cf79`) removed
+  `services/common/settings.py` (replaced by `services.common.config_store.ConfigStore`) and moved
+  `services/common/api/db_init.py` to `services/common/db_init.py`, updating all call sites under
+  `services/`, but missed `tools/soundcloud_fetcher.py` and `tools/process_genres.py` — these
+  `tools/` scripts aren't covered by the regular unit test suite, so the stale imports only
+  surfaced as a container-runtime crash, not a CI failure. Fixed both imports and added
+  `tools/test_tools_imports.py` (wired into `scripts/test/music-management-unit.sh`) to catch this
+  class of regression going forward.
+
+## [0.0.36] - 2026-07-29
+
+### Fixed
+- **Manager "Overview" tab crashed on load**: the recent-activity list's `{#each}` block was keyed
+  on `item.file_path`, but `/api/system/activity` never returns that field (only `title`, `artist`,
+  `timestamp`). Every row therefore shared the identical `undefined` key, and Svelte 5 throws a
+  runtime error on duplicate keyed-each keys — crashing the whole Overview tab as soon as there
+  were 2+ recent items (the normal case). Keyed the loop on array index instead, and guarded the
+  filename fallback so it can't throw even if `file_path` is ever absent.
+
 ## [0.0.34] - 2026-07-29
 
 ### Added

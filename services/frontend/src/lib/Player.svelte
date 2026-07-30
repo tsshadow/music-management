@@ -388,6 +388,22 @@
   }
 
   /**
+   * Formats an ISO date string (YYYY-MM-DD) into DD-MM-YYYY.
+   *
+   * @param {string} dateStr - The date string from the backend.
+   * @returns {string|null} Formatted date or null if invalid.
+   */
+  function formatShortDate(dateStr) {
+    if (!dateStr) return null;
+    const parts = dateStr.split('T')[0].split('-');
+    if (parts.length === 3) {
+      // YYYY-MM-DD -> DD-MM-YYYY
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return null;
+  }
+
+  /**
    * Formats seconds into a "M:SS" string.
    *
    * @param {number} seconds - Time in seconds.
@@ -520,6 +536,7 @@
     ($syncMode === 'follower-jam' ? 'Jam: Remote (Controller)' : 
     ($syncMode === 'follower-radio' ? 'Radio: Listener (Following)' : 'Sync Off'))
   );
+  const releaseDate = $derived(track ? (formatShortDate(track.date) || track.year || '') : '');
   const coverUrl = $derived(track?.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}` : '/images/spotify-fallback.svg');
   const streamUrl = $derived(track?.id ? `/rest/stream?id=${track.id}&${$authParams}` : '');
 
@@ -980,6 +997,12 @@
       >
         <div class="h-full bg-white rounded-sm" style="width: {volume}%"></div>
       </div>
+    </div>
+  {/if}
+
+  {#if track && releaseDate}
+    <div class="hidden md:block absolute bottom-1 right-4 text-[10px] text-white/30 pointer-events-none select-none">
+      {releaseDate}
     </div>
   {/if}
 </footer>

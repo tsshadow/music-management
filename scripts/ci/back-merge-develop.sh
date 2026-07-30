@@ -51,14 +51,40 @@ else
     echo "Opened MR !${MR_IID}."
 fi
 
+echo "Waiting for GitLab to finish computing mergeability of !${MR_IID}..."
+
+# GitLab computes merge_status asynchronously right after an MR is opened
+# (or a source branch changes); a merge attempted immediately can fail with
+# "Branch cannot be merged" purely because that computation hasn't finished
+# yet, not because of a real conflict. Poll briefly before giving up.
+MERGE_STATUS="checking"
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+    MERGE_STATUS=$(curl -sf --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
+        "${API}/merge_requests/${MR_IID}" \
+        | python3 -c "import json,sys; print(json.load(sys.stdin).get('detailed_merge_status', ''))")
+    if [ "$MERGE_STATUS" = "mergeable" ]; then
+        break
+    fi
+    echo "  merge status: ${MERGE_STATUS:-unknown}, retrying in 3s..."
+    sleep 3
+done
+
 echo "Merging..."
 
-MERGE_RESPONSE=$(curl -s --request PUT --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
-    --data-urlencode "merge_commit_message=Merge branch 'master' into 'develop'" \
-    --data-urlencode "should_remove_source_branch=false" \
-    "${API}/merge_requests/${MR_IID}/merge")
-
-STATE=$(echo "$MERGE_RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('state', ''))")
+MERGE_RESPONSE=""
+STATE=""
+for _ in 1 2 3; do
+    MERGE_RESPONSE=$(curl -s --request PUT --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
+        --data-urlencode "merge_commit_message=Merge branch 'master' into 'develop'" \
+        --data-urlencode "should_remove_source_branch=false" \
+        "${API}/merge_requests/${MR_IID}/merge")
+    STATE=$(echo "$MERGE_RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('state', ''))")
+    if [ "$STATE" = "merged" ]; then
+        break
+    fi
+    echo "  merge attempt failed (state: ${STATE:-unknown}), retrying in 3s..."
+    sleep 3
+done
 
 if [ "$STATE" != "merged" ]; then
     echo "Could not auto-merge !${MR_IID} (state: ${STATE:-unknown})."
@@ -68,3 +94,42 @@ if [ "$STATE" != "merged" ]; then
 fi
 
 echo "Merged master into develop via MR !${MR_IID}."
+
+# Delete the release/* (or hotfix/*) branch that was just merged into master,
+# so merged release branches never accumulate on the remote. A forgotten,
+# already-merged release branch left lying around is a real production risk:
+# any later, delayed/re-run pipeline against it (e.g. queued behind other jobs
+# on a busy shared runner) re-triggers release:build-images/deploy:prod from
+# that branch's now-stale checkout, silently overwriting `latest` and
+# redeploying old code - see docs/bug-reports/016-stale-release-branch-clobbered-latest-deploy.md
+# for the incident this guards against.
+echo "Looking up the release/hotfix branch merged into master at ${CI_COMMIT_SHA}..."
+SOURCE_BRANCH=$(curl -sf --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
+    "${API}/merge_requests?target_branch=master&state=merged&order_by=updated_at&sort=desc&per_page=20" \
+    | python3 -c "
+import json, sys
+mrs = json.load(sys.stdin)
+target_sha = '${CI_COMMIT_SHA}'
+for mr in mrs:
+    sha = mr.get('merge_commit_sha') or mr.get('sha')
+    branch = mr.get('source_branch', '')
+    if sha == target_sha and (branch.startswith('release/') or branch.startswith('hotfix/')):
+        print(branch)
+        break
+")
+
+if [ -z "$SOURCE_BRANCH" ]; then
+    echo "No matching merged release/hotfix branch found for this commit, nothing to delete."
+elif [ "$SOURCE_BRANCH" = "master" ] || [ "$SOURCE_BRANCH" = "develop" ]; then
+    echo "Refusing to delete protected branch '${SOURCE_BRANCH}'."
+else
+    echo "Deleting merged branch '${SOURCE_BRANCH}'..."
+    DELETE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --request DELETE \
+        --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
+        "${API}/repository/branches/$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$SOURCE_BRANCH")")
+    if [ "$DELETE_STATUS" = "204" ]; then
+        echo "Deleted branch '${SOURCE_BRANCH}'."
+    else
+        echo "Warning: could not delete branch '${SOURCE_BRANCH}' (HTTP ${DELETE_STATUS}); leaving it - delete manually."
+    fi
+fi

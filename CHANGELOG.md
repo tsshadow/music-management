@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **The tagger, scanner and ListenBrainz-import endpoints now require an API key.** `POST
+  /api/tagger/tag/all`, `/tag/file`, `/tag/stop`, `POST /api/scanner/scan/all`, `/scan/file`,
+  `POST /api/scrobbler/import/listenbrainz` and `GET /api/scrobbler/import/latest` had no
+  authentication at all — anyone who could reach the API could start a full re-tag of the library,
+  which rewrites tags in the actual music files. This went unnoticed because Cloudflare Access sat
+  in front of `muma.example.com` externally; the moment that had to be bypassed so the mobile
+  app could log in from outside the LAN, they became publicly reachable. The `/health` endpoints
+  stay open for monitoring. See `docs/bug-reports/020-new-user-cannot-log-in-android.md`.
+
 ### Fixed
 - **Ultrasonic login screen no longer blames the connection for a rejected password.** The welcome
   dialog already probes the server to tell an outage apart from bad credentials, but then showed

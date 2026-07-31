@@ -109,14 +109,21 @@ That combination produces the reported symptom exactly:
 - The username/password attempt goes through Subsonic on `music.example.com` instead, which
   is reachable, and failed separately on the missing account.
 
-**Before removing Access, note what it is currently the only thing shielding.** These endpoints
-have no auth dependency at all: `POST /api/tagger/tag/all`, `/tag/file`, `/tag/stop` (these write
-tags to the actual music files), `POST /api/scanner/scan/all`, `/scan/file`, and `POST
-/api/scrobbler/import/listenbrainz`. Dropping Access on the whole hostname would expose them
-unauthenticated to the internet. The safe order is: a path-scoped `Bypass` policy for `/api/auth/*`
-first (which unblocks login while leaving those endpoints covered), then guard them with
-`Depends(verify_api_key)`, then widen the bypass to the whole hostname — which is needed anyway,
-since the mobile app also uses the Muma API for ratings, settings sync and the management tab.
+**Access was the only thing shielding several unauthenticated endpoints.** `POST
+/api/tagger/tag/all`, `/tag/file`, `/tag/stop` (these write tags to the actual music files), `POST
+/api/scanner/scan/all`, `/scan/file`, `POST /api/scrobbler/import/listenbrainz` and `GET
+/api/scrobbler/import/latest` had no auth dependency at all, so a `Bypass` policy covering the
+whole hostname exposes them to the internet — confirmed after the bypass was added, with
+`GET /api/tagger/health` answering publicly.
+
+They are guarded with `Depends(verify_api_key)` as of this change (see "solution" above); the two
+`/health` endpoints are deliberately left open for monitoring. **The guards only take effect once
+this is deployed to production** — until then, keep the Access bypass scoped to `/api/auth/*`
+rather than the whole hostname.
+
+`POST /api/jobs/register/{job_id}` is deliberately left unguarded: it only writes to an in-memory
+job dict, and its callers are external workers that could not be located in this repository, so
+guarding it risks breaking their status reporting for very little gain.
 
 # contributing cause on Google's side: consent screen was in Testing
 The OAuth consent screen for the project behind `GOOGLE_CLIENT_ID` was in **Testing** publishing
@@ -162,10 +169,13 @@ is the next thing to clear, not a new mystery.
 
 # still required outside this repository
 1. **Let the Muma API through Cloudflare Access.** Zero Trust → Access → Applications → the
-   `muma.example.com` application: add a `Bypass` policy scoped to `/api/auth/*` to unblock
-   login immediately, then widen it to the whole hostname once the unauthenticated endpoints listed
-   above are guarded. The API enforces its own authentication (`X-API-Key`, bcrypt passwords,
-   Google ID token verification), so Access in front of it only breaks non-browser clients.
+   `muma.example.com` application needs a `Bypass` policy; the API enforces its own
+   authentication (`X-API-Key`, bcrypt passwords, Google ID token verification), so Access in front
+   of it only breaks non-browser clients. *Done* — `muma.example.com` was added to the existing
+   Bypass policy's destinations, and all three auth endpoints were verified answering real JSON
+   from outside afterwards. Keep the bypass scoped to `/api/auth/*` until the endpoint guards in
+   this branch are deployed, then widen it to the whole hostname — which is needed anyway, since
+   the mobile app also uses the Muma API for ratings, settings sync and the management tab.
 2. **Remove the unapproved sensitive/restricted scopes** under *Google Auth Platform → Data
    access*, leaving only `openid`, `.../auth/userinfo.email` and `.../auth/userinfo.profile`. That
    drops the verification requirement entirely, since nothing here uses the other scopes.

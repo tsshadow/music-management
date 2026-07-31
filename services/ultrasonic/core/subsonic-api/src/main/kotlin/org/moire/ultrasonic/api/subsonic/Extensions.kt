@@ -52,7 +52,9 @@ fun <T : SubsonicResponse> Response<T>.throwOnFailure(): Response<T> {
         response.body()!!.status === SubsonicResponse.Status.ERROR &&
         response.body()!!.error != null
     ) {
-        throw SubsonicRESTException(response.body()!!.error!!)
+        val error = response.body()!!.error!!
+        AuthenticationFailureNotifier.notifyIfAuthenticationFailure(error)
+        throw SubsonicRESTException(error)
     } else {
         throw IOException("Failed to perform request: " + response.code())
     }
@@ -66,6 +68,7 @@ fun StreamResponse.throwOnFailure(): StreamResponse {
     val response = this
     if (response.hasError() || response.stream == null) {
         if (response.apiError != null) {
+            AuthenticationFailureNotifier.notifyIfAuthenticationFailure(response.apiError)
             throw SubsonicRESTException(response.apiError)
         } else {
             throw IOException(

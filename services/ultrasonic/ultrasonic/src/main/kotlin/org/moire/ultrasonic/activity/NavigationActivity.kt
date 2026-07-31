@@ -36,6 +36,7 @@ import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
+import androidx.annotation.StringRes
 import androidx.core.view.MenuProvider
 import androidx.fragment.app.FragmentContainerView
 import androidx.lifecycle.Lifecycle
@@ -88,6 +89,7 @@ import org.moire.ultrasonic.service.RxBus
 import org.moire.ultrasonic.service.plusAssign
 import org.moire.ultrasonic.util.Constants
 import org.moire.ultrasonic.util.LocaleHelper
+import org.moire.ultrasonic.util.SecureSettings
 import org.moire.ultrasonic.util.Settings
 import org.moire.ultrasonic.util.ShortcutUtil
 import org.moire.ultrasonic.util.Storage
@@ -232,6 +234,15 @@ class NavigationActivity : ScopeActivity() {
             recreate()
         }
 
+        // The password can stop working while the app is happily running - it is changed on the
+        // server, or an API key is revoked. Every screen then fails with an error it cannot fix,
+        // so end the session and ask for credentials again instead of leaving a dead app open.
+        rxBusSubscription += RxBus.authenticationFailureObservable.subscribe {
+            if (!ActiveServerProvider.isOffline() && Settings.staticPassword.isNotBlank()) {
+                logOut(R.string.welcome_session_expired)
+            }
+        }
+
         rxBusSubscription += RxBus.activeServerChangedObservable.subscribe {
             setMenuForServerCapabilities()
             updateOfflineBanner()
@@ -287,6 +298,10 @@ class NavigationActivity : ScopeActivity() {
                 mediaPlayerManager.onDestroy()
                 finish()
                 exit()
+                return true
+            }
+            if (item.itemId == R.id.menu_logout) {
+                confirmLogout()
                 return true
             }
             return item.onNavDestinationSelected(host!!.navController)
@@ -457,6 +472,44 @@ class NavigationActivity : ScopeActivity() {
         finishAndRemoveTask()
     }
 
+    /** Asks before logging out, because it stops playback and returns to the login screen. */
+    private fun confirmLogout() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.logout_confirm_title)
+            .setMessage(R.string.logout_confirm_message)
+            .setPositiveButton(R.string.menu_logout) { _, _ -> logOut() }
+            .setNegativeButton(R.string.common_cancel, null)
+            .show()
+    }
+
+    /**
+     * Ends the session and shows the login screen again.
+     *
+     * The username is deliberately kept: it is not a secret, it is prefilled on the login screen,
+     * and the "are we logged in" check in [onCreate] keys off the password being blank. Everything
+     * that can authenticate - the password, the MuMa API key and the stored MuMa tokens - is
+     * cleared.
+     */
+    private fun logOut(@StringRes messageRes: Int? = null) {
+        Timber.i("Logging out")
+
+        // Whatever is playing was streamed with credentials that are about to be dropped.
+        mediaPlayerManager.clear()
+
+        Settings.staticPassword = ""
+        Settings.mumaApiKey = ""
+        Settings.mumaUserId = -1
+        SecureSettings.clear()
+
+        activeServerProvider.invalidateCache()
+        MusicServiceFactory.resetMusicService()
+
+        // The welcome dialog only shows itself once per app start; a fresh logout is exactly the
+        // case where it must show itself again.
+        UApp.instance!!.setupDialogDisplayed = false
+        showWelcomeDialog(messageRes)
+    }
+
     /**
      * Updates the welcome dialog's always-visible bottom status line. `reachable == null` means
      * "not checked yet" (the initial state, before the first probe completes).
@@ -471,7 +524,12 @@ class NavigationActivity : ScopeActivity() {
         )
     }
 
-    private fun showWelcomeDialog() {
+    /**
+     * Shows the login screen. [messageRes], when given, is shown in the dialog's error slot before
+     * the user has typed anything - that is how a logged-out session explains itself ("your
+     * password was rejected") instead of silently reappearing at the login screen.
+     */
+    private fun showWelcomeDialog(@StringRes messageRes: Int? = null) {
         if (!UApp.instance!!.setupDialogDisplayed) {
             Settings.firstInstalledVersion = Util.getVersionCode(UApp.applicationContext())
 
@@ -493,6 +551,17 @@ class NavigationActivity : ScopeActivity() {
 
             dialog.show()
             dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+
+            // Signing out keeps the username, so someone signing back in only has to retype the
+            // password.
+            if (Settings.staticUserName.isNotBlank()) {
+                usernameField.setText(Settings.staticUserName)
+            }
+
+            if (messageRes != null) {
+                errorText.setText(messageRes)
+                errorText.visibility = View.VISIBLE
+            }
 
             // There is now only one, fixed production server (no more separate "alpha" server)
             val targetServer = ServerSettingsModel.STATIC_SERVERS.find { it.id == 0 }
@@ -559,6 +628,7 @@ class NavigationActivity : ScopeActivity() {
                     if (result) {
                         UApp.instance!!.setupDialogDisplayed = true
                         dialog.dismiss()
+                        RxBus.loginSucceededPublisher.onNext(Unit)
                     } else {
                         // A failed ping() alone doesn't say whether the server was unreachable
                         // or the credentials were simply wrong - probe the server directly
@@ -857,6 +927,7 @@ class NavigationActivity : ScopeActivity() {
                     progressBar.visibility = View.GONE
                     UApp.instance!!.setupDialogDisplayed = true
                     dialog.dismiss()
+                    RxBus.loginSucceededPublisher.onNext(Unit)
                 }
                 "unknown" -> {
                     progressBar.visibility = View.GONE

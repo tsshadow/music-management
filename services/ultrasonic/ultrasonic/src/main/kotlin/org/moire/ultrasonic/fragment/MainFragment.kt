@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.AnimationUtils
 import android.widget.TextView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -32,6 +33,7 @@ import org.moire.ultrasonic.home.HomeCardAction
 import org.moire.ultrasonic.home.HomeCardAdapter
 import org.moire.ultrasonic.home.HomeCardNavigator
 import org.moire.ultrasonic.home.HomeSection
+import org.moire.ultrasonic.home.HomeSectionState
 import org.moire.ultrasonic.home.HomeViewModel
 import org.moire.ultrasonic.service.RxBus
 import timber.log.Timber
@@ -65,6 +67,13 @@ class MainFragment :
 
         rxBusSubscription.add(
             RxBus.setsModeChangedPublisher.subscribe { homeViewModel.load() }
+        )
+
+        // Sections loaded while logged out came back empty; a fresh login is the moment to try
+        // again, and nothing else signals it (logging back in on the same server does not change
+        // the active server).
+        rxBusSubscription.add(
+            RxBus.loginSucceededObservable.subscribe { homeViewModel.load() }
         )
 
         return binding!!
@@ -111,17 +120,32 @@ class MainFragment :
         val adapter = HomeCardAdapter(style, ::onCardClicked)
         recycler.adapter = adapter
 
-        return SectionSlot(container, container.findViewById(R.id.section_title), adapter)
+        val skeletonLayout = when (style) {
+            CardStyle.GRID -> R.layout.home_skeleton_grid
+            CardStyle.CAROUSEL -> R.layout.home_skeleton_carousel
+        }
+        val skeletonCards: ViewGroup = container.findViewById(R.id.section_skeleton_cards)
+        layoutInflater.inflate(skeletonLayout, skeletonCards, true)
+
+        return SectionSlot(
+            container = container,
+            title = container.findViewById(R.id.section_title),
+            skeleton = container.findViewById(R.id.section_skeleton),
+            recycler = recycler,
+            adapter = adapter
+        )
     }
 
-    private fun render(sections: List<HomeSection?>) {
+    /**
+     * A slot with no state yet is treated as still loading: that is what the screen looks like for
+     * the first moments after a cold start, and it is exactly when a skeleton is wanted.
+     */
+    private fun render(states: List<HomeSectionState>) {
         slots.forEachIndexed { index, slot ->
-            val section = sections.getOrNull(index)
-
-            slot.container.visibility = if (section == null) View.GONE else View.VISIBLE
-            if (section != null) {
-                slot.title.setText(section.titleRes)
-                slot.adapter.items = section.cards
+            when (val state = states.getOrElse(index) { HomeSectionState.Loading }) {
+                is HomeSectionState.Loading -> slot.showSkeleton()
+                is HomeSectionState.Empty -> slot.container.visibility = View.GONE
+                is HomeSectionState.Content -> slot.showContent(state.section)
             }
         }
     }
@@ -146,8 +170,35 @@ class MainFragment :
     private class SectionSlot(
         val container: View,
         val title: TextView,
+        val skeleton: View,
+        val recycler: RecyclerView,
         val adapter: HomeCardAdapter
-    )
+    ) {
+        /** The title is unknown until the section loads, so it is a placeholder bar until then. */
+        fun showSkeleton() {
+            container.visibility = View.VISIBLE
+            title.visibility = View.GONE
+            recycler.visibility = View.GONE
+
+            if (skeleton.visibility != View.VISIBLE) {
+                skeleton.visibility = View.VISIBLE
+                skeleton.startAnimation(
+                    AnimationUtils.loadAnimation(skeleton.context, R.anim.skeleton_pulse)
+                )
+            }
+        }
+
+        fun showContent(section: HomeSection) {
+            skeleton.clearAnimation()
+            skeleton.visibility = View.GONE
+
+            container.visibility = View.VISIBLE
+            title.visibility = View.VISIBLE
+            title.setText(section.titleRes)
+            recycler.visibility = View.VISIBLE
+            adapter.items = section.cards
+        }
+    }
 
     private companion object {
         const val GRID_COLUMNS = 2

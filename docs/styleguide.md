@@ -54,6 +54,26 @@
 - **Cards**: Surface gray (`bg-[#282828]`), rounded corners (`rounded-md` or `rounded-lg`), smooth hover elevation/scaling.
 - **Modals**: Centered overlay with backdrop blur or dark translucent background (`bg-black/80`), rounded card container.
 - **Navigation**: Persistent sidebar on Web, Bottom Navigation / Drawer on Android. Active items highlighted with white text and/or green accent.
+- **Session controls**: "Log out" lives in the overflow/secondary menu (Android: the toolbar
+  overflow, directly above "Exit"), never as a primary action. It always confirms first, stating
+  what is lost (playback stops) and what is kept (downloads), and it returns the user to the login
+  screen rather than to an empty app.
+
+## Loading States (Skeletons)
+- **Rule**: A screen that fetches remote content never shows an empty page while waiting. It shows
+  skeleton placeholders in the shape of the content that is coming.
+- **Placeholder color**: `#2F2F2F` (one step lighter than the `#282828` card surface, so a skeleton
+  reads as "content is coming", not as an empty card). Android token: `@color/skeleton_block`,
+  drawn via `@drawable/skeleton_block` (4px corner radius, matching the small-radius rule below).
+- **Shape**: placeholders mirror the real component's dimensions and position, so content does not
+  shift when it arrives (Android: `home_skeleton_carousel`/`home_skeleton_grid` mirror
+  `home_card_carousel`/`home_card_grid`).
+- **Motion**: a slow alpha pulse (1.0 → 0.4, 700ms, reversing) — `@anim/skeleton_pulse` on Android.
+  No sweeping shimmer gradients, and no third-party shimmer dependency.
+- **Granularity**: each section owns its own loading state and replaces its own skeleton as soon as
+  its data arrives; one slow section never holds up the ones that are ready.
+- **Refresh**: re-loading a screen that already shows content keeps that content on screen —
+  skeletons are for the first load, not for every refresh.
 
 ## Borders & Effects
 - **Border Radius**: Small (`rounded` / 4px) for inputs/buttons, Medium (`rounded-md` / 8px) for cards/modals, Full (`rounded-full`) for avatars and primary action pills.
@@ -100,6 +120,10 @@ To maintain clean design governance and prevent ad-hoc style drift:
   `spotify_green`, and the filter panel/popup background (`rounded_background_popup.xml`, previously a
   hardcoded `#333333`) and the filter bar container (`filter_button_bar.xml`) now use the `spotify_light`
   (`#181818`) token per the Filter Bar component spec above, instead of the hardcoded gray/card color.
+- **Done** — Android home screen loading states: per-section skeleton placeholders
+  (`home_skeleton_carousel.xml`, `home_skeleton_grid.xml`, `@drawable/skeleton_block`,
+  `@anim/skeleton_pulse`) per the Loading States section above, plus a "Log out" entry in the
+  toolbar overflow per the Session controls component rule.
 - **Not yet done** — track-row/list-item tap feedback (the style guide's `bg-white/10` hover-state pattern)
   wasn't added in this pass: `list_item_track.xml`'s row background has no ripple/press state today, and the
   existing `default_ripple.xml`/`select_ripple.xml` drawables reference a `?attr/backgroundColor` that isn't

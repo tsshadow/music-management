@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Ultrasonic: a "Log out" entry in the toolbar overflow menu.** Signing out previously meant
+  clearing the app data or reinstalling. It confirms first, stops playback, clears the password,
+  the MuMa API key and the stored MuMa tokens, and returns to the login screen with the username
+  prefilled. Downloads stay on the device.
+- **Ultrasonic: skeleton placeholders on the home screen.** Each section shows pulsing grey cards in
+  the shape of the content that is loading, and swaps them for real cards on its own, so a slow
+  section no longer holds up the ones that are ready. Returning to the home screen refreshes it
+  without flashing skeletons over content that is already there.
+
+### Changed
+- **Ultrasonic: the home screen loads its sections concurrently.** Both library carousels fetched
+  artists, albums and labels/festivals one after another, and the screen waited for every section
+  before drawing anything — six sequential round trips before the first pixel. The sources now run
+  in parallel and each section publishes as soon as it is ready.
+
+### Fixed
+- **Ultrasonic: a password rejected mid-session now returns to the login screen.** When the password
+  was changed on the server (or an API key revoked) while the app was running, every screen failed
+  with an error the user could not act on and the app never asked for credentials again. Subsonic
+  error 40 now ends the session and shows the login screen with an explanation. Permission ("not
+  authorized") and "not found" errors deliberately do not log anyone out.
+
 ## [0.0.50] - 2026-07-31
 
 ### Security

@@ -1,4 +1,14 @@
 ## [Unreleased]
+### Added
+- **Uitlogknop** in het menu rechtsboven. Hij vraagt eerst om bevestiging, stopt het afspelen en brengt je terug naar het inlogscherm met je gebruikersnaam alvast ingevuld. Gedownloade muziek blijft gewoon op je toestel staan.
+- **De startpagina laat meteen zien dat hij aan het laden is**: grijze plaatshouders in de vorm van de kaarten die eraan komen, in plaats van een leeg zwart scherm. Elke sectie vult zichzelf in zodra hij klaar is.
+
+### Changed
+- **De startpagina laadt een stuk sneller.** De onderdelen werden een voor een opgehaald; dat gebeurt nu tegelijk.
+
+### Fixed
+- **Klopt je wachtwoord niet meer, dan kom je terug op het inlogscherm.** Werd je wachtwoord op de server gewijzigd terwijl de app openstond, dan gaf elk scherm een foutmelding waar je niets mee kon en vroeg de app nooit meer om in te loggen.
+
 ## [6.5.19] - 2026-07-31
 ### Fixed
 - **De app crashte bijna elke keer dat het afspelen begon.** In de uitgebrachte versie konden de genres van een nummer niet teruggelezen worden, waardoor de app onderuit ging zodra er een nummer in de speler geladen werd. Afspelen, "alles afspelen" en teruggaan naar het spelerscherm werken weer.

@@ -28,6 +28,11 @@
         a:title="@string/menu.about" />
 
     <item
+        a:id="@+id/menu_logout"
+        a:icon="@drawable/ic_menu_logout"
+        a:title="@string/menu.logout" />
+
+    <item
         a:id="@+id/menu_exit"
         a:icon="@drawable/ic_menu_exit"
         a:title="@string/menu.exit" />

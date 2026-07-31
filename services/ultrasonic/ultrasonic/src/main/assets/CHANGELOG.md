@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Android Auto bleef hangen op een dode of offline serververbinding.** De mediasessie van Auto
+  haalde de `MusicService` één keer op, bij het aanmaken van de sessie, en hield die instantie vast
+  zolang de app draaide. Alles wat die instantie vervangt — van server wisselen, inloggegevens
+  aanpassen, of `getMusicService()` die de offline service teruggeeft terwijl de server onbereikbaar
+  is — liet Auto met de oude achter: de mappenstructuur werd nog gewoon getoond, maar elke lijst
+  kwam leeg terug, ook nadat de app op de telefoon (die per aanroep opnieuw ophaalt) allang weer
+  werkte. Auto haalt de service nu bij elke aanroep opnieuw op.
+
 ## [6.5.18] - 2026-07-31
 
 ### Added

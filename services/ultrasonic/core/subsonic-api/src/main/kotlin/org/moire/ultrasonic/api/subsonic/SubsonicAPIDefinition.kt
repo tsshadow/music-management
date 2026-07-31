@@ -93,7 +93,8 @@ interface SubsonicAPIDefinition {
     fun getArtistList(
         @Query("type") type: String,
         @Query("size") size: Int? = null,
-        @Query("offset") offset: Int? = null
+        @Query("offset") offset: Int? = null,
+        @Query("role") role: String? = null
     ): Call<ArtistListResponse>
 
     @GET("getLabelList.view")

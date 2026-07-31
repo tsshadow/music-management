@@ -59,6 +59,8 @@ namespace lms::db
     {
         None,
         Name,
+        AddedDesc,
+        LastWrittenDesc,
     };
 
     enum class DirectorySortMethod
@@ -73,8 +75,6 @@ namespace lms::db
     {
         None,
         Name,
-        AddedDesc,
-        LastWrittenDesc,
     };
 
     enum class MediumSortMethod

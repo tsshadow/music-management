@@ -77,16 +77,20 @@ class MediaLibrarySessionCallback :
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private val mainScope = CoroutineScope(Dispatchers.Main)
 
+    // Resolved per call, never captured: MusicServiceFactory.resetMusicService() (server switch,
+    // credential edit, network coming back) replaces the instance, and getMusicService() returns
+    // the offline service while the server is unreachable. Holding on to one instance would leave
+    // Android Auto browsing a dead or offline service until the process is restarted, even though
+    // the phone UI has already recovered.
     private val musicService get() = MusicServiceFactory.getMusicService()
     private var dataProvider: MediaLibraryDataProvider =
-        MediaLibraryDataProvider(serviceScope = serviceScope, musicService = musicService)
+        MediaLibraryDataProvider(serviceScope = serviceScope) { musicService }
     private var playbackController: MediaLibraryPlaybackController =
-        MediaLibraryPlaybackController(serviceScope = serviceScope, musicService = musicService)
+        MediaLibraryPlaybackController(serviceScope = serviceScope) { musicService }
     private var mediaLibrarBrowser: MediaLibraryBrowser = MediaLibraryBrowser(
         mainScope = mainScope,
-        serviceScope = serviceScope,
-        musicService = musicService
-    )
+        serviceScope = serviceScope
+    ) { musicService }
 
     init {
 

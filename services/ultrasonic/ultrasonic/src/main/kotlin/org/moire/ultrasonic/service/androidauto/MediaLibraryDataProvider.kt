@@ -14,6 +14,7 @@ import org.moire.ultrasonic.domain.MusicDirectory
 import org.moire.ultrasonic.domain.SearchResult
 import org.moire.ultrasonic.domain.Track
 import org.moire.ultrasonic.service.MusicService
+import org.moire.ultrasonic.service.MusicServiceFactory
 import timber.log.Timber
 
 /**
@@ -31,8 +32,10 @@ import timber.log.Timber
 
 class MediaLibraryDataProvider(
     private val serviceScope: CoroutineScope,
-    val musicService: MusicService
+    private val musicServiceProvider: () -> MusicService = MusicServiceFactory::getMusicService
 ) : MediaLibraryBase() {
+    val musicService: MusicService get() = musicServiceProvider()
+
     lateinit var playbackController: MediaLibraryPlaybackController
     var playlistCache: List<Track>? = null
     var starredSongsCache: List<Track>? = null

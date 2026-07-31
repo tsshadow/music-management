@@ -17,6 +17,7 @@ import org.moire.ultrasonic.app.UApp
 import org.moire.ultrasonic.domain.SearchCriteria
 import org.moire.ultrasonic.domain.Track
 import org.moire.ultrasonic.service.MusicService
+import org.moire.ultrasonic.service.MusicServiceFactory
 import org.moire.ultrasonic.util.Settings.maxSongs
 import org.moire.ultrasonic.util.Util
 import org.moire.ultrasonic.util.toMediaItem
@@ -40,8 +41,9 @@ import timber.log.Timber
  */
 class MediaLibraryPlaybackController(
     val serviceScope: CoroutineScope,
-    val musicService: MusicService
+    private val musicServiceProvider: () -> MusicService = MusicServiceFactory::getMusicService
 ) : MediaLibraryBase() {
+    val musicService: MusicService get() = musicServiceProvider()
     lateinit var dataProvider: MediaLibraryDataProvider
 
     fun playRandomSongs(): List<Track>? {

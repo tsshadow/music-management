@@ -3,13 +3,14 @@
    * @typedef {Object} Props
    * @property {any} results - The search results object.
    * @property {string[]} genres - Filtered genres.
+   * @property {string[]} labels - Filtered record labels.
    * @property {boolean} loading - Loading state.
    * @property {function(string, string): void} onSelect - Callback when an item is selected.
    * @property {string} mode - The current view mode ('songs' or 'sets').
    */
 
   /** @type {Props} */
-  let { results = {}, genres = [], loading = false, onSelect, mode = 'songs' } = $props();
+  let { results = {}, genres = [], labels = [], loading = false, onSelect, mode = 'songs' } = $props();
 
   import { deduplicateTracks } from './deduplicate.js';
   import { getArtistImageUrl } from './utils.js';
@@ -26,7 +27,7 @@
    */
   function handleSelect(type, item) {
     if (onSelect) {
-      if (type === 'genre') {
+      if (type === 'genre' || type === 'label') {
         onSelect(type, item);
       } else {
         onSelect(type, item.id);
@@ -38,7 +39,7 @@
 <div class="absolute top-full left-0 right-0 mt-2 bg-[#282828] rounded-md shadow-2xl border border-[#3e3e3e] overflow-hidden z-50 max-h-[80vh] overflow-y-auto custom-scrollbar">
   {#if loading}
     <div class="p-4 text-center text-[#b3b3b3]">Laden...</div>
-  {:else if artists.length === 0 && albums.length === 0 && tracks.length === 0 && genres.length === 0}
+  {:else if artists.length === 0 && albums.length === 0 && tracks.length === 0 && genres.length === 0 && labels.length === 0}
     <div class="p-4 text-center text-[#b3b3b3]">Geen resultaten gevonden.</div>
   {:else}
     <div class="flex flex-col p-2 gap-4">
@@ -139,6 +140,24 @@
                 onclick={() => handleSelect('genre', genre)}
               >
                 {genre}
+              </button>
+            {/each}
+          </div>
+        </section>
+      {/if}
+
+      {#if labels.length > 0}
+        <section>
+          <div class="flex items-center justify-between px-2 mb-2">
+            <h3 class="text-white font-bold text-sm">Labels</h3>
+          </div>
+          <div class="flex flex-wrap gap-2 px-2">
+            {#each labels.slice(0, 5) as label (label)}
+              <button
+                class="px-3 py-1 bg-[#3e3e3e] hover:bg-[#4e4e4e] text-white text-xs rounded-full transition-colors"
+                onclick={() => handleSelect('label', label)}
+              >
+                {label}
               </button>
             {/each}
           </div>

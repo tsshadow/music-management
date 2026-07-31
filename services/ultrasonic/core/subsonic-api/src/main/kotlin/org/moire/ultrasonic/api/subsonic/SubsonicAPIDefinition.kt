@@ -10,6 +10,7 @@ package org.moire.ultrasonic.api.subsonic
 import okhttp3.ResponseBody
 import org.moire.ultrasonic.api.subsonic.models.AlbumListType
 import org.moire.ultrasonic.api.subsonic.models.JukeboxAction
+import org.moire.ultrasonic.api.subsonic.response.ArtistListResponse
 import org.moire.ultrasonic.api.subsonic.response.BookmarksResponse
 import org.moire.ultrasonic.api.subsonic.response.ChatMessagesResponse
 import org.moire.ultrasonic.api.subsonic.response.GenresResponse
@@ -34,6 +35,7 @@ import org.moire.ultrasonic.api.subsonic.response.GetStarredResponse
 import org.moire.ultrasonic.api.subsonic.response.GetStarredTwoResponse
 import org.moire.ultrasonic.api.subsonic.response.GetUserResponse
 import org.moire.ultrasonic.api.subsonic.response.JukeboxResponse
+import org.moire.ultrasonic.api.subsonic.response.LabelListResponse
 import org.moire.ultrasonic.api.subsonic.response.LicenseResponse
 import org.moire.ultrasonic.api.subsonic.response.LineupResponse
 import org.moire.ultrasonic.api.subsonic.response.MoodsResponse
@@ -86,6 +88,21 @@ interface SubsonicAPIDefinition {
         @Query("offset") offset: Int? = null,
         @Query("count") count: Int? = null
     ): Call<GetArtistsResponse>
+
+    @GET("getArtistList.view")
+    fun getArtistList(
+        @Query("type") type: String,
+        @Query("size") size: Int? = null,
+        @Query("offset") offset: Int? = null,
+        @Query("role") role: String? = null
+    ): Call<ArtistListResponse>
+
+    @GET("getLabelList.view")
+    fun getLabelList(
+        @Query("type") type: String,
+        @Query("size") size: Int? = null,
+        @Query("offset") offset: Int? = null
+    ): Call<LabelListResponse>
 
     @GET("star.view")
     fun star(

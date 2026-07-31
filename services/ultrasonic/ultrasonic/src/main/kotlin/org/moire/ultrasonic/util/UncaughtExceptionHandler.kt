@@ -4,11 +4,13 @@ import android.content.Context
 import android.os.Build
 import java.io.File
 import java.io.PrintWriter
+import org.moire.ultrasonic.log.RingBufferLoggerTree
 import org.moire.ultrasonic.util.Util.safeClose
 import timber.log.Timber
 
 /**
- * Logs the stack trace of uncaught exceptions to a file on the SD card.
+ * Logs the stack trace of uncaught exceptions, together with the trailing
+ * ring-buffer log context, to a single crash-report file on disk.
  */
 class UncaughtExceptionHandler(private val context: Context) : Thread.UncaughtExceptionHandler {
     private val defaultHandler: Thread.UncaughtExceptionHandler? =
@@ -19,7 +21,7 @@ class UncaughtExceptionHandler(private val context: Context) : Thread.UncaughtEx
         var printWriter: PrintWriter? = null
 
         try {
-            file = File(FileUtil.ultrasonicDirectory, STACKTRACE_NAME)
+            file = File(FileUtil.ultrasonicDirectory, CRASH_REPORT_NAME)
             printWriter = PrintWriter(file)
             val logMessage = String.format(
                 "Android API level: %s\nUltrasonic version name: %s\n" +
@@ -30,10 +32,12 @@ class UncaughtExceptionHandler(private val context: Context) : Thread.UncaughtEx
             )
             printWriter.println(logMessage)
             throwable.printStackTrace(printWriter)
+            printWriter.println("\n--- Ring buffer log ---\n")
+            printWriter.println(RingBufferLoggerTree.currentText())
             Timber.e(throwable, "Uncaught Exception! %s", logMessage)
-            Timber.i("Stack trace written to %s", file)
+            Timber.i("Crash report written to %s", file)
         } catch (all: Throwable) {
-            Timber.e(all, "Failed to write stack trace to %s", file)
+            Timber.e(all, "Failed to write crash report to %s", file)
         } finally {
             printWriter.safeClose()
             defaultHandler?.uncaughtException(thread, throwable)
@@ -41,6 +45,6 @@ class UncaughtExceptionHandler(private val context: Context) : Thread.UncaughtEx
     }
 
     companion object {
-        private const val STACKTRACE_NAME = "ultrasonic-stacktrace.txt"
+        const val CRASH_REPORT_NAME = "ultrasonic-crash-report.txt"
     }
 }

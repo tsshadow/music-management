@@ -4,6 +4,7 @@ package org.moire.ultrasonic.domain
 
 import java.util.Calendar
 import org.amshove.kluent.`should be equal to`
+import org.amshove.kluent.shouldBeNull
 import org.junit.Test
 import org.moire.ultrasonic.api.subsonic.models.Album
 import org.moire.ultrasonic.api.subsonic.models.Artist
@@ -47,5 +48,21 @@ class APIArtistConverterTest : BaseTest() {
             getChildren() `should be equal to` entity.albumsList
                 .map { it.toDomainEntity(serverId) }.toMutableList()
         }
+    }
+
+    @Test
+    fun `Should keep cover art when the server sent one`() {
+        val converted = Artist(id = "1", name = "n", coverArt = "ar-9").toDomainEntity(serverId)
+
+        converted.coverArt `should be equal to` "ar-9"
+    }
+
+    @Test
+    fun `Should map missing cover art to null rather than an empty id`() {
+        // The server omits coverArt for artists without artwork; Jackson turns that into "",
+        // which downstream code would otherwise treat as a usable cover art id.
+        val converted = Artist(id = "1", name = "n").toDomainEntity(serverId)
+
+        converted.coverArt.shouldBeNull()
     }
 }

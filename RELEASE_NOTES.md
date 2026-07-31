@@ -11,6 +11,87 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.49 (2026-07-31)
+### 📚 Meer manieren om te bladeren in Ultrasonic
+- De Library-tab heeft er vier tabbladen bij: **Jaren**, **Festivals**, **Lineups** en **Ratings**,
+  naast Playlists, Genres, Artiesten, Albums en Opgeslagen. Zoeken op lineup kan daarmee weer.
+- **In sets-modus tonen de carrousels op de startpagina festivals in plaats van labels.** Livesets
+  zijn festivalopnames, dus een platenlabel zegt er weinig over.
+
+### 🛠 Beheer vanaf je telefoon
+- Onderin is er een **Beheer**-tab bijgekomen die de beheerpagina's van de webui spiegelt. Voor nu:
+  Downloaders (SoundCloud-accounts en YouTube-kanalen), Gebruikers (bekijken, in- en uitschakelen)
+  en Verzoeken (goedkeuren, terugdraaien, afwijzen).
+- De tab is alleen zichtbaar als je beheerder bent. De server bewaakt die grens sowieso zelf.
+
+## Global Version 0.0.48 (2026-07-31)
+### 🐞 Drie dingen op de Ultrasonic-startpagina werkten niet
+- **Een artiest aantikken leverde niets op.** De carrousels bevatten ook remixers en gastartiesten
+  zonder eigen albums; die hebben nu eenmaal een leeg detailscherm. Er staan nu alleen nog artiesten
+  met eigen releases in.
+- **Een label aantikken leverde niets op.** De labels kwamen uit een andere tabel dan waarop
+  gefilterd wordt, dus zoeken op zo'n naam gaf nul resultaten. Beide gebruiken nu dezelfde bron.
+- **Artiestafbeeldingen** worden weer onder de juiste sleutel en op groot formaat opgehaald, zodat
+  ze gedeeld worden met de rest van de app in plaats van bij elke weergave opnieuw geladen.
+
+## Global Version 0.0.47 (2026-07-31)
+### 📚 Bladeren kan weer: nieuwe Library-tab in Ultrasonic
+- In 0.0.46 verdween met de filterknoppen op de startpagina ook de enige ingang naar filter-
+  afspeellijsten, genres, de albumlijst en de artiestenlijst. Een filter-afspeellijst maken kon
+  daardoor helemaal niet meer. Dat is hersteld.
+- Onderin staat nu een **Library**-tab met vijf schuifbare pagina's: Playlists (je filter-
+  afspeellijsten, inclusief nieuwe maken), Genres, Artiesten, Opgeslagen afspeellijsten en Albums.
+- De onderbalk bestaat nog uit drie knoppen: Home, Library en Favorieten. Zoeken is eruit omdat het
+  zoekveld al bovenin de balk zit; je opgeslagen afspeellijsten zitten nu in Library.
+
+### ⭐ De Favorieten-tab toont weer echte favorieten
+- Die tab liet sinds 0.0.46 gewoon een kopie van de startpagina zien, omdat hij werkte door een
+  filterknop aan te vinken die niet meer bestond.
+- Nu staan er je albums en artiesten met een ster, plus alles wat je vier sterren of hoger gaf.
+  Tik je op zo'n nummer, dan speelt het meteen.
+
+## Global Version 0.0.46 (2026-07-31)
+### 🏠 De Ultrasonic-startpagina is opnieuw opgebouwd
+- Bovenaan staat nu een raster met de acht dingen die je het laatst geopend hebt: albums, artiesten,
+  labels, gewone afspeellijsten en filter-afspeellijsten door elkaar. Open je iets opnieuw, dan
+  schuift het vooraan; dubbel verschijnen doet niets meer.
+- Daaronder staan twee schuifrijen: "Recent bijgewerkt" laat zien waarvan de gegevens onlangs zijn
+  aangepast, "Recent toegevoegd" laat zien wat er nieuw in de bibliotheek is. Beide tonen artiesten,
+  labels en albums.
+- Het raster wordt lokaal bewaard, dus het staat er meteen — ook zonder verbinding. Voorheen moest de
+  app bij elk bezoek elk item apart bij de server opvragen.
+- De filterknoppen bovenaan (Recent, Favorieten, Nieuw, Genres, Afspeellijsten) zijn verdwenen.
+  Genres blijven gewoon elders in de app te doorzoeken.
+- Nieuwe instelling **"Geschiedenis per modus scheiden"**: bepaalt of losse nummers en livesets een
+  eigen lijstje recent geopende items houden. Staat standaard aan.
+
+## Global Version 0.0.45 (2026-07-30)
+### 🏷️ Labels zijn nu een eigen manier om je bibliotheek te doorzoeken
+- Er is een Label-tab bijgekomen, naast artiesten en genres. Je vindt hem in de zijbalk en op het
+  dashboard.
+- De zoekbalk zoekt voortaan ook op labels, en labeltreffers verschijnen gewoon tussen je
+  zoekresultaten.
+- De mobiele apps kunnen dezelfde labelgegevens opvragen, dus dit blijft niet beperkt tot de webUI.
+
+### 📱 Ultrasonic stuurt voortaan een crashrapport na een crash tijdens achtergrondafspelen
+- Crashte de app terwijl hij op de achtergrond muziek speelde, dan was er tot nu toe niets terug te
+  vinden — de app was simpelweg weg. Dat maakte zulke crashes vrijwel niet te onderzoeken.
+- De app houdt nu doorlopend een klein logboek bij en onthoudt of hij netjes is afgesloten. Wordt hij
+  door het systeem stilletjes afgeschoten, dan merkt hij dat bij de volgende start en stuurt hij het
+  logboek plus de foutmelding als één rapport door.
+
+### 🧭 Eenvoudiger navigatie in de Ultrasonic-app
+- Het uitschuifmenu aan de zijkant is verdwenen. Alles wat erin stond zit nu in het menu rechtsboven
+  in de balk.
+- Onderin staat nu een Favorieten-tab. Downloads is daar weggehaald.
+- Bladwijzers zijn voortaan bereikbaar vanaf het Afspeellijsten-scherm.
+
+### 🔧 Testpijplijn liet releases ten onrechte falen
+- Draaiden er twee pijplijnen tegelijk, dan sloopten hun browsertests elkaar omdat ze dezelfde
+  netwerkpoort claimden. Dat liet werk stranden dat inhoudelijk prima in orde was, waaronder de
+  labelfunctie en de crashrapportage hierboven.
+- Elke testrun kiest nu zijn eigen vrije poort, dus gelijktijdige pijplijnen storen elkaar niet meer.
+
 ## Global Version 0.0.44 (2026-07-30)
 ### 🔧 Officiële Ultrasonic-release werd soms ongemerkt overgeslagen in het releaseproces
 - Een release-branch die geen bestanden binnen de Ultrasonic-app zelf wijzigde, sloeg de officiële,

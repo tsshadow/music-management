@@ -18,10 +18,15 @@ find_free_port() {
 
 MUMA_TEST_PORT_MANAGER=$(find_free_port)
 MUMA_TEST_PORT_LMS=$(find_free_port)
+# The Playwright dev server needs a dynamic port too (playwright.config.js reads
+# this): it used to be hardcoded to 5174 with --strictPort, so two pipelines on
+# the same runner killed each other with "localhost:5174 is already used".
+MUMA_TEST_PORT_FRONTEND=$(find_free_port)
 export MUMA_TEST_PORT_MANAGER
 export MUMA_TEST_PORT_LMS
+export MUMA_TEST_PORT_FRONTEND
 
-echo "--- Using dynamic ports: Manager=$MUMA_TEST_PORT_MANAGER, LMS=$MUMA_TEST_PORT_LMS ---"
+echo "--- Using dynamic ports: Manager=$MUMA_TEST_PORT_MANAGER, LMS=$MUMA_TEST_PORT_LMS, Frontend=$MUMA_TEST_PORT_FRONTEND ---"
 
 COMPOSE="docker compose -f $COMPOSE_FILE -p $COMPOSE_PROJECT_NAME"
 FIXTURE="$ROOT_DIR/tests/fixtures/music/ci-test-track-001.mp3"

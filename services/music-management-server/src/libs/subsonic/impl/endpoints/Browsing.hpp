@@ -28,6 +28,8 @@ namespace lms::api::subsonic
     Response handleGetIndexesRequest(RequestContext& context);
     Response handleGetMusicDirectoryRequest(RequestContext& context);
     Response handleGetGenresRequest(RequestContext& context);
+    Response handleGetRecordLabelsRequest(RequestContext& context);
+    Response handleGetLabelListRequest(RequestContext& context);
     Response handleGetTagsRequest(RequestContext& context);
     Response handleGetMoodRequest(RequestContext& context);
     Response handleGetYearsRequest(RequestContext& context);

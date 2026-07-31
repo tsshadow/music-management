@@ -22,6 +22,7 @@ import org.moire.ultrasonic.domain.ChatMessage
 import org.moire.ultrasonic.domain.Genre
 import org.moire.ultrasonic.domain.Index
 import org.moire.ultrasonic.domain.JukeboxStatus
+import org.moire.ultrasonic.domain.Label
 import org.moire.ultrasonic.domain.Lineup
 import org.moire.ultrasonic.domain.Lyrics
 import org.moire.ultrasonic.domain.Mood
@@ -63,6 +64,9 @@ class CachedMusicService(private val musicService: MusicService) :
 
     // New multi-key cache for getTags, allowing separation by (name, year, length)
     private val cachedTagsMap: MutableMap<String, TimeLimitedCache<List<Tag>>> = mutableMapOf()
+
+    // Home screen lists, keyed by "<kind>-<type>-<size>" (see cachedHomeList)
+    private val cachedHomeLists: MutableMap<String, TimeLimitedCache<List<Any>>> = mutableMapOf()
 
     // Room Database
     private var cachedArtists = metaDatabase.artistDao()
@@ -155,6 +159,37 @@ class CachedMusicService(private val musicService: MusicService) :
             result = musicService.getArtists(refresh, offset, count)
             cachedArtists.set(result)
         }
+        return result
+    }
+
+    @Throws(Exception::class)
+    @Suppress("UNCHECKED_CAST")
+    override fun getArtistList(type: String, size: Int): List<Artist> {
+        checkSettingsChanged()
+
+        return cachedHomeList("artist-$type-$size") {
+            musicService.getArtistList(type, size)
+        } as List<Artist>
+    }
+
+    @Throws(Exception::class)
+    @Suppress("UNCHECKED_CAST")
+    override fun getLabelList(type: String, size: Int): List<Label> {
+        checkSettingsChanged()
+
+        return cachedHomeList("label-$type-$size") {
+            musicService.getLabelList(type, size)
+        } as List<Label>
+    }
+
+    // The home screen should notice new music well before the ten-hour genre/tag caches would.
+    private fun cachedHomeList(key: String, loader: () -> List<Any>): List<Any> {
+        cachedHomeLists[key]?.get()?.let { return it }
+
+        val result = loader()
+        val cache = TimeLimitedCache<List<Any>>(HOME_LIST_CACHE_SECONDS, TimeUnit.SECONDS)
+        cache.set(result)
+        cachedHomeLists[key] = cache
         return result
     }
 
@@ -374,6 +409,7 @@ class CachedMusicService(private val musicService: MusicService) :
             cachedGenres.clear()
             cachedAlbum.clear()
             cachedUserInfo.clear()
+            cachedHomeLists.clear()
 
             // Set the cache keys
             restUrl = newUrl
@@ -658,8 +694,30 @@ class CachedMusicService(private val musicService: MusicService) :
         musicService.saveMumaSettings(userId, appId, settings)
     }
 
+    @Throws(Exception::class)
+    override fun uploadCrashReport(
+        deviceModel: String,
+        osVersion: String,
+        appVersionName: String,
+        appVersionCode: Int,
+        buildType: String,
+        ringBufferText: String,
+        stacktraceText: String?
+    ) {
+        musicService.uploadCrashReport(
+            deviceModel,
+            osVersion,
+            appVersionName,
+            appVersionCode,
+            buildType,
+            ringBufferText,
+            stacktraceText
+        )
+    }
+
     companion object {
         private const val MUSIC_DIR_CACHE_SIZE = 100
+        private const val HOME_LIST_CACHE_SECONDS = 600L
         const val CACHE_KEY_VIDEOS = "VIDEOS"
     }
 

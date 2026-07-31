@@ -50,6 +50,125 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on `ConfigStore`. The resulting `AttributeError` was swallowed by a broad `except` and returned as
   a 400, so saving a setting over the API could never work.
 
+## [0.0.49] - 2026-07-31
+
+### Added
+- **Ultrasonic Beheer tab**: a fourth bottom-bar tab mirroring the web UI's management section
+  (`services/frontend/src/lib/management/`), starting with Downloaders (SoundCloud accounts and
+  YouTube channels), Gebruikers (list, enable, disable) and Verzoeken (approve, unapprove, reject,
+  filtered by status). Like Library it is a pager, so the web UI's remaining management tabs can
+  follow as pages rather than screens.
+  The tab is hidden unless `/api/auth/verify` says the stored API key belongs to an admin, and stays
+  hidden while that answer is pending or the check fails. That is presentation only — every endpoint
+  behind it is already guarded by `require_admin()` server-side.
+
+### Added
+- **Ultrasonic Library gains four tabs**: Jaren, Festivals, Lineups and Ratings, alongside the
+  existing Playlists, Genres, Artiesten, Albums and Opgeslagen. Every source already existed and was
+  already used by the filter modal, so this adds no API surface. Lineup browsing in particular
+  returns a capability that had been lost.
+
+### Changed
+- **Ultrasonic: in sets mode the home carousels show festivals instead of labels.** Livesets are
+  festival recordings, so a record label says nothing about them.
+- **Ultrasonic: the five list-shaped Library pages now share one `FilterBrowseFragment`** driven by
+  a `BrowseCategory` enum, replacing `GenreListFragment`. Adding a browse dimension is now an enum
+  value and a loader branch rather than a fragment.
+
+## [0.0.48] - 2026-07-31
+
+### Fixed
+- **Ultrasonic: opening an artist from the home screen showed nothing.** `getArtistList` defaults its
+  `role` parameter to `all`, so the carousels listed every artist link in the library — remixers,
+  featured artists, composers — most of which have no albums of their own and therefore an empty
+  detail screen. The client now asks for `role=release`.
+- **Ultrasonic: opening a label from the home screen showed nothing.** `getLabelList` returned
+  `db::Label` names, which come from `release_label`, while song filtering matches the PUBLISHER
+  cluster — a different table fed by a different tag. The endpoint now reads the PUBLISHER cluster,
+  so the names it returns are the ones filtering understands. `ClusterSortMethod` gains `AddedDesc`
+  and `LastWrittenDesc`; the `LabelSortMethod` additions from 0.0.46 are removed again.
+- **Ultrasonic: artist pictures on the home screen.** Artist art is keyed with
+  `FileUtil.getArtistArtKey` again and requested at the large size, so it is shared with the rest of
+  the app instead of being refetched under a key nothing reads. Missing artist cover art now becomes
+  null at the converter instead of an empty string that looked like a usable id.
+
+## [0.0.47] - 2026-07-31
+
+### Added
+- **Ultrasonic Library tab**: one bottom-bar tab holding every browse-by-type screen — dynamic
+  playlists, genres, artists, saved playlists and albums — as swipeable pages under a tab strip.
+  Adds `GenreListFragment`, the only new screen; the other four pages are the existing fragments,
+  now hosted instead of navigated to.
+
+### Fixed
+- **Browsing was unreachable in 0.0.46**: the home screen rebuild removed the filter chip row, which
+  was the only entry point to dynamic playlists, genres, the album list and the artist list. Since
+  dynamic playlists are also created from that screen, there was no way to make one at all. The
+  Library tab restores every one of them.
+- **The Favorites tab showed a copy of the home screen**: it was the home screen with the favorites
+  filter chip pre-selected, so removing the chips left it identical to Home. It is now its own
+  screen with starred albums, starred artists and tracks rated four stars or better.
+
+### Changed
+- **Ultrasonic bottom navigation is now Home, Library and Favorieten.** Search left the bottom bar
+  because the toolbar already carries a search field; playlists moved into Library.
+
+## [0.0.46] - 2026-07-31
+
+### Added
+- **Rebuilt Ultrasonic home screen**: the Android home screen is now a Spotify-style shortcuts grid
+  of the eight items you most recently opened (albums, artists, labels, static playlists and
+  dynamic playlists), followed by a "Recently updated" and a "Recently added" carousel covering
+  artists, labels and albums. All sections render from one generic card model and one reusable card
+  component, so future sections need no new UI. Shortcuts are stored whole, so the grid renders
+  instantly and offline instead of refetching every item on each visit. Adds a "Separate home
+  history per mode" setting that controls whether songs and livesets keep separate histories.
+- **LMS: `getLabelList` endpoint and label recency sorting**: labels can now be ordered by how
+  recently their music was added to or rewritten in the library (`Label::findIds` with the new
+  `AddedDesc`/`LastWrittenDesc` sort methods). `getAlbumList`/`getAlbumList2` gained a matching
+  `type=updated`.
+
+### Removed
+- **Ultrasonic home screen filter chips** (Recent / Favorites / New / Genres / Playlists) and the
+  old per-type "recently played" lists they drove. Genres remain browsable elsewhere in the app.
+
+## [0.0.45] - 2026-07-30
+
+### Added
+- **Label tab and label search in the web UI**: labels are now a first-class way to browse the
+  library, alongside artists and genres. Adds a Label entry to the sidebar and dashboard, lets the
+  search bar match labels, and renders label hits in the search results. Backed by new Subsonic
+  endpoints in the LMS server (`Browsing.cpp`/`Spotify.cpp`) so the mobile clients can use the same
+  data.
+- **Android crash log reporting for background playback crashes**: the app now keeps an always-on,
+  disk-backed ring buffer of recent log output, marks clean playback-service shutdowns so a
+  silent kill by the OS can be told apart from a normal stop, and on the next start detects a
+  pending crash, combines the stacktrace and ring buffer into a single report, and uploads it. Adds
+  the backend upload endpoint and the matching Muma API client call. This exists because
+  background-playback crashes leave no trace the user can hand over.
+- **`scripts/vw.sh`**: wrapper for on-demand password manager CLI access.
+
+### Changed
+- **Simplified Android navigation**: the nav drawer is gone; its items moved into the toolbar
+  overflow menu. The bottom navigation now carries a Favorieten tab and no longer carries Downloads,
+  and Bookmarks got an entry point on the Playlists screen.
+- **AGENTS.md now requires asking which environment to use before querying live data**, so a
+  read-only question can't silently end up pointed at production.
+
+### Fixed
+- **CI browser tests killed each other when two pipelines shared a runner**:
+  `scripts/test/frontend-browser.sh` already picked free ports for the manager and LMS containers,
+  but the Playwright dev server stayed hardcoded on 5174 with `--strictPort` and
+  `reuseExistingServer: false`, so concurrent jobs failed with
+  `Error: http://localhost:5174 is already used`. This took out the label-tab and crash-log merge
+  requests and the 0.0.43 tag pipeline as false failures. The script now picks a third free port and
+  exports it as `MUMA_TEST_PORT_FRONTEND`, which `playwright.config.js` uses for the base URL, the
+  dev server command and the readiness URL, falling back to 5174 for local runs.
+- **Ultrasonic failed to compile once crash reporting landed**: `MusicService` gained
+  `uploadCrashReport()`, implemented in `RESTMusicService` and `OfflineMusicService` but not in the
+  `CachedMusicService` decorator. Crash reports aren't cacheable, so it now delegates straight
+  through to the wrapped service, matching `scrobble`/`star`/`saveMumaSettings`.
+
 ## [0.0.44] - 2026-07-30
 
 ### Fixed

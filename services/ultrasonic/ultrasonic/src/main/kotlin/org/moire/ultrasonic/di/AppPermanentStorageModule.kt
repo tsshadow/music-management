@@ -1,5 +1,6 @@
 package org.moire.ultrasonic.di
 
+import android.content.Context
 import androidx.room.Room
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
@@ -19,7 +20,11 @@ import org.moire.ultrasonic.data.MIGRATION_6_5
 import org.moire.ultrasonic.data.MIGRATION_6_7
 import org.moire.ultrasonic.data.MIGRATION_7_8
 import org.moire.ultrasonic.data.MIGRATION_8_9
-import org.koin.androidx.viewmodel.ext.android.viewModel
+import org.moire.ultrasonic.home.FavoritesViewModel
+import org.moire.ultrasonic.home.HomeViewModel
+import org.moire.ultrasonic.home.RecentActivityStore
+import org.moire.ultrasonic.management.ManagementRepository
+import org.moire.ultrasonic.management.ManagementViewModel
 import org.moire.ultrasonic.model.AlbumListModel
 import org.moire.ultrasonic.model.ArtistListModel
 import org.moire.ultrasonic.model.ServerSettingsModel
@@ -27,6 +32,7 @@ import org.moire.ultrasonic.util.Settings
 
 const val SP_NAME = "Default_SP"
 const val DB_FILENAME = "ultrasonic-database"
+const val HOME_RECENT_SP_NAME = "home_recent"
 
 /**
  * This Koin module contains registration of classes related to permanent storage
@@ -58,7 +64,18 @@ val appPermanentStorage = module {
 
     single { get<AppDatabase>().serverSettingDao() }
 
+    single {
+        RecentActivityStore(
+            androidContext().getSharedPreferences(HOME_RECENT_SP_NAME, Context.MODE_PRIVATE)
+        )
+    }
+
     viewModel { ServerSettingsModel(get(), get(), get()) }
     viewModel { AlbumListModel(get()) }
     viewModel { ArtistListModel(get()) }
+    viewModel { HomeViewModel(get()) }
+    viewModel { FavoritesViewModel() }
+
+    single { ManagementRepository(get()) }
+    viewModel { ManagementViewModel(get()) }
 }

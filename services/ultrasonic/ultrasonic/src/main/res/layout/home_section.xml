@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:a="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    a:layout_width="match_parent"
+    a:layout_height="wrap_content"
+    a:orientation="vertical"
+    a:paddingTop="16dp">
+
+    <TextView
+        a:id="@+id/section_title"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:paddingHorizontal="16dp"
+        a:paddingBottom="8dp"
+        a:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+        a:textColor="@color/spotify_text_primary"
+        a:textStyle="bold"
+        tools:text="Recently added" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        a:id="@+id/section_recycler"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:clipToPadding="false"
+        a:paddingHorizontal="10dp" />
+
+</LinearLayout>

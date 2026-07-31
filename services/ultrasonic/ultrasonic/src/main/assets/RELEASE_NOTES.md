@@ -1,3 +1,43 @@
+## [6.5.18] - 2026-07-31
+### Added
+- **Vier tabbladen erbij in Library**: Jaren, Festivals, Lineups en Ratings. Zoeken op lineup kan daarmee weer.
+- **Beheer-tab** die de beheerpagina's van de webui spiegelt: Downloaders, Gebruikers en Verzoeken. Alleen zichtbaar als je beheerder bent.
+
+### Changed
+- **In sets-modus tonen de carrousels op de startpagina festivals in plaats van labels.** Livesets zijn festivalopnames, dus een platenlabel zegt er weinig over.
+
+## [6.5.17] - 2026-07-31
+### Fixed
+- **Een artiest aantikken op de startpagina leverde niets op.** De carrousels bevatten ook remixers en gastartiesten zonder eigen albums, waardoor je op een leeg scherm belandde. Er staan nu alleen nog artiesten met eigen releases in.
+- **Een label aantikken leverde niets op.** De labels kwamen uit een andere bron dan waarop gefilterd wordt, dus zoeken op zo'n naam gaf nul resultaten. Beide gebruiken nu dezelfde lijst.
+- **Artiestafbeeldingen** worden weer onder de juiste sleutel en op groot formaat opgehaald, zodat ze gedeeld worden met de rest van de app.
+
+## [6.5.16] - 2026-07-31
+### Fixed
+- **Bladeren kan weer**: met de filterknoppen op de startpagina verdween in 6.5.15 ook de enige ingang naar filter-afspeellijsten, genres, de albumlijst en de artiestenlijst — een filter-afspeellijst maken kon zelfs helemaal niet meer. Alles zit nu in de nieuwe Library-tab.
+- **De Favorieten-tab liet een kopie van de startpagina zien.** Nu staan er je albums en artiesten met een ster, plus alles wat je vier sterren of hoger gaf; tik je op zo'n nummer, dan speelt het meteen.
+
+### Added
+- **Library-tab** met vijf schuifbare pagina's: Playlists (je filter-afspeellijsten, inclusief nieuwe maken), Genres, Artiesten, Opgeslagen afspeellijsten en Albums.
+
+### Changed
+- **De onderbalk heeft nog drie knoppen**: Home, Library en Favorieten. Zoeken is eruit omdat het zoekveld al bovenin zit; opgeslagen afspeellijsten zitten nu in Library.
+
+## [6.5.12] - 2026-07-30
+### Fixed
+- **Login screen showed a generic "network error" for every kind of login problem**: it's now able to tell you when the server itself is unreachable, versus when the server responded but the login didn't succeed.
+- **A hidden bug could make the first-time login check silently report "success" without actually contacting the server**, if "Auto-switch server online/offline" was left on from an older install. This no longer happens.
+
+## [6.5.11] - 2026-07-29
+### Changed
+- **Dependencies**: Updated `activity-ktx`, `core-ktx`, `gson`, `okhttp`, `rxjava`, and other core libraries to latest stable versions.
+- **Target SDK**: Updated to Android 17 (API 37).
+- **Login/auth UI**: Restyled the login/welcome dialog, edit-server screen, and Google access-request screen to match the web frontend, including a branded "Sign in with Google" button and colored status banners for access requests.
+- **Settings**: `autoSwitchOffline` now defaults to `false` instead of `true`.
+
+### Added
+- **Export to Media Device**: New feature to export the current playlist to external USB devices (e.g., Shokz OpenSwim Pro) via SAF. Includes an option to clear the destination folder before exporting.
+
 ## [6.5.2-232] - 2026-07-16
 ### Fixed
 - **Update Checker**: Added `u=guest` and `p=guest` credentials to APK download URL to prevent access errors.

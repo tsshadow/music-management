@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:a="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    a:layout_width="match_parent"
+    a:layout_height="wrap_content"
+    a:gravity="center_vertical"
+    a:orientation="horizontal"
+    a:paddingHorizontal="16dp"
+    a:paddingVertical="12dp">
+
+    <LinearLayout
+        a:layout_width="0dp"
+        a:layout_height="wrap_content"
+        a:layout_weight="1"
+        a:orientation="vertical">
+
+        <TextView
+            a:id="@+id/row_title"
+            a:layout_width="match_parent"
+            a:layout_height="wrap_content"
+            a:ellipsize="end"
+            a:maxLines="1"
+            a:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+            a:textColor="@color/spotify_text_primary"
+            a:textStyle="bold"
+            tools:text="scantraxx" />
+
+        <TextView
+            a:id="@+id/row_subtitle"
+            a:layout_width="match_parent"
+            a:layout_height="wrap_content"
+            a:ellipsize="end"
+            a:maxLines="2"
+            a:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+            a:textColor="@color/spotify_text_secondary"
+            tools:text="user@example.com" />
+    </LinearLayout>
+
+    <Button
+        a:id="@+id/row_primary_action"
+        style="@style/Widget.Material3.Button.TextButton"
+        a:layout_width="wrap_content"
+        a:layout_height="wrap_content"
+        a:visibility="gone"
+        tools:text="Goedkeuren"
+        tools:visibility="visible" />
+
+    <Button
+        a:id="@+id/row_secondary_action"
+        style="@style/Widget.Material3.Button.TextButton"
+        a:layout_width="wrap_content"
+        a:layout_height="wrap_content"
+        a:visibility="gone"
+        tools:text="Afwijzen"
+        tools:visibility="visible" />
+
+</LinearLayout>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:a="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    a:layout_width="match_parent"
+    a:layout_height="56dp"
+    a:layout_marginHorizontal="4dp"
+    a:layout_marginVertical="4dp"
+    app:cardBackgroundColor="@color/spotify_card"
+    app:cardCornerRadius="4dp"
+    app:cardElevation="0dp"
+    app:strokeWidth="0dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        a:layout_width="match_parent"
+        a:layout_height="match_parent"
+        a:background="?attr/selectableItemBackground">
+
+        <com.google.android.material.imageview.ShapeableImageView
+            a:id="@+id/card_image"
+            a:layout_width="56dp"
+            a:layout_height="56dp"
+            a:scaleType="centerCrop"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:src="@drawable/unknown_album" />
+
+        <TextView
+            a:id="@+id/card_title"
+            a:layout_width="0dp"
+            a:layout_height="wrap_content"
+            a:layout_marginStart="10dp"
+            a:layout_marginEnd="8dp"
+            a:ellipsize="end"
+            a:maxLines="2"
+            a:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+            a:textColor="@color/spotify_text_primary"
+            a:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/card_image"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="Recent Hardstyle" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</com.google.android.material.card.MaterialCardView>

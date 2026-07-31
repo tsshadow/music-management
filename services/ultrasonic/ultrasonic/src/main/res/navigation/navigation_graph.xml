@@ -45,6 +45,21 @@
     </fragment>
 
     <fragment
+        android:id="@+id/favoritesFragment"
+        android:name="org.moire.ultrasonic.fragment.FavoritesFragment"
+        android:label="@string/filter.favorites" />
+
+    <fragment
+        android:id="@+id/libraryFragment"
+        android:name="org.moire.ultrasonic.fragment.LibraryFragment"
+        android:label="@string/library.label" />
+
+    <fragment
+        android:id="@+id/managementFragment"
+        android:name="org.moire.ultrasonic.management.ManagementFragment"
+        android:label="@string/management.label" />
+
+    <fragment
         android:id="@+id/mediaLibraryFragment"
         android:name="org.moire.ultrasonic.fragment.ArtistListFragment"
         android:label="@string/music_library.label" />

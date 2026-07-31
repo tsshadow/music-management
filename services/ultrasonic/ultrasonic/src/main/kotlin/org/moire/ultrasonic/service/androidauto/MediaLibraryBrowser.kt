@@ -37,6 +37,7 @@ import org.moire.ultrasonic.app.UApp
 import org.moire.ultrasonic.data.ActiveServerProvider
 import org.moire.ultrasonic.domain.Track
 import org.moire.ultrasonic.service.MusicService
+import org.moire.ultrasonic.service.MusicServiceFactory
 import org.moire.ultrasonic.util.FileUtil
 import org.moire.ultrasonic.provider.AlbumArtContentProvider
 import org.moire.ultrasonic.util.LayoutType
@@ -68,8 +69,9 @@ import timber.log.Timber
 class MediaLibraryBrowser(
     val mainScope: CoroutineScope,
     val serviceScope: CoroutineScope,
-    val musicService: MusicService
+    private val musicServiceProvider: () -> MusicService = MusicServiceFactory::getMusicService
 ) : MediaLibraryBase() {
+    val musicService: MusicService get() = musicServiceProvider()
     lateinit var dataProvider: MediaLibraryDataProvider
 
     /**

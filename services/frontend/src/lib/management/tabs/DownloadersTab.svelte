@@ -26,8 +26,14 @@
   let savingSource = '';
   let pollTimer = null;
 
-  $: if (downloaderSubTab === 'timing' && !timingLoaded && !timingLoading) loadTiming();
-  $: syncPolling(downloaderSubTab);
+  // Depend on downloaderSubTab only. Reading timingLoaded/timingLoading inside the callee keeps
+  // them out of this statement's dependency set, so loadTiming() writing them cannot re-trigger it.
+  $: onSubTabChange(downloaderSubTab);
+
+  function onSubTabChange(tab) {
+    syncPolling(tab);
+    if (tab === 'timing' && !timingLoaded && !timingLoading) loadTiming();
+  }
 
   function syncPolling(tab) {
     if (tab === 'timing' && !pollTimer) {

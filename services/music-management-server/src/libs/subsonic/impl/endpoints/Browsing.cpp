@@ -19,6 +19,8 @@
 
 #include "Browsing.hpp"
 
+#include <array>
+
 #include "core/ILogger.hpp"
 #include "core/Random.hpp"
 #include "core/Service.hpp"
@@ -394,6 +396,94 @@ namespace lms::api::subsonic
             {
                 LMS_LOG(API_SUBSONIC, ERROR, "Error while fetching genres: " << e.what());
             }
+        }
+
+        return response;
+    }
+
+    Response handleGetRecordLabelsRequest(RequestContext& context)
+    {
+        Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
+
+        Response::Node& recordLabelsNode{ response.createNode("recordLabels") };
+
+        auto transaction{ context.getDbSession().createReadTransaction() };
+
+        Label::find(context.getDbSession(), LabelSortMethod::Name, [&](const Label::pointer& label) {
+            Response::Node labelNode;
+
+            switch (context.getResponseFormat())
+            {
+            case ResponseFormat::json:
+                labelNode.setAttribute("value", label->getName());
+                break;
+            case ResponseFormat::xml:
+                labelNode.setValue(label->getName());
+                break;
+            }
+
+            recordLabelsNode.addArrayChild("recordLabel", std::move(labelNode));
+        });
+
+        return response;
+    }
+
+    // Unlike getRecordLabels (which is the OpenSubsonic-compatible, name-sorted, unpaged
+    // endpoint), this one exists to feed the mobile home screen: it is paged and can order
+    // labels by how recently their music was added to or rewritten in the library.
+    //
+    // It deliberately reads the PUBLISHER cluster rather than the db::Label table. Song filtering
+    // matches clusters, so returning db::Label names -- which come from release_label and need not
+    // be the same set -- produced labels that yielded no results when tapped.
+    Response handleGetLabelListRequest(RequestContext& context)
+    {
+        const std::string type{ getParameterAs<std::string>(context.getParameters(), "type").value_or("newest") };
+        const std::size_t offset{ getParameterAs<std::size_t>(context.getParameters(), "offset").value_or(0) };
+        const std::size_t count{ getParameterAs<std::size_t>(context.getParameters(), "size").value_or(100) };
+
+        Cluster::FindParameters params;
+        params.setClusterTypeName("PUBLISHER");
+        params.setRange(Range{ offset, count });
+
+        if (type == "newest")
+            params.setSortMethod(ClusterSortMethod::AddedDesc);
+        else if (type == "updated" || type == "recent")
+            params.setSortMethod(ClusterSortMethod::LastWrittenDesc);
+        else
+            params.setSortMethod(ClusterSortMethod::Name);
+
+        auto transaction{ context.getDbSession().createReadTransaction() };
+
+        const auto clusters{ Cluster::findIds(context.getDbSession(), params) };
+
+        Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
+        Response::Node& labelListNode{ response.createNode("labelList") };
+
+        for (const ClusterId clusterId : clusters.results)
+        {
+            const Cluster::pointer cluster{ Cluster::find(context.getDbSession(), clusterId) };
+            if (!cluster)
+                continue;
+
+            Response::Node labelNode;
+            // Plain id rather than a prefixed subsonic id: labels are addressed by name (the
+            // PUBLISHER tag) everywhere they are used as a filter, so there is nothing to parse
+            // this back into.
+            labelNode.setAttribute("id", clusterId.toString());
+            labelNode.setAttribute("name", cluster->getName());
+
+            // Give the card some artwork by borrowing the cover of the label's newest release.
+            const std::array<ClusterId, 1> clusterFilter{ clusterId };
+            Release::FindParameters releaseParams;
+            releaseParams.filters.setClusters(clusterFilter);
+            releaseParams.setSortMethod(ReleaseSortMethod::AddedDesc);
+            releaseParams.setRange(Range{ 0, 1 });
+
+            const auto releases{ Release::findIds(context.getDbSession(), releaseParams) };
+            if (!releases.results.empty())
+                labelNode.setAttribute("coverArt", idToString(releases.results.front()));
+
+            labelListNode.addArrayChild("label", std::move(labelNode));
         }
 
         return response;

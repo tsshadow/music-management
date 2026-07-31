@@ -7,6 +7,8 @@
   let results = $state({});
   let filteredGenres = $state([]);
   let allGenres = $state([]);
+  let filteredLabels = $state([]);
+  let allLabels = $state([]);
   let loading = $state(false);
   let showResults = $state(false);
   let debounceTimer;
@@ -25,6 +27,7 @@
     if (!query.trim()) {
       results = {};
       filteredGenres = [];
+      filteredLabels = [];
       loading = false;
       return;
     }
@@ -37,11 +40,14 @@
       const data = await response.json();
       results = data['subsonic-response']?.searchResult3 || {};
 
-      // Filter genres locally
+      // Filter genres and labels locally
       filteredGenres = allGenres
         .filter(genre => genre.toLowerCase().includes(query.toLowerCase()))
         .map(genre => genre);
-      
+      filteredLabels = allLabels
+        .filter(label => label.toLowerCase().includes(query.toLowerCase()))
+        .map(label => label);
+
     } catch (e) {
       if (e.name === 'AbortError') return;
       console.error("Search failed:", e);
@@ -66,6 +72,7 @@
       }
       results = {};
       filteredGenres = [];
+      filteredLabels = [];
       loading = false;
       return;
     }
@@ -89,8 +96,23 @@
     }
   }
 
+  /**
+   * Loads all record labels once on mount to enable local filtering.
+   */
+  async function loadAllLabels() {
+    try {
+      const response = await fetch(`/rest/getRecordLabels?${$authParams}`);
+      const data = await response.json();
+      const labelList = data['subsonic-response']?.recordLabels?.recordLabel || [];
+      allLabels = labelList.map(l => typeof l === 'string' ? l : (l.value || l.name));
+    } catch (e) {
+      console.error("Failed to load labels for search:", e);
+    }
+  }
+
   onMount(() => {
     loadAllGenres();
+    loadAllLabels();
   });
 
   // Re-run search when mode changes and search is active
@@ -130,6 +152,8 @@
       }
     } else if (type === 'genre') {
       activeView.set(`genre:${idOrItem}`);
+    } else if (type === 'label') {
+      activeView.set(`label:${idOrItem}`);
     } else if (type.startsWith('more-')) {
        const category = type.replace('more-', '');
        activeModal.set({ type: 'search-results', data: { query, category } });
@@ -167,10 +191,11 @@
   </div>
 
   {#if showResults && query.length > 0}
-    <SearchResults 
-      {results} 
-      genres={filteredGenres} 
-      {loading} 
+    <SearchResults
+      {results}
+      genres={filteredGenres}
+      labels={filteredLabels}
+      {loading}
       onSelect={handleSelect}
       mode={$viewMode}
     />

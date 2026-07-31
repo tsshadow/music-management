@@ -27,6 +27,7 @@ import org.moire.ultrasonic.domain.ChatMessage
 import org.moire.ultrasonic.domain.Genre
 import org.moire.ultrasonic.domain.Index
 import org.moire.ultrasonic.domain.JukeboxStatus
+import org.moire.ultrasonic.domain.Label
 import org.moire.ultrasonic.domain.Lineup
 import org.moire.ultrasonic.domain.Lyrics
 import org.moire.ultrasonic.domain.Mood
@@ -109,6 +110,24 @@ open class RESTMusicService(
         val response = API.getArtists(null, offset, count).execute().throwOnFailure()
 
         return response.body()!!.indexes.toArtistList(activeServerId)
+    }
+
+    @Throws(Exception::class)
+    override fun getArtistList(type: String, size: Int): List<Artist> {
+        // role=release: without it the server returns every artist link, including remixers and
+        // featured artists that have no albums of their own, whose detail screen is then empty.
+        val response = API.getArtistList(type, size, 0, ROLE_RELEASE_ARTISTS)
+            .execute()
+            .throwOnFailure()
+
+        return response.body()!!.artistList.map { it.toDomainEntity(activeServerId) }
+    }
+
+    @Throws(Exception::class)
+    override fun getLabelList(type: String, size: Int): List<Label> {
+        val response = API.getLabelList(type, size, 0).execute().throwOnFailure()
+
+        return response.body()!!.labelList.toDomainEntityList()
     }
 
     @Throws(Exception::class)
@@ -849,6 +868,30 @@ open class RESTMusicService(
         if (!response.isSuccessful) throw IOException("Failed to save settings: ${response.code()}")
     }
 
+    @Throws(Exception::class)
+    override fun uploadCrashReport(
+        deviceModel: String,
+        osVersion: String,
+        appVersionName: String,
+        appVersionCode: Int,
+        buildType: String,
+        ringBufferText: String,
+        stacktraceText: String?
+    ) {
+        ensureMumaLogin()
+        val req = org.moire.ultrasonic.api.muma.CrashReportRequest(
+            device_model = deviceModel,
+            os_version = osVersion,
+            app_version_name = appVersionName,
+            app_version_code = appVersionCode,
+            build_type = buildType,
+            ring_buffer_text = ringBufferText,
+            stacktrace_text = stacktraceText
+        )
+        val response = subsonicAPIClient.mumaApi.api.uploadCrashReport(req).execute()
+        if (!response.isSuccessful) throw IOException("Failed to upload crash report: ${response.code()}")
+    }
+
     private val activeServerId: Int
         get() = ActiveServerProvider.getActiveServerId()
 
@@ -859,5 +902,10 @@ open class RESTMusicService(
             Timber.i("Server minimum API version set to %s", it)
             activeServerProvider.setMinimumApiVersion(it.restApiVersion)
         }
+    }
+
+    companion object {
+        /** getArtistList role that keeps track-only artists (remixers, features) out of the list. */
+        private const val ROLE_RELEASE_ARTISTS = "release"
     }
 }

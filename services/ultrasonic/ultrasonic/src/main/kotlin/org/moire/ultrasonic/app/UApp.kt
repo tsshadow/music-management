@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.StrictMode
 import android.os.StrictMode.ThreadPolicy
 import android.os.StrictMode.VmPolicy
+import io.reactivex.rxjava3.plugins.RxJavaPlugins
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -58,6 +59,13 @@ class UApp : Application() {
         }
 
         RingBufferLoggerTree.plantToTimberForest()
+
+        // None of the RxBus subscribers pass an onError handler, so any throw inside one of them
+        // is rethrown by RxJava as OnErrorNotImplementedException on whichever thread is
+        // delivering the event, killing the process. Log it instead.
+        RxJavaPlugins.setErrorHandler { error ->
+            Timber.w(error, "Undeliverable RxJava error")
+        }
 
         Timber.d("onCreate called")
 

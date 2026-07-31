@@ -16,7 +16,6 @@ import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.google.common.reflect.TypeToken
 import com.google.gson.Gson
 import java.util.Date
 import org.moire.ultrasonic.domain.Album
@@ -69,11 +68,12 @@ class Converters {
     @TypeConverter
     fun fromStringList(list: List<String>?): String? = Gson().toJson(list)
 
+    // Deserialize via Array<String>::class.java instead of an anonymous TypeToken subclass:
+    // R8 in full mode can merge away the generic superclass of such anonymous classes, after
+    // which TypeToken.getType() throws "... isn't parameterized" in release builds only.
     @TypeConverter
-    fun toStringList(data: String?): List<String>? {
-        val listType = object : TypeToken<List<String>>() {}.type
-        return Gson().fromJson(data, listType)
-    }
+    fun toStringList(data: String?): List<String>? =
+        Gson().fromJson(data, Array<String>::class.java)?.toList()
 }
 
 val META_MIGRATION_2_3: Migration = object : Migration(2, 3) {

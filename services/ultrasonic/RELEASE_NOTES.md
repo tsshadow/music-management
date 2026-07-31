@@ -1,3 +1,8 @@
+## [Unreleased]
+### Fixed
+- **De app crashte bijna elke keer dat het afspelen begon.** In de uitgebrachte versie konden de genres van een nummer niet teruggelezen worden, waardoor de app onderuit ging zodra er een nummer in de speler geladen werd. Afspelen, "alles afspelen" en teruggaan naar het spelerscherm werken weer.
+- **Een foutmelding die verscheen terwijl de app op de achtergrond stond, kon de app afsluiten** in plaats van de fout te tonen. Zo'n fout komt nu als gewone melding, of als korte toast wanneer er geen scherm beschikbaar is.
+
 ## [6.5.12] - 2026-07-30
 ### Fixed
 - **Login screen showed a generic "network error" for every kind of login problem**: it's now able to tell you when the server itself is unreachable, versus when the server responded but the login didn't succeed.

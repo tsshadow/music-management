@@ -8,6 +8,8 @@
 package org.moire.ultrasonic.home
 
 import androidx.annotation.StringRes
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import org.moire.ultrasonic.domain.Album
 import org.moire.ultrasonic.domain.Artist
 import timber.log.Timber
@@ -57,15 +59,20 @@ class LibraryActivityProvider(
     private val loadExtra: suspend (String) -> List<HomeCard>
 ) : HomeSectionProvider {
 
-    override suspend fun load(): HomeSection? {
-        val artists = safely { loadArtists(type) }.map { it.toHomeCard() }
-        val albums = safely { loadAlbums(type) }.map { it.toHomeCard() }
-        val extra = safely { loadExtra(type) }
+    /**
+     * The three sources are independent server calls, so they run at the same time; loading them
+     * one after another made the home screen wait for the sum of three round trips instead of the
+     * slowest one.
+     */
+    override suspend fun load(): HomeSection? = coroutineScope {
+        val artists = async { safely { loadArtists(type) }.map { it.toHomeCard() } }
+        val albums = async { safely { loadAlbums(type) }.map { it.toHomeCard() } }
+        val extra = async { safely { loadExtra(type) } }
 
-        val cards = interleave(listOf(artists, albums, extra))
-        if (cards.isEmpty()) return null
+        val cards = interleave(listOf(artists.await(), albums.await(), extra.await()))
+        if (cards.isEmpty()) return@coroutineScope null
 
-        return HomeSection(titleRes, CardStyle.CAROUSEL, cards)
+        HomeSection(titleRes, CardStyle.CAROUSEL, cards)
     }
 
     // One failing source (or one the server doesn't know yet) must not empty the whole carousel.

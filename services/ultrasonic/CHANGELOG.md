@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.20] - 2026-07-31
+
+### Added
+- **A "Log out" entry in the toolbar overflow menu.** Signing out previously meant clearing the app
+  data or reinstalling. It confirms first, stops playback, clears `Settings.staticPassword`, the
+  MuMa API key/user id and the encrypted MuMa tokens, resets the music service, and reopens the
+  welcome/login dialog with the username prefilled. Downloads are untouched.
+- **Skeleton placeholders on the home screen.** `HomeSectionState` gives every section its own
+  Loading/Empty/Content state, so each slot shows pulsing placeholders
+  (`home_skeleton_carousel`/`home_skeleton_grid`, `@anim/skeleton_pulse`) until its own data
+  arrives instead of the whole screen staying black until the slowest section finished. A reload
+  keeps sections that are already on screen.
+
+### Changed
+- **The home screen loads concurrently.** `HomeViewModel.load()` launches one coroutine per
+  provider and publishes each section as it completes, and `LibraryActivityProvider` fetches its
+  artists, albums and labels/festivals with `async` instead of one after another — six sequential
+  round trips became two rounds of three parallel ones.
+
+### Fixed
+- **A password rejected mid-session returns to the login screen.** Subsonic error 40 was only ever
+  turned into a message by whichever screen happened to make the call, so a password changed on the
+  server left the app permanently broken with no way back to the login screen.
+  `AuthenticationFailureNotifier` (in `core/subsonic-api`, called from both `throwOnFailure()`
+  overloads) now reports it, `UApp` republishes it on `RxBus`, and `NavigationActivity` ends the
+  session and shows the login screen with an explanation. Only error 40 does this: errors 50 (not
+  authorized) and 70 (not found) leave the session alone.
+
 ## [6.5.19] - 2026-07-31
 
 ### Fixed

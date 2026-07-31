@@ -638,6 +638,10 @@
     <string name="welcome_status_checking">Server status: checking…</string>
     <string name="welcome_status_reachable">Server status: reachable</string>
     <string name="welcome_status_unreachable">Server status: unreachable</string>
+    <string name="welcome_session_expired">You were signed out: the server rejected your password. It may have been changed on the server — sign in again to continue.</string>
+    <string name="menu.logout">Log out</string>
+    <string name="logout.confirm_title">Log out?</string>
+    <string name="logout.confirm_message">Playback stops and you return to the login screen. Downloaded music stays on this device.</string>
     <string name="offline_mode_banner">Offline mode — limited functionality. Tap to log in.</string>
     <string name="welcome_or_divider">OR</string>
     <string name="settings.muma_sync_title">MuMa Cloud Sync</string>

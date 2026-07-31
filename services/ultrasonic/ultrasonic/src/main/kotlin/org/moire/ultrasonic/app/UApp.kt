@@ -14,6 +14,7 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import org.moire.ultrasonic.BuildConfig
+import org.moire.ultrasonic.api.subsonic.AuthenticationFailureNotifier
 import org.moire.ultrasonic.di.appPermanentStorage
 import org.moire.ultrasonic.di.applicationModule
 import org.moire.ultrasonic.di.baseNetworkModule
@@ -23,6 +24,7 @@ import org.moire.ultrasonic.diagnostics.CrashReportManager
 import org.moire.ultrasonic.log.FileLoggerTree
 import org.moire.ultrasonic.log.RingBufferLoggerTree
 import org.moire.ultrasonic.log.TimberKoinLogger
+import org.moire.ultrasonic.service.RxBus
 import org.moire.ultrasonic.util.FileUtil
 import org.moire.ultrasonic.util.Settings
 import org.moire.ultrasonic.util.Storage
@@ -68,6 +70,14 @@ class UApp : Application() {
         }
 
         Timber.d("onCreate called")
+
+        // The API module reports credential rejections through a plain callback, because it cannot
+        // see RxBus. Bridging it here (rather than in an Activity) means a rejection is noticed no
+        // matter which component made the call.
+        AuthenticationFailureNotifier.listener = {
+            Timber.w("The server rejected the stored credentials")
+            RxBus.authenticationFailurePublisher.onNext(Unit)
+        }
 
         CrashReportManager.detectAndArmPendingReport()
 

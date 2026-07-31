@@ -39,6 +39,25 @@ class RxBus {
         var activeServerChangedObservable: Observable<ServerSetting> =
             activeServerChangedPublisher.observeOn(mainThread())
 
+        // Fired after credentials were accepted at the login screen. Logging back in on the same
+        // server does not change the active server, so activeServerChanged says nothing here, yet
+        // screens that gave up while logged out still need to fetch their content.
+        val loginSucceededPublisher: PublishSubject<Unit> =
+            PublishSubject.create()
+        val loginSucceededObservable: Observable<Unit> =
+            loginSucceededPublisher.observeOn(mainThread())
+
+        // Fired when the server rejected the credentials the app is logged in with.
+        // Several requests usually fail at once, and each one reports separately, so this is
+        // throttled: the session only needs to be torn down once.
+        val authenticationFailurePublisher: PublishSubject<Unit> =
+            PublishSubject.create()
+        val authenticationFailureObservable: Observable<Unit> =
+            authenticationFailurePublisher
+                // Need to specify thread, see comment at beginning
+                .throttleFirst(AUTH_FAILURE_THROTTLE_SECONDS, TimeUnit.SECONDS, mainThread())
+                .observeOn(mainThread())
+
         val themeChangedEventPublisher: PublishSubject<Unit> =
             PublishSubject.create()
         val themeChangedEventObservable: Observable<Unit> =
@@ -117,6 +136,8 @@ class RxBus {
             PublishSubject.create()
         val shutdownCommandObservable: Observable<Unit> =
             shutdownCommandPublisher.observeOn(mainThread())
+
+        private const val AUTH_FAILURE_THROTTLE_SECONDS = 5L
     }
 
     data class StateWithTrack(

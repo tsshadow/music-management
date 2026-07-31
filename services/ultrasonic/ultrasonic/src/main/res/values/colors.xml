@@ -15,6 +15,10 @@
     <color name="spotify_text_primary">#ffffff</color>
     <color name="spotify_text_secondary">#b3b3b3</color>
 
+    <!-- Loading placeholders: one step lighter than a card, so a skeleton reads as "content is
+         coming" rather than as an empty card -->
+    <color name="skeleton_block">#2f2f2f</color>
+
     <!-- Status banners (Google auth request states) - mirrors the web frontend's
          bg-*-500/20 text-*-400 Tailwind pattern (docs/styleguide.md semantic colors) -->
     <color name="status_info_bg">#3329b6f6</color>

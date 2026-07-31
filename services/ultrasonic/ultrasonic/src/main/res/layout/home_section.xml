@@ -17,6 +17,29 @@
         a:textStyle="bold"
         tools:text="Recently added" />
 
+    <!-- Shown until the section has loaded. The card placeholders are added at runtime, because
+         which shape they take (grid or carousel) is a property of the section. -->
+    <LinearLayout
+        a:id="@+id/section_skeleton"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:orientation="vertical"
+        a:visibility="gone">
+
+        <View
+            a:layout_width="160dp"
+            a:layout_height="18dp"
+            a:layout_marginHorizontal="16dp"
+            a:layout_marginBottom="10dp"
+            a:background="@drawable/skeleton_block" />
+
+        <FrameLayout
+            a:id="@+id/section_skeleton_cards"
+            a:layout_width="match_parent"
+            a:layout_height="wrap_content" />
+
+    </LinearLayout>
+
     <androidx.recyclerview.widget.RecyclerView
         a:id="@+id/section_recycler"
         a:layout_width="match_parent"

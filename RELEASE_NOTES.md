@@ -11,6 +11,16 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.51 (2026-07-31)
+### 📱 Android-app: uitloggen, sneller opstarten en niet meer vastlopen op een fout wachtwoord
+- Er zit nu een **uitlogknop** in het menu rechtsboven. Hij vraagt om bevestiging, stopt het
+  afspelen en brengt je terug naar het inlogscherm; gedownloade muziek blijft staan.
+- De **startpagina toont grijze plaatshouders** zolang hij laadt, en elke sectie verschijnt zodra
+  die klaar is in plaats van pas als alles klaar is. De onderdelen worden bovendien tegelijk
+  opgehaald, dus opstarten gaat merkbaar sneller.
+- **Wordt je wachtwoord door de server geweigerd terwijl je al ingelogd was**, dan kom je nu terug
+  op het inlogscherm met uitleg, in plaats van een app waarin elk scherm een foutmelding geeft.
+
 ## Global Version 0.0.50 (2026-07-31)
 ### 🚑 De Android-app crashte bijna elke keer dat je iets afspeelde
 - In de uitgebrachte versie konden de **genres van een nummer** niet teruggelezen worden, waardoor

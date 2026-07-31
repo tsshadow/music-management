@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Slow breathing of the loading placeholders: enough to read as "busy", not enough to distract.
+     A gradient sweep would need a third-party shimmer library; this needs none. -->
+<alpha xmlns:a="http://schemas.android.com/apk/res/android"
+    a:duration="700"
+    a:fromAlpha="1.0"
+    a:repeatCount="infinite"
+    a:repeatMode="reverse"
+    a:toAlpha="0.4" />

@@ -17,7 +17,9 @@ import org.moire.ultrasonic.api.subsonic.models.Artist as APIArtist
 fun APIArtist.toDomainEntity(serverId: Int): Artist = Artist(
     id = this@toDomainEntity.id,
     serverId = serverId,
-    coverArt = this@toDomainEntity.coverArt,
+    // The server omits coverArt when an artist has no artwork, which Jackson turns into "".
+    // Normalising it here keeps "no artwork" from looking like a usable id downstream.
+    coverArt = this@toDomainEntity.coverArt.ifBlank { null },
     name = this@toDomainEntity.name
 )
 

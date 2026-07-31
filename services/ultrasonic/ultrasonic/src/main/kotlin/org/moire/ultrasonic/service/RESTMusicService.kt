@@ -114,7 +114,11 @@ open class RESTMusicService(
 
     @Throws(Exception::class)
     override fun getArtistList(type: String, size: Int): List<Artist> {
-        val response = API.getArtistList(type, size, 0).execute().throwOnFailure()
+        // role=release: without it the server returns every artist link, including remixers and
+        // featured artists that have no albums of their own, whose detail screen is then empty.
+        val response = API.getArtistList(type, size, 0, ROLE_RELEASE_ARTISTS)
+            .execute()
+            .throwOnFailure()
 
         return response.body()!!.artistList.map { it.toDomainEntity(activeServerId) }
     }
@@ -898,5 +902,10 @@ open class RESTMusicService(
             Timber.i("Server minimum API version set to %s", it)
             activeServerProvider.setMinimumApiVersion(it.restApiVersion)
         }
+    }
+
+    companion object {
+        /** getArtistList role that keeps track-only artists (remixers, features) out of the list. */
+        private const val ROLE_RELEASE_ARTISTS = "release"
     }
 }

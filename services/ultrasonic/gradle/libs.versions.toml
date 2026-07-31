@@ -106,6 +106,7 @@ kotlinStdlib            = { module = "org.jetbrains.kotlin:kotlin-stdlib", versi
 kotlinReflect           = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
 kotlinxCoroutines       = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
 kotlinxGuava            = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-guava", version.ref = "kotlinxCoroutines"}
+kotlinxCoroutinesTest   = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
 retrofit                = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
 gsonConverter           = { module = "com.squareup.retrofit2:converter-gson", version.ref = "retrofit" }
 jacksonConverter        = { module = "com.squareup.retrofit2:converter-jackson", version.ref = "retrofit" }

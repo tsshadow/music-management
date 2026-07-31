@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The grey stand-in for a piece of content that has not arrived yet. -->
+<shape xmlns:a="http://schemas.android.com/apk/res/android"
+    a:shape="rectangle">
+    <solid a:color="@color/skeleton_block" />
+    <corners a:radius="4dp" />
+</shape>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One placeholder card: cover, title line, subtitle line. -->
+<LinearLayout xmlns:a="http://schemas.android.com/apk/res/android"
+    a:layout_width="140dp"
+    a:layout_height="wrap_content"
+    a:orientation="vertical"
+    a:paddingHorizontal="6dp"
+    a:paddingVertical="4dp">
+
+    <View
+        a:layout_width="128dp"
+        a:layout_height="128dp"
+        a:background="@drawable/skeleton_block" />
+
+    <View
+        a:layout_width="128dp"
+        a:layout_height="14dp"
+        a:layout_marginTop="10dp"
+        a:background="@drawable/skeleton_block" />
+
+    <View
+        a:layout_width="80dp"
+        a:layout_height="12dp"
+        a:layout_marginTop="6dp"
+        a:background="@drawable/skeleton_block" />
+
+</LinearLayout>

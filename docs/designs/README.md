@@ -66,6 +66,7 @@ the retroactive documentation above):
 | Feature | Covers |
 |---|---|
 | [`favorite-genres/`](favorite-genres/) | Per-user favorite genres in the web player, persisted to the account instead of only `localStorage` (`services/frontend/src/lib/store.js`), reusing the existing generic `/api/users/{id}/settings/{app_id}` endpoints. |
+| [`ultrasonic-session-and-loading/`](ultrasonic-session-and-loading/) | Android client: per-section skeleton loading on the home screen, a "Log out" entry, and returning to the login screen when the server rejects the stored password (Subsonic error 40). Client-side only. |
 
 ## Relationship to `.ai/docs` and `.ai/requirements`
 

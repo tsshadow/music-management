@@ -53,8 +53,18 @@ namespace lms::db
             auto query{ session.getDboSession()->query<ResultType>("SELECT " + std::string{ itemToSelect } + " FROM cluster c") };
             query.groupBy("c.id");
 
-            if (params.track.isValid() || params.release.isValid())
+            // Recency is a property of the cluster's tracks, so those sort methods need the same
+            // joins the track/release filters need.
+            const bool sortsByTrackTime{ params.sortMethod == ClusterSortMethod::AddedDesc
+                                         || params.sortMethod == ClusterSortMethod::LastWrittenDesc };
+            const bool needsTrackCluster{ params.track.isValid() || params.release.isValid() || sortsByTrackTime };
+            const bool needsTrack{ params.release.isValid() || sortsByTrackTime };
+
+            if (needsTrackCluster)
                 query.join("track_cluster t_c ON t_c.cluster_id = c.id");
+
+            if (needsTrack)
+                query.join("track t ON t.id = t_c.track_id");
 
             if (!params.clusterTypeName.empty())
                 query.join("cluster_type c_t ON c_t.id = c.cluster_type_id");
@@ -63,10 +73,7 @@ namespace lms::db
                 query.where("t_c.track_id = ?").bind(params.track);
 
             if (params.release.isValid())
-            {
-                query.join("track t ON t.id = t_c.track_id");
                 query.where("t.release_id = ?").bind(params.release);
-            }
 
             assert(!params.clusterType.isValid() || params.clusterTypeName.empty());
             if (params.clusterType.isValid())
@@ -80,6 +87,12 @@ namespace lms::db
                 break;
             case ClusterSortMethod::Name:
                 query.orderBy("c.name COLLATE NOCASE");
+                break;
+            case ClusterSortMethod::AddedDesc:
+                query.orderBy("MAX(t.file_added) DESC");
+                break;
+            case ClusterSortMethod::LastWrittenDesc:
+                query.orderBy("MAX(t.file_last_write) DESC");
                 break;
             }
 

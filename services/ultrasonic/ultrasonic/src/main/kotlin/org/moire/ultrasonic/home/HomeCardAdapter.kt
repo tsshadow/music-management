@@ -18,6 +18,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.moire.ultrasonic.R
 import org.moire.ultrasonic.subsonic.ImageLoaderProvider
+import org.moire.ultrasonic.util.FileUtil
 
 /**
  * The one and only home screen card component. Adding a new section means producing a new
@@ -65,8 +66,8 @@ class HomeCardAdapter(
             it.loadImage(
                 holder.image,
                 card.coverArtId,
-                card.title,
-                card.type != HomeCardType.ARTIST,
+                cacheKeyFor(card),
+                true,
                 0,
                 defaultResourceFor(card.type)
             )
@@ -74,6 +75,15 @@ class HomeCardAdapter(
     }
 
     override fun getItemCount() = items.size
+
+    /**
+     * The on-disk cache key. Artist art is keyed the way the rest of the app keys it, so a picture
+     * fetched here is reused elsewhere instead of being downloaded again under a key nobody reads.
+     */
+    private fun cacheKeyFor(card: HomeCard): String = when (card.type) {
+        HomeCardType.ARTIST -> FileUtil.getArtistArtKey(card.title, true)
+        else -> card.title
+    }
 
     private fun subtitleResFor(type: HomeCardType): Int = when (type) {
         HomeCardType.ALBUM -> R.string.common_album

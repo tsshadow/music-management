@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.48] - 2026-07-31
+
+### Fixed
+- **Ultrasonic: opening an artist from the home screen showed nothing.** `getArtistList` defaults its
+  `role` parameter to `all`, so the carousels listed every artist link in the library — remixers,
+  featured artists, composers — most of which have no albums of their own and therefore an empty
+  detail screen. The client now asks for `role=release`.
+- **Ultrasonic: opening a label from the home screen showed nothing.** `getLabelList` returned
+  `db::Label` names, which come from `release_label`, while song filtering matches the PUBLISHER
+  cluster — a different table fed by a different tag. The endpoint now reads the PUBLISHER cluster,
+  so the names it returns are the ones filtering understands. `ClusterSortMethod` gains `AddedDesc`
+  and `LastWrittenDesc`; the `LabelSortMethod` additions from 0.0.46 are removed again.
+- **Ultrasonic: artist pictures on the home screen.** Artist art is keyed with
+  `FileUtil.getArtistArtKey` again and requested at the large size, so it is shared with the rest of
+  the app instead of being refetched under a key nothing reads. Missing artist cover art now becomes
+  null at the converter instead of an empty string that looked like a usable id.
+
 ## [0.0.47] - 2026-07-31
 
 ### Added

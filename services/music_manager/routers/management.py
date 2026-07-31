@@ -6,6 +6,7 @@ from pydantic import BaseModel
 import markdown
 import docker
 from services.common.version_helper import get_version, get_release_notes, get_changelog
+from services.common.Helpers.GenreRulesHelper import WHITE, BLACK, VALID_STATES
 from services.music_manager.database import get_db_connection
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 router = APIRouter(tags=['management'])
@@ -13,6 +14,10 @@ router = APIRouter(tags=['management'])
 class ArtistGenreRule(BaseModel):
     artist_name: str
     genre_id: int
+
+class GenreDecisionRequest(BaseModel):
+    state: str
+    canonical_id: Optional[int] = None
 
 class LabelGenreRule(BaseModel):
     label_name: str
@@ -224,6 +229,62 @@ def delete_youtube_account(name: str, _auth: dict=Depends(verify_api_key)):
     try:
         with conn.cursor() as cursor:
             cursor.execute('DELETE FROM downloads_youtube_accounts WHERE name = %s', (name,))
+            conn.commit()
+            return {'status': 'ok'}
+    finally:
+        conn.close()
+
+@router.get('/rules/genres')
+def get_genre_curation_queue(state: Optional[str]=None, limit: int=200, _auth: dict=Depends(verify_api_key)):
+    """Genres by curation state, most frequently seen first.
+
+    Called without a state this returns the whole table; `state=unknown` is the
+    curation queue, ordered so the genres that touch most tracks come first.
+    """
+    if state is not None and state not in VALID_STATES:
+        raise HTTPException(status_code=400, detail=f"Invalid state, expected one of {', '.join(VALID_STATES)}")
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            query = "\n                SELECT g.id, g.name, g.state, g.canonical_id, c.name AS canonical_name,\n                       g.occurrences, CAST(g.detected_at AS CHAR) AS detected_at,\n                       CAST(g.decided_at AS CHAR) AS decided_at, g.decided_by\n                FROM rules_genres g\n                LEFT JOIN rules_genres c ON g.canonical_id = c.id\n            "
+            params: list = []
+            if state:
+                query += ' WHERE g.state = %s'
+                params.append(state)
+            query += ' ORDER BY g.occurrences DESC, g.name LIMIT %s'
+            params.append(limit)
+            cursor.execute(query, params)
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+@router.post('/rules/genres/{genre_id}/decide')
+def decide_genre(genre_id: int, decision: GenreDecisionRequest, auth: dict=Depends(verify_api_key)):
+    """Move a genre to white or black, optionally rewriting it to another genre.
+
+    A decision made here is recorded as `decided_by`, so the tagger never
+    overwrites it later.
+    """
+    if decision.state not in (WHITE, BLACK):
+        raise HTTPException(status_code=400, detail=f'Invalid state, expected {WHITE} or {BLACK}')
+    if decision.canonical_id is not None and decision.canonical_id == genre_id:
+        raise HTTPException(status_code=400, detail='A genre cannot be its own correction')
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT id FROM rules_genres WHERE id = %s', (genre_id,))
+            if not cursor.fetchone():
+                raise HTTPException(status_code=404, detail='Unknown genre')
+            if decision.canonical_id is not None:
+                cursor.execute('SELECT id FROM rules_genres WHERE id = %s', (decision.canonical_id,))
+                if not cursor.fetchone():
+                    raise HTTPException(status_code=400, detail='Unknown correction target')
+            decided_by = (auth.get('user') or {}).get('username') if isinstance(auth.get('user'), dict) else auth.get('type', 'human')
+            cursor.execute('\n                UPDATE rules_genres\n                SET state = %s, canonical_id = %s, decided_at = NOW(), decided_by = %s\n                WHERE id = %s\n            ', (decision.state, decision.canonical_id, decided_by or 'human', genre_id))
             conn.commit()
             return {'status': 'ok'}
     finally:

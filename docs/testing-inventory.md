@@ -72,6 +72,7 @@
 
 ### common
 - Shared helpers (`config_store.py`, `db_init.py`, `job_manager.py`, `step.py`, `version_helper.py`) — no own tests found, covered indirectly via dependent modules
+- Exception: `services/common/Helpers/GenreRulesHelperTest.py` and `services/tagger/Song/rules/ResolveGenreRuleTest.py` are listed explicitly in `scripts/test/music-management-unit.sh`, since neither `services/common/Helpers/` nor `services/tagger/Song/rules/` is a CI target directory
 
 ## Existing root-level test infrastructure
 - `pytest.ini`: `pythonpath = services .`, test patterns `*Test.py` and `test_*.py`, `norecursedirs = modules/scrobbler`

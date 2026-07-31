@@ -2,9 +2,8 @@ from services.common.config_store import ConfigStore as Settings
 from services.tagger.Song.BaseSong import BaseSong
 from services.common.Helpers.Cache import databaseHelpers
 from services.tagger.Song.rules.AddMissingArtistToDatabaseRule import AddMissingArtistToDatabaseRule
-from services.tagger.Song.rules.AddMissingGenreToDatabaseRule import AddMissingGenreToDatabaseRule
 from services.tagger.Song.rules.CheckArtistRule import CheckArtistRule
-from services.tagger.Song.rules.CleanAndFilterGenreRule import CleanAndFilterGenreRule
+from services.tagger.Song.rules.ResolveGenreRule import ResolveGenreRule
 from services.tagger.Song.rules.CleanTagsRule import CleanTagsRule
 from services.tagger.Song.rules.InferGenreFromArtistRule import InferGenreFromArtistRule
 from services.tagger.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
@@ -30,8 +29,7 @@ class GenericSong(BaseSong):
         self.rules.append(InferGenreFromSubgenreRule(databaseHelpers['subgenreHelper']))
         self.rules.append(CleanTagsRule())
         self.rules.append(AddMissingArtistToDatabaseRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']))
-        self.rules.append(AddMissingGenreToDatabaseRule(genre_db=databaseHelpers['rules_genres'], ignored_db=databaseHelpers['rules_ignored_genres'], backlog_db=databaseHelpers.get('rules_genre_backlog')))
-        self.rules.append(CleanAndFilterGenreRule(databaseHelpers['rules_genres'], databaseHelpers.get('rules_genre_backlog'), databaseHelpers.get('rules_ignored_genres')))
+        self.rules.append(ResolveGenreRule(databaseHelpers['genre_rules']))
         self.rules.append(CheckArtistRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']))
         self.rules.append(ReplaceInvalidUnicodeRule())
         super().parse()

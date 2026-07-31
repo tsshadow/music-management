@@ -78,15 +78,15 @@ These tables contain the "knowledge" of the system, used by the tagger service t
 
 | Table | Purpose | Key columns |
 | :--- | :--- | :--- |
-| `rules_genres` | List of allowed rules_genres and their corrections. | `genre`, `corrected_genre` |
+| `rules_genres` | Every genre ever seen, with its curation state (`white` keep, `black` drop, `unknown` awaiting a decision) and optional correction target. See [docs/designs/genre-curation/technical.md](designs/genre-curation/technical.md). | `name`, `normalized_name`, `state`, `canonical_id`, `occurrences` |
 | `rules_artist_genres` | Mapping from artist name to a default genre. | `artist_name`, `genre_id` |
 | `rules_label_genres` | Mapping from label name to a default genre. | `label_name`, `genre_id` |
 | `rules_subgenre_hierarchy` | Defines relationships (e.g., Uptempo is a subgenre of Hardcore). | `subgenre`, `genre` |
 | `rules_ignored_artists` | Artists to skip during processing. | `name` |
-| `rules_ignored_genres` | Genres to skip during processing. | `name` |
+| `rules_ignored_genres` | (Legacy) Migrated into `rules_genres` as state `black`; no longer read by the tagger. | `name` |
 | `rules_catid_label` | Mapping Catalog IDs to library_labels. | `catid`, `label` |
 | `rules_festival_data` | Information about festivals for title parsing. | `festival`, `year` |
-| `rules_genre_backlog` | New rules_genres detected but not yet validated. | `genre` |
+| `rules_genre_backlog` | (Legacy) Migrated into `rules_genres` as state `unknown`; no longer read by the tagger. | `genre` |
 | `rules_genres_new` | (Legacy) New genre structure being phased in. | `name` |
 
 ### 2. Downloader Domain (`downloads`)

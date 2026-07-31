@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.19] - 2026-07-31
+
 ### Fixed
 - **Release builds crashed with `IllegalArgumentException: class com.google.common.reflect.TypeCapture
   isn't parameterized` whenever a track's genre list was deserialized**: the Room `Converters`, the

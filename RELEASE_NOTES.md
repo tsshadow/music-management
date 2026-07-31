@@ -10,6 +10,34 @@ This project is now modularized. Detailed release notes for each module can be f
 - [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
 
 ## Unreleased
+
+## Global Version 0.0.50 (2026-07-31)
+### 🚑 De Android-app crashte bijna elke keer dat je iets afspeelde
+- In de uitgebrachte versie konden de **genres van een nummer** niet teruggelezen worden, waardoor
+  de app onderuit ging zodra er een nummer in de speler geladen werd. Dit zat achter 15 van de 16
+  crashmeldingen van 6.5.14 tot en met 6.5.18. Afspelen, "alles afspelen" en teruggaan naar het
+  spelerscherm werken weer.
+- **Een foutmelding die verscheen terwijl de app op de achtergrond stond, kon de app afsluiten** in
+  plaats van de fout te tonen. Zo'n fout komt nu als gewone melding, of als korte toast wanneer er
+  geen scherm beschikbaar is.
+
+### 🚗 Android Auto liet weer lijsten zien
+- Auto hield de serververbinding vast die het bij het starten had opgepakt. Wisselde je van server,
+  paste je inloggegevens aan, of was de server even onbereikbaar, dan bleef Auto met de dode
+  verbinding zitten: de mappen waren er nog, maar elke lijst kwam leeg terug — ook nadat het op de
+  telefoon allang weer werkte. Auto haalt de verbinding nu bij elke aanroep opnieuw op.
+
+### 🐌 Downloaders gaan zichzelf afremmen
+- Een nieuw tabblad **Timing** onder Systeembeheer → Downloaders stelt de sweep-interval,
+  wachttijden per account, batchgrootte en de backoff-ladders van SoundCloud, YouTube en Telegram
+  in. Voorheen stonden die vast in de code.
+- Krijgt een bron een **429**, dan verdubbelt de app zelf alle wachttijden voor die bron en parkeert
+  hem tot de cooldown voorbij is. Dat overleeft nu een herstart, en halveert weer na genoeg schone
+  rondes. Het tabblad toont de huidige factor, wanneer de bron weer wakker wordt, en wanneer de
+  laatste 429 was.
+- **SoundCloud wordt standaard veel rustiger bevraagd**: elke vijf minuten alle accounts is nu elk
+  kwartier, met daarbovenop zes uur cooldown per account — ruwweg 72 keer minder verkeer.
+
 ### 🔑 Duidelijkere foutmeldingen bij inloggen (Ultrasonic)
 - Een verkeerd wachtwoord zei voorheen **"Kon geen verbinding maken met LMS"**, ook als de server
   gewoon antwoordde. Dat leidde tot zoeken naar een storing die er niet was. Nu staat er

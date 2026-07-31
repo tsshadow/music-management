@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.19] - 2026-07-31
+
 ### Fixed
 - **Release builds crashed with `IllegalArgumentException: class com.google.common.reflect.TypeCapture
   isn't parameterized` whenever a track's genre list was deserialized**: the Room `Converters`, the
@@ -35,6 +37,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is — liet Auto met de oude achter: de mappenstructuur werd nog gewoon getoond, maar elke lijst
   kwam leeg terug, ook nadat de app op de telefoon (die per aanroep opnieuw ophaalt) allang weer
   werkte. Auto haalt de service nu bij elke aanroep opnieuw op.
+
+## [6.5.18] - 2026-07-31
+
+### Added
+- **Beheer-tab**: onderin is er een vierde tab bijgekomen die de beheerpagina's van de webui
+  spiegelt. Voor nu: Downloaders (SoundCloud-accounts en YouTube-kanalen), Gebruikers (bekijken,
+  in- en uitschakelen) en Verzoeken (goedkeuren, terugdraaien, afwijzen). De tab is alleen zichtbaar
+  als je beheerder bent.
+
+### Added
+- **Vier tabbladen erbij in Library**: Jaren, Festivals, Lineups en Ratings, naast Playlists,
+  Genres, Artiesten, Albums en Opgeslagen. Zoeken op lineup kan daarmee weer.
+
+### Changed
+- **In sets-modus tonen de carrousels op de startpagina festivals in plaats van labels.** Livesets
+  zijn festivalopnames, dus een platenlabel zegt er weinig over.
+
+## [6.5.17] - 2026-07-31
+
+### Fixed
+- **Een artiest aantikken op de startpagina leverde niets op.** De carrousels bevatten ook remixers
+  en gastartiesten zonder eigen albums, waardoor je op een leeg scherm belandde. Er staan nu alleen
+  nog artiesten met eigen releases in.
+- **Een label aantikken leverde niets op.** De labels kwamen uit een andere tabel dan waarop
+  gefilterd wordt, dus zoeken op zo'n naam gaf nul resultaten. Beide gebruiken nu dezelfde bron.
+- **Artiestafbeeldingen op de startpagina** worden weer onder de juiste sleutel en op groot formaat
+  opgehaald, zodat ze gedeeld worden met de rest van de app in plaats van elke keer opnieuw geladen.
+
+## [6.5.16] - 2026-07-31
+
+### Added
+- **Library tab**: one place for everything you browse by type — dynamic playlists, genres,
+  artists, saved playlists and albums — as swipeable pages under a tab strip.
+
+### Fixed
+- **Browsing was unreachable in 6.5.15**: removing the home screen's filter chips also removed the
+  only way into dynamic playlists, genres, the album list and the artist list. Creating a dynamic
+  playlist was impossible, since that happens on the same screen. The Library tab brings all of it
+  back.
+- **The Favorieten tab showed a copy of the home screen.** It now shows starred albums, starred
+  artists and everything you rated four stars or better; tapping a track plays it.
+
+### Changed
+- **Bottom navigation is now Home, Library and Favorieten.** Zoeken left the bottom bar because the
+  toolbar already has a search field, and playlists moved into Library.
 
 ## [6.5.12] - 2026-07-30
 

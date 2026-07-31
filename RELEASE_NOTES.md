@@ -10,6 +10,8 @@ This project is now modularized. Detailed release notes for each module can be f
 - [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
 
 ## Unreleased
+
+## Global Version 0.0.51 (2026-07-31)
 ### 📱 Android-app: uitloggen, sneller opstarten en niet meer vastlopen op een fout wachtwoord
 - Er zit nu een **uitlogknop** in het menu rechtsboven. Hij vraagt om bevestiging, stopt het
   afspelen en brengt je terug naar het inlogscherm; gedownloade muziek blijft staan.

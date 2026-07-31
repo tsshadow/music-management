@@ -1,24 +1,47 @@
-import os
 import asyncio
-from pathlib import Path
 import logging
+import os
+from pathlib import Path
 from telethon import TelegramClient
+from services.common.config_store import ConfigStore
+from services.downloader.sweep import SweepPolicy
+
+SOURCE = 'telegram'
+
+def _is_flood_wait(error: Exception) -> bool:
+    """Recognise Telethon's flood wait without importing it.
+
+    Telethon raises `FloodWaitError` once a wait exceeds `flood_sleep_threshold`.
+    Matching on the type name keeps this working with the stand-in module the
+    tests install.
+    """
+    return 'floodwait' in type(error).__name__.lower() or hasattr(error, 'seconds')
 
 class TelegramDownloader:
+    """Downloads audio and video from Telegram channels.
 
-    def __init__(self, dry_run=False):
+    Pacing comes from the same settings and backoff state as the other
+    downloaders, so a flood wait parks Telegram in the database rather than being
+    forgotten on the next restart.
+    """
+
+    def __init__(self, dry_run=False, timing=None, rate_state=None, schedule=None):
         self.dry_run = dry_run
-        self.output_folder = os.getenv('telegram_folder')
-        self.api_id = os.getenv('telegram_api_id')
-        self.api_hash = os.getenv('telegram_api_hash')
-        session_name = os.getenv('telegram_session', 'telegram')
+        self._config = ConfigStore()
+        values = self._config.get_many(['telegram_folder', 'telegram_api_id', 'telegram_api_hash',
+                                        'telegram_session'])
+        self.policy = SweepPolicy(SOURCE, timing=timing, rate_state=rate_state, schedule=schedule)
+        self.output_folder = values.get('telegram_folder')
+        self.api_id = values.get('telegram_api_id')
+        self.api_hash = values.get('telegram_api_hash')
+        session_name = values.get('telegram_session') or 'telegram'
         if os.path.exists('/app/data'):
             self.session = os.path.join('/app/data', session_name)
         else:
             self.session = session_name
-        self.max_concurrent_downloads = int(os.getenv('telegram_max_concurrent', '4'))
+        self.max_concurrent_downloads = self.policy.timing.max_concurrent
         if not self.output_folder or not self.api_id or (not self.api_hash):
-            logging.warning('Missing required environment variables: telegram_folder, telegram_api_id, telegram_api_hash. Telegram downloads will be disabled.')
+            logging.warning('Missing required configuration: telegram_folder, telegram_api_id, telegram_api_hash. Telegram downloads will be disabled.')
             self.output_folder = None
             self.api_id = None
             self.api_hash = None
@@ -64,18 +87,29 @@ class TelegramDownloader:
 
     async def _run_async(self, channel: str, limit: int | None=None):
         loop = asyncio.get_running_loop()
-        async with TelegramClient(self.session, int(self.api_id), self.api_hash, loop=loop) as client:
+        async with TelegramClient(self.session, int(self.api_id), self.api_hash, loop=loop,
+                                  flood_sleep_threshold=self.policy.timing.flood_sleep_threshold) as client:
             await self._download_channel(client, channel, limit)
 
     def run(self, channel: str, limit: int | None=None):
         if not self.output_folder or not self.api_id or (not self.api_hash):
-            logging.warning('Telegram soundcloud is not configured; skipping run().')
+            logging.warning('Telegram is not configured; skipping run().')
             return
         if not channel:
             raise ValueError('Channel must be provided')
+        if not self.policy.begin():
+            return
+        if not self.policy.due([channel]):
+            logging.info('Telegram channel %s was checked recently; skipping.', channel)
+            return
         try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        loop.run_until_complete(self._run_async(channel, limit))
+            asyncio.run(self._run_async(channel, limit))
+        except Exception as e:
+            if _is_flood_wait(e):
+                logging.warning('Telegram asked us to wait: %s', e)
+                self.policy.park('429', channel)
+                return
+            logging.error('Telegram download failed for %s: %s', channel, e, exc_info=True)
+            return
+        self.policy.mark_checked(channel)
+        self.policy.finish()

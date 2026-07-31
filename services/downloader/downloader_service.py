@@ -2,22 +2,52 @@ import argparse
 import logging
 import os
 import signal
-from time import sleep
+import time
+from typing import Callable, Iterable, Optional, Sequence
 import faulthandler
 from services.common.config_store import ConfigStore as Settings
+from services.downloader.sweep import SweepPolicy
 faulthandler.register(signal.SIGUSR1)
 
-def parse_args() -> argparse.Namespace:
+# Used when the settings cannot be read at all; still far calmer than the five
+# minute loop this service used to run on.
+FALLBACK_SLEEP_SECONDS = 900
+
+def parse_args(argv: Optional[Sequence[str]]=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Run specific steps of the music downloader service (YouTube, SoundCloud, Telegram)')
     parser.add_argument('--step', help='Comma-separated list of steps to run (youtube,soundcloud,telegram). If omitted, all steps are run.', default='')
     parser.add_argument('--account', help='Optional DJ / account name to limit downloads', default=None)
-    parser.add_argument('--sleeptime', type=int, default=300, help='Time in seconds to sleep between repeating steps (default: 300)')
+    parser.add_argument('--sleeptime', type=int, default=None, help='Override the sweep interval from the downloader settings, in seconds')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--break-on-existing', dest='break_on_existing', help='Break early when an already-downloaded item is encountered', action='store_true')
     group.add_argument('--no-break-on-existing', dest='break_on_existing', help='Do not break early on existing items', action='store_false')
     parser.set_defaults(break_on_existing=True)
     parser.add_argument('--repeat', help='Repeat the steps in a loop, sleeping between runs', action='store_true')
-    return parser.parse_args()
+    return parser.parse_args(argv)
+
+def _current_timing(source: str):
+    """The effective timing of one source, including its backoff multiplier."""
+    return SweepPolicy(source).timing
+
+def sweep_sleep_seconds(steps: Iterable[str], override: Optional[int],
+                        load: Callable[[str], object]=_current_timing) -> int:
+    """How long to sleep before the next round of the configured steps.
+
+    A step that is still backing off has a stretched interval, so the loop
+    automatically slows down with it. The shortest interval wins, because a step
+    that is due should not wait for a slower one.
+    """
+    if override is not None:
+        return override
+    intervals = []
+    for step in steps:
+        try:
+            intervals.append(load(step).sweep_interval)
+        except Exception as exc:
+            logging.warning('Could not read the sweep interval for %s: %s', step, exc)
+    if not intervals:
+        return FALLBACK_SLEEP_SECONDS
+    return min(intervals)
 
 class DownloaderService:
 
@@ -70,7 +100,8 @@ def main() -> None:
         if not args.repeat:
             logging.info('Repeat flag not set; exiting after single run.')
             break
-        logging.info('Sleeping for %d seconds before next run.', args.sleeptime)
-        sleep(args.sleeptime)
+        sleeptime = sweep_sleep_seconds(sorted(steps), args.sleeptime)
+        logging.info('Sleeping for %d seconds before next run.', sleeptime)
+        time.sleep(sleeptime)
 if __name__ == '__main__':
     main()

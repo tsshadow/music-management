@@ -913,9 +913,10 @@ class NavigationActivity : ScopeActivity() {
     }
 
     private fun setMenuForServerCapabilities() {
-        val isOnline = !ActiveServerProvider.isOffline()
+        // The bottom bar used to hide the Playlists item when offline, because server playlists
+        // are useless without a connection. Playlists now live inside the Library tab alongside
+        // artists and albums, which do work offline from the cache, so nothing is hidden there.
 
-        bottomNavigationView?.menu?.findItem(R.id.playlistsFragment)?.isVisible = isOnline
         // Refreshes the toolbar overflow menu so the downloadsFragment isOnline check in
         // searchMenuProvider.onPrepareMenu (above) re-runs with the new state.
         invalidateOptionsMenu()

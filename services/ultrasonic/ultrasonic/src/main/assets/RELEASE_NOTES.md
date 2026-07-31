@@ -1,18 +1,17 @@
-## [6.5.15] - 2026-07-31
+## [6.5.12] - 2026-07-30
+### Fixed
+- **Login screen showed a generic "network error" for every kind of login problem**: it's now able to tell you when the server itself is unreachable, versus when the server responded but the login didn't succeed.
+- **A hidden bug could make the first-time login check silently report "success" without actually contacting the server**, if "Auto-switch server online/offline" was left on from an older install. This no longer happens.
+
+## [6.5.11] - 2026-07-29
 ### Changed
-- **De startpagina is opnieuw opgebouwd**: bovenaan een raster met de acht dingen die je het laatst geopend hebt (albums, artiesten, labels en afspeellijsten), daaronder twee schuifrijen: "Recent bijgewerkt" en "Recent toegevoegd", allebei met artiesten, labels en albums.
-- **Het raster staat er meteen, ook zonder verbinding**: je recent geopende items worden lokaal bewaard, in plaats van bij elk bezoek stuk voor stuk bij de server opgevraagd te worden.
-- **De filterknoppen bovenaan zijn weg** (Recent, Favorieten, Nieuw, Genres, Afspeellijsten). Genres blijven elders in de app gewoon te doorzoeken.
+- **Dependencies**: Updated `activity-ktx`, `core-ktx`, `gson`, `okhttp`, `rxjava`, and other core libraries to latest stable versions.
+- **Target SDK**: Updated to Android 17 (API 37).
+- **Login/auth UI**: Restyled the login/welcome dialog, edit-server screen, and Google access-request screen to match the web frontend, including a branded "Sign in with Google" button and colored status banners for access requests.
+- **Settings**: `autoSwitchOffline` now defaults to `false` instead of `true`.
 
 ### Added
-- **Nieuwe instelling "Geschiedenis per modus scheiden"**: bepaalt of losse nummers en livesets elk een eigen lijstje recent geopende items houden. Staat standaard aan.
-
-## [6.5.14] - 2026-07-30
-### Added
-- **Crashes tijdens achtergrondafspelen worden nu gemeld**: crashte de app terwijl hij op de achtergrond speelde, dan bleef daar tot nu toe niets van over. De app houdt nu een klein logboek bij en merkt bij de volgende start dat hij stilletjes is afgeschoten, waarna hij het logboek en de foutmelding als één rapport doorstuurt.
-
-### Changed
-- **Eenvoudiger navigatie**: het uitschuifmenu aan de zijkant is weg; die items zitten nu in het menu rechtsboven. Onderin staat een Favorieten-tab in plaats van Downloads, en Bladwijzers bereik je vanaf het Afspeellijsten-scherm.
+- **Export to Media Device**: New feature to export the current playlist to external USB devices (e.g., Shokz OpenSwim Pro) via SAF. Includes an option to clear the destination folder before exporting.
 
 ## [6.5.2-232] - 2026-07-16
 ### Fixed

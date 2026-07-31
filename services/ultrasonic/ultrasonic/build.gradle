@@ -222,6 +222,7 @@ dependencies {
     implementation libs.roomKtx
     implementation libs.viewModelKtx
     implementation libs.constraintLayout
+    implementation libs.viewPager2
     implementation libs.preferences
     implementation libs.media3common
     implementation libs.media3exoplayer

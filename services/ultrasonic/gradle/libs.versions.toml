@@ -34,6 +34,7 @@ kotlinxCoroutines      = "1.11.0"
 transition             = "1.7.0"
 viewModelKtx           = "2.11.0"
 swipeRefresh           = "1.2.0"
+viewPager2             = "1.1.0"
 
 retrofit               = "2.11.0"
 jackson                = "2.22.1"
@@ -100,6 +101,7 @@ credentialsPlayServicesAuth = { module = "androidx.credentials:credentials-play-
 googleid               = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
 securityCrypto         = { module = "androidx.security:security-crypto", version.ref = "security" }
 swipeRefresh            = { module = "androidx.swiperefreshlayout:swiperefreshlayout", version.ref = "swipeRefresh" }
+viewPager2              = { module = "androidx.viewpager2:viewpager2", version.ref = "viewPager2" }
 kotlinStdlib            = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
 kotlinReflect           = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
 kotlinxCoroutines       = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }

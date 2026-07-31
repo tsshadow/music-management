@@ -28,6 +28,7 @@ import org.koin.core.component.KoinScopeComponent
 import org.moire.ultrasonic.R
 import org.moire.ultrasonic.home.CardStyle
 import org.moire.ultrasonic.home.HomeCard
+import org.moire.ultrasonic.home.HomeCardAction
 import org.moire.ultrasonic.home.HomeCardAdapter
 import org.moire.ultrasonic.home.HomeCardNavigator
 import org.moire.ultrasonic.home.HomeSection
@@ -127,7 +128,12 @@ class MainFragment :
 
     private fun onCardClicked(card: HomeCard) {
         homeViewModel.recordOpened(card)
-        findNavController().navigate(HomeCardNavigator.directionsFor(card))
+
+        when (val action = HomeCardNavigator.actionFor(card)) {
+            is HomeCardAction.Navigate -> findNavController().navigate(action.directions)
+            // The home screen produces no TRACK cards; this keeps the when exhaustive.
+            is HomeCardAction.PlayTrack -> Unit
+        }
     }
 
     override fun onDestroyView() {

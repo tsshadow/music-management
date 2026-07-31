@@ -55,6 +55,11 @@
         android:label="@string/library.label" />
 
     <fragment
+        android:id="@+id/managementFragment"
+        android:name="org.moire.ultrasonic.management.ManagementFragment"
+        android:label="@string/management.label" />
+
+    <fragment
         android:id="@+id/mediaLibraryFragment"
         android:name="org.moire.ultrasonic.fragment.ArtistListFragment"
         android:label="@string/music_library.label" />

@@ -8,6 +8,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface MumaAPIDefinition {
     @POST("api/auth/login")
@@ -59,6 +60,71 @@ interface MumaAPIDefinition {
         @retrofit2.http.Path("app_id") appId: String,
         @Body settings: MumaSettingsRequest
     ): Call<MumaStatusResponse>
+
+    // --- Management (Beheer tab). Every one of these is guarded server-side by require_admin();
+    // hiding the tab for non-admins is convenience, not the security boundary. ---
+
+    @GET("api/auth/verify")
+    fun verify(): Call<MumaAuthResponse>
+
+    @GET("api/user-requests")
+    fun getUserRequests(
+        @Query("status") status: String
+    ): Call<List<MumaAccessRequest>>
+
+    @POST("api/user-requests/{request_id}/approve")
+    fun approveUserRequest(
+        @Path("request_id") requestId: Int
+    ): Call<ResponseBody>
+
+    @POST("api/user-requests/{request_id}/unapprove")
+    fun unapproveUserRequest(
+        @Path("request_id") requestId: Int
+    ): Call<ResponseBody>
+
+    @POST("api/user-requests/{request_id}/reject")
+    fun rejectUserRequest(
+        @Path("request_id") requestId: Int
+    ): Call<ResponseBody>
+
+    @GET("api/users")
+    fun getUsers(): Call<List<MumaAuthUser>>
+
+    @POST("api/users/{user_id}/enable")
+    fun enableUser(
+        @Path("user_id") userId: Int
+    ): Call<ResponseBody>
+
+    @POST("api/users/{user_id}/disable")
+    fun disableUser(
+        @Path("user_id") userId: Int
+    ): Call<ResponseBody>
+
+    @GET("api/soundcloud")
+    fun getSoundcloudAccounts(): Call<List<MumaDownloadAccount>>
+
+    @POST("api/soundcloud")
+    fun addSoundcloudAccount(
+        @Body request: MumaDownloadAccountRequest
+    ): Call<ResponseBody>
+
+    @DELETE("api/soundcloud/{name}")
+    fun deleteSoundcloudAccount(
+        @Path("name") name: String
+    ): Call<ResponseBody>
+
+    @GET("api/youtube")
+    fun getYoutubeAccounts(): Call<List<MumaDownloadAccount>>
+
+    @POST("api/youtube")
+    fun addYoutubeAccount(
+        @Body request: MumaDownloadAccountRequest
+    ): Call<ResponseBody>
+
+    @DELETE("api/youtube/{name}")
+    fun deleteYoutubeAccount(
+        @Path("name") name: String
+    ): Call<ResponseBody>
 
     @POST("api/diagnostics/crash-reports")
     fun uploadCrashReport(
@@ -122,6 +188,8 @@ data class RefreshRequest(
 
 data class MumaAuthResponse(
     val status: String,
+    // "system" for the shared API key, "user" for a personal one. Only /api/auth/verify sets it.
+    val type: String? = null,
     // NOTE: the account fields (id/username/display_name/...) are nested under "user" by the
     // backend (see services/music_manager/routers/users.py build_auth_user() and
     // docs/designs/authentication/technical.md), not flat at the top level of this response --
@@ -166,6 +234,17 @@ data class MumaAccessRequest(
     val reviewed_at: String? = null,
     val reviewed_by_user_id: Int? = null,
     val created_user_id: Int? = null
+)
+
+/** A SoundCloud account or YouTube channel the downloader watches. */
+data class MumaDownloadAccount(
+    val name: String,
+    @SerializedName("soundcloud_id") val soundcloudId: String? = null
+)
+
+data class MumaDownloadAccountRequest(
+    val name: String,
+    val id: String? = null
 )
 
 data class MumaAccessRequestResponse(

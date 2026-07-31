@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.48] - 2026-07-31
+
 ### Fixed
 - **Ultrasonic: opening an artist from the home screen showed nothing.** `getArtistList` defaults its
   `role` parameter to `all`, so the carousels listed every artist link in the library — remixers,

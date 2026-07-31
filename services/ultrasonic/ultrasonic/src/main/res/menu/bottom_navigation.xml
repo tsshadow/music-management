@@ -5,13 +5,9 @@
         a:icon="@drawable/ic_menu_browse"
         a:title="@string/button_bar.browse" />
     <item
-        a:id="@+id/searchFragment"
-        a:icon="@drawable/ic_menu_search"
-        a:title="@string/button_bar.search" />
-    <item
-        a:id="@+id/playlistsFragment"
+        a:id="@+id/libraryFragment"
         a:icon="@drawable/ic_menu_playlists"
-        a:title="@string/playlist.label" />
+        a:title="@string/library.label" />
     <item
         a:id="@+id/favoritesFragment"
         a:icon="@drawable/ic_star_full"

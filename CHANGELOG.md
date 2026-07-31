@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.51] - 2026-07-31
+
 ### Added
 - **Ultrasonic: a "Log out" entry in the toolbar overflow menu.** Signing out previously meant
   clearing the app data or reinstalling. It confirms first, stops playback, clears the password,

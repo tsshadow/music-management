@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.50] - 2026-07-31
 
 ### Security
 - **The tagger, scanner and ListenBrainz-import endpoints now require an API key.** `POST
@@ -45,6 +46,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`POST /api/config` always failed**: it called `config_store.update_many()`, which does not exist
   on `ConfigStore`. The resulting `AttributeError` was swallowed by a broad `except` and returned as
   a 400, so saving a setting over the API could never work.
+- **Ultrasonic release builds crashed on nearly every playback start.** `Converters.toStringList`,
+  `MediaItem.toTrack()` and `TileStorage` built their Gson type from an anonymous Guava `TypeToken`
+  subclass. Guava ships no consumer ProGuard rules, so with `android.enableR8.fullMode=true` R8
+  merged away the parameterized superclass those tokens read at runtime and the constructor threw
+  `IllegalArgumentException: class com.google.common.reflect.TypeCapture isn't parameterized`. It
+  fired from `onTimelineChanged`/`onMediaItemTransition` and accounts for 15 of the 16 crash reports
+  collected on 6.5.14 through 6.5.18. All three now deserialize through `Array<T>::class.java`,
+  which needs no runtime generic signature, with keep rules for the Guava `TypeToken` hierarchy as
+  a second line of defence.
+- **An Ultrasonic error raised while no Activity was available took the app down.** `InfoDialog`/
+  `ErrorDialog` built their `MaterialAlertDialogBuilder` in the constructor, outside the existing
+  try/catch, so a context without an AppCompat theme threw instead of failing to show a dialog. The
+  builder is now created lazily against a themed context, with a toast fallback. A global
+  `RxJavaPlugins` error handler also stops a throw inside an RxBus subscriber from killing the
+  process.
+- **Android Auto kept a dead or offline `MusicService`.** The media session resolved it once at
+  construction and held that instance for the process lifetime, so a server switch, a credential
+  edit, or `getMusicService()` returning the offline service left Auto browsing empty lists forever
+  while the phone UI worked. Auto now resolves the service per call.
 
 ### Added
 - **Downloader timing is configurable from the UI**: a new *Timing* tab under

@@ -14,6 +14,10 @@ enum class HomeCardType {
     ARTIST,
     LABEL,
     GENRE,
+    YEAR,
+    FESTIVAL,
+    LINEUP,
+    RATING,
     TRACK,
     DYNAMIC_PLAYLIST,
     STATIC_PLAYLIST

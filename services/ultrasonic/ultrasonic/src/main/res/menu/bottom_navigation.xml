@@ -12,4 +12,9 @@
         a:id="@+id/favoritesFragment"
         a:icon="@drawable/ic_star_full"
         a:title="@string/filter.favorites" />
+    <item
+        a:id="@+id/managementFragment"
+        a:icon="@drawable/ic_menu_settings"
+        a:title="@string/management.label"
+        a:visible="false" />
 </menu>

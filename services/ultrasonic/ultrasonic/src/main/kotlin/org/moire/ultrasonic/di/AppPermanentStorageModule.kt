@@ -23,6 +23,8 @@ import org.moire.ultrasonic.data.MIGRATION_8_9
 import org.moire.ultrasonic.home.FavoritesViewModel
 import org.moire.ultrasonic.home.HomeViewModel
 import org.moire.ultrasonic.home.RecentActivityStore
+import org.moire.ultrasonic.management.ManagementRepository
+import org.moire.ultrasonic.management.ManagementViewModel
 import org.moire.ultrasonic.model.AlbumListModel
 import org.moire.ultrasonic.model.ArtistListModel
 import org.moire.ultrasonic.model.ServerSettingsModel
@@ -73,4 +75,7 @@ val appPermanentStorage = module {
     viewModel { ArtistListModel(get()) }
     viewModel { HomeViewModel(get()) }
     viewModel { FavoritesViewModel() }
+
+    single { ManagementRepository(get()) }
+    viewModel { ManagementViewModel(get()) }
 }

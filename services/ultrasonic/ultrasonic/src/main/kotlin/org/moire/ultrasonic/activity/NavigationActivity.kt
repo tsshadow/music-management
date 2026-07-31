@@ -78,6 +78,7 @@ import org.moire.ultrasonic.app.UApp
 import org.moire.ultrasonic.data.ActiveServerProvider
 import org.moire.ultrasonic.data.ServerSetting
 import org.moire.ultrasonic.diagnostics.CrashReportManager
+import org.moire.ultrasonic.management.ManagementRepository
 import org.moire.ultrasonic.model.ServerSettingsModel
 import org.moire.ultrasonic.provider.SearchSuggestionProvider
 import org.moire.ultrasonic.service.MediaPlayerLifecycleSupport
@@ -123,6 +124,7 @@ class NavigationActivity : ScopeActivity() {
     private val mediaPlayerManager: MediaPlayerManager by inject()
     private val activeServerProvider: ActiveServerProvider by inject()
     private val subsonicAPIClient: SubsonicAPIClient by inject()
+    private val managementRepository: ManagementRepository by inject()
 
     private var currentFragmentId: Int = 0
 
@@ -169,15 +171,17 @@ class NavigationActivity : ScopeActivity() {
         appBarConfiguration = AppBarConfiguration(
             setOf(
                 R.id.mainFragment,
-                R.id.searchFragment,
-                R.id.playlistsFragment,
-                R.id.favoritesFragment
+                R.id.libraryFragment,
+                R.id.favoritesFragment,
+                R.id.managementFragment
             )
         )
 
         setupActionBar(navController, appBarConfiguration)
 
         bottomNavigationView?.setupWithNavController(navController)
+
+        refreshManagementVisibility()
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
             setsToggleItem?.isVisible = destination.id == R.id.mainFragment
@@ -910,6 +914,19 @@ class NavigationActivity : ScopeActivity() {
 
     private fun hideNowPlaying() {
         nowPlayingView?.visibility = View.GONE
+    }
+
+    /**
+     * The Beheer tab is hidden until music-manager confirms this key is an admin. It stays hidden
+     * while the answer is pending or the check fails, so a slow or broken server never reveals it.
+     *
+     * Presentation only: every endpoint behind the tab is guarded by require_admin() server-side.
+     */
+    private fun refreshManagementVisibility() {
+        lifecycleScope.launch {
+            val isAdmin = managementRepository.isAdmin()
+            bottomNavigationView?.menu?.findItem(R.id.managementFragment)?.isVisible = isAdmin
+        }
     }
 
     private fun setMenuForServerCapabilities() {

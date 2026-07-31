@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.18] - 2026-07-31
+
+### Added
+- **Beheer-tab**: onderin is er een vierde tab bijgekomen die de beheerpagina's van de webui
+  spiegelt. Voor nu: Downloaders (SoundCloud-accounts en YouTube-kanalen), Gebruikers (bekijken,
+  in- en uitschakelen) en Verzoeken (goedkeuren, terugdraaien, afwijzen). De tab is alleen zichtbaar
+  als je beheerder bent.
+
+### Added
+- **Vier tabbladen erbij in Library**: Jaren, Festivals, Lineups en Ratings, naast Playlists,
+  Genres, Artiesten, Albums en Opgeslagen. Zoeken op lineup kan daarmee weer.
+
+### Changed
+- **In sets-modus tonen de carrousels op de startpagina festivals in plaats van labels.** Livesets
+  zijn festivalopnames, dus een platenlabel zegt er weinig over.
+
 ## [6.5.17] - 2026-07-31
 
 ### Fixed

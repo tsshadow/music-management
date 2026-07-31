@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.49] - 2026-07-31
+
+### Added
+- **Ultrasonic Beheer tab**: a fourth bottom-bar tab mirroring the web UI's management section
+  (`services/frontend/src/lib/management/`), starting with Downloaders (SoundCloud accounts and
+  YouTube channels), Gebruikers (list, enable, disable) and Verzoeken (approve, unapprove, reject,
+  filtered by status). Like Library it is a pager, so the web UI's remaining management tabs can
+  follow as pages rather than screens.
+  The tab is hidden unless `/api/auth/verify` says the stored API key belongs to an admin, and stays
+  hidden while that answer is pending or the check fails. That is presentation only — every endpoint
+  behind it is already guarded by `require_admin()` server-side.
+
+### Added
+- **Ultrasonic Library gains four tabs**: Jaren, Festivals, Lineups and Ratings, alongside the
+  existing Playlists, Genres, Artiesten, Albums and Opgeslagen. Every source already existed and was
+  already used by the filter modal, so this adds no API surface. Lineup browsing in particular
+  returns a capability that had been lost.
+
+### Changed
+- **Ultrasonic: in sets mode the home carousels show festivals instead of labels.** Livesets are
+  festival recordings, so a record label says nothing about them.
+- **Ultrasonic: the five list-shaped Library pages now share one `FilterBrowseFragment`** driven by
+  a `BrowseCategory` enum, replacing `GenreListFragment`. Adding a browse dimension is now an enum
+  value and a loader branch rather than a fragment.
+
 ## [0.0.48] - 2026-07-31
 
 ### Fixed

@@ -11,7 +11,9 @@ import org.moire.ultrasonic.domain.Album
 import org.moire.ultrasonic.domain.ArtistOrIndex
 import org.moire.ultrasonic.domain.Genre
 import org.moire.ultrasonic.domain.Label
+import org.moire.ultrasonic.domain.Lineup
 import org.moire.ultrasonic.domain.Playlist
+import org.moire.ultrasonic.domain.Tag
 import org.moire.ultrasonic.domain.Track
 import org.moire.ultrasonic.fragment.muma.TileInfo
 import org.moire.ultrasonic.fragment.muma.toSmartParamsJson
@@ -54,6 +56,20 @@ fun Track.toHomeCard(): HomeCard = HomeCard(
     title = title.orEmpty(),
     subtitle = artist,
     coverArtId = coverArt ?: id
+)
+
+/** Tag-backed browse entries (years, festivals) are identified by their tag value. */
+fun Tag.toHomeCard(type: HomeCardType): HomeCard = HomeCard(
+    type = type,
+    itemId = name,
+    title = name,
+    subtitle = songCount.takeIf { it > 0 }?.toString()
+)
+
+fun Lineup.toHomeCard(): HomeCard = HomeCard(
+    type = HomeCardType.LINEUP,
+    itemId = name,
+    title = name
 )
 
 fun Playlist.toHomeCard(): HomeCard = HomeCard(

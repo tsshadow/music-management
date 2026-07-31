@@ -14,7 +14,7 @@ class LibraryPagerAdapterTest {
 
     @Test
     fun `has one page per library category`() {
-        LibraryPagerAdapter.PAGE_COUNT `should be equal to` 5
+        LibraryPagerAdapter.PAGE_COUNT `should be equal to` 9
     }
 
     @Test
@@ -39,8 +39,22 @@ class LibraryPagerAdapterTest {
     }
 
     @Test
-    fun `pages that take no navigation arguments get no bundle`() {
-        LibraryPagerAdapter.argumentsForPage(LibraryPagerAdapter.PAGE_GENRES).shouldBeNull()
+    fun `browse pages are told which category to show`() {
+        // All five browse pages share one fragment, so the category is the only thing that
+        // distinguishes them; a missing one would silently render genres five times.
+        val categories = listOf(
+            LibraryPagerAdapter.PAGE_GENRES,
+            LibraryPagerAdapter.PAGE_YEARS,
+            LibraryPagerAdapter.PAGE_FESTIVALS,
+            LibraryPagerAdapter.PAGE_LINEUPS,
+            LibraryPagerAdapter.PAGE_RATINGS
+        ).map { LibraryPagerAdapter.argumentsForPage(it)!!.getString("browseCategory") }
+
+        categories `should be equal to` listOf("GENRES", "YEARS", "FESTIVALS", "LINEUPS", "RATINGS")
+    }
+
+    @Test
+    fun `pages that need nothing get no bundle`() {
         LibraryPagerAdapter.argumentsForPage(LibraryPagerAdapter.PAGE_DYNAMIC_PLAYLISTS)
             .shouldBeNull()
         LibraryPagerAdapter.argumentsForPage(LibraryPagerAdapter.PAGE_STATIC_PLAYLISTS)

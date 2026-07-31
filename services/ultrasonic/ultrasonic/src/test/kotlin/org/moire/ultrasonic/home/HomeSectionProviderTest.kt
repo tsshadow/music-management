@@ -20,7 +20,7 @@ class HomeSectionProviderTest {
         type = "newest",
         loadArtists = { artists() },
         loadAlbums = { albums() },
-        loadLabels = { labels() }
+        loadExtra = { labels().map { label -> label.toHomeCard() } }
     )
 
     @Test

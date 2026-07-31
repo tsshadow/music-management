@@ -1,7 +1,8 @@
 # title: New user cannot log in on the Android app: "Google sign-in failed", then "Could not connect to LMS"
 
-# status: partially fixed (app-side messaging + CI debug signing fixed in this repo; two manual,
-# external steps remain — see "still required outside this repository")
+# status: root cause found and cleared externally (OAuth consent screen was in Testing, now In
+# production); app-side messaging + CI debug signing fixed in this repo; the user still needs an
+# account — see "still required outside this repository"
 
 # reported problem
 A new user (`someuser@example.com`) installed the latest Ultrasonic Android app and could not
@@ -75,15 +76,56 @@ CI (`scripts/ci/ultrasonic-build-upload.sh`):
   now logs a warning saying its Google Sign-In will fail. `SIGNING_STORE_PASSWORD` is now also
   checked up front for release builds, instead of failing later inside Gradle.
 
+# root cause of the Google Sign-In failure: consent screen was in Testing
+The OAuth consent screen for the project behind `GOOGLE_CLIENT_ID` was in **Testing** publishing
+status while this was reported, and the reporting user was not on its test-user list. In Testing,
+Google only issues a credential to listed test accounts, so a brand-new user fails while the
+project owner succeeds — exactly the reported split, and it happens entirely on Google's side,
+before this app's backend is ever contacted, which is why the app could only show its generic
+"Google sign-in failed". It has since been switched to **In production** (user type External),
+which should let any Google account sign in.
+
+Along the way the other configuration suspects were checked and ruled out, for the project number
+`000000000000`:
+
+- The Android OAuth client for `nl.teunschriks.mumamobile` exists, with SHA-1
+  `C2:5C:21:2B:E3:BC:25:00:88:FA:6A:9D:86:C0:2E:AD:EC:B2:D9:5A`. It is *not* the local debug
+  keystore's fingerprint (`39:2B:26:CF:...`), consistent with it being the release keystore.
+- The Web client ID served by the live frontend
+  (`000000000000-drld1n0bs77fvk88s0dskf8pp298u14e.apps.googleusercontent.com`) is in that *same*
+  project, so the `serverClientId` the app passes and the Android client match up.
+- The OAuth user cap sits at **1 / 100**, so the cap has not been exhausted either — that single
+  user is the project owner, the only account Testing mode ever let through.
+
+# secondary risk, still open: unapproved sensitive scopes
+Switching to production does not necessarily finish the job, because of the consent screen's own
+warning: *"Your app requires verification"* /
+*"If your users are seeing the 'unverified app' screen, it is because your OAuth request includes
+additional scopes that haven't been approved."* The project has unapproved **sensitive or
+restricted** scopes configured while unverified.
+
+**Nothing in this repository asks for those scopes.** The web frontend calls
+`window.google.accounts.id.initialize({ client_id, callback })` with no `scope` parameter
+(`services/frontend/src/lib/LoginPage.svelte`), the Android app uses
+`GetSignInWithGoogleOption.Builder(serverClientId)` with no scopes, and
+`_verify_google_id_token()` only reads the `sub`/`email`/`name`/`picture` claims out of the ID
+token — no Google API is ever called. That is `openid` + `email` + `profile`, all non-sensitive,
+which require no verification at all. The sensitive scopes are leftovers on the consent screen.
+
+This matters specifically on Android: on the web an unverified app shows a dismissible "Google
+hasn't verified this app" interstitial, but Credential Manager has no such interstitial and can
+only refuse — which would surface as the exact same generic "Google sign-in failed" as the Testing
+lockout did. So if the first non-owner sign-in still fails now that the app is in production, this
+is the next thing to clear, not a new mystery.
+
 # still required outside this repository
-1. **Give the user an account.** Even a fully working Google Sign-In only gets an unknown identity
+1. **Remove the unapproved sensitive/restricted scopes** under *Google Auth Platform → Data
+   access*, leaving only `openid`, `.../auth/userinfo.email` and `.../auth/userinfo.profile`. That
+   drops the verification requirement entirely, since nothing here uses the other scopes.
+2. **Give the user an account.** Even a fully working Google Sign-In only gets an unknown identity
    as far as the access-request screen; an admin still has to approve the request
    (`/api/user-requests`) or create the account directly. Until then, no login method can succeed.
-2. **Check the Google Cloud Console OAuth configuration** for the project holding
-   `GOOGLE_CLIENT_ID`:
-   - If the OAuth consent screen is still in **Testing** publishing status, only accounts on its
-     test-user list can sign in — a brand-new user failing where the owner succeeds is the
-     signature of exactly that. Add the user, or publish the consent screen.
-   - Confirm the Android OAuth client for `nl.teunschriks.mumamobile` still exists and its SHA-1
-     matches the current release keystore, and register the release keystore's SHA-1 for
-     `nl.teunschriks.mumamobile.debug` as well (see docs/deployment.md).
+3. **Optionally** register the release keystore's SHA-1 for `nl.teunschriks.mumamobile.debug` too,
+   so debug builds from apk-hoster can do Google Sign-In at all (see docs/deployment.md). No such
+   Android client currently exists, so Google Sign-In cannot work on a debug APK regardless of the
+   above.

@@ -9,10 +9,21 @@ package org.moire.ultrasonic.util
 
 import android.app.Activity
 import android.content.Context
+import android.view.ContextThemeWrapper
+import android.widget.Toast
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.lang.ref.WeakReference
 import org.moire.ultrasonic.R
 import timber.log.Timber
+
+/**
+ * MaterialAlertDialogBuilder throws IllegalArgumentException from its constructor when the given
+ * context does not carry an AppCompat descendant theme. That happens whenever a dialog is built
+ * from a non-Activity context, e.g. when a background coroutine fails and the error handler only
+ * has the application context. Wrapping in the app theme makes the builder constructible.
+ */
+internal fun Context.withUltrasonicTheme(): Context =
+    if (this is Activity) this else ContextThemeWrapper(this, R.style.UltrasonicTheme_Dark)
 
 /*
  * InfoDialog can be used to show some information to the user. Typically it cannot be cancelled,
@@ -25,25 +36,39 @@ open class InfoDialog(
     private val finishActivityOnClose: Boolean = false
 ) {
     private val activityRef: WeakReference<Activity?> = WeakReference(activity)
-    open var builder: MaterialAlertDialogBuilder = Builder(activityRef.get() ?: context, message)
+    protected val dialogContext: Context = (activity ?: context).withUltrasonicTheme()
+    protected val dialogMessage: CharSequence? = message
+
+    // Built lazily so that a context which still cannot host a dialog fails inside show()'s
+    // catch block instead of taking the process down from the constructor.
+    open val builder: MaterialAlertDialogBuilder by lazy { Builder(dialogContext, dialogMessage) }
 
     fun show() {
-        builder.setOnCancelListener {
-            if (finishActivityOnClose) {
-                activityRef.get()?.finish()
-            }
-        }
-        builder.setPositiveButton(R.string.common_ok) { _, _ ->
-            if (finishActivityOnClose) {
-                activityRef.get()?.finish()
-            }
-        }
-
         // If the app was put into the background in the meantime this would fail
         try {
+            builder.setOnCancelListener {
+                if (finishActivityOnClose) {
+                    activityRef.get()?.finish()
+                }
+            }
+            builder.setPositiveButton(R.string.common_ok) { _, _ ->
+                if (finishActivityOnClose) {
+                    activityRef.get()?.finish()
+                }
+            }
             builder.create().show()
         } catch (all: Exception) {
             Timber.w(all, "Failed to create dialog")
+            showFallbackToast()
+        }
+    }
+
+    private fun showFallbackToast() {
+        val text = dialogMessage ?: return
+        try {
+            Toast.makeText(dialogContext, text, Toast.LENGTH_LONG).show()
+        } catch (all: Exception) {
+            Timber.w(all, "Failed to show fallback toast")
         }
     }
 
@@ -74,7 +99,9 @@ class ErrorDialog(
     finishActivityOnClose: Boolean = false
 ) : InfoDialog(context, message, activity, finishActivityOnClose) {
 
-    override var builder: MaterialAlertDialogBuilder = Builder(activity ?: context, message)
+    override val builder: MaterialAlertDialogBuilder by lazy {
+        Builder(dialogContext, dialogMessage)
+    }
 
     class Builder(context: Context) : MaterialAlertDialogBuilder(context) {
         constructor(context: Context, message: CharSequence?) : this(context) {
@@ -101,7 +128,9 @@ class ConfirmationDialog(
     activity: Activity? = null,
     finishActivityOnClose: Boolean = false
 ) : InfoDialog(context, message, activity, finishActivityOnClose) {
-    override var builder: MaterialAlertDialogBuilder = Builder(activity ?: context, message)
+    override val builder: MaterialAlertDialogBuilder by lazy {
+        Builder(dialogContext, dialogMessage)
+    }
 
     companion object {
         fun show(
@@ -112,7 +141,7 @@ class ConfirmationDialog(
             negativeButton: Int,
             onPositive: () -> Unit
         ): MaterialAlertDialogBuilder {
-            val builder = Builder(context)
+            val builder = Builder(context.withUltrasonicTheme())
                 .setTitle(title)
                 .setMessage(message)
                 .setPositiveButton(positiveButton) { _, _ -> onPositive() }

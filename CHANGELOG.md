@@ -7,6 +7,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.50] - 2026-07-31
+
+### Security
+- **The tagger, scanner and ListenBrainz-import endpoints now require an API key.** `POST
+  /api/tagger/tag/all`, `/tag/file`, `/tag/stop`, `POST /api/scanner/scan/all`, `/scan/file`,
+  `POST /api/scrobbler/import/listenbrainz` and `GET /api/scrobbler/import/latest` had no
+  authentication at all — anyone who could reach the API could start a full re-tag of the library,
+  which rewrites tags in the actual music files. This went unnoticed because Cloudflare Access sat
+  in front of `muma.example.com` externally; the moment that had to be bypassed so the mobile
+  app could log in from outside the LAN, they became publicly reachable. The `/health` endpoints
+  stay open for monitoring. See `docs/bug-reports/020-new-user-cannot-log-in-android.md`.
+
+### Fixed
+- **Ultrasonic login screen no longer blames the connection for a rejected password.** The welcome
+  dialog already probes the server to tell an outage apart from bad credentials, but then showed
+  "Could not connect to LMS" on the branch where the server *had* answered — so a wrong (or
+  non-existent) account looked like a server outage. That case now says "Wrong username or password
+  ... or ask the administrator for an account".
+- **Ultrasonic Google Sign-In failures now name their cause on screen**, not only in logcat: the
+  concrete exception class or HTTP status is shown in the error text, so a remote user's screenshot
+  is enough to tell a Play Services refusal apart from an unregistered signing certificate or an
+  OAuth client misconfiguration.
+- **CI debug APKs are signed with the real keystore when it is available.** Previously only release
+  builds got `SIGNING_STORE_FILE`, leaving debug builds signed by a throwaway keystore generated
+  inside the ephemeral build container — a different certificate every build, so their SHA-1 could
+  never be registered as an Android OAuth client and "Sign in with Google" could never work on a
+  debug APK from apk-hoster. See `docs/bug-reports/020-new-user-cannot-log-in-android.md`.
+- **Batch pacing settings were never applied**: `DownloaderService` never passed its keyword
+  arguments, so `max_workers`, `burst_size`, `min_pause` and `max_pause` always sat on their
+  defaults — a pause of one to five seconds between batches.
+- **SoundCloud never throttled between batches**: `_throttle()` existed but was only called by the
+  YouTube downloader.
+- **YouTube did not recognise a 429 at all**: it fell through to the generic branch and slept
+  `5 * attempt` seconds.
+- **Backoff state was lost on restart**: the 403 counter lived in a module global and 429 had no
+  counter at all, so a container restart resumed at full speed.
+- **`POST /api/config` always failed**: it called `config_store.update_many()`, which does not exist
+  on `ConfigStore`. The resulting `AttributeError` was swallowed by a broad `except` and returned as
+  a 400, so saving a setting over the API could never work.
+- **Ultrasonic release builds crashed on nearly every playback start.** `Converters.toStringList`,
+  `MediaItem.toTrack()` and `TileStorage` built their Gson type from an anonymous Guava `TypeToken`
+  subclass. Guava ships no consumer ProGuard rules, so with `android.enableR8.fullMode=true` R8
+  merged away the parameterized superclass those tokens read at runtime and the constructor threw
+  `IllegalArgumentException: class com.google.common.reflect.TypeCapture isn't parameterized`. It
+  fired from `onTimelineChanged`/`onMediaItemTransition` and accounts for 15 of the 16 crash reports
+  collected on 6.5.14 through 6.5.18. All three now deserialize through `Array<T>::class.java`,
+  which needs no runtime generic signature, with keep rules for the Guava `TypeToken` hierarchy as
+  a second line of defence.
+- **An Ultrasonic error raised while no Activity was available took the app down.** `InfoDialog`/
+  `ErrorDialog` built their `MaterialAlertDialogBuilder` in the constructor, outside the existing
+  try/catch, so a context without an AppCompat theme threw instead of failing to show a dialog. The
+  builder is now created lazily against a themed context, with a toast fallback. A global
+  `RxJavaPlugins` error handler also stops a throw inside an RxBus subscriber from killing the
+  process.
+- **Android Auto kept a dead or offline `MusicService`.** The media session resolved it once at
+  construction and held that instance for the process lifetime, so a server switch, a credential
+  edit, or `getMusicService()` returning the offline service left Auto browsing empty lists forever
+  while the phone UI worked. Auto now resolves the service per call.
+
+### Added
+- **Downloader timing is configurable from the UI**: a new *Timing* tab under
+  Systeembeheer → Downloaders exposes the sweep interval, per-account cooldown, batch size,
+  pauses, yt-dlp sleeps, rate limit and backoff ladders for SoundCloud, YouTube and Telegram.
+  The settings live in the new `downloads_settings` table rather than in `ConfigStore`, because
+  the manager and the worker containers mount different host directories for `/app/data` and so
+  do not share `config.json`.
+- **Self-regulating backoff that survives a restart**: a 429 now doubles a per-source multiplier
+  and parks that source until a cooldown expires, both stored in `downloads_rate_state`. The
+  multiplier stretches every wait time, and halves again after enough clean sweeps. The Timing tab
+  shows the current multiplier, when the source wakes up and when the last 429 was, with a reset
+  button. Exposed over `GET /api/downloaders/rate-state`.
+- **Per-account check schedule**: `downloads_account_checks` records when each account was last
+  visited, so a sweep only touches accounts past their cooldown instead of all of them every time.
+
+### Changed
+- **SoundCloud is swept far less aggressively by default**: the workers used to run
+  `--repeat --sleeptime 300`, so every SoundCloud account was queried every five minutes. The
+  interval now comes from the settings (default 15 minutes) and each account has its own six-hour
+  cooldown on top, which is roughly 72 times less traffic before the self-regulation even starts.
+  `--sleeptime` remains as an explicit override for manual runs.
+- **The 403 ladder is now configurable**: the hardcoded 240 / 1800 / 10800 / 21600 / 43200 / 86400
+  sequence is replaced by a geometric one with a configurable base, factor and cap
+  (240 / 960 / 3840 / … by default).
+- **A rate limit no longer blocks a worker thread**: SoundCloud used to `time.sleep()` for up to two
+  hours inside the thread pool. The wait is now recorded in the database and the sweep ends instead.
+- **Telegram reads ConfigStore** instead of `os.getenv`, and takes its concurrency and flood
+  threshold from the timing settings. A Telethon flood wait is treated like a 429.
+
 ## [0.0.49] - 2026-07-31
 
 ### Added

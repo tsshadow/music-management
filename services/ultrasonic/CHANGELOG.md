@@ -7,6 +7,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.19] - 2026-07-31
+
+### Fixed
+- **Release builds crashed with `IllegalArgumentException: class com.google.common.reflect.TypeCapture
+  isn't parameterized` whenever a track's genre list was deserialized**: the Room `Converters`, the
+  `MediaItem.toTrack()` converter and `TileStorage` built their Gson type via an anonymous Guava
+  `TypeToken` subclass. Guava ships no consumer ProGuard rules, so with
+  `android.enableR8.fullMode=true` R8 merged away the parameterized superclass those tokens read at
+  runtime. This fired on `onTimelineChanged`/`onMediaItemTransition`, i.e. on nearly every playback
+  start, and only in release builds — it accounts for 15 of the 16 crashes collected on 6.5.14
+  through 6.5.18. All three sites now deserialize through `Array<T>::class.java`, which needs no
+  runtime generic signature. Keep rules for the Guava `TypeToken` hierarchy were added as a second
+  line of defence. The Gson `TypeToken` usages elsewhere are unaffected: Gson ships its own consumer
+  rules.
+- **Errors reported while no Activity was available took the whole app down**: `InfoDialog`/
+  `ErrorDialog` built their `MaterialAlertDialogBuilder` in the constructor, outside the existing
+  try/catch, so a non-AppCompat context — such as the application context handed to a background
+  coroutine's error handler — threw "The style on this component requires your app theme to be
+  Theme.AppCompat". The builder is now created lazily against a themed context, and falls back to a
+  toast if the dialog still cannot be shown.
+- **An exception thrown inside any RxBus subscriber killed the process**: none of the subscribers
+  pass an `onError` handler, so RxJava rethrew as `OnErrorNotImplementedException` on the delivering
+  thread. A global `RxJavaPlugins` error handler now logs these instead.
+- **Android Auto bleef hangen op een dode of offline serververbinding.** De mediasessie van Auto
+  haalde de `MusicService` één keer op, bij het aanmaken van de sessie, en hield die instantie vast
+  zolang de app draaide. Alles wat die instantie vervangt — van server wisselen, inloggegevens
+  aanpassen, of `getMusicService()` die de offline service teruggeeft terwijl de server onbereikbaar
+  is — liet Auto met de oude achter: de mappenstructuur werd nog gewoon getoond, maar elke lijst
+  kwam leeg terug, ook nadat de app op de telefoon (die per aanroep opnieuw ophaalt) allang weer
+  werkte. Auto haalt de service nu bij elke aanroep opnieuw op.
+
+## [6.5.18] - 2026-07-31
+
+### Added
+- **Beheer-tab**: onderin is er een vierde tab bijgekomen die de beheerpagina's van de webui
+  spiegelt. Voor nu: Downloaders (SoundCloud-accounts en YouTube-kanalen), Gebruikers (bekijken,
+  in- en uitschakelen) en Verzoeken (goedkeuren, terugdraaien, afwijzen). De tab is alleen zichtbaar
+  als je beheerder bent.
+
+### Added
+- **Vier tabbladen erbij in Library**: Jaren, Festivals, Lineups en Ratings, naast Playlists,
+  Genres, Artiesten, Albums en Opgeslagen. Zoeken op lineup kan daarmee weer.
+
+### Changed
+- **In sets-modus tonen de carrousels op de startpagina festivals in plaats van labels.** Livesets
+  zijn festivalopnames, dus een platenlabel zegt er weinig over.
+
+## [6.5.17] - 2026-07-31
+
+### Fixed
+- **Een artiest aantikken op de startpagina leverde niets op.** De carrousels bevatten ook remixers
+  en gastartiesten zonder eigen albums, waardoor je op een leeg scherm belandde. Er staan nu alleen
+  nog artiesten met eigen releases in.
+- **Een label aantikken leverde niets op.** De labels kwamen uit een andere tabel dan waarop
+  gefilterd wordt, dus zoeken op zo'n naam gaf nul resultaten. Beide gebruiken nu dezelfde bron.
+- **Artiestafbeeldingen op de startpagina** worden weer onder de juiste sleutel en op groot formaat
+  opgehaald, zodat ze gedeeld worden met de rest van de app in plaats van elke keer opnieuw geladen.
+
+## [6.5.16] - 2026-07-31
+
+### Added
+- **Library tab**: one place for everything you browse by type — dynamic playlists, genres,
+  artists, saved playlists and albums — as swipeable pages under a tab strip.
+
+### Fixed
+- **Browsing was unreachable in 6.5.15**: removing the home screen's filter chips also removed the
+  only way into dynamic playlists, genres, the album list and the artist list. Creating a dynamic
+  playlist was impossible, since that happens on the same screen. The Library tab brings all of it
+  back.
+- **The Favorieten tab showed a copy of the home screen.** It now shows starred albums, starred
+  artists and everything you rated four stars or better; tapping a track plays it.
+
+### Changed
+- **Bottom navigation is now Home, Library and Favorieten.** Zoeken left the bottom bar because the
+  toolbar already has a search field, and playlists moved into Library.
+
 ## [6.5.12] - 2026-07-30
 
 ### Added

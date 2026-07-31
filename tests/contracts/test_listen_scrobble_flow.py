@@ -34,6 +34,9 @@ from test_lms_subsonic_contract import (  # noqa: F401 (reused fixtures)
 )
 
 SCAN_TARGET_PATH = "/mnt/music/ci-test-track-001.mp3"
+# /scanner/scan/file requires an API key (it walks and writes to the library), matching the
+# API_KEY the test stack's music-manager is started with in docker/compose.test.yml.
+MUMA_API_KEY = os.getenv("API_KEY", "test-api-key")
 DB_SERVICE = "test-db"
 DB_USER = "muma_test"
 DB_PASS = "muma_test"
@@ -103,6 +106,7 @@ def scanned_into_music_manager(expected_track):
     resp = requests.post(
         f"{MUSIC_MANAGER_URL}/scanner/scan/file",
         params={"path": SCAN_TARGET_PATH},
+        headers={"X-API-Key": MUMA_API_KEY},
         timeout=30,
     )
     assert resp.status_code == 200, resp.text

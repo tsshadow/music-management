@@ -1,36 +1,39 @@
 import concurrent.futures
 import logging
 import os
-import random
 import time
 from typing import Optional
 from yt_dlp import YoutubeDL
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.config_store import ConfigStore
+from services.downloader.rate_state import RateLimited, SweepAborted
+from services.downloader.sweep import SweepPolicy
 from services.downloader.youtube.YoutubeArchive import YoutubeArchive
 from services.downloader.youtube.YoutubeSongProcessor import YoutubeSongProcessor
 from services.common.job_manager import job_manager
 
+SOURCE = 'youtube'
+
 class YoutubeDownloader:
 
-    def __init__(self, break_on_existing: bool=True, dry_run: bool=False, **kwargs):
+    def __init__(self, break_on_existing: bool=True, dry_run: bool=False,
+                 timing=None, rate_state=None, schedule=None, socket_timeout: int=30):
         """
         Initializes the YoutubeDownloader instance with configuration settings.
 
         Args:
             break_on_existing (bool): Whether to stop processing if existing content is detected.
             dry_run (bool): If True, only simulate the download process.
-            **kwargs: Additional settings:
-                max_workers (int): Maximum number of worker threads for concurrency.
-                burst_size (int): Number of accounts to process in one batch.
-                min_pause (int): Minimum pause duration (in seconds) between batches.
-                max_pause (int): Maximum pause duration (in seconds) between batches.
-                socket_timeout (int): Timeout value (in seconds) for network connections.
+            timing: Effective timing settings; loaded from the database when omitted.
+            rate_state: Persisted backoff state; loaded from the database when omitted.
+            schedule: Per-account check schedule; loaded from the database when omitted.
+            socket_timeout (int): Timeout value (in seconds) for network connections.
         """
         self._config = ConfigStore()
+        self.policy = SweepPolicy(SOURCE, timing=timing, rate_state=rate_state, schedule=schedule)
         values = self._config.get_many(['youtube_folder', 'youtube_archive', 'ffmpeg_location', 'yt_cookies', 'yt_user_agent'])
         self.downloader_config = {'output_folder': values.get('youtube_folder'), 'archive_dir': values.get('youtube_archive'), 'ffmpeg_location': values.get('ffmpeg_location') or '/usr/bin', 'cookies_file': values.get('yt_cookies'), 'user_agent': values.get('yt_user_agent'), 'enabled': False}
-        self.batch_settings = {'max_workers': kwargs.get('max_workers', 1), 'burst_size': kwargs.get('burst_size', 10), 'min_pause': kwargs.get('min_pause', 1), 'max_pause': kwargs.get('max_pause', 5), 'socket_timeout': kwargs.get('socket_timeout', 30)}
+        self.socket_timeout = socket_timeout
         self.default_break_on_existing = break_on_existing
         self.dry_run = dry_run
         self.redownload_mode = False
@@ -46,10 +49,14 @@ class YoutubeDownloader:
         if not self.downloader_config['enabled']:
             self._base_ydl_opts = {}
             return
-        self._base_ydl_opts = {'outtmpl': f"{self.downloader_config['output_folder']}/%(uploader)s/%(title)s.%(ext)s", 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'm4a'}, {'key': 'EmbedThumbnail'}, {'key': 'FFmpegMetadata'}], 'compat_opts': ['filename'], 'nooverwrites': True, 'keepvideo': False, 'ffmpeg_location': self.downloader_config['ffmpeg_location'], 'match_filter': self._match_filter, 'ignoreerrors': True, 'socket_timeout': self.batch_settings['socket_timeout'], 'sleep_interval': 10, 'max_sleep_interval': 60, 'sleep_requests': 1, 'ratelimit': 1024 * 1024, 'playlist_random': True, 'http_chunk_size': 10 * 1024 * 1024, 'extractor_args': {'youtubetab': {'skip': ['authcheck']}}}
+        self._base_ydl_opts = {'outtmpl': f"{self.downloader_config['output_folder']}/%(uploader)s/%(title)s.%(ext)s", 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'm4a'}, {'key': 'EmbedThumbnail'}, {'key': 'FFmpegMetadata'}], 'compat_opts': ['filename'], 'nooverwrites': True, 'keepvideo': False, 'ffmpeg_location': self.downloader_config['ffmpeg_location'], 'match_filter': self._match_filter, 'ignoreerrors': True, 'socket_timeout': self.socket_timeout, 'playlist_random': True, 'http_chunk_size': 10 * 1024 * 1024, 'extractor_args': {'youtubetab': {'skip': ['authcheck']}}, **self.timing.to_ydl_opts()}
         self._base_ydl_opts.update(self._cookie_options())
         if self.downloader_config['user_agent']:
             self._base_ydl_opts['user_agent'] = self.downloader_config['user_agent']
+
+    @property
+    def timing(self):
+        return self.policy.timing
 
     def _cookie_options(self) -> dict:
         """
@@ -143,16 +150,15 @@ class YoutubeDownloader:
         """
         Downloads videos from a specific YouTube account.
 
-        Args:
-            name (str): The name or username of the account.
-            ydl_opts (dict, optional): Specific YouTubeDL configuration options.
-
-        Retries the download process up to 3 times in case of errors.
+        A 403 or 429 is recorded in the rate state and raised as `RateLimited`, which
+        stops the sweep. Waiting it out in place would block a thread for hours and
+        would be forgotten on the next restart.
         """
+        self.policy.guard(name)
         link = f'http://www.youtube.com/{name}'
         archive_file = os.path.join(self.downloader_config['archive_dir'], f'{name}.txt')
         opts_template = ydl_opts or self._build_ydl_opts(archive_file, break_on_existing=self.default_break_on_existing)
-        for attempt in range(1, 4):
+        for attempt in range(1, self.timing.retry_attempts + 1):
             try:
                 opts = dict(opts_template)
                 if 'postprocessors' in opts_template:
@@ -162,30 +168,30 @@ class YoutubeDownloader:
                     ydl.download([link])
                 logging.info(f'Finished downloading from: {name}')
                 return
+            except RateLimited:
+                raise
             except Exception as e:
                 msg = str(e)
-                if '403' in msg:
-                    wait_time = random.randint(60, 300)
-                    logging.warning(f'403 Forbidden for {name}. Pausing {wait_time}s before retry...')
-                    time.sleep(wait_time)
-                elif '404' in msg:
+                rate_limited = self.policy.rate_limit_from(e, name)
+                if rate_limited is not None:
+                    raise rate_limited from e
+                if '404' in msg:
                     logging.info(f'Got 404 for {name} — skipping video.')
                     return
-                elif 'already been recorded' in msg or 'already in the archive' in msg:
+                if 'already been recorded' in msg or 'already in the archive' in msg:
                     logging.info(f'All videos for {name} already in archive — skipping further attempts.')
                     return
-                elif 'timed out' in msg.lower():
-                    logging.warning(f'Timeout encountered for {name}. Attempt {attempt} failed: {e}')
-                    time.sleep(5 * attempt)
-                elif 'premieres in' in msg.lower():
+                if 'premieres in' in msg.lower():
                     logging.warning(f'Premieres in {name}. Skipping.')
                     return
-                elif 'This channel does not have a streams tab' in msg.lower():
+                if 'this channel does not have a streams tab' in msg.lower():
                     return
+                if 'timed out' in msg.lower():
+                    logging.warning(f'Timeout encountered for {name}. Attempt {attempt} failed: {e}')
                 else:
                     logging.warning(f'Attempt {attempt} failed for {name}: {e}', exc_info=True)
-                    time.sleep(5 * attempt)
-        logging.error(f'YouTube download failed for {name} after 3 attempts.')
+                time.sleep(5 * attempt)
+        logging.error(f'YouTube download failed for {name} after {self.timing.retry_attempts} attempts.')
 
     def download_link(self, url: str, breakOnExisting: bool=True, redownload: bool=False):
         """
@@ -230,24 +236,33 @@ class YoutubeDownloader:
         if not getattr(self, 'downloader_config', {}).get('enabled', True):
             logging.warning('YouTube downloader is not configured; skipping run().')
             return
+        if not self.policy.begin():
+            return
         self.redownload_mode = redownload
-        init_wait = random.randint(5, 60)
-        logging.info(f'Defensive start: waiting {init_wait}s before first download...')
-        time.sleep(init_wait)
         accounts = self._get_accounts(account)
         if not accounts:
             return
+        if not account:
+            accounts = self.policy.due(accounts)
+            if not accounts:
+                logging.info('No YouTube channels are due for a check yet.')
+                return
         total_accounts = len(accounts)
-        burst_size = self.batch_settings['burst_size']
+        burst_size = self.timing.burst_size
         total_batches = (total_accounts + burst_size - 1) // burst_size
         processed = 0
         for i in range(0, total_accounts, burst_size):
             batch = accounts[i:i + burst_size]
             batch_index = i // burst_size + 1
             logging.info('Processing YouTube batch %s of %s', batch_index, total_batches)
-            processed = self._process_batch(batch, break_on_existing_arg, redownload, processed, total_accounts)
+            try:
+                processed = self._process_batch(batch, break_on_existing_arg, redownload, processed, total_accounts)
+            except RateLimited as exc:
+                logging.warning('Stopping the YouTube sweep: %s', exc)
+                return
             if i + burst_size < total_accounts:
-                self._throttle()
+                self.policy.throttle()
+        self.policy.finish()
 
     def _get_accounts(self, account: str) -> list[str]:
         try:
@@ -265,7 +280,8 @@ class YoutubeDownloader:
         return accounts
 
     def _process_batch(self, batch, break_on_existing_arg, redownload, processed, total_accounts):
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.batch_settings['max_workers']) as executor:
+        rate_limited = None
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.timing.max_workers) as executor:
             futures = {}
             for acc in batch:
                 ydl_opts = self._prepare_ydl_opts(acc, break_on_existing_arg, redownload)
@@ -273,19 +289,21 @@ class YoutubeDownloader:
             for future in concurrent.futures.as_completed(futures):
                 acc = futures[future]
                 processed += 1
-                job_manager.publish({'type': 'youtube-account', 'account': acc, 'current': processed, 'total': total_accounts})
                 try:
                     future.result()
+                    self.policy.mark_checked(acc)
+                except RateLimited as exc:
+                    rate_limited = exc
+                except SweepAborted as exc:
+                    logging.info(str(exc))
                 except Exception as exc:
                     logging.error(f'Unhandled error downloading {acc}: {exc}')
+                job_manager.publish({'type': 'youtube-account', 'account': acc, 'current': processed, 'total': total_accounts})
+        if rate_limited is not None:
+            raise rate_limited
         return processed
 
     def _prepare_ydl_opts(self, acc, break_on_existing_arg, redownload):
         account_archive = os.path.join(self.downloader_config['archive_dir'], f'{acc}.txt')
         effective_break = self.default_break_on_existing if break_on_existing_arg is None else break_on_existing_arg
         return self._build_ydl_opts(account_archive, break_on_existing=effective_break, redownload=redownload)
-
-    def _throttle(self):
-        pause = random.randint(self.batch_settings['min_pause'], self.batch_settings['max_pause'])
-        logging.info(f'Throttling pause: sleeping {pause} seconds...')
-        time.sleep(pause)

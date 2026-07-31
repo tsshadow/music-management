@@ -17,7 +17,6 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_MUSIC
 import androidx.media3.common.StarRating
-import com.google.common.reflect.TypeToken
 import com.google.gson.Gson
 import java.text.DateFormat
 import java.text.ParseException
@@ -158,8 +157,10 @@ fun MediaItem.toTrack(): Track {
     // No cache hit, generate it
     val created = mediaMetadata.extras?.getString("created")
     val createdDate = safeParseDate(created)
+    // Array<String>::class.java rather than an anonymous TypeToken: R8 full mode strips the
+    // generic superclass of those, making TypeToken.getType() throw in release builds.
     val genres: List<String>? = mediaMetadata.extras?.getString("genreValues")?.let {
-        Gson().fromJson<List<String>>(it, object : TypeToken<List<String>>() {}.type)
+        Gson().fromJson(it, Array<String>::class.java)?.toList()
     }
     val track = Track(
         mediaId,

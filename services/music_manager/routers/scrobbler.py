@@ -146,7 +146,7 @@ class ImportRequest(BaseModel):
     token: Optional[str] = None
 
 @router.get('/import/latest')
-def get_latest_imports():
+def get_latest_imports(_auth: dict=Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
@@ -158,7 +158,7 @@ def get_latest_imports():
         conn.close()
 
 @router.post('/import/listenbrainz')
-def trigger_lb_import(req: ImportRequest, background_tasks: BackgroundTasks):
+def trigger_lb_import(req: ImportRequest, background_tasks: BackgroundTasks, _auth: dict=Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)

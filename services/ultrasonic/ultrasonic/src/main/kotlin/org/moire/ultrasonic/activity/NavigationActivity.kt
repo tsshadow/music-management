@@ -571,7 +571,11 @@ class NavigationActivity : ScopeActivity() {
                         updateConnectivityStatus(connectivityStatusText, reachable)
                         progressBar.visibility = View.GONE
                         errorText.text = getString(
-                            if (reachable) R.string.welcome_connection_failed
+                            // The probe above already proved the server answers, so a failed
+                            // ping() here can only mean the credentials were rejected - saying
+                            // "could not connect" instead sends people chasing a network
+                            // problem that doesn't exist (see bug report 020).
+                            if (reachable) R.string.welcome_invalid_credentials
                             else R.string.welcome_server_unreachable
                         )
                         errorText.visibility = View.VISIBLE
@@ -718,10 +722,16 @@ class NavigationActivity : ScopeActivity() {
                 // outdated Play Services, ...) and they should fall back to username/password.
                 val reachable = withContext(Dispatchers.IO) { isServerReachable(targetServer.url) }
                 updateConnectivityStatus(connectivityStatusText, reachable)
-                errorText.text = getString(
-                    if (reachable) R.string.welcome_google_signin_failed
-                    else R.string.welcome_server_unreachable
-                )
+                errorText.text = if (reachable) {
+                    // The exception class is also shown on screen, not only logged: the people
+                    // who hit this are remote, non-technical users who can screenshot a dialog
+                    // but will never run `adb logcat`, and without it every distinct cause
+                    // (Play Services refusal, unregistered signing certificate, OAuth client
+                    // misconfiguration) looks like the exact same message - see bug report 020.
+                    getString(R.string.welcome_google_signin_failed_detail, e.javaClass.simpleName)
+                } else {
+                    getString(R.string.welcome_server_unreachable)
+                }
                 errorText.visibility = View.VISIBLE
                 return@launch
             }
@@ -758,6 +768,10 @@ class NavigationActivity : ScopeActivity() {
             progressBar.visibility = View.VISIBLE
             errorText.visibility = View.GONE
 
+            // Short, user-presentable description of *why* the /api/auth/google call failed
+            // (HTTP status or exception class), so the on-screen error can name the cause
+            // instead of every backend-side failure looking identical - see bug report 020.
+            var authFailureDetail: String? = null
             val authResult = withContext(Dispatchers.IO) {
                 try {
                     val response = welcomeMumaApi.googleAuth(GoogleAuthRequest(idToken)).execute()
@@ -769,10 +783,12 @@ class NavigationActivity : ScopeActivity() {
                             response.code(),
                             response.errorBody()?.string().orEmpty()
                         )
+                        authFailureDetail = "HTTP ${response.code()}"
                         null
                     }
                 } catch (e: Exception) {
                     Timber.e(e, "MuMa Google Auth failed: %s", e.javaClass.name)
+                    authFailureDetail = e.javaClass.simpleName
                     null
                 }
             }
@@ -785,10 +801,13 @@ class NavigationActivity : ScopeActivity() {
                 // would fail here with the server otherwise being perfectly reachable.
                 val reachable = withContext(Dispatchers.IO) { isServerReachable(targetServer.url) }
                 updateConnectivityStatus(connectivityStatusText, reachable)
-                errorText.text = getString(
-                    if (reachable) R.string.welcome_google_signin_failed
-                    else R.string.welcome_server_unreachable
-                )
+                val detail = authFailureDetail
+                errorText.text = when {
+                    !reachable -> getString(R.string.welcome_server_unreachable)
+                    detail != null ->
+                        getString(R.string.welcome_google_signin_failed_detail, detail)
+                    else -> getString(R.string.welcome_google_signin_failed)
+                }
                 errorText.visibility = View.VISIBLE
                 return@launch
             }
@@ -867,9 +886,14 @@ class NavigationActivity : ScopeActivity() {
                 }
                 else -> {
                     // Again, a successful response with an unrecognized status - not a
-                    // connectivity issue.
+                    // connectivity issue. Naming the status makes an app/backend version skew
+                    // (the only way to get here) recognizable from a screenshot.
+                    Timber.e("MuMa Google Auth returned an unknown status: %s", authResult.status)
                     progressBar.visibility = View.GONE
-                    errorText.text = getString(R.string.welcome_google_signin_failed)
+                    errorText.text = getString(
+                        R.string.welcome_google_signin_failed_detail,
+                        authResult.status
+                    )
                     errorText.visibility = View.VISIBLE
                     googleSignInButton.isEnabled = true
                 }

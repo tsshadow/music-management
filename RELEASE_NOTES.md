@@ -10,6 +10,16 @@ This project is now modularized. Detailed release notes for each module can be f
 - [ML Analyzer](services/ml-analyzer/RELEASE_NOTES.md)
 
 ## Unreleased
+### 🔑 Duidelijkere foutmeldingen bij inloggen (Ultrasonic)
+- Een verkeerd wachtwoord zei voorheen **"Kon geen verbinding maken met LMS"**, ook als de server
+  gewoon antwoordde. Dat leidde tot zoeken naar een storing die er niet was. Nu staat er
+  "Verkeerde gebruikersnaam of wachtwoord ... of vraag de beheerder om een account".
+- Mislukt inloggen met Google noemt nu **de concrete oorzaak** in beeld (foutcode of HTTP-status)
+  in plaats van alleen in het logboek van het toestel, zodat een screenshot genoeg is om te zien
+  wat er misging.
+- Debug-APK's uit de pijplijn worden voortaan met de echte keystore ondertekend. Daarvoor kregen ze
+  bij elke build een ander wegwerpcertificaat, waardoor "Inloggen met Google" in een debugbuild
+  nooit kón werken.
 
 ## Global Version 0.0.49 (2026-07-31)
 ### 📚 Meer manieren om te bladeren in Ultrasonic

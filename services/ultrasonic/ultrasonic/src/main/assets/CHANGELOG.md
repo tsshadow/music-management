@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Library tab**: one place for everything you browse by type — dynamic playlists, genres,
+  artists, saved playlists and albums — as swipeable pages under a tab strip.
+
+### Fixed
+- **Browsing was unreachable in 6.5.15**: removing the home screen's filter chips also removed the
+  only way into dynamic playlists, genres, the album list and the artist list. Creating a dynamic
+  playlist was impossible, since that happens on the same screen. The Library tab brings all of it
+  back.
+- **The Favorieten tab showed a copy of the home screen.** It now shows starred albums, starred
+  artists and everything you rated four stars or better; tapping a track plays it.
+
+### Changed
+- **Bottom navigation is now Home, Library and Favorieten.** Zoeken left the bottom bar because the
+  toolbar already has a search field, and playlists moved into Library.
+
 ## [6.5.12] - 2026-07-30
 
 ### Added

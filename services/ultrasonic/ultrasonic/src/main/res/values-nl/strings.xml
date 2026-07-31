@@ -480,9 +480,10 @@
     <string name="welcome_username">Naam</string>
     <string name="welcome_password">Wachtwoord</string>
     <string name="welcome_fields_required">Gebruikersnaam en wachtwoord zijn verplicht</string>
-    <string name="welcome_connection_failed">Kon geen verbinding maken met LMS. Controleer je gegevens.</string>
+    <string name="welcome_invalid_credentials">Verkeerde gebruikersnaam of wachtwoord. De server zelf is wél bereikt, dus dit is geen verbindingsprobleem — controleer je inloggegevens, of vraag de beheerder om een account.</string>
     <string name="welcome_server_unreachable">Kan de server niet bereiken. Controleer je internetverbinding of probeer het later opnieuw.</string>
     <string name="welcome_google_signin_failed">Inloggen met Google is mislukt. Probeer het opnieuw, of log in met gebruikersnaam/wachtwoord.</string>
+    <string name="welcome_google_signin_failed_detail">Inloggen met Google is mislukt (%1$s). Probeer het opnieuw, of log in met gebruikersnaam/wachtwoord.</string>
     <string name="welcome_skip_button">Inloggen overslaan</string>
     <string name="welcome_skip_confirm_title">Doorgaan zonder inloggen?</string>
     <string name="welcome_skip_confirm_message">De app werkt dan beperkt en offline: alleen eerder gedownloade muziek is beschikbaar totdat je opnieuw inlogt.</string>

@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Release builds crashed with `IllegalArgumentException: class com.google.common.reflect.TypeCapture
+  isn't parameterized` whenever a track's genre list was deserialized**: the Room `Converters`, the
+  `MediaItem.toTrack()` converter and `TileStorage` built their Gson type via an anonymous Guava
+  `TypeToken` subclass. Guava ships no consumer ProGuard rules, so with
+  `android.enableR8.fullMode=true` R8 merged away the parameterized superclass those tokens read at
+  runtime. This fired on `onTimelineChanged`/`onMediaItemTransition`, i.e. on nearly every playback
+  start, and only in release builds — it accounts for 15 of the 16 crashes collected on 6.5.14
+  through 6.5.18. All three sites now deserialize through `Array<T>::class.java`, which needs no
+  runtime generic signature. Keep rules for the Guava `TypeToken` hierarchy were added as a second
+  line of defence. The Gson `TypeToken` usages elsewhere are unaffected: Gson ships its own consumer
+  rules.
+- **Errors reported while no Activity was available took the whole app down**: `InfoDialog`/
+  `ErrorDialog` built their `MaterialAlertDialogBuilder` in the constructor, outside the existing
+  try/catch, so a non-AppCompat context — such as the application context handed to a background
+  coroutine's error handler — threw "The style on this component requires your app theme to be
+  Theme.AppCompat". The builder is now created lazily against a themed context, and falls back to a
+  toast if the dialog still cannot be shown.
+- **An exception thrown inside any RxBus subscriber killed the process**: none of the subscribers
+  pass an `onError` handler, so RxJava rethrew as `OnErrorNotImplementedException` on the delivering
+  thread. A global `RxJavaPlugins` error handler now logs these instead.
+- **Android Auto bleef hangen op een dode of offline serververbinding.** De mediasessie van Auto
+  haalde de `MusicService` één keer op, bij het aanmaken van de sessie, en hield die instantie vast
+  zolang de app draaide. Alles wat die instantie vervangt — van server wisselen, inloggegevens
+  aanpassen, of `getMusicService()` die de offline service teruggeeft terwijl de server onbereikbaar
+  is — liet Auto met de oude achter: de mappenstructuur werd nog gewoon getoond, maar elke lijst
+  kwam leeg terug, ook nadat de app op de telefoon (die per aanroep opnieuw ophaalt) allang weer
+  werkte. Auto haalt de service nu bij elke aanroep opnieuw op.
+
 ## [6.5.12] - 2026-07-30
 
 ### Added

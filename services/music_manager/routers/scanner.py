@@ -5,13 +5,24 @@ import logging
 import threading
 from pathlib import Path
 import pymysql
-from fastapi import APIRouter, BackgroundTasks, Query, HTTPException
+from typing import Optional
+from fastapi import APIRouter, BackgroundTasks, Query, HTTPException, Header, Depends
 from services.common.config_store import ConfigStore as Settings
 from services.music_manager.database import get_db_connection
 from services.scanner.Song.ReadonlySong import ReadonlySong
 from services.tagger.Song.BaseSong import ExtensionNotSupportedException
 router = APIRouter(tags=['scanner'])
 logger = logging.getLogger('music-manager.scanner')
+
+async def verify_api_key(x_api_key: Optional[str]=Header(None)):
+    """Same system-or-user API key check the other routers use.
+
+    Delegates rather than re-implementing it (as library.py/management.py do) so there is one
+    place where "what counts as a valid key" is defined. Imported lazily because users.py is
+    itself a router module that main.py imports alongside this one.
+    """
+    from services.music_manager.routers.users import verify_api_key as _verify
+    return await _verify(x_api_key)
 
 class ScannerManager:
 
@@ -130,14 +141,14 @@ async def health():
     return {'status': 'OK', 'busy': scanner_manager._lock.locked()}
 
 @router.post('/scan/all')
-async def api_scan_all(background_tasks: BackgroundTasks, force: bool=False):
+async def api_scan_all(background_tasks: BackgroundTasks, force: bool=False, _auth: dict=Depends(verify_api_key)):
     if scanner_manager._lock.locked():
         raise HTTPException(status_code=409, detail='A scan operation is already in progress')
     background_tasks.add_task(scanner_manager.run_full, force=force)
     return {'message': 'Full library scan started in background'}
 
 @router.post('/scan/file')
-async def api_scan_file(path: str=Query(...), force: bool=False):
+async def api_scan_file(path: str=Query(...), force: bool=False, _auth: dict=Depends(verify_api_key)):
     scanner_manager.scan_single(path, force=force)
     return {'message': f'Scan for {path} completed'}
 

@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+### Security
+- **The tagger, scanner and ListenBrainz-import endpoints now require an API key.** `POST
+  /api/tagger/tag/all`, `/tag/file`, `/tag/stop`, `POST /api/scanner/scan/all`, `/scan/file`,
+  `POST /api/scrobbler/import/listenbrainz` and `GET /api/scrobbler/import/latest` had no
+  authentication at all — anyone who could reach the API could start a full re-tag of the library,
+  which rewrites tags in the actual music files. This went unnoticed because Cloudflare Access sat
+  in front of `muma.example.com` externally; the moment that had to be bypassed so the mobile
+  app could log in from outside the LAN, they became publicly reachable. The `/health` endpoints
+  stay open for monitoring. See `docs/bug-reports/020-new-user-cannot-log-in-android.md`.
+
+### Fixed
+- **Ultrasonic login screen no longer blames the connection for a rejected password.** The welcome
+  dialog already probes the server to tell an outage apart from bad credentials, but then showed
+  "Could not connect to LMS" on the branch where the server *had* answered — so a wrong (or
+  non-existent) account looked like a server outage. That case now says "Wrong username or password
+  ... or ask the administrator for an account".
+- **Ultrasonic Google Sign-In failures now name their cause on screen**, not only in logcat: the
+  concrete exception class or HTTP status is shown in the error text, so a remote user's screenshot
+  is enough to tell a Play Services refusal apart from an unregistered signing certificate or an
+  OAuth client misconfiguration.
+- **CI debug APKs are signed with the real keystore when it is available.** Previously only release
+  builds got `SIGNING_STORE_FILE`, leaving debug builds signed by a throwaway keystore generated
+  inside the ephemeral build container — a different certificate every build, so their SHA-1 could
+  never be registered as an Android OAuth client and "Sign in with Google" could never work on a
+  debug APK from apk-hoster. See `docs/bug-reports/020-new-user-cannot-log-in-android.md`.
+- **Batch pacing settings were never applied**: `DownloaderService` never passed its keyword
+  arguments, so `max_workers`, `burst_size`, `min_pause` and `max_pause` always sat on their
+  defaults — a pause of one to five seconds between batches.
+- **SoundCloud never throttled between batches**: `_throttle()` existed but was only called by the
+  YouTube downloader.
+- **YouTube did not recognise a 429 at all**: it fell through to the generic branch and slept
+  `5 * attempt` seconds.
+- **Backoff state was lost on restart**: the 403 counter lived in a module global and 429 had no
+  counter at all, so a container restart resumed at full speed.
+- **`POST /api/config` always failed**: it called `config_store.update_many()`, which does not exist
+  on `ConfigStore`. The resulting `AttributeError` was swallowed by a broad `except` and returned as
+  a 400, so saving a setting over the API could never work.
+
 ### Added
 - **Downloader timing is configurable from the UI**: a new *Timing* tab under
   Systeembeheer → Downloaders exposes the sweep interval, per-account cooldown, batch size,
@@ -35,20 +74,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hours inside the thread pool. The wait is now recorded in the database and the sweep ends instead.
 - **Telegram reads ConfigStore** instead of `os.getenv`, and takes its concurrency and flood
   threshold from the timing settings. A Telethon flood wait is treated like a 429.
-
-### Fixed
-- **Batch pacing settings were never applied**: `DownloaderService` never passed its keyword
-  arguments, so `max_workers`, `burst_size`, `min_pause` and `max_pause` always sat on their
-  defaults — a pause of one to five seconds between batches.
-- **SoundCloud never throttled between batches**: `_throttle()` existed but was only called by the
-  YouTube downloader.
-- **YouTube did not recognise a 429 at all**: it fell through to the generic branch and slept
-  `5 * attempt` seconds.
-- **Backoff state was lost on restart**: the 403 counter lived in a module global and 429 had no
-  counter at all, so a container restart resumed at full speed.
-- **`POST /api/config` always failed**: it called `config_store.update_many()`, which does not exist
-  on `ConfigStore`. The resulting `AttributeError` was swallowed by a broad `except` and returned as
-  a 400, so saving a setting over the API could never work.
 
 ## [0.0.49] - 2026-07-31
 

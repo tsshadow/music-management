@@ -1,8 +1,8 @@
 # title: New user cannot log in on the Android app: "Google sign-in failed", then "Could not connect to LMS"
 
-# status: root cause found and cleared externally (OAuth consent screen was in Testing, now In
-# production); app-side messaging + CI debug signing fixed in this repo; the user still needs an
-# account — see "still required outside this repository"
+# status: root cause found (Cloudflare Access gates the Muma API from outside the LAN); app-side
+# messaging + CI debug signing fixed in this repo; the Access policy and the user's account are
+# still open — see "still required outside this repository"
 
 # reported problem
 A new user (`someuser@example.com`) installed the latest Ultrasonic Android app and could not
@@ -13,7 +13,8 @@ get in at all:
    gegevens."* (`welcome_connection_failed`), which reads as a server/network outage.
 
 # investigation
-The production backend was verified healthy from outside, during the reported outage window:
+The production backend was verified healthy during the reported outage window — from inside the
+LAN, which turned out to matter a great deal (see the Cloudflare Access section below):
 
 | probe | result |
 |---|---|
@@ -43,6 +44,10 @@ refusing to issue a credential (or a non-2xx from `/api/auth/google`, which was 
 Note that an *unknown* Google identity is not an error case at all: `/api/auth/google` answers
 `200 {"status": "unknown"}` and the app navigates to the access-request screen. Getting an error
 instead means the flow never reached that point.
+
+(This reasoning held only because `/api/auth/google` had been probed from inside the LAN. From the
+phone's actual vantage point it does *not* answer — see the Cloudflare Access section, which is the
+real answer for symptom 1.)
 
 One concrete, in-repo cause for that was found: **CI debug APKs could never do Google Sign-In.**
 `scripts/ci/ultrasonic-build-upload.sh` only wrote the signing keystore for `release` builds. Debug
@@ -76,7 +81,44 @@ CI (`scripts/ci/ultrasonic-build-upload.sh`):
   now logs a warning saying its Google Sign-In will fail. `SIGNING_STORE_PASSWORD` is now also
   checked up front for release builds, instead of failing later inside Gradle.
 
-# root cause of the Google Sign-In failure: consent screen was in Testing
+# actual root cause of the Google Sign-In failure from outside the LAN: Cloudflare Access
+Every probe in the table above was run from inside the LAN, where `muma.example.com` resolves to
+`192.0.2.30` (Nginx Proxy Manager) and Cloudflare is never involved. From outside, the same
+hostnames resolve to Cloudflare (`188.114.96.0` / `188.114.97.0`), and there the picture is
+different:
+
+```
+$ curl -D - --resolve muma.example.com:443:188.114.97.0 \
+       https://muma.example.com/api/auth/setup-status
+HTTP/2 302
+location: https://example.cloudflareaccess.com/cdn-cgi/access/login/muma.example.com?...
+set-cookie: CF_AppSession=...
+server: cloudflare
+```
+
+`muma.example.com` sits behind **Cloudflare Access** (Zero Trust): every external request, `POST
+/api/auth/login` and `POST /api/auth/google` included, is 302'd to an interactive SSO login page.
+`music.example.com` is *not* behind Access and answers `200` externally.
+
+That combination produces the reported symptom exactly:
+- The welcome dialog's reachability probe hits `music.example.com`, which answers, so the app
+  correctly reports the server as reachable and never shows "server unreachable".
+- The Google sign-in POST goes to `muma.example.com/api/auth/google`, gets the 302, follows it
+  to the Access login page and receives HTML instead of JSON — so `authResult` is null and the app
+  falls back to the generic "Google sign-in failed".
+- The username/password attempt goes through Subsonic on `music.example.com` instead, which
+  is reachable, and failed separately on the missing account.
+
+**Before removing Access, note what it is currently the only thing shielding.** These endpoints
+have no auth dependency at all: `POST /api/tagger/tag/all`, `/tag/file`, `/tag/stop` (these write
+tags to the actual music files), `POST /api/scanner/scan/all`, `/scan/file`, and `POST
+/api/scrobbler/import/listenbrainz`. Dropping Access on the whole hostname would expose them
+unauthenticated to the internet. The safe order is: a path-scoped `Bypass` policy for `/api/auth/*`
+first (which unblocks login while leaving those endpoints covered), then guard them with
+`Depends(verify_api_key)`, then widen the bypass to the whole hostname — which is needed anyway,
+since the mobile app also uses the Muma API for ratings, settings sync and the management tab.
+
+# contributing cause on Google's side: consent screen was in Testing
 The OAuth consent screen for the project behind `GOOGLE_CLIENT_ID` was in **Testing** publishing
 status while this was reported, and the reporting user was not on its test-user list. In Testing,
 Google only issues a credential to listed test accounts, so a brand-new user fails while the
@@ -119,13 +161,18 @@ lockout did. So if the first non-owner sign-in still fails now that the app is i
 is the next thing to clear, not a new mystery.
 
 # still required outside this repository
-1. **Remove the unapproved sensitive/restricted scopes** under *Google Auth Platform → Data
+1. **Let the Muma API through Cloudflare Access.** Zero Trust → Access → Applications → the
+   `muma.example.com` application: add a `Bypass` policy scoped to `/api/auth/*` to unblock
+   login immediately, then widen it to the whole hostname once the unauthenticated endpoints listed
+   above are guarded. The API enforces its own authentication (`X-API-Key`, bcrypt passwords,
+   Google ID token verification), so Access in front of it only breaks non-browser clients.
+2. **Remove the unapproved sensitive/restricted scopes** under *Google Auth Platform → Data
    access*, leaving only `openid`, `.../auth/userinfo.email` and `.../auth/userinfo.profile`. That
    drops the verification requirement entirely, since nothing here uses the other scopes.
-2. **Give the user an account.** Even a fully working Google Sign-In only gets an unknown identity
+3. **Give the user an account.** Even a fully working Google Sign-In only gets an unknown identity
    as far as the access-request screen; an admin still has to approve the request
    (`/api/user-requests`) or create the account directly. Until then, no login method can succeed.
-3. **Optionally** register the release keystore's SHA-1 for `nl.teunschriks.mumamobile.debug` too,
+4. **Optionally** register the release keystore's SHA-1 for `nl.teunschriks.mumamobile.debug` too,
    so debug builds from apk-hoster can do Google Sign-In at all (see docs/deployment.md). No such
    Android client currently exists, so Google Sign-In cannot work on a debug APK regardless of the
    above.

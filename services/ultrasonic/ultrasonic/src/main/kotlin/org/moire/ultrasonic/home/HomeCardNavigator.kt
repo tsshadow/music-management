@@ -14,15 +14,28 @@ import org.moire.ultrasonic.api.subsonic.models.Filter
 import org.moire.ultrasonic.api.subsonic.models.Filters
 import org.moire.ultrasonic.fragment.muma.TileInfo
 import org.moire.ultrasonic.fragment.muma.navigateToGenre
+import org.moire.ultrasonic.fragment.muma.navigateToGenreByName
 import org.moire.ultrasonic.util.Settings
 
+/** What tapping a card should do. Tracks play; everything else opens a screen. */
+sealed interface HomeCardAction {
+    data class Navigate(val directions: NavDirections) : HomeCardAction
+
+    data class PlayTrack(val trackId: String) : HomeCardAction
+}
+
 /**
- * Turns a [HomeCard] back into a destination. Kept separate from the card itself so that cards
- * stay plain, serializable data.
+ * Turns a [HomeCard] back into something actionable. Kept separate from the card itself so that
+ * cards stay plain, serializable data.
  */
 object HomeCardNavigator {
 
-    fun directionsFor(card: HomeCard): NavDirections = when (card.type) {
+    fun actionFor(card: HomeCard): HomeCardAction = when (card.type) {
+        HomeCardType.TRACK -> HomeCardAction.PlayTrack(card.itemId)
+        else -> HomeCardAction.Navigate(directionsFor(card))
+    }
+
+    private fun directionsFor(card: HomeCard): NavDirections = when (card.type) {
         HomeCardType.ALBUM -> NavigationGraphDirections.toTrackCollection(
             id = card.itemId,
             name = card.title,
@@ -40,7 +53,11 @@ object HomeCardNavigator {
 
         HomeCardType.DYNAMIC_PLAYLIST -> navigateToGenre(tileFor(card))
 
+        HomeCardType.GENRE -> navigateToGenreByName(card.itemId)
+
         HomeCardType.LABEL -> labelDirections(card)
+
+        HomeCardType.TRACK -> error("TRACK cards are played, see actionFor")
     }
 
     private fun tileFor(card: HomeCard): TileInfo {

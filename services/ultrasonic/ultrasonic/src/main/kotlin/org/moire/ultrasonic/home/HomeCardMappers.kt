@@ -9,8 +9,10 @@ package org.moire.ultrasonic.home
 
 import org.moire.ultrasonic.domain.Album
 import org.moire.ultrasonic.domain.ArtistOrIndex
+import org.moire.ultrasonic.domain.Genre
 import org.moire.ultrasonic.domain.Label
 import org.moire.ultrasonic.domain.Playlist
+import org.moire.ultrasonic.domain.Track
 import org.moire.ultrasonic.fragment.muma.TileInfo
 import org.moire.ultrasonic.fragment.muma.toSmartParamsJson
 
@@ -36,6 +38,22 @@ fun Label.toHomeCard(): HomeCard = HomeCard(
     itemId = name,
     title = name,
     coverArtId = coverArt
+)
+
+// Genres are filters rather than library items, so the name is the identity.
+fun Genre.toHomeCard(): HomeCard = HomeCard(
+    type = HomeCardType.GENRE,
+    itemId = name,
+    title = name,
+    subtitle = songCount.toString()
+)
+
+fun Track.toHomeCard(): HomeCard = HomeCard(
+    type = HomeCardType.TRACK,
+    itemId = id,
+    title = title.orEmpty(),
+    subtitle = artist,
+    coverArtId = coverArt ?: id
 )
 
 fun Playlist.toHomeCard(): HomeCard = HomeCard(

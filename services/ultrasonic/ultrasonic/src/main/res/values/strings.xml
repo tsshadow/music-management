@@ -210,6 +210,16 @@
     <string name="home.recently_updated">Recently updated</string>
     <string name="home.recently_added">Recently added</string>
     <string name="home.card_label">Label</string>
+    <string name="home.card_genre">Genre</string>
+    <string name="library.label">Library</string>
+    <string name="library.tab_dynamic_playlists">Playlists</string>
+    <string name="library.tab_genres">Genres</string>
+    <string name="library.tab_artists">Artiesten</string>
+    <string name="library.tab_static_playlists">Opgeslagen</string>
+    <string name="library.tab_albums">Albums</string>
+    <string name="favorites.starred_albums">Albums met ster</string>
+    <string name="favorites.starred_artists">Artiesten met ster</string>
+    <string name="favorites.highly_rated">Hoog gewaardeerd</string>
     <string name="settings.increment_time_0">Disabled</string>
     <string name="settings.increment_time_1">1 second</string>
     <string name="settings.increment_time_10">10 seconds</string>

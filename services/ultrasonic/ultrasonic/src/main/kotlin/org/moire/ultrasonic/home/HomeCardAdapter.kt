@@ -79,12 +79,15 @@ class HomeCardAdapter(
         HomeCardType.ALBUM -> R.string.common_album
         HomeCardType.ARTIST -> R.string.common_artist
         HomeCardType.LABEL -> R.string.home_card_label
+        HomeCardType.GENRE -> R.string.home_card_genre
+        HomeCardType.TRACK -> R.string.main_songs
         HomeCardType.DYNAMIC_PLAYLIST, HomeCardType.STATIC_PLAYLIST -> R.string.playlist_label
     }
 
     private fun defaultResourceFor(type: HomeCardType): Int = when (type) {
         HomeCardType.ALBUM -> R.drawable.unknown_album
         HomeCardType.ARTIST -> R.drawable.ic_contact_picture
+        HomeCardType.TRACK -> R.drawable.baseline_music_note_24
         else -> R.drawable.ic_menu_playlists
     }
 

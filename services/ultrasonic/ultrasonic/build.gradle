@@ -35,8 +35,8 @@ android {
 
     defaultConfig {
         applicationId = 'nl.teunschriks.mumamobile'
-        versionCode 245
-        versionName "6.5.15"
+        versionCode 246
+        versionName "6.5.16"
 
         minSdk = libs.versions.appMinSdk.get().toInteger()
         targetSdk = libs.versions.appTargetSdk.get().toInteger()
@@ -222,6 +222,7 @@ dependencies {
     implementation libs.roomKtx
     implementation libs.viewModelKtx
     implementation libs.constraintLayout
+    implementation libs.viewPager2
     implementation libs.preferences
     implementation libs.media3common
     implementation libs.media3exoplayer

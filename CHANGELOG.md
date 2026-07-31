@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.47] - 2026-07-31
+
+### Added
+- **Ultrasonic Library tab**: one bottom-bar tab holding every browse-by-type screen — dynamic
+  playlists, genres, artists, saved playlists and albums — as swipeable pages under a tab strip.
+  Adds `GenreListFragment`, the only new screen; the other four pages are the existing fragments,
+  now hosted instead of navigated to.
+
+### Fixed
+- **Browsing was unreachable in 0.0.46**: the home screen rebuild removed the filter chip row, which
+  was the only entry point to dynamic playlists, genres, the album list and the artist list. Since
+  dynamic playlists are also created from that screen, there was no way to make one at all. The
+  Library tab restores every one of them.
+- **The Favorites tab showed a copy of the home screen**: it was the home screen with the favorites
+  filter chip pre-selected, so removing the chips left it identical to Home. It is now its own
+  screen with starred albums, starred artists and tracks rated four stars or better.
+
+### Changed
+- **Ultrasonic bottom navigation is now Home, Library and Favorieten.** Search left the bottom bar
+  because the toolbar already carries a search field; playlists moved into Library.
+
 ## [0.0.46] - 2026-07-31
 
 ### Added

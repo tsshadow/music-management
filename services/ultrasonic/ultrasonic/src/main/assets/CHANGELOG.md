@@ -7,40 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [6.5.15] - 2026-07-31
+## [6.5.12] - 2026-07-30
 
 ### Added
-- **Rebuilt home screen**: a shortcuts grid of the eight items you most recently opened (albums,
-  artists, labels, static playlists and dynamic playlists), followed by a "Recently updated" and a
-  "Recently added" carousel covering artists, labels and albums. Every section is drawn by one
-  reusable card component built on a single card model, so new sections need no new UI. Shortcuts
-  are stored whole, so the grid renders instantly and offline instead of refetching each item.
-- **"Separate home history per mode" setting**: controls whether the shortcuts grid keeps separate
-  histories for songs and livesets. On by default.
-
-### Removed
-- **Home screen filter chips** (Recent / Favorites / New / Genres / Playlists) and the per-type
-  "recently played" lists behind them. Genres remain browsable elsewhere in the app.
-
-## [6.5.14] - 2026-07-30
-
-### Added
-- **Crash reporting for background playback crashes**: a crash while the playback service was in the
-  background previously left nothing behind — the process was simply gone, so the crash could not be
-  investigated. The app now keeps an always-on, disk-backed ring buffer of recent log output and
-  marks clean playback-service shutdowns, so a silent kill by the OS can be distinguished from a
-  normal stop. On the next start a pending crash is detected, the stacktrace and ring buffer are
-  combined into a single report, and it is uploaded via the Muma API.
-
-### Changed
-- **Navigation simplified**: the navigation drawer has been removed and its items moved into the
-  toolbar overflow menu. The bottom navigation gained a Favorieten tab and no longer carries
-  Downloads, and Bookmarks is now reachable from the Playlists screen.
+- **Welcome dialog now distinguishes "server unreachable" from "login failed"**: both the manual
+  username/password submit and "Sign in with Google" previously collapsed every failure into the
+  same generic network-error message. Added an unauthenticated `/rest/ping.view` reachability
+  probe that runs on login failure to tell the two apart.
 
 ### Fixed
-- **`CachedMusicService` did not implement `uploadCrashReport()`**, which broke `compileDebugKotlin`
-  once crash reporting was added to the `MusicService` interface. Crash reports are not cacheable, so
-  the decorator delegates straight through to the wrapped service.
+- **The welcome dialog's login test could report success without ever contacting the server**:
+  when "Auto-switch server online/offline" was enabled (the default before 6.5.11/version 0.0.34)
+  and a `ConnectivityManager` capability check transiently/incorrectly reported no network, the
+  login test silently used the no-op `OfflineMusicService.ping()` instead of actually validating
+  the server/credentials. The login test now always uses the real, network-backed service.
 
 ## [6.5.11] - 2026-07-29
 

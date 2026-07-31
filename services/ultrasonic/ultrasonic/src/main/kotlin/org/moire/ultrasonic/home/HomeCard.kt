@@ -13,6 +13,8 @@ enum class HomeCardType {
     ALBUM,
     ARTIST,
     LABEL,
+    GENRE,
+    TRACK,
     DYNAMIC_PLAYLIST,
     STATIC_PLAYLIST
 }

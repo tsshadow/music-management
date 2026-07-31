@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.core.content.edit
 import androidx.core.graphics.toColorInt
 import androidx.navigation.NavDirections
-import com.google.common.reflect.TypeToken
 import com.google.gson.Gson
 import org.moire.ultrasonic.NavigationGraphDirections
 import org.moire.ultrasonic.R
@@ -25,7 +24,10 @@ object TileStorage {
     fun loadTiles(context: Context, page: String): MutableList<TileInfo> {
         val prefs = context.getSharedPreferences("${page}_tiles", Context.MODE_PRIVATE)
         val json = prefs.getString(KEY, "[]")
-        return Gson().fromJson(json, object : TypeToken<MutableList<TileInfo>>() {}.type)
+        // Array<TileInfo>::class.java rather than an anonymous TypeToken: R8 full mode strips the
+        // generic superclass of those, making TypeToken.getType() throw in release builds.
+        return Gson().fromJson(json, Array<TileInfo>::class.java)
+            ?.toMutableList() ?: mutableListOf()
     }
 }
 

@@ -44,14 +44,14 @@ class HomeViewModel(private val store: RecentActivityStore) : ViewModel() {
             type = TYPE_UPDATED,
             loadArtists = { getMusicService().getArtistList(it, CAROUSEL_SIZE) },
             loadAlbums = { albums(it) },
-            loadLabels = { getMusicService().getLabelList(it, CAROUSEL_SIZE) }
+            loadExtra = { labelsOrFestivals(it) }
         ),
         LibraryActivityProvider(
             titleRes = R.string.home_recently_added,
             type = TYPE_NEWEST,
             loadArtists = { getMusicService().getArtistList(it, CAROUSEL_SIZE) },
             loadAlbums = { albums(it) },
-            loadLabels = { getMusicService().getLabelList(it, CAROUSEL_SIZE) }
+            loadExtra = { labelsOrFestivals(it) }
         )
     )
 
@@ -64,6 +64,21 @@ class HomeViewModel(private val store: RecentActivityStore) : ViewModel() {
 
     /** Records that the user opened [card], so it moves to the front of the shortcuts grid. */
     fun recordOpened(card: HomeCard) = store.record(card, Settings.isSetsMode)
+
+    /**
+     * Livesets are festival recordings, so a record label says nothing about them; in sets mode the
+     * third carousel source becomes festivals instead.
+     *
+     * Festivals come from the FESTIVAL tag, which carries no recency, so they arrive in whatever
+     * order the server returns. Acceptable for a ten-item carousel.
+     */
+    private fun labelsOrFestivals(type: String): List<HomeCard> = if (Settings.isSetsMode) {
+        getMusicService().getTags(false, TAG_FESTIVAL, null, null)
+            .take(CAROUSEL_SIZE)
+            .map { it.toHomeCard(HomeCardType.FESTIVAL) }
+    } else {
+        getMusicService().getLabelList(type, CAROUSEL_SIZE).map { it.toHomeCard() }
+    }
 
     private fun albums(type: String): List<Album> {
         val listType =
@@ -81,5 +96,6 @@ class HomeViewModel(private val store: RecentActivityStore) : ViewModel() {
         private const val CAROUSEL_SIZE = 10
         private const val TYPE_NEWEST = "newest"
         private const val TYPE_UPDATED = "updated"
+        private const val TAG_FESTIVAL = "FESTIVAL"
     }
 }

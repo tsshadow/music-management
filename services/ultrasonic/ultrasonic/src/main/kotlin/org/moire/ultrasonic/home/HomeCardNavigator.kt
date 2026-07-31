@@ -55,6 +55,14 @@ object HomeCardNavigator {
 
         HomeCardType.GENRE -> navigateToGenreByName(card.itemId)
 
+        HomeCardType.YEAR -> filteredDirections(card, Filter("YEAR", card.itemId))
+
+        HomeCardType.FESTIVAL -> filteredDirections(card, Filter("FESTIVAL", card.itemId))
+
+        HomeCardType.LINEUP -> lineupDirections(card)
+
+        HomeCardType.RATING -> ratingDirections(card)
+
         HomeCardType.LABEL -> labelDirections(card)
 
         HomeCardType.TRACK -> error("TRACK cards are played, see actionFor")
@@ -73,10 +81,14 @@ object HomeCardNavigator {
         }
     }
 
-    private fun labelDirections(card: HomeCard): NavDirections {
-        val length = if (Settings.isSetsMode) "long" else "short"
+    private fun labelDirections(card: HomeCard): NavDirections =
+        filteredDirections(card, Filter("PUBLISHER", card.itemId))
+
+    /** Every browse-by-tag card opens the same filtered track collection. */
+    private fun filteredDirections(card: HomeCard, filter: Filter): NavDirections {
+        val length = currentLength()
         val filters = Filters().apply {
-            add(Filter("PUBLISHER", card.itemId))
+            add(filter)
             add(Filter("LENGTH", length))
         }
 
@@ -88,4 +100,38 @@ object HomeCardNavigator {
             sortMethod = "DateDescAndRelease"
         )
     }
+
+    private fun lineupDirections(card: HomeCard): NavDirections {
+        val length = currentLength()
+        val filters = Filters().apply { add(Filter("LENGTH", length)) }
+
+        return NavigationGraphDirections.toTrackCollection(
+            songs = card.title,
+            filters = Gson().toJson(filters.sanitized()),
+            size = Settings.genreTrackLimit,
+            length = length,
+            sortMethod = "DateDescAndRelease",
+            festivalLineup = card.itemId
+        )
+    }
+
+    /** A rating card means "this many stars and up". */
+    private fun ratingDirections(card: HomeCard): NavDirections {
+        val length = currentLength()
+        val filters = Filters().apply { add(Filter("LENGTH", length)) }
+
+        return NavigationGraphDirections.toTrackCollection(
+            songs = card.title,
+            filters = Gson().toJson(filters.sanitized()),
+            size = Settings.genreTrackLimit,
+            length = length,
+            ratingMin = card.itemId.toIntOrNull() ?: 0,
+            ratingMax = MAX_RATING,
+            sortMethod = "DateDescAndRelease"
+        )
+    }
+
+    private fun currentLength(): String = if (Settings.isSetsMode) "long" else "short"
+
+    private const val MAX_RATING = 5
 }

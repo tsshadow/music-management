@@ -10,7 +10,6 @@ package org.moire.ultrasonic.home
 import androidx.annotation.StringRes
 import org.moire.ultrasonic.domain.Album
 import org.moire.ultrasonic.domain.Artist
-import org.moire.ultrasonic.domain.Label
 import timber.log.Timber
 
 /**
@@ -51,15 +50,19 @@ class LibraryActivityProvider(
     private val type: String,
     private val loadArtists: suspend (String) -> List<Artist>,
     private val loadAlbums: suspend (String) -> List<Album>,
-    private val loadLabels: suspend (String) -> List<Label>
+    /**
+     * The third source is labels for songs and festivals for livesets, which are different card
+     * types, so this loader yields cards rather than one domain type.
+     */
+    private val loadExtra: suspend (String) -> List<HomeCard>
 ) : HomeSectionProvider {
 
     override suspend fun load(): HomeSection? {
         val artists = safely { loadArtists(type) }.map { it.toHomeCard() }
         val albums = safely { loadAlbums(type) }.map { it.toHomeCard() }
-        val labels = safely { loadLabels(type) }.map { it.toHomeCard() }
+        val extra = safely { loadExtra(type) }
 
-        val cards = interleave(listOf(artists, albums, labels))
+        val cards = interleave(listOf(artists, albums, extra))
         if (cards.isEmpty()) return null
 
         return HomeSection(titleRes, CardStyle.CAROUSEL, cards)

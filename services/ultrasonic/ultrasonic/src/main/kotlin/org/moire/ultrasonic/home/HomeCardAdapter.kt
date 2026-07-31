@@ -90,6 +90,10 @@ class HomeCardAdapter(
         HomeCardType.ARTIST -> R.string.common_artist
         HomeCardType.LABEL -> R.string.home_card_label
         HomeCardType.GENRE -> R.string.home_card_genre
+        HomeCardType.YEAR -> R.string.library_tab_years
+        HomeCardType.FESTIVAL -> R.string.library_tab_festivals
+        HomeCardType.LINEUP -> R.string.library_tab_lineups
+        HomeCardType.RATING -> R.string.library_tab_ratings
         HomeCardType.TRACK -> R.string.main_songs
         HomeCardType.DYNAMIC_PLAYLIST, HomeCardType.STATIC_PLAYLIST -> R.string.playlist_label
     }

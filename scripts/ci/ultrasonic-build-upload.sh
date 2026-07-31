@@ -60,20 +60,39 @@ fix_permissions() {
 }
 trap fix_permissions EXIT
 
-# For release builds, write the keystore from the SIGNING_STORE_FILE file-type
-# CI/CD variable into the ultrasonic module directory so gradle can find it.
+# Write the keystore from the SIGNING_STORE_FILE file-type CI/CD variable into
+# the ultrasonic module directory so gradle can find it.
 # NOTE: SIGNING_STORE_FILE must hold the keystore *base64-encoded* (a single
 # line of plain ASCII), not the raw .jks bytes - GitLab CI/CD variables (even
 # file-type ones) are stored/transmitted as text, so raw binary content is not
 # guaranteed to round-trip correctly. We base64-decode it here to reconstruct
 # the real keystore; this also transparently supports a raw (non-base64) file
 # for local/manual testing, since base64 -d simply fails on non-base64 input.
+#
+# The keystore is written for DEBUG builds too whenever it is available (see
+# build.gradle's `debug { initWith signingConfigs.release }`). Without it, a CI
+# debug APK is signed with the throwaway debug keystore that the Android SDK
+# docker image generates on the fly - a different signing certificate on every
+# single build. Google's Credential Manager only issues a credential to an app
+# whose package name + certificate SHA-1 match a registered Android-type OAuth
+# client (bug report 011), so with a per-build random certificate "Sign in with
+# Google" can never work on a CI debug APK. Signing debug builds with the same,
+# stable keystore makes that SHA-1 registerable once (see docs/deployment.md).
+# It is still only *required* for release builds.
 STORE_FILE_NAME=""
 if [ "$BUILD_TYPE" == "release" ]; then
     if [ -z "$SIGNING_STORE_FILE" ] || [ ! -f "$SIGNING_STORE_FILE" ]; then
         echo "Error: SIGNING_STORE_FILE (file-type CI/CD variable) is required for release builds."
         exit 1
     fi
+    if [ -z "$SIGNING_STORE_PASSWORD" ]; then
+        echo "Error: SIGNING_STORE_PASSWORD is required for release builds."
+        exit 1
+    fi
+fi
+# A keystore without its password is useless (and would make gradle fail on the debug build
+# rather than silently fall back), so both must be present before we write it out.
+if [ -n "$SIGNING_STORE_FILE" ] && [ -f "$SIGNING_STORE_FILE" ] && [ -n "$SIGNING_STORE_PASSWORD" ]; then
     if base64 -d "$SIGNING_STORE_FILE" > "$ROOT_DIR/services/ultrasonic/keystore.jks" 2>/dev/null \
         && [ -s "$ROOT_DIR/services/ultrasonic/keystore.jks" ]; then
         echo "Decoded base64-encoded SIGNING_STORE_FILE into keystore.jks."
@@ -82,6 +101,9 @@ if [ "$BUILD_TYPE" == "release" ]; then
         echo "SIGNING_STORE_FILE was not base64; copied raw content into keystore.jks."
     fi
     STORE_FILE_NAME="keystore.jks"
+elif [ "$BUILD_TYPE" == "debug" ]; then
+    echo "Warning: SIGNING_STORE_FILE not available; this debug APK gets a throwaway signing"
+    echo "         certificate and its 'Sign in with Google' will fail (see bug report 020)."
 fi
 
 # We use a docker image with Android SDK to avoid installing it on the runner

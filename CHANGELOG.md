@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **The tagger, scanner and ListenBrainz-import endpoints now require an API key.** `POST
+  /api/tagger/tag/all`, `/tag/file`, `/tag/stop`, `POST /api/scanner/scan/all`, `/scan/file`,
+  `POST /api/scrobbler/import/listenbrainz` and `GET /api/scrobbler/import/latest` had no
+  authentication at all — anyone who could reach the API could start a full re-tag of the library,
+  which rewrites tags in the actual music files. This went unnoticed because Cloudflare Access sat
+  in front of `muma.example.com` externally; the moment that had to be bypassed so the mobile
+  app could log in from outside the LAN, they became publicly reachable. The `/health` endpoints
+  stay open for monitoring. See `docs/bug-reports/020-new-user-cannot-log-in-android.md`.
+
+### Fixed
+- **Ultrasonic login screen no longer blames the connection for a rejected password.** The welcome
+  dialog already probes the server to tell an outage apart from bad credentials, but then showed
+  "Could not connect to LMS" on the branch where the server *had* answered — so a wrong (or
+  non-existent) account looked like a server outage. That case now says "Wrong username or password
+  ... or ask the administrator for an account".
+- **Ultrasonic Google Sign-In failures now name their cause on screen**, not only in logcat: the
+  concrete exception class or HTTP status is shown in the error text, so a remote user's screenshot
+  is enough to tell a Play Services refusal apart from an unregistered signing certificate or an
+  OAuth client misconfiguration.
+- **CI debug APKs are signed with the real keystore when it is available.** Previously only release
+  builds got `SIGNING_STORE_FILE`, leaving debug builds signed by a throwaway keystore generated
+  inside the ephemeral build container — a different certificate every build, so their SHA-1 could
+  never be registered as an Android OAuth client and "Sign in with Google" could never work on a
+  debug APK from apk-hoster. See `docs/bug-reports/020-new-user-cannot-log-in-android.md`.
+
 ## [0.0.49] - 2026-07-31
 
 ### Added

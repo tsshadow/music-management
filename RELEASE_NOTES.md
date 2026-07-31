@@ -11,6 +11,19 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.49 (2026-07-31)
+### 📚 Meer manieren om te bladeren in Ultrasonic
+- De Library-tab heeft er vier tabbladen bij: **Jaren**, **Festivals**, **Lineups** en **Ratings**,
+  naast Playlists, Genres, Artiesten, Albums en Opgeslagen. Zoeken op lineup kan daarmee weer.
+- **In sets-modus tonen de carrousels op de startpagina festivals in plaats van labels.** Livesets
+  zijn festivalopnames, dus een platenlabel zegt er weinig over.
+
+### 🛠 Beheer vanaf je telefoon
+- Onderin is er een **Beheer**-tab bijgekomen die de beheerpagina's van de webui spiegelt. Voor nu:
+  Downloaders (SoundCloud-accounts en YouTube-kanalen), Gebruikers (bekijken, in- en uitschakelen)
+  en Verzoeken (goedkeuren, terugdraaien, afwijzen).
+- De tab is alleen zichtbaar als je beheerder bent. De server bewaakt die grens sowieso zelf.
+
 ## Global Version 0.0.48 (2026-07-31)
 ### 🐞 Drie dingen op de Ultrasonic-startpagina werkten niet
 - **Een artiest aantikken leverde niets op.** De carrousels bevatten ook remixers en gastartiesten

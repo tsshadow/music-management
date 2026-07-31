@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.49] - 2026-07-31
+
 ### Added
 - **Ultrasonic Beheer tab**: a fourth bottom-bar tab mirroring the web UI's management section
   (`services/frontend/src/lib/management/`), starting with Downloaders (SoundCloud accounts and

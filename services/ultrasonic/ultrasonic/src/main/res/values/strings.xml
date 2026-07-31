@@ -217,6 +217,11 @@
     <string name="library.tab_artists">Artiesten</string>
     <string name="library.tab_static_playlists">Opgeslagen</string>
     <string name="library.tab_albums">Albums</string>
+    <string name="library.tab_years">Jaren</string>
+    <string name="library.tab_festivals">Festivals</string>
+    <string name="library.tab_lineups">Lineups</string>
+    <string name="library.tab_ratings">Ratings</string>
+    <string name="library.rating_and_up">%1$d+ sterren</string>
     <string name="favorites.starred_albums">Albums met ster</string>
     <string name="favorites.starred_artists">Artiesten met ster</string>
     <string name="favorites.highly_rated">Hoog gewaardeerd</string>

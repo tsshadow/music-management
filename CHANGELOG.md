@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Ultrasonic Library gains four tabs**: Jaren, Festivals, Lineups and Ratings, alongside the
+  existing Playlists, Genres, Artiesten, Albums and Opgeslagen. Every source already existed and was
+  already used by the filter modal, so this adds no API surface. Lineup browsing in particular
+  returns a capability that had been lost.
+
+### Changed
+- **Ultrasonic: in sets mode the home carousels show festivals instead of labels.** Livesets are
+  festival recordings, so a record label says nothing about them.
+- **Ultrasonic: the five list-shaped Library pages now share one `FilterBrowseFragment`** driven by
+  a `BrowseCategory` enum, replacing `GenreListFragment`. Adding a browse dimension is now an enum
+  value and a loader branch rather than a fragment.
+
 ### Fixed
 - **Ultrasonic: opening an artist from the home screen showed nothing.** `getArtistList` defaults its
   `role` parameter to `all`, so the carousels listed every artist link in the library — remixers,

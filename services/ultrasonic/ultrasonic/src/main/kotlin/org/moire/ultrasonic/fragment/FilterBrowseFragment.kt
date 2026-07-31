@@ -1,5 +1,5 @@
 /*
- * GenreListFragment.kt
+ * FilterBrowseFragment.kt
  * Copyright (C) 2009-2026 Ultrasonic developers
  *
  * Distributed under terms of the GNU GPLv3 license.
@@ -23,37 +23,49 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.moire.ultrasonic.R
+import org.moire.ultrasonic.home.BrowseCategory
 import org.moire.ultrasonic.home.CardStyle
 import org.moire.ultrasonic.home.HomeCard
 import org.moire.ultrasonic.home.HomeCardAction
 import org.moire.ultrasonic.home.HomeCardAdapter
 import org.moire.ultrasonic.home.HomeCardNavigator
+import org.moire.ultrasonic.home.HomeCardType
 import org.moire.ultrasonic.home.orderGenres
 import org.moire.ultrasonic.home.toHomeCard
 import org.moire.ultrasonic.service.MusicServiceFactory.getMusicService
 import org.moire.ultrasonic.util.Settings
 import timber.log.Timber
 
-/** Browse the library by genre. One of the Library tab's pages. */
-class GenreListFragment : Fragment() {
+/**
+ * Browse the library by one filterable dimension: genre, year, festival, lineup or rating.
+ *
+ * All five are the same screen — a grid of cards that opens a filtered track collection — so they
+ * share one fragment parameterized by [BrowseCategory] instead of getting one class each.
+ */
+class FilterBrowseFragment : Fragment() {
 
     private lateinit var adapter: HomeCardAdapter
     private var swipeRefresh: SwipeRefreshLayout? = null
+
+    private val category: BrowseCategory
+        get() = BrowseCategory.valueOf(
+            arguments?.getString(ARG_CATEGORY) ?: BrowseCategory.GENRES.name
+        )
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View = inflater.inflate(R.layout.fragment_genre_list, container, false)
+    ): View = inflater.inflate(R.layout.fragment_browse_list, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        adapter = HomeCardAdapter(CardStyle.GRID, ::onGenreClicked)
+        adapter = HomeCardAdapter(CardStyle.GRID, ::onCardClicked)
 
-        val recycler: RecyclerView = view.findViewById(R.id.genre_recycler)
+        val recycler: RecyclerView = view.findViewById(R.id.browse_recycler)
         recycler.layoutManager = GridLayoutManager(requireContext(), COLUMNS)
         recycler.adapter = adapter
 
-        swipeRefresh = view.findViewById(R.id.genre_refresh)
+        swipeRefresh = view.findViewById(R.id.browse_refresh)
         swipeRefresh?.setOnRefreshListener { load(refresh = true) }
 
         load(refresh = false)
@@ -65,23 +77,52 @@ class GenreListFragment : Fragment() {
     }
 
     private fun load(refresh: Boolean) {
+        val category = this.category
+
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val cards = withContext(Dispatchers.IO) {
-                    val genres = getMusicService().getGenres(refresh)
-                    orderGenres(genres, rememberedGenres()).map { it.toHomeCard() }
-                }
+                val cards = withContext(Dispatchers.IO) { loadCards(category, refresh) }
                 adapter.items = cards
             } catch (e: Exception) {
-                Timber.w(e, "Failed to load genres")
+                Timber.w(e, "Failed to load %s", category)
             } finally {
                 swipeRefresh?.isRefreshing = false
             }
         }
     }
 
-    private fun onGenreClicked(card: HomeCard) {
-        remember(card.itemId)
+    private fun loadCards(category: BrowseCategory, refresh: Boolean): List<HomeCard> {
+        val service = getMusicService()
+
+        return when (category) {
+            BrowseCategory.GENRES ->
+                orderGenres(service.getGenres(refresh), rememberedGenres())
+                    .map { it.toHomeCard() }
+
+            BrowseCategory.YEARS ->
+                service.getTags(refresh, TAG_YEAR, null, null)
+                    .map { it.toHomeCard(HomeCardType.YEAR) }
+
+            BrowseCategory.FESTIVALS ->
+                service.getTags(refresh, TAG_FESTIVAL, null, null)
+                    .map { it.toHomeCard(HomeCardType.FESTIVAL) }
+
+            BrowseCategory.LINEUPS ->
+                service.getLineups(refresh).map { it.toHomeCard() }
+
+            BrowseCategory.RATINGS ->
+                BrowseCategory.RATING_VALUES.map { stars ->
+                    HomeCard(
+                        type = HomeCardType.RATING,
+                        itemId = stars.toString(),
+                        title = getString(R.string.library_rating_and_up, stars)
+                    )
+                }
+        }
+    }
+
+    private fun onCardClicked(card: HomeCard) {
+        if (card.type == HomeCardType.GENRE) rememberGenre(card.itemId)
 
         val action = HomeCardNavigator.actionFor(card)
         if (action is HomeCardAction.Navigate) findNavController().navigate(action.directions)
@@ -102,7 +143,7 @@ class GenreListFragment : Fragment() {
     }
 
     /** Writes the same shape the old home screen wrote, so existing histories stay valid. */
-    private fun remember(genreName: String) {
+    private fun rememberGenre(genreName: String) {
         val gson = Gson()
         val type = object : TypeToken<MutableList<String>>() {}.type
         val stored = if (Settings.isSetsMode) {
@@ -135,8 +176,14 @@ class GenreListFragment : Fragment() {
         }
     }
 
-    private companion object {
-        const val COLUMNS = 2
-        const val MAX_REMEMBERED = 50
+    companion object {
+        private const val ARG_CATEGORY = "browseCategory"
+        private const val COLUMNS = 2
+        private const val MAX_REMEMBERED = 50
+        private const val TAG_YEAR = "YEAR"
+        private const val TAG_FESTIVAL = "FESTIVAL"
+
+        fun argumentsFor(category: BrowseCategory): Bundle =
+            Bundle().apply { putString(ARG_CATEGORY, category.name) }
     }
 }

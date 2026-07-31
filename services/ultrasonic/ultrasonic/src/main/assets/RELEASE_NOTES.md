@@ -1,3 +1,14 @@
+## [6.5.16] - 2026-07-31
+### Fixed
+- **Bladeren kan weer**: met de filterknoppen op de startpagina verdween in 6.5.15 ook de enige ingang naar filter-afspeellijsten, genres, de albumlijst en de artiestenlijst — een filter-afspeellijst maken kon zelfs helemaal niet meer. Alles zit nu in de nieuwe Library-tab.
+- **De Favorieten-tab liet een kopie van de startpagina zien.** Nu staan er je albums en artiesten met een ster, plus alles wat je vier sterren of hoger gaf; tik je op zo'n nummer, dan speelt het meteen.
+
+### Added
+- **Library-tab** met vijf schuifbare pagina's: Playlists (je filter-afspeellijsten, inclusief nieuwe maken), Genres, Artiesten, Opgeslagen afspeellijsten en Albums.
+
+### Changed
+- **De onderbalk heeft nog drie knoppen**: Home, Library en Favorieten. Zoeken is eruit omdat het zoekveld al bovenin zit; opgeslagen afspeellijsten zitten nu in Library.
+
 ## [6.5.12] - 2026-07-30
 ### Fixed
 - **Login screen showed a generic "network error" for every kind of login problem**: it's now able to tell you when the server itself is unreachable, versus when the server responded but the login didn't succeed.

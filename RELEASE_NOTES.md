@@ -11,6 +11,16 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.48 (2026-07-31)
+### 🐞 Drie dingen op de Ultrasonic-startpagina werkten niet
+- **Een artiest aantikken leverde niets op.** De carrousels bevatten ook remixers en gastartiesten
+  zonder eigen albums; die hebben nu eenmaal een leeg detailscherm. Er staan nu alleen nog artiesten
+  met eigen releases in.
+- **Een label aantikken leverde niets op.** De labels kwamen uit een andere tabel dan waarop
+  gefilterd wordt, dus zoeken op zo'n naam gaf nul resultaten. Beide gebruiken nu dezelfde bron.
+- **Artiestafbeeldingen** worden weer onder de juiste sleutel en op groot formaat opgehaald, zodat
+  ze gedeeld worden met de rest van de app in plaats van bij elke weergave opnieuw geladen.
+
 ## Global Version 0.0.47 (2026-07-31)
 ### 📚 Bladeren kan weer: nieuwe Library-tab in Ultrasonic
 - In 0.0.46 verdween met de filterknoppen op de startpagina ook de enige ingang naar filter-

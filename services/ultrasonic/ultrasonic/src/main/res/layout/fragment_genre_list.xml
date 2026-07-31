@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+    xmlns:a="http://schemas.android.com/apk/res/android"
+    a:id="@+id/genre_refresh"
+    a:layout_width="match_parent"
+    a:layout_height="match_parent"
+    a:background="@color/spotify_black">
+
+    <androidx.recyclerview.widget.RecyclerView
+        a:id="@+id/genre_recycler"
+        a:layout_width="match_parent"
+        a:layout_height="match_parent"
+        a:clipToPadding="false"
+        a:paddingHorizontal="10dp"
+        a:paddingTop="8dp"
+        a:paddingBottom="80dp" />
+
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

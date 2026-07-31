@@ -11,6 +11,22 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.47 (2026-07-31)
+### 📚 Bladeren kan weer: nieuwe Library-tab in Ultrasonic
+- In 0.0.46 verdween met de filterknoppen op de startpagina ook de enige ingang naar filter-
+  afspeellijsten, genres, de albumlijst en de artiestenlijst. Een filter-afspeellijst maken kon
+  daardoor helemaal niet meer. Dat is hersteld.
+- Onderin staat nu een **Library**-tab met vijf schuifbare pagina's: Playlists (je filter-
+  afspeellijsten, inclusief nieuwe maken), Genres, Artiesten, Opgeslagen afspeellijsten en Albums.
+- De onderbalk bestaat nog uit drie knoppen: Home, Library en Favorieten. Zoeken is eruit omdat het
+  zoekveld al bovenin de balk zit; je opgeslagen afspeellijsten zitten nu in Library.
+
+### ⭐ De Favorieten-tab toont weer echte favorieten
+- Die tab liet sinds 0.0.46 gewoon een kopie van de startpagina zien, omdat hij werkte door een
+  filterknop aan te vinken die niet meer bestond.
+- Nu staan er je albums en artiesten met een ster, plus alles wat je vier sterren of hoger gaf.
+  Tik je op zo'n nummer, dan speelt het meteen.
+
 ## Global Version 0.0.46 (2026-07-31)
 ### 🏠 De Ultrasonic-startpagina is opnieuw opgebouwd
 - Bovenaan staat nu een raster met de acht dingen die je het laatst geopend hebt: albums, artiesten,

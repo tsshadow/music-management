@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.16] - 2026-07-31
+
 ### Added
 - **Library tab**: one place for everything you browse by type — dynamic playlists, genres,
   artists, saved playlists and albums — as swipeable pages under a tab strip.

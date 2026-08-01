@@ -50,7 +50,7 @@ export async function apiGet(API_BASE, path, filters, getHeaders, extra = {}) {
   try {
     res = await fetch(url, { headers: getHeaders() });
   } catch (err) {
-    throw new Error(`Server niet bereikbaar (${path}).`);
+    throw new Error(`Server niet bereikbaar (${path}).`, { cause: err });
   }
   if (!res.ok) {
     const detail = await res.text().catch(() => '');

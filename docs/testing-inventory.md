@@ -47,7 +47,10 @@
 ### frontend (Svelte + Vite)
 - Build: `npm run build` (Vite)
 - Start (dev): `npm run dev` (port 5173, proxy to `/api`→8000, `/rest`+`/muma`→5082, targets overridable via `VITE_API_TARGET`/`VITE_LMS_TARGET`)
-- Test: **no unit test tool configured** (no vitest/jest in `package.json`) — gap vs. Phase 5.1
+- Test: Vitest (jsdom) via `npm run test:unit` / `npm run coverage`, sources in `tests/unit/` (`store`,
+  `downloaderTiming`, `genreCuration`); browser smoke test in `tests/browser/` via Playwright. Run in CI by
+  `scripts/test/frontend-unit.sh` (lint + `svelte-check` + coverage) and `scripts/test/frontend-browser.sh`.
+  Component rendering is not covered yet: the unit tests target the plain-JS modules the components delegate to
 - Lint: `npm run lint` (`oxlint` + `eslint`), format: `npm run format` (`oxfmt`), typecheck: `npm run check` (`svelte-check`)
 - Dockerfile: first build stage of `services/music-management-server/Dockerfile-release` (`node:24-alpine`) — frontend has no own Dockerfile under `docker/`
 
@@ -105,7 +108,8 @@ These gaps are **not resolved in this step** (per Task 1: inventory only, no pro
 
 ## Open questions / follow-ups for later steps
 1. LMS: confirm that the existing `ctest` suite actually passes locally on the current commit (Phase 2.1) — not yet run.
-2. Frontend: no unit test tool is configured; one needs to be chosen (e.g. Vitest) in Phase 5.
+2. Frontend: Vitest is in place; what is still missing is component-level rendering coverage
+   (`@testing-library/svelte` is installed but unused).
 3. The pre-commit hook mentioned in `AGENTS.md` was not found as a file — needs verification.
 4. Downloader tests that may perform real external calls need to be mocked for CI (Phase 3.2).
 5. `ml-analyzer` has no visible tests and its compose service is disabled — a scope decision is needed on whether it's included in Phases 1–3.

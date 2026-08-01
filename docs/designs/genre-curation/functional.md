@@ -25,6 +25,8 @@ made on the user's behalf.
   occur, so that a few decisions clean up most of the library.
 - As the library owner, I want my decisions to stick, so that the tagger never silently reverses them on a
   later run.
+- As the library owner, I want to make those decisions from the management UI rather than by calling the API,
+  so that curating the backlog is a few clicks per genre.
 
 ## Functional Flows
 
@@ -39,6 +41,10 @@ made on the user's behalf.
 | Owner approves or rejects a genre from the curation list | The decision is recorded against their name and applies from the next tagging run onwards |
 | Track carries an empty or whitespace-only genre | Genre is removed |
 | Two spellings of the same genre (`Raw Hardstyle`, `raw-hardstyle`) | Both resolve to the same rule; no duplicate entries in the curation list |
+| Owner opens the Genre Curation page | The unjudged queue is shown first, most frequent genre on top, with what each genre currently does to a tag |
+| Owner approves or rejects a genre from that page | The row disappears from the queue and the decision, with their name, shows up under the matching filter |
+| Owner corrects a genre from that page | They pick a target from the approved genres only, and the page states the genre will be replaced by it |
+| Owner changes their mind about a decided genre | The same actions are available on approved and rejected genres, so a decision can be reversed or turned into a correction |
 
 ## Acceptance Criteria
 
@@ -54,10 +60,16 @@ made on the user's behalf.
    automatic run.
 8. Genres approved, rejected or queued before this change keep their meaning afterwards; nothing that was
    already curated has to be curated again.
+9. The management UI has a Genre Curation page that opens on the unjudged queue and can be switched to the
+   approved, rejected and complete lists.
+10. Every row states in words what the genre currently does to a tag, so no knowledge of the state model is
+    needed to curate.
+11. A correction can only point at an approved genre, and never at the genre being decided.
+12. The page says that decisions take effect from the next tagging run, so nobody expects existing files to
+    change immediately.
 
 ## Open Questions / Not Yet Decided
 
-- The curation list is exposed over the API only; the frontend review screen is not part of this change.
 - Existing tracks are not re-tagged automatically after a decision — that requires a re-tag run, which is
   triggered manually for now.
 - `library_track_genres` still has an unused `weight` column, and machine-learning genre predictions still

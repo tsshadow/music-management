@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.55] - 2026-08-01
+
 ### Added
 - **Radio mode (beta): one server-owned programme, any number of listeners in sync.** The server
   publishes a timeline of tracks with absolute `started_at` timestamps and a scheduler keeps it

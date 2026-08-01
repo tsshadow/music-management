@@ -11,6 +11,10 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+### 🔗 Knoppen op "Over" wezen naar de verkeerde site
+- "Website openen" en "Bug melden" openden nog de pagina's van het originele Ultrasonic-project.
+  Ze gaan nu naar muma.example.com en naar de issue-tracker van dit project zelf.
+
 ## Global Version 0.0.56 (2026-08-01)
 
 ### 🐛 Instellingen crashte de app

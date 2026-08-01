@@ -512,8 +512,8 @@
     <string name="about.webpage">Visit webpage</string>
     <string name="about.report">Report a bug</string>
     <string name="about.text">This is a highly custom application, designed to work with the muma/lms stack.\n\nBenefits of this stack include more control over your searches and automatic filters based on genre.</string>
-    <string name="about.webpage.url" translatable="false">https://ultrasonic.gitlab.io/</string>
-    <string name="about.report.url" translatable="false">https://gitlab.com/ultrasonic/ultrasonic/issues</string>
+    <string name="about.webpage.url" translatable="false">https://muma.example.com</string>
+    <string name="about.report.url" translatable="false">https://gitlab.example.com/muma/music-management/-/issues</string>
 
     <string name="welcome_morning">Good morning</string>
     <string name="welcome_afternoon">Good afternoon</string>

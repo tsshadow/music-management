@@ -17,6 +17,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Every threshold is configurable, because what counts as good enough can only be judged from a report
   over the real library. No schema, tagger or UI change yet.
 
+## [0.0.53] - 2026-08-01
+
+### Fixed
+- **The genre curation migration never reached production.** `.gitignore` ignores `*.sql`, so
+  `migrate_genre_states.sql` was silently never committed and 0.0.52 ran against the old
+  `rules_genres` schema: the curation page errored and the tagger quietly stopped writing genres.
+  Root-level migrations are now exempt from the ignore rule, the file is committed as
+  `migrate_v3_genre_states.sql`, and `scripts/deploy.sh` globs `migrate_*.sql` so its naming rule
+  matches `.gitignore`'s exactly. See `docs/bug-reports/021-genre-migration-never-shipped.md`.
+- **The migration no longer aborts on genres that differ only in punctuation.** Production had the
+  same genre stored three times, which cannot coexist under the new unique key. It now merges them
+  itself — lowest id survives, artist, label, track and correction references are repointed — and
+  reports the count into the deploy log, instead of requiring a manual pre-check before an
+  unattended deploy.
+- **A failed database migration no longer reports a successful deploy.** The remote command ended
+  with `rm`, so its exit status masked the one from `mysql`.
+
 ## [0.0.52] - 2026-08-01
 
 ### Added
@@ -43,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to back: the first added an unknown genre to the backlog, the second accepted any genre found in
   that backlog. Every genre the tagger had ever seen therefore became valid, and the backlog only ever
   grew. Existing whitelist, ignore list and backlog entries are migrated to their equivalent state by
-  `migrate_genre_states.sql`.
+  `migrate_v3_genre_states.sql`.
 
 ## [0.0.51] - 2026-07-31
 

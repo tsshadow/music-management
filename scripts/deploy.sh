@@ -185,7 +185,12 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
     run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "BASE64_COMPOSE='$B64_DATA' BASE64_ENV='$B64_ENV' $DEPLOY_CMD"
 
     # 3. Database Migrations
-    for sql_file in "$PROJECT_ROOT"/migrate_v*.sql; do
+    # Glob is migrate_*.sql, matching the !migrate_*.sql exception in .gitignore
+    # exactly: one naming rule decides both what gets committed and what gets
+    # applied, so a migration can no longer be silently skipped by one of the two
+    # (see docs/bug-reports/021-genre-migration-never-shipped.md). Every match
+    # runs on every deploy, so migrations must be re-runnable.
+    for sql_file in "$PROJECT_ROOT"/migrate_*.sql; do
         if [ -f "$sql_file" ]; then
             fname=$(basename "$sql_file")
             echo "--- Executing database migration: $fname ---"
@@ -198,10 +203,17 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
                 MIGRATION_PASS="$MYSQL_ROOT_PASSWORD"
             fi
 
+            # mysql's exit status has to be captured explicitly: the remote
+            # command's status is that of its last line, so the trailing "rm"
+            # used to mask a failed migration and the deploy reported success
+            # while the schema had aborted halfway. See
+            # docs/bug-reports/021-genre-migration-never-shipped.md.
             REMOTE_MIGRATE_CMD="
                 echo '$B64_SQL' | base64 -d > /tmp/migration.sql
-                docker exec -i music-management-db-1 mysql -u \"$MIGRATION_USER\" -p\"$MIGRATION_PASS\" \"$DB_DB\" < /tmp/migration.sql
-                rm /tmp/migration.sql
+                migration_status=0
+                docker exec -i music-management-db-1 mysql -u \"$MIGRATION_USER\" -p\"$MIGRATION_PASS\" \"$DB_DB\" < /tmp/migration.sql || migration_status=\$?
+                rm -f /tmp/migration.sql
+                exit \$migration_status
             "
             run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "$REMOTE_MIGRATE_CMD"
         fi

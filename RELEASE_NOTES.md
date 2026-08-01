@@ -11,6 +11,16 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.53 (2026-08-01)
+
+### 🔧 Genre Curatie werkt nu ook echt in productie
+- De databasewijziging die bij 0.0.52 hoorde, is nooit meegeleverd: een regel in `.gitignore` hield
+  alle `.sql`-bestanden tegen, dus de migratie stond wel lokaal maar nooit in de repository.
+  Productie draaide daardoor nieuwe code op de oude databasestructuur, waardoor het
+  Genre Curatie-scherm een foutmelding gaf en de tagger stilletjes geen genres meer wegschreef.
+- De migratie wordt nu meegeleverd en bij de eerstvolgende deploy automatisch uitgevoerd. Je
+  bestaande witte lijst, negeerlijst en backlog krijgen daarbij alsnog hun status.
+
 ## Global Version 0.0.52 (2026-08-01)
 
 ### 🎵 Genres: goedgekeurd, geweigerd of nog te beoordelen

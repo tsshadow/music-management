@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Library Browser, replacing the Library, Advanced Library and Statistics tabs.** One view over the
+  collection with facet filters for genre, label, artist, BPM range and release year that intersect,
+  distributions that follow the active filter, and a header reporting how much of the current selection
+  actually has BPM, genre and artist data — so a thin histogram is not mistaken for a thin collection.
+- **`/api/analytics` endpoints for filtered aggregations:** summary with data coverage, genre
+  distribution, BPM and release-year histograms, top artists, top labels, and artist type-ahead. The
+  path names the metric and the query parameters name the scope, so an artist's BPM spread is
+  `bpm-histogram?artist=X` rather than a new endpoint. A later player page can reuse them unchanged.
+- **The scanner now indexes genres from file tags into `library_track_genres`.** It already read every
+  file's tags for artist, label, title and duration and simply skipped genre, although
+  `BaseSong.genres()` returns it — which is why LMS knew genres the management UI did not. Resolution
+  goes through `GenreRulesHelper`, so approved genres index under their curated name, rejected ones are
+  dropped, and genres awaiting curation index under their raw name and are grouped separately in the
+  sidebar.
+
+### Fixed
+- **`/api/library/advanced` returned HTTP 500 for every request.** It selected `musical_key`, `energy`,
+  `danceability`, `valence` and `popularity`, none of which exist in the database: `db_init.py` lists
+  them in a `CREATE TABLE IF NOT EXISTS` that is a no-op against an existing table, and no `ALTER TABLE`
+  exists anywhere. The frontend never checked `res.ok`, so that failure rendered as "no tracks found" —
+  which is how a completely broken page stayed invisible. The columns are removed rather than added,
+  since nothing writes them.
+- **`/api/library/genres` always returned an empty list**, because it joined `rules_genres` against
+  `library_track_genres`, a table with no rows. The genre sidebar was therefore always empty and the
+  genre filter always matched nothing.
+- **`library_track_genres` was never created on a fresh database.** Its `CREATE` names a foreign key to
+  `rules_genres` but ran before that table existed, and the failure was swallowed by a debug-level
+  `except`. It survived in production only because an older migration had created it.
+- **The duration column in the track list always showed `-`.** The frontend rendered
+  `track.duration_secs`, which the query never selected.
+
+### Changed
+- **Popular genres now count curated genres instead of machine-learning predictions**, so the figures on
+  Overview change. `top_genres` previously unioned `library_track_genres` with `ml_genre`, which was
+  harmless only while the first table was empty; once it has rows, a track carrying the same genre in
+  its tag and its prediction would be counted twice.
+- **Dynamic playlist previews match more tracks**, since their genre rules no longer fall back to
+  machine-learning predictions alone. This affects the preview in the web UI only; Ultrasonic resolves
+  its playlists elsewhere.
+
+### Migration
+- Run `POST /api/scanner/scan/all?force=true` once after deploying, to populate `library_track_genres`
+  for the existing library. The scanner skips files whose size and modification time are unchanged, so
+  without the forced run only files touched later get genres. Genre coverage in the browser header
+  shows the progress; before the scan it reads 0%.
+
 ## [0.0.54] - 2026-08-01
 
 ### Fixed

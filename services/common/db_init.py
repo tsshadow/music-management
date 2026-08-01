@@ -4,8 +4,13 @@ REQUIRED_TABLES = [
     'downloads_soundcloud_accounts', 'downloads_soundcloud_archive', 
     'downloads_youtube_accounts', 'downloads_youtube_archive', 
     'library_artists', 'library_labels', 'library_tracks', 'library_media_files',
-    'library_track_artists', 'library_track_genres', 'library_track_labels',
-    'rules_genres', 'rules_artist_genres', 'rules_label_genres', 
+    'library_track_artists', 'library_track_labels',
+    # rules_genres must precede library_track_genres: the latter carries a foreign
+    # key to it, and MariaDB rejects a CREATE naming a table that does not exist
+    # yet. The failure was swallowed by the debug-level except below, so on a fresh
+    # database library_track_genres was silently never created.
+    'rules_genres', 'library_track_genres',
+    'rules_artist_genres', 'rules_label_genres',
     'rules_artist_genre', 'rules_label_genre', 'rules_catid_label', 
     'rules_festival_data', 'rules_ignored_artists', 'rules_ignored_genres', 
     'rules_subgenre_hierarchy', 'rules_genre_backlog', 'rules_genre_expansions',

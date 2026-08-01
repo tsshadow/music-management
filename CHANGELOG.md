@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   playlists you starred. A genre plays straight from the folder instead of asking for a year and a
   sort order first. The folder is hidden when there is nothing in it.
 
+### Changed
+- **Ultrasonic: the default tiles on Songs/Livesets are era tiles now.** The eight tiles that
+  filtered on a single genre added nothing next to the genre list, which gets you the same result on
+  its own. In their place three combinations the genre list cannot express in one go: Hardstyle
+  Classics (Mainstream Hardstyle, 2009-2017), Millennium Hardcore (Mainstream Hardcore, 2010-2015)
+  and Early Uptempo (Uptempo Hardcore, 2012-2017), each in random order. Existing installs keep the
+  tiles they already have.
+
 ## [0.0.54] - 2026-08-01
 
 ### Fixed

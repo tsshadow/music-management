@@ -21,6 +21,31 @@
     app:layout_constraintTop_toTopOf="@+id/sort_order_menu"
     tools:layout_height="match_parent">
 
+    <com.google.android.material.textfield.TextInputLayout
+        a:id="@+id/search_field_layout"
+        style="@style/Widget.Material3.TextInputLayout.FilledBox"
+        a:layout_width="0dp"
+        a:layout_height="wrap_content"
+        a:layout_marginHorizontal="8dp"
+        a:hint="@string/filter_search_hint"
+        a:visibility="gone"
+        app:endIconMode="clear_text"
+        app:startIconDrawable="@drawable/ic_menu_search"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.google.android.material.textfield.TextInputEditText
+            a:id="@+id/search_field"
+            a:layout_width="match_parent"
+            a:layout_height="wrap_content"
+            a:imeOptions="actionSearch"
+            a:inputType="text"
+            a:maxLines="1"
+            a:singleLine="true" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
     <com.google.android.material.chip.Chip
         a:id="@+id/chip_view_toggle"
         a:layout_width="wrap_content"
@@ -33,7 +58,7 @@
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintHorizontal_chainStyle="spread_inside"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@+id/search_field_layout" />
 
 
     <com.google.android.material.textfield.TextInputLayout
@@ -55,7 +80,7 @@
         app:layout_constraintHorizontal_bias="1"
         app:layout_constraintHorizontal_chainStyle="spread_inside"
         app:layout_constraintStart_toEndOf="@+id/chip_view_toggle"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/search_field_layout"
         >
 
         <androidx.appcompat.widget.AppCompatAutoCompleteTextView

@@ -466,6 +466,7 @@
     <string name="update">Bijwerken</string>
     <string name="edit_filter_title">Filter bewerken</string>
     <string name="new_filter_title">Nieuwe filter</string>
+    <string name="filter_search_hint">Zoeken</string>
     <string name="result_count_format">Aantal nummers: %1$d</string>
     <string name="filters_title">Filters</string>
     <string name="result_count">Aantal resultaten</string>

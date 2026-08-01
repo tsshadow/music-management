@@ -613,6 +613,7 @@
     <string name="update">Update</string>
     <string name="edit_filter_title">Edit filter</string>
     <string name="new_filter_title">New filter</string>
+    <string name="filter_search_hint">Search</string>
     <string name="result_count_format">Number of tracks: %1$d</string>
     <string name="filters_title">Filters</string>
     <string name="result_count">Result count</string>

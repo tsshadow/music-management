@@ -93,6 +93,14 @@ namespace lms::db
             if (params.releaseArtistsOnly)
                 query.join("release_artist_link r_a_l ON r_a_l.artist_id = a.id");
 
+            // Left join (not join) so artists with no releases still appear in a ReleaseCountDesc-sorted
+            // result, sorting last with a count of 0, instead of vanishing from the list entirely.
+            // Uses a distinct alias from the "release_artist_link r_a_l" join above: params.releaseArtistsOnly
+            // and ArtistSortMethod::ReleaseCountDesc can be set at the same time, and reusing the same alias
+            // for both an INNER and a LEFT join of the same table in one query would be invalid SQL.
+            if (params.sortMethod == ArtistSortMethod::ReleaseCountDesc)
+                query.leftJoin("release_artist_link r_a_l_sort ON r_a_l_sort.artist_id = a.id");
+
             if (params.filters.mediaLibrary.isValid())
             {
                 query.where(
@@ -184,6 +192,9 @@ namespace lms::db
                 break;
             case ArtistSortMethod::TrackCountDesc:
                 query.orderBy("COUNT(t_a_l.track_id) DESC, a.sort_name");
+                break;
+            case ArtistSortMethod::ReleaseCountDesc:
+                query.orderBy("COUNT(DISTINCT r_a_l_sort.release_id) DESC, a.sort_name");
                 break;
             case ArtistSortMethod::StarredDateDesc:
                 assert(params.starringUser.isValid());

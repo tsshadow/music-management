@@ -52,6 +52,7 @@ namespace lms::db
         AddedDesc,
         StarredDateDesc,
         TrackCountDesc,
+        ReleaseCountDesc,
         Relevance,
     };
 

@@ -1149,4 +1149,59 @@ namespace lms::db::tests
             EXPECT_EQ(lastRetrievedArtist, artistA.getId());
         }
     }
+
+    TEST_F(DatabaseFixture, Artist_sortReleaseCountDesc)
+    {
+        ScopedArtist artistA{ session, "artistA" };
+        ScopedArtist artistB{ session, "artistB" };
+        ScopedArtist artistC{ session, "artistC" };
+
+        ScopedRelease releaseA1{ session, "releaseA1" };
+        ScopedRelease releaseA2{ session, "releaseA2" };
+        ScopedRelease releaseB1{ session, "releaseB1" };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.create<ReleaseArtistLink>(releaseA1.get(), artistA.get(), false);
+            session.create<ReleaseArtistLink>(releaseA2.get(), artistA.get(), false);
+            session.create<ReleaseArtistLink>(releaseB1.get(), artistB.get(), false);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            const auto artists{ Artist::findIds(session, Artist::FindParameters{}.setSortMethod(ArtistSortMethod::ReleaseCountDesc)) };
+            ASSERT_EQ(artists.results.size(), 3);
+            EXPECT_EQ(artists.results[0], artistA.getId());
+            EXPECT_EQ(artists.results[1], artistB.getId());
+            EXPECT_EQ(artists.results[2], artistC.getId());
+        }
+    }
+
+    TEST_F(DatabaseFixture, Artist_sortReleaseCountDescTieBreak)
+    {
+        ScopedArtist artistA{ session, "artistA" };
+        ScopedArtist artistB{ session, "artistB" };
+
+        ScopedRelease releaseA1{ session, "releaseA1" };
+        ScopedRelease releaseB1{ session, "releaseB1" };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.create<ReleaseArtistLink>(releaseA1.get(), artistA.get(), false);
+            session.create<ReleaseArtistLink>(releaseB1.get(), artistB.get(), false);
+
+            // artistB was created after artistA, but must sort first once sort_name is set explicitly:
+            // proves the tie-break comes from a.sort_name, not from insertion/id order.
+            artistA.get().modify()->setSortName("zArtist");
+            artistB.get().modify()->setSortName("aArtist");
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            const auto artists{ Artist::findIds(session, Artist::FindParameters{}.setSortMethod(ArtistSortMethod::ReleaseCountDesc)) };
+            ASSERT_EQ(artists.results.size(), 2);
+            EXPECT_EQ(artists.results[0], artistB.getId());
+            EXPECT_EQ(artists.results[1], artistA.getId());
+        }
+    }
 } // namespace lms::db::tests

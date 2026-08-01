@@ -24,6 +24,7 @@
 #include "core/ILogger.hpp"
 #include "core/Random.hpp"
 #include "core/Service.hpp"
+#include "core/String.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Artist.hpp"
 #include "database/objects/ArtistInfo.hpp"
@@ -629,7 +630,9 @@ namespace lms::api::subsonic
         artistsNode.setAttribute("lastModified", reportedDummyDateULong); // TODO: proper lastModified?
 
         Artist::FindParameters parameters;
-        std::vector<std::string_view> keywords;
+        // Backs the keywords below: FindParameters::keywords holds string_views into it, so it
+        // must outlive every Artist::find call made with these parameters.
+        const std::vector<std::string_view> keywords{ query.empty() ? std::vector<std::string_view>{} : core::stringUtils::splitString(query, ' ') };
         {
             auto transaction{ context.getDbSession().createReadTransaction() };
 
@@ -648,11 +651,8 @@ namespace lms::api::subsonic
         }
         parameters.filters.setMediaLibrary(mediaLibrary);
         parameters.setRange(Range{ offset, count });
-        if (!query.empty())
-        {
-            keywords.push_back(query);
+        if (!keywords.empty())
             parameters.setKeywords(keywords);
-        }
 
         // This endpoint does not scale: make short lived transactions in order not to block the whole application
 
@@ -739,12 +739,11 @@ namespace lms::api::subsonic
         params.filters.setMediaLibrary(mediaLibrary);
         params.setRange(Range{ offset, count });
 
-        std::vector<std::string_view> keywords;
-        if (!query.empty())
-        {
-            keywords.push_back(query);
+        // Backs the keywords below: FindParameters::keywords holds string_views into it, so it
+        // must outlive every Artist::find call made with these parameters.
+        const std::vector<std::string_view> keywords{ query.empty() ? std::vector<std::string_view>{} : core::stringUtils::splitString(query, ' ') };
+        if (!keywords.empty())
             params.setKeywords(keywords);
-        }
 
         if (role == "release")
             params.setReleaseArtistsOnly(true);

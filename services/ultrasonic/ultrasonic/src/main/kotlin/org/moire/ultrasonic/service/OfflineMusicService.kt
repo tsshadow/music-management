@@ -572,6 +572,9 @@ class OfflineMusicService :
     @Throws(OfflineException::class)
     override fun getStreamUrl(id: String, maxBitRate: Int?, format: String?): String? = throw OfflineException("getStreamUrl isn't available in offline mode")
 
+    override fun getTranscodedStreamUrl(id: String, maxBitRate: Int?, format: String?, timeOffset: Int?): String? =
+        throw OfflineException("getTranscodedStreamUrl isn't available in offline mode")
+
     @Throws(OfflineException::class)
     override fun getChatMessages(since: Long?): List<ChatMessage?>? = throw OfflineException("getChatMessages isn't available in offline mode")
 

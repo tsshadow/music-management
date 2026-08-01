@@ -368,6 +368,9 @@ class CachedMusicService(private val musicService: MusicService) :
     @Throws(Exception::class)
     override fun getStreamUrl(id: String, maxBitRate: Int?, format: String?): String? = musicService.getStreamUrl(id, maxBitRate, format)
 
+    override fun getTranscodedStreamUrl(id: String, maxBitRate: Int?, format: String?, timeOffset: Int?): String? =
+        musicService.getTranscodedStreamUrl(id, maxBitRate, format, timeOffset)
+
     override fun isJukeboxAvailable(): Boolean = musicService.isJukeboxAvailable()
 
     @Throws(Exception::class)

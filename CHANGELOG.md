@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.54] - 2026-08-01
+
 ### Added
 - **A genre can now be corrected to more than one genre.** Contractions expand instead of being thrown
   away: `Upterror` becomes `Uptempo Hardcore` plus `Terror`. Targets live in the new

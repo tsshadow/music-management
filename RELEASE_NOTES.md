@@ -11,6 +11,8 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.54 (2026-08-01)
+
 ### 🔀 Genres met een schuine streep worden nu gesplitst
 - `Hardstyle/Hardcore` telde tot nu toe als één genre. Dat wordt nu netjes twee losse genres, die elk
   hun eigen status krijgen. Combinaties komen daardoor niet meer in je beoordeellijst terecht — die

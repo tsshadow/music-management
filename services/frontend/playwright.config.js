@@ -15,7 +15,9 @@ const devServerUrl = `http://localhost:${devServerPort}`;
 
 export default defineConfig({
   testDir: "./tests/browser",
-  timeout: 30_000,
+  // Generous, because the first test in a run waits out Vite's cold-start
+  // pre-bundling before anything renders; per-assertion timeouts stay tight.
+  timeout: 60_000,
   retries: 0,
   reporter: [["list"]],
   use: {

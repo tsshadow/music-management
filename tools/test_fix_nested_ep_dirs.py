@@ -9,6 +9,7 @@ from tools.fix_nested_ep_dirs import (
     Case,
     DbCleaner,
     Executor,
+    auto_answer,
     classify,
     find_cases,
     list_files,
@@ -319,6 +320,33 @@ class CaseRenderTest(unittest.TestCase):
         self.assertIn('/EPs/L/EP', text)
         self.assertIn('* 02.mp3', text)
         self.assertIn(PARTIAL, text)
+
+
+class AutoAnswerTest(unittest.TestCase):
+    """The rule a human run always ended up applying: delete when the inner folder adds
+    nothing, otherwise lift the files it does add and drop the rest."""
+
+    @staticmethod
+    def case(action, outer_files, inner_files):
+        return Case(
+            outer='/EPs/L/EP',
+            inner='/EPs/L/EP/EP',
+            outer_files=outer_files,
+            inner_files=inner_files,
+            action=action,
+        )
+
+    def test_deletes_when_inner_holds_nothing_new(self):
+        case = self.case(DELETE_DUP, ['01.mp3'], ['01.mp3'])
+        self.assertEqual(auto_answer(case), 'd')
+
+    def test_merges_partial_because_the_duplicates_would_clash(self):
+        case = self.case(PARTIAL, ['01.mp3'], ['01.mp3', '02.mp3'])
+        self.assertEqual(auto_answer(case), 'm')
+
+    def test_merges_move_up_case(self):
+        case = self.case(MOVE_UP, ['cover.jpg'], ['01.mp3'])
+        self.assertEqual(auto_answer(case), 'm')
 
 
 if __name__ == '__main__':

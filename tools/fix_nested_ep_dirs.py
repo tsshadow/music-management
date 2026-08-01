@@ -61,6 +61,10 @@ WHAT YOU CAN ANSWER
   s   skip this case, change nothing
   q   quit; everything already handled stays handled
 
+  --auto answers every case the way a hand run ends up answering anyway: d when the inner
+  folder shows no * at all, m when it does. Combine with --dry-run to see the answers
+  first.
+
 RULES
   Scanning the whole music mount takes minutes. Every hit is printed under its label
   while the scan runs, so use --label to look at one label straight away.
@@ -320,6 +324,16 @@ PROMPTS = {
 }
 
 
+def auto_answer(case: Case) -> str:
+    """The answer a human run always ended up giving, for --auto.
+
+    No unique inner file means the inner folder holds nothing the outer one lacks, so it
+    goes. Otherwise the unique files are lifted up and the rest is dropped: moving the
+    duplicates too would only clash on their own names and keep the inner folder alive.
+    """
+    return 'm' if case.unique_inner_files else 'd'
+
+
 def ask(case: Case, read: Callable[[str], str] = input) -> str:
     allowed, prompt = PROMPTS[case.action]
     while True:
@@ -364,6 +378,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument('--eps-root', help='EPs root directory (default: eps_folder_path from config)')
     parser.add_argument('--label', help='Only scan this label directory (the music mount is slow)')
     parser.add_argument('--dry-run', action='store_true', help='Classify and print, change nothing')
+    parser.add_argument(
+        '--auto',
+        action='store_true',
+        help='Answer every case without asking: delete the inner folder when it holds nothing '
+             'new, otherwise move its unique files up and delete the rest',
+    )
     parser.add_argument('--report', default='fix_nested_ep_dirs_report.txt', help='Where to write the report')
     args = parser.parse_args(argv)
 
@@ -392,8 +412,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(case.describe())
         if args.dry_run:
             handled['skipped'] += 1
+            if args.auto:
+                print(f'  auto would answer: {auto_answer(case)}')
             continue
-        answer = ask(case)
+        answer = auto_answer(case) if args.auto else ask(case)
+        if args.auto:
+            print(f'  auto: {answer}')
         if answer == 'q':
             print('Quitting.')
             break

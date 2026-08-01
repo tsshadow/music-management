@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from services.music_manager.database import get_db_connection
-from services.music_manager.routers import users, scrobbler, rating, stats, management, artist_images, notifications, library, tagger, scanner, jobs, config, user_requests, downloaders, diagnostics
+from services.music_manager.routers import users, scrobbler, rating, stats, management, artist_images, notifications, library, analytics, tagger, scanner, jobs, config, user_requests, downloaders, diagnostics
 from services.music_manager.routers.users import run_lms_db_sync
 from services.music_manager.routers.tagger import run_tagger_loop
 from services.music_manager.routers.scanner import run_scanner_loop
@@ -28,6 +28,7 @@ app.include_router(stats.router, prefix="/api/stats")
 app.include_router(management.router, prefix="/api")
 app.include_router(artist_images.router, prefix="/api/artists")
 app.include_router(library.router, prefix="/api/library")
+app.include_router(analytics.router, prefix="/api/analytics")
 app.include_router(notifications.router, prefix="/api/notifications")
 app.include_router(tagger.router, prefix="/api/tagger")
 app.include_router(scanner.router, prefix="/api/scanner")

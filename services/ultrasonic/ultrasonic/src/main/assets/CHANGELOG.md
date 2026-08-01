@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Radio (beta) in Android Auto.** A "Radio" entry in the car's browse tree lists the channels the
+  server offers; picking one tunes into a shared programme that is already playing, mid-track, in
+  sync with everyone else listening. The server owns the timeline, so the app measures its clock
+  offset against the server and corrects drift with a small playback-rate nudge rather than
+  stuttering seeks. Skip and seek are removed from the player commands while a channel is on air, so
+  the car greys them out instead of letting a tap fight the sync loop.
+
 ## [6.5.20] - 2026-07-31
 
 ### Added

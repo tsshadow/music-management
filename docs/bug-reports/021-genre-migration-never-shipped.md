@@ -44,6 +44,43 @@ put the change into production.
   exception exactly — one naming rule now decides both what gets committed and what gets applied,
   rather than two rules that can disagree.
 
+# Follow-up: the migration then aborted halfway on real data
+
+Once shipped in 0.0.53, the migration ran on production and failed:
+
+```
+ERROR 1062 (23000) at line 47: Duplicate entry 'hardcore frenchcore hardmusic'
+for key 'uq_rules_genres_normalized_name'
+```
+
+Production had several `rules_genres` rows differing only in punctuation — the same genre stored
+three times — which cannot coexist under the new unique key on the normalized name. The migration
+had been verified against seeded data covering the *semantic* edge cases (a genre both whitelisted
+and ignored, a correction target without its own row, a backlog entry also ignored) but not against
+duplicate spellings, which only real data had.
+
+That left production half-migrated: the columns existed and every legacy row was `white`, but no
+unique index, and the ignore list, backlog and corrections were not folded in. The curation page
+worked again, while previously-ignored genres were no longer dropped, and `record_unknown` lost the
+unique key it relies on to count sightings instead of inserting a new row each time.
+
+**Worse, `deploy:prod` reported success.** The remote migration command ended with `rm
+/tmp/migration.sql`, so the shell returned *that* status and the failed `mysql` was masked.
+
+Both are fixed on `release/0.0.53`:
+
+- The migration merges colliding rows itself instead of aborting: the lowest id survives, references
+  in `rules_artist_genres`, `rules_label_genres`, `library_track_genres` and `canonical_id` are
+  repointed (dropping rows that would then violate the child table's own unique key), a correction
+  the survivor lacks is kept, and the merge count is printed into the deploy log. It runs unattended
+  on every deploy, so requiring a manual pre-check was never a real option.
+- `scripts/deploy.sh` captures `mysql`'s exit status explicitly and exits with it.
+
+Verified against MariaDB 10.6 seeded with the production collision, including one artist, label and
+track attached to two colliding genres at once: a clean run merges and completes, a second run is a
+no-op with identical counts, and a run against a database left in production's exact half-migrated
+state recovers to the same end state.
+
 # Notes for later
 - Migrations run in step 3 of `scripts/deploy.sh`, *after* the containers are recreated in step 2.
   There is therefore a window on every deploy where new code talks to the old schema. It is short

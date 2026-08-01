@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Root-level migrations are now exempt from the ignore rule, the file is committed as
   `migrate_v3_genre_states.sql`, and `scripts/deploy.sh` globs `migrate_*.sql` so its naming rule
   matches `.gitignore`'s exactly. See `docs/bug-reports/021-genre-migration-never-shipped.md`.
+- **The migration no longer aborts on genres that differ only in punctuation.** Production had the
+  same genre stored three times, which cannot coexist under the new unique key. It now merges them
+  itself — lowest id survives, artist, label, track and correction references are repointed — and
+  reports the count into the deploy log, instead of requiring a manual pre-check before an
+  unattended deploy.
+- **A failed database migration no longer reports a successful deploy.** The remote command ended
+  with `rm`, so its exit status masked the one from `mysql`.
 
 ## [0.0.52] - 2026-08-01
 

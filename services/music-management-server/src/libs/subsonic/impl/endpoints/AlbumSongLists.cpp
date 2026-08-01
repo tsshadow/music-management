@@ -22,6 +22,7 @@
 #include <algorithm>
 
 #include "core/Service.hpp"
+#include "core/String.hpp"
 #include "database/Session.hpp"
 #include "database/Types.hpp"
 #include "database/objects/Artist.hpp"
@@ -62,9 +63,10 @@ namespace lms::api::subsonic
 
             const Range range{ offset, size };
 
-            std::vector<std::string_view> keywords;
-            if (!query.empty())
-                keywords.push_back(query);
+            // Backs the keywords below: FindParameters::keywords holds string_views into it, so it
+            // must outlive every find call made with these parameters (one per branch of the type
+            // chain below, all reusing this same keywords vector).
+            const std::vector<std::string_view> keywords{ query.empty() ? std::vector<std::string_view>{} : core::stringUtils::splitString(query, ' ') };
 
             RangeResults<ReleaseId> releases;
             scrobbling::IScrobblingService::ArtistFindParameters artistFindParams; // Dummy for now, but maybe use keywords there too?

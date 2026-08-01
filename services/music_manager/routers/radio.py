@@ -40,6 +40,29 @@ def init_db(cursor):
     )
 
 
+SCHEDULE_HORIZON_SECONDS = 600.0
+
+
+def plan_entries(existing_end, now: float, candidates: list, horizon: float = SCHEDULE_HORIZON_SECONDS) -> list:
+    """Lay candidates back-to-back on the timeline until `horizon` seconds past `now`.
+
+    `existing_end` is the `ends_at` of the last scheduled entry, or None when the
+    timeline is empty. If it lies in the past (the scheduler was down, or nobody
+    listened for a while) we resume from `now` rather than replaying history.
+    """
+    cursor = now if existing_end is None else max(existing_end, now)
+    entries = []
+    for candidate in candidates:
+        if cursor >= now + horizon:
+            break
+        entry = dict(candidate)
+        entry['started_at'] = cursor
+        entry['ends_at'] = cursor + candidate['duration_ms'] / 1000.0
+        entries.append(entry)
+        cursor = entry['ends_at']
+    return entries
+
+
 @router.get('/channels')
 def list_channels(_auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()

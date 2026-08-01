@@ -48,6 +48,48 @@ class RadioChannelsTest(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
 
 
+class PlanEntriesTest(unittest.TestCase):
+
+    def _candidate(self, track_id, seconds):
+        return {'track_id': track_id, 'title': 't', 'artist': 'a', 'album': 'b',
+                'cover_art': None, 'duration_ms': seconds * 1000}
+
+    def test_starts_at_now_when_timeline_is_empty(self):
+        from services.music_manager.routers import radio
+        entries = radio.plan_entries(None, 1000.0, [self._candidate('tr-1', 60)], horizon=30.0)
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0]['started_at'], 1000.0)
+        self.assertEqual(entries[0]['ends_at'], 1060.0)
+
+    def test_appends_back_to_back_after_existing_end(self):
+        from services.music_manager.routers import radio
+        entries = radio.plan_entries(1200.0, 1000.0, [self._candidate('tr-1', 60), self._candidate('tr-2', 30)], horizon=300.0)
+        self.assertEqual([e['started_at'] for e in entries], [1200.0, 1260.0])
+        self.assertEqual([e['ends_at'] for e in entries], [1260.0, 1290.0])
+
+    def test_restarts_at_now_when_timeline_has_fallen_behind(self):
+        from services.music_manager.routers import radio
+        entries = radio.plan_entries(500.0, 1000.0, [self._candidate('tr-1', 60)], horizon=30.0)
+        self.assertEqual(entries[0]['started_at'], 1000.0)
+
+    def test_stops_once_horizon_is_covered(self):
+        from services.music_manager.routers import radio
+        candidates = [self._candidate(f'tr-{i}', 60) for i in range(10)]
+        entries = radio.plan_entries(None, 0.0, candidates, horizon=100.0)
+        self.assertEqual(len(entries), 2)
+
+    def test_returns_nothing_when_horizon_already_covered(self):
+        from services.music_manager.routers import radio
+        entries = radio.plan_entries(2000.0, 1000.0, [self._candidate('tr-1', 60)], horizon=600.0)
+        self.assertEqual(entries, [])
+
+    def test_does_not_mutate_candidates(self):
+        from services.music_manager.routers import radio
+        candidate = self._candidate('tr-1', 60)
+        radio.plan_entries(None, 1000.0, [candidate], horizon=30.0)
+        self.assertNotIn('started_at', candidate)
+
+
 class RadioInitDbTest(unittest.TestCase):
 
     def test_init_db_creates_tables_and_seeds_default_channel(self):

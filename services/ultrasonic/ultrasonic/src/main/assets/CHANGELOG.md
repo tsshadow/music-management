@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.23] - 2026-08-01
+
+### Fixed
+- **The About screen still linked to upstream Ultrasonic.** "Visit webpage" opened
+  `ultrasonic.gitlab.io` and "Report a bug" opened `gitlab.com/ultrasonic/ultrasonic/issues`,
+  both inherited from the project this app was forked from. They now open
+  `https://muma.example.com` and this project's own issue tracker.
+
 ## [6.5.22] - 2026-08-01
 
 ### Fixed

@@ -196,6 +196,16 @@
       "pathPlaceholder": "E.g. /music/jazz",
       "subtitle": "Manage the folders the music server indexes. Scanning lives on the scanner tab."
     },
+    "library": {
+      "analysis": "Analysis",
+      "clearFilters": "Clear ({count})",
+      "coverage": "Coverage",
+      "filters": "Filters",
+      "inspector": "Inspector",
+      "searchPlaceholder": "Search title, artist, label or a BPM number... (Enter)",
+      "trackList": "Track list",
+      "tracks": "Tracks"
+    },
     "noAccess": "No access",
     "noAccessHelp": "This page is for administrators only. Log in with an account that has administrator rights to continue.",
     "notifications": {
@@ -265,6 +275,30 @@
       "userRequests": "Access requests",
       "users": "Users",
       "versions": "Versions"
+    },
+    "tagger": {
+      "active": "Active",
+      "addRuleFailed": "Could not add the rule.",
+      "artistLinks": "Artist links",
+      "assignGenre": "Assign genre",
+      "color": "Colour",
+      "confirmRescan": "Rescan every file? This can take a while.",
+      "deleteRuleFailed": "Could not delete the rule.",
+      "forceRescan": "FORCE FULL RESCAN",
+      "genreName": "Genre name",
+      "labelLinks": "Label links",
+      "linkArtist": "LINK ARTIST: {name}",
+      "linkLabel": "LINK LABEL: {name}",
+      "namePlaceholder": "Name...",
+      "pickGenre": "Pick genre",
+      "rescanFailed": "Could not trigger the rescan.",
+      "rescanTriggered": "Rescan triggered for all files.",
+      "ruleDeleted": "Rule deleted.",
+      "rules": "Rules",
+      "search": "Search",
+      "select": "Select...",
+      "subtitle": "Manage genres, artists and tag rules for your library.",
+      "title": "Tagger config"
     },
     "versions": {
       "externalRefs": "External references",

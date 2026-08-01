@@ -196,6 +196,16 @@
       "pathPlaceholder": "Bijv. /music/jazz",
       "subtitle": "Beheer de mappen die de muziekserver indexeert. Scannen doe je op het Scanner-tabblad."
     },
+    "library": {
+      "analysis": "Analyse",
+      "clearFilters": "Wis ({count})",
+      "coverage": "Dekking",
+      "filters": "Filters",
+      "inspector": "Inspector",
+      "searchPlaceholder": "Zoek titel, artiest, label of een BPM-getal... (Enter)",
+      "trackList": "Tracklijst",
+      "tracks": "Tracks"
+    },
     "noAccess": "Geen toegang",
     "noAccessHelp": "Alleen beheerders hebben toegang tot deze pagina. Log in met een account met beheerdersrechten om verder te gaan.",
     "notifications": {
@@ -265,6 +275,30 @@
       "userRequests": "Toegangsverzoeken",
       "users": "Gebruikers",
       "versions": "Versies"
+    },
+    "tagger": {
+      "active": "Actief",
+      "addRuleFailed": "Kon regel niet toevoegen.",
+      "artistLinks": "Artiest Koppelingen",
+      "assignGenre": "Genre Toewijzen",
+      "color": "Kleur",
+      "confirmRescan": "Weet je zeker dat je alle bestanden opnieuw wilt scannen? Dit kan even duren.",
+      "deleteRuleFailed": "Kon regel niet verwijderen.",
+      "forceRescan": "FORCEER VOLLEDIGE RESCAN",
+      "genreName": "Genrenaam",
+      "labelLinks": "Label Koppelingen",
+      "linkArtist": "KOPPEL ARTIEST: {name}",
+      "linkLabel": "KOPPEL LABEL: {name}",
+      "namePlaceholder": "Naam...",
+      "pickGenre": "Kies Genre",
+      "rescanFailed": "Kon rescan niet triggeren.",
+      "rescanTriggered": "Rescan voor alle bestanden getriggerd.",
+      "ruleDeleted": "Regel verwijderd.",
+      "rules": "Regels",
+      "search": "Zoeken",
+      "select": "Selecteer...",
+      "subtitle": "Beheer genres, artiesten en tag-regels voor je bibliotheek.",
+      "title": "Tagger Config"
     },
     "versions": {
       "externalRefs": "Externe Referenties",

@@ -150,6 +150,17 @@ class FindCasesTest(unittest.TestCase):
         self.assertEqual(len(cases), 1)
         self.assertIn('Sealand', cases[0].outer)
 
+    def test_reports_each_case_while_scanning(self):
+        """A slow mount takes minutes to walk; hits must show up before the walk ends."""
+        self.make('Scantraxx', 'SCAN123', 'SCAN123')
+        self.make('Sealand', 'SEA017', 'SEA017')
+        seen = []
+        find_cases(self.root, on_case=lambda case: seen.append((case.outer, len(seen))))
+        self.assertEqual([outer for outer, _ in seen], [
+            os.path.join(self.root, 'Scantraxx', 'SCAN123'),
+            os.path.join(self.root, 'Sealand', 'SEA017'),
+        ])
+
     def test_skips_eadir_at_both_levels(self):
         os.makedirs(os.path.join(self.root, '@eaDir'))
         outer = self.make('Scantraxx', 'SCAN123')

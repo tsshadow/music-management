@@ -62,6 +62,8 @@ WHAT YOU CAN ANSWER
   q   quit; everything already handled stays handled
 
 RULES
+  Scanning the whole music mount takes minutes. Every hit is printed under its label
+  while the scan runs, so use --label to look at one label straight away.
   Nothing is written before you press a key. Existing files are never overwritten: a
   name clash leaves that file where it is and keeps the inner folder alive. Every path
   that disappears from disk is removed from library_media_files,
@@ -175,11 +177,14 @@ def find_cases(
     eps_root: str,
     label: Optional[str] = None,
     on_progress: Optional[Callable[[str], None]] = None,
+    on_case: Optional[Callable[[Case], None]] = None,
 ) -> Tuple[List[Case], List[str]]:
     """Scan the EPs tree for inner directories named exactly like their parent.
 
     Returns the cases plus a list of oddities: differently named subdirectories that this
-    script refuses to touch.
+    script refuses to touch. `on_case` is called for every hit the moment it is found:
+    walking the whole music mount takes minutes, and a run that shows nothing until the
+    end looks like it found nothing.
     """
     cases: List[Case] = []
     oddities: List[str] = []
@@ -193,7 +198,10 @@ def find_cases(
             for sub_name in list_dirs(ep_path):
                 sub_path = os.path.join(ep_path, sub_name)
                 if sub_name == ep_name:
-                    cases.append(classify(ep_path, sub_path))
+                    case = classify(ep_path, sub_path)
+                    cases.append(case)
+                    if on_case:
+                        on_case(case)
                 else:
                     oddities.append(sub_path)
     return cases, oddities
@@ -366,7 +374,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 1
     print(f'Scanning {eps_root}' + (f' (label: {args.label})' if args.label else '') + ' ...')
 
-    cases, oddities = find_cases(eps_root, args.label, on_progress=lambda name: print(f'  {name}', flush=True))
+    cases, oddities = find_cases(
+        eps_root,
+        args.label,
+        on_progress=lambda name: print(f'  {name}', flush=True),
+        on_case=lambda case: print(f'    -> {case.action}  {os.path.basename(case.outer)}', flush=True),
+    )
     print(f'\nFound {len(cases)} nested EP folder(s), {len(oddities)} differently named subfolder(s).')
     if not cases and not oddities:
         return 0

@@ -14,6 +14,8 @@ import android.content.Context
 import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
+import org.koin.java.KoinJavaComponent.inject
+import org.moire.ultrasonic.api.subsonic.SubsonicAPIClient
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_FOLDER_PLAYLISTS
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_PLAYLIST
 import androidx.media3.common.util.UnstableApi
@@ -74,6 +76,10 @@ class MediaLibraryBrowser(
 ) : MediaLibraryBase() {
     val musicService: MusicService get() = musicServiceProvider()
     lateinit var dataProvider: MediaLibraryDataProvider
+
+    // Radio talks to the MuMa backend rather than the Subsonic API, so it needs
+    // the client that owns the /muma base URL and the API-key interceptor.
+    private val subsonicAPIClient: SubsonicAPIClient by inject(SubsonicAPIClient::class.java)
 
     /**
      * Called when a {@link MediaBrowser} requests the root {@link MediaItem} by {@link
@@ -231,6 +237,7 @@ class MediaLibraryBrowser(
 
         return when (action) {
             MEDIA_ROOT_ID -> getRootItems()
+            MEDIA_RADIO_ID -> getRadioChannelItems()
             MEDIA_LIBRARY_ID -> getLibraryItems()
             MEDIA_FAVORITES_ID -> getFavoriteItems()
             MEDIA_FAVORITE_GENRES_ID -> getFavoriteGenreItems()
@@ -452,6 +459,14 @@ class MediaLibraryBrowser(
             mediaType = MEDIA_TYPE_FOLDER_MIXED
         )
 
+        mediaItems.add(
+            R.string.main_radio_title,
+            MEDIA_RADIO_ID,
+            imageUri = Uri.parse("android.resource://$packageName/${R.drawable.ic_menu_podcasts}"),
+            isBrowsable = true,
+            mediaType = MEDIA_TYPE_FOLDER_MIXED
+        )
+
         // Both sources are local, so this stays a no-network call, and a Favorites folder that
         // leads nowhere never shows up in the car.
         if (favoriteGenres().isNotEmpty() || favoriteTiles().isNotEmpty()) {
@@ -468,6 +483,29 @@ class MediaLibraryBrowser(
             LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
         )
     }
+
+    /**
+     * Lists the radio channels the server offers. Each one is playable rather
+     * than browsable: a channel has no track list a user could pick from, only
+     * whatever the server's timeline says is on air right now.
+     */
+    private fun getRadioChannelItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
+        serviceScope.future {
+            val mediaItems: MutableList<MediaItem> = ArrayList()
+            val channels = callWithErrorHandling {
+                subsonicAPIClient.mumaApi.api.getRadioChannels().execute().body()?.channels
+            } ?: emptyList()
+
+            for (channel in channels) {
+                mediaItems.add(
+                    title = channel.name,
+                    mediaId = listOf(MEDIA_RADIO_ITEM, channel.slug).joinToString("|"),
+                    isBrowsable = false,
+                    mediaType = MEDIA_TYPE_PLAYLIST
+                )
+            }
+            LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+        }
 
     private fun getFavoriteItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val mediaItems: MutableList<MediaItem> = ArrayList()

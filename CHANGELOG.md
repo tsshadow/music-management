@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Radio mode (beta): one server-owned programme, any number of listeners in sync.** The server
+  publishes a timeline of tracks with absolute `started_at` timestamps and a scheduler keeps it
+  filled ten minutes ahead, so a channel plays with nobody listening and a late joiner lands mid-track
+  at the right spot. Clients never push state: they measure their clock offset against a DB-free
+  `/api/radio/time`, derive `position = serverNow - started_at`, and close drift with a hard seek
+  above 3 seconds or an inaudible `playbackRate` nudge below it. Available in the web player and as a
+  "Radio" entry in Android Auto, where skip and seek are removed from the player commands so the car
+  greys them out. One channel (`main`, whole library) ships enabled; the schema already carries a
+  `genre` per channel, so genre channels need a row rather than a migration. See `docs/radio-mode.md`.
+
+### Fixed
+- **Jam followers wiped the host's play position.** The reactive push effect ran for followers too,
+  and a follower's `savePlayQueue` call omits `position`, which the server stores as `0`
+  (`handleSavePlayQueueCommon` reads it as `value_or(0)`). Every follower echo therefore reset the
+  host's progress to the start of the track and its `playing` flag to false — the "jumping" that made
+  the old sync modes unusable. Only the host writes state now; followers still send explicit
+  play/pause/next/previous commands.
+
 - **Library Browser, replacing the Library, Advanced Library and Statistics tabs.** One view over the
   collection with facet filters for genre, label, artist, BPM range and release year that intersect,
   distributions that follow the active filter, and a header reporting how much of the current selection

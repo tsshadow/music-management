@@ -1,0 +1,115 @@
+import { medianClockOffset, targetPosition, correction } from './radioSync.js';
+
+/**
+ * Drives an <audio> element from a server-owned radio timeline.
+ *
+ * The controller never pushes anything: it reads `/api/radio/{slug}/state`,
+ * works out where playback should be from the entry's absolute `started_at`,
+ * and keeps the local element on that point. Because LMS only honours
+ * `timeOffset` while transcoding, joining mid-track means requesting a fresh
+ * stream URL rather than seeking, so `srcOffset` tracks where the current
+ * source begins.
+ *
+ * @param {Object} options
+ * @param {HTMLAudioElement} options.audio
+ * @param {string} options.apiBase - e.g. "/muma"
+ * @param {string} options.apiKey
+ * @param {function(string, number): string} options.streamUrlFor
+ * @param {typeof fetch} [options.fetchImpl]
+ * @param {function(): number} [options.now] - local clock in ms.
+ * @param {number} [options.sampleCount] - clock-offset samples to take.
+ */
+export function createRadioController({
+  audio,
+  apiBase,
+  apiKey,
+  streamUrlFor,
+  fetchImpl = fetch,
+  now = () => Date.now(),
+  sampleCount = 5,
+}) {
+  let slug = null;
+  let clockOffsetMs = 0;
+  let entry = null;
+  let srcOffset = 0;
+
+  const headers = { 'X-API-Key': apiKey };
+
+  function serverNowMs() {
+    return now() + clockOffsetMs;
+  }
+
+  function localPosition() {
+    return srcOffset + (audio.currentTime || 0);
+  }
+
+  async function measureClockOffset() {
+    const samples = [];
+    for (let i = 0; i < sampleCount; i++) {
+      const t0 = now();
+      const response = await fetchImpl(`${apiBase}/api/radio/time`, { headers });
+      const t1 = now();
+      const body = await response.json();
+      samples.push({ t0, t1, serverTime: body.server_time * 1000 });
+    }
+    clockOffsetMs = medianClockOffset(samples);
+  }
+
+  function loadEntryAt(nextEntry, position) {
+    const offset = Math.max(0, Math.floor(position));
+    srcOffset = offset;
+    audio.playbackRate = 1;
+    audio.src = streamUrlFor(nextEntry.track_id, offset);
+    audio.play().catch(() => {});
+  }
+
+  async function refresh() {
+    if (!slug) return;
+    const response = await fetchImpl(`${apiBase}/api/radio/${slug}/state`, { headers });
+    const state = await response.json();
+
+    // Deliberately NOT re-anchoring the clock from this response: its latency is
+    // unknown (it hits the database), so a single sample from it would be worse
+    // than the median measured against the DB-free /time endpoint. Callers
+    // re-run measureClockOffset() periodically instead.
+
+    if (!state.current) {
+      entry = null;
+      return;
+    }
+
+    const changed = !entry || entry.track_id !== state.current.track_id ||
+      entry.started_at !== state.current.started_at;
+    entry = state.current;
+    if (changed) {
+      loadEntryAt(entry, targetPosition({ startedAtMs: entry.started_at * 1000 }, serverNowMs()));
+    }
+  }
+
+  function tick() {
+    if (!slug || !entry) return;
+    const target = targetPosition({ startedAtMs: entry.started_at * 1000 }, serverNowMs());
+    const result = correction(localPosition(), target);
+    if (result.action === 'seek') {
+      loadEntryAt(entry, target);
+    } else {
+      audio.playbackRate = result.rate;
+    }
+  }
+
+  async function start(channelSlug) {
+    slug = channelSlug;
+    await measureClockOffset();
+    await refresh();
+  }
+
+  function stop() {
+    slug = null;
+    entry = null;
+    srcOffset = 0;
+    audio.playbackRate = 1;
+    audio.pause();
+  }
+
+  return { start, stop, tick, refresh, measureClockOffset, getEntry: () => entry };
+}

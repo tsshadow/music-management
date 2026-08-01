@@ -134,6 +134,11 @@ abstract class MediaLibraryBase protected constructor() {
         internal const val MEDIA_PODCAST_EPISODE_ITEM = "MEDIA_PODCAST_EPISODE_ITEM"
         internal const val MEDIA_SEARCH_SONG_ITEM = "MEDIA_SEARCH_SONG_ITEM"
 
+        // Radio (beta): a browsable list of channels, each of which is playable.
+        // A playable id is "MEDIA_RADIO_ITEM|<channel slug>".
+        internal const val MEDIA_RADIO_ID = "MEDIA_RADIO_ID"
+        internal const val MEDIA_RADIO_ITEM = "MEDIA_RADIO_ITEM"
+
         // Genres -> songs
         internal const val MEDIA_GET_GENRES = "MEDIA_GET_GENRES"
         internal const val MEDIA_GET_YEARS = "MEDIA_GET_YEARS"

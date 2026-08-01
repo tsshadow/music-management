@@ -32,8 +32,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.media3.common.Player
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import org.moire.ultrasonic.api.subsonic.SubsonicAPIClient
 import org.moire.ultrasonic.data.RatingUpdate
 import org.moire.ultrasonic.domain.SearchCriteria
 import org.moire.ultrasonic.service.MusicServiceFactory
@@ -91,6 +93,19 @@ class MediaLibrarySessionCallback :
         mainScope = mainScope,
         serviceScope = serviceScope
     ) { musicService }
+
+    private val subsonicAPIClient: SubsonicAPIClient by inject()
+
+    // Radio streams are transcoded on purpose: LMS only honours `timeOffset`
+    // on the transcoding path, and joining a channel always starts mid-track.
+    private val radioPlaybackController = RadioPlaybackController(
+        serviceScope = serviceScope,
+        mumaApiProvider = { subsonicAPIClient.mumaApi.api },
+        streamUrlFor = { trackId, offsetSeconds ->
+            musicService.getTranscodedStreamUrl(trackId, RADIO_MAX_BITRATE, "mp3", offsetSeconds)
+                .orEmpty()
+        }
+    )
 
     init {
 
@@ -251,8 +266,22 @@ class MediaLibrarySessionCallback :
         if (mediaItems.isEmpty()) return Futures.immediateFuture(mediaItems)
         // Return early if its a search
         if (mediaItems[0].requestMetadata.searchQuery != null) {
+            stopRadioIfRunning(mediaSession)
             return playbackController.playFromSearch(mediaItems[0].requestMetadata.searchQuery!!)
         }
+
+        // Radio owns the player while it is on: it drives a single item from the
+        // server's timeline instead of handing Media3 a queue. Returning an empty
+        // list keeps Media3 from also queueing the channel placeholder item.
+        val radioSlug = mediaItems[0].mediaId
+            .takeIf { it.startsWith("$MEDIA_RADIO_ITEM|") }
+            ?.substringAfter('|')
+        if (radioSlug != null) {
+            radioPlaybackController.start(mediaSession.player, radioSlug)
+            updateAvailableCommands(mediaSession)
+            return Futures.immediateFuture(emptyList())
+        }
+        stopRadioIfRunning(mediaSession)
 
         val updatedMediaItems: List<MediaItem> =
             mediaItems.mapNotNull { mediaItem ->
@@ -455,7 +484,52 @@ class MediaLibrarySessionCallback :
 
         return MediaSession.ConnectionResult.accept(
             availableSessionCommands.build(),
-            connectionResult.availablePlayerCommands
+            radioAwarePlayerCommands(connectionResult.availablePlayerCommands)
         )
+    }
+
+    /**
+     * Skipping and seeking are meaningless on a radio channel -- the server owns
+     * the timeline -- so they are removed from the player commands while radio
+     * plays. The car then greys the buttons out instead of letting a tap do
+     * nothing, or worse, fight the sync loop.
+     */
+    private fun radioAwarePlayerCommands(commands: Player.Commands): Player.Commands =
+        if (radioPlaybackController.isActive) {
+            commands.buildUpon()
+                .remove(Player.COMMAND_SEEK_TO_NEXT)
+                .remove(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+                .remove(Player.COMMAND_SEEK_TO_PREVIOUS)
+                .remove(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                .remove(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
+                .build()
+        } else {
+            commands
+        }
+
+    /**
+     * onConnect only runs once per controller, so switching radio on or off has
+     * to push the new command set to every connected controller by hand.
+     */
+    private fun updateAvailableCommands(session: MediaSession) {
+        for (controller in session.connectedControllers) {
+            val connectionResult = super.onConnect(session, controller)
+            session.setAvailableCommands(
+                controller,
+                connectionResult.availableSessionCommands,
+                radioAwarePlayerCommands(connectionResult.availablePlayerCommands)
+            )
+        }
+    }
+
+    private fun stopRadioIfRunning(session: MediaSession) {
+        if (!radioPlaybackController.isActive) return
+        radioPlaybackController.stop(session.player)
+        updateAvailableCommands(session)
+    }
+
+    companion object {
+        /** Radio always transcodes, so it needs an explicit ceiling. */
+        private const val RADIO_MAX_BITRATE = 320
     }
 }

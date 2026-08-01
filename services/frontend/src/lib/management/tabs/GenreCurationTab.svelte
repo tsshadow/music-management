@@ -35,25 +35,33 @@
   // The row being decided in the modal, plus the decision being composed for it.
   let deciding = $state(null);
   let decisionState = $state(WHITE);
-  let decisionCanonicalId = $state('');
+  let decisionTargetIds = $state([]);
 
   const visibleRows = $derived(filterGenres(rows, search));
   const counts = $derived(summarize(rows));
   const targets = $derived(correctionTargets(whiteGenres, deciding?.id));
   const pendingDecision = $derived(
     deciding
-      ? buildDecision({ genreId: deciding.id, state: decisionState, canonicalId: decisionCanonicalId })
+      ? buildDecision({ genreId: deciding.id, state: decisionState, canonicalIds: decisionTargetIds })
       : { valid: false, error: null }
   );
   const previewOutcome = $derived(
     deciding
       ? describeOutcome({
           state: decisionState,
-          canonical_id: decisionCanonicalId || null,
-          canonical_name: whiteGenres.find((g) => String(g.id) === String(decisionCanonicalId))?.name
+          canonical_targets: decisionTargetIds
+            .map((id) => whiteGenres.find((g) => String(g.id) === String(id)))
+            .filter(Boolean)
         })
       : ''
   );
+
+  function toggleTarget(id) {
+    const key = String(id);
+    decisionTargetIds = decisionTargetIds.includes(key)
+      ? decisionTargetIds.filter((existing) => existing !== key)
+      : [...decisionTargetIds, key];
+  }
 
   async function fetchGenres() {
     loading = true;
@@ -89,8 +97,8 @@
     }
   }
 
-  async function decide(row, state, canonicalId = null) {
-    const decision = buildDecision({ genreId: row.id, state, canonicalId });
+  async function decide(row, state, canonicalIds = []) {
+    const decision = buildDecision({ genreId: row.id, state, canonicalIds });
     if (!decision.valid) {
       onError(decision.error);
       return;
@@ -102,9 +110,11 @@
         body: JSON.stringify(decision.payload)
       });
       if (res.ok) {
-        const target = whiteGenres.find((g) => String(g.id) === String(decision.payload.canonical_id));
-        if (target) {
-          onMessage(`${row.name} wordt voortaan vervangen door ${target.name}.`);
+        const names = decision.payload.canonical_ids
+          .map((id) => whiteGenres.find((g) => String(g.id) === String(id))?.name)
+          .filter(Boolean);
+        if (names.length) {
+          onMessage(`${row.name} wordt voortaan vervangen door ${names.join(' + ')}.`);
         } else {
           onMessage(`${row.name} ${state === WHITE ? 'goedgekeurd' : 'afgekeurd'}.`);
         }
@@ -122,7 +132,7 @@
   function openCorrection(row) {
     deciding = row;
     decisionState = row.state === UNKNOWN ? BLACK : row.state;
-    decisionCanonicalId = row.canonical_id ? String(row.canonical_id) : '';
+    decisionTargetIds = (row.canonical_targets || []).map((target) => String(target.id));
   }
 
   $effect(() => {
@@ -235,7 +245,7 @@
                   <td class="p-4 text-spotify-lightgray text-xs">{describeDecision(row)}</td>
                   <td class="p-4 text-right">
                     <div class="flex justify-end gap-2">
-                      {#if row.state !== WHITE || row.canonical_id}
+                      {#if row.state !== WHITE || (row.canonical_targets || []).length}
                         <button
                           onclick={() => decide(row, WHITE)}
                           class="bg-spotify-green text-black px-3 py-1.5 rounded-full font-bold text-xs transition-transform hover:scale-105 flex items-center gap-1"
@@ -243,7 +253,7 @@
                           <Check size={14} /> Goedkeuren
                         </button>
                       {/if}
-                      {#if row.state !== BLACK || row.canonical_id}
+                      {#if row.state !== BLACK || (row.canonical_targets || []).length}
                         <button
                           onclick={() => decide(row, BLACK)}
                           class="bg-red-500/10 text-red-500 border border-red-500/20 px-3 py-1.5 rounded-full font-bold text-xs transition-transform hover:scale-105 flex items-center gap-1"
@@ -299,19 +309,27 @@
       </div>
 
       <div class="mb-6">
-        <label for="correction-target" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">
-          Corrigeren naar (optioneel)
-        </label>
-        <select
-          id="correction-target"
-          bind:value={decisionCanonicalId}
-          class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors text-sm text-white"
-        >
-          <option value="">Geen correctie</option>
+        <span class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">
+          Corrigeren naar (optioneel, meerdere mag)
+        </span>
+        <p class="text-xs text-spotify-lightgray mb-2">
+          Kies er meerdere voor een samentrekking: <b>Upterror</b> is Uptempo Hardcore én Terror.
+        </p>
+        <div class="max-h-48 overflow-y-auto rounded-md border border-spotify-gray bg-spotify-gray bg-opacity-30 divide-y divide-white/5">
           {#each targets as target (target.id)}
-            <option value={String(target.id)}>{target.name}</option>
+            <label class="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer hover:bg-white/5">
+              <input
+                type="checkbox"
+                checked={decisionTargetIds.includes(String(target.id))}
+                onchange={() => toggleTarget(target.id)}
+                class="accent-spotify-green"
+              />
+              {target.name}
+            </label>
+          {:else}
+            <p class="px-3 py-2 text-sm text-spotify-lightgray">Nog geen goedgekeurde genres om naar te corrigeren.</p>
           {/each}
-        </select>
+        </div>
       </div>
 
       <p class="text-sm text-spotify-lightgray mb-6">
@@ -326,7 +344,7 @@
         <button
           class="flex-1 py-3 rounded-full font-bold bg-spotify-green text-black hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100"
           disabled={!pendingDecision.valid}
-          onclick={() => decide(deciding, decisionState, decisionCanonicalId)}
+          onclick={() => decide(deciding, decisionState, decisionTargetIds)}
         >
           Opslaan
         </button>

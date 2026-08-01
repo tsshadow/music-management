@@ -9,6 +9,7 @@ from tools.fix_nested_ep_dirs import (
     Case,
     DbCleaner,
     Executor,
+    auto_answer,
     classify,
     find_cases,
     list_files,
@@ -149,6 +150,17 @@ class FindCasesTest(unittest.TestCase):
         cases, _ = find_cases(self.root, label='Sealand')
         self.assertEqual(len(cases), 1)
         self.assertIn('Sealand', cases[0].outer)
+
+    def test_reports_each_case_while_scanning(self):
+        """A slow mount takes minutes to walk; hits must show up before the walk ends."""
+        self.make('Scantraxx', 'SCAN123', 'SCAN123')
+        self.make('Sealand', 'SEA017', 'SEA017')
+        seen = []
+        find_cases(self.root, on_case=lambda case: seen.append((case.outer, len(seen))))
+        self.assertEqual([outer for outer, _ in seen], [
+            os.path.join(self.root, 'Scantraxx', 'SCAN123'),
+            os.path.join(self.root, 'Sealand', 'SEA017'),
+        ])
 
     def test_skips_eadir_at_both_levels(self):
         os.makedirs(os.path.join(self.root, '@eaDir'))
@@ -308,6 +320,33 @@ class CaseRenderTest(unittest.TestCase):
         self.assertIn('/EPs/L/EP', text)
         self.assertIn('* 02.mp3', text)
         self.assertIn(PARTIAL, text)
+
+
+class AutoAnswerTest(unittest.TestCase):
+    """The rule a human run always ended up applying: delete when the inner folder adds
+    nothing, otherwise lift the files it does add and drop the rest."""
+
+    @staticmethod
+    def case(action, outer_files, inner_files):
+        return Case(
+            outer='/EPs/L/EP',
+            inner='/EPs/L/EP/EP',
+            outer_files=outer_files,
+            inner_files=inner_files,
+            action=action,
+        )
+
+    def test_deletes_when_inner_holds_nothing_new(self):
+        case = self.case(DELETE_DUP, ['01.mp3'], ['01.mp3'])
+        self.assertEqual(auto_answer(case), 'd')
+
+    def test_merges_partial_because_the_duplicates_would_clash(self):
+        case = self.case(PARTIAL, ['01.mp3'], ['01.mp3', '02.mp3'])
+        self.assertEqual(auto_answer(case), 'm')
+
+    def test_merges_move_up_case(self):
+        case = self.case(MOVE_UP, ['cover.jpg'], ['01.mp3'])
+        self.assertEqual(auto_answer(case), 'm')
 
 
 if __name__ == '__main__':

@@ -7,7 +7,9 @@
   export let allNotes;
   export let selectedServiceNotes;
   export let notes;
-  export let onNavigateToStats;
+  export let stats;
+  export let fetchStats;
+  export let fetchArtistImages;
 </script>
 
 <section class="space-y-8 animate-in fade-in duration-500">
@@ -96,9 +98,6 @@
           {/if}
         </ul>
       </div>
-      <div class="p-4 bg-black bg-opacity-20 text-center">
-         <button on:click={onNavigateToStats} class="text-xs font-bold text-spotify-lightgray hover:text-white uppercase tracking-widest">Bekijk alle statistieken</button>
-      </div>
     </div>
 
     <!-- Quick Release Notes -->
@@ -124,5 +123,82 @@
         {/if}
       </div>
     </div>
+  </div>
+
+  <!-- Collection and listening figures, moved here from the Statistics tab.
+       Library-specific breakdowns live in the Library Browser, where they follow
+       the active filter instead of being collection-wide only. -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="bg-spotify-gray p-4 rounded-xl border border-white border-opacity-5">
+      <div class="text-spotify-lightgray text-[10px] font-bold uppercase mb-1">Totaal Tracks</div>
+      <div class="text-2xl font-extrabold text-spotify-green">{stats.total_tracks.toLocaleString('nl-NL')}</div>
+    </div>
+    <div class="bg-spotify-gray p-4 rounded-xl border border-white border-opacity-5">
+      <div class="text-spotify-lightgray text-[10px] font-bold uppercase mb-1">Totaal Artiesten</div>
+      <div class="text-2xl font-extrabold text-white">{stats.total_artists.toLocaleString('nl-NL')}</div>
+    </div>
+    <div class="bg-spotify-gray p-4 rounded-xl border border-white border-opacity-5">
+      <div class="text-spotify-lightgray text-[10px] font-bold uppercase mb-1">Totaal Scrobbles</div>
+      <div class="text-2xl font-extrabold text-blue-400">{stats.total_scrobbles.toLocaleString('nl-NL')}</div>
+    </div>
+    <div class="bg-spotify-gray p-4 rounded-xl border border-white border-opacity-5">
+      <div class="text-spotify-lightgray text-[10px] font-bold uppercase mb-1">Match Rate</div>
+      <div class="text-2xl font-extrabold {stats.match_rate > 80 ? 'text-spotify-green' : 'text-yellow-500'}">{stats.match_rate}%</div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+      <h3 class="p-4 text-lg font-bold bg-black bg-opacity-20">Populaire Genres</h3>
+      <div class="p-4 space-y-3">
+        {#each stats.top_genres as genre (genre.genre)}
+          <div class="space-y-1">
+            <div class="flex justify-between text-sm font-bold">
+              <span>{genre.genre}</span>
+              <span class="text-spotify-lightgray tabular-nums">{genre.count.toLocaleString('nl-NL')}</span>
+            </div>
+            <div class="w-full bg-spotify-dark rounded-full h-1.5">
+              <div class="bg-spotify-green h-1.5 rounded-full" style="width: {stats.top_genres.length > 0 ? (genre.count / stats.top_genres[0].count) * 100 : 0}%"></div>
+            </div>
+          </div>
+        {/each}
+        {#if stats.top_genres.length === 0}
+          <p class="text-xs text-spotify-lightgray italic">Nog geen genres geïndexeerd. Draai een volledige scan.</p>
+        {/if}
+      </div>
+    </div>
+
+    <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+      <h3 class="p-4 text-lg font-bold bg-black bg-opacity-20">Nieuw in Bibliotheek</h3>
+      <table class="w-full text-left">
+        <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+          {#each stats.recently_added as track (track.title + track.artist)}
+            <tr>
+              <td class="p-3">
+                <div class="font-bold text-sm">{track.title}</div>
+                <div class="text-xs text-spotify-lightgray">{track.artist}</div>
+              </td>
+              <td class="p-3 text-right text-xs text-spotify-lightgray">
+                {new Date(track.created_at).toLocaleDateString('nl-NL')}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap gap-3 items-center">
+    <button on:click={fetchArtistImages} class="bg-white text-black font-extrabold px-5 py-2.5 rounded-full hover:scale-105 transition-transform text-sm">
+      IMAGES OPHALEN
+    </button>
+    <button on:click={fetchStats} class="bg-spotify-gray px-5 py-2.5 rounded-full hover:bg-white hover:bg-opacity-10 transition-colors text-sm font-bold">
+      VERNIEUWEN
+    </button>
+    <span class="text-xs text-spotify-lightgray">
+      Gem. tracklengte
+      <b class="text-white">{Math.floor(stats.avg_track_duration / 60)}:{Math.floor(stats.avg_track_duration % 60).toString().padStart(2, '0')}</b>
+      · Unmatched scrobbles <b class="text-yellow-500">{stats.total_unmatched.toLocaleString('nl-NL')}</b>
+    </span>
   </div>
 </section>

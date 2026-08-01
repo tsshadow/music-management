@@ -42,26 +42,23 @@ def get_stats(auth: dict=Depends(verify_api_key)):
             stats['avg_track_duration'] = round(cursor.fetchone()['avg_dur'] or 0, 2)
             cursor.execute('\n                SELECT a.name, COUNT(t.id) as track_count\n                FROM library_artists a\n                JOIN library_tracks t ON a.id = t.primary_artist_id\n                GROUP BY a.id\n                ORDER BY track_count DESC\n                LIMIT 10\n            ')
             stats['top_artists'] = cursor.fetchall()
+            # Counted from library_track_genres alone. The previous query unioned
+            # this with library_track_ml_labels.ml_genre, which was harmless only
+            # because library_track_genres was empty -- once it has rows a track
+            # carrying the same genre in its tag and its ML prediction would be
+            # counted twice. ML output is early-stage and stays out of curated
+            # genre figures. Splitting on ';' in Python is no longer needed either:
+            # library_track_genres holds one row per genre already.
             cursor.execute('''
-                SELECT genre
-                FROM (
-                    SELECT g.name as genre FROM library_track_genres tg JOIN rules_genres g ON tg.genre_id = g.id
-                    UNION ALL
-                    SELECT ml_genre as genre FROM library_track_ml_labels WHERE ml_genre IS NOT NULL
-                ) as combined
+                SELECT g.name AS genre, COUNT(DISTINCT tg.track_id) AS count
+                FROM library_track_genres tg
+                JOIN rules_genres g ON g.id = tg.genre_id
+                WHERE g.state <> 'black'
+                GROUP BY g.id
+                ORDER BY count DESC
+                LIMIT 10
             ''')
-            genre_rows = cursor.fetchall()
-            from collections import Counter
-            genre_counts = Counter()
-            for row in genre_rows:
-                g_str = row.get('genre')
-                if not g_str:
-                    continue
-                for part in g_str.replace(',', ';').split(';'):
-                    cleaned = part.strip()
-                    if cleaned:
-                        genre_counts[cleaned] += 1
-            stats['top_genres'] = [{'genre': g, 'count': c} for g, c in genre_counts.most_common(10)]
+            stats['top_genres'] = cursor.fetchall()
             cursor.execute('\n                SELECT COUNT(DISTINCT t.id) as count\n                FROM library_tracks t\n                LEFT JOIN library_track_genres tg ON t.id = tg.track_id\n                LEFT JOIN library_track_ml_labels ml ON t.track_uid = ml.track_id\n                WHERE tg.track_id IS NOT NULL OR ml.track_id IS NOT NULL\n            ')
             matched_count = cursor.fetchone()['count']
             if stats['total_tracks'] > 0:

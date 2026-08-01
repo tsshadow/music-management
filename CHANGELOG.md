@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Artist name analysis, as a dry run.** `ArtistNameAnalyzer` turns a raw artist string into a
+  proposal — keep, rewrite, split, reject, or no answer — with the reasoning attached, and
+  `tools/artist_curation_report.py` runs it over the whole artist list and prints what would happen
+  without changing anything. Handles noise around a real name (`**FREE DOWNLOAD** DJ KURT`), names
+  glued together (`AngerfistHeadhunter`), misspellings, and sentences a tagger rule mistook for an
+  artist. An unrecognised name is never removed: real artists exist that no streaming service lists.
+  Every threshold is configurable, because what counts as good enough can only be judged from a report
+  over the real library. No schema, tagger or UI change yet.
+
 ## [0.0.52] - 2026-08-01
 
 ### Added

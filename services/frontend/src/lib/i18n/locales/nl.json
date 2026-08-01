@@ -132,6 +132,76 @@
     "username": "Gebruikersnaam",
     "verifying": "Verificeren..."
   },
+  "management": {
+    "about": {
+      "loadFailed": "Kon de over-pagina niet laden: {message}"
+    },
+    "connectFailed": "Kon niet inloggen bij de Music Management API met je account. Probeer opnieuw in te loggen op de player-pagina.",
+    "connecting": "Verbinden met beheer...",
+    "health": {
+      "containers": "Docker Containers",
+      "logs": "Logs",
+      "logsFailed": "Fout bij ophalen logs.",
+      "logsFor": "Logs: {container}",
+      "logsUnavailable": "Kon logs niet ophalen.",
+      "name": "Naam",
+      "recentlyAdded": "Recent Toegevoegd",
+      "recentlyTagged": "Recent Getagged",
+      "status": "Status",
+      "subtitle": "Systeem monitoring en recente activiteit van alle workers.",
+      "title": "Gezondheid & activiteit"
+    },
+    "noAccess": "Geen toegang",
+    "noAccessHelp": "Alleen beheerders hebben toegang tot deze pagina. Log in met een account met beheerdersrechten om verder te gaan.",
+    "overview": {
+      "alert": "Systeem Alert",
+      "avgTrackLength": "Gem. tracklengte",
+      "fetchImages": "IMAGES OPHALEN",
+      "lastActivity": "Laatste Activiteit",
+      "lastTrackAdded": "Laatste track toegevoegd.",
+      "matchRate": "Match Rate",
+      "newInLibrary": "Nieuw in Bibliotheek",
+      "noActivity": "Geen recente activiteit gevonden.",
+      "noGenresIndexed": "Nog geen genres geïndexeerd. Draai een volledige scan.",
+      "popularGenres": "Populaire Genres",
+      "recentActivity": "Recente Activiteit",
+      "refresh": "VERNIEUWEN",
+      "subtitle": "Welkom terug! Hier is een overzicht van je systeem status.",
+      "systemStatus": "Systeem Status",
+      "title": "MuMa overzicht",
+      "totalArtists": "Totaal Artiesten",
+      "totalScrobbles": "Totaal Scrobbles",
+      "totalTracks": "Totaal Tracks",
+      "version": "MuMa Versie"
+    },
+    "tabs": {
+      "about": "Over",
+      "downloaders": "Downloaders",
+      "genreCuration": "Genre Curatie",
+      "health": "Gezondheid",
+      "images": "Afbeeldingen",
+      "libraries": "Bibliotheken",
+      "library": "Bibliotheek",
+      "notifications": "Notificaties",
+      "overview": "Overzicht",
+      "playlists": "Afspeellijsten",
+      "scanner": "Scanner",
+      "scrobble": "Scrobble Import",
+      "tagger": "Tagger",
+      "userRequests": "Toegangsverzoeken",
+      "users": "Gebruikers",
+      "versions": "Versies"
+    },
+    "versions": {
+      "externalRefs": "Externe Referenties",
+      "musicServer": "Music Server:",
+      "notDetected": "Niet gedetecteerd",
+      "notFound": "Niet gevonden",
+      "subtitle": "Centraal overzicht van alle draaiende service versies.",
+      "title": "Systeemversies",
+      "ultrasonicApk": "Ultrasonic APK:"
+    }
+  },
   "nav": {
     "albums": "Albums",
     "artists": "Artiesten",

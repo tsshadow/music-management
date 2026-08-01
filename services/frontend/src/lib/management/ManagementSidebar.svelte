@@ -1,4 +1,5 @@
 <script>
+  import { t } from '../i18n/index.js';
   import { activeManagementTab, activeView, hasPermission } from '../store.js';
   import SidebarHeader from '../SidebarHeader.svelte';
   import { 
@@ -23,22 +24,22 @@
   const { onnavigate } = $props();
 
   const tabs = $derived([
-    { id: 'overview', label: 'Overzicht', icon: LayoutDashboard },
-    { id: 'library', label: 'Bibliotheek', icon: Library },
-    { id: 'libraries', label: 'Bibliotheken', icon: FolderTree },
-    { id: 'scanner', label: 'Scanner', icon: ScanLine },
-    { id: 'images', label: 'Afbeeldingen', icon: Image },
-    { id: 'playlists', label: 'Afspeellijsten', icon: ListMusic },
-    { id: 'tagger', label: 'Tagger', icon: Tags },
-    { id: 'genre-curation', label: 'Genre Curatie', icon: ListChecks },
-    { id: 'downloaders', label: 'Downloaders', icon: Download },
-    { id: 'scrobble', label: 'Scrobble Import', icon: History },
-    { id: 'health', label: 'Gezondheid', icon: HeartPulse },
-    { id: 'users', label: 'Gebruikers', icon: Users, show: hasPermission('users.read') },
-    { id: 'user-requests', label: 'Toegangsverzoeken', icon: UserPlus, show: hasPermission('user-requests.read') },
-    { id: 'versions', label: 'Versies', icon: GitBranch },
-    { id: 'notifications', label: 'Notificaties', icon: Bell },
-    { id: 'about', label: 'Over', icon: Info }
+    { id: 'overview', labelKey: 'management.tabs.overview', icon: LayoutDashboard },
+    { id: 'library', labelKey: 'management.tabs.library', icon: Library },
+    { id: 'libraries', labelKey: 'management.tabs.libraries', icon: FolderTree },
+    { id: 'scanner', labelKey: 'management.tabs.scanner', icon: ScanLine },
+    { id: 'images', labelKey: 'management.tabs.images', icon: Image },
+    { id: 'playlists', labelKey: 'management.tabs.playlists', icon: ListMusic },
+    { id: 'tagger', labelKey: 'management.tabs.tagger', icon: Tags },
+    { id: 'genre-curation', labelKey: 'management.tabs.genreCuration', icon: ListChecks },
+    { id: 'downloaders', labelKey: 'management.tabs.downloaders', icon: Download },
+    { id: 'scrobble', labelKey: 'management.tabs.scrobble', icon: History },
+    { id: 'health', labelKey: 'management.tabs.health', icon: HeartPulse },
+    { id: 'users', labelKey: 'management.tabs.users', icon: Users, show: hasPermission('users.read') },
+    { id: 'user-requests', labelKey: 'management.tabs.userRequests', icon: UserPlus, show: hasPermission('user-requests.read') },
+    { id: 'versions', labelKey: 'management.tabs.versions', icon: GitBranch },
+    { id: 'notifications', labelKey: 'management.tabs.notifications', icon: Bell },
+    { id: 'about', labelKey: 'management.tabs.about', icon: Info }
   ].filter(t => t.show !== false));
 
   function goBack() {
@@ -60,7 +61,7 @@
         onclick={() => setTab(tab.id)}
       >
         <tab.icon size={20} />
-        {tab.label}
+        {$t(tab.labelKey)}
       </button>
     {/each}
   </div>

@@ -132,6 +132,76 @@
     "username": "Username",
     "verifying": "Verifying…"
   },
+  "management": {
+    "about": {
+      "loadFailed": "Could not load the about page: {message}"
+    },
+    "connectFailed": "Could not sign in to the Music Management API with your account. Try logging in again on the player page.",
+    "connecting": "Connecting to management…",
+    "health": {
+      "containers": "Docker containers",
+      "logs": "Logs",
+      "logsFailed": "Error while fetching logs.",
+      "logsFor": "Logs: {container}",
+      "logsUnavailable": "Could not fetch logs.",
+      "name": "Name",
+      "recentlyAdded": "Recently added",
+      "recentlyTagged": "Recently tagged",
+      "status": "Status",
+      "subtitle": "System monitoring and recent activity across all workers.",
+      "title": "Health & activity"
+    },
+    "noAccess": "No access",
+    "noAccessHelp": "This page is for administrators only. Log in with an account that has administrator rights to continue.",
+    "overview": {
+      "alert": "System alert",
+      "avgTrackLength": "Avg. track length",
+      "fetchImages": "FETCH IMAGES",
+      "lastActivity": "Last activity",
+      "lastTrackAdded": "Last track added.",
+      "matchRate": "Match rate",
+      "newInLibrary": "New in library",
+      "noActivity": "No recent activity found.",
+      "noGenresIndexed": "No genres indexed yet. Run a full scan.",
+      "popularGenres": "Popular genres",
+      "recentActivity": "Recent activity",
+      "refresh": "REFRESH",
+      "subtitle": "Welcome back. Here is how your system is doing.",
+      "systemStatus": "System status",
+      "title": "MuMa overview",
+      "totalArtists": "Total artists",
+      "totalScrobbles": "Total scrobbles",
+      "totalTracks": "Total tracks",
+      "version": "MuMa version"
+    },
+    "tabs": {
+      "about": "About",
+      "downloaders": "Downloaders",
+      "genreCuration": "Genre curation",
+      "health": "Health",
+      "images": "Images",
+      "libraries": "Libraries",
+      "library": "Library",
+      "notifications": "Notifications",
+      "overview": "Overview",
+      "playlists": "Playlists",
+      "scanner": "Scanner",
+      "scrobble": "Scrobble import",
+      "tagger": "Tagger",
+      "userRequests": "Access requests",
+      "users": "Users",
+      "versions": "Versions"
+    },
+    "versions": {
+      "externalRefs": "External references",
+      "musicServer": "Music server:",
+      "notDetected": "Not detected",
+      "notFound": "Not found",
+      "subtitle": "One place to see the version of every running service.",
+      "title": "System versions",
+      "ultrasonicApk": "Ultrasonic APK:"
+    }
+  },
   "nav": {
     "albums": "Albums",
     "artists": "Artists",

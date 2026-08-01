@@ -12,36 +12,36 @@ import org.junit.Test
 
 /**
  * [CachedMusicService.getArtists]'s Room cache is a plain `SELECT * FROM artists`, with no
- * `LIMIT`/`OFFSET`/`ORDER BY`. It can only stand in for the unfiltered, default-sorted first
- * page: anything else - a search term, a non-default sort, or a page beyond the first - has to
- * reach the server. [artistsCacheBypassesFor] is that decision, pulled out so it can be checked
- * without constructing the class (which needs a real Room database via `ActiveServerProvider`).
+ * `LIMIT`/`OFFSET`/`ORDER BY`, and its result is never clamped to a requested `count`. It can
+ * only stand in for a request that wants the whole library in table order: a search term, a
+ * non-default sort, or *any* paged request (one that passes a `count`, including a first page
+ * at offset 0) has to reach the server, because the DAO cannot limit, order or offset its
+ * result. [artistsCacheBypassesFor] is that decision, pulled out so it can be checked without
+ * constructing the class (which needs a real Room database via `ActiveServerProvider`).
  */
 class CachedMusicServiceGetArtistsTest {
 
     @Test
-    fun `the unfiltered default-sorted first page uses the cache`() {
-        artistsCacheBypassesFor(query = null, sortBy = null, offset = null) `should be equal to` false
-        artistsCacheBypassesFor(query = null, sortBy = "name", offset = 0) `should be equal to` false
+    fun `an unpaged, unfiltered, default-sorted request uses the cache`() {
+        artistsCacheBypassesFor(query = null, sortBy = null, count = null) `should be equal to` false
+        artistsCacheBypassesFor(query = null, sortBy = "name", count = null) `should be equal to` false
     }
 
     @Test
     fun `a search term bypasses the cache`() {
-        artistsCacheBypassesFor(query = "angerfist", sortBy = null, offset = null) `should be equal to` true
+        artistsCacheBypassesFor(query = "angerfist", sortBy = null, count = null) `should be equal to` true
     }
 
     @Test
     fun `a non-default sort bypasses the cache`() {
-        artistsCacheBypassesFor(query = null, sortBy = "trackCount", offset = null) `should be equal to` true
+        artistsCacheBypassesFor(query = null, sortBy = "trackCount", count = null) `should be equal to` true
     }
 
     @Test
-    fun `any page after the first bypasses the cache`() {
-        artistsCacheBypassesFor(query = null, sortBy = "name", offset = 100) `should be equal to` true
-    }
-
-    @Test
-    fun `offset zero is still the first page and uses the cache`() {
-        artistsCacheBypassesFor(query = null, sortBy = "name", offset = 0) `should be equal to` false
+    fun `a paged request bypasses the cache, even for the first page`() {
+        // This is the regression this function exists to prevent: a caller that asks for a
+        // bounded page (e.g. offset 0, count PAGE_SIZE) must not get the entire, unclamped
+        // table back from the cache as if it were "page 1".
+        artistsCacheBypassesFor(query = null, sortBy = "name", count = 100) `should be equal to` true
     }
 }

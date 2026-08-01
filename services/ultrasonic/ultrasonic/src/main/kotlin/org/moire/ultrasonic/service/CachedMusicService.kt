@@ -155,7 +155,7 @@ class CachedMusicService(private val musicService: MusicService) :
     ): List<Artist> {
         checkSettingsChanged()
 
-        if (artistsCacheBypassesFor(query, sortBy, offset)) {
+        if (artistsCacheBypassesFor(query, sortBy, count)) {
             return musicService.getArtists(refresh, offset, count, query, sortBy)
         }
 
@@ -747,10 +747,14 @@ class CachedMusicService(private val musicService: MusicService) :
  * [musicService][CachedMusicService].
  *
  * The cache is [ArtistDao.get] - a plain `SELECT * FROM artists` with no `LIMIT`/`OFFSET`/
- * `ORDER BY`. It can only stand in for the unfiltered, default-sorted, *first* page: a search
- * term or a non-default sort needs the server to do the filtering/ordering, and any page after
- * the first needs the server to do the paging, because the DAO has no way to answer either.
+ * `ORDER BY`, and its result is never clamped to a requested [count]. It can only stand in for
+ * a request that wants the *whole* library in whatever order the table happens to hold it, e.g.
+ * [org.moire.ultrasonic.fragment.muma.SelectFragment]'s `getArtists(refresh, null, null)`.
+ * Any *paged* request - one that passes a [count] - needs the server to do the limiting,
+ * ordering and offsetting, because the DAO has no way to answer any of that: serving it from
+ * cache would return the entire table as "page 1" and then let the pager append rows it already
+ * has. A search term or a non-default sort needs the server for the same reason.
  */
-internal fun artistsCacheBypassesFor(query: String?, sortBy: String?, offset: Int?): Boolean = query != null ||
+internal fun artistsCacheBypassesFor(query: String?, sortBy: String?, count: Int?): Boolean = query != null ||
     (sortBy != null && sortBy != "name") ||
-    (offset != null && offset > 0)
+    count != null

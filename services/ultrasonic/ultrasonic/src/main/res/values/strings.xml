@@ -242,6 +242,13 @@
     <string name="favorites.starred_albums">Albums met ster</string>
     <string name="favorites.starred_artists">Artiesten met ster</string>
     <string name="favorites.highly_rated">Hoog gewaardeerd</string>
+    <string name="favorites.title">Favorieten</string>
+    <string name="favorites.genres">Favoriete genres</string>
+    <string name="favorites.playlists">Favoriete playlists</string>
+    <string name="genre.favorite_add">Aan favorieten toevoegen</string>
+    <string name="genre.favorite_remove">Uit favorieten verwijderen</string>
+    <string name="genre.favorite_added">%1$s toegevoegd aan favorieten</string>
+    <string name="genre.favorite_removed">%1$s verwijderd uit favorieten</string>
     <string name="settings.increment_time_0">Disabled</string>
     <string name="settings.increment_time_1">1 second</string>
     <string name="settings.increment_time_10">10 seconds</string>
@@ -475,6 +482,8 @@
     <string name="settings.debug.log_deleted">Deleted log files.</string>
     <string name="settings.debug.share_log">Share debug log</string>
     <string name="settings.debug.view_log">View debug log</string>
+    <string name="settings.debug.crash_detection">Crash detection</string>
+    <string name="settings.debug.crash_detection_summary">Detect crashes and unclean shutdowns, and offer to share diagnostics on the next start</string>
     <string name="crash_report.dialog_title">Previous session crashed</string>
     <string name="crash_report.dialog_message">Ultrasonic did not shut down cleanly last time. Share diagnostics to help fix this?</string>
     <string name="crash_report.dialog_share">Share</string>

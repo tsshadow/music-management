@@ -36,4 +36,30 @@ class GenreOrderingTest {
     fun `an empty library yields an empty list`() {
         orderGenres(emptyList(), listOf("A")) `should be equal to` emptyList()
     }
+
+    @Test
+    fun `favorites come before recently selected genres`() {
+        val genres = listOf(genre("Hardcore", 500), genre("Uptempo", 10), genre("Hardstyle", 100))
+
+        val ordered = orderGenres(genres, listOf("Uptempo"), listOf("Hardstyle"))
+
+        ordered.map { it.name } `should be equal to` listOf("Hardstyle", "Uptempo", "Hardcore")
+    }
+
+    @Test
+    fun `favorites among themselves are ordered by descending song count`() {
+        val genres = listOf(genre("A", 5), genre("B", 50), genre("C", 20))
+
+        val ordered = orderGenres(genres, listOf("A"), listOf("A", "C"))
+
+        ordered.map { it.name } `should be equal to` listOf("C", "A", "B")
+    }
+
+    @Test
+    fun `a favorite genre that no longer exists is ignored`() {
+        val genres = listOf(genre("A", 5), genre("B", 50))
+
+        orderGenres(genres, emptyList(), listOf("Gone")).map { it.name } `should be equal to`
+            listOf("B", "A")
+    }
 }

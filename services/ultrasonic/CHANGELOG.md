@@ -18,6 +18,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   48dp touch target renders as 36dp, below the accessibility minimum, which is why the setting can
   be turned back up.
 
+- **Favorite genres, shared with the web player.** Long-pressing a genre in Library → Genres opens a
+  context menu that adds or removes it; favorites are drawn with a star and sorted above the
+  recently-picked ones. The list lives in the same place the web UI keeps it — the MuMa per-app
+  settings blob under `app_id = "frontend"`, key `favoriteGenres` — so both clients see one list.
+  `FavoriteGenres` (in `home/`) reads and writes it through the existing generic
+  `getMumaSettings`/`saveMumaSettings` calls, merging into the blob so keys the web UI owns survive,
+  and keeps a local copy in `Settings.favoriteGenres` so the list works offline and on Android
+  Auto's thread. A push that fails is logged and retried by the next toggle; the local edit is never
+  lost.
+- **A Favorites folder in Android Auto**, with a Genres and a Playlists subfolder. A favorite genre
+  plays straight from the folder — no year or sort-method level in between — and the playlists
+  subfolder holds the dynamic playlists whose star is set in the filter modal, which is the first
+  thing `TileInfo.favorite` is actually read for. Root and subfolders only appear when they have
+  content, and both sources are local, so the root request still makes no network call.
+
 ### Changed
 - **Default song/liveset tiles are now era-specific instead of plain genre tiles**: the eight
   single-genre defaults (Euphoric Hardstyle, Hardstyle, Mainstream Hardstyle, Raw Hardstyle,

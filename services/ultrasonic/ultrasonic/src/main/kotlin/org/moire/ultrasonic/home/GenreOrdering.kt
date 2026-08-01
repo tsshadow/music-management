@@ -10,18 +10,27 @@ package org.moire.ultrasonic.home
 import org.moire.ultrasonic.domain.Genre
 
 /**
- * Genres the user picked most recently come first, in that order; everything else follows by
- * descending song count.
+ * Favorites come first, by descending song count; then the genres the user picked most recently, in
+ * that order; then everything else by descending song count.
  *
- * Lifted from the home screen's old genre section so the ordering people are used to survives the
- * move to the Library tab.
+ * The last two rules were lifted from the home screen's old genre section so the ordering people
+ * are used to survives the move to the Library tab.
  */
-fun orderGenres(genres: List<Genre>, lastSelected: List<String>): List<Genre> =
+fun orderGenres(
+    genres: List<Genre>,
+    lastSelected: List<String>,
+    favorites: List<String> = emptyList()
+): List<Genre> =
     genres.sortedWith { first, second ->
+        val firstFavorite = favorites.contains(first.name)
+        val secondFavorite = favorites.contains(second.name)
         val firstIndex = lastSelected.indexOf(first.name)
         val secondIndex = lastSelected.indexOf(second.name)
 
         when {
+            firstFavorite && secondFavorite -> second.songCount.compareTo(first.songCount)
+            firstFavorite -> -1
+            secondFavorite -> 1
             firstIndex != -1 && secondIndex != -1 -> firstIndex.compareTo(secondIndex)
             firstIndex != -1 -> -1
             secondIndex != -1 -> 1

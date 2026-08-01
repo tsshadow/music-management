@@ -16,6 +16,7 @@ import org.moire.ultrasonic.log.RingBufferLoggerTree
 import org.moire.ultrasonic.service.MusicServiceFactory
 import org.moire.ultrasonic.util.FileUtil
 import org.moire.ultrasonic.util.SessionMarker
+import org.moire.ultrasonic.util.Settings
 import org.moire.ultrasonic.util.UncaughtExceptionHandler
 import org.moire.ultrasonic.util.Util
 import timber.log.Timber
@@ -26,6 +27,8 @@ import timber.log.Timber
  * inferred from [SessionMarker] after a silent kill) and gets it off the
  * device via local storage and the backend, per the debug/release consent
  * rules described in docs/superpowers/specs/2026-07-30-android-crash-log-reporting-design.md.
+ *
+ * The whole mechanism is gated on [Settings.crashDetectionEnabled], which is off by default.
  */
 object CrashReportManager {
 
@@ -42,10 +45,25 @@ object CrashReportManager {
         }
     }
 
-    @Volatile
-    private var pendingReport: PendingCrashReport? = null
+    /** What the previous process left behind, before this session overwrites any of it. */
+    internal data class PendingEvidence(
+        val hasExplicitCrashFile: Boolean,
+        val explicitCrashText: String,
+        val hadUnexpectedShutdown: Boolean,
+        val ringBufferText: String
+    )
 
-    /** Call once, early in [org.moire.ultrasonic.app.UApp.onCreate]. */
+    @Volatile
+    private var pendingEvidence: PendingEvidence? = null
+
+    /**
+     * Call once, early in [org.moire.ultrasonic.app.UApp.onCreate].
+     *
+     * This only collects the evidence, which has to happen before the new session overwrites the
+     * ring buffer and the session marker. Whether any of it is reported is decided later, in
+     * [maybeHandlePendingReport] — reading [Settings] here would resolve preference keys from
+     * resources while the application is still being created.
+     */
     fun detectAndArmPendingReport() {
         val hadUnexpectedShutdown = !SessionMarker.previousSessionEndedCleanly()
         val crashReportFile = File(FileUtil.ultrasonicDirectory, UncaughtExceptionHandler.CRASH_REPORT_NAME)
@@ -56,7 +74,7 @@ object CrashReportManager {
             ""
         }
 
-        pendingReport = buildPendingReport(
+        pendingEvidence = PendingEvidence(
             hasExplicitCrashFile = hasExplicitCrashFile,
             explicitCrashText = explicitCrashText,
             hadUnexpectedShutdown = hadUnexpectedShutdown,
@@ -68,8 +86,16 @@ object CrashReportManager {
 
     /** Call once, from [org.moire.ultrasonic.activity.NavigationActivity.onCreate]. */
     fun maybeHandlePendingReport(activity: Activity) {
-        val report = pendingReport ?: return
-        pendingReport = null
+        val evidence = pendingEvidence ?: return
+        pendingEvidence = null
+
+        val report = buildPendingReport(
+            crashDetectionEnabled = Settings.crashDetectionEnabled,
+            hasExplicitCrashFile = evidence.hasExplicitCrashFile,
+            explicitCrashText = evidence.explicitCrashText,
+            hadUnexpectedShutdown = evidence.hadUnexpectedShutdown,
+            ringBufferText = evidence.ringBufferText
+        ) ?: return
 
         if (BuildConfig.DEBUG) {
             sendReport(report)
@@ -149,16 +175,19 @@ object CrashReportManager {
 
 /**
  * Pure decision logic, split out from [CrashReportManager] so it's testable
- * without Robolectric: an explicit crash file always wins; otherwise an
+ * without Robolectric: nothing is reported while crash detection is switched
+ * off; an explicit crash file otherwise always wins; failing that, an
  * unexpected shutdown with non-blank trailing log content is treated as an
  * implicit crash report; otherwise there's nothing to report.
  */
 internal fun buildPendingReport(
+    crashDetectionEnabled: Boolean,
     hasExplicitCrashFile: Boolean,
     explicitCrashText: String,
     hadUnexpectedShutdown: Boolean,
     ringBufferText: String
 ): CrashReportManager.PendingCrashReport? = when {
+    !crashDetectionEnabled -> null
     hasExplicitCrashFile ->
         CrashReportManager.PendingCrashReport(stacktraceText = explicitCrashText, ringBufferText = ringBufferText)
     hadUnexpectedShutdown && ringBufferText.isNotBlank() ->

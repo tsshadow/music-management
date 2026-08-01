@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so the scale is applied by wrapping the activity's context with a reduced `densityDpi` instead of
   touching ~60 layout files. See `services/ultrasonic/ultrasonic/src/main/assets/CHANGELOG.md`.
 
+- **The Artist Images tab is now a real image manager.** Per artist you can let it search
+  automatically, upload a file, paste an image URL, remove the current image, or promote one of the
+  previously fetched images to primary. Results can be filtered on all / with image / without image
+  and are paged, and a new `/api/artists/manage/search` endpoint returns every matching artist —
+  with or without an image — in a single call.
+
+### Fixed
+- **Searching in the Artist Images tab no longer shows an empty page.** The tab assigned any
+  response body straight into its result list, so an error response (or a name containing `&` or
+  `#`, which was never URL-encoded) produced a page with neither results nor a message. It now
+  checks the response, reports the backend's error with a retry button, and debounces typing.
+  See `docs/bug-reports/022-artist-images-tab-search-shows-nothing.md`.
+
+- **Ultrasonic: favorite genres, shared with the web player.** Long-press a genre in Library →
+  Genres to add or remove it; favorites get a star and sort above everything else. It is the same
+  list the web UI keeps (`favoriteGenres` in the per-user `frontend` settings blob), so both clients
+  agree, and a local copy keeps it working offline.
+- **Ultrasonic: a Favorites folder in Android Auto**, holding favorite genres and the dynamic
+  playlists you starred. A genre plays straight from the folder instead of asking for a year and a
+  sort order first. The folder is hidden when there is nothing in it.
+
 ### Changed
 - **Ultrasonic: the default tiles on Songs/Livesets are era tiles now.** The eight tiles that
   filtered on a single genre added nothing next to the genre list, which gets you the same result on

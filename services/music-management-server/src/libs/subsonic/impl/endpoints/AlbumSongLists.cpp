@@ -93,6 +93,16 @@ namespace lms::api::subsonic
 
                 releases = Release::findIds(context.getDbSession(), params);
             }
+            else if (type == "byTrackCount")
+            {
+                Release::FindParameters params;
+                params.setSortMethod(ReleaseSortMethod::TrackCountDesc);
+                params.setRange(range);
+                params.filters.setMediaLibrary(mediaLibraryId);
+                params.setKeywords(keywords);
+
+                releases = Release::findIds(context.getDbSession(), params);
+            }
             else if (type == "byGenre")
             {
                 // Mandatory param

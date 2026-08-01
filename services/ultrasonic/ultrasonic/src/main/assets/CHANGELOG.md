@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.22] - 2026-08-01
+
+### Fixed
+- **Opening Settings crashed the app.** `SettingsFragment` sets every list setting's summary to
+  the selected entry, and `ListPreference.getSummary()` feeds that summary through
+  `String.format()` to substitute the entry into it. The interface size options added in 6.5.21
+  are the first entries in the app that contain a literal `%` ("100%", "75%", ...), so binding
+  that row threw `UnknownFormatConversionException: Conversion = '%'` and killed the process.
+  The `%` is now escaped. This affected every install rather than only upgrades: the preference
+  persists its default value while the screen inflates, so the summary is applied the very first
+  time Settings is opened.
+
 ## [6.5.21] - 2026-08-01
 
 ### Added

@@ -166,7 +166,12 @@ class SettingsFragment :
         try {
             when (val pref: Preference? = findPreference(key)) {
                 is ListPreference -> {
-                    pref.summary = pref.entry
+                    // ListPreference.getSummary() feeds the summary through String.format() to
+                    // substitute the selected entry, so a literal % in the entry has to be
+                    // escaped. The interface size options ("100%", "75%", ...) contain one, and
+                    // an unescaped % throws UnknownFormatConversionException while the row is
+                    // being bound - which takes the whole app down when Settings is opened.
+                    pref.summary = pref.entry?.toString()?.replace("%", "%%")
                 }
                 is EditTextPreference -> {
                     if (key == getString(R.string.setting_key_muma_api_key)) {

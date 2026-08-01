@@ -1,4 +1,5 @@
 <script>
+  import { t, locale } from '../../i18n/index.js';
   import { Info, Music, RefreshCw, Download, Calendar, Hash, FileAudio } from '@lucide/svelte';
 
   export let track = null;
@@ -35,13 +36,13 @@
         {/if}
         {#if track.release_year}
           <div class="bg-white/5 p-3 rounded-lg border border-white/5">
-            <span class="text-[9px] uppercase tracking-widest text-[#b3b3b3] block mb-1">Jaar</span>
+            <span class="text-[9px] uppercase tracking-widest text-[#b3b3b3] block mb-1">{$t('filter.year')}</span>
             <span class="text-lg font-black font-mono tabular-nums">{track.release_year}</span>
           </div>
         {/if}
         {#if duration(track.duration_secs)}
           <div class="bg-white/5 p-3 rounded-lg border border-white/5">
-            <span class="text-[9px] uppercase tracking-widest text-[#b3b3b3] block mb-1">Duur</span>
+            <span class="text-[9px] uppercase tracking-widest text-[#b3b3b3] block mb-1">{$t('library.duration')}</span>
             <span class="text-lg font-black font-mono tabular-nums">{duration(track.duration_secs)}</span>
           </div>
         {/if}
@@ -49,7 +50,7 @@
 
       {#if track.genres && track.genres.length > 0}
         <div>
-          <h3 class="text-[10px] uppercase tracking-widest text-[#b3b3b3] font-bold mb-2">Genres</h3>
+          <h3 class="text-[10px] uppercase tracking-widest text-[#b3b3b3] font-bold mb-2">{$t('nav.genres')}</h3>
           <div class="flex flex-wrap gap-1">
             {#each track.genres as genre (genre)}
               <span class="text-[10px] bg-[#242424] px-2 py-0.5 rounded border border-white/5 text-[#b3b3b3]">{genre}</span>
@@ -60,7 +61,7 @@
 
       <div class="flex flex-col gap-2 pt-3 border-t border-white/5 text-[10px] text-[#535353]">
         {#if track.created_at}
-          <p class="flex items-center gap-2"><Calendar size={12} /> Toegevoegd: {new Date(track.created_at).toLocaleDateString('nl-NL')}</p>
+          <p class="flex items-center gap-2"><Calendar size={12} /> {$t('library.addedOn', { date: new Date(track.created_at).toLocaleDateString($locale) })}</p>
         {/if}
         <p class="flex items-center gap-2"><Hash size={12} /> ID: {track.id}</p>
         {#if track.file_path}
@@ -73,13 +74,13 @@
           class="flex items-center justify-center gap-2 text-xs font-bold bg-white/5 hover:bg-white/10 border border-white/10 rounded-full py-2 transition-colors"
           on:click={() => onRerunParse(track)}
         >
-          <RefreshCw size={14} /> Opnieuw analyseren
+          <RefreshCw size={14} /> {$t('library.reanalyse')}
         </button>
         <button
           class="flex items-center justify-center gap-2 text-xs font-bold bg-white/5 hover:bg-white/10 border border-white/10 rounded-full py-2 transition-colors"
           on:click={() => onRedownload(track)}
         >
-          <Download size={14} /> Opnieuw downloaden
+          <Download size={14} /> {$t('library.redownload')}
         </button>
       </div>
     </div>
@@ -89,8 +90,8 @@
         <Info size={32} />
       </div>
       <div>
-        <h4 class="text-white font-bold mb-1">Geen track geselecteerd</h4>
-        <p class="text-xs">Kies een track om de details te zien.</p>
+        <h4 class="text-white font-bold mb-1">{$t('library.noTrackSelected')}</h4>
+        <p class="text-xs">{$t('library.noTrackSelectedHelp')}</p>
       </div>
     </div>
   {/if}

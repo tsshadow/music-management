@@ -1,4 +1,5 @@
 <script>
+  import { t } from '../../i18n/index.js';
   import { Disc, Clock, RefreshCw, ChevronLeft, ChevronRight } from '@lucide/svelte';
 
   export let tracks = [];
@@ -26,12 +27,12 @@
     <table class="w-full text-left text-sm border-collapse min-w-[720px]">
       <thead class="bg-[#121212] border-b border-white/10">
         <tr class="text-[#b3b3b3] uppercase text-[10px] tracking-widest font-black">
-          <th class="px-4 py-4">Titel</th>
-          <th class="px-4 py-4">Artiest</th>
-          <th class="px-4 py-4">Label</th>
-          <th class="px-4 py-4">Genre</th>
+          <th class="px-4 py-4">{$t('track.title')}</th>
+          <th class="px-4 py-4">{$t('common.artist')}</th>
+          <th class="px-4 py-4">{$t('library.label')}</th>
+          <th class="px-4 py-4">{$t('nav.genres')}</th>
           <th class="px-4 py-4 text-right">BPM</th>
-          <th class="px-4 py-4 text-right">Jaar</th>
+          <th class="px-4 py-4 text-right">{$t('filter.year')}</th>
           <th class="px-4 py-4 text-right"><Clock size={14} class="inline" /></th>
         </tr>
       </thead>
@@ -40,19 +41,19 @@
           <tr><td colspan="7" class="px-4 py-20 text-center text-[#b3b3b3]">
             <div class="flex flex-col items-center gap-4">
               <RefreshCw class="animate-spin text-brand" size={32} />
-              <span>Bibliotheek laden...</span>
+              <span>{$t('library.loading')}</span>
             </div>
           </td></tr>
         {:else if error}
           <tr><td colspan="7" class="px-4 py-20 text-center">
             <div class="flex flex-col items-center gap-2">
-              <span class="text-red-400 font-bold">Laden mislukt</span>
+              <span class="text-red-400 font-bold">{$t('library.loadFailed')}</span>
               <span class="text-xs text-[#b3b3b3] max-w-md">{error}</span>
             </div>
           </td></tr>
         {:else if tracks.length === 0}
           <tr><td colspan="7" class="px-4 py-20 text-center text-[#b3b3b3]">
-            Geen tracks gevonden met deze filters.
+            {$t('library.noTracksForFilters')}
           </td></tr>
         {:else}
           {#each tracks as track (track.id)}

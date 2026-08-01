@@ -63,6 +63,7 @@ def startup_event():
     threading.Thread(target=run_tagger_loop, args=(int(os.getenv('TAGGER_SLEEPTIME', '300')),), daemon=True).start()
     threading.Thread(target=run_scanner_loop, args=(int(os.getenv('SCANNER_SLEEPTIME', '3600')),), daemon=True).start()
     threading.Thread(target=run_fetch_missing, daemon=True).start()
+    threading.Thread(target=radio.run_radio_scheduler, daemon=True).start()
     start_ntfy_listener()
 
 @app.get('/health')

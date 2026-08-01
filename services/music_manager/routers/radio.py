@@ -1,6 +1,8 @@
 import logging
+import time
 from fastapi import APIRouter, HTTPException, Depends
 from services.music_manager.database import get_db_connection
+from services.music_manager.lms_subsonic import fetch_candidate_tracks
 from services.music_manager.routers.management import verify_api_key
 
 router = APIRouter(tags=['radio'])
@@ -61,6 +63,68 @@ def plan_entries(existing_end, now: float, candidates: list, horizon: float = SC
         entries.append(entry)
         cursor = entry['ends_at']
     return entries
+
+
+CANDIDATE_BATCH_SIZE = 20
+HISTORY_RETENTION_SECONDS = 3600.0
+
+
+def fill_channel(conn, channel: dict, now: float) -> int:
+    """Top up one channel's timeline. Returns how many entries were inserted."""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            'SELECT MAX(ends_at) AS last_end FROM radio_timeline WHERE channel_id = %s',
+            (channel['id'],),
+        )
+        row = cursor.fetchone() or {}
+        existing_end = row.get('last_end')
+
+    if existing_end is not None and existing_end >= now + SCHEDULE_HORIZON_SECONDS:
+        return 0
+
+    try:
+        candidates = fetch_candidate_tracks(channel.get('genre'), size=CANDIDATE_BATCH_SIZE)
+    except Exception as e:
+        logger.warning("Radio channel '%s': could not fetch candidates: %s", channel['slug'], e)
+        return 0
+
+    entries = plan_entries(existing_end, now, candidates)
+    if not entries:
+        return 0
+
+    with conn.cursor() as cursor:
+        for entry in entries:
+            cursor.execute(
+                'INSERT INTO radio_timeline'
+                ' (channel_id, track_id, title, artist, album, cover_art, duration_ms, started_at, ends_at)'
+                ' VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                (channel['id'], entry['track_id'], entry['title'], entry['artist'], entry['album'],
+                 entry['cover_art'], entry['duration_ms'], entry['started_at'], entry['ends_at']),
+            )
+        cursor.execute(
+            'DELETE FROM radio_timeline WHERE channel_id = %s AND ends_at < %s',
+            (channel['id'], now - HISTORY_RETENTION_SECONDS),
+        )
+    conn.commit()
+    return len(entries)
+
+
+def run_radio_scheduler(interval: int = 5):
+    """Background loop keeping every enabled channel's timeline filled ahead of now."""
+    while True:
+        conn = get_db_connection()
+        if conn:
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute('SELECT id, slug, genre FROM radio_channels WHERE enabled = 1')
+                    channels = cursor.fetchall()
+                for channel in channels:
+                    fill_channel(conn, channel, time.time())
+            except Exception as e:
+                logger.error('Radio scheduler iteration failed: %s', e)
+            finally:
+                conn.close()
+        time.sleep(interval)
 
 
 @router.get('/channels')

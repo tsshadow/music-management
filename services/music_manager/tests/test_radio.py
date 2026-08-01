@@ -90,6 +90,54 @@ class PlanEntriesTest(unittest.TestCase):
         self.assertNotIn('started_at', candidate)
 
 
+class FillChannelTest(unittest.TestCase):
+
+    def _conn_with_end(self, existing_end):
+        conn = MagicMock()
+        cursor = MagicMock()
+        conn.cursor.return_value.__enter__.return_value = cursor
+        cursor.fetchone.return_value = {'last_end': existing_end}
+        return conn, cursor
+
+    @patch('services.music_manager.routers.radio.fetch_candidate_tracks')
+    def test_inserts_planned_entries(self, mock_fetch):
+        from services.music_manager.routers import radio
+        mock_fetch.return_value = [
+            {'track_id': 'tr-1', 'title': 't', 'artist': 'a', 'album': 'b', 'cover_art': None, 'duration_ms': 700000},
+        ]
+        conn, cursor = self._conn_with_end(None)
+        inserted = radio.fill_channel(conn, {'id': 3, 'slug': 'main', 'genre': None}, now=1000.0)
+        self.assertEqual(inserted, 1)
+        insert_call = next(c for c in cursor.execute.call_args_list if 'INSERT INTO radio_timeline' in c[0][0])
+        self.assertEqual(insert_call[0][1][0], 3)
+        self.assertEqual(insert_call[0][1][1], 'tr-1')
+        mock_fetch.assert_called_once()
+        self.assertIsNone(mock_fetch.call_args[0][0])
+
+    @patch('services.music_manager.routers.radio.fetch_candidate_tracks')
+    def test_skips_fetch_when_timeline_already_full(self, mock_fetch):
+        from services.music_manager.routers import radio
+        conn, _ = self._conn_with_end(1000.0 + radio.SCHEDULE_HORIZON_SECONDS + 60)
+        inserted = radio.fill_channel(conn, {'id': 3, 'slug': 'main', 'genre': None}, now=1000.0)
+        self.assertEqual(inserted, 0)
+        mock_fetch.assert_not_called()
+
+    @patch('services.music_manager.routers.radio.fetch_candidate_tracks')
+    def test_passes_channel_genre_to_fetch(self, mock_fetch):
+        from services.music_manager.routers import radio
+        mock_fetch.return_value = []
+        conn, _ = self._conn_with_end(None)
+        radio.fill_channel(conn, {'id': 4, 'slug': 'hard', 'genre': 'hardstyle'}, now=1000.0)
+        self.assertEqual(mock_fetch.call_args[0][0], 'hardstyle')
+
+    @patch('services.music_manager.routers.radio.fetch_candidate_tracks')
+    def test_lms_failure_does_not_raise(self, mock_fetch):
+        from services.music_manager.routers import radio
+        mock_fetch.side_effect = RuntimeError('LMS down')
+        conn, _ = self._conn_with_end(None)
+        self.assertEqual(radio.fill_channel(conn, {'id': 3, 'slug': 'main', 'genre': None}, now=1000.0), 0)
+
+
 class RadioInitDbTest(unittest.TestCase):
 
     def test_init_db_creates_tables_and_seeds_default_channel(self):

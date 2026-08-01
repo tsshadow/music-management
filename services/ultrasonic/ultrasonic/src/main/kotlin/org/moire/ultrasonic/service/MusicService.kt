@@ -72,7 +72,13 @@ interface MusicService {
     fun getIndexes(musicFolderId: String?, refresh: Boolean): List<Index>
 
     @Throws(Exception::class)
-    fun getArtists(refresh: Boolean, offset: Int? = null, count: Int? = null): List<Artist>
+    fun getArtists(
+        refresh: Boolean,
+        offset: Int? = null,
+        count: Int? = null,
+        query: String? = null,
+        sortBy: String? = null
+    ): List<Artist>
 
     /**
      * Artists ordered by library activity. [type] is "newest" (recently added) or
@@ -145,7 +151,8 @@ interface MusicService {
         type: AlbumListType,
         size: Int,
         offset: Int,
-        musicFolderId: String?
+        musicFolderId: String?,
+        query: String? = null
     ): List<Album>
 
     @Throws(Exception::class)

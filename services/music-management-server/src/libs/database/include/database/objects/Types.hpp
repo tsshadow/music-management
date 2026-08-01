@@ -52,6 +52,7 @@ namespace lms::db
         AddedDesc,
         StarredDateDesc,
         TrackCountDesc,
+        ReleaseCountDesc,
         Relevance,
     };
 
@@ -111,6 +112,7 @@ namespace lms::db
         LastWrittenDesc,
         AddedDesc,
         StarredDateDesc,
+        TrackCountDesc,
         Relevance,
     };
 

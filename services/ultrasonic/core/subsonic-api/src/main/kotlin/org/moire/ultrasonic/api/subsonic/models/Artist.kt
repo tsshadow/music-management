@@ -8,6 +8,7 @@ data class Artist(
     val name: String = "",
     val coverArt: String = "",
     val albumCount: Int = 0,
+    val songCount: Int = 0,
     val starred: Calendar? = null,
     @JsonProperty("album")
     val albumsList: List<Album> = emptyList()

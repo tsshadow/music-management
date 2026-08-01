@@ -146,8 +146,18 @@ class CachedMusicService(private val musicService: MusicService) :
     }
 
     @Throws(Exception::class)
-    override fun getArtists(refresh: Boolean, offset: Int?, count: Int?): List<Artist> {
+    override fun getArtists(
+        refresh: Boolean,
+        offset: Int?,
+        count: Int?,
+        query: String?,
+        sortBy: String?
+    ): List<Artist> {
         checkSettingsChanged()
+
+        if (artistsCacheBypassesFor(query, sortBy, count)) {
+            return musicService.getArtists(refresh, offset, count, query, sortBy)
+        }
 
         if (refresh) {
             cachedArtists.clear()
@@ -156,7 +166,7 @@ class CachedMusicService(private val musicService: MusicService) :
         var result = cachedArtists.get()
 
         if (result.isEmpty()) {
-            result = musicService.getArtists(refresh, offset, count)
+            result = musicService.getArtists(refresh, offset, count, query, sortBy)
             cachedArtists.set(result)
         }
         return result
@@ -345,8 +355,9 @@ class CachedMusicService(private val musicService: MusicService) :
         type: AlbumListType,
         size: Int,
         offset: Int,
-        musicFolderId: String?
-    ): List<Album> = musicService.getAlbumList2(type, size, offset, musicFolderId)
+        musicFolderId: String?,
+        query: String?
+    ): List<Album> = musicService.getAlbumList2(type, size, offset, musicFolderId, query)
 
     @Throws(Exception::class)
     override fun getRandomSongs(size: Int): MusicDirectory = musicService.getRandomSongs(size)
@@ -730,3 +741,20 @@ class CachedMusicService(private val musicService: MusicService) :
         cachedUserInfo = LRUCache(MUSIC_DIR_CACHE_SIZE)
     }
 }
+
+/**
+ * Whether [CachedMusicService.getArtists] has to skip its Room cache and go straight to
+ * [musicService][CachedMusicService].
+ *
+ * The cache is [ArtistDao.get] - a plain `SELECT * FROM artists` with no `LIMIT`/`OFFSET`/
+ * `ORDER BY`, and its result is never clamped to a requested [count]. It can only stand in for
+ * a request that wants the *whole* library in whatever order the table happens to hold it, e.g.
+ * [org.moire.ultrasonic.fragment.muma.SelectFragment]'s `getArtists(refresh, null, null)`.
+ * Any *paged* request - one that passes a [count] - needs the server to do the limiting,
+ * ordering and offsetting, because the DAO has no way to answer any of that: serving it from
+ * cache would return the entire table as "page 1" and then let the pager append rows it already
+ * has. A search term or a non-default sort needs the server for the same reason.
+ */
+internal fun artistsCacheBypassesFor(query: String?, sortBy: String?, count: Int?): Boolean = query != null ||
+    (sortBy != null && sortBy != "name") ||
+    count != null

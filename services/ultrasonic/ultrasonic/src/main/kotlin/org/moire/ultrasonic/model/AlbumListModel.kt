@@ -20,6 +20,7 @@ class AlbumListModel(application: Application) : GenericListModel(application) {
 
     val list: MutableLiveData<List<Album>> = MutableLiveData()
     private var lastType: AlbumListType? = null
+    private var lastQuery: String? = null
     private var loadedUntil: Int = 0
 
     suspend fun getAlbumsOfArtist(refresh: Boolean, id: String, name: String?) {
@@ -35,14 +36,17 @@ class AlbumListModel(application: Application) : GenericListModel(application) {
         size: Int = 0,
         offset: Int = 0,
         append: Boolean = false,
-        refresh: Boolean
+        refresh: Boolean,
+        query: String? = null
     ) {
         // Don't reload the data if navigating back to the view that was active before.
-        // This way, we keep the scroll position
-        if ((!refresh && list.value?.isEmpty() == false && albumListType == lastType)) {
+        // This way, we keep the scroll position. A changed search term must still reload,
+        // otherwise typing while the same order is selected would return the stale list.
+        if (!refresh && list.value?.isEmpty() == false && albumListType == lastType && query == lastQuery) {
             return
         }
         lastType = albumListType
+        lastQuery = query
 
         withContext(Dispatchers.IO) {
             val service = MusicServiceFactory.getMusicService()
@@ -70,7 +74,8 @@ class AlbumListModel(application: Application) : GenericListModel(application) {
                     albumListType,
                     size,
                     offset,
-                    musicFolderId
+                    musicFolderId,
+                    query
                 )
             } else {
                 service.getAlbumList(

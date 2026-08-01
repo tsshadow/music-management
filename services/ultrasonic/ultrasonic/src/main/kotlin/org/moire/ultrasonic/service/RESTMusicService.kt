@@ -106,8 +106,14 @@ open class RESTMusicService(
     }
 
     @Throws(Exception::class)
-    override fun getArtists(refresh: Boolean, offset: Int?, count: Int?): List<Artist> {
-        val response = API.getArtists(null, offset, count).execute().throwOnFailure()
+    override fun getArtists(
+        refresh: Boolean,
+        offset: Int?,
+        count: Int?,
+        query: String?,
+        sortBy: String?
+    ): List<Artist> {
+        val response = API.getArtists(null, offset, count, query, sortBy).execute().throwOnFailure()
 
         return response.body()!!.indexes.toArtistList(activeServerId)
     }
@@ -376,7 +382,8 @@ open class RESTMusicService(
         type: AlbumListType,
         size: Int,
         offset: Int,
-        musicFolderId: String?
+        musicFolderId: String?,
+        query: String?
     ): List<Album> {
         val response = API.getAlbumList2(
             type,
@@ -385,7 +392,8 @@ open class RESTMusicService(
             null,
             null,
             null,
-            musicFolderId
+            musicFolderId,
+            query
         ).execute().throwOnFailure()
 
         return response.body()!!.albumList.toDomainEntityList(activeServerId)

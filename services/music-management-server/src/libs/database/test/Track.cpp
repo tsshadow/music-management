@@ -758,4 +758,27 @@ namespace lms::db::tests
             }
         }
     }
+
+    TEST_F(DatabaseFixture, Track_getCountByArtist)
+    {
+        ScopedArtist artistA{ session, "artistA" };
+        ScopedArtist artistB{ session, "artistB" };
+        ScopedTrack trackA1{ session };
+        ScopedTrack trackA2{ session };
+        ScopedTrack trackB1{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.create<TrackArtistLink>(trackA1.get(), artistA.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(trackA2.get(), artistA.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(trackB1.get(), artistB.get(), TrackArtistLinkType::Artist);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(Track::getCount(session, Track::FindParameters{}.setArtist(artistA.getId())), 2);
+            EXPECT_EQ(Track::getCount(session, Track::FindParameters{}.setArtist(artistB.getId())), 1);
+            EXPECT_EQ(Track::getCount(session, Track::FindParameters{}), 3);
+        }
+    }
 } // namespace lms::db::tests

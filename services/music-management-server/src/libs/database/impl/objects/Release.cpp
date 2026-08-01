@@ -67,6 +67,7 @@ namespace lms::db
             if (params.sortMethod == ReleaseSortMethod::ArtistNameThenName
                 || params.sortMethod == ReleaseSortMethod::LastWrittenDesc
                 || params.sortMethod == ReleaseSortMethod::AddedDesc
+                || params.sortMethod == ReleaseSortMethod::TrackCountDesc
                 || params.sortMethod == ReleaseSortMethod::DateAsc
                 || params.sortMethod == ReleaseSortMethod::DateDesc
                 || params.sortMethod == ReleaseSortMethod::OriginalDate
@@ -262,6 +263,9 @@ namespace lms::db
             case ReleaseSortMethod::AddedDesc:
                 query.orderBy("t.file_added DESC");
                 break;
+            case ReleaseSortMethod::TrackCountDesc:
+                query.orderBy("COUNT(t.id) DESC, r.sort_name");
+                break;
             case ReleaseSortMethod::DateAsc:
                 query.orderBy("t.date ASC, r.name COLLATE NOCASE");
                 break;
@@ -305,6 +309,9 @@ namespace lms::db
                     break;
                 }
             }
+
+            if (params.sortMethod == ReleaseSortMethod::TrackCountDesc)
+                query.groupBy("r.id");
 
             return query;
         }

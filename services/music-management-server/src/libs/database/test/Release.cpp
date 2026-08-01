@@ -1657,6 +1657,39 @@ namespace lms::db::tests
         }
     }
 
+    TEST_F(DatabaseFixture, Release_sortTrackCountDesc)
+    {
+        ScopedRelease releaseA{ session, "releaseA" };
+        ScopedRelease releaseB{ session, "releaseB" };
+        ScopedRelease releaseC{ session, "releaseC" };
+
+        ScopedTrack trackA1{ session };
+        ScopedTrack trackA2{ session };
+        ScopedTrack trackA3{ session };
+        ScopedTrack trackB1{ session };
+        ScopedTrack trackB2{ session };
+        ScopedTrack trackC1{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            trackA1.get().modify()->setRelease(releaseA.get());
+            trackA2.get().modify()->setRelease(releaseA.get());
+            trackA3.get().modify()->setRelease(releaseA.get());
+            trackB1.get().modify()->setRelease(releaseB.get());
+            trackB2.get().modify()->setRelease(releaseB.get());
+            trackC1.get().modify()->setRelease(releaseC.get());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            const auto releases{ Release::findIds(session, Release::FindParameters{}.setSortMethod(ReleaseSortMethod::TrackCountDesc)) };
+            ASSERT_EQ(releases.results.size(), 3);
+            EXPECT_EQ(releases.results[0], releaseA.getId());
+            EXPECT_EQ(releases.results[1], releaseB.getId());
+            EXPECT_EQ(releases.results[2], releaseC.getId());
+        }
+    }
+
     TEST_F(DatabaseFixture, Release_updateArtwork)
     {
         ScopedRelease release{ session, "MyRelease" };

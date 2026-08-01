@@ -111,6 +111,7 @@ namespace lms::db
         LastWrittenDesc,
         AddedDesc,
         StarredDateDesc,
+        TrackCountDesc,
         Relevance,
     };
 

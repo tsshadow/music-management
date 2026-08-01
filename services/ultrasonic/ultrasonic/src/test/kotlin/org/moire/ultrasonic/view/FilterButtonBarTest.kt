@@ -2,6 +2,7 @@ package org.moire.ultrasonic.view
 
 import android.widget.EditText
 import androidx.appcompat.view.ContextThemeWrapper
+import androidx.core.view.isVisible
 import org.amshove.kluent.`should be equal to`
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -83,5 +84,19 @@ class FilterButtonBarTest {
         )
 
         reported `should be equal to` "angerfist"
+    }
+
+    @Test
+    fun `every sort order has a label`() {
+        val bar = barWith(
+            ViewCapabilities(
+                supportsGrid = true,
+                supportedSortOrders = SortOrder.entries.toList(),
+                supportsSearch = false
+            )
+        )
+
+        // configureWithCapabilities labels every offered order; a missing label throws.
+        bar.findViewById<android.view.View>(R.id.sort_order_menu).isVisible `should be equal to` true
     }
 }

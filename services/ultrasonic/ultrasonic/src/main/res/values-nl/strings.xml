@@ -114,6 +114,9 @@
     <string name="main.albums_starred">Favorieten</string>
     <string name="main.albums_by_year">Chronologisch</string>
     <string name="main.albums_title">Albums</string>
+    <string name="sort_order_track_count">Aantal nummers</string>
+    <string name="sort_order_album_count">Aantal albums</string>
+    <string name="sort_order_added">Recent toegevoegd</string>
     <string name="main.artists_title">Artiesten</string>
     <string name="main.genres_title">Genres</string>
     <string name="main.offline">Offline</string>
@@ -151,6 +154,7 @@
     <string name="select_album.no_sdcard">Fout: geen SD-kaart beschikbaar.</string>
     <string name="select_album.play_all">Alles afspelen</string>
     <string name="select_artist.all_folders">Alle mappen</string>
+    <string name="select_artist.empty">Geen artiesten gevonden</string>
     <string name="select_artist.folder">Map kiezen</string>
     <string name="select_genre.empty">Geen genres gevonden</string>
     <string name="select_playlist.empty">Geen opgeslagen afspeellijsten op server</string>

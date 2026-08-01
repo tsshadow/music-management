@@ -139,6 +139,9 @@
     <string name="main.albums_by_year">Chronological</string>
     <string name="main.albums_released">Recent Released</string>
     <string name="main.albums_title">Albums</string>
+    <string name="sort_order_track_count">Number of tracks</string>
+    <string name="sort_order_album_count">Number of albums</string>
+    <string name="sort_order_added">Recently added</string>
     <string name="main.artists_title">Artists</string>
     <string name="main.genres_title">Genres</string>
     <string name="main.library_title">Library</string>
@@ -199,6 +202,7 @@
     <string name="artist_detail_eps">EPs</string>
     <string name="artist_detail_singles">Singles</string>
     <string name="select_artist.all_folders">All Folders</string>
+    <string name="select_artist.empty">No artists found</string>
     <string name="select_artist.folder">Select Folder</string>
     <string name="select_genre.empty">No genres found</string>
     <string name="select_mood.empty">No moods found</string>

@@ -34,3 +34,24 @@ data class LibraryQuery(
     fun resetsList(previous: LibraryQuery): Boolean =
         query != previous.query || sortOrder != previous.sortOrder
 }
+
+/** The orders the artist list offers, in the order the dropdown shows them. */
+val ARTIST_SORT_ORDERS: List<SortOrder> = listOf(
+    SortOrder.BY_NAME,
+    SortOrder.BY_TRACK_COUNT,
+    SortOrder.BY_ALBUM_COUNT,
+    SortOrder.BY_ADDED,
+    SortOrder.RANDOM
+)
+
+/**
+ * `SortOrder.typeName` carries the album-list value ("alphabeticalByName"), which getArtists does
+ * not accept, so artists get their own mapping.
+ */
+fun artistSortByValue(order: SortOrder): String = when (order) {
+    SortOrder.BY_TRACK_COUNT -> "trackCount"
+    SortOrder.BY_ALBUM_COUNT -> "albumCount"
+    SortOrder.BY_ADDED -> "added"
+    SortOrder.RANDOM -> "random"
+    else -> "name"
+}

@@ -89,6 +89,7 @@ reimplementing anything.
 |---|---|
 | Looking for the old Library or Stats tabs | Gone; the Library Browser replaces both |
 | Looking for scrobble totals, match rate, unmatched listens, recently added tracks, or the artist-images action | Moved to the Overview tab, where the other system-health figures already live |
+| Reading the popular-genres list on Overview | Counts come from the genres tracks actually carry, so they change from today's figures, which are derived from machine-learning predictions |
 
 ## Acceptance Criteria
 
@@ -124,8 +125,12 @@ reimplementing anything.
   them and are removed rather than faked. Key in particular cannot be derived from what is stored:
   `mean_chroma` is a single scalar averaged over all twelve pitch classes, so recovering key would require
   re-analysing the audio. Out of scope here.
-- Machine-learning genre predictions in `library_track_ml_labels` are excluded. The model is early, too heavy
-  for the server, and not yet accurate enough to present alongside curated genres.
+- Machine-learning genre predictions in `library_track_ml_labels` are excluded, from the browser and from the
+  popular-genres figures on Overview. The model is early, too heavy for the server, and not yet accurate
+  enough to present alongside curated genres. The predictions stay in the database for later ML work.
+- The dynamic-playlist preview in the web UI will match more tracks once genres are indexed, because it
+  currently falls back to those same ML predictions. Accepted: the preview sees little use, and the seeded
+  default playlists it was built around are being retired separately.
 - The collection has no album concept — there is no album table, and the old Stats tab reported a hardcoded
   zero. Album browsing is not part of this design.
 - Ratings exist for 21 tracks, too few to be worth a facet. Revisit once ratings see real use.

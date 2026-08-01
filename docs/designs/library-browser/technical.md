@@ -165,9 +165,12 @@ exists the join yields rows. The response becomes `[{genre, state, count}]` rest
 ('white', 'unknown')`, so the sidebar can group approved genres separately from those awaiting curation and
 show counts.
 
-### Unchanged
+### Changed — `GET /api/stats`
 
-`GET /api/stats` keeps its shape and moves consumer, from the Stats tab to Overview.
+Response shape is unchanged; the consumer moves from the Stats tab to Overview. `top_genres` stops unioning
+`library_track_ml_labels.ml_genre` and counts `library_track_genres` alone, so each track contributes once
+per genre it actually carries. The existing semicolon-splitting in Python becomes unnecessary — genres are
+already one row each in `library_track_genres` — and is removed with it.
 
 ## Frontend
 
@@ -199,17 +202,23 @@ requests.
 consumer. No LMS, muma-proxy or Ultrasonic code references `/api/library/advanced` or
 `/api/library/genres`.
 
-**Dynamic playlists (`users.py`) — behavioural change, no code change.** Playlist genre rules match
-`library_track_genres` OR `library_track_ml_labels.ml_genre`. With the first table empty, they run entirely
-on ML predictions, which cover about 52,000 tracks. Populating `library_track_genres` makes the first branch
-live, and existing playlists will match substantially more tracks than before. This is the intended
-correction — the rules were always meant to read curated genres — but it changes what users get from
-playlists they already have, so it belongs in the release notes.
+**Dynamic playlist preview (`users.py`) — behavioural change, no code change.** Playlist genre rules match
+`library_track_genres` OR `library_track_ml_labels.ml_genre`. With the first table empty they run entirely on
+ML predictions, covering about 52,000 tracks; populating it makes the first branch live and the preview will
+match substantially more tracks. The blast radius is one screen: the query lives only in
+`GET /{user_id}/dynamic-playlists/{playlist_id}/tracks`, whose sole caller is `PlaylistsTab.svelte` in the
+web UI. Ultrasonic calls only the list, create and delete endpoints
+(`MumaAPIDefinition.kt:34-45`), `POST /dynamic-playlists/sync` stores a playlist definition without
+resolving tracks, and the C++ server references neither `library_track_genres` nor `dynamic_playlists`. The
+Android app's playlists are resolved elsewhere and are unaffected. The seeded default playlists are being
+retired separately.
 
-**`GET /api/stats` — changed output, no code change.** Its `top_genres` query unions `library_track_genres`
-with `ml_genre` and counts both. Once the first table has rows, counts rise and a track carrying the same
-genre in its tag and its ML prediction is counted twice. Deduplicating that union is in scope for this
-change, since Overview will now display it.
+**`GET /api/stats` — changed output, requires a code change.** Its `top_genres` query unions
+`library_track_genres` with `ml_genre` and counts both, so once the first table has rows a track carrying the
+same genre in its tag and its ML prediction would be counted twice. Rather than deduplicate the union, the
+`ml_genre` branch is dropped: `top_genres` counts `library_track_genres` alone. That matches the decision to
+keep early-stage ML predictions out of curated-genre figures, and makes the number Overview shows mean one
+thing. Genre counts will change when this ships, since they are currently derived from ML predictions only.
 
 ## Technical Acceptance Criteria
 
@@ -237,7 +246,8 @@ change, since Overview will now display it.
 11. Every endpoint returns 401 without a valid API key, matching the existing routers' behaviour.
 12. A filter matching no tracks returns HTTP 200 with empty arrays, never a 4xx or 5xx.
 13. Frontend tests assert that a non-ok response renders an error message rather than the empty-result view.
-14. `GET /api/stats` counts each genre once per track after the union is deduplicated.
+14. `GET /api/stats` derives `top_genres` from `library_track_genres` alone, counts each track once per
+    genre it carries, and its result contains no genre that exists only as an ML prediction.
 15. The added indexes exist, and a combined genre + label + BPM-range query over the full 265k-track dataset
     returns within one second.
 

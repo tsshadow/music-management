@@ -138,6 +138,67 @@ class FillChannelTest(unittest.TestCase):
         self.assertEqual(radio.fill_channel(conn, {'id': 3, 'slug': 'main', 'genre': None}, now=1000.0), 0)
 
 
+class RadioStateTest(unittest.TestCase):
+
+    def setUp(self):
+        self.client = TestClient(app)
+        self.api_key = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
+
+    def test_time_endpoint_returns_epoch_seconds(self):
+        response = self.client.get('/api/radio/time', headers={'x-api-key': self.api_key})
+        self.assertEqual(response.status_code, 200)
+        self.assertGreater(response.json()['server_time'], 1_700_000_000)
+
+    @patch('services.music_manager.routers.radio.get_db_connection')
+    def test_state_returns_current_and_next(self, mock_get_db):
+        conn = MagicMock()
+        cursor = MagicMock()
+        mock_get_db.return_value = conn
+        conn.cursor.return_value.__enter__.return_value = cursor
+        entry = {'track_id': 'tr-42', 'title': 'T', 'artist': 'A', 'album': 'B',
+                 'cover_art': 'al-7', 'duration_ms': 215000,
+                 'started_at': 1000.0, 'ends_at': 1215.0}
+        nxt = dict(entry, track_id='tr-43', started_at=1215.0, ends_at=1400.0)
+        cursor.fetchone.side_effect = [
+            {'id': 1, 'slug': 'main', 'name': 'Radio', 'genre': None},
+            entry,
+            nxt,
+        ]
+        response = self.client.get('/api/radio/main/state', headers={'x-api-key': self.api_key})
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['channel']['slug'], 'main')
+        self.assertEqual(body['current']['track_id'], 'tr-42')
+        self.assertEqual(body['next']['track_id'], 'tr-43')
+        self.assertIn('server_time', body)
+
+    @patch('services.music_manager.routers.radio.get_db_connection')
+    def test_state_returns_404_for_unknown_channel(self, mock_get_db):
+        conn = MagicMock()
+        cursor = MagicMock()
+        mock_get_db.return_value = conn
+        conn.cursor.return_value.__enter__.return_value = cursor
+        cursor.fetchone.return_value = None
+        response = self.client.get('/api/radio/nope/state', headers={'x-api-key': self.api_key})
+        self.assertEqual(response.status_code, 404)
+
+    @patch('services.music_manager.routers.radio.get_db_connection')
+    def test_state_returns_nulls_when_timeline_empty(self, mock_get_db):
+        conn = MagicMock()
+        cursor = MagicMock()
+        mock_get_db.return_value = conn
+        conn.cursor.return_value.__enter__.return_value = cursor
+        cursor.fetchone.side_effect = [
+            {'id': 1, 'slug': 'main', 'name': 'Radio', 'genre': None},
+            None,
+            None,
+        ]
+        response = self.client.get('/api/radio/main/state', headers={'x-api-key': self.api_key})
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.json()['current'])
+        self.assertIsNone(response.json()['next'])
+
+
 class RadioInitDbTest(unittest.TestCase):
 
     def test_init_db_creates_tables_and_seeds_default_channel(self):

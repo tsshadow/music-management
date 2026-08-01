@@ -140,3 +140,54 @@ def list_channels(_auth: dict = Depends(verify_api_key)):
             return {'channels': cursor.fetchall()}
     finally:
         conn.close()
+
+
+ENTRY_COLUMNS = 'track_id, title, artist, album, cover_art, duration_ms, started_at, ends_at'
+
+
+@router.get('/time')
+def server_time(_auth: dict = Depends(verify_api_key)):
+    """Deliberately DB-free: clients call this repeatedly to measure clock offset."""
+    return {'server_time': time.time()}
+
+
+@router.get('/{slug}/state')
+def get_channel_state(slug: str, _auth: dict = Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail='Database unavailable')
+    try:
+        now = time.time()
+        with conn.cursor() as cursor:
+            cursor.execute(
+                'SELECT id, slug, name, genre FROM radio_channels WHERE slug = %s AND enabled = 1',
+                (slug,),
+            )
+            channel = cursor.fetchone()
+            if not channel:
+                raise HTTPException(status_code=404, detail='Unknown channel')
+
+            cursor.execute(
+                f'SELECT {ENTRY_COLUMNS} FROM radio_timeline'
+                ' WHERE channel_id = %s AND started_at <= %s AND ends_at > %s'
+                ' ORDER BY started_at DESC LIMIT 1',
+                (channel['id'], now, now),
+            )
+            current = cursor.fetchone()
+
+            cursor.execute(
+                f'SELECT {ENTRY_COLUMNS} FROM radio_timeline'
+                ' WHERE channel_id = %s AND started_at > %s'
+                ' ORDER BY started_at ASC LIMIT 1',
+                (channel['id'], now),
+            )
+            nxt = cursor.fetchone()
+
+        return {
+            'server_time': now,
+            'channel': {'slug': channel['slug'], 'name': channel['name'], 'genre': channel['genre']},
+            'current': current,
+            'next': nxt,
+        }
+    finally:
+        conn.close()

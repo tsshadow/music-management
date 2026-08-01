@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { get, writable } from 'svelte/store';
-import { hasPermission, userPermissions, mumaUser, authParams, credentials, mumaApiUrl, mumaApiKey, favoriteGenres } from '../../src/lib/store';
+import { hasPermission, userPermissions, mumaUser, authParams, credentials, mumaApiUrl, mumaApiKey, favoriteGenres, loadFrontendSettings, saveFrontendSetting } from '../../src/lib/store';
+import { locale } from '../../src/lib/i18n';
 
 describe('store - hasPermission', () => {
   beforeEach(() => {
@@ -147,5 +148,139 @@ describe('store - favoriteGenres account sync', () => {
 
     mumaUser.set(null);
     expect(get(favoriteGenres)).toEqual([]);
+  });
+});
+
+describe('store - frontend app-settings helpers', () => {
+  beforeEach(() => {
+    mumaUser.set(null);
+    mumaApiKey.set('test-api-key');
+  });
+
+  it('returns the parsed settings blob', async () => {
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ settings: JSON.stringify({ language: 'nl' }) }) }));
+    expect(await loadFrontendSettings(1)).toEqual({ language: 'nl' });
+  });
+
+  it('returns null when the account has no settings saved yet', async () => {
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ settings: null }) }));
+    expect(await loadFrontendSettings(1)).toBeNull();
+  });
+
+  it('returns null on a non-ok response', async () => {
+    global.fetch = vi.fn(async () => ({ ok: false, status: 403, json: async () => ({}) }));
+    expect(await loadFrontendSettings(1)).toBeNull();
+  });
+
+  it('returns null when the request rejects', async () => {
+    global.fetch = vi.fn(async () => { throw new Error('offline'); });
+    expect(await loadFrontendSettings(1)).toBeNull();
+  });
+
+  it('returns null when the stored settings are malformed', async () => {
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ settings: 'not json' }) }));
+    expect(await loadFrontendSettings(1)).toBeNull();
+  });
+
+  it('preserves unrelated keys when saving one setting', async () => {
+    global.fetch = vi.fn(async (_url, opts = {}) => {
+      if ((opts.method || 'GET') === 'GET') {
+        return { ok: true, json: async () => ({ settings: JSON.stringify({ favoriteGenres: ['Techno'] }) }) };
+      }
+      return { ok: true, json: async () => ({ status: 'ok' }) };
+    });
+
+    await saveFrontendSetting(5, 'language', 'nl');
+
+    const [, postOpts] = fetch.mock.calls.find(([, opts]) => opts?.method === 'POST');
+    expect(JSON.parse(JSON.parse(postOpts.body).settings)).toEqual({ favoriteGenres: ['Techno'], language: 'nl' });
+  });
+});
+
+describe('store - language account sync', () => {
+  function mockFetch(getSettings = null) {
+    global.fetch = vi.fn((_url, opts = {}) => {
+      if ((opts.method || 'GET') === 'GET') {
+        return Promise.resolve({ ok: true, json: async () => ({ settings: getSettings, updated_at: null }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ status: 'ok' }) });
+    });
+  }
+
+  beforeEach(() => {
+    mumaUser.set(null);
+    localStorage.clear();
+    locale.set('en');
+    mumaApiKey.set('test-api-key');
+    mockFetch(null);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('applies the language stored on the account when a user logs in', async () => {
+    mockFetch(JSON.stringify({ language: 'nl' }));
+    mumaUser.set({ id: 42 });
+    await vi.waitFor(() => expect(get(locale)).toBe('nl'));
+  });
+
+  it('does not save the account language straight back to the account', async () => {
+    vi.useFakeTimers();
+    mockFetch(JSON.stringify({ language: 'nl' }));
+    mumaUser.set({ id: 42 });
+    await vi.advanceTimersByTimeAsync(500);
+
+    const languagePosts = fetch.mock.calls
+      .filter(([, opts]) => opts?.method === 'POST')
+      .filter(([, opts]) => 'language' in JSON.parse(JSON.parse(opts.body).settings));
+    expect(languagePosts).toHaveLength(0);
+  });
+
+  it('uploads the current language when the account has none saved yet', async () => {
+    locale.set('nl');
+    mockFetch(null);
+    mumaUser.set({ id: 7 });
+
+    await vi.waitFor(() => {
+      const post = fetch.mock.calls.find(([, opts]) => opts?.method === 'POST');
+      expect(post).toBeDefined();
+    });
+    const [, postOpts] = fetch.mock.calls.find(([, opts]) => opts?.method === 'POST');
+    expect(JSON.parse(JSON.parse(postOpts.body).settings).language).toBe('nl');
+    expect(get(locale)).toBe('nl');
+  });
+
+  it('saves a language change made while logged in, debounced', async () => {
+    vi.useFakeTimers();
+    mumaUser.set({ id: 3 });
+    await vi.advanceTimersByTimeAsync(500);
+    fetch.mockClear();
+
+    locale.set('nl');
+    locale.set('en');
+    await vi.advanceTimersByTimeAsync(400);
+
+    const postCalls = fetch.mock.calls.filter(([, opts]) => opts?.method === 'POST');
+    expect(postCalls).toHaveLength(1);
+    expect(JSON.parse(JSON.parse(postCalls[0][1].body).settings).language).toBe('en');
+  });
+
+  it('does not touch the backend while logged out', async () => {
+    mumaUser.set(null);
+    fetch.mockClear();
+    locale.set('nl');
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('reverts to this browser\'s own language on logout', async () => {
+    localStorage.setItem('muma_locale', JSON.stringify('en'));
+    mockFetch(JSON.stringify({ language: 'nl' }));
+    mumaUser.set({ id: 9 });
+    await vi.waitFor(() => expect(get(locale)).toBe('nl'));
+
+    mumaUser.set(null);
+    expect(get(locale)).toBe('en');
   });
 });

@@ -19,8 +19,13 @@ The chosen language is stored as a `language` key inside the existing per-user a
 - `language` is a lowercase ISO 639-1 code, one of `"en"` or `"nl"`. Any other value found in the blob is
   ignored and treated as absent.
 
-Browser-local storage: `localStorage` key `muma_locale`, written through the existing `persist()` helper in
-`src/lib/store.js`, holding the same JSON-encoded code.
+Browser-local storage: `localStorage` key `muma_locale`, holding the same JSON-encoded code. The write lives
+in `src/lib/i18n/index.js` rather than reusing `store.js`'s private `persist()` helper: `store.js` imports
+the i18n module for the account sync, so the reverse import would be a cycle.
+
+Only a language the *user* picked is written to `localStorage`. A language applied from the account is not,
+which is what makes logout able to fall back to this browser's own preference instead of keeping the
+previous user's.
 
 ## API Contract
 
@@ -51,9 +56,12 @@ services/frontend/src/lib/i18n/
   two files of a few kilobytes each, and a synchronous `t` avoids a flash of missing text on first paint
   and avoids async setup in unit tests. If the locale count grows materially this becomes lazy loading, at
   which point `t` gains a "dictionary not loaded yet" path — deliberately not built now.
-- `locale` — writable store, initialised by `resolveInitialLocale()` and persisted to `muma_locale`.
-  Setting it to an unsupported code is ignored (the store keeps its previous value), so a stale or
-  corrupted stored value cannot blank the interface.
+- `locale` — store initialised by `resolveInitialLocale()`; `locale.set(code)` applies *and* persists to
+  `muma_locale`. Setting it to an unsupported code is ignored (the store keeps its previous value), so a
+  stale account value or a corrupted stored one cannot blank the interface.
+- `setLocaleFromAccount(code)` — applies a language without persisting it, used by the account sync.
+  `resetLocaleToBrowser()` re-runs `resolveInitialLocale()`, used on logout.
+- `currentLocale()` — reads the active locale outside a component, for the sync code in `store.js`.
 - `resolveInitialLocale()` — first supported hit wins: `localStorage` (`muma_locale`) →
   `navigator.language` primary subtag (`'nl-BE'` → `'nl'`) → `DEFAULT_LOCALE`. The account value is not
   consulted here; it arrives later, asynchronously, once the user hydrates (see below).
@@ -91,19 +99,22 @@ extracted rather than duplicated:
 `favoriteGenres` is rerouted through both helpers; its observable behaviour does not change. Language then
 mirrors it:
 
-- On `mumaUser` gaining an `id`: read the blob. A valid `language` is applied to the `locale` store (guarded
-  by a loading flag so the write is not echoed straight back to the server). No `language` on the account
-  means the current local value is uploaded, so a pre-login choice is not lost.
+- On `mumaUser` gaining an `id`: `applyAccountSettings(userId)` reads the blob **once** and applies both
+  keys from that single response. A valid `language` goes through `setLocaleFromAccount` (guarded by an
+  `applyingAccountSettings` flag so the write is not echoed straight back to the server). No `language` on
+  the account means the current local value is uploaded, so a pre-login choice is not lost.
 - On `locale` change while a synced user is active: debounced save (400 ms, matching favourite genres).
-- On logout (`mumaUser` → `null`): the synced-user id is cleared and `locale` is reset to
-  `resolveInitialLocale()` re-evaluated without the account, so the next person using the browser does not
-  inherit the previous user's language. Sessions authenticated with the shared system key (no `user.id`)
-  are left untouched, as favourite genres already do.
+- On logout (`mumaUser` → `null`): the synced-user id is cleared, favourites are emptied and
+  `resetLocaleToBrowser()` runs, so the next person using the browser does not inherit the previous user's
+  language. Sessions authenticated with the shared system key (no `user.id`) are left untouched, as
+  favourite genres already do.
 
 ### Language setting UI
 
-A `<select>` in `src/lib/settings/GeneralSettings.svelte`, bound to the `locale` store, options from
-`SUPPORTED_LOCALES` with each label in its own language. Styled per
+`src/lib/settings/LanguageSetting.svelte` — a `<select>` bound to the `locale` store, options from
+`SUPPORTED_LOCALES` with each label in its own language — mounted at the top of the Interface section of
+`src/lib/settings/GeneralSettings.svelte`. It is its own component rather than inline markup so it can be
+tested without mounting the whole settings screen (which fetches the Subsonic user on mount). Styled per
 [docs/styleguide.md](../../styleguide.md) form-control rules (`bg-[#282828]`, subtle border,
 `focus:border-[#1DB954]`, `rounded`).
 
@@ -139,7 +150,8 @@ Ultrasonic has its own Android resource-based localisation and is untouched; the
    save back to the server.
 10. Hydrating a user whose account blob has no `language` uploads the current local locale.
 11. Setting `mumaUser` to `null` resets `locale` away from the account value.
-12. Tests live in `services/frontend/tests/unit/i18n.test.js` (mechanism) and extend
+12. Tests live in `services/frontend/tests/unit/i18n.test.js` (mechanism),
+    `services/frontend/tests/unit/languageSetting.test.js` (picker) and extend
     `services/frontend/tests/unit/store.test.js` (sync helpers), matching the existing vitest layout, and
     pass under `npm run test:unit`.
 13. `npm run lint`, `npm run check` and `./scripts/test/frontend-unit.sh` pass.

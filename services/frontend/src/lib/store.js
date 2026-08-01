@@ -1,4 +1,5 @@
 import { writable, derived, get } from "svelte/store";
+import { locale, setLocaleFromAccount, resetLocaleToBrowser, currentLocale } from "./i18n/index.js";
 
 // Helper to persist store to localStorage
 /**
@@ -247,106 +248,131 @@ async function hydrateMumaUserFromApiKey() {
 }
 hydrateMumaUserFromApiKey();
 
-// Syncs `favoriteGenres` with the logged-in user's account (via the generic
-// per-user app-settings endpoint, `app_id = 'frontend'`) so the same
-// favorites follow them across devices/browsers instead of staying stuck in
-// this browser's `localStorage`. See docs/designs/favorite-genres/.
-let favoriteGenresSyncedUserId = null;
-// True while a value just fetched from the server is being applied to the
-// store, so that write doesn't get echoed straight back to the server.
-let favoriteGenresLoading = false;
-let favoriteGenresSaveTimer = null;
+// Syncs the settings a user should find again on their other devices --
+// `favoriteGenres` and the interface language -- with their account, via the
+// generic per-user app-settings endpoint (`app_id = 'frontend'`), instead of
+// leaving them stuck in this browser's `localStorage`. See
+// docs/designs/favorite-genres/ and docs/designs/i18n/.
+
+const frontendSettingsUrl = (userId) =>
+  `${get(mumaApiUrl)}/api/users/${userId}/settings/frontend`;
 
 /**
- * Fetches `userId`'s favorite genres from their account and applies them. If
- * the account has none saved yet, uploads whatever is already stored
- * locally instead, so a pre-existing local-only selection isn't lost the
- * first time this user logs in after the feature shipped.
+ * Reads `userId`'s `frontend` app-settings blob.
  *
  * @param {number} userId
+ * @returns {Promise<Object|null>} The parsed settings, or `null` when the
+ *   account has none saved yet or the account can't be reached -- callers
+ *   keep working off their local value rather than surfacing an error.
  */
-async function loadFavoriteGenresForUser(userId) {
+export async function loadFrontendSettings(userId) {
   try {
-    const res = await fetch(`${get(mumaApiUrl)}/api/users/${userId}/settings/frontend`, {
+    const res = await fetch(frontendSettingsUrl(userId), {
       headers: { 'X-API-Key': get(mumaApiKey) }
     });
-    if (!res.ok) return;
+    if (!res.ok) return null;
     const data = await res.json();
-    const settings = data.settings ? JSON.parse(data.settings) : null;
-    if (settings && Array.isArray(settings.favoriteGenres)) {
-      favoriteGenresLoading = true;
-      favoriteGenres.set(settings.favoriteGenres);
-      favoriteGenresLoading = false;
-    } else {
-      const local = get(favoriteGenres);
-      if (local.length > 0) {
-        await saveFavoriteGenresForUser(userId, local);
-      }
-    }
+    return data.settings ? JSON.parse(data.settings) : null;
   } catch (e) {
-    console.warn('Kon favoriete genres niet laden', e);
+    console.warn('Kon accountinstellingen niet laden', e);
+    return null;
   }
 }
 
 /**
- * Saves `genres` as `userId`'s favorite genres. Reads the current
- * `frontend` app-settings first and merges into it, so unrelated settings
- * that might be added under the same key later aren't clobbered.
+ * Saves a single key into `userId`'s `frontend` app-settings blob. The blob
+ * is read first and merged into, so the other settings sharing it aren't
+ * clobbered.
  *
  * @param {number} userId
- * @param {string[]} genres
+ * @param {string} key
+ * @param {any} value
  */
-async function saveFavoriteGenresForUser(userId, genres) {
+export async function saveFrontendSetting(userId, key, value) {
   try {
-    const headers = { 'X-API-Key': get(mumaApiKey) };
-    const getRes = await fetch(`${get(mumaApiUrl)}/api/users/${userId}/settings/frontend`, { headers });
-    let settings = {};
-    if (getRes.ok) {
-      const data = await getRes.json();
-      if (data.settings) {
-        try {
-          settings = JSON.parse(data.settings);
-        } catch (_e) {
-          settings = {};
-        }
-      }
-    }
-    settings.favoriteGenres = genres;
-    await fetch(`${get(mumaApiUrl)}/api/users/${userId}/settings/frontend`, {
+    const settings = (await loadFrontendSettings(userId)) || {};
+    settings[key] = value;
+    await fetch(frontendSettingsUrl(userId), {
       method: 'POST',
-      headers: { ...headers, 'Content-Type': 'application/json' },
+      headers: { 'X-API-Key': get(mumaApiKey), 'Content-Type': 'application/json' },
       body: JSON.stringify({ settings: JSON.stringify(settings) })
     });
   } catch (e) {
-    console.warn('Kon favoriete genres niet opslaan', e);
+    console.warn('Kon accountinstelling niet opslaan', e);
+  }
+}
+
+let syncedUserId = null;
+// True while values just fetched from the account are being applied to the
+// stores, so those writes don't get echoed straight back to the server.
+let applyingAccountSettings = false;
+let favoriteGenresSaveTimer = null;
+let localeSaveTimer = null;
+
+/**
+ * Applies `userId`'s account settings to the local stores. Anything the
+ * account doesn't have yet is uploaded from the local value instead, so a
+ * pre-existing local-only choice isn't lost the first time this user logs in
+ * after the feature shipped.
+ *
+ * @param {number} userId
+ */
+async function applyAccountSettings(userId) {
+  const settings = await loadFrontendSettings(userId);
+
+  if (settings && Array.isArray(settings.favoriteGenres)) {
+    applyingAccountSettings = true;
+    favoriteGenres.set(settings.favoriteGenres);
+    applyingAccountSettings = false;
+  } else {
+    const localGenres = get(favoriteGenres);
+    if (localGenres.length > 0) {
+      await saveFrontendSetting(userId, 'favoriteGenres', localGenres);
+    }
+  }
+
+  if (settings && typeof settings.language === 'string') {
+    applyingAccountSettings = true;
+    setLocaleFromAccount(settings.language);
+    applyingAccountSettings = false;
+  } else {
+    await saveFrontendSetting(userId, 'language', currentLocale());
   }
 }
 
 mumaUser.subscribe(($user) => {
   if ($user === null) {
-    // Real logout (see ProfileButton.svelte's handleLogout): don't leak
-    // this account's favorites to whoever uses this browser next.
-    if (favoriteGenresSyncedUserId !== null) {
-      favoriteGenresSyncedUserId = null;
-      favoriteGenresLoading = true;
+    // Real logout (see ProfileButton.svelte's handleLogout): don't leak this
+    // account's favorites or language to whoever uses this browser next.
+    if (syncedUserId !== null) {
+      syncedUserId = null;
+      applyingAccountSettings = true;
       favoriteGenres.set([]);
-      favoriteGenresLoading = false;
+      resetLocaleToBrowser();
+      applyingAccountSettings = false;
     }
     return;
   }
   // No `id` means an anonymous/system-key session (e.g. the shared admin
   // key used in Management.svelte) rather than a specific account -- leave
-  // whatever favorites are currently shown untouched.
-  if (!$user.id || $user.id === favoriteGenresSyncedUserId) return;
-  favoriteGenresSyncedUserId = $user.id;
-  loadFavoriteGenresForUser($user.id);
+  // whatever is currently shown untouched.
+  if (!$user.id || $user.id === syncedUserId) return;
+  syncedUserId = $user.id;
+  applyAccountSettings($user.id);
 });
 
 favoriteGenres.subscribe(($genres) => {
-  if (favoriteGenresLoading || !favoriteGenresSyncedUserId) return;
-  const userId = favoriteGenresSyncedUserId;
+  if (applyingAccountSettings || !syncedUserId) return;
+  const userId = syncedUserId;
   clearTimeout(favoriteGenresSaveTimer);
-  favoriteGenresSaveTimer = setTimeout(() => saveFavoriteGenresForUser(userId, $genres), 400);
+  favoriteGenresSaveTimer = setTimeout(() => saveFrontendSetting(userId, 'favoriteGenres', $genres), 400);
+});
+
+locale.subscribe(($locale) => {
+  if (applyingAccountSettings || !syncedUserId) return;
+  const userId = syncedUserId;
+  clearTimeout(localeSaveTimer);
+  localeSaveTimer = setTimeout(() => saveFrontendSetting(userId, 'language', $locale), 400);
 });
 
 export const isAdmin = derived([subsonicIsAdmin, mumaUser, mumaUserHydrated], ([$subsonicIsAdmin, $mumaUser, $mumaUserHydrated]) => {

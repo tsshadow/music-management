@@ -1,4 +1,5 @@
 <script >
+  import { t } from '../../i18n/index.js';
   import { Search, Tag, Trash2 } from '@lucide/svelte';
   
   export let API_BASE;
@@ -37,7 +38,7 @@
         fetchRules();
       }
     } catch (err) {
-      onError("Kon regel niet toevoegen.");
+      onError($t('management.tagger.addRuleFailed'));
     }
   }
 
@@ -57,7 +58,7 @@
         fetchRules();
       }
     } catch (err) {
-      onError("Kon regel niet toevoegen.");
+      onError($t('management.tagger.addRuleFailed'));
     }
   }
 
@@ -68,11 +69,11 @@
         headers: getHeaders()
       });
       if (res.ok) {
-        onMessage("Regel verwijderd.");
+        onMessage($t('management.tagger.ruleDeleted'));
         fetchRules();
       }
     } catch (err) {
-      onError("Kon regel niet verwijderen.");
+      onError($t('management.tagger.deleteRuleFailed'));
     }
   }
 
@@ -83,26 +84,26 @@
         headers: getHeaders()
       });
       if (res.ok) {
-        onMessage("Regel verwijderd.");
+        onMessage($t('management.tagger.ruleDeleted'));
         fetchRules();
       }
     } catch (err) {
-      onError("Kon regel niet verwijderen.");
+      onError($t('management.tagger.deleteRuleFailed'));
     }
   }
 
   async function triggerRescan() {
-    if (!confirm("Weet je zeker dat je alle bestanden opnieuw wilt scannen? Dit kan even duren.")) return;
+    if (!confirm($t('management.tagger.confirmRescan'))) return;
     try {
       const res = await fetch(`${API_BASE}/api/tagger/rescan`, {
         method: 'POST',
         headers: getHeaders()
       });
       if (res.ok) {
-        onMessage("Rescan voor alle bestanden getriggerd.");
+        onMessage($t('management.tagger.rescanTriggered'));
       }
     } catch (err) {
-      onError("Kon rescan niet triggeren.");
+      onError($t('management.tagger.rescanFailed'));
     }
   }
 </script>
@@ -110,15 +111,15 @@
 <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
   <header class="flex justify-between items-end">
     <div>
-      <h1 class="text-6xl font-extrabold mb-4 tracking-tighter">Tagger Config</h1>
-      <p class="text-spotify-lightgray text-lg">Beheer genres, artiesten en tag-regels voor je bibliotheek.</p>
+      <h1 class="text-6xl font-extrabold mb-4 tracking-tighter">{$t('management.tagger.title')}</h1>
+      <p class="text-spotify-lightgray text-lg">{$t('management.tagger.subtitle')}</p>
     </div>
     <div class="pb-2">
       <button 
         on:click={triggerRescan}
         class="bg-white text-black text-xs font-bold px-4 py-2 rounded-full hover:bg-spotify-lightgray transition-colors"
       >
-        FORCEER VOLLEDIGE RESCAN
+        {$t('management.tagger.forceRescan')}
       </button>
     </div>
   </header>
@@ -156,16 +157,16 @@
   {#if taggerSubTab === 'artists'}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300">
       <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 space-y-6">
-        <h3 class="text-xl font-bold flex items-center gap-2"><Search size={20} class="text-spotify-green" /> Zoeken</h3>
+        <h3 class="text-xl font-bold flex items-center gap-2"><Search size={20} class="text-spotify-green" /> {$t('management.tagger.search')}</h3>
         <div class="space-y-4">
           <div>
-            <label for="artistSearchInput" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Artiest</label>
+            <label for="artistSearchInput" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">{$t('common.artist')}</label>
             <input 
               id="artistSearchInput"
               type="text" 
               bind:value={artistSearch} 
               on:input={searchArtists}
-              placeholder="Naam..."
+              placeholder={$t('management.tagger.namePlaceholder')}
               class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green"
             />
             <select 
@@ -179,13 +180,13 @@
             </select>
           </div>
           <div>
-            <label for="labelSearchInput" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Label</label>
+            <label for="labelSearchInput" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">{$t('library.label')}</label>
             <input 
               id="labelSearchInput"
               type="text" 
               bind:value={labelSearch} 
               on:input={searchLabels}
-              placeholder="Naam..."
+              placeholder={$t('management.tagger.namePlaceholder')}
               class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green"
             />
             <select 
@@ -202,16 +203,16 @@
       </div>
 
       <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 space-y-6">
-        <h3 class="text-xl font-bold flex items-center gap-2"><Tag size={20} class="text-spotify-green" /> Genre Toewijzen</h3>
+        <h3 class="text-xl font-bold flex items-center gap-2"><Tag size={20} class="text-spotify-green" /> {$t('management.tagger.assignGenre')}</h3>
         <div class="p-6 bg-black bg-opacity-20 rounded-xl space-y-6">
           <div>
-            <label for="genreSelect" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Kies Genre</label>
+            <label for="genreSelect" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">{$t('management.tagger.pickGenre')}</label>
             <select 
               id="genreSelect"
               bind:value={selectedGenreId}
               class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
             >
-              <option value={null}>Selecteer...</option>
+              <option value={null}>{$t('management.tagger.select')}</option>
               {#each rules.genres as genre (genre.id)}
                 <option value={genre.id}>{genre.name}</option>
               {/each}
@@ -224,14 +225,14 @@
               disabled={!selectedArtistName || !selectedGenreId}
               class="w-full bg-spotify-green text-black font-extrabold py-4 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
             >
-              KOPPEL ARTIEST: {selectedArtistName || '...'}
+              {$t('management.tagger.linkArtist', { name: selectedArtistName || '...' })}
             </button>
             <button 
               on:click={addLabelRule}
               disabled={!selectedLabelName || !selectedGenreId}
               class="w-full bg-white text-black font-extrabold py-4 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
             >
-              KOPPEL LABEL: {selectedLabelName || '...'}
+              {$t('management.tagger.linkLabel', { name: selectedLabelName || '...' })}
             </button>
           </div>
         </div>
@@ -243,10 +244,10 @@
       <table class="w-full text-left">
         <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
           <tr>
-            <th class="p-4">Genre Name</th>
-            <th class="p-4">Color</th>
-            <th class="p-4">Rules</th>
-            <th class="p-4">Status</th>
+            <th class="p-4">{$t('management.tagger.genreName')}</th>
+            <th class="p-4">{$t('management.tagger.color')}</th>
+            <th class="p-4">{$t('management.tagger.rules')}</th>
+            <th class="p-4">{$t('management.health.status')}</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-spotify-gray divide-opacity-30">
@@ -260,7 +261,7 @@
                 {artistGenreRules.filter(r => r.genre_id === genre.id).length + labelGenreRules.filter(r => r.genre_id === genre.id).length} mappings
               </td>
               <td class="p-4">
-                <span class="px-2 py-1 rounded text-[10px] font-bold uppercase bg-spotify-green text-black">Active</span>
+                <span class="px-2 py-1 rounded text-[10px] font-bold uppercase bg-spotify-green text-black">{$t('management.tagger.active')}</span>
               </td>
             </tr>
           {/each}
@@ -271,7 +272,7 @@
   {:else if taggerSubTab === 'rules'}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300">
       <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-        <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex items-center gap-2">Artiest Koppelingen</h3>
+        <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex items-center gap-2">{$t('management.tagger.artistLinks')}</h3>
         <div class="max-h-[600px] overflow-y-auto">
           <table class="w-full text-left text-sm">
             <tbody class="divide-y divide-spotify-gray divide-opacity-30">
@@ -294,7 +295,7 @@
       </div>
 
       <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-        <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex items-center gap-2">Label Koppelingen</h3>
+        <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex items-center gap-2">{$t('management.tagger.labelLinks')}</h3>
         <div class="max-h-[600px] overflow-y-auto">
           <table class="w-full text-left text-sm">
             <tbody class="divide-y divide-spotify-gray divide-opacity-30">

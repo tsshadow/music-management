@@ -7,9 +7,39 @@ import { writable, derived, get } from "svelte/store";
 export const SUPPORTED_LOCALES = [
   { code: "en", label: "English" },
   { code: "nl", label: "Nederlands" },
+  { code: "sallands", label: "Sallaands" },
+  { code: "brabants", label: "Brabants" },
 ];
 
 export const DEFAULT_LOCALE = "en";
+
+/**
+ * Where a locale looks for a key it does not have itself.
+ *
+ * The dialects go through Dutch rather than straight to English, which is what
+ * lets their files stay partial: they translate the text worth translating and
+ * everything else reads as ordinary Dutch, instead of half the screen
+ * switching to English.
+ */
+const FALLBACK_CHAINS = {
+  sallands: ["sallands", "nl", "en"],
+  brabants: ["brabants", "nl", "en"],
+};
+
+function chainFor(localeCode) {
+  return FALLBACK_CHAINS[localeCode] ?? [localeCode, DEFAULT_LOCALE];
+}
+
+/**
+ * The BCP 47 tag to report to the browser for a locale. Neither dialect has
+ * one, and `nl` is what makes screen readers and spell-check behave.
+ *
+ * @param {string} localeCode
+ * @returns {string}
+ */
+export function documentLanguage(localeCode) {
+  return FALLBACK_CHAINS[localeCode] ? "nl" : localeCode;
+}
 
 const STORAGE_KEY = "muma_locale";
 
@@ -29,11 +59,44 @@ function isSupported(code) {
   return SUPPORTED_LOCALES.some((l) => l.code === code);
 }
 
-function lookup(dictionary, key) {
-  const value = key
-    .split(".")
-    .reduce((node, part) => (node == null ? undefined : node[part]), dictionary);
-  return typeof value === "string" ? value : undefined;
+function resolve(dictionary, key) {
+  return key.split(".").reduce((node, part) => (node == null ? undefined : node[part]), dictionary);
+}
+
+const pluralRulesCache = new Map();
+
+function pluralRules(localeCode) {
+  // Neither dialect is a language tag Intl knows, and both count the way Dutch
+  // does, so they borrow its rules.
+  const tag = documentLanguage(localeCode);
+  if (!pluralRulesCache.has(tag)) pluralRulesCache.set(tag, new Intl.PluralRules(tag));
+  return pluralRulesCache.get(tag);
+}
+
+/**
+ * The text for one key in one dictionary, or undefined if this dictionary does
+ * not have it.
+ *
+ * A key may hold either a string or, when the text depends on a number, an
+ * object of plural forms keyed by CLDR category ("one", "other", ...). The
+ * category is chosen with the rules of the locale the text is written in, not
+ * the locale that is active: a Dutch string reached by falling back out of a
+ * dialect must still pluralise as Dutch.
+ *
+ * @param {object} dictionary
+ * @param {string} key
+ * @param {string} localeCode - The locale this dictionary holds.
+ * @param {Object} [vars]
+ * @returns {string|undefined}
+ */
+function lookup(dictionary, key, localeCode, vars) {
+  const node = resolve(dictionary, key);
+  if (typeof node === "string") return node;
+  if (node && typeof node === "object" && typeof vars?.count === "number") {
+    const form = node[pluralRules(localeCode).select(vars.count)] ?? node.other;
+    if (typeof form === "string") return form;
+  }
+  return undefined;
 }
 
 function interpolate(template, vars) {
@@ -45,18 +108,23 @@ function interpolate(template, vars) {
 /**
  * Builds the translation function for one locale.
  *
- * A key missing from the active locale falls back to English; missing there
- * too, the key itself is returned, so an untranslated string is always
- * recognisable rather than blank.
+ * A key missing from the active locale falls back along that locale's chain
+ * (see `FALLBACK_CHAINS`), ending at English; missing there too, the key
+ * itself is returned, so an untranslated string is always recognisable rather
+ * than blank.
  *
  * @param {Record<string, object>} dictionaries - Locale code to translations.
  * @param {string} localeCode - The active locale.
  * @returns {function(string, Object=): string}
  */
 export function createTranslator(dictionaries, localeCode) {
+  const chain = chainFor(localeCode);
   return (key, vars) => {
-    const value =
-      lookup(dictionaries[localeCode], key) ?? lookup(dictionaries[DEFAULT_LOCALE], key);
+    let value;
+    for (const code of chain) {
+      value = lookup(dictionaries[code], key, code, vars);
+      if (value !== undefined) break;
+    }
     if (value === undefined) {
       if (import.meta.env.DEV) {
         console.warn(`Missing translation for "${key}"`);
@@ -123,7 +191,7 @@ export function resetLocaleToBrowser() {
 
 localeStore.subscribe((code) => {
   if (typeof document !== "undefined") {
-    document.documentElement.lang = code;
+    document.documentElement.lang = documentLanguage(code);
   }
 });
 

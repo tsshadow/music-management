@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n/index.js';
   import { onMount, onDestroy } from 'svelte';
   import { fade, scale } from 'svelte/transition';
 
@@ -37,7 +38,7 @@
   <button 
     class="absolute inset-0 bg-black/80 backdrop-blur-sm w-full h-full cursor-default border-none" 
     onclick={onclose}
-    aria-label="Modal sluiten"
+    aria-label={$t('common.closeModal')}
   ></button>
 
   <!-- Modal Container -->
@@ -51,7 +52,7 @@
       <button 
         class="text-[#b3b3b3] hover:text-white transition-colors"
         onclick={onclose}
-        aria-label="Sluiten"
+        aria-label={$t('common.close')}
       >
         <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
           <path d="M18.3 5.71a.996.996 0 00-1.41 0L12 10.59 7.11 5.7a.996.996 0 10-1.41 1.41L10.59 12 5.7 16.89a.996.996 0 101.41 1.41L12 13.41l4.89 4.89a.996.996 0 101.41-1.41L13.41 12l4.89-4.89c.38-.38.38-1.02 0-1.4z"/>

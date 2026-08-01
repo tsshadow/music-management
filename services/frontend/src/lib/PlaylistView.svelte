@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n/index.js';
   import { untrack } from 'svelte';
   import { currentPlaylist, authParams, playlist, currentTrack, playerState } from './store.js';
   import TrackList from './TrackList.svelte';
@@ -82,7 +83,7 @@
         {/if}
       </div>
       <div>
-        <div class="text-xs font-bold uppercase">Playlist</div>
+        <div class="text-xs font-bold uppercase">{$t('common.playlist')}</div>
         <h1 class="text-4xl md:text-7xl font-bold mb-4">{$currentPlaylist.name}</h1>
         <div class="text-[#b3b3b3] text-sm">{$currentPlaylist.comment || ''}</div>
       </div>

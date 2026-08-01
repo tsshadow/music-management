@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.59] - 2026-08-02
+
+### Added
+- **The web interface is translated, and speaks Sallands and Brabants.** The translation layer
+  landed in an earlier release but had nothing in it: two locale files holding four strings between
+  them, and one of 54 components resolving its text through them. Every screen now does — 640 keys
+  across the player and the management console, in English and Dutch. The interface was a mix of the
+  two languages rather than one of them (the mobile navigation bar rendered "Home", "Nummers",
+  "Sets", "Bieb" and "Beheer" side by side), so both files needed new text written for the strings
+  that existed in only one language.
+- **Sallands and Brabants**, picked from the same language menu. Lookup now walks a per-locale
+  fallback chain instead of resolving a missing key straight to English, so both dialects reach
+  Dutch first and their files can stay partial: 131 keys each, covering the player side, with the
+  management console reading as ordinary Dutch instead of half-English. Neither dialect has a BCP 47
+  tag, so both report `nl` to the browser, which is what screen readers and spell-check need.
+- **Plural forms**, chosen with `Intl.PluralRules`, so counts no longer read "1 nummers". The form
+  is decided by the language the text is written in rather than the active one, so Dutch reached by
+  falling out of a dialect still pluralises as Dutch.
+
+### Changed
+- Sentences that were assembled from fragments are single translatable strings now, because where a
+  noun sits in a sentence differs per language. Labels that lived in plain module state — sort
+  options, tab lists, artist roles, scanner step names — hold translation keys, since as data they
+  could not follow a language change.
+- Text that originates in the backend (worker statuses, health output) is unchanged and stays
+  English; translating it would mean changing what the Python services emit.
+
 ## [0.0.58] - 2026-08-01
 
 ### Added

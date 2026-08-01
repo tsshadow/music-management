@@ -14,13 +14,23 @@ const DICTS = {
   en: {
     settings: { language: { title: "Language" } },
     greeting: "Hi {name}",
+    tracks: { one: "{count} track", other: "{count} tracks" },
     onlyEnglish: "English only",
     branch: { nested: "value" },
   },
   nl: {
     settings: { language: { title: "Taal" } },
     greeting: "Hoi {name}",
+    tracks: { one: "{count} nummer", other: "{count} nummers" },
+    onlyDutch: "Alleen Nederlands",
     branch: { nested: "waarde" },
+  },
+  sallands: {
+    greeting: "Moi {name}",
+    tracks: { one: "{count} nummerken", other: "{count} nummerkes" },
+  },
+  brabants: {
+    greeting: "Houdoe {name}",
   },
 };
 
@@ -59,6 +69,51 @@ describe("i18n - createTranslator", () => {
     const translate = createTranslator(DICTS, "fr");
     expect(translate("settings.language.title")).toBe("Language");
   });
+
+  it("prefers the dialect's own wording when it has the key", () => {
+    const translate = createTranslator(DICTS, "sallands");
+    expect(translate("greeting", { name: "Teun" })).toBe("Moi Teun");
+  });
+
+  it("falls back from a dialect to Dutch rather than to English", () => {
+    const translate = createTranslator(DICTS, "sallands");
+    expect(translate("onlyDutch")).toBe("Alleen Nederlands");
+  });
+
+  it("falls back from a dialect through Dutch to English as a last resort", () => {
+    const translate = createTranslator(DICTS, "brabants");
+    expect(translate("onlyEnglish")).toBe("English only");
+  });
+
+  it("picks the singular form when the count is one", () => {
+    const translate = createTranslator(DICTS, "nl");
+    expect(translate("tracks", { count: 1 })).toBe("1 nummer");
+  });
+
+  it("picks the plural form for any other count", () => {
+    const translate = createTranslator(DICTS, "nl");
+    expect(translate("tracks", { count: 0 })).toBe("0 nummers");
+    expect(translate("tracks", { count: 12 })).toBe("12 nummers");
+  });
+
+  it("pluralises a dialect in its own words", () => {
+    const translate = createTranslator(DICTS, "sallands");
+    expect(translate("tracks", { count: 1 })).toBe("1 nummerken");
+    expect(translate("tracks", { count: 3 })).toBe("3 nummerkes");
+  });
+
+  it("pluralises using the rules of the locale the text came from", () => {
+    // `brabants` has no `tracks`, so the Dutch wording is used -- and Dutch is
+    // what must decide singular versus plural for it, not the active locale.
+    const translate = createTranslator(DICTS, "brabants");
+    expect(translate("tracks", { count: 1 })).toBe("1 nummer");
+  });
+
+  it("applies the same chain to every dialect", () => {
+    const translate = createTranslator(DICTS, "brabants");
+    expect(translate("greeting", { name: "Teun" })).toBe("Houdoe Teun");
+    expect(translate("onlyDutch")).toBe("Alleen Nederlands");
+  });
 });
 
 describe("i18n - resolveInitialLocale", () => {
@@ -87,6 +142,15 @@ describe("i18n - resolveInitialLocale", () => {
   it("falls back to the default locale when the browser reports no language", () => {
     expect(resolveInitialLocale(undefined)).toBe(DEFAULT_LOCALE);
   });
+
+  it("honours a dialect the user picked earlier in this browser", () => {
+    localStorage.setItem("muma_locale", JSON.stringify("brabants"));
+    expect(resolveInitialLocale("nl-NL")).toBe("brabants");
+  });
+
+  it("never resolves a Dutch browser language to a dialect", () => {
+    expect(resolveInitialLocale("nl-NL")).toBe("nl");
+  });
 });
 
 describe("i18n - locale store", () => {
@@ -94,11 +158,18 @@ describe("i18n - locale store", () => {
     locale.set(DEFAULT_LOCALE);
   });
 
-  it("ships English and Dutch, each labelled in its own language", () => {
+  it("ships English, Dutch and the two dialects, each labelled in its own language", () => {
     expect(SUPPORTED_LOCALES).toEqual([
       { code: "en", label: "English" },
       { code: "nl", label: "Nederlands" },
+      { code: "sallands", label: "Sallaands" },
+      { code: "brabants", label: "Brabants" },
     ]);
+  });
+
+  it("reports a dialect to the document as Dutch, there being no tag for it", () => {
+    locale.set("sallands");
+    expect(document.documentElement.lang).toBe("nl");
   });
 
   it("keeps the previous locale when set to an unsupported code", () => {
@@ -154,5 +225,19 @@ describe("i18n - t store", () => {
   it("translates the same key in Dutch after switching locale", () => {
     locale.set("nl");
     expect(get(t)("settings.language.title")).toBe("Taal");
+  });
+
+  it("uses the dialect's own wording where the shipped dialect file has it", () => {
+    locale.set("sallands");
+    expect(get(t)("nav.home")).toBe("Thuus");
+  });
+
+  it("reads as Dutch, not English, where a dialect leaves a key untranslated", () => {
+    // The dialect files deliberately cover only the player side; this is what
+    // keeps the rest of the interface coherent instead of half-English.
+    locale.set("sallands");
+    expect(get(t)("management.tabs.users")).toBe("Gebruikers");
+    locale.set("brabants");
+    expect(get(t)("management.tabs.users")).toBe("Gebruikers");
   });
 });

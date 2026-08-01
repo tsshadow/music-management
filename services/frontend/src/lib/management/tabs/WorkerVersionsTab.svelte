@@ -1,4 +1,5 @@
 <script >
+  import { t } from '../../i18n/index.js';
   import { ExternalLink } from '@lucide/svelte';
   
   export let versions;
@@ -6,8 +7,8 @@
 
 <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
   <header>
-    <h2 class="text-4xl font-extrabold mb-2">📟 System Versions</h2>
-    <p class="text-spotify-lightgray">Centraal overzicht van alle draaiende service versies.</p>
+    <h2 class="text-4xl font-extrabold mb-2">📟 {$t('management.versions.title')}</h2>
+    <p class="text-spotify-lightgray">{$t('management.versions.subtitle')}</p>
   </header>
 
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -24,11 +25,11 @@
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <div class="bg-black bg-opacity-20 p-6 rounded-xl border border-spotify-gray border-dashed md:col-span-2">
       <h3 class="font-bold mb-2 flex items-center gap-2 text-spotify-lightgray">
-        <ExternalLink size={16} /> Externe Referenties
+        <ExternalLink size={16} /> {$t('management.versions.externalRefs')}
       </h3>
       <ul class="text-sm space-y-2 text-spotify-lightgray">
-        <li>Music Server: <span class="text-white">{versions.lms || 'Niet gedetecteerd'}</span></li>
-        <li>Ultrasonic APK: <span class="text-white">{versions.ultrasonic || 'Niet gevonden'}</span></li>
+        <li>{$t('management.versions.musicServer')} <span class="text-white">{versions.lms || $t('management.versions.notDetected')}</span></li>
+        <li>{$t('management.versions.ultrasonicApk')} <span class="text-white">{versions.ultrasonic || $t('management.versions.notFound')}</span></li>
       </ul>
     </div>
   </div>

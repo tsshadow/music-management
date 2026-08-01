@@ -1,4 +1,5 @@
 <script >
+  import { t } from '../../i18n/index.js';
   import { ShieldCheck, RefreshCw, Terminal, Clock, Plus, Tag } from '@lucide/svelte';
   
   export let containers;
@@ -19,10 +20,10 @@
         const data = await res.json();
         systemLogs = data.logs;
       } else {
-        systemLogs = "Kon logs niet ophalen.";
+        systemLogs = $t('management.health.logsUnavailable');
       }
     } catch (err) {
-      systemLogs = "Fout bij ophalen logs.";
+      systemLogs = $t('management.health.logsFailed');
     }
   }
 </script>
@@ -30,14 +31,14 @@
 <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
   <header class="flex justify-between items-end">
     <div>
-      <h2 class="text-4xl font-extrabold mb-2">🛡️ Health & Activity</h2>
-      <p class="text-spotify-lightgray">Systeem monitoring en recente activiteit van alle workers.</p>
+      <h2 class="text-4xl font-extrabold mb-2">🛡️ {$t('management.health.title')}</h2>
+      <p class="text-spotify-lightgray">{$t('management.health.subtitle')}</p>
     </div>
     <button 
       on:click={refreshSystemStatus}
       class="bg-spotify-gray hover:bg-spotify-lightgray text-white px-4 py-2 rounded-full flex items-center gap-2 transition-colors"
     >
-      <RefreshCw size={16} /> Vernieuwen
+      <RefreshCw size={16} /> {$t('common.refresh')}
     </button>
   </header>
 
@@ -45,15 +46,15 @@
     <!-- Container Status -->
     <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
       <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex items-center gap-2">
-        <ShieldCheck class="text-spotify-green" /> Docker Containers
+        <ShieldCheck class="text-spotify-green" /> {$t('management.health.containers')}
       </h3>
       <div class="max-h-[500px] overflow-y-auto">
         <table class="w-full text-left">
           <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray sticky top-0">
             <tr>
-              <th class="p-4">Name</th>
-              <th class="p-4">Status</th>
-              <th class="p-4 text-right">Logs</th>
+              <th class="p-4">{$t('management.health.name')}</th>
+              <th class="p-4">{$t('management.health.status')}</th>
+              <th class="p-4 text-right">{$t('management.health.logs')}</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-spotify-gray divide-opacity-30 text-sm">
@@ -88,7 +89,7 @@
     <div class="space-y-8">
       <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
         <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex items-center gap-2">
-          <Plus class="text-spotify-green" /> Recent Toegevoegd
+          <Plus class="text-spotify-green" /> {$t('management.health.recentlyAdded')}
         </h3>
         <div class="max-h-[250px] overflow-y-auto">
           <ul class="divide-y divide-spotify-gray divide-opacity-30">
@@ -109,7 +110,7 @@
 
       <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
         <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex items-center gap-2">
-          <Tag class="text-spotify-green" /> Recent Getagged
+          <Tag class="text-spotify-green" /> {$t('management.health.recentlyTagged')}
         </h3>
         <div class="max-h-[250px] overflow-y-auto">
           <ul class="divide-y divide-spotify-gray divide-opacity-30">
@@ -136,7 +137,7 @@
       <div class="bg-spotify-gray p-4 flex justify-between items-center border-b border-white border-opacity-10">
         <div class="flex items-center gap-2 font-bold text-sm">
           <Terminal size={16} class="text-spotify-green" /> 
-          Logs: <span class="text-spotify-green font-mono">{selectedContainer}</span>
+          {$t('management.health.logsFor', { container: selectedContainer })}
         </div>
         <div class="flex items-center gap-4">
           <button on:click={() => fetchLogs(selectedContainer)} class="text-spotify-lightgray hover:text-white transition-colors">

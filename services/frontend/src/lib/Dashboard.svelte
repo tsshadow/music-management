@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n/index.js';
   import { untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
   import TrackCard from './TrackCard.svelte';
@@ -19,9 +20,9 @@
   let { activeView = $bindable('home') } = $props();
 
   let sections = $state([
-    { title: 'Release Radar', id: 'spotify:release_radar', tracks: [] },
-    { title: 'Songs', id: 'spotify:songs', tracks: [] },
-    { title: 'Sets', id: 'spotify:sets', tracks: [] }
+    { titleKey: 'nav.releaseRadar', id: 'spotify:release_radar', tracks: [] },
+    { titleKey: 'nav.songs', id: 'spotify:songs', tracks: [] },
+    { titleKey: 'nav.sets', id: 'spotify:sets', tracks: [] }
   ]);
 
   let tracks = $state([]);
@@ -442,7 +443,7 @@
     {#each sections as section (section.id)}
       <section class="flex flex-col gap-4">
         <div class="flex justify-between items-end mb-4">
-          <h2 class="text-2xl font-bold m-0">{section.title}</h2>
+          <h2 class="text-2xl font-bold m-0">{$t(section.titleKey)}</h2>
           <button
             class="bg-transparent border-none text-[#b3b3b3] text-[12px] font-bold cursor-pointer uppercase tracking-[0.1em] hover:underline"
             onclick={() => {
@@ -456,14 +457,14 @@
                 activeView = 'sets';
               }
             }}
-          >Alles tonen</button>
+          >{$t('dashboard.showAll')}</button>
         </div>
         <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
           {#each section.tracks.slice(0, 6) as track (track.id)}
             <TrackCard {track} onnavigate={(v) => activeView = v} />
           {/each}
           {#if section.tracks.length === 0}
-            <p class="text-[#b3b3b3] col-span-full">Geen tracks gevonden in deze categorie.</p>
+            <p class="text-[#b3b3b3] col-span-full">{$t('dashboard.noTracksInSection')}</p>
           {/if}
         </div>
       </section>
@@ -479,7 +480,7 @@
               <button
                 class="bg-transparent border-none text-brand transition-all hover:scale-110 active:scale-95 cursor-pointer p-1"
                 onclick={() => toggleFavorite(genreName)}
-                title={$favoriteGenres.includes(genreName) ? 'Verwijderen uit favorieten' : 'Toevoegen aan favorieten'}
+                title={$favoriteGenres.includes(genreName) ? $t('dashboard.removeFavorite') : $t('dashboard.addFavorite')}
               >
                 <svg viewBox="0 0 24 24" width="24" height="24" fill={$favoriteGenres.includes(genreName) ? "currentColor" : "none"} stroke="currentColor" stroke-width="2">
                     <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
@@ -493,27 +494,27 @@
         <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} showGenre={!activeView.startsWith('genre:') && !activeView.startsWith('label:')} onchange={handleFilterChange} />
     </div>
     {#if isLoading && tracks.length === 0}
-        <p>Laden...</p>
+        <p>{$t('common.loading')}</p>
     {:else}
         {#if tracks.length > 0}
             <TrackList {tracks} onnavigate={(v) => activeView = v} />
             {#if tracksHasMore}
                 <div bind:this={sentinel} class="flex justify-center py-6">
                     <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAllTracks(true)}>
-                        {isLoading ? 'Laden...' : 'Meer laden'}
+                        {isLoading ? $t('common.loading') : $t('common.loadMore')}
                     </button>
                 </div>
             {/if}
         {:else}
             <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
-                <p class="text-xl font-bold mb-2 text-white">Geen {$viewMode === 'sets' ? 'sets' : 'nummers'} gevonden</p>
-                <p class="text-sm opacity-60">Er zijn geen items gevonden die overeenkomen met de huidige {$viewMode === 'sets' ? 'sets' : 'nummers'} weergave.</p>
+                <p class="text-xl font-bold mb-2 text-white">{$viewMode === 'sets' ? $t('dashboard.noSets') : $t('dashboard.noTracks')}</p>
+                <p class="text-sm opacity-60">{$viewMode === 'sets' ? $t('dashboard.noSetsHelp') : $t('dashboard.noTracksHelp')}</p>
             </div>
         {/if}
     {/if}
   {:else if activeView === 'albums'}
     <div class="flex flex-col gap-4 mb-6">
-      <h2 class="text-2xl font-bold m-0">Albums</h2>
+      <h2 class="text-2xl font-bold m-0">{$t('nav.albums')}</h2>
       <FilterBar view="albums" bind:genre={currentAlbumGenre} bind:sort={currentAlbumSort} bind:search={currentAlbumSearch} onchange={handleFilterChange} />
     </div>
     {#if albums.length > 0}
@@ -544,23 +545,23 @@
         </div>
     {:else}
         <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
-            <p class="text-xl font-bold mb-2 text-white">Geen albums gevonden</p>
-            <p class="text-sm opacity-60">Er zijn geen albums gevonden die overeenkomen met de huidige filters.</p>
+            <p class="text-xl font-bold mb-2 text-white">{$t('dashboard.noAlbums')}</p>
+            <p class="text-sm opacity-60">{$t('dashboard.noAlbumsHelp')}</p>
         </div>
     {/if}
     {#if albumsHasMore}
         <div class="flex justify-center py-6">
-            <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAlbums(true)}>Meer laden</button>
+            <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAlbums(true)}>{$t('common.loadMore')}</button>
         </div>
     {/if}
   {:else if activeView === 'genres'}
     <div class="flex flex-col gap-4 mb-6">
-      <h2 class="text-2xl font-bold m-0">Genres</h2>
+      <h2 class="text-2xl font-bold m-0">{$t('nav.genres')}</h2>
     </div>
     {#if isLoading && allGenres.length === 0}
-        <p>Laden...</p>
+        <p>{$t('common.loading')}</p>
     {:else if allGenres.length === 0}
-        <p class="text-[#b3b3b3]">Geen genres gevonden in je bibliotheek.</p>
+        <p class="text-[#b3b3b3]">{$t('dashboard.noGenres')}</p>
     {:else}
         <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
             {#each allGenres as g (g.value)}
@@ -574,7 +575,7 @@
                     <button
                         class="absolute top-3 right-3 p-2 bg-black/40 rounded-full text-brand transition-all hover:scale-110 active:scale-95 {$favoriteGenres.includes(g.value) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}"
                         onclick={(e) => { e.stopPropagation(); toggleFavorite(g.value); }}
-                        aria-label="Favoriet toggelen"
+                        aria-label={$t('dashboard.toggleFavorite')}
                     >
                         <svg viewBox="0 0 24 24" width="18" height="18" fill={$favoriteGenres.includes(g.value) ? "currentColor" : "none"} stroke="currentColor" stroke-width="2">
                             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
@@ -586,19 +587,19 @@
                         </svg>
                     </div>
                     <span class="font-bold text-center break-words w-full">{g.value}</span>
-                    <span class="text-xs text-[#b3b3b3]">{g.songCount} nummers</span>
+                    <span class="text-xs text-[#b3b3b3]">{$t('common.trackCount', { count: g.songCount })}</span>
                 </div>
             {/each}
         </div>
     {/if}
   {:else if activeView === 'labels'}
     <div class="flex flex-col gap-4 mb-6">
-      <h2 class="text-2xl font-bold m-0">Labels</h2>
+      <h2 class="text-2xl font-bold m-0">{$t('nav.labels')}</h2>
     </div>
     {#if isLoading && allLabels.length === 0}
-        <p>Laden...</p>
+        <p>{$t('common.loading')}</p>
     {:else if allLabels.length === 0}
-        <p class="text-[#b3b3b3]">Geen labels gevonden in je bibliotheek.</p>
+        <p class="text-[#b3b3b3]">{$t('dashboard.noLabels')}</p>
     {:else}
         <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
             {#each allLabels as l (l.value)}
@@ -621,7 +622,7 @@
     {/if}
   {:else if activeView === 'artists'}
     <div class="flex flex-col gap-4 mb-6">
-      <h2 class="text-2xl font-bold m-0">Artiesten</h2>
+      <h2 class="text-2xl font-bold m-0">{$t('nav.artists')}</h2>
       <FilterBar view="artists" bind:sort={currentArtistSort} bind:role={currentArtistRole} bind:search={currentArtistSearch} onchange={handleFilterChange} />
     </div>
     <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
@@ -640,17 +641,17 @@
                   onerror={(e) => e.target.src = '/images/unknown-artist.svg'}
                 />
                 <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{artist.name}</span>
-                <span class="text-sm text-[#b3b3b3] whitespace-nowrap overflow-hidden text-ellipsis">Artiest</span>
+                <span class="text-sm text-[#b3b3b3] whitespace-nowrap overflow-hidden text-ellipsis">{$t('common.artist')}</span>
             </div>
         {/each}
     </div>
     {#if artistsHasMore}
         <div class="flex justify-center py-6">
-            <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadArtists(true)}>Meer laden</button>
+            <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadArtists(true)}>{$t('common.loadMore')}</button>
         </div>
     {/if}
   {:else if activeView === 'playlists'}
-    <h2 class="text-2xl font-bold m-0 mb-6">Afspeellijsten</h2>
+    <h2 class="text-2xl font-bold m-0 mb-6">{$t('nav.playlists')}</h2>
     <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
         {#each playlists as playlist (playlist.id)}
             <div
@@ -678,7 +679,7 @@
     <AlbumView albumId={activeView.split(':')[1]} onnavigate={(v) => activeView = v} />
   {:else if activeView.startsWith('search:')}
     <div class="flex flex-col gap-8">
-      <h2 class="text-2xl font-bold m-0">Zoekresultaten voor "{activeView.split(':')[1]}" ({$viewMode === 'sets' ? 'sets' : 'nummers'})</h2>
+      <h2 class="text-2xl font-bold m-0">{$viewMode === 'sets' ? $t('dashboard.searchResultsSets', { query: activeView.split(':')[1] }) : $t('dashboard.searchResultsTracks', { query: activeView.split(':')[1] })}</h2>
       
       {#if tracks.length > 0}
         <section>
@@ -689,7 +690,7 @@
 
       {#if artists.length > 0}
         <section>
-          <h3 class="text-xl font-bold mb-4">Artiesten</h3>
+          <h3 class="text-xl font-bold mb-4">{$t('nav.artists')}</h3>
           <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
             {#each artists as artist (artist.id)}
               <div
@@ -706,7 +707,7 @@
                     onerror={(e) => e.target.src = '/images/unknown-artist.svg'}
                   />
                   <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{artist.name}</span>
-                  <span class="text-sm text-[#b3b3b3]">Artiest</span>
+                  <span class="text-sm text-[#b3b3b3]">{$t('common.artist')}</span>
               </div>
             {/each}
           </div>
@@ -715,7 +716,7 @@
 
       {#if albums.length > 0}
         <section>
-          <h3 class="text-xl font-bold mb-4">Albums</h3>
+          <h3 class="text-xl font-bold mb-4">{$t('nav.albums')}</h3>
           <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
             {#each albums as album (album.id)}
               <div
@@ -746,8 +747,8 @@
 
       {#if tracks.length === 0 && artists.length === 0 && albums.length === 0}
         <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
-            <p class="text-xl font-bold mb-2 text-white">Geen resultaten gevonden</p>
-            <p class="text-sm opacity-60">Probeer een andere zoekterm.</p>
+            <p class="text-xl font-bold mb-2 text-white">{$t('search.noResults')}</p>
+            <p class="text-sm opacity-60">{$t('search.tryAnother')}</p>
         </div>
       {/if}
     </div>

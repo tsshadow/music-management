@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
   import { currentTrack, playerState, audio, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey } from './store.js';
   import { createRadioController } from './radioController.js';
@@ -59,7 +60,7 @@
       const body = await response.json();
       const channel = (body.channels || [])[0];
       if (!channel) {
-        console.warn('No radio channels available');
+        console.warn($t('radio.noChannels'));
         return;
       }
 
@@ -81,7 +82,7 @@
       // Clocks drift over a long listening session, so re-measure now and then.
       radioClockInterval = setInterval(() => radioController?.measureClockOffset(), 300000);
     } catch (e) {
-      console.error('Could not start radio', e);
+      console.error($t('radio.couldNotStart'), e);
     }
   }
 
@@ -611,9 +612,9 @@
     ($syncMode === 'follower-radio' ? '#b266ff' : '#b3b3b3'))
   );
   const syncTitle = $derived(
-    $syncMode === 'host' ? 'Jam: Host (Lead)' :
-    ($syncMode === 'follower-jam' ? 'Jam: Remote (Controller)' :
-    ($syncMode === 'follower-radio' ? 'Radio: Listener (Following)' : 'Sync Off'))
+    $syncMode === 'host' ? $t('player.syncHost') :
+    ($syncMode === 'follower-jam' ? $t('player.syncRemote') :
+    ($syncMode === 'follower-radio' ? $t('player.syncListener') : $t('player.syncOff')))
   );
   const isRadioActive = $derived($radioChannel !== null);
   const radioColor = $derived($radioChannel ? '#b266ff' : '#b3b3b3');
@@ -897,7 +898,7 @@
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zm0-7c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5z"></path>
             </svg>
           </div>
-          <div class="text-[13px] text-[#b3b3b3] italic font-medium">Niets aan het afspelen</div>
+          <div class="text-[13px] text-[#b3b3b3] italic font-medium">{$t('player.nothingPlaying')}</div>
         </div>
       {/if}
       <div class="flex items-center gap-3 px-2">
@@ -922,7 +923,7 @@
             class="bg-transparent border-none p-0 text-[#b3b3b3] hover:text-white transition-colors {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}" 
             onclick={playNext} 
             disabled={transportLocked}
-            aria-label="Volgende"
+            aria-label={$t('player.next')}
           >
             <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
               <path d="M16.7 3.3a.7.7 0 0 0-.7.7v6.85L6.05 4.806A.7.7 0 0 0 5 5.412v13.175a.7.7 0 0 0 1.05.607L16 13.15v6.85a.7.7 0 0 0 .7.7h1.6a.7.7 0 0 0 .7-.7V4a.7.7 0 0 0-.7-.7h-1.6z"></path>
@@ -972,7 +973,7 @@
 
     <div class="flex-1 md:w-[40%] max-w-[600px] flex flex-col items-center gap-2">
       <div class="flex items-center gap-4 md:gap-6">
-        <button class="hidden md:flex flex-col items-center bg-transparent border-none p-0 cursor-pointer transition-colors hover:text-white {shuffleMode ? 'text-brand' : 'text-[#b3b3b3]'}" onclick={toggleShuffleMode} aria-label="Shuffle">
+        <button class="hidden md:flex flex-col items-center bg-transparent border-none p-0 cursor-pointer transition-colors hover:text-white {shuffleMode ? 'text-brand' : 'text-[#b3b3b3]'}" onclick={toggleShuffleMode} aria-label={$t('queue.shuffle')}>
           <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
             <path d="M13.151.922a.75.75 0 1 0-1.06 1.06L13.109 3H10.3a5 5 0 0 0-4.054 2.115L2.615 10H1.25a.75.75 0 0 0 0 1.5h2.185a5 5 0 0 0 4.054-2.115L11.121 5H13.11l-1.019 1.017a.75.75 0 1 0 1.06 1.06L15.424 4.8a.75.75 0 0 0 0-1.06L13.15 1.472a.75.75 0 0 0-.001-.55zM13.151 9.922a.75.75 0 1 0-1.06 1.06L13.109 12H11.12l-1.144-1.636a.75.75 0 1 0-1.232.862l1.378 1.968A5 5 0 0 0 14.176 13.5h.194l-1.269 1.271a.75.75 0 1 0 1.06 1.06L16.43 13.56a.75.75 0 0 0 0-1.06l-2.274-2.273a.75.75 0 0 0-1.005-.305zM5.185 3.5h1.077L7.406 5.137a.75.75 0 0 0 1.232-.863l-1.378-1.967A5 5 0 0 0 3.235 1.5H1.25a.75.75 0 0 0 0 1.5h2.185a3.5 3.5 0 0 1 2.838 1.48L5.185 3.5z"></path>
           </svg>
@@ -984,7 +985,7 @@
           class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}" 
           onclick={playPrev} 
           disabled={transportLocked}
-          aria-label="Vorige"
+          aria-label={$t('player.previous')}
         >
           <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
             <path d="M3.3 1a.7.7 0 0 1 .7.7v5.15l9.95-5.744a.7.7 0 0 1 1.05.606v12.575a.7.7 0 0 1-1.05.607L4 9.15v5.15a.7.7 0 0 1-.7.7H1.7a.7.7 0 0 1-.7-.7V1.7a.7.7 0 0 1 .7-.7h1.6z"></path>
@@ -1009,13 +1010,13 @@
           class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}" 
           onclick={playNext} 
           disabled={transportLocked}
-          aria-label="Volgende"
+          aria-label={$t('player.next')}
         >
           <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
             <path d="M12.7 1a.7.7 0 0 0-.7.7v5.15L2.05 1.106A.7.7 0 0 0 1 1.712v12.575a.7.7 0 0 0 1.05.607L12 9.15v5.15a.7.7 0 0 0 .7.7h1.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7h-1.6z"></path>
           </svg>
         </button>
-        <button class="hidden md:flex flex-col items-center relative bg-transparent border-none p-0 cursor-pointer transition-colors hover:text-white {repeatMode !== 'none' ? 'text-brand' : 'text-[#b3b3b3]'}" onclick={toggleRepeat} aria-label="Herhalen">
+        <button class="hidden md:flex flex-col items-center relative bg-transparent border-none p-0 cursor-pointer transition-colors hover:text-white {repeatMode !== 'none' ? 'text-brand' : 'text-[#b3b3b3]'}" onclick={toggleRepeat} aria-label={$t('player.repeat')}>
           <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
             <path d="M0 4.75A3.75 3.75 0 0 1 3.75 1h8.5A3.75 3.75 0 0 1 16 4.75v5a3.75 3.75 0 0 1-3.75 3.75H9.81l1.018 1.018a.75.75 0 1 1-1.06 1.06L6.939 12.75l2.829-2.828a.75.75 0 1 1 1.06 1.06L9.811 12h2.439a2.25 2.25 0 0 0 2.25-2.25v-5a2.25 2.25 0 0 0-2.25-2.25h-8.5A2.25 2.25 0 0 0 1.5 4.75v5A2.25 2.25 0 0 0 3.75 12H5v1.5H3.75A3.75 3.75 0 0 1 0 9.75v-5z"></path>
           </svg>
@@ -1035,7 +1036,7 @@
         class="flex-1 h-1 bg-[#4d4d4d] rounded-sm cursor-pointer {transportLocked ? 'pointer-events-none opacity-50' : ''}"
         onclick={seek}
         onkeydown={(e) => e.key === 'Enter' && seek(e)}
-        aria-label="Seek track"
+        aria-label={$t('player.seek')}
       >
           <div class="h-full bg-white rounded-sm" style="width: {(progress/duration)*100}%"></div>
       </div>
@@ -1064,7 +1065,7 @@
         style="color: {radioColor}"
         onclick={toggleRadio}
         title={isRadioActive ? 'Radio: aan het luisteren' : 'Radio (beta)'}
-        aria-label="Radio"
+        aria-label={$t('player.radio')}
         aria-pressed={isRadioActive}
       >
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
@@ -1081,7 +1082,7 @@
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.5-8c0 3.03 2.47 5.5 5.5 5.5s5.5-2.47 5.5-5.5-2.47-5.5-5.5-5.5-5.5 2.47-5.5 5.5z"></path>
           </svg>
       </button>
-      <button class="mr-2 bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" onclick={ontoggleQueue} aria-label="Wachtrij">
+      <button class="mr-2 bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" onclick={ontoggleQueue} aria-label={$t('queue.title')}>
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
               <path d="M15 15H3v-1.5h12V15zm0-4.5H3V9h12v1.5zm0-4.5H3V4.5h12V6zm7 12l-4.5-4.5L13 18h9z"></path>
           </svg>
@@ -1107,7 +1108,7 @@
           else volumeUp();
         }}
         onkeydown={(e) => e.key === 'Enter' && changeVolume(e)}
-        aria-label="Volume"
+        aria-label={$t('player.volume')}
       >
         <div class="h-full bg-white rounded-sm" style="width: {volume}%"></div>
       </div>

@@ -11,6 +11,18 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.59 (2026-08-02)
+
+### 🌍 De webinterface is vertaald — en praat Sallands en Brabants
+- De hele interface is nu beschikbaar in het Nederlands en het Engels, van de speler tot de
+  beheerpagina's. Voorheen stond de tekst vast in de schermen zelf, in een mengelmoes van beide
+  talen: de knoppenbalk op je telefoon zei "Home", "Nummers", "Sets", "Bieb" en "Beheer" door elkaar
+  heen. Je kiest je taal in Instellingen; de keuze gaat mee naar je andere apparaten.
+- Voor de lol zitten er twee dialecten bij: **Sallands** en **Brabants**. Die dekken de speler-kant
+  en de knoppen die je overal tegenkomt; de diepere beheerschermen blijven gewoon Nederlands, want
+  daar valt weinig aan te lachen. Kies "Sallaands" of "Brabants" in Instellingen.
+- Aantallen kloppen nu grammaticaal: "1 nummer" in plaats van "1 nummers".
+
 ## Global Version 0.0.58 (2026-08-01)
 
 ### 🔎 Zoeken en sorteren in de Library-tabbladen (Android)

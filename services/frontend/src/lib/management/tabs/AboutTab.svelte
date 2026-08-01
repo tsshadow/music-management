@@ -1,10 +1,11 @@
 <script >
+  import { t } from '../../i18n/index.js';
   import { onMount } from 'svelte';
   
   export let apiKey;
   export let API_BASE;
 
-  let aboutHtml = 'Loading about content...';
+  let aboutHtml = $t('common.loading');
 
   async function fetchAbout() {
     try {
@@ -14,10 +15,10 @@
       if (res.ok) {
         aboutHtml = await res.text();
       } else {
-        aboutHtml = 'Failed to load about content: ' + res.statusText;
+        aboutHtml = $t('management.about.loadFailed', { message: res.statusText });
       }
     } catch (e) {
-      aboutHtml = 'Failed to load about content: ' + e.message;
+      aboutHtml = $t('management.about.loadFailed', { message: e.message });
     }
   }
 

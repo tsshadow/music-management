@@ -1,4 +1,5 @@
 <script >
+  import { t } from '../../i18n/index.js';
   import { List, LayoutTemplate, Plus, Trash2, Music } from '@lucide/svelte';
   
   export let API_BASE;
@@ -87,32 +88,32 @@
       });
 
       if (response.ok) {
-        onMessage(editingPlaylist ? 'Playlist bijgewerkt' : 'Playlist opgeslagen');
+        onMessage(editingPlaylist ? $t('management.playlists.updated') : $t('management.playlists.saved'));
         isPlaylistModalOpen = false;
         fetchPlaylists();
       } else {
-        onError("Kon playlist niet opslaan.");
+        onError($t('management.playlists.saveFailed'));
       }
     } catch (err) {
-      onError("Fout bij opslaan playlist.");
+      onError($t('management.playlists.saveError'));
     }
   }
 
   async function deletePlaylist(id) {
-    if (!selectedUser || !confirm('Weet je zeker dat je deze playlist wilt verwijderen?')) return;
+    if (!selectedUser || !confirm($t('management.playlists.confirmDelete'))) return;
     try {
       const res = await fetch(`${API_BASE}/api/users/${selectedUser.id}/dynamic-playlists/${id}`, {
         method: 'DELETE',
         headers: getHeaders()
       });
       if (res.ok) {
-        onMessage("Playlist verwijderd.");
+        onMessage($t('management.playlists.deleted'));
         fetchPlaylists();
       } else {
-        onError("Kon playlist niet verwijderen.");
+        onError($t('management.playlists.deleteFailed'));
       }
     } catch (err) {
-      onError("Fout bij verwijderen playlist.");
+      onError($t('management.playlists.deleteError'));
     }
   }
 
@@ -139,7 +140,7 @@
     <div>
       <h2 class="text-4xl font-extrabold mb-2">🎵 Dynamic Playlists</h2>
       <div class="flex items-center gap-4">
-        <p class="text-spotify-lightgray">Beheer de tiles en slimme afspeellijsten voor</p>
+        <p class="text-spotify-lightgray">{$t('management.playlists.subtitle')}</p>
         <select 
           bind:value={selectedUser} 
           on:change={() => {
@@ -150,7 +151,7 @@
           }}
           class="bg-spotify-dark border border-spotify-gray rounded-full px-4 py-1 text-white text-sm focus:outline-none focus:border-spotify-green transition-colors"
         >
-          <option value={null}>Selecteer gebruiker...</option>
+          <option value={null}>{$t('management.playlists.pickUser')}</option>
           {#each users as user (user.id)}
             <option value={user}>{user.username}</option>
           {/each}
@@ -179,7 +180,7 @@
         on:click={() => openPlaylistEditor()}
         class="bg-spotify-green text-black font-extrabold px-8 py-3 rounded-full hover:scale-105 transition-transform flex items-center gap-2"
       >
-        <Plus size={20} /> NIEUWE PLAYLIST
+        <Plus size={20} /> {$t('management.playlists.new')}
       </button>
     </div>
   </header>
@@ -188,9 +189,9 @@
     <table class="w-full text-left">
       <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
         <tr>
-          <th class="p-4">Naam</th>
-          <th class="p-4">Identifiers</th>
-          <th class="p-4 text-right">Acties</th>
+          <th class="p-4">{$t('management.libraries.name')}</th>
+          <th class="p-4">{$t('management.playlists.identifiers')}</th>
+          <th class="p-4 text-right">{$t('management.genres.actions')}</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-spotify-gray divide-opacity-30">
@@ -216,21 +217,21 @@
                 <button 
                   on:click={() => fetchPlaylistTracks(playlist)}
                   class="p-2 text-spotify-lightgray hover:text-spotify-green transition-colors"
-                  title="Tracks bekijken"
+                  title={$t('management.playlists.viewTracks')}
                 >
                   <List size={18} />
                 </button>
                 <button 
                   on:click={() => openPlaylistEditor(playlist)}
                   class="p-2 text-spotify-lightgray hover:text-white transition-colors"
-                  title="Bewerken"
+                  title={$t('common.edit')}
                 >
                   <Music size={18} />
                 </button>
                 <button 
                   on:click={() => deletePlaylist(playlist.id)}
                   class="p-2 text-spotify-lightgray hover:text-red-500 transition-colors"
-                  title="Verwijderen"
+                  title={$t('common.remove')}
                 >
                   <Trash2 size={18} />
                 </button>
@@ -241,7 +242,7 @@
         {#if playlists.length === 0}
           <tr>
             <td colspan="3" class="p-8 text-center text-spotify-lightgray italic">
-              Geen dynamic playlists gevonden.
+              {$t('management.playlists.empty')}
             </td>
           </tr>
         {/if}
@@ -260,31 +261,31 @@
       </header>
       <div class="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
         <div>
-          <label for="playlistName" class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Playlist Naam</label>
+          <label for="playlistName" class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">{$t('management.playlists.name')}</label>
           <input 
             id="playlistName"
             type="text" 
             bind:value={playlistName}
-            placeholder="Bijv. Favorites, Hard Trance, etc."
+            placeholder={$t('management.playlists.namePlaceholder')}
             class="w-full bg-spotify-dark border border-white border-opacity-10 rounded-md p-3 text-white focus:outline-none focus:border-spotify-green transition-all"
           />
         </div>
         
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label for="playlistType" class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Type</label>
+            <label for="playlistType" class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">{$t('management.playlists.type')}</label>
             <select 
               id="playlistType"
               bind:value={playlistParams.song_type}
               class="w-full bg-spotify-dark border border-white border-opacity-10 rounded-md p-3 text-white focus:outline-none focus:border-spotify-green transition-all"
             >
-              <option value="both">Alle (Tracks & Sets)</option>
-              <option value="track">Alleen Tracks (&lt; 10 min)</option>
-              <option value="set">Alleen Sets (&gt; 10 min)</option>
+              <option value="both">{$t('management.playlists.typeAll')}</option>
+              <option value="track">{$t('management.playlists.typeTracks')}</option>
+              <option value="set">{$t('management.playlists.typeSets')}</option>
             </select>
           </div>
           <div>
-            <label for="playlistSize" class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Maximum Grootte</label>
+            <label for="playlistSize" class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">{$t('management.playlists.maxSize')}</label>
             <input 
               id="playlistSize"
               type="number" 
@@ -295,7 +296,7 @@
         </div>
 
         <div>
-          <span class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Genres</span>
+          <span class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">{$t('nav.genres')}</span>
           <div class="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 bg-spotify-dark rounded-md border border-white border-opacity-10">
             {#each availableGenres as genre (genre.name)}
               <button 
@@ -317,20 +318,20 @@
 
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label for="playlistSort" class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Sorteer op</label>
+            <label for="playlistSort" class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">{$t('filter.sortBy')}</label>
             <select 
               id="playlistSort"
               bind:value={playlistParams.sort_method}
               class="w-full bg-spotify-dark border border-white border-opacity-10 rounded-md p-3 text-white focus:outline-none focus:border-spotify-green transition-all"
             >
-              <option value="newest">Nieuwste eerst</option>
-              <option value="oldest">Oudste eerst</option>
-              <option value="highest_rated">Hoogste rating</option>
-              <option value="random">Willekeurig (Shuffle)</option>
+              <option value="newest">{$t('management.playlists.newestFirst')}</option>
+              <option value="oldest">{$t('management.playlists.oldestFirst')}</option>
+              <option value="highest_rated">{$t('management.playlists.highestRating')}</option>
+              <option value="random">{$t('management.playlists.randomShuffle')}</option>
             </select>
           </div>
           <div>
-            <span class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">Rating Bereik</span>
+            <span class="block text-sm font-bold text-spotify-lightgray uppercase mb-2">{$t('management.playlists.ratingRange')}</span>
             <div class="flex items-center gap-2">
               <input 
                 type="number" min="0" max="100"
@@ -352,13 +353,13 @@
           on:click={() => isPlaylistModalOpen = false}
           class="px-6 py-2 text-white font-bold hover:underline"
         >
-          ANNULEREN
+          {$t('management.playlists.cancelUpper')}
         </button>
         <button 
           on:click={savePlaylist}
           class="bg-spotify-green text-black font-extrabold px-8 py-2 rounded-full hover:scale-105 transition-transform"
         >
-          PLAYLIST OPSLAAN
+          {$t('management.playlists.save')}
         </button>
       </footer>
     </div>
@@ -372,7 +373,7 @@
       <header class="p-6 border-b border-white border-opacity-5 flex justify-between items-center">
         <div>
           <h3 class="text-2xl font-bold">{viewingPlaylist?.name}</h3>
-          <p class="text-spotify-lightgray text-sm">Preview van tracks gebaseerd op de dynamic rules.</p>
+          <p class="text-spotify-lightgray text-sm">{$t('management.playlists.previewHelp')}</p>
         </div>
         <button on:click={() => isPlaylistTracksModalOpen = false} class="text-spotify-lightgray hover:text-white text-3xl">&times;</button>
       </header>
@@ -380,9 +381,9 @@
         <table class="w-full text-left">
           <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray sticky top-0">
             <tr>
-              <th class="p-4">Titel</th>
-              <th class="p-4">Artiest</th>
-              <th class="p-4">Genre</th>
+              <th class="p-4">{$t('track.title')}</th>
+              <th class="p-4">{$t('common.artist')}</th>
+              <th class="p-4">{$t('nav.genres')}</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-spotify-gray divide-opacity-30">
@@ -396,7 +397,7 @@
             {#if playlistTracks.length === 0}
               <tr>
                 <td colspan="3" class="p-12 text-center text-spotify-lightgray italic">
-                  Geen tracks gevonden die voldoen aan de regels.
+                  {$t('management.playlists.noMatchingTracks')}
                 </td>
               </tr>
             {/if}
@@ -408,7 +409,7 @@
           on:click={() => isPlaylistTracksModalOpen = false}
           class="bg-spotify-green text-black font-extrabold px-8 py-2 rounded-full hover:scale-105 transition-transform"
         >
-          SLUITEN
+          {$t('management.playlists.closeUpper')}
         </button>
       </footer>
     </div>

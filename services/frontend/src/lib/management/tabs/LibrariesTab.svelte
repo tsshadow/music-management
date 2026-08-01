@@ -1,4 +1,5 @@
 <script>
+  import { t } from '../../i18n/index.js';
   import { onMount } from 'svelte';
   import { authParams, mumaApiUrl } from '../../store.js';
 
@@ -62,7 +63,7 @@
   }
 
   async function deleteLibrary(lib) {
-    if (!confirm(`Weet je zeker dat je bibliotheek ${lib.name} wilt verwijderen?`)) return;
+    if (!confirm($t('management.libraries.confirmDelete', { name: lib.name }))) return;
     try {
       const response = await fetch(`${$mumaApiUrl}/api/admin/libraries/${lib.id}?${$authParams}`, {
         method: 'DELETE'
@@ -84,20 +85,19 @@
 
 <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
   <header>
-    <h2 class="text-4xl font-extrabold mb-2">📚 Bibliotheken</h2>
-    <p class="text-[#b3b3b3]">Beheer de mappen die de muziekserver indexeert. Scannen doe je op het Scanner-tabblad.</p>
+    <h2 class="text-4xl font-extrabold mb-2">📚 {$t('management.tabs.libraries')}</h2>
+    <p class="text-[#b3b3b3]">{$t('management.libraries.subtitle')}</p>
   </header>
 
   {#if !$authParams}
     <div class="bg-[#181818] p-8 rounded-xl border border-white/5 text-center">
-      <h3 class="text-xl font-bold mb-2">Geen serververbinding</h3>
+      <h3 class="text-xl font-bold mb-2">{$t('management.libraries.noConnection')}</h3>
       <p class="text-[#b3b3b3]">
-        Bibliotheken worden rechtstreeks door de muziekserver beheerd en vereisen een login met
-        server-inloggegevens. Log in op de playerpagina met je gebruikersnaam en wachtwoord.
+        {$t('management.libraries.noConnectionHelp')}
       </p>
     </div>
   {:else if isLoading}
-    <div class="text-[#b3b3b3]">Laden...</div>
+    <div class="text-[#b3b3b3]">{$t('common.loading')}</div>
   {:else}
     <div class="flex flex-col gap-4">
       {#each libraries as lib (lib.id)}
@@ -111,7 +111,7 @@
               onclick={() => deleteLibrary(lib)}
               class="bg-red-500/10 text-red-500 px-4 py-2 rounded-full font-bold hover:bg-red-500/20 transition-colors cursor-pointer border-none text-sm"
             >
-              Verwijderen
+              {$t('common.remove')}
             </button>
           </div>
         </div>
@@ -119,7 +119,7 @@
 
       {#if libraries.length === 0}
         <div class="bg-[#181818] rounded-xl p-10 text-center border-2 border-dashed border-[#282828]">
-          <p class="text-[#b3b3b3]">Geen bibliotheken gevonden.</p>
+          <p class="text-[#b3b3b3]">{$t('management.libraries.empty')}</p>
         </div>
       {/if}
 
@@ -128,7 +128,7 @@
           onclick={() => (showAddModal = true)}
           class="text-brand font-bold hover:underline cursor-pointer border-none bg-transparent flex items-center gap-2"
         >
-          <span class="text-2xl">+</span> Bibliotheek toevoegen
+          <span class="text-2xl">+</span> {$t('management.libraries.add')}
         </button>
       </div>
     </div>
@@ -138,25 +138,25 @@
 {#if showAddModal}
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
     <div class="bg-[#181818] p-8 rounded-xl w-full max-w-md border border-white/10 shadow-2xl">
-      <h3 class="text-2xl font-bold mb-6">Bibliotheek toevoegen</h3>
+      <h3 class="text-2xl font-bold mb-6">{$t('management.libraries.add')}</h3>
       <div class="space-y-4">
         <div>
-          <label for="lib-name" class="block text-xs font-bold uppercase text-[#b3b3b3] mb-2">Naam</label>
+          <label for="lib-name" class="block text-xs font-bold uppercase text-[#b3b3b3] mb-2">{$t('management.libraries.name')}</label>
           <input
             id="lib-name"
             type="text"
             bind:value={newLibName}
-            placeholder="Bijv. Mijn Muziek"
+            placeholder={$t('management.libraries.namePlaceholder')}
             class="w-full bg-[#3e3e3e] border-none rounded p-3 text-white focus:ring-2 focus:ring-brand outline-none"
           />
         </div>
         <div>
-          <label for="lib-path" class="block text-xs font-bold uppercase text-[#b3b3b3] mb-2">Pad</label>
+          <label for="lib-path" class="block text-xs font-bold uppercase text-[#b3b3b3] mb-2">{$t('management.libraries.path')}</label>
           <input
             id="lib-path"
             type="text"
             bind:value={newLibPath}
-            placeholder="Bijv. /music/jazz"
+            placeholder={$t('management.libraries.pathPlaceholder')}
             class="w-full bg-[#3e3e3e] border-none rounded p-3 text-white focus:ring-2 focus:ring-brand outline-none"
           />
         </div>
@@ -166,13 +166,13 @@
           onclick={() => (showAddModal = false)}
           class="bg-transparent text-white font-bold px-6 py-2 rounded-full hover:bg-white/5 transition-colors cursor-pointer border-none"
         >
-          Annuleren
+          {$t('common.cancel')}
         </button>
         <button
           onclick={addLibrary}
           class="bg-brand text-black font-bold px-8 py-2 rounded-full hover:scale-105 transition-transform cursor-pointer border-none"
         >
-          Toevoegen
+          {$t('common.add')}
         </button>
       </div>
     </div>

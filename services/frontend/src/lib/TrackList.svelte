@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n/index.js';
   import { currentTrack, playerState, authParams, playlist, isMobile, highlightedTrackId, mumaApiUrl } from './store.js';
   import ArtistList from './ArtistList.svelte';
   import Modal from './Modal.svelte';
@@ -232,13 +233,13 @@
   <thead class="border-b border-white/10">
     <tr>
       <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[50px] text-right hidden md:table-cell">#</th>
-      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em]">Titel</th>
+      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em]">{$t('track.title')}</th>
       {#if !isQueue}
-        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] hidden md:table-cell">Album</th>
-        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] hidden md:table-cell">Genre</th>
-        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-20 hidden md:table-cell">Datum</th>
-        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-12 hidden lg:table-cell text-center">Plays</th>
-        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-32 hidden lg:table-cell text-center">Rating</th>
+        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] hidden md:table-cell">{$t('common.album')}</th>
+        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] hidden md:table-cell">{$t('nav.genres')}</th>
+        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-20 hidden md:table-cell">{$t('track.date')}</th>
+        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-12 hidden lg:table-cell text-center">{$t('track.plays')}</th>
+        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-32 hidden lg:table-cell text-center">{$t('filter.rating')}</th>
       {/if}
       <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[80px] md:w-[100px] text-right">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="inline">
@@ -263,7 +264,7 @@
         <td class="p-2 px-4 text-right relative hidden md:table-cell">
             <span class="block group-hover:hidden">{i + 1}</span>
             <button
-              aria-label="Afspelen"
+              aria-label={$t('common.play')}
               class="hidden group-hover:block bg-transparent border-none text-white cursor-pointer p-0 absolute right-4 top-1/2 -translate-y-1/2"
               onclick={() => playTrack(track)}
             >
@@ -344,8 +345,8 @@
           <div class="flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
               {#if isQueue}
                       <button
-                        aria-label="Omhoog"
-                        title="Omhoog"
+                        aria-label={$t('track.moveUp')}
+                        title={$t('track.moveUp')}
                         class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed"
                         onclick={(e) => moveTrack(e, i, -1)}
                         disabled={i === 0}
@@ -355,8 +356,8 @@
                           </svg>
                       </button>
                       <button
-                        aria-label="Omlaag"
-                        title="Omlaag"
+                        aria-label={$t('track.moveDown')}
+                        title={$t('track.moveDown')}
                         class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed"
                         onclick={(e) => moveTrack(e, i, 1)}
                         disabled={i === tracks.length - 1}
@@ -369,8 +370,8 @@
 
               {#if isQueue || playlistId}
                   <button
-                    aria-label="Verwijderen"
-                    title="Verwijderen"
+                    aria-label={$t('common.remove')}
+                    title={$t('common.remove')}
                     class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white hover:text-pink-500"
                     onclick={(e) => removeTrack(e, i)}
                   >
@@ -382,8 +383,8 @@
 
               {#if !isQueue}
                   <button
-                    aria-label="Verversen"
-                    title="Verversen"
+                    aria-label={$t('track.reload')}
+                    title={$t('track.reload')}
                     class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
                     onclick={(e) => refreshTrack(e, track)}
                   >
@@ -392,8 +393,8 @@
                       </svg>
                   </button>
                   <button
-                    aria-label="Hierna afspelen"
-                    title="Hierna afspelen"
+                    aria-label={$t('track.playNext')}
+                    title={$t('track.playNext')}
                     class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
                     onclick={(e) => addAfterCurrent(e, track)}
                   >
@@ -403,8 +404,8 @@
                       </svg>
                   </button>
                   <button
-                    aria-label="Aan wachtrij toevoegen"
-                    title="Aan wachtrij toevoegen"
+                    aria-label={$t('track.addToQueue')}
+                    title={$t('track.addToQueue')}
                     class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
                     onclick={(e) => addToEnd(e, track)}
                   >
@@ -415,8 +416,8 @@
               {/if}
 
               <button
-                aria-label="Lyrics"
-                title="Lyrics"
+                aria-label={$t('track.lyrics')}
+                title={$t('track.lyrics')}
                 class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
                 onclick={(e) => showLyrics(e, track)}
               >
@@ -428,8 +429,8 @@
               <a
                 href={`/rest/download?id=${track.id}&${$authParams}`}
                 download={`${track.artist} - ${track.title}.mp3`}
-                aria-label="Downloaden"
-                title="Downloaden"
+                aria-label={$t('common.download')}
+                title={$t('common.download')}
                 class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
                 onclick={(e) => e.stopPropagation()}
               >
@@ -455,7 +456,7 @@
           <svg class="animate-spin" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path>
           </svg>
-          Aan het laden...
+          {$t('common.loading')}
         </div>
       {:else if lyricsLines.length > 0}
         <div class="max-w-2xl w-full text-center space-y-4">
@@ -470,7 +471,7 @@
           <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor" class="mb-4 opacity-20 inline-block">
             <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"></path>
           </svg>
-          <p>Geen lyrics gevonden voor dit nummer.</p>
+          <p>{$t('track.noLyrics')}</p>
         </div>
       {/if}
     </div>

@@ -1,4 +1,5 @@
 <script >
+  import { t } from '../../i18n/index.js';
   import { onMount } from 'svelte';
   import { Bell, Trash2, CheckCircle, Clock } from '@lucide/svelte';
 
@@ -43,7 +44,7 @@
   }
 
   async function clearAll() {
-    if (!confirm("Weet je zeker dat je alle meldingen wilt wissen?")) return;
+    if (!confirm($t('management.notifications.confirmClear'))) return;
     try {
       const res = await fetch(`${API_BASE}/api/notifications`, {
         method: 'DELETE',
@@ -75,9 +76,9 @@
     <div>
       <h1 class="text-4xl font-black mb-2 flex items-center gap-4">
         <Bell size={40} class="text-spotify-green" />
-        Meldingen
+        {$t('management.notifications.title')}
       </h1>
-      <p class="text-spotify-lightgray">Berichten van automatische processen zoals SoundCloud downloads.</p>
+      <p class="text-spotify-lightgray">{$t('management.notifications.subtitle')}</p>
     </div>
     
     <div class="flex gap-4">
@@ -85,7 +86,7 @@
         on:click={fetchNotifications}
         class="bg-white text-black font-bold py-3 px-8 rounded-full hover:scale-105 transition-all text-sm uppercase tracking-wider"
       >
-        Vernieuwen
+        {$t('common.refresh')}
       </button>
       {#if notifications.length > 0}
         <button 
@@ -93,7 +94,7 @@
           class="bg-red-600 text-white font-bold py-3 px-8 rounded-full hover:scale-105 transition-all text-sm uppercase tracking-wider flex items-center gap-2"
         >
           <Trash2 size={16} />
-          Alles wissen
+          {$t('management.notifications.clearAll')}
         </button>
       {/if}
     </div>
@@ -105,7 +106,7 @@
       ntfy.sh Abonnement
     </h3>
     <p class="text-sm text-spotify-lightgray mb-4">
-      Je kunt je ook rechtstreeks abonneren op meldingen via de ntfy.sh app of website:
+      {$t('management.notifications.subscribeHelp')}
     </p>
     <div class="bg-spotify-gray p-4 rounded-lg flex justify-between items-center border border-white border-opacity-5">
       <code class="text-spotify-green font-mono">{ntfyUrl}{ntfyTopic}</code>
@@ -114,18 +115,18 @@
         target="_blank" 
         class="text-xs font-bold hover:underline uppercase"
       >
-        Openen in ntfy.sh
+        {$t('management.notifications.openInNtfy')}
       </a>
     </div>
   </div>
 
   <div class="grid gap-4">
     {#if loading && notifications.length === 0}
-      <div class="text-center py-20 text-spotify-lightgray">Meldingen laden...</div>
+      <div class="text-center py-20 text-spotify-lightgray">{$t('management.notifications.loading')}</div>
     {:else if notifications.length === 0}
       <div class="text-center py-20 bg-black bg-opacity-20 rounded-xl border border-dashed border-white border-opacity-10">
         <Bell size={48} class="mx-auto mb-4 text-spotify-gray" />
-        <p class="text-spotify-lightgray">Geen nieuwe meldingen.</p>
+        <p class="text-spotify-lightgray">{$t('management.notifications.empty')}</p>
       </div>
     {:else}
       {#each notifications as notification (notification.id)}
@@ -144,7 +145,7 @@
           <button 
             on:click={() => deleteNotification(notification.id)}
             class="absolute top-5 right-5 text-spotify-lightgray hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-            title="Verwijderen"
+            title={$t('common.remove')}
           >
             <Trash2 size={18} />
           </button>

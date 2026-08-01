@@ -1,0 +1,179 @@
+{
+  "album": {
+    "about": "Over dit album",
+    "addedOn": "Derbij gedaon op {date}",
+    "noSets": "Gin sets gevonde",
+    "noSetsHelp": "Op dit album staot niks da bij de set-weergave heurt.",
+    "noTracks": "Gin nummerkes gevonde",
+    "noTracksHelp": "Op dit album staot niks da bij de nummer-weergave heurt.",
+    "viewOnMusicBrainz": "Kek op MusicBrainz"
+  },
+  "artist": {
+    "about": "Over {name}",
+    "allSets": "Alle sets",
+    "allTracks": "Alle nummerkes",
+    "appearsOn": "Staot ok op",
+    "noSets": "Gin sets gevonde",
+    "noSetsHelp": "Van dizze artiest staot d'r niks da bij de set-weergave heurt.",
+    "noTracks": "Gin nummerkes gevonde",
+    "noTracksHelp": "Van dizze artiest staot d'r niks da bij de nummer-weergave heurt.",
+    "similar": "Da vinde ze ok schôon",
+    "verified": "Echte artiest"
+  },
+  "common": {
+    "add": "Derbij doen",
+    "album": "Album",
+    "artist": "Artiest",
+    "busy": "Efkes bezig...",
+    "cancel": "Laot mer zitte",
+    "close": "Dichtdoen",
+    "closeModal": "Vensterke dichtdoen",
+    "download": "Binnehaole",
+    "edit": "Bewerke",
+    "gotIt": "Duidelijk, jong",
+    "loadMore": "Nog wa meer",
+    "loading": "Efkes geduld, 't komt d'r aan",
+    "logout": "Uitlogge",
+    "play": "Afspele",
+    "playAll": "Alles afspele",
+    "playlist": "Lijstje",
+    "refresh": "Efkes ververse",
+    "remove": "Weghaole",
+    "save": "Opslaon",
+    "saveChanges": "Bewaar 't mar",
+    "saving": "Bezig mee opslaon...",
+    "searchPlaceholder": "Zuuke...",
+    "settings": "Instellinge",
+    "shufflePlay": "Deur mekaar afspele",
+    "trackCount": {
+      "one": "{count} nummerke",
+      "other": "{count} nummerkes"
+    },
+    "unknownError": "Geen idee wa 't is"
+  },
+  "dashboard": {
+    "addFavorite": "Bij de favorietjes doen",
+    "noAlbums": "Gin albums gevonde",
+    "noGenres": "Gin soorte in oew bieb.",
+    "noLabels": "Gin labels in oew bieb.",
+    "noSets": "Gin sets gevonde",
+    "noTracks": "Gin nummerkes gevonde",
+    "noTracksInSection": "Hier staot niks in.",
+    "removeFavorite": "Uit de favorietjes haole",
+    "showAll": "Laot alles zien"
+  },
+  "filter": {
+    "allGenres": "Alle soorte",
+    "allRatings": "Alles",
+    "allYears": "Alle jaore",
+    "sortBy": "Sortere op",
+    "year": "Jaor"
+  },
+  "greeting": {
+    "afternoon": "Goeiemiddag",
+    "evening": "Goeienaovend",
+    "morning": "Goeiemorge"
+  },
+  "history": {
+    "empty": "Nog niks gedraaid.",
+    "subtitle": "De nummerkes die ge lest gedraaid het.",
+    "title": "Wa ge gehoord het"
+  },
+  "login": {
+    "connect": "Verbinde",
+    "intro": "Log in mee oew Subsonic-gegevens, of gebruik Google.",
+    "invalidCredentials": "Da klopt nie, perbeer 't nog 's",
+    "noServerConnection": "Gin verbinding mee de server",
+    "password": "Wachtwoord",
+    "title": "Inlogge",
+    "username": "Gebruikersnaam"
+  },
+  "nav": {
+    "albums": "Albums",
+    "artists": "Artieste",
+    "genres": "Soorte",
+    "history": "Wa ge gehoord het",
+    "home": "Thuis",
+    "labels": "Labels",
+    "library": "Bieb",
+    "management": "Beheer",
+    "player": "Speuler",
+    "playlists": "Lijstjes",
+    "releaseRadar": "Nieuw binne",
+    "sets": "Sets",
+    "songs": "Nummerkes",
+    "starred": "Favorietjes"
+  },
+  "player": {
+    "next": "Volgende",
+    "nothingPlaying": "D'r speult niks, zet 's wa op",
+    "previous": "Veurige",
+    "radio": "Radio",
+    "repeat": "Nog 's",
+    "seek": "Deur 't nummerke schuive",
+    "syncOff": "Nie gekoppeld",
+    "volume": "Hard"
+  },
+  "queue": {
+    "clear": "Rijtje leegmake",
+    "resize": "Rijtje groter of kleiner",
+    "saveAsPlaylist": "Bewaar as lijstje",
+    "shuffle": "Deur mekaar",
+    "title": "Rijtje"
+  },
+  "radio": {
+    "couldNotStart": "Kos de radio nie aanzette",
+    "noChannels": "Gin kanale beschikbaar"
+  },
+  "releaseNotes": {
+    "intro": "D'r is un nieuwe versie. Dit is d'r aanders:",
+    "title": "Wa is d'r nieuw"
+  },
+  "search": {
+    "moreAlbums": "Albums veur \"{query}\"",
+    "moreArtists": "Artieste veur \"{query}\"",
+    "moreResults": "Gevonde veur \"{query}\"",
+    "moreSets": "Sets veur \"{query}\"",
+    "moreTracks": "Nummerkes veur \"{query}\"",
+    "noResults": "Niks gevonde, jong.",
+    "placeholder": "Wa wilde gij heure?",
+    "placeholderSets": "Zuuke in sets...",
+    "seeMore": "Laot mar meer zien",
+    "tryAnother": "Perbeer 's iets aanders."
+  },
+  "settings": {
+    "about": {
+      "whatsNew": "Wa is d'r nieuw"
+    },
+    "language": {
+      "help": "De taol van de interface. Wordt opgeslagen bij oew account, dus ie gaot mee naor oew aandere apparate.",
+      "title": "Taol"
+    }
+  },
+  "sidebar": {
+    "backToPlayer": "Trug naor de speuler",
+    "favoriteGenres": "OEW SOORTE",
+    "popularGenres": "VEUL GEDRAAID",
+    "toggleMode": "Aandere stand"
+  },
+  "sort": {
+    "alphabetical": "Op letter",
+    "random": "Zo mar wa"
+  },
+  "starred": {
+    "empty": "Nog gin favorietjes",
+    "emptyHelp": "Alles wa ge un hartje geeft komt hier te staon.",
+    "subtitle": "Oew mooiste nummerkes, albums en artieste"
+  },
+  "track": {
+    "addToQueue": "Achter 't rijtje aan",
+    "date": "Datum",
+    "moveDown": "Omlaag",
+    "moveUp": "Omhôog",
+    "noLyrics": "Gin tekst bij dit nummerke.",
+    "playNext": "Hierna afspele",
+    "plays": "Keer gedraaid",
+    "reload": "Opnieuw haole",
+    "title": "Titel"
+  }
+}

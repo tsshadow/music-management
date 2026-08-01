@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.57] - 2026-08-01
+
 ### Fixed
 - **The Android About page still linked to upstream Ultrasonic.** "Visit webpage" opened
   `ultrasonic.gitlab.io` and "Report a bug" opened `gitlab.com/ultrasonic/ultrasonic/issues`,

@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## [6.5.23] - 2026-08-01
+
+### Fixed
+- **De knoppen op "Over" wezen naar de verkeerde site.** "Website openen" en "Bug melden" openden nog de pagina's van het originele Ultrasonic-project. Ze gaan nu naar muma.example.com en naar de issue-tracker van dit project zelf.
+
 ## [6.5.22] - 2026-08-01
 
 ### Fixed

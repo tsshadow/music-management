@@ -22,17 +22,14 @@ data class LibraryQuery(
     val offset: Int = 0
 ) {
     /** A different term means different results, so paging starts over. */
-    fun withQuery(newQuery: String?): LibraryQuery =
-        if (newQuery == query) this else copy(query = newQuery, offset = 0)
+    fun withQuery(newQuery: String?): LibraryQuery = if (newQuery == query) this else copy(query = newQuery, offset = 0)
 
-    fun withSortOrder(newOrder: SortOrder): LibraryQuery =
-        if (newOrder == sortOrder) this else copy(sortOrder = newOrder, offset = 0)
+    fun withSortOrder(newOrder: SortOrder): LibraryQuery = if (newOrder == sortOrder) this else copy(sortOrder = newOrder, offset = 0)
 
     fun nextPage(pageSize: Int): LibraryQuery = copy(offset = offset + pageSize)
 
     /** True when the list on screen no longer matches this query and has to be cleared. */
-    fun resetsList(previous: LibraryQuery): Boolean =
-        query != previous.query || sortOrder != previous.sortOrder
+    fun resetsList(previous: LibraryQuery): Boolean = query != previous.query || sortOrder != previous.sortOrder
 }
 
 /** The orders the artist list offers, in the order the dropdown shows them. */

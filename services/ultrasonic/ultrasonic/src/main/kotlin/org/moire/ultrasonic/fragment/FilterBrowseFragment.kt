@@ -257,7 +257,6 @@ class FilterBrowseFragment : Fragment() {
         private const val TAG_YEAR = "YEAR"
         private const val TAG_FESTIVAL = "FESTIVAL"
 
-        fun argumentsFor(category: BrowseCategory): Bundle =
-            Bundle().apply { putString(ARG_CATEGORY, category.name) }
+        fun argumentsFor(category: BrowseCategory): Bundle = Bundle().apply { putString(ARG_CATEGORY, category.name) }
     }
 }

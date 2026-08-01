@@ -40,6 +40,5 @@ fun filterAndSortCards(
 }
 
 /** Lowercased and stripped of diacritics, matching how the web UI groups names. */
-private fun searchKey(value: String): String =
-    Normalizer.normalize(value.lowercase(), Normalizer.Form.NFD)
-        .replace(Regex("\\p{Mn}+"), "")
+private fun searchKey(value: String): String = Normalizer.normalize(value.lowercase(), Normalizer.Form.NFD)
+    .replace(Regex("\\p{Mn}+"), "")

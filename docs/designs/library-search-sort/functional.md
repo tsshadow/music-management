@@ -39,7 +39,7 @@ there is behind an entry.
 | Types in the album search | The list shows matching albums from the whole library; scrolling loads more. |
 | Opens Library → Genres / Years / Festivals / Lineups / Ratings | Same header. Search filters the cards by name as you type; sorting offers name and count. |
 | Switches from Artists to Albums and back | Each tab keeps its own search term and sort order for as long as the screen is open. |
-| Searches while offline | The search field reports that search needs a connection; the list keeps showing what is cached. |
+| Searches while offline | The search filters the downloaded library. Sort orders that only the server can answer (by number of albums, recently added, random) report that they need a connection. |
 | A search matches nothing | The list shows an empty state naming the term that was searched for, with the search field still filled so it can be corrected. |
 
 ## Acceptance Criteria
@@ -59,7 +59,8 @@ there is behind an entry.
 8. Search terms and sort orders are per tab; switching tabs does not carry one tab's term into
    another.
 9. A search that returns nothing shows an empty state, not a blank list.
-10. With no connection, searching reports that it is unavailable rather than silently returning
+10. With no connection, searching returns matches from the downloaded library, and a sort order the
+    downloaded library cannot answer reports that it is unavailable rather than silently returning
     nothing.
 
 ## Open Questions / Not Yet Decided

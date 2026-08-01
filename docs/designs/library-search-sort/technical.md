@@ -35,8 +35,7 @@ existing `Release::getCount` overload. It backs the per-artist track count in th
 | Endpoint | Request | Response | Error cases |
 |---|---|---|---|
 | `GET /rest/getArtists.view` | existing `musicFolderId`, `offset`, `count`; **new** `query` (string, optional), **new** `sortBy` (enum, optional) | `artists` node as today, with a new `songCount` attribute per `artist` | Unknown `sortBy` → falls back to `name` and is logged; it is not an error response. Empty `query` is treated as absent. |
-| `GET /rest/getAlbumList2.view` | existing `type`, `size`, `offset` | unchanged | **New accepted `type` value** `byTrackCount`. `alphabeticalByArtist` already works today. |
-| `GET /rest/search3.view` | existing `query`, `albumCount`, `albumOffset`, `artistCount`, `artistOffset`, `songCount` | unchanged | unchanged |
+| `GET /rest/getAlbumList2.view` | existing `type`, `size`, `offset`, `query` | unchanged | **New accepted `type` value** `byTrackCount`. `query` and `alphabeticalByArtist` already work today — only the Android client has to start sending them. |
 
 `sortBy` values and their mapping:
 
@@ -119,10 +118,14 @@ cannot leak state into each other.
 
 ### Albums
 
-Browsing keeps using `getAlbumList2` through `AlbumListModel.getAlbums`. Searching switches the
-model to `search3` with `albumCount`/`albumOffset` for paging, so browse and search are two sources
-feeding one list, chosen by whether a term is set. `SortOrder.BY_TRACK_COUNT` maps to the new
-`byTrackCount` type; `BY_ARTIST` maps to `alphabeticalByArtist`, which the server already accepts.
+`handleGetAlbumListRequestCommon` already reads a `query` parameter and passes it as keywords to
+every sort branch, so album search needs no server change at all: the Android client adds
+`@Query("query")` to `getAlbumList2` and threads a term through `MusicService.getAlbumList2` and
+`AlbumListModel.getAlbums`. Searching and sorting therefore combine — a term narrows the list while
+the chosen order still applies, which a `search3`-based search could not do.
+
+`SortOrder.BY_TRACK_COUNT` maps to the new `byTrackCount` type; `BY_ARTIST` maps to
+`alphabeticalByArtist`, which the server already accepts.
 
 ### Browse tabs
 
@@ -155,7 +158,8 @@ together, per AGENTS.md rule 7.
    the artists in it are in server order.
 4. Every `artist` node in `getArtists.view` carries a `songCount` attribute equal to the number of
    tracks linked to that artist.
-5. `getAlbumList2.view?type=byTrackCount` returns albums in descending track count.
+5. `getAlbumList2.view?type=byTrackCount` returns albums in descending track count, and combining
+   it with `query=` narrows that ordered list rather than ignoring one of the two.
 6. Database tests cover `ArtistSortMethod::ReleaseCountDesc` and `ReleaseSortMethod::TrackCountDesc`
    against a fixture with known counts, including ties, which are broken by sort name.
 7. `LibraryQuery` unit tests: a new term resets the offset and clears the list; a new sort order

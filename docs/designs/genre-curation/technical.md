@@ -12,16 +12,31 @@ Implements [`functional.md`](functional.md).
 | `name` | `VARCHAR(255)` | Display spelling, written to the tag |
 | `normalized_name` | `VARCHAR(191)` UNIQUE | Lookup key: lowercase, accents stripped, runs of non-alphanumerics collapsed to a single space, trimmed |
 | `state` | `ENUM('white','black','unknown')` | `white` keep, `black` drop, `unknown` awaiting curation |
-| `canonical_id` | `INT` NULL, FK to `rules_genres(id)` | Correction target; makes either decided state a rewrite |
+| `canonical_id` | `INT` NULL, FK to `rules_genres(id)` | Legacy first correction target; superseded by `rules_genre_expansions` and no longer read by the tagger |
 | `occurrences` | `INT` | How often an unjudged genre has been seen |
-| `corrected_genre` | `VARCHAR(255)` | Legacy, superseded by `canonical_id`; kept so `tools/process_genres.py` keeps working |
+| `corrected_genre` | `VARCHAR(255)` | Legacy, superseded by `rules_genre_expansions`; kept so `tools/process_genres.py` keeps working |
 | `detected_at` | `TIMESTAMP` | First sighting |
 | `decided_at` | `TIMESTAMP` NULL | Set when a decision is made |
 | `decided_by` | `VARCHAR(64)` NULL | `migration`, `system`, or a username; a row with a value here is never re-decided automatically |
 
-Four behaviors from three states: `white` without `canonical_id` keeps the genre; `white` or `black` with a
-`canonical_id` rewrites it to the target's `name`; `black` without one drops it; `unknown` leaves the tag
-untouched and only bumps `occurrences`.
+Rewrite targets live in `rules_genre_expansions` (`genre_id`, `target_id`, `position`), not in
+`canonical_id`, because a genre can stand for more than one: `Upterror` is `Uptempo Hardcore` plus `Terror`.
+`canonical_id` still holds the first target so existing tools keep working, but the tagger no longer reads it —
+one place decides a rewrite instead of two that can disagree.
+
+Four behaviors from three states: `white` without targets keeps the genre; `white` or `black` with targets
+rewrites it to all of them; `black` without any drops it; `unknown` leaves the tag untouched and only bumps
+`occurrences`.
+
+### Splitting composites
+
+`Hardstyle/Hardcore` is two genres. The tag pipeline already splits on `;` and on ` & ` — `Tag.resplit` even
+claims to handle `/`, but it only runs when `Tag.regex` changed something, and `ARTIST_REGEX` never matches a
+slash, so these arrived as a single genre and filled the queue with combinations that never repeat.
+
+`GenreRulesHelper.split_composite` does the split, and deliberately not `Tag.resplit`: artists really do
+contain slashes (`AC/DC`) and must keep them, so this stays on the genre path only. A genre that has been
+decided is never split, which means approving a name that genuinely contains a slash protects it for good.
 
 `rules_ignored_genres` and `rules_genre_backlog` stay in place, unread by the tagger, so the tools under
 `tools/` keep working. They can be dropped in a later change.
@@ -35,8 +50,8 @@ ignore list first.
 
 | Endpoint | Request | Response | Error cases |
 |---|---|---|---|
-| `GET /api/rules/genres` | `state` (optional, one of `white`/`black`/`unknown`), `limit` (default 200) | Rows with `id`, `name`, `state`, `canonical_id`, `canonical_name`, `occurrences`, `detected_at`, `decided_at`, `decided_by`, ordered by `occurrences` descending then `name` | `400` invalid `state`; `401` missing/invalid API key; `500` no database connection |
-| `POST /api/rules/genres/{genre_id}/decide` | `{"state": "white"\|"black", "canonical_id": int\|null}` | `{"status": "ok"}` | `400` state is not `white`/`black`, `canonical_id` equals `genre_id`, or the correction target does not exist; `404` unknown `genre_id`; `401`; `500` |
+| `GET /api/rules/genres` | `state` (optional, one of `white`/`black`/`unknown`), `limit` (default 200) | Rows with `id`, `name`, `state`, `canonical_targets` (a list of `{id, name}`), `occurrences`, `detected_at`, `decided_at`, `decided_by`, ordered by `occurrences` descending then `name` | `400` invalid `state`; `401` missing/invalid API key; `500` no database connection |
+| `POST /api/rules/genres/{genre_id}/decide` | `{"state": "white"\|"black", "canonical_ids": [int]}`; `canonical_id` is still accepted as the single-target form | `{"status": "ok"}` | `400` state is not `white`/`black`, a target equals `genre_id`, or a target does not exist; `404` unknown `genre_id`; `401`; `500` |
 
 Not a breaking change: `GET /api/rules` keeps its existing shape, and `corrected_genre` is still selected
 there.
@@ -70,10 +85,10 @@ LMS are untouched.
 1. `GenreRulesHelper.normalize` maps `Raw  Hardstyle`, `raw-hardstyle` and `  RAW/HARDSTYLE  ` to the same
    key, and strips accents (`Frenchcöre` to `frenchcore`).
 2. `GenreRulesHelper.resolve` returns state `white` with the stored `name` for an approved genre, `black` with
-   `None` for a rejected one, the target's `name` when `canonical_id` is set in either state, and `unknown`
-   with the input unchanged for a genre that is unseen or still queued.
-3. `resolve` on a whitespace-only genre returns `black` with `None`.
-4. A row whose `canonical_id` points at itself resolves to its own `name` rather than looping.
+   an empty list for a rejected one, the target names when the genre has expansions in either state, and
+   `unknown` with the input unchanged for a genre that is unseen or still queued.
+3. `resolve` on a whitespace-only genre returns `black` with an empty list.
+4. A row whose expansion points at itself resolves to its own `name` rather than looping.
 5. `record_unknown` inserts one row per normalized key and increments `occurrences` on repeat sightings.
 6. `ResolveGenreRule` writes the sorted, de-duplicated result once per song, and does not touch the tag when
    the resolved set equals the current set.
@@ -90,6 +105,14 @@ LMS are untouched.
 13. `describeOutcome` lets a correction win over the state: a rejected genre with a correction target is
     described as replaced, not removed.
 14. `normalizeGenre` produces the same key as `GenreRulesHelper.normalize` for casing, accents and separators.
+15. `split_composite` splits on `/`, trims the parts, drops empties, strips a stray trailing slash, and returns
+    the input unchanged for a genre that has been decided.
+16. `resolve` returns every expansion target in `position` order, skips a target that no longer exists or that
+    points at the genre itself, and lets targets win over the state.
+17. `ResolveGenreRule` records the parts of a composite for curation, never the composite itself.
+18. `migrate_v4_genre_expansions.sql` run twice leaves identical state counts and expansion counts, converts
+    every `canonical_id` into an expansion, and turns a slash genre still marked `decided_by = 'migration'`
+    into a rejected genre expanding into its parts — leaving a human-decided one alone.
 
 ## Related Docs
 

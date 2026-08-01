@@ -59,8 +59,9 @@ export function summarize(rows) {
  * 'Uptempo Hardcore'.
  */
 export function describeOutcome(row) {
-  if (row.canonical_id && row.canonical_name) {
-    return `Wordt vervangen door ${row.canonical_name}`;
+  const targets = row.canonical_targets || [];
+  if (targets.length) {
+    return `Wordt vervangen door ${targets.map((target) => target.name).join(' + ')}`;
   }
   if (row.state === WHITE) return 'Blijft staan';
   if (row.state === BLACK) return 'Wordt verwijderd';
@@ -72,20 +73,24 @@ export function describeOutcome(row) {
  *
  * Returns `{ valid, error, payload }` rather than throwing, so the component can
  * disable the confirm button on the same check the API would reject.
+ *
+ * Several targets are allowed, which is how a contraction is expressed:
+ * 'Upterror' becomes 'Uptempo Hardcore' plus 'Terror'.
  */
-export function buildDecision({ genreId, state, canonicalId = null }) {
+export function buildDecision({ genreId, state, canonicalIds = [] }) {
   if (state !== WHITE && state !== BLACK) {
     return { valid: false, error: `Ongeldige status, verwacht ${WHITE} of ${BLACK}.` };
   }
-  const canonical = canonicalId === '' || canonicalId === undefined ? null : canonicalId;
-  if (canonical !== null && Number(canonical) === Number(genreId)) {
-    return { valid: false, error: 'Een genre kan niet naar zichzelf corrigeren.' };
+  const targets = [];
+  for (const raw of canonicalIds || []) {
+    if (raw === '' || raw === null || raw === undefined) continue;
+    const target = Number(raw);
+    if (target === Number(genreId)) {
+      return { valid: false, error: 'Een genre kan niet naar zichzelf corrigeren.' };
+    }
+    if (!targets.includes(target)) targets.push(target);
   }
-  return {
-    valid: true,
-    error: null,
-    payload: { state, canonical_id: canonical === null ? null : Number(canonical) }
-  };
+  return { valid: true, error: null, payload: { state, canonical_ids: targets } };
 }
 
 /**

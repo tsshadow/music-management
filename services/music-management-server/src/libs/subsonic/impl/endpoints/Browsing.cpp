@@ -585,21 +585,24 @@ namespace lms::api::subsonic
         return response;
     }
 
-    ArtistSortMethod artistSortMethodFromString(std::string_view sortBy)
+    namespace
     {
-        if (sortBy == "trackCount")
-            return ArtistSortMethod::TrackCountDesc;
-        if (sortBy == "albumCount")
-            return ArtistSortMethod::ReleaseCountDesc;
-        if (sortBy == "added")
-            return ArtistSortMethod::AddedDesc;
-        if (sortBy == "random")
-            return ArtistSortMethod::Random;
-        if (sortBy != "name" && !sortBy.empty())
-            LMS_LOG(API_SUBSONIC, DEBUG, "GetArtists: unknown sortBy '" << sortBy << "', falling back to name");
+        ArtistSortMethod artistSortMethodFromString(std::string_view sortBy)
+        {
+            if (sortBy == "trackCount")
+                return ArtistSortMethod::TrackCountDesc;
+            if (sortBy == "albumCount")
+                return ArtistSortMethod::ReleaseCountDesc;
+            if (sortBy == "added")
+                return ArtistSortMethod::AddedDesc;
+            if (sortBy == "random")
+                return ArtistSortMethod::Random;
+            if (sortBy != "name" && !sortBy.empty())
+                LMS_LOG(API_SUBSONIC, DEBUG, "GetArtists: unknown sortBy '" << sortBy << "', falling back to name");
 
-        return ArtistSortMethod::SortName;
-    }
+            return ArtistSortMethod::SortName;
+        }
+    } // namespace
 
     Response handleGetArtistsRequest(RequestContext& context)
     {

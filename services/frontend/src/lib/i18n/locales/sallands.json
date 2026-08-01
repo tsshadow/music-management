@@ -1,8 +1,179 @@
 {
+  "album": {
+    "about": "Over dit album",
+    "addedOn": "Derbie edoan op {date}",
+    "noSets": "Gin sets evondn",
+    "noSetsHelp": "Op dit album steet niks dat bie de set-weergave heurt.",
+    "noTracks": "Gin nummers evondn",
+    "noTracksHelp": "Op dit album steet niks dat bie de nummer-weergave heurt.",
+    "viewOnMusicBrainz": "Kiek op MusicBrainz"
+  },
+  "artist": {
+    "about": "Over {name}",
+    "allSets": "Alle sets",
+    "allTracks": "Alle nummers",
+    "appearsOn": "Steet ok op",
+    "noSets": "Gin sets evondn",
+    "noSetsHelp": "Van disse artiest steet der niks dat bie de set-weergave heurt.",
+    "noTracks": "Gin nummers evondn",
+    "noTracksHelp": "Van disse artiest steet der niks dat bie de nummer-weergave heurt.",
+    "similar": "Dit vindt ze ok mooi",
+    "verified": "Echte artiest"
+  },
+  "common": {
+    "add": "Derbie doon",
+    "album": "Album",
+    "artist": "Artiest",
+    "busy": "Effen bezig...",
+    "cancel": "Loat mer zitten",
+    "close": "Dichtdoon",
+    "closeModal": "Vensterken dichtdoon",
+    "download": "Binnenhaaln",
+    "edit": "Bewarkn",
+    "gotIt": "Duudelijk",
+    "loadMore": "Nog meer hoaln",
+    "loading": "Effen geduld, 't komp d'r an",
+    "logout": "Uutloggen",
+    "play": "Ofspöln",
+    "playAll": "Alles ofspöln",
+    "playlist": "Lieske",
+    "refresh": "Effen verversn",
+    "remove": "Vortdoon",
+    "save": "Bewaarn",
+    "saveChanges": "Bewaar 't mer",
+    "saving": "Bezig met bewaarn...",
+    "searchPlaceholder": "Zeukn...",
+    "settings": "Instellingen",
+    "shufflePlay": "Deur mekaar ofspöln",
+    "trackCount": {
+      "one": "{count} nummer",
+      "other": "{count} nummers"
+    },
+    "unknownError": "Gin idee wat 't is"
+  },
+  "dashboard": {
+    "addFavorite": "Bie de favorieten doon",
+    "noAlbums": "Gin albums evondn",
+    "noGenres": "Gin soortn in oew bieb.",
+    "noLabels": "Gin labels in oew bieb.",
+    "noSets": "Gin sets evondn",
+    "noTracks": "Gin nummers evondn",
+    "noTracksInSection": "Hier steet niks in.",
+    "removeFavorite": "Uut de favorieten hoaln",
+    "showAll": "Loat alles zien"
+  },
+  "filter": {
+    "allGenres": "Alle soortn",
+    "allRatings": "Alles",
+    "allYears": "Alle joarn",
+    "sortBy": "Sorteern op",
+    "year": "Joar"
+  },
+  "greeting": {
+    "afternoon": "Goeiemiddag",
+    "evening": "Goeienoavond",
+    "morning": "Goeiemorgen"
+  },
+  "history": {
+    "empty": "Nog niks edraaid.",
+    "subtitle": "De nummers die'j lest edraaid hebt.",
+    "title": "Wat i-j ehad hebt"
+  },
+  "login": {
+    "connect": "Verbinden",
+    "intro": "Log in mit oew Subsonic-gegevens, of gebruuk Google.",
+    "invalidCredentials": "Da klop nait, prebeer 't nog 's",
+    "noServerConnection": "Gin verbinding mit de server",
+    "password": "Wachtwoord",
+    "title": "Inloggen",
+    "username": "Gebruukersnaam"
+  },
+  "nav": {
+    "albums": "Albums",
+    "artists": "Artiesten",
+    "genres": "Soortn",
+    "history": "Wat i-j ehad hebt",
+    "home": "Thuus",
+    "labels": "Labels",
+    "library": "Bieb",
+    "management": "Beheer",
+    "player": "Speuler",
+    "playlists": "Lieskes",
+    "releaseRadar": "Nieuw binnen",
+    "sets": "Sets",
+    "songs": "Nummers",
+    "starred": "Favorieten"
+  },
+  "player": {
+    "next": "Volgende",
+    "nothingPlaying": "Der geet niks an",
+    "previous": "Veurige",
+    "radio": "Radio",
+    "repeat": "Nog 's",
+    "seek": "Deur 't nummer schoevn",
+    "syncOff": "Nait gekoppeld",
+    "volume": "Herd"
+  },
+  "queue": {
+    "clear": "Riege leegmaakn",
+    "resize": "Riege groter of kleiner",
+    "saveAsPlaylist": "Bewaarn as lieske",
+    "shuffle": "Deur mekaar",
+    "title": "Riege"
+  },
+  "radio": {
+    "couldNotStart": "Kon de radio nait anzetn",
+    "noChannels": "Gin kanaaln beschikbaar"
+  },
+  "releaseNotes": {
+    "intro": "Der is een ni'je versie. Dit is der aanders:",
+    "title": "Wat is der ni'j"
+  },
+  "search": {
+    "moreAlbums": "Albums veur \"{query}\"",
+    "moreArtists": "Artiesten veur \"{query}\"",
+    "moreResults": "Gevondn veur \"{query}\"",
+    "moreSets": "Sets veur \"{query}\"",
+    "moreTracks": "Nummers veur \"{query}\"",
+    "noResults": "Niks te vinden.",
+    "placeholder": "Wat wo'j heurn?",
+    "placeholderSets": "Zeukn in sets...",
+    "seeMore": "Loat mer meer zien",
+    "tryAnother": "Prebeer 's wat aanders."
+  },
   "settings": {
+    "about": {
+      "whatsNew": "Wat is der ni'j"
+    },
     "language": {
-      "title": "Toal",
-      "help": "De toal van de interface. Wörd bewaard bie oew account, dus hee giet mee noar oew aandere apparaten."
+      "help": "De toal van de interface. Wörd bewaard bie oew account, dus hee giet mee noar oew aandere apparaten.",
+      "title": "Toal"
     }
+  },
+  "sidebar": {
+    "backToPlayer": "Weerum naor de speuler",
+    "favoriteGenres": "OEW SOORTN",
+    "popularGenres": "VEUL EDRAAID",
+    "toggleMode": "Aandere stand"
+  },
+  "sort": {
+    "alphabetical": "Op letter",
+    "random": "Zo mer wat"
+  },
+  "starred": {
+    "empty": "Nog gin favorieten",
+    "emptyHelp": "Alles wa'j een hartien geeft komp hier te staon.",
+    "subtitle": "Oew mooiste nummers, albums en artiesten"
+  },
+  "track": {
+    "addToQueue": "Achter an de riege",
+    "date": "Datum",
+    "moveDown": "Umleeg",
+    "moveUp": "Umhoge",
+    "noLyrics": "Gin tekst bie dit nummer.",
+    "playNext": "Hierno ofspöln",
+    "plays": "Keern edraaid",
+    "reload": "Opni'j hoaln",
+    "title": "Titel"
   }
 }

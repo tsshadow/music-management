@@ -1,4 +1,5 @@
 <script>
+  import { t } from '../../i18n/index.js';
   import { onMount } from 'svelte';
   import { Search, Filter, List, Info, PieChart, X } from '@lucide/svelte';
   import { apiGet, emptyFilters } from '../library/api.js';
@@ -181,23 +182,23 @@
   <div class="bg-[#181818] border border-white/5 rounded-xl p-4 flex flex-col md:flex-row justify-between md:items-center gap-4">
     <div class="flex gap-7 overflow-x-auto no-scrollbar py-1">
       <div class="flex flex-col">
-        <span class="text-[10px] uppercase tracking-widest text-[#b3b3b3] font-bold">Tracks</span>
+        <span class="text-[10px] uppercase tracking-widest text-[#b3b3b3] font-bold">{$t('management.library.tracks')}</span>
         <span class="text-xl font-black text-white tabular-nums">{summary.tracks.toLocaleString('nl-NL')}</span>
       </div>
       <div class="flex flex-col">
-        <span class="text-[10px] uppercase tracking-widest text-[#b3b3b3] font-bold">Artiesten</span>
+        <span class="text-[10px] uppercase tracking-widest text-[#b3b3b3] font-bold">{$t('nav.artists')}</span>
         <span class="text-xl font-black text-white tabular-nums">{summary.artists.toLocaleString('nl-NL')}</span>
       </div>
       <div class="flex flex-col">
-        <span class="text-[10px] uppercase tracking-widest text-[#b3b3b3] font-bold">Labels</span>
+        <span class="text-[10px] uppercase tracking-widest text-[#b3b3b3] font-bold">{$t('nav.labels')}</span>
         <span class="text-xl font-black text-white tabular-nums">{summary.labels.toLocaleString('nl-NL')}</span>
       </div>
       <div class="flex flex-col">
-        <span class="text-[10px] uppercase tracking-widest text-[#b3b3b3] font-bold">Duur</span>
+        <span class="text-[10px] uppercase tracking-widest text-[#b3b3b3] font-bold">{$t('library.duration')}</span>
         <span class="text-xl font-black text-white tabular-nums">{hours.toLocaleString('nl-NL')}u</span>
       </div>
       <div class="flex flex-col border-l border-white/10 pl-7">
-        <span class="text-[10px] uppercase tracking-widest text-[#b3b3b3] font-bold">Dekking</span>
+        <span class="text-[10px] uppercase tracking-widest text-[#b3b3b3] font-bold">{$t('management.library.coverage')}</span>
         <span class="text-xs font-mono text-[#b3b3b3] tabular-nums">
           bpm {pct(summary.coverage.bpm)} · genre {pct(summary.coverage.genre)} · artiest {pct(summary.coverage.artist)}
         </span>
@@ -206,9 +207,9 @@
 
     <div class="flex gap-2 shrink-0">
       <button class="p-2 rounded-md transition-colors {view === 'library' ? 'bg-brand text-black' : 'hover:bg-white/5 text-white'}"
-              on:click={() => view = 'library'} title="Tracklijst"><List size={20} /></button>
+              on:click={() => view = 'library'} title={$t('management.library.trackList')}><List size={20} /></button>
       <button class="p-2 rounded-md transition-colors {view === 'analytics' ? 'bg-brand text-black' : 'hover:bg-white/5 text-white'}"
-              on:click={() => view = 'analytics'} title="Analyse"><PieChart size={20} /></button>
+              on:click={() => view = 'analytics'} title={$t('management.library.analysis')}><PieChart size={20} /></button>
     </div>
   </div>
 
@@ -219,7 +220,7 @@
         type="text"
         bind:value={searchInput}
         on:keydown={submitSearch}
-        placeholder="Zoek titel, artiest, label of een BPM-getal... (Enter)"
+        placeholder={$t('management.library.searchPlaceholder')}
         class="w-full bg-[#242424] border-none rounded-full py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-brand outline-none"
       />
     </div>
@@ -227,16 +228,16 @@
       {#if activeFilterCount > 0}
         <button on:click={clearAll}
                 class="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 hover:bg-white/5 text-sm font-bold text-white">
-          <X size={15} /> Wis ({activeFilterCount})
+          <X size={15} /> {$t('management.library.clearFilters', { count: activeFilterCount })}
         </button>
       {/if}
       <button on:click={() => showFilters = !showFilters}
               class="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 hover:bg-white/5 text-sm font-bold {showFilters ? 'text-brand border-brand/50' : 'text-white'}">
-        <Filter size={15} /> Filters
+        <Filter size={15} /> {$t('management.library.filters')}
       </button>
       <button on:click={() => showInspector = !showInspector}
               class="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 hover:bg-white/5 text-sm font-bold {showInspector ? 'text-brand border-brand/50' : 'text-white'}">
-        <Info size={15} /> Inspector
+        <Info size={15} /> {$t('management.library.inspector')}
       </button>
     </div>
   </div>

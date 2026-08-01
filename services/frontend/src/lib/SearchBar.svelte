@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n/index.js';
   import { onMount, untrack } from 'svelte';
   import { authParams, activeView, currentTrack, playlist, viewMode, activeModal } from './store.js';
   import SearchResults from './SearchResults.svelte';
@@ -185,7 +186,7 @@
       oninput={handleInput}
       onfocus={() => showResults = query.length > 0}
       onblur={handleBlur}
-      placeholder={$viewMode === 'sets' ? "Zoeken in sets..." : "Wat wil je luisteren?"}
+      placeholder={$viewMode === 'sets' ? $t('search.placeholderSets') : $t('search.placeholder')}
       class="block w-full pl-10 pr-3 py-2 bg-[#242424] border-none rounded-full text-sm text-white placeholder-[#b3b3b3] focus:ring-2 focus:ring-white transition-all hover:bg-[#2a2a2a]"
     />
   </div>

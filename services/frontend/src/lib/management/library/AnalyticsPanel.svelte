@@ -1,4 +1,5 @@
 <script>
+  import { t } from '../../i18n/index.js';
   import { PieChart, Activity, Calendar, Users, Tag, AlertTriangle } from '@lucide/svelte';
 
   export let genreDistribution = [];  // [{genre, state, count}]
@@ -17,10 +18,10 @@
 
   <div class="bg-black/40 p-5 rounded-xl border border-white/5">
     <h3 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-5 flex items-center gap-2">
-      <PieChart size={15} class="text-brand" /> Genre-verdeling
+      <PieChart size={15} class="text-brand" /> {$t('library.genreDistribution')}
     </h3>
     {#if genreDistribution.length === 0}
-      <p class="text-xs text-[#535353]">Geen genres in deze selectie.</p>
+      <p class="text-xs text-[#535353]">{$t('library.noGenresInSelection')}</p>
     {:else}
       <div class="flex flex-col gap-3 max-h-80 overflow-y-auto pr-2">
         {#each genreDistribution as row (row.genre)}
@@ -40,14 +41,14 @@
 
   <div class="bg-black/40 p-5 rounded-xl border border-white/5">
     <h3 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-2 flex items-center gap-2">
-      <Activity size={15} class="text-blue-400" /> BPM-verdeling
+      <Activity size={15} class="text-blue-400" /> {$t('library.bpmDistribution')}
     </h3>
     <p class="text-[10px] text-yellow-600/90 flex items-start gap-1.5 mb-4">
       <AlertTriangle size={12} class="shrink-0 mt-0.5" />
-      Ruwe detectie. De analyzer leest tempo soms op halve of dubbele snelheid, dus pieken rond 150-160 en 190-200 zijn deels artefacten.
+      {$t('library.bpmCaveat')}
     </p>
     {#if bpmHistogram.length === 0}
-      <p class="text-xs text-[#535353]">Geen BPM-data in deze selectie.</p>
+      <p class="text-xs text-[#535353]">{$t('library.noBpmInSelection')}</p>
     {:else}
       <div class="flex items-end gap-0.5 h-48">
         {#each bpmHistogram as bar (bar.bucket_start)}
@@ -70,10 +71,10 @@
 
   <div class="bg-black/40 p-5 rounded-xl border border-white/5">
     <h3 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-5 flex items-center gap-2">
-      <Calendar size={15} class="text-brand" /> Releasejaren
+      <Calendar size={15} class="text-brand" /> {$t('library.releaseYears')}
     </h3>
     {#if yearHistogram.length === 0}
-      <p class="text-xs text-[#535353]">Geen jaartallen in deze selectie.</p>
+      <p class="text-xs text-[#535353]">{$t('library.noYearsInSelection')}</p>
     {:else}
       <div class="flex items-end gap-0.5 h-40">
         {#each yearHistogram as bar (bar.year)}
@@ -95,7 +96,7 @@
   <div class="bg-black/40 p-5 rounded-xl border border-white/5 grid grid-cols-1 sm:grid-cols-2 gap-6">
     <div>
       <h3 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-4 flex items-center gap-2">
-        <Users size={15} class="text-brand" /> Top artiesten
+        <Users size={15} class="text-brand" /> {$t('library.topArtists')}
       </h3>
       <div class="flex flex-col gap-2">
         {#each topArtists as row (row.artist)}
@@ -106,13 +107,13 @@
           </button>
         {/each}
         {#if topArtists.length === 0}
-          <p class="text-xs text-[#535353]">Geen artiesten in deze selectie.</p>
+          <p class="text-xs text-[#535353]">{$t('library.noArtistsInSelection')}</p>
         {/if}
       </div>
     </div>
     <div>
       <h3 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-4 flex items-center gap-2">
-        <Tag size={15} class="text-blue-400" /> Top labels
+        <Tag size={15} class="text-blue-400" /> {$t('library.topLabels')}
       </h3>
       <div class="flex flex-col gap-2">
         {#each topLabels as row (row.label)}
@@ -123,7 +124,7 @@
           </button>
         {/each}
         {#if topLabels.length === 0}
-          <p class="text-xs text-[#535353]">Geen labels in deze selectie.</p>
+          <p class="text-xs text-[#535353]">{$t('library.noLabelsInSelection')}</p>
         {/if}
       </div>
     </div>

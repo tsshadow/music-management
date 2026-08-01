@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n/index.js';
   /**
    * @typedef {Object} Props
    * @property {any} results - The search results object.
@@ -38,17 +39,17 @@
 
 <div class="absolute top-full left-0 right-0 mt-2 bg-[#282828] rounded-md shadow-2xl border border-[#3e3e3e] overflow-hidden z-50 max-h-[80vh] overflow-y-auto custom-scrollbar">
   {#if loading}
-    <div class="p-4 text-center text-[#b3b3b3]">Laden...</div>
+    <div class="p-4 text-center text-[#b3b3b3]">{$t('common.loading')}</div>
   {:else if artists.length === 0 && albums.length === 0 && tracks.length === 0 && genres.length === 0 && labels.length === 0}
-    <div class="p-4 text-center text-[#b3b3b3]">Geen resultaten gevonden.</div>
+    <div class="p-4 text-center text-[#b3b3b3]">{$t('search.noResults')}</div>
   {:else}
     <div class="flex flex-col p-2 gap-4">
       
       {#if tracks.length > 0}
         <section>
           <div class="flex items-center justify-between px-2 mb-2">
-            <h3 class="text-white font-bold text-sm">{mode === 'sets' ? 'Sets' : 'Nummers'}</h3>
-            <button class="text-[11px] font-bold text-[#b3b3b3] hover:underline uppercase tracking-wider" onclick={() => handleSelect('more-tracks')}>Zie meer</button>
+            <h3 class="text-white font-bold text-sm">{mode === 'sets' ? $t('nav.sets') : $t('nav.songs')}</h3>
+            <button class="text-[11px] font-bold text-[#b3b3b3] hover:underline uppercase tracking-wider" onclick={() => handleSelect('more-tracks')}>{$t('search.seeMore')}</button>
           </div>
           <div class="flex flex-col">
             {#each tracks.slice(0, 5) as track (track.id)}
@@ -76,8 +77,8 @@
       {#if artists.length > 0}
         <section>
           <div class="flex items-center justify-between px-2 mb-2">
-            <h3 class="text-white font-bold text-sm">Artiesten</h3>
-            <button class="text-[11px] font-bold text-[#b3b3b3] hover:underline uppercase tracking-wider" onclick={() => handleSelect('more-artists')}>Zie meer</button>
+            <h3 class="text-white font-bold text-sm">{$t('nav.artists')}</h3>
+            <button class="text-[11px] font-bold text-[#b3b3b3] hover:underline uppercase tracking-wider" onclick={() => handleSelect('more-artists')}>{$t('search.seeMore')}</button>
           </div>
           <div class="flex flex-col">
             {#each artists.slice(0, 5) as artist (artist.id)}
@@ -91,7 +92,7 @@
                 </div>
                 <div class="flex-grow min-w-0">
                   <div class="text-white text-sm truncate font-medium">{artist.name}</div>
-                  <div class="text-[#b3b3b3] text-xs uppercase">Artiest</div>
+                  <div class="text-[#b3b3b3] text-xs uppercase">{$t('common.artist')}</div>
                 </div>
               </button>
             {/each}
@@ -102,8 +103,8 @@
       {#if albums.length > 0}
         <section>
           <div class="flex items-center justify-between px-2 mb-2">
-            <h3 class="text-white font-bold text-sm">Albums</h3>
-            <button class="text-[11px] font-bold text-[#b3b3b3] hover:underline uppercase tracking-wider" onclick={() => handleSelect('more-albums')}>Zie meer</button>
+            <h3 class="text-white font-bold text-sm">{$t('nav.albums')}</h3>
+            <button class="text-[11px] font-bold text-[#b3b3b3] hover:underline uppercase tracking-wider" onclick={() => handleSelect('more-albums')}>{$t('search.seeMore')}</button>
           </div>
           <div class="flex flex-col">
             {#each albums.slice(0, 5) as album (album.id)}
@@ -131,7 +132,7 @@
       {#if genres.length > 0}
         <section>
           <div class="flex items-center justify-between px-2 mb-2">
-            <h3 class="text-white font-bold text-sm">Genres</h3>
+            <h3 class="text-white font-bold text-sm">{$t('nav.genres')}</h3>
           </div>
           <div class="flex flex-wrap gap-2 px-2">
             {#each genres.slice(0, 5) as genre (genre)}
@@ -149,7 +150,7 @@
       {#if labels.length > 0}
         <section>
           <div class="flex items-center justify-between px-2 mb-2">
-            <h3 class="text-white font-bold text-sm">Labels</h3>
+            <h3 class="text-white font-bold text-sm">{$t('nav.labels')}</h3>
           </div>
           <div class="flex flex-wrap gap-2 px-2">
             {#each labels.slice(0, 5) as label (label)}

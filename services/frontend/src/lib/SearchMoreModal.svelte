@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
   import { authParams, viewMode, activeModal, activeView, deduplicateEnabled } from './store.js';
   import { getArtistImageUrl } from './utils.js';
@@ -44,10 +45,19 @@
 
   onMount(performSearch);
 
+  // One key per category rather than a category word glued onto a shared
+  // suffix: where the query sits in the sentence differs per language.
   const titleText = $derived(
-    (category === 'tracks' ? ($viewMode === 'sets' ? 'Sets' : 'Nummers') :
-     category === 'artists' ? 'Artiesten' :
-     category === 'albums' ? 'Albums' : 'Resultaten') + ` voor "${query}"`
+    $t(
+      category === 'tracks'
+        ? ($viewMode === 'sets' ? 'search.moreSets' : 'search.moreTracks')
+        : category === 'artists'
+          ? 'search.moreArtists'
+          : category === 'albums'
+            ? 'search.moreAlbums'
+            : 'search.moreResults',
+      { query },
+    )
   );
 
   function close() {
@@ -68,8 +78,8 @@
     </div>
   {:else if items.length === 0}
     <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
-        <p class="text-xl font-bold mb-2 text-white">Geen resultaten gevonden</p>
-        <p class="text-sm opacity-60">Probeer een andere zoekterm.</p>
+        <p class="text-xl font-bold mb-2 text-white">{$t('search.noResults')}</p>
+        <p class="text-sm opacity-60">{$t('search.tryAnother')}</p>
     </div>
   {:else}
     {#if category === 'tracks'}
@@ -91,7 +101,7 @@
                 onerror={(e) => e.target.src = '/images/unknown-artist.svg'}
               />
               <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{artist.name}</span>
-              <span class="text-sm text-[#b3b3b3]">Artiest</span>
+              <span class="text-sm text-[#b3b3b3]">{$t('common.artist')}</span>
           </div>
         {/each}
       </div>

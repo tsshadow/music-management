@@ -1,4 +1,5 @@
 <script>
+  import { t } from '../i18n/index.js';
   import { visibleSortOptions, allSortOptions, authParams, credentials } from '../store.js';
 
   let newPassword = $state('');
@@ -9,12 +10,12 @@
 
   async function changePassword() {
     if (newPassword !== confirmPassword) {
-      passwordMessage = 'Wachtwoorden komen niet overeen';
+      passwordMessage = $t('settings.advanced.passwordMismatch');
       passwordError = true;
       return;
     }
     if (newPassword.length < 4) {
-      passwordMessage = 'Wachtwoord moet minimaal 4 tekens bevatten';
+      passwordMessage = $t('settings.advanced.passwordTooShort');
       passwordError = true;
       return;
     }
@@ -25,12 +26,12 @@
       const resp = await fetch(`/rest/updateUser?${$authParams}&username=${encodeURIComponent($credentials.username)}&password=${encodeURIComponent(newPassword)}`);
       const data = await resp.json();
       if (data['subsonic-response']?.status === 'ok') {
-        passwordMessage = 'Wachtwoord succesvol gewijzigd!';
+        passwordMessage = $t('settings.advanced.passwordChanged');
         passwordError = false;
         newPassword = '';
         confirmPassword = '';
       } else {
-        passwordMessage = 'Fout bij wijzigen wachtwoord';
+        passwordMessage = $t('settings.advanced.passwordFailed');
         passwordError = true;
       }
     } catch {
@@ -59,20 +60,20 @@
 
 <div class="max-w-4xl pb-24">
   <header class="mb-8">
-    <h1 class="text-3xl font-bold mb-2">Geavanceerd</h1>
-    <p class="text-[#b3b3b3]">Beheer je sorteeropties en je wachtwoord.</p>
+    <h1 class="text-3xl font-bold mb-2">{$t('settings.advanced.title')}</h1>
+    <p class="text-[#b3b3b3]">{$t('settings.advanced.subtitle')}</p>
   </header>
 
   <div class="flex flex-col gap-8">
     <!-- Security Section -->
     <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
-      <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">Beveiliging</h2>
+      <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.advanced.security')}</h2>
 
       <div>
-        <h3 class="text-lg font-bold mb-4">Wachtwoord Wijzigen</h3>
+        <h3 class="text-lg font-bold mb-4">{$t('settings.advanced.changePassword')}</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
           <div class="flex flex-col gap-2">
-            <label for="new-password" class="text-xs font-bold text-[#b3b3b3] uppercase">Nieuw Wachtwoord</label>
+            <label for="new-password" class="text-xs font-bold text-[#b3b3b3] uppercase">{$t('settings.advanced.newPassword')}</label>
             <input
               id="new-password"
               type="password"
@@ -81,7 +82,7 @@
             />
           </div>
           <div class="flex flex-col gap-2">
-            <label for="confirm-password" class="text-xs font-bold text-[#b3b3b3] uppercase">Bevestig Wachtwoord</label>
+            <label for="confirm-password" class="text-xs font-bold text-[#b3b3b3] uppercase">{$t('settings.advanced.confirmPassword')}</label>
             <input
               id="confirm-password"
               type="password"
@@ -95,7 +96,7 @@
           disabled={isChangingPassword || !newPassword}
           class="mt-6 bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-8 rounded-full transition-colors disabled:opacity-50"
         >
-          {isChangingPassword ? 'Wijzigen...' : 'Wachtwoord Bijwerken'}
+          {isChangingPassword ? $t('settings.advanced.changing') : $t('settings.advanced.updatePassword')}
         </button>
         {#if passwordMessage}
           <p class="mt-2 text-sm {passwordError ? 'text-red-500' : 'text-brand'}">{passwordMessage}</p>
@@ -105,8 +106,8 @@
 
     <!-- Sort Options -->
     <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
-      <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">Sorteeropties</h2>
-      <p class="text-[#b3b3b3] mb-8 text-sm">Kies welke sorteeropties zichtbaar moeten zijn in de interface.</p>
+      <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.advanced.sortOptions')}</h2>
+      <p class="text-[#b3b3b3] mb-8 text-sm">{$t('settings.advanced.sortOptionsHelp')}</p>
 
       <div class="flex flex-col gap-8">
         {#each Object.entries(allSortOptions) as [type, options] (type)}
@@ -123,7 +124,7 @@
                     checked={$visibleSortOptions[type].includes(option.id)}
                     onchange={() => toggleOption(type, option.id)}
                   />
-                  <span class="text-white font-medium">{option.label}</span>
+                  <span class="text-white font-medium">{$t(option.labelKey)}</span>
                 </label>
               {/each}
             </div>

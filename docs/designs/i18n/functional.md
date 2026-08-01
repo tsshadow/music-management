@@ -62,5 +62,10 @@ browsers, in the same way their favourite genres already do.
 - The order in which the existing screens are translated is not decided here, and is out of scope for this
   design. Existing hardcoded text (currently a mix of Dutch and English) is untouched by this change and
   keeps rendering exactly as it does today.
+
+  This follow-up has since been carried out: every screen resolves its text through `t`, and the two joke
+  dialects Sallands and Brabants were added alongside English and Dutch. See
+  `docs/superpowers/specs/2026-08-01-web-ui-i18n-design.md`.
 - Additional languages beyond English and Dutch are not planned yet. Adding one is intended to be a matter
-  of adding a translation file and listing it, with no change to the mechanism.
+  of adding a translation file and listing it, with no change to the mechanism. The dialects proved that
+  out: they needed one entry in `SUPPORTED_LOCALES`, a fallback chain, and a file.

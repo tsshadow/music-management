@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n/index.js';
   import { untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
   import { authParams, viewMode, deduplicateEnabled, mumaApiUrl, currentTrack, playlist, playerState } from './store.js';
@@ -207,7 +208,7 @@
 </script>
 
 {#if isLoading}
-  <div class="p-8">Laden...</div>
+  <div class="p-8">{$t('common.loading')}</div>
 {:else if artist}
   <div class="flex flex-col">
     <header class="h-auto md:h-[340px] flex flex-col md:flex-row items-center md:items-end p-6 md:p-8 bg-linear-to-b from-transparent to-black/50 relative gap-6 text-center md:text-left">
@@ -224,7 +225,7 @@
             <svg viewBox="0 0 24 24" width="24" height="24" fill="#3d91f4">
                 <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zM10 17l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path>
             </svg>
-            Geverifieerde artiest
+            {$t('artist.verified')}
          </div>
          <h1 class="text-4xl md:text-7xl lg:text-9xl font-black m-0 leading-tight md:leading-none">{artist.name}</h1>
          <div class="flex flex-wrap items-center justify-center md:justify-start gap-4 mt-6">
@@ -237,7 +238,7 @@
                   playerState.update(s => ({ ...s, playing: true }));
                 }
              }}
-             aria-label="Afspelen"
+             aria-label={$t('common.play')}
            >
               <svg viewBox="0 0 24 24" width="24" height="24" fill="black">
                 <path d="M7 6v12l10-6z"></path>
@@ -254,7 +255,7 @@
                   playerState.update(s => ({ ...s, playing: true, shuffle: true }));
                 }
              }}
-             title="Shuffle afspelen"
+             title={$t('common.shufflePlay')}
            >
               <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                 <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.45 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"></path>
@@ -292,7 +293,7 @@
     <div class="p-6 md:p-8 flex flex-col gap-8">
         {#if biography || mbid}
             <section>
-                <h2 class="text-2xl font-bold mb-4">Over {artist.name}</h2>
+                <h2 class="text-2xl font-bold mb-4">{$t('artist.about', { name: artist.name })}</h2>
                 <div class="bg-[#181818] rounded-xl p-6 md:p-8 relative overflow-hidden group">
                     <div class="relative z-10 max-w-3xl">
                         {#if biography}
@@ -310,7 +311,7 @@
                                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path>
                                 </svg>
-                                Bekijk op MusicBrainz
+                                {$t('album.viewOnMusicBrainz')}
                             </a>
                         {/if}
                     </div>
@@ -320,18 +321,18 @@
         {/if}
 
         <section>
-            <h2 class="text-2xl font-bold mb-4">{$viewMode === 'sets' ? 'Alle sets' : 'Alle nummers'}</h2>
+            <h2 class="text-2xl font-bold mb-4">{$viewMode === 'sets' ? $t('artist.allSets') : $t('artist.allTracks')}</h2>
             {#if allTracks.length > 0}
                 <TrackList tracks={allTracks} onnavigate={onnavigate} />
                 {#if allTracksHasMore}
                     <div class="flex justify-center py-4">
-                        <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAllTracks(true)}>Meer laden</button>
+                        <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAllTracks(true)}>{$t('common.loadMore')}</button>
                     </div>
                 {/if}
             {:else}
                 <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
-                    <p class="text-xl font-bold mb-2 text-white">Geen {$viewMode === 'sets' ? 'sets' : 'nummers'} gevonden</p>
-                    <p class="text-sm opacity-60">Deze artiest heeft geen items die overeenkomen met de huidige {$viewMode === 'sets' ? 'sets' : 'nummers'} weergave.</p>
+                    <p class="text-xl font-bold mb-2 text-white">{$viewMode === 'sets' ? $t('artist.noSets') : $t('artist.noTracks')}</p>
+                    <p class="text-sm opacity-60">{$viewMode === 'sets' ? $t('artist.noSetsHelp') : $t('artist.noTracksHelp')}</p>
                 </div>
             {/if}
         </section>
@@ -364,7 +365,7 @@
 
         {#if appearsOn.length > 0}
             <section>
-                <h2 class="text-2xl font-bold mb-4">Komt voor op</h2>
+                <h2 class="text-2xl font-bold mb-4">{$t('artist.appearsOn')}</h2>
                 <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
                     {#each appearsOn as album (album.id)}
                         <div
@@ -390,7 +391,7 @@
 
         {#if similarArtists.length > 0}
             <section>
-                <h2 class="text-2xl font-bold mb-4">Fans vinden dit ook leuk</h2>
+                <h2 class="text-2xl font-bold mb-4">{$t('artist.similar')}</h2>
                 <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
                     {#each similarArtists as similar (similar.id)}
                         <div
@@ -409,7 +410,7 @@
                                 />
                             </div>
                             <span class="block font-bold mb-1 whitespace-nowrap overflow-hidden text-ellipsis">{similar.name}</span>
-                            <span class="text-sm text-[#b3b3b3]">Artiest</span>
+                            <span class="text-sm text-[#b3b3b3]">{$t('common.artist')}</span>
                         </div>
                     {/each}
                 </div>

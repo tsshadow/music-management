@@ -9,6 +9,15 @@ const USERNAME = "ci-contract-admin";
 const PASSWORD = "ci-contract-password";
 const FIXTURE_TITLE = "CI Test Track";
 
+// Chromium runs as en-US, so without this the interface would come up in
+// English and the assertions below -- which are written against the Dutch the
+// app is actually used in -- would fail for the wrong reason.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("muma_locale", JSON.stringify("nl"));
+  });
+});
+
 test("frontend opens without JavaScript errors", async ({ page }) => {
   const pageErrors = [];
   page.on("pageerror", (err) => pageErrors.push(err.message));

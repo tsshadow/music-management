@@ -1,4 +1,5 @@
 <script>
+  import { t } from '../../i18n/index.js';
   import { Search, X } from '@lucide/svelte';
   import { apiGet } from './api.js';
 
@@ -59,7 +60,7 @@
 <div class="w-full lg:w-64 shrink-0 bg-[#181818] border border-white/5 rounded-xl p-6 flex flex-col gap-8 lg:sticky lg:top-4">
 
   <div>
-    <h3 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-3">Artiest</h3>
+    <h3 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-3">{$t('common.artist')}</h3>
     {#if filters.artist.length > 0}
       <div class="flex flex-wrap gap-1 mb-2">
         {#each filters.artist as name (name)}
@@ -78,7 +79,7 @@
         type="text"
         bind:value={artistQuery}
         on:input={searchArtists}
-        placeholder="Zoek artiest..."
+        placeholder={$t('library.searchArtist')}
         class="w-full bg-[#242424] border-none rounded-md py-1.5 pl-7 pr-2 text-xs outline-none focus:ring-1 focus:ring-brand"
       />
       {#if artistSuggestions.length > 0}
@@ -98,10 +99,10 @@
   </div>
 
   <div>
-    <h3 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-3">Genres</h3>
+    <h3 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-3">{$t('nav.genres')}</h3>
     {#if genres.length === 0}
       <p class="text-[11px] text-[#535353] italic">
-        Nog geen genres geïndexeerd. Draai een volledige scan om ze uit de file tags te halen.
+        {$t('library.noGenresIndexed')}
       </p>
     {/if}
     <div class="flex flex-col gap-1 max-h-56 overflow-y-auto pr-2">
@@ -118,7 +119,7 @@
 
     {#if unknownGenres.length > 0}
       <h4 class="text-[10px] font-black uppercase tracking-widest text-yellow-600/80 mt-4 mb-2">
-        Nog te cureren ({unknownGenres.length})
+        {$t('library.toCurate', { count: unknownGenres.length })}
       </h4>
       <div class="flex flex-col gap-1 max-h-40 overflow-y-auto pr-2">
         {#each unknownGenres as g (g.genre)}
@@ -137,24 +138,24 @@
   <div>
     <h3 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-3">BPM</h3>
     <div class="flex gap-2 items-center">
-      <input type="number" min="0" max="400" placeholder="min" value={filters.bpm_min ?? ''}
+      <input type="number" min="0" max="400" placeholder={$t('library.min')} value={filters.bpm_min ?? ''}
              on:change={(e) => setBound('bpm_min', e)}
              class="w-full bg-[#242424] rounded-md py-1.5 px-2 text-xs outline-none focus:ring-1 focus:ring-brand" />
       <span class="text-[#535353] text-xs">–</span>
-      <input type="number" min="0" max="400" placeholder="max" value={filters.bpm_max ?? ''}
+      <input type="number" min="0" max="400" placeholder={$t('library.max')} value={filters.bpm_max ?? ''}
              on:change={(e) => setBound('bpm_max', e)}
              class="w-full bg-[#242424] rounded-md py-1.5 px-2 text-xs outline-none focus:ring-1 focus:ring-brand" />
     </div>
   </div>
 
   <div>
-    <h3 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-3">Jaar</h3>
+    <h3 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-3">{$t('filter.year')}</h3>
     <div class="flex gap-2 items-center">
-      <input type="number" min="1900" max="2100" placeholder="van" value={filters.year_min ?? ''}
+      <input type="number" min="1900" max="2100" placeholder={$t('library.from')} value={filters.year_min ?? ''}
              on:change={(e) => setBound('year_min', e)}
              class="w-full bg-[#242424] rounded-md py-1.5 px-2 text-xs outline-none focus:ring-1 focus:ring-brand" />
       <span class="text-[#535353] text-xs">–</span>
-      <input type="number" min="1900" max="2100" placeholder="tot" value={filters.year_max ?? ''}
+      <input type="number" min="1900" max="2100" placeholder={$t('library.to')} value={filters.year_max ?? ''}
              on:change={(e) => setBound('year_max', e)}
              class="w-full bg-[#242424] rounded-md py-1.5 px-2 text-xs outline-none focus:ring-1 focus:ring-brand" />
     </div>
@@ -164,6 +165,6 @@
     <input type="checkbox" class="accent-brand rounded"
            checked={filters.analyzed === true}
            on:change={(e) => { filters.analyzed = e.target.checked ? true : null; onChange(filters); }} />
-    <span class="text-xs text-[#b3b3b3] group-hover:text-white">Alleen geanalyseerd</span>
+    <span class="text-xs text-[#b3b3b3] group-hover:text-white">{$t('library.analysedOnly')}</span>
   </label>
 </div>

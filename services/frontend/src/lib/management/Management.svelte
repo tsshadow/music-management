@@ -1,4 +1,5 @@
 <script>
+  import { t } from '../i18n/index.js';
   import { onMount, untrack } from 'svelte';
   import { RefreshCw } from '@lucide/svelte';
   import { activeManagementTab, credentials, isAdmin, mumaApiKey, mumaApiUrl, userPermissions, mumaUser, hasPermission } from '../store.js';
@@ -361,15 +362,15 @@
   {#if $isAdmin === false && !hasPermission('users.read')}
     <div class="flex items-center justify-center h-full">
       <div class="bg-[#181818] p-8 rounded-xl border border-white/5 max-w-md w-full text-center">
-        <h2 class="text-2xl font-bold mb-4">Geen toegang</h2>
-        <p class="text-[#b3b3b3] mb-6">Alleen beheerders hebben toegang tot deze pagina. Log in met een account met beheerdersrechten om verder te gaan.</p>
+        <h2 class="text-2xl font-bold mb-4">{$t('management.noAccess')}</h2>
+        <p class="text-[#b3b3b3] mb-6">{$t('management.noAccessHelp')}</p>
       </div>
     </div>
   {:else if !isLoggedIn}
     <div class="flex items-center justify-center h-full">
       <div class="bg-[#181818] p-8 rounded-xl border border-white/5 max-w-md w-full text-center">
-        <h2 class="text-2xl font-bold mb-4">Verbinden met beheer...</h2>
-        <p class="text-[#b3b3b3] mb-6">Kon niet inloggen bij de Music Management API met je account. Probeer opnieuw in te loggen op de player-pagina.</p>
+        <h2 class="text-2xl font-bold mb-4">{$t('management.connecting')}</h2>
+        <p class="text-[#b3b3b3] mb-6">{$t('management.connectFailed')}</p>
       </div>
     </div>
   {:else}

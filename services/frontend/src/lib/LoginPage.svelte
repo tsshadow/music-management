@@ -1,4 +1,5 @@
 <script>
+  import { t, locale } from './i18n/index.js';
   import { credentials, mumaApiUrl, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser } from './store.js';
 
   let username = $state('');
@@ -48,11 +49,11 @@
         }
         save();
       } else {
-        const errorMsg = data['subsonic-response']?.error?.message || 'Ongeldige gebruikersnaam of wachtwoord';
+        const errorMsg = data['subsonic-response']?.error?.message || $t('login.invalidCredentials');
         error = `Fout: ${errorMsg}`;
       }
     } catch (e) {
-      error = 'Kon geen verbinding maken met de server';
+      error = $t('login.noServerConnection');
     } finally {
       isLoading = false;
     }
@@ -135,7 +136,7 @@
         googleRequest = data.request;
       }
     } catch (e) {
-      error = 'Kon geen verbinding maken met de Google login API';
+      error = $t('login.noGoogleConnection');
     } finally {
       isLoading = false;
     }
@@ -221,49 +222,49 @@
   <div class="bg-[#181818] border border-[#282828] p-10 rounded-2xl w-full max-w-md flex flex-col gap-6 shadow-2xl">
     <div class="flex flex-col items-center gap-2 mb-2">
       <h1 class="text-3xl font-extrabold tracking-tight m-0">MuMa</h1>
-      <h2 class="text-sm font-medium text-[#b3b3b3] m-0">{setupRequired ? 'Systeem Setup' : 'Inloggen'}</h2>
+      <h2 class="text-sm font-medium text-[#b3b3b3] m-0">{setupRequired ? $t('login.setupTitle') : $t('login.title')}</h2>
     </div>
     
     {#if requestStatus === 'unknown'}
       <div class="flex flex-col gap-4 text-center">
         {#if googleUser.avatar_url}
-          <img src={googleUser.avatar_url} alt="Avatar" class="w-20 h-20 rounded-full mx-auto" />
+          <img src={googleUser.avatar_url} alt={$t('login.avatar')} class="w-20 h-20 rounded-full mx-auto" />
         {/if}
-        <p class="text-sm">Hallo <b>{googleUser.display_name}</b> ({googleUser.email}). Je hebt nog geen toegang tot dit systeem.</p>
+        <p class="text-sm">{$t('login.noAccessYet', { name: googleUser.display_name, email: googleUser.email })}</p>
         <button class="bg-[#1db954] hover:bg-[#1ed760] text-black border-none rounded-full p-3.5 text-base font-bold cursor-pointer transition-transform hover:scale-[1.02] disabled:opacity-50" onclick={requestAccess} disabled={isLoading}>
-          {isLoading ? 'Bezig...' : 'Toegang aanvragen'}
+          {isLoading ? $t('common.busy') : $t('login.requestAccess')}
         </button>
-        <button class="text-[#b3b3b3] text-sm hover:underline bg-transparent border-none cursor-pointer" onclick={retryGoogleLogin}>Terug naar inloggen</button>
+        <button class="text-[#b3b3b3] text-sm hover:underline bg-transparent border-none cursor-pointer" onclick={retryGoogleLogin}>{$t('login.backToLogin')}</button>
       </div>
     {:else if requestStatus === 'pending'}
       <div class="flex flex-col gap-4 text-center">
         <div class="bg-blue-500/20 text-blue-400 p-4 rounded-lg text-sm">
-          Je toegangsaanvraag is in behandeling. Een beheerder moet deze goedkeuren voordat je kunt inloggen.
+          {$t('login.requestPending')}
         </div>
-        <p class="text-xs text-[#b3b3b3]">Aangevraagd op: {new Date(googleRequest.requested_at).toLocaleString('nl-NL')}</p>
-        <button class="text-[#b3b3b3] text-sm hover:underline bg-transparent border-none cursor-pointer" onclick={retryGoogleLogin}>Terug naar inloggen</button>
+        <p class="text-xs text-[#b3b3b3]">{$t('login.requestedOn', { date: new Date(googleRequest.requested_at).toLocaleString($locale) })}</p>
+        <button class="text-[#b3b3b3] text-sm hover:underline bg-transparent border-none cursor-pointer" onclick={retryGoogleLogin}>{$t('login.backToLogin')}</button>
       </div>
     {:else if requestStatus === 'rejected'}
       <div class="flex flex-col gap-4 text-center">
         <div class="bg-red-500/20 text-red-400 p-4 rounded-lg text-sm">
-          Je toegangsaanvraag is afgewezen. Neem contact op met een beheerder voor meer informatie.
+          {$t('login.requestRejected')}
         </div>
-        <button class="text-[#b3b3b3] text-sm hover:underline bg-transparent border-none cursor-pointer" onclick={retryGoogleLogin}>Terug naar inloggen</button>
+        <button class="text-[#b3b3b3] text-sm hover:underline bg-transparent border-none cursor-pointer" onclick={retryGoogleLogin}>{$t('login.backToLogin')}</button>
       </div>
     {:else if requestStatus === 'approved'}
       <div class="flex flex-col gap-4 text-center">
         <div class="bg-green-500/20 text-green-400 p-4 rounded-lg text-sm">
-          Je aanvraag is goedgekeurd! Je kunt nu inloggen.
+          {$t('login.requestApproved')}
         </div>
         <button class="bg-[#1db954] hover:bg-[#1ed760] text-black border-none rounded-full p-3.5 text-base font-bold cursor-pointer transition-transform hover:scale-[1.02]" onclick={retryGoogleLogin}>
-          Nu inloggen
+          {$t('login.loginNow')}
         </button>
       </div>
     {:else}
       <p class="text-sm text-[#b3b3b3] text-center m-0">
         {setupRequired 
-          ? 'Er zijn nog geen gebruikers gevonden. Maak de eerste beheerder aan om te beginnen.' 
-          : 'Log in met je Subsonic gegevens of gebruik Google.'}
+          ? $t('login.setupIntro')
+          : $t('login.intro')}
       </p>
 
       {#if error}
@@ -271,21 +272,21 @@
       {/if}
 
       <div class="flex flex-col gap-2">
-        <label for="username" class="text-xs font-bold text-[#b3b3b3] uppercase tracking-wider">Gebruikersnaam</label>
-        <input id="username" type="text" value={username} oninput={(e) => username = e.target.value} placeholder="Username" class="bg-[#2a2a2a] border border-transparent rounded-lg p-3 text-white text-sm focus:outline-none focus:border-[#1db954] disabled:opacity-50" disabled={isLoading} />
+        <label for="username" class="text-xs font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('login.username')}</label>
+        <input id="username" type="text" value={username} oninput={(e) => username = e.target.value} placeholder={$t('login.username')} class="bg-[#2a2a2a] border border-transparent rounded-lg p-3 text-white text-sm focus:outline-none focus:border-[#1db954] disabled:opacity-50" disabled={isLoading} />
       </div>
       <div class="flex flex-col gap-2">
-        <label for="password" class="text-xs font-bold text-[#b3b3b3] uppercase tracking-wider">Wachtwoord</label>
-        <input id="password" type="password" value={password} oninput={(e) => password = e.target.value} placeholder="Password" class="bg-[#2a2a2a] border border-transparent rounded-lg p-3 text-white text-sm focus:outline-none focus:border-[#1db954] disabled:opacity-50" disabled={isLoading} onkeydown={(e) => e.key === 'Enter' && (setupRequired ? performSetup() : verifyLogin())} />
+        <label for="password" class="text-xs font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('login.password')}</label>
+        <input id="password" type="password" value={password} oninput={(e) => password = e.target.value} placeholder={$t('login.password')} class="bg-[#2a2a2a] border border-transparent rounded-lg p-3 text-white text-sm focus:outline-none focus:border-[#1db954] disabled:opacity-50" disabled={isLoading} onkeydown={(e) => e.key === 'Enter' && (setupRequired ? performSetup() : verifyLogin())} />
       </div>
       <button class="bg-[#1db954] hover:bg-[#1ed760] text-black border-none rounded-full p-3.5 text-base font-extrabold cursor-pointer transition-transform hover:scale-[1.02] disabled:opacity-50 mt-2" onclick={setupRequired ? performSetup : verifyLogin} disabled={isLoading}>
-        {isLoading ? (setupRequired ? 'Bezig met instellen...' : 'Verificeren...') : (setupRequired ? 'Account Aanmaken' : 'Verbinden')}
+        {isLoading ? (setupRequired ? $t('login.settingUp') : $t('login.verifying')) : (setupRequired ? $t('login.createAccount') : $t('login.connect'))}
       </button>
 
       {#if !setupRequired && GOOGLE_CLIENT_ID}
         <div class="flex items-center gap-4 my-2">
           <div class="h-[1px] bg-[#2a2a2a] flex-1"></div>
-          <span class="text-xs text-[#b3b3b3] font-bold uppercase">OF</span>
+          <span class="text-xs text-[#b3b3b3] font-bold uppercase">{$t('login.or')}</span>
           <div class="h-[1px] bg-[#2a2a2a] flex-1"></div>
         </div>
 

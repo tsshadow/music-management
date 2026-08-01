@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n/index.js';
   import { untrack } from 'svelte';
   import { authParams } from './store.js';
   import TrackList from './TrackList.svelte';
@@ -63,14 +64,14 @@
 <div class="p-8">
   <div class="flex items-center justify-between mb-8">
     <div>
-      <h2 class="text-3xl font-bold mb-2">Luistergeschiedenis</h2>
-      <p class="text-[#b3b3b3]">Jouw recent beluisterde nummers.</p>
+      <h2 class="text-3xl font-bold mb-2">{$t('history.title')}</h2>
+      <p class="text-[#b3b3b3]">{$t('history.subtitle')}</p>
     </div>
     <button 
         class="bg-[#282828] text-white px-4 py-2 rounded-full font-bold hover:scale-105 transition-transform"
         onclick={() => loadHistory(false)}
     >
-        Vernieuwen
+        {$t('common.refresh')}
     </button>
   </div>
 
@@ -84,7 +85,7 @@
                 onclick={() => loadHistory(true)}
                 disabled={isLoading}
             >
-                {isLoading ? 'Laden...' : 'Meer laden'}
+                {isLoading ? $t('common.loading') : $t('common.loadMore')}
             </button>
         </div>
     {/if}
@@ -94,7 +95,7 @@
     </div>
   {:else}
     <div class="text-center py-20">
-      <p class="text-[#b3b3b3] text-lg">Nog geen luistergeschiedenis gevonden.</p>
+      <p class="text-[#b3b3b3] text-lg">{$t('history.empty')}</p>
     </div>
   {/if}
 </div>

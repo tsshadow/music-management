@@ -1,4 +1,5 @@
 <script>
+  import { t } from '../../i18n/index.js';
   import { onMount, onDestroy } from 'svelte';
   import { authParams } from '../../store.js';
 
@@ -17,37 +18,37 @@
   let interval;
 
   const updatePeriods = [
-    { value: 0, label: 'Nooit' },
-    { value: 4, label: 'Elk uur' },
-    { value: 1, label: 'Dagelijks' },
-    { value: 2, label: 'Wekelijks' },
-    { value: 3, label: 'Maandelijks' }
+    { value: 0, labelKey: 'management.scanner.never' },
+    { value: 4, labelKey: 'management.scanner.hourly' },
+    { value: 1, labelKey: 'management.scanner.daily' },
+    { value: 2, labelKey: 'management.scanner.weekly' },
+    { value: 3, labelKey: 'management.scanner.monthly' }
   ];
 
   const similarityEngines = [
-    { value: 0, label: 'Clusters' },
-    { value: 1, label: 'Features' },
-    { value: 2, label: 'Geen' }
+    { value: 0, labelKey: 'management.scanner.engines.clusters' },
+    { value: 1, labelKey: 'management.scanner.engines.features' },
+    { value: 2, labelKey: 'management.scanner.engines.none' }
   ];
 
   const hours = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00:00`);
 
   const stepLabels = {
-    AssociateArtistImages: 'Artiestafbeeldingen koppelen',
-    AssociateExternalLyrics: 'Externe songteksten koppelen',
-    AssociatePlayListTracks: 'Afspeellijstnummers koppelen',
-    AssociateReleaseImages: 'Albumafbeeldingen koppelen',
-    AssociateTrackImages: 'Nummerafbeeldingen koppelen',
-    CheckForDuplicatedFiles: 'Dubbele bestanden zoeken',
-    CheckForRemovedFiles: 'Verwijderde bestanden zoeken',
-    Compact: 'Database compacteren',
-    ComputeClusterStats: 'Clusterstatistieken berekenen',
-    Optimize: 'Database optimaliseren',
-    ReconciliateArtists: 'Artiesten samenvoegen',
-    RemoveOrphanedDbEntries: 'Wees-entries opruimen',
-    ReloadSimilarityEngine: 'Similarity engine herladen',
-    ScanFiles: 'Bestanden scannen',
-    UpdateLibraryFields: 'Bibliotheekvelden bijwerken'
+    AssociateArtistImages: 'management.scanner.steps.AssociateArtistImages',
+    AssociateExternalLyrics: 'management.scanner.steps.AssociateExternalLyrics',
+    AssociatePlayListTracks: 'management.scanner.steps.AssociatePlayListTracks',
+    AssociateReleaseImages: 'management.scanner.steps.AssociateReleaseImages',
+    AssociateTrackImages: 'management.scanner.steps.AssociateTrackImages',
+    CheckForDuplicatedFiles: 'management.scanner.steps.CheckForDuplicatedFiles',
+    CheckForRemovedFiles: 'management.scanner.steps.CheckForRemovedFiles',
+    Compact: 'management.scanner.steps.Compact',
+    ComputeClusterStats: 'management.scanner.steps.ComputeClusterStats',
+    Optimize: 'management.scanner.steps.Optimize',
+    ReconciliateArtists: 'management.scanner.steps.ReconciliateArtists',
+    RemoveOrphanedDbEntries: 'management.scanner.steps.RemoveOrphanedDbEntries',
+    ReloadSimilarityEngine: 'management.scanner.steps.ReloadSimilarityEngine',
+    ScanFiles: 'management.scanner.steps.ScanFiles',
+    UpdateLibraryFields: 'management.scanner.steps.UpdateLibraryFields'
   };
 
   /**
@@ -188,7 +189,7 @@
   }
 
   function getStepLabel(step) {
-    return stepLabels[step] || step || 'Bezig...';
+    return step && stepLabels[step] ? $t(stepLabels[step]) : step || $t('common.busy');
   }
 
   function getScanDuration() {
@@ -218,23 +219,22 @@
   <header class="flex justify-between items-end">
     <div>
       <h2 class="text-4xl font-extrabold mb-2">🔍 Scanner</h2>
-      <p class="text-[#b3b3b3]">Status, planning en tagverwerking van de bibliotheekscan.</p>
+      <p class="text-[#b3b3b3]">{$t('management.scanner.subtitle')}</p>
     </div>
     {#if status?.lastScan}
-      <p class="text-sm text-[#b3b3b3]">Laatste scan: {formatDateTime(status.lastScan.stopTime)}</p>
+      <p class="text-sm text-[#b3b3b3]">{$t('management.scanner.lastScanAt', { date: formatDateTime(status.lastScan.stopTime) })}</p>
     {/if}
   </header>
 
   {#if !$authParams}
     <div class="bg-[#181818] p-8 rounded-xl border border-white/5 text-center">
-      <h3 class="text-xl font-bold mb-2">Geen serververbinding</h3>
+      <h3 class="text-xl font-bold mb-2">{$t('management.libraries.noConnection')}</h3>
       <p class="text-[#b3b3b3]">
-        De scanner wordt rechtstreeks door de muziekserver aangestuurd en vereist daarom een login met
-        server-inloggegevens. Log in op de playerpagina met je gebruikersnaam en wachtwoord om de scanner te beheren.
+        {$t('management.scanner.noConnectionHelp')}
       </p>
     </div>
   {:else if isLoading && !status}
-    <div class="text-[#b3b3b3]">Laden...</div>
+    <div class="text-[#b3b3b3]">{$t('common.loading')}</div>
   {:else}
     <!-- Status -->
     <div class="bg-[#181818] rounded-xl p-10 flex flex-col items-center justify-center gap-6 border border-white/5">
@@ -246,15 +246,15 @@
         <div class="text-center">
           <p class="text-2xl font-bold text-white">{getStepLabel(status.step)}</p>
           <p class="text-[#b3b3b3] mt-2">
-            Stap {status.stepIndex + 1} van {status.stepCount}
+            {$t('management.scanner.step', { current: status.stepIndex + 1, total: status.stepCount })}
             {#if status.count > 0}
-              • {status.count} verwerkt
+              • {$t('management.scanner.processedCount', { count: status.count })}
             {/if}
           </p>
         </div>
         <div class="w-full max-w-md">
           <div class="flex justify-between text-xs text-[#b3b3b3] mb-2 uppercase font-bold tracking-wider">
-            <span>Voortgang</span>
+            <span>{$t('management.scrobble.progress')}</span>
             <span>{Math.round((status.stepIndex / status.stepCount) * 100)}%</span>
           </div>
           <div class="bg-[#282828] h-3 rounded-full overflow-hidden">
@@ -271,29 +271,29 @@
           </svg>
         </div>
         <div class="text-center">
-          <p class="text-2xl font-bold text-white">Scanner inactief</p>
-          <p class="text-[#b3b3b3] mt-2">De bibliotheek is bijgewerkt.</p>
+          <p class="text-2xl font-bold text-white">{$t('management.scanner.idle')}</p>
+          <p class="text-[#b3b3b3] mt-2">{$t('management.scanner.idleHelp')}</p>
         </div>
 
         <div class="flex flex-col gap-4 w-full max-w-xs mt-4">
           <label class="flex items-center gap-3 text-sm text-[#b3b3b3] hover:text-white cursor-pointer">
             <input type="checkbox" bind:checked={fullScan} class="accent-brand w-4 h-4" />
-            Volledige scan
+            {$t('management.scanner.fullScan')}
           </label>
           <label class="flex items-center gap-3 text-sm text-[#b3b3b3] hover:text-white cursor-pointer">
             <input type="checkbox" bind:checked={forceOptimize} class="accent-brand w-4 h-4" />
-            Optimalisatie forceren
+            {$t('management.scanner.forceOptimise')}
           </label>
           <label class="flex items-center gap-3 text-sm text-[#b3b3b3] hover:text-white cursor-pointer">
             <input type="checkbox" bind:checked={compact} class="accent-brand w-4 h-4" />
-            Database compacteren
+            {$t('management.scanner.compactDatabase')}
           </label>
 
           <button
             onclick={startScan}
             class="bg-white text-black px-8 py-3 rounded-full font-bold hover:scale-105 active:scale-95 transition-all border-none shadow-lg"
           >
-            Scan starten
+            {$t('management.scanner.startScan')}
           </button>
         </div>
       {/if}
@@ -301,42 +301,43 @@
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div class="bg-[#181818] p-6 rounded-xl border border-white/5">
-        <h4 class="font-bold mb-4 text-lg">Laatste scan</h4>
+        <h4 class="font-bold mb-4 text-lg">{$t('management.scanner.lastScan')}
+</h4>
         {#if status?.lastScan}
           <div class="space-y-4">
             <div class="flex justify-between items-center py-2 border-b border-[#282828]">
-              <span class="text-[#b3b3b3]">Bestanden verwerkt</span>
+              <span class="text-[#b3b3b3]">{$t('management.scanner.filesProcessed')}</span>
               <span class="text-white font-medium">{status.lastScan.count}</span>
             </div>
             <div class="flex justify-between items-center py-2 border-b border-[#282828]">
-              <span class="text-[#b3b3b3]">Fouten</span>
+              <span class="text-[#b3b3b3]">{$t('management.scanner.errors')}</span>
               <span class={status.lastScan.errors > 0 ? 'text-red-500 font-bold' : 'text-white'}>
                 {status.lastScan.errors}
               </span>
             </div>
             <div class="flex justify-between items-center py-2 border-b border-[#282828]">
-              <span class="text-[#b3b3b3]">Duur</span>
+              <span class="text-[#b3b3b3]">{$t('library.duration')}</span>
               <span class="text-white font-medium">{getScanDuration()}</span>
             </div>
           </div>
         {:else}
-          <p class="text-[#b3b3b3] italic text-sm">Nog geen scangegevens beschikbaar.</p>
+          <p class="text-[#b3b3b3] italic text-sm">{$t('management.scanner.noScanData')}</p>
         {/if}
       </div>
 
       <div class="bg-[#181818] p-6 rounded-xl border border-white/5">
-        <h4 class="font-bold mb-4 text-lg">Volgende geplande scan</h4>
+        <h4 class="font-bold mb-4 text-lg">{$t('management.scanner.nextScheduled')}</h4>
         <div class="flex flex-col items-center justify-center h-full pb-6">
           {#if !settings || settings.updatePeriod === 0}
             <div class="text-[#b3b3b3] text-center">
-              <p class="mb-2">Automatisch scannen staat uit.</p>
-              <p class="text-xs uppercase font-bold tracking-widest">Nooit</p>
+              <p class="mb-2">{$t('management.scanner.autoScanOff')}</p>
+              <p class="text-xs uppercase font-bold tracking-widest">{$t('management.scanner.never')}</p>
             </div>
           {:else}
             <div class="text-center">
               <p class="text-3xl font-bold text-white mb-2">{settings.updateStartTime || '--:--'}</p>
               <p class="text-[#b3b3b3] text-sm uppercase font-bold tracking-widest">
-                {updatePeriods.find((p) => p.value === settings.updatePeriod)?.label || ''}
+                {$t(updatePeriods.find((p) => p.value === settings.updatePeriod)?.labelKey ?? '')}
               </p>
             </div>
           {/if}
@@ -347,23 +348,23 @@
     {#if settings}
       <!-- Schedule -->
       <div class="bg-[#181818] p-6 rounded-xl border border-white/5">
-        <h4 class="font-bold mb-6 text-lg border-b border-[#282828] pb-2">Planning</h4>
+        <h4 class="font-bold mb-6 text-lg border-b border-[#282828] pb-2">{$t('management.scanner.schedule')}</h4>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="flex flex-col gap-2">
-            <label for="scan-period" class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider">Frequentie</label>
+            <label for="scan-period" class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('management.scanner.frequency')}</label>
             <select
               id="scan-period"
               class="bg-[#282828] text-white border-none rounded px-3 py-2 outline-none cursor-pointer focus:ring-1 focus:ring-brand h-10"
               bind:value={settings.updatePeriod}
             >
               {#each updatePeriods as period (period.value)}
-                <option value={period.value}>{period.label}</option>
+                <option value={period.value}>{$t(period.labelKey)}</option>
               {/each}
             </select>
           </div>
 
           <div class="flex flex-col gap-2" class:opacity-50={settings.updatePeriod === 0 || settings.updatePeriod === 4}>
-            <label for="scan-start" class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider">Starttijd</label>
+            <label for="scan-start" class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('management.scanner.startTime')}</label>
             <select
               id="scan-start"
               class="bg-[#282828] text-white border-none rounded px-3 py-2 outline-none cursor-pointer focus:ring-1 focus:ring-brand h-10"
@@ -380,58 +381,58 @@
 
       <!-- Metadata -->
       <div class="bg-[#181818] p-6 rounded-xl border border-white/5">
-        <h4 class="font-bold mb-6 text-lg border-b border-[#282828] pb-2">Aanbevelingen & metadata</h4>
+        <h4 class="font-bold mb-6 text-lg border-b border-[#282828] pb-2">{$t('management.scanner.recommendations')}</h4>
         <div class="space-y-6">
           <div class="flex justify-between items-center">
             <div>
-              <p class="font-medium text-white">Similarity engine</p>
-              <p class="text-sm text-[#b3b3b3]">Manier waarop vergelijkbare artiesten en nummers worden gevonden.</p>
+              <p class="font-medium text-white">{$t('management.scanner.similarityEngine')}</p>
+              <p class="text-sm text-[#b3b3b3]">{$t('management.scanner.similarityHelp')}</p>
             </div>
             <select
-              aria-label="Similarity engine"
+              aria-label="{$t('management.scanner.similarityEngine')}"
               class="bg-[#282828] text-white border-none rounded px-3 py-2 outline-none cursor-pointer focus:ring-1 focus:ring-brand h-10 w-48"
               bind:value={settings.similarityEngineType}
             >
               {#each similarityEngines as engine (engine.value)}
-                <option value={engine.value}>{engine.label}</option>
+                <option value={engine.value}>{$t(engine.labelKey)}</option>
               {/each}
             </select>
           </div>
 
           <label class="flex justify-between items-center cursor-pointer">
             <div>
-              <p class="font-medium text-white">Enkel-nummer afspeellijsten overslaan</p>
-              <p class="text-sm text-[#b3b3b3]">Maak geen afspeellijst voor releases met één nummer.</p>
+              <p class="font-medium text-white">{$t('management.scanner.skipSingleTrack')}</p>
+              <p class="text-sm text-[#b3b3b3]">{$t('management.scanner.skipSingleTrackHelp')}</p>
             </div>
-            <input type="checkbox" aria-label="Enkel-nummer afspeellijsten overslaan" bind:checked={settings.skipSingleReleasePlayLists} class="accent-brand w-5 h-5" />
+            <input type="checkbox" aria-label="{$t('management.scanner.skipSingleTrack')}" bind:checked={settings.skipSingleReleasePlayLists} class="accent-brand w-5 h-5" />
           </label>
 
           <label class="flex justify-between items-center cursor-pointer">
             <div>
-              <p class="font-medium text-white">Artiesten samenvoegen op MBID</p>
-              <p class="text-sm text-[#b3b3b3]">Voeg artiesten samen op basis van hun MusicBrainz ID.</p>
+              <p class="font-medium text-white">{$t('management.scanner.mergeByMbid')}</p>
+              <p class="text-sm text-[#b3b3b3]">{$t('management.scanner.mergeByMbidHelp')}</p>
             </div>
-            <input type="checkbox" aria-label="Artiesten samenvoegen op MBID" bind:checked={settings.allowMBIDArtistMerge} class="accent-brand w-5 h-5" />
+            <input type="checkbox" aria-label="{$t('management.scanner.mergeByMbid')}" bind:checked={settings.allowMBIDArtistMerge} class="accent-brand w-5 h-5" />
           </label>
 
           <label class="flex justify-between items-center cursor-pointer">
             <div>
-              <p class="font-medium text-white">Terugval op albumhoes</p>
-              <p class="text-sm text-[#b3b3b3]">Gebruik de albumhoes als er geen artiestafbeelding is.</p>
+              <p class="font-medium text-white">{$t('management.scanner.fallbackToCover')}</p>
+              <p class="text-sm text-[#b3b3b3]">{$t('management.scanner.fallbackToCoverHelp')}</p>
             </div>
-            <input type="checkbox" aria-label="Terugval op albumhoes" bind:checked={settings.artistImageFallbackToRelease} class="accent-brand w-5 h-5" />
+            <input type="checkbox" aria-label="{$t('management.scanner.fallbackToCover')}" bind:checked={settings.artistImageFallbackToRelease} class="accent-brand w-5 h-5" />
           </label>
         </div>
       </div>
 
       <!-- Tags -->
       <div class="bg-[#181818] p-6 rounded-xl border border-white/5">
-        <h4 class="font-bold mb-6 text-lg border-b border-[#282828] pb-2">Tagverwerking</h4>
+        <h4 class="font-bold mb-6 text-lg border-b border-[#282828] pb-2">{$t('management.scanner.tagProcessing')}</h4>
 
         <div class="space-y-8">
           <div>
             <div class="flex justify-between items-center mb-4">
-              <span class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider">Extra tags om te scannen</span>
+              <span class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('management.scanner.extraTags')}</span>
               <button onclick={() => addToList('extraTagsToScan')} class="text-xs text-brand hover:underline font-bold bg-transparent border-none cursor-pointer">
                 TAG TOEVOEGEN
               </button>
@@ -439,7 +440,7 @@
             <div class="flex flex-wrap gap-2">
               {#each settings.extraTagsToScan as _tag, i (i)}
                 <div class="flex items-center bg-[#282828] rounded overflow-hidden">
-                  <input aria-label="Extra tag" type="text" bind:value={settings.extraTagsToScan[i]} class="bg-transparent border-none text-white px-3 py-1 text-sm outline-none w-24" />
+                  <input aria-label={$t('management.scanner.extraTag')} type="text" bind:value={settings.extraTagsToScan[i]} class="bg-transparent border-none text-white px-3 py-1 text-sm outline-none w-24" />
                   <button onclick={() => removeFromList('extraTagsToScan', i)} class="px-2 hover:bg-red-500 transition-colors text-white bg-transparent border-none cursor-pointer">×</button>
                 </div>
               {/each}
@@ -448,7 +449,7 @@
 
           <div>
             <div class="flex justify-between items-center mb-4">
-              <span class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider">Artiest-scheidingstekens</span>
+              <span class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('management.scanner.artistSeparators')}</span>
               <button onclick={() => addToList('artistTagDelimiters')} class="text-xs text-brand hover:underline font-bold bg-transparent border-none cursor-pointer">
                 TOEVOEGEN
               </button>
@@ -456,7 +457,7 @@
             <div class="flex flex-wrap gap-2">
               {#each settings.artistTagDelimiters as _del, i (i)}
                 <div class="flex items-center bg-[#282828] rounded overflow-hidden">
-                  <input aria-label="Artiest-scheidingsteken" type="text" bind:value={settings.artistTagDelimiters[i]} class="bg-transparent border-none text-white px-3 py-1 text-sm outline-none w-16 text-center" />
+                  <input aria-label={$t('management.scanner.artistSeparator')} type="text" bind:value={settings.artistTagDelimiters[i]} class="bg-transparent border-none text-white px-3 py-1 text-sm outline-none w-16 text-center" />
                   <button onclick={() => removeFromList('artistTagDelimiters', i)} class="px-2 hover:bg-red-500 transition-colors text-white bg-transparent border-none cursor-pointer">×</button>
                 </div>
               {/each}
@@ -465,7 +466,7 @@
 
           <div>
             <div class="flex justify-between items-center mb-4">
-              <span class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider">Standaard scheidingstekens</span>
+              <span class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('management.scanner.defaultSeparators')}</span>
               <button onclick={() => addToList('defaultTagDelimiters')} class="text-xs text-brand hover:underline font-bold bg-transparent border-none cursor-pointer">
                 TOEVOEGEN
               </button>
@@ -473,7 +474,7 @@
             <div class="flex flex-wrap gap-2">
               {#each settings.defaultTagDelimiters as _del, i (i)}
                 <div class="flex items-center bg-[#282828] rounded overflow-hidden">
-                  <input aria-label="Standaard scheidingsteken" type="text" bind:value={settings.defaultTagDelimiters[i]} class="bg-transparent border-none text-white px-3 py-1 text-sm outline-none w-16 text-center" />
+                  <input aria-label={$t('management.scanner.defaultSeparator')} type="text" bind:value={settings.defaultTagDelimiters[i]} class="bg-transparent border-none text-white px-3 py-1 text-sm outline-none w-16 text-center" />
                   <button onclick={() => removeFromList('defaultTagDelimiters', i)} class="px-2 hover:bg-red-500 transition-colors text-white bg-transparent border-none cursor-pointer">×</button>
                 </div>
               {/each}
@@ -482,12 +483,12 @@
 
           <div>
             <label for="artists-no-split" class="text-sm font-bold text-[#b3b3b3] uppercase tracking-wider block mb-4">
-              Artiesten die niet gesplitst mogen worden (één per regel)
+              {$t('management.scanner.noSplitArtists')}
             </label>
             <textarea
               id="artists-no-split"
               class="w-full bg-[#282828] text-white border-none rounded p-4 outline-none focus:ring-1 focus:ring-brand min-h-[120px] resize-none"
-              placeholder="bijv. AC/DC"
+              placeholder={$t('management.scanner.noSplitPlaceholder')}
               value={settings.artistsToNotSplit.join('\n')}
               oninput={(e) => (settings.artistsToNotSplit = e.target.value.split('\n').filter((s) => s.trim()))}
             ></textarea>
@@ -501,7 +502,7 @@
           disabled={!hasChanges || isSaving}
           class="px-6 py-2 rounded-full font-bold text-white bg-transparent border border-white/10 hover:bg-[#282828] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
-          Wijzigingen verwerpen
+          {$t('management.scanner.discardChanges')}
         </button>
         <button
           onclick={saveSettings}
@@ -511,7 +512,7 @@
           {#if isSaving}
             <div class="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
           {/if}
-          Opslaan
+          {$t('common.save')}
         </button>
       </div>
     {/if}

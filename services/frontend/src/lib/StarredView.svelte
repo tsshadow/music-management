@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
   import { authParams, playlist, currentTrack, playerState, mumaApiUrl } from './store.js';
   import TrackList from './TrackList.svelte';
@@ -60,12 +61,12 @@
        </svg>
     </div>
     <div class="flex-1">
-      <div class="text-xs font-bold uppercase tracking-wider mb-2">Afspeellijst</div>
-      <h1 class="text-4xl md:text-7xl lg:text-8xl font-black mb-6">Favorieten</h1>
+      <div class="text-xs font-bold uppercase tracking-wider mb-2">{$t('common.playlist')}</div>
+      <h1 class="text-4xl md:text-7xl lg:text-8xl font-black mb-6">{$t('nav.starred')}</h1>
       <div class="flex items-center gap-2 text-sm font-medium">
-        <span class="text-white">Je favoriete nummers, albums en artiesten</span>
+        <span class="text-white">{$t('starred.subtitle')}</span>
         {#if tracks.length > 0}
-          <span class="text-[#b3b3b3]">• {tracks.length} nummers</span>
+          <span class="text-[#b3b3b3]">• {$t('common.trackCount', { count: tracks.length })}</span>
         {/if}
       </div>
     </div>
@@ -77,7 +78,7 @@
          <button
            class="bg-brand text-black w-14 h-14 rounded-full flex items-center justify-center shadow-xl hover:scale-105 active:scale-95 transition cursor-pointer border-none"
            onclick={playAll}
-           title="Alles afspelen"
+           title={$t('common.playAll')}
          >
            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
              <path d="M7 6v12l10-6z"></path>
@@ -87,18 +88,18 @@
      </div>
 
      {#if isLoading}
-        <div class="text-[#b3b3b3] p-12 text-center">Laden...</div>
+        <div class="text-[#b3b3b3] p-12 text-center">{$t('common.loading')}</div>
      {:else}
         {#if tracks.length > 0}
           <section class="mb-12">
-            <h2 class="text-2xl font-bold mb-4">Nummers</h2>
+            <h2 class="text-2xl font-bold mb-4">{$t('nav.songs')}</h2>
             <TrackList {tracks} onnavigate={onnavigate} />
           </section>
         {/if}
 
         {#if albums.length > 0}
           <section class="mb-12">
-            <h2 class="text-2xl font-bold mb-4">Albums</h2>
+            <h2 class="text-2xl font-bold mb-4">{$t('nav.albums')}</h2>
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
               {#each albums as album (album.id)}
                 <button 
@@ -123,7 +124,7 @@
 
         {#if artists.length > 0}
           <section>
-            <h2 class="text-2xl font-bold mb-4">Artiesten</h2>
+            <h2 class="text-2xl font-bold mb-4">{$t('nav.artists')}</h2>
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
               {#each artists as artist (artist.id)}
                 <button 
@@ -150,8 +151,8 @@
             <svg viewBox="0 0 24 24" width="64" height="64" fill="currentColor" class="opacity-20">
               <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
             </svg>
-            <p class="text-xl font-bold text-white">Nog geen favorieten</p>
-            <p>Nummers, albums of artiesten die je een hartje geeft komen hier te staan.</p>
+            <p class="text-xl font-bold text-white">{$t('starred.empty')}</p>
+            <p>{$t('starred.emptyHelp')}</p>
           </div>
         {/if}
      {/if}

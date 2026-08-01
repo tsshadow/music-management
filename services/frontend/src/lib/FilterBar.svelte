@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n/index.js';
 
   import { authParams, visibleSortOptions, allSortOptions } from './store.js';
 
@@ -19,17 +20,17 @@
   let years = $state([]);
 
   const roles = [
-    { value: 'all', label: 'Alle rollen' },
-    { value: 'release', label: 'Album artiesten' },
-    { value: 'track', label: 'Nummer artiesten' },
-    { value: 'composer', label: 'Componisten' },
-    { value: 'conductor', label: 'Dirigenten' },
-    { value: 'lyricist', label: 'Tekstschrijvers' },
-    { value: 'mixer', label: 'Mixers' },
-    { value: 'performer', label: 'Performers' },
-    { value: 'producer', label: 'Producers' },
-    { value: 'remixer', label: 'Remixers' },
-    { value: 'writer', label: 'Schrijvers' }
+    { value: 'all', labelKey: 'filter.roles.all' },
+    { value: 'release', labelKey: 'filter.roles.release' },
+    { value: 'track', labelKey: 'filter.roles.track' },
+    { value: 'composer', labelKey: 'filter.roles.composer' },
+    { value: 'conductor', labelKey: 'filter.roles.conductor' },
+    { value: 'lyricist', labelKey: 'filter.roles.lyricist' },
+    { value: 'mixer', labelKey: 'filter.roles.mixer' },
+    { value: 'performer', labelKey: 'filter.roles.performer' },
+    { value: 'producer', labelKey: 'filter.roles.producer' },
+    { value: 'remixer', labelKey: 'filter.roles.remixer' },
+    { value: 'writer', labelKey: 'filter.roles.writer' }
   ];
 
   /**
@@ -98,7 +99,7 @@
   <div class="w-full">
     <input
       type="text"
-      placeholder="Zoeken..."
+      placeholder={$t('common.searchPlaceholder')}
       class="w-full bg-[#282828] text-white border-none px-4 py-2 rounded-[20px] text-sm focus:outline focus:outline-1 focus:outline-brand focus:bg-[#333]"
       bind:value={search}
       oninput={handleSearchInput}
@@ -108,9 +109,9 @@
   <div class="flex flex-wrap gap-x-6 gap-y-4 items-center">
     {#if (view === 'songs' || view === 'albums') && showGenre}
       <div class="flex items-center gap-2">
-        <label for="genre" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">Genre</label>
+        <label for="genre" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('nav.genres')}</label>
         <select id="genre" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={genre} onchange={handleChange}>
-          <option value="">Alle Genres</option>
+          <option value="">{$t('filter.allGenres')}</option>
           {#each genres as g (g.value)}
             <option value={g.value}>{g.value} ({g.songCount})</option>
           {/each}
@@ -120,9 +121,9 @@
 
     {#if view === 'songs'}
       <div class="flex items-center gap-2">
-        <label for="year" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">Jaar</label>
+        <label for="year" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('filter.year')}</label>
         <select id="year" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={year} onchange={handleChange}>
-          <option value="">Alle Jaren</option>
+          <option value="">{$t('filter.allYears')}</option>
           {#each years as y (y.value)}
             <option value={y.value}>{y.value}</option>
           {/each}
@@ -132,10 +133,10 @@
 
     {#if view === 'artists'}
       <div class="flex items-center gap-2">
-        <label for="role" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">Rol</label>
+        <label for="role" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('filter.role')}</label>
         <select id="role" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={role} onchange={handleChange}>
           {#each roles as r (r.value)}
-            <option value={r.value}>{r.label}</option>
+            <option value={r.value}>{$t(r.labelKey)}</option>
           {/each}
         </select>
       </div>
@@ -144,14 +145,14 @@
     {#if view === 'songs'}
       <div class="flex items-center gap-4">
         <div class="flex items-center gap-2">
-          <label for="minRating" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">Rating</label>
+          <label for="minRating" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('filter.rating')}</label>
           <select id="minRating" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={minRating} onchange={handleChange}>
-            <option value="0">Alle</option>
-            <option value="1">1+ sterren</option>
-            <option value="2">2+ sterren</option>
-            <option value="3">3+ sterren</option>
-            <option value="4">4+ sterren</option>
-            <option value="5">5 sterren</option>
+            <option value="0">{$t('filter.allRatings')}</option>
+            <option value="1">{$t('filter.starsMin', { count: 1 })}</option>
+            <option value="2">{$t('filter.starsMin', { count: 2 })}</option>
+            <option value="3">{$t('filter.starsMin', { count: 3 })}</option>
+            <option value="4">{$t('filter.starsMin', { count: 4 })}</option>
+            <option value="5">{$t('filter.starsExactly', { count: 5 })}</option>
           </select>
         </div>
 
@@ -163,18 +164,18 @@
             bind:checked={includeUnrated}
             onchange={handleChange}
           />
-          <label for="unrated" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider cursor-pointer select-none">Unrated</label>
+          <label for="unrated" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider cursor-pointer select-none">{$t('filter.unrated')}</label>
         </div>
       </div>
     {/if}
 
     <div class="flex items-center gap-2">
-      <label for="sort" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">Sorteer op</label>
+      <label for="sort" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('filter.sortBy')}</label>
       <div class="flex items-center gap-1.5">
         <select id="sort" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={sort} onchange={handleChange}>
           {#each allSortOptions[view] || [] as option (option.id)}
             {#if $visibleSortOptions[view]?.includes(option.id)}
-              <option value={option.id}>{option.label}</option>
+              <option value={option.id}>{$t(option.labelKey)}</option>
             {/if}
           {/each}
         </select>
@@ -182,8 +183,8 @@
           type="button"
           class="bg-[#282828] text-[#b3b3b3] p-1.5 rounded hover:bg-[#333] hover:text-white transition-colors focus:outline focus:outline-1 focus:outline-brand"
           onclick={handleChange}
-          title="Vernieuwen"
-          aria-label="Lijst vernieuwen"
+          title={$t('common.refresh')}
+          aria-label={$t('filter.refreshList')}
         >
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M23 4v6h-6"></path>

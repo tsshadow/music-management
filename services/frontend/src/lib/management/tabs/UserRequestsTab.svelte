@@ -1,4 +1,5 @@
 <script>
+  import { t } from '../../i18n/index.js';
   import { onMount } from 'svelte';
   import { 
     RefreshCw, 
@@ -61,7 +62,7 @@
         fetchRequests();
       } else {
         const data = await res.json();
-        onError(data.detail || "Goedkeuren mislukt.");
+        onError(data.detail || $t('management.requests.approveFailed'));
       }
     } catch (err) {
       onError("Netwerkfout.");
@@ -81,7 +82,7 @@
         fetchRequests();
       } else {
         const data = await res.json();
-        onError(data.detail || "Ongedaan maken mislukt.");
+        onError(data.detail || $t('management.requests.undoFailed'));
       }
     } catch (err) {
       onError("Netwerkfout.");
@@ -100,7 +101,7 @@
         fetchRequests();
       } else {
         const data = await res.json();
-        onError(data.detail || "Afwijzen mislukt.");
+        onError(data.detail || $t('management.requests.rejectFailed'));
       }
     } catch (err) {
       onError("Netwerkfout.");
@@ -119,8 +120,8 @@
 <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
   <header class="flex justify-between items-end">
     <div>
-      <h2 class="text-4xl font-extrabold mb-2">🛡️ Toegangsverzoeken</h2>
-      <p class="text-spotify-lightgray">Beheer aanvragen van nieuwe gebruikers via Google Login.</p>
+      <h2 class="text-4xl font-extrabold mb-2">🛡️ {$t('management.tabs.userRequests')}</h2>
+      <p class="text-spotify-lightgray">{$t('management.requests.subtitle')}</p>
     </div>
     
     <div class="flex bg-spotify-gray p-1 rounded-full border border-white border-opacity-5">
@@ -128,19 +129,19 @@
         class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors {statusFilter === 'pending' ? 'bg-white text-black' : 'text-spotify-lightgray hover:text-white'}"
         onclick={() => statusFilter = 'pending'}
       >
-        Wachtend
+        {$t('management.requests.pending')}
       </button>
       <button 
         class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors {statusFilter === 'approved' ? 'bg-white text-black' : 'text-spotify-lightgray hover:text-white'}"
         onclick={() => statusFilter = 'approved'}
       >
-        Goedgekeurd
+        {$t('management.requests.approved')}
       </button>
       <button 
         class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors {statusFilter === 'rejected' ? 'bg-white text-black' : 'text-spotify-lightgray hover:text-white'}"
         onclick={() => statusFilter = 'rejected'}
       >
-        Afgewezen
+        {$t('management.requests.rejected')}
       </button>
     </div>
   </header>
@@ -151,7 +152,7 @@
         {#if statusFilter === 'pending'}<Clock size={20} class="text-yellow-500" />{/if}
         {#if statusFilter === 'approved'}<ShieldCheck size={20} class="text-spotify-green" />{/if}
         {#if statusFilter === 'rejected'}<ShieldAlert size={20} class="text-red-500" />{/if}
-        {statusFilter === 'pending' ? 'Wachtende verzoeken' : statusFilter === 'approved' ? 'Goedgekeurde verzoeken' : 'Afgewezen verzoeken'}
+        {statusFilter === 'pending' ? $t('management.requests.pendingHeading') : statusFilter === 'approved' ? $t('management.requests.approvedHeading') : $t('management.requests.rejectedHeading')}
       </h3>
       <button 
         onclick={fetchRequests} 
@@ -170,21 +171,21 @@
       {:else if requests.length === 0}
         <div class="flex flex-col items-center justify-center p-20 text-spotify-lightgray">
           <UserPlus size={48} class="mb-4 opacity-20" />
-          <p>Geen verzoeken gevonden met status '{statusFilter}'.</p>
+          <p>{$t('management.requests.emptyForStatus', { status: statusFilter })}</p>
         </div>
       {:else}
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead>
               <tr class="bg-white/5 text-spotify-lightgray text-[10px] uppercase tracking-wider">
-                <th class="p-4">Gebruiker</th>
-                <th class="p-4">Datum aangevraagd</th>
+                <th class="p-4">{$t('management.scrobble.user')}</th>
+                <th class="p-4">{$t('management.requests.requestedAt')}</th>
                 {#if statusFilter !== 'pending'}
-                  <th class="p-4">Beoordeeld door</th>
-                  <th class="p-4">Datum beoordeeld</th>
+                  <th class="p-4">{$t('management.requests.reviewedBy')}</th>
+                  <th class="p-4">{$t('management.requests.reviewedAt')}</th>
                 {/if}
                 {#if statusFilter === 'pending' || statusFilter === 'approved'}
-                  <th class="p-4 text-right">Acties</th>
+                  <th class="p-4 text-right">{$t('management.genres.actions')}</th>
                 {/if}
               </tr>
             </thead>
@@ -227,7 +228,7 @@
                             onclick={() => { linkUserId = ''; approveDisplayName = ''; confirmingAction = { type: 'approve', request }; }}
                             class="bg-spotify-green text-black px-3 py-1.5 rounded-full font-bold text-xs transition-transform hover:scale-105 flex items-center gap-1"
                           >
-                            <CheckCircle size={14} /> Goedkeuren
+                            <CheckCircle size={14} /> {$t('management.genres.approve')}
                           </button>
                         {/if}
                         {#if hasPermission('user-requests.reject')}
@@ -235,7 +236,7 @@
                             onclick={() => confirmingAction = { type: 'reject', request }}
                             class="bg-red-500/10 text-red-500 border border-red-500/20 px-3 py-1.5 rounded-full font-bold text-xs transition-transform hover:scale-105 flex items-center gap-1"
                           >
-                            <XCircle size={14} /> Afwijzen
+                            <XCircle size={14} /> {$t('management.requests.reject')}
                           </button>
                         {/if}
                       </div>
@@ -248,7 +249,7 @@
                           onclick={() => confirmingAction = { type: 'unapprove', request }}
                           class="bg-red-500/10 text-red-500 border border-red-500/20 px-3 py-1.5 rounded-full font-bold text-xs transition-transform hover:scale-105 flex items-center gap-1 ml-auto"
                         >
-                          <XCircle size={14} /> Ongedaan maken
+                          <XCircle size={14} /> {$t('management.requests.undo')}
                         </button>
                       {/if}
                     </td>
@@ -268,11 +269,11 @@
   <div class="bg-[#282828] p-8 rounded-xl border border-white border-opacity-10 max-w-md w-full shadow-2xl">
     <h3 class="text-2xl font-bold mb-4 flex items-center gap-2">
       {#if confirmingAction.type === 'approve'}
-        <CheckCircle class="text-spotify-green" /> Verzoek goedkeuren?
+        <CheckCircle class="text-spotify-green" /> {$t('management.requests.confirmApprove')}
       {:else if confirmingAction.type === 'unapprove'}
-        <ShieldAlert class="text-red-500" /> Goedkeuring ongedaan maken?
+        <ShieldAlert class="text-red-500" /> {$t('management.requests.confirmUndo')}
       {:else}
-        <ShieldAlert class="text-red-500" /> Verzoek afwijzen?
+        <ShieldAlert class="text-red-500" /> {$t('management.requests.confirmReject')}
       {/if}
     </h3>
     <p class="text-spotify-lightgray mb-6">
@@ -297,7 +298,7 @@
     {#if confirmingAction.type === 'approve'}
       <div class="mb-6">
         <label for="approve-display-name" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">
-          Weergavenaam (optioneel)
+          {$t('management.requests.displayName')}
         </label>
         <input
           id="approve-display-name"
@@ -311,16 +312,16 @@
     {#if confirmingAction.type === 'approve' && users.length > 0}
       <div class="mb-6">
         <label for="link-user" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">
-          Is dit dezelfde persoon als een bestaand account?
+          {$t('management.requests.samePerson')}
         </label>
         <select
           id="link-user"
           bind:value={linkUserId}
           class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors text-sm text-white"
         >
-          <option value="">Nee, nieuw account aanmaken</option>
+          <option value="">{$t('management.requests.createNew')}</option>
           {#each users as user (user.id)}
-            <option value={user.id}>Koppel aan {user.username}{user.display_name ? ` (${user.display_name})` : ''}</option>
+            <option value={user.id}>{$t('management.requests.linkTo', { name: user.display_name ? `${user.username} (${user.display_name})` : user.username })}</option>
           {/each}
         </select>
       </div>

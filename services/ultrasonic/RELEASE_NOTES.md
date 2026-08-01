@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+### Fixed
+- **Op een artiest tikken opende een leeg scherm.** Zowel in de artiestenlijst als bij de
+  artiesten op het beginscherm kwam je op een pagina die nooit is afgebouwd. Je komt nu op het
+  album-overzicht van die artiest — hetzelfde scherm dat je al kreeg via zoeken en via "Toon
+  artiest" in de speler.
+
 ## [6.5.21] - 2026-08-01
 
 ### Added

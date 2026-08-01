@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.22] - 2026-08-01
+
 ### Fixed
 - **Opening Settings crashed the app.** `SettingsFragment` sets every list setting's summary to
   the selected entry, and `ListPreference.getSummary()` feeds that summary through

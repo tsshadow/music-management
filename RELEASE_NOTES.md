@@ -11,6 +11,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.56 (2026-08-01)
+
+### 🐛 Instellingen crashte de app
+- Sinds 0.0.55 sloot de app meteen af zodra je Instellingen opende. Dat kwam door de nieuwe
+  "Interface size"-optie: de percentages erin (100%, 75%, ...) werden per ongeluk als opmaakcode
+  gelezen in plaats van als gewone tekst, waardoor het misging op het moment dat die regel getekend
+  werd. Opgelost — Instellingen opent weer gewoon.
+
 ## Global Version 0.0.55 (2026-08-01)
 
 ### 📻 Radiomodus (beta): één uitzending, iedereen tegelijk

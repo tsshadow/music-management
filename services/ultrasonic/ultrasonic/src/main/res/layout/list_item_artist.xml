@@ -42,17 +42,33 @@
         a:src="@drawable/ic_contact_picture"
         app:shapeAppearanceOverlay="@style/ShapeAppearance.Circle" />
 
-    <TextView
-        a:id="@+id/row_artist_name"
+    <LinearLayout
+        a:id="@+id/row_artist_text"
         a:layout_width="fill_parent"
         a:layout_height="wrap_content"
         a:layout_marginEnd="12dp"
         a:layout_toEndOf="@+id/cover_art"
-        a:drawablePadding="6dip"
-        a:gravity="center_vertical"
         a:minHeight="56dip"
+        a:gravity="center_vertical"
+        a:orientation="vertical"
         a:paddingStart="3dip"
-        a:paddingEnd="3dip"
-        a:textAppearance="?android:attr/textAppearanceMedium" />
+        a:paddingEnd="3dip">
+
+        <TextView
+            a:id="@+id/row_artist_name"
+            a:layout_width="match_parent"
+            a:layout_height="wrap_content"
+            a:textAppearance="?android:attr/textAppearanceMedium" />
+
+        <TextView
+            a:id="@+id/row_artist_subtitle"
+            a:layout_width="match_parent"
+            a:layout_height="wrap_content"
+            a:textAppearance="?android:attr/textAppearanceSmall"
+            a:textColor="?attr/colorOnSurfaceVariant"
+            a:visibility="gone"
+            tools:text="12 albums · 143 tracks" />
+
+    </LinearLayout>
 
 </RelativeLayout>

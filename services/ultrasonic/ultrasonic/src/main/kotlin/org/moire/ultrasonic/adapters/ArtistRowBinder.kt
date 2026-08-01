@@ -25,12 +25,31 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.moire.ultrasonic.R
 import org.moire.ultrasonic.data.ActiveServerProvider
+import org.moire.ultrasonic.domain.Artist
 import org.moire.ultrasonic.domain.ArtistOrIndex
 import org.moire.ultrasonic.domain.Identifiable
 import org.moire.ultrasonic.subsonic.ImageLoaderProvider
 import org.moire.ultrasonic.util.FileUtil
 import org.moire.ultrasonic.util.Settings
 import org.moire.ultrasonic.util.Util
+
+/**
+ * "12 albums · 143 tracks", leaving out whatever the server did not report. Folder indexes carry
+ * neither count, so they get no subtitle at all.
+ */
+fun artistSubtitle(item: ArtistOrIndex): String? {
+    if (item !is Artist) return null
+
+    val parts = mutableListOf<String>()
+    item.albumCount?.takeIf { it > 0 }?.let {
+        parts += if (it == 1L) "1 album" else "$it albums"
+    }
+    item.songCount?.takeIf { it > 0 }?.let {
+        parts += if (it == 1L) "1 track" else "$it tracks"
+    }
+
+    return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
+}
 
 /**
  * Creates a Row in a RecyclerView which contains the details of an Artist
@@ -48,6 +67,9 @@ class ArtistRowBinder(
 
     override fun onBindViewHolder(holder: ViewHolder, item: ArtistOrIndex) {
         holder.textView.text = item.name
+        val subtitle = artistSubtitle(item)
+        holder.subtitle.text = subtitle
+        holder.subtitle.isVisible = subtitle != null
         holder.section.text = getSectionForDisplay(item)
         holder.section.isVisible = enableSections
         holder.layout.setOnClickListener { onItemClick(item) }
@@ -131,6 +153,7 @@ class ArtistRowBinder(
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         var section: TextView = itemView.findViewById(R.id.row_section)
         var textView: TextView = itemView.findViewById(R.id.row_artist_name)
+        var subtitle: TextView = itemView.findViewById(R.id.row_artist_subtitle)
         var layout: RelativeLayout = itemView.findViewById(R.id.containing_layout)
         var coverArt: ImageView = itemView.findViewById(R.id.cover_art)
         var coverArtId: String? = null

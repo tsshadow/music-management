@@ -57,7 +57,7 @@ RUN \
 		VERBOSE=1 make -j$(nproc) && \
 		xx-verify src/lms/lms && \
 		if [ "${BUILD_TESTS}" = "ON" ]; then \
-			make test && \
+			{ make test || exit 1; } && \
 			GCOV=$(command -v llvm-cov 2>/dev/null) && [ -n "$GCOV" ] && GCOV="$GCOV gcov" || GCOV=gcov; \
 			if xx-info is-cross; then GCOV=$(xx-info)-gcov; fi && \
 			cd /tmp/lms && \

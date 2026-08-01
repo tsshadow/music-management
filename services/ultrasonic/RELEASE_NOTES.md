@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Fixed
+- **De app crashte zodra je Instellingen opende.** Dit kwam door de nieuwe "Interface size"-optie uit 6.5.21: de percentages erin (100%, 75%, ...) werden per ongeluk als opmaakcode gelezen in plaats van als gewone tekst, waardoor de app afsloot op het moment dat die regel getekend werd. Opgelost; Instellingen opent weer gewoon.
+
 ## [6.5.21] - 2026-08-01
 
 ### Added

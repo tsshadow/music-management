@@ -11,13 +11,17 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.os.Handler
+import android.os.Looper
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.widget.ArrayAdapter
+import android.widget.EditText
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.appcompat.widget.AppCompatAutoCompleteTextView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.isVisible
+import androidx.core.widget.doAfterTextChanged
 import com.google.android.material.chip.Chip
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.TextInputLayout
@@ -38,8 +42,17 @@ class FilterButtonBar : ConstraintLayout {
     private var viewTypeToggle: Chip? = null
     private var sortOrderMenu: TextInputLayout? = null
     private var sortOrderOptions: AppCompatAutoCompleteTextView? = null
+    private var searchFieldLayout: TextInputLayout? = null
+    private var searchField: EditText? = null
+    private var queryChangedListener: ((String?) -> Unit)? = null
+    private val debounceHandler = Handler(Looper.getMainLooper())
+    private var pendingQuery: Runnable? = null
+    private var lastReportedQuery: String? = null
+    private var hasReportedQuery: Boolean = false
 
     constructor(context: Context) : super(context) {
+        val inflater = LayoutInflater.from(context)
+        inflater.inflate(R.layout.filter_button_bar, this)
         setup()
     }
 
@@ -59,6 +72,7 @@ class FilterButtonBar : ConstraintLayout {
         viewTypeToggle!!.isVisible = caps.supportsGrid
         updateBrandColors(isSetsChecked)
         sortOrderMenu!!.isVisible = caps.supportedSortOrders.isNotEmpty()
+        searchFieldLayout!!.isVisible = caps.supportsSearch
 
         if (caps.supportedSortOrders.isNotEmpty()) {
             Timber.i("Calculating order")
@@ -100,6 +114,18 @@ class FilterButtonBar : ConstraintLayout {
         orderChangedListener = callback
     }
 
+    /**
+     * This listener is called when the user has changed the search query,
+     * after debouncing and trimming. Register a callback from the linked
+     * fragment here, to trigger a refiltered reload.
+     *
+     * @param callback
+     * @receiver
+     */
+    fun setOnQueryChangedListener(callback: (String?) -> Unit) {
+        queryChangedListener = callback
+    }
+
 
     /**
      * Setup the necessary bindings
@@ -110,6 +136,23 @@ class FilterButtonBar : ConstraintLayout {
         viewTypeToggle = findViewById(R.id.chip_view_toggle)
         sortOrderMenu = findViewById(R.id.sort_order_menu)
         sortOrderOptions = findViewById(R.id.sort_order_menu_options)
+        searchFieldLayout = findViewById(R.id.search_field_layout)
+        searchField = findViewById(R.id.search_field)
+        searchField!!.doAfterTextChanged { text ->
+            pendingQuery?.let { debounceHandler.removeCallbacks(it) }
+            val runnable = Runnable {
+                val query = text?.toString()?.trim()?.ifEmpty { null }
+                // The same term twice would reload the list for nothing, but the very
+                // first report must always go out, even if that term is blank.
+                if (!hasReportedQuery || query != lastReportedQuery) {
+                    hasReportedQuery = true
+                    lastReportedQuery = query
+                    queryChangedListener?.invoke(query)
+                }
+            }
+            pendingQuery = runnable
+            debounceHandler.postDelayed(runnable, DEBOUNCE_MS)
+        }
 
         viewTypeToggle!!.setOnClickListener {
             val newType = setLayoutType()
@@ -203,7 +246,10 @@ class FilterButtonBar : ConstraintLayout {
         return (this and 0x00FFFFFF) or (alpha shl 24)
     }
 
-    private fun getStringForSortOrder(sortOrder: SortOrder): Int = when (sortOrder) {
+    // internal rather than private so a test can assert the mapping directly, without going
+    // through the AutoCompleteTextView/ArrayAdapter machinery this is otherwise only reachable
+    // through.
+    internal fun getStringForSortOrder(sortOrder: SortOrder): Int = when (sortOrder) {
         SortOrder.RANDOM -> R.string.main_albums_random
         SortOrder.NEWEST -> R.string.main_albums_newest
         SortOrder.HIGHEST -> R.string.main_albums_highest
@@ -213,6 +259,13 @@ class FilterButtonBar : ConstraintLayout {
         SortOrder.BY_ARTIST -> R.string.main_albums_alphaByArtist
         SortOrder.STARRED -> R.string.main_albums_starred
         SortOrder.BY_YEAR -> R.string.main_albums_by_year
+        SortOrder.BY_TRACK_COUNT -> R.string.sort_order_track_count
+        SortOrder.BY_ALBUM_COUNT -> R.string.sort_order_album_count
+        SortOrder.BY_ADDED -> R.string.sort_order_added
+    }
+
+    companion object {
+        const val DEBOUNCE_MS = 300L
     }
 }
 
@@ -235,7 +288,8 @@ data class TranslatedSortOrder(val sortOrder: SortOrder, val string: String) {
 data class ViewCapabilities(
     val supportsGrid: Boolean = false,
     val supportsSetsToggle: Boolean = false,
-    val supportedSortOrders: List<SortOrder>
+    val supportedSortOrders: List<SortOrder>,
+    val supportsSearch: Boolean = false
 )
 
 val EMPTY_CAPABILITIES = ViewCapabilities(

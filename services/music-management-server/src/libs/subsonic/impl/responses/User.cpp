@@ -35,7 +35,10 @@ namespace lms::api::subsonic
 
         userNode.setAttribute("username", user->getLoginName());
         userNode.setAttribute("scrobblingEnabled", true);
-        userNode.setAttribute("mumaScrobblingEnabled", user->getMumaScrobblingEnabled());
+        // Scrobbling to the central MuMa database is always on -- it is not a
+        // per-user setting, so this is reported as a constant (and there is no
+        // matching parameter on createUser/updateUser).
+        userNode.setAttribute("mumaScrobblingEnabled", true);
         userNode.setAttribute("adminRole", user->isAdmin());   // Whether the user is administrator
         userNode.setAttribute("settingsRole", true);           // Whether the user is allowed to change personal settings and password
         userNode.setAttribute("downloadRole", true);           // Whether the user is allowed to download files

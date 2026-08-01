@@ -7,24 +7,47 @@
 package org.moire.ultrasonic.model
 
 import android.app.Application
+import android.os.Handler
+import android.os.Looper
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import java.text.Collator
-import kotlinx.coroutines.CoroutineScope
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.moire.ultrasonic.data.ActiveServerProvider
 import org.moire.ultrasonic.domain.ArtistOrIndex
+import org.moire.ultrasonic.fragment.LibraryQuery
+import org.moire.ultrasonic.fragment.artistSortByValue
 import org.moire.ultrasonic.service.MusicService
-import timber.log.Timber
+import org.moire.ultrasonic.service.MusicServiceFactory
+import org.moire.ultrasonic.util.CommunicationError
 
 /**
  * Provides ViewModel which contains the list of available Artists
  */
 class ArtistListModel(application: Application) : GenericListModel(application) {
     val list: MutableLiveData<List<ArtistOrIndex>> = MutableLiveData()
+
+    private var current = LibraryQuery()
+
+    // Guards against the scroll listener firing loadNextPage() several times while a page is
+    // still in flight, which would advance current.offset past pages that were never fetched.
+    @Volatile
+    private var isFetching = false
+
+    // Cleared once a page comes back with fewer than PAGE_SIZE items, so loadNextPage() stops
+    // asking for pages that do not exist instead of re-requesting the same tail offset forever.
+    @Volatile
+    private var hasMorePages = true
+
+    // Every fetch captures the version current when it was launched. Because postValue() is
+    // asynchronous, a slow append (e.g. a page fetched before the user typed a search term) can
+    // otherwise resolve after a faster, newer request and overwrite its result with stale data.
+    // Comparing against the latest version when the response comes back and dropping it if a
+    // newer request has since started avoids that without needing to cancel Jobs.
+    private val requestVersion = AtomicLong(0)
 
     /**
      * Retrieves all available Artists in a LiveData
@@ -38,6 +61,34 @@ class ArtistListModel(application: Application) : GenericListModel(application) 
         return list
     }
 
+    /** Called when the user types a term or picks another order. */
+    fun apply(newQuery: LibraryQuery) {
+        val resets = newQuery.resetsList(current)
+        if (!resets && newQuery == current) return
+
+        current = newQuery
+        if (resets) {
+            list.postValue(emptyList())
+            hasMorePages = true
+        }
+
+        val myVersion = requestVersion.incrementAndGet()
+        viewModelScope.launch(Dispatchers.IO) {
+            fetch(append = !resets, myVersion = myVersion)
+        }
+    }
+
+    /** Called by the scroll listener to page in the next batch for the current query. */
+    fun loadNextPage() {
+        if (isFetching || !hasMorePages) return
+
+        current = current.nextPage(PAGE_SIZE)
+        val myVersion = requestVersion.incrementAndGet()
+        viewModelScope.launch(Dispatchers.IO) {
+            fetch(append = true, myVersion = myVersion)
+        }
+    }
+
     override fun load(
         isOffline: Boolean,
         useId3Tags: Boolean,
@@ -45,53 +96,68 @@ class ArtistListModel(application: Application) : GenericListModel(application) 
         refresh: Boolean
     ) {
         super.load(isOffline, useId3Tags, musicService, refresh)
-
-        val musicFolderId = activeServer.musicFolderId
-
-        val result = if (ActiveServerProvider.shouldUseId3Tags()) {
-            musicService.getArtists(refresh, 0, 100)
-        } else {
-            musicService.getIndexes(musicFolderId, refresh)
+        if (refresh) {
+            // Pull-to-refresh always restarts from the top, whatever the user had scrolled to.
+            current = current.copy(offset = 0)
+            hasMorePages = true
         }
-
-        list.postValue(result.toMutableList().sortedWith(comparator))
+        fetch(append = false, refresh = refresh, myVersion = requestVersion.incrementAndGet())
     }
 
-    fun loadMore(
-        isOffline: Boolean,
-        useId3Tags: Boolean,
-        musicService: MusicService,
-        refresh: Boolean,
-        offset: Int,
-        count: Int
+    /**
+     * Fetches the page for the current query and either replaces or appends to the list.
+     * The server already applies the ordering (see [artistSortByValue]); re-sorting the
+     * result here would silently undo it, e.g. turn "sort by track count" back into
+     * alphabetical order.
+     *
+     * `internal` rather than `private` so tests can call it directly and synchronously, instead
+     * of racing the real background thread that [apply] and [loadNextPage] dispatch it on.
+     */
+    internal fun fetch(
+        append: Boolean,
+        refresh: Boolean = false,
+        myVersion: Long = requestVersion.incrementAndGet()
     ) {
-        Timber.d(if (isOffline) "Is Offline" else "Is Online")
-        CoroutineScope(Dispatchers.IO).launch {
-            val musicFolderId = activeServer.musicFolderId
+        val service = MusicServiceFactory.getMusicService()
+        isFetching = true
 
-            Timber.d("loadMore offset=$offset, count=$count")
-            val result = if (useId3Tags) {
-                musicService.getArtists(true, offset, count)
+        try {
+            val result: List<ArtistOrIndex> = if (ActiveServerProvider.shouldUseId3Tags()) {
+                service.getArtists(
+                    refresh = refresh,
+                    offset = current.offset,
+                    count = PAGE_SIZE,
+                    query = current.query,
+                    sortBy = artistSortByValue(current.sortOrder)
+                )
             } else {
-                // fallback if not using ID3 tags
-                musicService.getIndexes(musicFolderId, refresh).drop(offset).take(count)
+                // Folder-index (non-ID3) browsing does not support search or server-side sort.
+                service.getIndexes(activeServer.musicFolderId, refresh)
+                    .drop(current.offset)
+                    .take(PAGE_SIZE)
             }
 
-            val sorted = result.sortedWith(comparator)
+            // A newer request (a new query, a fresh page) has started since this one was
+            // launched: drop the response instead of resurrecting stale data on top of it.
+            if (myVersion != requestVersion.get()) return
 
-            val current = list.value ?: emptyList()
-            val combined = current + sorted
+            hasMorePages = result.size >= PAGE_SIZE
 
-            withContext(Dispatchers.Main) {
-                list.postValue(combined)
+            val combined = if (append) (list.value ?: emptyList()) + result else result
+            list.postValue(combined)
+        } catch (all: Exception) {
+            // e.g. OfflineException when an order that offline mode cannot answer is picked.
+            Handler(Looper.getMainLooper()).post {
+                CommunicationError.handleError(all, context)
             }
+        } finally {
+            isFetching = false
         }
     }
 
     override fun showSelectFolderHeader(): Boolean = true
 
     companion object {
-        val comparator: Comparator<ArtistOrIndex> =
-            compareBy(Collator.getInstance()) { t -> t.name }
+        const val PAGE_SIZE = 100
     }
 }

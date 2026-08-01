@@ -223,6 +223,7 @@ namespace lms::db
 
         // Find utility functions
         static std::size_t getCount(Session& session);
+        static std::size_t getCount(Session& session, const FindParameters& params);
         static pointer findByPath(Session& session, const std::filesystem::path& p);
         static std::optional<FileInfo> findFileInfo(Session& session, const std::filesystem::path& p);
         static pointer find(Session& session, TrackId id);

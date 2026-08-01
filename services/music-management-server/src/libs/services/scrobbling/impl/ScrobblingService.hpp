@@ -61,7 +61,6 @@ namespace lms::scrobbling
         TrackContainer getTopTracks(const FindParameters& params) override;
 
         std::optional<db::ScrobblingBackend> getUserBackend(db::UserId userId);
-        bool isMumaScrobblingEnabled(db::UserId userId);
 
         void insertNowPlayingEntry(const Listen& listen);
 

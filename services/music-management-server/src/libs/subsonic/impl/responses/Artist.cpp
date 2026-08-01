@@ -28,6 +28,7 @@
 #include "database/objects/Artwork.hpp"
 #include "database/objects/Release.hpp"
 #include "database/objects/ReleaseArtistLink.hpp"
+#include "database/objects/Track.hpp"
 #include "database/objects/TrackArtistLink.hpp"
 #include "database/objects/User.hpp"
 #include "services/feedback/IFeedbackService.hpp"
@@ -96,6 +97,11 @@ namespace lms::api::subsonic
             });
 
             artistNode.setAttribute("albumCount", count);
+        }
+
+        {
+            const std::size_t songCount{ Track::getCount(context.getDbSession(), Track::FindParameters{}.setArtist(artist->getId())) };
+            artistNode.setAttribute("songCount", songCount);
         }
 
         if (const Wt::WDateTime dateTime{ core::Service<feedback::IFeedbackService>::get()->getStarredDateTime(context.getUser()->getId(), artist->getId()) }; dateTime.isValid())

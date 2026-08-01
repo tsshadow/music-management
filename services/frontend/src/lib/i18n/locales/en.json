@@ -1,0 +1,8 @@
+{
+  "settings": {
+    "language": {
+      "title": "Language",
+      "help": "The language of the interface. Saved to your account, so it follows you to your other devices."
+    }
+  }
+}

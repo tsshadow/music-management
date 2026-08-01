@@ -183,7 +183,27 @@ namespace lms::db
                 query.orderBy("MIN(t.file_added) DESC, a.sort_name");
                 break;
             case ArtistSortMethod::TrackCountDesc:
-                query.orderBy("COUNT(t_a_l.track_id) DESC, a.sort_name");
+                // DISTINCT matters here: releaseArtistsOnly inner-joins release_artist_link, which
+                // multiplies rows per release the artist is credited on. Without DISTINCT, an artist
+                // with 20 tracks across 10 albums would score 200 and outrank an artist with 150
+                // tracks on a single album.
+                query.orderBy("COUNT(DISTINCT t_a_l.track_id) DESC, a.sort_name");
+                break;
+            case ArtistSortMethod::ReleaseCountDesc:
+                // Must match what the Subsonic response reports as "albumCount" (see
+                // createArtistNode in responses/Artist.cpp): releases the artist is a release-artist
+                // on, plus releases where they only appear as a track artist. A plain
+                // COUNT(DISTINCT release_artist_link.release_id) join would undercount an artist who
+                // is a track artist (e.g. featured) on releases they did not author, so this uses a
+                // correlated subquery over the union of both sources instead. It's a scalar subquery
+                // rather than a join+GROUP BY so it composes with params.releaseArtistsOnly, which
+                // already inner-joins release_artist_link under a different alias for filtering.
+                query.orderBy(
+                    "(SELECT COUNT(DISTINCT release_id) FROM ("
+                    "SELECT r_a_l_count.release_id AS release_id FROM release_artist_link r_a_l_count WHERE r_a_l_count.artist_id = a.id "
+                    "UNION "
+                    "SELECT t_count.release_id AS release_id FROM track_artist_link t_a_l_count JOIN track t_count ON t_count.id = t_a_l_count.track_id WHERE t_a_l_count.artist_id = a.id"
+                    ")) DESC, a.sort_name");
                 break;
             case ArtistSortMethod::StarredDateDesc:
                 assert(params.starringUser.isValid());

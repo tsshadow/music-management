@@ -54,8 +54,12 @@ namespace lms::db
 {
     namespace
     {
+        // "aggregate" must be true for selects like "COUNT(...)"/"SUM(...)" that must return a
+        // single row: some filter branches below add a GROUP BY to deduplicate rows for
+        // non-aggregate selects (e.g. "t.id", "t"), which would otherwise break such a select by
+        // turning its single aggregate row into one row per matching track.
         template<typename ResultType>
-        Wt::Dbo::Query<ResultType> createQuery(Session& session, std::string_view itemToSelect, const Track::FindParameters& params)
+        Wt::Dbo::Query<ResultType> createQuery(Session& session, std::string_view itemToSelect, bool aggregate, const Track::FindParameters& params)
         {
             session.checkReadTransaction();
 
@@ -163,7 +167,10 @@ namespace lms::db
                     query.where(oss.str());
                 }
 
-                query.groupBy("t.id");
+                // Grouping is needed to deduplicate rows produced when a track matches
+                // several of the requested link types (see the "aggregate" comment above).
+                if (!aggregate)
+                    query.groupBy("t.id");
             }
 
             assert(!(params.nonRelease && params.release.isValid()));
@@ -377,7 +384,7 @@ namespace lms::db
             else
                 static_assert("Unhandled type");
 
-            return createQuery<ResultType>(session, itemToSelect, params);
+            return createQuery<ResultType>(session, itemToSelect, /* aggregate = */ false, params);
         }
     } // namespace
 
@@ -391,6 +398,13 @@ namespace lms::db
         session.checkReadTransaction();
 
         return utils::fetchQuerySingleResult(session.getDboSession()->query<int>("SELECT COUNT(*) FROM track"));
+    }
+
+    std::size_t Track::getCount(Session& session, const FindParameters& params)
+    {
+        session.checkReadTransaction();
+
+        return utils::fetchQuerySingleResult(createQuery<int>(session, "COUNT(DISTINCT t.id)", /* aggregate = */ true, params));
     }
 
     Track::pointer Track::findByPath(Session& session, const std::filesystem::path& p)

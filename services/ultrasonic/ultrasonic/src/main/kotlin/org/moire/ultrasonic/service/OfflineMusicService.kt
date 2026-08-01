@@ -141,7 +141,13 @@ class OfflineMusicService :
     }
 
     @Throws(OfflineException::class)
-    override fun getArtists(refresh: Boolean, offset: Int?, count: Int?): List<Artist> = cachedArtists.get()
+    override fun getArtists(
+        refresh: Boolean,
+        offset: Int?,
+        count: Int?,
+        query: String?,
+        sortBy: String?
+    ): List<Artist> = pageArtists(cachedArtists.get(), offset, count, query, sortBy)
 
     // Library activity ordering is a server-side concept; there is nothing meaningful to show offline.
     override fun getArtistList(type: String, size: Int): List<Artist> = emptyList()
@@ -351,9 +357,22 @@ class OfflineMusicService :
         type: AlbumListType,
         size: Int,
         offset: Int,
-        musicFolderId: String?
+        musicFolderId: String?,
+        query: String?
     ): List<Album> {
         // TODO: Implement filtering by musicFolder?
+        if (query != null) {
+            val matching = cachedAlbums.get().filter { album ->
+                album.name?.contains(query, ignoreCase = true) == true ||
+                    album.title?.contains(query, ignoreCase = true) == true
+            }
+            return when (type) {
+                AlbumListType.NEWEST -> matching.sortedByDescending { it.created }
+                AlbumListType.SORTED_BY_ARTIST -> matching.sortedBy { it.artist }
+                else -> matching.sortedBy { it.title }
+            }
+        }
+
         return when (type) {
             AlbumListType.NEWEST -> cachedAlbums.orderedByAge(size, offset)
             AlbumListType.SORTED_BY_ARTIST -> cachedAlbums.orderedByArtist(size, offset)
@@ -1014,4 +1033,35 @@ class OfflineMusicService :
         private val COMPILE = Pattern.compile(" ")
         private const val LONG_SONG_THRESHOLD_SECONDS = 600
     }
+}
+
+/**
+ * Filters, sorts and pages [all] the same way the server would for `getArtists`.
+ *
+ * A top-level, dependency-free function so it can be unit tested without the Room/Koin
+ * machinery [OfflineMusicService] needs merely to obtain [all]. Previously this ignored
+ * [offset]/[count] entirely and always returned the whole (filtered, sorted) list, so every
+ * `loadNextPage()` call while offline re-appended the same complete list on top of itself.
+ */
+@Throws(OfflineException::class)
+internal fun pageArtists(
+    all: List<Artist>,
+    offset: Int?,
+    count: Int?,
+    query: String?,
+    sortBy: String?
+): List<Artist> {
+    val matching = all.filter { artist ->
+        query == null || artist.name?.contains(query, ignoreCase = true) == true
+    }
+
+    val sorted = when (sortBy) {
+        null, "name" -> matching.sortedBy { it.name }
+        "trackCount" -> matching.sortedByDescending { it.songCount ?: 0L }
+        else -> throw OfflineException("This sort order is not available offline")
+    }
+
+    if (offset == null && count == null) return sorted
+    val dropped = sorted.drop(offset ?: 0)
+    return if (count == null) dropped else dropped.take(count)
 }

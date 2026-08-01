@@ -114,6 +114,9 @@
     <string name="main.albums_starred">Favorieten</string>
     <string name="main.albums_by_year">Chronologisch</string>
     <string name="main.albums_title">Albums</string>
+    <string name="sort_order_track_count">Aantal nummers</string>
+    <string name="sort_order_album_count">Aantal albums</string>
+    <string name="sort_order_added">Recent toegevoegd</string>
     <string name="main.artists_title">Artiesten</string>
     <string name="main.genres_title">Genres</string>
     <string name="main.offline">Offline</string>
@@ -151,7 +154,16 @@
     <string name="select_album.no_sdcard">Fout: geen SD-kaart beschikbaar.</string>
     <string name="select_album.play_all">Alles afspelen</string>
     <string name="select_artist.all_folders">Alle mappen</string>
+    <string name="select_artist.empty">Geen artiesten gevonden</string>
     <string name="select_artist.folder">Map kiezen</string>
+    <plurals name="select_artist.subtitle_albums">
+        <item quantity="one">%d album</item>
+        <item quantity="other">%d albums</item>
+    </plurals>
+    <plurals name="select_artist.subtitle_tracks">
+        <item quantity="one">%d nummer</item>
+        <item quantity="other">%d nummers</item>
+    </plurals>
     <string name="select_genre.empty">Geen genres gevonden</string>
     <string name="select_playlist.empty">Geen opgeslagen afspeellijsten op server</string>
     <string name="settings.appearance_title">Uiterlijk</string>
@@ -466,6 +478,7 @@
     <string name="update">Bijwerken</string>
     <string name="edit_filter_title">Filter bewerken</string>
     <string name="new_filter_title">Nieuwe filter</string>
+    <string name="filter_search_hint">Zoeken</string>
     <string name="result_count_format">Aantal nummers: %1$d</string>
     <string name="filters_title">Filters</string>
     <string name="result_count">Aantal resultaten</string>

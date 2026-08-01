@@ -43,7 +43,7 @@ import org.moire.ultrasonic.domain.Track
         )
     ],
     exportSchema = true,
-    version = 5
+    version = 6
 )
 @TypeConverters(Converters::class)
 abstract class MetaDatabase : RoomDatabase() {
@@ -114,5 +114,11 @@ val META_MIGRATION_4_5: Migration = object : Migration(4, 5) {
         db.execSQL("ALTER TABLE `artists` ADD COLUMN `genre` TEXT")
         db.execSQL("ALTER TABLE `artists` ADD COLUMN `description` TEXT")
         db.execSQL("ALTER TABLE `artists` ADD COLUMN `genres` TEXT")
+    }
+}
+
+val META_MIGRATION_5_6: Migration = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `artists` ADD COLUMN `songCount` INTEGER")
     }
 }

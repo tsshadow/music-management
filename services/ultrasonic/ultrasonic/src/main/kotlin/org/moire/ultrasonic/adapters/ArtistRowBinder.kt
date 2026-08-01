@@ -7,6 +7,7 @@
 
 package org.moire.ultrasonic.adapters
 
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
@@ -25,6 +26,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.moire.ultrasonic.R
 import org.moire.ultrasonic.data.ActiveServerProvider
+import org.moire.ultrasonic.domain.Artist
 import org.moire.ultrasonic.domain.ArtistOrIndex
 import org.moire.ultrasonic.domain.Identifiable
 import org.moire.ultrasonic.subsonic.ImageLoaderProvider
@@ -33,12 +35,35 @@ import org.moire.ultrasonic.util.Settings
 import org.moire.ultrasonic.util.Util
 
 /**
+ * "12 albums · 143 tracks", leaving out whatever the server did not report. Folder indexes carry
+ * neither count, so they get no subtitle at all.
+ */
+fun artistSubtitle(item: ArtistOrIndex, context: Context): String? {
+    if (item !is Artist) return null
+
+    val resources = context.resources
+    val parts = mutableListOf<String>()
+    item.albumCount?.takeIf { it > 0 }?.let {
+        parts += resources.getQuantityString(R.plurals.select_artist_subtitle_albums, it.toInt(), it)
+    }
+    item.songCount?.takeIf { it > 0 }?.let {
+        parts += resources.getQuantityString(R.plurals.select_artist_subtitle_tracks, it.toInt(), it)
+    }
+
+    return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
+}
+
+/**
  * Creates a Row in a RecyclerView which contains the details of an Artist
+ *
+ * @param enableSections Whether to show the A/B/C fast-scroll section rail. Only meaningful when
+ * the list is in alphabetical order; the caller is responsible for turning it off for any other
+ * sort, where the per-row letter would be noise rather than a useful index.
  */
 class ArtistRowBinder(
     val onItemClick: (ArtistOrIndex) -> Unit,
     val onContextMenuClick: (MenuItem, ArtistOrIndex) -> Boolean,
-    private val enableSections: Boolean = true
+    var enableSections: Boolean = true
 ) : ItemViewBinder<ArtistOrIndex, ArtistRowBinder.ViewHolder>(),
     KoinComponent,
     Utils.SectionedBinder {
@@ -48,6 +73,9 @@ class ArtistRowBinder(
 
     override fun onBindViewHolder(holder: ViewHolder, item: ArtistOrIndex) {
         holder.textView.text = item.name
+        val subtitle = artistSubtitle(item, holder.itemView.context)
+        holder.subtitle.text = subtitle
+        holder.subtitle.isVisible = subtitle != null
         holder.section.text = getSectionForDisplay(item)
         holder.section.isVisible = enableSections
         holder.layout.setOnClickListener { onItemClick(item) }
@@ -131,6 +159,7 @@ class ArtistRowBinder(
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         var section: TextView = itemView.findViewById(R.id.row_section)
         var textView: TextView = itemView.findViewById(R.id.row_artist_name)
+        var subtitle: TextView = itemView.findViewById(R.id.row_artist_subtitle)
         var layout: RelativeLayout = itemView.findViewById(R.id.containing_layout)
         var coverArt: ImageView = itemView.findViewById(R.id.cover_art)
         var coverArtId: String? = null

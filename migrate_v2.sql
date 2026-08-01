@@ -78,18 +78,20 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
--- Use a procedure or check to only add unique index if it doesn't exist
-SET @sql = IF(
-    (SELECT COUNT(*) FROM information_schema.statistics 
-     WHERE table_schema = DATABASE() AND table_name = 'rules_genres' AND column_name = 'name' AND non_unique = 0) = 0,
-    'ALTER TABLE rules_genres ADD UNIQUE (name)',
-    'DO 0'
-);
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-ALTER TABLE rules_genres MODIFY COLUMN name VARCHAR(100) NOT NULL;
+-- The unique key on rules_genres.name used to be re-created here. It is now owned
+-- by migrate_v3_genre_states.sql, which deliberately drops it in favour of a
+-- unique key on normalized_name: two rows may share a display name as long as
+-- they are different genres, and aliases need exactly that.
+--
+-- Every migration in this directory re-runs on every deploy, so leaving the
+-- statement here meant v2 kept re-asserting a constraint v3 had just removed,
+-- and production deploys failed on it ("Duplicate entry 'acidcore melodic' for
+-- key 'name'"). That went unnoticed for as long as a failing migration could
+-- still report a successful deploy — see
+-- docs/bug-reports/021-genre-migration-never-shipped.md.
+--
+-- The column width is left alone here too: v2 shrank it to VARCHAR(100) on every
+-- deploy while v3 sets VARCHAR(255), which silently truncated long genre names.
 ALTER TABLE rules_genres ADD COLUMN IF NOT EXISTS corrected_genre VARCHAR(255);
 
 -- 4. Junction tables

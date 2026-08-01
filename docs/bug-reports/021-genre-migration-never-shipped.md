@@ -81,6 +81,34 @@ track attached to two colliding genres at once: a clean run merges and completes
 no-op with identical counts, and a run against a database left in production's exact half-migrated
 state recovers to the same end state.
 
+# Follow-up 2: what the honest exit status revealed
+
+The very next release failed at `deploy:prod` — correctly this time:
+
+```
+ERROR 1062 (23000) at line 89: Duplicate entry 'acidcore melodic' for key 'name'
+```
+
+in **`migrate_v2.sql`**, an old migration. Every file here re-runs on every deploy, and v2 was
+re-creating the unique key on `rules_genres.name` that `migrate_v3` deliberately drops in favour of
+one on `normalized_name` — two rows may share a display name as long as they are different genres,
+which is exactly what aliases need. So v2 undid part of v3 on every single deploy and then failed on
+the data v3 had legitimately created.
+
+It had presumably been failing for a while; nothing surfaced it while a failed migration could still
+report a successful deploy.
+
+The same block also ran `MODIFY COLUMN name VARCHAR(100)` while v3 sets `VARCHAR(255)`, silently
+truncating long genre names once per deploy.
+
+Both statements are removed from v2, which now leaves the `rules_genres` schema to v3. Verified by
+running the full chain (v2, v3, v4) three times against MariaDB 10.6: identical state counts,
+`name` stays `varchar(255)`, and the only unique key left is on `normalized_name`.
+
+**The general lesson**: because every migration re-runs on every deploy, an older file is not
+history — it is a statement that keeps being re-asserted. A later migration that changes something an
+earlier one set up has to change that earlier file too, or the two fight on every deploy.
+
 # Notes for later
 - Migrations run in step 3 of `scripts/deploy.sh`, *after* the containers are recreated in step 2.
   There is therefore a window on every deploy where new code talks to the old schema. It is short

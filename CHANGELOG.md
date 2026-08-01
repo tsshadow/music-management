@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.54] - 2026-08-01
 
+### Fixed
+- **`migrate_v2.sql` fought `migrate_v3` on every deploy.** It re-created the unique key on
+  `rules_genres.name` that v3 deliberately drops in favour of one on `normalized_name`, so a deploy
+  failed with `Duplicate entry ... for key 'name'` on rows v3 had legitimately created. It also
+  shrank `name` back to `VARCHAR(100)` each time, truncating long genre names. Both statements are
+  removed; v3 now owns that schema. Every migration re-runs on every deploy, so an older file is not
+  history — it keeps being re-asserted.
+
 ### Added
 - **A genre can now be corrected to more than one genre.** Contractions expand instead of being thrown
   away: `Upterror` becomes `Uptempo Hardcore` plus `Terror`. Targets live in the new

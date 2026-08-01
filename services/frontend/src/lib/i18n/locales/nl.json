@@ -22,9 +22,11 @@
     "verified": "Geverifieerde artiest"
   },
   "common": {
+    "add": "Toevoegen",
     "album": "Album",
     "artist": "Artiest",
     "busy": "Bezig...",
+    "cancel": "Annuleren",
     "close": "Sluiten",
     "closeModal": "Modal sluiten",
     "download": "Downloaden",
@@ -182,8 +184,30 @@
       "subtitle": "Systeem monitoring en recente activiteit van alle workers.",
       "title": "Gezondheid & activiteit"
     },
+    "libraries": {
+      "add": "Bibliotheek toevoegen",
+      "confirmDelete": "Weet je zeker dat je bibliotheek {name} wilt verwijderen?",
+      "empty": "Geen bibliotheken gevonden.",
+      "name": "Naam",
+      "namePlaceholder": "Bijv. Mijn Muziek",
+      "noConnection": "Geen serververbinding",
+      "noConnectionHelp": "Bibliotheken worden rechtstreeks door de muziekserver beheerd en vereisen een login met server-inloggegevens. Log in op de playerpagina met je gebruikersnaam en wachtwoord.",
+      "path": "Pad",
+      "pathPlaceholder": "Bijv. /music/jazz",
+      "subtitle": "Beheer de mappen die de muziekserver indexeert. Scannen doe je op het Scanner-tabblad."
+    },
     "noAccess": "Geen toegang",
     "noAccessHelp": "Alleen beheerders hebben toegang tot deze pagina. Log in met een account met beheerdersrechten om verder te gaan.",
+    "notifications": {
+      "clearAll": "Alles wissen",
+      "confirmClear": "Weet je zeker dat je alle meldingen wilt wissen?",
+      "empty": "Geen nieuwe meldingen.",
+      "loading": "Meldingen laden...",
+      "openInNtfy": "Openen in ntfy.sh",
+      "subscribeHelp": "Je kunt je ook rechtstreeks abonneren op meldingen via de ntfy.sh app of website:",
+      "subtitle": "Berichten van automatische processen zoals SoundCloud downloads.",
+      "title": "Meldingen"
+    },
     "overview": {
       "alert": "Systeem Alert",
       "avgTrackLength": "Gem. tracklengte",
@@ -204,6 +228,25 @@
       "totalScrobbles": "Totaal Scrobbles",
       "totalTracks": "Totaal Tracks",
       "version": "MuMa Versie"
+    },
+    "scrobble": {
+      "import": "ListenBrainz Import",
+      "importing": "IMPORT BEZIG...",
+      "lbUsername": "ListenBrainz Username",
+      "linked": "GEKOPPELD",
+      "mumaUser": "MuMa User",
+      "noHistory": "Geen import geschiedenis gevonden.",
+      "optionalIfLinked": "Optioneel indien al gekoppeld in User Management.",
+      "pickUser": "Kies gebruiker...",
+      "progress": "Voortgang",
+      "recentImports": "Recente Imports",
+      "startFailed": "Kon import niet starten.",
+      "startImport": "IMPORT STARTEN",
+      "startNetworkError": "Netwerkfout bij starten import.",
+      "started": "Gestart",
+      "subtitle": "Beheer luistergeschiedenis en ListenBrainz imports.",
+      "title": "Scrobble Service",
+      "user": "Gebruiker"
     },
     "tabs": {
       "about": "Over",

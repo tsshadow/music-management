@@ -22,9 +22,11 @@
     "verified": "Verified artist"
   },
   "common": {
+    "add": "Add",
     "album": "Album",
     "artist": "Artist",
     "busy": "Working…",
+    "cancel": "Cancel",
     "close": "Close",
     "closeModal": "Close dialogue",
     "download": "Download",
@@ -182,8 +184,30 @@
       "subtitle": "System monitoring and recent activity across all workers.",
       "title": "Health & activity"
     },
+    "libraries": {
+      "add": "Add library",
+      "confirmDelete": "Delete the library {name}?",
+      "empty": "No libraries found.",
+      "name": "Name",
+      "namePlaceholder": "E.g. My Music",
+      "noConnection": "No server connection",
+      "noConnectionHelp": "Libraries are managed by the music server itself and need a login with server credentials. Log in on the player page with your username and password.",
+      "path": "Path",
+      "pathPlaceholder": "E.g. /music/jazz",
+      "subtitle": "Manage the folders the music server indexes. Scanning lives on the scanner tab."
+    },
     "noAccess": "No access",
     "noAccessHelp": "This page is for administrators only. Log in with an account that has administrator rights to continue.",
+    "notifications": {
+      "clearAll": "Clear all",
+      "confirmClear": "Clear every notification?",
+      "empty": "No new notifications.",
+      "loading": "Loading notifications...",
+      "openInNtfy": "Open in ntfy.sh",
+      "subscribeHelp": "You can also subscribe to notifications directly through the ntfy.sh app or website:",
+      "subtitle": "Messages from automated processes such as SoundCloud downloads.",
+      "title": "Notifications"
+    },
     "overview": {
       "alert": "System alert",
       "avgTrackLength": "Avg. track length",
@@ -204,6 +228,25 @@
       "totalScrobbles": "Total scrobbles",
       "totalTracks": "Total tracks",
       "version": "MuMa version"
+    },
+    "scrobble": {
+      "import": "ListenBrainz import",
+      "importing": "IMPORTING...",
+      "lbUsername": "ListenBrainz username",
+      "linked": "LINKED",
+      "mumaUser": "MuMa user",
+      "noHistory": "No import history found.",
+      "optionalIfLinked": "Optional if already linked in user management.",
+      "pickUser": "Pick a user...",
+      "progress": "Progress",
+      "recentImports": "Recent imports",
+      "startFailed": "Could not start the import.",
+      "startImport": "START IMPORT",
+      "startNetworkError": "Network error while starting the import.",
+      "started": "Started",
+      "subtitle": "Manage listening history and ListenBrainz imports.",
+      "title": "Scrobble service",
+      "user": "User"
     },
     "tabs": {
       "about": "About",

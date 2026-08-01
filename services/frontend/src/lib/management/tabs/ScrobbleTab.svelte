@@ -1,4 +1,5 @@
 <script >
+  import { t } from '../../i18n/index.js';
   import { RefreshCw, Radio } from '@lucide/svelte';
   
   export let API_BASE;
@@ -42,11 +43,11 @@
           }
         }, 3000);
       } else {
-        onError("Kon import niet starten.");
+        onError($t('management.scrobble.startFailed'));
         isImporting = false;
       }
     } catch (err) {
-      onError("Netwerkfout bij starten import.");
+      onError($t('management.scrobble.startNetworkError'));
       isImporting = false;
     }
   }
@@ -54,19 +55,19 @@
 
 <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
   <header>
-    <h2 class="text-4xl font-extrabold mb-2">📻 Scrobble Service</h2>
-    <p class="text-spotify-lightgray">Beheer luistergeschiedenis en ListenBrainz imports.</p>
+    <h2 class="text-4xl font-extrabold mb-2">📻 {$t('management.scrobble.title')}</h2>
+    <p class="text-spotify-lightgray">{$t('management.scrobble.subtitle')}</p>
   </header>
 
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
     <!-- Import Form -->
     <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
       <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
-        <RefreshCw class="text-spotify-green {isImporting ? 'animate-spin' : ''}" /> ListenBrainz Import
+        <RefreshCw class="text-spotify-green {isImporting ? 'animate-spin' : ''}" /> {$t('management.scrobble.import')}
       </h3>
       <form on:submit|preventDefault={startLbImport} class="space-y-4">
         <div>
-          <label for="muma-user" class="block text-sm font-bold text-spotify-lightgray mb-2">MuMa User</label>
+          <label for="muma-user" class="block text-sm font-bold text-spotify-lightgray mb-2">{$t('management.scrobble.mumaUser')}</label>
           <select 
             id="muma-user" 
             bind:value={importMumaUser}
@@ -80,14 +81,14 @@
             }}
             class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
           >
-            <option value="">Kies gebruiker...</option>
+            <option value="">{$t('management.scrobble.pickUser')}</option>
             {#each users as user (user.username)}
               <option value={user.username}>{user.username}</option>
             {/each}
           </select>
         </div>
         <div>
-          <label for="lb-user" class="block text-sm font-bold text-spotify-lightgray mb-2">ListenBrainz Username</label>
+          <label for="lb-user" class="block text-sm font-bold text-spotify-lightgray mb-2">{$t('management.scrobble.lbUsername')}</label>
           <div class="relative">
             <input 
               type="text" 
@@ -97,11 +98,11 @@
               class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
             />
             {#if !importLbUser && lbUsername}
-              <span class="absolute right-3 top-3 text-xs text-spotify-green font-bold">GEKOPPELD</span>
+              <span class="absolute right-3 top-3 text-xs text-spotify-green font-bold">{$t('management.scrobble.linked')}</span>
             {/if}
           </div>
           <p class="text-[10px] text-spotify-lightgray mt-1 italic">
-            Optioneel indien al gekoppeld in User Management.
+            {$t('management.scrobble.optionalIfLinked')}
           </p>
         </div>
         <button 
@@ -109,7 +110,7 @@
           disabled={isImporting || !importMumaUser}
           class="w-full bg-spotify-green text-black font-extrabold py-3 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
         >
-          {isImporting ? 'IMPORT BEZIG...' : 'IMPORT STARTEN'}
+          {isImporting ? $t('management.scrobble.importing') : $t('management.scrobble.startImport')}
         </button>
       </form>
     </div>
@@ -117,7 +118,7 @@
     <!-- Recent Imports -->
     <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
       <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex justify-between items-center">
-        Recente Imports
+        {$t('management.scrobble.recentImports')}
         <button on:click={fetchLatestImports} class="text-spotify-lightgray hover:text-white transition-colors">
           <RefreshCw size={16} />
         </button>
@@ -126,10 +127,10 @@
         <table class="w-full text-left">
           <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
             <tr>
-              <th class="p-4">User</th>
-              <th class="p-4">Status</th>
-              <th class="p-4">Progress</th>
-              <th class="p-4 text-right">Started</th>
+              <th class="p-4">{$t('management.scrobble.user')}</th>
+              <th class="p-4">{$t('management.health.status')}</th>
+              <th class="p-4">{$t('management.scrobble.progress')}</th>
+              <th class="p-4 text-right">{$t('management.scrobble.started')}</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-spotify-gray divide-opacity-30 text-sm">
@@ -160,7 +161,7 @@
             {/each}
             {#if latestImports.length === 0}
               <tr>
-                <td colspan="4" class="p-8 text-center text-spotify-lightgray italic">Geen import geschiedenis gevonden.</td>
+                <td colspan="4" class="p-8 text-center text-spotify-lightgray italic">{$t('management.scrobble.noHistory')}</td>
               </tr>
             {/if}
           </tbody>

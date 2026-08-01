@@ -156,6 +156,14 @@
     <string name="select_artist.all_folders">Alle mappen</string>
     <string name="select_artist.empty">Geen artiesten gevonden</string>
     <string name="select_artist.folder">Map kiezen</string>
+    <plurals name="select_artist.subtitle_albums">
+        <item quantity="one">%d album</item>
+        <item quantity="other">%d albums</item>
+    </plurals>
+    <plurals name="select_artist.subtitle_tracks">
+        <item quantity="one">%d nummer</item>
+        <item quantity="other">%d nummers</item>
+    </plurals>
     <string name="select_genre.empty">Geen genres gevonden</string>
     <string name="select_playlist.empty">Geen opgeslagen afspeellijsten op server</string>
     <string name="settings.appearance_title">Uiterlijk</string>

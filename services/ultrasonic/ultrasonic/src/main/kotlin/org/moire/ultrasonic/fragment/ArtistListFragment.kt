@@ -51,6 +51,7 @@ class ArtistListFragment :
 
     private var filterButtonBar: FilterButtonBar? = null
     private var query = LibraryQuery()
+    private var artistRowBinder: ArtistRowBinder? = null
 
     private val navArgs: ArtistListFragmentArgs by navArgs()
 
@@ -63,12 +64,12 @@ class ArtistListFragment :
         super.onViewCreated(view, savedInstanceState)
         setTitle(navArgs.title)
 
-        viewAdapter.register(
-            ArtistRowBinder(
-                { entry -> onItemClick(entry) },
-                { menuItem, entry -> onContextMenuItemSelected(menuItem, entry) }
-            )
+        artistRowBinder = ArtistRowBinder(
+            { entry -> onItemClick(entry) },
+            { menuItem, entry -> onContextMenuItemSelected(menuItem, entry) },
+            enableSections = query.sortOrder == SortOrder.BY_NAME
         )
+        viewAdapter.register(artistRowBinder!!)
 
         filterButtonBar = view.findViewById(R.id.filter_button_bar)
         filterButtonBar!!.configureWithCapabilities(viewCapabilities)
@@ -94,6 +95,9 @@ class ArtistListFragment :
 
     override fun setOrderType(newOrder: SortOrder) {
         query = query.withSortOrder(newOrder)
+        // The A/B/C rail only means something in alphabetical order; anywhere else it is just
+        // a jumbled per-row letter and a misleading fast-scroll index.
+        artistRowBinder?.enableSections = newOrder == SortOrder.BY_NAME
         listModel.apply(query)
     }
 

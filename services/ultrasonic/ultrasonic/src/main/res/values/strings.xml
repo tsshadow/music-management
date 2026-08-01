@@ -204,6 +204,14 @@
     <string name="select_artist.all_folders">All Folders</string>
     <string name="select_artist.empty">No artists found</string>
     <string name="select_artist.folder">Select Folder</string>
+    <plurals name="select_artist.subtitle_albums">
+        <item quantity="one">%d album</item>
+        <item quantity="other">%d albums</item>
+    </plurals>
+    <plurals name="select_artist.subtitle_tracks">
+        <item quantity="one">%d track</item>
+        <item quantity="other">%d tracks</item>
+    </plurals>
     <string name="select_genre.empty">No genres found</string>
     <string name="select_mood.empty">No moods found</string>
     <string name="select_year.empty">No years found</string>

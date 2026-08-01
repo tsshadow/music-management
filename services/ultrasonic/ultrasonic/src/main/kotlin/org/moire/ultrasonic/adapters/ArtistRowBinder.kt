@@ -7,6 +7,7 @@
 
 package org.moire.ultrasonic.adapters
 
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
@@ -37,15 +38,16 @@ import org.moire.ultrasonic.util.Util
  * "12 albums · 143 tracks", leaving out whatever the server did not report. Folder indexes carry
  * neither count, so they get no subtitle at all.
  */
-fun artistSubtitle(item: ArtistOrIndex): String? {
+fun artistSubtitle(item: ArtistOrIndex, context: Context): String? {
     if (item !is Artist) return null
 
+    val resources = context.resources
     val parts = mutableListOf<String>()
     item.albumCount?.takeIf { it > 0 }?.let {
-        parts += if (it == 1L) "1 album" else "$it albums"
+        parts += resources.getQuantityString(R.plurals.select_artist_subtitle_albums, it.toInt(), it)
     }
     item.songCount?.takeIf { it > 0 }?.let {
-        parts += if (it == 1L) "1 track" else "$it tracks"
+        parts += resources.getQuantityString(R.plurals.select_artist_subtitle_tracks, it.toInt(), it)
     }
 
     return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
@@ -53,11 +55,15 @@ fun artistSubtitle(item: ArtistOrIndex): String? {
 
 /**
  * Creates a Row in a RecyclerView which contains the details of an Artist
+ *
+ * @param enableSections Whether to show the A/B/C fast-scroll section rail. Only meaningful when
+ * the list is in alphabetical order; the caller is responsible for turning it off for any other
+ * sort, where the per-row letter would be noise rather than a useful index.
  */
 class ArtistRowBinder(
     val onItemClick: (ArtistOrIndex) -> Unit,
     val onContextMenuClick: (MenuItem, ArtistOrIndex) -> Boolean,
-    private val enableSections: Boolean = true
+    var enableSections: Boolean = true
 ) : ItemViewBinder<ArtistOrIndex, ArtistRowBinder.ViewHolder>(),
     KoinComponent,
     Utils.SectionedBinder {
@@ -67,7 +73,7 @@ class ArtistRowBinder(
 
     override fun onBindViewHolder(holder: ViewHolder, item: ArtistOrIndex) {
         holder.textView.text = item.name
-        val subtitle = artistSubtitle(item)
+        val subtitle = artistSubtitle(item, holder.itemView.context)
         holder.subtitle.text = subtitle
         holder.subtitle.isVisible = subtitle != null
         holder.section.text = getSectionForDisplay(item)

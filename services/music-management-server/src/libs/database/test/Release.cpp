@@ -1662,6 +1662,9 @@ namespace lms::db::tests
         ScopedRelease releaseA{ session, "releaseA" };
         ScopedRelease releaseB{ session, "releaseB" };
         ScopedRelease releaseC{ session, "releaseC" };
+        // releaseD ties releaseB on track count: proves the tie is broken by sort_name rather
+        // than by insertion/creation order (releaseB was created first, but "aTie" < "bTie").
+        ScopedRelease releaseD{ session, "releaseD" };
 
         ScopedTrack trackA1{ session };
         ScopedTrack trackA2{ session };
@@ -1669,6 +1672,8 @@ namespace lms::db::tests
         ScopedTrack trackB1{ session };
         ScopedTrack trackB2{ session };
         ScopedTrack trackC1{ session };
+        ScopedTrack trackD1{ session };
+        ScopedTrack trackD2{ session };
 
         {
             auto transaction{ session.createWriteTransaction() };
@@ -1678,15 +1683,50 @@ namespace lms::db::tests
             trackB1.get().modify()->setRelease(releaseB.get());
             trackB2.get().modify()->setRelease(releaseB.get());
             trackC1.get().modify()->setRelease(releaseC.get());
+            trackD1.get().modify()->setRelease(releaseD.get());
+            trackD2.get().modify()->setRelease(releaseD.get());
+
+            releaseB.get().modify()->setSortName("bTie");
+            releaseD.get().modify()->setSortName("aTie");
         }
 
         {
             auto transaction{ session.createReadTransaction() };
             const auto releases{ Release::findIds(session, Release::FindParameters{}.setSortMethod(ReleaseSortMethod::TrackCountDesc)) };
-            ASSERT_EQ(releases.results.size(), 3);
+            ASSERT_EQ(releases.results.size(), 4);
             EXPECT_EQ(releases.results[0], releaseA.getId());
-            EXPECT_EQ(releases.results[1], releaseB.getId());
-            EXPECT_EQ(releases.results[2], releaseC.getId());
+            EXPECT_EQ(releases.results[1], releaseD.getId());
+            EXPECT_EQ(releases.results[2], releaseB.getId());
+            EXPECT_EQ(releases.results[3], releaseC.getId());
+        }
+    }
+
+    TEST_F(DatabaseFixture, Release_getCountTrackCountDesc)
+    {
+        // Regression test: Release::getCount reuses the same createQuery helper as find/findIds.
+        // TrackCountDesc needs a GROUP BY to aggregate the track count correctly for find/findIds,
+        // but that GROUP BY must not leak into getCount's "COUNT(DISTINCT r.id)" aggregate select,
+        // or it would turn a single total row into one row per matching release.
+        ScopedRelease releaseA{ session, "releaseA" };
+        ScopedRelease releaseB{ session, "releaseB" };
+        ScopedRelease releaseC{ session, "releaseC" };
+
+        ScopedTrack trackA1{ session };
+        ScopedTrack trackA2{ session };
+        ScopedTrack trackB1{ session };
+        ScopedTrack trackC1{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            trackA1.get().modify()->setRelease(releaseA.get());
+            trackA2.get().modify()->setRelease(releaseA.get());
+            trackB1.get().modify()->setRelease(releaseB.get());
+            trackC1.get().modify()->setRelease(releaseC.get());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(Release::getCount(session, Release::FindParameters{}.setSortMethod(ReleaseSortMethod::TrackCountDesc)), 3);
         }
     }
 

@@ -19,9 +19,14 @@ except ImportError:
     mutagen.__path__ = []
     sys.modules['mutagen'] = mutagen
 mutagen.MutagenError = getattr(mutagen, 'MutagenError', Exception)
-cache_mod = types.ModuleType('services.common.Helpers.Cache')
-cache_mod.databaseHelpers = {'library_artists': MagicMock()}
-sys.modules['services.common.Helpers.Cache'] = cache_mod
+# The shared Cache stub from mock_base already carries a MagicMock for every helper
+# the rest of the suite expects. Replacing the whole module here used to wipe those
+# out for every test that ran afterwards, so only fill in what is missing.
+if 'services.common.Helpers.Cache' not in sys.modules:
+    cache_mod = types.ModuleType('services.common.Helpers.Cache')
+    cache_mod.databaseHelpers = {}
+    sys.modules['services.common.Helpers.Cache'] = cache_mod
+sys.modules['services.common.Helpers.Cache'].databaseHelpers.setdefault('library_artists', MagicMock())
 from services.tagger.Song.rules.TagResult import TagResult, TagResultType
 from services.other import artistfixer
 

@@ -1,4 +1,5 @@
 <script >
+  import { t } from '../../i18n/index.js';
   import { onDestroy } from 'svelte';
   import { Cloud, ExternalLink, Trash2, Plus, Search, Play, Timer, RotateCcw } from '@lucide/svelte';
   import { formatDuration, describeBackoff, changedValues } from '../downloaderTiming';
@@ -64,7 +65,7 @@
       timingLoaded = true;
       await loadRateState();
     } catch (err) {
-      onError("Kon de timing-instellingen niet laden.");
+      onError($t('management.downloaders.timingLoadFailed'));
     } finally {
       timingLoading = false;
     }
@@ -86,7 +87,7 @@
     if (!entry) return;
     const updates = changedValues(entry.fields, edited[source] || {});
     if (!Object.keys(updates).length) {
-      onMessage("Niets gewijzigd.");
+      onMessage($t('management.downloaders.nothingChanged'));
       return;
     }
     savingSource = source;
@@ -141,7 +142,7 @@
         body: JSON.stringify({ name: newAccountName, id: newAccountId || null })
       });
       if (res.ok) {
-        onMessage("Account toegevoegd!");
+        onMessage($t('management.downloaders.accountAdded'));
         newAccountName = '';
         newAccountId = '';
         refreshDownloaders();
@@ -176,7 +177,7 @@
         body: JSON.stringify({ name: newAccountName })
       });
       if (res.ok) {
-        onMessage("YouTube kanaal toegevoegd!");
+        onMessage($t('management.downloaders.channelAdded'));
         newAccountName = '';
         refreshDownloaders();
       }
@@ -193,11 +194,11 @@
         headers: getHeaders()
       });
       if (res.ok) {
-        onMessage("Kanaal verwijderd.");
+        onMessage($t('management.downloaders.channelDeleted'));
         refreshDownloaders();
       }
     } catch (err) {
-      onError("Kon kanaal niet verwijderen.");
+      onError($t('management.downloaders.channelDeleteFailed'));
     }
   }
 </script>
@@ -205,7 +206,7 @@
 <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
   <header>
     <h1 class="text-6xl font-extrabold mb-4 tracking-tighter">Downloaders</h1>
-    <p class="text-spotify-lightgray text-lg">Beheer SoundCloud accounts en YouTube kanalen voor automatische imports.</p>
+    <p class="text-spotify-lightgray text-lg">{$t('management.downloaders.subtitle')}</p>
   </header>
 
   <div class="flex gap-6 border-b border-white border-opacity-10">
@@ -241,23 +242,23 @@
   {#if downloaderSubTab === 'soundcloud'}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300">
       <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 space-y-6">
-        <h3 class="text-xl font-bold flex items-center gap-2"><Plus class="text-spotify-green" /> Account Toevoegen</h3>
+        <h3 class="text-xl font-bold flex items-center gap-2"><Plus class="text-spotify-green" /> {$t('management.downloaders.addAccount')}</h3>
         <form on:submit|preventDefault={addAccount} class="space-y-4">
           <div>
-            <label for="accountSlug" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Account Slug (URL)</label>
-            <input id="accountSlug" type="text" bind:value={newAccountName} placeholder="bijv: monstercat" class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
+            <label for="accountSlug" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">{$t('management.downloaders.accountSlug')}</label>
+            <input id="accountSlug" type="text" bind:value={newAccountName} placeholder={$t('management.downloaders.accountSlugPlaceholder')} class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
           </div>
           <div>
-            <label for="soundcloudId" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">SoundCloud ID (Optioneel)</label>
+            <label for="soundcloudId" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">{$t('management.downloaders.soundcloudId')}</label>
             <input id="soundcloudId" type="text" bind:value={newAccountId} placeholder="123456" class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
           </div>
-          <button type="submit" class="w-full bg-spotify-green text-black font-extrabold py-3 rounded-full hover:scale-105 transition-transform">TOEVOEGEN</button>
+          <button type="submit" class="w-full bg-spotify-green text-black font-extrabold py-3 rounded-full hover:scale-105 transition-transform">{$t('management.downloaders.add')}</button>
         </form>
       </div>
       <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
         <table class="w-full text-left">
           <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
-            <tr><th class="p-4">Account</th><th class="p-4 text-right">Acties</th></tr>
+            <tr><th class="p-4">{$t('management.downloaders.account')}</th><th class="p-4 text-right">{$t('management.genres.actions')}</th></tr>
           </thead>
           <tbody class="divide-y divide-spotify-gray divide-opacity-30">
             {#each accounts as account (account.name)}
@@ -281,27 +282,27 @@
   {:else if downloaderSubTab === 'youtube'}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300">
       <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 space-y-6">
-        <h3 class="text-xl font-bold mb-6 flex items-center gap-2"><Search class="text-spotify-green" /> Snel Toevoegen</h3>
+        <h3 class="text-xl font-bold mb-6 flex items-center gap-2"><Search class="text-spotify-green" /> {$t('management.downloaders.quickAdd')}</h3>
         <form on:submit|preventDefault={addYoutubeAccount} class="space-y-4">
           <div class="flex gap-2">
-            <input type="text" bind:value={newAccountName} placeholder="Channel Handle of ID..." class="flex-1 bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
-            <button type="submit" class="bg-spotify-green text-black font-extrabold px-6 rounded-md hover:scale-105 transition-transform">ADD</button>
+            <input type="text" bind:value={newAccountName} placeholder={$t('management.downloaders.channelPlaceholder')} class="flex-1 bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
+            <button type="submit" class="bg-spotify-green text-black font-extrabold px-6 rounded-md hover:scale-105 transition-transform">{$t('management.downloaders.addShort')}</button>
           </div>
-          <p class="text-xs text-spotify-lightgray italic">Voeg een kanaal toe aan de automatische scanner.</p>
+          <p class="text-xs text-spotify-lightgray italic">{$t('management.downloaders.quickAddHelp')}</p>
         </form>
 
         <div class="pt-6 border-t border-white border-opacity-5">
-          <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><Play class="text-red-500" /> Handmatig Downloaden</h3>
+          <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><Play class="text-red-500" /> {$t('management.downloaders.manualDownload')}</h3>
           <div class="flex gap-2">
-            <input type="text" placeholder="YouTube Video URL..." class="flex-1 bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
-            <button class="bg-white text-black font-extrabold px-6 rounded-md hover:scale-105 transition-transform">FETCH</button>
+            <input type="text" placeholder={$t('management.downloaders.videoUrlPlaceholder')} class="flex-1 bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
+            <button class="bg-white text-black font-extrabold px-6 rounded-md hover:scale-105 transition-transform">{$t('management.downloaders.fetch')}</button>
           </div>
         </div>
       </div>
       <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
         <table class="w-full text-left">
           <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
-            <tr><th class="p-4">Kanaal</th><th class="p-4 text-right">Acties</th></tr>
+            <tr><th class="p-4">{$t('management.downloaders.channel')}</th><th class="p-4 text-right">{$t('management.genres.actions')}</th></tr>
           </thead>
           <tbody class="divide-y divide-spotify-gray divide-opacity-30">
             {#each youtubeAccounts as account (account.name)}
@@ -325,13 +326,11 @@
   {:else if downloaderSubTab === 'timing'}
     <div class="space-y-6 animate-in fade-in duration-300">
       <p class="text-spotify-lightgray text-sm max-w-3xl">
-        Hoe vaak en hoe snel de downloaders bij SoundCloud, YouTube en Telegram langsgaan.
-        Bij een 429 verdubbelt het systeem de wachttijden zelf en onthoudt dat over herstarts heen;
-        na genoeg schone rondes zakt het weer terug.
+        {$t('management.downloaders.timingHelp')}
       </p>
 
       {#if timingLoading && !timingLoaded}
-        <p class="text-spotify-lightgray">Instellingen laden...</p>
+        <p class="text-spotify-lightgray">{$t('management.downloaders.loadingSettings')}</p>
       {/if}
 
       {#each timingSources as entry (entry.source)}
@@ -357,7 +356,7 @@
                 on:click={() => resetBackoff(entry.source)}
                 class="flex items-center gap-2 text-sm font-bold text-spotify-lightgray hover:text-white border border-white border-opacity-10 rounded-full px-4 py-2"
               >
-                <RotateCcw size={14} /> Reset backoff
+                <RotateCcw size={14} /> {$t('management.downloaders.resetBackoff')}
               </button>
               <button
                 on:click={() => saveTiming(entry.source)}

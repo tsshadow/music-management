@@ -1,4 +1,5 @@
 <script>
+  import { t } from '../../i18n/index.js';
   import { onMount } from 'svelte';
   import {
     RefreshCw,
@@ -122,10 +123,10 @@
         await Promise.all([fetchGenres(), fetchWhiteGenres()]);
       } else {
         const data = await res.json();
-        onError(data.detail || 'Beslissing opslaan mislukt.');
+        onError(data.detail || $t('management.genres.saveFailed'));
       }
     } catch (err) {
-      onError('Netwerkfout bij opslaan beslissing.');
+      onError($t('management.genres.saveNetworkError'));
     }
   }
 
@@ -146,10 +147,10 @@
   <header class="flex justify-between items-end flex-wrap gap-4">
     <div>
       <h2 class="text-4xl font-extrabold mb-2 flex items-center gap-3">
-        <ListChecks class="text-spotify-green" size={32} /> Genre Curatie
+        <ListChecks class="text-spotify-green" size={32} /> {$t('management.tabs.genreCuration')}
       </h2>
       <p class="text-spotify-lightgray">
-        Keur genres goed, af of corrigeer ze. Beslissingen gelden vanaf de volgende tagger-run.
+        {$t('management.genres.subtitle')}
       </p>
     </div>
 
@@ -181,15 +182,15 @@
           <input
             type="text"
             bind:value={search}
-            placeholder="Zoek genre..."
-            aria-label="Zoek genre"
+            placeholder={$t('management.genres.searchPlaceholder')}
+            aria-label={$t('management.genres.searchLabel')}
             class="bg-spotify-dark border border-spotify-gray rounded-full pl-9 pr-4 py-2 text-sm focus:outline-none focus:border-spotify-green transition-colors"
           />
         </div>
         <button
           onclick={fetchGenres}
           disabled={loading}
-          aria-label="Vernieuwen"
+          aria-label={$t('common.refresh')}
           class="text-spotify-lightgray hover:text-white transition-colors disabled:opacity-50"
         >
           <RefreshCw size={18} class={loading ? 'animate-spin' : ''} />
@@ -220,11 +221,11 @@
           <table class="w-full text-left text-sm">
             <thead>
               <tr class="bg-white/5 text-spotify-lightgray text-[10px] uppercase tracking-wider">
-                <th class="p-4">Genre</th>
-                <th class="p-4">Voorkomens</th>
-                <th class="p-4">Resultaat</th>
-                <th class="p-4">Beslissing</th>
-                <th class="p-4 text-right">Acties</th>
+                <th class="p-4">{$t('nav.genres')}</th>
+                <th class="p-4">{$t('management.genres.occurrences')}</th>
+                <th class="p-4">{$t('management.genres.outcome')}</th>
+                <th class="p-4">{$t('management.genres.decision')}</th>
+                <th class="p-4 text-right">{$t('management.genres.actions')}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-spotify-gray divide-opacity-30">
@@ -250,7 +251,7 @@
                           onclick={() => decide(row, WHITE)}
                           class="bg-spotify-green text-black px-3 py-1.5 rounded-full font-bold text-xs transition-transform hover:scale-105 flex items-center gap-1"
                         >
-                          <Check size={14} /> Goedkeuren
+                          <Check size={14} /> {$t('management.genres.approve')}
                         </button>
                       {/if}
                       {#if row.state !== BLACK || (row.canonical_targets || []).length}
@@ -258,14 +259,14 @@
                           onclick={() => decide(row, BLACK)}
                           class="bg-red-500/10 text-red-500 border border-red-500/20 px-3 py-1.5 rounded-full font-bold text-xs transition-transform hover:scale-105 flex items-center gap-1"
                         >
-                          <X size={14} /> Afkeuren
+                          <X size={14} /> {$t('management.genres.reject')}
                         </button>
                       {/if}
                       <button
                         onclick={() => openCorrection(row)}
                         class="bg-white/10 text-white px-3 py-1.5 rounded-full font-bold text-xs transition-transform hover:scale-105 flex items-center gap-1"
                       >
-                        <Replace size={14} /> Corrigeren
+                        <Replace size={14} /> {$t('management.genres.correct')}
                       </button>
                     </div>
                   </td>
@@ -286,34 +287,33 @@
         <Replace class="text-spotify-green" /> {deciding.name}
       </h3>
       <p class="text-spotify-lightgray mb-6">
-        Kies wat er met dit genre gebeurt. Een correctie vervangt het genre door een goedgekeurd
-        genre, ook als je het genre zelf afkeurt.
+        {$t('management.genres.decisionHelp')}
       </p>
 
       <div class="mb-6">
-        <span class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">Status</span>
+        <span class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">{$t('management.health.status')}</span>
         <div class="flex gap-2">
           <button
             class="flex-1 py-2 rounded-full font-bold text-sm transition-all {decisionState === WHITE ? 'bg-spotify-green text-black' : 'bg-white/10 text-white hover:bg-white/20'}"
             onclick={() => (decisionState = WHITE)}
           >
-            Goedkeuren
+            {$t('management.genres.approve')}
           </button>
           <button
             class="flex-1 py-2 rounded-full font-bold text-sm transition-all {decisionState === BLACK ? 'bg-red-600 text-white' : 'bg-white/10 text-white hover:bg-white/20'}"
             onclick={() => (decisionState = BLACK)}
           >
-            Afkeuren
+            {$t('management.genres.reject')}
           </button>
         </div>
       </div>
 
       <div class="mb-6">
         <span class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">
-          Corrigeren naar (optioneel, meerdere mag)
+          {$t('management.genres.correctTo')}
         </span>
         <p class="text-xs text-spotify-lightgray mb-2">
-          Kies er meerdere voor een samentrekking: <b>Upterror</b> is Uptempo Hardcore én Terror.
+          {$t('management.genres.pickMultiple')} <b>Upterror</b> is Uptempo Hardcore én Terror.
         </p>
         <div class="max-h-48 overflow-y-auto rounded-md border border-spotify-gray bg-spotify-gray bg-opacity-30 divide-y divide-white/5">
           {#each targets as target (target.id)}
@@ -327,13 +327,13 @@
               {target.name}
             </label>
           {:else}
-            <p class="px-3 py-2 text-sm text-spotify-lightgray">Nog geen goedgekeurde genres om naar te corrigeren.</p>
+            <p class="px-3 py-2 text-sm text-spotify-lightgray">{$t('management.genres.noApprovedGenres')}</p>
           {/each}
         </div>
       </div>
 
       <p class="text-sm text-spotify-lightgray mb-6">
-        Resultaat: <span class="text-white font-bold">{previewOutcome}</span>
+        {$t('management.genres.outcomeIs', { outcome: previewOutcome })}
       </p>
 
       {#if pendingDecision.error}

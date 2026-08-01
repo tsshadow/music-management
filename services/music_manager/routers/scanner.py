@@ -11,6 +11,7 @@ from services.common.config_store import ConfigStore as Settings
 from services.music_manager.database import get_db_connection
 from services.scanner.Song.ReadonlySong import ReadonlySong
 from services.tagger.Song.BaseSong import ExtensionNotSupportedException
+from services.common.Helpers.GenreRulesHelper import GenreRulesHelper, BLACK
 router = APIRouter(tags=['scanner'])
 logger = logging.getLogger('music-manager.scanner')
 
@@ -30,6 +31,10 @@ class ScannerManager:
         self.settings = Settings()
         self.music_path = self.settings.music_folder_path
         self._lock = threading.Lock()
+        # Curation state is read, never written: the tagger owns adding genres via
+        # record_unknown(). Preloading is deferred so constructing a ScannerManager
+        # (including at import time) never needs a database.
+        self.genre_helper = GenreRulesHelper(preload=False)
 
     def get_file_hash(self, path):
         return hashlib.sha256(path.encode('utf-8')).hexdigest()
@@ -58,6 +63,9 @@ class ScannerManager:
         if self._lock.locked():
             logger.warning('Scan already in progress, skipping full run')
             return
+        # A scan started after a curation decision must honour it, so the rules are
+        # refreshed per full run rather than cached for the process lifetime.
+        self.genre_helper.reload()
         with self._lock:
             logger.info(f'Starting scan of {self.music_path} (force={force})')
             conn = get_db_connection()
@@ -91,6 +99,37 @@ class ScannerManager:
         except Exception as e:
             logger.error(f'Error processing {full_path}: {e}')
         return False
+
+    def _resolve_genre_ids(self, song):
+        """Map a file's genre tags onto rules_genres ids.
+
+        White genres index under their curated name, so 'uptempo' lands on
+        'Uptempo Hardcore'. Black genres are dropped. Unknown genres index under
+        their raw name -- they are in the file and LMS shows them, so hiding them
+        would leave tracks looking genre-less. An expansion ('Upterror') yields
+        several targets. Order is preserved and duplicates removed.
+        """
+        genre_ids = []
+        for raw in song.genres() or []:
+            if not raw:
+                continue
+            for part in self.genre_helper.split_composite(raw):
+                decision = self.genre_helper.resolve(part)
+                if decision.state == BLACK:
+                    continue
+                for value in decision.values:
+                    row = self.genre_helper.get_row(value)
+                    if row is not None and row.id not in genre_ids:
+                        genre_ids.append(row.id)
+        return genre_ids
+
+    def _write_genres(self, cursor, track_id, genre_ids):
+        """Replace the track's genre rows, mirroring how library_track_artists is written."""
+        cursor.execute('DELETE FROM library_track_genres WHERE track_id = %s', (track_id,))
+        for genre_id in genre_ids:
+            cursor.execute(
+                'INSERT IGNORE INTO library_track_genres (track_id, genre_id) VALUES (%s, %s)',
+                (track_id, genre_id))
 
     def process_file(self, conn, path, force=False):
         path_hash = self.get_file_hash(path)
@@ -130,6 +169,7 @@ class ScannerManager:
             for i, a_id in enumerate(artist_ids):
                 role = 'primary' if i == 0 else 'featuring'
                 cursor.execute('INSERT IGNORE INTO library_track_artists (track_id, artist_id, role, position) VALUES (%s, %s, %s, %s)', (track_id, a_id, role, i))
+            self._write_genres(cursor, track_id, self._resolve_genre_ids(song))
             if label_id:
                 cursor.execute('INSERT IGNORE INTO library_track_labels (track_id, label_id) VALUES (%s, %s)', (track_id, label_id))
             cursor.execute('\n                INSERT INTO library_media_files (file_path, file_path_hash, file_mtime, file_size, track_id, duration_secs)\n                VALUES (%s, %s, %s, %s, %s, %s)\n                ON DUPLICATE KEY UPDATE file_mtime=%s, file_size=%s, track_id=%s, duration_secs=%s\n            ', (path, path_hash, mtime, size, track_id, duration, mtime, size, track_id, duration))

@@ -473,6 +473,21 @@ open class RESTMusicService(
         return url.toString()
     }
 
+    @Throws(Exception::class)
+    override fun getTranscodedStreamUrl(
+        id: String,
+        maxBitRate: Int?,
+        format: String?,
+        timeOffset: Int?
+    ): String {
+        // Same trick as getStreamUrl: let Retrofit build the authenticated URL,
+        // then intercept it instead of actually streaming. The difference is
+        // that the transcoding parameters are passed through here.
+        val request = API.stream(id, maxBitRate, format, timeOffset).request()
+        val response = streamClient.newCall(request).execute()
+        return response.request.url.toString()
+    }
+
     private val streamClient by lazy {
         // Create a new modified okhttp client to intercept the URL
         val builder = subsonicAPIClient.okHttpClient.newBuilder()

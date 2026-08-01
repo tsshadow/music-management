@@ -3,9 +3,8 @@
   import SidebarHeader from '../SidebarHeader.svelte';
   import { 
     LayoutDashboard, 
-    Library, 
-    BarChart3, 
-    Image, 
+    Library,
+    Image,
     ListMusic, 
     Tags,
     ListChecks,
@@ -23,9 +22,7 @@
 
   const tabs = $derived([
     { id: 'overview', label: 'Overzicht', icon: LayoutDashboard },
-    { id: 'advanced-library', label: 'Advanced Library', icon: Library },
     { id: 'library', label: 'Bibliotheek', icon: Library },
-    { id: 'stats', label: 'Statistieken', icon: BarChart3 },
     { id: 'images', label: 'Afbeeldingen', icon: Image },
     { id: 'playlists', label: 'Afspeellijsten', icon: ListMusic },
     { id: 'tagger', label: 'Tagger', icon: Tags },

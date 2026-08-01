@@ -130,6 +130,20 @@ interface MumaAPIDefinition {
     fun uploadCrashReport(
         @Body request: CrashReportRequest
     ): Call<MumaStatusResponse>
+
+    // --- Radio (beta). The server owns the timeline; these are read-only. ---
+
+    @GET("api/radio/channels")
+    fun getRadioChannels(): Call<RadioChannelsResponse>
+
+    @GET("api/radio/{slug}/state")
+    fun getRadioState(
+        @Path("slug") slug: String
+    ): Call<RadioStateResponse>
+
+    /** DB-free on the server, so it is the endpoint to measure clock offset against. */
+    @GET("api/radio/time")
+    fun getRadioTime(): Call<RadioTimeResponse>
 }
 
 data class MumaTile(

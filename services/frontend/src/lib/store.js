@@ -100,6 +100,14 @@ export const isMobile = writable(false);
 export const syncMode = writable('off'); // 'off', 'host', 'follower-jam', 'follower-radio'
 persist("lms_sync_mode", syncMode);
 
+// Radio mode (beta): the slug of the channel this client is tuned into, or
+// null when radio is off. Deliberately NOT persisted -- a page reload should
+// not silently start playing audio the user did not ask for.
+export const radioChannel = writable(null);
+
+// The timeline entry currently on air, as returned by /api/radio/{slug}/state.
+export const radioNowPlaying = writable(null);
+
 export const highlightedTrackId = writable(null);
 
 export const favoriteGenres = writable([]);

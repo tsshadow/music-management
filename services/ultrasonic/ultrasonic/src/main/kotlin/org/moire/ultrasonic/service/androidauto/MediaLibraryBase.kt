@@ -109,6 +109,9 @@ abstract class MediaLibraryBase protected constructor() {
         internal const val MEDIA_LIBRARY_ID = "MEDIA_LIBRARY_ID"
         internal const val MEDIA_SONGS_ID = "MEDIA_SONGS_ID"
         internal const val MEDIA_LIVESETS_ID = "MEDIA_LIVESETS_ID"
+        internal const val MEDIA_FAVORITES_ID = "MEDIA_FAVORITES_ID"
+        internal const val MEDIA_FAVORITE_GENRES_ID = "MEDIA_FAVORITE_GENRES_ID"
+        internal const val MEDIA_FAVORITE_PLAYLISTS_ID = "MEDIA_FAVORITE_PLAYLISTS_ID"
         internal const val MEDIA_LAST_PLAYED_GENRES_SONGS = "MEDIA_LAST_PLAYED_GENRES_SONGS"
         internal const val MEDIA_LAST_PLAYED_GENRES_LIVESETS = "MEDIA_LAST_PLAYED_GENRES_LIVESETS"
         internal const val MEDIA_ALBUM_BY_YEAR_ID = "MEDIA_ALBUM_BY_YEAR_ID"
@@ -130,6 +133,11 @@ abstract class MediaLibraryBase protected constructor() {
         internal const val MEDIA_PODCAST_ITEM = "MEDIA_PODCAST_ITEM"
         internal const val MEDIA_PODCAST_EPISODE_ITEM = "MEDIA_PODCAST_EPISODE_ITEM"
         internal const val MEDIA_SEARCH_SONG_ITEM = "MEDIA_SEARCH_SONG_ITEM"
+
+        // Radio (beta): a browsable list of channels, each of which is playable.
+        // A playable id is "MEDIA_RADIO_ITEM|<channel slug>".
+        internal const val MEDIA_RADIO_ID = "MEDIA_RADIO_ID"
+        internal const val MEDIA_RADIO_ITEM = "MEDIA_RADIO_ITEM"
 
         // Genres -> songs
         internal const val MEDIA_GET_GENRES = "MEDIA_GET_GENRES"

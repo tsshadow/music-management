@@ -9,10 +9,13 @@ package org.moire.ultrasonic.service.androidauto
 
 import org.moire.ultrasonic.fragment.muma.TileInfo
 import org.moire.ultrasonic.fragment.muma.TileStorage
+import org.moire.ultrasonic.home.FavoriteGenres
 import android.content.Context
 import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
+import org.koin.java.KoinJavaComponent.inject
+import org.moire.ultrasonic.api.subsonic.SubsonicAPIClient
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_FOLDER_PLAYLISTS
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_PLAYLIST
 import androidx.media3.common.util.UnstableApi
@@ -73,6 +76,10 @@ class MediaLibraryBrowser(
 ) : MediaLibraryBase() {
     val musicService: MusicService get() = musicServiceProvider()
     lateinit var dataProvider: MediaLibraryDataProvider
+
+    // Radio talks to the MuMa backend rather than the Subsonic API, so it needs
+    // the client that owns the /muma base URL and the API-key interceptor.
+    private val subsonicAPIClient: SubsonicAPIClient by inject(SubsonicAPIClient::class.java)
 
     /**
      * Called when a {@link MediaBrowser} requests the root {@link MediaItem} by {@link
@@ -230,7 +237,11 @@ class MediaLibraryBrowser(
 
         return when (action) {
             MEDIA_ROOT_ID -> getRootItems()
+            MEDIA_RADIO_ID -> getRadioChannelItems()
             MEDIA_LIBRARY_ID -> getLibraryItems()
+            MEDIA_FAVORITES_ID -> getFavoriteItems()
+            MEDIA_FAVORITE_GENRES_ID -> getFavoriteGenreItems()
+            MEDIA_FAVORITE_PLAYLISTS_ID -> getFavoritePlaylistItems()
             MEDIA_SONGS_ID -> getSongsTabItems()
             MEDIA_LIVESETS_ID -> getLiveSetsTabItems()
             MEDIA_LAST_PLAYED_GENRES_SONGS -> getLastPlayedGenres("short")
@@ -448,9 +459,110 @@ class MediaLibraryBrowser(
             mediaType = MEDIA_TYPE_FOLDER_MIXED
         )
 
+        mediaItems.add(
+            R.string.main_radio_title,
+            MEDIA_RADIO_ID,
+            imageUri = Uri.parse("android.resource://$packageName/${R.drawable.ic_menu_podcasts}"),
+            isBrowsable = true,
+            mediaType = MEDIA_TYPE_FOLDER_MIXED
+        )
+
+        // Both sources are local, so this stays a no-network call, and a Favorites folder that
+        // leads nowhere never shows up in the car.
+        if (favoriteGenres().isNotEmpty() || favoriteTiles().isNotEmpty()) {
+            mediaItems.add(
+                R.string.favorites_title,
+                MEDIA_FAVORITES_ID,
+                imageUri = Uri.parse("android.resource://$packageName/${R.drawable.ic_star_full}"),
+                isBrowsable = true,
+                mediaType = MEDIA_TYPE_FOLDER_MIXED
+            )
+        }
+
         return Futures.immediateFuture(
             LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
         )
+    }
+
+    /**
+     * Lists the radio channels the server offers. Each one is playable rather
+     * than browsable: a channel has no track list a user could pick from, only
+     * whatever the server's timeline says is on air right now.
+     */
+    private fun getRadioChannelItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
+        serviceScope.future {
+            val mediaItems: MutableList<MediaItem> = ArrayList()
+            val channels = callWithErrorHandling {
+                subsonicAPIClient.mumaApi.api.getRadioChannels().execute().body()?.channels
+            } ?: emptyList()
+
+            for (channel in channels) {
+                mediaItems.add(
+                    title = channel.name,
+                    mediaId = listOf(MEDIA_RADIO_ITEM, channel.slug).joinToString("|"),
+                    isBrowsable = false,
+                    mediaType = MEDIA_TYPE_PLAYLIST
+                )
+            }
+            LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+        }
+
+    private fun getFavoriteItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val mediaItems: MutableList<MediaItem> = ArrayList()
+
+        if (favoriteGenres().isNotEmpty()) {
+            mediaItems.add(R.string.favorites_genres, MEDIA_FAVORITE_GENRES_ID)
+        }
+
+        if (favoriteTiles().isNotEmpty()) {
+            mediaItems.add(R.string.favorites_playlists, MEDIA_FAVORITE_PLAYLISTS_ID)
+        }
+
+        return Futures.immediateFuture(
+            LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+        )
+    }
+
+    /**
+     * One tap from the folder to the music: this skips the year and sort-method levels the Genres
+     * browse chain has. Livesets stay reachable through the Livesets tab, so the length is fixed.
+     */
+    private fun getFavoriteGenreItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val mediaItems: MutableList<MediaItem> = ArrayList()
+
+        favoriteGenres().forEach { genre ->
+            mediaItems.add(
+                genre,
+                "$MEDIA_GET_SONGS_BY_GENRE|short|$genre||AddedDesc",
+                isBrowsable = true,
+                mediaType = MEDIA_TYPE_PLAYLIST
+            )
+        }
+
+        return Futures.immediateFuture(
+            LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+        )
+    }
+
+    private fun getFavoritePlaylistItems():
+        ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val mediaItems: MutableList<MediaItem> = favoriteTiles()
+            .map { it.toMediaItem() }
+            .toMutableList()
+
+        return Futures.immediateFuture(
+            LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+        )
+    }
+
+    private fun favoriteGenres(): List<String> = FavoriteGenres.current()
+
+    /** The star in the filter modal, which until now was only stored, marks a tile as a favorite. */
+    private fun favoriteTiles(): List<TileInfo> {
+        val context = UApp.applicationContext()
+
+        return (TileStorage.loadTiles(context, "song") + TileStorage.loadTiles(context, "liveset"))
+            .filter { it.favorite }
     }
 
     private fun getLibraryItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {

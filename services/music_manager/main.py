@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from services.music_manager.database import get_db_connection
-from services.music_manager.routers import users, scrobbler, rating, stats, management, artist_images, notifications, library, tagger, scanner, jobs, config, user_requests, downloaders, diagnostics
+from services.music_manager.routers import users, scrobbler, rating, stats, management, artist_images, notifications, library, analytics, tagger, scanner, jobs, config, user_requests, radio, downloaders, diagnostics
 from services.music_manager.routers.users import run_lms_db_sync
 from services.music_manager.routers.tagger import run_tagger_loop
 from services.music_manager.routers.scanner import run_scanner_loop
@@ -28,6 +28,7 @@ app.include_router(stats.router, prefix="/api/stats")
 app.include_router(management.router, prefix="/api")
 app.include_router(artist_images.router, prefix="/api/artists")
 app.include_router(library.router, prefix="/api/library")
+app.include_router(analytics.router, prefix="/api/analytics")
 app.include_router(notifications.router, prefix="/api/notifications")
 app.include_router(tagger.router, prefix="/api/tagger")
 app.include_router(scanner.router, prefix="/api/scanner")
@@ -35,6 +36,7 @@ app.include_router(jobs.router, prefix="/api/jobs")
 app.include_router(config.router, prefix="/api/config")
 app.include_router(downloaders.router, prefix="/api/downloaders")
 app.include_router(user_requests.router, prefix="/api") # /api/auth/google, /api/user-requests/*
+app.include_router(radio.router, prefix="/api/radio")
 app.include_router(diagnostics.router, prefix="/api/diagnostics")
 
 @app.on_event('startup')
@@ -51,6 +53,7 @@ def startup_event():
                 artist_images.init_db(cursor)
                 notifications.init_db(cursor)
                 user_requests.init_db(cursor)
+                radio.init_db(cursor)
                 downloaders.init_db(cursor)
                 diagnostics.init_db(cursor)
             conn.commit()
@@ -61,6 +64,7 @@ def startup_event():
     threading.Thread(target=run_tagger_loop, args=(int(os.getenv('TAGGER_SLEEPTIME', '300')),), daemon=True).start()
     threading.Thread(target=run_scanner_loop, args=(int(os.getenv('SCANNER_SLEEPTIME', '3600')),), daemon=True).start()
     threading.Thread(target=run_fetch_missing, daemon=True).start()
+    threading.Thread(target=radio.run_radio_scheduler, daemon=True).start()
     start_ntfy_listener()
 
 @app.get('/health')

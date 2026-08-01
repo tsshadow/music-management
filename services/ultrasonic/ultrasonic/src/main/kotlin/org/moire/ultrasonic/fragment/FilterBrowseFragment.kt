@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
@@ -23,8 +24,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.moire.ultrasonic.R
+import org.moire.ultrasonic.adapters.Utils
 import org.moire.ultrasonic.home.BrowseCategory
 import org.moire.ultrasonic.home.CardStyle
+import org.moire.ultrasonic.home.FavoriteGenres
 import org.moire.ultrasonic.home.HomeCard
 import org.moire.ultrasonic.home.HomeCardAction
 import org.moire.ultrasonic.home.HomeCardAdapter
@@ -59,7 +62,7 @@ class FilterBrowseFragment : Fragment() {
     ): View = inflater.inflate(R.layout.fragment_browse_list, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        adapter = HomeCardAdapter(CardStyle.GRID, ::onCardClicked)
+        adapter = HomeCardAdapter(CardStyle.GRID, ::onCardClicked, ::onCardLongClicked)
 
         val recycler: RecyclerView = view.findViewById(R.id.browse_recycler)
         recycler.layoutManager = GridLayoutManager(requireContext(), COLUMNS)
@@ -95,9 +98,13 @@ class FilterBrowseFragment : Fragment() {
         val service = getMusicService()
 
         return when (category) {
-            BrowseCategory.GENRES ->
-                orderGenres(service.getGenres(refresh), rememberedGenres())
-                    .map { it.toHomeCard() }
+            BrowseCategory.GENRES -> {
+                FavoriteGenres.pull()
+                val favorites = FavoriteGenres.current()
+
+                orderGenres(service.getGenres(refresh), rememberedGenres(), favorites)
+                    .map { it.toHomeCard(isFavorite = favorites.contains(it.name)) }
+            }
 
             BrowseCategory.YEARS ->
                 service.getTags(refresh, TAG_YEAR, null, null)
@@ -118,6 +125,42 @@ class FilterBrowseFragment : Fragment() {
                         title = getString(R.string.library_rating_and_up, stars)
                     )
                 }
+        }
+    }
+
+    /**
+     * Genres can be favorited from here, which pins them to the top of this list and puts them in
+     * Android Auto's Favorites folder. Nothing else on this screen has a context menu.
+     */
+    private fun onCardLongClicked(view: View, card: HomeCard): Boolean {
+        if (card.type != HomeCardType.GENRE) return false
+
+        val popup = Utils.createPopupMenu(view, R.menu.context_menu_genre)
+        val isFavorite = card.isFavorite
+
+        popup.menu.findItem(R.id.menu_favorite_add)?.isVisible = !isFavorite
+        popup.menu.findItem(R.id.menu_favorite_remove)?.isVisible = isFavorite
+
+        popup.setOnMenuItemClickListener {
+            toggleFavorite(card.itemId)
+            true
+        }
+
+        return true
+    }
+
+    private fun toggleFavorite(genre: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val added = withContext(Dispatchers.IO) { FavoriteGenres.toggle(genre) }
+
+            val message = if (added) {
+                R.string.genre_favorite_added
+            } else {
+                R.string.genre_favorite_removed
+            }
+            Toast.makeText(requireContext(), getString(message, genre), Toast.LENGTH_SHORT).show()
+
+            load(refresh = false)
         }
     }
 

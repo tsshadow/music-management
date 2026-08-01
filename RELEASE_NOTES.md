@@ -11,6 +11,48 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.55 (2026-08-01)
+
+### 📻 Radiomodus (beta): één uitzending, iedereen tegelijk
+- De server bepaalt wat er speelt en houdt zelf de tijdlijn bij. Stem je later af, dan val je
+  midden in het nummer binnen — precies waar de rest ook zit — in plaats van weer bij seconde nul
+  te beginnen.
+- Werkt in de webspeler en in Android Auto. Loopt je speler iets uit de pas, dan wordt dat met een
+  onhoorbare snelheidscorrectie rechtgetrokken; alleen bij een groot verschil wordt er gesprongen.
+- Hiermee is ook het oude "jam"-probleem weg, waarbij een meeluisteraar de positie van de host
+  terugzette naar het begin.
+
+### 📚 Library Browser: één overzicht over je collectie
+- De tabbladen Library, Advanced Library en Statistieken zijn vervangen door één scherm.
+- Zoeken op genre werkte hier nooit: de genres uit je bestandstags werden helemaal niet
+  opgeslagen, en het scherm gaf bij elke serverfout een lege lijst zonder melding. Beide zijn
+  verholpen — de scanner leest genres nu mee, en een fout laat zich zien als een fout.
+
+### 📱 Android-app
+- **De interface is kleiner**, standaard 75% van het oude formaat, ongeveer even compact als
+  Spotify. Terug te zetten via Instellingen > Weergave > "Interface size".
+- **Favoriete genres**: houd een genre ingedrukt in Library → Genres. Favorieten staan bovenaan met
+  een sterretje, en het is dezelfde lijst als in de webspeler.
+- **Een Favorieten-map in Android Auto**, met favoriete genres en playlists. Een favoriet genre
+  begint direct met spelen, zonder eerst een jaar of sortering te kiezen.
+- **Geen crashmelding meer bij het opstarten.** De app zag elke normale afsluiting door Android als
+  een crash. Crashdetectie staat nu uit, en is aan te zetten onder Instellingen > Debug-opties.
+- **Tijdvak-tegels** op Nummers/Livesets in plaats van tegels die alleen op één genre filterden.
+
+### 🧰 Reparatiegereedschap voor dubbel geneste EP-mappen
+- EP's die twee keer zijn gedownload belandden een map te diep, waardoor ze een verkeerd label
+  kregen en de labellijsten vervuilden. `tools/fix_nested_ep_dirs.py` spoort die mappen op en vraagt
+  per geval wat ermee moet gebeuren.
+
+### 🖼️ Artist Images is nu een echte beheerpagina
+- Zoeken werkt weer. Je krijgt nu álle artiesten die op je zoekterm passen te zien — mét én zonder
+  afbeelding — in één lijst, met een filter voor "alle", "met afbeelding" en "zonder afbeelding".
+- Per artiest kun je nu zelf ingrijpen: automatisch laten zoeken, een bestand uploaden, een
+  afbeelding-URL plakken, de huidige afbeelding weghalen, of een eerder gevonden afbeelding alsnog
+  als hoofdafbeelding instellen.
+- Gaat er iets mis, dan zie je nu de foutmelding met een knop om het opnieuw te proberen, in plaats
+  van een lege pagina zonder uitleg.
+
 ## Global Version 0.0.54 (2026-08-01)
 
 ### 🔀 Genres met een schuine streep worden nu gesplitst

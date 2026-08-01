@@ -217,6 +217,21 @@ interface MusicService {
     @Throws(Exception::class)
     fun getStreamUrl(id: String, maxBitRate: Int?, format: String?): String?
 
+    /**
+     * Stream URL that actually carries maxBitRate/format/timeOffset as query
+     * parameters, unlike [getStreamUrl], which drops them.
+     *
+     * Radio needs all three: LMS only honours `timeOffset` on its transcoding
+     * path (MediaRetrieval.cpp:146-147), so joining a channel mid-track without
+     * an explicit format silently starts the track from the beginning.
+     */
+    fun getTranscodedStreamUrl(
+        id: String,
+        maxBitRate: Int?,
+        format: String?,
+        timeOffset: Int?
+    ): String?
+
     fun isJukeboxAvailable(): Boolean
 
     @Throws(Exception::class)

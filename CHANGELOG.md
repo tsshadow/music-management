@@ -7,6 +7,107 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.55] - 2026-08-01
+
+### Added
+- **Radio mode (beta): one server-owned programme, any number of listeners in sync.** The server
+  publishes a timeline of tracks with absolute `started_at` timestamps and a scheduler keeps it
+  filled ten minutes ahead, so a channel plays with nobody listening and a late joiner lands mid-track
+  at the right spot. Clients never push state: they measure their clock offset against a DB-free
+  `/api/radio/time`, derive `position = serverNow - started_at`, and close drift with a hard seek
+  above 3 seconds or an inaudible `playbackRate` nudge below it. Available in the web player and as a
+  "Radio" entry in Android Auto, where skip and seek are removed from the player commands so the car
+  greys them out. One channel (`main`, whole library) ships enabled; the schema already carries a
+  `genre` per channel, so genre channels need a row rather than a migration. See `docs/radio-mode.md`.
+
+### Fixed
+- **Jam followers wiped the host's play position.** The reactive push effect ran for followers too,
+  and a follower's `savePlayQueue` call omits `position`, which the server stores as `0`
+  (`handleSavePlayQueueCommon` reads it as `value_or(0)`). Every follower echo therefore reset the
+  host's progress to the start of the track and its `playing` flag to false — the "jumping" that made
+  the old sync modes unusable. Only the host writes state now; followers still send explicit
+  play/pause/next/previous commands.
+
+- **Library Browser, replacing the Library, Advanced Library and Statistics tabs.** One view over the
+  collection with facet filters for genre, label, artist, BPM range and release year that intersect,
+  distributions that follow the active filter, and a header reporting how much of the current selection
+  actually has BPM, genre and artist data — so a thin histogram is not mistaken for a thin collection.
+- **`/api/analytics` endpoints for filtered aggregations:** summary with data coverage, genre
+  distribution, BPM and release-year histograms, top artists, top labels, and artist type-ahead. The
+  path names the metric and the query parameters name the scope, so an artist's BPM spread is
+  `bpm-histogram?artist=X` rather than a new endpoint. A later player page can reuse them unchanged.
+- **The scanner now indexes genres from file tags into `library_track_genres`.** It already read every
+  file's tags for artist, label, title and duration and simply skipped genre, although
+  `BaseSong.genres()` returns it — which is why LMS knew genres the management UI did not. Resolution
+  goes through `GenreRulesHelper`, so approved genres index under their curated name, rejected ones are
+  dropped, and genres awaiting curation index under their raw name and are grouped separately in the
+  sidebar.
+
+### Fixed
+- **`/api/library/advanced` returned HTTP 500 for every request.** It selected `musical_key`, `energy`,
+  `danceability`, `valence` and `popularity`, none of which exist in the database: `db_init.py` lists
+  them in a `CREATE TABLE IF NOT EXISTS` that is a no-op against an existing table, and no `ALTER TABLE`
+  exists anywhere. The frontend never checked `res.ok`, so that failure rendered as "no tracks found" —
+  which is how a completely broken page stayed invisible. The columns are removed rather than added,
+  since nothing writes them.
+- **`/api/library/genres` always returned an empty list**, because it joined `rules_genres` against
+  `library_track_genres`, a table with no rows. The genre sidebar was therefore always empty and the
+  genre filter always matched nothing.
+- **`library_track_genres` was never created on a fresh database.** Its `CREATE` names a foreign key to
+  `rules_genres` but ran before that table existed, and the failure was swallowed by a debug-level
+  `except`. It survived in production only because an older migration had created it.
+- **The duration column in the track list always showed `-`.** The frontend rendered
+  `track.duration_secs`, which the query never selected.
+
+### Changed
+- **Popular genres now count curated genres instead of machine-learning predictions**, so the figures on
+  Overview change. `top_genres` previously unioned `library_track_genres` with `ml_genre`, which was
+  harmless only while the first table was empty; once it has rows, a track carrying the same genre in
+  its tag and its prediction would be counted twice.
+- **Dynamic playlist previews match more tracks**, since their genre rules no longer fall back to
+  machine-learning predictions alone. This affects the preview in the web UI only; Ultrasonic resolves
+  its playlists elsewhere.
+
+### Migration
+- Run `POST /api/scanner/scan/all?force=true` once after deploying, to populate `library_track_genres`
+  for the existing library. The scanner skips files whose size and modification time are unchanged, so
+  without the forced run only files touched later get genres. Genre coverage in the browser header
+  shows the progress; before the scan it reads 0%.
+
+- **Android: an "Interface size" setting, defaulting to 75%.** Ultrasonic's rows and type were about
+  a quarter larger than Spotify's, so noticeably less fit on screen. The layouts hardcode dp values,
+  so the scale is applied by wrapping the activity's context with a reduced `densityDpi` instead of
+  touching ~60 layout files. See `services/ultrasonic/ultrasonic/src/main/assets/CHANGELOG.md`.
+
+- **The Artist Images tab is now a real image manager.** Per artist you can let it search
+  automatically, upload a file, paste an image URL, remove the current image, or promote one of the
+  previously fetched images to primary. Results can be filtered on all / with image / without image
+  and are paged, and a new `/api/artists/manage/search` endpoint returns every matching artist —
+  with or without an image — in a single call.
+
+### Fixed
+- **Searching in the Artist Images tab no longer shows an empty page.** The tab assigned any
+  response body straight into its result list, so an error response (or a name containing `&` or
+  `#`, which was never URL-encoded) produced a page with neither results nor a message. It now
+  checks the response, reports the backend's error with a retry button, and debounces typing.
+  See `docs/bug-reports/022-artist-images-tab-search-shows-nothing.md`.
+
+- **Ultrasonic: favorite genres, shared with the web player.** Long-press a genre in Library →
+  Genres to add or remove it; favorites get a star and sort above everything else. It is the same
+  list the web UI keeps (`favoriteGenres` in the per-user `frontend` settings blob), so both clients
+  agree, and a local copy keeps it working offline.
+- **Ultrasonic: a Favorites folder in Android Auto**, holding favorite genres and the dynamic
+  playlists you starred. A genre plays straight from the folder instead of asking for a year and a
+  sort order first. The folder is hidden when there is nothing in it.
+
+### Changed
+- **Ultrasonic: the default tiles on Songs/Livesets are era tiles now.** The eight tiles that
+  filtered on a single genre added nothing next to the genre list, which gets you the same result on
+  its own. In their place three combinations the genre list cannot express in one go: Hardstyle
+  Classics (Mainstream Hardstyle, 2009-2017), Millennium Hardcore (Mainstream Hardcore, 2010-2015)
+  and Early Uptempo (Uptempo Hardcore, 2012-2017), each in random order. Existing installs keep the
+  tiles they already have.
+
 ## [0.0.54] - 2026-08-01
 
 ### Fixed
@@ -44,6 +145,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   artist. An unrecognised name is never removed: real artists exist that no streaming service lists.
   Every threshold is configurable, because what counts as good enough can only be judged from a report
   over the real library. No schema, tagger or UI change yet.
+
+### Changed
+- **Artist analysis defaults, corrected by the first run over the real library.** Names are no longer
+  removed for looking like a sentence: `Boaz Van De Beatz`, `We Are Loud` and `The Beholder
+  (Neophyte)` are real artists that score exactly like a stray quote, so the signals are reported and
+  the name is flagged instead. Splitting glued names is off by default after it took `Technotronic`
+  apart into `Techno` + `Tonic`. Matching is blocked by first character and length, without which a
+  51k-name run did not finish in twenty minutes.
+
+### Fixed
+- **Artists in non-Latin scripts are no longer proposed for deletion.** The letter check was
+  `[A-Za-z]` and the normalisation key was `a-z0-9`, so every Cyrillic name counted as having no
+  letters and collapsed to an empty key.
 
 ## [0.0.53] - 2026-08-01
 

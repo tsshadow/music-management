@@ -8,12 +8,24 @@
 # Requires a Linux GitLab Runner with Docker + Docker Compose available
 # (shell or docker executor with access to the host's Docker daemon).
 
-variables:
-  # Final attempt to unblock runner by moving gradle home outside project tree
-  # and using a fresh pipeline trigger. Fresh trigger v2.
-
 default:
   interruptible: true
+  hooks:
+    # The Ultrasonic jobs build inside a root-running Android SDK container and
+    # hand the workspace back via an EXIT trap (see scripts/test/ultrasonic-unit.sh
+    # and scripts/ci/ultrasonic-build-upload.sh). A hard kill of the runner host -
+    # reboot, LXC stop, OOM - skips that trap, so root-owned Gradle output is left
+    # in the build directory. Every later job then dies in get_sources, because
+    # `git clean` cannot remove those files ("Permission denied") and the failure
+    # comes before any script in this file gets to run. Reclaim ownership ahead of
+    # the checkout so the runner heals itself instead of wedging until someone
+    # SSHes in and chowns the build directory by hand.
+    pre_get_sources_script:
+      - |
+        if [ -d "$CI_PROJECT_DIR" ] && [ -n "$(find "$CI_PROJECT_DIR" ! -user "$(id -u)" -print -quit 2>/dev/null)" ]; then
+          echo "Reclaiming files not owned by $(id -un) in $CI_PROJECT_DIR"
+          docker run --rm -v "$CI_PROJECT_DIR:/workspace" alpine chown -R "$(id -u):$(id -g)" /workspace
+        fi
 
 stages:
   - unit

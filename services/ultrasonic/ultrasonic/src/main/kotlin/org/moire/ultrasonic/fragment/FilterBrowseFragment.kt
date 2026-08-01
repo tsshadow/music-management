@@ -25,7 +25,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.moire.ultrasonic.R
 import org.moire.ultrasonic.adapters.Utils
-import org.moire.ultrasonic.home.BROWSE_SORT_ORDERS
 import org.moire.ultrasonic.home.BrowseCategory
 import org.moire.ultrasonic.home.CardStyle
 import org.moire.ultrasonic.home.FavoriteGenres
@@ -34,6 +33,7 @@ import org.moire.ultrasonic.home.HomeCardAction
 import org.moire.ultrasonic.home.HomeCardAdapter
 import org.moire.ultrasonic.home.HomeCardNavigator
 import org.moire.ultrasonic.home.HomeCardType
+import org.moire.ultrasonic.home.browseSortOrdersFor
 import org.moire.ultrasonic.home.filterAndSortCards
 import org.moire.ultrasonic.home.orderGenres
 import org.moire.ultrasonic.home.toHomeCard
@@ -84,7 +84,7 @@ class FilterBrowseFragment : Fragment() {
         filterButtonBar.configureWithCapabilities(
             ViewCapabilities(
                 supportsGrid = false,
-                supportedSortOrders = BROWSE_SORT_ORDERS,
+                supportedSortOrders = browseSortOrdersFor(category),
                 supportsSearch = true
             )
         )

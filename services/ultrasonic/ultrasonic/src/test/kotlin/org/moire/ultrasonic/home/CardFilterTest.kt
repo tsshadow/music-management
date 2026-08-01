@@ -65,4 +65,46 @@ class CardFilterTest {
         filterAndSortCards(withoutCount, null, SortOrder.BY_TRACK_COUNT).last().title `should be equal to`
             "Unknown"
     }
+
+    @Test
+    fun `genres keep their curated order for BY_NAME`() {
+        filterAndSortCards(cards, null, SortOrder.BY_NAME).map { it.title } `should be equal to`
+            listOf("Hardcore", "Hardstyle", "Drum & Bass")
+    }
+
+    @Test
+    fun `non-genre categories sort alphabetically for BY_NAME`() {
+        val festivals = listOf(
+            HomeCard(type = HomeCardType.FESTIVAL, itemId = "Wasteland", title = "Wasteland"),
+            HomeCard(type = HomeCardType.FESTIVAL, itemId = "Decibel", title = "Decibel"),
+            HomeCard(type = HomeCardType.FESTIVAL, itemId = "Qlimax", title = "Qlimax")
+        )
+
+        filterAndSortCards(festivals, null, SortOrder.BY_NAME).map { it.title } `should be equal to`
+            listOf("Decibel", "Qlimax", "Wasteland")
+    }
+
+    @Test
+    fun `non-genre BY_NAME sorting ignores diacritics and case`() {
+        val festivals = listOf(
+            HomeCard(type = HomeCardType.FESTIVAL, itemId = "unity", title = "unity"),
+            HomeCard(type = HomeCardType.FESTIVAL, itemId = "Décibel", title = "Décibel")
+        )
+
+        filterAndSortCards(festivals, null, SortOrder.BY_NAME).map { it.title } `should be equal to`
+            listOf("Décibel", "unity")
+    }
+
+    @Test
+    fun `lineups and ratings only offer BY_NAME, which is the only order that does anything`() {
+        browseSortOrdersFor(BrowseCategory.LINEUPS) `should be equal to` listOf(SortOrder.BY_NAME)
+        browseSortOrdersFor(BrowseCategory.RATINGS) `should be equal to` listOf(SortOrder.BY_NAME)
+    }
+
+    @Test
+    fun `categories whose cards carry a count offer BY_TRACK_COUNT too`() {
+        browseSortOrdersFor(BrowseCategory.GENRES) `should be equal to` BROWSE_SORT_ORDERS
+        browseSortOrdersFor(BrowseCategory.YEARS) `should be equal to` BROWSE_SORT_ORDERS
+        browseSortOrdersFor(BrowseCategory.FESTIVALS) `should be equal to` BROWSE_SORT_ORDERS
+    }
 }

@@ -24,6 +24,13 @@
             a:key="@string/setting_key.theme"
             a:title="@string/settings.theme_title"
             app:iconSpaceReserved="false"/>
+        <ListPreference
+            a:defaultValue="75"
+            a:entries="@array/uiScaleNames"
+            a:entryValues="@array/uiScaleValues"
+            a:key="@string/setting_key.ui_scale"
+            a:title="@string/settings.ui_scale_title"
+            app:iconSpaceReserved="false"/>
         <CheckBoxPreference
             a:defaultValue="true"
             a:key="@string/setting_key.separate_home_history"

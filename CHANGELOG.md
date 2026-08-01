@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Android: an "Interface size" setting, defaulting to 75%.** Ultrasonic's rows and type were about
+  a quarter larger than Spotify's, so noticeably less fit on screen. The layouts hardcode dp values,
+  so the scale is applied by wrapping the activity's context with a reduced `densityDpi` instead of
+  touching ~60 layout files. See `services/ultrasonic/ultrasonic/src/main/assets/CHANGELOG.md`.
+
 ## [0.0.53] - 2026-08-01
 
 ### Fixed

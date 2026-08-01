@@ -26,7 +26,9 @@ import org.moire.ultrasonic.util.FileUtil
  */
 class HomeCardAdapter(
     private val style: CardStyle,
-    private val onClick: (HomeCard) -> Unit
+    private val onClick: (HomeCard) -> Unit,
+    /** Only the screens that offer a context menu pass this; the view it gets is the card. */
+    private val onLongClick: ((View, HomeCard) -> Boolean)? = null
 ) : RecyclerView.Adapter<HomeCardAdapter.ViewHolder>(),
     KoinComponent {
 
@@ -43,6 +45,9 @@ class HomeCardAdapter(
         val title: TextView = view.findViewById(R.id.card_title)
         val subtitle: TextView? = view.findViewById(R.id.card_subtitle)
         val image: ImageView = view.findViewById(R.id.card_image)
+
+        /** Grid cards only; the carousel layout has no room for it. */
+        val favorite: ImageView? = view.findViewById(R.id.card_favorite)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -61,6 +66,14 @@ class HomeCardAdapter(
         holder.title.text = card.title
         holder.subtitle?.text = card.subtitle ?: context.getString(subtitleResFor(card.type))
         holder.itemView.setOnClickListener { onClick(card) }
+        holder.favorite?.visibility = if (card.isFavorite) View.VISIBLE else View.GONE
+
+        val longClick = onLongClick
+        if (longClick == null) {
+            holder.itemView.setOnLongClickListener(null)
+        } else {
+            holder.itemView.setOnLongClickListener { view -> longClick(view, card) }
+        }
 
         imageLoaderProvider.executeOn {
             it.loadImage(

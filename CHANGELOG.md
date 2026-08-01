@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Ultrasonic: favorite genres, shared with the web player.** Long-press a genre in Library →
+  Genres to add or remove it; favorites get a star and sort above everything else. It is the same
+  list the web UI keeps (`favoriteGenres` in the per-user `frontend` settings blob), so both clients
+  agree, and a local copy keeps it working offline.
+- **Ultrasonic: a Favorites folder in Android Auto**, holding favorite genres and the dynamic
+  playlists you starred. A genre plays straight from the folder instead of asking for a year and a
+  sort order first. The folder is hidden when there is nothing in it.
+
 ## [0.0.54] - 2026-08-01
 
 ### Fixed

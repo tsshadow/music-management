@@ -1,4 +1,8 @@
 ## [Unreleased]
+### Added
+- **Favoriete genres.** Houd een genre ingedrukt in Library → Genres en kies "Aan favorieten toevoegen". Favorieten staan bovenaan de lijst met een sterretje. Het is dezelfde lijst als in de webspeler, dus wat je op je telefoon favoriet maakt, staat ook daar.
+- **Een Favorieten-map in Android Auto**, met daarin Favoriete genres en Favoriete playlists. Een favoriet genre begint direct met spelen, zonder eerst een jaar of sortering te kiezen. Onder playlists staan de tegels waarvan je het sterretje hebt aangezet in het filtermenu. De map verschijnt alleen als er iets in staat.
+
 ## [6.5.20] - 2026-07-31
 ### Added
 - **Uitlogknop** in het menu rechtsboven. Hij vraagt eerst om bevestiging, stopt het afspelen en brengt je terug naar het inlogscherm met je gebruikersnaam alvast ingevuld. Gedownloade muziek blijft gewoon op je toestel staan.

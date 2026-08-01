@@ -76,8 +76,10 @@ namespace lms::scrobbling::musicManagement
         db::Session& session{ _db.getTLSSession() };
         auto transaction{ session.createReadTransaction() };
 
+        // Scrobbling to the central MuMa database is on for every user: it is what
+        // feeds the shared listening history, so it is not an opt-out.
         const db::User::pointer user{ db::User::find(session, listen.userId) };
-        if (!user || !user->getMumaScrobblingEnabled())
+        if (!user)
             return;
 
         const db::Track::pointer track{ db::Track::find(session, listen.trackId) };

@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Server administration moved out of the player's settings screen and into the management view.**
+  The scanner (status, schedule, tag handling) and the media libraries are now management tabs of
+  their own, so everything that requires an administrator lives in one place. The player's settings
+  are personal settings only: general, advanced and about. The two separate scanner screens that
+  both polled `getScanStatus` on their own timer are merged into a single tab that only polls while
+  a scan is actually running.
+- **Subsonic API tokens are issued by an administrator**, from the user detail panel in the
+  management view, instead of every user minting their own in two different places. The music
+  server exposes them at `/muma/api/admin/subsonic-token`, which requires Subsonic admin
+  credentials.
+- **The about page is written for listeners**: the running version and the release notes, without
+  the developer-oriented links.
+- Scrobbling to the central MuMa database is on for every user. It was a per-user toggle that the
+  player's settings screen could set, which is not something individual users should opt out of.
+
+### Removed
+- **The "Audio (Web Player)" settings block.** Transcoding mode/format/bitrate and the ReplayGain
+  settings were never read back by `getUser`, never written by `updateUser`, and never consulted by
+  the player (which hardcodes its own stream parameters), so saving them silently did nothing.
+- **The user administration screen in the player's settings.** It wrote straight into the music
+  server's own user table, which the MuMa user sync then overwrote; the management view's user tab
+  is the single place where users are managed. Its non-functional "Scrobbling enabled" checkbox
+  (never read by `createUser`/`updateUser`) is gone with it.
+- **The ListenBrainz import button in the player's settings.** Importing listening history is an
+  administrative job and already exists, per user, in the management view's scrobble tab.
+
+### Fixed
+- An unset album sort method no longer makes the settings screen fall back to `107`, which is not a
+  valid `ReleaseSortMethod` and was written back to the database on the next save.
+
 ## [0.0.57] - 2026-08-01
 
 ### Fixed

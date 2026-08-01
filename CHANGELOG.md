@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.53] - 2026-08-01
+
 ### Fixed
 - **The genre curation migration never reached production.** `.gitignore` ignores `*.sql`, so
   `migrate_genre_states.sql` was silently never committed and 0.0.52 ran against the old

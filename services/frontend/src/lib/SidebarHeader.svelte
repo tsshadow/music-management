@@ -1,5 +1,6 @@
 <script>
   import { activeView, isAdmin } from './store.js';
+  import { t } from './i18n/index.js';
   import { Music, Settings2 } from '@lucide/svelte';
 
   const { onnavigate } = $props();
@@ -32,14 +33,14 @@
         onclick={() => setMode('player')}
       >
         <Music size={14} strokeWidth={2.5} />
-        Player
+        {$t('nav.player')}
       </button>
       <button 
         class="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-[13px] font-bold transition-all { isManagement ? 'bg-[#282828] text-white shadow-md scale-[1.02]' : 'text-[#b3b3b3] hover:text-white' }"
         onclick={() => setMode('management')}
       >
         <Settings2 size={14} strokeWidth={2.5} />
-        Beheer
+        {$t('nav.management')}
       </button>
     </div>
   {:else if $activeView === 'settings'}
@@ -48,7 +49,7 @@
       onclick={() => setMode('player')}
     >
       <Music size={14} strokeWidth={2.5} />
-      Terug naar Player
+      {$t('sidebar.backToPlayer')}
     </button>
   {/if}
 </div>

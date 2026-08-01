@@ -13,8 +13,20 @@ describe("LanguageSetting", () => {
   it("offers every shipped language, labelled in its own language", () => {
     render(LanguageSetting);
     const select = screen.getByRole("combobox");
-    expect([...select.options].map((o) => o.value)).toEqual(["en", "nl"]);
-    expect([...select.options].map((o) => o.text)).toEqual(["English", "Nederlands"]);
+    expect([...select.options].map((o) => o.value)).toEqual(["en", "nl", "sallands", "brabants"]);
+    expect([...select.options].map((o) => o.text)).toEqual([
+      "English",
+      "Nederlands",
+      "Sallaands",
+      "Brabants",
+    ]);
+  });
+
+  it("labels itself in the picked dialect", async () => {
+    render(LanguageSetting);
+    await fireEvent.change(screen.getByRole("combobox"), { target: { value: "sallands" } });
+    expect(get(locale)).toBe("sallands");
+    expect(screen.getByText("Toal")).toBeInTheDocument();
   });
 
   it("shows the active language as selected", () => {

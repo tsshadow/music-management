@@ -1,8 +1,30 @@
 {
+  "nav": {
+    "albums": "Albums",
+    "artists": "Artists",
+    "genres": "Genres",
+    "history": "History",
+    "home": "Home",
+    "labels": "Labels",
+    "library": "Library",
+    "management": "Management",
+    "player": "Player",
+    "playlists": "Playlists",
+    "releaseRadar": "Release Radar",
+    "sets": "Sets",
+    "songs": "Songs",
+    "starred": "Favourites"
+  },
   "settings": {
     "language": {
-      "title": "Language",
-      "help": "The language of the interface. Saved to your account, so it follows you to your other devices."
+      "help": "The language of the interface. Saved to your account, so it follows you to your other devices.",
+      "title": "Language"
     }
+  },
+  "sidebar": {
+    "backToPlayer": "Back to Player",
+    "favoriteGenres": "FAVOURITE GENRES",
+    "popularGenres": "POPULAR GENRES",
+    "toggleMode": "Toggle mode"
   }
 }

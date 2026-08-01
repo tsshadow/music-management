@@ -1,8 +1,30 @@
 {
+  "nav": {
+    "albums": "Albums",
+    "artists": "Artiesten",
+    "genres": "Genres",
+    "history": "Geschiedenis",
+    "home": "Home",
+    "labels": "Labels",
+    "library": "Bieb",
+    "management": "Beheer",
+    "player": "Player",
+    "playlists": "Afspeellijsten",
+    "releaseRadar": "Release Radar",
+    "sets": "Sets",
+    "songs": "Nummers",
+    "starred": "Favorieten"
+  },
   "settings": {
     "language": {
-      "title": "Taal",
-      "help": "De taal van de interface. Wordt opgeslagen bij je account, zodat hij meegaat naar je andere apparaten."
+      "help": "De taal van de interface. Wordt opgeslagen bij je account, zodat hij meegaat naar je andere apparaten.",
+      "title": "Taal"
     }
+  },
+  "sidebar": {
+    "backToPlayer": "Terug naar Player",
+    "favoriteGenres": "FAVORIETE GENRES",
+    "popularGenres": "POPULAIRE GENRES",
+    "toggleMode": "Modus wisselen"
   }
 }

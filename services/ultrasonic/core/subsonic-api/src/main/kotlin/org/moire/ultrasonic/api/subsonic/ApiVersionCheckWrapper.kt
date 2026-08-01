@@ -66,10 +66,12 @@ internal class ApiVersionCheckWrapper(
     override fun getArtists(
         musicFolderId: String?,
         offset: Int?,
-        count: Int?
+        count: Int?,
+        query: String?,
+        sortBy: String?
     ): Call<GetArtistsResponse> {
         checkVersion(V1_8_0)
-        return api.getArtists(musicFolderId, offset, count)
+        return api.getArtists(musicFolderId, offset, count, query, sortBy)
     }
 
     override fun star(id: String?, albumId: String?, artistId: String?): Call<SubsonicResponse> {

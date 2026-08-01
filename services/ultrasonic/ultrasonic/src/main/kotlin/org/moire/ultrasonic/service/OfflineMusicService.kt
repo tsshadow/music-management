@@ -141,7 +141,23 @@ class OfflineMusicService :
     }
 
     @Throws(OfflineException::class)
-    override fun getArtists(refresh: Boolean, offset: Int?, count: Int?): List<Artist> = cachedArtists.get()
+    override fun getArtists(
+        refresh: Boolean,
+        offset: Int?,
+        count: Int?,
+        query: String?,
+        sortBy: String?
+    ): List<Artist> {
+        val matching = cachedArtists.get().filter { artist ->
+            query == null || artist.name?.contains(query, ignoreCase = true) == true
+        }
+
+        return when (sortBy) {
+            null, "name" -> matching.sortedBy { it.name }
+            "trackCount" -> matching.sortedByDescending { it.songCount ?: 0L }
+            else -> throw OfflineException("This sort order is not available offline")
+        }
+    }
 
     // Library activity ordering is a server-side concept; there is nothing meaningful to show offline.
     override fun getArtistList(type: String, size: Int): List<Artist> = emptyList()

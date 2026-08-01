@@ -146,8 +146,19 @@ class CachedMusicService(private val musicService: MusicService) :
     }
 
     @Throws(Exception::class)
-    override fun getArtists(refresh: Boolean, offset: Int?, count: Int?): List<Artist> {
+    override fun getArtists(
+        refresh: Boolean,
+        offset: Int?,
+        count: Int?,
+        query: String?,
+        sortBy: String?
+    ): List<Artist> {
         checkSettingsChanged()
+
+        // Only the unfiltered, default-sorted list is worth caching.
+        if (query != null || (sortBy != null && sortBy != "name")) {
+            return musicService.getArtists(refresh, offset, count, query, sortBy)
+        }
 
         if (refresh) {
             cachedArtists.clear()
@@ -156,7 +167,7 @@ class CachedMusicService(private val musicService: MusicService) :
         var result = cachedArtists.get()
 
         if (result.isEmpty()) {
-            result = musicService.getArtists(refresh, offset, count)
+            result = musicService.getArtists(refresh, offset, count, query, sortBy)
             cachedArtists.set(result)
         }
         return result

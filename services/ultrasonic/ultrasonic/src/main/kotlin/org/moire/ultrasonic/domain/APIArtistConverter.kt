@@ -20,7 +20,9 @@ fun APIArtist.toDomainEntity(serverId: Int): Artist = Artist(
     // The server omits coverArt when an artist has no artwork, which Jackson turns into "".
     // Normalising it here keeps "no artwork" from looking like a usable id downstream.
     coverArt = this@toDomainEntity.coverArt.ifBlank { null },
-    name = this@toDomainEntity.name
+    name = this@toDomainEntity.name,
+    albumCount = this@toDomainEntity.albumCount.toLong(),
+    songCount = this@toDomainEntity.songCount.toLong()
 )
 
 // When we like to convert to an index (eg. a single directory).

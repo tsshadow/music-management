@@ -65,4 +65,21 @@ class APIArtistConverterTest : BaseTest() {
 
         converted.coverArt.shouldBeNull()
     }
+
+    @Test
+    fun `album and song counts survive the conversion`() {
+        val entity = Artist(id = "ar-1", name = "Angerfist", albumCount = 12, songCount = 143)
+
+        val convertedEntity = entity.toDomainEntity(serverId)
+
+        convertedEntity.albumCount `should be equal to` 12L
+        convertedEntity.songCount `should be equal to` 143L
+    }
+
+    @Test
+    fun `a missing song count is zero rather than absent`() {
+        val entity = Artist(id = "ar-1", name = "Angerfist")
+
+        entity.toDomainEntity(serverId).songCount `should be equal to` 0L
+    }
 }

@@ -52,9 +52,27 @@ class TestGenreRules(unittest.TestCase):
         file_path = '/tmp/Label/CAT/song.mp3'
         song = LabelSong(file_path)
         song.tag_collection.set_item(GENRE, 'uptempo')
-        self.db_helpers['genre_rules'].set_rows([GenreRow(1, 'Uptempo Hardcore', 'uptempo hardcore', WHITE, None), GenreRow(2, 'uptempo', 'uptempo', BLACK, 1)])
+        self.db_helpers['genre_rules'].set_rows([GenreRow(1, 'Uptempo Hardcore', 'uptempo hardcore', WHITE, None), GenreRow(2, 'uptempo', 'uptempo', BLACK, 1)], expansions={2: [1]})
         song.parse()
         self.assertEqual(song.genre(), 'Uptempo Hardcore')
+
+    def test_slash_separated_genres_become_two_genres(self):
+        """'Hardstyle/Hardcore' is a separator, not a genre name."""
+        file_path = '/tmp/Label/CAT/song.mp3'
+        song = LabelSong(file_path)
+        song.tag_collection.set_item(GENRE, 'Hardstyle/Hardcore')
+        self.db_helpers['genre_rules'].set_rows([GenreRow(1, 'Hardstyle', 'hardstyle', WHITE, None), GenreRow(2, 'Hardcore', 'hardcore', WHITE, None)])
+        song.parse()
+        self.assertEqual(song.genre(), 'Hardcore;Hardstyle')
+
+    def test_contraction_expands_into_both_genres(self):
+        """'Upterror' carries two genres at once."""
+        file_path = '/tmp/Label/CAT/song.mp3'
+        song = LabelSong(file_path)
+        song.tag_collection.set_item(GENRE, 'Upterror')
+        self.db_helpers['genre_rules'].set_rows([GenreRow(1, 'Uptempo Hardcore', 'uptempo hardcore', WHITE, None), GenreRow(2, 'Terror', 'terror', WHITE, None), GenreRow(3, 'Upterror', 'upterror', BLACK, None)], expansions={3: [1, 2]})
+        song.parse()
+        self.assertEqual(song.genre(), 'Terror;Uptempo Hardcore')
 
     def test_unknown_genre_is_queued_for_curation_and_left_in_the_tag(self):
         """Unknown genres are recorded but never silently approved."""

@@ -31,11 +31,14 @@ class ResolveGenreRule(TagRule):
         current_genres = genre_tag.to_array()
         resolved = []
         for genre in current_genres:
-            decision = self.helper.resolve(genre)
-            if decision.state == UNKNOWN:
-                self.helper.record_unknown(genre)
-            if decision.value:
-                resolved.append(decision.value)
+            # A composite such as 'Hardstyle/Hardcore' becomes two genres before
+            # anything is decided, so each half is judged on its own and the
+            # combination never reaches the curation queue.
+            for part in self.helper.split_composite(genre):
+                decision = self.helper.resolve(part)
+                if decision.state == UNKNOWN:
+                    self.helper.record_unknown(part)
+                resolved.extend(decision.values)
         resolved = sorted(set(resolved))
         if resolved != current_genres:
             logger.info('Resolved genres %s to %s for %s', current_genres, resolved, song.path())

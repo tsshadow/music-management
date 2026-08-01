@@ -19,18 +19,51 @@ sys.modules['mutagen.mp3'].MP3 = MockMP3
 MockEasyMP4Tags = type('EasyMP4Tags', (dict,), {'RegisterTextKey': staticmethod(lambda k, d: None)})
 MockEasyMP4Tags.__module__ = 'mutagen.easymp4'
 sys.modules['mutagen.easymp4'].EasyMP4Tags = MockEasyMP4Tags
+
+
+
+class MockPairIterDict(dict):
+    """Mutagen's Vorbis-comment containers iterate as (key, value) pairs, not as keys."""
+
+    def __iter__(self):
+        return iter(self.items())
+
+
+MockVCFLACDict = type('VCFLACDict', (MockPairIterDict,), {'__module__': 'mutagen.flac'})
+MockOggOpusVComment = type('OggOpusVComment', (MockPairIterDict,), {'__module__': 'mutagen.oggopus'})
+# ID3-backed and MP4 containers iterate as plain keys, so a dict subclass is enough.
+MockWaveID3 = type('_WaveID3', (dict,), {'__module__': 'mutagen.wave'})
+MockMP4Tags = type('MP4Tags', (dict,), {'__module__': 'mutagen.mp4'})
+
+
+class MockMP4FreeForm(bytes):
+    """MP4FreeForm is a bytes subclass; the tagger relies on .decode()."""
+    __module__ = 'mutagen.mp4'
+
+
+class MockTextFrame:
+    """Stand-in for an ID3 text frame (TPE1, TIT2, ...): what matters is `.text`."""
+    __module__ = 'mutagen.id3'
+
+    def __init__(self, encoding=3, text=None):
+        self.encoding = encoding
+        self.text = text if text is not None else []
+
+
 sys.modules['mutagen.flac'].FLAC = MagicMock
-sys.modules['mutagen.flac'].VCFLACDict = MagicMock
+sys.modules['mutagen.flac'].VCFLACDict = MockVCFLACDict
 sys.modules['mutagen.mp4'].MP4 = MagicMock
-sys.modules['mutagen.mp4'].MP4Tags = MagicMock
-sys.modules['mutagen.mp4'].MP4FreeForm = MagicMock
+sys.modules['mutagen.mp4'].MP4Tags = MockMP4Tags
+sys.modules['mutagen.mp4'].MP4FreeForm = MockMP4FreeForm
 sys.modules['mutagen.mp4'].MP4StreamInfoError = Exception
 sys.modules['mutagen.oggopus'].OggOpus = MagicMock
-sys.modules['mutagen.oggopus'].OggOpusVComment = MagicMock
+sys.modules['mutagen.oggopus'].OggOpusVComment = MockOggOpusVComment
 sys.modules['mutagen.wave'].WAVE = MagicMock
-sys.modules['mutagen.wave']._WaveID3 = MagicMock
+sys.modules['mutagen.wave']._WaveID3 = MockWaveID3
 sys.modules['mutagen.id3'].TXXX = MagicMock
-sys.modules['mutagen.id3'].TextFrame = MagicMock
+sys.modules['mutagen.id3'].TextFrame = MockTextFrame
+for _frame_name in ['TPE1', 'TPE2', 'TPE4', 'TIT2', 'TALB', 'TCON', 'TDRC', 'TRCK', 'TBPM', 'TPUB', 'TCOP']:
+    setattr(sys.modules['mutagen.id3'], _frame_name, type(_frame_name, (MockTextFrame,), {'__module__': 'mutagen.id3'}))
 os.environ.setdefault('import_folder_path', '/tmp/import')
 os.environ.setdefault('music_folder_path', '/mnt/music')
 os.environ.setdefault('eps_folder_path', '/tmp/eps')
@@ -40,6 +73,24 @@ os.environ.setdefault('DB_USER', 'user')
 os.environ.setdefault('DB_PORT', '0')
 os.environ.setdefault('DB_PASS', '')
 os.environ.setdefault('DB_DB', 'db')
+# patoolib shells out to real archive tools; the importer only ever needs the module
+# to exist and to expose PatoolError as a catchable exception class.
+patoolib_mod = types.ModuleType('patoolib')
+patoolib_util_mod = types.ModuleType('patoolib.util')
+patoolib_util_mod.PatoolError = type('PatoolError', (Exception,), {'__module__': 'patoolib.util'})
+patoolib_mod.util = patoolib_util_mod
+patoolib_mod.extract_archive = MagicMock()
+sys.modules['patoolib'] = patoolib_mod
+sys.modules['patoolib.util'] = patoolib_util_mod
+# librosa drags in numba, which is both slow and version-sensitive. BPM analysis is
+# only ever asserted through mocked return values, so a stub is enough.
+librosa_mod = types.ModuleType('librosa')
+librosa_beat_mod = types.ModuleType('librosa.beat')
+librosa_beat_mod.beat_track = lambda *a, **k: (0, None)
+librosa_mod.beat = librosa_beat_mod
+librosa_mod.load = lambda *a, **k: ([], 0)
+sys.modules['librosa'] = librosa_mod
+sys.modules['librosa.beat'] = librosa_beat_mod
 for mod_name in ['yt_dlp', 'yt_dlp.postprocessor', 'yt_dlp.utils']:
     m = types.ModuleType(mod_name)
     sys.modules[mod_name] = m
@@ -55,12 +106,16 @@ if 'yt_dlp.postprocessor' in sys.modules:
     pp_mod.PostProcessor = MockPostProcessor
     pp_mod.FFmpegMetadataPP = MockPostProcessor
     pp_mod.EmbedThumbnailPP = MockPostProcessor
-for mod_name in ['markdown', 'dotenv', 'pymysql', 'pymysql.err', 'dbutils', 'dbutils.pooled_db']:
+for mod_name in ['markdown', 'dotenv', 'pymysql', 'pymysql.err', 'pymysql.cursors', 'dbutils', 'dbutils.pooled_db']:
     # Always mock these to prevent real side effects during tests
     mock_mod = MagicMock()
     if mod_name == 'pymysql':
         mock_mod.err = MagicMock()
         mock_mod.err.OperationalError = type('OperationalError', (Exception,), {})
+    if mod_name == 'pymysql.cursors':
+        # `import pymysql.cursors` needs both the sys.modules entry and the attribute.
+        if 'pymysql' in sys.modules:
+            sys.modules['pymysql'].cursors = mock_mod
     if mod_name == 'pymysql.err':
         mock_mod.OperationalError = type('OperationalError', (Exception,), {})
         # Also ensure pymysql.err in sys.modules is consistent with pymysql.err attribute

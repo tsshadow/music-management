@@ -20,22 +20,13 @@ fi
 
 export PYTHONPATH="$ROOT_DIR:$ROOT_DIR/services:$PYTHONPATH"
 
-# Known-good test targets (see docs/testing-inventory.md for details per module).
+# Everything under services/ and tools/ is collected. This used to be a hand-maintained
+# allow-list, which silently left ~half the existing test files out of both the run and
+# the coverage figure. Discovery is governed by pytest.ini (python_files/norecursedirs)
+# and the root conftest.py; new test files are picked up without editing this script.
 TEST_TARGETS=(
-    "services/music_manager/tests/"
-    "services/importer/tests/"
-    "services/downloader/tests/"
-    "services/downloader/soundcloud/tests/"
-    "services/tests/YoutubeDownloaderTest.py"
-    "services/tests/YoutubeSongTest.py"
-    "services/tests/YoutubeSongProcessorTest.py"
-    "services/tests/YoutubeArchiveTest.py"
-    "services/tests/TelegramDownloaderTest.py"
-    "services/common/Helpers/GenreRulesHelperTest.py"
-    "services/common/Helpers/ArtistNameAnalyzerTest.py"
-    "services/tagger/Song/rules/ResolveGenreRuleTest.py"
-    "tools/test_tools_imports.py"
-    "tools/test_artist_curation_report.py"
+    "services/"
+    "tools/"
 )
 
 echo "--- Running music-management Python unit tests ---"

@@ -65,7 +65,8 @@
 - Some download tests may make real `yt-dlp`/SoundCloud calls — still needs to be verified whether these are mocked for CI (Phase 3.2 concern)
 
 ### ml-analyzer
-- Own `db_init.sql`, `requirements.txt`, no visible tests found in this pass
+- Own `db_init.sql`, `requirements.txt`, still no tests
+- The only remaining large uncovered block in the Python suite (~715 statements at 0%). Its dependencies (`sqlalchemy`, `pandas`, `scikit-learn`, `joblib`) are in its own `requirements.txt` but not in the repo root one, so tests for it would either need those added to the CI environment or an `importorskip` guard that makes them silently skip there
 - Compose service is commented out in `docker-compose.yml` (inactive)
 
 ### ultrasonic (Android/Kotlin)
@@ -74,11 +75,12 @@
 - No instrumentation/Android Auto tests found in this pass (to confirm in a later step)
 
 ### common
-- Shared helpers (`config_store.py`, `db_init.py`, `job_manager.py`, `step.py`, `version_helper.py`) — no own tests found, covered indirectly via dependent modules
-- Exception: `services/common/Helpers/GenreRulesHelperTest.py` and `services/tagger/Song/rules/ResolveGenreRuleTest.py` are listed explicitly in `scripts/test/music-management-unit.sh`, since neither `services/common/Helpers/` nor `services/tagger/Song/rules/` is a CI target directory
+- Shared helpers (`config_store.py`, `db_init.py`, `job_manager.py`, `step.py`, `version_helper.py`) — partly covered directly (`TableHelperTest.py`, `FilterTableHelperTest.py`, `LookupTableHelperTest.py`, `FestivalHelperTest.py`, `NotificationServiceTest.py`, `ProcessedFilesHelperTest.py`), the rest indirectly via dependent modules
 
 ## Existing root-level test infrastructure
 - `pytest.ini`: `pythonpath = services .`, test patterns `*Test.py` and `test_*.py`, `norecursedirs = modules/scrobbler`
+- `conftest.py` (repo root): excludes `tools/test_fetcher_trace.py`, a hand-run diagnostic script that matches pytest's discovery pattern but contains no tests
+- `scripts/test/music-management-unit.sh` collects everything under `services/` and `tools/`. It used to carry a hand-maintained allow-list of directories and files, which silently left about half the existing test files out of both the run and the reported coverage; discovery is now governed by `pytest.ini` and the root `conftest.py` alone, so a new test file needs no script change
 - `.pylintrc`: shared pylint config for all Python modules
 - `services/tests/`: root-wide/shared Python tests + `mock_base.py` (mock base for `mutagen`, `yt-dlp`, DB helpers)
 - `build.sh`: runs the full test suite and aborts the container build if any tests fail (mentioned in `AGENTS.md`)

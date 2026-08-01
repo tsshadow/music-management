@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Android: an "Interface size" setting, defaulting to 75%.** Ultrasonic's rows and type were about
+  a quarter larger than Spotify's, so noticeably less fit on screen. The layouts hardcode dp values,
+  so the scale is applied by wrapping the activity's context with a reduced `densityDpi` instead of
+  touching ~60 layout files. See `services/ultrasonic/ultrasonic/src/main/assets/CHANGELOG.md`.
+
 - **The Artist Images tab is now a real image manager.** Per artist you can let it search
   automatically, upload a file, paste an image URL, remove the current image, or promote one of the
   previously fetched images to primary. Results can be filtered on all / with image / without image

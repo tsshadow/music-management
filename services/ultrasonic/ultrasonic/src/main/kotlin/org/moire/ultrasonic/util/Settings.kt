@@ -30,6 +30,16 @@ object Settings {
         getKey(R.string.setting_key_theme_black)
     )
 
+    /**
+     * Percentage the whole interface is scaled by. 100 is the density the device reports,
+     * lower values shrink every dp and sp so more content fits on screen.
+     */
+    @JvmStatic
+    var uiScalePercent by StringIntSetting(
+        getKey(R.string.setting_key_ui_scale),
+        DEFAULT_UI_SCALE_PERCENT
+    )
+
     @JvmStatic
     var isSetsMode by BooleanSetting(
         getKey(R.string.setting_key_is_sets_mode),
@@ -365,4 +375,6 @@ object Settings {
         get() = UApp.applicationContext()
 
     val COLON_PATTERN: Pattern = Pattern.compile(":")
+
+    const val DEFAULT_UI_SCALE_PERCENT = 75
 }

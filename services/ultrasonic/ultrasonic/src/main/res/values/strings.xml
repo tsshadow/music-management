@@ -406,6 +406,7 @@
     <string name="settings.theme_dark">Dark</string>
     <string name="settings.theme_black">Black</string>
     <string name="settings.theme_title">Theme</string>
+    <string name="settings.ui_scale_title">Interface size</string>
     <string name="settings.title.allow_self_signed_certificate">Allow self-signed HTTPS certificate</string>
     <string name="settings.title.force_plain_text_password">Force plain password authentication</string>
     <string name="settings.summary.force_plain_text_password">This forces the app to always send the password unencrypted. Useful if the Subsonic server does not support the new authentication API for the users.</string>

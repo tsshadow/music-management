@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **An "Interface size" setting under Appearance, defaulting to 75%.** The layouts hardcode their
+  dp values instead of using dimension resources, so there was no single place to make the UI
+  denser. `UiScaleHelper` now wraps the activity's base context with a scaled `densityDpi` — the
+  same mechanism as the system's "Display size" — which shrinks every dp and sp at once. At 75% the
+  album rows land at ~64dp with 48dp artwork and 13.5sp titles, instead of ~86dp with 64dp artwork
+  and 18sp titles, which is roughly Spotify's list geometry. Selectable between 100% and 70%;
+  changing it recreates the activity through the existing theme-changed event. Note that at 75% a
+  48dp touch target renders as 36dp, below the accessibility minimum, which is why the setting can
+  be turned back up.
+
 ### Changed
 - **Crash detection is now an opt-in setting, off by default** (Settings > Debug options > Crash
   detection). It infers a crash whenever the previous process did not reach the clean-shutdown

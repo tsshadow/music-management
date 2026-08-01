@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.24] - 2026-08-01
+
+### Added
+- **Search and sort on the Library tabs.** The Artists and Albums tabs gained a search field and a
+  sort selector; artist search runs server-side over the whole library through new `query`/
+  `sortBy` parameters on `getArtists.view`, which also reports `songCount` per artist. Albums
+  reuse the `query` parameter `getAlbumList2.view` already accepted and gained a `byTrackCount`
+  order. The Genres, Years, Festivals, Lineups and Ratings tabs filter and sort their already-
+  loaded cards in memory, diacritic-insensitively. Artist rows now show album and track counts.
+
+### Fixed
+- **Tapping an artist opened a blank screen.** The artist list and the home screen's artist cards
+  navigated to `artistDetailFragment`, whose `ArtistDetailFragment` was never more than a stub: a
+  bare `Fragment` with no layout and no data loading, so it rendered nothing. Both now open the
+  artist's album list - the same destination search results and the player's "show artist" have
+  always used. The unused fragment and its navigation destination are gone, and the destination is
+  now covered by a unit test so a blank artist page cannot come back unnoticed.
+
+
 ## [6.5.23] - 2026-08-01
 
 ### Fixed
@@ -26,22 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The `%` is now escaped. This affected every install rather than only upgrades: the preference
   persists its default value while the screen inflates, so the summary is applied the very first
   time Settings is opened.
-
-### Added
-- **Search and sort on the Library tabs.** The Artists and Albums tabs gained a search field and a
-  sort selector; artist search runs server-side over the whole library through new `query`/
-  `sortBy` parameters on `getArtists.view`, which also reports `songCount` per artist. Albums
-  reuse the `query` parameter `getAlbumList2.view` already accepted and gained a `byTrackCount`
-  order. The Genres, Years, Festivals, Lineups and Ratings tabs filter and sort their already-
-  loaded cards in memory, diacritic-insensitively. Artist rows now show album and track counts.
-
-### Fixed
-- **Tapping an artist opened a blank screen.** The artist list and the home screen's artist cards
-  navigated to `artistDetailFragment`, whose `ArtistDetailFragment` was never more than a stub: a
-  bare `Fragment` with no layout and no data loading, so it rendered nothing. Both now open the
-  artist's album list - the same destination search results and the player's "show artist" have
-  always used. The unused fragment and its navigation destination are gone, and the destination is
-  now covered by a unit test so a blank artist page cannot come back unnoticed.
 
 ## [6.5.21] - 2026-08-01
 

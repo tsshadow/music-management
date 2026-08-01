@@ -1,14 +1,6 @@
 ## [Unreleased]
 
-## [6.5.23] - 2026-08-01
-
-### Fixed
-- **De knoppen op "Over" wezen naar de verkeerde site.** "Website openen" en "Bug melden" openden nog de pagina's van het originele Ultrasonic-project. Ze gaan nu naar muma.example.com en naar de issue-tracker van dit project zelf.
-
-## [6.5.22] - 2026-08-01
-
-### Fixed
-- **De app crashte zodra je Instellingen opende.** Dit kwam door de nieuwe "Interface size"-optie uit 6.5.21: de percentages erin (100%, 75%, ...) werden per ongeluk als opmaakcode gelezen in plaats van als gewone tekst, waardoor de app afsloot op het moment dat die regel getekend werd. Opgelost; Instellingen opent weer gewoon.
+## [6.5.24] - 2026-08-01
 
 ### Added
 - **Zoeken en sorteren in Library.** Boven Artiesten en Albums staat nu een zoekveld en een
@@ -23,6 +15,17 @@
   artiesten op het beginscherm kwam je op een pagina die nooit is afgebouwd. Je komt nu op het
   album-overzicht van die artiest — hetzelfde scherm dat je al kreeg via zoeken en via "Toon
   artiest" in de speler.
+
+
+## [6.5.23] - 2026-08-01
+
+### Fixed
+- **De knoppen op "Over" wezen naar de verkeerde site.** "Website openen" en "Bug melden" openden nog de pagina's van het originele Ultrasonic-project. Ze gaan nu naar muma.example.com en naar de issue-tracker van dit project zelf.
+
+## [6.5.22] - 2026-08-01
+
+### Fixed
+- **De app crashte zodra je Instellingen opende.** Dit kwam door de nieuwe "Interface size"-optie uit 6.5.21: de percentages erin (100%, 75%, ...) werden per ongeluk als opmaakcode gelezen in plaats van als gewone tekst, waardoor de app afsloot op het moment dat die regel getekend werd. Opgelost; Instellingen opent weer gewoon.
 
 ## [6.5.21] - 2026-08-01
 

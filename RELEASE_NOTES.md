@@ -11,11 +11,39 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
-## Global Version 0.0.57 (2026-08-01)
+## Global Version 0.0.58 (2026-08-01)
 
-### 🔗 Knoppen op "Over" wezen naar de verkeerde site
-- "Website openen" en "Bug melden" openden nog de pagina's van het originele Ultrasonic-project.
-  Ze gaan nu naar muma.example.com en naar de issue-tracker van dit project zelf.
+### 🔎 Zoeken en sorteren in de Library-tabbladen (Android)
+- Boven Artiesten en Albums staat nu een zoekveld. Zoeken kijkt door je hele bibliotheek, niet
+  alleen door wat er toevallig geladen is, dus "angerfist" vindt die artiest ook als je nog
+  bovenaan de A's staat.
+- Sorteren kan op naam, aantal nummers, aantal albums, recent toegevoegd en willekeurig; bij albums
+  ook op artiest en jaar. Bij elke artiest staat nu hoeveel albums en nummers je van hem hebt.
+- De tabbladen Genres, Jaren, Festivals, Lineups en Ratings hebben hetzelfde zoekveld.
+- Op een artiest tikken opende voorheen een leeg scherm; je komt nu op het album-overzicht van die
+  artiest.
+
+### ⚙️ Serverbeheer zit nu in de beheerpagina, niet meer in de instellingen van de speler
+- Scanner en mediabibliotheken zijn eigen tabbladen in het beheerscherm geworden, zodat alles
+  waarvoor je beheerder moet zijn op één plek staat. In de speler blijven alleen je persoonlijke
+  instellingen over.
+- Subsonic-tokens worden voortaan door een beheerder uitgegeven vanuit het gebruikersscherm.
+
+### 🔎 Zoeken en sorteren in de Library-tabbladen (Android)
+- Boven Artiesten en Albums staat nu een zoekveld. Zoeken kijkt door je hele bibliotheek, niet
+  alleen door wat er toevallig geladen is, dus "angerfist" vindt die artiest ook als je nog
+  bovenaan de A's staat.
+- Sorteren kan op naam, aantal nummers, aantal albums, recent toegevoegd en willekeurig; bij albums
+  ook op artiest en jaar. Bij elke artiest staat nu hoeveel albums en nummers je van hem hebt.
+- De tabbladen Genres, Jaren, Festivals, Lineups en Ratings hebben hetzelfde zoekveld.
+- Op een artiest tikken opende voorheen een leeg scherm; je komt nu op het album-overzicht van die
+  artiest.
+
+### ⚙️ Serverbeheer zit nu in de beheerpagina, niet meer in de instellingen van de speler
+- Scanner en mediabibliotheken zijn eigen tabbladen in het beheerscherm geworden, zodat alles
+  waarvoor je beheerder moet zijn op één plek staat. In de speler blijven alleen je persoonlijke
+  instellingen over.
+- Subsonic-tokens worden voortaan door een beheerder uitgegeven vanuit het gebruikersscherm.
 
 ### 🌍 Taal instellen in de webinterface
 - Onder Instellingen → Algemeen kun je nu kiezen tussen Nederlands en Engels. Je keuze wordt bij je
@@ -23,6 +51,13 @@ This project is now modularized. Detailed release notes for each module can be f
   start de interface in de taal van je browser.
 - Dit is de eerste stap: de techniek eronder is er nu, maar alleen de taalkeuze zelf is al vertaald.
   De rest van de schermen volgt stap voor stap.
+
+
+## Global Version 0.0.57 (2026-08-01)
+
+### 🔗 Knoppen op "Over" wezen naar de verkeerde site
+- "Website openen" en "Bug melden" openden nog de pagina's van het originele Ultrasonic-project.
+  Ze gaan nu naar muma.example.com en naar de issue-tracker van dit project zelf.
 
 ## Global Version 0.0.56 (2026-08-01)
 

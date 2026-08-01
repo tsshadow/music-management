@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from services.music_manager.database import get_db_connection
-from services.music_manager.routers import users, scrobbler, rating, stats, management, artist_images, notifications, library, tagger, scanner, jobs, config, user_requests, downloaders, diagnostics
+from services.music_manager.routers import users, scrobbler, rating, stats, management, artist_images, notifications, library, tagger, scanner, jobs, config, user_requests, radio, downloaders, diagnostics
 from services.music_manager.routers.users import run_lms_db_sync
 from services.music_manager.routers.tagger import run_tagger_loop
 from services.music_manager.routers.scanner import run_scanner_loop
@@ -35,6 +35,7 @@ app.include_router(jobs.router, prefix="/api/jobs")
 app.include_router(config.router, prefix="/api/config")
 app.include_router(downloaders.router, prefix="/api/downloaders")
 app.include_router(user_requests.router, prefix="/api") # /api/auth/google, /api/user-requests/*
+app.include_router(radio.router, prefix="/api/radio")
 app.include_router(diagnostics.router, prefix="/api/diagnostics")
 
 @app.on_event('startup')
@@ -51,6 +52,7 @@ def startup_event():
                 artist_images.init_db(cursor)
                 notifications.init_db(cursor)
                 user_requests.init_db(cursor)
+                radio.init_db(cursor)
                 downloaders.init_db(cursor)
                 diagnostics.init_db(cursor)
             conn.commit()

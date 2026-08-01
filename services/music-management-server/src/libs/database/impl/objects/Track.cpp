@@ -163,7 +163,12 @@ namespace lms::db
                     query.where(oss.str());
                 }
 
-                query.groupBy("t.id");
+                // Grouping is needed to deduplicate rows produced when a track matches
+                // several of the requested link types, but it must not be applied to
+                // aggregate selects (e.g. COUNT(...)), since GROUP BY would then turn a
+                // single aggregate row into one row per matching track.
+                if (itemToSelect.find("COUNT") == std::string_view::npos)
+                    query.groupBy("t.id");
             }
 
             assert(!(params.nonRelease && params.release.isValid()));
@@ -391,6 +396,13 @@ namespace lms::db
         session.checkReadTransaction();
 
         return utils::fetchQuerySingleResult(session.getDboSession()->query<int>("SELECT COUNT(*) FROM track"));
+    }
+
+    std::size_t Track::getCount(Session& session, const FindParameters& params)
+    {
+        session.checkReadTransaction();
+
+        return utils::fetchQuerySingleResult(createQuery<int>(session, "COUNT(DISTINCT t.id)", params));
     }
 
     Track::pointer Track::findByPath(Session& session, const std::filesystem::path& p)

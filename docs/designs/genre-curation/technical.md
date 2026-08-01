@@ -26,7 +26,7 @@ untouched and only bumps `occurrences`.
 `rules_ignored_genres` and `rules_genre_backlog` stay in place, unread by the tagger, so the tools under
 `tools/` keep working. They can be dropped in a later change.
 
-Migration `migrate_genre_states.sql` is re-runnable: the whitening step keys off the empty `normalized_name`
+Migration `migrate_v3_genre_states.sql` is re-runnable: the whitening step keys off the empty `normalized_name`
 that only pre-existing rows have, so a second run cannot promote a queued genre. Where a genre was both
 whitelisted and ignored, ignored wins — that matches the old `CleanAndFilterGenreRule`, which checked the
 ignore list first.
@@ -82,7 +82,7 @@ LMS are untouched.
    `AddMissingGenreToDatabaseRule` plus `CleanAndFilterGenreRule` produced together.
 9. `POST /api/rules/genres/{id}/decide` rejects `unknown` as a target state, rejects a self-referencing
    correction, and stores `decided_by` and `decided_at`.
-10. `migrate_genre_states.sql` run twice against MariaDB 10.6 leaves identical state counts, preserves backlog
+10. `migrate_v3_genre_states.sql` run twice against MariaDB 10.6 leaves identical state counts, preserves backlog
     `detected_at` values, and converts every `corrected_genre` into a `canonical_id`.
 11. `buildDecision` refuses `unknown` as a target state and refuses a correction pointing at the genre itself,
     matching the API, and coerces the select's string value to a number or `null`.

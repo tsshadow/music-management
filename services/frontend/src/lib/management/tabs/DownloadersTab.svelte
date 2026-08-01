@@ -1,5 +1,5 @@
 <script >
-  import { t } from '../../i18n/index.js';
+  import { t, locale } from '../../i18n/index.js';
   import { onDestroy } from 'svelte';
   import { Cloud, ExternalLink, Trash2, Plus, Search, Play, Timer, RotateCcw } from '@lucide/svelte';
   import { formatDuration, describeBackoff, changedValues } from '../downloaderTiming';
@@ -345,9 +345,8 @@
               <p class="text-sm font-bold mt-1 {toneClass(backoff.tone)}">{backoff.label}</p>
               {#if state}
                 <p class="text-xs text-spotify-lightgray mt-1">
-                  Ronde elke {formatDuration(state.effective_sweep_interval)} ·
-                  account elke {formatDuration(state.effective_account_cooldown)}
-                  {#if state.last_429_at} · laatste 429: {new Date(state.last_429_at).toLocaleString('nl-NL')}{/if}
+                  {$t('management.downloaders.cadence', { sweep: formatDuration(state.effective_sweep_interval), cooldown: formatDuration(state.effective_account_cooldown) })}
+                  {#if state.last_429_at} · {$t('management.downloaders.last429', { date: new Date(state.last_429_at).toLocaleString($locale) })}{/if}
                 </p>
               {/if}
             </div>

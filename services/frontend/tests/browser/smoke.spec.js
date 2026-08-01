@@ -14,12 +14,10 @@ test("frontend opens without JavaScript errors", async ({ page }) => {
   page.on("pageerror", (err) => pageErrors.push(err.message));
 
   await page.goto("/");
-  // This is the first page load of the run, so it pays for Vite's dependency
-  // pre-bundling and the full reload that follows it: on a CI runner #app stays
-  // an empty div for well over the 5s default, while the second test in this
-  // file then loads in ~1.5s against the warm server. That is a slow first
-  // paint, not a broken app, so wait long enough to tell the two apart.
-  await expect(page.locator("#app")).toBeVisible({ timeout: 30_000 });
+  // The dev server was warmed up in global-setup.js, so this measures the app,
+  // not Vite's cold start. Keep the budget tight enough that an app which fails
+  // to mount is still caught.
+  await expect(page.locator("#app")).toBeVisible({ timeout: 15_000 });
 
   expect(pageErrors).toEqual([]);
 });

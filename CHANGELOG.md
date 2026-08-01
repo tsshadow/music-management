@@ -26,6 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the old sync modes unusable. Only the host writes state now; followers still send explicit
   play/pause/next/previous commands.
 
+### Changed
+- **Ultrasonic: the default tiles on Songs/Livesets are era tiles now.** The eight tiles that
+  filtered on a single genre added nothing next to the genre list, which gets you the same result on
+  its own. In their place three combinations the genre list cannot express in one go: Hardstyle
+  Classics (Mainstream Hardstyle, 2009-2017), Millennium Hardcore (Mainstream Hardcore, 2010-2015)
+  and Early Uptempo (Uptempo Hardcore, 2012-2017), each in random order. Existing installs keep the
+  tiles they already have.
+
 ## [0.0.54] - 2026-08-01
 
 ### Fixed
@@ -63,6 +71,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   artist. An unrecognised name is never removed: real artists exist that no streaming service lists.
   Every threshold is configurable, because what counts as good enough can only be judged from a report
   over the real library. No schema, tagger or UI change yet.
+
+### Changed
+- **Artist analysis defaults, corrected by the first run over the real library.** Names are no longer
+  removed for looking like a sentence: `Boaz Van De Beatz`, `We Are Loud` and `The Beholder
+  (Neophyte)` are real artists that score exactly like a stray quote, so the signals are reported and
+  the name is flagged instead. Splitting glued names is off by default after it took `Technotronic`
+  apart into `Techno` + `Tonic`. Matching is blocked by first character and length, without which a
+  51k-name run did not finish in twenty minutes.
+
+### Fixed
+- **Artists in non-Latin scripts are no longer proposed for deletion.** The letter check was
+  `[A-Za-z]` and the normalisation key was `a-z0-9`, so every Cyrillic name counted as having no
+  letters and collapsed to an empty key.
 
 ## [0.0.53] - 2026-08-01
 

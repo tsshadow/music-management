@@ -226,4 +226,18 @@ describe("i18n - t store", () => {
     locale.set("nl");
     expect(get(t)("settings.language.title")).toBe("Taal");
   });
+
+  it("uses the dialect's own wording where the shipped dialect file has it", () => {
+    locale.set("sallands");
+    expect(get(t)("nav.home")).toBe("Thuus");
+  });
+
+  it("reads as Dutch, not English, where a dialect leaves a key untranslated", () => {
+    // The dialect files deliberately cover only the player side; this is what
+    // keeps the rest of the interface coherent instead of half-English.
+    locale.set("sallands");
+    expect(get(t)("management.tabs.users")).toBe("Gebruikers");
+    locale.set("brabants");
+    expect(get(t)("management.tabs.users")).toBe("Gebruikers");
+  });
 });

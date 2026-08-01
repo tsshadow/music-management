@@ -3,7 +3,10 @@ from unittest.mock import MagicMock
 from services.common.Helpers.GenreRulesHelper import GenreRulesHelper, GenreRow, WHITE, BLACK, UNKNOWN
 from services.tagger.Song.rules.ResolveGenreRule import ResolveGenreRule
 
-ROWS = [GenreRow(1, 'Hardstyle', 'hardstyle', WHITE, None), GenreRow(2, 'Uptempo Hardcore', 'uptempo hardcore', WHITE, None), GenreRow(3, 'uptempo', 'uptempo', BLACK, 2), GenreRow(4, 'Arts', 'arts', BLACK, None)]
+ROWS = [GenreRow(1, 'Hardstyle', 'hardstyle', WHITE, None), GenreRow(2, 'Uptempo Hardcore', 'uptempo hardcore', WHITE, None), GenreRow(3, 'uptempo', 'uptempo', BLACK, 2), GenreRow(4, 'Arts', 'arts', BLACK, None), GenreRow(5, 'Terror', 'terror', WHITE, None), GenreRow(6, 'Upterror', 'upterror', BLACK, None)]
+# Rewrites live in rules_genre_expansions, so canonical_id alone no longer moves a
+# genre: 'uptempo' becomes one target, 'Upterror' becomes two.
+EXPANSIONS = {3: [2], 6: [2, 5]}
 
 
 def song_with_genres(genres):
@@ -19,7 +22,7 @@ def song_with_genres(genres):
 
 
 def rule_with_recording_helper():
-    helper = GenreRulesHelper(preload=False, rows=ROWS)
+    helper = GenreRulesHelper(preload=False, rows=ROWS, expansions=EXPANSIONS)
     helper.record_unknown = MagicMock()
     return (ResolveGenreRule(helper), helper)
 
@@ -85,6 +88,32 @@ class ResolveGenreRuleTest(unittest.TestCase):
         tag.strip.assert_called_once()
         tag.set.assert_not_called()
         helper.record_unknown.assert_not_called()
+
+    def test_splits_a_composite_and_resolves_each_half(self):
+        song, tag = song_with_genres(['Hardstyle/Arts'])
+        rule, _ = rule_with_recording_helper()
+        rule.apply(song)
+        tag.set.assert_called_once_with(['Hardstyle'])
+
+    def test_composite_never_reaches_the_curation_queue(self):
+        """The parts get queued, not the combination that will never repeat."""
+        song, _ = song_with_genres(['Hardstyle/Speedcore'])
+        rule, helper = rule_with_recording_helper()
+        rule.apply(song)
+        recorded = [call.args[0] for call in helper.record_unknown.call_args_list]
+        self.assertEqual(recorded, ['Speedcore'])
+
+    def test_expands_a_contraction_into_several_genres(self):
+        song, tag = song_with_genres(['Upterror'])
+        rule, _ = rule_with_recording_helper()
+        rule.apply(song)
+        tag.set.assert_called_once_with(['Terror', 'Uptempo Hardcore'])
+
+    def test_expansion_merges_with_a_genre_already_present(self):
+        song, tag = song_with_genres(['Upterror', 'Uptempo Hardcore'])
+        rule, _ = rule_with_recording_helper()
+        rule.apply(song)
+        tag.set.assert_called_once_with(['Terror', 'Uptempo Hardcore'])
 
 
 if __name__ == '__main__':

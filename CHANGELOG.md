@@ -13,6 +13,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so the scale is applied by wrapping the activity's context with a reduced `densityDpi` instead of
   touching ~60 layout files. See `services/ultrasonic/ultrasonic/src/main/assets/CHANGELOG.md`.
 
+### Changed
+- **Ultrasonic: the default tiles on Songs/Livesets are era tiles now.** The eight tiles that
+  filtered on a single genre added nothing next to the genre list, which gets you the same result on
+  its own. In their place three combinations the genre list cannot express in one go: Hardstyle
+  Classics (Mainstream Hardstyle, 2009-2017), Millennium Hardcore (Mainstream Hardcore, 2010-2015)
+  and Early Uptempo (Uptempo Hardcore, 2012-2017), each in random order. Existing installs keep the
+  tiles they already have.
+
+## [0.0.54] - 2026-08-01
+
+### Fixed
+- **`migrate_v2.sql` fought `migrate_v3` on every deploy.** It re-created the unique key on
+  `rules_genres.name` that v3 deliberately drops in favour of one on `normalized_name`, so a deploy
+  failed with `Duplicate entry ... for key 'name'` on rows v3 had legitimately created. It also
+  shrank `name` back to `VARCHAR(100)` each time, truncating long genre names. Both statements are
+  removed; v3 now owns that schema. Every migration re-runs on every deploy, so an older file is not
+  history — it keeps being re-asserted.
+
+### Added
+- **A genre can now be corrected to more than one genre.** Contractions expand instead of being thrown
+  away: `Upterror` becomes `Uptempo Hardcore` plus `Terror`. Targets live in the new
+  `rules_genre_expansions` table and the curation page offers a multiple choice; `canonical_id` stays
+  as a legacy column that the tagger no longer reads, so one place decides a rewrite instead of two.
+
+### Fixed
+- **`Hardstyle/Hardcore` was treated as a single genre.** `Tag.resplit` claims to split on `/`, but it
+  only runs when `Tag.regex` changed something and `ARTIST_REGEX` never matches a slash, so composites
+  arrived whole and filled the curation queue with combinations that never repeat. Genres are now split
+  on `/` and each part is judged on its own. The split is genre-only — artists keep their slashes
+  (`AC/DC`) — and a genre that has been decided on is never split, so approving a name that genuinely
+  contains a slash protects it permanently.
+- **Slash genres that only the migration approved are split automatically.** `migrate_v3` whitened every
+  pre-existing row, which would otherwise have protected exactly the composites worth splitting.
+  `migrate_v4_genre_expansions.sql` turns those into a rejected genre expanding into its parts, and
+  leaves anything a human decided untouched.
+
+### Added
+- **Artist name analysis, as a dry run.** `ArtistNameAnalyzer` turns a raw artist string into a
+  proposal — keep, rewrite, split, reject, or no answer — with the reasoning attached, and
+  `tools/artist_curation_report.py` runs it over the whole artist list and prints what would happen
+  without changing anything. Handles noise around a real name (`**FREE DOWNLOAD** DJ KURT`), names
+  glued together (`AngerfistHeadhunter`), misspellings, and sentences a tagger rule mistook for an
+  artist. An unrecognised name is never removed: real artists exist that no streaming service lists.
+  Every threshold is configurable, because what counts as good enough can only be judged from a report
+  over the real library. No schema, tagger or UI change yet.
+
+### Changed
+- **Artist analysis defaults, corrected by the first run over the real library.** Names are no longer
+  removed for looking like a sentence: `Boaz Van De Beatz`, `We Are Loud` and `The Beholder
+  (Neophyte)` are real artists that score exactly like a stray quote, so the signals are reported and
+  the name is flagged instead. Splitting glued names is off by default after it took `Technotronic`
+  apart into `Techno` + `Tonic`. Matching is blocked by first character and length, without which a
+  51k-name run did not finish in twenty minutes.
+
+### Fixed
+- **Artists in non-Latin scripts are no longer proposed for deletion.** The letter check was
+  `[A-Za-z]` and the normalisation key was `a-z0-9`, so every Cyrillic name counted as having no
+  letters and collapsed to an empty key.
+
 ## [0.0.53] - 2026-08-01
 
 ### Fixed

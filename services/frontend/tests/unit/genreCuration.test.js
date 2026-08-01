@@ -16,8 +16,7 @@ const row = (over = {}) => ({
   id: 1,
   name: 'Hardstyle',
   state: WHITE,
-  canonical_id: null,
-  canonical_name: null,
+  canonical_targets: [],
   occurrences: 0,
   decided_at: null,
   decided_by: null,
@@ -87,8 +86,21 @@ describe('describeOutcome', () => {
   });
 
   it('lets a correction win over the state', () => {
-    const corrected = row({ state: BLACK, canonical_id: 9, canonical_name: 'Uptempo Hardcore' });
+    const corrected = row({ state: BLACK, canonical_targets: [{ id: 9, name: 'Uptempo Hardcore' }] });
     expect(describeOutcome(corrected)).toBe('Wordt vervangen door Uptempo Hardcore');
+  });
+
+  it('names every target of a contraction', () => {
+    const contraction = row({
+      state: BLACK,
+      canonical_targets: [{ id: 9, name: 'Uptempo Hardcore' }, { id: 10, name: 'Terror' }]
+    });
+    expect(describeOutcome(contraction)).toBe('Wordt vervangen door Uptempo Hardcore + Terror');
+  });
+
+  it('treats a missing target list as no correction', () => {
+    const withoutTargets = row({ state: WHITE, canonical_targets: undefined });
+    expect(describeOutcome(withoutTargets)).toBe('Blijft staan');
   });
 });
 
@@ -97,21 +109,35 @@ describe('buildDecision', () => {
     expect(buildDecision({ genreId: 1, state: WHITE })).toEqual({
       valid: true,
       error: null,
-      payload: { state: WHITE, canonical_id: null }
+      payload: { state: WHITE, canonical_ids: [] }
     });
   });
 
-  it('turns an empty select value into no correction', () => {
-    expect(buildDecision({ genreId: 1, state: BLACK, canonicalId: '' }).payload).toEqual({
+  it('drops empty checkbox values', () => {
+    expect(buildDecision({ genreId: 1, state: BLACK, canonicalIds: ['', null] }).payload).toEqual({
       state: BLACK,
-      canonical_id: null
+      canonical_ids: []
     });
   });
 
-  it('coerces the select string to a number', () => {
-    expect(buildDecision({ genreId: 1, state: BLACK, canonicalId: '7' }).payload).toEqual({
+  it('coerces the checkbox strings to numbers', () => {
+    expect(buildDecision({ genreId: 1, state: BLACK, canonicalIds: ['7'] }).payload).toEqual({
       state: BLACK,
-      canonical_id: 7
+      canonical_ids: [7]
+    });
+  });
+
+  it('keeps several targets, in order, for a contraction', () => {
+    expect(buildDecision({ genreId: 1, state: BLACK, canonicalIds: ['7', '9'] }).payload).toEqual({
+      state: BLACK,
+      canonical_ids: [7, 9]
+    });
+  });
+
+  it('de-duplicates repeated targets', () => {
+    expect(buildDecision({ genreId: 1, state: BLACK, canonicalIds: ['7', 7] }).payload).toEqual({
+      state: BLACK,
+      canonical_ids: [7]
     });
   });
 
@@ -122,7 +148,7 @@ describe('buildDecision', () => {
   });
 
   it('rejects a genre correcting to itself', () => {
-    const decision = buildDecision({ genreId: 5, state: BLACK, canonicalId: '5' });
+    const decision = buildDecision({ genreId: 5, state: BLACK, canonicalIds: ['5'] });
     expect(decision.valid).toBe(false);
     expect(decision.error).toContain('zichzelf');
   });

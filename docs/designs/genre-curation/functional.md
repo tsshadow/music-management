@@ -41,6 +41,9 @@ made on the user's behalf.
 | Owner approves or rejects a genre from the curation list | The decision is recorded against their name and applies from the next tagging run onwards |
 | Track carries an empty or whitespace-only genre | Genre is removed |
 | Two spellings of the same genre (`Raw Hardstyle`, `raw-hardstyle`) | Both resolve to the same rule; no duplicate entries in the curation list |
+| Track carries `Hardstyle/Hardcore` | Treated as two genres, each judged on its own; the combination never reaches the curation list |
+| Track carries a slash genre the owner has explicitly decided on | Left whole, because a decision outranks the split |
+| Track carries a contraction such as `Upterror` | Replaced by every genre it stands for: `Uptempo Hardcore` and `Terror` |
 | Owner opens the Genre Curation page | The unjudged queue is shown first, most frequent genre on top, with what each genre currently does to a tag |
 | Owner approves or rejects a genre from that page | The row disappears from the queue and the decision, with their name, shows up under the matching filter |
 | Owner corrects a genre from that page | They pick a target from the approved genres only, and the page states the genre will be replaced by it |
@@ -67,6 +70,11 @@ made on the user's behalf.
 11. A correction can only point at an approved genre, and never at the genre being decided.
 12. The page says that decisions take effect from the next tagging run, so nobody expects existing files to
     change immediately.
+13. A genre containing `/` is split into its parts unless it has been decided on, so a name that genuinely
+    contains a slash is protected by approving it once.
+14. A genre can be corrected to more than one genre at a time, which is how a contraction is expressed.
+15. Slash genres that only the migration ever approved are split automatically, without anyone having to
+    review them one by one.
 
 ## Open Questions / Not Yet Decided
 

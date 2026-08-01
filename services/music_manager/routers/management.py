@@ -16,8 +16,21 @@ class ArtistGenreRule(BaseModel):
     genre_id: int
 
 class GenreDecisionRequest(BaseModel):
+    """A curation decision, optionally rewriting the genre to one or more others.
+
+    `canonical_id` is the single-target form kept for existing callers;
+    `canonical_ids` is the general one, needed for contractions like 'Upterror'
+    becoming 'Uptempo Hardcore' plus 'Terror'. Whichever is given ends up in
+    `rules_genre_expansions`.
+    """
     state: str
     canonical_id: Optional[int] = None
+    canonical_ids: Optional[list[int]] = None
+
+    def targets(self) -> list[int]:
+        """The rewrite targets, de-duplicated, order preserved."""
+        raw = self.canonical_ids if self.canonical_ids is not None else ([self.canonical_id] if self.canonical_id is not None else [])
+        return list(dict.fromkeys(target for target in raw if target is not None))
 
 class LabelGenreRule(BaseModel):
     label_name: str
@@ -248,7 +261,7 @@ def get_genre_curation_queue(state: Optional[str]=None, limit: int=200, _auth: d
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
-            query = "\n                SELECT g.id, g.name, g.state, g.canonical_id, c.name AS canonical_name,\n                       g.occurrences, CAST(g.detected_at AS CHAR) AS detected_at,\n                       CAST(g.decided_at AS CHAR) AS decided_at, g.decided_by\n                FROM rules_genres g\n                LEFT JOIN rules_genres c ON g.canonical_id = c.id\n            "
+            query = "\n                SELECT g.id, g.name, g.state, g.occurrences,\n                       CAST(g.detected_at AS CHAR) AS detected_at,\n                       CAST(g.decided_at AS CHAR) AS decided_at, g.decided_by\n                FROM rules_genres g\n            "
             params: list = []
             if state:
                 query += ' WHERE g.state = %s'
@@ -256,20 +269,34 @@ def get_genre_curation_queue(state: Optional[str]=None, limit: int=200, _auth: d
             query += ' ORDER BY g.occurrences DESC, g.name LIMIT %s'
             params.append(limit)
             cursor.execute(query, params)
-            return cursor.fetchall()
+            rows = cursor.fetchall()
+            # Targets come from a second query rather than a join: a genre can now
+            # expand into several, so joining would multiply the rows the page shows.
+            ids = [row['id'] for row in rows]
+            if ids:
+                placeholders = ', '.join(['%s'] * len(ids))
+                cursor.execute(f'\n                    SELECT e.genre_id, t.id AS target_id, t.name AS target_name\n                    FROM rules_genre_expansions e\n                    JOIN rules_genres t ON t.id = e.target_id\n                    WHERE e.genre_id IN ({placeholders})\n                    ORDER BY e.genre_id, e.position, t.name\n                ', ids)
+                targets: dict = {}
+                for target in cursor.fetchall():
+                    targets.setdefault(target['genre_id'], []).append({'id': target['target_id'], 'name': target['target_name']})
+                for row in rows:
+                    row['canonical_targets'] = targets.get(row['id'], [])
+            return rows
     finally:
         conn.close()
 
 @router.post('/rules/genres/{genre_id}/decide')
 def decide_genre(genre_id: int, decision: GenreDecisionRequest, auth: dict=Depends(verify_api_key)):
-    """Move a genre to white or black, optionally rewriting it to another genre.
+    """Move a genre to white or black, optionally rewriting it to other genres.
 
     A decision made here is recorded as `decided_by`, so the tagger never
-    overwrites it later.
+    overwrites it later. More than one target is allowed, which is how a
+    contraction is expressed: 'Upterror' becomes 'Uptempo Hardcore' + 'Terror'.
     """
     if decision.state not in (WHITE, BLACK):
         raise HTTPException(status_code=400, detail=f'Invalid state, expected {WHITE} or {BLACK}')
-    if decision.canonical_id is not None and decision.canonical_id == genre_id:
+    targets = decision.targets()
+    if genre_id in targets:
         raise HTTPException(status_code=400, detail='A genre cannot be its own correction')
     conn = get_db_connection()
     if not conn:
@@ -279,12 +306,17 @@ def decide_genre(genre_id: int, decision: GenreDecisionRequest, auth: dict=Depen
             cursor.execute('SELECT id FROM rules_genres WHERE id = %s', (genre_id,))
             if not cursor.fetchone():
                 raise HTTPException(status_code=404, detail='Unknown genre')
-            if decision.canonical_id is not None:
-                cursor.execute('SELECT id FROM rules_genres WHERE id = %s', (decision.canonical_id,))
+            for target in targets:
+                cursor.execute('SELECT id FROM rules_genres WHERE id = %s', (target,))
                 if not cursor.fetchone():
                     raise HTTPException(status_code=400, detail='Unknown correction target')
             decided_by = (auth.get('user') or {}).get('username') if isinstance(auth.get('user'), dict) else auth.get('type', 'human')
-            cursor.execute('\n                UPDATE rules_genres\n                SET state = %s, canonical_id = %s, decided_at = NOW(), decided_by = %s\n                WHERE id = %s\n            ', (decision.state, decision.canonical_id, decided_by or 'human', genre_id))
+            cursor.execute('\n                UPDATE rules_genres\n                SET state = %s, canonical_id = %s, decided_at = NOW(), decided_by = %s\n                WHERE id = %s\n            ', (decision.state, targets[0] if targets else None, decided_by or 'human', genre_id))
+            # Replace rather than merge: the request carries the whole target list,
+            # so clearing a correction is just an empty one.
+            cursor.execute('DELETE FROM rules_genre_expansions WHERE genre_id = %s', (genre_id,))
+            for position, target in enumerate(targets):
+                cursor.execute('INSERT INTO rules_genre_expansions (genre_id, target_id, position) VALUES (%s, %s, %s)', (genre_id, target, position))
             conn.commit()
             return {'status': 'ok'}
     finally:

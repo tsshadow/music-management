@@ -11,6 +11,22 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+### 🔀 Genres met een schuine streep worden nu gesplitst
+- `Hardstyle/Hardcore` telde tot nu toe als één genre. Dat wordt nu netjes twee losse genres, die elk
+  hun eigen status krijgen. Combinaties komen daardoor niet meer in je beoordeellijst terecht — die
+  kwamen daar toch nooit een tweede keer voorbij.
+- Artiesten blijven ongemoeid, dus een naam als **AC/DC** blijft heel.
+- Bestaat er ooit toch een genre dat de streep echt nodig heeft? Keur het één keer goed en het wordt
+  nooit meer gesplitst.
+- Slash-genres die alleen door de vorige migratie waren goedgekeurd, worden bij het bijwerken meteen
+  automatisch uit elkaar getrokken. Genres waar jij zelf een beslissing over nam blijven zoals je ze
+  liet.
+
+### 🧬 Samentrekkingen naar meerdere genres
+- Een genre kan nu naar **meerdere** genres tegelijk gecorrigeerd worden: **Upterror** wordt
+  `Uptempo Hardcore` én `Terror`, in plaats van dat je moet kiezen of het weggooien.
+- In het Genre Curatie-scherm vink je bij "Corrigeren naar" gewoon meerdere genres aan.
+
 ## Global Version 0.0.53 (2026-08-01)
 
 ### 🔧 Genre Curatie werkt nu ook echt in productie

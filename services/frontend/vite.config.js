@@ -7,6 +7,10 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [svelte()],
     base: "/",
+    // Vitest runs in Node, where Svelte would otherwise resolve to its
+    // server-only build and `mount()` throws. Component tests need the
+    // browser build.
+    ...(process.env.VITEST ? { resolve: { conditions: ["browser"] } } : {}),
     server: {
       host: true,
       proxy: {

@@ -1,4 +1,11 @@
 ## [Unreleased]
+### Added
+- **De hele interface is kleiner en er past een stuk meer op je scherm.** Standaard staat alles nu op 75% van het oude formaat, ongeveer even compact als Spotify. Bevalt dat niet, dan zet je het terug bij Instellingen > Weergave > "Interface size": van 100% (het oude formaat) tot 70%.
+
+### Changed
+- **Geen crashmelding meer bij het opstarten.** De app zag elke keer dat Android hem op de achtergrond had afgesloten als een crash, waardoor je bij vrijwel elke start de vraag kreeg om diagnostiek te delen. Crashdetectie staat nu uit; je zet hem desgewenst aan via Instellingen > Debug-opties > Crashdetectie.
+- **De standaardtegels op Nummers/Livesets zijn nu tijdvak-tegels.** De acht tegels die alleen op één genre filterden voegden niks toe naast de genre-lijst. In plaats daarvan drie tegels die je via genres niet in één keer maakt: Hardstyle Classics (Mainstream Hardstyle, 2009-2017), Millennium Hardcore (Mainstream Hardcore, 2010-2015) en Early Uptempo (Uptempo Hardcore, 2012-2017), elk in willekeurige volgorde. Heb je al tegels staan, dan blijven die zoals ze zijn.
+
 ## [6.5.20] - 2026-07-31
 ### Added
 - **Uitlogknop** in het menu rechtsboven. Hij vraagt eerst om bevestiging, stopt het afspelen en brengt je terug naar het inlogscherm met je gebruikersnaam alvast ingevuld. Gedownloade muziek blijft gewoon op je toestel staan.

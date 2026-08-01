@@ -26,6 +26,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the old sync modes unusable. Only the host writes state now; followers still send explicit
   play/pause/next/previous commands.
 
+- **Library Browser, replacing the Library, Advanced Library and Statistics tabs.** One view over the
+  collection with facet filters for genre, label, artist, BPM range and release year that intersect,
+  distributions that follow the active filter, and a header reporting how much of the current selection
+  actually has BPM, genre and artist data — so a thin histogram is not mistaken for a thin collection.
+- **`/api/analytics` endpoints for filtered aggregations:** summary with data coverage, genre
+  distribution, BPM and release-year histograms, top artists, top labels, and artist type-ahead. The
+  path names the metric and the query parameters name the scope, so an artist's BPM spread is
+  `bpm-histogram?artist=X` rather than a new endpoint. A later player page can reuse them unchanged.
+- **The scanner now indexes genres from file tags into `library_track_genres`.** It already read every
+  file's tags for artist, label, title and duration and simply skipped genre, although
+  `BaseSong.genres()` returns it — which is why LMS knew genres the management UI did not. Resolution
+  goes through `GenreRulesHelper`, so approved genres index under their curated name, rejected ones are
+  dropped, and genres awaiting curation index under their raw name and are grouped separately in the
+  sidebar.
+
+### Fixed
+- **`/api/library/advanced` returned HTTP 500 for every request.** It selected `musical_key`, `energy`,
+  `danceability`, `valence` and `popularity`, none of which exist in the database: `db_init.py` lists
+  them in a `CREATE TABLE IF NOT EXISTS` that is a no-op against an existing table, and no `ALTER TABLE`
+  exists anywhere. The frontend never checked `res.ok`, so that failure rendered as "no tracks found" —
+  which is how a completely broken page stayed invisible. The columns are removed rather than added,
+  since nothing writes them.
+- **`/api/library/genres` always returned an empty list**, because it joined `rules_genres` against
+  `library_track_genres`, a table with no rows. The genre sidebar was therefore always empty and the
+  genre filter always matched nothing.
+- **`library_track_genres` was never created on a fresh database.** Its `CREATE` names a foreign key to
+  `rules_genres` but ran before that table existed, and the failure was swallowed by a debug-level
+  `except`. It survived in production only because an older migration had created it.
+- **The duration column in the track list always showed `-`.** The frontend rendered
+  `track.duration_secs`, which the query never selected.
+
+### Changed
+- **Popular genres now count curated genres instead of machine-learning predictions**, so the figures on
+  Overview change. `top_genres` previously unioned `library_track_genres` with `ml_genre`, which was
+  harmless only while the first table was empty; once it has rows, a track carrying the same genre in
+  its tag and its prediction would be counted twice.
+- **Dynamic playlist previews match more tracks**, since their genre rules no longer fall back to
+  machine-learning predictions alone. This affects the preview in the web UI only; Ultrasonic resolves
+  its playlists elsewhere.
+
+### Migration
+- Run `POST /api/scanner/scan/all?force=true` once after deploying, to populate `library_track_genres`
+  for the existing library. The scanner skips files whose size and modification time are unchanged, so
+  without the forced run only files touched later get genres. Genre coverage in the browser header
+  shows the progress; before the scan it reads 0%.
+
+- **Android: an "Interface size" setting, defaulting to 75%.** Ultrasonic's rows and type were about
+  a quarter larger than Spotify's, so noticeably less fit on screen. The layouts hardcode dp values,
+  so the scale is applied by wrapping the activity's context with a reduced `densityDpi` instead of
+  touching ~60 layout files. See `services/ultrasonic/ultrasonic/src/main/assets/CHANGELOG.md`.
+
+- **The Artist Images tab is now a real image manager.** Per artist you can let it search
+  automatically, upload a file, paste an image URL, remove the current image, or promote one of the
+  previously fetched images to primary. Results can be filtered on all / with image / without image
+  and are paged, and a new `/api/artists/manage/search` endpoint returns every matching artist —
+  with or without an image — in a single call.
+
+### Fixed
+- **Searching in the Artist Images tab no longer shows an empty page.** The tab assigned any
+  response body straight into its result list, so an error response (or a name containing `&` or
+  `#`, which was never URL-encoded) produced a page with neither results nor a message. It now
+  checks the response, reports the backend's error with a retry button, and debounces typing.
+  See `docs/bug-reports/022-artist-images-tab-search-shows-nothing.md`.
+
+- **Ultrasonic: favorite genres, shared with the web player.** Long-press a genre in Library →
+  Genres to add or remove it; favorites get a star and sort above everything else. It is the same
+  list the web UI keeps (`favoriteGenres` in the per-user `frontend` settings blob), so both clients
+  agree, and a local copy keeps it working offline.
+- **Ultrasonic: a Favorites folder in Android Auto**, holding favorite genres and the dynamic
+  playlists you starred. A genre plays straight from the folder instead of asking for a year and a
+  sort order first. The folder is hidden when there is nothing in it.
+
 ### Changed
 - **Ultrasonic: the default tiles on Songs/Livesets are era tiles now.** The eight tiles that
   filtered on a single genre added nothing next to the genre list, which gets you the same result on

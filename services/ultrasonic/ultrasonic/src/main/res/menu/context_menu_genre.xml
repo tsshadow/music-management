@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:a="http://schemas.android.com/apk/res/android" >
+
+    <item
+        a:id="@+id/menu_favorite_add"
+        a:title="@string/genre.favorite_add"/>
+    <item
+        a:id="@+id/menu_favorite_remove"
+        a:title="@string/genre.favorite_remove"/>
+
+</menu>

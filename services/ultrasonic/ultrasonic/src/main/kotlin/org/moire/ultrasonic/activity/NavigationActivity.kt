@@ -93,6 +93,7 @@ import org.moire.ultrasonic.util.SecureSettings
 import org.moire.ultrasonic.util.Settings
 import org.moire.ultrasonic.util.ShortcutUtil
 import org.moire.ultrasonic.util.Storage
+import org.moire.ultrasonic.util.UiScaleHelper
 import org.moire.ultrasonic.util.UncaughtExceptionHandler
 import org.moire.ultrasonic.util.UpdateChecker
 import org.moire.ultrasonic.util.Util
@@ -452,12 +453,18 @@ class NavigationActivity : ScopeActivity() {
      */
     override fun attachBaseContext(newBase: Context?) {
         val locale = Settings.overrideLanguage
-        if (locale.isNotEmpty()) {
-            val localeUpdatedContext: ContextWrapper = LocaleHelper.wrap(newBase, locale)
-            super.attachBaseContext(localeUpdatedContext)
+        val localizedContext: Context? = if (locale.isNotEmpty()) {
+            LocaleHelper.wrap(newBase, locale)
         } else {
-            super.attachBaseContext(newBase)
+            newBase
         }
+
+        // Apply the user's interface size on top, so the whole activity scales at once
+        val scaledContext: ContextWrapper = UiScaleHelper.wrap(
+            localizedContext,
+            Settings.uiScalePercent
+        )
+        super.attachBaseContext(scaledContext)
     }
 
     private fun exit() {

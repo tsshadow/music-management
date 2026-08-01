@@ -256,6 +256,8 @@ class FilterButtonBar : ConstraintLayout {
         SortOrder.BY_ARTIST -> R.string.main_albums_alphaByArtist
         SortOrder.STARRED -> R.string.main_albums_starred
         SortOrder.BY_YEAR -> R.string.main_albums_by_year
+        SortOrder.BY_TRACK_COUNT, SortOrder.BY_ALBUM_COUNT, SortOrder.BY_ADDED ->
+            throw UnsupportedOperationException("Artist-specific sort orders cannot be used in FilterButtonBar")
     }
 
     companion object {

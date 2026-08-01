@@ -266,6 +266,8 @@ class AlbumListFragment(
         SortOrder.BY_ARTIST -> AlbumListType.SORTED_BY_ARTIST
         SortOrder.STARRED -> AlbumListType.STARRED
         SortOrder.BY_YEAR -> AlbumListType.BY_YEAR
+        SortOrder.BY_TRACK_COUNT, SortOrder.BY_ALBUM_COUNT, SortOrder.BY_ADDED ->
+            throw UnsupportedOperationException("Artist-specific sort orders cannot be used for albums")
     }
 
     companion object {

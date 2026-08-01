@@ -19,5 +19,8 @@ enum class SortOrder(val typeName: String) {
     BY_NAME("alphabeticalByName"),
     BY_ARTIST("alphabeticalByArtist"),
     STARRED("starred"),
-    BY_YEAR("byYear")
+    BY_YEAR("byYear"),
+    BY_TRACK_COUNT("trackCount"),
+    BY_ALBUM_COUNT("albumCount"),
+    BY_ADDED("added")
 }

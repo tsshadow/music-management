@@ -584,6 +584,22 @@ namespace lms::api::subsonic
         return response;
     }
 
+    ArtistSortMethod artistSortMethodFromString(std::string_view sortBy)
+    {
+        if (sortBy == "trackCount")
+            return ArtistSortMethod::TrackCountDesc;
+        if (sortBy == "albumCount")
+            return ArtistSortMethod::ReleaseCountDesc;
+        if (sortBy == "added")
+            return ArtistSortMethod::AddedDesc;
+        if (sortBy == "random")
+            return ArtistSortMethod::Random;
+        if (sortBy != "name" && !sortBy.empty())
+            LMS_LOG(API_SUBSONIC, DEBUG, "GetArtists: unknown sortBy '" << sortBy << "', falling back to name");
+
+        return ArtistSortMethod::SortName;
+    }
+
     Response handleGetArtistsRequest(RequestContext& context)
     {
         // Optional params
@@ -599,16 +615,25 @@ namespace lms::api::subsonic
             getParameterAs<std::size_t>(context.getParameters(), "count").value_or(100)
         };
 
+        const std::string query{ getParameterAs<std::string>(context.getParameters(), "query").value_or("") };
+        const std::string sortBy{ getParameterAs<std::string>(context.getParameters(), "sortBy").value_or("name") };
+        const ArtistSortMethod artistSortMethod{ artistSortMethodFromString(sortBy) };
+        // First-letter grouping only makes sense when artists are actually ordered by (sort) name: derive this
+        // from the resolved sort method, not the raw request string, so an unrecognised sortBy (which falls
+        // back to SortName ordering) can't produce a response shape that disagrees with its own ordering.
+        const bool groupByFirstChar{ query.empty() && artistSortMethod == ArtistSortMethod::SortName };
+
         Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
         Response::Node& artistsNode{ response.createNode("artists") };
         artistsNode.setAttribute("ignoredArticles", "");
         artistsNode.setAttribute("lastModified", reportedDummyDateULong); // TODO: proper lastModified?
 
         Artist::FindParameters parameters;
+        std::vector<std::string_view> keywords;
         {
             auto transaction{ context.getDbSession().createReadTransaction() };
 
-            parameters.setSortMethod(ArtistSortMethod::SortName);
+            parameters.setSortMethod(artistSortMethod);
             switch (context.getUser()->getSubsonicArtistListMode())
             {
             case SubsonicArtistListMode::AllArtists:
@@ -623,12 +648,18 @@ namespace lms::api::subsonic
         }
         parameters.filters.setMediaLibrary(mediaLibrary);
         parameters.setRange(Range{ offset, count });
+        if (!query.empty())
+        {
+            keywords.push_back(query);
+            parameters.setKeywords(keywords);
+        }
 
         // This endpoint does not scale: make short lived transactions in order not to block the whole application
 
-        // first pass: dispatch the artists by first letter
+        // first pass: fetch the artists in server order, and also dispatch them by first letter (used only when groupByFirstChar is set)
         LMS_LOG(API_SUBSONIC, DEBUG, "GetArtists: fetching artists with offset " << offset << " and count " << count);
         std::map<char, std::vector<ArtistId>> artistsSortedByFirstChar;
+        std::vector<ArtistId> orderedArtistIds;
         std::size_t currentArtistOffset{ offset };
         std::size_t remainingCount{ count };
         constexpr std::size_t batchSize{ 100 };
@@ -641,10 +672,17 @@ namespace lms::api::subsonic
             const auto artists{ Artist::find(context.getDbSession(), parameters) };
             for (const Artist::pointer& artist : artists.results)
             {
-                std::string_view sortName{ artist->getSortName() };
+                if (groupByFirstChar)
+                {
+                    std::string_view sortName{ artist->getSortName() };
 
-                const char sortChar{ (sortName.empty() || !std::isalpha(sortName[0])) ? '#' : static_cast<char>(std::toupper(sortName[0])) };
-                artistsSortedByFirstChar[sortChar].push_back(artist->getId());
+                    const char sortChar{ (sortName.empty() || !std::isalpha(sortName[0])) ? '#' : static_cast<char>(std::toupper(sortName[0])) };
+                    artistsSortedByFirstChar[sortChar].push_back(artist->getId());
+                }
+                else
+                {
+                    orderedArtistIds.push_back(artist->getId());
+                }
             }
 
             hasMoreArtists = artists.moreResults;
@@ -655,13 +693,28 @@ namespace lms::api::subsonic
                 remainingCount = 0;
         }
 
-        // Group by index
-        for (const auto& [sortChar, artistIds] : artistsSortedByFirstChar)
+        if (groupByFirstChar)
+        {
+            // Group by index
+            for (const auto& [sortChar, artistIds] : artistsSortedByFirstChar)
+            {
+                Response::Node& indexNode{ artistsNode.createArrayChild("index") };
+                indexNode.setAttribute("name", std::string{ sortChar });
+
+                for (const ArtistId artistId : artistIds)
+                {
+                    auto transaction{ context.getDbSession().createReadTransaction() };
+
+                    if (const Artist::pointer artist{ Artist::find(context.getDbSession(), artistId) })
+                        indexNode.addArrayChild("artist", createArtistNode(context, artist));
+                }
+            }
+        }
+        else
         {
             Response::Node& indexNode{ artistsNode.createArrayChild("index") };
-            indexNode.setAttribute("name", std::string{ sortChar });
-
-            for (const ArtistId artistId : artistIds)
+            indexNode.setAttribute("name", "#");
+            for (const ArtistId artistId : orderedArtistIds)
             {
                 auto transaction{ context.getDbSession().createReadTransaction() };
 

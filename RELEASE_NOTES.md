@@ -11,6 +11,27 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.52 (2026-08-01)
+
+### 🎵 Genres: goedgekeurd, geweigerd of nog te beoordelen
+- Elk genre heeft nu een duidelijke status. **Goedgekeurde** genres worden toegepast, **geweigerde**
+  genres (`Entertainment`, `Arts`) verdwijnen van je tracks, en een genre kan ook **gecorrigeerd**
+  worden in plaats van weggegooid: `uptempo` wordt `Uptempo Hardcore`.
+- Genres die je nog niet beoordeeld hebt, blijven voortaan met rust gelaten. Ze worden geteld en op
+  een lijst gezet, gesorteerd op hoe vaak ze voorkomen, zodat een handvol beslissingen het grootste
+  deel van je bibliotheek opruimt.
+- Hiermee is een fout verholpen waardoor élk genre dat de tagger ooit tegenkwam automatisch geldig
+  werd. Je bestaande witte lijst, negeerlijst en backlog blijven behouden en krijgen de bijbehorende
+  status.
+
+### 🧹 Genres beoordelen in het beheer
+- Nieuw tabblad **Genre Curatie** in het beheerscherm. Je begint bij de lijst die nog beoordeeld moet
+  worden, met de genres die het vaakst voorkomen bovenaan.
+- Per genre: goedkeuren, afkeuren, of corrigeren naar een genre dat je al hebt goedgekeurd. Bij elk
+  genre staat in gewone taal wat er met je tags gebeurt, dus je hoeft de statussen niet te kennen.
+- Een beslissing kun je altijd terugdraaien of veranderen. Wijzigingen gelden vanaf de volgende
+  tagger-run.
+
 ## Global Version 0.0.51 (2026-07-31)
 ### 📱 Android-app: uitloggen, sneller opstarten en niet meer vastlopen op een fout wachtwoord
 - Er zit nu een **uitlogknop** in het menu rechtsboven. Hij vraagt om bevestiging, stopt het

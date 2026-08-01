@@ -110,6 +110,12 @@ class MockDatabaseConnector:
         return MagicMock()
 db_conn_mod.DatabaseConnector = MockDatabaseConnector
 sys.modules['services.common.Helpers.DatabaseConnector'] = db_conn_mod
+# The genre rules helper is a real object holding in-memory rows: a MagicMock would
+# hand every rule a truthy decision and hide what the rule actually does. Tests give
+# it the rows they need via set_rows().
+from services.common.Helpers.GenreRulesHelper import GenreRulesHelper
+cache_mod.databaseHelpers['genre_rules'] = GenreRulesHelper(preload=False, rows=[])
+cache_mod.databaseHelpers['genre_rules'].record_unknown = MagicMock()
 
 def setup_mocks():
     pass
@@ -132,3 +138,5 @@ def reset_database_helpers():
                 h.get.return_value = []
                 h.get.side_effect = None
     helpers['rules_genres'].exists.return_value = True
+    helpers['genre_rules'].set_rows([])
+    helpers['genre_rules'].record_unknown.reset_mock()

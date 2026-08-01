@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.52] - 2026-08-01
+
+### Added
+- **A curation state per genre.** `rules_genres` now records whether a genre is kept (`white`),
+  dropped (`black`) or still awaiting a decision (`unknown`), plus an optional correction target, so
+  `uptempo` can be rewritten to `Uptempo Hardcore` while `Arts` is simply removed. Genres nobody has
+  judged are counted and listed for review instead of being applied.
+- **Curation API.** `GET /api/rules/genres` returns genres by state, most frequently seen first
+  (`state=unknown` is the review queue), and `POST /api/rules/genres/{id}/decide` records a decision
+  together with who made it, so the tagger never reverses it later.
+- **Genre Curation page in the management UI.** A new tab that opens on the unjudged queue, most
+  frequent genre first, and approves, rejects or corrects a genre per row. Every row states in words
+  what the genre currently does to a tag, corrections can only point at an approved genre, and
+  decisions on already-judged genres can be reversed from the same screen.
+
+### Changed
+- **One rule decides a genre instead of two.** `AddMissingGenreToDatabaseRule` and
+  `CleanAndFilterGenreRule` are replaced by `ResolveGenreRule`, which performs a single lookup and a
+  single decision per genre. Unknown genres are left on the file untouched rather than written into
+  the library.
+
+### Fixed
+- **Unknown genres are no longer approved the moment they are detected.** The two rules above ran back
+  to back: the first added an unknown genre to the backlog, the second accepted any genre found in
+  that backlog. Every genre the tagger had ever seen therefore became valid, and the backlog only ever
+  grew. Existing whitelist, ignore list and backlog entries are migrated to their equivalent state by
+  `migrate_genre_states.sql`.
+
 ## [0.0.51] - 2026-07-31
 
 ### Added

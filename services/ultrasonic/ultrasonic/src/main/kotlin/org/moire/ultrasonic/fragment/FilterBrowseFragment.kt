@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.moire.ultrasonic.R
 import org.moire.ultrasonic.adapters.Utils
+import org.moire.ultrasonic.home.BROWSE_SORT_ORDERS
 import org.moire.ultrasonic.home.BrowseCategory
 import org.moire.ultrasonic.home.CardStyle
 import org.moire.ultrasonic.home.FavoriteGenres
@@ -33,10 +34,14 @@ import org.moire.ultrasonic.home.HomeCardAction
 import org.moire.ultrasonic.home.HomeCardAdapter
 import org.moire.ultrasonic.home.HomeCardNavigator
 import org.moire.ultrasonic.home.HomeCardType
+import org.moire.ultrasonic.home.filterAndSortCards
 import org.moire.ultrasonic.home.orderGenres
 import org.moire.ultrasonic.home.toHomeCard
 import org.moire.ultrasonic.service.MusicServiceFactory.getMusicService
 import org.moire.ultrasonic.util.Settings
+import org.moire.ultrasonic.view.FilterButtonBar
+import org.moire.ultrasonic.view.SortOrder
+import org.moire.ultrasonic.view.ViewCapabilities
 import timber.log.Timber
 
 /**
@@ -49,6 +54,10 @@ class FilterBrowseFragment : Fragment() {
 
     private lateinit var adapter: HomeCardAdapter
     private var swipeRefresh: SwipeRefreshLayout? = null
+
+    private var allCards: List<HomeCard> = emptyList()
+    private var query: String? = null
+    private var order: SortOrder = SortOrder.BY_NAME
 
     private val category: BrowseCategory
         get() = BrowseCategory.valueOf(
@@ -71,6 +80,23 @@ class FilterBrowseFragment : Fragment() {
         swipeRefresh = view.findViewById(R.id.browse_refresh)
         swipeRefresh?.setOnRefreshListener { load(refresh = true) }
 
+        val filterButtonBar: FilterButtonBar = view.findViewById(R.id.filter_button_bar)
+        filterButtonBar.configureWithCapabilities(
+            ViewCapabilities(
+                supportsGrid = false,
+                supportedSortOrders = BROWSE_SORT_ORDERS,
+                supportsSearch = true
+            )
+        )
+        filterButtonBar.setOnQueryChangedListener { newQuery ->
+            query = newQuery
+            applyFilter()
+        }
+        filterButtonBar.setOnOrderChangedListener { newOrder ->
+            order = newOrder
+            applyFilter()
+        }
+
         load(refresh = false)
     }
 
@@ -79,13 +105,18 @@ class FilterBrowseFragment : Fragment() {
         swipeRefresh = null
     }
 
+    private fun applyFilter() {
+        adapter.items = filterAndSortCards(allCards, query, order)
+    }
+
     private fun load(refresh: Boolean) {
         val category = this.category
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val cards = withContext(Dispatchers.IO) { loadCards(category, refresh) }
-                adapter.items = cards
+                allCards = cards
+                applyFilter()
             } catch (e: Exception) {
                 Timber.w(e, "Failed to load %s", category)
             } finally {

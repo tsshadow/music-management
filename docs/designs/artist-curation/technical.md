@@ -32,19 +32,37 @@ Order matters, and is chosen so the cheapest and most certain answers come first
 6. Fuzzy match against the dictionary.
 7. Otherwise unknown.
 
-**Junk is scored, not ruled.** The signals are individually weak: four words is normal for an artist, and so
-is a bracket. Dutch or English function words plus unclosed brackets plus sentence punctuation together stop
-being normal. Scoring keeps the threshold a single tunable number and keeps every contributing reason
-reportable.
+**Junk is scored, and the score does not reject.** The signals are individually weak: four words is normal
+for an artist, and so is a bracket. The first run over the real library showed they stay weak in combination
+too — `Boaz Van De Beatz`, `We Are Loud` and `The Beholder (Neophyte)` are real artists that score exactly
+like a stray quote does. The score is therefore reported and the name is flagged in the queue;
+`reject_on_junk_score` turns it into a removal for anyone who wants that. What still rejects outright is
+narrower and unambiguous: a name with no letters in any script, and a name with nothing left once the promo
+noise is stripped — which is how `Premiere`, 9180 tracks on its own, gets dealt with.
 
-**Segmentation is dictionary-driven and refuses spaced input.** Every segment must match an approved artist,
-so the dictionary decides where boundaries fall rather than the analyzer guessing. A whole name that is
-itself approved is never segmented, which is what stops `Warface` becoming `War` + `Face`.
+**Segmentation is off by default.** It is dictionary-driven and refuses spaced input, and a name that is
+itself approved is never segmented, which stops `Warface` becoming `War` + `Face`. That was not enough. On
+the real library it produced 122 splits that were almost all wrong — `Technotronic` into `Techno` + `Tonic`,
+`Freestyle` into `Free` + `Styles`, `Coldfire` into `Cold` + `Fire` — because a dictionary bootstrapped from
+the data itself contains enough short common words to take any compound apart. The code and its tests stay;
+`enable_segmentation` is worth turning on once the dictionary holds verified artists instead of a guess.
 
 **The fuzzy threshold is arithmetic, not taste.** One wrong character in a name of n characters scores
 `1 - 1/n`, so 0.90 would only reach names of ten characters and up. The default of 0.87 reaches down to
 eight. Below that the same ratio starts matching genuinely different short names, so those are left to a
 human — `ArtistNameAnalyzerTest` pins both sides of that boundary so the cost of the default is visible.
+
+**The normalisation key is script-aware.** Deciding alphanumeric per character rather than with an `a-z0-9`
+range is not pedantry: the library holds Cyrillic artists, and a Latin-only key collapses every one of them
+to the empty string — indistinguishable from a name of pure punctuation, and the first run duly proposed
+deleting all of them.
+
+**Matching is blocked by first character and length.** Comparing every name against every approved artist is
+quadratic and does not survive 51k names against a 7k dictionary; the first full run did not finish in twenty
+minutes. Length blocking is free, because a required similarity bounds how far the lengths can differ.
+First-character blocking is not free, and is the deliberate trade that makes a run practical: a typo in the
+first character is not corrected automatically and lands in the queue instead. That is the safe direction to
+be wrong in, and rarer than a typo anywhere else.
 
 ## Bootstrapping the dictionary
 
@@ -60,6 +78,21 @@ source — the lesson the genre work already taught.
 This bootstrap is optimistic by construction: it approves clean-looking names on circumstantial evidence
 alone. That is acceptable for a dry run whose purpose is to show what happens, and it is exactly what the
 external-lookup phase is meant to replace. The report prints the seed size so its influence is never hidden.
+
+The first run made the weakness concrete. It seeded 7081 names, and among the most widespread of them are
+`Autektone Records`, `Sick Events`, `DJ Mag` and `The Boom Room` — a label, an event organiser, a magazine
+and a radio show. All are real entities and none is an artist, which is a distinction no amount of string
+shape can make. It also means a correction can point at the wrong spelling: `Rbr` is rewritten to `RBR ©`
+because that variant happened to be seeded first.
+
+## What the first run over the real library found
+
+51378 names against a 7081-name seed: 7030 kept (13.7% of names but 76% of all track assignments), 3440
+rewritten onto 1775 distinct targets, 255 removed, and 40653 left for a human or an external lookup — 16.3%
+of track assignments, of which 1484 are flagged as sentence-like.
+
+The shape of that result is the point. The mechanical answers are concentrated where the tracks are, and the
+long tail really is a tail. The single largest win available is one name: `Premiere`, 9180 tracks.
 
 ## Configuration and re-runnability
 
@@ -85,6 +118,13 @@ same `decided_by` rule the genre work established.
 10. `build_seed` excludes names below the track threshold, names confined to a single folder, names carrying
     noise, and sentence-like names.
 11. Adding an artist to the dictionary changes a previously unknown variant of it into a rewrite.
+12. A Cyrillic name is never rejected for having no letters, and two different Cyrillic names get two
+    different keys.
+13. `Boaz Van De Beatz`, `We Are Loud` and `The Beholder (Neophyte)` are not removed by the default config;
+    `Premiere`, `FREE DOWNLOAD` and `OUT NOW` still are.
+14. Turning `reject_on_junk_score` on turns a flagged sentence into a removal.
+15. `enable_segmentation` is off by default, and turning it on restores splitting.
+16. The length window always contains the length itself and narrows as the threshold rises.
 
 ## Related Docs
 

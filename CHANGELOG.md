@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **The Artist Images tab is now a real image manager.** Per artist you can let it search
+  automatically, upload a file, paste an image URL, remove the current image, or promote one of the
+  previously fetched images to primary. Results can be filtered on all / with image / without image
+  and are paged, and a new `/api/artists/manage/search` endpoint returns every matching artist —
+  with or without an image — in a single call.
+
+### Fixed
+- **Searching in the Artist Images tab no longer shows an empty page.** The tab assigned any
+  response body straight into its result list, so an error response (or a name containing `&` or
+  `#`, which was never URL-encoded) produced a page with neither results nor a message. It now
+  checks the response, reports the backend's error with a retry button, and debounces typing.
+  See `docs/bug-reports/022-artist-images-tab-search-shows-nothing.md`.
+
 ## [0.0.53] - 2026-08-01
 
 ### Fixed

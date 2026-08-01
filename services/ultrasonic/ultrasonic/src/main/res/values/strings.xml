@@ -481,6 +481,8 @@
     <string name="settings.debug.log_deleted">Deleted log files.</string>
     <string name="settings.debug.share_log">Share debug log</string>
     <string name="settings.debug.view_log">View debug log</string>
+    <string name="settings.debug.crash_detection">Crash detection</string>
+    <string name="settings.debug.crash_detection_summary">Detect crashes and unclean shutdowns, and offer to share diagnostics on the next start</string>
     <string name="crash_report.dialog_title">Previous session crashed</string>
     <string name="crash_report.dialog_message">Ultrasonic did not shut down cleanly last time. Share diagnostics to help fix this?</string>
     <string name="crash_report.dialog_share">Share</string>

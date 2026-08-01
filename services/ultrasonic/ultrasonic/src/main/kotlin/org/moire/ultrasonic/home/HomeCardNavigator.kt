@@ -12,6 +12,7 @@ import com.google.gson.Gson
 import org.moire.ultrasonic.NavigationGraphDirections
 import org.moire.ultrasonic.api.subsonic.models.Filter
 import org.moire.ultrasonic.api.subsonic.models.Filters
+import org.moire.ultrasonic.fragment.ArtistNavigation
 import org.moire.ultrasonic.fragment.muma.TileInfo
 import org.moire.ultrasonic.fragment.muma.navigateToGenre
 import org.moire.ultrasonic.fragment.muma.navigateToGenreByName
@@ -42,7 +43,7 @@ object HomeCardNavigator {
             isAlbum = true
         )
 
-        HomeCardType.ARTIST -> NavigationGraphDirections.toArtistDetail(card.itemId)
+        HomeCardType.ARTIST -> ArtistNavigation.directionsForArtist(card.itemId, card.title)
 
         HomeCardType.STATIC_PLAYLIST -> NavigationGraphDirections.toTrackCollection(
             id = card.itemId,

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Tapping an artist opened a blank screen.** The artist list and the home screen's artist cards
+  navigated to `artistDetailFragment`, whose `ArtistDetailFragment` was never more than a stub: a
+  bare `Fragment` with no layout and no data loading, so it rendered nothing. Both now open the
+  artist's album list - the same destination search results and the player's "show artist" have
+  always used. The unused fragment and its navigation destination are gone, and the destination is
+  now covered by a unit test so a blank artist page cannot come back unnoticed.
+
 ## [6.5.21] - 2026-08-01
 
 ### Added

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Android: tapping an artist opened a blank screen.** The artist list and the home screen's
+  artist cards navigated to a stub fragment that had no layout and loaded no data. Both now open
+  the artist's album list, the destination search and the player's "show artist" already used.
+
 ## [0.0.55] - 2026-08-01
 
 ### Added

@@ -91,21 +91,10 @@ class ArtistListFragment : EntryListFragment<ArtistOrIndex>() {
     }
 
     override fun onItemClick(item: ArtistOrIndex) {
-        val action = if (item is Index) {
-            NavigationGraphDirections.toTrackCollection(
-                id = item.id,
-                name = item.name,
-                parentId = item.id,
-                isArtist = false,
-                artistId = item.id
-            )
-        } else {
+        if (item !is Index) {
             recentActivityStore.record(item.toHomeCard(), Settings.isSetsMode)
-            NavigationGraphDirections.toArtistDetail(
-                artistId = item.id
-            )
         }
 
-        findNavController().navigate(action)
+        findNavController().navigate(ArtistNavigation.directionsFor(item))
     }
 }

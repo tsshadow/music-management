@@ -242,6 +242,13 @@
     <string name="favorites.starred_albums">Albums met ster</string>
     <string name="favorites.starred_artists">Artiesten met ster</string>
     <string name="favorites.highly_rated">Hoog gewaardeerd</string>
+    <string name="favorites.title">Favorieten</string>
+    <string name="favorites.genres">Favoriete genres</string>
+    <string name="favorites.playlists">Favoriete playlists</string>
+    <string name="genre.favorite_add">Aan favorieten toevoegen</string>
+    <string name="genre.favorite_remove">Uit favorieten verwijderen</string>
+    <string name="genre.favorite_added">%1$s toegevoegd aan favorieten</string>
+    <string name="genre.favorite_removed">%1$s verwijderd uit favorieten</string>
     <string name="settings.increment_time_0">Disabled</string>
     <string name="settings.increment_time_1">1 second</string>
     <string name="settings.increment_time_10">10 seconds</string>

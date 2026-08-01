@@ -38,10 +38,23 @@
             a:textColor="@color/spotify_text_primary"
             a:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/card_favorite"
             app:layout_constraintStart_toEndOf="@+id/card_image"
             app:layout_constraintTop_toTopOf="parent"
             tools:text="Recent Hardstyle" />
+
+        <ImageView
+            a:id="@+id/card_favorite"
+            a:layout_width="16dp"
+            a:layout_height="16dp"
+            a:layout_marginEnd="8dp"
+            a:contentDescription="@string/favorite"
+            a:src="@drawable/ic_star_full"
+            a:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:visibility="visible" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </com.google.android.material.card.MaterialCardView>

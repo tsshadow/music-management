@@ -20,7 +20,14 @@ const DICTS = {
   nl: {
     settings: { language: { title: "Taal" } },
     greeting: "Hoi {name}",
+    onlyDutch: "Alleen Nederlands",
     branch: { nested: "waarde" },
+  },
+  sallands: {
+    greeting: "Moi {name}",
+  },
+  brabants: {
+    greeting: "Houdoe {name}",
   },
 };
 
@@ -59,6 +66,27 @@ describe("i18n - createTranslator", () => {
     const translate = createTranslator(DICTS, "fr");
     expect(translate("settings.language.title")).toBe("Language");
   });
+
+  it("prefers the dialect's own wording when it has the key", () => {
+    const translate = createTranslator(DICTS, "sallands");
+    expect(translate("greeting", { name: "Teun" })).toBe("Moi Teun");
+  });
+
+  it("falls back from a dialect to Dutch rather than to English", () => {
+    const translate = createTranslator(DICTS, "sallands");
+    expect(translate("onlyDutch")).toBe("Alleen Nederlands");
+  });
+
+  it("falls back from a dialect through Dutch to English as a last resort", () => {
+    const translate = createTranslator(DICTS, "brabants");
+    expect(translate("onlyEnglish")).toBe("English only");
+  });
+
+  it("applies the same chain to every dialect", () => {
+    const translate = createTranslator(DICTS, "brabants");
+    expect(translate("greeting", { name: "Teun" })).toBe("Houdoe Teun");
+    expect(translate("onlyDutch")).toBe("Alleen Nederlands");
+  });
 });
 
 describe("i18n - resolveInitialLocale", () => {
@@ -87,6 +115,15 @@ describe("i18n - resolveInitialLocale", () => {
   it("falls back to the default locale when the browser reports no language", () => {
     expect(resolveInitialLocale(undefined)).toBe(DEFAULT_LOCALE);
   });
+
+  it("honours a dialect the user picked earlier in this browser", () => {
+    localStorage.setItem("muma_locale", JSON.stringify("brabants"));
+    expect(resolveInitialLocale("nl-NL")).toBe("brabants");
+  });
+
+  it("never resolves a Dutch browser language to a dialect", () => {
+    expect(resolveInitialLocale("nl-NL")).toBe("nl");
+  });
 });
 
 describe("i18n - locale store", () => {
@@ -94,11 +131,18 @@ describe("i18n - locale store", () => {
     locale.set(DEFAULT_LOCALE);
   });
 
-  it("ships English and Dutch, each labelled in its own language", () => {
+  it("ships English, Dutch and the two dialects, each labelled in its own language", () => {
     expect(SUPPORTED_LOCALES).toEqual([
       { code: "en", label: "English" },
       { code: "nl", label: "Nederlands" },
+      { code: "sallands", label: "Sallaands" },
+      { code: "brabants", label: "Brabants" },
     ]);
+  });
+
+  it("reports a dialect to the document as Dutch, there being no tag for it", () => {
+    locale.set("sallands");
+    expect(document.documentElement.lang).toBe("nl");
   });
 
   it("keeps the previous locale when set to an unsupported code", () => {

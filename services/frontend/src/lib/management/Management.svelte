@@ -6,8 +6,6 @@
   // Import Tabs
   import OverviewTab from './tabs/OverviewTab.svelte';
   import AdvancedLibraryTab from './tabs/AdvancedLibraryTab.svelte';
-  import LibraryTab from './tabs/LibraryTab.svelte';
-  import StatsTab from './tabs/StatsTab.svelte';
   import ArtistImagesTab from './tabs/ArtistImagesTab.svelte';
   import PlaylistsTab from './tabs/PlaylistsTab.svelte';
   import TaggerTab from './tabs/TaggerTab.svelte';
@@ -428,13 +426,9 @@
       </div>
     {:else}
       {#if $activeManagementTab === 'overview'}
-        <OverviewTab {containers} {activity} {config} {allNotes} {selectedServiceNotes} {notes} onNavigateToStats={() => activeManagementTab.set('stats')} />
-      {:else if $activeManagementTab === 'advanced-library'}
-        <AdvancedLibraryTab {API_BASE} {getHeaders} onMessage={(m) => message = m} onError={(e) => error = e} />
+        <OverviewTab {containers} {activity} {config} {allNotes} {selectedServiceNotes} {notes} {stats} {fetchStats} {fetchArtistImages} />
       {:else if $activeManagementTab === 'library'}
-        <LibraryTab {API_BASE} {getHeaders} onMessage={(m) => message = m} onError={(e) => error = e} />
-      {:else if $activeManagementTab === 'stats'}
-        <StatsTab {stats} {fetchStats} {fetchArtistImages} />
+        <AdvancedLibraryTab {API_BASE} {getHeaders} onMessage={(m) => message = m} onError={(e) => error = e} />
       {:else if $activeManagementTab === 'images'}
         <ArtistImagesTab 
           {API_BASE} {apiKey} bind:artistImageSearch 

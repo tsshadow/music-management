@@ -155,8 +155,7 @@ class CachedMusicService(private val musicService: MusicService) :
     ): List<Artist> {
         checkSettingsChanged()
 
-        // Only the unfiltered, default-sorted list is worth caching.
-        if (query != null || (sortBy != null && sortBy != "name")) {
+        if (artistsCacheBypassesFor(query, sortBy, offset)) {
             return musicService.getArtists(refresh, offset, count, query, sortBy)
         }
 
@@ -742,3 +741,16 @@ class CachedMusicService(private val musicService: MusicService) :
         cachedUserInfo = LRUCache(MUSIC_DIR_CACHE_SIZE)
     }
 }
+
+/**
+ * Whether [CachedMusicService.getArtists] has to skip its Room cache and go straight to
+ * [musicService][CachedMusicService].
+ *
+ * The cache is [ArtistDao.get] - a plain `SELECT * FROM artists` with no `LIMIT`/`OFFSET`/
+ * `ORDER BY`. It can only stand in for the unfiltered, default-sorted, *first* page: a search
+ * term or a non-default sort needs the server to do the filtering/ordering, and any page after
+ * the first needs the server to do the paging, because the DAO has no way to answer either.
+ */
+internal fun artistsCacheBypassesFor(query: String?, sortBy: String?, offset: Int?): Boolean = query != null ||
+    (sortBy != null && sortBy != "name") ||
+    (offset != null && offset > 0)

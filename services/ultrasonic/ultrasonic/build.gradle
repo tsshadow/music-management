@@ -181,6 +181,14 @@ android {
         checkDependencies = true
     }
 
+    testOptions {
+        unitTests {
+            // Robolectric can only resolve the app's own resources when they are packaged for
+            // the unit test run; without this every getString/inflate throws NotFoundException.
+            includeAndroidResources = true
+        }
+    }
+
     /*
     testOptions {
         managedDevices {

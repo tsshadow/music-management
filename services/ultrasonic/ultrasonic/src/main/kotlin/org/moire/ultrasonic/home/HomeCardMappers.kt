@@ -43,11 +43,12 @@ fun Label.toHomeCard(): HomeCard = HomeCard(
 )
 
 // Genres are filters rather than library items, so the name is the identity.
-fun Genre.toHomeCard(): HomeCard = HomeCard(
+fun Genre.toHomeCard(isFavorite: Boolean = false): HomeCard = HomeCard(
     type = HomeCardType.GENRE,
     itemId = name,
     title = name,
-    subtitle = songCount.toString()
+    subtitle = songCount.toString(),
+    isFavorite = isFavorite
 )
 
 fun Track.toHomeCard(): HomeCard = HomeCard(

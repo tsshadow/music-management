@@ -7,10 +7,10 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [svelte()],
     base: "/",
-    // Under Vitest, Svelte 5 otherwise resolves to its server build and mounting a
-    // component fails with lifecycle_function_unavailable. Scoped to the test run so
-    // the production build resolves exactly as before.
-    resolve: process.env.VITEST ? { conditions: ["browser"] } : undefined,
+    // Vitest runs in Node, where Svelte would otherwise resolve to its
+    // server-only build and `mount()` throws. Component tests need the
+    // browser build.
+    ...(process.env.VITEST ? { resolve: { conditions: ["browser"] } } : {}),
     server: {
       host: true,
       proxy: {

@@ -63,10 +63,7 @@
   let lbUsername = $state('');
   let selectedServiceNotes = $state('control-center');
   let artistSearch = $state('');
-  let artistImageSearch = $state('');
   let labelSearch = $state('');
-  let artistsWithImages = $state([]);
-  let allArtists = $state([]);
   let fetchProgress = $state({ active: false, total: 0, current: 0, last_artist: null, status: 'idle' });
   let imageStats = $state({ total_artists: 0, artists_with_images: 0, artists_without_images: 0 });
   let importMumaUser = $state('');
@@ -157,22 +154,6 @@
     }
   }
 
-  async function searchArtistImages() {
-    try {
-      const res = await fetch(`${$mumaApiUrl}/api/artists/search?q=${artistImageSearch}`, { headers: getHeaders() });
-      artistsWithImages = await res.json();
-      
-      if (artistImageSearch) {
-        const resAll = await fetch(`${$mumaApiUrl}/api/artists/search-all?q=${artistImageSearch}`, { headers: getHeaders() });
-        allArtists = await resAll.json();
-      } else {
-        allArtists = [];
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
   async function fetchArtistImages() {
     message = "Achtergrondtaak voor afbeeldingen gestart...";
     try {
@@ -189,21 +170,6 @@
     }
   }
 
-  async function manualFetchImage(artistId) {
-    try {
-      const res = await fetch(`${$mumaApiUrl}/api/artists/${artistId}/fetch-image`, {
-        method: 'POST',
-        headers: getHeaders()
-      });
-      if (res.ok) {
-        message = "Handmatige scan gestart...";
-        setTimeout(searchArtistImages, 2000);
-      }
-    } catch (err) {
-      error = "Kon handmatige scan niet starten.";
-    }
-  }
-
   let progressInterval;
   function startProgressPolling() {
     if (progressInterval) clearInterval(progressInterval);
@@ -214,7 +180,6 @@
         if (!fetchProgress.active && fetchProgress.status !== 'running') {
           clearInterval(progressInterval);
           fetchImageStats();
-          searchArtistImages();
         }
       } catch (err) {
         console.error("Error polling progress:", err);
@@ -430,12 +395,12 @@
       {:else if $activeManagementTab === 'library'}
         <AdvancedLibraryTab {API_BASE} {getHeaders} onMessage={(m) => message = m} onError={(e) => error = e} />
       {:else if $activeManagementTab === 'images'}
-        <ArtistImagesTab 
-          {API_BASE} {apiKey} bind:artistImageSearch 
-          {artistsWithImages} {allArtists} 
-          {fetchArtistImages} {manualFetchImage}
-          {fetchProgress} {imageStats}
-          {searchArtistImages}
+        <ArtistImagesTab
+          {API_BASE} {apiKey} getHeaders={getHeaders}
+          {fetchArtistImages} {fetchProgress} {imageStats}
+          refreshStats={fetchImageStats}
+          onMessage={(m) => message = m}
+          onError={(e) => error = e}
         />
       {:else if $activeManagementTab === 'playlists'}
         <PlaylistsTab 

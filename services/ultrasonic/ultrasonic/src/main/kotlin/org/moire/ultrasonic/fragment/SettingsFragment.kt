@@ -141,7 +141,9 @@ class SettingsFragment :
                 showArtistPicture?.isEnabled = enabled
                 useId3TagsOffline?.isEnabled = enabled
             }
-            getString(R.string.setting_key_theme) -> {
+            getString(R.string.setting_key_theme),
+            getString(R.string.setting_key_ui_scale) -> {
+                // Both are baked into the activity's context, so it has to be recreated
                 RxBus.themeChangedEventPublisher.onNext(Unit)
             }
             getString(R.string.setting_key_custom_cache_location) -> {

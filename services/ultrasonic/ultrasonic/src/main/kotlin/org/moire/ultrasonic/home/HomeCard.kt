@@ -39,7 +39,9 @@ data class HomeCard(
     val subtitle: String? = null,
     val coverArtId: String? = null,
     /** smartParams JSON; only set for [HomeCardType.DYNAMIC_PLAYLIST]. */
-    val payload: String? = null
+    val payload: String? = null,
+    /** Draws a star and, on the genre screen, sorts the card to the top. */
+    val isFavorite: Boolean = false
 ) {
     /** Identity across sections and across app restarts. Two types never collide. */
     val key: String get() = "$type:$itemId"

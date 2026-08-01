@@ -30,6 +30,16 @@ object Settings {
         getKey(R.string.setting_key_theme_black)
     )
 
+    /**
+     * Percentage the whole interface is scaled by. 100 is the density the device reports,
+     * lower values shrink every dp and sp so more content fits on screen.
+     */
+    @JvmStatic
+    var uiScalePercent by StringIntSetting(
+        getKey(R.string.setting_key_ui_scale),
+        DEFAULT_UI_SCALE_PERCENT
+    )
+
     @JvmStatic
     var isSetsMode by BooleanSetting(
         getKey(R.string.setting_key_is_sets_mode),
@@ -272,6 +282,17 @@ object Settings {
         BuildConfig.DEBUG
     )
 
+    /**
+     * Off by default in every build type: the detection infers a crash from a missing clean
+     * shutdown, and Android silently kills the process often enough that leaving it on would
+     * nag about a "crash" after most ordinary app exits.
+     */
+    @JvmStatic
+    var crashDetectionEnabled by BooleanSetting(
+        getKey(R.string.setting_key_crash_detection),
+        false
+    )
+
     @JvmStatic
     val overrideLanguage by StringSetting(getKey(R.string.setting_key_override_language), "")
 
@@ -328,6 +349,10 @@ object Settings {
     @JvmStatic
     var lastSelectedLiveGenres by StringSetting("last_selected_live_genres", "[]")
 
+    // Local copy of the list the web player keeps in the MuMa "frontend" settings blob.
+    @JvmStatic
+    var favoriteGenres by StringSetting("favorite_genres", "[]")
+
     @JvmStatic
     var mediaDeviceExportEnabled by BooleanSetting(
         getKey(R.string.setting_key_media_device_export),
@@ -350,4 +375,6 @@ object Settings {
         get() = UApp.applicationContext()
 
     val COLON_PATTERN: Pattern = Pattern.compile(":")
+
+    const val DEFAULT_UI_SCALE_PERCENT = 75
 }

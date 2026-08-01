@@ -24,7 +24,7 @@ def ensure_tables_exist() -> None:
         'library_tracks': '\n            CREATE TABLE IF NOT EXISTS library_tracks (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                track_uid VARCHAR(255) UNIQUE,\n                title VARCHAR(512),\n                duration_secs FLOAT,\n                primary_artist_id INT,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n            )\n        ',
         'library_media_files': '\n            CREATE TABLE IF NOT EXISTS library_media_files (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                file_path TEXT NOT NULL,\n                file_path_hash VARCHAR(64) UNIQUE NOT NULL,\n                audio_hash VARCHAR(64),\n                duration_secs FLOAT,\n                track_id INT,\n                file_size BIGINT,\n                file_mtime DOUBLE,\n                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n                FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE SET NULL\n            )\n        ',
         'library_track_artists': '\n            CREATE TABLE IF NOT EXISTS library_track_artists (\n                track_id INT NOT NULL,\n                artist_id INT NOT NULL,\n                role ENUM(\'primary\', \'featuring\', \'remixer\', \'producer\', \'composer\') DEFAULT \'primary\',\n                position INT DEFAULT 0,\n                PRIMARY KEY (track_id, artist_id, role),\n                FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE CASCADE,\n                FOREIGN KEY (artist_id) REFERENCES library_artists(id) ON DELETE CASCADE\n            )\n        ',
-        'library_track_genres': '\n            CREATE TABLE IF NOT EXISTS library_track_genres (\n                track_id INT NOT NULL,\n                genre_id INT NOT NULL,\n                weight FLOAT DEFAULT 1.0,\n                PRIMARY KEY (track_id, genre_id),\n                FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE CASCADE,\n                FOREIGN KEY (genre_id) REFERENCES rules_genres(id) ON DELETE CASCADE\n            )\n        ',
+        'library_track_genres': '\n            CREATE TABLE IF NOT EXISTS library_track_genres (\n                track_id INT NOT NULL,\n                genre_id INT NOT NULL,\n                weight FLOAT DEFAULT 1.0,\n                PRIMARY KEY (track_id, genre_id),\n                INDEX idx_genre_id (genre_id),\n                FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE CASCADE,\n                FOREIGN KEY (genre_id) REFERENCES rules_genres(id) ON DELETE CASCADE\n            )\n        ',
         'library_track_labels': '\n            CREATE TABLE IF NOT EXISTS library_track_labels (\n                track_id INT NOT NULL,\n                label_id INT NOT NULL,\n                PRIMARY KEY (track_id, label_id),\n                FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE CASCADE,\n                FOREIGN KEY (label_id) REFERENCES library_labels(id) ON DELETE CASCADE\n            )\n        ',
         'rules_artist_genre': '\n            CREATE VIEW IF NOT EXISTS rules_artist_genre AS\n            SELECT r.artist_name AS artist, g.name AS genre\n            FROM rules_artist_genres r\n            JOIN rules_genres g ON r.genre_id = g.id\n        ', 
         'rules_catid_label': '\n            CREATE TABLE IF NOT EXISTS rules_catid_label (\n                catid VARCHAR(255) PRIMARY KEY,\n                label VARCHAR(255) NOT NULL\n            )\n        ', 
@@ -51,6 +51,18 @@ def ensure_tables_exist() -> None:
                         cursor.execute(query)
                     except Exception as e:
                         logging.debug('Query failed (might already exist): %s', e)
+                # CREATE TABLE IF NOT EXISTS never alters an existing table, which is how
+                # library_track_audio_features ended up missing columns the code selected.
+                # Index additions therefore need their own idempotent step.
+                for index_sql in (
+                    'ALTER TABLE library_track_genres ADD INDEX idx_genre_id (genre_id)',
+                    'ALTER TABLE library_track_labels ADD INDEX idx_label_id (label_id)',
+                    'ALTER TABLE library_tracks ADD INDEX idx_created_at (created_at)',
+                ):
+                    try:
+                        cursor.execute(index_sql)
+                    except Exception as e:
+                        logging.debug('Index already present or not applicable: %s', e)
             conn.commit()
         finally:
             conn.close()

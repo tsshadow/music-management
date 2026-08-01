@@ -24,6 +24,7 @@
   "common": {
     "album": "Album",
     "artist": "Artist",
+    "busy": "Working…",
     "close": "Close",
     "closeModal": "Close dialogue",
     "download": "Download",
@@ -43,6 +44,23 @@
       "one": "{count} track",
       "other": "{count} tracks"
     }
+  },
+  "dashboard": {
+    "addFavorite": "Add to favourites",
+    "noAlbums": "No albums found",
+    "noAlbumsHelp": "No albums match the current filters.",
+    "noGenres": "No genres found in your library.",
+    "noLabels": "No labels found in your library.",
+    "noSets": "No sets found",
+    "noSetsHelp": "Nothing here matches the current set view.",
+    "noTracks": "No tracks found",
+    "noTracksHelp": "Nothing here matches the current track view.",
+    "noTracksInSection": "No tracks found in this category.",
+    "removeFavorite": "Remove from favourites",
+    "searchResultsSets": "Search results for \"{query}\" (sets)",
+    "searchResultsTracks": "Search results for \"{query}\" (tracks)",
+    "showAll": "Show all",
+    "toggleFavorite": "Toggle favourite"
   },
   "filter": {
     "allGenres": "All genres",
@@ -86,6 +104,31 @@
     "subtitle": "The tracks you played recently.",
     "title": "Listening history"
   },
+  "login": {
+    "avatar": "Avatar",
+    "backToLogin": "Back to login",
+    "connect": "Connect",
+    "createAccount": "Create account",
+    "intro": "Log in with your Subsonic details, or use Google.",
+    "invalidCredentials": "Invalid username or password",
+    "loginNow": "Log in now",
+    "noAccessYet": "Hello {name} ({email}). You do not have access to this system yet.",
+    "noGoogleConnection": "Could not reach the Google login API",
+    "noServerConnection": "Could not reach the server",
+    "or": "OR",
+    "password": "Password",
+    "requestAccess": "Request access",
+    "requestApproved": "Your request was approved. You can log in now.",
+    "requestPending": "Your access request is pending. An administrator has to approve it before you can log in.",
+    "requestRejected": "Your access request was rejected. Contact an administrator for more information.",
+    "requestedOn": "Requested on: {date}",
+    "settingUp": "Setting up…",
+    "setupIntro": "No users exist yet. Create the first administrator to get started.",
+    "setupTitle": "System setup",
+    "title": "Log in",
+    "username": "Username",
+    "verifying": "Verifying…"
+  },
   "nav": {
     "albums": "Albums",
     "artists": "Artists",
@@ -102,12 +145,29 @@
     "songs": "Songs",
     "starred": "Favourites"
   },
+  "player": {
+    "next": "Next",
+    "nothingPlaying": "Nothing playing",
+    "previous": "Previous",
+    "radio": "Radio",
+    "repeat": "Repeat",
+    "seek": "Seek track",
+    "syncHost": "Jam: host (lead)",
+    "syncListener": "Radio: listener (following)",
+    "syncOff": "Sync off",
+    "syncRemote": "Jam: remote (controller)",
+    "volume": "Volume"
+  },
   "queue": {
     "clear": "Clear list",
     "resize": "Resize queue",
     "saveAsPlaylist": "Save as playlist",
     "shuffle": "Shuffle",
     "title": "Queue"
+  },
+  "radio": {
+    "couldNotStart": "Could not start radio",
+    "noChannels": "No radio channels available"
   },
   "releaseNotes": {
     "intro": "A new version of LMS has been detected! Here are the key changes:",

@@ -24,6 +24,7 @@
   "common": {
     "album": "Album",
     "artist": "Artiest",
+    "busy": "Bezig...",
     "close": "Sluiten",
     "closeModal": "Modal sluiten",
     "download": "Downloaden",
@@ -43,6 +44,23 @@
       "one": "{count} nummer",
       "other": "{count} nummers"
     }
+  },
+  "dashboard": {
+    "addFavorite": "Toevoegen aan favorieten",
+    "noAlbums": "Geen albums gevonden",
+    "noAlbumsHelp": "Er zijn geen albums gevonden die overeenkomen met de huidige filters.",
+    "noGenres": "Geen genres gevonden in je bibliotheek.",
+    "noLabels": "Geen labels gevonden in je bibliotheek.",
+    "noSets": "Geen sets gevonden",
+    "noSetsHelp": "Er zijn geen items gevonden die overeenkomen met de huidige sets weergave.",
+    "noTracks": "Geen nummers gevonden",
+    "noTracksHelp": "Er zijn geen items gevonden die overeenkomen met de huidige nummers weergave.",
+    "noTracksInSection": "Geen tracks gevonden in deze categorie.",
+    "removeFavorite": "Verwijderen uit favorieten",
+    "searchResultsSets": "Zoekresultaten voor \"{query}\" (sets)",
+    "searchResultsTracks": "Zoekresultaten voor \"{query}\" (nummers)",
+    "showAll": "Alles tonen",
+    "toggleFavorite": "Favoriet toggelen"
   },
   "filter": {
     "allGenres": "Alle Genres",
@@ -86,6 +104,31 @@
     "subtitle": "Jouw recent beluisterde nummers.",
     "title": "Luistergeschiedenis"
   },
+  "login": {
+    "avatar": "Avatar",
+    "backToLogin": "Terug naar inloggen",
+    "connect": "Verbinden",
+    "createAccount": "Account Aanmaken",
+    "intro": "Log in met je Subsonic gegevens of gebruik Google.",
+    "invalidCredentials": "Ongeldige gebruikersnaam of wachtwoord",
+    "loginNow": "Nu inloggen",
+    "noAccessYet": "Hallo {name} ({email}). Je hebt nog geen toegang tot dit systeem.",
+    "noGoogleConnection": "Kon geen verbinding maken met de Google login API",
+    "noServerConnection": "Kon geen verbinding maken met de server",
+    "or": "OF",
+    "password": "Wachtwoord",
+    "requestAccess": "Toegang aanvragen",
+    "requestApproved": "Je aanvraag is goedgekeurd! Je kunt nu inloggen.",
+    "requestPending": "Je toegangsaanvraag is in behandeling. Een beheerder moet deze goedkeuren voordat je kunt inloggen.",
+    "requestRejected": "Je toegangsaanvraag is afgewezen. Neem contact op met een beheerder voor meer informatie.",
+    "requestedOn": "Aangevraagd op: {date}",
+    "settingUp": "Bezig met instellen...",
+    "setupIntro": "Er zijn nog geen gebruikers gevonden. Maak de eerste beheerder aan om te beginnen.",
+    "setupTitle": "Systeem Setup",
+    "title": "Inloggen",
+    "username": "Gebruikersnaam",
+    "verifying": "Verificeren..."
+  },
   "nav": {
     "albums": "Albums",
     "artists": "Artiesten",
@@ -102,12 +145,29 @@
     "songs": "Nummers",
     "starred": "Favorieten"
   },
+  "player": {
+    "next": "Volgende",
+    "nothingPlaying": "Niets aan het afspelen",
+    "previous": "Vorige",
+    "radio": "Radio",
+    "repeat": "Herhalen",
+    "seek": "Door nummer spoelen",
+    "syncHost": "Jam: host (leidend)",
+    "syncListener": "Radio: luisteraar (volgend)",
+    "syncOff": "Sync uit",
+    "syncRemote": "Jam: afstandsbediening",
+    "volume": "Volume"
+  },
   "queue": {
     "clear": "Lijst leegmaken",
     "resize": "Wachtrij resizen",
     "saveAsPlaylist": "Opslaan als afspeellijst",
     "shuffle": "Shuffle",
     "title": "Wachtrij"
+  },
+  "radio": {
+    "couldNotStart": "Kon de radio niet starten",
+    "noChannels": "Geen radiokanalen beschikbaar"
   },
   "releaseNotes": {
     "intro": "Er is een nieuwe versie van LMS. Dit is er veranderd:",

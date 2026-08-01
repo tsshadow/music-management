@@ -37,13 +37,16 @@
     "playlist": "Playlist",
     "refresh": "Refresh",
     "remove": "Remove",
+    "saveChanges": "Save changes",
+    "saving": "Saving…",
     "searchPlaceholder": "Search...",
     "settings": "Settings",
     "shufflePlay": "Shuffle play",
     "trackCount": {
       "one": "{count} track",
       "other": "{count} tracks"
-    }
+    },
+    "unknownError": "Unknown error"
   },
   "dashboard": {
     "addFavorite": "Add to favourites",
@@ -173,6 +176,17 @@
     "intro": "A new version of LMS has been detected! Here are the key changes:",
     "title": "What's New in LMS"
   },
+  "role": {
+    "arranger": "Arranger",
+    "composer": "Composer",
+    "conductor": "Conductor",
+    "lyricist": "Lyricist",
+    "mixer": "Mixer",
+    "performer": "Performer",
+    "producer": "Producer",
+    "remixer": "Remixer",
+    "writer": "Writer"
+  },
   "search": {
     "moreAlbums": "Albums for \"{query}\"",
     "moreArtists": "Artists for \"{query}\"",
@@ -186,9 +200,73 @@
     "tryAnother": "Try a different search term."
   },
   "settings": {
+    "about": {
+      "blurb": "Your own music library, wherever you are. Something not working, or a track missing? Let the administrator of this server know.",
+      "noReleaseNotes": "No release notes available yet.",
+      "subtitle": "Which version you are on, and what changed recently.",
+      "title": "About MuMa",
+      "whatsNew": "What's new"
+    },
+    "advanced": {
+      "changePassword": "Change password",
+      "changing": "Changing…",
+      "confirmPassword": "Confirm password",
+      "newPassword": "New password",
+      "passwordChanged": "Password changed.",
+      "passwordFailed": "Could not change password",
+      "passwordMismatch": "Passwords do not match",
+      "passwordTooShort": "Password must be at least 4 characters",
+      "security": "Security",
+      "sortOptions": "Sort options",
+      "sortOptionsHelp": "Choose which sort options are visible in the interface.",
+      "subtitle": "Manage your sort options and your password.",
+      "title": "Advanced",
+      "updatePassword": "Update password"
+    },
+    "general": {
+      "albumSort": "Default album sorting",
+      "albumSortHelp": "How albums are ordered on the artist page.",
+      "allArtists": "All artists",
+      "apiKeyHelp": "An API key for external apps such as Ultrasonic or Magna is issued by an administrator from the management page.",
+      "artistListMode": "Artist list mode",
+      "artistListModeHelp": "How artists are grouped in Subsonic apps.",
+      "artistRelations": "Artist relationships",
+      "artistRelationsHelp": "Show extra roles, such as composer or remixer, directly on the artist.",
+      "dedupe": "Deduplication",
+      "dedupeHelp": "Hide duplicate tracks based on artist and title.",
+      "externalClients": "External clients (Subsonic)",
+      "externalServices": "External services",
+      "feedbackSystem": "Feedback (rating) system",
+      "interface": "Interface",
+      "internal": "Internal",
+      "listenBrainzHelp": "Listening data goes to the central Muma database for everyone. Only fill in a token here if you also want to scrobble to your own ListenBrainz account.",
+      "listenBrainzPlaceholder": "Your ListenBrainz user token...",
+      "listenBrainzToken": "ListenBrainz user token",
+      "releaseArtists": "Release artists",
+      "sortByName": "Name",
+      "sortOriginalYearAsc": "Original year (oldest first)",
+      "sortOriginalYearDesc": "Original year (newest first)",
+      "sortYearAsc": "Year (oldest first)",
+      "sortYearDesc": "Year (newest first)",
+      "subsonicBitrate": "Subsonic bitrate",
+      "subsonicFormat": "Subsonic format",
+      "subtitle": "Control how MuMa Spotify looks and behaves.",
+      "title": "General settings",
+      "trackArtists": "Track artists",
+      "transcodingDefault": "Transcoding default",
+      "transcodingHelp": "Always transcode for Subsonic clients?"
+    },
     "language": {
       "help": "The language of the interface. Saved to your account, so it follows you to your other devices.",
       "title": "Language"
+    },
+    "saveFailed": "Could not save: {message}",
+    "saveNetworkError": "Network error while saving",
+    "saved": "Settings saved.",
+    "tabs": {
+      "about": "About",
+      "advanced": "Advanced",
+      "general": "General"
     }
   },
   "sidebar": {

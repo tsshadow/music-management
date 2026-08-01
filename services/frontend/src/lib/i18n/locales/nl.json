@@ -37,13 +37,16 @@
     "playlist": "Afspeellijst",
     "refresh": "Vernieuwen",
     "remove": "Verwijderen",
+    "saveChanges": "Wijzigingen opslaan",
+    "saving": "Opslaan...",
     "searchPlaceholder": "Zoeken...",
     "settings": "Instellingen",
     "shufflePlay": "Shuffle afspelen",
     "trackCount": {
       "one": "{count} nummer",
       "other": "{count} nummers"
-    }
+    },
+    "unknownError": "Onbekende fout"
   },
   "dashboard": {
     "addFavorite": "Toevoegen aan favorieten",
@@ -173,6 +176,17 @@
     "intro": "Er is een nieuwe versie van LMS. Dit is er veranderd:",
     "title": "Wat is er nieuw in LMS"
   },
+  "role": {
+    "arranger": "Arrangeur",
+    "composer": "Componist",
+    "conductor": "Dirigent",
+    "lyricist": "Tekstschrijver",
+    "mixer": "Mixer",
+    "performer": "Performer",
+    "producer": "Producer",
+    "remixer": "Remixer",
+    "writer": "Schrijver"
+  },
   "search": {
     "moreAlbums": "Albums voor \"{query}\"",
     "moreArtists": "Artiesten voor \"{query}\"",
@@ -186,9 +200,73 @@
     "tryAnother": "Probeer een andere zoekterm."
   },
   "settings": {
+    "about": {
+      "blurb": "Je eigen muziekbibliotheek, overal te beluisteren. Loopt er iets niet goed of mis je een nummer? Laat het weten aan de beheerder van deze server.",
+      "noReleaseNotes": "Nog geen release notes beschikbaar.",
+      "subtitle": "Welke versie je gebruikt en wat er onlangs is veranderd.",
+      "title": "Over MuMa",
+      "whatsNew": "Wat is er nieuw"
+    },
+    "advanced": {
+      "changePassword": "Wachtwoord Wijzigen",
+      "changing": "Wijzigen...",
+      "confirmPassword": "Bevestig Wachtwoord",
+      "newPassword": "Nieuw Wachtwoord",
+      "passwordChanged": "Wachtwoord succesvol gewijzigd!",
+      "passwordFailed": "Fout bij wijzigen wachtwoord",
+      "passwordMismatch": "Wachtwoorden komen niet overeen",
+      "passwordTooShort": "Wachtwoord moet minimaal 4 tekens bevatten",
+      "security": "Beveiliging",
+      "sortOptions": "Sorteeropties",
+      "sortOptionsHelp": "Kies welke sorteeropties zichtbaar moeten zijn in de interface.",
+      "subtitle": "Beheer je sorteeropties en je wachtwoord.",
+      "title": "Geavanceerd",
+      "updatePassword": "Wachtwoord Bijwerken"
+    },
+    "general": {
+      "albumSort": "Standaard Sortering Albums",
+      "albumSortHelp": "Hoe albums worden gesorteerd op de artiestpagina.",
+      "allArtists": "Alle Artiesten",
+      "apiKeyHelp": "Een API-sleutel voor externe apps zoals Ultrasonic of Magna wordt door een beheerder uitgegeven via de beheerpagina.",
+      "artistListMode": "Artiestlijst Modus",
+      "artistListModeHelp": "Hoe artiesten worden gegroepeerd in Subsonic apps.",
+      "artistRelations": "Artiest Relaties",
+      "artistRelationsHelp": "Toon extra rollen (zoals componist of remixer) direct bij de artiest.",
+      "dedupe": "Deduplicatie",
+      "dedupeHelp": "Verberg dubbele nummers op basis van artiest en titel.",
+      "externalClients": "Externe Clients (Subsonic)",
+      "externalServices": "Externe Diensten",
+      "feedbackSystem": "Feedback (Rating) Systeem",
+      "interface": "Interface",
+      "internal": "Intern",
+      "listenBrainzHelp": "Luistergegevens gaan voor iedereen naar de centrale Muma database. Vul hier alleen een token in als je daarnaast ook naar je eigen ListenBrainz-account wilt scrobbelen.",
+      "listenBrainzPlaceholder": "Je ListenBrainz User Token...",
+      "listenBrainzToken": "ListenBrainz User Token",
+      "releaseArtists": "Release Artiesten",
+      "sortByName": "Naam",
+      "sortOriginalYearAsc": "Origineel Jaar (Oudste eerst)",
+      "sortOriginalYearDesc": "Origineel Jaar (Nieuwste eerst)",
+      "sortYearAsc": "Jaar (Oudste eerst)",
+      "sortYearDesc": "Jaar (Nieuwste eerst)",
+      "subsonicBitrate": "Subsonic Bitrate",
+      "subsonicFormat": "Subsonic Formaat",
+      "subtitle": "Beheer de weergave en het gedrag van MuMa Spotify.",
+      "title": "Algemene Instellingen",
+      "trackArtists": "Track Artiesten",
+      "transcodingDefault": "Transcoding Standaard",
+      "transcodingHelp": "Altijd transcoderen voor Subsonic clients?"
+    },
     "language": {
       "help": "De taal van de interface. Wordt opgeslagen bij je account, zodat hij meegaat naar je andere apparaten.",
       "title": "Taal"
+    },
+    "saveFailed": "Fout bij opslaan: {message}",
+    "saveNetworkError": "Netwerkfout bij opslaan",
+    "saved": "Instellingen succesvol opgeslagen!",
+    "tabs": {
+      "about": "Over",
+      "advanced": "Geavanceerd",
+      "general": "Algemeen"
     }
   },
   "sidebar": {

@@ -1,4 +1,5 @@
 <script>
+  import { t } from '../i18n/index.js';
   import { onMount } from 'svelte';
   import { authParams } from '../store.js';
 
@@ -38,8 +39,8 @@
 
 <div class="max-w-4xl pb-24">
   <header class="mb-8">
-    <h1 class="text-3xl font-bold mb-2">Over MuMa</h1>
-    <p class="text-[#b3b3b3]">Welke versie je gebruikt en wat er onlangs is veranderd.</p>
+    <h1 class="text-3xl font-bold mb-2">{$t('settings.about.title')}</h1>
+    <p class="text-[#b3b3b3]">{$t('settings.about.subtitle')}</p>
   </header>
 
   <div class="flex flex-col gap-8">
@@ -65,18 +66,17 @@
         </div>
       </div>
       <p class="text-[#b3b3b3] text-sm mt-6">
-        Je eigen muziekbibliotheek, overal te beluisteren. Loopt er iets niet goed of mis je een nummer? Laat het
-        weten aan de beheerder van deze server.
+        {$t('settings.about.blurb')}
       </p>
     </section>
 
     <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
-      <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">Wat is er nieuw</h2>
+      <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.about.whatsNew')}</h2>
 
       {#if isLoading}
-        <p class="text-[#b3b3b3]">Laden...</p>
+        <p class="text-[#b3b3b3]">{$t('common.loading')}</p>
       {:else if releaseNotes.length === 0}
-        <p class="text-[#b3b3b3] text-sm italic">Nog geen release notes beschikbaar.</p>
+        <p class="text-[#b3b3b3] text-sm italic">{$t('settings.about.noReleaseNotes')}</p>
       {:else}
         <div class="flex flex-col gap-6">
           {#each releaseNotes as release (release.version)}

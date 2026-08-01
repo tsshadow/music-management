@@ -2,7 +2,6 @@ package org.moire.ultrasonic.view
 
 import android.widget.EditText
 import androidx.appcompat.view.ContextThemeWrapper
-import androidx.core.view.isVisible
 import org.amshove.kluent.`should be equal to`
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -87,16 +86,28 @@ class FilterButtonBarTest {
     }
 
     @Test
-    fun `every sort order has a label`() {
-        val bar = barWith(
-            ViewCapabilities(
-                supportsGrid = true,
-                supportedSortOrders = SortOrder.entries.toList(),
-                supportsSearch = false
-            )
+    fun `every sort order resolves to its own specific label`() {
+        val bar = barWith(ViewCapabilities(supportsGrid = true, supportedSortOrders = emptyList()))
+        val context = ContextThemeWrapper(RuntimeEnvironment.getApplication(), R.style.UltrasonicTheme_Dark)
+
+        val expectedLabelRes = mapOf(
+            SortOrder.RANDOM to R.string.main_albums_random,
+            SortOrder.NEWEST to R.string.main_albums_newest,
+            SortOrder.HIGHEST to R.string.main_albums_highest,
+            SortOrder.FREQUENT to R.string.main_albums_frequent,
+            SortOrder.RECENT to R.string.main_albums_recent,
+            SortOrder.BY_NAME to R.string.main_albums_alphaByName,
+            SortOrder.BY_ARTIST to R.string.main_albums_alphaByArtist,
+            SortOrder.STARRED to R.string.main_albums_starred,
+            SortOrder.BY_YEAR to R.string.main_albums_by_year,
+            SortOrder.BY_TRACK_COUNT to R.string.sort_order_track_count,
+            SortOrder.BY_ALBUM_COUNT to R.string.sort_order_album_count,
+            SortOrder.BY_ADDED to R.string.sort_order_added
         )
 
-        // configureWithCapabilities labels every offered order; a missing label throws.
-        bar.findViewById<android.view.View>(R.id.sort_order_menu).isVisible `should be equal to` true
+        expectedLabelRes.keys `should be equal to` SortOrder.entries.toSet()
+        for ((order, expectedRes) in expectedLabelRes) {
+            context.getString(bar.getStringForSortOrder(order)) `should be equal to` context.getString(expectedRes)
+        }
     }
 }

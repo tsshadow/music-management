@@ -7,11 +7,17 @@ import org.moire.ultrasonic.view.SortOrder
 class ArtistSortOrderTest {
 
     @Test
-    fun `every offered order maps to a value the server accepts`() {
-        val accepted = setOf("name", "trackCount", "albumCount", "added", "random")
+    fun `every offered order maps to its specific server value`() {
+        val expected = mapOf(
+            SortOrder.BY_NAME to "name",
+            SortOrder.BY_TRACK_COUNT to "trackCount",
+            SortOrder.BY_ALBUM_COUNT to "albumCount",
+            SortOrder.BY_ADDED to "added",
+            SortOrder.RANDOM to "random"
+        )
 
         ARTIST_SORT_ORDERS.forEach { order ->
-            accepted.contains(artistSortByValue(order)) `should be equal to` true
+            artistSortByValue(order) `should be equal to` expected.getValue(order)
         }
     }
 

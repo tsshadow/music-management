@@ -246,7 +246,10 @@ class FilterButtonBar : ConstraintLayout {
         return (this and 0x00FFFFFF) or (alpha shl 24)
     }
 
-    private fun getStringForSortOrder(sortOrder: SortOrder): Int = when (sortOrder) {
+    // internal rather than private so a test can assert the mapping directly, without going
+    // through the AutoCompleteTextView/ArrayAdapter machinery this is otherwise only reachable
+    // through.
+    internal fun getStringForSortOrder(sortOrder: SortOrder): Int = when (sortOrder) {
         SortOrder.RANDOM -> R.string.main_albums_random
         SortOrder.NEWEST -> R.string.main_albums_newest
         SortOrder.HIGHEST -> R.string.main_albums_highest

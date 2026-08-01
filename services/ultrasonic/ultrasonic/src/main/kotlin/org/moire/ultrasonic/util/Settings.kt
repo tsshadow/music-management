@@ -339,6 +339,10 @@ object Settings {
     @JvmStatic
     var lastSelectedLiveGenres by StringSetting("last_selected_live_genres", "[]")
 
+    // Local copy of the list the web player keeps in the MuMa "frontend" settings blob.
+    @JvmStatic
+    var favoriteGenres by StringSetting("favorite_genres", "[]")
+
     @JvmStatic
     var mediaDeviceExportEnabled by BooleanSetting(
         getKey(R.string.setting_key_media_device_export),

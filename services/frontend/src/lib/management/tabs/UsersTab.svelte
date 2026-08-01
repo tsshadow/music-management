@@ -1,4 +1,5 @@
 <script >
+  import { t } from '../../i18n/index.js';
   import { onMount } from 'svelte';
   import { RefreshCw, Plus, Trash2, Users, Key, Radio, Database, Shield, ShieldAlert, ShieldCheck, Link, Power, LogOut } from '@lucide/svelte';
   import { authParams, hasPermission, mumaApiUrl, mumaUser } from '../../store.js';
@@ -56,7 +57,7 @@
   }
 
   async function deleteUser(user) {
-    if (!confirm(`Weet je zeker dat je gebruiker ${user.username} wilt verwijderen? Dit verwijdert hem ook uit de Music Server.`)) return;
+    if (!confirm($t('management.users.confirmDelete', { name: user.username }))) return;
     try {
       const res = await fetch(`${API_BASE}/api/users/${user.id}`, {
         method: 'DELETE',
@@ -86,13 +87,13 @@
         })
       });
       if (res.ok) {
-        onMessage("ListenBrainz account gekoppeld!");
+        onMessage($t('management.users.lbLinked'));
         fetchLBAccount();
       } else {
-        onError("Kon ListenBrainz account niet koppelen.");
+        onError($t('management.users.lbLinkFailed'));
       }
     } catch (err) {
-      onError("Netwerkfout bij koppelen account.");
+      onError($t('management.users.lbLinkNetworkError'));
     }
   }
 
@@ -105,7 +106,7 @@
         body: JSON.stringify({ password: updateUserPassword })
       });
       if (res.ok) {
-        onMessage("Wachtwoord bijgewerkt!");
+        onMessage($t('management.users.passwordUpdated'));
         updateUserPassword = '';
       } else {
         onError("Kon wachtwoord niet bijwerken.");
@@ -211,12 +212,12 @@
         const data = await res.json();
         subsonicToken = data.token || '';
         subsonicTokenLoaded = true;
-        onMessage(token ? 'Subsonic token opgeslagen.' : 'Subsonic token ingetrokken.');
+        onMessage(token ? 'Subsonic token opgeslagen.' : $t('management.users.tokenRevoked'));
       } else {
-        onError((await res.text()) || 'Kon Subsonic token niet opslaan.');
+        onError((await res.text()) || $t('management.users.tokenSaveFailed'));
       }
     } catch (err) {
-      onError('Netwerkfout bij opslaan van Subsonic token.');
+      onError($t('management.users.tokenNetworkError'));
     } finally {
       isSavingSubsonicToken = false;
     }
@@ -257,14 +258,14 @@
         body: JSON.stringify({ role })
       });
       if (res.ok) {
-        onMessage("Rol bijgewerkt!");
+        onMessage($t('management.users.roleUpdated'));
         fetchUsers();
       } else {
         const data = await res.json();
-        onError(data.detail || "Kon rol niet bijwerken.");
+        onError(data.detail || $t('management.users.roleUpdateFailed'));
       }
     } catch (err) {
-      onError("Netwerkfout bij bijwerken rol.");
+      onError($t('management.users.roleNetworkError'));
     }
   }
 
@@ -289,16 +290,16 @@
 
   async function revokeSessions() {
     if (!selectedUser) return;
-    if (!confirm(`Weet je zeker dat je alle sessies van ${selectedUser.username} wilt intrekken?`)) return;
+    if (!confirm($t('management.users.confirmRevoke', { name: selectedUser.username }))) return;
     try {
       const res = await fetch(`${API_BASE}/api/users/${selectedUser.id}/sessions/revoke`, {
         method: 'POST',
         headers: getHeaders()
       });
       if (res.ok) {
-        onMessage("Sessies ingetrokken!");
+        onMessage($t('management.users.sessionsRevoked'));
       } else {
-        onError("Kon sessies niet intrekken.");
+        onError($t('management.users.sessionsRevokeFailed'));
       }
     } catch (err) {
       onError("Netwerkfout.");
@@ -309,7 +310,7 @@
     if (!selectedUser || !mergeSecondaryId) return;
     const secondary = users.find(u => u.id === parseInt(mergeSecondaryId));
     if (!secondary) return;
-    if (!confirm(`Weet je zeker dat je ${secondary.username} wilt samenvoegen in ${selectedUser.username}? Alle koppelingen, ratings en luistergeschiedenis van ${secondary.username} worden overgezet en het account ${secondary.username} wordt daarna verwijderd. Dit kan niet ongedaan worden gemaakt.`)) return;
+    if (!confirm($t('management.users.confirmMerge', { from: secondary.username, into: selectedUser.username }))) return;
     try {
       const res = await fetch(`${API_BASE}/api/users/${selectedUser.id}/merge`, {
         method: 'POST',
@@ -346,7 +347,7 @@
 <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
   <header>
     <h2 class="text-4xl font-extrabold mb-2">👥 User Management</h2>
-    <p class="text-spotify-lightgray">Beheer systeemgebruikers en hun externe account koppelingen.</p>
+    <p class="text-spotify-lightgray">{$t('management.users.subtitle')}</p>
   </header>
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -354,18 +355,18 @@
     <div class="lg:col-span-1 space-y-6">
       <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
         <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex justify-between items-center">
-          Gebruikers
+          {$t('management.tabs.users')}
           <div class="flex gap-2">
             <button 
               on:click={syncLMSUsers} 
-              title="Sync van Music Server"
+              title={$t('management.users.syncFromServer')}
               class="text-spotify-lightgray hover:text-spotify-green transition-colors"
             >
               <RefreshCw size={16} />
             </button>
             <button 
               on:click={fetchUsers} 
-              title="Verversen"
+              title={$t('common.refresh')}
               class="text-spotify-lightgray hover:text-white transition-colors"
             >
               <RefreshCw size={16} class="rotate-90" />
@@ -386,7 +387,7 @@
                         <div class="font-bold {selectedUser?.id === user.id ? 'text-spotify-green' : ''}">
                           {user.username}
                           {#if !user.enabled}
-                            <span class="ml-2 text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">Uit</span>
+                            <span class="ml-2 text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">{$t('management.users.off')}</span>
                           {/if}
                         </div>
                         <div class="text-xs text-spotify-lightgray flex items-center gap-1.5">
@@ -401,7 +402,7 @@
                       <button 
                         on:click|stopPropagation={() => deleteUser(user)}
                         class="text-spotify-lightgray hover:text-red-500 transition-colors p-2"
-                        title="Verwijder gebruiker"
+                        title={$t('management.users.deleteUser')}
                         disabled={!hasPermission('users.update')}
                       >
                         <Trash2 size={16} />
@@ -418,13 +419,13 @@
       <!-- Add User Form -->
       {#if hasPermission('users.create')}
       <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
-        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><Plus size={20} class="text-spotify-green" /> Gebruiker Toevoegen</h3>
+        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><Plus size={20} class="text-spotify-green" /> {$t('management.users.addUser')}</h3>
         <form on:submit|preventDefault={addUser} class="space-y-4">
           <div>
             <input 
               type="text" 
               bind:value={newUsername}
-              placeholder="Gebruikersnaam"
+              placeholder={$t('login.username')}
               class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
             />
           </div>
@@ -432,7 +433,7 @@
             <input 
               type="text" 
               bind:value={newDisplayName}
-              placeholder="Display Name (Optioneel)"
+              placeholder={$t('management.users.displayNamePlaceholder')}
               class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
             />
           </div>
@@ -440,12 +441,12 @@
             <input 
               type="password" 
               bind:value={newUserPassword}
-              placeholder="Standaard Wachtwoord"
+              placeholder={$t('management.users.defaultPasswordPlaceholder')}
               class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
             />
           </div>
           <button type="submit" class="w-full bg-spotify-green text-black font-bold py-2 rounded-full hover:scale-105 transition-transform">
-            TOEVOEGEN
+            {$t('management.downloaders.add')}
           </button>
         </form>
       </div>
@@ -460,7 +461,7 @@
             <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
               <div class="flex items-center gap-4">
                 {#if selectedUser.avatar_url}
-                  <img src={selectedUser.avatar_url} alt="Avatar" class="w-16 h-16 rounded-full" />
+                  <img src={selectedUser.avatar_url} alt={$t('login.avatar')} class="w-16 h-16 rounded-full" />
                 {:else}
                   <div class="w-16 h-16 bg-spotify-green rounded-full flex items-center justify-center text-black text-2xl font-bold">
                     {selectedUser.username.charAt(0).toUpperCase()}
@@ -470,7 +471,7 @@
                   <h3 class="text-3xl font-extrabold flex items-center gap-2">
                     {selectedUser.username}
                     {#if !selectedUser.enabled}
-                      <span class="text-xs bg-red-500/20 text-red-400 px-2 py-1 rounded-full uppercase font-bold tracking-wider">Uitgeschakeld</span>
+                      <span class="text-xs bg-red-500/20 text-red-400 px-2 py-1 rounded-full uppercase font-bold tracking-wider">{$t('management.users.disabled')}</span>
                     {/if}
                   </h3>
                   <p class="text-spotify-lightgray">{selectedUser.display_name || 'Geen display name'} • {selectedUser.email || 'Geen e-mail'}</p>
@@ -492,7 +493,7 @@
                     on:click={revokeSessions}
                     class="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-white/5 text-white border border-white/10 transition-transform hover:scale-105"
                   >
-                    <LogOut size={14} /> Sessies intrekken
+                    <LogOut size={14} /> {$t('management.users.revokeSessions')}
                   </button>
                 {/if}
               </div>
@@ -502,11 +503,11 @@
               <!-- RBAC Section -->
               <div class="space-y-4">
                 <h4 class="text-xl font-bold flex items-center gap-2 text-white">
-                  <Shield size={20} class="text-spotify-green" /> Rol & Rechten
+                  <Shield size={20} class="text-spotify-green" /> {$t('management.users.roleAndRights')}
                 </h4>
                 <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
                   <div>
-                    <label for="user-role" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">Gebruikersrol</label>
+                    <label for="user-role" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">{$t('management.users.role')}</label>
                     {#if hasPermission('users.assign-role')}
                       <div class="flex gap-2">
                         <select 
@@ -515,7 +516,7 @@
                           value={roles.find(r => r.name === selectedUser.role_name)?.id}
                           on:change={(e) => updateRole(parseInt(e.target.value))}
                         >
-                          <option value="" disabled>Selecteer rol</option>
+                          <option value="" disabled>{$t('management.users.selectRole')}</option>
                           {#each roles as role (role.id)}
                             <option value={role.id}>{role.name.charAt(0).toUpperCase() + role.name.slice(1)}</option>
                           {/each}
@@ -530,11 +531,11 @@
                   
                   {#if selectedUser.role_name === 'admin'}
                     <div class="flex items-center gap-2 text-[10px] text-spotify-green font-bold uppercase">
-                      <ShieldCheck size={14} /> Volledige systeemtoegang
+                      <ShieldCheck size={14} /> {$t('management.users.fullAccess')}
                     </div>
                   {:else}
                     <div class="flex items-center gap-2 text-[10px] text-spotify-lightgray font-bold uppercase">
-                      <Shield size={14} /> Beperkte gebruikersrechten
+                      <Shield size={14} /> {$t('management.users.limitedAccess')}
                     </div>
                   {/if}
                 </div>
@@ -542,11 +543,11 @@
               <!-- Password Section -->
               <div class="space-y-4">
                 <h4 class="text-xl font-bold flex items-center gap-2 text-white">
-                  <Key size={20} class="text-spotify-green" /> Beveiliging
+                  <Key size={20} class="text-spotify-green" /> {$t('settings.advanced.security')}
                 </h4>
                 <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
                   <div>
-                    <label for="new-password" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">Nieuw Wachtwoord</label>
+                    <label for="new-password" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">{$t('settings.advanced.newPassword')}</label>
                     <input 
                       id="new-password"
                       type="password" 
@@ -560,7 +561,7 @@
                     disabled={!updateUserPassword}
                     class="w-full bg-spotify-green text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
                   >
-                    WACHTWOORD OPSLAAN
+                    {$t('management.users.savePassword')}
                   </button>
                 </div>
               </div>
@@ -568,28 +569,28 @@
               <!-- ListenBrainz Section -->
               <div class="space-y-4">
                 <h4 class="text-xl font-bold flex items-center gap-2 text-white">
-                  <Radio size={20} class="text-[#EB743B]" /> ListenBrainz
+                  <Radio size={20} class="text-[#EB743B]" /> {$t('management.users.listenBrainz')}
                 </h4>
                 <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
                   <div>
-                    <label for="lb-username" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">LB Username</label>
+                    <label for="lb-username" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">{$t('management.users.lbUsername')}</label>
                     <input 
                       id="lb-username"
                       type="text" 
                       bind:value={lbUsername}
-                      placeholder="ListenBrainz User"
+                      placeholder={$t('management.users.lbUserPlaceholder')}
                       class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
                     />
                   </div>
                   <div>
-                    <label for="lb-token" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">API Token</label>
+                    <label for="lb-token" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">{$t('management.users.apiToken')}</label>
                     <div class="relative">
                       <Key class="absolute left-2 top-2.5 text-spotify-lightgray" size={16} />
                       <input 
                         id="lb-token"
                         type="password" 
                         bind:value={lbToken}
-                        placeholder="Token"
+                        placeholder={$t('management.users.tokenPlaceholder')}
                         class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 pl-9 focus:outline-none focus:border-spotify-green transition-colors font-mono text-sm"
                       />
                     </div>
@@ -605,7 +606,7 @@
                       on:click={updateLBAccount}
                       class="flex-1 bg-spotify-green text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform"
                     >
-                      OPSLAAN
+                      {$t('management.users.saveUpper')}
                     </button>
                   </div>
                 </div>
@@ -614,25 +615,24 @@
               <!-- Subsonic API token -->
               <div class="space-y-4">
                 <h4 class="text-xl font-bold flex items-center gap-2 text-white">
-                  <Key size={20} class="text-spotify-green" /> Subsonic API Token
+                  <Key size={20} class="text-spotify-green" /> {$t('management.users.subsonicToken')}
                 </h4>
                 <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
                   <p class="text-xs text-spotify-lightgray">
-                    Sleutel waarmee deze gebruiker externe apps (Ultrasonic, Magna, ...) laat inloggen zonder
-                    wachtwoord. Alleen beheerders geven tokens uit.
+                    {$t('management.users.subsonicTokenHelp')}
                   </p>
                   {#if !$authParams}
                     <p class="text-xs text-red-400 italic">
-                      Vereist een login met server-inloggegevens op de playerpagina.
+                      {$t('management.users.needsServerLogin')}
                     </p>
                   {:else}
                     <div class="bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 font-mono text-sm break-all min-h-[38px] flex items-center">
                       {#if !subsonicTokenLoaded}
-                        <span class="text-spotify-lightgray italic">Laden...</span>
+                        <span class="text-spotify-lightgray italic">{$t('common.loading')}</span>
                       {:else if subsonicToken}
                         {subsonicToken}
                       {:else}
-                        <span class="text-spotify-lightgray italic">Geen token ingesteld</span>
+                        <span class="text-spotify-lightgray italic">{$t('management.users.noToken')}</span>
                       {/if}
                     </div>
                     <div class="flex gap-2">
@@ -660,22 +660,22 @@
               <!-- Music Server Settings -->
               <div class="space-y-4">
                 <h4 class="text-xl font-bold flex items-center gap-2 text-white">
-                  <Database size={20} class="text-spotify-green" /> Server Integratie
+                  <Database size={20} class="text-spotify-green" /> {$t('management.users.serverIntegration')}
                 </h4>
                 <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
-                  <p class="text-xs text-spotify-lightgray">Synchroniseer gebruikersgegevens direct vanuit Logitech Media Server.</p>
+                  <p class="text-xs text-spotify-lightgray">{$t('management.users.serverIntegrationHelp')}</p>
                   <div class="flex flex-col gap-2">
                     <button 
                       on:click={syncLMSUsers}
                       class="w-full bg-white text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform flex items-center justify-center gap-2"
                     >
-                      <RefreshCw size={14} /> SYNC VIA API (SPELERS)
+                      <RefreshCw size={14} /> {$t('management.users.syncViaApi')}
                     </button>
                     <button 
                       on:click={syncLMSDbUsers}
                       class="w-full bg-spotify-green text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform flex items-center justify-center gap-2"
                     >
-                      <Database size={14} /> SYNC VIA DATABASE (USERS)
+                      <Database size={14} /> {$t('management.users.syncViaDatabase')}
                     </button>
                   </div>
                 </div>
@@ -684,7 +684,7 @@
               <!-- Linked Identities -->
               <div class="space-y-4">
                 <h4 class="text-xl font-bold flex items-center gap-2 text-white">
-                  <Link size={20} class="text-blue-400" /> Gekoppelde accounts
+                  <Link size={20} class="text-blue-400" /> {$t('management.users.linkedAccounts')}
                 </h4>
                 <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
                   {#if userIdentities.length > 0}
@@ -705,14 +705,14 @@
                             </div>
                           </div>
                           <div class="text-right">
-                            <div class="text-[10px] text-spotify-lightgray uppercase font-bold">Laatst gebruikt</div>
+                            <div class="text-[10px] text-spotify-lightgray uppercase font-bold">{$t('management.users.lastUsed')}</div>
                             <div class="text-[10px]">{identity.last_used_at ? new Date(identity.last_used_at).toLocaleDateString('nl-NL') : 'Nooit'}</div>
                           </div>
                         </div>
                       {/each}
                     </div>
                   {:else}
-                    <p class="text-xs text-spotify-lightgray italic">Geen externe accounts gekoppeld.</p>
+                    <p class="text-xs text-spotify-lightgray italic">{$t('management.users.noLinkedAccounts')}</p>
                   {/if}
                 </div>
               </div>
@@ -721,22 +721,20 @@
               {#if hasPermission('users.merge')}
               <div class="space-y-4">
                 <h4 class="text-xl font-bold flex items-center gap-2 text-white">
-                  <Users size={20} class="text-yellow-400" /> Accounts samenvoegen
+                  <Users size={20} class="text-yellow-400" /> {$t('management.users.mergeAccounts')}
                 </h4>
                 <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
                   <p class="text-xs text-spotify-lightgray">
-                    Heeft dezelfde persoon per ongeluk twee accounts (bijv. een lokaal account en een via Google
-                    aangevraagd account)? Kies hieronder het account dat verwijderd mag worden; alle koppelingen,
-                    ratings en luistergeschiedenis daarvan worden overgezet naar <strong>{selectedUser.username}</strong>.
+                    {$t('management.users.mergeHelp')} <strong>{selectedUser.username}</strong>.
                   </p>
                   <div>
-                    <label for="merge-secondary" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">Samenvoegen met</label>
+                    <label for="merge-secondary" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">{$t('management.users.mergeWith')}</label>
                     <select
                       id="merge-secondary"
                       bind:value={mergeSecondaryId}
                       class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors text-sm"
                     >
-                      <option value="">Selecteer een ander account</option>
+                      <option value="">{$t('management.users.selectOtherAccount')}</option>
                       {#each users.filter(u => u.id !== selectedUser.id) as user (user.id)}
                         <option value={user.id}>{user.username}{user.display_name ? ` (${user.display_name})` : ''}</option>
                       {/each}
@@ -747,7 +745,7 @@
                     disabled={!mergeSecondaryId}
                     class="w-full bg-yellow-500 text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
                   >
-                    SAMENVOEGEN EN VERWIJDEREN
+                    {$t('management.users.mergeAndDelete')}
                   </button>
                 </div>
               </div>
@@ -759,8 +757,8 @@
         <div class="h-full flex items-center justify-center bg-spotify-gray bg-opacity-20 rounded-xl border border-dashed border-spotify-gray p-12 text-center text-spotify-lightgray">
           <div>
             <Users size={48} class="mx-auto mb-4 opacity-20" />
-            <p class="text-xl font-bold">Selecteer een gebruiker</p>
-            <p>Kies een gebruiker uit de lijst om instellingen te beheren.</p>
+            <p class="text-xl font-bold">{$t('management.users.selectUser')}</p>
+            <p>{$t('management.users.selectUserHelp')}</p>
           </div>
         </div>
       {/if}

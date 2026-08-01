@@ -126,32 +126,35 @@ export const visibleSortOptions = writable({
 });
 persist("lms_visible_sort_options", visibleSortOptions);
 
+// Labels are translation keys rather than text: this module is plain
+// JavaScript, so the components that render these options are the ones that
+// resolve them, which is also what makes them follow a language change.
 export const allSortOptions = {
   songs: [
-    { id: 'recent', label: 'Recent uitgebracht' },
-    { id: 'added', label: 'Recent toegevoegd' },
-    { id: 'mostplayed', label: 'Meest beluisterd' },
-    { id: 'recentlyplayed', label: 'Recent beluisterd' },
-    { id: 'rating', label: 'Op rating' },
-    { id: 'alpha', label: 'Alfabetisch' },
-    { id: 'starred', label: 'Favorieten' },
-    { id: 'random', label: 'Willekeurig' }
+    { id: 'recent', labelKey: 'sort.recentlyReleased' },
+    { id: 'added', labelKey: 'sort.recentlyAdded' },
+    { id: 'mostplayed', labelKey: 'sort.mostPlayed' },
+    { id: 'recentlyplayed', labelKey: 'sort.recentlyListened' },
+    { id: 'rating', labelKey: 'sort.byRating' },
+    { id: 'alpha', labelKey: 'sort.alphabetical' },
+    { id: 'starred', labelKey: 'nav.starred' },
+    { id: 'random', labelKey: 'sort.random' }
   ],
   albums: [
-    { id: 'newest', label: 'Recent toegevoegd' },
-    { id: 'recent', label: 'Recent afgespeeld' },
-    { id: 'alphabeticalByName', label: 'Alfabetisch (Titel)' },
-    { id: 'alphabeticalByArtist', label: 'Alfabetisch (Artiest)' },
-    { id: 'random', label: 'Willekeurig' },
-    { id: 'starred', label: 'Favorieten' }
+    { id: 'newest', labelKey: 'sort.recentlyAdded' },
+    { id: 'recent', labelKey: 'sort.recentlyPlayed' },
+    { id: 'alphabeticalByName', labelKey: 'sort.alphabeticalByTitle' },
+    { id: 'alphabeticalByArtist', labelKey: 'sort.alphabeticalByArtist' },
+    { id: 'random', labelKey: 'sort.random' },
+    { id: 'starred', labelKey: 'nav.starred' }
   ],
   artists: [
-    { id: 'alphabetical', label: 'Alfabetisch' },
-    { id: 'trackCount', label: 'Aantal nummers' },
-    { id: 'newest', label: 'Recent toegevoegd' },
-    { id: 'recent', label: 'Recent bijgewerkt' },
-    { id: 'starred', label: 'Favorieten' },
-    { id: 'random', label: 'Willekeurig' }
+    { id: 'alphabetical', labelKey: 'sort.alphabetical' },
+    { id: 'trackCount', labelKey: 'sort.trackCount' },
+    { id: 'newest', labelKey: 'sort.recentlyAdded' },
+    { id: 'recent', labelKey: 'sort.recentlyUpdated' },
+    { id: 'starred', labelKey: 'nav.starred' },
+    { id: 'random', labelKey: 'sort.random' }
   ]
 };
 

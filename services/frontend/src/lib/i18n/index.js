@@ -59,11 +59,44 @@ function isSupported(code) {
   return SUPPORTED_LOCALES.some((l) => l.code === code);
 }
 
-function lookup(dictionary, key) {
-  const value = key
-    .split(".")
-    .reduce((node, part) => (node == null ? undefined : node[part]), dictionary);
-  return typeof value === "string" ? value : undefined;
+function resolve(dictionary, key) {
+  return key.split(".").reduce((node, part) => (node == null ? undefined : node[part]), dictionary);
+}
+
+const pluralRulesCache = new Map();
+
+function pluralRules(localeCode) {
+  // Neither dialect is a language tag Intl knows, and both count the way Dutch
+  // does, so they borrow its rules.
+  const tag = documentLanguage(localeCode);
+  if (!pluralRulesCache.has(tag)) pluralRulesCache.set(tag, new Intl.PluralRules(tag));
+  return pluralRulesCache.get(tag);
+}
+
+/**
+ * The text for one key in one dictionary, or undefined if this dictionary does
+ * not have it.
+ *
+ * A key may hold either a string or, when the text depends on a number, an
+ * object of plural forms keyed by CLDR category ("one", "other", ...). The
+ * category is chosen with the rules of the locale the text is written in, not
+ * the locale that is active: a Dutch string reached by falling back out of a
+ * dialect must still pluralise as Dutch.
+ *
+ * @param {object} dictionary
+ * @param {string} key
+ * @param {string} localeCode - The locale this dictionary holds.
+ * @param {Object} [vars]
+ * @returns {string|undefined}
+ */
+function lookup(dictionary, key, localeCode, vars) {
+  const node = resolve(dictionary, key);
+  if (typeof node === "string") return node;
+  if (node && typeof node === "object" && typeof vars?.count === "number") {
+    const form = node[pluralRules(localeCode).select(vars.count)] ?? node.other;
+    if (typeof form === "string") return form;
+  }
+  return undefined;
 }
 
 function interpolate(template, vars) {
@@ -89,7 +122,7 @@ export function createTranslator(dictionaries, localeCode) {
   return (key, vars) => {
     let value;
     for (const code of chain) {
-      value = lookup(dictionaries[code], key);
+      value = lookup(dictionaries[code], key, code, vars);
       if (value !== undefined) break;
     }
     if (value === undefined) {

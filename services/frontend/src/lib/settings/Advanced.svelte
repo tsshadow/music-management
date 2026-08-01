@@ -1,4 +1,5 @@
 <script>
+  import { t } from '../i18n/index.js';
   import { visibleSortOptions, allSortOptions, authParams, credentials } from '../store.js';
 
   let newPassword = $state('');
@@ -123,7 +124,7 @@
                     checked={$visibleSortOptions[type].includes(option.id)}
                     onchange={() => toggleOption(type, option.id)}
                   />
-                  <span class="text-white font-medium">{option.label}</span>
+                  <span class="text-white font-medium">{$t(option.labelKey)}</span>
                 </label>
               {/each}
             </div>

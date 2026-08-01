@@ -14,17 +14,20 @@ const DICTS = {
   en: {
     settings: { language: { title: "Language" } },
     greeting: "Hi {name}",
+    tracks: { one: "{count} track", other: "{count} tracks" },
     onlyEnglish: "English only",
     branch: { nested: "value" },
   },
   nl: {
     settings: { language: { title: "Taal" } },
     greeting: "Hoi {name}",
+    tracks: { one: "{count} nummer", other: "{count} nummers" },
     onlyDutch: "Alleen Nederlands",
     branch: { nested: "waarde" },
   },
   sallands: {
     greeting: "Moi {name}",
+    tracks: { one: "{count} nummerken", other: "{count} nummerkes" },
   },
   brabants: {
     greeting: "Houdoe {name}",
@@ -80,6 +83,30 @@ describe("i18n - createTranslator", () => {
   it("falls back from a dialect through Dutch to English as a last resort", () => {
     const translate = createTranslator(DICTS, "brabants");
     expect(translate("onlyEnglish")).toBe("English only");
+  });
+
+  it("picks the singular form when the count is one", () => {
+    const translate = createTranslator(DICTS, "nl");
+    expect(translate("tracks", { count: 1 })).toBe("1 nummer");
+  });
+
+  it("picks the plural form for any other count", () => {
+    const translate = createTranslator(DICTS, "nl");
+    expect(translate("tracks", { count: 0 })).toBe("0 nummers");
+    expect(translate("tracks", { count: 12 })).toBe("12 nummers");
+  });
+
+  it("pluralises a dialect in its own words", () => {
+    const translate = createTranslator(DICTS, "sallands");
+    expect(translate("tracks", { count: 1 })).toBe("1 nummerken");
+    expect(translate("tracks", { count: 3 })).toBe("3 nummerkes");
+  });
+
+  it("pluralises using the rules of the locale the text came from", () => {
+    // `brabants` has no `tracks`, so the Dutch wording is used -- and Dutch is
+    // what must decide singular versus plural for it, not the active locale.
+    const translate = createTranslator(DICTS, "brabants");
+    expect(translate("tracks", { count: 1 })).toBe("1 nummer");
   });
 
   it("applies the same chain to every dialect", () => {

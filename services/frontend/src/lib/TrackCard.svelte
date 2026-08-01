@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n/index.js';
   import { currentTrack, playerState, authParams } from './store.js';
   import ArtistList from './ArtistList.svelte';
 
@@ -30,7 +31,7 @@
       onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
     />
     <button
-      aria-label="Afspelen"
+      aria-label={$t('common.play')}
       class="absolute right-2 bottom-2 w-12 h-12 bg-brand border-none rounded-full flex items-center justify-center shadow-[0_8px_16px_rgba(0,0,0,0.3)] opacity-0 translate-y-2 transition-all group-hover:opacity-100 group-hover:translate-y-0"
       onclick={(e) => { e.stopPropagation(); play(); }}
     >

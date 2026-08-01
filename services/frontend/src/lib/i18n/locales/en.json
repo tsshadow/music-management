@@ -1,4 +1,91 @@
 {
+  "album": {
+    "about": "About this album",
+    "addedOn": "Added on {date}",
+    "genre": "Genre: {genre}",
+    "noSets": "No sets found",
+    "noSetsHelp": "This album has nothing matching the current set view.",
+    "noTracks": "No tracks found",
+    "noTracksHelp": "This album has nothing matching the current track view.",
+    "viewOnMusicBrainz": "View on MusicBrainz"
+  },
+  "artist": {
+    "about": "About {name}",
+    "allSets": "All sets",
+    "allTracks": "All tracks",
+    "appearsOn": "Appears on",
+    "noSets": "No sets found",
+    "noSetsHelp": "This artist has nothing matching the current set view.",
+    "noTracks": "No tracks found",
+    "noTracksHelp": "This artist has nothing matching the current track view.",
+    "similar": "Fans also like",
+    "verified": "Verified artist"
+  },
+  "common": {
+    "album": "Album",
+    "artist": "Artist",
+    "close": "Close",
+    "closeModal": "Close dialogue",
+    "download": "Download",
+    "gotIt": "Got it",
+    "loadMore": "Load more",
+    "loading": "Loading…",
+    "logout": "Log out",
+    "play": "Play",
+    "playAll": "Play all",
+    "playlist": "Playlist",
+    "refresh": "Refresh",
+    "remove": "Remove",
+    "searchPlaceholder": "Search...",
+    "settings": "Settings",
+    "shufflePlay": "Shuffle play",
+    "trackCount": {
+      "one": "{count} track",
+      "other": "{count} tracks"
+    }
+  },
+  "filter": {
+    "allGenres": "All genres",
+    "allRatings": "All",
+    "allYears": "All years",
+    "rating": "Rating",
+    "refreshList": "Refresh list",
+    "role": "Role",
+    "roles": {
+      "all": "All roles",
+      "composer": "Composers",
+      "conductor": "Conductors",
+      "lyricist": "Lyricists",
+      "mixer": "Mixers",
+      "performer": "Performers",
+      "producer": "Producers",
+      "release": "Album artists",
+      "remixer": "Remixers",
+      "track": "Track artists",
+      "writer": "Writers"
+    },
+    "sortBy": "Sort by",
+    "starsExactly": {
+      "one": "{count} star",
+      "other": "{count} stars"
+    },
+    "starsMin": {
+      "one": "{count}+ star",
+      "other": "{count}+ stars"
+    },
+    "unrated": "Unrated",
+    "year": "Year"
+  },
+  "greeting": {
+    "afternoon": "Good afternoon",
+    "evening": "Good evening",
+    "morning": "Good morning"
+  },
+  "history": {
+    "empty": "No listening history yet.",
+    "subtitle": "The tracks you played recently.",
+    "title": "Listening history"
+  },
   "nav": {
     "albums": "Albums",
     "artists": "Artists",
@@ -15,6 +102,29 @@
     "songs": "Songs",
     "starred": "Favourites"
   },
+  "queue": {
+    "clear": "Clear list",
+    "resize": "Resize queue",
+    "saveAsPlaylist": "Save as playlist",
+    "shuffle": "Shuffle",
+    "title": "Queue"
+  },
+  "releaseNotes": {
+    "intro": "A new version of LMS has been detected! Here are the key changes:",
+    "title": "What's New in LMS"
+  },
+  "search": {
+    "moreAlbums": "Albums for \"{query}\"",
+    "moreArtists": "Artists for \"{query}\"",
+    "moreResults": "Results for \"{query}\"",
+    "moreSets": "Sets for \"{query}\"",
+    "moreTracks": "Tracks for \"{query}\"",
+    "noResults": "No results found.",
+    "placeholder": "What do you want to listen to?",
+    "placeholderSets": "Search in sets...",
+    "seeMore": "See more",
+    "tryAnother": "Try a different search term."
+  },
   "settings": {
     "language": {
       "help": "The language of the interface. Saved to your account, so it follows you to your other devices.",
@@ -26,5 +136,36 @@
     "favoriteGenres": "FAVOURITE GENRES",
     "popularGenres": "POPULAR GENRES",
     "toggleMode": "Toggle mode"
+  },
+  "sort": {
+    "alphabetical": "Alphabetical",
+    "alphabeticalByArtist": "Alphabetical (artist)",
+    "alphabeticalByTitle": "Alphabetical (title)",
+    "byRating": "By rating",
+    "mostPlayed": "Most played",
+    "random": "Random",
+    "recentlyAdded": "Recently added",
+    "recentlyListened": "Recently listened",
+    "recentlyPlayed": "Recently played",
+    "recentlyReleased": "Recently released",
+    "recentlyUpdated": "Recently updated",
+    "trackCount": "Track count"
+  },
+  "starred": {
+    "empty": "No favourites yet",
+    "emptyHelp": "Tracks, albums and artists you heart end up here.",
+    "subtitle": "Your favourite tracks, albums and artists"
+  },
+  "track": {
+    "addToQueue": "Add to queue",
+    "date": "Date",
+    "lyrics": "Lyrics",
+    "moveDown": "Move down",
+    "moveUp": "Move up",
+    "noLyrics": "No lyrics found for this track.",
+    "playNext": "Play next",
+    "plays": "Plays",
+    "reload": "Reload",
+    "title": "Title"
   }
 }

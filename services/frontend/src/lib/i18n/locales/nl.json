@@ -1,4 +1,91 @@
 {
+  "album": {
+    "about": "Over dit album",
+    "addedOn": "Toegevoegd op {date}",
+    "genre": "Genre: {genre}",
+    "noSets": "Geen sets gevonden",
+    "noSetsHelp": "Dit album bevat geen items die overeenkomen met de huidige sets weergave.",
+    "noTracks": "Geen nummers gevonden",
+    "noTracksHelp": "Dit album bevat geen items die overeenkomen met de huidige nummers weergave.",
+    "viewOnMusicBrainz": "Bekijk op MusicBrainz"
+  },
+  "artist": {
+    "about": "Over {name}",
+    "allSets": "Alle sets",
+    "allTracks": "Alle nummers",
+    "appearsOn": "Komt voor op",
+    "noSets": "Geen sets gevonden",
+    "noSetsHelp": "Deze artiest heeft geen items die overeenkomen met de huidige sets weergave.",
+    "noTracks": "Geen nummers gevonden",
+    "noTracksHelp": "Deze artiest heeft geen items die overeenkomen met de huidige nummers weergave.",
+    "similar": "Fans vinden dit ook leuk",
+    "verified": "Geverifieerde artiest"
+  },
+  "common": {
+    "album": "Album",
+    "artist": "Artiest",
+    "close": "Sluiten",
+    "closeModal": "Modal sluiten",
+    "download": "Downloaden",
+    "gotIt": "Duidelijk",
+    "loadMore": "Meer laden",
+    "loading": "Laden...",
+    "logout": "Uitloggen",
+    "play": "Afspelen",
+    "playAll": "Alles afspelen",
+    "playlist": "Afspeellijst",
+    "refresh": "Vernieuwen",
+    "remove": "Verwijderen",
+    "searchPlaceholder": "Zoeken...",
+    "settings": "Instellingen",
+    "shufflePlay": "Shuffle afspelen",
+    "trackCount": {
+      "one": "{count} nummer",
+      "other": "{count} nummers"
+    }
+  },
+  "filter": {
+    "allGenres": "Alle Genres",
+    "allRatings": "Alle",
+    "allYears": "Alle Jaren",
+    "rating": "Rating",
+    "refreshList": "Lijst vernieuwen",
+    "role": "Rol",
+    "roles": {
+      "all": "Alle rollen",
+      "composer": "Componisten",
+      "conductor": "Dirigenten",
+      "lyricist": "Tekstschrijvers",
+      "mixer": "Mixers",
+      "performer": "Performers",
+      "producer": "Producers",
+      "release": "Album artiesten",
+      "remixer": "Remixers",
+      "track": "Nummer artiesten",
+      "writer": "Schrijvers"
+    },
+    "sortBy": "Sorteer op",
+    "starsExactly": {
+      "one": "{count} ster",
+      "other": "{count} sterren"
+    },
+    "starsMin": {
+      "one": "{count}+ ster",
+      "other": "{count}+ sterren"
+    },
+    "unrated": "Zonder rating",
+    "year": "Jaar"
+  },
+  "greeting": {
+    "afternoon": "Goedemiddag",
+    "evening": "Goedenavond",
+    "morning": "Goedemorgen"
+  },
+  "history": {
+    "empty": "Nog geen luistergeschiedenis gevonden.",
+    "subtitle": "Jouw recent beluisterde nummers.",
+    "title": "Luistergeschiedenis"
+  },
   "nav": {
     "albums": "Albums",
     "artists": "Artiesten",
@@ -15,6 +102,29 @@
     "songs": "Nummers",
     "starred": "Favorieten"
   },
+  "queue": {
+    "clear": "Lijst leegmaken",
+    "resize": "Wachtrij resizen",
+    "saveAsPlaylist": "Opslaan als afspeellijst",
+    "shuffle": "Shuffle",
+    "title": "Wachtrij"
+  },
+  "releaseNotes": {
+    "intro": "Er is een nieuwe versie van LMS. Dit is er veranderd:",
+    "title": "Wat is er nieuw in LMS"
+  },
+  "search": {
+    "moreAlbums": "Albums voor \"{query}\"",
+    "moreArtists": "Artiesten voor \"{query}\"",
+    "moreResults": "Resultaten voor \"{query}\"",
+    "moreSets": "Sets voor \"{query}\"",
+    "moreTracks": "Nummers voor \"{query}\"",
+    "noResults": "Geen resultaten gevonden.",
+    "placeholder": "Wat wil je luisteren?",
+    "placeholderSets": "Zoeken in sets...",
+    "seeMore": "Zie meer",
+    "tryAnother": "Probeer een andere zoekterm."
+  },
   "settings": {
     "language": {
       "help": "De taal van de interface. Wordt opgeslagen bij je account, zodat hij meegaat naar je andere apparaten.",
@@ -26,5 +136,36 @@
     "favoriteGenres": "FAVORIETE GENRES",
     "popularGenres": "POPULAIRE GENRES",
     "toggleMode": "Modus wisselen"
+  },
+  "sort": {
+    "alphabetical": "Alfabetisch",
+    "alphabeticalByArtist": "Alfabetisch (Artiest)",
+    "alphabeticalByTitle": "Alfabetisch (Titel)",
+    "byRating": "Op rating",
+    "mostPlayed": "Meest beluisterd",
+    "random": "Willekeurig",
+    "recentlyAdded": "Recent toegevoegd",
+    "recentlyListened": "Recent beluisterd",
+    "recentlyPlayed": "Recent afgespeeld",
+    "recentlyReleased": "Recent uitgebracht",
+    "recentlyUpdated": "Recent bijgewerkt",
+    "trackCount": "Aantal nummers"
+  },
+  "starred": {
+    "empty": "Nog geen favorieten",
+    "emptyHelp": "Nummers, albums of artiesten die je een hartje geeft komen hier te staan.",
+    "subtitle": "Je favoriete nummers, albums en artiesten"
+  },
+  "track": {
+    "addToQueue": "Aan wachtrij toevoegen",
+    "date": "Datum",
+    "lyrics": "Lyrics",
+    "moveDown": "Omlaag",
+    "moveUp": "Omhoog",
+    "noLyrics": "Geen lyrics gevonden voor dit nummer.",
+    "playNext": "Hierna afspelen",
+    "plays": "Plays",
+    "reload": "Verversen",
+    "title": "Titel"
   }
 }

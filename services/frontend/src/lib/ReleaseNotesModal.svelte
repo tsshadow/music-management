@@ -1,4 +1,5 @@
 <script>
+  import { t } from './i18n/index.js';
   import Modal from './Modal.svelte';
   import { activeModal } from './store.js';
 
@@ -10,9 +11,9 @@
   }
 </script>
 
-<Modal title="What's New in LMS" onclose={close}>
+<Modal title={$t('releaseNotes.title')} onclose={close}>
   <div class="flex flex-col gap-8">
-    <p class="text-[#b3b3b3]">A new version of LMS has been detected! Here are the key changes:</p>
+    <p class="text-[#b3b3b3]">{$t('releaseNotes.intro')}</p>
     
     <div class="flex flex-col gap-8">
       {#each releases as release (release.version)}
@@ -46,7 +47,7 @@
             class="bg-[#1DB954] text-black font-bold py-3 px-8 rounded-full hover:scale-105 transition-transform active:scale-95 cursor-pointer"
             onclick={close}
         >
-            Got it
+            {$t('common.gotIt')}
         </button>
     </div>
   </div>

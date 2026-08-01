@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 from services.tests.mock_base import setup_mocks, reset_database_helpers
 setup_mocks()
+from services.common.Helpers.GenreRulesHelper import GenreRow, WHITE, BLACK
 from services.tagger.Song.LabelSong import LabelSong
 from services.tagger.constants import ARTIST, GENRE
 
@@ -37,25 +38,32 @@ class TestGenreRules(unittest.TestCase):
         self.assertIn('Hardstyle', song.genre())
         self.assertIn('Rawstyle', song.genre())
 
-    def test_clean_and_filter_genre(self):
-        """Test that invalid genres are filtered out."""
+    def test_blacklisted_genre_is_filtered_out(self):
+        """Test that genres marked black are removed from the tag."""
         file_path = '/tmp/Label/CAT/song.mp3'
         song = LabelSong(file_path)
-        song.tag_collection.set_item(GENRE, 'Invalid Genre;Hardstyle')
-        self.db_helpers['rules_genres'].exists.side_effect = lambda x: x == 'Hardstyle'
-        self.db_helpers['rules_genres'].get_corrected_or_exists.side_effect = lambda x: x if x == 'Hardstyle' else None
+        song.tag_collection.set_item(GENRE, 'Arts;Hardstyle')
+        self.db_helpers['genre_rules'].set_rows([GenreRow(1, 'Hardstyle', 'hardstyle', WHITE, None), GenreRow(2, 'Arts', 'arts', BLACK, None)])
         song.parse()
         self.assertEqual(song.genre(), 'Hardstyle')
 
-    def test_add_missing_genre_to_backlog(self):
-        """Test that unknown genres are added to the backlog."""
+    def test_blacklisted_genre_with_canonical_is_corrected(self):
+        """Test that a correction rewrites the genre instead of dropping it."""
+        file_path = '/tmp/Label/CAT/song.mp3'
+        song = LabelSong(file_path)
+        song.tag_collection.set_item(GENRE, 'uptempo')
+        self.db_helpers['genre_rules'].set_rows([GenreRow(1, 'Uptempo Hardcore', 'uptempo hardcore', WHITE, None), GenreRow(2, 'uptempo', 'uptempo', BLACK, 1)])
+        song.parse()
+        self.assertEqual(song.genre(), 'Uptempo Hardcore')
+
+    def test_unknown_genre_is_queued_for_curation_and_left_in_the_tag(self):
+        """Unknown genres are recorded but never silently approved."""
         file_path = '/tmp/Label/CAT/song.mp3'
         song = LabelSong(file_path)
         song.tag_collection.set_item(GENRE, 'Unknown Genre')
-        self.db_helpers['rules_genres'].exists.return_value = False
-        self.db_helpers['rules_ignored_genres'].exists.return_value = False
-        self.db_helpers['rules_genre_backlog'].exists.return_value = False
+        self.db_helpers['genre_rules'].set_rows([])
         song.parse()
-        self.db_helpers['rules_genre_backlog'].add.assert_called_with('Unknown Genre')
+        self.db_helpers['genre_rules'].record_unknown.assert_called_with('Unknown Genre')
+        self.assertEqual(song.genre(), 'Unknown Genre')
 if __name__ == '__main__':
     unittest.main()

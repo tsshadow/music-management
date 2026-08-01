@@ -31,6 +31,8 @@ TEST_TARGETS=(
     "services/tests/YoutubeSongProcessorTest.py"
     "services/tests/YoutubeArchiveTest.py"
     "services/tests/TelegramDownloaderTest.py"
+    "services/common/Helpers/GenreRulesHelperTest.py"
+    "services/tagger/Song/rules/ResolveGenreRuleTest.py"
     "tools/test_tools_imports.py"
 )
 

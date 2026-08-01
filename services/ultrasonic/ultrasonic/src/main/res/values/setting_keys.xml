@@ -54,6 +54,7 @@
     <string name="setting_key.resume_on_bluetooth_device" translatable="false">resumeOnBluetoothDevice</string>
     <string name="setting_key.pause_on_bluetooth_device" translatable="false">pauseOnBluetoothDevice</string>
     <string name="setting_key.debug_log_to_file" translatable="false">debugLogToFile</string>
+    <string name="setting_key.crash_detection" translatable="false">crashDetection</string>
     <string name="setting_key.override_language" translatable="false">overrideLanguage</string>
     <string name="setting_key.first_installed_version" translatable="false">firstInstalledVersion</string>
     <string name="setting_key.show_confirmation_dialog" translatable="false">showConfirmationDialog</string>

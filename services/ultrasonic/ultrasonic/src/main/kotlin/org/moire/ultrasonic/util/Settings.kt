@@ -272,6 +272,17 @@ object Settings {
         BuildConfig.DEBUG
     )
 
+    /**
+     * Off by default in every build type: the detection infers a crash from a missing clean
+     * shutdown, and Android silently kills the process often enough that leaving it on would
+     * nag about a "crash" after most ordinary app exits.
+     */
+    @JvmStatic
+    var crashDetectionEnabled by BooleanSetting(
+        getKey(R.string.setting_key_crash_detection),
+        false
+    )
+
     @JvmStatic
     val overrideLanguage by StringSetting(getKey(R.string.setting_key_override_language), "")
 

@@ -9,6 +9,7 @@ class CrashReportManagerTest {
     @Test
     fun `an explicit crash file always produces a report, regardless of shutdown state`() {
         val report = buildPendingReport(
+            crashDetectionEnabled = true,
             hasExplicitCrashFile = true,
             explicitCrashText = "java.lang.IllegalStateException: boom",
             hadUnexpectedShutdown = false,
@@ -22,6 +23,7 @@ class CrashReportManagerTest {
     @Test
     fun `an unexpected shutdown with ring buffer content produces an implicit report`() {
         val report = buildPendingReport(
+            crashDetectionEnabled = true,
             hasExplicitCrashFile = false,
             explicitCrashText = "",
             hadUnexpectedShutdown = true,
@@ -35,6 +37,7 @@ class CrashReportManagerTest {
     @Test
     fun `an unexpected shutdown with an empty ring buffer produces no report`() {
         val report = buildPendingReport(
+            crashDetectionEnabled = true,
             hasExplicitCrashFile = false,
             explicitCrashText = "",
             hadUnexpectedShutdown = true,
@@ -47,10 +50,24 @@ class CrashReportManagerTest {
     @Test
     fun `a clean shutdown with no crash file produces no report`() {
         val report = buildPendingReport(
+            crashDetectionEnabled = true,
             hasExplicitCrashFile = false,
             explicitCrashText = "",
             hadUnexpectedShutdown = false,
             ringBufferText = "some trailing log"
+        )
+
+        report.shouldBeNull()
+    }
+
+    @Test
+    fun `no report is produced when crash detection is disabled, even after a real crash`() {
+        val report = buildPendingReport(
+            crashDetectionEnabled = false,
+            hasExplicitCrashFile = true,
+            explicitCrashText = "java.lang.IllegalStateException: boom",
+            hadUnexpectedShutdown = true,
+            ringBufferText = "last line before kill"
         )
 
         report.shouldBeNull()

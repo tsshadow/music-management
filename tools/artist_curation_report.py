@@ -139,6 +139,11 @@ def print_report(results, seed_size, total_rows, out=sys.stdout):
     print(f'{len(queue)} names ({100.0 * queue_tracks / tracks_total:.1f}% of tracks) '
           f'need a human or an external lookup.', file=out)
 
+    suspect = [r for r in queue if r['proposal'].junk_score >= AnalyzerConfig().junk_score_threshold]
+    if suspect:
+        print(f'{len(suspect)} of those look like sentences rather than names, and are flagged '
+              f'rather than removed - real artists score the same way.', file=out)
+
     for kind in KINDS:
         group = sorted(by_kind.get(kind, []), key=lambda r: -r['tracks'])
         if not group:

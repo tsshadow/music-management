@@ -7,7 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Android: search and sort on the Library tabs.** The Artists and Albums tabs gained a search
+  field and a sort selector; artist search runs server-side over the whole library through new
+  `query`/`sortBy` parameters on `getArtists.view`, which also reports `songCount` per artist.
+  Albums reuse the `query` parameter `getAlbumList2.view` already accepted and gained a
+  `byTrackCount` order. The genre, year, festival, lineup and rating tabs filter and sort in
+  memory.
+
 ### Fixed
+- **`Track::getCount`/`Release::getCount` returned one row per matching entity instead of a
+  single total.** Both classes' private query builders (`createQuery` in `Track.cpp` and
+  `Release.cpp`) applied `GROUP BY` unconditionally, including on the aggregate `COUNT` select
+  `getCount` builds, which turned its single-row result into one row per entity and made
+  `fetchQuerySingleResult` throw whenever the query also needed to deduplicate joined rows (e.g. a
+  keyword filter, or `Release`'s new `TrackCountDesc` sort). Both now take an explicit `aggregate`
+  flag and only apply `GROUP BY` when it is false.
+- **`Dockerfile-build-alpine` could produce a "passing" image with a failing test suite.** It ran
+  `make test && ...;` where the trailing semicolon broke the `&&` chain, so a failing CTest suite
+  no longer failed the build, and `scripts/test/lms-unit.sh` reported green regardless.
 - **Android: tapping an artist opened a blank screen.** The artist list and the home screen's
   artist cards navigated to a stub fragment that had no layout and loaded no data. Both now open
   the artist's album list, the destination search and the player's "show artist" already used.

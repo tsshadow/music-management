@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+### Added
+- **Zoeken en sorteren in Library.** Boven Artiesten en Albums staat nu een zoekveld en een
+  sorteerkeuze. Zoeken kijkt door je hele bibliotheek, niet alleen door wat er toevallig geladen
+  is, dus "angerfist" vindt die artiest ook als je nog bovenaan de A's staat. Sorteren kan op
+  naam, aantal nummers, aantal albums, recent toegevoegd en willekeurig; bij albums ook op artiest
+  en jaar. Bij elke artiest staat nu hoeveel albums en nummers je van hem hebt. De tabbladen
+  Genres, Jaren, Festivals, Lineups en Ratings hebben hetzelfde zoekveld.
+
 ### Fixed
 - **Op een artiest tikken opende een leeg scherm.** Zowel in de artiestenlijst als bij de
   artiesten op het beginscherm kwam je op een pagina die nooit is afgebouwd. Je komt nu op het

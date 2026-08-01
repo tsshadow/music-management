@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Search and sort on the Library tabs.** The Artists and Albums tabs gained a search field and a
+  sort selector; artist search runs server-side over the whole library through new `query`/
+  `sortBy` parameters on `getArtists.view`, which also reports `songCount` per artist. Albums
+  reuse the `query` parameter `getAlbumList2.view` already accepted and gained a `byTrackCount`
+  order. The Genres, Years, Festivals, Lineups and Ratings tabs filter and sort their already-
+  loaded cards in memory, diacritic-insensitively. Artist rows now show album and track counts.
+
 ### Fixed
 - **Tapping an artist opened a blank screen.** The artist list and the home screen's artist cards
   navigated to `artistDetailFragment`, whose `ArtistDetailFragment` was never more than a stub: a

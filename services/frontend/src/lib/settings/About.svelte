@@ -2,13 +2,12 @@
   import { onMount } from 'svelte';
   import { authParams } from '../store.js';
 
-  let version = '...';
-  let serverType = '...';
-  let isLoading = true;
-  let releaseNotes = [];
+  let version = $state('');
+  let isLoading = $state(true);
+  let releaseNotes = $state([]);
 
   /**
-   * Fetches server version and metadata.
+   * Fetches the running server version and the release notes shown to users.
    */
   async function loadInfo() {
     try {
@@ -16,10 +15,13 @@
       const data = await response.json();
       const res = data['subsonic-response'];
       if (res) {
-        version = res.serverVersion || res.version;
-        serverType = res.type || 'LMS';
+        version = res.serverVersion || res.version || '';
       }
+    } catch (e) {
+      console.error(e);
+    }
 
+    try {
       const rnResponse = await fetch('/release-notes.json');
       if (rnResponse.ok) {
         releaseNotes = await rnResponse.json();
@@ -34,25 +36,51 @@
   onMount(loadInfo);
 </script>
 
-<section>
-  <h3 class="text-2xl font-bold mb-6">About MuMa Spotify</h3>
-  <div class="flex flex-col gap-4 text-[#b3b3b3]">
-    <div class="flex items-center gap-6 mb-4">
-        <img src="/images/logo.svg" alt="MuMa Spotify Logo" class="w-24 h-24" on:error={(e) => e.target.src = '/images/spotify-fallback.svg'} />
+<div class="max-w-4xl pb-24">
+  <header class="mb-8">
+    <h1 class="text-3xl font-bold mb-2">Over MuMa</h1>
+    <p class="text-[#b3b3b3]">Welke versie je gebruikt en wat er onlangs is veranderd.</p>
+  </header>
+
+  <div class="flex flex-col gap-8">
+    <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+      <div class="flex items-center gap-6">
+        <img
+          src="/images/logo.svg"
+          alt=""
+          class="w-20 h-20"
+          onerror={(e) => (e.currentTarget.src = '/images/spotify-fallback.svg')}
+        />
         <div>
-            <h4 class="text-white text-3xl font-bold">Lightweight MuMa Server</h4>
-            <p>Version {version} {serverType !== '...' ? `(${serverType})` : ''}</p>
+          <h2 class="text-white text-2xl font-bold">MuMa</h2>
+          <p class="text-[#b3b3b3]">
+            {#if isLoading}
+              Versie laden...
+            {:else if version}
+              Versie {version}
+            {:else}
+              Versie onbekend
+            {/if}
+          </p>
         </div>
-    </div>
-    <p>MuMa Spotify (Lightweight MuMa Server) is a fast, feature-rich music streaming server written in C++.</p>
-    <p>© 2024-2026 The MuMa Project. Distributed under the GPL license.</p>
-    
-    {#if releaseNotes.length > 0}
-      <div class="mt-8">
-        <h4 class="text-white text-xl font-bold mb-4">Release Notes</h4>
+      </div>
+      <p class="text-[#b3b3b3] text-sm mt-6">
+        Je eigen muziekbibliotheek, overal te beluisteren. Loopt er iets niet goed of mis je een nummer? Laat het
+        weten aan de beheerder van deze server.
+      </p>
+    </section>
+
+    <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+      <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">Wat is er nieuw</h2>
+
+      {#if isLoading}
+        <p class="text-[#b3b3b3]">Laden...</p>
+      {:else if releaseNotes.length === 0}
+        <p class="text-[#b3b3b3] text-sm italic">Nog geen release notes beschikbaar.</p>
+      {:else}
         <div class="flex flex-col gap-6">
           {#each releaseNotes as release (release.version)}
-            <div class="border-l-2 border-[#1DB954] pl-4">
+            <div class="border-l-2 border-brand pl-4">
               <div class="flex items-center gap-3 mb-2">
                 <span class="text-white font-bold">{release.version}</span>
                 <span class="text-xs text-[#b3b3b3]">{release.date}</span>
@@ -60,7 +88,7 @@
               <div class="text-sm space-y-3">
                 {#each Object.entries(release.notes) as [category, items] (category)}
                   <div>
-                    <span class="text-[#1DB954] uppercase text-[10px] font-bold tracking-wider">{category}</span>
+                    <span class="text-brand uppercase text-[10px] font-bold tracking-wider">{category}</span>
                     <ul class="list-disc list-inside mt-1 text-[#e5e5e5]">
                       {#each items as item, i (i)}
                         <li>{item}</li>
@@ -72,13 +100,12 @@
             </div>
           {/each}
         </div>
-      </div>
-    {/if}
-
-    <div class="mt-6 flex gap-4">
-        <a href="https://github.com/muma/lms" target="_blank" class="text-white font-bold hover:underline">GitHub</a>
-        <a href="https://github.com/muma/lms/wiki" target="_blank" class="text-white font-bold hover:underline">Documentation</a>
-        <button class="text-white font-bold hover:underline bg-transparent border-none cursor-pointer p-0">License</button>
-    </div>
+      {/if}
+    </section>
   </div>
-</section>
+</div>
+
+<style>
+  .text-brand { color: #1ed760; }
+  .border-brand { border-color: #1ed760; }
+</style>

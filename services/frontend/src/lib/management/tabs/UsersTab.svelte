@@ -1,8 +1,8 @@
 <script >
   import { onMount } from 'svelte';
   import { RefreshCw, Plus, Trash2, Users, Key, Radio, Database, Shield, ShieldAlert, ShieldCheck, Link, Power, LogOut } from '@lucide/svelte';
-  import { hasPermission, mumaUser } from '../../store.js';
-  
+  import { authParams, hasPermission, mumaApiUrl, mumaUser } from '../../store.js';
+
   export let users;
   export let roles = [];
   export let selectedUser;
@@ -24,6 +24,9 @@
   let userIdentities = [];
   let lastSelectedUserId = null;
   let mergeSecondaryId = '';
+  let subsonicToken = '';
+  let subsonicTokenLoaded = false;
+  let isSavingSubsonicToken = false;
 
   async function addUser() {
     if (!newUsername) return;
@@ -168,6 +171,64 @@
     }
   }
 
+  /**
+   * Loads the selected user's Subsonic API token. This goes straight to the
+   * music server's muma bridge (not the MuMa API) because the token lives in
+   * the server's own auth-token store, and it requires Subsonic admin
+   * credentials rather than the management API key.
+   */
+  async function fetchSubsonicToken() {
+    subsonicToken = '';
+    subsonicTokenLoaded = false;
+    if (!selectedUser || !$authParams) return;
+    try {
+      const res = await fetch(
+        `${$mumaApiUrl}/api/admin/subsonic-token?${$authParams}&username=${encodeURIComponent(selectedUser.username)}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        subsonicToken = data.token || '';
+        subsonicTokenLoaded = true;
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function saveSubsonicToken(token) {
+    if (!selectedUser || !$authParams) return;
+    isSavingSubsonicToken = true;
+    try {
+      const res = await fetch(
+        `${$mumaApiUrl}/api/admin/subsonic-token?${$authParams}&username=${encodeURIComponent(selectedUser.username)}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token })
+        }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        subsonicToken = data.token || '';
+        subsonicTokenLoaded = true;
+        onMessage(token ? 'Subsonic token opgeslagen.' : 'Subsonic token ingetrokken.');
+      } else {
+        onError((await res.text()) || 'Kon Subsonic token niet opslaan.');
+      }
+    } catch (err) {
+      onError('Netwerkfout bij opslaan van Subsonic token.');
+    } finally {
+      isSavingSubsonicToken = false;
+    }
+  }
+
+  function generateSubsonicToken() {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    const token = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    saveSubsonicToken(token);
+  }
+
   async function fetchIdentities() {
     if (!selectedUser) return;
     try {
@@ -274,6 +335,7 @@
       lastSelectedUserId = selectedUser.id;
       fetchLBAccount();
       fetchIdentities();
+      fetchSubsonicToken();
       updateUserPassword = '';
     }
   } else {
@@ -546,6 +608,52 @@
                       OPSLAAN
                     </button>
                   </div>
+                </div>
+              </div>
+
+              <!-- Subsonic API token -->
+              <div class="space-y-4">
+                <h4 class="text-xl font-bold flex items-center gap-2 text-white">
+                  <Key size={20} class="text-spotify-green" /> Subsonic API Token
+                </h4>
+                <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
+                  <p class="text-xs text-spotify-lightgray">
+                    Sleutel waarmee deze gebruiker externe apps (Ultrasonic, Magna, ...) laat inloggen zonder
+                    wachtwoord. Alleen beheerders geven tokens uit.
+                  </p>
+                  {#if !$authParams}
+                    <p class="text-xs text-red-400 italic">
+                      Vereist een login met server-inloggegevens op de playerpagina.
+                    </p>
+                  {:else}
+                    <div class="bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 font-mono text-sm break-all min-h-[38px] flex items-center">
+                      {#if !subsonicTokenLoaded}
+                        <span class="text-spotify-lightgray italic">Laden...</span>
+                      {:else if subsonicToken}
+                        {subsonicToken}
+                      {:else}
+                        <span class="text-spotify-lightgray italic">Geen token ingesteld</span>
+                      {/if}
+                    </div>
+                    <div class="flex gap-2">
+                      <button
+                        on:click={generateSubsonicToken}
+                        disabled={isSavingSubsonicToken}
+                        class="flex-1 bg-spotify-green text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
+                      >
+                        {subsonicToken ? 'NIEUW TOKEN' : 'TOKEN GENEREREN'}
+                      </button>
+                      {#if subsonicToken}
+                        <button
+                          on:click={() => saveSubsonicToken('')}
+                          disabled={isSavingSubsonicToken}
+                          class="flex-1 bg-red-500/10 text-red-500 text-xs font-bold py-2 rounded-full border border-red-500/20 hover:scale-105 transition-transform disabled:opacity-50"
+                        >
+                          INTREKKEN
+                        </button>
+                      {/if}
+                    </div>
+                  {/if}
                 </div>
               </div>
 

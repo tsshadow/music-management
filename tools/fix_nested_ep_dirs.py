@@ -61,7 +61,13 @@ WHAT YOU CAN ANSWER
   s   skip this case, change nothing
   q   quit; everything already handled stays handled
 
+  --auto answers every case the way a hand run ends up answering anyway: d when the inner
+  folder shows no * at all, m when it does. Combine with --dry-run to see the answers
+  first.
+
 RULES
+  Scanning the whole music mount takes minutes. Every hit is printed under its label
+  while the scan runs, so use --label to look at one label straight away.
   Nothing is written before you press a key. Existing files are never overwritten: a
   name clash leaves that file where it is and keeps the inner folder alive. Every path
   that disappears from disk is removed from library_media_files,
@@ -175,11 +181,14 @@ def find_cases(
     eps_root: str,
     label: Optional[str] = None,
     on_progress: Optional[Callable[[str], None]] = None,
+    on_case: Optional[Callable[[Case], None]] = None,
 ) -> Tuple[List[Case], List[str]]:
     """Scan the EPs tree for inner directories named exactly like their parent.
 
     Returns the cases plus a list of oddities: differently named subdirectories that this
-    script refuses to touch.
+    script refuses to touch. `on_case` is called for every hit the moment it is found:
+    walking the whole music mount takes minutes, and a run that shows nothing until the
+    end looks like it found nothing.
     """
     cases: List[Case] = []
     oddities: List[str] = []
@@ -193,7 +202,10 @@ def find_cases(
             for sub_name in list_dirs(ep_path):
                 sub_path = os.path.join(ep_path, sub_name)
                 if sub_name == ep_name:
-                    cases.append(classify(ep_path, sub_path))
+                    case = classify(ep_path, sub_path)
+                    cases.append(case)
+                    if on_case:
+                        on_case(case)
                 else:
                     oddities.append(sub_path)
     return cases, oddities
@@ -312,6 +324,16 @@ PROMPTS = {
 }
 
 
+def auto_answer(case: Case) -> str:
+    """The answer a human run always ended up giving, for --auto.
+
+    No unique inner file means the inner folder holds nothing the outer one lacks, so it
+    goes. Otherwise the unique files are lifted up and the rest is dropped: moving the
+    duplicates too would only clash on their own names and keep the inner folder alive.
+    """
+    return 'm' if case.unique_inner_files else 'd'
+
+
 def ask(case: Case, read: Callable[[str], str] = input) -> str:
     allowed, prompt = PROMPTS[case.action]
     while True:
@@ -356,6 +378,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument('--eps-root', help='EPs root directory (default: eps_folder_path from config)')
     parser.add_argument('--label', help='Only scan this label directory (the music mount is slow)')
     parser.add_argument('--dry-run', action='store_true', help='Classify and print, change nothing')
+    parser.add_argument(
+        '--auto',
+        action='store_true',
+        help='Answer every case without asking: delete the inner folder when it holds nothing '
+             'new, otherwise move its unique files up and delete the rest',
+    )
     parser.add_argument('--report', default='fix_nested_ep_dirs_report.txt', help='Where to write the report')
     args = parser.parse_args(argv)
 
@@ -366,7 +394,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 1
     print(f'Scanning {eps_root}' + (f' (label: {args.label})' if args.label else '') + ' ...')
 
-    cases, oddities = find_cases(eps_root, args.label, on_progress=lambda name: print(f'  {name}', flush=True))
+    cases, oddities = find_cases(
+        eps_root,
+        args.label,
+        on_progress=lambda name: print(f'  {name}', flush=True),
+        on_case=lambda case: print(f'    -> {case.action}  {os.path.basename(case.outer)}', flush=True),
+    )
     print(f'\nFound {len(cases)} nested EP folder(s), {len(oddities)} differently named subfolder(s).')
     if not cases and not oddities:
         return 0
@@ -379,8 +412,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(case.describe())
         if args.dry_run:
             handled['skipped'] += 1
+            if args.auto:
+                print(f'  auto would answer: {auto_answer(case)}')
             continue
-        answer = ask(case)
+        answer = auto_answer(case) if args.auto else ask(case)
+        if args.auto:
+            print(f'  auto: {answer}')
         if answer == 'q':
             print('Quitting.')
             break

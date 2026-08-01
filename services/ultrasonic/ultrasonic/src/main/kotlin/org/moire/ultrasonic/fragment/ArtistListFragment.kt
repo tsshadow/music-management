@@ -16,33 +16,42 @@ import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import org.koin.android.ext.android.inject
-import org.moire.ultrasonic.NavigationGraphDirections
 import org.moire.ultrasonic.R
 import org.moire.ultrasonic.adapters.ArtistRowBinder
-import org.moire.ultrasonic.domain.Artist
 import org.moire.ultrasonic.domain.ArtistOrIndex
 import org.moire.ultrasonic.domain.Index
 import org.moire.ultrasonic.home.RecentActivityStore
 import org.moire.ultrasonic.home.toHomeCard
 import org.moire.ultrasonic.model.ArtistListModel
-import org.moire.ultrasonic.service.MusicServiceFactory.getMusicService
 import org.moire.ultrasonic.util.Settings
-import timber.log.Timber
+import org.moire.ultrasonic.view.FilterButtonBar
+import org.moire.ultrasonic.view.SortOrder
+import org.moire.ultrasonic.view.ViewCapabilities
 
 /**
  * Displays the list of Artists or Indexes (folders) from the media library
  */
-class ArtistListFragment : EntryListFragment<ArtistOrIndex>() {
-    private var isLoading: Boolean = false
-    private var offset = 0
-    private val pageSize = 100
+class ArtistListFragment :
+    EntryListFragment<ArtistOrIndex>(),
+    FilterableFragment {
+
     override val listModel: ArtistListModel by viewModels()
     private val recentActivityStore: RecentActivityStore by inject()
 
     /**
      * The id of the main layout
      */
-    override val mainLayout = R.layout.list_layout_generic
+    override val mainLayout = R.layout.list_layout_filterable
+
+    override var viewCapabilities: ViewCapabilities = ViewCapabilities(
+        supportsGrid = false,
+        supportedSortOrders = ARTIST_SORT_ORDERS,
+        supportsSearch = true
+    )
+
+    private var filterButtonBar: FilterButtonBar? = null
+    private var query = LibraryQuery()
+    private var artistRowBinder: ArtistRowBinder? = null
 
     private val navArgs: ArtistListFragmentArgs by navArgs()
 
@@ -55,12 +64,17 @@ class ArtistListFragment : EntryListFragment<ArtistOrIndex>() {
         super.onViewCreated(view, savedInstanceState)
         setTitle(navArgs.title)
 
-        viewAdapter.register(
-            ArtistRowBinder(
-                { entry -> onItemClick(entry) },
-                { menuItem, entry -> onContextMenuItemSelected(menuItem, entry) }
-            )
+        artistRowBinder = ArtistRowBinder(
+            { entry -> onItemClick(entry) },
+            { menuItem, entry -> onContextMenuItemSelected(menuItem, entry) },
+            enableSections = query.sortOrder == SortOrder.BY_NAME
         )
+        viewAdapter.register(artistRowBinder!!)
+
+        filterButtonBar = view.findViewById(R.id.filter_button_bar)
+        filterButtonBar!!.configureWithCapabilities(viewCapabilities)
+        filterButtonBar!!.setOnOrderChangedListener(::setOrderType)
+        filterButtonBar!!.setOnQueryChangedListener(::setQuery)
 
         listView?.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
@@ -68,44 +82,41 @@ class ArtistListFragment : EntryListFragment<ArtistOrIndex>() {
 
                 val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
                 val lastItem = layoutManager.findLastVisibleItemPosition()
+                val totalItems = viewAdapter.itemCount
 
-                if (lastItem > (offset + pageSize - 10)) {
-                    Timber.d("Scroll: triggering loadMore at offset=$offset total=$offset")
-                    loadMoreItems()
+                if (totalItems > 0 && lastItem > totalItems - SCROLL_THRESHOLD) {
+                    listModel.loadNextPage()
                 }
             }
         })
+
+        emptyTextView.setText(R.string.select_artist_empty)
     }
 
-    private fun loadMoreItems() {
-        isLoading = true
-        offset += pageSize
-        listModel.loadMore(
-            isOffline = false,
-            useId3Tags = true, // or use a flag from somewhere like `ActiveServerProvider`
-            musicService = getMusicService(),
-            refresh = false,
-            offset = offset,
-            count = pageSize
-        )
+    override fun setOrderType(newOrder: SortOrder) {
+        query = query.withSortOrder(newOrder)
+        // The A/B/C rail only means something in alphabetical order; anywhere else it is just
+        // a jumbled per-row letter and a misleading fast-scroll index.
+        artistRowBinder?.enableSections = newOrder == SortOrder.BY_NAME
+        listModel.apply(query)
+    }
+
+    override fun setQuery(query: String?) {
+        this.query = this.query.withQuery(query)
+        listModel.apply(this.query)
     }
 
     override fun onItemClick(item: ArtistOrIndex) {
-        val action = if (item is Index) {
-            NavigationGraphDirections.toTrackCollection(
-                id = item.id,
-                name = item.name,
-                parentId = item.id,
-                isArtist = false,
-                artistId = item.id
-            )
-        } else {
+        if (item !is Index) {
             recentActivityStore.record(item.toHomeCard(), Settings.isSetsMode)
-            NavigationGraphDirections.toArtistDetail(
-                artistId = item.id
-            )
         }
 
-        findNavController().navigate(action)
+        findNavController().navigate(ArtistNavigation.directionsFor(item))
+    }
+
+    companion object {
+        // How close to the end of the currently loaded items (in item positions) a scroll
+        // has to get before the next page is requested.
+        private const val SCROLL_THRESHOLD = 10
     }
 }

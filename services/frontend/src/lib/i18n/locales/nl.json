@@ -1,0 +1,8 @@
+{
+  "settings": {
+    "language": {
+      "title": "Taal",
+      "help": "De taal van de interface. Wordt opgeslagen bij je account, zodat hij meegaat naar je andere apparaten."
+    }
+  }
+}

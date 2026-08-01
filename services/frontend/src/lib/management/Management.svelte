@@ -13,6 +13,8 @@
   import DownloadersTab from './tabs/DownloadersTab.svelte';
   import ScrobbleTab from './tabs/ScrobbleTab.svelte';
   import HealthTab from './tabs/HealthTab.svelte';
+  import ScannerTab from './tabs/ScannerTab.svelte';
+  import LibrariesTab from './tabs/LibrariesTab.svelte';
   import UsersTab from './tabs/UsersTab.svelte';
   import UserRequestsTab from './tabs/UserRequestsTab.svelte';
   import WorkerVersionsTab from './tabs/WorkerVersionsTab.svelte';
@@ -394,6 +396,10 @@
         <OverviewTab {containers} {activity} {config} {allNotes} {selectedServiceNotes} {notes} {stats} {fetchStats} {fetchArtistImages} />
       {:else if $activeManagementTab === 'library'}
         <AdvancedLibraryTab {API_BASE} {getHeaders} onMessage={(m) => message = m} onError={(e) => error = e} />
+      {:else if $activeManagementTab === 'libraries'}
+        <LibrariesTab onMessage={(m) => message = m} onError={(e) => error = e} />
+      {:else if $activeManagementTab === 'scanner'}
+        <ScannerTab onMessage={(m) => message = m} onError={(e) => error = e} />
       {:else if $activeManagementTab === 'images'}
         <ArtistImagesTab
           {API_BASE} {apiKey} getHeaders={getHeaders}

@@ -48,6 +48,7 @@ class AlbumListFragment(
     FilterableFragment {
 
     private var filterButtonBar: FilterButtonBar? = null
+    private var albumQuery = LibraryQuery()
 
     private val recentActivityStore: RecentActivityStore by inject()
 
@@ -57,9 +58,10 @@ class AlbumListFragment(
     override val listModel: AlbumListModel by viewModels()
 
     /**
-     * The id of the main layout
+     * The id of the main layout. `onCreateView` below always inflates the filterable layout
+     * directly, so this only documents the fragment's layout for readers of the base class.
      */
-    override val mainLayout: Int = R.layout.list_layout_generic
+    override val mainLayout: Int = R.layout.list_layout_filterable
 
     /**
      * Whether to refresh the data onViewCreated
@@ -95,7 +97,8 @@ class AlbumListFragment(
                     size = navArgs.size,
                     offset = navArgs.offset,
                     append = append,
-                    refresh = refresh or append
+                    refresh = refresh or append,
+                    query = albumQuery.query
                 )
             }
             swipeRefresh?.isRefreshing = false
@@ -135,9 +138,15 @@ class AlbumListFragment(
         }
     }
 
+    override fun setQuery(query: String?) {
+        albumQuery = albumQuery.withQuery(query)
+        fetchAlbums(refresh = true, append = false)
+    }
+
     override var viewCapabilities: ViewCapabilities = ViewCapabilities(
         supportsGrid = true,
-        supportedSortOrders = getListOfSortOrders()
+        supportedSortOrders = getListOfSortOrders(),
+        supportsSearch = true
     )
 
     private fun getListOfSortOrders(): List<SortOrder> {
@@ -165,6 +174,9 @@ class AlbumListFragment(
         if (isOnline) {
             supported.add(SortOrder.STARRED)
         }
+        if (isOnline) {
+            supported.add(SortOrder.BY_TRACK_COUNT)
+        }
         if (isOnline || useId3Offline) {
             supported.add(SortOrder.BY_NAME)
         }
@@ -179,10 +191,7 @@ class AlbumListFragment(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        val layout = if (navArgs.byArtist) R.layout.list_layout_filterable else mainLayout
-        return inflater.inflate(layout, container, false)
-    }
+    ): View? = inflater.inflate(R.layout.list_layout_filterable, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -193,14 +202,10 @@ class AlbumListFragment(
             fetchAlbums(refresh = true)
         }
 
-        // In most cases this fragment will be hosted by a ViewPager2 in the MainFragment,
-        // which provides its own FilterBar.
-        // But when we are looking at the Albums of a specific Artist this Fragment is standalone,
-        // so we need to setup the FilterBar here..
         if (navArgs.byArtist) {
             setTitle(navArgs.title)
-            setupFilterBar(view)
         }
+        setupFilterBar(view)
 
         // Get a reference to the listView
         listView = view.findViewById(recyclerViewId)
@@ -229,7 +234,13 @@ class AlbumListFragment(
         filterButtonBar = view.findViewById(R.id.filter_button_bar)
         filterButtonBar!!.setOnLayoutTypeChangedListener(::setLayoutType)
         filterButtonBar!!.setOnOrderChangedListener(::setOrderType)
-        filterButtonBar!!.configureWithCapabilities(
+        filterButtonBar!!.setOnQueryChangedListener(::setQuery)
+
+        // The Albums of a single Artist come from getAlbumsOfArtist and are re-sorted on the
+        // client (see sortListByOrder), which only knows how to sort by name or by year. The
+        // Library tab's Albums page browses and searches the whole library server-side instead,
+        // so it gets the full set of orders and the search field.
+        val capabilities = if (navArgs.byArtist) {
             ViewCapabilities(
                 supportsGrid = true,
                 supportedSortOrders = listOf(
@@ -237,7 +248,10 @@ class AlbumListFragment(
                     SortOrder.BY_YEAR
                 )
             )
-        )
+        } else {
+            viewCapabilities
+        }
+        filterButtonBar!!.configureWithCapabilities(capabilities)
 
         // Set layout toggle Chip to correct state
         filterButtonBar!!.setLayoutType(layoutType)
@@ -256,19 +270,26 @@ class AlbumListFragment(
         findNavController().navigate(action)
     }
 
-    private fun SortOrder.mapToAlbumListType(): AlbumListType = when (this) {
-        SortOrder.RANDOM -> AlbumListType.RANDOM
-        SortOrder.NEWEST -> AlbumListType.NEWEST
-        SortOrder.HIGHEST -> AlbumListType.HIGHEST
-        SortOrder.FREQUENT -> AlbumListType.FREQUENT
-        SortOrder.RECENT -> AlbumListType.RECENT
-        SortOrder.BY_NAME -> AlbumListType.SORTED_BY_NAME
-        SortOrder.BY_ARTIST -> AlbumListType.SORTED_BY_ARTIST
-        SortOrder.STARRED -> AlbumListType.STARRED
-        SortOrder.BY_YEAR -> AlbumListType.BY_YEAR
-    }
-
     companion object {
         private const val ROWS = 3
     }
+}
+
+/**
+ * `SortOrder` is shared with the artist list, which has orders albums do not support and vice
+ * versa, so albums get their own mapping onto the value `getAlbumList2` accepts.
+ */
+fun SortOrder.mapToAlbumListType(): AlbumListType = when (this) {
+    SortOrder.RANDOM -> AlbumListType.RANDOM
+    SortOrder.NEWEST -> AlbumListType.NEWEST
+    SortOrder.HIGHEST -> AlbumListType.HIGHEST
+    SortOrder.FREQUENT -> AlbumListType.FREQUENT
+    SortOrder.RECENT -> AlbumListType.RECENT
+    SortOrder.BY_NAME -> AlbumListType.SORTED_BY_NAME
+    SortOrder.BY_ARTIST -> AlbumListType.SORTED_BY_ARTIST
+    SortOrder.STARRED -> AlbumListType.STARRED
+    SortOrder.BY_YEAR -> AlbumListType.BY_YEAR
+    SortOrder.BY_TRACK_COUNT -> AlbumListType.BY_TRACK_COUNT
+    SortOrder.BY_ALBUM_COUNT, SortOrder.BY_ADDED ->
+        throw UnsupportedOperationException("Artist-specific sort orders cannot be used for albums")
 }

@@ -7,6 +7,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.58] - 2026-08-01
+
+### Added
+- **Interface language setting in the web frontend.** The frontend now has a translation mechanism —
+  JSON translation files per language (`services/frontend/src/lib/i18n/locales/`), a `t()` store with
+  English fallback and `{name}` interpolation — plus a language picker (English/Dutch) in General
+  Settings. The chosen language is stored in the per-user `frontend` app-settings blob
+  (`/api/users/{id}/settings/frontend`, alongside `favoriteGenres`), so it follows the user across
+  devices; a language applied from the account is not written to `localStorage`, so logging out falls
+  back to this browser's own preference instead of keeping the previous user's. No backend or database
+  change. Only the picker itself is translated so far — converting the remaining screens is a
+  follow-up. See `docs/designs/i18n/`.
+- **Android: search and sort on the Library tabs.** The Artists and Albums tabs gained a search
+  field and a sort selector; artist search runs server-side over the whole library through new
+  `query`/`sortBy` parameters on `getArtists.view`, which also reports `songCount` per artist.
+  Albums reuse the `query` parameter `getAlbumList2.view` already accepted and gained a
+  `byTrackCount` order. The genre, year, festival, lineup and rating tabs filter and sort in
+  memory.
+
+### Changed
+- **Server administration moved out of the player's settings screen and into the management view.**
+  The scanner (status, schedule, tag handling) and the media libraries are now management tabs of
+  their own, so everything that requires an administrator lives in one place. The player's settings
+  are personal settings only: general, advanced and about. The two separate scanner screens that
+  both polled `getScanStatus` on their own timer are merged into a single tab that only polls while
+  a scan is actually running.
+- **Subsonic API tokens are issued by an administrator**, from the user detail panel in the
+  management view, instead of every user minting their own in two different places. The music
+  server exposes them at `/muma/api/admin/subsonic-token`, which requires Subsonic admin
+  credentials.
+- **The about page is written for listeners**: the running version and the release notes, without
+  the developer-oriented links.
+- Scrobbling to the central MuMa database is on for every user. It was a per-user toggle that the
+  player's settings screen could set, which is not something individual users should opt out of.
+- `store.js`'s account sync was generalised into `loadFrontendSettings`/`saveFrontendSetting`, which
+  read-merge-write a single key of the `frontend` app-settings blob; `favoriteGenres` now goes through
+  them and both settings are loaded in one request on login. No behaviour change for favorite genres.
+
+### Removed
+- **The "Audio (Web Player)" settings block.** Transcoding mode/format/bitrate and the ReplayGain
+  settings were never read back by `getUser`, never written by `updateUser`, and never consulted by
+  the player (which hardcodes its own stream parameters), so saving them silently did nothing.
+- **The user administration screen in the player's settings.** It wrote straight into the music
+  server's own user table, which the MuMa user sync then overwrote; the management view's user tab
+  is the single place where users are managed. Its non-functional "Scrobbling enabled" checkbox
+  (never read by `createUser`/`updateUser`) is gone with it.
+- **The ListenBrainz import button in the player's settings.** Importing listening history is an
+  administrative job and already exists, per user, in the management view's scrobble tab.
+
+### Fixed
+- An unset album sort method no longer makes the settings screen fall back to `107`, which is not a
+  valid `ReleaseSortMethod` and was written back to the database on the next save.
+- **`Track::getCount`/`Release::getCount` returned one row per matching entity instead of a
+  single total.** Both classes' private query builders (`createQuery` in `Track.cpp` and
+  `Release.cpp`) applied `GROUP BY` unconditionally, including on the aggregate `COUNT` select
+  `getCount` builds, which turned its single-row result into one row per entity and made
+  `fetchQuerySingleResult` throw whenever the query also needed to deduplicate joined rows (e.g. a
+  keyword filter, or `Release`'s new `TrackCountDesc` sort). Both now take an explicit `aggregate`
+  flag and only apply `GROUP BY` when it is false.
+- **`Dockerfile-build-alpine` could produce a "passing" image with a failing test suite.** It ran
+  `make test && ...;` where the trailing semicolon broke the `&&` chain, so a failing CTest suite
+  no longer failed the build, and `scripts/test/lms-unit.sh` reported green regardless.
+- **Android: tapping an artist opened a blank screen.** The artist list and the home screen's
+  artist cards navigated to a stub fragment that had no layout and loaded no data. Both now open
+  the artist's album list, the destination search and the player's "show artist" already used.
+
+
 ## [0.0.57] - 2026-08-01
 
 ### Fixed

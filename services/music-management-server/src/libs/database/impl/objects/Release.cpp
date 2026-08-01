@@ -56,8 +56,12 @@ namespace lms::db
 {
     namespace
     {
+        // "aggregate" must be true for selects like "COUNT(...)"/"SUM(...)" that must return a
+        // single row: some filter/sort branches below add a GROUP BY to deduplicate rows for
+        // non-aggregate selects (e.g. "r.id", "r"), which would otherwise break such a select by
+        // turning its single aggregate row into one row per matching release.
         template<typename ResultType>
-        Wt::Dbo::Query<ResultType> createQuery(Session& session, std::string_view itemToSelect, const Release::FindParameters& params)
+        Wt::Dbo::Query<ResultType> createQuery(Session& session, std::string_view itemToSelect, bool aggregate, const Release::FindParameters& params)
         {
             assert(params.keywords.empty() || params.name.empty());
             assert(!params.directory.isValid() || !params.parentDirectory.isValid());
@@ -67,6 +71,7 @@ namespace lms::db
             if (params.sortMethod == ReleaseSortMethod::ArtistNameThenName
                 || params.sortMethod == ReleaseSortMethod::LastWrittenDesc
                 || params.sortMethod == ReleaseSortMethod::AddedDesc
+                || params.sortMethod == ReleaseSortMethod::TrackCountDesc
                 || params.sortMethod == ReleaseSortMethod::DateAsc
                 || params.sortMethod == ReleaseSortMethod::DateDesc
                 || params.sortMethod == ReleaseSortMethod::OriginalDate
@@ -149,7 +154,12 @@ namespace lms::db
                         .bind(escaped)
                         .bind(escaped);
                 }
-                query.groupBy("r.id");
+
+                // Grouping is needed to deduplicate rows produced by the left joins above,
+                // but it must not be applied to aggregate selects (see the "aggregate" comment
+                // above).
+                if (!aggregate)
+                    query.groupBy("r.id");
             }
 
             if (params.starringUser.isValid())
@@ -262,6 +272,13 @@ namespace lms::db
             case ReleaseSortMethod::AddedDesc:
                 query.orderBy("t.file_added DESC");
                 break;
+            case ReleaseSortMethod::TrackCountDesc:
+                // DISTINCT matters here: when keywords are set, the query also left-joins
+                // release_artist_link/artist (see above), which multiplies rows per artist credited
+                // on the release. Without DISTINCT, a 4-track release credited to 3 artists would
+                // count as 12 and outrank a 10-track single-artist release.
+                query.orderBy("COUNT(DISTINCT t.id) DESC, r.sort_name");
+                break;
             case ReleaseSortMethod::DateAsc:
                 query.orderBy("t.date ASC, r.name COLLATE NOCASE");
                 break;
@@ -305,6 +322,11 @@ namespace lms::db
                     break;
                 }
             }
+
+            // Grouping is needed to aggregate the track count per release, but it must not be
+            // applied to aggregate selects (see the "aggregate" comment above).
+            if (params.sortMethod == ReleaseSortMethod::TrackCountDesc && !aggregate)
+                query.groupBy("r.id");
 
             return query;
         }
@@ -584,7 +606,7 @@ namespace lms::db
     {
         session.checkReadTransaction();
 
-        auto query{ createQuery<Wt::Dbo::ptr<Release>>(session, "DISTINCT r", params) };
+        auto query{ createQuery<Wt::Dbo::ptr<Release>>(session, "DISTINCT r", /* aggregate = */ false, params) };
         return utils::execRangeQuery<pointer>(query, params.range);
     }
 
@@ -592,7 +614,7 @@ namespace lms::db
     {
         session.checkReadTransaction();
 
-        auto query{ createQuery<Wt::Dbo::ptr<Release>>(session, "DISTINCT r", params) };
+        auto query{ createQuery<Wt::Dbo::ptr<Release>>(session, "DISTINCT r", /* aggregate = */ false, params) };
         utils::forEachQueryRangeResult(query, params.range, func);
     }
 
@@ -600,7 +622,7 @@ namespace lms::db
     {
         session.checkReadTransaction();
 
-        auto query{ createQuery<ReleaseId>(session, "DISTINCT r.id", params) };
+        auto query{ createQuery<ReleaseId>(session, "DISTINCT r.id", /* aggregate = */ false, params) };
         return utils::execRangeQuery<ReleaseId>(query, params.range);
     }
 
@@ -618,7 +640,7 @@ namespace lms::db
     {
         session.checkReadTransaction();
 
-        return utils::fetchQuerySingleResult(createQuery<int>(session, "COUNT(DISTINCT r.id)", params));
+        return utils::fetchQuerySingleResult(createQuery<int>(session, "COUNT(DISTINCT r.id)", /* aggregate = */ true, params));
     }
 
     core::PartialDateTime Release::getDate() const

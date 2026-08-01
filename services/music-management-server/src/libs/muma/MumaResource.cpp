@@ -26,6 +26,7 @@
 #include "database/objects/TrackList.hpp"
 #include "database/objects/User.hpp"
 #include "database/objects/UIState.hpp"
+#include "services/auth/IAuthTokenService.hpp"
 #include "services/auth/IUserSynchronizer.hpp"
 #include "services/auth/IPasswordService.hpp"
 #include "services/scanner/IScannerService.hpp"
@@ -278,6 +279,86 @@ namespace lms::api::muma
 
             core::Service<scanner::IScannerService>::get()->requestReload();
             response.out() << "{\"status\":\"ok\"}";
+            return;
+        }
+
+        // Subsonic API tokens are administered here, from the management UI, rather
+        // than being self-service in the player's settings screen: they are what
+        // external clients (Ultrasonic, Magna, ...) authenticate with, so handing
+        // them out is an admin task. Handled locally (not proxied to MuMa) because
+        // the tokens live in this server's own auth-token store.
+        if (pathInfo == "/api/admin/subsonic-token")
+        {
+            if (!dbUser || !dbUser->isAdmin())
+            {
+                response.setStatus(403);
+                response.out() << "Forbidden";
+                return;
+            }
+
+            const std::string* targetParam{ request.getParameter("username") };
+            if (!targetParam || targetParam->empty())
+            {
+                response.setStatus(400);
+                response.out() << "username is required";
+                return;
+            }
+
+            db::User::pointer targetUser{ db::User::find(session, *targetParam) };
+            if (!targetUser)
+            {
+                response.setStatus(404);
+                response.out() << "User not found";
+                return;
+            }
+
+            auto& authTokenService{ *core::Service<auth::IAuthTokenService>::get() };
+
+            if (request.method() == "GET")
+            {
+                std::string token;
+                authTokenService.visitAuthTokens("subsonic", targetUser->getId(), [&](const auth::IAuthTokenService::AuthTokenInfo&, std::string_view storedToken) {
+                    if (token.empty())
+                        token = storedToken;
+                });
+
+                Wt::Json::Object result;
+                result["username"] = Wt::Json::Value(std::string{ targetUser->getLoginName() });
+                result["token"] = Wt::Json::Value(token);
+                response.out() << Wt::Json::serialize(result);
+                return;
+            }
+
+            if (request.method() == "PUT" || request.method() == "POST")
+            {
+                Wt::Json::Object root;
+                std::string jsonStr((std::istreambuf_iterator<char>(request.in())), std::istreambuf_iterator<char>());
+                Wt::Json::ParseError error;
+                if (!Wt::Json::parse(jsonStr, root, error))
+                {
+                    response.setStatus(400);
+                    response.out() << "Invalid JSON";
+                    return;
+                }
+
+                const std::string token = root.get("token").toString().orIfNull("");
+
+                // An empty token means "revoke": every existing token is dropped and
+                // no new one is created, so the user's external clients stop working
+                // until a new token is issued.
+                authTokenService.clearAuthTokens("subsonic", targetUser->getId());
+                if (!token.empty())
+                    authTokenService.createAuthToken("subsonic", targetUser->getId(), token);
+
+                Wt::Json::Object result;
+                result["username"] = Wt::Json::Value(std::string{ targetUser->getLoginName() });
+                result["token"] = Wt::Json::Value(token);
+                response.out() << Wt::Json::serialize(result);
+                return;
+            }
+
+            response.setStatus(405);
+            response.out() << "Method not allowed";
             return;
         }
 

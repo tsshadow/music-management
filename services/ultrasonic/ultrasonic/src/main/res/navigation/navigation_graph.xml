@@ -20,9 +20,6 @@
         android:id="@+id/toArtistList"
         app:destination="@id/artistListFragment" />
     <action
-        android:id="@+id/toArtistDetail"
-        app:destination="@id/artistDetailFragment" />
-    <action
         android:id="@+id/toSongList"
         app:destination="@id/selectSongFragment" />
     <action
@@ -81,18 +78,6 @@
             app:nullable="true" />
         <argument
             android:name="id"
-            android:defaultValue="@null"
-            app:argType="string"
-            app:nullable="true" />
-        <action
-            android:id="@+id/artistListToArtistDetail"
-            app:destination="@id/artistDetailFragment" />
-    </fragment>
-    <fragment
-        android:id="@+id/artistDetailFragment"
-        android:name="org.moire.ultrasonic.fragment.ArtistDetailFragment">
-        <argument
-            android:name="artistId"
             android:defaultValue="@null"
             app:argType="string"
             app:nullable="true" />

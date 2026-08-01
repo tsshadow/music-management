@@ -15,8 +15,9 @@ const devServerUrl = `http://localhost:${devServerPort}`;
 
 export default defineConfig({
   testDir: "./tests/browser",
-  // Generous, because the first test in a run waits out Vite's cold-start
-  // pre-bundling before anything renders; per-assertion timeouts stay tight.
+  // Pays for Vite's cold start once, before the tests, so their timeouts measure
+  // the app rather than the runner's load. See tests/browser/global-setup.js.
+  globalSetup: "./tests/browser/global-setup.js",
   timeout: 60_000,
   retries: 0,
   reporter: [["list"]],

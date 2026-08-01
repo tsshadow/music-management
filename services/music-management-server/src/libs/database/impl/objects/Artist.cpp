@@ -93,14 +93,6 @@ namespace lms::db
             if (params.releaseArtistsOnly)
                 query.join("release_artist_link r_a_l ON r_a_l.artist_id = a.id");
 
-            // Left join (not join) so artists with no releases still appear in a ReleaseCountDesc-sorted
-            // result, sorting last with a count of 0, instead of vanishing from the list entirely.
-            // Uses a distinct alias from the "release_artist_link r_a_l" join above: params.releaseArtistsOnly
-            // and ArtistSortMethod::ReleaseCountDesc can be set at the same time, and reusing the same alias
-            // for both an INNER and a LEFT join of the same table in one query would be invalid SQL.
-            if (params.sortMethod == ArtistSortMethod::ReleaseCountDesc)
-                query.leftJoin("release_artist_link r_a_l_sort ON r_a_l_sort.artist_id = a.id");
-
             if (params.filters.mediaLibrary.isValid())
             {
                 query.where(
@@ -191,10 +183,27 @@ namespace lms::db
                 query.orderBy("MIN(t.file_added) DESC, a.sort_name");
                 break;
             case ArtistSortMethod::TrackCountDesc:
-                query.orderBy("COUNT(t_a_l.track_id) DESC, a.sort_name");
+                // DISTINCT matters here: releaseArtistsOnly inner-joins release_artist_link, which
+                // multiplies rows per release the artist is credited on. Without DISTINCT, an artist
+                // with 20 tracks across 10 albums would score 200 and outrank an artist with 150
+                // tracks on a single album.
+                query.orderBy("COUNT(DISTINCT t_a_l.track_id) DESC, a.sort_name");
                 break;
             case ArtistSortMethod::ReleaseCountDesc:
-                query.orderBy("COUNT(DISTINCT r_a_l_sort.release_id) DESC, a.sort_name");
+                // Must match what the Subsonic response reports as "albumCount" (see
+                // createArtistNode in responses/Artist.cpp): releases the artist is a release-artist
+                // on, plus releases where they only appear as a track artist. A plain
+                // COUNT(DISTINCT release_artist_link.release_id) join would undercount an artist who
+                // is a track artist (e.g. featured) on releases they did not author, so this uses a
+                // correlated subquery over the union of both sources instead. It's a scalar subquery
+                // rather than a join+GROUP BY so it composes with params.releaseArtistsOnly, which
+                // already inner-joins release_artist_link under a different alias for filtering.
+                query.orderBy(
+                    "(SELECT COUNT(DISTINCT release_id) FROM ("
+                    "SELECT r_a_l_count.release_id AS release_id FROM release_artist_link r_a_l_count WHERE r_a_l_count.artist_id = a.id "
+                    "UNION "
+                    "SELECT t_count.release_id AS release_id FROM track_artist_link t_a_l_count JOIN track t_count ON t_count.id = t_a_l_count.track_id WHERE t_a_l_count.artist_id = a.id"
+                    ")) DESC, a.sort_name");
                 break;
             case ArtistSortMethod::StarredDateDesc:
                 assert(params.starringUser.isValid());

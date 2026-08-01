@@ -1204,4 +1204,97 @@ namespace lms::db::tests
             EXPECT_EQ(artists.results[1], artistA.getId());
         }
     }
+
+    TEST_F(DatabaseFixture, Artist_sortReleaseCountDescIncludesTrackArtistOnlyReleases)
+    {
+        // Regression test: createArtistNode (responses/Artist.cpp) reports "albumCount" as the
+        // artist's release-artist releases *plus* releases where they only appear as a track
+        // artist. ArtistSortMethod::ReleaseCountDesc must count releases the same way, or the
+        // displayed count and the sort order contradict each other.
+        ScopedArtist control{ session, "aArtist" };
+        ScopedArtist featured{ session, "zArtist" };
+
+        ScopedRelease controlRelease{ session, "controlRelease" };
+        ScopedRelease featuredOwnRelease{ session, "featuredOwnRelease" };
+        ScopedRelease releaseFeaturedDidNotAuthor{ session, "releaseFeaturedDidNotAuthor" };
+
+        ScopedTrack featuredGuestTrack{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+
+            session.create<ReleaseArtistLink>(controlRelease.get(), control.get(), false);
+            session.create<ReleaseArtistLink>(featuredOwnRelease.get(), featured.get(), false);
+
+            featuredGuestTrack.get().modify()->setRelease(releaseFeaturedDidNotAuthor.get());
+            session.create<TrackArtistLink>(featuredGuestTrack.get(), featured.get(), TrackArtistLinkType::Artist);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            // "featured" has 2 releases (1 as release artist, 1 as track artist only), "control"
+            // has 1. Their sort names ("zArtist" > "aArtist") would put "control" first on a tie,
+            // so this only passes if "featured" is genuinely counted as 2, not undercounted to 1.
+            const auto artists{ Artist::findIds(session, Artist::FindParameters{}.setSortMethod(ArtistSortMethod::ReleaseCountDesc)) };
+            ASSERT_EQ(artists.results.size(), 2);
+            EXPECT_EQ(artists.results[0], featured.getId());
+            EXPECT_EQ(artists.results[1], control.getId());
+        }
+    }
+
+    TEST_F(DatabaseFixture, Artist_sortTrackCountDescWithReleaseArtistsOnly)
+    {
+        // Regression test: releaseArtistsOnly inner-joins release_artist_link on artist_id alone
+        // (not tied to the specific track), so an artist credited on several releases gets one
+        // joined row per release for every one of their tracks. Without COUNT(DISTINCT ...), an
+        // artist with fewer tracks spread over more releases would outscore one with more tracks
+        // on a single release.
+        ScopedArtist manyReleasesArtist{ session, "manyReleasesArtist" };
+        ScopedArtist singleReleaseArtist{ session, "singleReleaseArtist" };
+
+        ScopedRelease manyReleasesRelease1{ session, "manyReleasesRelease1" };
+        ScopedRelease manyReleasesRelease2{ session, "manyReleasesRelease2" };
+        ScopedRelease singleRelease{ session, "singleRelease" };
+
+        ScopedTrack manyTrack1{ session };
+        ScopedTrack manyTrack2{ session };
+        ScopedTrack manyTrack3{ session };
+        ScopedTrack manyTrack4{ session };
+        ScopedTrack singleTrack1{ session };
+        ScopedTrack singleTrack2{ session };
+        ScopedTrack singleTrack3{ session };
+        ScopedTrack singleTrack4{ session };
+        ScopedTrack singleTrack5{ session };
+        ScopedTrack singleTrack6{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+
+            manyTrack1.get().modify()->setRelease(manyReleasesRelease1.get());
+            manyTrack2.get().modify()->setRelease(manyReleasesRelease1.get());
+            manyTrack3.get().modify()->setRelease(manyReleasesRelease2.get());
+            manyTrack4.get().modify()->setRelease(manyReleasesRelease2.get());
+            for (ScopedTrack* track : { &manyTrack1, &manyTrack2, &manyTrack3, &manyTrack4 })
+                session.create<TrackArtistLink>(track->get(), manyReleasesArtist.get(), TrackArtistLinkType::Artist);
+            session.create<ReleaseArtistLink>(manyReleasesRelease1.get(), manyReleasesArtist.get(), false);
+            session.create<ReleaseArtistLink>(manyReleasesRelease2.get(), manyReleasesArtist.get(), false);
+
+            for (ScopedTrack* track : { &singleTrack1, &singleTrack2, &singleTrack3, &singleTrack4, &singleTrack5, &singleTrack6 })
+                track->get().modify()->setRelease(singleRelease.get());
+            for (ScopedTrack* track : { &singleTrack1, &singleTrack2, &singleTrack3, &singleTrack4, &singleTrack5, &singleTrack6 })
+                session.create<TrackArtistLink>(track->get(), singleReleaseArtist.get(), TrackArtistLinkType::Artist);
+            session.create<ReleaseArtistLink>(singleRelease.get(), singleReleaseArtist.get(), false);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            // True track counts: manyReleasesArtist has 4 tracks (across 2 releases), single has 6
+            // (on 1 release). The buggy query without DISTINCT would score manyReleasesArtist as
+            // 4 tracks * 2 joined release rows = 8, wrongly outranking singleReleaseArtist's 6.
+            const auto artists{ Artist::findIds(session, Artist::FindParameters{}.setReleaseArtistsOnly(true).setSortMethod(ArtistSortMethod::TrackCountDesc)) };
+            ASSERT_EQ(artists.results.size(), 2);
+            EXPECT_EQ(artists.results[0], singleReleaseArtist.getId());
+            EXPECT_EQ(artists.results[1], manyReleasesArtist.getId());
+        }
+    }
 } // namespace lms::db::tests

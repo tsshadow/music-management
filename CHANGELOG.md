@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.56] - 2026-08-01
+
+### Fixed
+- **Ultrasonic crashed as soon as Settings was opened.** `SettingsFragment` sets every list
+  setting's summary to its selected entry, and `ListPreference.getSummary()` runs that summary
+  through `String.format()` to substitute the entry into it. The interface size options shipped in
+  0.0.55 are the first entries in the app containing a literal `%` ("100%", "90%", ... "70%"), so
+  the summary became an invalid format string and binding that row threw
+  `UnknownFormatConversionException: Conversion = '%'`, killing the process. The `%` is now
+  escaped. It affected every install rather than only upgrades: the preference persists its default
+  while the screen inflates, so the summary is applied the first time Settings is opened.
+- **Robolectric could not see the app's own resources**, because `includeAndroidResources` was
+  never enabled, so any test touching a real screen failed with `Resources$NotFoundException` and
+  none existed. Enabling it is what made the Settings crash reproducible in a test.
+
 ## [0.0.55] - 2026-08-01
 
 ### Added

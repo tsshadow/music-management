@@ -205,7 +205,7 @@
 
 <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
   <header>
-    <h1 class="text-6xl font-extrabold mb-4 tracking-tighter">Downloaders</h1>
+    <h1 class="text-6xl font-extrabold mb-4 tracking-tighter">{$t('management.tabs.downloaders')}</h1>
     <p class="text-spotify-lightgray text-lg">{$t('management.downloaders.subtitle')}</p>
   </header>
 

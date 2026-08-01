@@ -313,7 +313,7 @@
           {$t('management.genres.correctTo')}
         </span>
         <p class="text-xs text-spotify-lightgray mb-2">
-          {$t('management.genres.pickMultiple')} <b>Upterror</b> is Uptempo Hardcore én Terror.
+          {$t('management.genres.pickMultiple')}
         </p>
         <div class="max-h-48 overflow-y-auto rounded-md border border-spotify-gray bg-spotify-gray bg-opacity-30 divide-y divide-white/5">
           {#each targets as target (target.id)}

@@ -41,10 +41,29 @@ ignore list first.
 Not a breaking change: `GET /api/rules` keeps its existing shape, and `corrected_genre` is still selected
 there.
 
+## Frontend
+
+`GenreCurationTab.svelte` is a management tab like any other: it takes `API_BASE`, `getHeaders`, `onMessage`
+and `onError` from `Management.svelte` and owns its own fetching. Two requests keep it honest — the table
+follows the active state filter, while the approved genres are fetched separately because they are the only
+valid correction targets and stay needed while the table shows the unjudged queue.
+
+The parts that are pure data live in `management/genreCuration.js` so they can be unit-tested without a
+component: the filter definitions, the search key, the state summary, the sentence describing what a row does
+to a tag, and `buildDecision`, which applies the same two rules the API enforces (state must be `white` or
+`black`, a genre cannot correct to itself) before the confirm button is enabled.
+
+`normalizeGenre` there is a deliberate copy of `GenreRulesHelper.normalize`, not a looser search: the box has
+to group names the way the tagger does, so `hard style` and `hardstyle` stay two different genres rather than
+suggesting a merge that would not happen.
+
+Decisions apply from the next tagging run. The tagger is a one-shot process whose helpers preload at start, so
+no cache invalidation is needed — the page states the delay rather than hiding it.
+
 ## Cross-App Impact
 
-None. Backend-only: `music-manager` (tagger rules and management API) and the shared helpers. The frontend
-consumes the new endpoints when the review screen is built; nothing existing changes.
+`music-manager` (tagger rules and management API), the shared helpers, and the Svelte frontend. Android and
+LMS are untouched.
 
 ## Technical Acceptance Criteria
 
@@ -65,6 +84,12 @@ consumes the new endpoints when the review screen is built; nothing existing cha
    correction, and stores `decided_by` and `decided_at`.
 10. `migrate_genre_states.sql` run twice against MariaDB 10.6 leaves identical state counts, preserves backlog
     `detected_at` values, and converts every `corrected_genre` into a `canonical_id`.
+11. `buildDecision` refuses `unknown` as a target state and refuses a correction pointing at the genre itself,
+    matching the API, and coerces the select's string value to a number or `null`.
+12. `correctionTargets` returns only approved genres, never the genre being decided, sorted by name.
+13. `describeOutcome` lets a correction win over the state: a rejected genre with a correction target is
+    described as replaced, not removed.
+14. `normalizeGenre` produces the same key as `GenreRulesHelper.normalize` for casing, accents and separators.
 
 ## Related Docs
 

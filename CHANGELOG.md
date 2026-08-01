@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Curation API.** `GET /api/rules/genres` returns genres by state, most frequently seen first
   (`state=unknown` is the review queue), and `POST /api/rules/genres/{id}/decide` records a decision
   together with who made it, so the tagger never reverses it later.
+- **Genre Curation page in the management UI.** A new tab that opens on the unjudged queue, most
+  frequent genre first, and approves, rejects or corrects a genre per row. Every row states in words
+  what the genre currently does to a tag, corrections can only point at an approved genre, and
+  decisions on already-judged genres can be reversed from the same screen.
 
 ### Changed
 - **One rule decides a genre instead of two.** `AddMissingGenreToDatabaseRule` and

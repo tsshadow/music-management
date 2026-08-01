@@ -22,6 +22,14 @@ This project is now modularized. Detailed release notes for each module can be f
   werd. Je bestaande witte lijst, negeerlijst en backlog blijven behouden en krijgen de bijbehorende
   status.
 
+### 🧹 Genres beoordelen in het beheer
+- Nieuw tabblad **Genre Curatie** in het beheerscherm. Je begint bij de lijst die nog beoordeeld moet
+  worden, met de genres die het vaakst voorkomen bovenaan.
+- Per genre: goedkeuren, afkeuren, of corrigeren naar een genre dat je al hebt goedgekeurd. Bij elk
+  genre staat in gewone taal wat er met je tags gebeurt, dus je hoeft de statussen niet te kennen.
+- Een beslissing kun je altijd terugdraaien of veranderen. Wijzigingen gelden vanaf de volgende
+  tagger-run.
+
 ## Global Version 0.0.51 (2026-07-31)
 ### 📱 Android-app: uitloggen, sneller opstarten en niet meer vastlopen op een fout wachtwoord
 - Er zit nu een **uitlogknop** in het menu rechtsboven. Hij vraagt om bevestiging, stopt het

@@ -11,6 +11,15 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+### 🖼️ Artist Images is nu een echte beheerpagina
+- Zoeken werkt weer. Je krijgt nu álle artiesten die op je zoekterm passen te zien — mét én zonder
+  afbeelding — in één lijst, met een filter voor "alle", "met afbeelding" en "zonder afbeelding".
+- Per artiest kun je nu zelf ingrijpen: automatisch laten zoeken, een bestand uploaden, een
+  afbeelding-URL plakken, de huidige afbeelding weghalen, of een eerder gevonden afbeelding alsnog
+  als hoofdafbeelding instellen.
+- Gaat er iets mis, dan zie je nu de foutmelding met een knop om het opnieuw te proberen, in plaats
+  van een lege pagina zonder uitleg.
+
 ## Global Version 0.0.54 (2026-08-01)
 
 ### 🔀 Genres met een schuine streep worden nu gesplitst

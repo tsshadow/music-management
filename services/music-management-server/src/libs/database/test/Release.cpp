@@ -1701,6 +1701,61 @@ namespace lms::db::tests
         }
     }
 
+    TEST_F(DatabaseFixture, Release_sortTrackCountDescWithKeywordsAndMultipleArtists)
+    {
+        // Regression test: when keywords are set, createQuery left-joins release_artist_link and
+        // artist, which multiplies rows per artist credited on the release. Without
+        // COUNT(DISTINCT t.id), a 4-track release credited to 3 artists would count as 12 and
+        // outrank a 10-track single-artist release. Both the multi-artist credit and non-empty
+        // keywords are required to reproduce the bug: neither alone triggers the extra join.
+        ScopedArtist artistA1{ session, "artistA1" };
+        ScopedArtist artistA2{ session, "artistA2" };
+        ScopedArtist artistA3{ session, "artistA3" };
+        ScopedArtist artistB1{ session, "artistB1" };
+
+        ScopedRelease releaseA{ session, "SharedKeywordAlpaca" };
+        ScopedRelease releaseB{ session, "SharedKeywordBravo" };
+
+        ScopedTrack trackA1{ session };
+        ScopedTrack trackA2{ session };
+        ScopedTrack trackA3{ session };
+        ScopedTrack trackA4{ session };
+        ScopedTrack trackB1{ session };
+        ScopedTrack trackB2{ session };
+        ScopedTrack trackB3{ session };
+        ScopedTrack trackB4{ session };
+        ScopedTrack trackB5{ session };
+        ScopedTrack trackB6{ session };
+        ScopedTrack trackB7{ session };
+        ScopedTrack trackB8{ session };
+        ScopedTrack trackB9{ session };
+        ScopedTrack trackB10{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+
+            for (ScopedTrack* track : { &trackA1, &trackA2, &trackA3, &trackA4 })
+                track->get().modify()->setRelease(releaseA.get());
+            for (ScopedTrack* track : { &trackB1, &trackB2, &trackB3, &trackB4, &trackB5, &trackB6, &trackB7, &trackB8, &trackB9, &trackB10 })
+                track->get().modify()->setRelease(releaseB.get());
+
+            // releaseA: 4 tracks, credited to 3 artists -> buggy score would be 4 * 3 = 12
+            session.create<ReleaseArtistLink>(releaseA.get(), artistA1.get(), false);
+            session.create<ReleaseArtistLink>(releaseA.get(), artistA2.get(), false);
+            session.create<ReleaseArtistLink>(releaseA.get(), artistA3.get(), false);
+            // releaseB: 10 tracks, single artist -> true score 10, never multiplied
+            session.create<ReleaseArtistLink>(releaseB.get(), artistB1.get(), false);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            const auto releases{ Release::findIds(session, Release::FindParameters{}.setSortMethod(ReleaseSortMethod::TrackCountDesc).setKeywords({ "SharedKeyword" })) };
+            ASSERT_EQ(releases.results.size(), 2);
+            EXPECT_EQ(releases.results[0], releaseB.getId());
+            EXPECT_EQ(releases.results[1], releaseA.getId());
+        }
+    }
+
     TEST_F(DatabaseFixture, Release_getCountTrackCountDesc)
     {
         // Regression test: Release::getCount reuses the same createQuery helper as find/findIds.

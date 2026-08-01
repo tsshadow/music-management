@@ -273,7 +273,11 @@ namespace lms::db
                 query.orderBy("t.file_added DESC");
                 break;
             case ReleaseSortMethod::TrackCountDesc:
-                query.orderBy("COUNT(t.id) DESC, r.sort_name");
+                // DISTINCT matters here: when keywords are set, the query also left-joins
+                // release_artist_link/artist (see above), which multiplies rows per artist credited
+                // on the release. Without DISTINCT, a 4-track release credited to 3 artists would
+                // count as 12 and outrank a 10-track single-artist release.
+                query.orderBy("COUNT(DISTINCT t.id) DESC, r.sort_name");
                 break;
             case ReleaseSortMethod::DateAsc:
                 query.orderBy("t.date ASC, r.name COLLATE NOCASE");

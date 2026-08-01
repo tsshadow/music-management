@@ -46,12 +46,14 @@ services/frontend/src/lib/i18n/
   index.js            # locale store, t store, lookup, interpolation, supported-locale list
   locales/en.json
   locales/nl.json
+  locales/sallands.json    # partial; falls through to nl
+  locales/brabants.json    # partial; falls through to nl
 ```
 
 ### `src/lib/i18n/index.js`
 
-- `SUPPORTED_LOCALES` — `[{ code: 'en', label: 'English' }, { code: 'nl', label: 'Nederlands' }]`.
-  `DEFAULT_LOCALE` is `'en'`.
+- `SUPPORTED_LOCALES` — English, Dutch, and the two Dutch dialects Sallands and Brabants, each labelled in
+  its own language. `DEFAULT_LOCALE` is `'en'`.
 - Dictionaries are loaded with `import.meta.glob('./locales/*.json', { eager: true })`. Eager, not lazy:
   two files of a few kilobytes each, and a synchronous `t` avoids a flash of missing text on first paint
   and avoids async setup in unit tests. If the locale count grows materially this becomes lazy loading, at
@@ -68,8 +70,14 @@ services/frontend/src/lib/i18n/
 - `t` — `derived(locale, ...)` returning a `(key, vars) => string` function, so components use
   `{$t('a.b.c')}` and re-render on locale change.
 - Lookup: the key is split on `.` and walked through the active dictionary. A miss, or a hit that is not a
-  string, falls back to the same key in `en`; a miss there returns the key itself, plus a single
-  `console.warn` guarded by `import.meta.env.DEV`.
+  string, moves on to the next locale in that locale's chain (`FALLBACK_CHAINS`); a miss at the end of the
+  chain returns the key itself, plus a single `console.warn` guarded by `import.meta.env.DEV`.
+- Fallback chains: `sallands` and `brabants` resolve through `nl` before `en`; everything else goes
+  straight to `en`. This is what lets the dialect files stay partial — a key they do not carry reads as
+  ordinary Dutch instead of flipping that part of the screen to English — and it is why they are only
+  worth writing for the parts of the app where the joke lands.
+- `documentLanguage(code)` — the BCP 47 tag to report for a locale. Neither dialect has one, so both report
+  `nl`, which is what screen readers and browser spell-check need.
 - Interpolation: `{name}` placeholders replaced from the `vars` object. A placeholder with no matching var
   is left as-is rather than rendered as `undefined`.
 - Side effect: a `locale` subscription sets `document.documentElement.lang`.
@@ -82,9 +90,21 @@ Nested objects keyed `<area>.<component>.<thing>`, e.g.:
 { "settings": { "language": { "title": "Language", "help": "..." } } }
 ```
 
-Both files carry the same key set; `en.json` is the reference. Values are plain strings — no plurals or
-date/number formatting in this iteration. Existing `toLocaleString('nl-NL')` calls scattered through the
-components are left alone and are explicitly out of scope.
+`en.json` and `nl.json` carry the same key set; `en.json` is the reference, and `tests/unit/localeFiles.test.js`
+fails the suite when they drift apart. The dialect files are deliberately partial and are checked only in
+the other direction — no key that Dutch does not have — which catches a typo without demanding completeness.
+
+A value is either a string or, when the text depends on a number, an object of CLDR plural forms:
+
+```json
+{ "common": { "trackCount": { "one": "{count} nummer", "other": "{count} nummers" } } }
+```
+
+The form is chosen with `Intl.PluralRules` for the locale the *text* is written in, not the locale that is
+active, so a Dutch string reached by falling out of a dialect still pluralises as Dutch. Callers pass
+`{ count }`; a key with no `count` never takes this path.
+
+Dates and numbers are formatted at the call site with `Intl`, passing the active locale (`$locale`).
 
 ### Account sync (`src/lib/store.js`)
 

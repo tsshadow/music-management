@@ -151,7 +151,8 @@ interface MusicService {
         type: AlbumListType,
         size: Int,
         offset: Int,
-        musicFolderId: String?
+        musicFolderId: String?,
+        query: String? = null
     ): List<Album>
 
     @Throws(Exception::class)

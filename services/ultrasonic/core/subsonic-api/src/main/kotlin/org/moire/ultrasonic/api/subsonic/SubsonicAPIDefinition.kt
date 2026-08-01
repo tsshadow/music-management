@@ -243,7 +243,8 @@ interface SubsonicAPIDefinition {
         @Query("fromYear") fromYear: Int? = null,
         @Query("toYear") toYear: Int? = null,
         @Query("genre") genre: String? = null,
-        @Query("musicFolderId") musicFolderId: String? = null
+        @Query("musicFolderId") musicFolderId: String? = null,
+        @Query("query") query: String? = null
     ): Call<GetAlbumList2Response>
 
     @GET("getRandomSongs.view")

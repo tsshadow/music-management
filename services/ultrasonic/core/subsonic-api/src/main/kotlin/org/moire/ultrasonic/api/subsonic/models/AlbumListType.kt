@@ -24,7 +24,8 @@ enum class AlbumListType(val typeName: String) {
     SORTED_BY_ARTIST("alphabeticalByArtist"),
     STARRED("starred"),
     BY_YEAR("byYear"),
-    BY_GENRE("byGenre")
+    BY_GENRE("byGenre"),
+    BY_TRACK_COUNT("byTrackCount")
     ;
 
     override fun toString(): String = typeName
@@ -43,6 +44,7 @@ enum class AlbumListType(val typeName: String) {
             in STARRED.typeName -> STARRED
             in BY_YEAR.typeName -> BY_YEAR
             in BY_GENRE.typeName -> BY_GENRE
+            in BY_TRACK_COUNT.typeName -> BY_TRACK_COUNT
             else -> throw IllegalArgumentException("Unknown type: $typeName")
         }
 

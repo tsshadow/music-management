@@ -367,9 +367,22 @@ class OfflineMusicService :
         type: AlbumListType,
         size: Int,
         offset: Int,
-        musicFolderId: String?
+        musicFolderId: String?,
+        query: String?
     ): List<Album> {
         // TODO: Implement filtering by musicFolder?
+        if (query != null) {
+            val matching = cachedAlbums.get().filter { album ->
+                album.name?.contains(query, ignoreCase = true) == true ||
+                    album.title?.contains(query, ignoreCase = true) == true
+            }
+            return when (type) {
+                AlbumListType.NEWEST -> matching.sortedByDescending { it.created }
+                AlbumListType.SORTED_BY_ARTIST -> matching.sortedBy { it.artist }
+                else -> matching.sortedBy { it.title }
+            }
+        }
+
         return when (type) {
             AlbumListType.NEWEST -> cachedAlbums.orderedByAge(size, offset)
             AlbumListType.SORTED_BY_ARTIST -> cachedAlbums.orderedByArtist(size, offset)

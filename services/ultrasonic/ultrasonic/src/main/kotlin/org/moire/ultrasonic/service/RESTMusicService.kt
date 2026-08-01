@@ -382,7 +382,8 @@ open class RESTMusicService(
         type: AlbumListType,
         size: Int,
         offset: Int,
-        musicFolderId: String?
+        musicFolderId: String?,
+        query: String?
     ): List<Album> {
         val response = API.getAlbumList2(
             type,
@@ -391,7 +392,8 @@ open class RESTMusicService(
             null,
             null,
             null,
-            musicFolderId
+            musicFolderId,
+            query
         ).execute().throwOnFailure()
 
         return response.body()!!.albumList.toDomainEntityList(activeServerId)

@@ -44,6 +44,74 @@ WHERE normalized_name IS NULL OR normalized_name = '';
 
 ALTER TABLE rules_genres MODIFY COLUMN normalized_name VARCHAR(191) NOT NULL;
 
+-- 2b. Merge rows that collide on the normalized key.
+--
+--     Real data has them: production aborted here on 'hardcore frenchcore
+--     hardmusic', where several rows differing only in punctuation had been
+--     stored as separate genres. The unique index below cannot be created while
+--     they exist, and this file runs unattended on every deploy, so it resolves
+--     the collision itself rather than requiring a manual pre-step.
+--
+--     The lowest id survives; the others are deleted after everything pointing
+--     at them is repointed. Nothing is lost that the new schema can express:
+--     the duplicates were the same genre spelled differently.
+
+DROP TEMPORARY TABLE IF EXISTS genre_dupes;
+CREATE TEMPORARY TABLE genre_dupes (
+    dup_id INT PRIMARY KEY,
+    keep_id INT NOT NULL,
+    KEY (keep_id)
+);
+
+INSERT INTO genre_dupes (dup_id, keep_id)
+SELECT g.id, s.keep_id
+FROM rules_genres g
+JOIN (
+    SELECT normalized_name, MIN(id) AS keep_id
+    FROM rules_genres
+    GROUP BY normalized_name
+    HAVING COUNT(*) > 1
+) s ON s.normalized_name = g.normalized_name
+WHERE g.id <> s.keep_id;
+
+-- Visible in the deploy log, so a merge is never silent.
+SELECT CONCAT('Merging ', COUNT(*), ' genre rows that collide on the normalized name') AS migration_note
+FROM genre_dupes;
+
+-- Repoint references. The DELETEs drop rows that would violate the child
+-- table's own unique key once repointed (the survivor already has that pairing).
+DELETE r FROM rules_artist_genres r
+JOIN genre_dupes d ON r.genre_id = d.dup_id
+JOIN rules_artist_genres k ON k.artist_name = r.artist_name AND k.genre_id = d.keep_id;
+UPDATE rules_artist_genres r JOIN genre_dupes d ON r.genre_id = d.dup_id
+SET r.genre_id = d.keep_id;
+
+DELETE r FROM rules_label_genres r
+JOIN genre_dupes d ON r.genre_id = d.dup_id
+JOIN rules_label_genres k ON k.label_name = r.label_name AND k.genre_id = d.keep_id;
+UPDATE rules_label_genres r JOIN genre_dupes d ON r.genre_id = d.dup_id
+SET r.genre_id = d.keep_id;
+
+DELETE t FROM library_track_genres t
+JOIN genre_dupes d ON t.genre_id = d.dup_id
+JOIN library_track_genres k ON k.track_id = t.track_id AND k.genre_id = d.keep_id;
+UPDATE library_track_genres t JOIN genre_dupes d ON t.genre_id = d.dup_id
+SET t.genre_id = d.keep_id;
+
+UPDATE rules_genres g JOIN genre_dupes d ON g.canonical_id = d.dup_id
+SET g.canonical_id = d.keep_id;
+
+-- Keep a correction the survivor does not have but a duplicate does.
+UPDATE rules_genres k
+JOIN genre_dupes d ON k.id = d.keep_id
+JOIN rules_genres g ON g.id = d.dup_id
+SET k.corrected_genre = g.corrected_genre
+WHERE (k.corrected_genre IS NULL OR TRIM(k.corrected_genre) = '')
+  AND g.corrected_genre IS NOT NULL AND TRIM(g.corrected_genre) <> '';
+
+DELETE g FROM rules_genres g JOIN genre_dupes d ON g.id = d.dup_id;
+DROP TEMPORARY TABLE genre_dupes;
+
 CREATE UNIQUE INDEX IF NOT EXISTS uq_rules_genres_normalized_name ON rules_genres (normalized_name);
 CREATE INDEX IF NOT EXISTS idx_rules_genres_state ON rules_genres (state);
 

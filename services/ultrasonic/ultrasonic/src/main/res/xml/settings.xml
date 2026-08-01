@@ -387,6 +387,12 @@
             a:title="@string/settings.debug.log_to_file"
             a:summary=""
             app:iconSpaceReserved="false"/>
+        <CheckBoxPreference
+            a:defaultValue="false"
+            a:key="@string/setting_key.crash_detection"
+            a:title="@string/settings.debug.crash_detection"
+            a:summary="@string/settings.debug.crash_detection_summary"
+            app:iconSpaceReserved="false"/>
         <Preference
             a:key="@string/setting_key.view_log"
             a:title="@string/settings.debug.view_log"

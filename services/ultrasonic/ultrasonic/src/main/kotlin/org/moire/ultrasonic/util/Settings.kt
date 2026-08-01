@@ -272,6 +272,17 @@ object Settings {
         BuildConfig.DEBUG
     )
 
+    /**
+     * Off by default in every build type: the detection infers a crash from a missing clean
+     * shutdown, and Android silently kills the process often enough that leaving it on would
+     * nag about a "crash" after most ordinary app exits.
+     */
+    @JvmStatic
+    var crashDetectionEnabled by BooleanSetting(
+        getKey(R.string.setting_key_crash_detection),
+        false
+    )
+
     @JvmStatic
     val overrideLanguage by StringSetting(getKey(R.string.setting_key_override_language), "")
 
@@ -327,6 +338,10 @@ object Settings {
 
     @JvmStatic
     var lastSelectedLiveGenres by StringSetting("last_selected_live_genres", "[]")
+
+    // Local copy of the list the web player keeps in the MuMa "frontend" settings blob.
+    @JvmStatic
+    var favoriteGenres by StringSetting("favorite_genres", "[]")
 
     @JvmStatic
     var mediaDeviceExportEnabled by BooleanSetting(

@@ -58,3 +58,21 @@ export function correction(localPos, targetPos) {
   const rate = Math.min(1.02, Math.max(0.98, 1 + error / 10));
   return { action: 'rate', rate };
 }
+
+/**
+ * Whether this client may write play-queue state to the server.
+ *
+ * Only the host may. A follower that pushes state omits `position`, which the
+ * server stores as 0 (see Bookmarks.cpp handleSavePlayQueueCommon), wiping the
+ * host's progress -- the root cause of the old "jumping" behaviour. Followers
+ * express intent through explicit command pushes instead, never through the
+ * reactive state effect.
+ *
+ * @param {string} syncMode
+ * @param {boolean} isSyncing
+ * @param {boolean} hasCredentials
+ * @returns {boolean}
+ */
+export function shouldPushJamState(syncMode, isSyncing, hasCredentials) {
+  return syncMode === 'host' && !isSyncing && Boolean(hasCredentials);
+}

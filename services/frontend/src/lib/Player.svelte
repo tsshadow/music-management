@@ -1,6 +1,8 @@
 <script>
   import { onMount } from 'svelte';
-  import { currentTrack, playerState, audio, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView } from './store.js';
+  import { currentTrack, playerState, audio, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey } from './store.js';
+  import { createRadioController } from './radioController.js';
+  import { shouldPushJamState } from './radioSync.js';
   import ArtistList from './ArtistList.svelte';
   import { getArtistImageUrl } from './utils.js';
 
@@ -12,6 +14,76 @@
   let lastSyncTime = null;
   let lastPushTime = 0;
   let isSyncing = false;
+
+  let radioController = null;
+  let radioTickInterval = null;
+  let radioRefreshInterval = null;
+  let radioClockInterval = null;
+
+  /**
+   * Builds a stream URL for radio playback. `format=mp3` is required: LMS only
+   * honours `timeOffset` on the transcoding path (MediaRetrieval.cpp:146-147).
+   *
+   * @param {string} trackId
+   * @param {number} offsetSeconds
+   * @returns {string}
+   */
+  function radioStreamUrl(trackId, offsetSeconds) {
+    return `${$credentials.url}/rest/stream?id=${trackId}&format=mp3&maxBitRate=320&timeOffset=${offsetSeconds}&${$authParams}`;
+  }
+
+  /**
+   * Tunes into the first enabled radio channel, or switches radio off again.
+   * Requires a user gesture, which is exactly why this lives on a click handler:
+   * starting playback from a timer would be blocked by browser autoplay policy.
+   */
+  async function toggleRadio() {
+    if ($radioChannel) {
+      radioController?.stop();
+      clearInterval(radioTickInterval);
+      clearInterval(radioRefreshInterval);
+      clearInterval(radioClockInterval);
+      radioTickInterval = null;
+      radioRefreshInterval = null;
+      radioClockInterval = null;
+      radioController = null;
+      radioChannel.set(null);
+      radioNowPlaying.set(null);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${$mumaApiUrl}/api/radio/channels`, {
+        headers: { 'X-API-Key': $mumaApiKey },
+      });
+      const body = await response.json();
+      const channel = (body.channels || [])[0];
+      if (!channel) {
+        console.warn('No radio channels available');
+        return;
+      }
+
+      radioController = createRadioController({
+        audio: audioElement,
+        apiBase: $mumaApiUrl,
+        apiKey: $mumaApiKey,
+        streamUrlFor: radioStreamUrl,
+      });
+      await radioController.start(channel.slug);
+      radioChannel.set(channel.slug);
+      radioNowPlaying.set(radioController.getEntry());
+
+      radioTickInterval = setInterval(() => radioController?.tick(), 2000);
+      radioRefreshInterval = setInterval(async () => {
+        await radioController?.refresh();
+        radioNowPlaying.set(radioController?.getEntry() ?? null);
+      }, 10000);
+      // Clocks drift over a long listening session, so re-measure now and then.
+      radioClockInterval = setInterval(() => radioController?.measureClockOffset(), 300000);
+    } catch (e) {
+      console.error('Could not start radio', e);
+    }
+  }
 
   /**
    * Sends the current player state to the server if sync mode is active.
@@ -510,7 +582,15 @@
     }
   }
 
-  const track = $derived($currentTrack);
+  const track = $derived($radioChannel && $radioNowPlaying
+    ? {
+        id: $radioNowPlaying.track_id,
+        title: $radioNowPlaying.title,
+        artist: $radioNowPlaying.artist,
+        album: $radioNowPlaying.album,
+        coverArt: $radioNowPlaying.cover_art,
+      }
+    : $currentTrack);
   const primaryArtist = $derived.by(() => {
     if (track?.artists && track.artists.length > 0) return track.artists[0];
     if (track?.artist) {
@@ -525,17 +605,20 @@
   const volume = $derived($playerState.volume);
   const repeatMode = $derived($playerState.repeat);
   const shuffleMode = $derived($playerState.shuffle);
-  const isJamActive = $derived($syncMode !== 'off');
   const syncColor = $derived(
     $syncMode === 'host' ? '#1db954' : 
     ($syncMode === 'follower-jam' ? '#3d91ff' : 
     ($syncMode === 'follower-radio' ? '#b266ff' : '#b3b3b3'))
   );
   const syncTitle = $derived(
-    $syncMode === 'host' ? 'Jam: Host (Lead)' : 
-    ($syncMode === 'follower-jam' ? 'Jam: Remote (Controller)' : 
+    $syncMode === 'host' ? 'Jam: Host (Lead)' :
+    ($syncMode === 'follower-jam' ? 'Jam: Remote (Controller)' :
     ($syncMode === 'follower-radio' ? 'Radio: Listener (Following)' : 'Sync Off'))
   );
+  const isRadioActive = $derived($radioChannel !== null);
+  const radioColor = $derived($radioChannel ? '#b266ff' : '#b3b3b3');
+  // Radio listeners cannot steer the stream, exactly like a follower-radio client.
+  const transportLocked = $derived($syncMode === 'follower-radio' || isRadioActive);
   const releaseDate = $derived(track ? (formatShortDate(track.date) || track.year || '') : '');
   const coverUrl = $derived(track?.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}` : '/images/spotify-fallback.svg');
   const streamUrl = $derived(track?.id ? `/rest/stream?id=${track.id}&${$authParams}` : '');
@@ -580,7 +663,7 @@
     const _t = track;
     const _pl = playing;
 
-    if (isJamActive && !isSyncing) {
+    if (shouldPushJamState($syncMode, isSyncing, $credentials.username)) {
         pushJamState();
     }
   });
@@ -637,6 +720,9 @@
         
         // Don't load audio in remote-only jam mode
         if ($syncMode === 'follower-jam') return;
+        // Radio owns the audio element while it is on; the controller decides
+        // what to load and at which offset.
+        if ($radioChannel) return;
 
         if (audioElement) {
             audioElement.src = streamUrl;
@@ -754,6 +840,9 @@
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDown);
       window.removeEventListener('wheel', handleGlobalWheel);
+      if (radioTickInterval) clearInterval(radioTickInterval);
+      if (radioRefreshInterval) clearInterval(radioRefreshInterval);
+      if (radioClockInterval) clearInterval(radioClockInterval);
     };
   });
 </script>
@@ -813,9 +902,9 @@
       {/if}
       <div class="flex items-center gap-3 px-2">
         <button 
-          class="bg-transparent border-none p-0 text-white hover:scale-105 transition-transform {$syncMode === 'follower-radio' ? 'opacity-50 cursor-not-allowed' : ''}" 
+          class="bg-transparent border-none p-0 text-white hover:scale-105 transition-transform {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}" 
           onclick={togglePlay} 
-          disabled={$syncMode === 'follower-radio'}
+          disabled={transportLocked}
           aria-label={playing ? "Pauze" : "Afspelen"}
         >
           {#if playing}
@@ -830,9 +919,9 @@
         </button>
         {#if track}
           <button 
-            class="bg-transparent border-none p-0 text-[#b3b3b3] hover:text-white transition-colors {$syncMode === 'follower-radio' ? 'opacity-50 cursor-not-allowed' : ''}" 
+            class="bg-transparent border-none p-0 text-[#b3b3b3] hover:text-white transition-colors {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}" 
             onclick={playNext} 
-            disabled={$syncMode === 'follower-radio'}
+            disabled={transportLocked}
             aria-label="Volgende"
           >
             <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
@@ -892,9 +981,9 @@
           {/if}
         </button>
         <button 
-          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {$syncMode === 'follower-radio' ? 'opacity-50 cursor-not-allowed' : ''}" 
+          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}" 
           onclick={playPrev} 
-          disabled={$syncMode === 'follower-radio'}
+          disabled={transportLocked}
           aria-label="Vorige"
         >
           <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
@@ -902,9 +991,9 @@
           </svg>
         </button>
         <button 
-          class="w-9 h-9 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105 {$syncMode === 'follower-radio' ? 'opacity-50 cursor-not-allowed' : ''}" 
+          class="w-9 h-9 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105 {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}" 
           onclick={togglePlay}
-          disabled={$syncMode === 'follower-radio'}
+          disabled={transportLocked}
         >
           {#if playing}
             <svg viewBox="0 0 16 16" width="16" height="16" fill="black">
@@ -917,9 +1006,9 @@
           {/if}
         </button>
         <button 
-          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {$syncMode === 'follower-radio' ? 'opacity-50 cursor-not-allowed' : ''}" 
+          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}" 
           onclick={playNext} 
-          disabled={$syncMode === 'follower-radio'}
+          disabled={transportLocked}
           aria-label="Volgende"
         >
           <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
@@ -943,7 +1032,7 @@
       <div 
         role="button"
         tabindex="0"
-        class="flex-1 h-1 bg-[#4d4d4d] rounded-sm cursor-pointer {$syncMode === 'follower-radio' ? 'pointer-events-none opacity-50' : ''}"
+        class="flex-1 h-1 bg-[#4d4d4d] rounded-sm cursor-pointer {transportLocked ? 'pointer-events-none opacity-50' : ''}"
         onclick={seek}
         onkeydown={(e) => e.key === 'Enter' && seek(e)}
         aria-label="Seek track"
@@ -970,6 +1059,18 @@
           {/each}
         </div>
       {/if}
+      <button
+        class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white"
+        style="color: {radioColor}"
+        onclick={toggleRadio}
+        title={isRadioActive ? 'Radio: aan het luisteren' : 'Radio (beta)'}
+        aria-label="Radio"
+        aria-pressed={isRadioActive}
+      >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+            <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
+          </svg>
+      </button>
       <button
         class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors"
         onclick={toggleJamMode}

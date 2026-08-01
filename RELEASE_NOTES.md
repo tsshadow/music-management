@@ -17,6 +17,13 @@ This project is now modularized. Detailed release notes for each module can be f
 - "Website openen" en "Bug melden" openden nog de pagina's van het originele Ultrasonic-project.
   Ze gaan nu naar muma.example.com en naar de issue-tracker van dit project zelf.
 
+### 🌍 Taal instellen in de webinterface
+- Onder Instellingen → Algemeen kun je nu kiezen tussen Nederlands en Engels. Je keuze wordt bij je
+  account opgeslagen, dus hij gaat mee naar je andere apparaten en browsers. Ben je niet ingelogd, dan
+  start de interface in de taal van je browser.
+- Dit is de eerste stap: de techniek eronder is er nu, maar alleen de taalkeuze zelf is al vertaald.
+  De rest van de schermen volgt stap voor stap.
+
 ## Global Version 0.0.56 (2026-08-01)
 
 ### 🐛 Instellingen crashte de app

@@ -47,6 +47,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the project's own issue tracker at
   `https://gitlab.example.com/muma/music-management/-/issues`.
 
+### Added
+- **Interface language setting in the web frontend.** The frontend now has a translation mechanism —
+  JSON translation files per language (`services/frontend/src/lib/i18n/locales/`), a `t()` store with
+  English fallback and `{name}` interpolation — plus a language picker (English/Dutch) in General
+  Settings. The chosen language is stored in the per-user `frontend` app-settings blob
+  (`/api/users/{id}/settings/frontend`, alongside `favoriteGenres`), so it follows the user across
+  devices; a language applied from the account is not written to `localStorage`, so logging out falls
+  back to this browser's own preference instead of keeping the previous user's. No backend or database
+  change. Only the picker itself is translated so far — converting the remaining screens is a
+  follow-up. See `docs/designs/i18n/`.
+
+### Changed
+- `store.js`'s account sync was generalised into `loadFrontendSettings`/`saveFrontendSetting`, which
+  read-merge-write a single key of the `frontend` app-settings blob; `favoriteGenres` now goes through
+  them and both settings are loaded in one request on login. No behaviour change for favorite genres.
+
 ## [0.0.56] - 2026-08-01
 
 ### Fixed

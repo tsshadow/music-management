@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { SvelteURLSearchParams } from 'svelte/reactivity';
   import { deduplicateEnabled, authParams, credentials } from '../store.js';
+  import LanguageSetting from './LanguageSetting.svelte';
 
   // Server default for uiArtistReleaseSortMethod (ReleaseSortMethod::OriginalDateDesc).
   const DEFAULT_SORT_METHOD = 8;
@@ -163,6 +164,8 @@
       <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">Interface</h2>
 
       <div class="flex flex-col gap-6">
+        <LanguageSetting />
+
         <div class="flex items-center justify-between">
           <div class="flex flex-col gap-1">
             <h3 class="text-lg font-bold">Deduplicatie</h3>

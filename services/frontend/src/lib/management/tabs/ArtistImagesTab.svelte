@@ -1,4 +1,5 @@
 <script>
+  import { t } from '../../i18n/index.js';
   import { Search, Image, RefreshCw, User, Loader2, Link2, Upload, Trash2, X, Star } from '@lucide/svelte';
   import { SvelteSet } from 'svelte/reactivity';
 
@@ -246,7 +247,7 @@
         headers: getHeaders()
       });
       await readJson(res);
-      onMessage('Primaire afbeelding gewijzigd.');
+      onMessage($t('management.images.primaryChanged'));
       await refreshArtist(artistId);
       await loadStoredImages(artistId);
     });
@@ -265,13 +266,13 @@
 <section class="space-y-8 animate-in fade-in duration-500">
   <header class="flex flex-col md:flex-row md:items-end justify-between gap-6">
     <div>
-      <h1 class="text-6xl font-extrabold mb-4 tracking-tighter">Artist Images</h1>
-      <p class="text-spotify-lightgray text-lg">Zoek een artiest, bekijk de afbeelding en beheer hem handmatig.</p>
+      <h1 class="text-6xl font-extrabold mb-4 tracking-tighter">{$t('management.images.title')}</h1>
+      <p class="text-spotify-lightgray text-lg">{$t('management.images.subtitle')}</p>
     </div>
 
     <div class="flex items-center gap-4">
       <div class="text-right">
-        <p class="text-xs text-spotify-lightgray uppercase tracking-widest font-bold">Bibliotheek Status</p>
+        <p class="text-xs text-spotify-lightgray uppercase tracking-widest font-bold">{$t('management.images.libraryStatus')}</p>
         <p class="text-2xl font-black text-white">
           <span class="text-spotify-green">{imageStats.artists_with_images}</span>
           <span class="text-spotify-lightgray mx-1">/</span>
@@ -286,10 +287,10 @@
       >
         {#if fetchProgress.active}
           <Loader2 size={20} class="animate-spin" />
-          SCANNEN...
+          {$t('management.images.scanning')}
         {:else}
           <RefreshCw size={20} />
-          RESCAN
+          {$t('management.images.rescan')}
         {/if}
       </button>
     </div>
@@ -304,10 +305,10 @@
           </div>
           <div>
             <h3 class="font-bold text-lg">
-              {fetchProgress.active ? 'Artist Images Scannen...' : 'Scan Voltooid!'}
+              {fetchProgress.active ? $t('management.images.scanningImages') : $t('management.images.scanComplete')}
             </h3>
             {#if fetchProgress.active && fetchProgress.last_artist}
-              <p class="text-sm text-spotify-lightgray">Bezig met: <span class="text-white font-medium">{fetchProgress.last_artist}</span></p>
+              <p class="text-sm text-spotify-lightgray">{$t('management.images.busyWith')} <span class="text-white font-medium">{fetchProgress.last_artist}</span></p>
             {/if}
           </div>
         </div>
@@ -339,7 +340,7 @@
           type="text"
           bind:value={query}
           oninput={scheduleSearch}
-          placeholder="Zoek artiest..."
+          placeholder={$t('library.searchArtist')}
           class="w-full bg-spotify-gray bg-opacity-50 border border-white border-opacity-10 rounded-full py-4 pl-12 pr-4 text-white focus:outline-none focus:border-spotify-green focus:bg-opacity-80 transition-all placeholder:text-spotify-lightgray text-lg shadow-lg"
         />
       </div>
@@ -358,7 +359,7 @@
 
     {#if searchError}
       <div class="bg-red-900 bg-opacity-40 border border-red-500 border-opacity-40 text-red-200 p-4 rounded-xl flex items-center justify-between gap-4">
-        <span>Zoeken mislukt: {searchError}</span>
+        <span>{$t('management.images.searchFailed', { message: searchError })}</span>
         <button onclick={() => runSearch()} class="font-bold underline shrink-0">Opnieuw</button>
       </div>
     {/if}
@@ -384,7 +385,7 @@
               {:else}
                 <div class="flex flex-col items-center justify-center gap-2 text-spotify-lightgray opacity-40">
                   <User size={40} />
-                  <span class="text-xs">Geen afbeelding</span>
+                  <span class="text-xs">{$t('management.images.noImage')}</span>
                 </div>
               {/if}
               {#if busyArtistIds.has(artist.id)}
@@ -402,24 +403,24 @@
                     {artist.width}x{artist.height} • {artist.source || 'onbekend'}
                   {:else}
                     <span class={artist.image_status === 'failed' ? 'text-red-400' : ''}>
-                      {artist.image_status === 'failed' ? 'Niet gevonden' : 'Geen afbeelding'}
+                      {artist.image_status === 'failed' ? $t('management.versions.notFound') : $t('management.images.noImage')}
                     </span>
                   {/if}
                 </p>
               </div>
 
               <div class="flex items-center gap-1 mt-auto">
-                <button onclick={() => autoFetch(artist)} disabled={busyArtistIds.has(artist.id)} title="Automatisch zoeken" class="p-2 rounded-lg bg-white bg-opacity-5 hover:bg-spotify-green hover:text-black transition-all disabled:opacity-40">
+                <button onclick={() => autoFetch(artist)} disabled={busyArtistIds.has(artist.id)} title={$t('management.images.autoSearch')} class="p-2 rounded-lg bg-white bg-opacity-5 hover:bg-spotify-green hover:text-black transition-all disabled:opacity-40">
                   <RefreshCw size={16} />
                 </button>
-                <button onclick={() => pickFile(artist)} disabled={busyArtistIds.has(artist.id)} title="Bestand uploaden" class="p-2 rounded-lg bg-white bg-opacity-5 hover:bg-spotify-green hover:text-black transition-all disabled:opacity-40">
+                <button onclick={() => pickFile(artist)} disabled={busyArtistIds.has(artist.id)} title={$t('management.images.uploadFile')} class="p-2 rounded-lg bg-white bg-opacity-5 hover:bg-spotify-green hover:text-black transition-all disabled:opacity-40">
                   <Upload size={16} />
                 </button>
-                <button onclick={() => openUrlDialog(artist)} disabled={busyArtistIds.has(artist.id)} title="Afbeelding via URL" class="p-2 rounded-lg bg-white bg-opacity-5 hover:bg-spotify-green hover:text-black transition-all disabled:opacity-40">
+                <button onclick={() => openUrlDialog(artist)} disabled={busyArtistIds.has(artist.id)} title={$t('management.images.viaUrl')} class="p-2 rounded-lg bg-white bg-opacity-5 hover:bg-spotify-green hover:text-black transition-all disabled:opacity-40">
                   <Link2 size={16} />
                 </button>
                 {#if artist.has_image}
-                  <button onclick={() => clearImage(artist)} disabled={busyArtistIds.has(artist.id)} title="Afbeelding verwijderen" class="p-2 rounded-lg bg-white bg-opacity-5 hover:bg-red-500 hover:text-white transition-all disabled:opacity-40 ml-auto">
+                  <button onclick={() => clearImage(artist)} disabled={busyArtistIds.has(artist.id)} title={$t('management.images.deleteImage')} class="p-2 rounded-lg bg-white bg-opacity-5 hover:bg-red-500 hover:text-white transition-all disabled:opacity-40 ml-auto">
                     <Trash2 size={16} />
                   </button>
                 {/if}
@@ -459,7 +460,7 @@
   <div class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
     <div class="bg-spotify-gray rounded-2xl border border-white border-opacity-10 p-6 w-full max-w-lg space-y-4 shadow-2xl">
       <div class="flex items-center justify-between">
-        <h3 class="text-xl font-bold">Afbeelding via URL — {urlDialogArtist.name}</h3>
+        <h3 class="text-xl font-bold">{$t('management.images.viaUrlFor', { name: urlDialogArtist.name })}</h3>
         <button onclick={() => (urlDialogArtist = null)} class="p-1 hover:text-spotify-green"><X size={20} /></button>
       </div>
       <input
@@ -470,7 +471,7 @@
       />
       <div class="flex justify-end gap-2">
         <button onclick={() => (urlDialogArtist = null)} class="px-4 py-2 rounded-full font-bold bg-white bg-opacity-10 hover:bg-opacity-20">Annuleren</button>
-        <button onclick={saveImageUrl} disabled={!imageUrlInput.trim()} class="px-4 py-2 rounded-full font-bold bg-spotify-green text-black disabled:opacity-40">Opslaan</button>
+        <button onclick={saveImageUrl} disabled={!imageUrlInput.trim()} class="px-4 py-2 rounded-full font-bold bg-spotify-green text-black disabled:opacity-40">{$t('common.save')}</button>
       </div>
     </div>
   </div>
@@ -500,20 +501,20 @@
 
         <div class="flex-1 space-y-3">
           <div class="flex flex-wrap gap-2">
-            <button onclick={() => autoFetch(selected)} class="px-4 py-2 rounded-full font-bold bg-white bg-opacity-10 hover:bg-opacity-20 flex items-center gap-2"><RefreshCw size={16} /> Automatisch zoeken</button>
-            <button onclick={() => pickFile(selected)} class="px-4 py-2 rounded-full font-bold bg-white bg-opacity-10 hover:bg-opacity-20 flex items-center gap-2"><Upload size={16} /> Uploaden</button>
-            <button onclick={() => openUrlDialog(selected)} class="px-4 py-2 rounded-full font-bold bg-white bg-opacity-10 hover:bg-opacity-20 flex items-center gap-2"><Link2 size={16} /> URL</button>
+            <button onclick={() => autoFetch(selected)} class="px-4 py-2 rounded-full font-bold bg-white bg-opacity-10 hover:bg-opacity-20 flex items-center gap-2"><RefreshCw size={16} /> {$t('management.images.autoSearch')}</button>
+            <button onclick={() => pickFile(selected)} class="px-4 py-2 rounded-full font-bold bg-white bg-opacity-10 hover:bg-opacity-20 flex items-center gap-2"><Upload size={16} /> {$t('management.images.upload')}</button>
+            <button onclick={() => openUrlDialog(selected)} class="px-4 py-2 rounded-full font-bold bg-white bg-opacity-10 hover:bg-opacity-20 flex items-center gap-2"><Link2 size={16} /> {$t('management.images.url')}</button>
             {#if selected.has_image}
-              <button onclick={() => clearImage(selected)} class="px-4 py-2 rounded-full font-bold bg-white bg-opacity-10 hover:bg-red-500 flex items-center gap-2"><Trash2 size={16} /> Verwijderen</button>
+              <button onclick={() => clearImage(selected)} class="px-4 py-2 rounded-full font-bold bg-white bg-opacity-10 hover:bg-red-500 flex items-center gap-2"><Trash2 size={16} /> {$t('common.remove')}</button>
             {/if}
           </div>
 
           <div>
-            <h4 class="font-bold mb-2 flex items-center gap-2"><Image size={16} /> Opgeslagen afbeeldingen</h4>
+            <h4 class="font-bold mb-2 flex items-center gap-2"><Image size={16} /> {$t('management.images.savedImages')}</h4>
             {#if selectedLoading}
-              <p class="text-sm text-spotify-lightgray">Laden...</p>
+              <p class="text-sm text-spotify-lightgray">{$t('common.loading')}</p>
             {:else if selectedImages.length === 0}
-              <p class="text-sm text-spotify-lightgray">Nog niets opgeslagen voor deze artiest.</p>
+              <p class="text-sm text-spotify-lightgray">{$t('management.images.nothingSaved')}</p>
             {:else}
               <ul class="space-y-2">
                 {#each selectedImages as image (image.id)}
@@ -530,7 +531,7 @@
                     </div>
                     {#if !image.is_primary}
                       <button onclick={() => makePrimary(selected.id, image.id)} class="shrink-0 px-3 py-1 rounded-full text-xs font-bold bg-white bg-opacity-10 hover:bg-spotify-green hover:text-black flex items-center gap-1">
-                        <Star size={14} /> Primair
+                        <Star size={14} /> {$t('management.images.primary')}
                       </button>
                     {/if}
                   </li>

@@ -72,54 +72,37 @@ class SelectSongFragment : SelectFragment(), FilterableFragment {
         }
     }
 
+    /**
+     * Plain genre tiles are redundant now that genres are browsable, so the defaults are
+     * combinations the genre list can't express: a genre plus a year window. Years are
+     * enumerated because the server matches YEAR values as exact clusters, not ranges.
+     */
     override fun defaultTileSet(): MutableList<TileInfo> = mutableListOf(
         TileInfo(
-            genre = listOf("Euphoric Hardstyle"),
-            length = defaultLength,
-            sortMethod = "DateDescAndRelease",
-            favorite = true
-        ),
-        TileInfo(
-            genre = listOf("Hardstyle"),
-            length = defaultLength,
-            sortMethod = "DateDescAndRelease",
-            favorite = true
-        ),
-        TileInfo(
+            title = "Hardstyle Classics",
             genre = listOf("Mainstream Hardstyle"),
+            year = years(2009, 2017),
             length = defaultLength,
-            sortMethod = "DateDescAndRelease",
+            sortMethod = "Random",
             favorite = true
         ),
         TileInfo(
-            genre = listOf("Raw Hardstyle"),
-            length = defaultLength,
-            sortMethod = "DateDescAndRelease",
-            favorite = true
-        ),
-        TileInfo(
-            genre = listOf("Hardcore"),
-            length = defaultLength,
-            sortMethod = "DateDescAndRelease",
-            favorite = true
-        ),
-        TileInfo(
+            title = "Millennium Hardcore",
             genre = listOf("Mainstream Hardcore"),
+            year = years(2010, 2015),
             length = defaultLength,
-            sortMethod = "DateDescAndRelease",
+            sortMethod = "Random",
             favorite = true
         ),
         TileInfo(
+            title = "Early Uptempo",
             genre = listOf("Uptempo Hardcore"),
+            year = years(2012, 2017),
             length = defaultLength,
-            sortMethod = "DateDescAndRelease",
-            favorite = true
-        ),
-        TileInfo(
-            genre = listOf("Bouncy Uptempo"),
-            length = defaultLength,
-            sortMethod = "DateDescAndRelease",
+            sortMethod = "Random",
             favorite = true
         )
     )
+
+    private fun years(from: Int, to: Int): List<String> = (from..to).map(Int::toString)
 }

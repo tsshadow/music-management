@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.52] - 2026-08-01
+
 ### Added
 - **A curation state per genre.** `rules_genres` now records whether a genre is kept (`white`),
   dropped (`black`) or still awaiting a decision (`unknown`), plus an optional correction target, so

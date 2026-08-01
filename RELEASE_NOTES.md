@@ -11,6 +11,8 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.52 (2026-08-01)
+
 ### 🎵 Genres: goedgekeurd, geweigerd of nog te beoordelen
 - Elk genre heeft nu een duidelijke status. **Goedgekeurde** genres worden toegepast, **geweigerde**
   genres (`Entertainment`, `Arts`) verdwijnen van je tracks, en een genre kan ook **gecorrigeerd**

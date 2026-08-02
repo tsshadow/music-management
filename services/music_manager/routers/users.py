@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from services.music_manager import rbac
 from services.music_manager.database import get_db_connection
+from services.music_manager.rate_limit import auth_rate_limit
 from services.music_manager.rbac import has_permission, require_permission
 
 router = APIRouter(tags=['users'])
@@ -199,7 +200,7 @@ def verify_token(x_api_key: str=Header(None)):
     raise HTTPException(status_code=403, detail='Invalid API Key')
 
 @router.post('/auth/login')
-def login(req: LoginRequest):
+def login(req: LoginRequest, _rate_limit: None=Depends(auth_rate_limit)):
     """Log in with username/password, used both by the login form and, indirectly, by
     Subsonic/LMS clients (LMS forwards its own username/password login attempts here, see
     MusicManagementPasswordService.cpp).
@@ -244,7 +245,7 @@ def login(req: LoginRequest):
         conn.close()
 
 @router.post('/auth/refresh')
-def refresh_access_token(req: RefreshRequest):
+def refresh_access_token(req: RefreshRequest, _rate_limit: None=Depends(auth_rate_limit)):
     """Exchange a refresh token for a fresh access token (api_key)."""
     conn = get_db_connection()
     if not conn:
@@ -280,7 +281,7 @@ def get_setup_status():
         conn.close()
 
 @router.post('/auth/setup')
-def setup_admin(user: UserCreate):
+def setup_admin(user: UserCreate, _rate_limit: None=Depends(auth_rate_limit)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')

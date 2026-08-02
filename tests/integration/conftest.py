@@ -164,6 +164,20 @@ def api(db, monkeypatch):
         yield client
 
 
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limiter():
+    """Same reason as in services/conftest.py: the auth endpoints are rate
+    limited per client address and the TestClient always presents the same one."""
+    try:
+        from services.music_manager.rate_limit import auth_limiter
+    except Exception:
+        yield
+        return
+    auth_limiter.reset()
+    yield
+    auth_limiter.reset()
+
+
 @pytest.fixture
 def api_key():
     from services.music_manager.routers.users import API_KEY

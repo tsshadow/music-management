@@ -67,4 +67,72 @@ class HomeSectionProviderTest {
         provider(artists = { error("offline") }, labels = { error("offline") }).load()
             .shouldBeNull()
     }
+
+    private fun shortcuts(
+        store: RecentActivityStore,
+        resolve: suspend (String) -> String? = { null }
+    ) = ShortcutsProvider(
+        titleRes = R.string.home_shortcuts,
+        store = store,
+        setsMode = { false },
+        resolveArtistCoverArt = resolve
+    )
+
+    private fun storeWith(vararg cards: HomeCard) =
+        RecentActivityStore(FakePreferences(), separatePerMode = { false }).apply {
+            cards.reversed().forEach { record(it, setsMode = false) }
+        }
+
+    private fun artistCard(coverArtId: String? = null) = HomeCard(
+        type = HomeCardType.ARTIST,
+        itemId = "ar1",
+        title = "A1",
+        coverArtId = coverArtId
+    )
+
+    @Test
+    fun `fills in artwork an artist shortcut was stored without`() = runBlocking<Unit> {
+        val store = storeWith(artistCard())
+
+        val section = shortcuts(store, resolve = { "muma-41-0" }).load()!!
+
+        section.cards.single().coverArtId `should be equal to` "muma-41-0"
+        store.recent(setsMode = false).single().coverArtId `should be equal to` "muma-41-0"
+    }
+
+    @Test
+    fun `leaves a shortcut that already has artwork alone`() = runBlocking<Unit> {
+        val section = shortcuts(
+            storeWith(artistCard(coverArtId = "art-7-0")),
+            resolve = { error("should not be asked") }
+        ).load()!!
+
+        section.cards.single().coverArtId `should be equal to` "art-7-0"
+    }
+
+    @Test
+    fun `keeps the card when the server has no artwork either`() = runBlocking<Unit> {
+        val store = storeWith(artistCard())
+
+        val section = shortcuts(store, resolve = { null }).load()!!
+
+        section.cards.single().itemId `should be equal to` "ar1"
+        section.cards.single().coverArtId.shouldBeNull()
+    }
+
+    @Test
+    fun `a failing lookup does not empty the grid`() = runBlocking<Unit> {
+        val section = shortcuts(storeWith(artistCard()), resolve = { error("offline") }).load()!!
+
+        section.cards.single().itemId `should be equal to` "ar1"
+    }
+
+    @Test
+    fun `only artists are looked up`() = runBlocking<Unit> {
+        val album = HomeCard(type = HomeCardType.ALBUM, itemId = "al1", title = "L1")
+
+        val section = shortcuts(storeWith(album), resolve = { error("should not be asked") }).load()!!
+
+        section.cards.single().itemId `should be equal to` "al1"
+    }
 }

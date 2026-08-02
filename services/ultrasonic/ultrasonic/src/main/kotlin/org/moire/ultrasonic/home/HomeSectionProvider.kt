@@ -25,18 +25,44 @@ interface HomeSectionProvider {
     suspend fun load(): HomeSection?
 }
 
-/** The shortcuts grid: purely what the user recently opened, no network involved. */
+/**
+ * The shortcuts grid: what the user recently opened, served from the store.
+ *
+ * The one thing it does reach out for is missing artist artwork. Cards are stored whole, at the
+ * moment they are opened, so an artist that had no picture then keeps an empty one for as long as
+ * it stays in the history -- long after the picture itself has arrived. Resolving it here repairs
+ * the stored card, so it is at most one lookup per artist, ever.
+ */
 class ShortcutsProvider(
     @StringRes private val titleRes: Int,
     private val store: RecentActivityStore,
-    private val setsMode: () -> Boolean
+    private val setsMode: () -> Boolean,
+    /** Artist id to cover art id. Null when the server has no picture either. */
+    private val resolveArtistCoverArt: suspend (String) -> String? = { null }
 ) : HomeSectionProvider {
 
     override suspend fun load(): HomeSection? {
         val cards = store.recent(setsMode())
         if (cards.isEmpty()) return null
 
-        return HomeSection(titleRes, CardStyle.GRID, cards)
+        return HomeSection(titleRes, CardStyle.GRID, cards.map { withArtwork(it) })
+    }
+
+    private suspend fun withArtwork(card: HomeCard): HomeCard {
+        if (card.type != HomeCardType.ARTIST || !card.coverArtId.isNullOrBlank()) return card
+
+        // Missing artwork is the normal case for most artists; it must not empty the grid.
+        val coverArtId = try {
+            resolveArtistCoverArt(card.itemId)
+        } catch (e: Exception) {
+            Timber.w(e, "Could not resolve cover art for artist '%s'", card.itemId)
+            null
+        }
+
+        if (coverArtId.isNullOrBlank()) return card
+
+        store.updateCoverArt(card.key, coverArtId, setsMode())
+        return card.copy(coverArtId = coverArtId)
     }
 }
 

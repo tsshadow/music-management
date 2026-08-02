@@ -67,6 +67,13 @@ class APIArtistConverterTest : BaseTest() {
     }
 
     @Test
+    fun `Should map missing cover art to null on an index too`() {
+        val converted = Artist(id = "1", name = "n").toIndexEntity(serverId)
+
+        converted.coverArt.shouldBeNull()
+    }
+
+    @Test
     fun `album and song counts survive the conversion`() {
         val entity = Artist(id = "ar-1", name = "Angerfist", albumCount = 12, songCount = 143)
 

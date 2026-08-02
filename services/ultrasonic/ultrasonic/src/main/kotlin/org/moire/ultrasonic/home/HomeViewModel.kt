@@ -59,6 +59,13 @@ class HomeViewModel(
             label = ::memoryLabel
         ),
         ShortcutsProvider(R.string.home_shortcuts, store) { Settings.isSetsMode },
+
+        ShortcutsProvider(
+            titleRes = R.string.home_shortcuts,
+            store = store,
+            setsMode = { Settings.isSetsMode },
+            resolveArtistCoverArt = { getMusicService().getArtist(it)?.coverArt }
+        ),
         LibraryActivityProvider(
             titleRes = R.string.home_recently_updated,
             type = TYPE_UPDATED,

@@ -81,13 +81,6 @@ class DynamicPlaylistUpdate(BaseModel):
     sort_method: str | None = None
     song_type: str | None = None
 
-class DynamicPlaylistSync(BaseModel):
-    remote_id: int
-    server_user_id: str | None = None
-    source: str
-    name: str
-    params: str
-
 class PasswordUpdate(BaseModel):
     password: str
 
@@ -481,27 +474,6 @@ def seed_defaults(user_id: int, auth: dict=Depends(verify_api_key)):
                 cursor.execute('\n                    INSERT INTO dynamic_playlists (user_id, name, params, source)\n                    VALUES (%s, %s, %s, %s)\n                    ON DUPLICATE KEY UPDATE params = VALUES(params)\n                ', (user_id, name, params, 'default'))
             conn.commit()
             return {'status': 'ok'}
-    finally:
-        conn.close()
-
-@router.post('/{user_id}/dynamic-playlists/sync')
-def sync_dynamic_playlist(user_id: int, playlist: DynamicPlaylistSync, auth: dict=Depends(verify_api_key)):
-    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
-        raise HTTPException(status_code=403, detail='Forbidden')
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500, detail='DB failed')
-    try:
-        with conn.cursor() as cursor:
-            target_user_id = user_id
-            if playlist.server_user_id:
-                cursor.execute('SELECT id FROM users WHERE server_user_id = %s', (str(playlist.server_user_id),))
-                user_row = cursor.fetchone()
-                if user_row:
-                    target_user_id = user_row['id']
-            cursor.execute('\n                INSERT INTO dynamic_playlists (user_id, remote_id, source, name, params)\n                VALUES (%s, %s, %s, %s, %s)\n                ON DUPLICATE KEY UPDATE name = VALUES(name), params = VALUES(params)\n            ', (target_user_id, playlist.remote_id, playlist.source, playlist.name, playlist.params))
-            conn.commit()
-            return {'status': 'synced'}
     finally:
         conn.close()
 

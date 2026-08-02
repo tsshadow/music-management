@@ -18,11 +18,6 @@
         a:title="@string/server_selector.label" />
 
     <item
-        a:id="@+id/mumaSyncFragment"
-        a:icon="@drawable/ic_menu_chat"
-        a:title="@string/menu.muma_sync" />
-
-    <item
         a:id="@+id/aboutFragment"
         a:icon="@drawable/ic_menu_about"
         a:title="@string/menu.about" />

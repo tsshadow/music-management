@@ -34,6 +34,7 @@ import org.moire.ultrasonic.home.HomeCardAdapter
 import org.moire.ultrasonic.home.HomeCardNavigator
 import org.moire.ultrasonic.home.HomeCardType
 import org.moire.ultrasonic.home.browseSortOrdersFor
+import org.moire.ultrasonic.home.browseSupportsSearch
 import org.moire.ultrasonic.home.filterAndSortCards
 import org.moire.ultrasonic.home.orderGenres
 import org.moire.ultrasonic.home.toHomeCard
@@ -81,11 +82,14 @@ class FilterBrowseFragment : Fragment() {
         swipeRefresh?.setOnRefreshListener { load(refresh = true) }
 
         val filterButtonBar: FilterButtonBar = view.findViewById(R.id.filter_button_bar)
+        val sortOrders = browseSortOrdersFor(category)
+        // The bar shows the first supported order, so start out sorting by that one.
+        order = sortOrders.first()
         filterButtonBar.configureWithCapabilities(
             ViewCapabilities(
                 supportsGrid = false,
-                supportedSortOrders = browseSortOrdersFor(category),
-                supportsSearch = true
+                supportedSortOrders = sortOrders,
+                supportsSearch = browseSupportsSearch(category)
             )
         )
         filterButtonBar.setOnQueryChangedListener { newQuery ->

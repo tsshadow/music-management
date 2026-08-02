@@ -53,8 +53,16 @@ class ImageLoader(
     @Suppress("VariableNaming", "PropertyName")
     val API = apiClient.api
 
+    /**
+     * Shared with the request handler: the handler learns which ids are missing, and the loader
+     * uses that to draw the placeholder without a round trip. Its lifetime is the loader's, so
+     * switching servers -- which recreates the loader -- starts from a clean slate, as ids are
+     * only meaningful for the server that issued them.
+     */
+    private val failureCache = CoverArtFailureCache()
+
     private val picasso = Picasso.Builder(context)
-        .addRequestHandler(CoverArtRequestHandler(apiClient))
+        .addRequestHandler(CoverArtRequestHandler(apiClient, failureCache))
         .addRequestHandler(AvatarRequestHandler(apiClient))
         .memoryCache(LruCache(calculateMemoryCacheSize(context)))
         .build().apply {
@@ -163,7 +171,9 @@ class ImageLoader(
     ) {
         val requestedSize = resolveSize(size, large)
 
-        if (id != null && key != null && id.isNotEmpty() && view is ImageView) {
+        if (id != null && key != null && id.isNotEmpty() &&
+            !failureCache.isKnownMissing(id) && view is ImageView
+        ) {
             val request = ImageRequest.CoverArt(
                 id,
                 key,

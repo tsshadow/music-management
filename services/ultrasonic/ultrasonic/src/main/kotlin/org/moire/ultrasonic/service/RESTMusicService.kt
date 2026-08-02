@@ -138,6 +138,13 @@ open class RESTMusicService(
     }
 
     @Throws(Exception::class)
+    override fun getArtist(id: String): Artist? {
+        val response = API.getArtist(id).execute().throwOnFailure()
+
+        return response.body()!!.artist.toDomainEntity(activeServerId)
+    }
+
+    @Throws(Exception::class)
     override fun getArtistInfo(id: String): Artist? = try {
         val response = API.getArtistInfo2(id, null, null).execute().throwOnFailure()
         val info = response.body()!!.artistInfo

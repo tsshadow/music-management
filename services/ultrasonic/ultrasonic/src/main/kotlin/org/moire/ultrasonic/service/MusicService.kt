@@ -103,6 +103,13 @@ interface MusicService {
     @Throws(Exception::class)
     fun getLabelList(type: String, size: Int): List<Label>
 
+    /**
+     * A single artist by id, for the fields a list did not carry -- notably [Artist.coverArt].
+     * Null when the server does not know the id.
+     */
+    @Throws(Exception::class)
+    fun getArtist(id: String): Artist?
+
     @Throws(Exception::class)
     fun getArtistInfo(id: String): Artist?
 

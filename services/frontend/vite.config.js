@@ -1,6 +1,17 @@
 import { defineConfig, loadEnv } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 
+/** Routes the API paths to music-manager and music-management-server. */
+function backendProxy(env) {
+  const manager = env.VITE_API_TARGET || "http://localhost:8000";
+  const server = env.VITE_LMS_TARGET || "http://localhost:5082";
+  return {
+    "/api": { target: manager, changeOrigin: true },
+    "/rest": { target: server, changeOrigin: true },
+    "/muma": { target: server, changeOrigin: true },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
@@ -13,20 +24,14 @@ export default defineConfig(({ mode }) => {
     ...(process.env.VITEST ? { resolve: { conditions: ["browser"] } } : {}),
     server: {
       host: true,
-      proxy: {
-        "/api": {
-          target: env.VITE_API_TARGET || "http://localhost:8000",
-          changeOrigin: true,
-        },
-        "/rest": {
-          target: env.VITE_LMS_TARGET || "http://localhost:5082",
-          changeOrigin: true,
-        },
-        "/muma": {
-          target: env.VITE_LMS_TARGET || "http://localhost:5082",
-          changeOrigin: true,
-        },
-      },
+      proxy: backendProxy(env),
+    },
+    // `vite preview` serves the built bundle. The browser tests use it instead
+    // of the dev server (see playwright.config.js), so it needs the same proxy
+    // or every API call in them would 404 against the static server.
+    preview: {
+      host: true,
+      proxy: backendProxy(env),
     },
     build: {
       outDir: "dist",

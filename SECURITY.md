@@ -8,21 +8,25 @@ open a **confidential** issue in GitLab, or mail the address on the commits.
 
 ## What is scanned, and when
 
-`scripts/ci/dependency-audit.sh` runs `pip-audit` over the installed Python
-environment and `npm audit` over `services/frontend/package-lock.json`. The
+`scripts/ci/dependency-audit.sh` runs `pip-audit` over all five requirements
+files and `npm audit` over `services/frontend/package-lock.json`. The
 `security:dependency-audit` job runs it on a schedule, on the default branch,
 and manually on demand.
 
-It reports rather than gates, and the job is `allow_failure` for that reason:
-it audits the installed Python environment, which this repository does not
-manage, so a stale runner would otherwise block unrelated merge requests. Read
-the job log. Findings that this repository *does* control are fixed by bumping
-the pin in the requirements file the finding names.
+It audits what this repository *declares*, not what happens to be installed on
+a runner, so every finding points at a line someone can change here. Transitive
+packages are covered too -- that is how the starlette advisories behind fastapi
+show up. Fix one by bumping the pin in the requirements file it names.
 
-(pip-audit can also resolve the requirements files directly, which would be
-repo-controlled and gateable. It is not used here because that mode builds
-every pin from source when no wheel matches the runner's Python, and numpy
-alone is enough to make it fail for reasons unrelated to security.)
+The runner has no pip-audit, so that half runs inside `python:3.11-slim` (see
+`scripts/lib/python-tooling.sh`); `npm audit` stays on the host. The image is
+3.11 rather than 3.13 on purpose: `numpy~=2.0.2` has no 3.13 wheel, and
+resolving it there attempts a source build that fails for reasons unrelated to
+security.
+
+The job is `allow_failure` because it queries the advisory database over the
+network, and a transient outage should not turn the default branch red -- not
+because its findings are optional.
 
 Findings that genuinely cannot be fixed yet go in
 `security/accepted-vulnerabilities.txt` -- one advisory ID per line, with a

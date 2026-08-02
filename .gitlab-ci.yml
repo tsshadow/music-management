@@ -150,6 +150,23 @@ security:dependency-audit:
   script:
     - ./scripts/ci/dependency-audit.sh
 
+# Committed-credential scan. allow_failure is deliberately absent: unlike the
+# dependency audit, this one does not depend on a third-party service being
+# reachable, so a failure here is a finding, not an outage. Path exemptions
+# live in security/gitleaks.toml, per-finding ones in .gitleaksignore.
+security:secret-scan:
+  stage: quality
+  timeout: 15m
+  retry: !reference [.infra_retry, retry]
+  rules:
+    - !reference [.release_rule, rules]
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - changes:
+        - "**/*"
+  script:
+    - ./scripts/ci/secret-scan.sh
+
 # --- Unit tests -------------------------------------------------------------
 
 music-management:unit:

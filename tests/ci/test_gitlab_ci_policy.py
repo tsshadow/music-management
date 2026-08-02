@@ -134,3 +134,18 @@ def test_deploy_prod_is_never_retried():
     """A half-applied deploy must be looked at, not repeated."""
     ci = load_ci()
     assert "retry" not in ci["deploy:prod"]
+
+
+def test_secret_scanning_runs_on_release_branches():
+    """A leaked key must not first become public in a tagged release."""
+    ci = load_ci()
+    job = ci["security:secret-scan"]
+    assert job["stage"] == "quality"
+    assert any(rule == [".release_rule", "rules"] for rule in job["rules"])
+
+
+def test_secret_scanning_is_not_allowed_to_fail():
+    """Unlike the dependency audit it needs no third-party service, so a
+    failure here is a finding rather than an outage."""
+    ci = load_ci()
+    assert ci["security:secret-scan"].get("allow_failure") is not True

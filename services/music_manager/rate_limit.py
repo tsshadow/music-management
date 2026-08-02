@@ -65,14 +65,15 @@ def _enabled() -> bool:
 
 
 class SlidingWindowRateLimiter:
-    """Counts failed attempts per key over a moving window.
+    """Counts attempts per key over a moving window.
 
     A sliding window rather than a fixed one: with fixed buckets an attacker
     gets the full allowance twice in a row by straddling the boundary.
 
-    Asking (`blocked`) and recording (`register_failure`) are separate, so that
+    Asking (`blocked`) and recording (`register_attempt`) are separate, so that
     reading the state of a key never fills it -- the callers here ask on every
-    request but only record when credentials were actually rejected.
+    request but only record the ones that were rejected. Which attempts are
+    worth recording is the caller's decision, not this class's.
     """
 
     def __init__(self, attempts: int, window_seconds: int):
@@ -101,7 +102,7 @@ class SlidingWindowRateLimiter:
             self._expired_dropped(key, moment).append(moment)
 
     def _expired_dropped(self, key: str, moment: float) -> deque[float]:
-        """The key's failures still inside the window. Caller holds the lock."""
+        """The key's attempts still inside the window. Caller holds the lock."""
         cutoff = moment - self.window_seconds
         hits = self._hits[key]
         while hits and hits[0] <= cutoff:

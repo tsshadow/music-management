@@ -49,7 +49,12 @@ class HomeViewModel(
     private val providers: List<HomeSectionProvider> = providers ?: defaultProviders()
 
     private fun defaultProviders(): List<HomeSectionProvider> = listOf(
-        ShortcutsProvider(R.string.home_shortcuts, store) { Settings.isSetsMode },
+        ShortcutsProvider(
+            titleRes = R.string.home_shortcuts,
+            store = store,
+            setsMode = { Settings.isSetsMode },
+            resolveArtistCoverArt = { getMusicService().getArtist(it)?.coverArt }
+        ),
         LibraryActivityProvider(
             titleRes = R.string.home_recently_updated,
             type = TYPE_UPDATED,

@@ -3,12 +3,14 @@ package org.moire.ultrasonic.diagnostics
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.ContentValues
+import android.content.Context
 import android.os.Build
 import android.provider.MediaStore
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.moire.ultrasonic.BuildConfig
 import org.moire.ultrasonic.R
 import org.moire.ultrasonic.app.UApp
@@ -31,6 +33,14 @@ import timber.log.Timber
  * The whole mechanism is gated on [Settings.crashDetectionEnabled], which is off by default.
  */
 object CrashReportManager {
+
+    /**
+     * Stands in for a stacktrace in a manually requested report. There is no exception to report,
+     * but the field is the only place to mark the report's origin without a schema change, and it
+     * keeps the three kinds of `crash_reports` row apart: a real crash has a stacktrace, an
+     * implicit unclean-shutdown report has none, and a manual report has this.
+     */
+    const val MANUAL_REPORT_MARKER = "Manual diagnostics report requested by user (no crash)"
 
     internal data class PendingCrashReport(
         val stacktraceText: String?,
@@ -98,23 +108,59 @@ object CrashReportManager {
         ) ?: return
 
         if (BuildConfig.DEBUG) {
-            sendReport(report)
+            sendReport(report, deleteCrashFileOnSuccess = true)
         } else {
             AlertDialog.Builder(activity)
                 .setTitle(R.string.crash_report_dialog_title)
                 .setMessage(R.string.crash_report_dialog_message)
-                .setPositiveButton(R.string.crash_report_dialog_share) { _, _ -> sendReport(report) }
+                .setPositiveButton(R.string.crash_report_dialog_share) { _, _ ->
+                    sendReport(report, deleteCrashFileOnSuccess = true)
+                }
                 .setNegativeButton(R.string.crash_report_dialog_dismiss, null)
                 .show()
         }
     }
 
-    private fun sendReport(report: PendingCrashReport) {
+    /**
+     * Sends the current session's log on demand, for the failures that never crash the app: a call
+     * that returned an error, a screen that stayed empty. Unlike the pending-report path this is an
+     * explicit user action, so it ignores [Settings.crashDetectionEnabled] — that setting governs
+     * automatic detection — and reports its outcome back through a toast.
+     */
+    fun sendManualReport(context: Context) {
+        sendReport(
+            buildManualReport(RingBufferLoggerTree.currentText()),
+            deleteCrashFileOnSuccess = false
+        ) { exported, uploaded ->
+            val message = when {
+                uploaded -> R.string.crash_report_manual_sent
+                exported -> R.string.crash_report_manual_upload_failed
+                else -> R.string.crash_report_manual_failed
+            }
+            Util.toast(message, context = context)
+        }
+    }
+
+    /**
+     * @param deleteCrashFileOnSuccess whether a successful upload consumes the crash file on disk.
+     * Only true for the pending report that was built from that file — a manual send must not
+     * discard a real crash that hasn't been reported yet.
+     * @param onResult called on the main thread with (exported, uploaded) once both destinations
+     * have been attempted. Left out by the automatic path, which stays silent.
+     */
+    private fun sendReport(
+        report: PendingCrashReport,
+        deleteCrashFileOnSuccess: Boolean,
+        onResult: ((exported: Boolean, uploaded: Boolean) -> Unit)? = null
+    ) {
         CoroutineScope(Dispatchers.IO).launch {
-            exportToLocalStorage(report)
+            val exported = exportToLocalStorage(report)
             val uploaded = uploadToBackend(report)
-            if (uploaded) {
+            if (uploaded && deleteCrashFileOnSuccess) {
                 File(FileUtil.ultrasonicDirectory, UncaughtExceptionHandler.CRASH_REPORT_NAME).delete()
+            }
+            if (onResult != null) {
+                withContext(Dispatchers.Main) { onResult(exported, uploaded) }
             }
         }
     }
@@ -194,3 +240,12 @@ internal fun buildPendingReport(
         CrashReportManager.PendingCrashReport(stacktraceText = null, ringBufferText = ringBufferText)
     else -> null
 }
+
+/**
+ * The manual counterpart of [buildPendingReport]. It takes no decision: the user asked for the
+ * report, so there is always one, even if the ring buffer happens to be empty.
+ */
+internal fun buildManualReport(ringBufferText: String) = CrashReportManager.PendingCrashReport(
+    stacktraceText = CrashReportManager.MANUAL_REPORT_MARKER,
+    ringBufferText = ringBufferText
+)

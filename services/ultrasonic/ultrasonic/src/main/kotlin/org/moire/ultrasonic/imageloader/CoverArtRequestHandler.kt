@@ -19,7 +19,10 @@ import timber.log.Timber
 /**
  * Loads cover arts from subsonic api.
  */
-class CoverArtRequestHandler(private val client: SubsonicAPIClient) : RequestHandler() {
+class CoverArtRequestHandler(
+    private val client: SubsonicAPIClient,
+    private val failureCache: CoverArtFailureCache = CoverArtFailureCache()
+) : RequestHandler() {
     override fun canHandleRequest(data: Request): Boolean = with(data.uri) {
         scheme == SCHEME &&
             path == "/$COVER_ART_PATH"
@@ -44,6 +47,11 @@ class CoverArtRequestHandler(private val client: SubsonicAPIClient) : RequestHan
             return Result(cache, DISK)
         }
 
+        // The server has recently said it has no image for this id, so don't ask again yet.
+        if (failureCache.isKnownMissing(id)) {
+            throw IOException("No cover art for $id")
+        }
+
         // Cancel early if we are offline
         if (client.isOffline) {
             throw UnsupportedOperationException()
@@ -57,6 +65,8 @@ class CoverArtRequestHandler(private val client: SubsonicAPIClient) : RequestHan
         if (!response.hasError() && response.stream != null) {
             return Result(response.stream!!.source(), NETWORK)
         }
+
+        failureCache.recordFailure(id, response.responseHttpCode)
 
         // Throw an error if still not successful
         throw IOException("${response.apiError}")

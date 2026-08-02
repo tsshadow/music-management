@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **An artist shortcut on the home screen keeps the blank it was saved with.** The shortcuts grid
+  stores whole cards, written once, at the moment the user opens something. An artist saved while
+  the server had no picture for them holds an empty cover art id, and an empty id means the card
+  never asks for a picture at all — so it stays grey however many pictures have arrived since.
+  Such a card now has its artwork looked up and the stored copy repaired, which is one lookup per
+  artist, ever. The index conversion also stored an empty string where the artist conversion
+  already stored nothing, so a missing id looked like a usable one downstream; both now agree.
+- **A cover art the server does not have is not re-requested on every bind.** 0.0.60 made the
+  server answer with the artist's own release artwork instead of a 404, so this is now only the
+  artists who have no artwork anywhere — but for those, scrolling the home screen back into view
+  cost one failed request per card, every time, and the placeholder appeared only after the round
+  trip. Their ids are remembered for twelve hours, per app run, and only when the server actually
+  answered "not found": a timeout, a 5xx or being offline says nothing about whether the picture
+  exists, and caching those would blank out artwork that is perfectly fine.
+
+### Added
+- **Diagnostics can be sent without waiting for a crash.** Crash reporting only fired on the next
+  app start, and only after the app had actually died, so the failures that leave the app running
+  — a call that returns an error, a screen that stays empty — never reached the server. Settings
+  now has "Send diagnostics now" under the Muma section, which uploads the current session's log
+  and writes a copy to Downloads/UltrasonicLogs. It sits outside the debug category on purpose,
+  because that category is hidden in release builds. Unlike the automatic report it ignores the
+  "Crash detection" toggle — pressing the button is consent — and it never deletes a crash file
+  that hasn't been reported yet. Manual reports are marked as such in `crash_reports`, so they
+  are distinguishable from real crashes and from silent kills.
+
+### Removed
+- **The "MuMa Sync" screen in Ultrasonic** and its six buttons (log on, load/write tiles,
+  clear tiles, load/write settings). Tiles already sync themselves through the tile editor,
+  the log-on step already happens when a server is saved, and the settings backup/restore pair was a
+  blunt dump of every shared preference that needed an app restart to take effect and could
+  overwrite a working install with another device's state. The MuMa user ID and API key
+  settings stay — they are what the rest of the app authenticates with. Along with the screen
+  went the unused `POST /api/users/{id}/dynamic-playlists/sync` endpoint on the manager, which
+  no client had called since the tile editor started writing playlists directly.
+
+### Changed
+- **The Ratings tab no longer offers a search field.** Every Library tab got the same filter bar,
+  but Ratings is not a list the library grows: it is the same five cards ("4 stars and up" down to
+  "1 star and up"), all of them on screen at once. Searching five visible cards is busywork, so the
+  field is hidden there and stays on the tabs that do grow — genres, labels, years, festivals and
+  lineups.
+
 ## [0.0.61] - 2026-08-02
 
 ### Added

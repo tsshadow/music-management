@@ -108,6 +108,19 @@ class CardFilterTest {
     }
 
     @Test
+    fun `ratings and years are short fixed lists, so they get no search field`() {
+        browseSupportsSearch(BrowseCategory.RATINGS) `should be equal to` false
+        browseSupportsSearch(BrowseCategory.YEARS) `should be equal to` false
+    }
+
+    @Test
+    fun `categories that grow with the library keep their search field`() {
+        BrowseCategory.entries
+            .filter { it != BrowseCategory.RATINGS && it != BrowseCategory.YEARS }
+            .forEach { browseSupportsSearch(it) `should be equal to` true }
+    }
+
+    @Test
     fun `categories whose cards carry a count offer BY_TRACK_COUNT too`() {
         browseSortOrdersFor(BrowseCategory.GENRES) `should be equal to` BROWSE_SORT_ORDERS
         browseSortOrdersFor(BrowseCategory.FESTIVALS) `should be equal to` BROWSE_SORT_ORDERS
@@ -130,14 +143,5 @@ class CardFilterTest {
         val withUnknown = years + HomeCard(type = HomeCardType.YEAR, itemId = "?", title = "?")
 
         filterAndSortCards(withUnknown, null, SortOrder.BY_YEAR_DESC).last().title `should be equal to` "?"
-    }
-
-    @Test
-    fun `only the years tab hides the search field`() {
-        browseSupportsSearch(BrowseCategory.YEARS) `should be equal to` false
-        browseSupportsSearch(BrowseCategory.GENRES) `should be equal to` true
-        browseSupportsSearch(BrowseCategory.FESTIVALS) `should be equal to` true
-        browseSupportsSearch(BrowseCategory.LINEUPS) `should be equal to` true
-        browseSupportsSearch(BrowseCategory.RATINGS) `should be equal to` true
     }
 }

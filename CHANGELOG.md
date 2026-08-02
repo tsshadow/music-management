@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-08-02
+
+### Fixed
+- **Everyone was logged out again seconds after logging in.** The rate limit added to the
+  authentication endpoints this cycle assumed `/api/auth/login` is a login form. It is also the
+  password oracle the music server calls on *every* Subsonic request, over an internal hop that
+  carries no client address — so all users shared one budget of ten calls a minute, and opening a
+  home screen spent it in a second or two. Past that, the server read the refusal as "wrong
+  password" and each client dutifully logged itself out. Only rejected attempts are counted now,
+  and a login is counted per account instead of per caller, so browsing a library costs nothing and
+  one account being guessed at cannot lock anyone else out. Guessing a password is still capped.
+
 ## [0.1.2] - 2026-08-02
 
 ### Changed

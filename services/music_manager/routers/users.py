@@ -6,12 +6,12 @@ import sqlite3
 
 import bcrypt
 import requests
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
 from pydantic import BaseModel
 
 from services.music_manager import rbac
 from services.music_manager.database import get_db_connection
-from services.music_manager.rate_limit import auth_rate_limit
+from services.music_manager.rate_limit import auth_attempt
 from services.music_manager.rbac import has_permission, require_permission
 
 router = APIRouter(tags=['users'])
@@ -193,7 +193,7 @@ def verify_token(x_api_key: str=Header(None)):
     raise HTTPException(status_code=403, detail='Invalid API Key')
 
 @router.post('/auth/login')
-def login(req: LoginRequest, _rate_limit: None=Depends(auth_rate_limit)):
+def login(req: LoginRequest, request: Request):
     """Log in with username/password, used both by the login form and, indirectly, by
     Subsonic/LMS clients (LMS forwards its own username/password login attempts here, see
     MusicManagementPasswordService.cpp).
@@ -204,61 +204,66 @@ def login(req: LoginRequest, _rate_limit: None=Depends(auth_rate_limit)):
     privilege: knowing the api_key already grants full API access via the X-API-Key header, and
     it's how the frontend authenticates Subsonic/LMS calls (genres, streaming, ...) after a
     Google sign-in, so both login methods end up with a fully working session for the same user.
+
+    Because LMS calls this on every Subsonic request, the rate limit is keyed on the
+    account and counts only rejections -- see services/music_manager/rate_limit.py.
     """
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500, detail='Database connection failed')
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute('SELECT * FROM users WHERE username = %s', (req.username,))
-            user = cursor.fetchone()
-            if not user:
-                raise HTTPException(status_code=401, detail='Invalid username or password')
-            if not user.get('enabled', True):
-                raise HTTPException(status_code=403, detail='Account disabled')
+    with auth_attempt(request, req.username):
+        conn = get_db_connection()
+        if not conn:
+            raise HTTPException(status_code=500, detail='Database connection failed')
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute('SELECT * FROM users WHERE username = %s', (req.username,))
+                user = cursor.fetchone()
+                if not user:
+                    raise HTTPException(status_code=401, detail='Invalid username or password')
+                if not user.get('enabled', True):
+                    raise HTTPException(status_code=403, detail='Account disabled')
 
-            password_valid = False
-            if user.get('password_hash') and bcrypt.checkpw(req.password.encode('utf-8'), user['password_hash'].encode('utf-8')) or user.get('api_key') and secrets.compare_digest(req.password, user['api_key']):
-                password_valid = True
+                password_valid = False
+                if user.get('password_hash') and bcrypt.checkpw(req.password.encode('utf-8'), user['password_hash'].encode('utf-8')) or user.get('api_key') and secrets.compare_digest(req.password, user['api_key']):
+                    password_valid = True
 
-            if not password_valid:
-                raise HTTPException(status_code=401, detail='Invalid username or password')
+                if not password_valid:
+                    raise HTTPException(status_code=401, detail='Invalid username or password')
 
-            api_key = user['api_key']
-            if not api_key:
-                api_key = secrets.token_hex(32)
-                cursor.execute('UPDATE users SET api_key = %s WHERE id = %s', (api_key, user['id']))
-            cursor.execute('UPDATE users SET last_login_at = NOW() WHERE id = %s', (user['id'],))
-            refresh_token = secrets.token_hex(32)
-            cursor.execute('INSERT INTO user_refresh_tokens (user_id, token) VALUES (%s, %s)', (user['id'], refresh_token))
-            conn.commit()
-            auth_user = build_auth_user(cursor, user)
-            return {'status': 'ok', 'user': auth_user, 'api_key': api_key, 'access_token': api_key, 'refresh_token': refresh_token}
-    finally:
-        conn.close()
+                api_key = user['api_key']
+                if not api_key:
+                    api_key = secrets.token_hex(32)
+                    cursor.execute('UPDATE users SET api_key = %s WHERE id = %s', (api_key, user['id']))
+                cursor.execute('UPDATE users SET last_login_at = NOW() WHERE id = %s', (user['id'],))
+                refresh_token = secrets.token_hex(32)
+                cursor.execute('INSERT INTO user_refresh_tokens (user_id, token) VALUES (%s, %s)', (user['id'], refresh_token))
+                conn.commit()
+                auth_user = build_auth_user(cursor, user)
+                return {'status': 'ok', 'user': auth_user, 'api_key': api_key, 'access_token': api_key, 'refresh_token': refresh_token}
+        finally:
+            conn.close()
 
 @router.post('/auth/refresh')
-def refresh_access_token(req: RefreshRequest, _rate_limit: None=Depends(auth_rate_limit)):
+def refresh_access_token(req: RefreshRequest, request: Request):
     """Exchange a refresh token for a fresh access token (api_key)."""
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500, detail='Database connection failed')
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute('SELECT * FROM user_refresh_tokens WHERE token = %s AND revoked_at IS NULL', (req.refresh_token,))
-            token_row = cursor.fetchone()
-            if not token_row:
-                raise HTTPException(status_code=401, detail='Invalid or revoked refresh token')
-            cursor.execute('SELECT * FROM users WHERE id = %s', (token_row['user_id'],))
-            user = cursor.fetchone()
-            if not user or not user.get('enabled', True):
-                raise HTTPException(status_code=403, detail='Account disabled')
-            cursor.execute('UPDATE user_refresh_tokens SET last_used_at = NOW() WHERE id = %s', (token_row['id'],))
-            conn.commit()
-            auth_user = build_auth_user(cursor, user)
-            return {'status': 'ok', 'user': auth_user, 'api_key': user['api_key'], 'access_token': user['api_key']}
-    finally:
-        conn.close()
+    with auth_attempt(request):
+        conn = get_db_connection()
+        if not conn:
+            raise HTTPException(status_code=500, detail='Database connection failed')
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute('SELECT * FROM user_refresh_tokens WHERE token = %s AND revoked_at IS NULL', (req.refresh_token,))
+                token_row = cursor.fetchone()
+                if not token_row:
+                    raise HTTPException(status_code=401, detail='Invalid or revoked refresh token')
+                cursor.execute('SELECT * FROM users WHERE id = %s', (token_row['user_id'],))
+                user = cursor.fetchone()
+                if not user or not user.get('enabled', True):
+                    raise HTTPException(status_code=403, detail='Account disabled')
+                cursor.execute('UPDATE user_refresh_tokens SET last_used_at = NOW() WHERE id = %s', (token_row['id'],))
+                conn.commit()
+                auth_user = build_auth_user(cursor, user)
+                return {'status': 'ok', 'user': auth_user, 'api_key': user['api_key'], 'access_token': user['api_key']}
+        finally:
+            conn.close()
 
 @router.get('/auth/setup-status')
 def get_setup_status():
@@ -274,43 +279,47 @@ def get_setup_status():
         conn.close()
 
 @router.post('/auth/setup')
-def setup_admin(user: UserCreate, _rate_limit: None=Depends(auth_rate_limit)):
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500, detail='Database connection failed')
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute('SELECT COUNT(*) as count FROM users')
-            if cursor.fetchone()['count'] > 0:
-                raise HTTPException(status_code=400, detail='Setup already completed')
+def setup_admin(user: UserCreate, request: Request):
+    # Every call counts here, not just the rejected ones: this endpoint is
+    # unauthenticated until the first admin exists and is legitimately used
+    # exactly once, so there is no successful traffic to protect.
+    with auth_attempt(request, count_successes=True):
+        conn = get_db_connection()
+        if not conn:
+            raise HTTPException(status_code=500, detail='Database connection failed')
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute('SELECT COUNT(*) as count FROM users')
+                if cursor.fetchone()['count'] > 0:
+                    raise HTTPException(status_code=400, detail='Setup already completed')
 
-            if not user.password:
-                raise HTTPException(status_code=400, detail='Password is required for first-time setup')
+                if not user.password:
+                    raise HTTPException(status_code=400, detail='Password is required for first-time setup')
 
-            password_hash = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-            token = user.api_key or secrets.token_hex(32)
-            admin_role = rbac.get_role_by_name(cursor, rbac.ADMIN_ROLE_NAME)
+                password_hash = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                token = user.api_key or secrets.token_hex(32)
+                admin_role = rbac.get_role_by_name(cursor, rbac.ADMIN_ROLE_NAME)
 
-            cursor.execute(
-                'INSERT INTO users (username, display_name, is_admin, role_id, enabled, password_hash, api_key, server_user_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
-                (user.username, user.display_name or user.username, True, admin_role['id'] if admin_role else None, True, password_hash, token, user.server_user_id)
-            )
-            conn.commit()
+                cursor.execute(
+                    'INSERT INTO users (username, display_name, is_admin, role_id, enabled, password_hash, api_key, server_user_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
+                    (user.username, user.display_name or user.username, True, admin_role['id'] if admin_role else None, True, password_hash, token, user.server_user_id)
+                )
+                conn.commit()
 
-            # Notify server to sync users
-            notify_server_sync_users()
+                # Notify server to sync users
+                notify_server_sync_users()
 
-            return {
-                'status': 'ok',
-                'id': cursor.lastrowid,
-                'username': user.username,
-                'display_name': user.display_name or user.username,
-                'role_name': rbac.ADMIN_ROLE_NAME,
-                'is_admin': True,
-                'api_key': token
-            }
-    finally:
-        conn.close()
+                return {
+                    'status': 'ok',
+                    'id': cursor.lastrowid,
+                    'username': user.username,
+                    'display_name': user.display_name or user.username,
+                    'role_name': rbac.ADMIN_ROLE_NAME,
+                    'is_admin': True,
+                    'api_key': token
+                }
+        finally:
+            conn.close()
 
 @router.get('/{user_id}/dynamic-playlists')
 def get_dynamic_playlists(user_id: int, auth: dict=Depends(verify_api_key)):

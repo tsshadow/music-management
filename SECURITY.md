@@ -13,10 +13,16 @@ environment and `npm audit` over `services/frontend/package-lock.json`. The
 `security:dependency-audit` job runs it on a schedule, on the default branch,
 and manually on demand.
 
-It is deliberately not a merge-request gate: it audits the runner's installed
-Python environment, which this repository does not manage, so a stale runner
-would block unrelated merge requests. Findings that this repository *does*
-control are fixed by bumping the pin in the requirements file the finding names.
+It reports rather than gates, and the job is `allow_failure` for that reason:
+it audits the installed Python environment, which this repository does not
+manage, so a stale runner would otherwise block unrelated merge requests. Read
+the job log. Findings that this repository *does* control are fixed by bumping
+the pin in the requirements file the finding names.
+
+(pip-audit can also resolve the requirements files directly, which would be
+repo-controlled and gateable. It is not used here because that mode builds
+every pin from source when no wheel matches the runner's Python, and numpy
+alone is enough to make it fail for reasons unrelated to security.)
 
 Findings that genuinely cannot be fixed yet go in
 `security/accepted-vulnerabilities.txt` -- one advisory ID per line, with a

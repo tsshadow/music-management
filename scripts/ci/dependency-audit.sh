@@ -3,13 +3,16 @@
 # Checks dependencies against the published vulnerability databases: pip-audit
 # for Python, `npm audit` for the frontend.
 #
-# The Python side audits the *installed* environment rather than the
-# requirements files. pip-audit's requirements mode builds a throwaway virtualenv
-# to resolve them, which needs ensurepip and network access and is not available
-# on every runner; the installed environment is also what actually runs, so a
-# finding there is never theoretical. Fix one by bumping the pin in the
-# requirements file and reinstalling -- not by adding it to the accepted list
-# unless it genuinely cannot be fixed yet.
+# The Python side audits the *installed* environment. pip-audit's requirements
+# mode resolves each file in a throwaway virtualenv, which means building every
+# pin from source when no wheel matches -- numpy on a slim image is enough to
+# make that fail for reasons that have nothing to do with security. The
+# installed environment is also what actually runs, so a finding there is never
+# theoretical. Fix one by bumping the pin in the requirements file and
+# reinstalling.
+#
+# This is why the CI job is reporting rather than gating: the result reflects
+# the environment it runs in, which this repository does not manage.
 #
 # Consciously accepted findings live in security/accepted-vulnerabilities.txt,
 # one advisory ID per line with a reason. Everything else fails this job.
@@ -38,11 +41,14 @@ SKIPPED=0
 
 # Advisory IDs from the accepted list, as repeated --ignore-vuln arguments.
 IGNORE_ARGS=()
+ACCEPTED_COUNT=0
 if [ -f "$ACCEPTED_FILE" ]; then
     while read -r advisory; do
-        [ -n "$advisory" ] && IGNORE_ARGS+=(--ignore-vuln "$advisory")
+        [ -n "$advisory" ] || continue
+        IGNORE_ARGS+=(--ignore-vuln "$advisory")
+        ACCEPTED_COUNT=$((ACCEPTED_COUNT + 1))
     done < <(sed 's/#.*//' "$ACCEPTED_FILE" | tr -d '[:blank:]' | grep -v '^$')
-    echo "Accepted findings (see $ACCEPTED_FILE): ${#IGNORE_ARGS[@]} advisories" | sed 's/ [0-9]* advisories/ '"$(( ${#IGNORE_ARGS[@]} / 2 ))"' advisories/'
+    echo "Accepted findings (see $ACCEPTED_FILE): $ACCEPTED_COUNT advisories"
 fi
 
 echo

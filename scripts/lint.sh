@@ -1,6 +1,25 @@
 #!/bin/bash
 # scripts/lint.sh
-# Usage: ./scripts/lint.sh [file_or_dir]
+# Runs ruff and pylint over the Python sources.
+#
+# Both are configured in the repository (pyproject.toml, .pylintrc), never on
+# the command line, so a laptop and the CI runner report the same findings.
+#
+# Usage: ./scripts/lint.sh [file_or_dir ...] [pylint-threshold]
+
+set -e
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+# shellcheck source=scripts/lib/python-tooling.sh
+source "$ROOT_DIR/scripts/lib/python-tooling.sh"
+
+# The CI runner has neither tool installed; fall back to the container image.
+if [ "${PYTHON_TOOLING_CONTAINER:-0}" != "1" ] \
+   && { ! have_tool ruff || ! have_tool pylint; }; then
+    rerun_in_container ./scripts/lint.sh "$@"
+fi
 
 # Load .env if it exists to get any environment variables
 if [ -f .env ]; then
@@ -20,13 +39,9 @@ TARGET=${1:-services/ tools/ tests/}
 FAIL_UNDER=${2:-9.5}
 
 echo "--- Running ruff (fast lint) on $TARGET ---"
-if command -v ruff >/dev/null 2>&1; then
-    # shellcheck disable=SC2086
-    ruff check $TARGET
-    echo "--- Ruff passed ---"
-else
-    echo "ruff not installed, skipping (pip install ruff)"
-fi
+# shellcheck disable=SC2086
+ruff check $TARGET
+echo "--- Ruff passed ---"
 
 echo "--- Running pylint on $TARGET (fail-under: $FAIL_UNDER) ---"
 # shellcheck disable=SC2086

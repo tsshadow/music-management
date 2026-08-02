@@ -15,12 +15,15 @@ set -e
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-export PYTHONPATH="$ROOT_DIR:$ROOT_DIR/services:${PYTHONPATH:-}"
+# shellcheck source=scripts/lib/python-tooling.sh
+source "$ROOT_DIR/scripts/lib/python-tooling.sh"
 
-if ! python3 -m mypy --version >/dev/null 2>&1; then
-    echo "mypy is not installed (pip install -r requirements-dev.txt)" >&2
-    exit 1
+# The CI runner has no mypy installed; fall back to the container image.
+if [ "${PYTHON_TOOLING_CONTAINER:-0}" != "1" ] && ! have_tool mypy; then
+    rerun_in_container ./scripts/typecheck.sh "$@"
 fi
+
+export PYTHONPATH="$ROOT_DIR:$ROOT_DIR/services:${PYTHONPATH:-}"
 
 # The strict list, kept in step with [[tool.mypy.overrides]] in pyproject.toml.
 STRICT_MODULES=(

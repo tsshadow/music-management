@@ -69,21 +69,21 @@ quality:typecheck:
   script:
     - ./scripts/typecheck.sh
 
-# Dependency vulnerability scanning. Deliberately NOT a merge-request gate: it
-# audits the runner's installed Python environment, which this repository does
-# not manage, so a stale runner would block unrelated merge requests. Runs on a
-# schedule (so a newly published CVE surfaces without anyone pushing), on the
-# default branch, and manually on demand. Findings that genuinely cannot be
-# fixed yet are listed, with a reason, in security/accepted-vulnerabilities.txt
-# -- everything else fails this job.
+# Dependency vulnerability scanning. Reporting, not gating -- hence
+# allow_failure everywhere: it audits the runner's installed Python
+# environment, which this repository does not manage, so a stale runner would
+# otherwise block unrelated merge requests. Runs on a schedule (so a newly
+# published CVE surfaces without anyone pushing), on the default branch, and
+# manually on demand. Read the job log; findings that genuinely cannot be fixed
+# yet are listed, with a reason, in security/accepted-vulnerabilities.txt.
 security:dependency-audit:
   stage: quality
   interruptible: false
+  allow_failure: true
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - when: manual
-      allow_failure: true
   script:
     - ./scripts/ci/dependency-audit.sh
 

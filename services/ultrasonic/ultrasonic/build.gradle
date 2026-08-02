@@ -40,7 +40,7 @@ android {
 
         minSdk = libs.versions.appMinSdk.get().toInteger()
         targetSdk = libs.versions.appTargetSdk.get().toInteger()
-        resourceConfigurations += ['cs', 'de', 'en', 'es', 'fr', 'gl', 'hu', 'it', 'ja', 'nb-rNO', 'nl', 'pl', 'pt', 'pt-rBR', 'ru', 'zh-rCN', 'zh-rTW']
+        resourceConfigurations += ['cs', 'de', 'en', 'es', 'fr', 'gl', 'hu', 'it', 'ja', 'nb-rNO', 'nl', 'nl-rBQ', 'nl-rCW', 'pl', 'pt', 'pt-rBR', 'ru', 'zh-rCN', 'zh-rTW']
 
         buildConfigField "String", "APK_HOST_URL", "\"${envOrProp('APK_HOSTER_URL', 'https://apk.example.com')}\""
         buildConfigField "String", "APK_HOST_USER", "\"${envOrProp('APK_HOSTER_USER', 'ultrasonic')}\""

@@ -306,8 +306,18 @@ ultrasonic:build-release:
 deploy:prod:
   stage: deploy
   interruptible: false
+  # Only one production deploy at a time. Two release pipelines overlapping is
+  # exactly how bug-report 016 happened: a delayed pipeline on an already-merged
+  # release branch re-pushed old images as `latest` and redeployed them. Set the
+  # process mode of this resource group to "newest first" in
+  # Settings > CI/CD > Resource groups, so a queued older pipeline is dropped
+  # rather than applied after the newer one.
+  resource_group: production
+  environment:
+    name: production
+    url: $PROD_URL
   rules:
-    - if: '$CI_COMMIT_BRANCH =~ /^release\//'
+    - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
   script:
     - ./scripts/ci-deploy.sh
 

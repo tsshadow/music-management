@@ -49,3 +49,19 @@ def test_release_rule_covers_release_and_hotfix():
     ci = load_ci()
     condition = ci[".release_rule"]["rules"][0]["if"]
     assert "release" in condition and "hotfix" in condition
+
+
+def test_deploy_prod_is_serialised():
+    """Without a resource_group two pipelines deploy over each other -- see
+    docs/bug-reports/016-stale-release-branch-clobbered-latest-deploy.md."""
+    ci = load_ci()
+    assert ci["deploy:prod"]["resource_group"] == "production"
+
+
+def test_deploy_prod_declares_its_environment():
+    """Gives GitLab a deployment history, so "what is live" is answerable
+    without SSHing to the host."""
+    ci = load_ci()
+    environment = ci["deploy:prod"]["environment"]
+    assert environment["name"] == "production"
+    assert environment["url"] == "$PROD_URL"

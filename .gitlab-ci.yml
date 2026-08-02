@@ -275,7 +275,7 @@ release:check-secrets:
   interruptible: false
   retry: !reference [.infra_retry, retry]
   rules:
-    - if: '$CI_COMMIT_BRANCH =~ /^release\//'
+    - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
   script:
     - ./scripts/ci/check-required-secrets.sh
 
@@ -355,7 +355,7 @@ release:version-check:
   interruptible: false
   retry: !reference [.infra_retry, retry]
   rules:
-    - if: '$CI_COMMIT_BRANCH =~ /^release\//'
+    - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
   script:
     - ./scripts/ci/release-version-check.sh
 
@@ -365,7 +365,7 @@ release:build-images:
   interruptible: false
   retry: !reference [.infra_retry, retry]
   rules:
-    - if: '$CI_COMMIT_BRANCH =~ /^release\// && $DOCKERHUB_USERNAME && $DOCKERHUB_TOKEN'
+    - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\// && $DOCKERHUB_USERNAME && $DOCKERHUB_TOKEN'
   script:
     - ./scripts/ci/build-and-push-images.sh
 
@@ -397,7 +397,7 @@ ultrasonic:build-release:
   needs:
     - release:version-check
   rules:
-    - if: '$CI_COMMIT_BRANCH =~ /^release\// && $APK_HOSTER_URL && $SIGNING_STORE_FILE'
+    - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\// && $APK_HOSTER_URL && $SIGNING_STORE_FILE'
   script:
     - ./scripts/ci/ultrasonic-build-upload.sh release
 

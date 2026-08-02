@@ -166,3 +166,24 @@ def test_secret_scanning_is_not_allowed_to_fail():
     failure here is a finding rather than an outage."""
     ci = load_ci()
     assert ci["security:secret-scan"].get("allow_failure") is not True
+
+
+# Every job that must behave identically for a hotfix and for a release.
+RELEASE_STAGE_JOBS = [
+    "release:check-secrets",
+    "release:version-check",
+    "release:build-images",
+    "ultrasonic:build-release",
+    "deploy:prod",
+]
+
+
+def test_hotfix_branches_get_the_full_release_treatment():
+    """A hotfix that skips the secret check or the version check is a hotfix
+    that deploys unverified straight to production."""
+    ci = load_ci()
+    for name in RELEASE_STAGE_JOBS:
+        conditions = " ".join(
+            rule.get("if", "") for rule in ci[name]["rules"] if isinstance(rule, dict)
+        )
+        assert "hotfix" in conditions, f"{name} does not run on a hotfix branch"

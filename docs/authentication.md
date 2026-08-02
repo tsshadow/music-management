@@ -134,9 +134,12 @@ Answering "mis ik hier nog dingen?" (things not covered above and not implemente
   either requiring one of the two at creation time, or surfacing a warning in the admin UI.
   **Not implemented in this change** (out of scope: touches the "create user" admin form, not the login
   flows themselves).
-- **No rate limiting / lockout on login attempts.** Both `/api/auth/login` and `/api/auth/google` (token
-  verification failures) can be retried without limit. Not implemented here — would need a shared
-  rate-limiting layer that doesn't exist yet in `music-manager`.
+- **Rate limiting covers the password endpoints, not `/api/auth/google`.** `/api/auth/login`,
+  `/api/auth/refresh` and `/api/auth/setup` refuse a caller that keeps being rejected
+  (`services/music_manager/rate_limit.py`); repeated ID-token verification failures against
+  `/api/auth/google` are still unlimited. Note that `/api/auth/login` is not only a login form: LMS
+  calls it to validate the password on *every* Subsonic request, so anything counted there is counted
+  per library page view, not per login.
 - **No self-service password reset / email verification.** Password changes currently require either an
   admin (`users.update`) or the user's own existing session (`POST /{id}/password`); there is no
   "forgot password" email flow, and a Google-account's `email` is trusted as-is from the ID token without a

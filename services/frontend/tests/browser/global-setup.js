@@ -1,34 +1,27 @@
 import { chromium, expect } from "@playwright/test";
 
 /**
- * Loads the app once before the suite starts, purely to pay for Vite's
- * cold-start dependency pre-bundling.
+ * Loads the app once before the suite starts.
  *
- * Without this, the first test in the run doubles as a startup-latency
- * benchmark: `#app` stays an empty div until Vite has finished optimizing and
- * reloaded, which is ~2s on a developer machine but has taken over 30s on a
- * loaded CI runner. That made a green suite depend on how busy the runner was,
- * and it failed release/0.0.58's pipeline while the app itself was fine.
+ * The browser tests run against `vite preview`, i.e. the built bundle, so there
+ * is no dependency pre-bundling to pay for any more -- this is now just a smoke
+ * check that the served app renders at all, which makes a broken build fail
+ * here with one clear message instead of in every test at once.
  *
- * Warming up here keeps that cost out of the tests, so their timeouts can stay
- * tight enough to still catch an app that genuinely does not render.
- *
- * Both the navigation and the visibility check need the generous budget. Only
- * the second one had it, so the warm-up still failed on Playwright's default
- * 30s navigation timeout while Vite was mid-prebundle -- the very failure this
- * file exists to absorb.
+ * History, so nobody reintroduces it: the suite used to run against the dev
+ * server, where `#app` stays an empty div until Vite finishes optimizing and
+ * reloads. That is ~2s locally but has taken over 30s, and once over 120s, on a
+ * loaded CI runner -- it failed release/0.0.58's pipeline and later develop's
+ * while the app itself was fine.
  */
-const WARMUP_TIMEOUT_MS = 120_000;
-
 export default async function globalSetup(config) {
   const { baseURL } = config.projects[0].use;
   const browser = await chromium.launch();
 
   try {
     const page = await browser.newPage();
-    // Generous: this is the one place where slow is acceptable.
-    await page.goto(baseURL, { waitUntil: "load", timeout: WARMUP_TIMEOUT_MS });
-    await expect(page.locator("#app")).toBeVisible({ timeout: WARMUP_TIMEOUT_MS });
+    await page.goto(baseURL, { waitUntil: "load", timeout: 60_000 });
+    await expect(page.locator("#app")).toBeVisible({ timeout: 30_000 });
   } finally {
     await browser.close();
   }

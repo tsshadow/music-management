@@ -122,16 +122,28 @@ def _truncate_all(connection):
     metadata lock on the table, which on a loaded CI runner collided with the
     connections the endpoints under test had just opened and closed and failed
     with "Lock wait timeout exceeded". These tables never hold more than a
-    handful of rows, so the cost of DELETE is irrelevant. The AUTO_INCREMENT
-    reset keeps ids predictable per test, the way TRUNCATE used to leave them.
+    handful of rows, so the cost of DELETE is irrelevant.
+
+    The AUTO_INCREMENT reset keeps ids predictable per test, the way TRUNCATE
+    used to leave them, but only for the tables a test actually wrote to.
+    Resetting all forty of them on every one of the forty-odd tests meant ~1700
+    ALTER TABLE statements per run, which took the server down with "Lost
+    connection to MySQL server during query" and turned every later test into a
+    cascade of InterfaceError.
+
+    Reconnects first: if a previous test did lose the connection, one dead
+    socket should not fail the rest of the suite.
     """
+    connection.ping(reconnect=True)
     with connection.cursor() as cursor:
         cursor.execute('SET FOREIGN_KEY_CHECKS = 0')
         cursor.execute("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'")
         tables = [next(iter(row.values())) for row in cursor.fetchall()]
+        emptied = []
         for table in tables:
-            cursor.execute(f'DELETE FROM `{table}`')
-        for table in tables:
+            if cursor.execute(f'DELETE FROM `{table}`'):
+                emptied.append(table)
+        for table in emptied:
             cursor.execute(f'ALTER TABLE `{table}` AUTO_INCREMENT = 1')
         cursor.execute('SET FOREIGN_KEY_CHECKS = 1')
 

@@ -69,13 +69,15 @@ quality:typecheck:
   script:
     - ./scripts/typecheck.sh
 
-# Dependency vulnerability scanning. Reporting, not gating -- hence
-# allow_failure everywhere: it audits the runner's installed Python
-# environment, which this repository does not manage, so a stale runner would
-# otherwise block unrelated merge requests. Runs on a schedule (so a newly
-# published CVE surfaces without anyone pushing), on the default branch, and
-# manually on demand. Read the job log; findings that genuinely cannot be fixed
-# yet are listed, with a reason, in security/accepted-vulnerabilities.txt.
+# Dependency vulnerability scanning of the declared requirements and the
+# frontend lockfile -- repository-controlled, so a finding always points at a
+# line someone can change here. Runs on a schedule (so a newly published CVE
+# surfaces without anyone pushing), on the default branch, and manually.
+#
+# allow_failure because it queries the advisory database over the network: a
+# transient outage should not turn master red. Read the job log. Findings that
+# genuinely cannot be fixed yet are listed, with a reason, in
+# security/accepted-vulnerabilities.txt.
 security:dependency-audit:
   stage: quality
   interruptible: false

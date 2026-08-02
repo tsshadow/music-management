@@ -1,17 +1,51 @@
-patool~=1.12
-python-dotenv~=1.0.0
+# Repository-root dependencies: everything needed to run the Python test suite
+# (./scripts/test/music-management-unit.sh) and the shared services.
+#
+# docker/Dockerfile.base installs a filtered subset of this file; per-service
+# runtime dependencies live in services/*/requirements.txt. Development-only
+# tooling (linter, type checker, auditor) is in requirements-dev.txt.
+#
+# Pinned with ~= (compatible release): patch and minor updates flow in, a new
+# major does not. Renovate opens a merge request for updates (renovate.json).
+
+# --- Web/API -----------------------------------------------------------------
+fastapi~=0.111.0
+uvicorn~=0.22.0
+pydantic~=2.13
+anyio~=4.10.0
+jinja2~=3.1.6
+
+# --- Database ----------------------------------------------------------------
+pymysql~=1.1.1
+DBUtils~=3.1.2
+
+# --- Auth --------------------------------------------------------------------
+bcrypt~=5.0.0
+google-auth~=2.56
+# Transitive via google-auth; pinned directly because 0.6.3 is vulnerable
+# (PYSEC-2026-3455/3456/3457).
+pyasn1~=0.6.4
+
+# --- Media / tagging ---------------------------------------------------------
 mutagen~=1.47.0
 librosa~=0.10.2.post1
-pymysql~=1.1.1
-requests~=2.32.4
-yt-dlp~=2026.6.9
+numpy~=2.0.2
+Pillow~=12.3
+
+# --- Ingestion ---------------------------------------------------------------
+yt-dlp~=2026.7.4
+telethon~=1.44.0
+patool~=1.12
+
+# --- Misc --------------------------------------------------------------------
+requests~=2.33.0
+python-dotenv~=1.2.2
+markdown~=3.6
+docker~=7.2.0
+
+# --- Test runner -------------------------------------------------------------
+# Kept here rather than in requirements-dev.txt: build.sh runs the suite inside
+# the built image, so these have to be present at runtime there.
 pytest>=8.4.0
 pytest-cov>=4.1.0
 coverage~=7.2.7
-telethon~=1.44.0
-fastapi~=0.111.0
-uvicorn~=0.22.0
-markdown~=3.6
-
-anyio~=4.10.0
-numpy~=2.0.2

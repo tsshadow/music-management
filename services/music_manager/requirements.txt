@@ -1,16 +1,26 @@
-fastapi
-uvicorn
-pymysql
-python-dotenv
-requests
-bcrypt
-pydantic
-docker
-markdown
-jinja2
-Pillow
-DBUtils
-mutagen
-librosa
-numpy
-google-auth
+# Runtime dependencies for the music-manager service (docker/Dockerfile.music-manager).
+#
+# Pinned with ~= (compatible release): patch and minor updates flow in, a new
+# major does not. These used to be unpinned entirely, which meant a rebuild
+# could pull a breaking major -- pydantic 3, fastapi 1 -- into production
+# without a single line of this repository changing.
+#
+# Renovate opens a merge request when a new version is available (renovate.json).
+
+fastapi~=0.111.1
+uvicorn~=0.22.0
+pydantic~=2.13
+pymysql~=1.1.3
+DBUtils~=3.1.2
+python-dotenv~=1.2.2
+requests~=2.33.0
+bcrypt~=5.0.0
+google-auth~=2.56
+pyasn1~=0.6.4  # transitive via google-auth; 0.6.3 is vulnerable
+docker~=7.2.0
+markdown~=3.10
+jinja2~=3.1.6
+Pillow~=12.3
+mutagen~=1.47.0
+librosa~=0.10.2
+numpy~=2.0.2

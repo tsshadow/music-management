@@ -1,0 +1,20 @@
+# Development and CI tooling. Not installed into any runtime image.
+#
+#   pip install -r requirements.txt -r requirements-dev.txt
+#
+# Versions are pinned so a CI runner and a laptop report the same findings: an
+# unpinned linter turns "someone upgraded ruff" into a red pipeline on an
+# unrelated merge request.
+
+# Static analysis (scripts/lint.sh, quality:lint in .gitlab-ci.yml)
+ruff~=0.15
+pylint~=4.0
+
+# Type checking (scripts/typecheck.sh)
+mypy~=2.3
+
+# Dependency vulnerability scanning (scripts/ci/dependency-audit.sh)
+pip-audit~=2.10
+
+# Property-based tests (services/tagger/Song/rules/*PropertyTest.py)
+hypothesis~=6.0

@@ -1,4 +1,7 @@
-FROM archlinux:latest
+# Pinned to the dated snapshot that :latest currently points at, rather than to
+# the moving tag, so rebuilding an older commit resolves the same toolchain.
+# Renovate proposes the bump (dependencyDashboardApproval, so it is reviewed).
+FROM archlinux:base-20260726.0.562117
 
 ARG BUILD_PACKAGES="\
 	benchmark \

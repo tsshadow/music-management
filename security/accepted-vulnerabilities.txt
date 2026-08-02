@@ -1,0 +1,25 @@
+# Vulnerabilities this project has consciously accepted for now.
+#
+# Read by scripts/ci/dependency-audit.sh. Anything listed here is excluded from
+# the audit; anything not listed fails the pipeline. That is the point: an
+# exception has to be written down, with a reason and a way out, instead of the
+# whole job being marked allow_failure.
+#
+# Format: one advisory ID per line, followed by "#" and a reason that says what
+# would remove it. Blank lines and comment-only lines are ignored.
+#
+# Review these whenever the dependency they belong to is upgraded.
+
+# --- starlette, pulled in by fastapi ~=0.111 ---------------------------------
+# fastapi 0.111 constrains starlette to <0.38, so none of these can be fixed by
+# bumping starlette on its own: they all clear at once when fastapi is upgraded.
+# That upgrade is a migration rather than a version bump and needs its own merge
+# request -- the FastAPI TestClient suite in services/music_manager/tests/ is
+# what should validate it. Tracked in docs/testing-inventory.md.
+PYSEC-2026-161    # starlette <1.0.1  -- clears with the fastapi upgrade
+PYSEC-2026-248    # starlette <1.3.0  -- clears with the fastapi upgrade
+PYSEC-2026-249    # starlette <1.3.1  -- clears with the fastapi upgrade
+PYSEC-2026-1941   # starlette <0.47.2 -- clears with the fastapi upgrade
+PYSEC-2026-1943   # starlette <0.40.0 -- clears with the fastapi upgrade
+PYSEC-2026-2280   # starlette <1.1.0  -- clears with the fastapi upgrade
+PYSEC-2026-2281   # starlette <1.1.0  -- clears with the fastapi upgrade

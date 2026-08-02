@@ -1,0 +1,63 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommitTypeAll(chore)"
+  ],
+  "description": "Dependency updates for the music-management monorepo. Every ecosystem in here (pip, npm, Gradle, Dockerfile) is picked up automatically; the rules below only decide how the updates are grouped and how eagerly they are merged.",
+  "timezone": "Europe/Amsterdam",
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 5,
+  "labels": ["dependencies"],
+  "baseBranches": ["develop"],
+  "lockFileMaintenance": { "enabled": true },
+  "vulnerabilityAlerts": {
+    "labels": ["dependencies", "security"],
+    "schedule": ["at any time"],
+    "prPriority": 10
+  },
+  "packageRules": [
+    {
+      "description": "Patch and minor updates of the Python runtime stack move together: they are covered by the unit suite and reviewing them one by one is noise.",
+      "matchManagers": ["pip_requirements"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "python (minor/patch)"
+    },
+    {
+      "description": "A major of fastapi/pydantic/sqlalchemy is a migration, not an update. Keep those separate so they get their own review.",
+      "matchManagers": ["pip_requirements"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "yt-dlp ships breaking extractor fixes as ordinary releases; being behind on it is what actually breaks downloading. Merge automatically once the pipeline is green.",
+      "matchPackageNames": ["yt-dlp"],
+      "automerge": true,
+      "schedule": ["at any time"]
+    },
+    {
+      "description": "Dev tooling is not shipped to production; an upgrade can only turn the pipeline red, never break a user.",
+      "matchFileNames": ["requirements-dev.txt"],
+      "automerge": true
+    },
+    {
+      "description": "Frontend dev dependencies move fast and are covered by lint + typecheck + vitest.",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "frontend dev dependencies",
+      "automerge": true
+    },
+    {
+      "description": "Base image bumps rebuild every service image, so they are reviewed by hand.",
+      "matchManagers": ["dockerfile", "docker-compose"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Vendored upstream fork; its dependencies are managed by that project, not here.",
+      "matchFileNames": ["services/music-management-server/**"],
+      "enabled": false
+    }
+  ]
+}

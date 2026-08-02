@@ -11,6 +11,24 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.1.3 (2026-08-02)
+
+### 🔐 Inloggen hield het maar een paar seconden vol
+- Wie inlogde, stond er even later weer buiten: op Android verscheen "The server rejected the stored
+  credentials" en daarna "Logging out", in de webinterface kwam het inlogscherm terug.
+- De snelheidsbegrenzer op de inlogpunten, deze cyclus toegevoegd, ging ervan uit dat
+  `/api/auth/login` een inlogformulier is. Het is óók het punt waar de muziekserver bij *elk*
+  Subsonic-verzoek het wachtwoord laat controleren, over een interne verbinding die geen
+  clientadres meedraagt. Alle gebruikers deelden daardoor één tegoed van tien aanroepen per minuut,
+  en een beginscherm dat zijn secties tegelijk ophaalt was er in een paar tellen doorheen.
+- Daarna las de muziekserver de weigering als "verkeerd wachtwoord" en logde elke client zichzelf
+  netjes uit. Opnieuw proberen maakte het erger: die afwijzingen voedden ook de eigen begrenzer van
+  de muziekserver, die vervolgens het IP-adres van de gebruiker begon te weren.
+- Alleen afgewezen pogingen tellen nu nog mee, en een login telt per account in plaats van per
+  beller. Bladeren door de bibliotheek kost dus niets meer, en één account waarop wordt gegokt sluit
+  niemand anders meer buiten. Een wachtwoord raden blijft begrensd, en spraying blijft afgevangen
+  door de begrenzer van de muziekserver zelf, die wel het echte clientadres ziet.
+
 ## Global Version 0.1.2 (2026-08-02)
 
 ### 🎧 Eén ontoegankelijke track legde de hele SoundCloud-downloader stil

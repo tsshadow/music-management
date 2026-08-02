@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-08-02
+
 ### Fixed
 - **Everyone was logged out again seconds after logging in.** The rate limit added to the
   authentication endpoints this cycle assumed `/api/auth/login` is a login form. It is also the

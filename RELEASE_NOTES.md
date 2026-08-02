@@ -11,6 +11,35 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.1.2 (2026-08-02)
+
+### 🎧 Eén ontoegankelijke track legde de hele SoundCloud-downloader stil
+- yt-dlp meldt een abonnee-only, geoblokkeerde of verwijderde track als een 403. De downloader las elke
+  403 als "SoundCloud duwt ons weg", parkeerde daarop de hele bron, brak de resterende accounts van een
+  ronde langs 1110 accounts af, en noteerde het account niet als gecontroleerd — waardoor de volgende
+  ronde dezelfde track raakte en dezelfde 403 kreeg.
+- De teller daarachter ging alleen terug naar nul na een ronde langs álle accounts zonder ook maar één
+  403, wat met één permanent ontoegankelijke track nooit gebeurt. De wachttijd klom zo naar het plafond
+  van 24 uur en bleef daar. Downloads lagen twee dagen stil terwijl SoundCloud zelf gewoon antwoordde.
+- Een 403 wordt nu gelezen voor wat het is. Losse tracks worden onthouden en bij volgende rondes
+  overgeslagen, en de bron wordt alleen nog geparkeerd bij een expliciete 429 of wanneer meerdere
+  accounts op rij niets opleveren. De wachttijd zakt vanzelf terug met de tijd en het plafond gaat van
+  een dag naar een uur.
+
+### 🦊 De downloader presenteert zich consistent
+- Er ging een Chrome 120 user-agent uit terwijl de meegestuurde cookies van Firefox kwamen; precies de
+  ongerijmdheid waar de botdetectie vóór SoundCloud op let. Dat is nu Firefox, passend bij de container
+  waar de cookies vandaan komen, en het is een instelling geworden in plaats van een vaste waarde.
+- Cookies worden bovendien volledig gelezen. yt-dlp kopieert alleen de cookiedatabase, terwijl Firefox
+  via een logbestand schrijft waar de nieuwste cookies nog in kunnen staan — juist de cookie die de
+  botdetectie steeds ververst. Het profiel wordt nu eerst samengevoegd en dan pas gelezen.
+
+### ⏱️ yt-dlp veroudert niet meer tussen releases
+- yt-dlp levert reparaties voor wijzigingen bij SoundCloud en YouTube binnen dagen, maar de images
+  werden alleen tijdens een release gebouwd. De downloader kon dus een yt-dlp draaien die ouder was dan
+  het probleem waar hij op stuitte. Een wekelijkse geplande pijplijn bouwt en publiceert de
+  downloader-image nu opnieuw vanaf master.
+
 ## Global Version 0.1.1 (2026-08-02)
 
 ### 🔧 De scanner liep op elk bestand stuk

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-02
+
 ### Changed
 - **A track SoundCloud will not hand over no longer stops the whole downloader.** yt-dlp reports a
   subscriber-only, geo-blocked or since-deleted track as a 403, and the downloader read every one of

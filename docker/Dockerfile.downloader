@@ -6,8 +6,21 @@ FROM ${DOCKER_USER}/muma-base:${VERSION}
 WORKDIR /app
 
 # Downloader specific dependencies
-RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
-RUN pip install --no-cache-dir yt-dlp
+RUN apt-get update && apt-get install -y ffmpeg unzip && rm -rf /var/lib/apt/lists/*
+
+# YouTube serves its signature and "n" challenges as JavaScript, so yt-dlp needs both the
+# solver scripts (the [default] extra pulls in yt-dlp-ejs) and a runtime to execute them.
+# Without these every download logs "Signature solving failed" and falls back to the few
+# formats that need no challenge -- which for most videos means none at all.
+RUN pip install --no-cache-dir "yt-dlp[default]"
+
+# Deno is the runtime yt-dlp uses by default; the others need an explicit --js-runtimes flag.
+RUN curl -fsSL -o /tmp/deno.zip \
+        https://github.com/denoland/deno/releases/latest/download/deno-x86_64-unknown-linux-gnu.zip && \
+    unzip -q /tmp/deno.zip -d /usr/local/bin && \
+    chmod +x /usr/local/bin/deno && \
+    rm /tmp/deno.zip && \
+    deno --version
 
 # Downloader specific code
 COPY services/downloader/ /app/services/downloader/

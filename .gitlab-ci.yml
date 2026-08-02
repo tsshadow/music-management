@@ -35,6 +35,16 @@ stages:
   - release
   - deploy
 
+# Referenced by every job that gates a production deploy. Those jobs also have
+# `changes:` rules, which is what keeps ordinary feature pushes cheap -- but on
+# a release/hotfix branch the last commit usually touches only VERSION,
+# CHANGELOG.md and RELEASE_NOTES.md, so `changes:` alone would skip them, and a
+# skipped job does not block deploy:prod. This rule makes them unconditional
+# exactly where it matters.
+.release_rule:
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
+
 # --- Static analysis ---------------------------------------------------------
 # Runs the same scripts/lint.sh the pre-commit hook runs, so a commit made with
 # --no-verify, or through the GitLab web UI, still meets the same bar. Both the
@@ -44,6 +54,7 @@ stages:
 quality:lint:
   stage: quality
   rules:
+    - !reference [.release_rule, rules]
     - changes:
         - services/**/*.py
         - tools/**/*.py
@@ -61,6 +72,7 @@ quality:lint:
 quality:typecheck:
   stage: quality
   rules:
+    - !reference [.release_rule, rules]
     - changes:
         - services/**/*.py
         - pyproject.toml
@@ -94,6 +106,7 @@ security:dependency-audit:
 music-management:unit:
   stage: unit
   rules:
+    - !reference [.release_rule, rules]
     - changes:
         - services/music_manager/**/*
         - services/importer/**/*
@@ -122,6 +135,7 @@ music-management:unit:
 lms:unit:
   stage: unit
   rules:
+    - !reference [.release_rule, rules]
     - changes:
         - services/music-management-server/**/*
         - .gitlab-ci.yml
@@ -137,6 +151,7 @@ lms:unit:
 frontend:unit:
   stage: unit
   rules:
+    - !reference [.release_rule, rules]
     - changes:
         - services/frontend/**/*
         - .gitlab-ci.yml
@@ -152,6 +167,7 @@ frontend:unit:
 ultrasonic:check:
   stage: unit
   rules:
+    - !reference [.release_rule, rules]
     - changes:
         - services/ultrasonic/**/*
         - .gitlab-ci.yml

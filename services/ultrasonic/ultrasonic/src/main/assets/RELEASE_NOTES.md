@@ -1,6 +1,13 @@
 ## [Unreleased]
 
+## [6.6.0] - 2026-08-02
+
 ### Added
+- **Memories: wat er op deze dag werd uitgebracht.** In het Bibliotheek-tabblad staat een
+  Memories-scherm, en de startpagina opent met een korte rij "Vandaag, 8 jaar geleden". Alleen
+  tags met een volledige releasedatum tellen mee; levert een dag niets op, dan wordt er drie dagen
+  naar beide kanten gekeken en staat er "deze week". Je telefoon stuurt zijn eigen datum mee. De
+  rij op de startpagina kun je uitzetten in de instellingen.
 - **Diagnostiek versturen zonder op een crash te wachten.** Crashrapportage kwam pas bij de
   volgende start op gang, en alleen als de app echt was gestopt. Bij een mislukte call of een leeg
   scherm blijft de app draaien, dus dat bereikte de server nooit. In Instellingen staat nu "Send
@@ -9,6 +16,22 @@
   in release builds. Anders dan het automatische rapport trekt hij zich niets aan van de
   "Crash detection"-schakelaar — op de knop drukken is toestemming genoeg — en hij gooit nooit een
   crashbestand weg dat nog niet gerapporteerd is.
+
+### Changed
+- **Geen zoekveld meer op Ratings en Jaren.** Ratings is vijf vaste kaarten die allemaal tegelijk
+  in beeld staan, Jaren is een korte lijst getallen in een vaste volgorde. Jaren begint nu bij het
+  nieuwste jaar.
+
+### Removed
+- **Het "MuMa Sync"-scherm** met zijn zes knoppen. Tegels synchroniseren zichzelf via de
+  tegelbewerker en inloggen gebeurt al bij het opslaan van een server. Je MuMa-ID en API-sleutel
+  blijven in de instellingen staan.
+
+### Fixed
+- **Artiest-snelkoppelingen halen hun ontbrekende afbeelding alsnog op**, ook als ze bewaard zijn
+  toen de server nog geen foto had.
+- **Artiesten zonder afbeelding kosten niet meer bij elk terugscrollen een mislukte aanvraag**;
+  die worden twaalf uur onthouden, en alleen als de server echt "niet gevonden" antwoordde.
 
 ## [6.5.26] - 2026-08-02
 

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **The artist page opens with the artist rather than with a list.** Tapping an artist used to
+  land straight on their albums, with the name in the app bar the only thing distinguishing one
+  artist from the next — even though the app already downloads and caches artist images and
+  already shows the album and track counts one screen earlier, in the artist list. The page now
+  starts with a header: the artist image, the name, "12 albums · 143 tracks", the years the
+  discography spans, and the genres. The play-all button moved into it and queues the artist's
+  tracks the same way the long-press menu's "play now" does. Artists reached through search or
+  from a home screen card never went through the cache that holds the counts, so the header
+  derives them from the discography on screen instead of showing nothing.
+
+### Fixed
+- **The folder selector no longer sits squeezed into one column** when an album list is switched
+  to the grid layout. It was laid out as a single album-sized cell with the first two albums
+  beside it; headers now span the full width of the grid.
+
 ## [0.0.59] - 2026-08-02
 
 ### Added

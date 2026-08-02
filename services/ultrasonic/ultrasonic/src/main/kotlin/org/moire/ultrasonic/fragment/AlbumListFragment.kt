@@ -130,8 +130,7 @@ class AlbumListFragment(
                 // is a header - the artist header here, the folder selector on other lists, which
                 // has had the same problem in grid mode all along.
                 spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
-                    override fun getSpanSize(position: Int): Int =
-                        if (viewAdapter.items.getOrNull(position) is Album) 1 else ROWS
+                    override fun getSpanSize(position: Int): Int = if (viewAdapter.items.getOrNull(position) is Album) 1 else ROWS
                 }
             }
         }

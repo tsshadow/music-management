@@ -31,8 +31,7 @@ class ArtistHeaderBinder(private val onPlayAll: () -> Unit) :
     ItemViewBinder<ArtistHeader, ArtistHeaderBinder.ViewHolder>(),
     KoinComponent {
 
-    override fun onCreateViewHolder(inflater: LayoutInflater, parent: ViewGroup): ViewHolder =
-        ViewHolder(inflater.inflate(R.layout.list_header_artist_detail, parent, false))
+    override fun onCreateViewHolder(inflater: LayoutInflater, parent: ViewGroup): ViewHolder = ViewHolder(inflater.inflate(R.layout.list_header_artist_detail, parent, false))
 
     override fun onBindViewHolder(holder: ViewHolder, item: ArtistHeader) {
         holder.title.text = item.name
@@ -64,8 +63,7 @@ class ArtistHeaderBinder(private val onPlayAll: () -> Unit) :
     }
 
     /** Same rule as the artist list: no ID3 tags means no artist pictures to show. */
-    private fun showArtistPicture(): Boolean =
-        ActiveServerProvider.shouldUseId3Tags() && Settings.shouldShowArtistPicture
+    private fun showArtistPicture(): Boolean = ActiveServerProvider.shouldUseId3Tags() && Settings.shouldShowArtistPicture
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val coverArt: ImageView = view.findViewById(R.id.artist_image)

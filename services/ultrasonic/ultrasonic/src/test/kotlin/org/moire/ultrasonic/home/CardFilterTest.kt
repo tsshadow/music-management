@@ -102,6 +102,18 @@ class CardFilterTest {
     }
 
     @Test
+    fun `ratings is a short fixed list, so it gets no search field`() {
+        browseSupportsSearch(BrowseCategory.RATINGS) `should be equal to` false
+    }
+
+    @Test
+    fun `categories that grow with the library keep their search field`() {
+        BrowseCategory.entries.filter { it != BrowseCategory.RATINGS }.forEach {
+            browseSupportsSearch(it) `should be equal to` true
+        }
+    }
+
+    @Test
     fun `categories whose cards carry a count offer BY_TRACK_COUNT too`() {
         browseSortOrdersFor(BrowseCategory.GENRES) `should be equal to` BROWSE_SORT_ORDERS
         browseSortOrdersFor(BrowseCategory.YEARS) `should be equal to` BROWSE_SORT_ORDERS

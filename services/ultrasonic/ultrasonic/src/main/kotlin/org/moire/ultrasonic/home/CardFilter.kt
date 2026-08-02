@@ -27,6 +27,14 @@ fun browseSortOrdersFor(category: BrowseCategory): List<SortOrder> = when (categ
 }
 
 /**
+ * Whether a given [BrowseCategory] is long enough to be worth searching.
+ *
+ * Ratings is a fixed list of five cards that all fit on screen, so a search field over it is
+ * more clutter than help. Every other category grows with the library.
+ */
+fun browseSupportsSearch(category: BrowseCategory): Boolean = category != BrowseCategory.RATINGS
+
+/**
  * The browse tabs hold their whole list in memory, so searching and sorting them needs no server
  * call. Matching is on a normalized key so that "decibel" finds "Décibel".
  */

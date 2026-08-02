@@ -34,6 +34,7 @@ import org.moire.ultrasonic.home.HomeCardAdapter
 import org.moire.ultrasonic.home.HomeCardNavigator
 import org.moire.ultrasonic.home.HomeCardType
 import org.moire.ultrasonic.home.browseSortOrdersFor
+import org.moire.ultrasonic.home.browseSupportsSearch
 import org.moire.ultrasonic.home.filterAndSortCards
 import org.moire.ultrasonic.home.orderGenres
 import org.moire.ultrasonic.home.toHomeCard
@@ -85,7 +86,7 @@ class FilterBrowseFragment : Fragment() {
             ViewCapabilities(
                 supportsGrid = false,
                 supportedSortOrders = browseSortOrdersFor(category),
-                supportsSearch = true
+                supportsSearch = browseSupportsSearch(category)
             )
         )
         filterButtonBar.setOnQueryChangedListener { newQuery ->

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **The Ratings tab no longer offers a search field.** Every Library tab got the same filter bar,
+  but Ratings is not a list the library grows: it is the same five cards ("4 stars and up" down to
+  "1 star and up"), all of them on screen at once. Searching five visible cards is busywork, so the
+  field is hidden there and stays on the tabs that do grow — genres, labels, years, festivals and
+  lineups.
+
 ## [0.0.60] - 2026-08-02
 
 ### Added

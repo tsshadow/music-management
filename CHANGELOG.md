@@ -17,6 +17,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and a login is counted per account instead of per caller, so browsing a library costs nothing and
   one account being guessed at cannot lock anyone else out. Guessing a password is still capped.
 
+## [0.1.2] - 2026-08-02
+
+### Changed
+- **A track SoundCloud will not hand over no longer stops the whole downloader.** yt-dlp reports a
+  subscriber-only, geo-blocked or since-deleted track as a 403, and the downloader read every one of
+  those as SoundCloud pushing back: it parked the source, abandoned the remaining accounts of a
+  1110-account sweep, and never marked the account as checked, so the next sweep met the same track
+  and took the same 403. The counter behind that only returned to zero after a sweep that touched
+  every account without a single 403 — which one permanently unavailable track makes impossible — so
+  the backoff climbed to its ceiling and stayed there. Downloads stopped for two days while
+  SoundCloud itself was still answering normally. A 403 is now read as what it is: individual tracks
+  are written down and skipped on later sweeps, and the source is only parked on an explicit 429 or
+  after several accounts in a row come back empty-handed. The backoff also decays on its own with
+  time, and its ceiling drops from a day to an hour.
+- **The downloader presents one consistent client to SoundCloud.** It sent a Chrome 120 user agent
+  while offering cookies issued to Firefox, which is precisely the mismatch the anti-bot layer in
+  front of SoundCloud looks for. It now says Firefox, matching the container the cookies come from,
+  and the value is a setting rather than a constant frozen in code.
+- **yt-dlp no longer ages between releases.** Its fixes for SoundCloud and YouTube changes land within
+  days, but the images were only ever built during a release, so the downloader could run a yt-dlp
+  older than the problem it was hitting. A weekly scheduled pipeline now rebuilds and republishes the
+  downloader image from master, and the version floor no longer pins it to a single month.
+
+### Fixed
+- **Cookies are read complete rather than as of the last checkpoint.** yt-dlp copies Firefox's cookie
+  database and nothing else, while Firefox writes through a log that can hold the most recent cookies
+  — including the rotating one the anti-bot layer issues. The profile is now snapshotted and folded
+  together before it is read, so what the downloader presents is what the browser actually holds.
+
 ## [0.1.1] - 2026-08-02
 
 ### Fixed

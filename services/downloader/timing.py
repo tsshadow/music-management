@@ -81,8 +81,14 @@ def _batching(ratelimit_kbps: int, backoff_403_base: int) -> tuple[TimingField, 
                     'Wachttijd na de eerste 403 (Forbidden).'),
         TimingField('backoff_403_factor', 4, 2, 10, 'x',
                     'Waarmee de 403-wachttijd bij elke volgende fout wordt vermenigvuldigd.'),
-        TimingField('backoff_403_cap', DAY, 60, 7 * DAY, 'seconden',
+        TimingField('backoff_403_cap', 3600, 60, 7 * DAY, 'seconden',
                     'Bovengrens voor de 403-wachttijd.'),
+        TimingField('backoff_403_decay', 6 * 3600, 0, 7 * DAY, 'seconden',
+                    'Stilte waarna de 403-teller een trede terugzakt. 0 schakelt het terugzakken uit.'),
+        TimingField('block_threshold', 3, 1, 50, 'accounts',
+                    'Aantal accounts op rij dat niets oplevert voordat de bron wordt geparkeerd.'),
+        TimingField('unavailable_retry_days', 30, 0, 3650, 'dagen',
+                    'Na hoeveel dagen een track die 403 gaf opnieuw wordt geprobeerd. 0 probeert altijd opnieuw.'),
     )
 
 
@@ -248,6 +254,18 @@ class DownloaderTiming:
     @property
     def backoff_403_cap(self) -> int:
         return self.get('backoff_403_cap')
+
+    @property
+    def backoff_403_decay(self) -> int:
+        return self.get('backoff_403_decay')
+
+    @property
+    def block_threshold(self) -> int:
+        return self.get('block_threshold')
+
+    @property
+    def unavailable_retry_days(self) -> int:
+        return self.get('unavailable_retry_days')
 
     @property
     def max_multiplier(self) -> int:

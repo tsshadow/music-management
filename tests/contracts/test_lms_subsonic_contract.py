@@ -216,3 +216,40 @@ def test_stream_returns_audio_bytes(admin_credentials):
     assert resp.status_code == 200
     assert resp.headers.get("Content-Type", "").startswith("audio/")
     assert len(resp.content) > 0
+
+
+def test_artist_cover_art_falls_back_to_release_artwork(admin_credentials, media_library, expected_track):
+    """An artist MuMa has no picture for still serves an image.
+
+    Only about a quarter of the artists in the real library have a fetched
+    artist picture, so for the rest LMS emits a MuMa-backed cover art id whose
+    proxied request 404s. The clients draw their generic placeholder for such a
+    failure, which is what "every artist on the home screen has a picture"
+    rules out: LMS falls back to the artist's own release artwork instead (see
+    handleGetCoverArt in MediaRetrieval.cpp).
+    """
+    username, password = admin_credentials
+
+    def find_artist():
+        resp = _subsonic_get("search3.view", username, password, query=expected_track["artist"])
+        if resp.status_code != 200:
+            return None
+        result = resp.json()["subsonic-response"].get("searchResult3", {})
+        for artist in result.get("artist", []):
+            if artist.get("name") == expected_track["artist"]:
+                return artist
+        return None
+
+    artist = wait_until(find_artist, timeout=60, interval=2, description="fixture artist visible via OpenSubsonic search3")
+
+    cover_art_id = artist.get("coverArt")
+    assert cover_art_id, "artists must always carry a cover art id, so clients have something to request"
+
+    # The test stack's MuMa knows nothing about this artist, so the id points at
+    # MuMa and the proxied fetch fails there; the response must still be an image.
+    assert cover_art_id.startswith("muma-"), f"expected a MuMa-backed id, got {cover_art_id!r}"
+
+    resp = _subsonic_get("getCoverArt.view", username, password, id=cover_art_id)
+    assert resp.status_code == 200, resp.text[:500]
+    assert resp.headers.get("Content-Type", "").startswith("image/")
+    assert len(resp.content) > 0

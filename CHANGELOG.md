@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Artists show a picture on the phone, whether or not one has been fetched for them.** An artist
+  without artwork of their own is served from the artist image fetcher, and only 11762 of the
+  library's 51378 artists have a picture there so far, so for the rest that request 404s and every
+  client — the Ultrasonic home screen, the artist list, the web player — drew its grey placeholder.
+  The server now answers such a request with artwork the artist already has: their scanned artist
+  image if there is one, otherwise the cover of their earliest release. The cover art id still
+  points at the fetcher, so a real artist picture takes over the moment it lands, without any
+  client cache holding on to the release cover.
+
 ## [0.0.59] - 2026-08-02
 
 ### Added

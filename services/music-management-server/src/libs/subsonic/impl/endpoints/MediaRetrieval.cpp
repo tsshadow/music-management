@@ -36,7 +36,10 @@
 #include "core/media/MimeType.hpp"
 
 #include "database/Session.hpp"
+#include "database/objects/Artist.hpp"
+#include "database/objects/Artwork.hpp"
 #include "database/objects/PodcastEpisodeId.hpp"
+#include "database/objects/Release.hpp"
 #include "database/objects/Track.hpp"
 #include "database/objects/TrackLyrics.hpp"
 #include "database/objects/Types.hpp"
@@ -236,6 +239,75 @@ namespace lms::api::subsonic
 
             return parameters;
         }
+
+        // An artist whose picture MuMa does not (yet) have still has to show *something* in the
+        // clients, which otherwise draw their generic "no artist" placeholder. Any artwork that
+        // already belongs to the artist is a far better answer than that placeholder: their own
+        // preferred artwork if the scanner found one, else the cover of their earliest release.
+        //
+        // This is deliberately resolved here, at request time, and not in createArtistNode(): the
+        // cover art id has to keep pointing at MuMa so that the real artist picture is picked up
+        // as soon as the fetcher has it, without any client-side cache holding on to a stale
+        // release cover.
+        std::shared_ptr<image::IEncodedImage> getArtistFallbackImage(RequestContext& context, std::string_view artistName, std::optional<std::size_t> size)
+        {
+            db::ArtworkId artworkId;
+
+            {
+                auto transaction{ context.getDbSession().createReadTransaction() };
+
+                const auto findFirstReleaseArtwork = [&](const db::Release::FindParameters& params) {
+                    db::Release::find(context.getDbSession(), params, [&](const db::Release::pointer& release) {
+                        if (artworkId.isValid())
+                            return;
+
+                        artworkId = release->getPreferredArtworkId();
+                    });
+                };
+
+                for (const db::Artist::pointer& artist : db::Artist::find(context.getDbSession(), artistName))
+                {
+                    artworkId = artist->getPreferredArtworkId();
+                    if (artworkId.isValid())
+                        break;
+
+                    db::Release::FindParameters params;
+                    params.setSortMethod(db::ReleaseSortMethod::OriginalDate);
+
+                    findFirstReleaseArtwork(db::Release::FindParameters{ params }.setArtist(artist->getId()));
+
+                    // Remixers, featured artists and everyone else who never got credited as a
+                    // release artist would otherwise find nothing at all, while their tracks do sit
+                    // on releases that have a cover.
+                    if (!artworkId.isValid())
+                        findFirstReleaseArtwork(db::Release::FindParameters{ params }.setTrackArtist(artist->getId()));
+
+                    if (artworkId.isValid())
+                        break;
+                }
+            }
+
+            if (!artworkId.isValid())
+                return {};
+
+            return core::Service<artwork::IArtworkService>::get()->getImage(artworkId, size);
+        }
+
+        // Writes the artist's own artwork as the response, and reports whether there was any.
+        bool serveArtistFallbackImage(RequestContext& context, std::string_view artistName, std::optional<std::size_t> size, Wt::Http::Response& response)
+        {
+            const std::shared_ptr<image::IEncodedImage> image{ getArtistFallbackImage(context, artistName, size) };
+            if (!image)
+                return false;
+
+            LMS_LOG(API_SUBSONIC, DEBUG, "handleGetCoverArt: serving release artwork as a fallback for artist '" << artistName << "'");
+
+            response.setStatus(200);
+            response.setMimeType(std::string{ image->getMimeType() });
+            response.out().write(reinterpret_cast<const char*>(image->getData().data()), image->getData().size());
+
+            return true;
+        }
     } // namespace
 
     Response handleGetLyrics(RequestContext& context)
@@ -401,6 +473,9 @@ namespace lms::api::subsonic
 
             if (mumaApiUrl.empty())
             {
+                if (serveArtistFallbackImage(context, coverArtId.mumaArtistName, size, response))
+                    return;
+
                 response.setStatus(500);
                 response.out() << "Music Management not configured";
                 return;
@@ -454,21 +529,32 @@ namespace lms::api::subsonic
             if (resultFuture.wait_for(std::chrono::seconds(10)) == std::future_status::ready)
             {
                 ProxyResult res = resultFuture.get();
-                response.setStatus(res.status);
                 if (res.status == 200)
                 {
+                    response.setStatus(res.status);
                     response.setMimeType(res.contentType);
                     response.out().write(reinterpret_cast<const char*>(res.data.data()), res.data.size());
                 }
                 else
                 {
                     LMS_LOG(API_SUBSONIC, WARNING, "handleGetCoverArt: MuMa returned status " << res.status << " for artist '" << coverArtId.mumaArtistName << "'");
+
+                    // MuMa has no picture for this artist (yet): 404 also queues a fetch on its
+                    // side, so this is the normal case for most of the library, not an error.
+                    if (serveArtistFallbackImage(context, coverArtId.mumaArtistName, size, response))
+                        return;
+
+                    response.setStatus(res.status);
                     response.out() << "MuMa returned error: " << res.status;
                 }
             }
             else
             {
                 LMS_LOG(API_SUBSONIC, ERROR, "handleGetCoverArt: Timeout waiting for MuMa response for artist '" << coverArtId.mumaArtistName << "'");
+
+                if (serveArtistFallbackImage(context, coverArtId.mumaArtistName, size, response))
+                    return;
+
                 response.setStatus(504); // Gateway Timeout
                 response.out() << "Timeout waiting for MuMa";
             }

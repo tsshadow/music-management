@@ -30,6 +30,7 @@ import org.koin.core.component.inject
 import org.moire.ultrasonic.R
 import org.moire.ultrasonic.BuildConfig
 import org.moire.ultrasonic.app.UApp
+import org.moire.ultrasonic.diagnostics.CrashReportManager
 import org.moire.ultrasonic.fragment.FragmentTitle.setTitle
 import org.moire.ultrasonic.log.FileLoggerTree
 import org.moire.ultrasonic.log.FileLoggerTree.Companion.deleteLogFiles
@@ -94,6 +95,7 @@ class SettingsFragment :
         cacheLocation = findPreference(getString(R.string.setting_key_cache_location))
 
         setupDebugPreferences()
+        setupSendDiagnosticsPreference()
         setupClearSearchPreference()
         setupCacheLocationPreference()
         setupBluetoothDevicePreferences()
@@ -334,6 +336,18 @@ class SettingsFragment :
                     shareLog()
                     true
                 }
+        }
+    }
+
+    /**
+     * Not part of [setupDebugPreferences] on purpose: the debug category is hidden in release
+     * builds, and sending diagnostics after a failed call is exactly what a release user needs.
+     */
+    private fun setupSendDiagnosticsPreference() {
+        findPreference<Preference>(getString(R.string.setting_key_send_diagnostics))
+            ?.onPreferenceClickListener = Preference.OnPreferenceClickListener {
+            CrashReportManager.sendManualReport(requireContext())
+            true
         }
     }
 

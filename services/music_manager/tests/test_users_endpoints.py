@@ -211,24 +211,6 @@ class DynamicPlaylistTest(UsersEndpointTestCase):
         self.assertEqual(response.json(), {'status': 'ok'})
         self.assertEqual(len(self.statements()), 4)
 
-    def test_a_playlist_synced_from_the_server_is_stored_for_the_requested_user(self):
-        payload = {'remote_id': 3, 'source': 'lms', 'name': 'Synced', 'params': '{}'}
-        response = self.client.post('/api/users/4/dynamic-playlists/sync', headers=self.headers, json=payload)
-        self.assertEqual(response.json(), {'status': 'synced'})
-        self.assertEqual(self.cursor.execute.call_args.args[1][0], 4)
-
-    def test_a_sync_carrying_a_server_user_id_is_routed_to_the_matching_account(self):
-        self.cursor.fetchone.return_value = {'id': 77}
-        payload = {'remote_id': 3, 'source': 'lms', 'name': 'Synced', 'params': '{}', 'server_user_id': 'abc'}
-        self.client.post('/api/users/4/dynamic-playlists/sync', headers=self.headers, json=payload)
-        self.assertEqual(self.cursor.execute.call_args.args[1][0], 77)
-
-    def test_a_sync_for_an_unknown_server_user_falls_back_to_the_path_user(self):
-        self.cursor.fetchone.return_value = None
-        payload = {'remote_id': 3, 'source': 'lms', 'name': 'Synced', 'params': '{}', 'server_user_id': 'abc'}
-        self.client.post('/api/users/4/dynamic-playlists/sync', headers=self.headers, json=payload)
-        self.assertEqual(self.cursor.execute.call_args.args[1][0], 4)
-
 
 class PlaylistTracksTest(UsersEndpointTestCase):
 

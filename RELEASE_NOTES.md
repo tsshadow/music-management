@@ -11,6 +11,26 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+### Added
+- **Diagnostiek versturen zonder op een crash te wachten.** Crashrapportage kwam pas bij de
+  volgende start op gang, en alleen als de app echt was gestopt. Bij een mislukte call of een leeg
+  scherm blijft de app draaien, dus dat bereikte de server nooit. In Instellingen staat nu "Send
+  diagnostics now" onder Muma: die stuurt het log van de huidige sessie op en zet een kopie in
+  Downloads/UltrasonicLogs. De knop staat bewust buiten de debug-categorie, want die is verborgen
+  in release builds. Anders dan het automatische rapport trekt hij zich niets aan van de
+  "Crash detection"-schakelaar — op de knop drukken is toestemming genoeg — en hij gooit nooit een
+  crashbestand weg dat nog niet gerapporteerd is.
+
+## Global Version 0.0.61 (2026-08-02)
+
+### ⭐ De sterknop in Android Auto zet nu een cijfer
+- De knop zette voorheen alleen de favoriet-vlag aan of uit. De waardering van 1 tot 5 sterren —
+  waar de rest van de app op sorteert en filtert — was vanuit de auto niet te bereiken.
+- De knop loopt nu door zes standen: een lege ster voor geen waardering, daarna een ster met het
+  cijfer 1 tot en met 5 erin, en vanaf 5 weer terug naar leeg.
+- Favorieten blijven op de telefoon gewoon werken; alleen hun knop in de auto vervalt. Zo blijven
+  shuffle en herhalen op de hoofdbalk staan in plaats van in het overloopmenu.
+
 ## Global Version 0.0.60 (2026-08-02)
 
 ### 👤 De artiestenpagina begint nu bij de artiest

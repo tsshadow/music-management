@@ -253,3 +253,46 @@ def test_artist_cover_art_falls_back_to_release_artwork(admin_credentials, media
     assert resp.status_code == 200, resp.text[:500]
     assert resp.headers.get("Content-Type", "").startswith("image/")
     assert len(resp.content) > 0
+
+
+def test_get_memories_answers_with_a_memories_node(admin_credentials, media_library):
+    """The endpoint both clients read for the "today, X years ago" screens.
+
+    The fixture library carries no day-precision release dates, so an EMPTY answer
+    is the expected pass here: what is being proven is that the endpoint exists,
+    authenticates, and returns a well-formed success response rather than an error.
+    Asserting on a non-empty list would make this test depend on the calendar.
+    """
+    username, password = admin_credentials
+
+    resp = _subsonic_get("getMemories.view", username, password, date="2026-08-02")
+
+    assert resp.status_code == 200, resp.text[:500]
+    body = resp.json()["subsonic-response"]
+    assert body["status"] == "ok", body
+    assert "memories" in body, body
+
+
+def test_get_memories_rejects_an_unparseable_date(admin_credentials):
+    """A malformed date is a client error, not an empty result."""
+    username, password = admin_credentials
+
+    resp = _subsonic_get("getMemories.view", username, password, date="2020-13-45")
+
+    assert resp.status_code == 200, resp.text[:500]
+    body = resp.json()["subsonic-response"]
+    assert body["status"] == "failed", body
+    assert body["error"]["code"] == 10, body
+
+
+def test_get_memories_clamps_absurd_parameters(admin_credentials, media_library):
+    """Out-of-range paging values are clamped into range rather than rejected."""
+    username, password = admin_credentials
+
+    resp = _subsonic_get(
+        "getMemories.view", username, password, date="2026-08-02", windowDays=999, maxPerYear=0
+    )
+
+    assert resp.status_code == 200, resp.text[:500]
+    body = resp.json()["subsonic-response"]
+    assert body["status"] == "ok", body

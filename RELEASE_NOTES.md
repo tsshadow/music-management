@@ -11,6 +11,22 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+### 🕰️ Memories: wat er op deze dag werd uitgebracht
+- De bibliotheek bevat releasedatums waar tot nu toe niets mee gebeurde. De webinterface en de
+  Android-app openen nu met een korte rij "Vandaag, 8 jaar geleden", met daarachter een volledig
+  scherm met per jaar een sectie die je in één tik afspeelt.
+- Alleen tags met een volledige datum kunnen zeggen wat er op een bepaalde dag gebeurde; een tag
+  met alleen een jaar, of alleen een jaar en een maand, verschijnt dus niet.
+- Levert een dag geen enkele treffer op, dan wordt er drie dagen naar beide kanten gekeken. In dat
+  geval staat er "deze week" in plaats van "vandaag", zodat de kop nooit meer precisie claimt dan
+  de tags hebben.
+- De rij op de startpagina kun je uitzetten in de instellingen. Memories zelf blijft staan waar het
+  staat: in de zijbalk op het web, en in het Bibliotheek-tabblad op Android.
+- Je apparaat stuurt zijn eigen datum mee, dus een telefoon in een andere tijdzone krijgt zijn
+  eigen "vandaag".
+- Het aanvullen van ontbrekende releasedatums via MusicBrainz of Discogs is apart werk en zit hier
+  nog niet in.
+
 ## Global Version 0.0.60 (2026-08-02)
 
 ### 👤 De artiestenpagina begint nu bij de artiest

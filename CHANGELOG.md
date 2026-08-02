@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Memories: what was released on this day, in earlier years.** The library holds release dates
+  it never showed you anything with; the web interface and the Android app now open on a short row
+  of them — "Today, 8 years ago" — with a full screen behind it that lists one section per year,
+  each playable in one tap. Only tags carrying a complete date can say what happened on a given
+  day, so a tag with just a year, or just a year and a month, never appears. A day with no exact
+  match widens to three days either side rather than showing nothing, and says "this week" instead
+  of "today" when it does, so the heading never claims a precision the tags do not have. The row on
+  the home screen can be switched off in settings; the Memories screen itself stays where it is,
+  in the web sidebar and in the Android Library tab. Served by one new LMS endpoint,
+  `/rest/getMemories`, which both clients read; the device sends its own date, so a phone in
+  another time zone gets its own today. Filling in the release dates that are still missing, from
+  MusicBrainz or Discogs, is a separate piece of work and is not part of this.
+
 ## [0.0.60] - 2026-08-02
 
 ### Added

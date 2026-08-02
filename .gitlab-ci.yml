@@ -195,7 +195,11 @@ music-management:unit:
     - ./scripts/test/music-management-unit.sh
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
+    # A test report that is only uploaded when the job succeeds is useless: the
+    # run worth inspecting is the failed one.
+    when: always
     reports:
+      junit: report-python.xml
       coverage_report:
         coverage_format: cobertura
         path: coverage-python.xml
@@ -250,7 +254,9 @@ ultrasonic:check:
     - ./scripts/test/ultrasonic-unit.sh
   coverage: '/Total.*?(\d+(?:\.\d+)?\%)/'
   artifacts:
+    when: always
     reports:
+      junit: services/ultrasonic/ultrasonic/build/test-results/**/TEST-*.xml
       coverage_report:
         coverage_format: cobertura
         path: cobertura-ultrasonic.xml

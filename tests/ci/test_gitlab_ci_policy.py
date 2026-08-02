@@ -144,6 +144,23 @@ def test_secret_scanning_runs_on_release_branches():
     assert any(rule == [".release_rule", "rules"] for rule in job["rules"])
 
 
+def test_python_and_android_units_publish_junit():
+    """Without this, a failed test is only visible by reading the raw log."""
+    ci = load_ci()
+    for name, path in [
+        ("music-management:unit", "report-python.xml"),
+        ("ultrasonic:check", "services/ultrasonic/ultrasonic/build/test-results/**/TEST-*.xml"),
+    ]:
+        assert ci[name]["artifacts"]["reports"]["junit"] == path
+
+
+def test_junit_artifacts_are_uploaded_even_when_the_job_fails():
+    """A report that only appears on success is exactly backwards."""
+    ci = load_ci()
+    for name in ["music-management:unit", "ultrasonic:check"]:
+        assert ci[name]["artifacts"]["when"] == "always"
+
+
 def test_secret_scanning_is_not_allowed_to_fail():
     """Unlike the dependency audit it needs no third-party service, so a
     failure here is a finding rather than an outage."""

@@ -48,6 +48,7 @@ python3 -m pytest -p no:warnings \
     --cov-report=term \
     --cov-report=xml:coverage-python.xml \
     --cov-fail-under="$COVERAGE_MIN" \
+    --junitxml=report-python.xml \
     "${TEST_TARGETS[@]}" "$@"
 PYTEST_STATUS=$?
 set -e

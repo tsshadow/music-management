@@ -23,6 +23,9 @@ coverage/
 coverage-python.xml
 coverage-lms.xml
 cobertura-ultrasonic.xml
+# JUnit report, published by music-management:unit so failures show up in the
+# merge request instead of only in the raw job log.
+report-python.xml
 htmlcov/
 .coverage
 .coverage.*

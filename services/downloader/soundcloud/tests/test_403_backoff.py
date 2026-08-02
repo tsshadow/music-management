@@ -1,3 +1,4 @@
+import contextlib
 import unittest
 from datetime import datetime
 from unittest.mock import patch
@@ -114,10 +115,8 @@ class TestSoundcloud403Backoff(unittest.TestCase):
         self._fail_with_403(mock_ytdlp)
         downloader = self._downloader()
         for name in ('a', 'b', 'c'):
-            try:
+            with contextlib.suppress(RateLimited):
                 downloader.download_url(f'http://soundcloud.com/{name}/tracks')
-            except RateLimited:
-                pass
         self.assertEqual(self._rate_state().cooldown_remaining(), 240)
 
     @patch('services.downloader.soundcloud.soundcloud.YoutubeDL')

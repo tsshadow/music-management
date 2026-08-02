@@ -14,6 +14,7 @@ profile is mounted read-only in the worker and is never written to.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import shutil
@@ -61,7 +62,5 @@ def _checkpoint(database: str) -> None:
     finally:
         connection.close()
     for suffix in _SIDECARS:
-        try:
+        with contextlib.suppress(OSError):
             os.remove(database + suffix)
-        except OSError:
-            pass

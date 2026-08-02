@@ -14,6 +14,8 @@ import org.mockito.Answers
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import okhttp3.ResponseBody
 import retrofit2.Call
@@ -104,6 +106,36 @@ class CoverArtRequestHandlerTest {
 
         response.loadedFrom `should be equal to` Picasso.LoadedFrom.NETWORK
         response.source `should not be` null
+    }
+
+    @Test
+    fun `Should not ask the server again after it answered 404`() {
+        val handler = CoverArtRequestHandler(mockApiClient, CoverArtFailureCache())
+        whenever(mockApiClient.toStreamResponse(any()))
+            .thenReturn(StreamResponse(null, null, 404))
+
+        handler.tryLoad("gone")
+        handler.tryLoad("gone")
+
+        verify(mockApi, times(1)).getCoverArt(any(), any())
+    }
+
+    @Test
+    fun `Should keep asking after a server error`() {
+        val handler = CoverArtRequestHandler(mockApiClient, CoverArtFailureCache())
+        whenever(mockApiClient.toStreamResponse(any()))
+            .thenReturn(StreamResponse(null, null, 502))
+
+        handler.tryLoad("flaky")
+        handler.tryLoad("flaky")
+
+        verify(mockApi, times(2)).getCoverArt(any(), any())
+    }
+
+    /** Every load in these two tests is expected to fail; only the request count is interesting. */
+    private fun CoverArtRequestHandler.tryLoad(id: String) = try {
+        load(createLoadCoverArtRequest(id).buildRequest(), 0)
+    } catch (_: IOException) {
     }
 
     private fun Uri.buildRequest() = Request.Builder(this).stableKey("-1").build()

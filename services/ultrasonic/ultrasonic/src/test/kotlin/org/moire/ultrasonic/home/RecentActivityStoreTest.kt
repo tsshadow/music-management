@@ -2,6 +2,7 @@ package org.moire.ultrasonic.home
 
 import android.content.SharedPreferences
 import org.amshove.kluent.`should be equal to`
+import org.amshove.kluent.shouldBeNull
 import org.junit.Test
 
 class RecentActivityStoreTest {
@@ -101,66 +102,34 @@ class RecentActivityStoreTest {
 
         store(preferences = preferences).recent(setsMode = false) `should be equal to` emptyList()
     }
-}
 
-/** Minimal in-memory [SharedPreferences]; only the string operations the store uses are real. */
-private class FakePreferences : SharedPreferences {
-    private val values = mutableMapOf<String, String?>()
+    @Test
+    fun `updateCoverArt fills in the artwork of a stored card`() {
+        val store = store()
+        store.record(card("1", HomeCardType.ARTIST), setsMode = false)
 
-    override fun getString(key: String?, defValue: String?): String? = values[key] ?: defValue
+        store.updateCoverArt("ARTIST:1", "muma-41-0", setsMode = false)
 
-    override fun edit(): SharedPreferences.Editor = FakeEditor(values)
-
-    override fun getAll(): MutableMap<String, *> = values
-    override fun getStringSet(key: String?, defValues: MutableSet<String>?) = defValues
-    override fun getInt(key: String?, defValue: Int) = defValue
-    override fun getLong(key: String?, defValue: Long) = defValue
-    override fun getFloat(key: String?, defValue: Float) = defValue
-    override fun getBoolean(key: String?, defValue: Boolean) = defValue
-    override fun contains(key: String?) = values.containsKey(key)
-
-    override fun registerOnSharedPreferenceChangeListener(
-        listener: SharedPreferences.OnSharedPreferenceChangeListener?
-    ) = Unit
-
-    override fun unregisterOnSharedPreferenceChangeListener(
-        listener: SharedPreferences.OnSharedPreferenceChangeListener?
-    ) = Unit
-}
-
-private class FakeEditor(
-    private val values: MutableMap<String, String?>
-) : SharedPreferences.Editor {
-    private val pending = mutableMapOf<String, String?>()
-
-    override fun putString(key: String?, value: String?): SharedPreferences.Editor {
-        if (key != null) pending[key] = value
-        return this
+        store.recent(setsMode = false).single().coverArtId `should be equal to` "muma-41-0"
     }
 
-    override fun apply() {
-        values.putAll(pending)
-        pending.clear()
+    @Test
+    fun `updateCoverArt keeps entries past the visible slice`() {
+        val store = store()
+        repeat(12) { store.record(card("$it"), setsMode = false) }
+
+        store.updateCoverArt("ALBUM:0", "art-7-0", setsMode = false)
+
+        store.recent(setsMode = false, limit = 100).size `should be equal to` 12
     }
 
-    override fun commit(): Boolean {
-        apply()
-        return true
-    }
+    @Test
+    fun `updateCoverArt ignores a card that is no longer stored`() {
+        val store = store()
+        store.record(card("1"), setsMode = false)
 
-    override fun remove(key: String?): SharedPreferences.Editor {
-        if (key != null) values.remove(key)
-        return this
-    }
+        store.updateCoverArt("ARTIST:nope", "muma-41-0", setsMode = false)
 
-    override fun clear(): SharedPreferences.Editor {
-        values.clear()
-        return this
+        store.recent(setsMode = false).single().coverArtId.shouldBeNull()
     }
-
-    override fun putStringSet(key: String?, values: MutableSet<String>?) = this
-    override fun putInt(key: String?, value: Int) = this
-    override fun putLong(key: String?, value: Long) = this
-    override fun putFloat(key: String?, value: Float) = this
-    override fun putBoolean(key: String?, value: Boolean) = this
 }

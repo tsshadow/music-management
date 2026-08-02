@@ -43,6 +43,25 @@ class RecentActivityStore(
     fun recent(setsMode: Boolean, limit: Int = DEFAULT_LIMIT): List<HomeCard> =
         read(keyFor(setsMode)).take(limit)
 
+    /**
+     * Fills in the cover art of an already stored card.
+     *
+     * A card is written once, when it is opened, so one that was stored without artwork -- an
+     * artist the server had no picture for at the time -- would otherwise keep its blank forever.
+     * Reads and writes the whole history rather than the visible slice, so entries past the
+     * shortcuts grid are not dropped.
+     */
+    fun updateCoverArt(cardKey: String, coverArtId: String, setsMode: Boolean) {
+        val key = keyFor(setsMode)
+        val cards = read(key)
+        val index = cards.indexOfFirst { it.key == cardKey }
+
+        if (index == -1) return
+
+        cards[index] = cards[index].copy(coverArtId = coverArtId)
+        preferences.edit { putString(key, gson.toJson(cards)) }
+    }
+
     private fun keyFor(setsMode: Boolean): String = when {
         !separatePerMode() -> KEY_SHARED
         setsMode -> KEY_SETS

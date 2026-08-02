@@ -11,7 +11,7 @@ import logging
 import random
 import threading
 import time
-from typing import Iterable, List, Optional
+from collections.abc import Iterable
 
 from services.downloader.account_schedule import AccountSchedule
 from services.downloader.rate_state import RateLimited, RateState, SweepAborted
@@ -26,7 +26,7 @@ class SweepPolicy:
     database. Tests hand in all three and stay off the database entirely.
     """
 
-    def __init__(self, source: str, timing: Optional[DownloaderTiming] = None,
+    def __init__(self, source: str, timing: DownloaderTiming | None = None,
                  rate_state=None, schedule=None) -> None:
         self.source = source
         self.timing = timing if timing is not None else load_timing_for(source)
@@ -47,7 +47,7 @@ class SweepPolicy:
         self.stop.clear()
         return True
 
-    def due(self, accounts: Iterable[str]) -> List[str]:
+    def due(self, accounts: Iterable[str]) -> list[str]:
         """The accounts that have not been checked within the cooldown."""
         return self.schedule.due(accounts, self.timing.account_cooldown)
 
@@ -64,7 +64,7 @@ class SweepPolicy:
                         reason, target, self.source, wait, self.rate_state.multiplier)
         return RateLimited(self.source, wait, reason)
 
-    def rate_limit_from(self, error: Exception, target: str) -> Optional[RateLimited]:
+    def rate_limit_from(self, error: Exception, target: str) -> RateLimited | None:
         """Turn a 403 or 429 into a `RateLimited`; return None for anything else."""
         message = str(error)
         if '429' in message:

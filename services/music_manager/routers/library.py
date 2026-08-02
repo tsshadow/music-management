@@ -1,18 +1,23 @@
-import os
 import logging
-from typing import Optional
-from fastapi import APIRouter, HTTPException, Header, Depends, Query, BackgroundTasks
-from services.music_manager.database import get_db_connection
-from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
+import os
+
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
+
 from services.common.config_store import ConfigStore as Settings
+from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
+from services.music_manager.database import get_db_connection
 from services.music_manager.routers.analytics_filters import (
-    FROM_CLAUSE, LibraryFilter, build_filter, parse_filter,
+    FROM_CLAUSE,
+    LibraryFilter,
+    build_filter,
+    parse_filter,
 )
+
 router = APIRouter(tags=['library'])
 settings = Settings()
 API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
 
-def verify_api_key(x_api_key: Optional[str]=Header(None)):
+def verify_api_key(x_api_key: str | None=Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
     if API_KEY and x_api_key == API_KEY:
@@ -143,8 +148,8 @@ def rerun_parse(track_id: int, _auth: dict=Depends(verify_api_key)):
             helper = ProcessedFilesHelper()
             helper.mark_for_rescan(filepath)
             try:
-                from services.music_manager.routers.tagger import tagger_manager
                 from services.music_manager.routers.scanner import scanner_manager
+                from services.music_manager.routers.tagger import tagger_manager
                 tagger_manager.tag_single(filepath)
                 logging.info(f'Successfully executed immediate tagger rescan for {filepath}')
                 scanner_manager.scan_single(filepath)
@@ -165,8 +170,8 @@ def rerun_parse_path(path: str=Query(...), _auth: dict=Depends(verify_api_key)):
     helper = ProcessedFilesHelper()
     helper.mark_for_rescan(filepath)
     try:
-        from services.music_manager.routers.tagger import tagger_manager
         from services.music_manager.routers.scanner import scanner_manager
+        from services.music_manager.routers.tagger import tagger_manager
         tagger_manager.tag_single(filepath)
         logging.info(f'Successfully executed immediate tagger rescan for {filepath}')
         scanner_manager.scan_single(filepath)

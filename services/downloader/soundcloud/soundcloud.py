@@ -4,15 +4,17 @@ import math
 import os
 import time
 from pathlib import Path
-from typing import Optional
+
 from yt_dlp import YoutubeDL
-from yt_dlp.postprocessor import FFmpegMetadataPP, EmbedThumbnailPP
-from services.common.Helpers.DatabaseConnector import DatabaseConnector
+from yt_dlp.postprocessor import EmbedThumbnailPP, FFmpegMetadataPP
+
 from services.common.config_store import ConfigStore
+from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.job_manager import job_manager
 from services.downloader.rate_state import RateLimited, SweepAborted
-from services.downloader.sweep import SweepPolicy
 from services.downloader.soundcloud.SoundcloudArchive import SoundcloudArchive
+from services.downloader.sweep import SweepPolicy
+
 from .SoundcloudSongProcessor import SoundcloudSongProcessor
 
 SOURCE = 'soundcloud'
@@ -147,7 +149,7 @@ class SoundcloudDownloader:
                 time.sleep(5 * attempt)
         logging.error(f'SoundCloud download failed for {url} after {self.timing.retry_attempts} attempts.')
 
-    def run(self, account: str='', break_on_existing_arg: Optional[bool]=None, redownload: bool=False):
+    def run(self, account: str='', break_on_existing_arg: bool | None=None, redownload: bool=False):
         if not getattr(self, 'downloader_config', {}).get('enabled', True):
             logging.warning('SoundCloud soundcloud is not configured; skipping run().')
             return

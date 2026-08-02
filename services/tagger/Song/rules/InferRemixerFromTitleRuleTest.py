@@ -1,7 +1,9 @@
 import unittest
 from unittest.mock import MagicMock
+
+from services.tagger.constants import ARTIST, REMIXER, TITLE
 from services.tagger.Song.rules.InferRemixerFromTitleRule import InferRemixerFromTitleRule
-from services.tagger.constants import ARTIST, TITLE, REMIXER
+
 
 class InferRemixerFromTitleRuleTest(unittest.TestCase):
 

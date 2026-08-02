@@ -1,13 +1,15 @@
 import logging
 import os
+import re
 import shutil
 from os import listdir
 from os.path import isfile, join
-import re
+
 from services.common.config_store import ConfigStore as Settings
 
+
 def has_numbers(input_string):
-    return any((char.isdigit() for char in input_string))
+    return any(char.isdigit() for char in input_string)
 
 def is_parsed(folder):
     return '- ' in folder

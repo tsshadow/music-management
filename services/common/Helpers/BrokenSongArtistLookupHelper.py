@@ -1,5 +1,7 @@
 import logging
+
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+
 
 class BrokenSongArtistLookupHelper:
     """

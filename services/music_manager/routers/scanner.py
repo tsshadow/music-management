@@ -1,21 +1,22 @@
-import os
-import time
 import hashlib
 import logging
+import os
 import threading
+import time
 from pathlib import Path
-import pymysql
-from typing import Optional
-from fastapi import APIRouter, BackgroundTasks, Query, HTTPException, Header, Depends
+
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
+
 from services.common.config_store import ConfigStore as Settings
+from services.common.Helpers.GenreRulesHelper import BLACK, GenreRulesHelper
 from services.music_manager.database import get_db_connection
 from services.scanner.Song.ReadonlySong import ReadonlySong
 from services.tagger.Song.BaseSong import ExtensionNotSupportedException
-from services.common.Helpers.GenreRulesHelper import GenreRulesHelper, BLACK
+
 router = APIRouter(tags=['scanner'])
 logger = logging.getLogger('music-manager.scanner')
 
-async def verify_api_key(x_api_key: Optional[str]=Header(None)):
+async def verify_api_key(x_api_key: str | None=Header(None)):
     """Same system-or-user API key check the other routers use.
 
     Delegates rather than re-implementing it (as library.py/management.py do) so there is one
@@ -161,7 +162,7 @@ class ScannerManager:
             title = song.title()
             duration = song.length()
             primary_artist_id = artist_ids[0] if artist_ids else None
-            track_uid = hashlib.sha256(f'{title}-{duration}-{primary_artist_id}'.encode('utf-8')).hexdigest()
+            track_uid = hashlib.sha256(f'{title}-{duration}-{primary_artist_id}'.encode()).hexdigest()
             cursor.execute('\n                INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id)\n                VALUES (%s, %s, %s, %s)\n                ON DUPLICATE KEY UPDATE title=%s, duration_secs=%s, primary_artist_id=%s\n            ', (track_uid, title, duration, primary_artist_id, title, duration, primary_artist_id))
             cursor.execute('SELECT id FROM library_tracks WHERE track_uid = %s', (track_uid,))
             track_id = cursor.fetchone()['id']

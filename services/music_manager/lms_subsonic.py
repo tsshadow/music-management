@@ -6,6 +6,7 @@ user through its auth-token service (see SubsonicResource.cpp:517-519).
 import logging
 import os
 import random
+
 import requests
 
 logger = logging.getLogger('music-manager.lms-subsonic')

@@ -1,16 +1,20 @@
 import logging
 import os
-import pymysql.cursors
 from datetime import datetime
-from .normalizer import ArtistNameNormalizer
+
+import pymysql.cursors
+from dotenv import load_dotenv
+
+from services.common.Helpers.DatabaseConnector import DatabaseConnector
+
 from .matcher import ArtistMatcher
-from .storage import ImageStorage, ImageDownloader
-from .providers.spotify import SpotifyArtistImageProvider
+from .normalizer import ArtistNameNormalizer
 from .providers.lastfm import LastFmArtistImageProvider
 from .providers.musicbrainz import MusicBrainzArtistProvider
 from .providers.soundcloud import SoundCloudArtistImageProvider
-from services.common.Helpers.DatabaseConnector import DatabaseConnector
-from dotenv import load_dotenv
+from .providers.spotify import SpotifyArtistImageProvider
+from .storage import ImageDownloader, ImageStorage
+
 load_dotenv()
 
 class ArtistImageFetcher:
@@ -146,9 +150,9 @@ class ArtistImageFetcher:
         manifest = []
         if os.path.exists(manifest_path):
             try:
-                with open(manifest_path, 'r') as f:
+                with open(manifest_path) as f:
                     manifest = json.load(f)
-            except:
+            except (OSError, ValueError):
                 manifest = []
         manifest = [e for e in manifest if e['artist_id'] != artist_id]
         manifest.append({'artist_id': artist_id, 'name': artist_name, 'image': meta['public_path'], 'primary_jpg': f'{self.storage.public_base_url}/{artist_id}/primary.jpg', 'thumb_160': f'{self.storage.public_base_url}/{artist_id}/thumb_160.jpg', 'source': candidate['source'], 'confidence': candidate['confidence'], 'updated_at': datetime.now().isoformat()})

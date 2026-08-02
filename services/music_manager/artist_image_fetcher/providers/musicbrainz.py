@@ -1,7 +1,10 @@
-import requests
 import logging
 import time
+
+import requests
+
 from .base import ArtistImageProvider
+
 
 class MusicBrainzArtistProvider(ArtistImageProvider):
     API_URL = 'https://musicbrainz.org/ws/2/artist'
@@ -48,7 +51,6 @@ class MusicBrainzArtistProvider(ArtistImageProvider):
             metadata = {'mbid': artist.get('id'), 'name': artist.get('name'), 'external_ids': {}}
             relations = artist.get('relations', [])
             for rel in relations:
-                target_type = rel.get('target-type')
                 url_data = rel.get('url', {})
                 resource = url_data.get('resource', '')
                 if 'spotify.com/artist/' in resource:

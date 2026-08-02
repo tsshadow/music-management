@@ -1,6 +1,7 @@
 import logging
-import requests
+
 from .base import ArtistImageProvider
+
 
 class SoundCloudArtistImageProvider(ArtistImageProvider):
 

@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
+
 from services.common.Helpers.TableHelper import TableHelper
+
 
 class TableHelperTest(unittest.TestCase):
 

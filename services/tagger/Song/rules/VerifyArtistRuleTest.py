@@ -2,9 +2,11 @@ import sys
 import types
 import unittest
 from unittest.mock import MagicMock, patch
+
 sys.modules.setdefault('requests', types.ModuleType('requests'))
-from services.tagger.Song.rules.VerifyArtistRule import VerifyArtistRule
 from services.tagger.Song.rules.TagResult import TagResultType
+from services.tagger.Song.rules.VerifyArtistRule import VerifyArtistRule
+
 
 class VerifyArtistRuleTest(unittest.TestCase):
 

@@ -50,7 +50,12 @@
 - Test: Vitest (jsdom) via `npm run test:unit` / `npm run coverage`, sources in `tests/unit/` (`store`,
   `downloaderTiming`, `genreCuration`); browser smoke test in `tests/browser/` via Playwright. Run in CI by
   `scripts/test/frontend-unit.sh` (lint + `svelte-check` + coverage) and `scripts/test/frontend-browser.sh`.
-  Component rendering is not covered yet: the unit tests target the plain-JS modules the components delegate to
+  Component rendering is covered for a handful of screens (`generalSettings`, `librariesTab`,
+  `scannerTab`, `artistImagesTab`, `usersTabSubsonicToken`, `aboutSettings`); the rest of the unit
+  tests target the plain-JS modules the components delegate to
+- **Least-covered part of the repository**: 235 tests over 54 components, ~22% statements. The
+  `thresholds` in `vite.config.js` are a ratchet just under the current numbers so it cannot erode;
+  raise them as coverage climbs
 - Lint: `npm run lint` (`oxlint` + `eslint`), format: `npm run format` (`oxfmt`), typecheck: `npm run check` (`svelte-check`)
 - Dockerfile: first build stage of `services/music-management-server/Dockerfile-release` (`node:24-alpine`) — frontend has no own Dockerfile under `docker/`
 
@@ -76,6 +81,20 @@
 
 ### common
 - Shared helpers (`config_store.py`, `db_init.py`, `job_manager.py`, `step.py`, `version_helper.py`) — partly covered directly (`TableHelperTest.py`, `FilterTableHelperTest.py`, `LookupTableHelperTest.py`, `FestivalHelperTest.py`, `NotificationServiceTest.py`, `ProcessedFilesHelperTest.py`), the rest indirectly via dependent modules
+
+## Database integration tests (`tests/integration/`)
+- Runs every endpoint's SQL against a throwaway MariaDB: `./scripts/test/db-integration.sh`.
+- Lives outside `services/` on purpose. pytest only loads conftest files along the path to a
+  test, so from there the real `pymysql` is used rather than the `mock_base` stub -- which is
+  the entire point, since everything under `services/` mocks the cursor.
+- Builds the schema the way a deployment does: `services/common/db_init.py`, then every
+  router's `init_db()`, then every `migrate_*.sql`. The migrations are applied twice, so one
+  that is not re-runnable fails here rather than on deploy.
+- Covers 37 read endpoints (every GET that touches the database), the user lifecycle, dynamic
+  playlists under all four sort methods, genre curation and expansions, library reads,
+  scrobble matching, and the download-account round trips.
+- **Adding a read endpoint means adding it to `READ_ENDPOINTS` in
+  `tests/integration/test_router_sql.py`** -- that list is what keeps the gap closed.
 
 ## Existing root-level test infrastructure
 - `pytest.ini`: `pythonpath = services .`, test patterns `*Test.py` and `test_*.py`, `norecursedirs = modules/scrobbler`

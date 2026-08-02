@@ -1,5 +1,7 @@
 import re
+
 from services.tagger.constants import ARTIST_REGEX
+
 
 def split_artists(artist_str: str) -> list[str]:
     raw = re.sub(ARTIST_REGEX, ';', artist_str)

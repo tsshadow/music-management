@@ -1,7 +1,9 @@
 import re
+
+from services.tagger.constants import ARTIST, TITLE
 from services.tagger.Song.rules.TagRule import TagRule
 from services.tagger.Song.SongHelper import split_artists
-from services.tagger.constants import TITLE, ARTIST
+
 
 class InferFeatureFromTitleRule(TagRule):
     """

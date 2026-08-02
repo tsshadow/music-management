@@ -1,21 +1,45 @@
 import logging
 import os
+
 from mutagen.easyid3 import EasyID3
 from mutagen.easymp4 import EasyMP4Tags
 from mutagen.flac import FLAC
 from mutagen.id3 import TXXX, TextFrame
 from mutagen.mp3 import MP3
-from mutagen.mp4 import MP4, MP4StreamInfoError, MP4FreeForm
+from mutagen.mp4 import MP4, MP4FreeForm, MP4StreamInfoError
 from mutagen.oggopus import OggOpus
 from mutagen.wave import WAVE
+
 from services.common.config_store import ConfigStore as Settings
-from services.tagger.Song.Tag import Tag
-from services.tagger.Song.TagCollection import TagCollection
+from services.tagger.constants import (
+    ALBUM,
+    ALBUM_ARTIST,
+    ARTIST,
+    BPM,
+    CATALOG_NUMBER,
+    COPYRIGHT,
+    DATE,
+    FESTIVAL,
+    GENRE,
+    PARSED,
+    PUBLISHER,
+    RATING,
+    REMIXER,
+    TITLE,
+    TRACK_NUMBER,
+    FLACTags,
+    MP4Tags,
+    MusicFileType,
+    OPUSTags,
+    WAVTags,
+)
 from services.tagger.Song.rules.AnalyzeBpmRule import AnalyzeBpmRule
 from services.tagger.Song.rules.CleanTitleRule import CleanTitleRule
 from services.tagger.Song.rules.NormalizeFlacTagsRule import NormalizeFlacTagsRule
 from services.tagger.Song.rules.TagRule import TagRule
-from services.tagger.constants import MusicFileType, GENRE, FLACTags, ARTIST, TRACK_NUMBER, TITLE, DATE, MP4Tags, ALBUM, ALBUM_ARTIST, BPM, CATALOG_NUMBER, FESTIVAL, PUBLISHER, REMIXER, PARSED, COPYRIGHT, WAVTags, OPUSTags, RATING
+from services.tagger.Song.Tag import Tag
+from services.tagger.Song.TagCollection import TagCollection
+
 LOG_FILE = 'broken-files.log'
 s = Settings()
 analyze_bpm = False

@@ -1,5 +1,7 @@
 import unittest
+
 from services.tagger.Song.Tag import Tag
+
 
 class TestTag(unittest.TestCase):
 

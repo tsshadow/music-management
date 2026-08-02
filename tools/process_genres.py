@@ -1,6 +1,6 @@
 import json
-import re
 import os
+import re
 import sys
 
 # Add project root to path to import services
@@ -74,10 +74,7 @@ def is_junk(value):
     val_lower = value.lower().strip()
     if len(val_lower) < 2:
         return True
-    for pattern in JUNK_PATTERNS:
-        if re.match(pattern, val_lower):
-            return True
-    return False
+    return any(re.match(pattern, val_lower) for pattern in JUNK_PATTERNS)
 
 def get_correction(value):
     val_lower = value.lower().strip()
@@ -112,7 +109,7 @@ class MockHelper:
 def process_genres(json_file=None, dry_run=True, interactive=False):
     genres_list = []
     if json_file:
-        with open(json_file, 'r') as f:
+        with open(json_file) as f:
             data = json.load(f)
         genres_list = [{'value': item['value']} for item in data['subsonic-response']['rules_genres']['genre']]
     

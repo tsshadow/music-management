@@ -1,12 +1,13 @@
-import os
 import logging
-from typing import Optional
+import os
+
 import requests
+
 
 class DiscogsLookup:
     API_URL = 'https://api.discogs.com/database/search'
 
-    def __init__(self, token: Optional[str]=None):
+    def __init__(self, token: str | None=None):
         self.name = 'Discogs'
         self.token = token or os.getenv('DISCOGS_TOKEN')
 
@@ -47,7 +48,7 @@ class MusicBrainzLookup:
 class LastfmLookup:
     API_URL = 'https://ws.audioscrobbler.com/2.0/'
 
-    def __init__(self, api_key: Optional[str]=None):
+    def __init__(self, api_key: str | None=None):
         self.name = 'Last.fm'
         self.api_key = api_key or os.getenv('LASTFM_API_KEY')
 
@@ -70,13 +71,13 @@ class SpotifyLookup:
     TOKEN_URL = 'https://accounts.spotify.com/api/token'
     SEARCH_URL = 'https://api.spotify.com/v1/search'
 
-    def __init__(self, client_id: Optional[str]=None, client_secret: Optional[str]=None):
+    def __init__(self, client_id: str | None=None, client_secret: str | None=None):
         self.name = 'Spotify'
         self.client_id = client_id or os.getenv('SPOTIFY_CLIENT_ID')
         self.client_secret = client_secret or os.getenv('SPOTIFY_CLIENT_SECRET')
-        self._token: Optional[str] = None
+        self._token: str | None = None
 
-    def _get_token(self) -> Optional[str]:
+    def _get_token(self) -> str | None:
         if self._token:
             return self._token
         if not self.client_id or not self.client_secret:

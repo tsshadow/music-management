@@ -1,9 +1,11 @@
 import select
 import sys
+
 from services.common.Helpers.FilterTableHelper import FilterTableHelper
 from services.common.Helpers.TableHelper import TableHelper
-from services.tagger.Song.rules.TagRule import TagRule
 from services.tagger.constants import ARTIST
+from services.tagger.Song.rules.TagRule import TagRule
+
 
 class AddMissingArtistToDatabaseRule(TagRule):
     """

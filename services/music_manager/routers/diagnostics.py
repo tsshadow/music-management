@@ -1,6 +1,7 @@
-from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
 from services.music_manager.database import get_db_connection
 from services.music_manager.routers.users import verify_api_key
 
@@ -14,7 +15,7 @@ class CrashReportCreate(BaseModel):
     app_version_code: int
     build_type: str
     ring_buffer_text: str
-    stacktrace_text: Optional[str] = None
+    stacktrace_text: str | None = None
 
 
 def init_db(cursor):

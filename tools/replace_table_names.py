@@ -43,7 +43,7 @@ EXTENSIONS = ('.py', '.sql', '.md', '.txt', '.sh', '.yml', '.yaml')
 EXCLUDE_DIRS = ('.git', '__pycache__', '.venv', 'node_modules', 'backup')
 
 def replace_in_file(file_path):
-    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+    with open(file_path, encoding='utf-8', errors='ignore') as f:
         content = f.read()
     
     original_content = content

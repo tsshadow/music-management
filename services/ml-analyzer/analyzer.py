@@ -1,15 +1,19 @@
+import contextlib
 import hashlib
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+
 import librosa
 import numpy as np
-from sqlalchemy import text, MetaData, Table, Column, Float, String, Integer, Text, Boolean, create_engine
+from dotenv import load_dotenv
+from sqlalchemy import Boolean, Column, Float, Integer, MetaData, String, Table, Text, create_engine, text
 from sqlalchemy.dialects.mysql import insert
 from tqdm import tqdm
-from dotenv import load_dotenv
+
 from services.common.config_store import ConfigStore
+
 load_dotenv()
 
 class TrackAnalyzer:
@@ -77,16 +81,12 @@ class TrackAnalyzer:
         metadata['label_name'] = metadata['label_name'] or tags.get('publisher', [None])[0]
         date = tags.get('date', [None])[0]
         if date and len(date) >= 4:
-            try:
+            with contextlib.suppress(ValueError):
                 metadata['release_year'] = int(date[:4])
-            except ValueError:
-                pass
         bpm = tags.get('bpm', [None])[0]
         if bpm:
-            try:
+            with contextlib.suppress(ValueError):
                 metadata['bpm_tag'] = float(bpm)
-            except ValueError:
-                pass
 
     def _extract_flac_metadata(self, file_path, metadata):
         from mutagen.flac import FLAC
@@ -96,10 +96,8 @@ class TrackAnalyzer:
         metadata['label_name'] = metadata['label_name'] or tags.get('publisher', [None])[0]
         date = tags.get('date', [None])[0]
         if date and len(date) >= 4:
-            try:
+            with contextlib.suppress(ValueError):
                 metadata['release_year'] = int(date[:4])
-            except ValueError:
-                pass
 
     def _extract_m4a_metadata(self, file_path, metadata):
         from mutagen.mp4 import MP4
@@ -109,10 +107,8 @@ class TrackAnalyzer:
         metadata['label_name'] = metadata['label_name'] or tags.get('----:com.apple.iTunes:PUBLISHER', [None])[0]
         date = tags.get('©day', [None])[0]
         if date and len(date) >= 4:
-            try:
+            with contextlib.suppress(ValueError):
                 metadata['release_year'] = int(date[:4])
-            except ValueError:
-                pass
 
     def extract_metadata(self, file_path):
         """Extraheer metadata (tags) uit het audiobestand."""

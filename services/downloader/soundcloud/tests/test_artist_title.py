@@ -1,10 +1,11 @@
 import unittest
-from unittest.mock import MagicMock, patch
-from services.tests.mock_base import setup_mocks, reset_database_helpers
+
+from services.tests.mock_base import reset_database_helpers, setup_mocks
+
 setup_mocks()
+from services.tagger.constants import REMIXER, TITLE
 from services.tagger.Song.SoundcloudSong import SoundcloudSong
-from services.tagger.Song.BaseSong import BaseSong
-from services.tagger.constants import TITLE, ARTIST, REMIXER
+
 
 class TestSoundcloudArtistTitle(unittest.TestCase):
 

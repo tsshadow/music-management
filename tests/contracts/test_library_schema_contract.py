@@ -11,7 +11,6 @@ import os
 
 import pytest
 import requests
-
 from test_lms_subsonic_contract import MUSIC_MANAGER_URL  # noqa: F401 (reused config)
 
 MUMA_API_KEY = os.getenv("API_KEY", "test-api-key")

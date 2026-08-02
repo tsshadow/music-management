@@ -1,11 +1,11 @@
+import sys
 import unittest
 from unittest.mock import MagicMock
-import sys
 
 for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
     sys.modules.setdefault(_mod_name, MagicMock())
 
-from services.common.Helpers.GenreRulesHelper import GenreRulesHelper, GenreRow
+from services.common.Helpers.GenreRulesHelper import GenreRow, GenreRulesHelper
 from services.music_manager.routers.scanner import ScannerManager
 
 

@@ -1,7 +1,9 @@
 import logging
-from services.common.Helpers.GenreRulesHelper import GenreRulesHelper, UNKNOWN
-from services.tagger.Song.rules.TagRule import TagRule
+
+from services.common.Helpers.GenreRulesHelper import UNKNOWN, GenreRulesHelper
 from services.tagger.constants import GENRE
+from services.tagger.Song.rules.TagRule import TagRule
+
 logger = logging.getLogger(__name__)
 
 

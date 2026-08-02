@@ -1,5 +1,6 @@
-from services.tagger.Song.rules.TagRule import TagRule
 from services.tagger.constants import MusicFileType
+from services.tagger.Song.rules.TagRule import TagRule
+
 
 class NormalizeFlacTagsRule(TagRule):
     """Ensures all FLAC tag keys are uppercase and updates the file."""

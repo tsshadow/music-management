@@ -1,9 +1,11 @@
-import os
-import requests
 import hashlib
 import logging
-from PIL import Image
+import os
 from io import BytesIO
+
+import requests
+from PIL import Image
+
 
 class ImageStorage:
 
@@ -19,9 +21,8 @@ class ImageStorage:
         artist_dir = os.path.join(self.storage_path, str(artist_id))
         os.makedirs(artist_dir, exist_ok=True)
         try:
-            img = Image.open(BytesIO(image_data))
+            img: Image.Image = Image.open(BytesIO(image_data))
             width, height = img.size
-            mime_type = Image.MIME.get(img.format, 'image/jpeg')
             file_hash = hashlib.md5(image_data).hexdigest()
             ext = 'jpg'
             base_filename = f'{source}-{file_hash}'
@@ -33,7 +34,7 @@ class ImageStorage:
                 img = img.convert('RGB')
             img = self._square_crop(img)
             img.save(cached_path, 'JPEG', quality=90)
-            thumbnails = self._generate_thumbnails(img, artist_dir, base_filename)
+            self._generate_thumbnails(img, artist_dir, base_filename)
             primary_path = os.path.join(artist_dir, 'primary.jpg')
             img.save(primary_path, 'JPEG', quality=90)
             return {'cached_path': cached_path, 'public_path': f'{self.public_base_url}/{artist_id}/{full_filename}', 'width': img.size[0], 'height': img.size[1], 'mime_type': 'image/jpeg', 'file_size': os.path.getsize(cached_path)}

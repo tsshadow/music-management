@@ -1,20 +1,23 @@
 import logging
 import sys
-from concurrent.futures import as_completed, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+
 from mutagen import MutagenError
 from mutagen.easyid3 import EasyID3
 from mutagen.easymp4 import EasyMP4Tags
+
 from services.common.config_store import ConfigStore as Settings
-from services.tagger.Song.BaseSong import ExtensionNotSupportedException
-from services.tagger.Song.GenericSong import GenericSong
 from services.common.Helpers.BrokenSongHelper import BrokenSongHelper
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
+from services.tagger.constants import SongTypeEnum
+from services.tagger.Song.BaseSong import ExtensionNotSupportedException
+from services.tagger.Song.GenericSong import GenericSong
 from services.tagger.Song.LabelSong import LabelSong
 from services.tagger.Song.SoundcloudSong import SoundcloudSong
 from services.tagger.Song.TelegramSong import TelegramSong
 from services.tagger.Song.YoutubeSong import YoutubeSong
-from services.tagger.constants import SongTypeEnum
+
 EasyID3.RegisterTXXXKey('publisher', 'publisher')
 EasyID3.RegisterTXXXKey('parsed', 'parsed')
 EasyID3.RegisterTXXXKey('festival', 'festival')

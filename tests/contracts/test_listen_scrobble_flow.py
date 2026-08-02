@@ -14,23 +14,20 @@ Proves:
 - repeating the identical scrobble does not create a duplicate listen
   (enforced by the `UNIQUE KEY (username, listened_at, track_id)` constraint).
 """
-import json
 import os
 import subprocess
 import time
-from pathlib import Path
 
 import pytest
 import requests
-
 from test_lms_subsonic_contract import (  # noqa: F401 (reused fixtures)
     LMS_URL,
     MUSIC_MANAGER_URL,
+    _subsonic_get,
     admin_credentials,
     expected_track,
     media_library,
     wait_until,
-    _subsonic_get,
 )
 
 SCAN_TARGET_PATH = "/mnt/music/ci-test-track-001.mp3"

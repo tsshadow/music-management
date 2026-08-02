@@ -1,7 +1,8 @@
-from services.tagger.Song.SongHelper import merge_and_sort_genres
-from services.tagger.Song.rules.TagRule import TagRule
-from services.tagger.constants import ARTIST, GENRE
 from services.common.Helpers.LookupTableHelper import LookupTableHelper
+from services.tagger.constants import ARTIST, GENRE
+from services.tagger.Song.rules.TagRule import TagRule
+from services.tagger.Song.SongHelper import merge_and_sort_genres
+
 
 class InferGenreFromArtistRule(TagRule):
     """

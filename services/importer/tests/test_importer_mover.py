@@ -1,10 +1,13 @@
 import shutil
 import unittest
-from unittest.mock import patch, MagicMock
-from services.tests.mock_base import setup_mocks, reset_database_helpers
+from unittest.mock import MagicMock, patch
+
+from services.tests.mock_base import reset_database_helpers, setup_mocks
+
 setup_mocks()
-from services.importer.mover import Mover, post_processing_songs
 from services.common.Helpers.NotificationService import notification_service
+from services.importer.mover import Mover, post_processing_songs
+
 
 class TestMover(unittest.TestCase):
 

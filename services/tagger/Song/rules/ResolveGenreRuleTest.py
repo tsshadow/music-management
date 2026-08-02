@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import MagicMock
-from services.common.Helpers.GenreRulesHelper import GenreRulesHelper, GenreRow, WHITE, BLACK, UNKNOWN
+
+from services.common.Helpers.GenreRulesHelper import BLACK, UNKNOWN, WHITE, GenreRow, GenreRulesHelper
 from services.tagger.Song.rules.ResolveGenreRule import ResolveGenreRule
 
 ROWS = [GenreRow(1, 'Hardstyle', 'hardstyle', WHITE, None), GenreRow(2, 'Uptempo Hardcore', 'uptempo hardcore', WHITE, None), GenreRow(3, 'uptempo', 'uptempo', BLACK, 2), GenreRow(4, 'Arts', 'arts', BLACK, None), GenreRow(5, 'Terror', 'terror', WHITE, None), GenreRow(6, 'Upterror', 'upterror', BLACK, None)]

@@ -1,19 +1,21 @@
 import argparse
+import faulthandler
 import logging
 import os
 import signal
 import time
-from typing import Callable, Iterable, Optional, Sequence
-import faulthandler
+from collections.abc import Callable, Iterable, Sequence
+
 from services.common.config_store import ConfigStore as Settings
 from services.downloader.sweep import SweepPolicy
+
 faulthandler.register(signal.SIGUSR1)
 
 # Used when the settings cannot be read at all; still far calmer than the five
 # minute loop this service used to run on.
 FALLBACK_SLEEP_SECONDS = 900
 
-def parse_args(argv: Optional[Sequence[str]]=None) -> argparse.Namespace:
+def parse_args(argv: Sequence[str] | None=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Run specific steps of the music downloader service (YouTube, SoundCloud, Telegram)')
     parser.add_argument('--step', help='Comma-separated list of steps to run (youtube,soundcloud,telegram). If omitted, all steps are run.', default='')
     parser.add_argument('--account', help='Optional DJ / account name to limit downloads', default=None)
@@ -29,7 +31,7 @@ def _current_timing(source: str):
     """The effective timing of one source, including its backoff multiplier."""
     return SweepPolicy(source).timing
 
-def sweep_sleep_seconds(steps: Iterable[str], override: Optional[int],
+def sweep_sleep_seconds(steps: Iterable[str], override: int | None,
                         load: Callable[[str], object]=_current_timing) -> int:
     """How long to sleep before the next round of the configured steps.
 

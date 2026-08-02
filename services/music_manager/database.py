@@ -1,7 +1,9 @@
 import os
+
 import pymysql
 from dbutils.pooled_db import PooledDB
 from dotenv import load_dotenv
+
 load_dotenv()
 _pool = None
 

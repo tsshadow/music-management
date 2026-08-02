@@ -1,7 +1,8 @@
-import os
 import json
-from sqlalchemy import create_engine, text
+import os
+
 from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
 
 load_dotenv()
 
@@ -27,7 +28,7 @@ def backup_db():
             # We halen de data op
             data_res = conn.execute(text(f"SELECT * FROM `{table}`"))
             columns = data_res.keys()
-            rows = [dict(zip(columns, row)) for row in data_res]
+            rows = [dict(zip(columns, row, strict=True)) for row in data_res]
             
             # We halen ook de CREATE TABLE statement op
             create_res = conn.execute(text(f"SHOW CREATE TABLE `{table}`"))

@@ -2,13 +2,15 @@ import logging
 import threading
 import time
 from pathlib import Path
-from typing import Optional
-from fastapi import APIRouter, BackgroundTasks, Query, HTTPException, Header, Depends
+
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
+
 from services.tagger.tagger import Tagger, TagSingleFile
+
 router = APIRouter(tags=['tagger'])
 logger = logging.getLogger('music-manager.tagger')
 
-async def verify_api_key(x_api_key: Optional[str]=Header(None)):
+async def verify_api_key(x_api_key: str | None=Header(None)):
     """Same system-or-user API key check the other routers use.
 
     Delegates rather than re-implementing it (as library.py/management.py do) so there is one

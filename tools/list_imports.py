@@ -1,6 +1,6 @@
-from pathlib import Path
 import ast
 from collections import Counter
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]  # repo root, pas aan als nodig
 

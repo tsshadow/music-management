@@ -1,10 +1,13 @@
 import unittest
-from unittest.mock import patch, MagicMock
-from services.tests.mock_base import setup_mocks, reset_database_helpers
+from unittest.mock import patch
+
+from services.tests.mock_base import reset_database_helpers, setup_mocks
+
 setup_mocks()
-from services.common.Helpers.GenreRulesHelper import GenreRow, WHITE, BLACK
-from services.tagger.Song.LabelSong import LabelSong
+from services.common.Helpers.GenreRulesHelper import BLACK, WHITE, GenreRow
 from services.tagger.constants import ARTIST, GENRE
+from services.tagger.Song.LabelSong import LabelSong
+
 
 class TestGenreRules(unittest.TestCase):
 

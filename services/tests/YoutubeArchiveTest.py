@@ -1,6 +1,7 @@
 import sys
 import types
 import unittest
+
 mock_db = types.ModuleType('services.common.Helpers.DatabaseConnector')
 
 class DummyConnector:
@@ -32,6 +33,7 @@ class DummyConnector:
 mock_db.DatabaseConnector = DummyConnector
 sys.modules['services.common.Helpers.DatabaseConnector'] = mock_db
 from downloader.youtube import YoutubeArchive
+
 
 class YoutubeArchiveTest(unittest.TestCase):
 

@@ -1,7 +1,10 @@
-import os
-import requests
 import logging
+import os
+
+import requests
+
 from .base import ArtistImageProvider
+
 
 class LastFmArtistImageProvider(ArtistImageProvider):
     API_URL = 'https://ws.audioscrobbler.com/2.0/'

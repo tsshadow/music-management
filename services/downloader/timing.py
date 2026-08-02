@@ -13,10 +13,11 @@ bad row can never stop a downloader from running.
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Dict, Mapping, Optional, Tuple
+from typing import Any
 
-SOURCES: Tuple[str, ...] = ('soundcloud', 'youtube', 'telegram')
+SOURCES: tuple[str, ...] = ('soundcloud', 'youtube', 'telegram')
 
 DAY = 86400
 
@@ -32,11 +33,11 @@ class TimingField:
     description: str
 
 
-def _fields(*specs: TimingField) -> Tuple[TimingField, ...]:
+def _fields(*specs: TimingField) -> tuple[TimingField, ...]:
     return tuple(specs)
 
 
-def _scheduling(sweep_interval: int) -> Tuple[TimingField, ...]:
+def _scheduling(sweep_interval: int) -> tuple[TimingField, ...]:
     return _fields(
         TimingField('sweep_interval', sweep_interval, 60, 7 * DAY, 'seconden',
                     'Hoe lang de worker wacht tussen twee rondes langs de accounts.'),
@@ -47,7 +48,7 @@ def _scheduling(sweep_interval: int) -> Tuple[TimingField, ...]:
     )
 
 
-def _self_regulation(backoff_429_base: int) -> Tuple[TimingField, ...]:
+def _self_regulation(backoff_429_base: int) -> tuple[TimingField, ...]:
     return _fields(
         TimingField('backoff_429_base', backoff_429_base, 60, 7 * DAY, 'seconden',
                     'Basiswachttijd na een 429 (Too Many Requests), voordat de multiplier erop wordt losgelaten.'),
@@ -58,7 +59,7 @@ def _self_regulation(backoff_429_base: int) -> Tuple[TimingField, ...]:
     )
 
 
-def _batching(ratelimit_kbps: int, backoff_403_base: int) -> Tuple[TimingField, ...]:
+def _batching(ratelimit_kbps: int, backoff_403_base: int) -> tuple[TimingField, ...]:
     return _fields(
         TimingField('max_workers', 1, 1, 16, 'threads',
                     'Aantal accounts dat tegelijk wordt opgehaald.'),
@@ -85,7 +86,7 @@ def _batching(ratelimit_kbps: int, backoff_403_base: int) -> Tuple[TimingField, 
     )
 
 
-TIMING_FIELDS: Dict[str, Tuple[TimingField, ...]] = {
+TIMING_FIELDS: dict[str, tuple[TimingField, ...]] = {
     'soundcloud': _scheduling(900) + _batching(512, 240) + _self_regulation(3600),
     'youtube': _scheduling(900) + _batching(1024, 60) + _self_regulation(3600),
     'telegram': _scheduling(3600) + _self_regulation(3600) + _fields(
@@ -109,14 +110,14 @@ SCALED_KEYS = frozenset({
 })
 
 
-def field_map(source: str) -> Dict[str, TimingField]:
+def field_map(source: str) -> dict[str, TimingField]:
     """Return the fields of ``source`` keyed by their name."""
     if source not in TIMING_FIELDS:
         raise ValueError(f'Unknown downloader source: {source}')
     return {item.key: item for item in TIMING_FIELDS[source]}
 
 
-def describe(source: str) -> list[Dict[str, Any]]:
+def describe(source: str) -> list[dict[str, Any]]:
     """Return the schema of ``source`` in a shape the UI can render directly."""
     return [
         {
@@ -148,10 +149,10 @@ def _as_int(key: str, value: Any) -> int:
     raise ValueError(f'{key} must be a number, got {type(value).__name__}')
 
 
-def validate_settings(source: str, updates: Mapping[str, Any]) -> Dict[str, int]:
+def validate_settings(source: str, updates: Mapping[str, Any]) -> dict[str, int]:
     """Coerce and bounds-check ``updates``, raising ``ValueError`` on anything invalid."""
     known = field_map(source)
-    validated: Dict[str, int] = {}
+    validated: dict[str, int] = {}
     for key, raw_value in updates.items():
         item = known.get(key)
         if item is None:
@@ -163,10 +164,10 @@ def validate_settings(source: str, updates: Mapping[str, Any]) -> Dict[str, int]
     return validated
 
 
-def sanitize_settings(source: str, overrides: Mapping[str, Any]) -> Dict[str, int]:
+def sanitize_settings(source: str, overrides: Mapping[str, Any]) -> dict[str, int]:
     """Keep the overrides that are usable and drop the rest with a warning."""
     known = field_map(source)
-    clean: Dict[str, int] = {}
+    clean: dict[str, int] = {}
     for key, raw_value in overrides.items():
         item = known.get(key)
         if item is None:
@@ -264,7 +265,7 @@ class DownloaderTiming:
     def flood_sleep_threshold(self) -> int:
         return self.get('flood_sleep_threshold')
 
-    def to_ydl_opts(self) -> Dict[str, int]:
+    def to_ydl_opts(self) -> dict[str, int]:
         """The subset of the settings that yt-dlp itself understands."""
         sleep_interval = self.get('sleep_interval')
         max_sleep_interval = max(self.get('max_sleep_interval'), sleep_interval)
@@ -275,7 +276,7 @@ class DownloaderTiming:
             'ratelimit': self.get('ratelimit_kbps') * 1024,
         }
 
-    def with_multiplier(self, multiplier: int) -> 'DownloaderTiming':
+    def with_multiplier(self, multiplier: int) -> DownloaderTiming:
         return DownloaderTiming(source=self.source, values=self.values, multiplier=multiplier)
 
 

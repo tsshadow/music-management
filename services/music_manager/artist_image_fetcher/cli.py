@@ -1,12 +1,16 @@
 import argparse
 import logging
-import sys
 import os
+import sys
+
 import pymysql.cursors
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetcher
-from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from dotenv import load_dotenv
+
+from services.common.Helpers.DatabaseConnector import DatabaseConnector
+from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetcher
+
 load_dotenv()
 
 def setup_logging():

@@ -9,7 +9,8 @@ Only the knobs that differ from their default are stored.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Iterable, Mapping, Optional, Tuple
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 from services.downloader.timing import (
     DownloaderTiming,
@@ -19,7 +20,7 @@ from services.downloader.timing import (
 )
 
 
-def rows_to_settings(rows: Iterable[Tuple[str, Any]]) -> Dict[str, Any]:
+def rows_to_settings(rows: Iterable[tuple[str, Any]]) -> dict[str, Any]:
     """Turn ``(setting_key, value)`` rows into a mapping."""
     return dict(rows)
 
@@ -28,9 +29,9 @@ class InMemorySettingsStore:
     """Keeps the settings in a dict. Used by tests."""
 
     def __init__(self) -> None:
-        self._rows: Dict[str, Dict[str, Any]] = {}
+        self._rows: dict[str, dict[str, Any]] = {}
 
-    def load(self, source: str) -> Dict[str, Any]:
+    def load(self, source: str) -> dict[str, Any]:
         return dict(self._rows.get(source, {}))
 
     def save(self, source: str, values: Mapping[str, Any]) -> None:
@@ -47,7 +48,7 @@ class DatabaseSettingsStore:
         ensure_once(connection)
         return connection
 
-    def load(self, source: str) -> Dict[str, Any]:
+    def load(self, source: str) -> dict[str, Any]:
         connection = self._connect()
         try:
             with connection.cursor() as cursor:
@@ -73,7 +74,7 @@ class DatabaseSettingsStore:
             connection.close()
 
 
-_default_store: Optional[DatabaseSettingsStore] = None
+_default_store: DatabaseSettingsStore | None = None
 
 
 def _store_or_default(store):
@@ -85,7 +86,7 @@ def _store_or_default(store):
     return _default_store
 
 
-def load_settings(source: str, store=None) -> Dict[str, int]:
+def load_settings(source: str, store=None) -> dict[str, int]:
     """Return the stored overrides for ``source``, or nothing if they cannot be read."""
     try:
         raw = _store_or_default(store).load(source)
@@ -100,7 +101,7 @@ def load_timing_for(source: str, multiplier: int=1, store=None) -> DownloaderTim
     return load_timing(source, overrides=load_settings(source, store=store), multiplier=multiplier)
 
 
-def save_settings(source: str, updates: Mapping[str, Any], store=None) -> Dict[str, int]:
+def save_settings(source: str, updates: Mapping[str, Any], store=None) -> dict[str, int]:
     """Validate and store ``updates``. Raises ``ValueError`` on an invalid value."""
     validated = validate_settings(source, updates)
     if validated:

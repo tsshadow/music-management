@@ -1,12 +1,14 @@
 import os
-from typing import Optional
-from fastapi import APIRouter, HTTPException, Header, Depends
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
+
 from services.music_manager.database import get_db_connection
+
 router = APIRouter(tags=['rating'])
 API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
 
-def verify_api_key(x_api_key: Optional[str]=Header(None)):
+def verify_api_key(x_api_key: str | None=Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
     if API_KEY and x_api_key == API_KEY:
@@ -32,7 +34,7 @@ class MuMaServerEvent(BaseModel):
     object_id: str
     username: str
     rating: int
-    path: Optional[str] = None
+    path: str | None = None
 
 def init_db(cursor):
     cursor.execute('\n        CREATE TABLE IF NOT EXISTS rating_tracks (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            entity_type VARCHAR(50) NOT NULL,\n            entity_id VARCHAR(255) NOT NULL,\n            username VARCHAR(255) NOT NULL,\n            rating INT NOT NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            UNIQUE KEY (entity_type, entity_id, username)\n        )\n    ')

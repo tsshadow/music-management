@@ -1,9 +1,12 @@
 import unittest
 from unittest.mock import MagicMock, patch
-from services.tests.mock_base import setup_mocks, reset_database_helpers
+
+from services.tests.mock_base import reset_database_helpers, setup_mocks
+
 setup_mocks()
 from services.downloader.soundcloud.soundcloud import SoundcloudDownloader
 from services.tagger.constants import TITLE
+
 
 class TestSoundcloudBasicRun(unittest.TestCase):
 

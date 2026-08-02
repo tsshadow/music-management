@@ -11,6 +11,32 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.1.1 (2026-08-02)
+
+### 🔧 De scanner liep op elk bestand stuk
+- Het indexeren van genres uit tags las de genres via een methode die niet op `BaseSong` bestaat.
+  Elk bestand gaf daardoor een fout die de scanner opving, logde en verder negeerde: op productie
+  waren 1427 van de 1429 scannerregels deze ene fout.
+- De schade reikte verder dan alleen ontbrekende genres. De fout viel vóór het wegschrijven van de
+  bestandsgegevens, en de databaseverbinding bevestigt elke stap meteen. Nummers en artiesten
+  werden dus wel opgeslagen, wijzigingsdatums van bestanden niet — waardoor elke scan de hele
+  bibliotheek opnieuw doorliep en de genretabel leeg bleef.
+- De tests zagen dit niet, omdat ze een nummer beschreven met een dubbel dat elke denkbare
+  methodenaam accepteert. Ze gebruiken nu een dubbel dat alleen de echte methodes kent, zodat een
+  verzonnen aanroep voortaan in de testsuite sneuvelt in plaats van op productie.
+
+### 🔁 Een downloadcontainer startte zichzelf elke minuut opnieuw
+- De volledige SoundCloud-sweep is bedoeld om één ronde te doen en te stoppen, maar stond ingesteld
+  om bij elke afsluiting herstart te worden — precies wat hij per ontwerp doet. Hij was 21 keer
+  opnieuw gestart toen dit gevonden werd. Hij wordt nu met rust gelaten zodra zijn ronde klaar is.
+
+### ▶️ YouTube kon de JavaScript-controles van de site niet oplossen
+- De downloader-image had geen JavaScript-runtime, waardoor elke video meldde dat het oplossen van
+  de handtekening mislukte en alleen formaten zonder controle bereikbaar bleven. De image bevat nu
+  de oplosscripts en Deno om ze uit te voeren.
+- Dit haalt de waarschuwingen weg, maar heft de snelheidsbeperking die YouTube op dit moment
+  oplegt niet op.
+
 ## Global Version 0.1.0 (2026-08-02)
 
 ### 🕰️ Memories: wat er op deze dag werd uitgebracht

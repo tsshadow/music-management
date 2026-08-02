@@ -41,12 +41,21 @@ import org.moire.ultrasonic.util.Util
 fun artistSubtitle(item: ArtistOrIndex, context: Context): String? {
     if (item !is Artist) return null
 
+    return artistSubtitleOf(item.albumCount, item.songCount, context)
+}
+
+/**
+ * The same wording from raw counts, for callers that derive the numbers themselves rather than
+ * reading them off an [Artist] - the artist page counts the discography it just loaded when the
+ * server never reported the totals.
+ */
+fun artistSubtitleOf(albumCount: Long?, songCount: Long?, context: Context): String? {
     val resources = context.resources
     val parts = mutableListOf<String>()
-    item.albumCount?.takeIf { it > 0 }?.let {
+    albumCount?.takeIf { it > 0 }?.let {
         parts += resources.getQuantityString(R.plurals.select_artist_subtitle_albums, it.toInt(), it)
     }
-    item.songCount?.takeIf { it > 0 }?.let {
+    songCount?.takeIf { it > 0 }?.let {
         parts += resources.getQuantityString(R.plurals.select_artist_subtitle_tracks, it.toInt(), it)
     }
 

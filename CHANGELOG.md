@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.60] - 2026-08-02
+
 ### Added
 - **The artist page opens with the artist rather than with a list.** Tapping an artist used to
   land straight on their albums, with the name in the app bar the only thing distinguishing one

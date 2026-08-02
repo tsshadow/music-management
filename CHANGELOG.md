@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-02
+
+### Fixed
+- **The library scanner failed on every single file.** Genre indexing, added in the previous
+  cycle, read a song's genres through a method that does not exist on `BaseSong`, so each file
+  raised an `AttributeError` that the scanner caught, logged and moved past. On production 1427
+  of 1429 scanner log lines were this one error. The damage went further than missing genres:
+  the failure happened before the media-file row was written, and the database connection
+  commits as it goes, so tracks and their artists were stored while file modification times
+  never were — which left every scan re-reading the entire library from scratch and the genre
+  table empty. The scanner now reads genres through the method songs really have. The tests
+  missed this because they described a song with a mock that answers to any method name at all;
+  they now use a stub limited to the real interface, so an invented method fails in the test
+  suite instead of in production.
+- **A downloader container respawned every minute, forever.** The SoundCloud full-sweep worker is
+  built to do one pass and exit, but was configured to be restarted whenever it stopped — which
+  is exactly what it does by design. It had restarted 21 times when this was found. It is now
+  left alone once its sweep is done.
+- **YouTube downloads had no way to solve the site's JavaScript challenges.** The downloader image
+  shipped without a JavaScript runtime, so every video logged that signature solving had failed
+  and only the formats needing no challenge stayed reachable. The image now carries the solver
+  scripts and Deno to run them. This clears the warnings; it does not by itself lift the
+  rate-limiting YouTube is currently applying.
+
 ## [0.1.0] - 2026-08-02
 
 ### Added

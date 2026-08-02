@@ -23,8 +23,18 @@ val BROWSE_SORT_ORDERS: List<SortOrder> = listOf(SortOrder.BY_NAME, SortOrder.BY
  */
 fun browseSortOrdersFor(category: BrowseCategory): List<SortOrder> = when (category) {
     BrowseCategory.LINEUPS, BrowseCategory.RATINGS -> listOf(SortOrder.BY_NAME)
+    // A year list reads newest first; alphabetical on a number is the same order backwards.
+    BrowseCategory.YEARS -> listOf(SortOrder.BY_YEAR_DESC, SortOrder.BY_TRACK_COUNT)
     else -> BROWSE_SORT_ORDERS
 }
+
+/**
+ * Whether a [BrowseCategory] is worth searching.
+ *
+ * Years are a short list of numbers in a known order, so a search box only takes up room the
+ * cards could use. Every other category is a long list of names where typing beats scrolling.
+ */
+fun browseSupportsSearch(category: BrowseCategory): Boolean = category != BrowseCategory.YEARS
 
 /**
  * The browse tabs hold their whole list in memory, so searching and sorting them needs no server
@@ -44,6 +54,11 @@ fun filterAndSortCards(
     }
 
     return when (order) {
+        // Years that are not a number (an empty or malformed tag) go last rather than on top.
+        SortOrder.BY_YEAR_DESC -> matching.sortedWith(
+            compareByDescending<HomeCard> { it.title.toLongOrNull() ?: Long.MIN_VALUE }
+                .thenBy { it.title }
+        )
         SortOrder.BY_TRACK_COUNT -> matching.sortedWith(
             compareByDescending<HomeCard> { it.subtitle?.toLongOrNull() ?: -1L }
                 .thenBy { it.title }

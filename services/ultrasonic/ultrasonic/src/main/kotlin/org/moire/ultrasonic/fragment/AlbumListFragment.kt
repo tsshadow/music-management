@@ -25,12 +25,16 @@ import org.moire.ultrasonic.NavigationGraphDirections
 import org.moire.ultrasonic.R
 import org.moire.ultrasonic.adapters.AlbumGridDelegate
 import org.moire.ultrasonic.adapters.AlbumRowDelegate
+import org.moire.ultrasonic.adapters.ArtistHeaderBinder
+import org.moire.ultrasonic.adapters.buildArtistHeader
 import org.moire.ultrasonic.api.subsonic.models.AlbumListType
 import org.moire.ultrasonic.data.ActiveServerProvider
 import org.moire.ultrasonic.domain.Album
+import org.moire.ultrasonic.domain.Identifiable
 import org.moire.ultrasonic.home.RecentActivityStore
 import org.moire.ultrasonic.home.toHomeCard
 import org.moire.ultrasonic.model.AlbumListModel
+import org.moire.ultrasonic.service.MediaPlayerManager
 import org.moire.ultrasonic.util.LayoutType
 import org.moire.ultrasonic.util.Settings
 import org.moire.ultrasonic.util.toastingExceptionHandler
@@ -51,6 +55,15 @@ class AlbumListFragment(
     private var albumQuery = LibraryQuery()
 
     private val recentActivityStore: RecentActivityStore by inject()
+
+    private val mediaPlayerManager: MediaPlayerManager by inject()
+
+    /**
+     * The id of the artist whose page this is, or null when this is an ordinary album list.
+     * `id` is what getAlbumsOfArtist is called with, so the header follows the same argument.
+     */
+    private val headerArtistId: String?
+        get() = if (navArgs.byArtist) navArgs.id else null
 
     /**
      * The ViewModel to use to get the data
@@ -91,6 +104,7 @@ class AlbumListFragment(
                     id = navArgs.id!!,
                     name = navArgs.title
                 )
+                listModel.loadArtist(navArgs.id!!)
             } else {
                 listModel.getAlbums(
                     albumListType = orderType?.mapToAlbumListType() ?: navArgs.type,
@@ -110,7 +124,15 @@ class AlbumListFragment(
         viewManager = if (layoutType == LayoutType.LIST) {
             LinearLayoutManager(this.context)
         } else {
-            GridLayoutManager(this.context, ROWS)
+            GridLayoutManager(this.context, ROWS).apply {
+                // Without this a header would be laid out as one album-sized cell, a third of the
+                // screen wide, with the first two albums beside it. Anything that is not an album
+                // is a header - the artist header here, the folder selector on other lists, which
+                // has had the same problem in grid mode all along.
+                spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                    override fun getSpanSize(position: Int): Int = if (viewAdapter.items.getOrNull(position) is Album) 1 else ROWS
+                }
+            }
         }
 
         listView!!.layoutManager = viewManager
@@ -204,6 +226,14 @@ class AlbumListFragment(
 
         if (navArgs.byArtist) {
             setTitle(navArgs.title)
+            viewAdapter.register(ArtistHeaderBinder(::playAllOfArtist))
+
+            // The artist row arrives from the database after the album list is already on
+            // screen, so the header is rebuilt and resubmitted when it does. ArtistHeader is a
+            // data class, which is what makes the adapter's diff notice the change.
+            listModel.artist.observe(viewLifecycleOwner) {
+                defaultObserver(listModel.list.value ?: listOf())
+            }
         }
         setupFilterBar(view)
 
@@ -257,6 +287,34 @@ class AlbumListFragment(
         filterButtonBar!!.setLayoutType(layoutType)
     }
 
+    /**
+     * On an artist page the header is the first row of the same recycler that shows the albums.
+     * Anywhere else this is just the folder selector the base class already provided.
+     */
+    override fun headerRows(items: List<Album>): List<Identifiable> {
+        val rows = super.headerRows(items)
+        if (headerArtistId == null) return rows
+
+        return rows + buildArtistHeader(
+            artist = listModel.artist.value,
+            fallbackName = navArgs.title,
+            albums = items,
+            context = requireContext()
+        )
+    }
+
+    private fun playAllOfArtist() {
+        val artistId = headerArtistId ?: return
+
+        mediaPlayerManager.playTracksAndToast(
+            fragment = this,
+            insertionMode = MediaPlayerManager.InsertionMode.CLEAR,
+            id = artistId,
+            name = navArgs.title,
+            isArtist = true
+        )
+    }
+
     override fun onItemClick(item: Album) {
         recentActivityStore.record(item.toHomeCard(), Settings.isSetsMode)
 
@@ -292,4 +350,6 @@ fun SortOrder.mapToAlbumListType(): AlbumListType = when (this) {
     SortOrder.BY_TRACK_COUNT -> AlbumListType.BY_TRACK_COUNT
     SortOrder.BY_ALBUM_COUNT, SortOrder.BY_ADDED ->
         throw UnsupportedOperationException("Artist-specific sort orders cannot be used for albums")
+    SortOrder.BY_YEAR_DESC ->
+        throw UnsupportedOperationException("The years browse tab sorts its own cards")
 }

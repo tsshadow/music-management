@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.26] - 2026-08-02
+
+### Changed
+- **The Android Auto star button sets a rating instead of a favourite.** It toggled the Subsonic
+  favourite flag; it now cycles the track's five-point rating through six states — an empty star
+  for no rating, then a star carrying the digit 1 through 5, wrapping back to empty. Ratings are
+  what the rest of the app acts on: the track list sorts and filters by them and the player has a
+  five-star widget, but none of it was reachable from the car. Each of the six buttons carries the
+  rating it was drawn with, so a tap derives the next rating from the button itself rather than
+  from state that can go stale between track changes. Favourites still work everywhere on the
+  phone; keeping both buttons in the car would have pushed shuffle and repeat into the overflow
+  menu.
+
+## [6.5.25] - 2026-08-02
+
+### Added
+- **The artist page opens with the artist rather than with a list.** Tapping an artist used to
+  land straight on their albums, with the name in the app bar the only thing distinguishing one
+  artist from the next — even though the app already downloads and caches artist images and
+  already shows the album and track counts one screen earlier, in the artist list. The page now
+  starts with a header: the artist image, the name, "12 albums · 143 tracks", the years the
+  discography spans, and the genres. The play-all button moved into it and queues the artist's
+  tracks the same way the long-press menu's "play now" does. Artists reached through search or
+  from a home screen card never went through the cache that holds the counts, so the header
+  derives them from the discography on screen instead of showing nothing.
+- **Labels are browsable.** The filter modal could already narrow songs down to a record label,
+  but nothing showed which labels the library holds — you had to know the name before you could
+  filter on it. Labels now sit in the Library tabs next to Genres, fed by the same PUBLISHER tag
+  the filter chip uses, and a tap opens that label's tracks.
+- **Sallaands and Brabants**, the same two dialects the web interface picked up in 0.0.59, chosen
+  from the language menu that was already in Settings. Neither dialect has a language code, so
+  they ride along on Dutch with a region no Dutch speaker has set: nl-BQ and nl-CW. Three other
+  shapes were tried first and none of them survive Android's resource matching — a three letter
+  code (nds-NL) and a BCP 47 variant (nl-NL-brabant) both fall back to the default, and any
+  locale missing from `resourceConfigurations` is stripped from the APK before it ever reaches a
+  device.
+
+### Fixed
+- **The folder selector no longer sits squeezed into one column** when an album list is switched
+  to the grid layout. It was laid out as a single album-sized cell with the first two albums
+  beside it; headers now span the full width of the grid.
+- **Dutch is complete, and English is actually English.** The Dutch resources were 163 strings
+  short of the English ones, and 28 strings this fork added were written in Dutch in the default
+  resources — so an English-language phone showed "Artiesten", "Jaren" and "Goedkeuren". Both are
+  filled in now, which the dialects depend on: Android treats nl-BQ and nl-CW as Dutch, so a gap
+  in Dutch falls through to a dialect rather than to English.
+- **Artists without a fetched picture are no longer grey.** Server-side change: an artist whose
+  image the fetcher does not have yet is now served their scanned artist image, or the cover of
+  their earliest release, instead of a 404.
+
 ## [6.5.24] - 2026-08-01
 
 ### Added

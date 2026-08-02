@@ -159,14 +159,20 @@ class MediaLibrarySessionCallback :
         var customCommandFuture: ListenableFuture<SessionResult>? = null
 
         when (customCommand.customAction) {
-            PlaybackService.CUSTOM_COMMAND_TOGGLE_HEART_ON -> {
-                customCommandFuture = onSetRating(session, controller, HeartRating(true))
-                commandHandler.updateCustomHeartButton(session, isHeart = true)
-            }
-
-            PlaybackService.CUSTOM_COMMAND_TOGGLE_HEART_OFF -> {
-                customCommandFuture = onSetRating(session, controller, HeartRating(false))
-                commandHandler.updateCustomHeartButton(session, isHeart = false)
+            PlaybackService.CUSTOM_COMMAND_CYCLE_RATING -> {
+                // The tapped button carries the rating it was drawn with, so a stale field
+                // here cannot make the rating jump to the wrong value
+                val current = customCommand.customExtras.getInt(
+                    PlaybackService.EXTRA_CURRENT_RATING,
+                    0
+                )
+                val next = MediaLibraryCommandHandler.nextRating(current)
+                customCommandFuture = onSetRating(
+                    session,
+                    controller,
+                    StarRating(PlaybackService.MAX_RATING, next.toFloat())
+                )
+                commandHandler.updateCustomRatingButton(session, next)
             }
 
             PlaybackService.CUSTOM_COMMAND_SHUFFLE -> {

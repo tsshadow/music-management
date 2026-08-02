@@ -93,17 +93,29 @@ abstract class EntryListFragment<T : GenericEntry> :
     }
 
     /**
+     * The rows shown above the list itself. Subclasses extend this rather than [defaultObserver],
+     * so that whatever they add lands alongside the folder selector instead of replacing it.
+     */
+    internal open fun headerRows(items: List<T>): List<Identifiable> = if (showFolderHeader()) {
+        listOf(folderHeader)
+    } else {
+        emptyList()
+    }
+
+    /**
      * What to do when the list has changed
      */
     override val defaultObserver: (List<T>) -> Unit = {
         emptyView.isVisible = it.isEmpty() && !(swipeRefresh?.isRefreshing ?: false)
 
-        if (showFolderHeader()) {
-            val list = mutableListOf<Identifiable>(folderHeader)
+        val headers = headerRows(it)
+        if (headers.isEmpty()) {
+            viewAdapter.submitList(it)
+        } else {
+            val list = mutableListOf<Identifiable>()
+            list.addAll(headers)
             list.addAll(it)
             viewAdapter.submitList(list)
-        } else {
-            viewAdapter.submitList(it)
         }
     }
 

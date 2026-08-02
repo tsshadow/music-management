@@ -45,20 +45,22 @@ class LibraryPagerAdapter(
     companion object {
         const val PAGE_DYNAMIC_PLAYLISTS = 0
         const val PAGE_GENRES = 1
-        const val PAGE_ARTISTS = 2
-        const val PAGE_ALBUMS = 3
-        const val PAGE_YEARS = 4
-        const val PAGE_FESTIVALS = 5
-        const val PAGE_LINEUPS = 6
-        const val PAGE_RATINGS = 7
-        const val PAGE_STATIC_PLAYLISTS = 8
-        const val PAGE_COUNT = 9
+        const val PAGE_LABELS = 2
+        const val PAGE_ARTISTS = 3
+        const val PAGE_ALBUMS = 4
+        const val PAGE_YEARS = 5
+        const val PAGE_FESTIVALS = 6
+        const val PAGE_LINEUPS = 7
+        const val PAGE_RATINGS = 8
+        const val PAGE_STATIC_PLAYLISTS = 9
+        const val PAGE_COUNT = 10
 
         private const val ALBUM_PAGE_SIZE = 500
 
         /** The browse categories, keyed by the page that shows them. */
         private val BROWSE_PAGES = mapOf(
             PAGE_GENRES to BrowseCategory.GENRES,
+            PAGE_LABELS to BrowseCategory.LABELS,
             PAGE_YEARS to BrowseCategory.YEARS,
             PAGE_FESTIVALS to BrowseCategory.FESTIVALS,
             PAGE_LINEUPS to BrowseCategory.LINEUPS,

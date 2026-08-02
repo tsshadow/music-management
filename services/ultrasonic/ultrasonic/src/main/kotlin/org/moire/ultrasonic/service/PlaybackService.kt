@@ -296,7 +296,7 @@ class PlaybackService :
             // Therefore the track must be our source of truth
             val track = mediaItem?.toTrack()
             if (track != null) {
-                updateCustomHeartButton(track.starred)
+                updateCustomRatingButton(track.userRating ?: 0)
             }
             updateWidgetTrack(track)
             cacheNextSongs()
@@ -308,10 +308,10 @@ class PlaybackService :
         }
     }
 
-    private fun updateCustomHeartButton(isHeart: Boolean) {
-        librarySessionCallback.getCommandHelper().updateCustomHeartButton(
+    private fun updateCustomRatingButton(rating: Int) {
+        librarySessionCallback.getCommandHelper().updateCustomRatingButton(
             mediaLibrarySession,
-            isHeart
+            rating
         )
     }
 
@@ -417,10 +417,13 @@ class PlaybackService :
 
         private const val NOTIFICATION_CHANNEL_ID = "org.moire.ultrasonic.error"
         private const val NOTIFICATION_CHANNEL_NAME = "Ultrasonic error messages"
-        const val CUSTOM_COMMAND_TOGGLE_HEART_ON =
-            "org.moire.ultrasonic.HEART_ON"
-        const val CUSTOM_COMMAND_TOGGLE_HEART_OFF =
-            "org.moire.ultrasonic.HEART_OFF"
+        const val CUSTOM_COMMAND_CYCLE_RATING =
+            "org.moire.ultrasonic.CYCLE_RATING"
+
+        // The rating the button was showing when it was tapped, so the handler can work out
+        // the next one without trusting shared state that may have gone stale
+        const val EXTRA_CURRENT_RATING = "org.moire.ultrasonic.CURRENT_RATING"
+        const val MAX_RATING = 5
         const val CUSTOM_COMMAND_SHUFFLE =
             "org.moire.ultrasonic.SHUFFLE"
         const val CUSTOM_COMMAND_PLACEHOLDER =

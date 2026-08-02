@@ -1,0 +1,16 @@
+<!--
+    Android Auto rating button, state 4.
+    The digit is knocked out of the solid star with evenOdd: the tint colours
+    every path in a vector alike, so an overlaid digit would be invisible.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
+  <path
+      android:fillColor="#FFF"
+      android:fillType="evenOdd"
+      android:pathData="M12,17.27L18.18,21l-1.64,-7.03L22,9.24l-7.19,-0.61L12,2 9.19,8.63 2,9.24l5.46,4.73L5.82,21zM10,8.9h0.9v2.15h-0.9zM13.1,8.9h0.9v2.15h-0.9zM10,11.05h4v0.9h-4zM13.1,11.95h0.9v2.15h-0.9z"/>
+</vector>

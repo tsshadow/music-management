@@ -57,8 +57,13 @@ Summarised here because it affects what counts as a vulnerability;
   Google-linked account -- which has no password on this side -- authenticates
   Subsonic and streaming calls.
 * Because the api_key is password-equivalent, `/api/auth/login`,
-  `/api/auth/refresh` and `/api/auth/setup` are rate limited per client address
+  `/api/auth/refresh` and `/api/auth/setup` are rate limited
   (`services/music_manager/rate_limit.py`). Exceeding the limit returns 429.
+  Only rejected attempts count, and a login is counted per account rather than
+  per client address: LMS re-checks the password here on every Subsonic request
+  over a hop that carries no client address, so counting successes under one
+  shared key logged the whole installation out. Spraying one password across
+  many accounts is covered a layer up, by LMS's own per-client `LoginThrottler`.
 * Passwords are stored as bcrypt hashes. Revoking sessions clears the api_key
   and every refresh token in one step.
 

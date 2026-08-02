@@ -41,7 +41,18 @@ _CREATE_ACCOUNT_CHECKS = """
     )
 """
 
-_STATEMENTS = (_CREATE_SETTINGS, _CREATE_RATE_STATE, _CREATE_ACCOUNT_CHECKS)
+_CREATE_UNAVAILABLE = """
+    CREATE TABLE IF NOT EXISTS downloads_soundcloud_unavailable (
+        account    VARCHAR(255) NOT NULL,
+        track_id   VARCHAR(255) NOT NULL,
+        reason     VARCHAR(64)  NOT NULL,
+        first_seen DATETIME     NOT NULL,
+        last_seen  DATETIME     NOT NULL,
+        PRIMARY KEY (account, track_id)
+    )
+"""
+
+_STATEMENTS = (_CREATE_SETTINGS, _CREATE_RATE_STATE, _CREATE_ACCOUNT_CHECKS, _CREATE_UNAVAILABLE)
 
 _lock = threading.Lock()
 _created = False

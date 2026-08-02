@@ -369,6 +369,24 @@ release:build-images:
   script:
     - ./scripts/ci/build-and-push-images.sh
 
+# Rebuilds the downloader image from master between releases so production picks
+# up a newer yt-dlp. yt-dlp ships fixes for SoundCloud/YouTube changes within
+# days, while our images are otherwise only ever built on a release/* branch --
+# which is how downloads stop working without anything here having changed.
+#
+# Runs only from a GitLab schedule with REFRESH_DOWNLOADER set, and only on
+# master, so the image published as :latest is built from the commit production
+# is already running. It does not deploy: Watchtower pulls :latest on the host.
+images:refresh-downloader:
+  stage: release
+  timeout: 60m
+  interruptible: false
+  retry: !reference [.infra_retry, retry]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $REFRESH_DOWNLOADER == "true" && $CI_COMMIT_BRANCH == "master" && $DOCKERHUB_USERNAME && $DOCKERHUB_TOKEN'
+  script:
+    - ./scripts/ci/refresh-downloader-image.sh
+
 ultrasonic:build-debug:
   stage: release
   timeout: 45m

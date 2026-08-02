@@ -48,6 +48,21 @@ def backoff_403_wait(count: int, base: int, factor: int, cap: int) -> int:
     return int(min(base * factor ** steps, cap))
 
 
+def decayed_403_count(count: int, last_403_at: datetime | None, decay: int,
+                      now: datetime) -> int:
+    """How many rungs of the 403 ladder are still standing after some quiet time.
+
+    Without this the count only ever falls on a sweep that touched every account
+    without a single 403, so one permanently unavailable track pins a source at
+    the top of the ladder forever. One rung is given back per `decay` seconds of
+    silence.
+    """
+    if count <= 0 or last_403_at is None or decay <= 0:
+        return max(0, count)
+    windows = int((now - last_403_at).total_seconds() // decay)
+    return max(0, count - max(0, windows))
+
+
 def recover(multiplier: int, clean_runs: int, recovery_runs: int) -> tuple[int, int]:
     """Register one clean run and return the new multiplier and clean-run count."""
     runs = clean_runs + 1
@@ -193,7 +208,9 @@ class RateState:
     def record_403(self) -> int:
         """Register a 403 and return how long to stay away."""
         now = self._now()
-        self._snapshot.consecutive_403 += 1
+        standing = decayed_403_count(self._snapshot.consecutive_403, self._snapshot.last_403_at,
+                                     self.timing.backoff_403_decay, now)
+        self._snapshot.consecutive_403 = standing + 1
         self._snapshot.last_403_at = now
         wait = backoff_403_wait(self._snapshot.consecutive_403, self.timing.backoff_403_base,
                                 self.timing.backoff_403_factor, self.timing.backoff_403_cap)

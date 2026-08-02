@@ -505,6 +505,11 @@
     <string name="crash_report.dialog_message">Ultrasonic did not shut down cleanly last time. Share diagnostics to help fix this?</string>
     <string name="crash_report.dialog_share">Share</string>
     <string name="crash_report.dialog_dismiss">Dismiss</string>
+    <string name="settings.diagnostics.send_now">Send diagnostics now</string>
+    <string name="settings.diagnostics.send_now_summary">Save the current log to Downloads and upload it to the server</string>
+    <string name="crash_report.manual_sent">Diagnostics sent</string>
+    <string name="crash_report.manual_upload_failed">Diagnostics saved to Downloads, upload failed</string>
+    <string name="crash_report.manual_failed">Failed to save diagnostics</string>
     <string name="notification.downloading_title">Downloading media in the background…</string>
     <string name="notification.permission_required">Notifications are required for media playback. You can grant the permission anytime in the Android settings.</string>
     <string name="server_selector.label">Configured servers</string>

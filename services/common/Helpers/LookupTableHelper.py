@@ -21,7 +21,7 @@ class LookupTableHelper:
         self.value_column_name = value_column_name
         self.db_connector = DatabaseConnector()
         self.cache_enabled = preload
-        self._kv_map = {}
+        self._kv_map: dict[str, list[str]] = {}
         if preload:
             self._preload()
 
@@ -52,7 +52,7 @@ class LookupTableHelper:
             key_lower = key.lower()
             for existing_key, values in self._kv_map.items():
                 if existing_key.lower() == key_lower:
-                    return values
+                    return list(values)
             return []
         query = f'SELECT {self.value_column_name} FROM {self.table_name} WHERE LOWER({self.key_column_name}) = LOWER(%s)'
         try:

@@ -21,7 +21,7 @@ class ImageStorage:
         artist_dir = os.path.join(self.storage_path, str(artist_id))
         os.makedirs(artist_dir, exist_ok=True)
         try:
-            img = Image.open(BytesIO(image_data))
+            img: Image.Image = Image.open(BytesIO(image_data))
             width, height = img.size
             file_hash = hashlib.md5(image_data).hexdigest()
             ext = 'jpg'

@@ -11,8 +11,8 @@ class TableHelper:
         self.column_name = column_name
         self.db_connector = DatabaseConnector()
         self.cache_enabled = preload
-        self._values = set()
-        self._canonical_map = {}
+        self._values: set[str] = set()
+        self._canonical_map: dict[str, str] = {}
         if preload:
             self._preload()
 
@@ -44,7 +44,7 @@ class TableHelper:
 
     def get(self, key: str) -> str:
         if self.cache_enabled:
-            return self._canonical_map.get(key.lower(), '')
+            return str(self._canonical_map.get(key.lower(), ''))
         query = f'SELECT {self.column_name} FROM {self.table_name} WHERE LOWER({self.column_name}) = %s LIMIT 1'
         try:
             with closing(self.db_connector.connect()) as connection, connection.cursor() as cursor:

@@ -11,8 +11,8 @@ class FilterTableHelper:
         self.corrected_column_name = corrected_column_name
         self.db_connector = DatabaseConnector()
         self.cache_enabled = preload
-        self._exists_cache = set()
-        self._corrected_map = {}
+        self._exists_cache: set[str] = set()
+        self._corrected_map: dict[str, str] = {}
         if preload:
             self._preload()
 
@@ -56,7 +56,7 @@ class FilterTableHelper:
     def get_corrected(self, key: str) -> str:
         key = key.strip()
         if self.cache_enabled:
-            return self._corrected_map.get(key, '')
+            return str(self._corrected_map.get(key, ''))
         query = f'SELECT {self.corrected_column_name} FROM {self.table_name} WHERE {self.column_name} = %s LIMIT 1'
         connection = self.db_connector.connect()
         try:
@@ -74,7 +74,7 @@ class FilterTableHelper:
         key = key.strip()
         if self.cache_enabled:
             if key in self._corrected_map:
-                return self._corrected_map[key]
+                return str(self._corrected_map[key])
             if key in self._exists_cache:
                 return key
             return False

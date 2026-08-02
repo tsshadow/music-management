@@ -85,12 +85,27 @@ exclude = [
 [[tool.mypy.overrides]]
 # Already type-checked strictly. Extend this list as modules are cleaned up.
 module = [
-    "services.common.Helpers.GenreRulesHelper",
+    "services.common.config_store",
+    "services.common.step",
+    "services.common.version_helper",
     "services.common.Helpers.ArtistNameAnalyzer",
+    "services.common.Helpers.FestivalHelper",
+    "services.common.Helpers.FilterTableHelper",
+    "services.common.Helpers.GenreRulesHelper",
+    "services.common.Helpers.LookupTableHelper",
+    "services.common.Helpers.TableHelper",
+    "services.downloader.account_schedule",
+    "services.downloader.rate_state",
+    "services.importer.extractor",
+    "services.importer.renamer",
     "services.music_manager.rbac",
-    "services.music_manager.artist_image_fetcher.normalizer",
     "services.music_manager.artist_image_fetcher.matcher",
+    "services.music_manager.artist_image_fetcher.normalizer",
+    "services.music_manager.artist_image_fetcher.storage",
+    "services.music_manager.artist_image_fetcher.providers.base",
     "services.tagger.constants",
+    "services.tagger.Song.rules.TagResult",
+    "services.tagger.Song.rules.TagRule",
 ]
 disallow_untyped_defs = false
 check_untyped_defs = true

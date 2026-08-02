@@ -45,7 +45,7 @@ def wait_after_429(base: int, multiplier: int, jitter: float) -> int:
 def backoff_403_wait(count: int, base: int, factor: int, cap: int) -> int:
     """The 403 ladder: the base, multiplied by the factor once per repeat, capped."""
     steps = max(1, count) - 1
-    return min(base * factor ** steps, cap)
+    return int(min(base * factor ** steps, cap))
 
 
 def recover(multiplier: int, clean_runs: int, recovery_runs: int) -> tuple[int, int]:

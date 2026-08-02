@@ -24,7 +24,7 @@ def get_release_notes(service_name: str | None=None) -> str:
         if os.path.exists(path):
             with open(path, encoding='utf-8') as f:
                 content = f.read()
-                return markdown.markdown(content, extensions=['extra', 'toc'])
+                return str(markdown.markdown(content, extensions=['extra', 'toc']))
     return '<p>No release notes found.</p>'
 
 def get_changelog() -> str:
@@ -34,5 +34,5 @@ def get_changelog() -> str:
         if os.path.exists(path):
             with open(path, encoding='utf-8') as f:
                 content = f.read()
-                return markdown.markdown(content, extensions=['extra', 'toc'])
+                return str(markdown.markdown(content, extensions=['extra', 'toc']))
     return '<p>No changelog found.</p>'

@@ -54,6 +54,21 @@ quality:lint:
   script:
     - ./scripts/lint.sh
 
+# Type checking, rolled out per module. pyproject.toml holds a loose floor for
+# the whole tree plus a list of modules checked strictly; scripts/typecheck.sh
+# runs that list. The list only ever grows -- cleaning a module up means fixing
+# its findings and adding it there in the same merge request.
+quality:typecheck:
+  stage: quality
+  rules:
+    - changes:
+        - services/**/*.py
+        - pyproject.toml
+        - scripts/typecheck.sh
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/typecheck.sh
+
 # Dependency vulnerability scanning. Deliberately NOT a merge-request gate: it
 # audits the runner's installed Python environment, which this repository does
 # not manage, so a stale runner would block unrelated merge requests. Runs on a

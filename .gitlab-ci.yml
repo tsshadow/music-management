@@ -27,6 +27,30 @@ default:
           docker run --rm -v "$CI_PROJECT_DIR:/workspace" alpine chown -R "$(id -u):$(id -g)" /workspace
         fi
 
+# Which pipelines exist at all. Without this, every job whose rules are
+# `changes:`-only also matches merge_request_event, so a push to a branch that
+# has an open merge request creates a branch pipeline *and* an MR pipeline for
+# the same commit and runs the entire suite twice. The workaround for the
+# resulting Gradle cache collision is still visible in
+# scripts/test/ultrasonic-unit.sh.
+workflow:
+  rules:
+    # Release and hotfix branches always get their own branch pipeline, even
+    # while an MR is open for them. deploy:prod, release:version-check and
+    # friends all match on $CI_COMMIT_BRANCH, which is unset in a merge request
+    # pipeline -- so if the duplicate-pipeline guard below applied here, the
+    # release would simply never be deployed.
+    - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
+    # Scheduled pipelines (security:dependency-audit) always run.
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    # Prefer the merge request pipeline...
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    # ...and drop the redundant branch pipeline while an MR is open for it.
+    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS && $CI_PIPELINE_SOURCE == "push"'
+      when: never
+    # Branches without an open MR (develop, master).
+    - if: '$CI_COMMIT_BRANCH'
+
 stages:
   - quality
   - unit

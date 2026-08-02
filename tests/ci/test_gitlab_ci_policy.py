@@ -65,3 +65,37 @@ def test_deploy_prod_declares_its_environment():
     environment = ci["deploy:prod"]["environment"]
     assert environment["name"] == "production"
     assert environment["url"] == "$PROD_URL"
+
+
+def test_workflow_rules_prevent_duplicate_pipelines():
+    """Jobs with `changes:`-only rules also match merge_request_event, so a
+    push to a branch with an open MR runs the whole suite twice."""
+    ci = load_ci()
+    rules = ci["workflow"]["rules"]
+    duplicate_guard = [
+        rule
+        for rule in rules
+        if rule.get("when") == "never" and "$CI_OPEN_MERGE_REQUESTS" in rule.get("if", "")
+    ]
+    assert duplicate_guard, "no rule dropping the branch pipeline when an MR is open"
+
+
+def test_workflow_never_suppresses_a_release_branch_pipeline():
+    """deploy:prod matches on $CI_COMMIT_BRANCH, which is unset in a merge
+    request pipeline. If the duplicate-pipeline guard fired for a release
+    branch that happens to have an MR open, the branch pipeline would vanish
+    and production would never be deployed at all. The release rule therefore
+    has to be decided before the guard is reached."""
+    ci = load_ci()
+    rules = ci["workflow"]["rules"]
+    for rule in rules:
+        condition = rule.get("if", "")
+        if "release" in condition and "hotfix" in condition:
+            assert rule.get("when") != "never"
+            break
+        assert rule.get("when") != "never", (
+            "a `when: never` rule is evaluated before release/hotfix branches "
+            "are allowed through"
+        )
+    else:
+        raise AssertionError("no workflow rule admits release/hotfix branches")

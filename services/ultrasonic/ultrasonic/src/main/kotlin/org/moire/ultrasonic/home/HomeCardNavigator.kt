@@ -66,6 +66,10 @@ object HomeCardNavigator {
 
         HomeCardType.LABEL -> labelDirections(card)
 
+        // A memory card stands for a whole year, so it opens the screen that shows all of them
+        // rather than playing any single track.
+        HomeCardType.MEMORY -> NavigationGraphDirections.toMemories()
+
         HomeCardType.TRACK -> error("TRACK cards are played, see actionFor")
     }
 

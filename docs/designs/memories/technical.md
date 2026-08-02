@@ -115,15 +115,26 @@ Three apps change together, in one commit, per AGENTS.md rule 7.
 **`music-management-server`** — the query layer and endpoint described above.
 
 **`frontend`** — a new `MemoriesView.svelte` rendering the year groups as sections, each with a play action,
-reusing the existing `TrackList` component for the tracks. A `memories` entry in the `navItems` array of
-`Sidebar.svelte` next to Release Radar, a `/memories` path in the `viewToPath`/route handling of
-`App.svelte`, and the matching `activeView === 'memories'` branch. On the home screen, `Dashboard.svelte`
-gains a memories carousel above the existing rows, one card per year group capped at ten cards, clicking a
-card opens `MemoriesView` at that year. Visibility is a new store in `store.js` (`memoriesOnHomeEnabled`,
-default `true`) persisted with the existing `persist()` helper, exposed as a toggle in the settings UI. The
-sidebar entry is the permanent way in and is not affected by that toggle. All new
-user-facing strings go through the existing i18n layer, which means entries in all four locale files under
-`src/lib/i18n/locales/` (`en`, `nl`, `brabants`, `sallands`).
+reusing the existing `TrackList` component for the tracks (whose default column already shows a track's
+release date). A `memories` entry in the `menuItems` array of `Sidebar.svelte` next to Release Radar, a
+`/memories` path in the `viewToPath`/`pathToView` handling of `App.svelte`, and the matching
+`activeView === 'memories'` branch in `Dashboard.svelte`. On the home screen, `Dashboard.svelte` gains a
+memories carousel above the existing rows, one card per year group capped at ten cards; clicking a card
+opens `MemoriesView` at that year. Visibility is a new store in `store.js` (`memoriesOnHomeEnabled`,
+default `true`) persisted with the existing `persist()` helper, exposed as a toggle in `GeneralSettings.svelte`
+next to the deduplication toggle. The sidebar entry is the permanent way in and is not affected by that
+toggle.
+
+Response parsing, the local-date format and the heading rule live in a shared `memories.js`, because the
+view and the carousel both need all three and the heading rule is the one piece worth testing on its own.
+It is covered by `tests/unit/memories.test.js` (the frontend does have a Vitest suite, see
+`docs/testing-inventory.md`).
+
+New user-facing strings go through the existing i18n layer. The `memories` block is translated in all four
+locale files under `src/lib/i18n/locales/` (`en`, `nl`, `brabants`, `sallands`); the settings toggle's
+strings live under `settings.general` in `en` and `nl` only, because the two dialect files deliberately
+translate just a subset of the settings screen and fall back for the rest. Both headings use the i18n
+layer's CLDR plural forms (`{ one, other }` keyed on `count`) rather than separate singular keys.
 
 **`ultrasonic`** — `getMemories.view` added to `SubsonicAPIDefinition.kt` with its own response DTOs, in the
 same Retrofit style as the surrounding calls.
@@ -134,9 +145,14 @@ Library tab: a `PAGE_MEMORIES` constant in `LibraryPagerAdapter` with its own br
 `BrowseCategory` value — that enum drives `FilterBrowseFragment`, which browses tag values, and Memories is
 its own screen. This page is the "tab", and it exists whatever the user does with the carousel preference.
 The optional entry point is the teaser on home: a `SectionSlot` at the top of `MainFragment` with
-`CardStyle.CAROUSEL`, capped at the existing `CAROUSEL_SIZE` of ten, fed by a new `HomeSectionProvider`
-implementation whose `load()` returns `null` when there is nothing to show — the existing contract that
-hides a section.
+`CardStyle.CAROUSEL`, capped at ten cards, fed by a new `MemoriesProvider` whose `load()` returns `null`
+when there is nothing to show — the existing contract that hides a section.
+
+A carousel card is one *year*, not one track: a day can hold sixty releases and the strip has to stay
+short. That needs a new `HomeCardType.MEMORY`, a `MemoryGroup.toHomeCard(label)` mapper, and a `toMemories`
+global action in `navigation_graph.xml` that `HomeCardNavigator` routes those cards to, so tapping one opens
+the Memories screen rather than playing anything. The home screen therefore still produces no playable
+cards, and `MainFragment` keeps its navigation-only card handling.
 
 The full list is a new `MemoriesFragment`, registered in `navigation_graph.xml`, used both as the Library
 pager page and as the destination `HomeCardNavigator` routes a carousel tap to. It is modelled directly on
@@ -149,6 +165,11 @@ memories section title is dynamic ("Today, 8 years ago"). `HomeSection` gains a 
 defaulting to empty, and the three places that set a section title — `MainFragment.SectionSlot.showContent`,
 `FavoritesFragment.render` and the new `MemoriesFragment` — format with `getString(titleRes, *titleArgs)`.
 Existing sections pass no arguments and are unaffected.
+
+Which wording a group gets lives in one place, `memoryHeadingRes`/`memoryHeadingArgs`, because the carousel
+card and the screen section must never disagree about whether a group is allowed to say "today".
+`MemoriesProvider` takes the finished label as a lambda rather than resolving it itself, which is what keeps
+it testable as plain Kotlin with no Android context.
 
 The bottom navigation menu is unchanged and stays at four items. The preference to hide the carousel is
 added alongside the existing settings in `Settings.kt`, following the `BooleanSetting` pattern used by
@@ -206,3 +227,7 @@ already swallows the throw.
 - [../../architecture/responsibilities.md](../../architecture/responsibilities.md) — the data boundary
   between `music_manager` and LMS that determines where this feature lives.
 - [../favorite-genres/](../favorite-genres/) — precedent for a client-side, persisted display preference.
+
+This document is the endpoint's contract. It is not repeated in
+[docs/api-specification.md](../../api-specification.md), which covers the `music-manager` API; the existing
+LMS Subsonic extensions are not described there either.

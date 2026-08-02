@@ -12,6 +12,7 @@ import org.moire.ultrasonic.domain.ArtistOrIndex
 import org.moire.ultrasonic.domain.Genre
 import org.moire.ultrasonic.domain.Label
 import org.moire.ultrasonic.domain.Lineup
+import org.moire.ultrasonic.domain.MemoryGroup
 import org.moire.ultrasonic.domain.Playlist
 import org.moire.ultrasonic.domain.Tag
 import org.moire.ultrasonic.domain.Track
@@ -57,6 +58,19 @@ fun Track.toHomeCard(): HomeCard = HomeCard(
     title = title.orEmpty(),
     subtitle = artist,
     coverArtId = coverArt ?: id
+)
+
+/**
+ * A whole year of memories as one card: the carousel shows years, not tracks, so that a day with
+ * sixty releases still fits in a short strip. Its artwork is the first track's, which is what makes
+ * the year recognisable at a glance.
+ */
+fun MemoryGroup.toHomeCard(label: String): HomeCard = HomeCard(
+    type = HomeCardType.MEMORY,
+    itemId = year.toString(),
+    title = label,
+    subtitle = tracks.size.toString(),
+    coverArtId = tracks.firstOrNull()?.let { it.coverArt ?: it.id }
 )
 
 /** Tag-backed browse entries (years, festivals) are identified by their tag value. */

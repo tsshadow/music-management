@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.moire.ultrasonic.R
 import org.moire.ultrasonic.domain.MemoryGroup
 import org.moire.ultrasonic.domain.Track
 import org.moire.ultrasonic.service.MusicServiceFactory.getMusicService
@@ -68,19 +67,11 @@ class MemoriesViewModel : ViewModel() {
          * never claims a precision the tags do not have.
          */
         fun sectionsFor(groups: List<MemoryGroup>): List<HomeSection> = groups.map { group ->
-            val singular = group.yearsAgo == 1
-            val titleRes = when {
-                group.exact && singular -> R.string.memories_today_one
-                group.exact -> R.string.memories_today
-                singular -> R.string.memories_this_week_one
-                else -> R.string.memories_this_week
-            }
-
             HomeSection(
-                titleRes = titleRes,
+                titleRes = memoryHeadingRes(group),
                 style = CardStyle.CAROUSEL,
                 cards = group.tracks.map { it.toHomeCard() },
-                titleArgs = if (singular) emptyList() else listOf(group.yearsAgo)
+                titleArgs = memoryHeadingArgs(group)
             )
         }
     }

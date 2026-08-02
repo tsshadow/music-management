@@ -19,6 +19,7 @@ enum class HomeCardType {
     LINEUP,
     RATING,
     TRACK,
+    MEMORY,
     DYNAMIC_PLAYLIST,
     STATIC_PLAYLIST
 }

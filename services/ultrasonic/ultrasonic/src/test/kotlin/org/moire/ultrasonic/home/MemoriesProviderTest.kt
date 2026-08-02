@@ -15,11 +15,12 @@ class MemoriesProviderTest {
     private fun provider(load: () -> List<MemoryGroup>) = MemoriesProvider(
         titleRes = R.string.home_memories,
         loadMemories = { load() },
-        today = { "2026-08-02" }
+        today = { "2026-08-02" },
+        label = { "${it.yearsAgo} years ago" }
     )
 
     @Test
-    fun `builds one carousel of track cards, newest year first`() = runBlocking<Unit> {
+    fun `builds one card per year, newest first`() = runBlocking<Unit> {
         val section = provider {
             listOf(
                 MemoryGroup(2018, 8, true, listOf(track("a"), track("b"))),
@@ -28,8 +29,19 @@ class MemoriesProviderTest {
         }.load()!!
 
         section.style `should be equal to` CardStyle.CAROUSEL
-        section.cards.map { it.itemId } `should be equal to` listOf("a", "b", "c")
-        section.cards.map { it.type }.distinct() `should be equal to` listOf(HomeCardType.TRACK)
+        section.cards.map { it.itemId } `should be equal to` listOf("2018", "2015")
+        section.cards.map { it.type }.distinct() `should be equal to` listOf(HomeCardType.MEMORY)
+        section.cards.map { it.title } `should be equal to` listOf("8 years ago", "11 years ago")
+        section.cards.map { it.subtitle } `should be equal to` listOf("2", "1")
+    }
+
+    @Test
+    fun `a card carries the first track's artwork, so the year is recognisable`() = runBlocking<Unit> {
+        val section = provider {
+            listOf(MemoryGroup(2018, 8, true, listOf(track("a"), track("b"))))
+        }.load()!!
+
+        section.cards.single().coverArtId `should be equal to` "a"
     }
 
     @Test
@@ -48,12 +60,22 @@ class MemoriesProviderTest {
     }
 
     @Test
-    fun `caps the carousel at ten cards`() = runBlocking<Unit> {
+    fun `caps the carousel at ten years`() = runBlocking<Unit> {
         val section = provider {
-            listOf(MemoryGroup(2018, 8, true, (1..25).map { track(it.toString()) }))
+            (1..25).map { MemoryGroup(2026 - it, it, false, listOf(track("t$it"))) }
         }.load()!!
 
         section.cards.size `should be equal to` 10
+    }
+
+    @Test
+    fun `one year with many tracks is still one card`() = runBlocking<Unit> {
+        val section = provider {
+            listOf(MemoryGroup(2018, 8, true, (1..60).map { track(it.toString()) }))
+        }.load()!!
+
+        section.cards.size `should be equal to` 1
+        section.cards.single().subtitle `should be equal to` "60"
     }
 
     @Test
@@ -66,7 +88,8 @@ class MemoriesProviderTest {
                 requested = date
                 listOf(MemoryGroup(2018, 8, true, listOf(track("a"))))
             },
-            today = { "2026-12-25" }
+            today = { "2026-12-25" },
+            label = { "whatever" }
         ).load()
 
         requested `should be equal to` "2026-12-25"

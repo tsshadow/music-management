@@ -12,15 +12,19 @@ import org.moire.ultrasonic.domain.MemoryGroup
 import timber.log.Timber
 
 /**
- * The home teaser for memories: one carousel of tracks released on this day in earlier years.
+ * The home teaser for memories: one carousel of the years that hold a release from this day.
  *
- * The breakdown per year belongs on the Memories screen; the carousel is a flat, capped strip, so
- * the groups are flattened here. Newest year first is the server's order and is kept.
+ * One card per year rather than per track: a day can hold sixty releases, and the carousel has to
+ * stay a short strip. Tapping a card opens the Memories screen, where the year is listed in full.
+ *
+ * [label] turns a group into its heading. It is passed in because resolving a string resource
+ * needs a context, and keeping that out of here is what lets this class be tested as plain Kotlin.
  */
 class MemoriesProvider(
     @StringRes private val titleRes: Int,
     private val loadMemories: suspend (String) -> List<MemoryGroup>,
-    private val today: () -> String
+    private val today: () -> String,
+    private val label: (MemoryGroup) -> String
 ) : HomeSectionProvider {
 
     /**
@@ -37,9 +41,9 @@ class MemoriesProvider(
         }
 
         val cards = groups
-            .flatMap { group -> group.tracks }
+            .filter { it.tracks.isNotEmpty() }
             .take(CAROUSEL_SIZE)
-            .map { it.toHomeCard() }
+            .map { it.toHomeCard(label(it)) }
 
         if (cards.isEmpty()) return null
 

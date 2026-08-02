@@ -108,6 +108,8 @@ class HomeCardAdapter(
         HomeCardType.LINEUP -> R.string.library_tab_lineups
         HomeCardType.RATING -> R.string.library_tab_ratings
         HomeCardType.TRACK -> R.string.main_songs
+        // A memory card always sets its own subtitle (the track count); this is only the fallback.
+        HomeCardType.MEMORY -> R.string.home_memories
         HomeCardType.DYNAMIC_PLAYLIST, HomeCardType.STATIC_PLAYLIST -> R.string.playlist_label
     }
 

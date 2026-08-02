@@ -19,10 +19,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.moire.ultrasonic.R
 import org.moire.ultrasonic.api.subsonic.models.AlbumListType
+import org.moire.ultrasonic.app.UApp
 import org.moire.ultrasonic.data.ActiveServerProvider
 import org.moire.ultrasonic.domain.Album
 import org.moire.ultrasonic.domain.MemoryGroup
-import org.moire.ultrasonic.domain.Track
 import org.moire.ultrasonic.service.MusicServiceFactory.getMusicService
 import org.moire.ultrasonic.util.Settings
 import timber.log.Timber
@@ -55,7 +55,8 @@ class HomeViewModel(
         MemoriesProvider(
             titleRes = R.string.home_memories,
             loadMemories = { date -> memories(date) },
-            today = { LocalDate.now().toString() }
+            today = { LocalDate.now().toString() },
+            label = ::memoryLabel
         ),
         ShortcutsProvider(R.string.home_shortcuts, store) { Settings.isSetsMode },
         LibraryActivityProvider(
@@ -120,26 +121,20 @@ class HomeViewModel(
     /** Records that the user opened [card], so it moves to the front of the shortcuts grid. */
     fun recordOpened(card: HomeCard) = store.record(card, Settings.isSetsMode)
 
-    // The memories carousel is the only section made of tracks, and tapping one plays it. Keeping
-    // them here means the tap does not need a second request to find out what it just played.
-    private var memoryTracks: Map<String, Track> = emptyMap()
-
-    fun trackFor(id: String): Track? = memoryTracks[id]
-
     /**
      * The memory groups for [date], or nothing at all when the user has hidden the carousel.
      *
      * Hiding it is enforced here rather than in the provider so that the provider stays a plain
      * mapper with no opinion about settings.
      */
-    private fun memories(date: String): List<MemoryGroup> {
-        if (!Settings.memoriesOnHome) return emptyList()
+    private fun memories(date: String): List<MemoryGroup> =
+        if (Settings.memoriesOnHome) getMusicService().getMemories(date) else emptyList()
 
-        val groups = getMusicService().getMemories(date)
-        memoryTracks = groups.flatMap { it.tracks }.associateBy { it.id }
-
-        return groups
-    }
+    /** Resolved here rather than in the provider, which is deliberately free of a context. */
+    private fun memoryLabel(group: MemoryGroup): String = UApp.applicationContext().getString(
+        memoryHeadingRes(group),
+        *memoryHeadingArgs(group).toTypedArray()
+    )
 
     /**
      * Livesets are festival recordings, so a record label says nothing about them; in sets mode the

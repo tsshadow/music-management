@@ -132,6 +132,57 @@ def test_hotfix_branch_compares_against_master(repo: Path):
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def test_added_section_requires_a_minor_bump(repo: Path):
+    """0.0.59 after 47 patch bumps tells nobody anything. A release with an
+    ### Added section is a feature release and must say so in the number."""
+    _git(repo, "checkout", "-b", "release/0.0.2", "--quiet")
+    _stabilise(repo, "0.0.2", "\n### Added\n- A whole new feature.\n")
+    result = _run(repo, "release/0.0.2")
+    assert result.returncode != 0
+    assert "minor" in result.stdout
+
+
+def test_added_section_passes_with_a_minor_bump(repo: Path):
+    _git(repo, "checkout", "-b", "release/0.1.0", "--quiet")
+    _stabilise(repo, "0.1.0", "\n### Added\n- A whole new feature.\n")
+    result = _run(repo, "release/0.1.0")
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_a_minor_bump_must_reset_the_patch(repo: Path):
+    _git(repo, "checkout", "-b", "release/0.1.3", "--quiet")
+    _stabilise(repo, "0.1.3", "\n### Added\n- A whole new feature.\n")
+    result = _run(repo, "release/0.1.3")
+    assert result.returncode != 0
+    assert "0.1.0" in result.stdout
+
+
+def test_fix_only_release_may_bump_the_patch(repo: Path):
+    _git(repo, "checkout", "-b", "release/0.0.2", "--quiet")
+    _stabilise(repo, "0.0.2", "\n### Fixed\n- A bug.\n")
+    result = _run(repo, "release/0.0.2")
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_an_added_section_for_another_release_does_not_count(repo: Path):
+    """Only the section belonging to *this* version decides the rule; the
+    changelog keeps every previous release's ### Added forever."""
+    _git(repo, "checkout", "-b", "release/0.0.2", "--quiet")
+    _write(repo, "VERSION", "0.0.2\n")
+    _write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n"
+        "## [0.0.2] - 2026-08-02\n\n### Fixed\n- A bug.\n\n"
+        "## [0.0.1] - 2026-07-01\n\n### Added\n- The whole application.\n",
+    )
+    _write(repo, "RELEASE_NOTES.md", "# Release notes\n\n## 0.0.2\nA fix.\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "chore(release): stabilize 0.0.2", "--quiet")
+    result = _run(repo, "release/0.0.2")
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 def test_the_comparison_base_can_be_overridden(repo: Path):
     """CI never sets it, but it is what makes the base visible in a failure."""
     _git(repo, "checkout", "-b", "release/0.0.2", "--quiet")

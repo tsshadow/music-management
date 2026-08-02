@@ -60,6 +60,33 @@ if ! grep -q "^## \[${RELEASE_VERSION}\]" CHANGELOG.md; then
 fi
 echo "OK: CHANGELOG.md has a dated [${RELEASE_VERSION}] entry."
 
+# 2b. A release that adds something is a feature release: minor bump, patch
+# reset. Everything else is a patch bump. Without this the version number is
+# just a build counter - which is what 47 consecutive 0.0.x releases were.
+BASE_VERSION=$(git show "${BASE}:VERSION" | tr -d '[:space:]')
+IFS='.' read -r BASE_MAJOR BASE_MINOR BASE_PATCH <<< "$BASE_VERSION"
+IFS='.' read -r NEW_MAJOR NEW_MINOR NEW_PATCH <<< "$RELEASE_VERSION"
+
+# The section body for this release: everything between its heading and the
+# next `## [` heading. A previous release's ### Added must not count.
+RELEASE_SECTION=$(awk -v version="$RELEASE_VERSION" '
+    $0 ~ "^## \\[" version "\\]" { inside = 1; next }
+    inside && /^## \[/ { exit }
+    inside { print }
+' CHANGELOG.md)
+
+if grep -q '^### Added' <<< "$RELEASE_SECTION"; then
+    if [ "$NEW_MAJOR" = "$BASE_MAJOR" ] && [ "$NEW_MINOR" -le "$BASE_MINOR" ]; then
+        fail "CHANGELOG [${RELEASE_VERSION}] has an '### Added' section, so this is a feature release and must bump the minor version (from ${BASE_VERSION}, expected ${BASE_MAJOR}.$((BASE_MINOR + 1)).0), not the patch version."
+    fi
+    if [ "$NEW_PATCH" != "0" ]; then
+        fail "A minor bump resets the patch version to 0, so ${RELEASE_VERSION} should be ${NEW_MAJOR}.${NEW_MINOR}.0."
+    fi
+    echo "OK: feature release, minor version bumped to ${RELEASE_VERSION}."
+else
+    echo "OK: no '### Added' section, a patch bump to ${RELEASE_VERSION} is fine."
+fi
+
 # 3. RELEASE_NOTES.md must be touched.
 if git diff --quiet "$BASE" -- RELEASE_NOTES.md; then
     fail "RELEASE_NOTES.md was not updated on this release branch."

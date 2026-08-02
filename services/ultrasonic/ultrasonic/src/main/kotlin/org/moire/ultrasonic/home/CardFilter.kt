@@ -31,10 +31,12 @@ fun browseSortOrdersFor(category: BrowseCategory): List<SortOrder> = when (categ
 /**
  * Whether a [BrowseCategory] is worth searching.
  *
- * Years are a short list of numbers in a known order, so a search box only takes up room the
- * cards could use. Every other category is a long list of names where typing beats scrolling.
+ * Ratings is a fixed list of five cards that all fit on screen, and years are a short list of
+ * numbers in a known order. A search box over either only takes up room the cards could use.
+ * Every other category grows with the library, where typing beats scrolling.
  */
-fun browseSupportsSearch(category: BrowseCategory): Boolean = category != BrowseCategory.YEARS
+fun browseSupportsSearch(category: BrowseCategory): Boolean =
+    category != BrowseCategory.RATINGS && category != BrowseCategory.YEARS
 
 /**
  * The browse tabs hold their whole list in memory, so searching and sorting them needs no server

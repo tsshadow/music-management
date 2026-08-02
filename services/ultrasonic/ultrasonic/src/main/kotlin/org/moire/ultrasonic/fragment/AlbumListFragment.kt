@@ -350,4 +350,6 @@ fun SortOrder.mapToAlbumListType(): AlbumListType = when (this) {
     SortOrder.BY_TRACK_COUNT -> AlbumListType.BY_TRACK_COUNT
     SortOrder.BY_ALBUM_COUNT, SortOrder.BY_ADDED ->
         throw UnsupportedOperationException("Artist-specific sort orders cannot be used for albums")
+    SortOrder.BY_YEAR_DESC ->
+        throw UnsupportedOperationException("The years browse tab sorts its own cards")
 }

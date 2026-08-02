@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.61] - 2026-08-02
+
+### Added
+- **The star button in Android Auto now sets a rating instead of a favourite.** It used to toggle
+  the Subsonic favourite flag on and off, which left the five-point rating — the thing the rest of
+  the app sorts by, filters on, and shows a five-star widget for — unreachable from the car. The
+  button now cycles through six states: an empty star for no rating, then a star carrying the
+  digit 1 through 5, wrapping back to empty. Favourites are unchanged on the phone; they lose only
+  their car button, which keeps shuffle and repeat out of the overflow menu where they are harder
+  to hit while driving.
+
 ## [0.0.60] - 2026-08-02
 
 ### Added

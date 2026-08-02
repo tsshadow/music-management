@@ -18,6 +18,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that hasn't been reported yet. Manual reports are marked as such in `crash_reports`, so they
   are distinguishable from real crashes and from silent kills.
 
+## [6.5.26] - 2026-08-02
+
+### Changed
+- **The Android Auto star button sets a rating instead of a favourite.** It toggled the Subsonic
+  favourite flag; it now cycles the track's five-point rating through six states — an empty star
+  for no rating, then a star carrying the digit 1 through 5, wrapping back to empty. Ratings are
+  what the rest of the app acts on: the track list sorts and filters by them and the player has a
+  five-star widget, but none of it was reachable from the car. Each of the six buttons carries the
+  rating it was drawn with, so a tap derives the next rating from the button itself rather than
+  from state that can go stale between track changes. Favourites still work everywhere on the
+  phone; keeping both buttons in the car would have pushed shuffle and repeat into the overflow
+  menu.
+
 ## [6.5.25] - 2026-08-02
 
 ### Added

@@ -18,6 +18,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that hasn't been reported yet. Manual reports are marked as such in `crash_reports`, so they
   are distinguishable from real crashes and from silent kills.
 
+### Removed
+- **The "MuMa Sync" screen in Ultrasonic** and its six buttons (log on, load/write tiles,
+  clear tiles, load/write settings). Tiles already sync themselves through the tile editor,
+  the log-on step already happens when a server is saved, and the settings backup/restore pair was a
+  blunt dump of every shared preference that needed an app restart to take effect and could
+  overwrite a working install with another device's state. The MuMa user ID and API key
+  settings stay — they are what the rest of the app authenticates with. Along with the screen
+  went the unused `POST /api/users/{id}/dynamic-playlists/sync` endpoint on the manager, which
+  no client had called since the tile editor started writing playlists directly.
+
+### Changed
+- **The Ratings tab no longer offers a search field.** Every Library tab got the same filter bar,
+  but Ratings is not a list the library grows: it is the same five cards ("4 stars and up" down to
+  "1 star and up"), all of them on screen at once. Searching five visible cards is busywork, so the
+  field is hidden there and stays on the tabs that do grow — genres, labels, years, festivals and
+  lineups.
+
+## [0.0.61] - 2026-08-02
+
+### Added
+- **The star button in Android Auto now sets a rating instead of a favourite.** It used to toggle
+  the Subsonic favourite flag on and off, which left the five-point rating — the thing the rest of
+  the app sorts by, filters on, and shows a five-star widget for — unreachable from the car. The
+  button now cycles through six states: an empty star for no rating, then a star carrying the
+  digit 1 through 5, wrapping back to empty. Favourites are unchanged on the phone; they lose only
+  their car button, which keeps shuffle and repeat out of the overflow menu where they are harder
+  to hit while driving.
+
 ## [0.0.60] - 2026-08-02
 
 ### Added

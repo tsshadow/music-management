@@ -10,6 +10,16 @@
   "Crash detection"-schakelaar — op de knop drukken is toestemming genoeg — en hij gooit nooit een
   crashbestand weg dat nog niet gerapporteerd is.
 
+## [6.5.26] - 2026-08-02
+
+### Changed
+- **De sterknop in Android Auto geeft een cijfer in plaats van een favoriet.** De knop loopt nu
+  door zes standen: een lege ster voor geen waardering, daarna een ster met het cijfer 1 tot en
+  met 5 erin, en vanaf 5 weer terug naar leeg. De waardering is waar de app verder op sorteert en
+  filtert, maar was vanuit de auto niet te bereiken. Favorieten werken op de telefoon gewoon
+  door; alleen hun knop in de auto vervalt, zodat shuffle en herhalen op de hoofdbalk blijven
+  staan.
+
 ## [6.5.25] - 2026-08-02
 
 ### Added

@@ -19,8 +19,8 @@ CREATE TABLE IF NOT EXISTS user_app_settings (
 )
 ```
 
-This is the same table/pattern already used by Ultrasonic (`app_id = 'ultrasonic'`, see
-`services/ultrasonic/.../MumaSyncFragment.kt`). The web frontend uses a new, dedicated
+This is the same table/pattern Ultrasonic used for its own settings backup under
+`app_id = 'ultrasonic'` (that screen has since been removed; the endpoints stayed). The web frontend uses a new, dedicated
 `app_id = 'frontend'` row per user. `settings_json` is an opaque JSON-encoded string owned by the
 frontend; today it holds a single key:
 

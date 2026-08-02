@@ -432,8 +432,4 @@
             android:id="@+id/toGoogleAuth"
             app:destination="@id/googleAuthFragment" />
     </fragment>
-    <fragment
-        android:id="@+id/mumaSyncFragment"
-        android:name="org.moire.ultrasonic.fragment.MumaSyncFragment"
-        android:label="@string/menu.muma_sync" />
 </navigation>

@@ -20,6 +20,8 @@ enum class SortOrder(val typeName: String) {
     BY_ARTIST("alphabeticalByArtist"),
     STARRED("starred"),
     BY_YEAR("byYear"),
+    // Only the years browse tab sorts by this; there is no album-list equivalent.
+    BY_YEAR_DESC("byYearDesc"),
     BY_TRACK_COUNT("trackCount"),
     BY_ALBUM_COUNT("albumCount"),
     BY_ADDED("added")

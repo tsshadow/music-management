@@ -116,12 +116,23 @@ def db(database):
 
 
 def _truncate_all(connection):
+    """Empty every base table.
+
+    DELETE rather than TRUNCATE: TRUNCATE implicitly commits and takes a
+    metadata lock on the table, which on a loaded CI runner collided with the
+    connections the endpoints under test had just opened and closed and failed
+    with "Lock wait timeout exceeded". These tables never hold more than a
+    handful of rows, so the cost of DELETE is irrelevant. The AUTO_INCREMENT
+    reset keeps ids predictable per test, the way TRUNCATE used to leave them.
+    """
     with connection.cursor() as cursor:
         cursor.execute('SET FOREIGN_KEY_CHECKS = 0')
         cursor.execute("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'")
-        for row in cursor.fetchall():
-            table = next(iter(row.values()))
-            cursor.execute(f'TRUNCATE TABLE `{table}`')
+        tables = [next(iter(row.values())) for row in cursor.fetchall()]
+        for table in tables:
+            cursor.execute(f'DELETE FROM `{table}`')
+        for table in tables:
+            cursor.execute(f'ALTER TABLE `{table}` AUTO_INCREMENT = 1')
         cursor.execute('SET FOREIGN_KEY_CHECKS = 1')
 
 

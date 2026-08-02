@@ -58,8 +58,6 @@ class HomeViewModel(
             today = { LocalDate.now().toString() },
             label = ::memoryLabel
         ),
-        ShortcutsProvider(R.string.home_shortcuts, store) { Settings.isSetsMode },
-
         ShortcutsProvider(
             titleRes = R.string.home_shortcuts,
             store = store,

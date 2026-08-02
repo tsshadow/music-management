@@ -18,6 +18,7 @@ from fastapi.testclient import TestClient
 from services.music_manager.main import app
 from services.music_manager.routers import scanner as scanner_router
 from services.music_manager.routers import tagger as tagger_router
+from services.tagger.Song.BaseSong import BaseSong
 
 API_KEY = users_router.API_KEY
 
@@ -152,8 +153,8 @@ class ResolveGenreIdsTest(unittest.TestCase):
         self.helper.split_composite.side_effect = lambda raw: [raw]
 
     def song_with(self, genres):
-        song = MagicMock()
-        song.genres.return_value = genres
+        song = MagicMock(spec_set=BaseSong)
+        song.rules_genres.return_value = genres
         return song
 
     def decision(self, state, values):
@@ -208,12 +209,12 @@ class ProcessFileTest(unittest.TestCase):
             self.addCleanup(p.stop)
 
     def song(self, artists=('Angerfist',), publisher='Masters of Hardcore'):
-        song = MagicMock()
+        song = MagicMock(spec_set=BaseSong)
         song.library_artists.return_value = list(artists)
         song.publisher.return_value = publisher
         song.title.return_value = 'Raise Your Fist'
         song.length.return_value = 300
-        song.genres.return_value = []
+        song.rules_genres.return_value = []
         return song
 
     def statements(self):

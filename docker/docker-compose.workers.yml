@@ -163,7 +163,9 @@ services:
   soundcloud_worker_full_once:
     image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest
     container_name: muma-soundcloud-worker-full-once
-    restart: unless-stopped
+    # Runs without --repeat, so it exits after one sweep by design. Restarting it
+    # turned that single sweep into a container that respawns every minute forever.
+    restart: "no"
     depends_on:
       - db
     command:

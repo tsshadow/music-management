@@ -7,11 +7,28 @@ for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen
 
 from services.common.Helpers.GenreRulesHelper import GenreRow, GenreRulesHelper
 from services.music_manager.routers.scanner import ScannerManager
+from services.tagger.Song.BaseSong import BaseSong
 
 
 def helper_with(rows, expansions=None):
     """A GenreRulesHelper backed by explicit rows instead of the database."""
     return GenreRulesHelper(preload=False, rows=rows, expansions=expansions or {})
+
+
+class TaggedSong:
+    """A song stub with only the genre API BaseSong really has.
+
+    Deliberately not a MagicMock: a mock answers to any method name, so it
+    happily accepted a call that does not exist on BaseSong and the scanner
+    blew up on every file in production instead. Anything the scanner reaches
+    for beyond rules_genres() must fail here.
+    """
+
+    def __init__(self, tags):
+        self._tags = tags
+
+    def rules_genres(self):
+        return self._tags
 
 
 def row(id_, name, state, normalized=None):
@@ -30,10 +47,12 @@ class ScannerGenreResolutionTest(unittest.TestCase):
         self.manager = ScannerManager()
 
     def _resolve(self, tags, rows, expansions=None):
-        song = MagicMock()
-        song.genres.return_value = tags
         self.manager.genre_helper = helper_with(rows, expansions)
-        return self.manager._resolve_genre_ids(song)
+        return self.manager._resolve_genre_ids(TaggedSong(tags))
+
+    def test_the_stub_matches_the_genre_api_real_songs_expose(self):
+        """Guards the stub above against drifting away from production."""
+        self.assertTrue(callable(BaseSong.rules_genres))
 
     def test_white_genre_resolves_to_its_own_id(self):
         rows = [row(7, 'Uptempo Hardcore', 'white')]

@@ -111,7 +111,7 @@ class ScannerManager:
         several targets. Order is preserved and duplicates removed.
         """
         genre_ids = []
-        for raw in song.genres() or []:
+        for raw in song.rules_genres() or []:
             if not raw:
                 continue
             for part in self.genre_helper.split_composite(raw):

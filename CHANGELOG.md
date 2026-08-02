@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Diagnostics can be sent without waiting for a crash.** Crash reporting only fired on the next
+  app start, and only after the app had actually died, so the failures that leave the app running
+  — a call that returns an error, a screen that stays empty — never reached the server. Settings
+  now has "Send diagnostics now" under the Muma section, which uploads the current session's log
+  and writes a copy to Downloads/UltrasonicLogs. It sits outside the debug category on purpose,
+  because that category is hidden in release builds. Unlike the automatic report it ignores the
+  "Crash detection" toggle — pressing the button is consent — and it never deletes a crash file
+  that hasn't been reported yet. Manual reports are marked as such in `crash_reports`, so they
+  are distinguishable from real crashes and from silent kills.
+
 ### Removed
 - **The "MuMa Sync" screen in Ultrasonic** and its six buttons (log on, load/write tiles,
   clear tiles, load/write settings). Tiles already sync themselves through the tile editor,

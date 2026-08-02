@@ -27,6 +27,11 @@ export PYTHONPATH="$ROOT_DIR:$ROOT_DIR/services:$PYTHONPATH"
 TEST_TARGETS=(
     "services/"
     "tools/"
+    # Pipeline policy: asserts .gitlab-ci.yml and the release scripts still obey
+    # the rules that keep an untested commit from reaching production. Listed
+    # explicitly because tests/ holds integration suites that this job must not
+    # run, so the whole directory cannot be handed to pytest.
+    "tests/ci/"
 )
 
 # Ratchet: the suite sits above this, and a change that drops below it fails here

@@ -50,6 +50,7 @@
 #include "endpoints/MediaAnnotation.hpp"
 #include "endpoints/MediaLibraryScanning.hpp"
 #include "endpoints/MediaRetrieval.hpp"
+#include "endpoints/Memories.hpp"
 #include "endpoints/Playlists.hpp"
 #include "endpoints/Podcast.hpp"
 #include "endpoints/Searching.hpp"
@@ -233,6 +234,9 @@ namespace lms::api::subsonic
             { "/getSpotifyTracks", { handleGetSpotifyTracks } },
             { "/getSpotifyHistory", { handleGetSpotifyHistory } },
             { "/spotifyImportFromListenBrainz", { handleSpotifyImportFromListenBrainz } },
+
+            // Memories
+            { "/getMemories", { handleGetMemories } },
 
             // Internet radio
             { "/getInternetRadioStations", { handleNotImplemented } },

@@ -1,7 +1,7 @@
 """Helpers for the tests that assert pipeline policy against .gitlab-ci.yml."""
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import yaml
 
@@ -23,19 +23,19 @@ class _GitlabLoader(yaml.SafeLoader):
     """
 
 
-def _reference(loader: yaml.Loader, node: yaml.Node) -> List[str]:
+def _reference(loader: yaml.Loader, node: yaml.Node) -> list[str]:
     return list(loader.construct_sequence(node))
 
 
 _GitlabLoader.add_constructor("!reference", _reference)
 
 
-def load_ci() -> Dict[str, Any]:
+def load_ci() -> dict[str, Any]:
     """Parse .gitlab-ci.yml into a plain dict."""
     return yaml.load(CI_FILE.read_text(encoding="utf-8"), Loader=_GitlabLoader)
 
 
-def job_names(ci: Dict[str, Any]) -> List[str]:
+def job_names(ci: dict[str, Any]) -> list[str]:
     """Every real job in the pipeline: no reserved keys, no .hidden templates."""
     return [
         name

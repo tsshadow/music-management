@@ -49,3 +49,7 @@ docker~=7.2.0
 pytest>=8.4.0
 pytest-cov>=4.1.0
 coverage~=7.2.7
+# Property-based tests (services/common/Helpers/ArtistNameAnalyzerPropertyTest.py).
+# Here rather than in requirements-dev.txt for the same reason as pytest: those
+# tests guard the text helpers, and without this they skip silently on CI.
+hypothesis~=6.0

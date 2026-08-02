@@ -15,6 +15,3 @@ mypy~=2.3
 
 # Dependency vulnerability scanning (scripts/ci/dependency-audit.sh)
 pip-audit~=2.10
-
-# Property-based tests (services/tagger/Song/rules/*PropertyTest.py)
-hypothesis~=6.0

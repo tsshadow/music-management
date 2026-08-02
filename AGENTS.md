@@ -140,16 +140,45 @@ To maintain high code quality, the system employs an automated test suite:
 
 ### Full test inventory & local commands
 - **Inventory**: See [docs/testing-inventory.md](docs/testing-inventory.md) for a per-module breakdown (build/start/test/lint commands, ports, health endpoints, databases, Docker findings).
+- **Quality gates** — all enforced in CI (`quality` stage) and by the versioned pre-commit
+  hook (`./scripts/install-hooks.sh`), which is a thin wrapper around the same scripts so the
+  two cannot drift:
+    - `./scripts/lint.sh` — ruff (config in `pyproject.toml`) + pylint, threshold 9.5.
+    - `./scripts/typecheck.sh` — mypy. Rolled out per module: `pyproject.toml` holds a loose
+      floor for the whole tree and lists the strictly-checked modules. That list only grows.
+    - `./scripts/format.sh <path>` — opt-in `ruff format`. Deliberately not in CI: a tree-wide
+      reformat would rewrite nearly every file and conflict with every open branch.
+    - `./scripts/ci/dependency-audit.sh` — pip-audit + npm audit. Runs on a schedule and on the
+      default branch, not as a merge-request gate (it audits the runner's environment, which
+      this repository does not manage). Accepted findings, with a reason, live in
+      `security/accepted-vulnerabilities.txt`.
+- **Ratchets** — `FAIL_UNDER` in `scripts/lint.sh` (9.5), `COVERAGE_MIN` in
+  `scripts/test/music-management-unit.sh` (85%) and the `thresholds` in
+  `services/frontend/vite.config.js` are floors. Raise them as the numbers climb; never lower
+  one to make a red build green.
 - **Uniform local test scripts** (`scripts/test/`), run the same way locally and in CI:
-    - `./scripts/test/music-management-unit.sh` — Python unit tests (music-manager, importer, downloader).
+    - `./scripts/test/music-management-unit.sh` — Python unit tests, whole `services/` and
+      `tools/` tree, with the coverage gate.
+    - `./scripts/test/db-integration.sh` — every endpoint's SQL against a throwaway MariaDB,
+      plus the schema bootstrap and every `migrate_*.sql` applied twice. The unit suite mocks
+      the cursor, so this is the only thing that proves MariaDB accepts the queries.
     - `./scripts/test/lms-unit.sh` — LMS C++ unit tests (existing upstream CTest/GTest suite).
-    - `./scripts/test/frontend-unit.sh` — frontend lint + typecheck (no unit test runner configured yet).
+    - `./scripts/test/frontend-unit.sh` — frontend lint + svelte-check + vitest with coverage.
     - `./scripts/test/android-unit.sh` — Ultrasonic JVM unit tests.
     - `./scripts/test/core-smoke.sh` — builds and starts `docker/compose.test.yml` from a clean state, waits for all healthchecks, then tears down.
     - `./scripts/test/contracts.sh` — LMS/OpenSubsonic contract tests + listen/scrobble flow, against the test stack + fixture track.
     - `./scripts/test/frontend-browser.sh` — Playwright browser tests (login, fixture track visible) against the test stack.
 - **Test stack**: `docker/compose.test.yml` — temporary MariaDB, `music-manager` and `music-management-server`, all built from the current checkout, disposable volumes, healthchecks. Never mounts real music/library paths or production data.
 - **Fixture track**: `tests/fixtures/music/ci-test-track-001.mp3` (generated tone, no commercial audio) with expected metadata documented in `tests/fixtures/expected/ci-test-track-001.json`.
+- **A new endpoint that reads the database** belongs in `tests/integration/test_router_sql.py`
+  as well as in a unit test. **A schema change needs three edits**: the `CREATE TABLE` in
+  `services/common/db_init.py`, a re-runnable `migrate_*.sql` in the repository root (applied
+  on every deploy by `scripts/deploy.sh`), and the expected-tables list in
+  `tests/integration/test_schema.py`. `CREATE TABLE IF NOT EXISTS` never alters an existing
+  table -- that is how `downloads_youtube_accounts.channel_id` and
+  `library_track_ml_labels.updated_at` went missing until the integration suite caught them.
+- **See [CONTRIBUTING.md](CONTRIBUTING.md)** for the full local setup and the conventions
+  above in one place, and [SECURITY.md](SECURITY.md) for the auth model and what is scanned.
 
 ---
 

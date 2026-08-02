@@ -25,7 +25,7 @@ import timber.log.Timber
  * @brief Manages media playback commands and custom UI controls.
  *
  * This class is responsible for handling playback-related commands such as play, pause, shuffle, and repeat.
- * It also manages custom command buttons in the Android Auto media session, including the heart (favorite) button
+ * It also manages custom command buttons in the Android Auto media session, including the star rating button
  * and repeat mode settings.
  *
  * @details
@@ -40,32 +40,17 @@ import timber.log.Timber
 class MediaLibraryCommandHandler {
     private val placeholderButton = getPlaceholderButton()
 
-    private var heartIsCurrentlyOn = false
+    private var currentRating = 0
     var customRepeatModeSet = false
 
     lateinit var allCustomCommands: List<CommandButton>
 
     lateinit var defaultCustomCommands: List<CommandButton>
 
-    // This button is used for an unstarred track, and its action will star the track
-    private val heartButtonToggleOn =
-        getHeartCommandButton(
-            SessionCommand(
-                PlaybackService.CUSTOM_COMMAND_TOGGLE_HEART_ON,
-                Bundle.EMPTY
-            ),
-            willHeart = true
-        )
-
-    // This button is used for an starred track, and its action will star the track
-    private val heartButtonToggleOff =
-        getHeartCommandButton(
-            SessionCommand(
-                PlaybackService.CUSTOM_COMMAND_TOGGLE_HEART_OFF,
-                Bundle.EMPTY
-            ),
-            willHeart = false
-        )
+    // One button per rating the track can currently have, indexed by that rating. Tapping any
+    // of them cycles to the next rating, wrapping from the highest back to no rating at all.
+    private val ratingButtons: List<CommandButton> =
+        (0..PlaybackService.MAX_RATING).map { getRatingCommandButton(it) }
 
     private lateinit var shuffleButton: CommandButton
 
@@ -111,22 +96,21 @@ class MediaLibraryCommandHandler {
         .setEnabled(true)
         .build()
 
-    private fun getHeartCommandButton(sessionCommand: SessionCommand, willHeart: Boolean) = CommandButton.Builder()
+    private fun getRatingCommandButton(rating: Int) = CommandButton.Builder()
         .setDisplayName(
-            if (willHeart) {
-                "Love"
-            } else {
-                "Dislike"
+            when (rating) {
+                0 -> "No rating"
+                1 -> "1 star"
+                else -> "$rating stars"
             }
         )
-        .setIconResId(
-            if (willHeart) {
-                R.drawable.ic_star_hollow
-            } else {
-                R.drawable.ic_star_full
-            }
+        .setIconResId(ratingIcons[rating])
+        .setSessionCommand(
+            SessionCommand(
+                PlaybackService.CUSTOM_COMMAND_CYCLE_RATING,
+                Bundle().apply { putInt(PlaybackService.EXTRA_CURRENT_RATING, rating) }
+            )
         )
-        .setSessionCommand(sessionCommand)
         .setEnabled(true)
         .build()
 
@@ -139,9 +123,7 @@ class MediaLibraryCommandHandler {
         repeatOneButton = getRepeatModeButton(repeatCommand, Player.REPEAT_MODE_ONE)
         repeatAllButton = getRepeatModeButton(repeatCommand, Player.REPEAT_MODE_ALL)
 
-        allCustomCommands = listOf(
-            heartButtonToggleOn,
-            heartButtonToggleOff,
+        allCustomCommands = ratingButtons + listOf(
             shuffleButton,
             repeatOffButton,
             repeatOneButton,
@@ -185,11 +167,11 @@ class MediaLibraryCommandHandler {
         }
     }
 
-    fun updateCustomHeartButton(session: MediaSession, isHeart: Boolean) {
+    fun updateCustomRatingButton(session: MediaSession, rating: Int) {
         with(session) {
             setCustomLayout(
                 buildCustomCommands(
-                    isHeart = isHeart,
+                    rating = rating,
                     canShuffle = canShuffle()
                 )
             )
@@ -199,12 +181,12 @@ class MediaLibraryCommandHandler {
     private fun MediaSession.canShuffle() = player.mediaItemCount > 2
 
     private fun MediaSession.buildCustomCommands(
-        isHeart: Boolean = false,
+        rating: Int = 0,
         canShuffle: Boolean = false
     ): ImmutableList<CommandButton> {
-        Timber.d("building custom commands (isHeart = %s, canShuffle = %s)", isHeart, canShuffle)
+        Timber.d("building custom commands (rating = %s, canShuffle = %s)", rating, canShuffle)
 
-        heartIsCurrentlyOn = isHeart
+        currentRating = rating.coerceIn(0, PlaybackService.MAX_RATING)
 
         return ImmutableList.copyOf(
             buildList {
@@ -217,15 +199,9 @@ class MediaLibraryCommandHandler {
                     add(placeholderButton)
                 }
 
-                // due to the previous placeholder this heart button will always appear to the left
-                // of the default playback items
-                add(
-                    if (isHeart) {
-                        heartButtonToggleOff
-                    } else {
-                        heartButtonToggleOn
-                    }
-                )
+                // due to the previous placeholder this rating button will always appear to the
+                // left of the default playback items
+                add(ratingButtons[currentRating])
 
                 // both the shuffle and the active repeat mode button will end up in the overflow
                 // menu if both are available at the same time
@@ -274,7 +250,7 @@ class MediaLibraryCommandHandler {
     private fun MediaSession.updateCustomCommands() {
         setCustomLayout(
             buildCustomCommands(
-                heartIsCurrentlyOn,
+                currentRating,
                 canShuffle()
             )
         )
@@ -283,11 +259,27 @@ class MediaLibraryCommandHandler {
     fun buildCustomCommands(
         session: MediaSession,
         canShuffle: Boolean
-    ): ImmutableList<CommandButton> = session.buildCustomCommands(canShuffle)
+    ): ImmutableList<CommandButton> =
+        session.buildCustomCommands(rating = currentRating, canShuffle = canShuffle)
 
     fun canShuffleWrapper(session: MediaSession): Boolean = session.canShuffle()
 
     companion object {
         private const val MIN_ITEMS_TO_SHUFFLE = 3
+
+        private val ratingIcons = listOf(
+            R.drawable.ic_car_rating_0,
+            R.drawable.ic_car_rating_1,
+            R.drawable.ic_car_rating_2,
+            R.drawable.ic_car_rating_3,
+            R.drawable.ic_car_rating_4,
+            R.drawable.ic_car_rating_5
+        )
+
+        /**
+         * The rating a tap moves to: one higher, wrapping from the highest back to none.
+         */
+        fun nextRating(current: Int): Int =
+            (current.coerceIn(0, PlaybackService.MAX_RATING) + 1) % (PlaybackService.MAX_RATING + 1)
     }
 }

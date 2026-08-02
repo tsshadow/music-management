@@ -142,6 +142,7 @@
     <string name="main.albums_released">Recent Released</string>
     <string name="main.albums_title">Albums</string>
     <string name="sort_order_track_count">Number of tracks</string>
+    <string name="sort_order_newest_first">Newest first</string>
     <string name="sort_order_album_count">Number of albums</string>
     <string name="sort_order_added">Recently added</string>
     <string name="main.artists_title">Artists</string>

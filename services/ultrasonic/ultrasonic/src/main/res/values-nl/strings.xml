@@ -117,6 +117,7 @@
     <string name="main.albums_by_year">Chronologisch</string>
     <string name="main.albums_title">Albums</string>
     <string name="sort_order_track_count">Aantal nummers</string>
+    <string name="sort_order_newest_first">Nieuwste eerst</string>
     <string name="sort_order_album_count">Aantal albums</string>
     <string name="sort_order_added">Recent toegevoegd</string>
     <string name="main.artists_title">Artiesten</string>

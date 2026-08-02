@@ -1,15 +1,17 @@
 import os
 import time
 from datetime import datetime
-from typing import Optional
+
 import requests
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Header, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from pydantic import BaseModel
+
 from services.music_manager.database import get_db_connection
+
 router = APIRouter(tags=['scrobble'])
 API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
 
-def verify_api_key(x_api_key: Optional[str]=Header(None)):
+def verify_api_key(x_api_key: str | None=Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
     if API_KEY and x_api_key == API_KEY:
@@ -26,10 +28,10 @@ def verify_api_key(x_api_key: Optional[str]=Header(None)):
 class ScrobbleEvent(BaseModel):
     artist_name: str
     track_title: str
-    album_name: Optional[str] = None
-    mbid_track: Optional[str] = None
-    mbid_artist: Optional[str] = None
-    listened_at: Optional[int] = None
+    album_name: str | None = None
+    mbid_track: str | None = None
+    mbid_artist: str | None = None
+    listened_at: int | None = None
     username: str
     source: str = 'manual'
 
@@ -88,7 +90,7 @@ def _process_listens_page(listens, conn, username, import_id, total_found):
                 conn.commit()
     return (processed, max_ts)
 
-def run_listenbrainz_import(import_id: int, username: str, lb_username: str, token: Optional[str]=None):
+def run_listenbrainz_import(import_id: int, username: str, lb_username: str, token: str | None=None):
     conn = get_db_connection()
     if not conn:
         print(f'Failed to connect to DB for import {import_id}')
@@ -142,8 +144,8 @@ def run_listenbrainz_import(import_id: int, username: str, lb_username: str, tok
 
 class ImportRequest(BaseModel):
     username: str
-    lb_username: Optional[str] = None
-    token: Optional[str] = None
+    lb_username: str | None = None
+    token: str | None = None
 
 @router.get('/import/latest')
 def get_latest_imports(_auth: dict=Depends(verify_api_key)):

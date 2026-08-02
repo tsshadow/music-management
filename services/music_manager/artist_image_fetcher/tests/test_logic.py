@@ -1,8 +1,10 @@
-import sys
 import os
+import sys
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))
-from services.music_manager.artist_image_fetcher.normalizer import ArtistNameNormalizer
 from services.music_manager.artist_image_fetcher.matcher import ArtistMatcher
+from services.music_manager.artist_image_fetcher.normalizer import ArtistNameNormalizer
+
 
 def test_normalizer():
     norm = ArtistNameNormalizer()

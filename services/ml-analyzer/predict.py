@@ -1,10 +1,12 @@
 import os
 import sys
+
 import joblib
-import pandas as pd
 import numpy as np
-from sqlalchemy import text
+import pandas as pd
 from analyzer import TrackAnalyzer
+from sqlalchemy import text
+
 
 class GenrePredictor:
 

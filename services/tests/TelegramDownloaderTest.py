@@ -1,8 +1,9 @@
+import os
 import sys
+import tempfile
 import types
 import unittest
-import os
-import tempfile
+
 telethon_mod = types.ModuleType('telethon')
 
 class DummyClient:
@@ -25,6 +26,7 @@ class DummyClient:
 telethon_mod.TelegramClient = DummyClient
 sys.modules['telethon'] = telethon_mod
 from downloader.telegram import TelegramDownloader
+
 
 class TelegramDownloaderTest(unittest.TestCase):
 

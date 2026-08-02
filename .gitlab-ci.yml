@@ -28,11 +28,31 @@ default:
         fi
 
 stages:
+  - quality
   - unit
   - integration
   - e2e
   - release
   - deploy
+
+# --- Static analysis ---------------------------------------------------------
+# Runs the same scripts/lint.sh the pre-commit hook runs, so a commit made with
+# --no-verify, or through the GitLab web UI, still meets the same bar. Both the
+# ruff rule set and the pylint threshold live in the repo (pyproject.toml,
+# .pylintrc) rather than in this file.
+
+quality:lint:
+  stage: quality
+  rules:
+    - changes:
+        - services/**/*.py
+        - tools/**/*.py
+        - scripts/**/*.sh
+        - pyproject.toml
+        - .pylintrc
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/lint.sh
 
 # --- Unit tests -------------------------------------------------------------
 

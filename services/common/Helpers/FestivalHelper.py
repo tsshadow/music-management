@@ -1,7 +1,8 @@
 import logging
 import re
-from typing import Optional
+
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+
 
 class FestivalHelper:
     """
@@ -14,7 +15,7 @@ class FestivalHelper:
         self.table_name = table_name
         self.db_connector = DatabaseConnector()
 
-    def get(self, input_string: str) -> Optional[dict]:
+    def get(self, input_string: str) -> dict | None:
         """
         Attempts to identify a festival and year from a given input string
         and returns structured festival information.
@@ -47,7 +48,7 @@ class FestivalHelper:
         finally:
             connection.close()
 
-    def _extract_year(self, text: str) -> Optional[int]:
+    def _extract_year(self, text: str) -> int | None:
         """
         Extracts a 4-digit year (starting with 20xx) from the input string.
 

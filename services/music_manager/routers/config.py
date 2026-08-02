@@ -1,13 +1,16 @@
 import os
-from typing import Dict, Any, Optional
-from fastapi import APIRouter, HTTPException, Header, Body, Depends
+from typing import Any
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
+
 from services.common.config_store import ConfigStore
+
 router = APIRouter(tags=['config'])
 config_store = ConfigStore()
 API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
 
-def verify_api_key(x_api_key: Optional[str]=Header(None)):
+def verify_api_key(x_api_key: str | None=Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
     if API_KEY and x_api_key == API_KEY:
@@ -22,7 +25,7 @@ def verify_api_key(x_api_key: Optional[str]=Header(None)):
     raise HTTPException(status_code=401, detail='Invalid API key')
 
 class ConfigUpdatePayload(BaseModel):
-    updates: Dict[str, Any] = Field(default_factory=dict)
+    updates: dict[str, Any] = Field(default_factory=dict)
 
 @router.get('/')
 def get_config(_auth: dict=Depends(verify_api_key)):
@@ -34,7 +37,7 @@ def update_config(payload: ConfigUpdatePayload, _auth: dict=Depends(verify_api_k
         updated = config_store.update(payload.updates)
         return {'status': 'success', 'config': updated}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 @router.get('/fields')
 def get_fields(_auth: dict=Depends(verify_api_key)):

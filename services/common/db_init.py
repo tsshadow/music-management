@@ -1,5 +1,7 @@
 import logging
+
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+
 REQUIRED_TABLES = [
     'downloads_soundcloud_accounts', 'downloads_soundcloud_archive', 
     'downloads_youtube_accounts', 'downloads_youtube_archive', 

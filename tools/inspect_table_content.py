@@ -1,6 +1,7 @@
 import os
-from sqlalchemy import create_engine, text
+
 from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
 
 load_dotenv()
 
@@ -19,7 +20,7 @@ def inspect_table(table_name, limit=5):
         result = conn.execute(text(f"SELECT * FROM `{table_name}` LIMIT {limit}"))
         keys = result.keys()
         for row in result:
-            print(dict(zip(keys, row)))
+            print(dict(zip(keys, row, strict=True)))
 
 if __name__ == "__main__":
     import sys

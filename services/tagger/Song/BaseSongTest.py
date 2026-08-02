@@ -1,10 +1,13 @@
 import unittest
-from unittest.mock import patch, MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
+
 from mutagen.easyid3 import EasyID3
+
+from services.tagger.constants import ARTIST, MusicFileType
 from services.tagger.Song.BaseSong import BaseSong, ExtensionNotSupportedException
-from services.tagger.Song.SongHelper import split_artists, merge_and_sort_genres
-from services.tagger.constants import MusicFileType, ARTIST
+from services.tagger.Song.SongHelper import merge_and_sort_genres, split_artists
 from services.tagger.Song.Tag import Tag
+
 
 class BaseSongTest(unittest.TestCase):
 

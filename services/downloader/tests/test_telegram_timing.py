@@ -4,6 +4,7 @@ import unittest
 from datetime import datetime, timedelta
 
 from services.tests.mock_base import setup_mocks
+
 setup_mocks()
 
 # Telethon is not installed in the test environment; stand in for it before the

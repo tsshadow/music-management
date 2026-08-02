@@ -3,7 +3,12 @@ from unittest.mock import MagicMock, patch
 
 from services.tagger.Song.rules import ExternalArtistLookup as module
 from services.tagger.Song.rules.ExternalArtistLookup import (
-    DiscogsLookup, ExternalArtistLookup, LastfmLookup, MusicBrainzLookup, SpotifyLookup)
+    DiscogsLookup,
+    ExternalArtistLookup,
+    LastfmLookup,
+    MusicBrainzLookup,
+    SpotifyLookup,
+)
 
 
 def make_response(status_code=200, payload=None):

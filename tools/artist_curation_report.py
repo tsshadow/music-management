@@ -33,7 +33,13 @@ from collections import Counter, defaultdict
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
 from services.common.Helpers.ArtistNameAnalyzer import (  # noqa: E402
-    ArtistNameAnalyzer, AnalyzerConfig, KEEP, REWRITE, SPLIT, REJECT, UNKNOWN
+    KEEP,
+    REJECT,
+    REWRITE,
+    SPLIT,
+    UNKNOWN,
+    AnalyzerConfig,
+    ArtistNameAnalyzer,
 )
 
 KINDS = (KEEP, REWRITE, SPLIT, REJECT, UNKNOWN)

@@ -1,9 +1,11 @@
 import logging
 import os
-from pathlib import Path
 import shutil
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
 from services.common.config_store import ConfigStore as Settings
+
 
 class EpsFlattener:
 

@@ -1,8 +1,10 @@
 import os
-from tqdm import tqdm
-from sqlalchemy import text
-from dotenv import load_dotenv
+
 from analyzer import TrackAnalyzer
+from dotenv import load_dotenv
+from sqlalchemy import text
+from tqdm import tqdm
+
 
 def update_metadata():
     load_dotenv()

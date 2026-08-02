@@ -4,6 +4,7 @@ import types
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
 os.environ.setdefault('import_folder_path', '/tmp')
 os.environ.setdefault('music_folder_path', '/tmp')
 os.environ.setdefault('eps_folder_path', '/tmp')
@@ -16,6 +17,7 @@ os.environ.setdefault('DB_DB', 'db')
 sys.modules['dotenv'] = types.ModuleType('dotenv')
 sys.modules['dotenv'].load_dotenv = lambda *a, **k: None
 from services.tagger.constants import SongTypeEnum
+
 
 class TaggerManualOverrideTest(unittest.TestCase):
 

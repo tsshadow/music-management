@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import MagicMock
+
 from services.tagger.Song.rules.MergeDrumAndBassGenresRule import MergeDrumAndBassGenresRule
+
 
 class MergeDrumAndBassGenresRuleTest(unittest.TestCase):
 

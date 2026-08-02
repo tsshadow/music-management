@@ -1,12 +1,15 @@
 import unittest
+
 from mutagen.easyid3 import EasyID3
 from mutagen.flac import VCFLACDict
 from mutagen.id3 import TPE1
-from mutagen.mp4 import MP4Tags, MP4FreeForm
+from mutagen.mp4 import MP4FreeForm, MP4Tags
 from mutagen.wave import _WaveID3
+
+from services.tagger.constants import ARTIST, GENRE
 from services.tagger.Song.Tag import Tag
 from services.tagger.Song.TagCollection import TagCollection, UnsupportedExtension
-from services.tagger.constants import ARTIST, GENRE
+
 
 class TagCollectionTest(unittest.TestCase):
 

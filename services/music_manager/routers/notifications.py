@@ -1,6 +1,8 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException
+
 from services.music_manager.database import get_db_connection
 from services.music_manager.routers.management import verify_api_key
+
 router = APIRouter(tags=['notifications'])
 
 def init_db(cursor):

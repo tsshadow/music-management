@@ -1,7 +1,9 @@
 import unittest
 from unittest.mock import MagicMock
+
+from services.tagger.constants import DATE, FESTIVAL
 from services.tagger.Song.rules.InferFestivalFromTitleRule import InferFestivalFromTitleRule
-from services.tagger.constants import FESTIVAL, DATE
+
 
 class InferFestivalFromTitleRuleTest(unittest.TestCase):
 

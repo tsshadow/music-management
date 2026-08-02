@@ -1,14 +1,17 @@
 import os
-from typing import Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, Header, Depends, Body, BackgroundTasks
+from typing import Any
+
+import markdown
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, Header, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-import markdown
+
 import docker
-from services.common.version_helper import get_version, get_release_notes, get_changelog
-from services.common.Helpers.GenreRulesHelper import WHITE, BLACK, VALID_STATES
-from services.music_manager.database import get_db_connection
+from services.common.Helpers.GenreRulesHelper import BLACK, VALID_STATES, WHITE
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
+from services.common.version_helper import get_changelog, get_release_notes, get_version
+from services.music_manager.database import get_db_connection
+
 router = APIRouter(tags=['management'])
 
 class ArtistGenreRule(BaseModel):
@@ -24,8 +27,8 @@ class GenreDecisionRequest(BaseModel):
     `rules_genre_expansions`.
     """
     state: str
-    canonical_id: Optional[int] = None
-    canonical_ids: Optional[list[int]] = None
+    canonical_id: int | None = None
+    canonical_ids: list[int] | None = None
 
     def targets(self) -> list[int]:
         """The rewrite targets, de-duplicated, order preserved."""
@@ -37,7 +40,7 @@ class LabelGenreRule(BaseModel):
     genre_id: int
 API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
 
-def verify_api_key(x_api_key: Optional[str]=Header(None)):
+def verify_api_key(x_api_key: str | None=Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
     if API_KEY and x_api_key == API_KEY:
@@ -100,7 +103,7 @@ def search_labels(q: str='', _auth: dict=Depends(verify_api_key)):
 def get_config(_auth: dict=Depends(verify_api_key)):
     version = '1.3.0'
     try:
-        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'VERSION'), 'r', encoding='utf-8') as f:
+        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'VERSION'), encoding='utf-8') as f:
             version = f.read().strip()
     except Exception:
         pass
@@ -111,7 +114,7 @@ def get_about(_auth: dict=Depends(verify_api_key)):
     readme_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'README.md')
     content = '# Music Manager\nDocumentation not found.'
     if os.path.exists(readme_path):
-        with open(readme_path, 'r', encoding='utf-8') as f:
+        with open(readme_path, encoding='utf-8') as f:
             content = f.read()
     html = markdown.markdown(content, extensions=['fenced_code', 'tables'])
     return html
@@ -127,7 +130,7 @@ def get_containers(_auth: dict=Depends(verify_api_key)):
         client = docker.from_env()
         containers = []
         for container in client.containers.list(all=True):
-            if any((name in container.name for name in ['muma', 'music-management', 'music-manager', 'db', 'lms'])):
+            if any(name in container.name for name in ['muma', 'music-management', 'music-manager', 'db', 'lms']):
                 containers.append({'id': container.short_id, 'name': container.name, 'status': container.status, 'image': container.image.tags[0] if container.image.tags else 'unknown'})
         return sorted(containers, key=lambda x: x['name'])
     except Exception as e:
@@ -184,7 +187,7 @@ def get_soundcloud_accounts(_auth: dict=Depends(verify_api_key)):
         conn.close()
 
 @router.post('/soundcloud')
-def add_soundcloud_account(req: Dict[str, Any]=Body(...), _auth: dict=Depends(verify_api_key)):
+def add_soundcloud_account(req: dict[str, Any]=Body(...), _auth: dict=Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
@@ -222,7 +225,7 @@ def get_youtube_accounts(_auth: dict=Depends(verify_api_key)):
         conn.close()
 
 @router.post('/youtube')
-def add_youtube_account(req: Dict[str, Any]=Body(...), _auth: dict=Depends(verify_api_key)):
+def add_youtube_account(req: dict[str, Any]=Body(...), _auth: dict=Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
@@ -248,7 +251,7 @@ def delete_youtube_account(name: str, _auth: dict=Depends(verify_api_key)):
         conn.close()
 
 @router.get('/rules/genres')
-def get_genre_curation_queue(state: Optional[str]=None, limit: int=200, _auth: dict=Depends(verify_api_key)):
+def get_genre_curation_queue(state: str | None=None, limit: int=200, _auth: dict=Depends(verify_api_key)):
     """Genres by curation state, most frequently seen first.
 
     Called without a state this returns the whole table; `state=unknown` is the
@@ -404,8 +407,8 @@ def get_latest_scrobble_imports_proxy(_auth: dict=Depends(verify_api_key)):
     return get_latest_imports()
 
 @router.post('/scrobble/import/listenbrainz')
-def trigger_lb_import_proxy(background_tasks: BackgroundTasks, req: Dict[str, Any]=Body(...), _auth: dict=Depends(verify_api_key)):
-    from services.music_manager.routers.scrobbler import trigger_lb_import, ImportRequest
+def trigger_lb_import_proxy(background_tasks: BackgroundTasks, req: dict[str, Any]=Body(...), _auth: dict=Depends(verify_api_key)):
+    from services.music_manager.routers.scrobbler import ImportRequest, trigger_lb_import
     return trigger_lb_import(ImportRequest(**req), background_tasks)
 
 @router.post('/tagger/rescan')

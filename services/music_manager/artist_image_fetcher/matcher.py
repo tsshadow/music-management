@@ -1,5 +1,6 @@
 from .normalizer import ArtistNameNormalizer
 
+
 class ArtistMatcher:
 
     def __init__(self, db_conn=None):
@@ -30,13 +31,13 @@ class ArtistMatcher:
             score += 25
         elif ratio < 0.5:
             score -= 40
-        if target_artist.get('mbid') and candidate_artist.get('mbid'):
-            if target_artist['mbid'] == candidate_artist['mbid']:
-                score += 100
+        if (target_artist.get('mbid') and candidate_artist.get('mbid')
+                and target_artist['mbid'] == candidate_artist['mbid']):
+            score += 100
         if candidate_artist.get('is_known_match'):
             score += 100
         label_keywords = ['records', 'label', 'channel', 'collective', 'tv']
-        if any((kw in candidate_artist.get('name', '').lower() for kw in label_keywords)):
+        if any(kw in candidate_artist.get('name', '').lower() for kw in label_keywords):
             score -= 30
         if candidate_artist.get('source') == 'spotify' and candidate_artist.get('popularity', 0) > 50:
             score += 10

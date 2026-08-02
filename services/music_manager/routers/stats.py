@@ -1,12 +1,14 @@
 import os
-from typing import Optional
-from fastapi import APIRouter, HTTPException, Header, Depends
+
+from fastapi import APIRouter, Depends, Header, HTTPException
+
 from services.music_manager.database import get_db_connection
 from services.music_manager.rbac import has_permission
+
 router = APIRouter(tags=['stats'])
 API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
 
-def verify_api_key(x_api_key: Optional[str]=Header(None)):
+def verify_api_key(x_api_key: str | None=Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
     if API_KEY and x_api_key == API_KEY:

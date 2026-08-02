@@ -1,5 +1,6 @@
 from services.common.config_store import ConfigStore as Settings
 from services.tagger.Song.SoundcloudSong import SoundcloudSong
+
 s = Settings()
 
 class TelegramSong(SoundcloudSong):

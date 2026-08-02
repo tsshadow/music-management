@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
+
 from services.common.Helpers.LookupTableHelper import LookupTableHelper
+
 
 class LookupTableHelperTest(unittest.TestCase):
 

@@ -1,7 +1,9 @@
 import unittest
-from unittest.mock import MagicMock, patch
 from datetime import date
+from unittest.mock import MagicMock, patch
+
 from services.common.Helpers.FestivalHelper import FestivalHelper
+
 
 class FestivalHelperTest(unittest.TestCase):
 

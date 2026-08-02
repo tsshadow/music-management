@@ -2,14 +2,16 @@ import html
 import logging
 import os
 import re
-from typing import Optional
 from pathlib import Path
+
 from yt_dlp.postprocessor import PostProcessor
 from yt_dlp.utils import sanitize_filename
+
 from services.common.Helpers.NotificationService import notification_service
 from services.downloader.youtube.YoutubeArchive import YoutubeArchive
-from services.tagger.tagger import Tagger
 from services.tagger.constants import SongTypeEnum
+from services.tagger.tagger import Tagger
+
 
 class YoutubeSongProcessor(PostProcessor):
     """Postprocessor that archives metadata and tags downloaded YouTube songs."""
@@ -37,7 +39,7 @@ class YoutubeSongProcessor(PostProcessor):
             notification_service.notify(str(song), title='YouTube Download Complete')
         return ([], info)
 
-    def _ensure_real_title(self, info: dict, url: str) -> Optional[str]:
+    def _ensure_real_title(self, info: dict, url: str) -> str | None:
         """Return a better title if yt-dlp provided a generic placeholder."""
         title = info.get('title')
         if not self._needs_title_fix(title, info):
@@ -50,7 +52,7 @@ class YoutubeSongProcessor(PostProcessor):
             return webpage_title
         return None
 
-    def _needs_title_fix(self, title: Optional[str], info: dict) -> bool:
+    def _needs_title_fix(self, title: str | None, info: dict) -> bool:
         if not title or not str(title).strip():
             return True
         extractor = info.get('extractor')
@@ -61,7 +63,7 @@ class YoutubeSongProcessor(PostProcessor):
                 return True
         return bool(self._GENERIC_TITLE_RE.match(str(title).strip()))
 
-    def _fetch_title_from_webpage(self, url: str) -> Optional[str]:
+    def _fetch_title_from_webpage(self, url: str) -> str | None:
         if not url:
             return None
         try:
@@ -111,7 +113,7 @@ class YoutubeSongProcessor(PostProcessor):
                 entry['filename'] = os.path.basename(current_path)
         return current_path
 
-    def _build_target_path(self, info: dict, title: str) -> Optional[str]:
+    def _build_target_path(self, info: dict, title: str) -> str | None:
         info_for_template = dict(info)
         info_for_template['title'] = title
         info_for_template['fulltitle'] = title

@@ -1,7 +1,8 @@
 import logging
 from contextlib import closing
-from typing import List
+
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+
 
 class TableHelper:
 
@@ -19,14 +20,13 @@ class TableHelper:
         """Load all values from the table into memory."""
         query = f'SELECT {self.column_name} FROM {self.table_name}'
         try:
-            with closing(self.db_connector.connect()) as connection:
-                with connection.cursor() as cursor:
-                    cursor.execute(query)
-                    rows = cursor.fetchall()
-                    for row in rows:
-                        value = row[0]
-                        self._values.add(value)
-                        self._canonical_map[value.lower()] = value
+            with closing(self.db_connector.connect()) as connection, connection.cursor() as cursor:
+                cursor.execute(query)
+                rows = cursor.fetchall()
+                for row in rows:
+                    value = row[0]
+                    self._values.add(value)
+                    self._canonical_map[value.lower()] = value
         except Exception as e:
             logging.error(f'Error preloading {self.table_name}: {e}')
 
@@ -35,10 +35,9 @@ class TableHelper:
             return key.lower() in (k.lower() for k in self._values)
         query = f'SELECT 1 FROM {self.table_name} WHERE {self.column_name} = %s LIMIT 1'
         try:
-            with closing(self.db_connector.connect()) as connection:
-                with connection.cursor() as cursor:
-                    cursor.execute(query, (key,))
-                    return cursor.fetchone() is not None
+            with closing(self.db_connector.connect()) as connection, connection.cursor() as cursor:
+                cursor.execute(query, (key,))
+                return cursor.fetchone() is not None
         except Exception as e:
             logging.error(f'Error checking existence in {self.table_name}: {e}')
             return False
@@ -48,11 +47,10 @@ class TableHelper:
             return self._canonical_map.get(key.lower(), '')
         query = f'SELECT {self.column_name} FROM {self.table_name} WHERE LOWER({self.column_name}) = %s LIMIT 1'
         try:
-            with closing(self.db_connector.connect()) as connection:
-                with connection.cursor() as cursor:
-                    cursor.execute(query, (key.lower(),))
-                    result = cursor.fetchone()
-                    return result[0] if result else key.title()
+            with closing(self.db_connector.connect()) as connection, connection.cursor() as cursor:
+                cursor.execute(query, (key.lower(),))
+                result = cursor.fetchone()
+                return result[0] if result else key.title()
         except Exception as e:
             logging.error(f'Error fetching canonical value from {self.table_name}: {e}')
             return key.title()
@@ -93,13 +91,12 @@ class TableHelper:
         finally:
             connection.close()
 
-    def get_all_values(self) -> List[str]:
+    def get_all_values(self) -> list[str]:
         query = f'SELECT {self.column_name} FROM {self.table_name}'
         try:
-            with closing(self.db_connector.connect()) as connection:
-                with connection.cursor() as cursor:
-                    cursor.execute(query)
-                    return [row[0] for row in cursor.fetchall()]
+            with closing(self.db_connector.connect()) as connection, connection.cursor() as cursor:
+                cursor.execute(query)
+                return [row[0] for row in cursor.fetchall()]
         except Exception as e:
             logging.error(f'Error retrieving values from {self.table_name}: {e}')
             return []

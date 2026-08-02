@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import logging
 import random
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Callable, Dict, Optional
 
 from services.downloader.timing import DownloaderTiming
 
@@ -64,18 +64,18 @@ class RateSnapshot:
     consecutive_403: int = 0
     consecutive_429: int = 0
     clean_runs: int = 0
-    last_403_at: Optional[datetime] = None
-    last_429_at: Optional[datetime] = None
-    cooldown_until: Optional[datetime] = None
+    last_403_at: datetime | None = None
+    last_429_at: datetime | None = None
+    cooldown_until: datetime | None = None
 
 
 class InMemoryRateStateStore:
     """Keeps state in a dict. Used by tests and as a fallback when there is no database."""
 
     def __init__(self) -> None:
-        self._rows: Dict[str, RateSnapshot] = {}
+        self._rows: dict[str, RateSnapshot] = {}
 
-    def load(self, source: str) -> Optional[RateSnapshot]:
+    def load(self, source: str) -> RateSnapshot | None:
         stored = self._rows.get(source)
         if stored is None:
             return None
@@ -98,7 +98,7 @@ class DatabaseRateStateStore:
         ensure_once(connection)
         return connection
 
-    def load(self, source: str) -> Optional[RateSnapshot]:
+    def load(self, source: str) -> RateSnapshot | None:
         connection = self._connect()
         try:
             with connection.cursor() as cursor:
@@ -108,7 +108,7 @@ class DatabaseRateStateStore:
                 row = cursor.fetchone()
             if row is None:
                 return None
-            return RateSnapshot(source=source, **dict(zip(self._COLUMNS, row)))
+            return RateSnapshot(source=source, **dict(zip(self._COLUMNS, row, strict=True)))
         finally:
             connection.close()
 

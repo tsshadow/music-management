@@ -1,10 +1,12 @@
 import logging
 import re
+
 from services.common.Helpers.FilterTableHelper import FilterTableHelper
 from services.common.Helpers.TableHelper import TableHelper
-from services.tagger.Song.SongHelper import split_artists
+from services.tagger.constants import ARTIST, REMIXER, TITLE
 from services.tagger.Song.rules.TagRule import TagRule
-from services.tagger.constants import TITLE, ARTIST, REMIXER
+from services.tagger.Song.SongHelper import split_artists
+
 
 class InferRemixerFromTitleRule(TagRule):
     """

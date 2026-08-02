@@ -4,9 +4,16 @@ Every case in `TestRealWorldExamples` is a name the maintainer pointed at in the
 actual artist list, with the outcome they said it should have.
 """
 import unittest
+
 from services.common.Helpers.ArtistNameAnalyzer import (
-    ArtistNameAnalyzer, AnalyzerConfig,
-    KEEP, REWRITE, SPLIT, REJECT, UNKNOWN, normalize
+    KEEP,
+    REJECT,
+    REWRITE,
+    SPLIT,
+    UNKNOWN,
+    AnalyzerConfig,
+    ArtistNameAnalyzer,
+    normalize,
 )
 
 KNOWN = ['Angerfist', 'Headhunterz', 'Terrorclown', 'R3trix', 'DJ KURT', 'Da Tweekaz', 'Warface']

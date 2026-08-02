@@ -1,6 +1,7 @@
-from sqlalchemy import text, inspect
 from analyzer import TrackAnalyzer
 from dotenv import load_dotenv
+from sqlalchemy import inspect, text
+
 
 def fix_schema():
     load_dotenv()

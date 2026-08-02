@@ -1,9 +1,10 @@
+import os
 import sys
+import tempfile
 import types
 import unittest
-import tempfile
-import os
 from pathlib import Path
+
 os.environ.setdefault('import_folder_path', '/tmp')
 os.environ.setdefault('music_folder_path', '/tmp')
 os.environ.setdefault('eps_folder_path', '/tmp')
@@ -11,6 +12,7 @@ os.environ.setdefault('delimiter', '/')
 sys.modules['dotenv'] = types.ModuleType('dotenv')
 sys.modules['dotenv'].load_dotenv = lambda *args, **kwargs: None
 from services.other.sanitizer import Sanitizer
+
 
 class SanitizerTest(unittest.TestCase):
 

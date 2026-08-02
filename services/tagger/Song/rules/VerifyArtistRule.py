@@ -1,12 +1,13 @@
 import logging
 import re
 from collections import defaultdict
-from typing import Optional
+
 from services.common.Helpers.TableHelper import TableHelper
-from services.tagger.Song.rules.TagRule import TagRule
-from services.tagger.Song.rules.TagResult import TagResult, TagResultType
-from services.tagger.Song.rules.ExternalArtistLookup import ExternalArtistLookup
 from services.tagger.constants import ARTIST
+from services.tagger.Song.rules.ExternalArtistLookup import ExternalArtistLookup
+from services.tagger.Song.rules.TagResult import TagResult, TagResultType
+from services.tagger.Song.rules.TagRule import TagRule
+
 logger = logging.getLogger(__name__)
 
 class VerifyArtistRule(TagRule):
@@ -15,7 +16,7 @@ class VerifyArtistRule(TagRule):
     NUMERIC_PREFIX = re.compile('^#?\\d{1,3}[.)\\s-]+')
     INVALID_START = re.compile('^[&#\\-\\(\\*\'\\"\\[]+')
 
-    def __init__(self, artist_db: Optional[TableHelper]=None, lookup: Optional[ExternalArtistLookup]=None):
+    def __init__(self, artist_db: TableHelper | None=None, lookup: ExternalArtistLookup | None=None):
         self.artist_db = artist_db or TableHelper('library_artists', 'name')
         self.lookup = lookup or ExternalArtistLookup()
         self.seen_counts: defaultdict[str, int] = defaultdict(int)

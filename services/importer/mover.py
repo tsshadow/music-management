@@ -4,10 +4,12 @@ import re
 import shutil
 from os import listdir
 from os.path import isfile, join
-from services.common.Helpers.DatabaseConnector import DatabaseConnector
+
 from services.common.config_store import ConfigStore as Settings
-from services.tagger.Song.LabelSong import LabelSong
+from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.Helpers.NotificationService import notification_service
+from services.tagger.Song.LabelSong import LabelSong
+
 
 def get_cat_id(folder: str):
     """

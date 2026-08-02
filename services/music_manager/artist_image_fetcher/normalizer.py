@@ -1,5 +1,6 @@
 import re
 
+
 class ArtistNameNormalizer:
 
     @staticmethod

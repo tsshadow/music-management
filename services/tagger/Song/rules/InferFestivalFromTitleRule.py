@@ -1,6 +1,7 @@
 from services.common.Helpers.FestivalHelper import FestivalHelper
+from services.tagger.constants import DATE, FESTIVAL, TITLE
 from services.tagger.Song.rules.TagRule import TagRule
-from services.tagger.constants import TITLE, FESTIVAL, DATE
+
 
 class InferFestivalFromTitleRule(TagRule):
     """Infers festival and date from the title using fuzzy title lookup in festival_db."""

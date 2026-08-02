@@ -1,5 +1,6 @@
 from services.tagger.tagger import Tagger
 
+
 def run_tagger(steps):
     """Run the tagger with the appropriate parsing options."""
     parse_all = 'tag' in steps

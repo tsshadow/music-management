@@ -1,5 +1,6 @@
 import os
 import shutil
+
 BASE_DIR = '/mnt/music/Youtube'
 
 def fix_nested_youtube_dirs():

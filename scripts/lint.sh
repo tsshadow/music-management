@@ -13,13 +13,26 @@ if [ -f .env ]; then
     done < .env
 fi
 
-TARGET=${1:-services/}
-FAIL_UNDER=${2:-8.5}
+TARGET=${1:-services/ tools/}
+# Ratchet, same idea as COVERAGE_MIN in scripts/test/music-management-unit.sh:
+# the codebase currently scores well above this. Raise it as the score climbs,
+# never lower it to make a red build green.
+FAIL_UNDER=${2:-9.5}
+
+echo "--- Running ruff (fast lint) on $TARGET ---"
+if command -v ruff >/dev/null 2>&1; then
+    # shellcheck disable=SC2086
+    ruff check $TARGET
+    echo "--- Ruff passed ---"
+else
+    echo "ruff not installed, skipping (pip install ruff)"
+fi
 
 echo "--- Running pylint on $TARGET (fail-under: $FAIL_UNDER) ---"
-if ! python3 -m pylint "$TARGET" --fail-under="$FAIL_UNDER"; then
+# shellcheck disable=SC2086
+if ! python3 -m pylint $TARGET --fail-under="$FAIL_UNDER"; then
     echo ""
-    echo "❌ ERROR: Pylint score too low!"
+    echo "ERROR: Pylint score too low!"
     exit 1
 fi
 

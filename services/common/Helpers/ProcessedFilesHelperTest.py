@@ -1,5 +1,4 @@
 import importlib.util
-import sys
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch

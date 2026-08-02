@@ -1,7 +1,10 @@
-import os
-import requests
 import logging
+import os
+
+import requests
+
 from .base import ArtistImageProvider
+
 
 class SpotifyArtistImageProvider(ArtistImageProvider):
     TOKEN_URL = 'https://accounts.spotify.com/api/token'

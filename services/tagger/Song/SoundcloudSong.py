@@ -1,9 +1,9 @@
 from services.common.config_store import ConfigStore as Settings
-from services.tagger.Song.BaseSong import BaseSong
 from services.common.Helpers.Cache import databaseHelpers
+from services.tagger.constants import ALBUM, ALBUM_ARTIST, ARTIST, COPYRIGHT, PUBLISHER
+from services.tagger.Song.BaseSong import BaseSong
 from services.tagger.Song.rules.AddMissingArtistToDatabaseRule import AddMissingArtistToDatabaseRule
 from services.tagger.Song.rules.CheckArtistRule import CheckArtistRule
-from services.tagger.Song.rules.ResolveGenreRule import ResolveGenreRule
 from services.tagger.Song.rules.CleanTagsRule import CleanTagsRule
 from services.tagger.Song.rules.CleanTitleRule import CleanTitleRule
 from services.tagger.Song.rules.InferArtistFromTitleRule import InferArtistFromTitleRule
@@ -12,7 +12,8 @@ from services.tagger.Song.rules.InferGenreFromArtistRule import InferGenreFromAr
 from services.tagger.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
 from services.tagger.Song.rules.InferRemixerFromTitleRule import InferRemixerFromTitleRule
 from services.tagger.Song.rules.ReplaceInvalidUnicodeRule import ReplaceInvalidUnicodeRule
-from services.tagger.constants import ALBUM_ARTIST, PUBLISHER, COPYRIGHT, ALBUM, ARTIST
+from services.tagger.Song.rules.ResolveGenreRule import ResolveGenreRule
+
 s = Settings()
 
 class SoundcloudSong(BaseSong):
@@ -35,9 +36,8 @@ class SoundcloudSong(BaseSong):
             self.tag_collection.set_item(ARTIST, self._uploader)
         if not self.album():
             self.tag_collection.set_item(ALBUM, self._album)
-        if not self.copyright():
-            if self.calculate_copyright():
-                self.tag_collection.set_item(COPYRIGHT, self.calculate_copyright())
+        if not self.copyright() and self.calculate_copyright():
+            self.tag_collection.set_item(COPYRIGHT, self.calculate_copyright())
         self.tag_collection.set_item(PUBLISHER, self._publisher)
         self.rules.append(CleanTitleRule())
         self.rules.append(InferArtistFromTitleRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists'], genre_db=databaseHelpers['rules_genres']))
@@ -66,7 +66,7 @@ class SoundcloudSong(BaseSong):
 
     def load_folders(self, file_path):
         try:
-            with open(file_path, 'r', encoding='utf-8') as file:
+            with open(file_path, encoding='utf-8') as file:
                 return {line.strip() for line in file if line.strip()}
         except FileNotFoundError:
             return set()

@@ -1,6 +1,6 @@
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
-import sys
 
 for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql'):
     sys.modules.setdefault(_mod_name, MagicMock())

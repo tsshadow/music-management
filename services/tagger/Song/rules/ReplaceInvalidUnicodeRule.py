@@ -1,5 +1,6 @@
+from services.tagger.constants import ALBUM_ARTIST, ARTIST, GENRE
 from services.tagger.Song.rules.TagRule import TagRule
-from services.tagger.constants import ARTIST, ALBUM_ARTIST, GENRE
+
 
 class ReplaceInvalidUnicodeRule(TagRule):
     """Replace undesirable zero-width characters with semicolons."""

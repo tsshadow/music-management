@@ -1,11 +1,20 @@
 import logging
+
 from mutagen.easyid3 import EasyID3
 from mutagen.flac import VCFLACDict
-from mutagen.mp4 import MP4Tags, MP4FreeForm
+from mutagen.mp4 import MP4FreeForm, MP4Tags
 from mutagen.oggopus import OggOpusVComment
 from mutagen.wave import _WaveID3
+
+from services.tagger.constants import (
+    reversed_FLACTags,
+    reversed_MP3Tags,
+    reversed_MP4Tags,
+    reversed_OPUSTags,
+    reversed_WAVTags,
+)
 from services.tagger.Song.Tag import Tag
-from services.tagger.constants import reversed_FLACTags, reversed_MP3Tags, reversed_MP4Tags, reversed_WAVTags, reversed_OPUSTags
+
 missing_tags_flac = []
 missing_tags_opus = []
 missing_aac_tags = []
@@ -99,10 +108,7 @@ class TagCollection:
             elif tag_key.startswith('----:com.apple.iTunes:'):
                 custom_name = tag_key.split(':')[-1].lower()
                 val = value[0]
-                if isinstance(val, (MP4FreeForm, bytes)):
-                    decoded_val = val.decode('utf-8', 'ignore')
-                else:
-                    decoded_val = str(val)
+                decoded_val = val.decode('utf-8', 'ignore') if isinstance(val, (MP4FreeForm, bytes)) else str(val)
                 self.tags[custom_name] = Tag(custom_name, decoded_val)
             elif tag_key not in missing_tags_m4a:
                 missing_tags_m4a.append(tag_key)

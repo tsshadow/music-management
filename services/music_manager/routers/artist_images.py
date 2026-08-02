@@ -1,18 +1,20 @@
 import base64
 import binascii
-import os
 import logging
-from typing import Optional
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Header, Depends
+import os
+
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+
 from services.music_manager.database import get_db_connection
+
 router = APIRouter(tags=['artists'])
 logger = logging.getLogger(__name__)
 fetch_progress = {'active': False, 'total': 0, 'current': 0, 'last_artist': None, 'status': 'idle', 'message': None}
 API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
 
-def verify_api_key(x_api_key: Optional[str]=Header(None)):
+def verify_api_key(x_api_key: str | None=Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
     if API_KEY and x_api_key == API_KEY:
@@ -98,7 +100,7 @@ class ArtistImageUrlRequest(BaseModel):
     url: str
 
 class ArtistImageUploadRequest(BaseModel):
-    filename: Optional[str] = None
+    filename: str | None = None
     # Raw image bytes, base64-encoded (optionally as a "data:image/png;base64,..."
     # data URL). The proxy forwards request bodies as text, so binary multipart
     # uploads would be corrupted in transit.
@@ -204,7 +206,7 @@ def _set_primary_image(cursor, artist_id: int, image_id: int):
         WHERE id = %s
     """, (image_id, artist_id))
 
-def _store_manual_image(artist_id: int, image_data: bytes, original_url: Optional[str]=None):
+def _store_manual_image(artist_id: int, image_data: bytes, original_url: str | None=None):
     """Saves manually supplied image bytes and makes them the artist's primary image."""
     from services.music_manager.artist_image_fetcher.storage import ImageStorage
     storage_path = os.getenv('ARTIST_IMAGE_STORAGE_PATH') or os.getenv('STORAGE_PATH') or '/mnt/music/artists'
@@ -223,7 +225,7 @@ def _store_manual_image(artist_id: int, image_data: bytes, original_url: Optiona
             meta = storage.save_image(artist_id, 'manual', image_data)
         except Exception as e:
             logger.error(f'Failed to store manual image for artist {artist_id}: {e}')
-            raise HTTPException(status_code=400, detail=f'Could not process image: {e}')
+            raise HTTPException(status_code=400, detail=f'Could not process image: {e}') from e
         with conn.cursor() as cursor:
             cursor.execute('''
                 INSERT INTO library_artist_images
@@ -247,7 +249,7 @@ def set_artist_image_from_url(artist_id: int, req: ArtistImageUrlRequest, _auth:
     try:
         image_data = ImageDownloader().download(url)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f'Could not download image: {e}')
+        raise HTTPException(status_code=400, detail=f'Could not download image: {e}') from e
     if not image_data:
         raise HTTPException(status_code=400, detail='Could not download image')
     return _store_manual_image(artist_id, image_data, original_url=url)
@@ -259,8 +261,8 @@ def upload_artist_image(artist_id: int, req: ArtistImageUploadRequest, _auth: di
         payload = payload.split(',', 1)[1]
     try:
         image_data = base64.b64decode(payload, validate=True)
-    except (binascii.Error, ValueError):
-        raise HTTPException(status_code=400, detail='Image data is not valid base64')
+    except (binascii.Error, ValueError) as e:
+        raise HTTPException(status_code=400, detail='Image data is not valid base64') from e
     if not image_data:
         raise HTTPException(status_code=400, detail='Image data is empty')
     return _store_manual_image(artist_id, image_data)

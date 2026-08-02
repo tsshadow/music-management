@@ -2,9 +2,12 @@ import logging
 import os
 import urllib.parse
 from pathlib import Path
+
 import yt_dlp
+
 from services.common.Helpers.BrokenSongArtistLookupHelper import BrokenSongArtistLookupHelper
 from services.common.Helpers.BrokenSongHelper import BrokenSongHelper
+
 
 class FileRepair:
 
@@ -31,7 +34,7 @@ class FileRepair:
                     self.try_delete_file(path)
             if self.failed_downloads:
                 logging.warning('\n⚠️ Permanently failed downloads:')
-                for song_id, path, url in self.failed_downloads:
+                for _song_id, path, url in self.failed_downloads:
                     logging.warning(f'- {path} (tried {url})')
         except Exception as e:
             logging.error(f'Error during repair run: {e}')
@@ -41,7 +44,7 @@ class FileRepair:
         if not os.path.exists(path):
             logging.warning('No Accounts.txt file found.')
             return
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, encoding='utf-8') as f:
             for line in f:
                 normalized_name = line.strip()
                 if not normalized_name:

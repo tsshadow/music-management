@@ -1,15 +1,18 @@
+import contextlib
 import json
 import os
 import secrets
 import sqlite3
-import requests
-from typing import Optional
+
 import bcrypt
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Header
+import requests
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from pydantic import BaseModel
-from services.music_manager.database import get_db_connection
+
 from services.music_manager import rbac
-from services.music_manager.rbac import has_permission, require_permission, require_admin
+from services.music_manager.database import get_db_connection
+from services.music_manager.rbac import has_permission, require_permission
+
 router = APIRouter(tags=['users'])
 MUMA_API_KEY = os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
 MUMA_SERVER_API_KEY = os.getenv('MUMA_SERVER_API_KEY') or os.getenv('LMS_API_KEY') or MUMA_API_KEY
@@ -29,18 +32,18 @@ async def verify_api_key(x_api_key: str=Header(None)):
 
 class UserCreate(BaseModel):
     username: str
-    display_name: Optional[str] = None
-    is_admin: Optional[bool] = False
-    server_user_id: Optional[str] = None
-    api_key: Optional[str] = None
-    password: Optional[str] = None
+    display_name: str | None = None
+    is_admin: bool | None = False
+    server_user_id: str | None = None
+    api_key: str | None = None
+    password: str | None = None
 
 class UserUpdate(BaseModel):
-    username: Optional[str] = None
-    display_name: Optional[str] = None
-    is_admin: Optional[bool] = None
-    server_user_id: Optional[str] = None
-    api_key: Optional[str] = None
+    username: str | None = None
+    display_name: str | None = None
+    is_admin: bool | None = None
+    server_user_id: str | None = None
+    api_key: str | None = None
 
 class MergeUsersRequest(BaseModel):
     secondary_user_id: int
@@ -69,17 +72,17 @@ class DynamicPlaylistCreate(BaseModel):
     params: str
 
 class DynamicPlaylistUpdate(BaseModel):
-    name: Optional[str] = None
-    params: Optional[str] = None
-    rating_range: Optional[list[int]] = None
-    genres: Optional[list[str]] = None
-    size: Optional[int] = None
-    sort_method: Optional[str] = None
-    song_type: Optional[str] = None
+    name: str | None = None
+    params: str | None = None
+    rating_range: list[int] | None = None
+    genres: list[str] | None = None
+    size: int | None = None
+    sort_method: str | None = None
+    song_type: str | None = None
 
 class DynamicPlaylistSync(BaseModel):
     remote_id: int
-    server_user_id: Optional[str] = None
+    server_user_id: str | None = None
     source: str
     name: str
     params: str
@@ -138,10 +141,8 @@ def init_db(cursor):
     cursor.execute("SHOW COLUMNS FROM dynamic_playlists LIKE 'source'")
     if not cursor.fetchone():
         cursor.execute('ALTER TABLE dynamic_playlists ADD COLUMN source VARCHAR(50) AFTER remote_id')
-    try:
+    with contextlib.suppress(Exception):
         cursor.execute('ALTER TABLE dynamic_playlists ADD UNIQUE INDEX uq_source_remote_id (source, remote_id)')
-    except Exception:
-        pass
     cursor.execute('\n        CREATE TABLE IF NOT EXISTS user_app_settings (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            user_id INT NOT NULL,\n            app_id VARCHAR(50) NOT NULL,\n            settings_json LONGTEXT NOT NULL,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            UNIQUE KEY (user_id, app_id),\n            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE\n        )\n    ')
 
     # Roles/permissions, Google identities, access requests, refresh tokens, audit log.
@@ -223,9 +224,7 @@ def login(req: LoginRequest):
                 raise HTTPException(status_code=403, detail='Account disabled')
 
             password_valid = False
-            if user.get('password_hash') and bcrypt.checkpw(req.password.encode('utf-8'), user['password_hash'].encode('utf-8')):
-                password_valid = True
-            elif user.get('api_key') and secrets.compare_digest(req.password, user['api_key']):
+            if user.get('password_hash') and bcrypt.checkpw(req.password.encode('utf-8'), user['password_hash'].encode('utf-8')) or user.get('api_key') and secrets.compare_digest(req.password, user['api_key']):
                 password_valid = True
 
             if not password_valid:
@@ -745,7 +744,7 @@ def delete_user(user_id: int, auth: dict=Depends(verify_api_key)):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f'Verwijderen mislukt: {e}')
+        raise HTTPException(status_code=500, detail=f'Verwijderen mislukt: {e}') from e
     finally:
         conn.close()
 
@@ -865,7 +864,7 @@ def merge_users(user_id: int, req: MergeUsersRequest, auth: dict=Depends(require
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f'Samenvoegen mislukt: {e}')
+        raise HTTPException(status_code=500, detail=f'Samenvoegen mislukt: {e}') from e
     finally:
         conn.close()
 

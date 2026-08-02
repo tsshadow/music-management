@@ -1,3 +1,9 @@
 from .youtube import YoutubeDownloader
 from .YoutubeArchive import YoutubeArchive
 from .YoutubeSongProcessor import YoutubeSongProcessor
+
+__all__ = [
+    'YoutubeDownloader',
+    'YoutubeArchive',
+    'YoutubeSongProcessor',
+]

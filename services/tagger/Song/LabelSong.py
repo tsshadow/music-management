@@ -1,15 +1,16 @@
 from services.common.config_store import ConfigStore as Settings
-from services.tagger.Song.BaseSong import BaseSong
 from services.common.Helpers.Cache import databaseHelpers
+from services.tagger.constants import CATALOG_NUMBER, COPYRIGHT, PUBLISHER
+from services.tagger.Song.BaseSong import BaseSong
 from services.tagger.Song.rules.AddMissingArtistToDatabaseRule import AddMissingArtistToDatabaseRule
 from services.tagger.Song.rules.CheckArtistRule import CheckArtistRule
-from services.tagger.Song.rules.ResolveGenreRule import ResolveGenreRule
 from services.tagger.Song.rules.CleanTagsRule import CleanTagsRule
 from services.tagger.Song.rules.InferGenreFromArtistRule import InferGenreFromArtistRule
 from services.tagger.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
 from services.tagger.Song.rules.InferRemixerFromTitleRule import InferRemixerFromTitleRule
 from services.tagger.Song.rules.ReplaceInvalidUnicodeRule import ReplaceInvalidUnicodeRule
-from services.tagger.constants import PUBLISHER, CATALOG_NUMBER, COPYRIGHT
+from services.tagger.Song.rules.ResolveGenreRule import ResolveGenreRule
+
 s = Settings()
 
 class LabelSong(BaseSong):

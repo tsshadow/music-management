@@ -1,6 +1,7 @@
 import os
-from sqlalchemy import create_engine, text
+
 from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
 
 load_dotenv()
 
@@ -15,7 +16,7 @@ def init_db():
     engine = create_engine(url)
     
     sql_file = "services/ml-analyzer/db_init.sql"
-    with open(sql_file, "r") as f:
+    with open(sql_file) as f:
         sql = f.read()
     
     # Split SQL into individual statements

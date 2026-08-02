@@ -129,18 +129,30 @@ user-facing strings go through the existing i18n layer, which means entries in a
 same Retrofit style as the surrounding calls.
 
 Memories gets two entry points, and they serve different purposes. The permanent one is a new page in the
-Library tab: a `MEMORIES` value in the `BrowseCategory` enum and a corresponding page in
-`LibraryPagerAdapter`, next to genres, labels, years, festivals, lineups and ratings. That is the "tab", and
-it exists whatever the user does with the carousel preference. The optional one is the teaser on home: a
-`SectionSlot` at the top of `MainFragment` with `CardStyle.CAROUSEL`, capped at ten cards, fed by a new
-`HomeSectionProvider` implementation whose `load()` returns `null` when there is nothing to show — the
-existing contract that hides a section. Cards are built by `HomeCardMappers` with the year group's first
-track's cover art, the year as title and the track count as subtitle.
+Library tab: a `PAGE_MEMORIES` constant in `LibraryPagerAdapter` with its own branch in `createFragment` and
+`titleResFor`, alongside genres, labels, years, festivals, lineups and ratings. It is deliberately *not* a
+`BrowseCategory` value — that enum drives `FilterBrowseFragment`, which browses tag values, and Memories is
+its own screen. This page is the "tab", and it exists whatever the user does with the carousel preference.
+The optional entry point is the teaser on home: a `SectionSlot` at the top of `MainFragment` with
+`CardStyle.CAROUSEL`, capped at the existing `CAROUSEL_SIZE` of ten, fed by a new `HomeSectionProvider`
+implementation whose `load()` returns `null` when there is nothing to show — the existing contract that
+hides a section.
 
 The full list is a new `MemoriesFragment`, registered in `navigation_graph.xml`, used both as the Library
-pager page and as the destination `HomeCardNavigator` routes a carousel tap to. The bottom navigation menu
-is unchanged and stays at four items. The preference to hide the carousel is added alongside the existing
-settings, with strings in `strings.xml`.
+pager page and as the destination `HomeCardNavigator` routes a carousel tap to. It is modelled directly on
+`FavoritesFragment`: one section per year, cards produced by the existing `Track.toHomeCard()` mapper, taps
+routed through `HomeCardNavigator` to `HomeCardAction.PlayTrack` and played with
+`MediaPlayerManager.playTracksAndToast`. Nothing about the card or list rendering is new.
+
+One small extension to shared code is unavoidable: `HomeSection.titleRes` is a `@StringRes Int`, and a
+memories section title is dynamic ("Today, 8 years ago"). `HomeSection` gains a `titleArgs: List<Any>`
+defaulting to empty, and the three places that set a section title — `MainFragment.SectionSlot.showContent`,
+`FavoritesFragment.render` and the new `MemoriesFragment` — format with `getString(titleRes, *titleArgs)`.
+Existing sections pass no arguments and are unaffected.
+
+The bottom navigation menu is unchanged and stays at four items. The preference to hide the carousel is
+added alongside the existing settings in `Settings.kt`, following the `BooleanSetting` pattern used by
+`isSetsMode`, with strings in `strings.xml`.
 
 `music_manager` does not change.
 

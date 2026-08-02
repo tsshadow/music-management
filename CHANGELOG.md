@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.60] - 2026-08-02
+
+### Added
+- **The artist page opens with the artist rather than with a list.** Tapping an artist used to
+  land straight on their albums, with the name in the app bar the only thing distinguishing one
+  artist from the next — even though the app already downloads and caches artist images and
+  already shows the album and track counts one screen earlier, in the artist list. The page now
+  starts with a header: the artist image, the name, "12 albums · 143 tracks", the years the
+  discography spans, and the genres. The play-all button moved into it and queues the artist's
+  tracks the same way the long-press menu's "play now" does. Artists reached through search or
+  from a home screen card never went through the cache that holds the counts, so the header
+  derives them from the discography on screen instead of showing nothing.
+- **Labels are browsable on Android.** The filter modal could already narrow songs down to a
+  record label, but nothing showed which labels the library holds — you had to know the name
+  before you could filter on it. Labels now sit in the Library tabs next to Genres, fed by the
+  same PUBLISHER tag the filter chip uses, and a tap opens that label's tracks.
+- **The Android app speaks Sallaands and Brabants**, the same two dialects the web interface
+  picked up in 0.0.59, chosen from the language menu that was already in Settings. Neither
+  dialect has a language code, so they ride along on Dutch with a region no Dutch speaker has
+  set: nl-BQ and nl-CW. Three other shapes were tried first and none of them survive Android's
+  resource matching — a three letter code (nds-NL) and a BCP 47 variant (nl-NL-brabant) both
+  fall back to the default, and any locale missing from `resourceConfigurations` is stripped
+  from the APK before it ever reaches a device.
+
+### Fixed
+- **The folder selector no longer sits squeezed into one column** when an album list is switched
+  to the grid layout. It was laid out as a single album-sized cell with the first two albums
+  beside it; headers now span the full width of the grid.
+- **Dutch is complete on Android, and English is actually English.** The Dutch resources were
+  163 strings short of the English ones, and 28 strings this fork added were written in Dutch in
+  the default resources — so an English-language phone showed "Artiesten", "Jaren" and
+  "Goedkeuren". Both are filled in now, which the dialects depend on: Android treats nl-BQ and
+  nl-CW as Dutch, so a gap in Dutch falls through to a dialect rather than to English.
+- **Artists show a picture on the phone, whether or not one has been fetched for them.** An artist
+  without artwork of their own is served from the artist image fetcher, and only 11762 of the
+  library's 51378 artists have a picture there so far, so for the rest that request 404s and every
+  client — the Ultrasonic home screen, the artist list, the web player — drew its grey placeholder.
+  The server now answers such a request with artwork the artist already has: their scanned artist
+  image if there is one, otherwise the cover of their earliest release. The cover art id still
+  points at the fetcher, so a real artist picture takes over the moment it lands, without any
+  client cache holding on to the release cover.
+
 ## [0.0.59] - 2026-08-02
 
 ### Added

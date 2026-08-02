@@ -1,5 +1,11 @@
 # 🎵 Music Management System
 
+[![pipeline develop](https://gitlab.example.com/muma/music-management/badges/develop/pipeline.svg?key_text=pipeline%20develop&key_width=104)](https://gitlab.example.com/muma/music-management/-/pipelines?ref=develop)
+[![coverage develop](https://gitlab.example.com/muma/music-management/badges/develop/coverage.svg?key_text=coverage%20develop&key_width=110)](https://gitlab.example.com/muma/music-management/-/graphs/develop/charts)
+[![pipeline master](https://gitlab.example.com/muma/music-management/badges/master/pipeline.svg?key_text=pipeline%20master&key_width=104)](https://gitlab.example.com/muma/music-management/-/pipelines?ref=master)
+[![coverage master](https://gitlab.example.com/muma/music-management/badges/master/coverage.svg?key_text=coverage%20master&key_width=110)](https://gitlab.example.com/muma/music-management/-/graphs/master/charts)
+[![license](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
+
 A comprehensive, modular system for automated music library management, featuring a unified "Spotify-style" UI, automated downloading, rule-based tagging, ML analysis, and Subsonic-compatible playback.
 
 ## 🧩 Modular System Architecture

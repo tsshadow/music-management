@@ -11,6 +11,35 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.0.60 (2026-08-02)
+
+### 👤 De artiestenpagina begint nu bij de artiest
+- Op een artiest tikken bracht je meteen bij de albumlijst; alleen de naam in de balk bovenaan
+  verschilde per artiest. Bovenaan staat nu een kop met de foto van de artiest, de naam,
+  "12 albums · 143 nummers", de jaren waarin de discografie loopt en de genres.
+- De "alles afspelen"-knop zit in die kop en zet de nummers van de artiest in de wachtrij, net
+  zoals "nu afspelen" in het ingedrukt-houden-menu al deed.
+- Kom je via zoeken of via het beginscherm bij een artiest, dan werden de aantallen nergens
+  bewaard; die worden nu uit de albums op het scherm zelf afgeleid in plaats van weggelaten.
+
+### 🏷️ Labels doorbladeren op Android
+- Je kon nummers al filteren op platenlabel, maar nergens zien welke labels je bibliotheek
+  bevat — je moest de naam dus al kennen. Labels staan nu als tabblad in Library, naast Genres,
+  en een tik opent de nummers van dat label.
+
+### 🗣️ De app praat Sallaands en Brabants, en het Nederlands is af
+- Dezelfde twee dialecten die de webinterface in 0.0.59 kreeg, kies je nu ook in de app via het
+  taalmenu in Instellingen.
+- Het Nederlands was 163 teksten korter dan het Engels, en 28 teksten van deze fork stonden in
+  het Nederlands in de Engelse bestanden — een Engelstalige telefoon liet dus "Artiesten",
+  "Jaren" en "Goedkeuren" zien. Beide zijn nu compleet.
+
+### 🖼️ Artiesten zonder opgehaalde foto zijn niet langer grijs
+- Van de 51378 artiesten in de bibliotheek heeft de fotodienst er pas 11762; voor de rest liet
+  elke client een grijs vlak zien. De server antwoordt nu met wat de artiest al heeft: de
+  ingescande artiestfoto, of anders de hoes van zijn oudste release. Zodra er alsnog een echte
+  artiestfoto binnenkomt, neemt die het over.
+
 ## Global Version 0.0.59 (2026-08-02)
 
 ### 🌍 De webinterface is vertaald — en praat Sallands en Brabants

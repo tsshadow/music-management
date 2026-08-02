@@ -14,7 +14,9 @@ import kotlinx.coroutines.withContext
 import org.moire.ultrasonic.api.subsonic.models.AlbumListType
 import org.moire.ultrasonic.data.ActiveServerProvider
 import org.moire.ultrasonic.domain.Album
+import org.moire.ultrasonic.domain.Artist
 import org.moire.ultrasonic.service.MusicServiceFactory
+import timber.log.Timber
 
 class AlbumListModel(application: Application) : GenericListModel(application) {
 
@@ -22,6 +24,34 @@ class AlbumListModel(application: Application) : GenericListModel(application) {
     private var lastType: AlbumListType? = null
     private var lastQuery: String? = null
     private var loadedUntil: Int = 0
+
+    /**
+     * The artist whose page is being shown, for the header. Null until it is loaded, and null
+     * for good if this server never cached the artist - see [loadArtist].
+     */
+    val artist: MutableLiveData<Artist?> = MutableLiveData(null)
+
+    /**
+     * Looks the artist up in the local `artists` table, which CachedMusicService.getArtists fills
+     * as the artist list is browsed.
+     *
+     * The row is legitimately absent for an artist reached through search, through paging or from
+     * a home screen card, and the database is unreachable in some offline states. Neither is worth
+     * a toast: the header falls back to the navigation title and the counts it can derive from the
+     * album list, so a failure here costs detail, not function.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    suspend fun loadArtist(id: String) {
+        withContext(Dispatchers.IO) {
+            val found = try {
+                activeServerProvider.getActiveMetaDatabase().artistDao().get(id)
+            } catch (all: Exception) {
+                Timber.w(all, "Could not read artist %s for the page header", id)
+                null
+            }
+            artist.postValue(found)
+        }
+    }
 
     suspend fun getAlbumsOfArtist(refresh: Boolean, id: String, name: String?) {
         withContext(Dispatchers.IO) {

@@ -1,5 +1,25 @@
 ## [Unreleased]
 
+## [6.5.25] - 2026-08-02
+
+### Added
+- **De artiestenpagina begint bij de artiest.** Bovenaan staat nu een kop met de foto, de naam,
+  "12 albums · 143 nummers", de jaren waarin de discografie loopt en de genres. De "alles
+  afspelen"-knop zit in die kop.
+- **Labels doorbladeren.** Labels staan nu als tabblad in Library, naast Genres; een tik opent de
+  nummers van dat label. Voorheen kon je alleen op label filteren als je de naam al kende.
+- **Sallaands en Brabants**, te kiezen in het taalmenu in Instellingen — dezelfde twee dialecten
+  die de webinterface in 0.0.59 kreeg.
+
+### Fixed
+- **Het mapkeuzemenu stond niet meer in één smalle kolom geperst** als een albumlijst op
+  rasterweergave stond.
+- **Het Nederlands is af, en het Engels is echt Engels.** Er ontbraken 163 Nederlandse teksten, en
+  28 teksten stonden in het Nederlands in de Engelse bestanden — een Engelstalige telefoon liet
+  dus "Artiesten", "Jaren" en "Goedkeuren" zien.
+- **Artiesten zonder opgehaalde foto zijn niet langer grijs.** Je krijgt nu de ingescande
+  artiestfoto, of anders de hoes van zijn oudste release.
+
 ## [6.5.24] - 2026-08-01
 
 ### Added

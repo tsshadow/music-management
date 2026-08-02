@@ -38,6 +38,7 @@ import org.moire.ultrasonic.api.subsonic.response.JukeboxResponse
 import org.moire.ultrasonic.api.subsonic.response.LabelListResponse
 import org.moire.ultrasonic.api.subsonic.response.LicenseResponse
 import org.moire.ultrasonic.api.subsonic.response.LineupResponse
+import org.moire.ultrasonic.api.subsonic.response.MemoriesResponse
 import org.moire.ultrasonic.api.subsonic.response.MoodsResponse
 import org.moire.ultrasonic.api.subsonic.response.MusicFoldersResponse
 import org.moire.ultrasonic.api.subsonic.response.SearchResponse
@@ -331,6 +332,19 @@ interface SubsonicAPIDefinition {
         @Query("year") year: Int? = null,
         @Query("length") length: String? = null
     ): Call<GenresResponse>
+
+    /**
+     * Release anniversaries for [date] (yyyy-MM-dd), newest year first.
+     *
+     * An LMS extension: a server that does not know it answers with an error, which callers treat
+     * as "no memories" rather than as a failure.
+     */
+    @GET("getMemories.view")
+    fun getMemories(
+        @Query("date") date: String? = null,
+        @Query("windowDays") windowDays: Int? = null,
+        @Query("maxPerYear") maxPerYear: Int? = null
+    ): Call<MemoriesResponse>
 
     @GET("getTags.view")
     fun getTags(

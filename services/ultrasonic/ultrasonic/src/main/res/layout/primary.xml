@@ -13,6 +13,10 @@
         a:paddingBottom="80dp">
 
         <include
+            a:id="@+id/section_memories"
+            layout="@layout/home_section" />
+
+        <include
             a:id="@+id/section_shortcuts"
             layout="@layout/home_section" />
 

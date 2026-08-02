@@ -33,6 +33,12 @@
             app:iconSpaceReserved="false"/>
         <CheckBoxPreference
             a:defaultValue="true"
+            a:key="@string/setting_key.memories_on_home"
+            a:summary="@string/settings.memories_on_home_summary"
+            a:title="@string/settings.memories_on_home_title"
+            app:iconSpaceReserved="false"/>
+        <CheckBoxPreference
+            a:defaultValue="true"
             a:key="@string/setting_key.separate_home_history"
             a:summary="@string/settings.separate_home_history_summary"
             a:title="@string/settings.separate_home_history_title"

@@ -24,6 +24,7 @@ import org.moire.ultrasonic.domain.Index
 import org.moire.ultrasonic.domain.JukeboxStatus
 import org.moire.ultrasonic.domain.Label
 import org.moire.ultrasonic.domain.Lineup
+import org.moire.ultrasonic.domain.MemoryGroup
 import org.moire.ultrasonic.domain.Lyrics
 import org.moire.ultrasonic.domain.Mood
 import org.moire.ultrasonic.domain.MumaTile
@@ -491,6 +492,9 @@ class CachedMusicService(private val musicService: MusicService) :
     }
 
     @Throws(Exception::class)
+    // Deliberately uncached: the answer changes every day, and it is one request per screen.
+    override fun getMemories(date: String): List<MemoryGroup> = musicService.getMemories(date)
+
     override fun getLineups(refresh: Boolean): List<Lineup> {
         checkSettingsChanged()
         if (refresh) {

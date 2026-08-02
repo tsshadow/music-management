@@ -47,6 +47,11 @@
         android:label="@string/filter.favorites" />
 
     <fragment
+        android:id="@+id/memoriesFragment"
+        android:name="org.moire.ultrasonic.fragment.MemoriesFragment"
+        android:label="@string/library.tab_memories" />
+
+    <fragment
         android:id="@+id/libraryFragment"
         android:name="org.moire.ultrasonic.fragment.LibraryFragment"
         android:label="@string/library.label" />

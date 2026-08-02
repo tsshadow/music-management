@@ -17,6 +17,7 @@ import org.moire.ultrasonic.domain.Genre
 import org.moire.ultrasonic.domain.Index
 import org.moire.ultrasonic.domain.JukeboxStatus
 import org.moire.ultrasonic.domain.Label
+import org.moire.ultrasonic.domain.MemoryGroup
 import org.moire.ultrasonic.domain.Lineup
 import org.moire.ultrasonic.domain.Lyrics
 import org.moire.ultrasonic.domain.Mood
@@ -46,6 +47,15 @@ interface MusicService {
 
     @Throws(Exception::class)
     fun getTags(refresh: Boolean, name: String, year: Int?, length: String?): List<Tag>
+
+    /**
+     * Release anniversaries for [date] (yyyy-MM-dd), newest year first.
+     *
+     * The caller passes the device's own date, so that a phone in another time zone gets its own
+     * "today" rather than the server's.
+     */
+    @Throws(Exception::class)
+    fun getMemories(date: String): List<MemoryGroup>
 
     @Throws(Exception::class)
     fun getLineups(refresh: Boolean): List<Lineup>

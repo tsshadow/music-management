@@ -23,6 +23,7 @@ import androidx.recyclerview.widget.RecyclerView
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
 import org.koin.androidx.scope.ScopeFragment
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import org.koin.core.component.KoinScopeComponent
@@ -35,12 +36,14 @@ import org.moire.ultrasonic.home.HomeCardNavigator
 import org.moire.ultrasonic.home.HomeSection
 import org.moire.ultrasonic.home.HomeSectionState
 import org.moire.ultrasonic.home.HomeViewModel
+import org.moire.ultrasonic.service.MediaPlayerManager
 import org.moire.ultrasonic.service.RxBus
 import timber.log.Timber
 
 /**
- * The home screen: a shortcuts grid of recently opened items, followed by carousels showing what
- * the library recently had rewritten and what it recently gained.
+ * The home screen: a carousel of what was released on this day in earlier years, a shortcuts grid
+ * of recently opened items, and carousels showing what the library recently had rewritten and what
+ * it recently gained.
  *
  * Every section is drawn by the same [HomeCardAdapter]; this fragment knows nothing about albums,
  * artists or labels specifically.
@@ -52,6 +55,7 @@ class MainFragment :
     private var binding: View? = null
 
     private val homeViewModel: HomeViewModel by viewModel()
+    private val mediaPlayerManager: MediaPlayerManager by inject()
 
     private var slots: List<SectionSlot> = emptyList()
 
@@ -83,6 +87,7 @@ class MainFragment :
         FragmentTitle.setTitle(this, R.string.music_library_label)
 
         slots = listOf(
+            slot(view, R.id.section_memories, CardStyle.CAROUSEL),
             slot(view, R.id.section_shortcuts, CardStyle.GRID),
             slot(view, R.id.section_updated, CardStyle.CAROUSEL),
             slot(view, R.id.section_added, CardStyle.CAROUSEL)
@@ -155,8 +160,17 @@ class MainFragment :
 
         when (val action = HomeCardNavigator.actionFor(card)) {
             is HomeCardAction.Navigate -> findNavController().navigate(action.directions)
-            // The home screen produces no TRACK cards; this keeps the when exhaustive.
-            is HomeCardAction.PlayTrack -> Unit
+
+            // The memories carousel is made of tracks, and tapping one plays it.
+            is HomeCardAction.PlayTrack -> {
+                val track = homeViewModel.trackFor(action.trackId) ?: return
+                mediaPlayerManager.playTracksAndToast(
+                    fragment = this,
+                    insertionMode = MediaPlayerManager.InsertionMode.CLEAR,
+                    tracks = listOf(track),
+                    isDirectory = false
+                )
+            }
         }
     }
 
@@ -194,7 +208,11 @@ class MainFragment :
 
             container.visibility = View.VISIBLE
             title.visibility = View.VISIBLE
-            title.setText(section.titleRes)
+            title.text = if (section.titleArgs.isEmpty()) {
+                title.context.getString(section.titleRes)
+            } else {
+                title.context.getString(section.titleRes, *section.titleArgs.toTypedArray())
+            }
             recycler.visibility = View.VISIBLE
             adapter.items = section.cards
         }

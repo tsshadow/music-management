@@ -37,6 +37,7 @@ class LibraryPagerAdapter(
         PAGE_ARTISTS -> ArtistListFragment()
         PAGE_ALBUMS -> AlbumListFragment()
         PAGE_STATIC_PLAYLISTS -> PlaylistsFragment()
+        PAGE_MEMORIES -> MemoriesFragment()
         else -> FilterBrowseFragment()
     }.apply {
         argumentsForPage(position)?.let { arguments = it }
@@ -53,7 +54,8 @@ class LibraryPagerAdapter(
         const val PAGE_LINEUPS = 7
         const val PAGE_RATINGS = 8
         const val PAGE_STATIC_PLAYLISTS = 9
-        const val PAGE_COUNT = 10
+        const val PAGE_MEMORIES = 10
+        const val PAGE_COUNT = 11
 
         private const val ALBUM_PAGE_SIZE = 500
 
@@ -72,6 +74,7 @@ class LibraryPagerAdapter(
             PAGE_ARTISTS -> R.string.library_tab_artists
             PAGE_ALBUMS -> R.string.library_tab_albums
             PAGE_STATIC_PLAYLISTS -> R.string.library_tab_static_playlists
+            PAGE_MEMORIES -> R.string.library_tab_memories
             else -> BROWSE_PAGES[position]?.titleRes
                 ?: error("No library page at position $position")
         }

@@ -53,12 +53,11 @@ fi
 # to give each concurrent job slot its own Gradle cache/daemon.
 GRADLE_HOME_DIR="/tmp/.gradle_muma_${CI_CONCURRENT_ID:-local}"
 mkdir -p "$GRADLE_HOME_DIR"
-docker run --rm -v "$GRADLE_HOME_DIR:/gradle_home" alpine chmod -R 777 /gradle_home
 
-fix_permissions() {
-    docker run --rm -v "$ROOT_DIR:/workspace" alpine chown -R "$(id -u):$(id -g)" /workspace
-}
-trap fix_permissions EXIT
+# The build container runs as the host user (see scripts/ci/android-image.sh),
+# so there is no chmod 777 pre-step and no chown-back trap: nothing it writes
+# is owned by root in the first place.
+source "$ROOT_DIR/scripts/ci/android-image.sh"
 
 # Write the keystore from the SIGNING_STORE_FILE file-type CI/CD variable into
 # the ultrasonic module directory so gradle can find it.
@@ -106,9 +105,9 @@ elif [ "$BUILD_TYPE" == "debug" ]; then
     echo "         certificate and its 'Sign in with Google' will fail (see bug report 020)."
 fi
 
-# We use a docker image with Android SDK to avoid installing it on the runner
-# (same approach as scripts/test/ultrasonic-unit.sh).
+# Project-owned Android SDK image, same as scripts/test/ultrasonic-unit.sh.
 docker run --rm \
+    -u "$(id -u):$(id -g)" \
     -v "$ROOT_DIR:/workspace" \
     -v "$GRADLE_HOME_DIR:/gradle_home" \
     -w "/workspace/services/ultrasonic" \
@@ -121,7 +120,7 @@ docker run --rm \
     -e APK_HOSTER_PASSWORD="${APK_HOSTER_PASSWORD}" \
     -e GOOGLE_WEB_CLIENT_ID="${GOOGLE_WEB_CLIENT_ID}" \
     -e DIST_DIR="dist" \
-    mobiledevops/android-sdk-image:latest \
-    /bin/bash -c "export ANDROID_SDK_ROOT=\$(find /opt /usr /usr/local -name platforms -type d -print -quit 2>/dev/null | sed 's|/platforms||'); [ -z \"\$ANDROID_SDK_ROOT\" ] && export ANDROID_SDK_ROOT=/opt/android; sdkmanager --sdk_root=\$ANDROID_SDK_ROOT \"build-tools;35.0.0\" \"platforms;android-35\" \"build-tools;34.0.0\" \"platforms;android-34\" && ./scripts/build.sh $BUILD_TYPE && ./scripts/publish.sh $BUILD_TYPE && ./scripts/deploy.sh $BUILD_TYPE"
+    "$ANDROID_CI_IMAGE" \
+    /bin/bash -c ". /etc/android-sdk-root && export ANDROID_SDK_ROOT && ./scripts/build.sh $BUILD_TYPE && ./scripts/publish.sh $BUILD_TYPE && ./scripts/deploy.sh $BUILD_TYPE"
 
 echo "--- Ultrasonic $BUILD_TYPE build+upload completed ---"

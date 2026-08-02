@@ -33,7 +33,11 @@ numpy~=2.0.2
 Pillow~=12.3
 
 # --- Ingestion ---------------------------------------------------------------
-yt-dlp~=2026.7.4
+# Deliberately a floor, not a compatible-release pin. "~=2026.7.4" admits only
+# 2026.7.x, so a rebuild kept reinstalling a yt-dlp that predated whatever
+# SoundCloud or YouTube had changed in the meantime. See
+# scripts/ci/refresh-downloader-image.sh, which rebuilds this weekly.
+yt-dlp>=2026.7.4
 telethon~=1.44.0
 patool~=1.12
 

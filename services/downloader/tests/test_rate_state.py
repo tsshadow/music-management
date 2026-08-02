@@ -10,6 +10,7 @@ from services.downloader.rate_state import (
     RateSnapshot,
     RateState,
     backoff_403_wait,
+    decayed_403_count,
     next_multiplier_on_429,
     recover,
     wait_after_429,
@@ -32,6 +33,29 @@ class LadderMathTest(unittest.TestCase):
 
     def test_429_wait_is_base_times_multiplier_times_jitter(self):
         self.assertEqual(wait_after_429(base=3600, multiplier=4, jitter=1.25), 18000)
+
+    def test_a_403_count_that_was_never_set_stays_at_zero(self):
+        self.assertEqual(decayed_403_count(0, None, decay=21600, now=START), 0)
+
+    def test_a_fresh_403_count_does_not_decay_yet(self):
+        last = START - timedelta(seconds=21599)
+        self.assertEqual(decayed_403_count(4, last, decay=21600, now=START), 4)
+
+    def test_one_decay_window_drops_one_step(self):
+        last = START - timedelta(seconds=21600)
+        self.assertEqual(decayed_403_count(4, last, decay=21600, now=START), 3)
+
+    def test_several_windows_drop_several_steps(self):
+        last = START - timedelta(seconds=3 * 21600)
+        self.assertEqual(decayed_403_count(4, last, decay=21600, now=START), 1)
+
+    def test_a_long_silence_clears_the_count_entirely(self):
+        last = START - timedelta(days=30)
+        self.assertEqual(decayed_403_count(7, last, decay=21600, now=START), 0)
+
+    def test_decay_of_zero_seconds_is_treated_as_no_decay(self):
+        last = START - timedelta(days=30)
+        self.assertEqual(decayed_403_count(7, last, decay=0, now=START), 7)
 
     def test_first_403_waits_the_base(self):
         self.assertEqual(backoff_403_wait(1, base=240, factor=4, cap=86400), 240)
@@ -72,6 +96,28 @@ class RateStateTest(unittest.TestCase):
     def _state(self):
         return RateState('soundcloud', self.timing, store=self.store,
                          now=lambda: self.now, jitter=lambda: 1.0)
+
+    def test_403s_spread_far_apart_do_not_climb_the_ladder(self):
+        """A track that is unavailable once a day must not park the source for a day."""
+        state = self._state()
+        self.assertEqual(state.record_403(), 240)
+        for _ in range(5):
+            self.now += timedelta(seconds=self.timing.backoff_403_decay)
+            state = self._state()
+            self.assertEqual(state.record_403(), 240)
+
+    def test_403s_in_quick_succession_still_climb_the_ladder(self):
+        state = self._state()
+        self.assertEqual(state.record_403(), 240)
+        self.assertEqual(state.record_403(), 960)
+
+    def test_a_quiet_spell_gives_back_rungs_before_the_next_403(self):
+        state = self._state()
+        state.record_403()
+        state.record_403()
+        state.record_403()
+        self.now += timedelta(seconds=2 * self.timing.backoff_403_decay)
+        self.assertEqual(self._state().record_403(), 960)
 
     def test_a_fresh_source_starts_at_multiplier_one(self):
         self.assertEqual(self._state().multiplier, 1)

@@ -10,6 +10,10 @@ setup_mocks()
 from services.downloader.account_schedule import AccountSchedule, InMemoryCheckStore
 from services.downloader.rate_state import InMemoryRateStateStore, RateLimited, RateState
 from services.downloader.soundcloud.soundcloud import SoundcloudDownloader
+from services.downloader.soundcloud.unavailable_tracks import (
+    InMemoryUnavailableStore,
+    UnavailableTracks,
+)
 from services.downloader.timing import load_timing
 
 NOW = datetime(2026, 7, 30, 12, 0, 0)
@@ -38,6 +42,7 @@ class TestSoundcloud403Backoff(unittest.TestCase):
         })
         self.rate_store = InMemoryRateStateStore()
         self.check_store = InMemoryCheckStore()
+        self.unavailable_store = InMemoryUnavailableStore()
 
     def tearDown(self):
         patch.stopall()
@@ -52,6 +57,8 @@ class TestSoundcloud403Backoff(unittest.TestCase):
             timing=self.timing,
             rate_state=self._rate_state(),
             schedule=AccountSchedule('soundcloud', store=self.check_store, now=lambda: self.now),
+            unavailable=UnavailableTracks(store=self.unavailable_store, retry_days=30,
+                                          now=lambda: self.now),
         )
 
     def _fail_with_403(self, mock_ytdlp):
@@ -61,30 +68,93 @@ class TestSoundcloud403Backoff(unittest.TestCase):
             return 1
         mock_ytdlp.return_value.__enter__.return_value.download.side_effect = _download
 
+    def _fail_with_429(self, mock_ytdlp):
+        def _download(urls):
+            opts = mock_ytdlp.call_args[0][0]
+            opts['logger'].error('HTTP Error 429: Too Many Requests')
+            return 1
+        mock_ytdlp.return_value.__enter__.return_value.download.side_effect = _download
+
+    def _forbid_one_track_of_several(self, mock_ytdlp):
+        """An account we can read, holding one track we are not allowed to have."""
+        def _download(urls):
+            opts = mock_ytdlp.call_args[0][0]
+            opts['match_filter']({'id': 't1', 'title': 'fine', 'duration': 300,
+                                  'channel_id': 'test_account'})
+            opts['match_filter']({'id': 't2', 'title': 'go plus', 'duration': 300,
+                                  'channel_id': 'test_account'})
+            opts['logger'].error('HTTP Error 403: Forbidden')
+            return 1
+        mock_ytdlp.return_value.__enter__.return_value.download.side_effect = _download
+
     @patch('services.downloader.soundcloud.soundcloud.YoutubeDL')
-    def test_a_403_in_the_log_is_reported_as_a_rate_limit(self, mock_ytdlp):
-        self._fail_with_403(mock_ytdlp)
+    def test_a_429_is_reported_as_a_rate_limit(self, mock_ytdlp):
+        self._fail_with_429(mock_ytdlp)
         with self.assertRaises(RateLimited):
             self._downloader().download_url('http://soundcloud.com/test_account/tracks')
 
     @patch('services.downloader.soundcloud.soundcloud.YoutubeDL')
-    def test_the_first_403_parks_soundcloud_for_the_base_wait(self, mock_ytdlp):
+    def test_a_single_unreadable_account_does_not_park_soundcloud(self, mock_ytdlp):
+        """One account giving nothing back is not evidence of a block."""
         self._fail_with_403(mock_ytdlp)
+        self._downloader().download_url('http://soundcloud.com/test_account/tracks')
+        self.assertEqual(self._rate_state().cooldown_remaining(), 0)
+
+    @patch('services.downloader.soundcloud.soundcloud.YoutubeDL')
+    def test_enough_unreadable_accounts_in_a_row_park_soundcloud(self, mock_ytdlp):
+        self._fail_with_403(mock_ytdlp)
+        downloader = self._downloader()
+        downloader.download_url('http://soundcloud.com/a/tracks')
+        downloader.download_url('http://soundcloud.com/b/tracks')
         with self.assertRaises(RateLimited):
-            self._downloader().download_url('http://soundcloud.com/test_account/tracks')
+            downloader.download_url('http://soundcloud.com/c/tracks')
+
+    @patch('services.downloader.soundcloud.soundcloud.YoutubeDL')
+    def test_parking_after_a_run_of_blanks_waits_the_base(self, mock_ytdlp):
+        self._fail_with_403(mock_ytdlp)
+        downloader = self._downloader()
+        for name in ('a', 'b', 'c'):
+            try:
+                downloader.download_url(f'http://soundcloud.com/{name}/tracks')
+            except RateLimited:
+                pass
         self.assertEqual(self._rate_state().cooldown_remaining(), 240)
 
     @patch('services.downloader.soundcloud.soundcloud.YoutubeDL')
-    def test_consecutive_403s_climb_the_ladder_across_restarts(self, mock_ytdlp):
-        self._fail_with_403(mock_ytdlp)
-        for expected in (240, 960, 3840):
-            with self.assertRaises(RateLimited) as caught:
-                self._downloader().download_url('http://soundcloud.com/test_account/tracks')
-            self.assertEqual(caught.exception.wait, expected)
+    def test_a_forbidden_track_among_readable_ones_does_not_park_soundcloud(self, mock_ytdlp):
+        self._forbid_one_track_of_several(mock_ytdlp)
+        self._downloader().download_url('http://soundcloud.com/test_account/tracks')
+        self.assertEqual(self._rate_state().cooldown_remaining(), 0)
 
     @patch('services.downloader.soundcloud.soundcloud.YoutubeDL')
-    def test_a_403_does_not_block_the_thread(self, mock_ytdlp):
+    def test_a_forbidden_track_is_written_off_so_it_is_not_asked_for_again(self, mock_ytdlp):
+        self._forbid_one_track_of_several(mock_ytdlp)
+        downloader = self._downloader()
+        downloader.download_url('http://soundcloud.com/test_account/tracks')
+        self.assertTrue(downloader.unavailable.should_skip('test_account', 't2'))
+
+    @patch('services.downloader.soundcloud.soundcloud.YoutubeDL')
+    def test_a_readable_track_is_not_written_off(self, mock_ytdlp):
+        self._forbid_one_track_of_several(mock_ytdlp)
+        downloader = self._downloader()
+        downloader.download_url('http://soundcloud.com/test_account/tracks')
+        self.assertFalse(downloader.unavailable.should_skip('test_account', 't1'))
+
+    @patch('services.downloader.soundcloud.soundcloud.YoutubeDL')
+    def test_a_readable_account_clears_a_run_of_blanks(self, mock_ytdlp):
+        downloader = self._downloader()
         self._fail_with_403(mock_ytdlp)
+        downloader.download_url('http://soundcloud.com/a/tracks')
+        downloader.download_url('http://soundcloud.com/b/tracks')
+        self._forbid_one_track_of_several(mock_ytdlp)
+        downloader.download_url('http://soundcloud.com/c/tracks')
+        self._fail_with_403(mock_ytdlp)
+        downloader.download_url('http://soundcloud.com/d/tracks')
+        self.assertEqual(self._rate_state().cooldown_remaining(), 0)
+
+    @patch('services.downloader.soundcloud.soundcloud.YoutubeDL')
+    def test_a_429_does_not_block_the_thread(self, mock_ytdlp):
+        self._fail_with_429(mock_ytdlp)
         with patch('services.downloader.soundcloud.soundcloud.time.sleep') as mock_sleep:
             with self.assertRaises(RateLimited):
                 self._downloader().download_url('http://soundcloud.com/test_account/tracks')
@@ -92,7 +162,7 @@ class TestSoundcloud403Backoff(unittest.TestCase):
 
     @patch('services.downloader.soundcloud.soundcloud.YoutubeDL')
     def test_a_clean_sweep_clears_the_403_count(self, mock_ytdlp):
-        self._fail_with_403(mock_ytdlp)
+        self._fail_with_429(mock_ytdlp)
         with self.assertRaises(RateLimited):
             self._downloader().download_url('http://soundcloud.com/test_account/tracks')
 

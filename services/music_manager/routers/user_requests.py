@@ -12,11 +12,12 @@ Flow (see AGENTS.md / issue for the full spec):
 """
 import os
 import secrets
-from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from services.music_manager.database import get_db_connection
+
 from services.music_manager import rbac
+from services.music_manager.database import get_db_connection
 from services.music_manager.rbac import require_permission
 
 router = APIRouter(tags=['user-requests'])
@@ -34,9 +35,9 @@ class GoogleAuthRequest(BaseModel):
 
 
 class RequestReview(BaseModel):
-    reason: Optional[str] = None
-    link_user_id: Optional[int] = None
-    display_name: Optional[str] = None
+    reason: str | None = None
+    link_user_id: int | None = None
+    display_name: str | None = None
 
 
 def _verify_google_id_token(id_token_str: str) -> dict:
@@ -49,8 +50,8 @@ def _verify_google_id_token(id_token_str: str) -> dict:
         raise HTTPException(status_code=500, detail='Google auth is not configured on the server (GOOGLE_CLIENT_ID is missing)')
 
     try:
-        from google.oauth2 import id_token as google_id_token
         from google.auth.transport import requests as google_requests
+        from google.oauth2 import id_token as google_id_token
     except ImportError as exc:
         raise HTTPException(status_code=500, detail='Google auth support is not installed on the server') from exc
 
@@ -174,7 +175,7 @@ def create_access_request(req: GoogleAuthRequest):
 
 
 @router.get('/user-requests')
-def list_user_requests(status: Optional[str] = None, auth: dict = Depends(require_permission('user-requests.read'))):
+def list_user_requests(status: str | None = None, auth: dict = Depends(require_permission('user-requests.read'))):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')
@@ -251,7 +252,7 @@ def approve_user_request(request_id: int, body: RequestReview = RequestReview(),
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f'Goedkeuren mislukt: {e}')
+        raise HTTPException(status_code=500, detail=f'Goedkeuren mislukt: {e}') from e
     finally:
         conn.close()
 
@@ -332,6 +333,6 @@ def unapprove_user_request(request_id: int, body: RequestReview = RequestReview(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f'Ongedaan maken mislukt: {e}')
+        raise HTTPException(status_code=500, detail=f'Ongedaan maken mislukt: {e}') from e
     finally:
         conn.close()

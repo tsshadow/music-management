@@ -1,5 +1,6 @@
 import unittest
-from services.common.Helpers.GenreRulesHelper import GenreRulesHelper, GenreRow, WHITE, BLACK, UNKNOWN
+
+from services.common.Helpers.GenreRulesHelper import BLACK, UNKNOWN, WHITE, GenreRow, GenreRulesHelper
 
 
 def helper_with(rows, expansions=None):

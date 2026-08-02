@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from services.tagger import tagger as tagger_module
 from services.tagger.constants import SongTypeEnum
-from services.tagger.tagger import TagSingleFile, Tagger
+from services.tagger.tagger import Tagger, TagSingleFile
 
 
 class TaggerTestCase(unittest.TestCase):
@@ -241,9 +241,8 @@ class TryParseTest(TaggerTestCase):
 
     def test_an_interrupt_stops_the_process(self):
         song = self.make_song(self.music / 'Soundcloud' / 'artist')
-        with patch.object(Tagger, 'parse_song', side_effect=KeyboardInterrupt):
-            with self.assertRaises(SystemExit):
-                self.tagger._try_parse(song, SongTypeEnum.SOUNDCLOUD)
+        with patch.object(Tagger, 'parse_song', side_effect=KeyboardInterrupt), self.assertRaises(SystemExit):
+            self.tagger._try_parse(song, SongTypeEnum.SOUNDCLOUD)
 
 
 class ParseSongTest(TaggerTestCase):

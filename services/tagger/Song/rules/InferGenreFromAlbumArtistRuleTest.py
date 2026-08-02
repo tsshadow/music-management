@@ -1,7 +1,9 @@
 import unittest
 from unittest.mock import MagicMock
-from services.tagger.Song.rules.InferGenreFromAlbumArtistRule import InferGenreFromAlbumArtistRule
+
 from services.tagger.constants import GENRE
+from services.tagger.Song.rules.InferGenreFromAlbumArtistRule import InferGenreFromAlbumArtistRule
+
 
 class InferGenreFromAlbumArtistRuleTest(unittest.TestCase):
 

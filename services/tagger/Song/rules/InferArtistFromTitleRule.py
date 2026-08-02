@@ -1,10 +1,12 @@
 import os
 import re
-from difflib import get_close_matches, SequenceMatcher
+from difflib import SequenceMatcher, get_close_matches
+
 from services.common.Helpers.FilterTableHelper import FilterTableHelper
 from services.common.Helpers.TableHelper import TableHelper
+from services.tagger.constants import ARTIST, ARTIST_REGEX_NON_CAPTURING, ORIGINAL_TITLE, TITLE
 from services.tagger.Song.rules.TagRule import TagRule
-from services.tagger.constants import TITLE, ARTIST_REGEX_NON_CAPTURING, ORIGINAL_TITLE, ARTIST
+
 
 def extract_artists_from_string(part: str) -> list[str]:
     return [a.strip() for a in re.split(ARTIST_REGEX_NON_CAPTURING, part) if a.strip()]
@@ -38,11 +40,11 @@ class InferArtistFromTitleRule(TagRule):
         from services.common.Helpers.Cache import databaseHelpers
         self.artist_db = artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
         all_names = self.artist_db.get_all_values()
-        artist_names = set((name.lower() for name in all_names if name))
+        artist_names = {name.lower() for name in all_names if name}
         self.genre_db = genre_db or databaseHelpers.get('rules_genres')
         if self.genre_db:
             all_genres = self.genre_db.get_all()
-            all_genres = set((genre.lower() for genre in all_genres if genre))
+            all_genres = {genre.lower() for genre in all_genres if genre}
         else:
             all_genres = set()
         all_genres.add('saturday')
@@ -64,13 +66,13 @@ class InferArtistFromTitleRule(TagRule):
 class InferArtistFromTitleDotRule(TagRule):
 
     def __init__(self, rules_ignored_artists, artist_db):
-        self.rules_ignored_artists = set((a.lower() for a in rules_ignored_artists))
+        self.rules_ignored_artists = {a.lower() for a in rules_ignored_artists}
         self.artist_db = artist_db
 
     def apply(self, song):
         CATALOG_PATTERN = re.compile('^(GB[EDH]\\d{3,})[.\\s]+(.*?)\\s+-\\s+(.*)')
         title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
-        if not title and (not '. ' in title) and (not ' - ' in title):
+        if not title and ('. ' not in title) and (' - ' not in title):
             return False
         match = CATALOG_PATTERN.match(title)
         if not match:
@@ -87,14 +89,14 @@ class InferArtistFromTitleDotRule(TagRule):
 class InferArtistFromTitleAtRule(TagRule):
 
     def __init__(self, rules_ignored_artists, artist_db):
-        self.rules_ignored_artists = set((a.lower() for a in rules_ignored_artists))
+        self.rules_ignored_artists = {a.lower() for a in rules_ignored_artists}
         self.artist_db = artist_db
 
     def apply(self, song):
         title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
         if not title:
             return False
-        if not ' @ ' in title:
+        if ' @ ' not in title:
             return False
         parts = title.split(' @ ', 1)
         library_artists = extract_artists_from_string(parts[0])
@@ -117,7 +119,7 @@ class InferArtistFromTitleByRule(TagRule):
         if len(parts) == 2:
             track, artist_guess = (parts[0].strip(), parts[1].strip())
             library_artists = extract_artists_from_string(artist_guess)
-            if any((a.lower() in self.artist_names for a in library_artists)):
+            if any(a.lower() in self.artist_names for a in library_artists):
                 set_cleaned_artist(song, library_artists, self.artist_db)
                 song.tag_collection.set_item(TITLE, track)
                 return True
@@ -244,7 +246,7 @@ class InferArtistFromFirstSegmentFallbackRule(TagRule):
 class InferArtistFromTitleFallbackRule(TagRule):
 
     def __init__(self, rules_ignored_artists):
-        self.rules_ignored_artists = set((a.lower() for a in rules_ignored_artists))
+        self.rules_ignored_artists = {a.lower() for a in rules_ignored_artists}
 
     def apply(self, song):
         title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
@@ -266,7 +268,7 @@ class InferArtistFromPresentsOrColonRule(TagRule):
 
     def __init__(self, artist_db):
         self.artist_db = artist_db
-        self.artist_names = set((name.lower() for name in artist_db.get_all_values() if name))
+        self.artist_names = {name.lower() for name in artist_db.get_all_values() if name}
 
     def apply(self, song):
         title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)

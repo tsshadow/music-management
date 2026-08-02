@@ -6,13 +6,15 @@ count flat as scopes multiply, and lets a later player page reuse these directly
 new endpoint.
 """
 import os
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from services.music_manager.database import get_db_connection
 from services.music_manager.routers.analytics_filters import (
-    FROM_CLAUSE, LibraryFilter, build_filter, parse_filter,
+    FROM_CLAUSE,
+    LibraryFilter,
+    build_filter,
+    parse_filter,
 )
 
 router = APIRouter(tags=['analytics'])
@@ -23,7 +25,7 @@ YEAR_FLOOR = 1950
 YEAR_CEILING = 2100
 
 
-def verify_api_key(x_api_key: Optional[str] = Header(None)):
+def verify_api_key(x_api_key: str | None = Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
     if API_KEY and x_api_key == API_KEY:

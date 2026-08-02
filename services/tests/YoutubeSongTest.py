@@ -3,6 +3,7 @@ import sys
 import types
 import unittest
 from unittest.mock import MagicMock, patch
+
 os.environ.setdefault('import_folder_path', '/tmp')
 os.environ.setdefault('music_folder_path', '/tmp')
 os.environ.setdefault('eps_folder_path', '/tmp')
@@ -17,6 +18,7 @@ sys.modules['dotenv'].load_dotenv = lambda *a, **k: None
 sys.modules.pop('postprocessing.Song.YoutubeSong', None)
 from services.tagger.constants import ALBUM
 from services.tagger.Song.YoutubeSong import YoutubeSong
+
 
 class YoutubeSongTest(unittest.TestCase):
 

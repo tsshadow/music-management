@@ -28,11 +28,64 @@ default:
         fi
 
 stages:
+  - quality
   - unit
   - integration
   - e2e
   - release
   - deploy
+
+# --- Static analysis ---------------------------------------------------------
+# Runs the same scripts/lint.sh the pre-commit hook runs, so a commit made with
+# --no-verify, or through the GitLab web UI, still meets the same bar. Both the
+# ruff rule set and the pylint threshold live in the repo (pyproject.toml,
+# .pylintrc) rather than in this file.
+
+quality:lint:
+  stage: quality
+  rules:
+    - changes:
+        - services/**/*.py
+        - tools/**/*.py
+        - scripts/**/*.sh
+        - pyproject.toml
+        - .pylintrc
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/lint.sh
+
+# Type checking, rolled out per module. pyproject.toml holds a loose floor for
+# the whole tree plus a list of modules checked strictly; scripts/typecheck.sh
+# runs that list. The list only ever grows -- cleaning a module up means fixing
+# its findings and adding it there in the same merge request.
+quality:typecheck:
+  stage: quality
+  rules:
+    - changes:
+        - services/**/*.py
+        - pyproject.toml
+        - scripts/typecheck.sh
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/typecheck.sh
+
+# Dependency vulnerability scanning. Reporting, not gating -- hence
+# allow_failure everywhere: it audits the runner's installed Python
+# environment, which this repository does not manage, so a stale runner would
+# otherwise block unrelated merge requests. Runs on a schedule (so a newly
+# published CVE surfaces without anyone pushing), on the default branch, and
+# manually on demand. Read the job log; findings that genuinely cannot be fixed
+# yet are listed, with a reason, in security/accepted-vulnerabilities.txt.
+security:dependency-audit:
+  stage: quality
+  interruptible: false
+  allow_failure: true
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - when: manual
+  script:
+    - ./scripts/ci/dependency-audit.sh
 
 # --- Unit tests -------------------------------------------------------------
 
@@ -122,6 +175,26 @@ release:check-secrets:
     - if: '$CI_COMMIT_BRANCH =~ /^release\//'
   script:
     - ./scripts/ci/check-required-secrets.sh
+
+# Runs every endpoint's SQL against a real MariaDB. The unit suite mocks the
+# database cursor, so it can only prove the right SQL string was produced -- a
+# column that does not exist, or a table the schema bootstrap never creates,
+# passes there and fails in production. This job is what caught the missing
+# downloads_youtube_accounts.channel_id and library_track_ml_labels.updated_at
+# columns. It also applies every migrate_*.sql twice, so a migration that is not
+# re-runnable fails here rather than on deploy.
+db:integration:
+  stage: integration
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - changes:
+        - services/music_manager/**/*
+        - services/common/db_init.py
+        - migrate_*.sql
+        - tests/integration/**/*
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/test/db-integration.sh
 
 # --- Integration / contract tests -------------------------------------------
 # These build and start docker/compose.test.yml from a clean state, so they

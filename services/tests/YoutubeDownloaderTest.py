@@ -1,11 +1,14 @@
 import unittest
 from unittest.mock import patch
-from services.tests.mock_base import setup_mocks, reset_database_helpers
+
+from services.tests.mock_base import reset_database_helpers, setup_mocks
+
 setup_mocks()
-from services.downloader.youtube.youtube import YoutubeDownloader
-from services.tagger.Song.YoutubeSong import YoutubeSong
-from services.tagger.constants import TITLE, ARTIST
 from services.common.Helpers.NotificationService import notification_service
+from services.downloader.youtube.youtube import YoutubeDownloader
+from services.tagger.constants import ARTIST, TITLE
+from services.tagger.Song.YoutubeSong import YoutubeSong
+
 
 class YoutubeDownloaderTest(unittest.TestCase):
 

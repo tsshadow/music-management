@@ -1,8 +1,10 @@
 import unittest
 from unittest.mock import MagicMock
+
+from services.tagger.constants import ALBUM_ARTIST, ARTIST, GENRE
 from services.tagger.Song.rules.ReplaceInvalidUnicodeRule import ReplaceInvalidUnicodeRule
 from services.tagger.Song.Tag import Tag
-from services.tagger.constants import ARTIST, ALBUM_ARTIST, GENRE
+
 
 class ReplaceInvalidUnicodeRuleTest(unittest.TestCase):
 

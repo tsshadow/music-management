@@ -1,0 +1,112 @@
+# Tool configuration only: this repository is not packaged/installed, it is run
+# from source (see docker/Dockerfile.*), so there is deliberately no [project]
+# or [build-system] table here.
+#
+# pytest is configured in pytest.ini, pylint in .pylintrc.
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"          # lowest Python any image runs (docker/Dockerfile.*)
+extend-exclude = [
+    ".venv",
+    "node_modules",
+    "services/music-management-server",   # C++ fork, vendored
+    "services/ultrasonic",                # Android/Kotlin
+    "services/frontend",                  # handled by oxlint/eslint
+]
+
+[tool.ruff.lint]
+select = [
+    "F",    # pyflakes: real bugs (unused/undefined names)
+    "E4",   # pycodestyle: import formatting
+    "E7",   # pycodestyle: statement-level mistakes
+    "E9",   # pycodestyle: syntax/IO errors
+    "I",    # isort: import ordering
+    "UP",   # pyupgrade: modern syntax for the target version
+    "B",    # flake8-bugbear: likely bugs
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+]
+ignore = [
+    # FastAPI's whole dependency-injection API is `param: T = Depends(...)`,
+    # which is exactly what B008 flags. Not fixable without leaving FastAPI.
+    "B008",
+    # Bare `except Exception` is the deliberate house style for the batch
+    # workers: one unreadable file must never abort a library-wide run.
+    "BLE001",
+    # The deployment contract uses lowercase environment variables
+    # (import_folder_path, music_folder_path, delimiter, ...) and .env matches
+    # them; renaming would break every existing deployment.
+    "SIM112",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test bootstraps must install their module stubs into sys.modules *before*
+# importing the code under test, so imports genuinely cannot come first.
+# SIM117: a test that patches four things reads better as nested `with` blocks
+# than as one context manager spanning four wrapped lines.
+# F811: a pytest test takes its fixtures as parameters, which shadows the
+# fixture functions of the same name -- that is the API, not a redefinition.
+"tests/**/*.py" = ["E402", "F811", "SIM117"]
+"**/*Test.py" = ["E402", "SIM117"]
+"**/test_*.py" = ["E402", "SIM117"]
+"services/tests/mock_base.py" = ["E402"]
+"services/conftest.py" = ["E402", "F401"]
+# Entry points wire sys.path before importing project modules.
+"services/music_manager/artist_image_fetcher/cli.py" = ["E402"]
+"tools/*.py" = ["E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["services", "tools"]
+
+[tool.ruff.format]
+# Not enforced in CI yet: a repository-wide reformat would rewrite almost every
+# file at once. `./scripts/format.sh` applies it opt-in, per directory.
+quote-style = "preserve"
+
+[tool.mypy]
+python_version = "3.11"
+# Rolled out per module: the settings below are the floor for the whole tree,
+# and the [[tool.mypy.overrides]] blocks tighten it where the code is ready.
+# Tighten one module at a time; never loosen the floor.
+ignore_missing_imports = true
+follow_imports = "silent"
+warn_redundant_casts = true
+warn_unused_ignores = false
+show_error_codes = true
+exclude = [
+    '^\.venv/',
+    '^services/music-management-server/',
+    '^services/ultrasonic/',
+    '^services/frontend/',
+    '^services/ml-analyzer/',
+]
+
+[[tool.mypy.overrides]]
+# Already type-checked strictly. Extend this list as modules are cleaned up.
+module = [
+    "services.common.config_store",
+    "services.common.step",
+    "services.common.version_helper",
+    "services.common.Helpers.ArtistNameAnalyzer",
+    "services.common.Helpers.FestivalHelper",
+    "services.common.Helpers.FilterTableHelper",
+    "services.common.Helpers.GenreRulesHelper",
+    "services.common.Helpers.LookupTableHelper",
+    "services.common.Helpers.TableHelper",
+    "services.downloader.account_schedule",
+    "services.downloader.rate_state",
+    "services.importer.extractor",
+    "services.importer.renamer",
+    "services.music_manager.rbac",
+    "services.music_manager.artist_image_fetcher.matcher",
+    "services.music_manager.artist_image_fetcher.normalizer",
+    "services.music_manager.artist_image_fetcher.storage",
+    "services.music_manager.artist_image_fetcher.providers.base",
+    "services.tagger.constants",
+    "services.tagger.Song.rules.TagResult",
+    "services.tagger.Song.rules.TagRule",
+]
+disallow_untyped_defs = false
+check_untyped_defs = true
+warn_return_any = true

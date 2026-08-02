@@ -9,7 +9,6 @@ Kept free of response models so it can be unit-tested on its own, and importable
 from library.py without a circular import.
 """
 from dataclasses import dataclass, field
-from typing import List, Optional
 
 from fastapi import Query
 
@@ -42,14 +41,14 @@ _GENRE_EXISTS = ("EXISTS (SELECT 1 FROM library_track_genres tg "
 @dataclass
 class LibraryFilter:
     q: str = ''
-    artist: List[str] = field(default_factory=list)
-    genre: List[str] = field(default_factory=list)
-    label: List[str] = field(default_factory=list)
-    bpm_min: Optional[float] = None
-    bpm_max: Optional[float] = None
-    year_min: Optional[int] = None
-    year_max: Optional[int] = None
-    analyzed: Optional[bool] = None
+    artist: list[str] = field(default_factory=list)
+    genre: list[str] = field(default_factory=list)
+    label: list[str] = field(default_factory=list)
+    bpm_min: float | None = None
+    bpm_max: float | None = None
+    year_min: int | None = None
+    year_max: int | None = None
+    analyzed: bool | None = None
 
 
 def _clean(values):
@@ -129,14 +128,14 @@ def build_filter(f: LibraryFilter):
 
 def parse_filter(
     q: str = Query(''),
-    artist: List[str] = Query(default=[]),
-    genre: List[str] = Query(default=[]),
-    label: List[str] = Query(default=[]),
-    bpm_min: Optional[float] = Query(None, ge=0, le=400),
-    bpm_max: Optional[float] = Query(None, ge=0, le=400),
-    year_min: Optional[int] = Query(None, ge=1900, le=2100),
-    year_max: Optional[int] = Query(None, ge=1900, le=2100),
-    analyzed: Optional[bool] = Query(None),
+    artist: list[str] = Query(default=[]),
+    genre: list[str] = Query(default=[]),
+    label: list[str] = Query(default=[]),
+    bpm_min: float | None = Query(None, ge=0, le=400),
+    bpm_max: float | None = Query(None, ge=0, le=400),
+    year_min: int | None = Query(None, ge=1900, le=2100),
+    year_max: int | None = Query(None, ge=1900, le=2100),
+    analyzed: bool | None = Query(None),
 ) -> LibraryFilter:
     """FastAPI dependency turning query parameters into a LibraryFilter."""
     return LibraryFilter(

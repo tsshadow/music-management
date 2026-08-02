@@ -1,15 +1,17 @@
-import uuid
-import os
-import requests
 import logging
+import os
+import uuid
 from threading import Lock
-from typing import Dict, Any, List, Optional
+from typing import Any
+
+import requests
+
 
 class JobManager:
     """Simple in-memory registry for tracking job status, with optional remote push."""
 
     def __init__(self):
-        self.jobs: Dict[str, Dict[str, Any]] = {}
+        self.jobs: dict[str, dict[str, Any]] = {}
         self.lock = Lock()
         # HUB_API_URL should be like http://music-manager:8000/jobs
         self.hub_url = os.getenv('HUB_API_URL')
@@ -23,7 +25,7 @@ class JobManager:
         self._push(job_id, job_data)
         return job_id
 
-    def update(self, job_id: str, status: str, error: Optional[str] = None):
+    def update(self, job_id: str, status: str, error: str | None = None):
         with self.lock:
             job = self.jobs.get(job_id)
             if job:
@@ -32,12 +34,12 @@ class JobManager:
                     job['error'] = error
                 self._push(job_id, job)
 
-    def publish(self, payload: Dict[str, Any], job_id: Optional[str] = None):
+    def publish(self, payload: dict[str, Any], job_id: str | None = None):
         """Send an ad-hoc update to the hub."""
         jid = job_id or "global"
         self._push(jid, payload)
 
-    def _push(self, job_id: str, job_data: Dict[str, Any]):
+    def _push(self, job_id: str, job_data: dict[str, Any]):
         if not self.hub_url:
             return
         try:
@@ -51,11 +53,11 @@ class JobManager:
         except Exception as e:
             logging.debug(f"Failed to push job status to hub: {e}")
 
-    def list_active(self) -> List[Dict[str, Any]]:
+    def list_active(self) -> list[dict[str, Any]]:
         with self.lock:
             return [{'job_id': job_id, 'step': data['step']} for job_id, data in self.jobs.items() if data.get('status') == 'running']
 
-    def get(self, job_id: str) -> Optional[Dict[str, Any]]:
+    def get(self, job_id: str) -> dict[str, Any] | None:
         with self.lock:
             return self.jobs.get(job_id)
 

@@ -1,20 +1,20 @@
+import json
 import logging
 import os
 import subprocess
-import json
 import sys
 import time
 
 # Ensure project root is in path for imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from services.common.Helpers.DatabaseConnector import DatabaseConnector
-from services.tagger.Song.SoundcloudSong import SoundcloudSong
-from services.common.Helpers.Cache import databaseHelpers
-from services.common.Helpers.FilterTableHelper import FilterTableHelper
-
 # Setup logging to stdout
 import sys
+
+from services.common.Helpers.DatabaseConnector import DatabaseConnector
+from services.common.Helpers.FilterTableHelper import FilterTableHelper
+from services.tagger.Song.SoundcloudSong import SoundcloudSong
+
 logging.basicConfig(level=logging.INFO, stream=sys.stdout, format='%(message)s')
 logger = logging.getLogger('trace-fetcher')
 logger.info("Script is starting...")
@@ -24,7 +24,7 @@ def fetch_metadata(url):
         result = subprocess.run(['yt-dlp', '--dump-single-json', '--no-playlist', url], 
                                capture_output=True, text=True, check=True)
         return json.loads(result.stdout)
-    except Exception as e:
+    except Exception:
         logger.error(f"  [!] yt-dlp error for {url}")
         return None
 
@@ -74,7 +74,6 @@ def trace_test():
             continue
             
         # 3. Normalisatie
-        orig_genre = sc_genre
         if sc_genre.startswith('#'):
             sc_genre = sc_genre[1:]
             logger.info(f"  [DATA] Genre genormaliseerd (hashtag verwijderd): '{sc_genre}'")

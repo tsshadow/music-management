@@ -20,8 +20,8 @@ import logging
 import os
 import shutil
 import sys
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Callable, List, Optional, Sequence, Tuple
 
 from dotenv import load_dotenv
 
@@ -77,7 +77,7 @@ RULES
 """
 
 
-def list_files(path: str) -> List[str]:
+def list_files(path: str) -> list[str]:
     """File names directly inside `path`, ignoring subdirectories and @eaDir."""
     try:
         entries = os.scandir(path)
@@ -87,7 +87,7 @@ def list_files(path: str) -> List[str]:
         return sorted(entry.name for entry in entries if entry.is_file())
 
 
-def list_dirs(path: str) -> List[str]:
+def list_dirs(path: str) -> list[str]:
     """Subdirectory names directly inside `path`, ignoring @eaDir."""
     try:
         entries = os.scandir(path)
@@ -105,7 +105,7 @@ def has_audio(names: Sequence[str]) -> bool:
     return any(is_audio(name) for name in names)
 
 
-def walk_files(path: str) -> List[str]:
+def walk_files(path: str) -> list[str]:
     """Every real file under `path`, recursively, ignoring @eaDir."""
     found = []
     for root, dirs, files in os.walk(path):
@@ -114,7 +114,7 @@ def walk_files(path: str) -> List[str]:
     return found
 
 
-def relative_files(path: str) -> List[str]:
+def relative_files(path: str) -> list[str]:
     """Every real file under `path` as a path relative to it.
 
     Recursive on purpose: a file hiding in a subdirectory must show up in the listing and
@@ -128,12 +128,12 @@ def relative_files(path: str) -> List[str]:
 class Case:
     outer: str
     inner: str
-    outer_files: List[str]
-    inner_files: List[str]
+    outer_files: list[str]
+    inner_files: list[str]
     action: str
 
     @property
-    def unique_inner_files(self) -> List[str]:
+    def unique_inner_files(self) -> list[str]:
         outer = set(self.outer_files)
         return [name for name in self.inner_files if name not in outer]
 
@@ -153,9 +153,9 @@ class Case:
 
 @dataclass
 class Result:
-    moved: List[str] = field(default_factory=list)
-    clashes: List[str] = field(default_factory=list)
-    vanished: List[str] = field(default_factory=list)
+    moved: list[str] = field(default_factory=list)
+    clashes: list[str] = field(default_factory=list)
+    vanished: list[str] = field(default_factory=list)
     inner_removed: bool = False
     db_deleted: int = 0
 
@@ -179,10 +179,10 @@ def classify(outer: str, inner: str) -> Case:
 
 def find_cases(
     eps_root: str,
-    label: Optional[str] = None,
-    on_progress: Optional[Callable[[str], None]] = None,
-    on_case: Optional[Callable[[Case], None]] = None,
-) -> Tuple[List[Case], List[str]]:
+    label: str | None = None,
+    on_progress: Callable[[str], None] | None = None,
+    on_case: Callable[[Case], None] | None = None,
+) -> tuple[list[Case], list[str]]:
     """Scan the EPs tree for inner directories named exactly like their parent.
 
     Returns the cases plus a list of oddities: differently named subdirectories that this
@@ -190,8 +190,8 @@ def find_cases(
     walking the whole music mount takes minutes, and a run that shows nothing until the
     end looks like it found nothing.
     """
-    cases: List[Case] = []
-    oddities: List[str] = []
+    cases: list[Case] = []
+    oddities: list[str] = []
     labels = [label] if label else list_dirs(eps_root)
     for label_name in labels:
         label_path = os.path.join(eps_root, label_name)
@@ -313,7 +313,7 @@ class Executor:
         return result
 
     @staticmethod
-    def _vanished(paths: Sequence[str]) -> List[str]:
+    def _vanished(paths: Sequence[str]) -> list[str]:
         return [path for path in paths if not os.path.exists(path)]
 
 
@@ -343,7 +343,7 @@ def ask(case: Case, read: Callable[[str], str] = input) -> str:
         print(f'  Please answer one of: {", ".join(allowed)}, q')
 
 
-def resolve_eps_root(override: Optional[str]) -> str:
+def resolve_eps_root(override: str | None) -> str:
     if override:
         return override
     try:
@@ -373,7 +373,7 @@ def write_report(path: str, lines: Sequence[str]) -> None:
     print(f'Report written to {path}')
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description='Repair EP folders that are one directory too deep.')
     parser.add_argument('--eps-root', help='EPs root directory (default: eps_folder_path from config)')
     parser.add_argument('--label', help='Only scan this label directory (the music mount is slow)')

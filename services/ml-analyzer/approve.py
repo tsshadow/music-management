@@ -1,10 +1,12 @@
-import os
 import argparse
+import os
+
 import joblib
-import pandas as pd
 import numpy as np
-from sqlalchemy import create_engine, text
+import pandas as pd
 from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
+
 
 def get_prediction(model, encoders, scaler, track_data):
     """Berekent een voorspelling voor de track data."""
@@ -116,7 +118,7 @@ def approve_tracks():
         return
     engine = create_engine(db_url)
     model_data = (None, None, None)
-    if all((os.path.exists(f'models/{p}.joblib') for p in ['genre_classifier', 'label_encoders', 'feature_scaler'])):
+    if all(os.path.exists(f'models/{p}.joblib') for p in ['genre_classifier', 'label_encoders', 'feature_scaler']):
         try:
             model_data = (joblib.load('models/genre_classifier.joblib'), joblib.load('models/label_encoders.joblib'), joblib.load('models/feature_scaler.joblib'))
             print('ML Model en scalers geladen voor previews.\n')

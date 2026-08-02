@@ -1,14 +1,16 @@
-import sys
-import os
-import bcrypt
 import argparse
 import getpass
+import os
+import sys
+
+import bcrypt
 
 # Add the project root to sys.path so we can import services
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from services.music_manager.database import get_db_connection
 from services.music_manager.routers.users import notify_server_sync_users
+
 
 def set_password(username, password):
     conn = get_db_connection()

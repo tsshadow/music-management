@@ -1,11 +1,12 @@
+import importlib
 import os
 import sys
-import types
 import tempfile
+import types
 import unittest
-import importlib
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
 os.environ.setdefault('import_folder_path', '/tmp')
 os.environ.setdefault('eps_folder_path', '/tmp')
 os.environ.setdefault('delimiter', '/')
@@ -27,8 +28,9 @@ if 'services.common.Helpers.Cache' not in sys.modules:
     cache_mod.databaseHelpers = {}
     sys.modules['services.common.Helpers.Cache'] = cache_mod
 sys.modules['services.common.Helpers.Cache'].databaseHelpers.setdefault('library_artists', MagicMock())
-from services.tagger.Song.rules.TagResult import TagResult, TagResultType
 from services.other import artistfixer
+from services.tagger.Song.rules.TagResult import TagResult, TagResultType
+
 
 class ArtistFixerTest(unittest.TestCase):
 
@@ -70,6 +72,6 @@ class ArtistFixerTest(unittest.TestCase):
             self.fix.run()
         self.assertEqual(len(self.created_paths), 3)
         self.assertEqual(self.mocks['rule_instance'].apply.call_count, 3)
-        self.assertTrue(all(('library_artists table' in call.args[0] for call in mock_print.call_args_list)))
+        self.assertTrue(all('library_artists table' in call.args[0] for call in mock_print.call_args_list))
 if __name__ == '__main__':
     unittest.main()

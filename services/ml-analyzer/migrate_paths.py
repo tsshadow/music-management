@@ -1,6 +1,7 @@
-from sqlalchemy import text
 from analyzer import TrackAnalyzer
 from dotenv import load_dotenv
+from sqlalchemy import text
+
 
 def migrate_paths():
     load_dotenv()

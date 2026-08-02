@@ -1,7 +1,9 @@
 import unittest
 from unittest.mock import MagicMock
-from services.tagger.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
+
 from services.tagger.constants import GENRE
+from services.tagger.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
+
 
 class InferGenreFromSubgenreRuleTest(unittest.TestCase):
 

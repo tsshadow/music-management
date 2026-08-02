@@ -2,6 +2,7 @@ import os
 import sys
 import types
 from unittest.mock import MagicMock
+
 # Force mock mutagen
 mutagen_mod = types.ModuleType('mutagen')
 mutagen_mod.MutagenError = Exception
@@ -112,10 +113,9 @@ for mod_name in ['markdown', 'dotenv', 'pymysql', 'pymysql.err', 'pymysql.cursor
     if mod_name == 'pymysql':
         mock_mod.err = MagicMock()
         mock_mod.err.OperationalError = type('OperationalError', (Exception,), {})
-    if mod_name == 'pymysql.cursors':
-        # `import pymysql.cursors` needs both the sys.modules entry and the attribute.
-        if 'pymysql' in sys.modules:
-            sys.modules['pymysql'].cursors = mock_mod
+    # `import pymysql.cursors` needs both the sys.modules entry and the attribute.
+    if mod_name == 'pymysql.cursors' and 'pymysql' in sys.modules:
+        sys.modules['pymysql'].cursors = mock_mod
     if mod_name == 'pymysql.err':
         mock_mod.OperationalError = type('OperationalError', (Exception,), {})
         # Also ensure pymysql.err in sys.modules is consistent with pymysql.err attribute
@@ -169,6 +169,7 @@ sys.modules['services.common.Helpers.DatabaseConnector'] = db_conn_mod
 # hand every rule a truthy decision and hide what the rule actually does. Tests give
 # it the rows they need via set_rows().
 from services.common.Helpers.GenreRulesHelper import GenreRulesHelper
+
 cache_mod.databaseHelpers['genre_rules'] = GenreRulesHelper(preload=False, rows=[])
 cache_mod.databaseHelpers['genre_rules'].record_unknown = MagicMock()
 

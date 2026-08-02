@@ -30,7 +30,9 @@ export default defineConfig({
     command: `npm run dev -- --port ${devServerPort} --strictPort`,
     url: devServerUrl,
     reuseExistingServer: false,
-    timeout: 30_000,
+    // Starting the dev server is cheap; it is the first request that compiles.
+    // Kept above Vite's own start-up on a loaded runner all the same.
+    timeout: 60_000,
     env: {
       VITE_API_TARGET: process.env.VITE_API_TARGET || "http://localhost:18000",
       VITE_LMS_TARGET: process.env.VITE_LMS_TARGET || "http://localhost:15082",

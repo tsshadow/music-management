@@ -1,6 +1,8 @@
 import logging
 import os
+
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+
 
 class YoutubeArchive:
     """Utility helpers for interacting with the `downloads_youtube_archive` table."""

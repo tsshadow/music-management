@@ -1,4 +1,5 @@
 import os
+
 import pymysql
 from dotenv import load_dotenv
 
@@ -26,7 +27,7 @@ def check_db():
                 
                 # Toon een paar rijen als het relevant lijkt
                 if 'rule' in table.lower() or 'soundcloud' in table.lower() or 'account' in table.lower():
-                    print(f"  Data voorbeeld:")
+                    print("  Data voorbeeld:")
                     cursor.execute(f"SELECT * FROM `{table}` LIMIT 3")
                     rows = cursor.fetchall()
                     for row in rows:

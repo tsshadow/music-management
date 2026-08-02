@@ -1,7 +1,7 @@
-import unittest
-from unittest.mock import MagicMock, patch
 import os
 import sys
+import unittest
+from unittest.mock import MagicMock, patch
 
 # Only stub these when they aren't already provided by services/tests/mock_base.py
 # (loaded once for the whole pytest session via services/conftest.py) or by the real
@@ -13,15 +13,19 @@ for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen
     sys.modules.setdefault(_mod_name, MagicMock())
 
 import services.music_manager.ntfy_listener
+
 services.music_manager.ntfy_listener.start_ntfy_listener = lambda: None
 import services.music_manager.routers.users
+
 services.music_manager.routers.users.run_lms_db_sync = lambda: None
 import services.music_manager.database
+
 services.music_manager.database.get_db_connection = MagicMock(return_value=None)
 
 from fastapi.testclient import TestClient
-from services.music_manager.main import app
+
 from services.music_manager import rbac
+from services.music_manager.main import app
 
 
 class TestRbacHelpers(unittest.TestCase):

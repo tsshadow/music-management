@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 Image = pytest.importorskip('PIL.Image', reason='Pillow is only installed with the artist-image-fetcher extras')
+from PIL import UnidentifiedImageError
 
 from services.music_manager.artist_image_fetcher import storage
 
@@ -59,7 +60,7 @@ class ImageStorageTest(unittest.TestCase):
         self.assertEqual(meta['mime_type'], 'image/jpeg')
 
     def test_bytes_that_are_not_an_image_are_reported_as_an_error(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(UnidentifiedImageError):
             self.storage.save_image(7, 'spotify', b'this is not an image')
 
 

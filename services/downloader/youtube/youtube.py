@@ -2,15 +2,16 @@ import concurrent.futures
 import logging
 import os
 import time
-from typing import Optional
+
 from yt_dlp import YoutubeDL
-from services.common.Helpers.DatabaseConnector import DatabaseConnector
+
 from services.common.config_store import ConfigStore
+from services.common.Helpers.DatabaseConnector import DatabaseConnector
+from services.common.job_manager import job_manager
 from services.downloader.rate_state import RateLimited, SweepAborted
 from services.downloader.sweep import SweepPolicy
 from services.downloader.youtube.YoutubeArchive import YoutubeArchive
 from services.downloader.youtube.YoutubeSongProcessor import YoutubeSongProcessor
-from services.common.job_manager import job_manager
 
 SOURCE = 'youtube'
 
@@ -232,7 +233,7 @@ class YoutubeDownloader:
             logging.error(f'Failed to fetch Youtube accounts from DB: {e}')
             return []
 
-    def run(self, break_on_existing_arg: Optional[bool]=None, redownload: bool=False, account: str=''):
+    def run(self, break_on_existing_arg: bool | None=None, redownload: bool=False, account: str=''):
         if not getattr(self, 'downloader_config', {}).get('enabled', True):
             logging.warning('YouTube downloader is not configured; skipping run().')
             return
@@ -266,10 +267,7 @@ class YoutubeDownloader:
 
     def _get_accounts(self, account: str) -> list[str]:
         try:
-            if account:
-                accounts = [account]
-            else:
-                accounts = self.get_accounts_from_db()
+            accounts = [account] if account else self.get_accounts_from_db()
         except Exception as e:
             logging.error(f'Database error while fetching YouTube accounts: {e}')
             return []

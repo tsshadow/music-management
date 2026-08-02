@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import Final
+
 ARTIST_REGEX: Final = '(?i)\\s(&|，|aka|and|b2b|b3b|feat\\.?|featuring|features|ft|ft\\.?|invite|invites|meets|pres\\.?|present|presents|presenting|versus|vs\\.?|with|x|\\+|,|et)\\s|,\\s|，\\s|presents:\\s|present:\\s|:\\s'
 ARTIST_REGEX_NON_CAPTURING: Final = '(?i)\\s(?:&|:\\s|，|aka|and|b2b|b3b|feat\\.?|featuring|features|ft\\.?|invite|invites|meets|pres\\.?|present|presents|presenting|versus|vs\\.?|with|x|\\+|,|et)\\s|,\\s|，\\s|presents:\\s|present:\\s|:\\s'
 ALBUM_ARTIST: Final = 'albumartist'

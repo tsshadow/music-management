@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from services.tagger.Song.rules.AnalyzeBpmRule import AnalyzeBpmRule
 from services.tagger.constants import BPM
+from services.tagger.Song.rules.AnalyzeBpmRule import AnalyzeBpmRule
 
 
 def make_song(path='track.mp3'):

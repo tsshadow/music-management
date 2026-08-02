@@ -1,7 +1,9 @@
 import re
-from services.tagger.Song.rules.TagRule import TagRule
-from services.tagger.constants import TITLE, GENRE
+
 from services.common.Helpers.TableHelper import TableHelper
+from services.tagger.constants import GENRE, TITLE
+from services.tagger.Song.rules.TagRule import TagRule
+
 
 class InferGenreFromTitleRule(TagRule):
 
@@ -10,10 +12,11 @@ class InferGenreFromTitleRule(TagRule):
         self.dryrun = dryrun
         self.dryrun_output_path = dryrun_output_path
         all_genres = self.genre_db.get_all_values()
-        self.genre_set = set((g.lower() for g in all_genres if g))
+        self.genre_set = {g.lower() for g in all_genres if g}
         self.genre_patterns = {genre: re.compile(f'\\b{re.escape(genre)}\\b', flags=re.IGNORECASE) for genre in self.genre_set}
         if self.dryrun:
-            self._output_file = open(self.dryrun_output_path, 'w', encoding='utf-8')
+            # Held open across apply() calls for the whole dry run; closed in close().
+            self._output_file = open(self.dryrun_output_path, 'w', encoding='utf-8')  # noqa: SIM115
         else:
             self._output_file = None
 

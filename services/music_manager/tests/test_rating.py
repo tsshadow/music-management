@@ -1,8 +1,9 @@
-import unittest
-from unittest.mock import MagicMock, patch
+import json
 import os
 import sys
-import json
+import unittest
+from unittest.mock import MagicMock, patch
+
 # Only stub these when they aren't already provided by services/tests/mock_base.py
 # (loaded once for the whole pytest session via services/conftest.py) or by the real
 # installed packages -- blindly overwriting sys.modules here would clobber the
@@ -12,13 +13,18 @@ import json
 for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
     sys.modules.setdefault(_mod_name, MagicMock())
 import services.music_manager.ntfy_listener
+
 services.music_manager.ntfy_listener.start_ntfy_listener = lambda: None
 import services.music_manager.routers.users
+
 services.music_manager.routers.users.run_lms_db_sync = lambda: None
 import services.music_manager.database
+
 services.music_manager.database.get_db_connection = MagicMock(return_value=None)
 from fastapi.testclient import TestClient
+
 from services.music_manager.main import app
+
 
 class TestRating(unittest.TestCase):
 
@@ -37,7 +43,7 @@ class TestRating(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {'status': 'success', 'entity_id': 'track123'})
         mock_cursor.execute.assert_called()
-        insert_call = next((call for call in mock_cursor.execute.call_args_list if 'INSERT INTO rating_tracks' in call[0][0]))
+        insert_call = next(call for call in mock_cursor.execute.call_args_list if 'INSERT INTO rating_tracks' in call[0][0])
         self.assertIn('ON DUPLICATE KEY UPDATE', insert_call[0][0])
         self.assertEqual(insert_call[0][1], ('track', 'track123', 'user', 80))
 
@@ -52,9 +58,9 @@ class TestRating(unittest.TestCase):
         response = self.client.post('/api/rating/lms-event', json=payload, headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {'status': 'success', 'entity_id': 'resolved-uid'})
-        path_res_call = next((call for call in mock_cursor.execute.call_args_list if 'SELECT t.track_uid' in call[0][0]))
+        path_res_call = next(call for call in mock_cursor.execute.call_args_list if 'SELECT t.track_uid' in call[0][0])
         self.assertIn('library_media_files', path_res_call[0][0])
-        insert_call = next((call for call in mock_cursor.execute.call_args_list if 'INSERT INTO rating_tracks' in call[0][0]))
+        insert_call = next(call for call in mock_cursor.execute.call_args_list if 'INSERT INTO rating_tracks' in call[0][0])
         self.assertEqual(insert_call[0][1][1], 'resolved-uid')
 
     def test_handle_lms_event_invalid_event(self):
@@ -86,7 +92,7 @@ class TestRating(unittest.TestCase):
         mock_cursor.fetchall.return_value = [{'id': 1, 'title': 'Track 1', 'artist': 'Artist 1', 'rating': 90}]
         response = self.client.get('/api/users/1/dynamic-playlists/1/tracks', headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 200)
-        tracks_query_call = next((call for call in mock_cursor.execute.call_args_list if 'SELECT DISTINCT' in call[0][0]))
+        tracks_query_call = next(call for call in mock_cursor.execute.call_args_list if 'SELECT DISTINCT' in call[0][0])
         query = tracks_query_call[0][0]
         params = tracks_query_call[0][1]
         self.assertIn('rt.rating >= %s AND rt.rating <= %s', query)

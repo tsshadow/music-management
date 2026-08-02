@@ -1,18 +1,18 @@
+import json
 import logging
 import os
 import subprocess
-import json
 import sys
 import time
 
 # Ensure project root is in path for imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.config_store import ConfigStore as Settings
-from services.tagger.Song.SoundcloudSong import SoundcloudSong
 from services.common.Helpers.Cache import databaseHelpers
+from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.Helpers.FilterTableHelper import FilterTableHelper
+from services.tagger.Song.SoundcloudSong import SoundcloudSong
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

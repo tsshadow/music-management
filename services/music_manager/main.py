@@ -1,20 +1,41 @@
 import logging
 import os
 import threading
+
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from services.music_manager.database import get_db_connection
-from services.music_manager.routers import users, scrobbler, rating, stats, management, artist_images, notifications, library, analytics, tagger, scanner, jobs, config, user_requests, radio, downloaders, diagnostics
-from services.music_manager.routers.users import run_lms_db_sync
-from services.music_manager.routers.tagger import run_tagger_loop
-from services.music_manager.routers.scanner import run_scanner_loop
-from services.music_manager.routers.artist_images import run_fetch_missing
-from services.music_manager.ntfy_listener import start_ntfy_listener
+
 from services.common.db_init import ensure_tables_exist
-from services.common.version_helper import get_version, get_release_notes, get_changelog
+from services.common.version_helper import get_version
+from services.music_manager.database import get_db_connection
+from services.music_manager.ntfy_listener import start_ntfy_listener
+from services.music_manager.routers import (
+    analytics,
+    artist_images,
+    config,
+    diagnostics,
+    downloaders,
+    jobs,
+    library,
+    management,
+    notifications,
+    radio,
+    rating,
+    scanner,
+    scrobbler,
+    stats,
+    tagger,
+    user_requests,
+    users,
+)
+from services.music_manager.routers.artist_images import run_fetch_missing
+from services.music_manager.routers.scanner import run_scanner_loop
+from services.music_manager.routers.tagger import run_tagger_loop
+from services.music_manager.routers.users import run_lms_db_sync
+
 load_dotenv()
 logger = logging.getLogger('music-manager')
 logging.basicConfig(level=logging.INFO)

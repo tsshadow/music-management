@@ -1,16 +1,15 @@
-import logging
 import inspect
+import logging
+
 from services.common.job_manager import job_manager
+
 
 class Step:
     """Represents an executable step in the importer workflow."""
 
     def __init__(self, name, action, condition_keys=None):
         self.name = name
-        if condition_keys is not None:
-            self.condition_keys = set(condition_keys)
-        else:
-            self.condition_keys = None
+        self.condition_keys: set | None = set(condition_keys) if condition_keys is not None else None
         self.action = action
 
     def should_run(self, steps):

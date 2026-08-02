@@ -1,0 +1,28 @@
+#!/bin/bash
+# scripts/hooks/pre-commit
+#
+# Installed into .git/hooks by scripts/install-hooks.sh.
+#
+# This hook is deliberately a thin wrapper around the same scripts CI runs, so
+# the two can never drift apart. The previous version carried its own hardcoded
+# list of test targets, which silently stopped matching the suite.
+#
+# Set SKIP_HOOK_TESTS=1 to run only the linter (e.g. for a docs-only commit).
+
+set -e
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+cd "$ROOT_DIR"
+
+echo "--- pre-commit: lint ---"
+./scripts/lint.sh
+
+if [ "${SKIP_HOOK_TESTS:-0}" = "1" ]; then
+    echo "--- pre-commit: tests skipped (SKIP_HOOK_TESTS=1) ---"
+    exit 0
+fi
+
+echo "--- pre-commit: Python unit tests ---"
+./scripts/test/music-management-unit.sh
+
+echo "--- pre-commit: all checks passed ---"

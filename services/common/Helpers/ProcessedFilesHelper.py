@@ -1,6 +1,7 @@
 import logging
-from contextlib import closing
+
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+
 
 class ProcessedFilesHelper:
     """

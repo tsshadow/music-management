@@ -2,9 +2,12 @@ import json
 import logging
 import threading
 import time
+
 import requests
+
 from services.common.config_store import ConfigStore
 from services.music_manager.database import get_db_connection
+
 logger = logging.getLogger('ntfy-listener')
 
 def _handle_notification(data):

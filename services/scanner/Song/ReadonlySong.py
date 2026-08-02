@@ -1,5 +1,5 @@
-import logging
 from services.tagger.Song.BaseSong import BaseSong
+
 
 class ReadonlySong(BaseSong):
     """

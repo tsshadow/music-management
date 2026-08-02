@@ -1,5 +1,6 @@
-from services.tagger.Song.rules.TagRule import TagRule
 from services.tagger.constants import GENRE
+from services.tagger.Song.rules.TagRule import TagRule
+
 
 class MergeDrumAndBassGenresRule(TagRule):
     """Merges 'drum' and 'bass' genre tags into a single 'drum 'n bass' tag."""

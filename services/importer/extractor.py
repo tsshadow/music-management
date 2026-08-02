@@ -1,9 +1,12 @@
 import logging
 import os
 from os import listdir
-from os.path import join, isfile
+from os.path import isfile, join
+
 import patoolib
+
 from services.common.config_store import ConfigStore as Settings
+
 
 class Extractor:
 

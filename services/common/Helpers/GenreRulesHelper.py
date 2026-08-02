@@ -3,7 +3,7 @@ import re
 import unicodedata
 from contextlib import closing
 from dataclasses import dataclass
-from typing import Optional
+
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 
 WHITE = 'white'
@@ -18,7 +18,7 @@ class GenreRow:
     name: str
     normalized_name: str
     state: str
-    canonical_id: Optional[int]
+    canonical_id: int | None
 
 
 @dataclass
@@ -51,7 +51,7 @@ class GenreRulesHelper:
     table_name = 'rules_genres'
     expansion_table = 'rules_genre_expansions'
 
-    def __init__(self, preload: bool=True, rows: Optional[list[GenreRow]]=None, expansions: Optional[dict[int, list[int]]]=None):
+    def __init__(self, preload: bool=True, rows: list[GenreRow] | None=None, expansions: dict[int, list[int]] | None=None):
         self.db_connector = DatabaseConnector()
         self._rows: dict[str, GenreRow] = {}
         self._by_id: dict[int, GenreRow] = {}
@@ -65,15 +65,15 @@ class GenreRulesHelper:
     def normalize(name: str) -> str:
         """Casing-, accent- and punctuation-insensitive key for a genre name."""
         decomposed = unicodedata.normalize('NFKD', name or '')
-        without_accents = ''.join((c for c in decomposed if not unicodedata.combining(c)))
+        without_accents = ''.join(c for c in decomposed if not unicodedata.combining(c))
         return re.sub('[^a-z0-9]+', ' ', without_accents.lower()).strip()
 
-    def _index(self, rows: list[GenreRow], expansions: Optional[dict[int, list[int]]]=None) -> None:
+    def _index(self, rows: list[GenreRow], expansions: dict[int, list[int]] | None=None) -> None:
         self._rows = {row.normalized_name: row for row in rows}
         self._by_id = {row.id: row for row in rows}
         self._expansions = dict(expansions or {})
 
-    def set_rows(self, rows: list[GenreRow], expansions: Optional[dict[int, list[int]]]=None) -> None:
+    def set_rows(self, rows: list[GenreRow], expansions: dict[int, list[int]] | None=None) -> None:
         """Replace the cached rules, e.g. after a curation decision."""
         self._index(rows, expansions)
 
@@ -84,19 +84,18 @@ class GenreRulesHelper:
         query = f'SELECT id, name, normalized_name, state, canonical_id FROM {self.table_name}'
         expansion_query = f'SELECT genre_id, target_id FROM {self.expansion_table} ORDER BY genre_id, position, target_id'
         try:
-            with closing(self.db_connector.connect()) as connection:
-                with connection.cursor() as cursor:
-                    cursor.execute(query)
-                    rows = [GenreRow(id=row[0], name=row[1], normalized_name=row[2], state=row[3], canonical_id=row[4]) for row in cursor.fetchall()]
-                    expansions: dict[int, list[int]] = {}
-                    cursor.execute(expansion_query)
-                    for genre_id, target_id in cursor.fetchall():
-                        expansions.setdefault(genre_id, []).append(target_id)
-                    self._index(rows, expansions)
+            with closing(self.db_connector.connect()) as connection, connection.cursor() as cursor:
+                cursor.execute(query)
+                rows = [GenreRow(id=row[0], name=row[1], normalized_name=row[2], state=row[3], canonical_id=row[4]) for row in cursor.fetchall()]
+                expansions: dict[int, list[int]] = {}
+                cursor.execute(expansion_query)
+                for genre_id, target_id in cursor.fetchall():
+                    expansions.setdefault(genre_id, []).append(target_id)
+                self._index(rows, expansions)
         except Exception as e:
             logging.error(f'[{self.table_name}] Failed to preload genre rules: {e}')
 
-    def get_row(self, name: str) -> Optional[GenreRow]:
+    def get_row(self, name: str) -> GenreRow | None:
         return self._rows.get(self.normalize(name))
 
     def is_decided(self, name: str) -> bool:

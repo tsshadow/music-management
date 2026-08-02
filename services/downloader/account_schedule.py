@@ -8,12 +8,12 @@ no longer means raising the request count.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Iterable, Mapping
 from datetime import datetime
-from typing import Callable, Dict, Iterable, List, Mapping, Optional
 
 
 def due_accounts(accounts: Iterable[str], last_checked: Mapping[str, datetime],
-                 cooldown: int, now: datetime) -> List[str]:
+                 cooldown: int, now: datetime) -> list[str]:
     """Return the accounts that may be checked again, in their original order."""
     if cooldown <= 0:
         return list(accounts)
@@ -29,9 +29,9 @@ class InMemoryCheckStore:
     """Keeps the check times in a dict. Used by tests."""
 
     def __init__(self) -> None:
-        self._rows: Dict[str, Dict[str, datetime]] = {}
+        self._rows: dict[str, dict[str, datetime]] = {}
 
-    def load(self, source: str) -> Dict[str, datetime]:
+    def load(self, source: str) -> dict[str, datetime]:
         return dict(self._rows.get(source, {}))
 
     def mark(self, source: str, account: str, when: datetime) -> None:
@@ -48,7 +48,7 @@ class DatabaseCheckStore:
         ensure_once(connection)
         return connection
 
-    def load(self, source: str) -> Dict[str, datetime]:
+    def load(self, source: str) -> dict[str, datetime]:
         connection = self._connect()
         try:
             with connection.cursor() as cursor:
@@ -86,17 +86,17 @@ class AccountSchedule:
         self._store = store if store is not None else DatabaseCheckStore()
         self._now = now
 
-    def _last_checked(self) -> Dict[str, datetime]:
+    def _last_checked(self) -> dict[str, datetime]:
         try:
             return self._store.load(self.source)
         except Exception as exc:
             logging.warning('Could not read the check schedule for %s: %s', self.source, exc)
             return {}
 
-    def due(self, accounts: Iterable[str], cooldown: int) -> List[str]:
+    def due(self, accounts: Iterable[str], cooldown: int) -> list[str]:
         return due_accounts(accounts, self._last_checked(), cooldown, self._now())
 
-    def mark_checked(self, account: str, when: Optional[datetime] = None) -> None:
+    def mark_checked(self, account: str, when: datetime | None = None) -> None:
         try:
             self._store.mark(self.source, account, when or self._now())
         except Exception as exc:

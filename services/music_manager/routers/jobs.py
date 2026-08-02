@@ -1,8 +1,9 @@
 import asyncio
 import contextvars
 import uuid
-from collections import deque, defaultdict
-from typing import Any, Dict, List
+from collections import defaultdict, deque
+from typing import Any
+
 try:
     from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 except Exception:
@@ -41,12 +42,12 @@ class JobManager:
     """
 
     def __init__(self) -> None:
-        self.jobs: Dict[str, Dict[str, Any]] = {}
-        self.connections: Dict[str, List[WebSocket]] = defaultdict(list)
+        self.jobs: dict[str, dict[str, Any]] = {}
+        self.connections: dict[str, list[WebSocket]] = defaultdict(list)
         self.history: deque[str] = deque(maxlen=50)
-        self.results: Dict[str, Dict[str, Any]] = {}
+        self.results: dict[str, dict[str, Any]] = {}
 
-    async def run(self, job_id: str, steps: List[Any], selected_steps: List[str]) -> None:
+    async def run(self, job_id: str, steps: list[Any], selected_steps: list[str]) -> None:
         total = len(steps)
         state = {'status': 'running', 'current': None, 'progress': 0, 'total': total}
         self.jobs[job_id] = state
@@ -67,7 +68,7 @@ class JobManager:
         self.results[job_id] = state.copy()
         self.history.appendleft(job_id)
 
-    def create_job(self, steps: List[Any], selected_steps: List[str]) -> str:
+    def create_job(self, steps: list[Any], selected_steps: list[str]) -> str:
         job_id = str(uuid.uuid4())
         asyncio.create_task(self.run(job_id, steps, selected_steps))
         return job_id
@@ -82,7 +83,7 @@ class JobManager:
         if job_id in self.connections:
             self.connections[job_id].remove(websocket)
 
-    async def _notify(self, job_id: str, payload: Dict[str, Any] | None=None) -> None:
+    async def _notify(self, job_id: str, payload: dict[str, Any] | None=None) -> None:
         data = payload or self.jobs.get(job_id)
         for ws in list(self.connections.get(job_id, [])):
             try:
@@ -90,14 +91,14 @@ class JobManager:
             except WebSocketDisconnect:
                 self.disconnect(job_id, ws)
 
-    def publish(self, payload: Dict[str, Any]) -> None:
+    def publish(self, payload: dict[str, Any]) -> None:
         job_id = current_job_id.get()
         if not job_id:
             return
         loop = asyncio.get_running_loop()
         loop.create_task(self._notify(job_id, payload))
 
-    def recent(self) -> List[Dict[str, Any]]:
+    def recent(self) -> list[dict[str, Any]]:
         return [self.results[jid] for jid in self.history]
 job_manager = JobManager()
 router = APIRouter(tags=['jobs'])
@@ -112,7 +113,7 @@ async def job_updates(websocket: WebSocket, job_id: str):
         job_manager.disconnect(job_id, websocket)
 
 @router.post("/register/{job_id}")
-async def register_external_job(job_id: str, payload: Dict[str, Any]):
+async def register_external_job(job_id: str, payload: dict[str, Any]):
     """Allow external workers to register their job status."""
     job_manager.jobs[job_id] = payload
     if payload.get('status') in ('finished', 'completed', 'done', 'failed', 'error'):

@@ -1,12 +1,14 @@
-import os
 import argparse
-import pandas as pd
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.metrics import classification_report
+import os
+
 import joblib
+import pandas as pd
 from analyzer import TrackAnalyzer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
+from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+
 
 def _prepare_metadata(df):
     X_meta = pd.DataFrame()

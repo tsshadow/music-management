@@ -1,8 +1,10 @@
 import unittest
 from unittest.mock import MagicMock
-from services.tagger.Song.rules.CleanTitleRule import CleanTitleRule
+
 from services.tagger.constants import TITLE
+from services.tagger.Song.rules.CleanTitleRule import CleanTitleRule
 from services.tagger.Song.Tag import Tag
+
 
 class CleanTitleRuleTest(unittest.TestCase):
 

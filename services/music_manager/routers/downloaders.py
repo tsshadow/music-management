@@ -4,7 +4,7 @@ The settings live in the database rather than in ConfigStore, because the manage
 and the worker containers mount different host directories for /app/data and so
 do not share config.json. See services/downloader/settings_store.py.
 """
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -24,15 +24,15 @@ rate_state_store = DatabaseRateStateStore()
 
 class SettingsUpdatePayload(BaseModel):
     source: str
-    updates: Dict[str, Any] = Field(default_factory=dict)
+    updates: dict[str, Any] = Field(default_factory=dict)
 
 
-def _stored(source: str) -> Dict[str, Any]:
+def _stored(source: str) -> dict[str, Any]:
     from services.downloader.settings_store import load_settings
     return load_settings(source, store=settings_store)
 
 
-def _fields_for(source: str) -> List[Dict[str, Any]]:
+def _fields_for(source: str) -> list[dict[str, Any]]:
     stored = _stored(source)
     return [
         {
@@ -64,7 +64,7 @@ def update_settings(payload: SettingsUpdatePayload, _auth: dict=Depends(verify_a
     return {'status': 'success', 'source': payload.source, 'updated': updated}
 
 
-def _state_for(source: str) -> Dict[str, Any]:
+def _state_for(source: str) -> dict[str, Any]:
     timing = load_timing(source, overrides=_stored(source))
     state = RateState(source, timing, store=rate_state_store)
     snapshot = state.snapshot()

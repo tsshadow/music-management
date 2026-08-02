@@ -20,7 +20,6 @@ import re
 import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass, field, fields
-from typing import Optional
 
 KEEP = 'keep'
 REWRITE = 'rewrite'
@@ -81,7 +80,7 @@ class AnalyzerConfig:
     bootstrap_min_tracks: int = 5
 
     @classmethod
-    def from_dict(cls, values: Optional[dict]) -> 'AnalyzerConfig':
+    def from_dict(cls, values: dict | None) -> 'AnalyzerConfig':
         """Build a config from a plain dict, ignoring keys we do not know."""
         if not values:
             return cls()
@@ -138,7 +137,7 @@ class ArtistNameAnalyzer:
     approved artist rescues the polluted variants of itself in the next run.
     """
 
-    def __init__(self, known_artists=None, config: Optional[AnalyzerConfig] = None):
+    def __init__(self, known_artists=None, config: AnalyzerConfig | None = None):
         self.config = config or AnalyzerConfig()
         self._known_by_key: dict = {}
         self._known_by_squash: dict = {}
@@ -190,7 +189,7 @@ class ArtistNameAnalyzer:
         narrowest = int(length * threshold / (2 - threshold))
         return range(max(1, narrowest), widest + 1)
 
-    def known(self, name: str) -> Optional[str]:
+    def known(self, name: str) -> str | None:
         """The approved spelling of `name`, or None if it is not approved."""
         return self._known_by_key.get(normalize(name))
 
@@ -243,7 +242,7 @@ class ArtistNameAnalyzer:
             reasons.append('sentence punctuation')
         return score, reasons
 
-    def segment(self, name: str) -> Optional[list]:
+    def segment(self, name: str) -> list | None:
         """Split a name glued together without a separator into approved names.
 
         Only attempted on names without whitespace: a string with spaces that
@@ -264,7 +263,7 @@ class ArtistNameAnalyzer:
             return result
         return None
 
-    def _segment(self, remainder: str, depth: int) -> Optional[list]:
+    def _segment(self, remainder: str, depth: int) -> list | None:
         """Greedy split, exact boundaries first.
 
         Every prefix length is a dictionary lookup, so the common case costs
@@ -295,7 +294,7 @@ class ArtistNameAnalyzer:
                         return [self._known_by_squash[candidate_key]] + rest
         return None
 
-    def closest_known(self, name: str, threshold: Optional[float] = None) -> tuple:
+    def closest_known(self, name: str, threshold: float | None = None) -> tuple:
         """The approved artist most similar to `name`, with its ratio.
 
         Only candidates whose length could reach `threshold` are compared, and

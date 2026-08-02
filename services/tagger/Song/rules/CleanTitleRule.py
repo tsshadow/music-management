@@ -1,5 +1,6 @@
-from services.tagger.Song.rules.TagRule import TagRule
 from services.tagger.constants import TITLE
+from services.tagger.Song.rules.TagRule import TagRule
+
 
 class CleanTitleRule(TagRule):
     """Removes specific prefixes from the song title."""

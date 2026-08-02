@@ -1,6 +1,8 @@
 import logging
 import re
+
 from services.tagger.constants import ARTIST_REGEX
+
 
 class Tag:
     """

@@ -12,16 +12,23 @@ import { chromium, expect } from "@playwright/test";
  *
  * Warming up here keeps that cost out of the tests, so their timeouts can stay
  * tight enough to still catch an app that genuinely does not render.
+ *
+ * Both the navigation and the visibility check need the generous budget. Only
+ * the second one had it, so the warm-up still failed on Playwright's default
+ * 30s navigation timeout while Vite was mid-prebundle -- the very failure this
+ * file exists to absorb.
  */
+const WARMUP_TIMEOUT_MS = 120_000;
+
 export default async function globalSetup(config) {
   const { baseURL } = config.projects[0].use;
   const browser = await chromium.launch();
 
   try {
     const page = await browser.newPage();
-    await page.goto(baseURL, { waitUntil: "load" });
     // Generous: this is the one place where slow is acceptable.
-    await expect(page.locator("#app")).toBeVisible({ timeout: 120_000 });
+    await page.goto(baseURL, { waitUntil: "load", timeout: WARMUP_TIMEOUT_MS });
+    await expect(page.locator("#app")).toBeVisible({ timeout: WARMUP_TIMEOUT_MS });
   } finally {
     await browser.close();
   }

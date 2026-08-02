@@ -1,13 +1,15 @@
 import argparse
+import faulthandler
 import logging
 import signal
 from time import sleep
-import faulthandler
+
 from services.common.config_store import ConfigStore as Settings
+from services.common.step import Step
 from services.importer.extractor import Extractor
 from services.importer.mover import Mover
 from services.importer.renamer import Renamer
-from services.common.step import Step
+
 faulthandler.register(signal.SIGUSR1)
 
 def parse_args() -> argparse.Namespace:

@@ -1,9 +1,12 @@
 import unittest
 from unittest.mock import patch
-from services.tests.mock_base import setup_mocks, reset_database_helpers
+
+from services.tests.mock_base import reset_database_helpers, setup_mocks
+
 setup_mocks()
+from services.tagger.constants import ARTIST
 from services.tagger.Song.LabelSong import LabelSong
-from services.tagger.constants import ARTIST, GENRE
+
 
 class TestImporterUnicode(unittest.TestCase):
 

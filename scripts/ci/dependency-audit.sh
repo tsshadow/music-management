@@ -30,11 +30,22 @@ set -uo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
+# shellcheck source=scripts/lib/python-tooling.sh
+source "$ROOT_DIR/scripts/lib/python-tooling.sh"
+
 ACCEPTED_FILE="security/accepted-vulnerabilities.txt"
 NPM_LEVEL=high
 if [ "${1:-}" = "--strict" ]; then
     NPM_LEVEL=moderate
 fi
+
+REQUIREMENTS=(
+    requirements.txt
+    requirements-dev.txt
+    services/music_manager/requirements.txt
+    services/music_manager/artist_image_fetcher/requirements.txt
+    services/ml-analyzer/requirements.txt
+)
 
 STATUS=0
 SKIPPED=0
@@ -52,15 +63,18 @@ if [ -f "$ACCEPTED_FILE" ]; then
 fi
 
 echo
-echo "=== Python dependencies (pip-audit, installed environment) ==="
-if command -v pip-audit >/dev/null 2>&1; then
-    if ! pip-audit --progress-spinner off "${IGNORE_ARGS[@]+"${IGNORE_ARGS[@]}"}"; then
-        STATUS=1
-    fi
-else
-    echo "pip-audit not installed (pip install -r requirements-dev.txt), skipping"
-    SKIPPED=1
-fi
+echo "=== Python dependencies (pip-audit, declared requirements) ==="
+for req in "${REQUIREMENTS[@]}"; do
+    [ -f "$req" ] || continue
+    echo "--- $req ---"
+    run_python_tool pip-audit --requirement "$req" --no-deps --progress-spinner off \
+                    "${IGNORE_ARGS[@]+"${IGNORE_ARGS[@]}"}"
+    case $? in
+        0) ;;
+        127) SKIPPED=1 ;;
+        *) STATUS=1 ;;
+    esac
+done
 
 echo
 echo "=== Frontend dependencies (npm audit, level: $NPM_LEVEL) ==="

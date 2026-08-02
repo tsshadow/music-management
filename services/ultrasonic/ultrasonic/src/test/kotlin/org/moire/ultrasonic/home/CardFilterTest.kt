@@ -19,6 +19,12 @@ class CardFilterTest {
         HomeCard(type = HomeCardType.GENRE, itemId = "Drum & Bass", title = "Drum & Bass", subtitle = "40")
     )
 
+    private val years = listOf(
+        HomeCard(type = HomeCardType.YEAR, itemId = "2009", title = "2009", subtitle = "80"),
+        HomeCard(type = HomeCardType.YEAR, itemId = "2026", title = "2026", subtitle = "12"),
+        HomeCard(type = HomeCardType.YEAR, itemId = "1998", title = "1998", subtitle = "45")
+    )
+
     @Test
     fun `an empty term keeps the input order`() {
         filterAndSortCards(cards, null, SortOrder.BY_NAME).map { it.title } `should be equal to`
@@ -102,21 +108,40 @@ class CardFilterTest {
     }
 
     @Test
-    fun `ratings is a short fixed list, so it gets no search field`() {
+    fun `ratings and years are short fixed lists, so they get no search field`() {
         browseSupportsSearch(BrowseCategory.RATINGS) `should be equal to` false
+        browseSupportsSearch(BrowseCategory.YEARS) `should be equal to` false
     }
 
     @Test
     fun `categories that grow with the library keep their search field`() {
-        BrowseCategory.entries.filter { it != BrowseCategory.RATINGS }.forEach {
-            browseSupportsSearch(it) `should be equal to` true
-        }
+        BrowseCategory.entries
+            .filter { it != BrowseCategory.RATINGS && it != BrowseCategory.YEARS }
+            .forEach { browseSupportsSearch(it) `should be equal to` true }
     }
 
     @Test
     fun `categories whose cards carry a count offer BY_TRACK_COUNT too`() {
         browseSortOrdersFor(BrowseCategory.GENRES) `should be equal to` BROWSE_SORT_ORDERS
-        browseSortOrdersFor(BrowseCategory.YEARS) `should be equal to` BROWSE_SORT_ORDERS
         browseSortOrdersFor(BrowseCategory.FESTIVALS) `should be equal to` BROWSE_SORT_ORDERS
+    }
+
+    @Test
+    fun `years lead with the newest year rather than with a name sort`() {
+        browseSortOrdersFor(BrowseCategory.YEARS) `should be equal to`
+            listOf(SortOrder.BY_YEAR_DESC, SortOrder.BY_TRACK_COUNT)
+    }
+
+    @Test
+    fun `BY_YEAR_DESC sorts numerically from new to old`() {
+        filterAndSortCards(years, null, SortOrder.BY_YEAR_DESC).map { it.title } `should be equal to`
+            listOf("2026", "2009", "1998")
+    }
+
+    @Test
+    fun `a year that is not a number sorts last`() {
+        val withUnknown = years + HomeCard(type = HomeCardType.YEAR, itemId = "?", title = "?")
+
+        filterAndSortCards(withUnknown, null, SortOrder.BY_YEAR_DESC).last().title `should be equal to` "?"
     }
 }

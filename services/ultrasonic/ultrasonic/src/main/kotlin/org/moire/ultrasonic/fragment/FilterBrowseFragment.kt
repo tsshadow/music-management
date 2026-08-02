@@ -82,10 +82,13 @@ class FilterBrowseFragment : Fragment() {
         swipeRefresh?.setOnRefreshListener { load(refresh = true) }
 
         val filterButtonBar: FilterButtonBar = view.findViewById(R.id.filter_button_bar)
+        val sortOrders = browseSortOrdersFor(category)
+        // The bar shows the first supported order, so start out sorting by that one.
+        order = sortOrders.first()
         filterButtonBar.configureWithCapabilities(
             ViewCapabilities(
                 supportsGrid = false,
-                supportedSortOrders = browseSortOrdersFor(category),
+                supportedSortOrders = sortOrders,
                 supportsSearch = browseSupportsSearch(category)
             )
         )

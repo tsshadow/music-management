@@ -100,6 +100,7 @@ class FilterButtonBarTest {
             SortOrder.BY_ARTIST to R.string.main_albums_alphaByArtist,
             SortOrder.STARRED to R.string.main_albums_starred,
             SortOrder.BY_YEAR to R.string.main_albums_by_year,
+            SortOrder.BY_YEAR_DESC to R.string.sort_order_newest_first,
             SortOrder.BY_TRACK_COUNT to R.string.sort_order_track_count,
             SortOrder.BY_ALBUM_COUNT to R.string.sort_order_album_count,
             SortOrder.BY_ADDED to R.string.sort_order_added

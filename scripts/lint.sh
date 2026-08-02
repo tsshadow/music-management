@@ -13,7 +13,7 @@ if [ -f .env ]; then
     done < .env
 fi
 
-TARGET=${1:-services/ tools/}
+TARGET=${1:-services/ tools/ tests/}
 # Ratchet, same idea as COVERAGE_MIN in scripts/test/music-management-unit.sh:
 # the codebase currently scores well above this. Raise it as the score climbs,
 # never lower it to make a red build green.

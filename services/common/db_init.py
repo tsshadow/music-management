@@ -58,6 +58,22 @@ def ensure_tables_exist() -> None:
                         cursor.execute(query)
                     except Exception as e:
                         logging.debug('Query failed (might already exist): %s', e)
+                # Same reason as the indexes below: CREATE TABLE IF NOT EXISTS
+                # never alters an existing table, so a column the code started
+                # selecting after the table first shipped has to be added here.
+                # Both of these were found by tests/integration/test_router_sql.py,
+                # which runs every endpoint's SQL against a freshly built schema:
+                # /api/youtube and /api/system/activity returned 500 on one.
+                for column_sql in (
+                    'ALTER TABLE downloads_youtube_accounts ADD COLUMN IF NOT EXISTS channel_id VARCHAR(255)',
+                    "ALTER TABLE downloads_youtube_accounts ADD COLUMN IF NOT EXISTS download_type VARCHAR(50) DEFAULT 'audio'",
+                    'ALTER TABLE library_track_ml_labels ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP '
+                    'DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP',
+                ):
+                    try:
+                        cursor.execute(column_sql)
+                    except Exception as e:
+                        logging.debug('Column already present or not applicable: %s', e)
                 # CREATE TABLE IF NOT EXISTS never alters an existing table, which is how
                 # library_track_audio_features ended up missing columns the code selected.
                 # Index additions therefore need their own idempotent step.

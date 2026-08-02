@@ -45,6 +45,9 @@ ignore = [
 # importing the code under test, so imports genuinely cannot come first.
 # SIM117: a test that patches four things reads better as nested `with` blocks
 # than as one context manager spanning four wrapped lines.
+# F811: a pytest test takes its fixtures as parameters, which shadows the
+# fixture functions of the same name -- that is the API, not a redefinition.
+"tests/**/*.py" = ["E402", "F811", "SIM117"]
 "**/*Test.py" = ["E402", "SIM117"]
 "**/test_*.py" = ["E402", "SIM117"]
 "services/tests/mock_base.py" = ["E402"]

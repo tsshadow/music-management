@@ -161,6 +161,26 @@ release:check-secrets:
   script:
     - ./scripts/ci/check-required-secrets.sh
 
+# Runs every endpoint's SQL against a real MariaDB. The unit suite mocks the
+# database cursor, so it can only prove the right SQL string was produced -- a
+# column that does not exist, or a table the schema bootstrap never creates,
+# passes there and fails in production. This job is what caught the missing
+# downloads_youtube_accounts.channel_id and library_track_ml_labels.updated_at
+# columns. It also applies every migrate_*.sql twice, so a migration that is not
+# re-runnable fails here rather than on deploy.
+db:integration:
+  stage: integration
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - changes:
+        - services/music_manager/**/*
+        - services/common/db_init.py
+        - migrate_*.sql
+        - tests/integration/**/*
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/test/db-integration.sh
+
 # --- Integration / contract tests -------------------------------------------
 # These build and start docker/compose.test.yml from a clean state, so they
 # always run on the default branch, and on any merge request that touches

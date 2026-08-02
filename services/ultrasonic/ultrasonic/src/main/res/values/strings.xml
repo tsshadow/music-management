@@ -204,6 +204,7 @@
     <string name="select_artist.all_folders">All Folders</string>
     <string name="select_artist.empty">No artists found</string>
     <string name="select_artist.folder">Select Folder</string>
+    <string name="select_artist.image_description">Artist image</string>
     <plurals name="select_artist.subtitle_albums">
         <item quantity="one">%d album</item>
         <item quantity="other">%d albums</item>

@@ -99,3 +99,38 @@ def test_workflow_never_suppresses_a_release_branch_pipeline():
         )
     else:
         raise AssertionError("no workflow rule admits release/hotfix branches")
+
+
+# Retrying a failing script would hide flakes; these are infrastructure
+# failures only, where the code under test never got a fair run.
+INFRA_FAILURES = {"runner_system_failure", "stuck_or_timeout_failure"}
+
+
+def test_every_job_has_a_timeout():
+    """A hung container otherwise holds the runner until the project timeout."""
+    ci = load_ci()
+    missing = [name for name in job_names(ci) if "timeout" not in ci[name]]
+    assert missing == [], f"jobs without an explicit timeout: {missing}"
+
+
+def test_retries_are_limited_to_infrastructure_failures():
+    ci = load_ci()
+    for name in job_names(ci):
+        retry = ci[name].get("retry")
+        if retry is None:
+            continue
+        # `retry: !reference [.infra_retry, retry]` parses as the reference path.
+        if retry == [".infra_retry", "retry"]:
+            continue
+        assert set(retry["when"]) <= INFRA_FAILURES, f"{name} retries real failures"
+
+
+def test_the_infra_retry_template_only_covers_infrastructure_failures():
+    ci = load_ci()
+    assert set(ci[".infra_retry"]["retry"]["when"]) <= INFRA_FAILURES
+
+
+def test_deploy_prod_is_never_retried():
+    """A half-applied deploy must be looked at, not repeated."""
+    ci = load_ci()
+    assert "retry" not in ci["deploy:prod"]

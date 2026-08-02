@@ -69,6 +69,25 @@ stages:
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
 
+# Retried only where the code under test never got a fair run. Retrying a
+# script_failure would turn a flaky test green and hide it.
+.infra_retry:
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+
+# node_modules keyed on the lockfile: a cold checkout otherwise re-runs
+# `npm install` from scratch (see scripts/test/frontend-unit.sh).
+.npm_cache:
+  cache:
+    key:
+      files:
+        - services/frontend/package-lock.json
+    paths:
+      - services/frontend/node_modules/
+
 # --- Static analysis ---------------------------------------------------------
 # Runs the same scripts/lint.sh the pre-commit hook runs, so a commit made with
 # --no-verify, or through the GitLab web UI, still meets the same bar. Both the
@@ -77,6 +96,8 @@ stages:
 
 quality:lint:
   stage: quality
+  timeout: 10m
+  retry: !reference [.infra_retry, retry]
   rules:
     - !reference [.release_rule, rules]
     - changes:
@@ -95,6 +116,8 @@ quality:lint:
 # its findings and adding it there in the same merge request.
 quality:typecheck:
   stage: quality
+  timeout: 10m
+  retry: !reference [.infra_retry, retry]
   rules:
     - !reference [.release_rule, rules]
     - changes:
@@ -116,8 +139,10 @@ quality:typecheck:
 # security/accepted-vulnerabilities.txt.
 security:dependency-audit:
   stage: quality
+  timeout: 15m
   interruptible: false
   allow_failure: true
+  retry: !reference [.infra_retry, retry]
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
@@ -129,6 +154,8 @@ security:dependency-audit:
 
 music-management:unit:
   stage: unit
+  timeout: 20m
+  retry: !reference [.infra_retry, retry]
   rules:
     - !reference [.release_rule, rules]
     - changes:
@@ -158,6 +185,8 @@ music-management:unit:
 
 lms:unit:
   stage: unit
+  timeout: 45m
+  retry: !reference [.infra_retry, retry]
   rules:
     - !reference [.release_rule, rules]
     - changes:
@@ -174,6 +203,9 @@ lms:unit:
 
 frontend:unit:
   stage: unit
+  timeout: 15m
+  retry: !reference [.infra_retry, retry]
+  cache: !reference [.npm_cache, cache]
   rules:
     - !reference [.release_rule, rules]
     - changes:
@@ -190,6 +222,8 @@ frontend:unit:
 
 ultrasonic:check:
   stage: unit
+  timeout: 45m
+  retry: !reference [.infra_retry, retry]
   rules:
     - !reference [.release_rule, rules]
     - changes:
@@ -212,7 +246,9 @@ ultrasonic:check:
 # a release pipeline that skips or ignores this job is not considered passing.
 release:check-secrets:
   stage: unit
+  timeout: 5m
   interruptible: false
+  retry: !reference [.infra_retry, retry]
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^release\//'
   script:
@@ -227,6 +263,8 @@ release:check-secrets:
 # re-runnable fails here rather than on deploy.
 db:integration:
   stage: integration
+  timeout: 30m
+  retry: !reference [.infra_retry, retry]
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - changes:
@@ -245,6 +283,8 @@ db:integration:
 
 contracts:
   stage: integration
+  timeout: 30m
+  retry: !reference [.infra_retry, retry]
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - changes:
@@ -261,6 +301,9 @@ contracts:
 
 frontend:browser:
   stage: e2e
+  timeout: 30m
+  retry: !reference [.infra_retry, retry]
+  cache: !reference [.npm_cache, cache]
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - changes:
@@ -283,7 +326,9 @@ frontend:browser:
 
 release:version-check:
   stage: release
+  timeout: 5m
   interruptible: false
+  retry: !reference [.infra_retry, retry]
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^release\//'
   script:
@@ -291,7 +336,9 @@ release:version-check:
 
 release:build-images:
   stage: release
+  timeout: 60m
   interruptible: false
+  retry: !reference [.infra_retry, retry]
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^release\// && $DOCKERHUB_USERNAME && $DOCKERHUB_TOKEN'
   script:
@@ -299,6 +346,8 @@ release:build-images:
 
 ultrasonic:build-debug:
   stage: release
+  timeout: 45m
+  retry: !reference [.infra_retry, retry]
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $APK_HOSTER_URL'
       changes:
@@ -318,6 +367,8 @@ ultrasonic:build-debug:
 
 ultrasonic:build-release:
   stage: release
+  timeout: 45m
+  retry: !reference [.infra_retry, retry]
   needs:
     - release:version-check
   rules:
@@ -329,7 +380,10 @@ ultrasonic:build-release:
 
 deploy:prod:
   stage: deploy
+  timeout: 30m
   interruptible: false
+  # Deliberately no `retry:`. A deploy that failed halfway has already changed
+  # the host; repeating it automatically hides which half succeeded.
   # Only one production deploy at a time. Two release pipelines overlapping is
   # exactly how bug-report 016 happened: a delayed pipeline on an already-merged
   # release branch re-pushed old images as `latest` and redeployed them. Set the
@@ -347,7 +401,9 @@ deploy:prod:
 
 release:tag:
   stage: deploy
+  timeout: 10m
   interruptible: false
+  retry: !reference [.infra_retry, retry]
   rules:
     - if: '$CI_COMMIT_BRANCH == "master"'
   script:
@@ -355,7 +411,9 @@ release:tag:
 
 release:back-merge-develop:
   stage: deploy
+  timeout: 10m
   interruptible: false
+  retry: !reference [.infra_retry, retry]
   needs:
     - release:tag
   rules:

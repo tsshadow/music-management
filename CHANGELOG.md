@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **The "MuMa Sync" screen in Ultrasonic** and its six buttons (log on, load/write tiles,
+  clear tiles, load/write settings). Tiles already sync themselves through the tile editor,
+  the log-on step already happens when a server is saved, and the settings backup/restore pair was a
+  blunt dump of every shared preference that needed an app restart to take effect and could
+  overwrite a working install with another device's state. The MuMa user ID and API key
+  settings stay — they are what the rest of the app authenticates with. Along with the screen
+  went the unused `POST /api/users/{id}/dynamic-playlists/sync` endpoint on the manager, which
+  no client had called since the tile editor started writing playlists directly.
+
 ## [0.0.60] - 2026-08-02
 
 ### Added

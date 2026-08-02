@@ -19,6 +19,7 @@ enum class BrowseCategory(
     val cardType: HomeCardType
 ) {
     GENRES(R.string.library_tab_genres, HomeCardType.GENRE),
+    LABELS(R.string.library_tab_labels, HomeCardType.LABEL),
     YEARS(R.string.library_tab_years, HomeCardType.YEAR),
     FESTIVALS(R.string.library_tab_festivals, HomeCardType.FESTIVAL),
     LINEUPS(R.string.library_tab_lineups, HomeCardType.LINEUP),

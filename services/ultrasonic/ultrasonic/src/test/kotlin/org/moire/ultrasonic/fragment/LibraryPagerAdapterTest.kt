@@ -14,7 +14,7 @@ class LibraryPagerAdapterTest {
 
     @Test
     fun `has one page per library category`() {
-        LibraryPagerAdapter.PAGE_COUNT `should be equal to` 9
+        LibraryPagerAdapter.PAGE_COUNT `should be equal to` 10
     }
 
     @Test
@@ -40,17 +40,25 @@ class LibraryPagerAdapterTest {
 
     @Test
     fun `browse pages are told which category to show`() {
-        // All five browse pages share one fragment, so the category is the only thing that
-        // distinguishes them; a missing one would silently render genres five times.
+        // All six browse pages share one fragment, so the category is the only thing that
+        // distinguishes them; a missing one would silently render genres six times.
         val categories = listOf(
             LibraryPagerAdapter.PAGE_GENRES,
+            LibraryPagerAdapter.PAGE_LABELS,
             LibraryPagerAdapter.PAGE_YEARS,
             LibraryPagerAdapter.PAGE_FESTIVALS,
             LibraryPagerAdapter.PAGE_LINEUPS,
             LibraryPagerAdapter.PAGE_RATINGS
         ).map { LibraryPagerAdapter.argumentsForPage(it)!!.getString("browseCategory") }
 
-        categories `should be equal to` listOf("GENRES", "YEARS", "FESTIVALS", "LINEUPS", "RATINGS")
+        categories `should be equal to` listOf(
+            "GENRES",
+            "LABELS",
+            "YEARS",
+            "FESTIVALS",
+            "LINEUPS",
+            "RATINGS"
+        )
     }
 
     @Test

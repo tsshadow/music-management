@@ -227,6 +227,7 @@
     <string name="library.label">Library</string>
     <string name="library.tab_dynamic_playlists">Playlists</string>
     <string name="library.tab_genres">Genres</string>
+    <string name="library.tab_labels">Labels</string>
     <string name="library.tab_artists">Artiesten</string>
     <string name="library.tab_static_playlists">Opgeslagen</string>
     <string name="library.tab_albums">Albums</string>

@@ -58,6 +58,19 @@
   overflow, directly above "Exit"), never as a primary action. It always confirms first, stating
   what is lost (playback stops) and what is kept (downloads), and it returns the user to the login
   screen rather than to an empty app.
+- **Memory card**: represents one release *year*, never a single track. Its title is the relative
+  age ("Today, 8 years ago"), its secondary line is the year and the track count, and its artwork is
+  the cover art of the first track in that year's group. It uses the standard card surface and
+  radius above; nothing about it is visually special, which is the point — a memory is a normal card
+  with a time-based title.
+- **Memories wording**: a group heading says "Today" only when the group contains a release that
+  falls on today's exact date. A group that exists only because of the surrounding-days window says
+  "This week" instead. The heading never claims a precision the tags do not have.
+- **Memories placement**: on the home screens (web and Android) memories are one horizontally
+  scrolling carousel above the existing rows, capped at ten cards, and hideable from settings. The
+  full Memories screen shows one section per year, newest year first, each section holding that
+  year's tracks and its own play action. The carousel is a teaser; the permanent way in is the web
+  sidebar entry and the Android Library tab, neither of which the setting affects.
 
 ## Loading States (Skeletons)
 - **Rule**: A screen that fetches remote content never shows an empty page while waiting. It shows

@@ -567,6 +567,19 @@
       "ultrasonicApk": "Ultrasonic APK:"
     }
   },
+  "memories": {
+    "empty": "Op deze dag is in eerdere jaren niets uitgebracht.",
+    "emptyHelp": "Memories verschijnen zodra je bibliotheek nummers met een volledige releasedatum bevat.",
+    "thisWeek": {
+      "one": "Deze week, 1 jaar geleden",
+      "other": "Deze week, {count} jaar geleden"
+    },
+    "title": "Memories",
+    "today": {
+      "one": "Vandaag, 1 jaar geleden",
+      "other": "Vandaag, {count} jaar geleden"
+    }
+  },
   "nav": {
     "albums": "Albums",
     "artists": "Artiesten",
@@ -576,6 +589,7 @@
     "labels": "Labels",
     "library": "Bieb",
     "management": "Beheer",
+    "memories": "Memories",
     "player": "Player",
     "playlists": "Afspeellijsten",
     "releaseRadar": "Release Radar",
@@ -677,6 +691,8 @@
       "listenBrainzHelp": "Luistergegevens gaan voor iedereen naar de centrale Muma database. Vul hier alleen een token in als je daarnaast ook naar je eigen ListenBrainz-account wilt scrobbelen.",
       "listenBrainzPlaceholder": "Je ListenBrainz User Token...",
       "listenBrainzToken": "ListenBrainz User Token",
+      "memoriesOnHome": "Memories tonen op de startpagina",
+      "memoriesOnHomeHelp": "Een korte rij met \"vandaag, X jaar geleden\" releases boven de andere secties.",
       "releaseArtists": "Release Artiesten",
       "sortByName": "Naam",
       "sortOriginalYearAsc": "Origineel Jaar (Oudste eerst)",

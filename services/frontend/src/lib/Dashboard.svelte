@@ -12,10 +12,12 @@
   import Settings from './Settings.svelte';
   import History from './History.svelte';
   import StarredView from './StarredView.svelte';
+  import MemoriesView from './MemoriesView.svelte';
   import Management from './management/Management.svelte';
   import { getArtistImageUrl } from './utils.js';
+  import { localDateString, memoryHeading, parseMemoryGroups } from './memories.js';
   import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
-  import { authParams, currentPlaylist, viewMode, favoriteGenres, deduplicateEnabled } from './store.js';
+  import { authParams, currentPlaylist, viewMode, favoriteGenres, deduplicateEnabled, memoriesOnHomeEnabled } from './store.js';
 
   let { activeView = $bindable('home') } = $props();
 
@@ -24,6 +26,13 @@
     { titleKey: 'nav.songs', id: 'spotify:songs', tracks: [] },
     { titleKey: 'nav.sets', id: 'spotify:sets', tracks: [] }
   ]);
+
+  // Set when a memories card on the home screen is opened, so the view can scroll to that year.
+  let memoriesInitialYear = $state(null);
+  let memoryGroups = $state([]);
+
+  // The carousel is a teaser, not the whole feature: it stays a short strip whatever the day holds.
+  const MEMORY_CARDS = 10;
 
   let tracks = $state([]);
   let albums = $state([]);
@@ -390,6 +399,30 @@
     });
   }
 
+  /**
+   * Loads the memory groups for the home carousel.
+   *
+   * Failure is deliberately silent: a server that does not know the endpoint simply has no
+   * memories, and an error banner on the home screen would be worse than an absent row.
+   */
+  async function loadMemoryGroups() {
+    if (!$authParams || !$memoriesOnHomeEnabled) {
+      memoryGroups = [];
+      return;
+    }
+
+    try {
+      const response = await fetch(`/rest/getMemories?date=${localDateString()}&${$authParams}`);
+      if (!response.ok) return;
+
+      const data = await response.json();
+      memoryGroups = parseMemoryGroups(data).slice(0, MEMORY_CARDS);
+    } catch (e) {
+      console.error('Failed to load memories for the home screen:', e);
+      memoryGroups = [];
+    }
+  }
+
   $effect(() => {
     const view = activeView;
     const auth = $authParams;
@@ -399,6 +432,7 @@
       untrack(() => {
         if (view === 'home') {
             loadCurated();
+            loadMemoryGroups();
         } else if (view === 'songs' || view === 'sets' || view.startsWith('genre:') || view.startsWith('label:')) {
             loadAllTracks();
         } else if (view === 'radar') {
@@ -440,6 +474,39 @@
 
 <div class="flex flex-col gap-8">
   {#if activeView === 'home'}
+    {#if $memoriesOnHomeEnabled && memoryGroups.length > 0}
+      <section class="flex flex-col gap-4">
+        <div class="flex justify-between items-end mb-4">
+          <h2 class="text-2xl font-bold m-0">{$t('memories.title')}</h2>
+          <button
+            class="bg-transparent border-none text-[#b3b3b3] text-[12px] font-bold cursor-pointer uppercase tracking-[0.1em] hover:underline"
+            onclick={() => { memoriesInitialYear = null; activeView = 'memories'; }}
+          >{$t('dashboard.showAll')}</button>
+        </div>
+        <div class="flex gap-4 overflow-x-auto pb-2">
+          {#each memoryGroups as group (group.year)}
+            <button
+              class="flex-shrink-0 w-40 text-left bg-transparent border-none cursor-pointer p-0"
+              onclick={() => { memoriesInitialYear = group.year; activeView = 'memories'; }}
+            >
+              <img
+                class="w-40 h-40 object-cover mb-2 rounded-md"
+                src={group.songs[0]?.coverArt
+                  ? `/rest/getCoverArt?id=${group.songs[0].coverArt}&size=300&${$authParams}`
+                  : '/images/spotify-fallback.svg'}
+                alt=""
+              />
+              <div class="text-white font-bold text-sm">
+                {$t(memoryHeading(group).key, memoryHeading(group).vars)}
+              </div>
+              <div class="text-[#b3b3b3] text-xs">
+                {group.year} • {$t('common.trackCount', { count: group.songs.length })}
+              </div>
+            </button>
+          {/each}
+        </div>
+      </section>
+    {/if}
     {#each sections as section (section.id)}
       <section class="flex flex-col gap-4">
         <div class="flex justify-between items-end mb-4">
@@ -760,6 +827,8 @@
     <History onnavigate={(v) => activeView = v} />
   {:else if activeView === 'starred'}
     <StarredView onnavigate={(v) => activeView = v} />
+  {:else if activeView === 'memories'}
+    <MemoriesView onnavigate={(v) => activeView = v} initialYear={memoriesInitialYear} />
   {/if}
 </div>
 

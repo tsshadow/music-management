@@ -567,6 +567,19 @@
       "ultrasonicApk": "Ultrasonic APK:"
     }
   },
+  "memories": {
+    "empty": "Nothing was released on this day in earlier years.",
+    "emptyHelp": "Memories appear as your library gains tracks with a full release date.",
+    "thisWeek": {
+      "one": "This week, 1 year ago",
+      "other": "This week, {count} years ago"
+    },
+    "title": "Memories",
+    "today": {
+      "one": "Today, 1 year ago",
+      "other": "Today, {count} years ago"
+    }
+  },
   "nav": {
     "albums": "Albums",
     "artists": "Artists",
@@ -576,6 +589,7 @@
     "labels": "Labels",
     "library": "Library",
     "management": "Management",
+    "memories": "Memories",
     "player": "Player",
     "playlists": "Playlists",
     "releaseRadar": "Release Radar",
@@ -677,6 +691,8 @@
       "listenBrainzHelp": "Listening data goes to the central Muma database for everyone. Only fill in a token here if you also want to scrobble to your own ListenBrainz account.",
       "listenBrainzPlaceholder": "Your ListenBrainz user token...",
       "listenBrainzToken": "ListenBrainz user token",
+      "memoriesOnHome": "Show memories on the home screen",
+      "memoriesOnHomeHelp": "A short row of \"today, X years ago\" releases above the other sections.",
       "releaseArtists": "Release artists",
       "sortByName": "Name",
       "sortOriginalYearAsc": "Original year (oldest first)",

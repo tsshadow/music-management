@@ -78,6 +78,7 @@
     if (view === 'labels') return base + '/labels';
     if (view === 'artists') return base + '/artists';
     if (view === 'playlists') return base + '/playlists';
+    if (view === 'memories') return base + '/memories';
     if (view.startsWith('genre:')) return base + '/genre/' + view.split(':')[1];
     if (view.startsWith('label:')) return base + '/label/' + view.split(':')[1];
     if (view.startsWith('artist:')) return base + '/artist/' + view.split(':')[1];
@@ -97,6 +98,7 @@
     if (path === base + '/labels') return 'labels';
     if (path === base + '/artists') return 'artists';
     if (path === base + '/playlists') return 'playlists';
+    if (path === base + '/memories') return 'memories';
     if (path.startsWith(base + '/genre/')) return 'genre:' + decodeURIComponent(path.slice((base + '/genre/').length));
     if (path.startsWith(base + '/label/')) return 'label:' + decodeURIComponent(path.slice((base + '/label/').length));
     if (path.startsWith(base + '/artist/')) return 'artist:' + path.slice((base + '/artist/').length);

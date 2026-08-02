@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Subsonic**: `getCoverArt` no longer fails for artists whose picture
+  music-management does not have. A MuMa-backed cover art id whose proxied
+  request 404s (or times out, or has no MuMa configured at all) now falls back
+  to the artist's own preferred artwork, or the cover of their earliest
+  release, instead of returning the error status that makes clients draw a
+  placeholder. Resolved per request rather than in `createArtistNode`, so the
+  id keeps pointing at MuMa and the real artist picture wins as soon as it
+  exists.
+
 ### Added
 - **UI**: Restored the legacy Wt-based admin/explore UI (library, user and
   scan administration) as a separate entry point on `/legacy`, alongside the

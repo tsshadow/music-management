@@ -1,0 +1,37 @@
+# Findings gitleaks must not fail on. One fingerprint per line, in the form
+# <commit>:<path>:<rule>:<line>. See security/gitleaks.toml for path-level
+# exemptions, and scripts/ci/secret-scan.sh for how the scan is run.
+#
+# ---------------------------------------------------------------------------
+# THESE WERE REAL CREDENTIALS. `.env` and `.server-env.json` were committed on
+# 2026-07-04 and 2026-07-05, before either file was gitignored. The values are
+# still readable in this repository's history by anyone who can clone it: LMS
+# API keys, a Subsonic API key, and a personal username/password pair.
+#
+# Rewriting history to remove them is not on the table - it would invalidate
+# every existing clone and all 204 tags - so the fix is to rotate the
+# credentials and leave the dead values where they are.
+#
+# They are listed here by exact fingerprint rather than by path on purpose: a
+# new commit of either file, or a new secret on a different line, still fails
+# the scan. Delete an entry once the credential behind it has been rotated and
+# the value in history is worthless. Until then, this list is the to-do list.
+# ---------------------------------------------------------------------------
+
+# .env - LMS_API_KEY and the three LMS_MUSIC_MANAGEMENT_*_API_KEY values
+36929fcdebb13030906776495855263425b1a1fd:.env:generic-api-key:14
+3cb9d1365c78bf9c7f57fdbf431cfde1876ee520:.env:generic-api-key:14
+d9587863f2b40c4f0d7d146d14745b1fe24462de:.env:generic-api-key:17
+ac0ab43eb41d8ae246559592b48fcc5d16a58c30:.env:generic-api-key:17
+ac0ab43eb41d8ae246559592b48fcc5d16a58c30:.env:generic-api-key:19
+32caa06dd2b6001ab8511f4a592e3f1934fb86d6:.env:generic-api-key:19
+c3a3d4eca3199b5f9c53f46eb8a13cf0a375eeb9:.env:generic-api-key:18
+c3a3d4eca3199b5f9c53f46eb8a13cf0a375eeb9:.env:generic-api-key:19
+c3a3d4eca3199b5f9c53f46eb8a13cf0a375eeb9:.env:generic-api-key:20
+42f5ba36c58ef9b6f8b664e116b3014211aab51b:.env:generic-api-key:39
+
+# .server-env.json - two server entries, each with a password and an apiKey
+9dd09fd9e48f3cf261837484592fc17cd0b7b04e:.server-env.json:generic-api-key:6
+9dd09fd9e48f3cf261837484592fc17cd0b7b04e:.server-env.json:generic-api-key:7
+9dd09fd9e48f3cf261837484592fc17cd0b7b04e:.server-env.json:generic-api-key:13
+9dd09fd9e48f3cf261837484592fc17cd0b7b04e:.server-env.json:generic-api-key:14

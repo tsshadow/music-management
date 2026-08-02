@@ -1,0 +1,39 @@
+# gitleaks configuration for this repository.
+#
+# Start from the upstream default rule set, then allowlist only what genuinely
+# cannot be a live credential. Every entry needs a reason: an allowlist without
+# one is indistinguishable from a silenced finding.
+#
+# This file holds the *path* exemptions - files whose whole purpose is to
+# contain a fake credential, now and in future commits. Individual historical
+# findings are exempted by fingerprint in `.gitleaksignore` at the repository
+# root, which is the narrower tool and the right one for anything that was once
+# a real secret.
+#
+# Run it with ./scripts/ci/secret-scan.sh.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Paths that cannot hold a live credential"
+paths = [
+  # Example values only; the real .env is gitignored and never committed.
+  '''\.env\.example$''',
+  # Upstream Ultrasonic integration-test fixtures, inherited through the
+  # original `git subtree` merge. Both the pre- and post-merge paths appear in
+  # history, hence the loose prefix. A self-signed certificate generated for a
+  # test HTTPS server, and a canned Subsonic API response whose share URL
+  # carries a dummy JWT.
+  '''(^|/)subsonic-api/src/integrationTest/resources/self-signed\.pem$''',
+  '''(^|/)subsonic-api/src/integrationTest/resources/get_shares_ok\.json$''',
+  # Upstream Ultrasonic's built-in demo servers. `stableServer.apiKey` and
+  # `alphaServer.apiKey` are the public credentials of the project's public
+  # demo instances, shipped in the app so a new user can try it without an
+  # account of their own.
+  '''(^|/)ultrasonic/src/main/kotlin/org/moire/ultrasonic/(activity/NavigationActivity|fragment/ServerSettingsModel|fragment/EditServerFragment)\.kt$''',
+  # Installation docs. The flagged line is the documented SQL that resets a
+  # fresh LMS instance's admin password to the literal `adminadmin`, so the
+  # "secret" is a published default that exists to be changed immediately.
+  '''(^|/)INSTALL\.md$''',
+]

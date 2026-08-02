@@ -53,3 +53,6 @@ coverage~=7.2.7
 # Here rather than in requirements-dev.txt for the same reason as pytest: those
 # tests guard the text helpers, and without this they skip silently on CI.
 hypothesis~=6.0
+# Parses .gitlab-ci.yml for the pipeline-policy tests (tests/ci/). Same reason
+# as the two above: without it those tests error out on CI instead of running.
+PyYAML~=6.0

@@ -11,27 +11,28 @@ echo "--- Running Ultrasonic Android unit tests with coverage (via Docker) ---"
 
 # Use a gradle home directory outside the project tree to avoid git checkout permission issues.
 # Suffix it with CI_CONCURRENT_ID (unique per concurrent job slot on a runner) so that two
-# ultrasonic jobs running at the same time (e.g. a branch pipeline and its MR pipeline for the
-# same commit) never share a Gradle cache/daemon - concurrent access to the same GRADLE_USER_HOME
-# causes "Timeout waiting to lock journal cache" failures.
+# ultrasonic jobs running at the same time never share a Gradle cache/daemon - concurrent access
+# to the same GRADLE_USER_HOME causes "Timeout waiting to lock journal cache" failures. The
+# workflow: rules in .gitlab-ci.yml removed the branch-pipeline/MR-pipeline duplication that first
+# caused this, but two pipelines on different branches can still land on the same runner.
 GRADLE_HOME_DIR="/tmp/.gradle_muma_${CI_CONCURRENT_ID:-local}"
 mkdir -p "$GRADLE_HOME_DIR"
-# Files inside here are written by root from inside the container below, so the
-# host user (running this script) generally can't chmod them itself once they
-# exist - do it via a throwaway root container instead, which can.
-docker run --rm -v "$GRADLE_HOME_DIR:/gradle_home" alpine chmod -R 777 /gradle_home
 
-# Always hand the workspace back to the host user, even if the test run below
-# fails - otherwise root-owned files/directories left behind by the container
-# break the *next* job's `git clean`/checkout step with "Permission denied".
-fix_permissions() {
-    docker run --rm -v "$ROOT_DIR:/workspace" alpine chown -R "$(id -u):$(id -g)" /workspace
-}
-trap fix_permissions EXIT
+# A runner that ran the older, root-in-container version of this script still
+# has a root-owned Gradle home from back then, which the container - now the
+# host user - cannot write to. Hand it over once, via a throwaway root
+# container, so the switch does not need a manual cleanup on every runner.
+if [ -n "$(find "$GRADLE_HOME_DIR" ! -user "$(id -u)" -print -quit 2>/dev/null)" ]; then
+    echo "Reclaiming $GRADLE_HOME_DIR for $(id -un)"
+    docker run --rm -v "$GRADLE_HOME_DIR:/gradle_home" alpine chown -R "$(id -u):$(id -g)" /gradle_home
+fi
 
-# We use a docker image with Android SDK to avoid installing it on the runner.
-# We run as root and then fix permissions for the host (see trap above).
+# The container below runs as the host user, so no chmod 777 pre-step and no
+# chown-back trap: nothing it writes is owned by root in the first place.
+source "$ROOT_DIR/scripts/ci/android-image.sh"
+
 docker run --rm \
+    -u "$(id -u):$(id -g)" \
     -v "$ROOT_DIR:/workspace" \
     -v "$GRADLE_HOME_DIR:/gradle_home" \
     -w "/workspace/services/ultrasonic" \
@@ -39,8 +40,8 @@ docker run --rm \
     -e SIGNING_STORE_PASSWORD=dummy \
     -e SIGNING_KEY_ALIAS=dummy \
     -e SIGNING_KEY_PASSWORD=dummy \
-    mobiledevops/android-sdk-image:latest \
-    /bin/bash -c "export ANDROID_SDK_ROOT=\$(find /opt /usr /usr/local -name platforms -type d -print -quit 2>/dev/null | sed 's|/platforms||'); [ -z \"\$ANDROID_SDK_ROOT\" ] && export ANDROID_SDK_ROOT=/opt/android; sdkmanager --sdk_root=\$ANDROID_SDK_ROOT \"build-tools;35.0.0\" \"platforms;android-35\" \"build-tools;34.0.0\" \"platforms;android-34\" && ./gradlew :ultrasonic:jacocoTestReport"
+    "$ANDROID_CI_IMAGE" \
+    /bin/bash -c '. /etc/android-sdk-root && export ANDROID_SDK_ROOT && ./gradlew :ultrasonic:jacocoTestReport'
 
 # Extract and fix the report
 REPORT_SRC="services/ultrasonic/ultrasonic/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml"

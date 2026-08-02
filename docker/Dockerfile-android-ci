@@ -1,0 +1,45 @@
+# Android SDK image for the Ultrasonic CI jobs.
+#
+# Two problems with using mobiledevops/android-sdk-image directly, which this
+# solves: every job re-ran `sdkmanager` to install the same build-tools and
+# platforms, and the container ran as root, leaving root-owned Gradle output in
+# the workspace that broke the *next* job's checkout (hence the chown hook in
+# .gitlab-ci.yml). Here the SDK is installed once at build time and handed to a
+# uid that matches the runner user, so the container never writes as root.
+#
+# Build it with the runner's own uid/gid:
+#   docker build -f docker/Dockerfile-android-ci \
+#     --build-arg RUNNER_UID="$(id -u)" --build-arg RUNNER_GID="$(id -g)" \
+#     -t music-management/android-ci:35 docker/
+FROM mobiledevops/android-sdk-image:latest
+
+ARG RUNNER_UID=1000
+ARG RUNNER_GID=1000
+
+USER root
+
+# Resolve the SDK location once and record it, so the scripts do not have to
+# re-derive it with `find` on every run. The platforms directory is the only
+# reliable landmark: the base image moves it between releases.
+RUN set -eux; \
+    SDK_ROOT="$(find /opt /usr /usr/local -name platforms -type d -print -quit)"; \
+    SDK_ROOT="${SDK_ROOT%/platforms}"; \
+    test -n "$SDK_ROOT"; \
+    echo "ANDROID_SDK_ROOT=$SDK_ROOT" > /etc/android-sdk-root; \
+    yes | sdkmanager --sdk_root="$SDK_ROOT" --licenses >/dev/null 2>&1 || true; \
+    sdkmanager --sdk_root="$SDK_ROOT" \
+        "build-tools;35.0.0" "platforms;android-35" \
+        "build-tools;34.0.0" "platforms;android-34"; \
+    chown -R "$RUNNER_UID:$RUNNER_GID" "$SDK_ROOT"
+
+# The uid may already exist in the base image, in which case groupadd/useradd
+# fail and are ignored - but the home directory still has to be there and
+# writable, because Gradle puts its daemon registry under $HOME.
+RUN set -eux; \
+    groupadd -g "$RUNNER_GID" ci 2>/dev/null || true; \
+    useradd -u "$RUNNER_UID" -g "$RUNNER_GID" -m -d /home/ci -s /bin/bash ci 2>/dev/null || true; \
+    mkdir -p /home/ci; \
+    chown -R "$RUNNER_UID:$RUNNER_GID" /home/ci
+
+USER $RUNNER_UID:$RUNNER_GID
+ENV HOME=/home/ci

@@ -7,7 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Labels are browsable on Android.** The filter modal could already narrow songs down to a
+  record label, but nothing showed which labels the library holds — you had to know the name
+  before you could filter on it. Labels now sit in the Library tabs next to Genres, fed by the
+  same PUBLISHER tag the filter chip uses, and a tap opens that label's tracks.
+- **The Android app speaks Sallaands and Brabants**, the same two dialects the web interface
+  picked up in 0.0.59, chosen from the language menu that was already in Settings. Neither
+  dialect has a language code, so they ride along on Dutch with a region no Dutch speaker has
+  set: nl-BQ and nl-CW. Three other shapes were tried first and none of them survive Android's
+  resource matching — a three letter code (nds-NL) and a BCP 47 variant (nl-NL-brabant) both
+  fall back to the default, and any locale missing from `resourceConfigurations` is stripped
+  from the APK before it ever reaches a device.
+
 ### Fixed
+- **Dutch is complete on Android, and English is actually English.** The Dutch resources were
+  163 strings short of the English ones, and 28 strings this fork added were written in Dutch in
+  the default resources — so an English-language phone showed "Artiesten", "Jaren" and
+  "Goedkeuren". Both are filled in now, which the dialects depend on: Android treats nl-BQ and
+  nl-CW as Dutch, so a gap in Dutch falls through to a dialect rather than to English.
 - **Artists show a picture on the phone, whether or not one has been fetched for them.** An artist
   without artwork of their own is served from the artist image fetcher, and only 11762 of the
   library's 51378 artists have a picture there so far, so for the rest that request 404s and every

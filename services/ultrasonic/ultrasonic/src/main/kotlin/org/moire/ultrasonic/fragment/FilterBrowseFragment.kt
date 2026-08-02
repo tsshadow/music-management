@@ -45,9 +45,9 @@ import org.moire.ultrasonic.view.ViewCapabilities
 import timber.log.Timber
 
 /**
- * Browse the library by one filterable dimension: genre, year, festival, lineup or rating.
+ * Browse the library by one filterable dimension: genre, label, year, festival, lineup or rating.
  *
- * All five are the same screen — a grid of cards that opens a filtered track collection — so they
+ * All six are the same screen — a grid of cards that opens a filtered track collection — so they
  * share one fragment parameterized by [BrowseCategory] instead of getting one class each.
  */
 class FilterBrowseFragment : Fragment() {
@@ -136,6 +136,12 @@ class FilterBrowseFragment : Fragment() {
                 orderGenres(service.getGenres(refresh), rememberedGenres(), favorites)
                     .map { it.toHomeCard(isFavorite = favorites.contains(it.name)) }
             }
+
+            // Labels are matched by the PUBLISHER tag, the same value the label filter chip sends,
+            // so the tag list is the authoritative set of labels that actually carry songs.
+            BrowseCategory.LABELS ->
+                service.getTags(refresh, TAG_PUBLISHER, null, null)
+                    .map { it.toHomeCard(HomeCardType.LABEL) }
 
             BrowseCategory.YEARS ->
                 service.getTags(refresh, TAG_YEAR, null, null)
@@ -256,6 +262,7 @@ class FilterBrowseFragment : Fragment() {
         private const val MAX_REMEMBERED = 50
         private const val TAG_YEAR = "YEAR"
         private const val TAG_FESTIVAL = "FESTIVAL"
+        private const val TAG_PUBLISHER = "PUBLISHER"
 
         fun argumentsFor(category: BrowseCategory): Bundle = Bundle().apply { putString(ARG_CATEGORY, category.name) }
     }

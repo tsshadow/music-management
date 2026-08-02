@@ -267,6 +267,8 @@
         <item>@string/language.zh_TW</item>
         <item>@string/language.cs</item>
         <item>@string/language.nl</item>
+        <item>@string/language.brabants</item>
+        <item>@string/language.sallands</item>
         <item>@string/language.en</item>
         <item>@string/language.fr</item>
         <item>@string/language.de</item>
@@ -286,6 +288,8 @@
         <item>zh-TW</item>
         <item>cs</item>
         <item>nl</item>
+        <item>nl-BQ</item>
+        <item>nl-CW</item>
         <item>en</item>
         <item>fr</item>
         <item>de</item>

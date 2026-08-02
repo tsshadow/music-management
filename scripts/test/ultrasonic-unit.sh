@@ -18,6 +18,15 @@ echo "--- Running Ultrasonic Android unit tests with coverage (via Docker) ---"
 GRADLE_HOME_DIR="/tmp/.gradle_muma_${CI_CONCURRENT_ID:-local}"
 mkdir -p "$GRADLE_HOME_DIR"
 
+# A runner that ran the older, root-in-container version of this script still
+# has a root-owned Gradle home from back then, which the container - now the
+# host user - cannot write to. Hand it over once, via a throwaway root
+# container, so the switch does not need a manual cleanup on every runner.
+if [ -n "$(find "$GRADLE_HOME_DIR" ! -user "$(id -u)" -print -quit 2>/dev/null)" ]; then
+    echo "Reclaiming $GRADLE_HOME_DIR for $(id -un)"
+    docker run --rm -v "$GRADLE_HOME_DIR:/gradle_home" alpine chown -R "$(id -u):$(id -g)" /gradle_home
+fi
+
 # The container below runs as the host user, so no chmod 777 pre-step and no
 # chown-back trap: nothing it writes is owned by root in the first place.
 source "$ROOT_DIR/scripts/ci/android-image.sh"

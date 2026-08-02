@@ -36,6 +36,7 @@ class SweepPolicy:
             self.timing = self.timing.with_multiplier(self.rate_state.multiplier)
         self.schedule = schedule if schedule is not None else AccountSchedule(source)
         self.stop = threading.Event()
+        self._blank_run = 0
 
     def begin(self) -> bool:
         """Return whether a sweep may start, or False while the source is parked."""
@@ -45,7 +46,27 @@ class SweepPolicy:
                             self.source, remaining)
             return False
         self.stop.clear()
+        self._blank_run = 0
         return True
+
+    def note_progress(self) -> None:
+        """Register an account that gave something back, ending any run of blanks."""
+        self._blank_run = 0
+
+    def note_blank(self, account: str) -> RateLimited | None:
+        """Register an account that came back empty-handed after a 403.
+
+        One of those proves nothing: an account whose only track is subscriber-only
+        looks the same from here. Only once `block_threshold` of them arrive in a
+        row is the source parked, and the caller is handed the reason to stop.
+        """
+        self._blank_run += 1
+        threshold = self.timing.block_threshold
+        if self._blank_run < threshold:
+            logging.info('%s returned nothing for %s (%d of %d before backing off).',
+                         self.source, account, self._blank_run, threshold)
+            return None
+        return self.park('403', f'{self._blank_run} accounts in a row ending at {account}')
 
     def due(self, accounts: Iterable[str]) -> list[str]:
         """The accounts that have not been checked within the cooldown."""

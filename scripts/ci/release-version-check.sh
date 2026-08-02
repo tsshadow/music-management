@@ -1,10 +1,12 @@
 #!/bin/bash
 # scripts/ci/release-version-check.sh
 #
-# Gates deploy:prod on a release/* branch: fails the pipeline (before any
-# production deploy or official Ultrasonic upload happens) if the stabilization
-# work required by docs/release-management.md wasn't actually done:
-#   - root VERSION must have been bumped compared to develop.
+# Gates deploy:prod on a release/* or hotfix/* branch: fails the pipeline
+# (before any production deploy or official Ultrasonic upload happens) if the
+# stabilization work required by docs/release-management.md wasn't actually
+# done. Every check is measured against the branch this one was cut from -
+# develop for a release, master for a hotfix - see BASE_BRANCH below:
+#   - root VERSION must have been bumped compared to that base.
 #   - CHANGELOG.md must have been touched, and must contain a dated entry for
 #     the bumped VERSION (i.e. [Unreleased] was finalized into that entry -
 #     [Unreleased] itself is expected to be empty again afterwards, ready for
@@ -18,8 +20,22 @@ set -e
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
-git fetch origin develop --depth=50 >/dev/null 2>&1 || git fetch origin develop
-BASE="origin/develop"
+# Which branch this release is measured against. A release/* branch is cut from
+# develop, so develop is the "before" picture. A hotfix/* branch is cut from
+# master and deliberately does *not* contain what is queued on develop, so
+# comparing it to develop reports develop's unreleased work as changes made by
+# the hotfix. Overridable for testing.
+case "${CI_COMMIT_BRANCH:-}" in
+    hotfix/*) BASE_BRANCH="master" ;;
+    *)        BASE_BRANCH="develop" ;;
+esac
+BASE="${VERSION_CHECK_BASE:-origin/${BASE_BRANCH}}"
+
+# Full fetch, not --depth: a release branch further than the depth from its base
+# silently compares against a truncated history.
+git fetch origin "$BASE_BRANCH" >/dev/null 2>&1 || git fetch origin "$BASE_BRANCH"
+
+echo "Comparing against ${BASE}."
 
 fail() {
     echo "release:version-check FAILED: $1"

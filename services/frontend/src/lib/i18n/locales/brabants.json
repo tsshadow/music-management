@@ -88,6 +88,19 @@
     "title": "Inlogge",
     "username": "Gebruikersnaam"
   },
+  "memories": {
+    "empty": "Op deze dag is in eerdere jaore niks uitgebrocht.",
+    "emptyHelp": "Herinneringe komme vanzelf as oew bibliotheek nummerkes mee un complete releasedatum krijgt.",
+    "thisWeek": {
+      "one": "Deez week, 1 jaor gelejen",
+      "other": "Deez week, {count} jaor gelejen"
+    },
+    "title": "Herinneringe",
+    "today": {
+      "one": "Vandaag, 1 jaor gelejen",
+      "other": "Vandaag, {count} jaor gelejen"
+    }
+  },
   "nav": {
     "albums": "Albums",
     "artists": "Artieste",
@@ -97,6 +110,7 @@
     "labels": "Labels",
     "library": "Bieb",
     "management": "Beheer",
+    "memories": "Herinneringe",
     "player": "Speuler",
     "playlists": "Lijstjes",
     "releaseRadar": "Nieuw binne",

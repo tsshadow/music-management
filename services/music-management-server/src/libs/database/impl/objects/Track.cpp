@@ -19,6 +19,9 @@
 
 #include "database/objects/Track.hpp"
 
+#include <chrono>
+#include <cstdio>
+
 #include <Wt/Dbo/Impl.h>
 #include <Wt/Dbo/WtSqlTraits.h>
 
@@ -58,6 +61,45 @@ namespace lms::db
         // single row: some filter branches below add a GROUP BY to deduplicate rows for
         // non-aggregate selects (e.g. "t.id", "t"), which would otherwise break such a select by
         // turning its single aggregate row into one row per matching track.
+        // The release date a memory is built from: the original release when the tags carry one,
+        // otherwise the release date of this particular edition.
+        constexpr std::string_view effectiveDateExpr{ "COALESCE(NULLIF(t.original_date, ''), t.date)" };
+
+        // A PartialDateTime is stored as its toString() form (see PartialDateTimeTraits.hpp), so the
+        // column length is its precision: "2018", "2018-08", "2018-08-02". Anything shorter than a
+        // full date cannot carry an anniversary.
+        constexpr std::size_t dayPrecisionLength{ 10 };
+
+        /**
+         * The 'MM-DD' strings a +/- windowDays window around month/day covers.
+         *
+         * Expanding the window here rather than in SQL keeps the month boundary (1 January reaching
+         * back into December) and 29 February out of dialect-specific date arithmetic. The window is
+         * walked in a leap year so that a window around 28 February or 1 March always includes
+         * 29 February.
+         */
+        std::vector<std::string> expandAnniversaryWindow(unsigned month, unsigned day, unsigned windowDays)
+        {
+            constexpr int leapYear{ 2020 };
+            const std::chrono::year_month_day center{ std::chrono::year{ leapYear } / std::chrono::month{ month } / std::chrono::day{ day } };
+            const std::chrono::sys_days centerDays{ center };
+
+            std::vector<std::string> monthDays;
+            monthDays.reserve(windowDays * 2 + 1);
+
+            for (int offset{ -static_cast<int>(windowDays) }; offset <= static_cast<int>(windowDays); ++offset)
+            {
+                const std::chrono::year_month_day shifted{ std::chrono::sys_days{ centerDays + std::chrono::days{ offset } } };
+
+                char monthDay[6];
+                std::snprintf(monthDay, sizeof(monthDay), "%02u-%02u",
+                    static_cast<unsigned>(shifted.month()), static_cast<unsigned>(shifted.day()));
+                monthDays.emplace_back(monthDay);
+            }
+
+            return monthDays;
+        }
+
         template<typename ResultType>
         Wt::Dbo::Query<ResultType> createQuery(Session& session, std::string_view itemToSelect, bool aggregate, const Track::FindParameters& params)
         {
@@ -589,6 +631,32 @@ namespace lms::db
     ArtworkId Track::getPreferredMediaArtworkId() const
     {
         return _preferredMediaArtwork.id();
+    }
+
+    RangeResults<TrackId> Track::findIdsByReleaseAnniversary(Session& session, const ReleaseAnniversaryParameters& params)
+    {
+        session.checkReadTransaction();
+
+        const std::string effectiveDate{ effectiveDateExpr };
+        const std::vector<std::string> monthDays{ expandAnniversaryWindow(params.month, params.day, params.windowDays) };
+
+        std::string placeholders;
+        for (std::size_t i{}; i < monthDays.size(); ++i)
+            placeholders += (i == 0 ? "?" : ", ?");
+
+        auto query{ session.getDboSession()->query<TrackId>("SELECT t.id FROM track t") };
+
+        query.where("LENGTH(" + effectiveDate + ") >= ?").bind(static_cast<int>(dayPrecisionLength));
+
+        query.where("SUBSTR(" + effectiveDate + ", 6, 5) IN (" + placeholders + ")");
+        for (const std::string& monthDay : monthDays)
+            query.bind(monthDay);
+
+        query.where("CAST(SUBSTR(" + effectiveDate + ", 1, 4) AS INTEGER) < ?").bind(params.currentYear);
+
+        query.orderBy("CAST(SUBSTR(" + effectiveDate + ", 1, 4) AS INTEGER) DESC, t.name");
+
+        return utils::execRangeQuery<TrackId>(query, params.range);
     }
 
     RangeResults<TrackId> Track::findIds(Session& session, const FindParameters& parameters)

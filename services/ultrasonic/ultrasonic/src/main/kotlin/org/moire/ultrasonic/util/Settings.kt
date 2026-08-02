@@ -46,6 +46,14 @@ object Settings {
         false
     )
 
+    // The memories carousel on the home screen. Only the teaser: the Memories page in the Library
+    // tab stays reachable whatever this is set to.
+    @JvmStatic
+    var memoriesOnHome by BooleanSetting(
+        getKey(R.string.setting_key_memories_on_home),
+        true
+    )
+
     // When on, the home screen keeps one shortcut history for songs and another for livesets.
     @JvmStatic
     var separateHomeHistoryPerMode by BooleanSetting(

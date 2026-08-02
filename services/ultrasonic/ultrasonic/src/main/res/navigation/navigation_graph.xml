@@ -11,6 +11,9 @@
         android:id="@+id/toBookmarks"
         app:destination="@id/bookmarksFragment" />
     <action
+        android:id="@+id/toMemories"
+        app:destination="@id/memoriesFragment" />
+    <action
         android:id="@+id/toMediaLibrary"
         app:destination="@id/mediaLibraryFragment" />
     <action
@@ -45,6 +48,11 @@
         android:id="@+id/favoritesFragment"
         android:name="org.moire.ultrasonic.fragment.FavoritesFragment"
         android:label="@string/filter.favorites" />
+
+    <fragment
+        android:id="@+id/memoriesFragment"
+        android:name="org.moire.ultrasonic.fragment.MemoriesFragment"
+        android:label="@string/library.tab_memories" />
 
     <fragment
         android:id="@+id/libraryFragment"
@@ -432,8 +440,4 @@
             android:id="@+id/toGoogleAuth"
             app:destination="@id/googleAuthFragment" />
     </fragment>
-    <fragment
-        android:id="@+id/mumaSyncFragment"
-        android:name="org.moire.ultrasonic.fragment.MumaSyncFragment"
-        android:label="@string/menu.muma_sync" />
 </navigation>

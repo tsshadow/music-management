@@ -19,6 +19,7 @@ enum class HomeCardType {
     LINEUP,
     RATING,
     TRACK,
+    MEMORY,
     DYNAMIC_PLAYLIST,
     STATIC_PLAYLIST
 }
@@ -51,5 +52,10 @@ data class HomeCard(
 data class HomeSection(
     @StringRes val titleRes: Int,
     val style: CardStyle,
-    val cards: List<HomeCard>
+    val cards: List<HomeCard>,
+    /**
+     * Format arguments for [titleRes]. Memories need a title that changes with the data ("Today,
+     * 8 years ago"); every other section passes none and is unaffected.
+     */
+    val titleArgs: List<Any> = emptyList()
 )

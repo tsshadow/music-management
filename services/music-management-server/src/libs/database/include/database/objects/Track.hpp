@@ -219,6 +219,19 @@ namespace lms::db
             }
         };
 
+        /**
+         * What "today, X years ago" means for one request: the client's local month and day, how
+         * many days either side still count, and the year that memories must predate.
+         */
+        struct ReleaseAnniversaryParameters
+        {
+            unsigned month{};         // 1-12
+            unsigned day{};           // 1-31
+            unsigned windowDays{ 3 }; // days either side of month/day that still count
+            int currentYear{};        // releases from this year onwards are not memories
+            std::optional<Range> range;
+        };
+
         Track() = default;
 
         // Find utility functions
@@ -236,6 +249,15 @@ namespace lms::db
         static std::vector<pointer> findByRecordingMBID(Session& session, const core::UUID& MBID);
         static std::vector<pointer> findByMBID(Session& session, const core::UUID& MBID);
         static RangeResults<TrackId> findSimilarTrackIds(Session& session, const std::vector<TrackId>& trackIds, std::optional<Range> range = std::nullopt);
+
+        /**
+         * Tracks whose release date falls on the same month and day as the request (within
+         * windowDays) in an earlier year, newest year first.
+         *
+         * Only day-precision release dates qualify: a tag carrying just a year, or a year and a
+         * month, cannot establish an anniversary.
+         */
+        static RangeResults<TrackId> findIdsByReleaseAnniversary(Session& session, const ReleaseAnniversaryParameters& params);
 
         static RangeResults<TrackId> findIds(Session& session, const FindParameters& parameters);
         static RangeResults<pointer> find(Session& session, const FindParameters& parameters);

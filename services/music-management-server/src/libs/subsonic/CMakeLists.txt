@@ -10,6 +10,7 @@ add_library(lmssubsonic STATIC
 	impl/endpoints/MediaAnnotation.cpp
 	impl/endpoints/MediaLibraryScanning.cpp
 	impl/endpoints/MediaRetrieval.cpp
+	impl/endpoints/Memories.cpp
 	impl/endpoints/Playlists.cpp
 	impl/endpoints/Podcast.cpp
 	impl/endpoints/Searching.cpp

@@ -14,7 +14,7 @@ class LibraryPagerAdapterTest {
 
     @Test
     fun `has one page per library category`() {
-        LibraryPagerAdapter.PAGE_COUNT `should be equal to` 10
+        LibraryPagerAdapter.PAGE_COUNT `should be equal to` 11
     }
 
     @Test
@@ -66,6 +66,10 @@ class LibraryPagerAdapterTest {
         LibraryPagerAdapter.argumentsForPage(LibraryPagerAdapter.PAGE_DYNAMIC_PLAYLISTS)
             .shouldBeNull()
         LibraryPagerAdapter.argumentsForPage(LibraryPagerAdapter.PAGE_STATIC_PLAYLISTS)
+            .shouldBeNull()
+
+        // Memories is its own screen rather than a browse category, so it reads no arguments.
+        LibraryPagerAdapter.argumentsForPage(LibraryPagerAdapter.PAGE_MEMORIES)
             .shouldBeNull()
     }
 }

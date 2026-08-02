@@ -2,6 +2,7 @@ package org.moire.ultrasonic.diagnostics
 
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeNull
+import org.amshove.kluent.shouldContain
 import org.junit.Test
 
 class CrashReportManagerTest {
@@ -71,5 +72,29 @@ class CrashReportManagerTest {
         )
 
         report.shouldBeNull()
+    }
+
+    @Test
+    fun `a manual report is marked as manual and carries the current ring buffer`() {
+        val report = buildManualReport(ringBufferText = "what happened just now")
+
+        report.stacktraceText shouldBeEqualTo CrashReportManager.MANUAL_REPORT_MARKER
+        report.ringBufferText shouldBeEqualTo "what happened just now"
+    }
+
+    @Test
+    fun `a manual report is produced even with an empty ring buffer`() {
+        val report = buildManualReport(ringBufferText = "")
+
+        report.stacktraceText shouldBeEqualTo CrashReportManager.MANUAL_REPORT_MARKER
+        report.ringBufferText shouldBeEqualTo ""
+    }
+
+    @Test
+    fun `the text of a manual report contains both the marker and the log`() {
+        val text = buildManualReport(ringBufferText = "log line").toReportText()
+
+        text shouldContain CrashReportManager.MANUAL_REPORT_MARKER
+        text shouldContain "log line"
     }
 }

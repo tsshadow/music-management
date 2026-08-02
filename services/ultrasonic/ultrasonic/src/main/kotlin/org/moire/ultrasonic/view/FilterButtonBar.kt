@@ -259,6 +259,7 @@ class FilterButtonBar : ConstraintLayout {
         SortOrder.BY_ARTIST -> R.string.main_albums_alphaByArtist
         SortOrder.STARRED -> R.string.main_albums_starred
         SortOrder.BY_YEAR -> R.string.main_albums_by_year
+        SortOrder.BY_YEAR_DESC -> R.string.sort_order_newest_first
         SortOrder.BY_TRACK_COUNT -> R.string.sort_order_track_count
         SortOrder.BY_ALBUM_COUNT -> R.string.sort_order_album_count
         SortOrder.BY_ADDED -> R.string.sort_order_added

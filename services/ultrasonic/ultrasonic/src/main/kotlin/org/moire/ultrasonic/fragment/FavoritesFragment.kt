@@ -102,7 +102,11 @@ class FavoritesFragment :
 
             slot.container.visibility = if (section == null) View.GONE else View.VISIBLE
             if (section != null) {
-                slot.title.setText(section.titleRes)
+                slot.title.text = if (section.titleArgs.isEmpty()) {
+                    slot.title.context.getString(section.titleRes)
+                } else {
+                    slot.title.context.getString(section.titleRes, *section.titleArgs.toTypedArray())
+                }
                 slot.adapter.items = section.cards
             }
         }

@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.6.0] - 2026-08-02
+
+### Added
+- **Memories: what was released on this day, in earlier years.** The Library tab has a Memories
+  screen, and the home screen opens on a short row of "Today, 8 years ago" cards, both fed by the
+  new `/rest/getMemories` endpoint. Only tags carrying a complete release date can answer for a
+  given day, so year-only tags never appear; a day with no exact match widens to three days either
+  side and says "this week" rather than claiming a precision the tags do not have. The device
+  sends its own date, so a phone in another time zone gets its own today. The home row can be
+  switched off in settings.
+- **Diagnostics can be sent without waiting for a crash.** Crash reporting only fired on the next
+  app start, and only after the app had actually died, so the failures that leave the app running
+  — a call that returns an error, a screen that stays empty — never reached the server. Settings
+  now has "Send diagnostics now" under the Muma section, which uploads the current session's log
+  and writes a copy to Downloads/UltrasonicLogs. It sits outside the debug category on purpose,
+  because that category is hidden in release builds. Unlike the automatic report it ignores the
+  "Crash detection" toggle — pressing the button is consent — and it never deletes a crash file
+  that hasn't been reported yet. Manual reports are marked as such in `crash_reports`, so they
+  are distinguishable from real crashes and from silent kills.
+
+### Changed
+- **The Ratings and Years tabs no longer offer a search field.** Ratings is five fixed cards that
+  are all on screen at once, and Years is a short list of numbers in a known order, so the shared
+  filter bar's search box only took room the cards could use. Years now leads with the newest year
+  instead of sorting by name.
+
+### Removed
+- **The "MuMa Sync" screen** and its six buttons (log on, load/write tiles, clear tiles,
+  load/write settings). Tiles already sync through the tile editor and the log-on step already
+  happens when a server is saved; the settings backup/restore pair was a blunt dump of every
+  shared preference that needed a restart and could overwrite a working install with another
+  device's state. The MuMa user ID and API key settings stay.
+
+### Fixed
+- **An artist shortcut keeps the blank it was saved with.** A shortcut stored while the server had
+  no picture for that artist holds an empty cover art id, and an empty id never asks for a picture
+  at all. Such a card now has its artwork looked up once and the stored copy repaired; the index
+  conversion also stored an empty string where the artist conversion stored nothing, so a missing
+  id looked usable downstream. Both now agree.
+- **A cover art the server does not have is not re-requested on every bind.** Artists with no
+  artwork anywhere cost one failed request per card each time the home screen scrolled back into
+  view. Their ids are remembered for twelve hours, per app run, and only when the server actually
+  answered "not found" - a timeout, a 5xx or being offline says nothing about whether the picture
+  exists.
+
 ## [6.5.26] - 2026-08-02
 
 ### Changed

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:a="http://schemas.android.com/apk/res/android"
+    a:layout_width="match_parent"
+    a:layout_height="match_parent"
+    a:background="@color/spotify_black"
+    a:fillViewport="true">
+
+    <LinearLayout
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:orientation="vertical"
+        a:paddingTop="8dp"
+        a:paddingBottom="80dp">
+
+        <!-- One home_section per release year, inflated at runtime: how many years a day holds is
+             only known once the server has answered. -->
+        <LinearLayout
+            a:id="@+id/memories_sections"
+            a:layout_width="match_parent"
+            a:layout_height="wrap_content"
+            a:orientation="vertical" />
+
+        <TextView
+            a:id="@+id/memories_empty"
+            a:layout_width="match_parent"
+            a:layout_height="wrap_content"
+            a:paddingHorizontal="16dp"
+            a:paddingTop="32dp"
+            a:text="@string/memories.empty"
+            a:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+            a:textColor="@color/spotify_text_secondary"
+            a:visibility="gone" />
+
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

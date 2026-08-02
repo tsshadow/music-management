@@ -88,6 +88,19 @@
     "title": "Inloggen",
     "username": "Gebruukersnaam"
   },
+  "memories": {
+    "empty": "Op disse dag is in eerdere joarn niks uutbrocht.",
+    "emptyHelp": "Herinneringen komt vanzölf as oew bibliotheek nummers met een complete releasedatum krig.",
+    "thisWeek": {
+      "one": "Disse weke, 1 joar eleden",
+      "other": "Disse weke, {count} joar eleden"
+    },
+    "title": "Herinneringen",
+    "today": {
+      "one": "Vandage, 1 joar eleden",
+      "other": "Vandage, {count} joar eleden"
+    }
+  },
   "nav": {
     "albums": "Albums",
     "artists": "Artiesten",
@@ -97,6 +110,7 @@
     "labels": "Labels",
     "library": "Bieb",
     "management": "Beheer",
+    "memories": "Herinneringen",
     "player": "Speuler",
     "playlists": "Lieskes",
     "releaseRadar": "Nieuw binnen",

@@ -36,6 +36,7 @@ import org.moire.ultrasonic.domain.Index
 import org.moire.ultrasonic.domain.JukeboxStatus
 import org.moire.ultrasonic.domain.Label
 import org.moire.ultrasonic.domain.Lineup
+import org.moire.ultrasonic.domain.MemoryGroup
 import org.moire.ultrasonic.domain.Lyrics
 import org.moire.ultrasonic.domain.Mood
 import org.moire.ultrasonic.domain.MumaTile
@@ -153,6 +154,9 @@ class OfflineMusicService :
     override fun getArtistList(type: String, size: Int): List<Artist> = emptyList()
 
     override fun getLabelList(type: String, size: Int): List<Label> = emptyList()
+
+    // Nothing to fill in from a cached list, and the caller only wants artwork it can live without.
+    override fun getArtist(id: String): Artist? = null
 
     @Throws(OfflineException::class)
     override fun getArtistInfo(id: String): Artist? = throw OfflineException("Artist info not available in offline mode")
@@ -556,6 +560,9 @@ class OfflineMusicService :
     override fun getTags(refresh: Boolean, name: String, year: Int?, length: String?): List<Tag> = buildTagList(name)
 
     @Throws(Exception::class)
+    // Memories are a server-side query over release dates; offline there is nothing to answer with.
+    override fun getMemories(date: String): List<MemoryGroup> = emptyList()
+
     override fun getLineups(refresh: Boolean): List<Lineup> = buildLineupList()
 
     @Throws(Exception::class)

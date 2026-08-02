@@ -1,7 +1,9 @@
 #!/bin/bash
 # scripts/ci/create-release-tags.sh
 #
-# Runs on `master` after a release/* (or hotfix/*) branch has been merged.
+# Runs on `master` after a release/* or hotfix/* branch has been merged. Both
+# are treated identically: what is tagged is whatever VERSION says on master,
+# so the hotfix path needs no special case here.
 # Creates the immutable, CI-only git tags that make master's history the
 # trustworthy "what's actually been released" record:
 #   - release-vX.Y.Z         always, from the root VERSION file.

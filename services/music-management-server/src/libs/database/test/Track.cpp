@@ -781,4 +781,123 @@ namespace lms::db::tests
             EXPECT_EQ(Track::getCount(session, Track::FindParameters{}), 3);
         }
     }
+
+    TEST_F(DatabaseFixture, Track_findIdsByReleaseAnniversary)
+    {
+        ScopedTrack exactMatch{ session };
+        ScopedTrack windowMatch{ session };
+        ScopedTrack yearOnly{ session };
+        ScopedTrack yearAndMonthOnly{ session };
+        ScopedTrack thisYear{ session };
+        ScopedTrack otherDay{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+
+            exactMatch.get().modify()->setOriginalDate(core::PartialDateTime{ 2018, 8, 2 });
+            windowMatch.get().modify()->setOriginalDate(core::PartialDateTime{ 2015, 8, 4 });
+            // Neither of these can establish an anniversary: no day in the tag.
+            yearOnly.get().modify()->setOriginalDate(core::PartialDateTime{ 2016 });
+            yearAndMonthOnly.get().modify()->setOriginalDate(core::PartialDateTime{ 2014, 8 });
+            thisYear.get().modify()->setOriginalDate(core::PartialDateTime{ 2026, 8, 2 });
+            otherDay.get().modify()->setOriginalDate(core::PartialDateTime{ 2017, 8, 20 });
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Track::ReleaseAnniversaryParameters params;
+            params.month = 8;
+            params.day = 2;
+            params.windowDays = 3;
+            params.currentYear = 2026;
+
+            const auto results{ Track::findIdsByReleaseAnniversary(session, params) };
+
+            // Newest year first: 2018 before 2015.
+            EXPECT_EQ(results.results, (std::vector<TrackId>{ exactMatch.getId(), windowMatch.getId() }));
+        }
+    }
+
+    TEST_F(DatabaseFixture, Track_findIdsByReleaseAnniversary_fallsBackToDate)
+    {
+        ScopedTrack fallback{ session };
+        ScopedTrack prefersOriginal{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+
+            // No original date at all: the plain date is what a memory is built from.
+            fallback.get().modify()->setDate(core::PartialDateTime{ 2019, 8, 2 });
+
+            // Both set: the original release is the memory, not the reissue.
+            prefersOriginal.get().modify()->setDate(core::PartialDateTime{ 2021, 12, 25 });
+            prefersOriginal.get().modify()->setOriginalDate(core::PartialDateTime{ 2011, 8, 2 });
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Track::ReleaseAnniversaryParameters params;
+            params.month = 8;
+            params.day = 2;
+            params.windowDays = 0;
+            params.currentYear = 2026;
+
+            const auto results{ Track::findIdsByReleaseAnniversary(session, params) };
+
+            EXPECT_EQ(results.results, (std::vector<TrackId>{ fallback.getId(), prefersOriginal.getId() }));
+        }
+    }
+
+    TEST_F(DatabaseFixture, Track_findIdsByReleaseAnniversary_wrapsAroundNewYear)
+    {
+        ScopedTrack december{ session };
+        ScopedTrack january{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+
+            december.get().modify()->setOriginalDate(core::PartialDateTime{ 2014, 12, 30 });
+            january.get().modify()->setOriginalDate(core::PartialDateTime{ 2012, 1, 3 });
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Track::ReleaseAnniversaryParameters params;
+            params.month = 1;
+            params.day = 1;
+            params.windowDays = 3;
+            params.currentYear = 2026;
+
+            const auto results{ Track::findIdsByReleaseAnniversary(session, params) };
+
+            EXPECT_EQ(results.results, (std::vector<TrackId>{ december.getId(), january.getId() }));
+        }
+    }
+
+    TEST_F(DatabaseFixture, Track_findIdsByReleaseAnniversary_includesLeapDay)
+    {
+        ScopedTrack leapDay{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            leapDay.get().modify()->setOriginalDate(core::PartialDateTime{ 2020, 2, 29 });
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Track::ReleaseAnniversaryParameters params;
+            params.month = 2;
+            params.day = 28;
+            params.windowDays = 3;
+            params.currentYear = 2026;
+
+            const auto results{ Track::findIdsByReleaseAnniversary(session, params) };
+
+            EXPECT_EQ(results.results, (std::vector<TrackId>{ leapDay.getId() }));
+        }
+    }
 } // namespace lms::db::tests

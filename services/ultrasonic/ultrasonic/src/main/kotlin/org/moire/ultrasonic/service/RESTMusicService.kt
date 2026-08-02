@@ -29,6 +29,7 @@ import org.moire.ultrasonic.domain.Index
 import org.moire.ultrasonic.domain.JukeboxStatus
 import org.moire.ultrasonic.domain.Label
 import org.moire.ultrasonic.domain.Lineup
+import org.moire.ultrasonic.domain.MemoryGroup
 import org.moire.ultrasonic.domain.Lyrics
 import org.moire.ultrasonic.domain.Mood
 import org.moire.ultrasonic.domain.MumaTile
@@ -134,6 +135,13 @@ open class RESTMusicService(
         val response = API.getLabelList(type, size, 0).execute().throwOnFailure()
 
         return response.body()!!.labelList.toDomainEntityList()
+    }
+
+    @Throws(Exception::class)
+    override fun getArtist(id: String): Artist? {
+        val response = API.getArtist(id).execute().throwOnFailure()
+
+        return response.body()!!.artist.toDomainEntity(activeServerId)
     }
 
     @Throws(Exception::class)
@@ -595,6 +603,22 @@ open class RESTMusicService(
         val response = API.getTags(name, year, length).execute().throwOnFailure()
 
         return response.body()!!.tagsList.toDomainEntityList()
+    }
+
+    @Throws(Exception::class)
+    override fun getMemories(date: String): List<MemoryGroup> {
+        val response = API.getMemories(date).execute().throwOnFailure()
+
+        return response.body()!!.memoriesList.map {
+            MemoryGroup(
+                year = it.year,
+                yearsAgo = it.yearsAgo,
+                exact = it.exact,
+                // The converter yields MusicDirectory.Child; only the playable ones are tracks,
+                // the same narrowing MusicDirectory.getTracks() does.
+                tracks = it.songs.toDomainEntityList(activeServerId).filterIsInstance<Track>()
+            )
+        }
     }
 
     @Throws(Exception::class)

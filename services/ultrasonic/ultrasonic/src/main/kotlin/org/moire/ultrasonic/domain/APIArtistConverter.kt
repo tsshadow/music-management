@@ -29,7 +29,8 @@ fun APIArtist.toDomainEntity(serverId: Int): Artist = Artist(
 fun APIArtist.toIndexEntity(serverId: Int): Index = Index(
     id = this@toIndexEntity.id,
     serverId = serverId,
-    coverArt = this@toIndexEntity.coverArt,
+    // Same normalisation as above: an absent coverArt must not look like a usable id.
+    coverArt = this@toIndexEntity.coverArt.ifBlank { null },
     name = this@toIndexEntity.name
 )
 

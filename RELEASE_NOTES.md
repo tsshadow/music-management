@@ -11,6 +11,55 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.1.0 (2026-08-02)
+
+### 🕰️ Memories: wat er op deze dag werd uitgebracht
+- De bibliotheek bevat releasedatums waar tot nu toe niets mee gebeurde. De webinterface en de
+  Android-app openen nu met een korte rij "Vandaag, 8 jaar geleden", met daarachter een volledig
+  scherm met per jaar een sectie die je in één tik afspeelt.
+- Alleen tags met een volledige datum kunnen zeggen wat er op een bepaalde dag gebeurde; een tag
+  met alleen een jaar, of alleen een jaar en een maand, verschijnt dus niet.
+- Levert een dag geen enkele treffer op, dan wordt er drie dagen naar beide kanten gekeken. In dat
+  geval staat er "deze week" in plaats van "vandaag", zodat de kop nooit meer precisie claimt dan
+  de tags hebben.
+- De rij op de startpagina kun je uitzetten in de instellingen. Memories zelf blijft staan waar het
+  staat: in de zijbalk op het web, en in het Bibliotheek-tabblad op Android.
+- Je apparaat stuurt zijn eigen datum mee, dus een telefoon in een andere tijdzone krijgt zijn
+  eigen "vandaag".
+- Het aanvullen van ontbrekende releasedatums via MusicBrainz of Discogs is apart werk en zit hier
+  nog niet in.
+
+### 🩺 Diagnostiek versturen zonder op een crash te wachten
+- **Diagnostiek versturen zonder op een crash te wachten.** Crashrapportage kwam pas bij de
+  volgende start op gang, en alleen als de app echt was gestopt. Bij een mislukte call of een leeg
+  scherm blijft de app draaien, dus dat bereikte de server nooit. In Instellingen staat nu "Send
+  diagnostics now" onder Muma: die stuurt het log van de huidige sessie op en zet een kopie in
+  Downloads/UltrasonicLogs. De knop staat bewust buiten de debug-categorie, want die is verborgen
+  in release builds. Anders dan het automatische rapport trekt hij zich niets aan van de
+  "Crash detection"-schakelaar — op de knop drukken is toestemming genoeg — en hij gooit nooit een
+  crashbestand weg dat nog niet gerapporteerd is.
+
+### 🖼️ Artiestenplaatjes op de startpagina
+- Een artiest-snelkoppeling die je bewaarde toen de server nog geen foto had, bleef grijs. Zo'n
+  kaart zoekt de afbeelding nu alsnog op en repareert de bewaarde kopie: één keer opzoeken per
+  artiest.
+- Artiesten zonder afbeelding kostten bij elk terugscrollen opnieuw een mislukte aanvraag. Die
+  worden nu twaalf uur onthouden, en alleen als de server echt "niet gevonden" zei — een time-out
+  of een storing zegt niets over of de foto bestaat.
+
+### 🔎 Minder zoekvelden waar ze niets toevoegen
+- Het tabblad Ratings is vijf vaste kaarten die allemaal tegelijk in beeld staan, en Jaren is een
+  korte lijst getallen in een vaste volgorde. Op allebei is het zoekveld weg; de tabbladen die wél
+  met je bibliotheek meegroeien houden het.
+- Jaren staat nu met het nieuwste jaar bovenaan.
+
+### 🧹 "MuMa Sync"-scherm verdwenen
+- Het scherm met zes knoppen (inloggen, tegels laden/schrijven, tegels wissen, instellingen
+  laden/schrijven) is weg. Tegels synchroniseren zichzelf via de tegelbewerker en het inloggen
+  gebeurt al bij het opslaan van een server. De back-up/herstel-knoppen dumpten elke voorkeur en
+  konden een werkende installatie overschrijven met de staat van een ander apparaat. Je MuMa-ID en
+  API-sleutel blijven gewoon in de instellingen staan.
+
 ## Global Version 0.0.61 (2026-08-02)
 
 ### ⭐ De sterknop in Android Auto zet nu een cijfer

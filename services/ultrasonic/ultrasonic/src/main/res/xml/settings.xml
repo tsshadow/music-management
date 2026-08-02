@@ -33,6 +33,12 @@
             app:iconSpaceReserved="false"/>
         <CheckBoxPreference
             a:defaultValue="true"
+            a:key="@string/setting_key.memories_on_home"
+            a:summary="@string/settings.memories_on_home_summary"
+            a:title="@string/settings.memories_on_home_title"
+            app:iconSpaceReserved="false"/>
+        <CheckBoxPreference
+            a:defaultValue="true"
             a:key="@string/setting_key.separate_home_history"
             a:summary="@string/settings.separate_home_history_summary"
             a:title="@string/settings.separate_home_history_title"
@@ -382,6 +388,13 @@
             a:title="@string/settings.muma_api_key_title"
             a:summary="@string/settings.muma_api_key_summary"
             a:inputType="textPassword"
+            app:iconSpaceReserved="false"/>
+        <!-- Deliberately outside the debug category, which is hidden in release builds:
+             this is the one diagnostics action a user needs on a release build. -->
+        <Preference
+            a:key="@string/setting_key.send_diagnostics"
+            a:title="@string/settings.diagnostics.send_now"
+            a:summary="@string/settings.diagnostics.send_now_summary"
             app:iconSpaceReserved="false"/>
     </PreferenceCategory>
 

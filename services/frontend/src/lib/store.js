@@ -117,6 +117,11 @@ persist("lms_favorite_genres", favoriteGenres);
 export const deduplicateEnabled = writable(true);
 persist("lms_deduplicate_enabled", deduplicateEnabled);
 
+// Whether the memories carousel is shown on the home screen. The Memories view itself is always
+// reachable from the sidebar, so switching this off only removes the teaser.
+export const memoriesOnHomeEnabled = writable(true);
+persist("lms_memories_on_home_enabled", memoriesOnHomeEnabled);
+
 export const activeModal = writable(null); // { type, data }
 
 export const visibleSortOptions = writable({

@@ -24,6 +24,7 @@ import org.moire.ultrasonic.domain.Index
 import org.moire.ultrasonic.domain.JukeboxStatus
 import org.moire.ultrasonic.domain.Label
 import org.moire.ultrasonic.domain.Lineup
+import org.moire.ultrasonic.domain.MemoryGroup
 import org.moire.ultrasonic.domain.Lyrics
 import org.moire.ultrasonic.domain.Mood
 import org.moire.ultrasonic.domain.MumaTile
@@ -67,6 +68,9 @@ class CachedMusicService(private val musicService: MusicService) :
 
     // Home screen lists, keyed by "<kind>-<type>-<size>" (see cachedHomeList)
     private val cachedHomeLists: MutableMap<String, TimeLimitedCache<List<Any>>> = mutableMapOf()
+
+    // Single artists by id (see getArtist)
+    private val cachedArtist: MutableMap<String, TimeLimitedCache<Artist?>> = mutableMapOf()
 
     // Room Database
     private var cachedArtists = metaDatabase.artistDao()
@@ -201,6 +205,23 @@ class CachedMusicService(private val musicService: MusicService) :
         cache.set(result)
         cachedHomeLists[key] = cache
         return result
+    }
+
+    /**
+     * Cached because the shortcuts grid asks for the same handful of artists on every visit to
+     * the home screen, purely to fill in artwork it has no other source for.
+     */
+    @Throws(Exception::class)
+    override fun getArtist(id: String): Artist? {
+        checkSettingsChanged()
+
+        cachedArtist[id]?.get()?.let { return it }
+
+        val artist = musicService.getArtist(id) ?: return null
+        val cache = TimeLimitedCache<Artist?>(ARTIST_CACHE_SECONDS, TimeUnit.SECONDS)
+        cache.set(artist)
+        cachedArtist[id] = cache
+        return artist
     }
 
     @Throws(Exception::class)
@@ -424,6 +445,7 @@ class CachedMusicService(private val musicService: MusicService) :
             cachedAlbum.clear()
             cachedUserInfo.clear()
             cachedHomeLists.clear()
+            cachedArtist.clear()
 
             // Set the cache keys
             restUrl = newUrl
@@ -491,6 +513,9 @@ class CachedMusicService(private val musicService: MusicService) :
     }
 
     @Throws(Exception::class)
+    // Deliberately uncached: the answer changes every day, and it is one request per screen.
+    override fun getMemories(date: String): List<MemoryGroup> = musicService.getMemories(date)
+
     override fun getLineups(refresh: Boolean): List<Lineup> {
         checkSettingsChanged()
         if (refresh) {
@@ -732,6 +757,7 @@ class CachedMusicService(private val musicService: MusicService) :
     companion object {
         private const val MUSIC_DIR_CACHE_SIZE = 100
         private const val HOME_LIST_CACHE_SECONDS = 600L
+        private const val ARTIST_CACHE_SECONDS = 3600L
         const val CACHE_KEY_VIDEOS = "VIDEOS"
     }
 

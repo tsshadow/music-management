@@ -2,7 +2,7 @@
   import { t } from '../i18n/index.js';
   import { onMount } from 'svelte';
   import { SvelteURLSearchParams } from 'svelte/reactivity';
-  import { deduplicateEnabled, authParams, credentials } from '../store.js';
+  import { deduplicateEnabled, memoriesOnHomeEnabled, authParams, credentials } from '../store.js';
   import LanguageSetting from './LanguageSetting.svelte';
 
   // Server default for uiArtistReleaseSortMethod (ReleaseSortMethod::OriginalDateDesc).
@@ -125,6 +125,11 @@
     deduplicateEnabled.update((v) => !v);
   }
 
+  /** Shows or hides the memories row on the home screen. */
+  function toggleMemoriesOnHome() {
+    memoriesOnHomeEnabled.update((v) => !v);
+  }
+
   function toggleRole(roleId) {
     if (settings.uiInlineArtistRelationships.includes(roleId)) {
       settings.uiInlineArtistRelationships = settings.uiInlineArtistRelationships.filter((id) => id !== roleId);
@@ -174,6 +179,17 @@
           </div>
           <label class="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" class="sr-only peer" checked={$deduplicateEnabled} onchange={toggleDeduplicate}>
+            <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+          </label>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-1">
+            <h3 class="text-lg font-bold">{$t('settings.general.memoriesOnHome')}</h3>
+            <p class="text-sm text-[#b3b3b3]">{$t('settings.general.memoriesOnHomeHelp')}</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" class="sr-only peer" checked={$memoriesOnHomeEnabled} onchange={toggleMemoriesOnHome}>
             <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
           </label>
         </div>

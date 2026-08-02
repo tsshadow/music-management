@@ -154,6 +154,9 @@ class OfflineMusicService :
 
     override fun getLabelList(type: String, size: Int): List<Label> = emptyList()
 
+    // Nothing to fill in from a cached list, and the caller only wants artwork it can live without.
+    override fun getArtist(id: String): Artist? = null
+
     @Throws(OfflineException::class)
     override fun getArtistInfo(id: String): Artist? = throw OfflineException("Artist info not available in offline mode")
 

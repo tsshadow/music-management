@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **An artist shortcut on the home screen keeps the blank it was saved with.** The shortcuts grid
+  stores whole cards, written once, at the moment the user opens something. An artist saved while
+  the server had no picture for them holds an empty cover art id, and an empty id means the card
+  never asks for a picture at all — so it stays grey however many pictures have arrived since.
+  Such a card now has its artwork looked up and the stored copy repaired, which is one lookup per
+  artist, ever. The index conversion also stored an empty string where the artist conversion
+  already stored nothing, so a missing id looked like a usable one downstream; both now agree.
+- **A cover art the server does not have is not re-requested on every bind.** 0.0.60 made the
+  server answer with the artist's own release artwork instead of a 404, so this is now only the
+  artists who have no artwork anywhere — but for those, scrolling the home screen back into view
+  cost one failed request per card, every time, and the placeholder appeared only after the round
+  trip. Their ids are remembered for twelve hours, per app run, and only when the server actually
+  answered "not found": a timeout, a 5xx or being offline says nothing about whether the picture
+  exists, and caching those would blank out artwork that is perfectly fine.
+
 ## [0.0.60] - 2026-08-02
 
 ### Added

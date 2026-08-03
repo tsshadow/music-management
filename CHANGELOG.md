@@ -30,6 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   returns early when the player already holds tracks: the serialized state exists to repopulate an
   empty player, and a live service is already the source of truth.
 
+- **A pruned image no longer strands a production deploy half-applied.** A container whose image
+  had since been removed from the host could not be recreated in place, so compose stopped and
+  asked "Continue with the new image? [yN]" — a question nothing can answer over a non-interactive
+  SSH session. The deploy died having already recreated most of the stack. Such containers are now
+  removed before `up -d` runs, and rebuilt from the image the deploy just pulled.
+
 ### Documentation
 - The README carries a functional overview of the CI/CD pipeline: which jobs run on which branch,
   and what each one gates.

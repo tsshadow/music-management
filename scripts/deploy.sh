@@ -166,7 +166,20 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
         echo \"Updating stack '$STACK_NAME'...\"
         
         \$DOCKER_CMD pull
-        
+
+        # A container whose image has since been pruned off the host cannot be
+        # recreated in place: compose stops and asks \"Continue with the new image?
+        # [yN]\", which has no answer over a non-interactive ssh, so the deploy dies
+        # having already recreated half the stack. Drop those containers here and
+        # let 'up -d' build them fresh from the image we just pulled.
+        for CID in \$(docker ps -aq --filter \"label=com.docker.compose.project=$STACK_NAME\"); do
+            CIMG=\$(docker inspect --format '{{.Image}}' \"\$CID\" 2>/dev/null || echo '')
+            if [ -n \"\$CIMG\" ] && ! docker image inspect \"\$CIMG\" >/dev/null 2>&1; then
+                echo \"Container \$(docker inspect --format '{{.Name}}' \"\$CID\" 2>/dev/null) references a missing image, removing it so it can be recreated.\"
+                docker rm -f \"\$CID\" >/dev/null
+            fi
+        done
+
         if [ -n \"$SERVICE_NAME\" ] && \$DOCKER_CMD config --services | grep -q \"^$SERVICE_NAME\$\"; then
             echo \"Updating service: $SERVICE_NAME\"
             \$DOCKER_CMD up -d --force-recreate --remove-orphans $SERVICE_NAME

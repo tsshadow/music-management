@@ -11,6 +11,8 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.2.1 (2026-08-03)
+
 ### 🔑 Uitgelogd worden na een deploy is voorbij
 - Na elke deploy werd iedereen er binnen enkele seconden weer uitgegooid: "verkeerde
   gebruikersnaam of wachtwoord", terwijl er niets mis was met het wachtwoord.

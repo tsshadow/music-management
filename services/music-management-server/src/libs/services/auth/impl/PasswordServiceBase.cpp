@@ -49,9 +49,10 @@ namespace lms::auth
         throw Exception{ "Authentication backend '" + std::string{ backend } + "' not supported!" };
     }
 
-    PasswordServiceBase::PasswordServiceBase(db::IDb& db, std::size_t maxThrottlerEntries)
+    PasswordServiceBase::PasswordServiceBase(db::IDb& db, std::size_t maxThrottlerEntries, bool useLoginThrottler)
         : AuthServiceBase{ db }
         , _loginThrottler{ maxThrottlerEntries }
+        , _useLoginThrottler{ useLoginThrottler }
     {
     }
 
@@ -60,6 +61,7 @@ namespace lms::auth
         LMS_LOG(AUTH, DEBUG, "Checking password for user '" << loginName << "'");
 
         // Do not waste too much resource on brute force attacks (optim)
+        if (_useLoginThrottler)
         {
             std::shared_lock lock{ _mutex };
 
@@ -67,23 +69,40 @@ namespace lms::auth
                 return CheckResult{ .state = CheckResult::State::Throttled, .userId = {} };
         }
 
-        const bool match{ checkUserPassword(loginName, password) };
+        const PasswordCheckOutcome outcome{ checkUserPassword(loginName, password) };
+
+        // Only the backend can tell us the password was wrong. Anything else - it rate-limited us,
+        // it was unreachable - must not be counted as a failed attempt, or an outage turns into a
+        // lockout on top of itself.
+        switch (outcome)
+        {
+        case PasswordCheckOutcome::Throttled:
+            return CheckResult{ .state = CheckResult::State::Throttled, .userId = {} };
+        case PasswordCheckOutcome::BackendError:
+            return CheckResult{ .state = CheckResult::State::BackendError, .userId = {} };
+        case PasswordCheckOutcome::Match:
+        case PasswordCheckOutcome::Mismatch:
+            break;
+        }
+
         {
             std::unique_lock lock{ _mutex };
 
-            if (_loginThrottler.isClientThrottled(clientAddress))
+            if (_useLoginThrottler && _loginThrottler.isClientThrottled(clientAddress))
                 return CheckResult{ .state = CheckResult::State::Throttled, .userId = {} };
 
-            if (match)
+            if (outcome == PasswordCheckOutcome::Match)
             {
-                _loginThrottler.onGoodClientAttempt(clientAddress);
+                if (_useLoginThrottler)
+                    _loginThrottler.onGoodClientAttempt(clientAddress);
 
                 const db::UserId userId{ getOrCreateUser(loginName) };
                 onUserAuthenticated(userId);
                 return CheckResult{ .state = CheckResult::State::Granted, .userId = userId };
             }
 
-            _loginThrottler.onBadClientAttempt(clientAddress);
+            if (_useLoginThrottler)
+                _loginThrottler.onBadClientAttempt(clientAddress);
             return CheckResult{ .state = CheckResult::State::Denied, .userId = {} };
         }
     }

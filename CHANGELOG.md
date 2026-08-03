@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **A restart of music-manager no longer logs everybody out of the music server.** LMS sent its
+  password checks through the HTTP client built for polite calls to third-party APIs like
+  ListenBrainz: one request in flight at a time, retries on failure, and a 30-second freeze of the
+  entire queue whenever anything went wrong. On an authentication check that combination is
+  ruinous. A single connection error — which every deploy produces, because music-manager is
+  recreated and gets a new address — stopped *all* authentication for thirty seconds. Every waiting
+  request ran into its own ten-second timeout, and a timeout was reported to clients as "wrong
+  username or password", so Ultrasonic and the web player discarded working credentials and logged
+  themselves out. Their retries then kept the queue full, so each new batch of errors bought another
+  thirty seconds and it never recovered on its own; only restarting the server cleared it. Password
+  checks now go out directly, each independent of the others, with a two-second timeout instead of
+  ten. A healthy check answers in well under a tenth of a second.
+- **An unreachable login service is no longer reported as a wrong password.** It was impossible to
+  tell the two apart: both came back as a plain "no". Clients take "wrong password" as final and
+  wipe what they have stored, which is why a few seconds of downtime cost everyone their session.
+  The two are now distinct all the way out — Subsonic clients get "authentication backend
+  unavailable" rather than error 40, the Muma API answers 503 rather than 401, and the web login
+  says the service cannot be reached. Nothing throws credentials away over it.
+- **A rate-limited login is no longer counted as a failed one.** Being told "too many attempts" says
+  nothing about whether the password was right, but it was recorded as a failed attempt anyway, so
+  a throttle fed a second throttle on top of itself. LMS also ran its own login throttler in front
+  of a music-manager that already limits per account — and it counted per client address, which for
+  Subsonic traffic is the internal proxy hop that every user shares, so one person's typo could
+  throttle everyone. That second throttler is now off for this backend; music-manager remains the
+  single place where login rate limiting happens.
+
 ## [0.2.0] - 2026-08-03
 
 ### Added

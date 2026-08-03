@@ -162,7 +162,7 @@ namespace lms::auth
         };
     } // namespace
 
-    bool PAMPasswordService::checkUserPassword(std::string_view loginName, std::string_view password)
+    PasswordCheckOutcome PAMPasswordService::checkUserPassword(std::string_view loginName, std::string_view password)
     {
         try
         {
@@ -172,12 +172,12 @@ namespace lms::auth
             pamContext.authenticate(password);
             pamContext.validateAccount();
 
-            return true;
+            return PasswordCheckOutcome::Match;
         }
         catch (const PAMError& error)
         {
             LMS_LOG(AUTH, ERROR, "PAM error: " << error.message());
-            return false;
+            return PasswordCheckOutcome::Mismatch;
         }
     }
 

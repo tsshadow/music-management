@@ -121,6 +121,9 @@ namespace lms::ui
                     case auth::IPasswordService::CheckResult::State::Throttled:
                         error = Wt::WString::tr("Lms.password-client-throttled");
                         break;
+                    case auth::IPasswordService::CheckResult::State::BackendError:
+                        error = Wt::WString::tr("Lms.password-backend-unavailable");
+                        break;
                     }
                 }
                 else

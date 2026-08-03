@@ -27,6 +27,14 @@
         <item>75%</item>
         <item>70%</item>
     </string-array>
+    <string-array name="trackListLinesValues" translatable="false">
+        <item>2</item>
+        <item>3</item>
+    </string-array>
+    <string-array name="trackListLinesNames" translatable="false">
+        <item>@string/settings.track_list_lines_two</item>
+        <item>@string/settings.track_list_lines_three</item>
+    </string-array>
     <string-array name="preloadCountValues" translatable="false">
         <item>1</item>
         <item>2</item>

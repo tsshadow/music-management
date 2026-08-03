@@ -150,6 +150,16 @@ object Settings {
     var shouldShowTrackNumber
         by BooleanSetting(getKey(R.string.setting_key_show_track_number), false)
 
+    /**
+     * How many lines a track row uses. Two keeps the compact row; three splits album and artist
+     * onto their own lines and moves rating, release date and duration to the right.
+     */
+    @JvmStatic
+    var trackListLines by StringIntSetting(
+        getKey(R.string.setting_key_track_list_lines),
+        TRACK_LIST_LINES_COMPACT
+    )
+
     @JvmStatic
     var defaultAlbums
         by StringIntSetting(getKey(R.string.setting_key_default_albums), 5)
@@ -385,4 +395,7 @@ object Settings {
     val COLON_PATTERN: Pattern = Pattern.compile(":")
 
     const val DEFAULT_UI_SCALE_PERCENT = 75
+
+    const val TRACK_LIST_LINES_COMPACT = 2
+    const val TRACK_LIST_LINES_DETAILED = 3
 }

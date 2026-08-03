@@ -107,7 +107,7 @@
             tools:ignore="HardcodedText" />
 
         <TextView
-            a:id="@+id/song_year"
+            a:id="@+id/song_date"
             a:layout_width="wrap_content"
             a:layout_height="wrap_content"
             a:layout_marginEnd="6dp"

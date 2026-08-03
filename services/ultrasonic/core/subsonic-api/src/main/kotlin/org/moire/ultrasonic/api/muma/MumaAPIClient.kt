@@ -18,8 +18,14 @@ class MumaAPIClient(
     private val mumaOkHttpClient = okHttpClient.newBuilder()
         .addInterceptor { chain ->
             val request = chain.request()
-            val isAuthEndpoint = request.url.encodedPath.contains("/api/auth/")
-            val currentApiKey = if (isAuthEndpoint) null else (tokenStorage?.mumaAccessToken ?: apiKey)
+            // Only the endpoints that hand out credentials go out unauthenticated. Everything
+            // else needs the key -- including api/auth/verify, which lives under the same prefix
+            // but is the call that tells the app whether this account is an admin.
+            val isCredentialEndpoint = UNAUTHENTICATED_PATHS.any {
+                request.url.encodedPath.endsWith(it)
+            }
+            val currentApiKey =
+                if (isCredentialEndpoint) null else (tokenStorage?.mumaAccessToken ?: apiKey)
             val newRequest = if (currentApiKey != null) {
                 request.newBuilder()
                     .header("X-API-Key", currentApiKey)
@@ -86,6 +92,13 @@ class MumaAPIClient(
     }
 
     companion object {
+        private val UNAUTHENTICATED_PATHS = listOf(
+            "/api/auth/login",
+            "/api/auth/google",
+            "/api/auth/access-request",
+            "/api/auth/refresh"
+        )
+
         private val gson: Gson = GsonBuilder()
             .setLenient()
             .create()

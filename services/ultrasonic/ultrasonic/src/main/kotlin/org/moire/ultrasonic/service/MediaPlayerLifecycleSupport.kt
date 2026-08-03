@@ -76,6 +76,18 @@ class MediaPlayerLifecycleSupport(
     }
 
     private fun restoreLastSession(autoPlay: Boolean, afterRestore: Runnable?) {
+        // The playback service outlives the activity, so on a configuration change (a rotation)
+        // we are recreated while the player still holds the playlist. Restoring appends, so
+        // doing it again would add every track a second time.
+        if (mediaPlayerManager.mediaItemCount > 0) {
+            Timber.i(
+                "Player already holds %s songs, skipping restore",
+                mediaPlayerManager.mediaItemCount
+            )
+            afterRestore?.run()
+            return
+        }
+
         playbackStateSerializer.deserialize {
             if (it == null) return@deserialize null
             Timber.i("Restoring %s songs", it.songs.size)

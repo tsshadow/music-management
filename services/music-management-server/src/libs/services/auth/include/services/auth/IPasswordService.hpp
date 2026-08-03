@@ -49,6 +49,10 @@ namespace lms::auth
                 Granted,
                 Denied,
                 Throttled,
+                // The backend that owns the passwords could not be reached or did not answer.
+                // This says nothing about the credentials: reporting it as Denied makes clients
+                // discard credentials that are perfectly valid.
+                BackendError,
             };
             State state{ State::Denied };
             db::UserId userId{};

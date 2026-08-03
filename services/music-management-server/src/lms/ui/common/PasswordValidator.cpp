@@ -111,6 +111,8 @@ namespace lms::ui
             return Wt::WValidator::Result{ Wt::ValidationState::Invalid, Wt::WString::tr("Lms.Settings.password-bad") };
         case auth::IPasswordService::CheckResult::State::Throttled:
             return Wt::WValidator::Result{ Wt::ValidationState::Invalid, Wt::WString::tr("Lms.password-client-throttled") };
+        case auth::IPasswordService::CheckResult::State::BackendError:
+            return Wt::WValidator::Result{ Wt::ValidationState::Invalid, Wt::WString::tr("Lms.password-backend-unavailable") };
         }
 
         throw core::LmsException{ "InternalError" };

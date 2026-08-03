@@ -35,7 +35,7 @@ namespace lms::auth
         InternalPasswordService(db::IDb& db, std::size_t maxThrottlerEntries);
 
     private:
-        bool checkUserPassword(std::string_view loginName, std::string_view password) override;
+        PasswordCheckOutcome checkUserPassword(std::string_view loginName, std::string_view password) override;
 
         bool canSetPasswords() const override;
         PasswordAcceptabilityResult checkPasswordAcceptability(std::string_view password, const PasswordValidationContext& context) const override;

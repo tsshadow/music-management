@@ -45,7 +45,7 @@ namespace lms::auth
         _validator.setMinimumMatchLength(3);
     }
 
-    bool InternalPasswordService::checkUserPassword(std::string_view loginName, std::string_view password)
+    PasswordCheckOutcome InternalPasswordService::checkUserPassword(std::string_view loginName, std::string_view password)
     {
         LMS_LOG(AUTH, DEBUG, "Checking internal password for user '" << loginName << "'");
 
@@ -60,7 +60,7 @@ namespace lms::auth
                 LMS_LOG(AUTH, DEBUG, "hashing random stuff");
                 // hash random stuff here to waste some time, don't give clue the user does not exist
                 hashRandomPassword();
-                return false;
+                return PasswordCheckOutcome::Mismatch;
             }
 
             // Don't allow users being created or coming from other backends
@@ -69,7 +69,7 @@ namespace lms::auth
             {
                 // hash random stuff here to waste some time, don't give clue the user has no password set
                 hashRandomPassword();
-                return false;
+                return PasswordCheckOutcome::Mismatch;
             }
         }
 
@@ -89,7 +89,7 @@ namespace lms::auth
             }
         }
 
-        return passwordMatched;
+        return passwordMatched ? PasswordCheckOutcome::Match : PasswordCheckOutcome::Mismatch;
     }
 
     bool InternalPasswordService::canSetPasswords() const

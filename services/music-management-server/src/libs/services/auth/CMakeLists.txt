@@ -48,3 +48,7 @@ if (USE_PAM)
 	target_include_directories(lmsauth PRIVATE  ${PAM_INCLUDE_DIR})
 	target_link_libraries(lmsauth PRIVATE ${PAM_LIBRARIES})
 endif (USE_PAM)
+
+if(BUILD_TESTING)
+	add_subdirectory(test)
+endif()

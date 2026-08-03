@@ -564,6 +564,9 @@ namespace lms::api::subsonic
 
                     if (passwordResult.state == auth::IPasswordService::CheckResult::State::Throttled)
                         throw LoginThrottledGenericError{};
+
+                    if (passwordResult.state == auth::IPasswordService::CheckResult::State::BackendError)
+                        throw AuthenticationBackendUnavailableGenericError{};
                 }
             }
         }

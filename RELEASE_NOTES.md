@@ -11,6 +11,24 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.2.1 (2026-08-03)
+
+### 🔑 Uitgelogd worden na een deploy is voorbij
+- Na elke deploy werd iedereen er binnen enkele seconden weer uitgegooid: "verkeerde
+  gebruikersnaam of wachtwoord", terwijl er niets mis was met het wachtwoord.
+- De muziekserver stuurde zijn wachtwoordcontroles door dezelfde verbinding die bedoeld is voor
+  beleefde aanvragen aan diensten als ListenBrainz: één tegelijk, opnieuw proberen bij een fout, en
+  bij elke storing dertig seconden lang helemaal niets meer versturen. Eén verbindingsfout — en die
+  levert elke deploy op, want music-manager wordt opnieuw opgebouwd — legde dus *alle* aanmeldingen
+  dertig seconden stil. Alles wat stond te wachten liep in zijn eigen time-out van tien seconden, en
+  zo'n time-out werd naar buiten gemeld als een fout wachtwoord. Apps gooiden daarop hun opgeslagen
+  inloggegevens weg en probeerden opnieuw, wat de rij weer vol hield: het herstelde nooit uit
+  zichzelf, alleen een herstart van de server hielp.
+- Wachtwoordcontroles gaan nu rechtstreeks en los van elkaar, met een time-out van twee seconden in
+  plaats van tien. Een gezonde controle is in minder dan een tiende seconde klaar.
+- En als de inlogdienst echt even onbereikbaar is, krijg je dat nu ook te horen in plaats van
+  "verkeerd wachtwoord". Je app houdt je gegevens gewoon vast en probeert het opnieuw.
+
 ## Global Version 0.2.0 (2026-08-03)
 
 ### 📱 Tracklijst met drie regels

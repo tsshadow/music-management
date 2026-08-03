@@ -105,6 +105,16 @@ namespace lms::api::muma
                         response.out() << Wt::Json::serialize(result);
                         return;
                     }
+
+                    // 401 here would tell the client its stored credentials are bad and make it
+                    // throw them away, when in fact we never managed to check them.
+                    if (passwordResult.state == auth::IPasswordService::CheckResult::State::BackendError)
+                    {
+                        LMS_LOG(API_SUBSONIC, ERROR, "MumaResource: cannot reach the authentication backend for user '" << username << "'");
+                        response.setStatus(503);
+                        response.out() << "Authentication backend unavailable";
+                        return;
+                    }
                 }
             }
 
@@ -158,6 +168,7 @@ namespace lms::api::muma
             dbUser = db::User::find(session, *userParam);
         }
 
+        bool authBackendUnavailable = false;
         if (!authenticated && userParam && passParam)
         {
             std::string password = *passParam;
@@ -178,6 +189,7 @@ namespace lms::api::muma
                 }
                 else
                 {
+                    authBackendUnavailable = passwordResult.state == auth::IPasswordService::CheckResult::State::BackendError;
                     LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: Authentication failed for user '" << *userParam << "' (state: " << static_cast<int>(passwordResult.state) << ")");
                 }
             }
@@ -185,6 +197,16 @@ namespace lms::api::muma
 
         if (!authenticated)
         {
+            // Say "we could not check" rather than "you are not allowed", so the client keeps the
+            // credentials it has and retries instead of logging the user out.
+            if (authBackendUnavailable)
+            {
+                LMS_LOG(API_SUBSONIC, ERROR, "MumaResource: authentication backend unavailable for " << pathInfo);
+                response.setStatus(503);
+                response.out() << "Authentication backend unavailable";
+                return;
+            }
+
             LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: Unauthorized access attempt to " << pathInfo);
             response.setStatus(401);
             response.out() << "Unauthorized";

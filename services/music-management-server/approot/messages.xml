@@ -21,6 +21,7 @@
 <message id="Lms.password">Password</message>
 <message id="Lms.password-bad-login-combination">Bad login / password combination</message>
 <message id="Lms.password-client-throttled">Login throttled, please try again later</message>
+<message id="Lms.password-backend-unavailable">Cannot reach the authentication service, please try again</message>
 <message id="Lms.password-confirm">Confirm password</message>
 <message id="Lms.password-must-match-login">Password must match the login name!</message>
 <message id="Lms.password-new">New password</message>

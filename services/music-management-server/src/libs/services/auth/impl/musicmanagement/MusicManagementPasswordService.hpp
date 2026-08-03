@@ -6,17 +6,26 @@
 
 #pragma once
 
-#include <boost/asio/io_context.hpp>
-#include "services/auth/IPasswordService.hpp"
-#include "../PasswordServiceBase.hpp"
+#include <chrono>
+#include <string>
 
-namespace lms::core::http
-{
-    class IClient;
-}
+#include <boost/asio/io_context.hpp>
+
+#include "services/auth/IPasswordService.hpp"
+
+#include "../PasswordServiceBase.hpp"
 
 namespace lms::auth::musicManagement
 {
+    // How music-manager's answer maps onto a password check. Kept out of the class so it can be
+    // tested without standing up an HTTP server: the mapping is where the damage was done.
+    //
+    // 200 -> the credentials are good.
+    // 401/403 -> music-manager looked and said no. The only genuine failed attempt.
+    // 429 -> music-manager's own per-account rate limit; it did not check the password.
+    // anything else, or no answer at all -> we learned nothing about the password.
+    PasswordCheckOutcome outcomeFromResponseStatus(int status);
+
     class MusicManagementPasswordService final : public PasswordServiceBase
     {
     public:
@@ -25,13 +34,13 @@ namespace lms::auth::musicManagement
 
     private:
         // IPasswordService
-        bool checkUserPassword(std::string_view loginName, std::string_view password) override;
+        PasswordCheckOutcome checkUserPassword(std::string_view loginName, std::string_view password) override;
         bool canSetPasswords() const override { return false; }
         PasswordAcceptabilityResult checkPasswordAcceptability(std::string_view password, const PasswordValidationContext& context) const override;
         void setPassword(db::UserId userId, std::string_view newPassword) override;
 
         std::string _apiUrl;
         std::string _apiKey;
-        std::unique_ptr<core::http::IClient> _client;
+        std::chrono::milliseconds _timeout;
     };
 } // namespace lms::auth::musicManagement

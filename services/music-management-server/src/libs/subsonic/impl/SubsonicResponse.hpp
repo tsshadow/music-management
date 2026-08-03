@@ -206,6 +206,14 @@ namespace lms::api::subsonic
         std::string getMessage() const override { return "Login throttled, too many attempts"; }
     };
 
+    // Deliberately not WrongUsernameOrPassword: clients treat error 40 as "these credentials are
+    // no longer valid" and wipe what the user typed, so reporting an unreachable authentication
+    // backend that way logs everybody out over what is usually a few seconds of downtime.
+    class AuthenticationBackendUnavailableGenericError : public GenericError
+    {
+        std::string getMessage() const override { return "Authentication backend unavailable, try again"; }
+    };
+
     class NotImplementedGenericError : public GenericError
     {
         std::string getMessage() const override { return "Not implemented"; }

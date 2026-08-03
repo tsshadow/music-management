@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-03
+
+### Added
+- **The track list can show three lines instead of two.** Album and artist shared a single line, so
+  a slightly longer title pushed both of them into an ellipsis and neither could be read.
+  Settings > Appearance now offers a three-line row — title, album and artist stacked, with the
+  stars, release date and duration on the right — alongside the compact two-line row, which stays
+  the default and is unchanged.
+
+### Fixed
+- **The Beheer tab was hidden from admins.** The admin check calls `api/auth/verify`, which sits
+  under the `/api/auth/` prefix the Muma interceptor treats as "needs no key", so the request went
+  out unauthenticated: 401, an empty body, and `isAdmin` read as false for everyone. The
+  interceptor now names the four credential endpoints explicitly rather than matching a prefix, and
+  the visibility check re-runs on resume and after the auto-login has fetched a key, since the
+  original check ran before either had happened.
+- **Rotating the phone doubled the playlist.** A hundred tracks became two hundred, two hundred
+  became four hundred. A configuration change closes the Koin activity scope, so the player's
+  lifecycle support is rebuilt and restores the serialized session — but the playback service
+  survives the rotation with the playlist still loaded, and restoring appends. The restore now
+  returns early when the player already holds tracks: the serialized state exists to repopulate an
+  empty player, and a live service is already the source of truth.
+
+- **A pruned image no longer strands a production deploy half-applied.** A container whose image
+  had since been removed from the host could not be recreated in place, so compose stopped and
+  asked "Continue with the new image? [yN]" — a question nothing can answer over a non-interactive
+  SSH session. The deploy died having already recreated most of the stack. Such containers are now
+  removed before `up -d` runs, and rebuilt from the image the deploy just pulled.
+
+### Documentation
+- The README carries a functional overview of the CI/CD pipeline: which jobs run on which branch,
+  and what each one gates.
+- A design document for a release-candidate acceptance stack — an environment where a release
+  branch can be exercised against production-like data before `deploy:prod` runs.
+
 ## [0.1.3] - 2026-08-02
 
 ### Fixed

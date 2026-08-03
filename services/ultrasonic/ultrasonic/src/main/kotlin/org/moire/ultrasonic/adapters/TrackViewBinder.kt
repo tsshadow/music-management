@@ -13,6 +13,7 @@ import org.koin.core.component.KoinComponent
 import org.moire.ultrasonic.R
 import org.moire.ultrasonic.domain.Identifiable
 import org.moire.ultrasonic.domain.Track
+import org.moire.ultrasonic.util.Settings
 
 @Suppress("LongParameterList")
 class TrackViewBinder(
@@ -32,10 +33,20 @@ class TrackViewBinder(
 
     var startDrag: ((TrackViewHolder) -> Unit)? = null
 
-    // Set our layout files
-    val layout = R.layout.list_item_track
+    // Set our layout files. Read per inflate, so the setting takes effect on the next list build.
+    val layout: Int
+        get() = layoutFor(Settings.trackListLines)
 
     override fun onCreateViewHolder(inflater: LayoutInflater, parent: ViewGroup): TrackViewHolder = TrackViewHolder(inflater.inflate(layout, parent, false))
+
+    companion object {
+        /** `>=` and not `==`, so an unexpected stored value lands on the richer row. */
+        fun layoutFor(lines: Int): Int = if (lines >= Settings.TRACK_LIST_LINES_DETAILED) {
+            R.layout.list_item_track_3lines
+        } else {
+            R.layout.list_item_track
+        }
+    }
 
     @SuppressLint("ClickableViewAccessibility")
     @Suppress("LongMethod")

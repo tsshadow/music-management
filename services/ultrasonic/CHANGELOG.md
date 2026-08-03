@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.7.0] - 2026-08-03
+
+### Added
+- **A three-line track row.** Album and artist shared one line, so a slightly longer title pushed
+  both into an ellipsis and neither could be read. Settings > Appearance now offers a three-line
+  row — title, album and artist stacked, with the stars, release date and duration on the right —
+  next to the compact two-line row, which stays the default and looks exactly as it did.
+
+### Fixed
+- **The Beheer tab was hidden from admins.** The admin check calls `api/auth/verify`, which sits
+  under the `/api/auth/` prefix the Muma interceptor treats as needing no key, so the request went
+  out unauthenticated: 401, an empty body, `isAdmin` false for everyone. The interceptor now lists
+  the four credential endpoints explicitly instead of matching a prefix, and the visibility check
+  re-runs on resume and after the auto-login has fetched a key — the `onCreate` check ran before
+  either had happened.
+- **Rotating the screen duplicated the playlist.** A configuration change closes the Koin activity
+  scope, so `MediaPlayerLifecycleSupport` is rebuilt with `created = false` and the recreated
+  activity's `onResume` restores the serialized session with `InsertionMode.APPEND` — on top of a
+  playback service that survived the rotation with the playlist still loaded. `restoreLastSession`
+  now returns early when the player already holds tracks; the `afterRestore` callback still runs,
+  so the media button intents that wait on it keep working.
+
 ## [6.6.0] - 2026-08-02
 
 ### Added

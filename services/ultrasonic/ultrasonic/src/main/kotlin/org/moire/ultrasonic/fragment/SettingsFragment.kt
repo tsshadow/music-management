@@ -144,8 +144,10 @@ class SettingsFragment :
                 useId3TagsOffline?.isEnabled = enabled
             }
             getString(R.string.setting_key_theme),
-            getString(R.string.setting_key_ui_scale) -> {
-                // Both are baked into the activity's context, so it has to be recreated
+            getString(R.string.setting_key_ui_scale),
+            getString(R.string.setting_key_track_list_lines) -> {
+                // Theme and scale are baked into the activity's context; the track row layout is
+                // chosen when a row is inflated. All three need the activity rebuilt.
                 RxBus.themeChangedEventPublisher.onNext(Unit)
             }
             getString(R.string.setting_key_custom_cache_location) -> {

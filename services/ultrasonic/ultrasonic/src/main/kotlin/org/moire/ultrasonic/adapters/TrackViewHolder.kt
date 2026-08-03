@@ -27,6 +27,7 @@ import org.moire.ultrasonic.service.DownloadState
 import org.moire.ultrasonic.service.RxBus
 import org.moire.ultrasonic.service.plusAssign
 import org.moire.ultrasonic.util.Settings
+import org.moire.ultrasonic.util.TrackDateFormatter
 import org.moire.ultrasonic.util.Util
 
 const val INDICATOR_THICKNESS_INDEFINITE = 5
@@ -64,7 +65,7 @@ class TrackViewHolder(val view: View) :
     private var album: TextView = view.findViewById(R.id.song_album)
     private var title: TextView = view.findViewById(R.id.song_title)
     private var artist: TextView = view.findViewById(R.id.song_artist)
-    private var year: TextView = view.findViewById(R.id.song_year)
+    private var date: TextView = view.findViewById(R.id.song_date)
     private var duration: TextView = view.findViewById(R.id.song_duration)
     private var statusImage: ImageView = view.findViewById(R.id.song_status_image)
     private var progressIndicator: CircularProgressIndicator =
@@ -93,11 +94,18 @@ class TrackViewHolder(val view: View) :
         album.text = song.album ?: ""
         album.isVisible = true
 
-        if (song.year != null && song.year!! > 0) {
-            year.text = song.year.toString()
-            year.isVisible = true
+        val dateText = if (Settings.trackListLines >= Settings.TRACK_LIST_LINES_DETAILED) {
+            TrackDateFormatter.format(song.date, song.year)
         } else {
-            year.isVisible = false
+            // The compact row has never had space for more than the year.
+            song.year?.takeIf { it > 0 }?.toString()
+        }
+
+        if (dateText != null) {
+            date.text = dateText
+            date.isVisible = true
+        } else {
+            date.isVisible = false
         }
 
         if (Settings.shouldShowTrackNumber && song.track != null && song.track!! > 0) {

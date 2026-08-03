@@ -362,6 +362,9 @@ class NavigationActivity : ScopeActivity() {
 
         setMenuForServerCapabilities()
         updateOfflineBanner()
+        // Logging in, logging out and switching servers all happen without recreating this
+        // activity, so the admin answer from onCreate can be stale by now.
+        refreshManagementVisibility()
 
         // Lifecycle support's constructor registers some event receivers so it should be created early
         lifecycleSupport.onCreate()
@@ -1064,6 +1067,9 @@ class NavigationActivity : ScopeActivity() {
                 } catch (e: Exception) {
                     Timber.e(e, "Failed to auto-fetch MuMa key")
                 }
+                // The onCreate visibility check ran without a key, so it answered "not an admin".
+                // Now that there is one, ask again.
+                withContext(Dispatchers.Main) { refreshManagementVisibility() }
             }
         }
     }

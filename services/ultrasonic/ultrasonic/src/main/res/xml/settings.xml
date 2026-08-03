@@ -67,6 +67,14 @@
             a:summary="@string/settings.show_track_number_summary"
             a:title="@string/settings.show_track_number"
             app:iconSpaceReserved="false"/>
+        <ListPreference
+            a:defaultValue="2"
+            a:entries="@array/trackListLinesNames"
+            a:entryValues="@array/trackListLinesValues"
+            a:key="@string/setting_key.track_list_lines"
+            a:summary="@string/settings.track_list_lines_summary"
+            a:title="@string/settings.track_list_lines"
+            app:iconSpaceReserved="false"/>
         <CheckBoxPreference
             a:defaultValue="false"
             a:key="@string/setting_key.disc_sort"

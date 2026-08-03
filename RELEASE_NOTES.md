@@ -11,6 +11,32 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.2.0 (2026-08-03)
+
+### 📱 Tracklijst met drie regels
+- In de Android-app staan album en artiest samengeperst op één regel, waardoor beide afkappen
+  zodra een titel wat langer is.
+- Onder Instellingen > Appearance kies je nu tussen 2 regels (zoals het was) en 3 regels: titel,
+  album en artiest onder elkaar, met rechts de sterren, de releasedatum en de speelduur.
+- De compacte weergave blijft de standaard en ziet er onveranderd uit.
+
+### 🛠️ Beheer-tabblad was voor iedereen verborgen
+- Ook beheerders zagen het Beheer-tabblad niet meer.
+- De controle op beheerdersrechten gaat naar `api/auth/verify`, en dat adres viel onder het
+  `/api/auth/`-voorvoegsel dat de app behandelt als "hier hoeft geen sleutel bij". Het verzoek
+  vertrok dus zonder sleutel: 401, leeg antwoord, geen beheerder.
+- De app noemt nu de vier inlogadressen apart in plaats van een heel voorvoegsel, en de controle
+  wordt opnieuw gedaan zodra de app terugkomt uit de achtergrond en zodra het automatisch inloggen
+  een sleutel heeft opgehaald.
+
+### 🔁 Scherm draaien verdubbelde de afspeellijst
+- Honderd nummers werden er tweehonderd, tweehonderd werden er vierhonderd.
+- Bij het draaien wordt het scherm opnieuw opgebouwd en zet de app de opgeslagen sessie terug —
+  maar de speler zelf blijft gewoon draaien met de lijst er nog in, en terugzetten betekent
+  toevoegen.
+- De opgeslagen sessie wordt nu alleen nog teruggezet in een lege speler. Draait de speler al, dan
+  is die de bron van waarheid en blijft de lijst zoals hij was.
+
 ## Global Version 0.1.3 (2026-08-02)
 
 ### 🔐 Inloggen hield het maar een paar seconden vol

@@ -158,6 +158,67 @@ docker-compose -f docker-compose.yml -f docker-compose.workers.yml logs -f impor
 
 ---
 
+## 🔁 CI/CD Pipelines
+
+Everything is driven by one GitLab pipeline definition (`.gitlab-ci.yml`), but *which* jobs
+actually run depends entirely on the branch you push to. There are effectively four kinds of
+pipeline, matching the branch model `feature/*` → `develop` → `release/x.y.z` → `master`
+(see [Release Management](docs/release-management.md) for the full policy).
+
+### The four pipelines at a glance
+
+| Pipeline | Triggered by | What it does | Touches production? |
+| --- | --- | --- | --- |
+| **Feature / merge request** | a push to `feature/*` or any branch with an open MR | Only the tests for the parts you actually changed. Fast feedback while reviewing. | No |
+| **Integration (`develop`)** | a push/merge to `develop` | The changed-code tests *plus* the full stack tests (contract + browser), which always run here. This is the "does everything still fit together" gate. | No |
+| **Release (`release/x.y.z`)** | creating/pushing a release branch | Checks the release paperwork and secrets, builds and publishes all Docker images and the signed Android app, then deploys to production. | **Yes** |
+| **Production record (`master`)** | merging a release branch to `master` | No tests, no deploy. Only bookkeeping: tag the release and merge `master` back into `develop`. | No |
+
+### Which job runs when
+
+**Test jobs** — these only start when something they care about actually changed, so an
+Ultrasonic-only change doesn't wait on the C++ or frontend suites:
+
+| Job | Runs when | Purpose |
+| --- | --- | --- |
+| `music-management:unit` | the Python services changed | Unit tests for music-manager, importer, downloader, tagger, scanner and shared code. Reports coverage. |
+| `lms:unit` | the playback server (C++) changed | Builds and runs the LMS test suite. Reports coverage. |
+| `frontend:unit` | the Svelte frontend changed | Lint + typecheck of the frontend. Reports coverage. |
+| `ultrasonic:check` | the Android app changed | Ultrasonic unit tests with coverage. |
+| `contracts` | always on `develop`; elsewhere only if the server, music-manager or the test stack changed | Starts the real test stack and verifies the Subsonic/OpenSubsonic API still behaves as the mobile clients expect. |
+| `frontend:browser` | always on `develop`; elsewhere only if the frontend or test stack changed | Real browser (Playwright) run against a live stack: import a track, scan it, click through the UI. Screenshots/traces are kept for 14 days. |
+
+**Release jobs** — these only exist on a `release/*` branch, and they run in order so the
+pipeline fails as early and as cheaply as possible:
+
+| Job | Purpose |
+| --- | --- |
+| `release:check-secrets` | Runs first, before anything is built: refuses to continue if a deployment secret needed by production is missing or empty. A release pipeline that skips this job is not considered green. |
+| `release:version-check` | Enforces that the release was actually prepared: `VERSION` bumped, a dated `CHANGELOG.md` entry, release notes updated, and an Ultrasonic version bump if the app changed. |
+| `release:build-images` | Builds and pushes every Docker image production pulls, so the deploy can never pick up a stale, manually pushed image. |
+| `ultrasonic:build-release` | Builds and uploads the signed Android release APK to the APK hoster. Waits for `release:version-check`. |
+| `deploy:prod` | Deploys both production stacks (music-management and the playback/UI stack) over SSH. |
+
+**Post-release jobs** — these run on `master` after the release branch is merged:
+
+| Job | Purpose |
+| --- | --- |
+| `release:tag` | Creates the immutable `release-vX.Y.Z` tag (and `ultrasonic-vX.Y.Z` when the app was part of the release). Tags are never made by hand, so `master` always answers "what is live?". |
+| `release:back-merge-develop` | Merges `master` back into `develop` automatically and deletes the merged release branch, so `develop` never drifts and stale release branches can't redeploy old code later. |
+
+### Handy extras
+
+- **Debug APK on demand**: `ultrasonic:build-debug` runs automatically on `develop` when the app
+  changed, and is available as a *manual* button on any other branch — useful for handing a
+  reviewer a test build of a UI fix before merging.
+- **Interruptible by default**: pushing again cancels the previous run of the same branch, except
+  for the release gates, the image build, the deploy and the tagging/back-merge jobs, which are
+  never interrupted halfway.
+- **Self-healing runner**: before checkout, the pipeline reclaims any files the Android build left
+  behind as root, so a crashed runner doesn't wedge every later pipeline.
+
+---
+
 ## 📂 Repository Structure
 
 ```text
@@ -186,6 +247,8 @@ For specific information on each module, please refer to their respective README
 - [API Specification](docs/api-specification.md)
 - [System Overview](docs/OVERVIEW.md)
 - [Deployment Guide](docs/deployment.md)
+- [Release Management & Branching](docs/release-management.md)
+- [Testing Inventory](docs/testing-inventory.md)
 - [Database Schema](docs/database-design.md)
 - [Data Flow](docs/system-data-flow.md)
 - [Style Guide](docs/styleguide.md)

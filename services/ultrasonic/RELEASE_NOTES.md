@@ -1,5 +1,24 @@
 ## [Unreleased]
 
+## [6.7.0] - 2026-08-03
+
+### Added
+- **Tracklijst met drie regels.** Album en artiest stonden samengeperst op één regel, waardoor
+  beide afkappen zodra een titel wat langer is. Onder Instellingen > Appearance kies je nu tussen
+  2 regels (zoals het was) en 3 regels: titel, album en artiest onder elkaar, met rechts de
+  sterren, de releasedatum en de speelduur. De compacte weergave blijft de standaard.
+
+### Fixed
+- **Beheer-tabblad was voor iedereen verborgen.** De controle op beheerdersrechten ging naar
+  `api/auth/verify`, en dat adres viel onder het `/api/auth/`-voorvoegsel dat de app behandelt als
+  "hier hoeft geen sleutel bij". Het verzoek vertrok dus zonder sleutel: 401, leeg antwoord, geen
+  beheerder. De app noemt nu de vier inlogadressen apart, en de controle wordt opnieuw gedaan zodra
+  de app uit de achtergrond terugkomt en zodra automatisch inloggen een sleutel heeft opgehaald.
+- **Scherm draaien verdubbelde de afspeellijst.** Honderd nummers werden er tweehonderd. Bij het
+  draaien wordt het scherm opnieuw opgebouwd en zette de app de opgeslagen sessie terug, terwijl de
+  speler zelf gewoon doordraaide met de lijst er nog in — en terugzetten betekent toevoegen. De
+  opgeslagen sessie wordt nu alleen nog teruggezet in een lege speler.
+
 ## [6.6.0] - 2026-08-02
 
 ### Added

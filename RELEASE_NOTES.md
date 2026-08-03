@@ -11,6 +11,13 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+### 📱 Tracklijst met drie regels
+- In de Android-app staan album en artiest samengeperst op één regel, waardoor beide afkappen
+  zodra een titel wat langer is.
+- Onder Instellingen > Appearance kies je nu tussen 2 regels (zoals het was) en 3 regels: titel,
+  album en artiest onder elkaar, met rechts de sterren, de releasedatum en de speelduur.
+- De compacte weergave blijft de standaard en ziet er onveranderd uit.
+
 ## Global Version 0.1.3 (2026-08-02)
 
 ### 🔐 Inloggen hield het maar een paar seconden vol

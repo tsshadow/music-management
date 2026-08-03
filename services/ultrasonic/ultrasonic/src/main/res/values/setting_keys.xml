@@ -11,6 +11,7 @@
     <string name="setting_key.display_bitrate_with_artist" translatable="false">displayBitrateWithArtist</string>
     <string name="setting_key.use_folder_for_album_artist" translatable="false">useFolderForAlbumArtist</string>
     <string name="setting_key.show_track_number" translatable="false">showTrackNumber</string>
+    <string name="setting_key.track_list_lines" translatable="false">trackListLines</string>
     <string name="setting_key.max_bitrate_wifi" translatable="false">maxBitrateWifi</string>
     <string name="setting_key.max_bitrate_mobile" translatable="false">maxBitrateMobile</string>
     <string name="setting_key.max_bitrate_pinning" translatable="false">maxBitratePinning</string>

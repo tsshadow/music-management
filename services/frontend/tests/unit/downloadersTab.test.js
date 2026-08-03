@@ -101,6 +101,64 @@ describe('DownloadersTab timing settings', () => {
     await waitFor(() => expect(screen.getByLabelText('sweep interval').value).toBe('1800'));
   });
 
+  it('names the reason on screen when the settings cannot be loaded', async () => {
+    globalThis.fetch = vi.fn(async () => ({
+      ok: false,
+      status: 503,
+      json: async () => ({ detail: 'Could not read the downloader settings: Connection refused' })
+    }));
+    render(DownloadersTab, baseProps());
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Timing' }));
+
+    // A blank pane with no save button is what "de settings worden niet opgeslagen"
+    // actually looks like from the outside, so the reason has to stay on screen.
+    await waitFor(() => expect(screen.getByText(/Connection refused/)).toBeTruthy());
+  });
+
+  it('offers a retry that loads the settings once the API is back', async () => {
+    const failing = vi.fn(async () => ({ ok: false, status: 503, json: async () => ({}) }));
+    globalThis.fetch = failing;
+    render(DownloadersTab, baseProps());
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Timing' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Opnieuw proberen' })).toBeTruthy());
+
+    globalThis.fetch = api.fetchMock;
+    await fireEvent.click(screen.getByRole('button', { name: 'Opnieuw proberen' }));
+
+    await waitFor(() => expect(screen.getByLabelText('sweep interval')).toBeTruthy());
+  });
+
+  it('clears the error once the settings load', async () => {
+    const failing = vi.fn(async () => ({ ok: false, status: 503, json: async () => ({}) }));
+    globalThis.fetch = failing;
+    render(DownloadersTab, baseProps());
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Timing' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Opnieuw proberen' })).toBeTruthy());
+
+    globalThis.fetch = api.fetchMock;
+    await fireEvent.click(screen.getByRole('button', { name: 'Opnieuw proberen' }));
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Opnieuw proberen' })).toBeNull());
+  });
+
+  it('reports the API detail when a save is refused', async () => {
+    render(DownloadersTab, baseProps());
+    await openTimingTab();
+
+    globalThis.fetch = vi.fn(async () => ({
+      ok: false,
+      status: 503,
+      json: async () => ({ detail: 'Could not store the downloader settings: Connection refused' })
+    }));
+    await fireEvent.input(screen.getByLabelText('sweep interval'), { target: { value: '1800' } });
+    await fireEvent.click(screen.getByRole('button', { name: 'OPSLAAN' }));
+
+    await waitFor(() => expect(screen.getByText(/Connection refused/)).toBeTruthy());
+  });
+
   it('leaves untouched knobs out of the payload', async () => {
     render(DownloadersTab, baseProps());
     await openTimingTab();

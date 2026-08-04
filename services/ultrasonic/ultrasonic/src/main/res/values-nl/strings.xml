@@ -589,6 +589,7 @@
     <string name="library.tab_lineups">Lineups</string>
     <string name="library.tab_ratings">Ratings</string>
     <string name="library.rating_and_up">%1$d+ sterren</string>
+    <string name="browse.track_limit">Nummers per genre</string>
     <string name="management.label">Beheer</string>
     <string name="management.tab_downloaders">Downloaders</string>
     <string name="management.tab_users">Gebruikers</string>

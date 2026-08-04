@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **The Android app is now MuMa Mobile.** The name it shows on the launcher, in its notifications
+  and in its own screens changed from "Ultrasonic" to "MuMa Mobile", the Kotlin package moved from
+  `org.moire.ultrasonic` to `nl.teunschriks.mumamobile`, and the module from `services/ultrasonic`
+  to `services/muma-mobile` — completing the split from the deprecated upstream Ultrasonic project.
+  The app's install identity (`applicationId`) is unchanged, so the update installs in place and
+  keeps all servers, settings and downloads. **Home-screen widgets must be removed and re-added
+  once** — launchers store the widget's old class name, which no longer exists. Media-button
+  broadcast actions, media-session custom commands and notification channel IDs deliberately keep
+  their historical `org.moire.ultrasonic` identifiers, pinned by `RuntimeContractTest`, so existing
+  notification settings and pending intents keep working. The Subsonic client id sent to the server
+  is unchanged for the same reason.
+- **The built-in server entry is now called "MuMa" instead of "LMS".** Installs that already store
+  the old name keep matching it, so nobody has to re-add the server.
+- CI jobs, scripts and coverage artifacts followed the module rename: `ultrasonic:check` is now
+  `muma-mobile:check`, `ultrasonic:build-debug`/`build-release` are now `muma-mobile:build-debug`/
+  `build-release`, and the app release tag prefix changed from `ultrasonic-v*` to `muma-mobile-v*`.
+  Existing tags are immutable and keep their old prefix; the version line continues unbroken.
+
 ## [0.2.1] - 2026-08-03
 
 ### Fixed

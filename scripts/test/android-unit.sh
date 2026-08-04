@@ -1,14 +1,14 @@
 #!/bin/bash
 # scripts/test/android-unit.sh
-# Runs the Ultrasonic JVM unit tests (no emulator required).
+# Runs the MuMa Mobile JVM unit tests (no emulator required).
 # Usage: ./scripts/test/android-unit.sh [gradle-args...]
 
 set -e
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-ULTRASONIC_DIR="$ROOT_DIR/services/ultrasonic"
+MUMA_MOBILE_DIR="$ROOT_DIR/services/muma-mobile"
 
-cd "$ULTRASONIC_DIR"
+cd "$MUMA_MOBILE_DIR"
 
-echo "--- Running Ultrasonic JVM unit tests ---"
+echo "--- Running MuMa Mobile JVM unit tests ---"
 ./gradlew test "$@"

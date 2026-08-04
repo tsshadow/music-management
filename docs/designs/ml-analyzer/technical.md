@@ -82,7 +82,7 @@ the script either skips the file (`analyze_folder`'s per-file `try/except`) or e
 - **`frontend`**: the "Advanced" library tab (`AdvancedLibraryTab.svelte`) surfaces `bpm`, `musical_key`,
   `energy`, and `ml_genre` as returned by the `music-manager` endpoints above; it does not call
   `ml-analyzer` directly.
-- **`music-management-server` (LMS) / Ultrasonic**: no dependency — neither reads nor writes any
+- **`music-management-server` (LMS) / MuMa Mobile**: no dependency — neither reads nor writes any
   `ml-analyzer` table or endpoint.
 
 ## Technical Acceptance Criteria

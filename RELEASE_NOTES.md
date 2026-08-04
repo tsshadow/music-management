@@ -11,6 +11,16 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+### 📱 De app heet nu MuMa Mobile
+- De Android-app heet niet langer Ultrasonic maar **MuMa Mobile**, in lijn met de rest van MuMa.
+  Je ziet de nieuwe naam op je startscherm, in de meldingen en in de app zelf.
+- Je servers, instellingen en downloads gaan gewoon mee — de update installeert er overheen, je
+  hoeft niets opnieuw in te stellen en niet opnieuw in te loggen.
+- **Heb je een widget op je startscherm staan? Haal die er na het bijwerken één keer af en zet hem
+  er opnieuw op.** Je startscherm onthoudt de oude naam van de widget, dus tot je dat doet meldt hij
+  "kan widget niet laden". Dit is eenmalig.
+- De vaste server in de app heet nu "MuMa" in plaats van "LMS".
+
 ## Global Version 0.2.1 (2026-08-03)
 
 ### 🔑 Uitgelogd worden na een deploy is voorbij

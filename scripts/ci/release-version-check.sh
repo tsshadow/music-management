@@ -2,7 +2,7 @@
 # scripts/ci/release-version-check.sh
 #
 # Gates deploy:prod on a release/* or hotfix/* branch: fails the pipeline
-# (before any production deploy or official Ultrasonic upload happens) if the
+# (before any production deploy or official MuMa Mobile upload happens) if the
 # stabilization work required by docs/release-management.md wasn't actually
 # done. Every check is measured against the branch this one was cut from -
 # develop for a release, master for a hotfix - see BASE_BRANCH below:
@@ -12,7 +12,7 @@
 #     [Unreleased] itself is expected to be empty again afterwards, ready for
 #     the next cycle).
 #   - RELEASE_NOTES.md must have been touched.
-#   - if anything under services/ultrasonic/ changed, build.gradle's
+#   - if anything under services/muma-mobile/ changed, build.gradle's
 #     versionCode/versionName must also have been bumped.
 
 set -e
@@ -93,12 +93,12 @@ if git diff --quiet "$BASE" -- RELEASE_NOTES.md; then
 fi
 echo "OK: RELEASE_NOTES.md updated."
 
-# 4. If Ultrasonic changed, its own version must have been bumped too.
-if ! git diff --quiet "$BASE" -- services/ultrasonic/ 2>/dev/null; then
-    if git diff --quiet "$BASE" -- services/ultrasonic/ultrasonic/build.gradle 2>/dev/null; then
-        fail "services/ultrasonic changed on this branch, but versionCode/versionName in build.gradle wasn't bumped."
+# 4. If MuMa Mobile changed, its own version must have been bumped too.
+if ! git diff --quiet "$BASE" -- services/muma-mobile/ 2>/dev/null; then
+    if git diff --quiet "$BASE" -- services/muma-mobile/app/build.gradle 2>/dev/null; then
+        fail "services/muma-mobile changed on this branch, but versionCode/versionName in build.gradle wasn't bumped."
     fi
-    echo "OK: Ultrasonic changed and its versionCode/versionName was bumped."
+    echo "OK: MuMa Mobile changed and its versionCode/versionName was bumped."
 fi
 
 echo "release:version-check passed."

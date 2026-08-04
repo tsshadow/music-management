@@ -1,0 +1,28 @@
+/*
+ * kt
+ * Copyright (C) 2009-2022 Ultrasonic developers
+ *
+ * Distributed under terms of the GNU GPLv3 license.
+ */
+
+package nl.teunschriks.mumamobile.view
+
+/*
+ * This enum is very similar to AlbumListType, but not completely the same.
+ */
+enum class SortOrder(val typeName: String) {
+    RANDOM("random"),
+    NEWEST("newest"),
+    HIGHEST("highest"),
+    FREQUENT("frequent"),
+    RECENT("recent"),
+    BY_NAME("alphabeticalByName"),
+    BY_ARTIST("alphabeticalByArtist"),
+    STARRED("starred"),
+    BY_YEAR("byYear"),
+    // Only the years browse tab sorts by this; there is no album-list equivalent.
+    BY_YEAR_DESC("byYearDesc"),
+    BY_TRACK_COUNT("trackCount"),
+    BY_ALBUM_COUNT("albumCount"),
+    BY_ADDED("added")
+}

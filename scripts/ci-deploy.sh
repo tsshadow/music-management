@@ -6,7 +6,7 @@
 #   1. "music-management" (db, music-manager, importer/downloader workers, ...)
 #      -> docker/docker-compose.yml
 #   2. "lms" (the Spotify UI + reverse-proxy, serving spotify.<domain> and the
-#      OpenSubsonic API used by Ultrasonic/other Subsonic clients)
+#      OpenSubsonic API used by MuMa Mobile/other Subsonic clients)
 #      -> services/music-management-server/docker-compose.yml
 #
 # Required GitLab CI/CD variables (Project > Settings > CI/CD > Variables):

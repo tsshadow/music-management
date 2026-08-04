@@ -20,7 +20,7 @@
 
 ## Cross-App Impact
 
-<!-- Which apps/consumers (music-manager, frontend, LMS/muma proxy, Ultrasonic) must change together, per
+<!-- Which apps/consumers (music-manager, frontend, LMS/muma proxy, MuMa Mobile) must change together, per
      AGENTS.md rule 7 ("Cross-app API changes are atomic"). Write "None" if this feature is isolated to one
      app. -->
 

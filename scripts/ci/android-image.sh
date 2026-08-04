@@ -6,7 +6,7 @@
 #   source "$ROOT_DIR/scripts/ci/android-image.sh"
 #   docker run --rm -u "$(id -u):$(id -g)" ... "$ANDROID_CI_IMAGE" ...
 #
-# Both Ultrasonic scripts used to run mobiledevops/android-sdk-image directly,
+# Both MuMa Mobile scripts used to run mobiledevops/android-sdk-image directly,
 # as root, re-installing the same SDK packages on every single job and leaving
 # root-owned Gradle output behind that broke the *next* job's checkout. The
 # image built here has the SDK baked in and owned by the runner's uid, so the

@@ -66,7 +66,7 @@ Stores listening events that couldn't be resolved to a library track at ingestio
 
 - **Music Management Server (LMS)**: Must be configured with the Music Manager's URL to send webhooks on rating changes. LMS handles Subsonic `star` actions and translates them into these webhooks.
 - **Frontend (Svelte)**: Uses `GET /api/rating/ratings/{username}` to display user ratings and includes ratings in dynamic playlist track listings.
-- **Ultrasonic (Android)**: No direct impact; relies on LMS to proxy rating changes via the established webhook.
+- **MuMa Mobile (Android)**: No direct impact; relies on LMS to proxy rating changes via the established webhook.
 
 ## Technical Acceptance Criteria
 

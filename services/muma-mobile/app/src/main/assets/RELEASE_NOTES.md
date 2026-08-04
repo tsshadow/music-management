@@ -1,0 +1,261 @@
+## [Unreleased]
+
+## [6.7.0] - 2026-08-03
+
+### Added
+- **Tracklijst met drie regels.** Album en artiest stonden samengeperst op één regel, waardoor
+  beide afkappen zodra een titel wat langer is. Onder Instellingen > Appearance kies je nu tussen
+  2 regels (zoals het was) en 3 regels: titel, album en artiest onder elkaar, met rechts de
+  sterren, de releasedatum en de speelduur. De compacte weergave blijft de standaard.
+
+### Fixed
+- **Beheer-tabblad was voor iedereen verborgen.** De controle op beheerdersrechten ging naar
+  `api/auth/verify`, en dat adres viel onder het `/api/auth/`-voorvoegsel dat de app behandelt als
+  "hier hoeft geen sleutel bij". Het verzoek vertrok dus zonder sleutel: 401, leeg antwoord, geen
+  beheerder. De app noemt nu de vier inlogadressen apart, en de controle wordt opnieuw gedaan zodra
+  de app uit de achtergrond terugkomt en zodra automatisch inloggen een sleutel heeft opgehaald.
+- **Scherm draaien verdubbelde de afspeellijst.** Honderd nummers werden er tweehonderd. Bij het
+  draaien wordt het scherm opnieuw opgebouwd en zette de app de opgeslagen sessie terug, terwijl de
+  speler zelf gewoon doordraaide met de lijst er nog in — en terugzetten betekent toevoegen. De
+  opgeslagen sessie wordt nu alleen nog teruggezet in een lege speler.
+
+## [6.6.0] - 2026-08-02
+
+### Added
+- **Memories: wat er op deze dag werd uitgebracht.** In het Bibliotheek-tabblad staat een
+  Memories-scherm, en de startpagina opent met een korte rij "Vandaag, 8 jaar geleden". Alleen
+  tags met een volledige releasedatum tellen mee; levert een dag niets op, dan wordt er drie dagen
+  naar beide kanten gekeken en staat er "deze week". Je telefoon stuurt zijn eigen datum mee. De
+  rij op de startpagina kun je uitzetten in de instellingen.
+- **Diagnostiek versturen zonder op een crash te wachten.** Crashrapportage kwam pas bij de
+  volgende start op gang, en alleen als de app echt was gestopt. Bij een mislukte call of een leeg
+  scherm blijft de app draaien, dus dat bereikte de server nooit. In Instellingen staat nu "Send
+  diagnostics now" onder Muma: die stuurt het log van de huidige sessie op en zet een kopie in
+  Downloads/UltrasonicLogs. De knop staat bewust buiten de debug-categorie, want die is verborgen
+  in release builds. Anders dan het automatische rapport trekt hij zich niets aan van de
+  "Crash detection"-schakelaar — op de knop drukken is toestemming genoeg — en hij gooit nooit een
+  crashbestand weg dat nog niet gerapporteerd is.
+
+### Changed
+- **Geen zoekveld meer op Ratings en Jaren.** Ratings is vijf vaste kaarten die allemaal tegelijk
+  in beeld staan, Jaren is een korte lijst getallen in een vaste volgorde. Jaren begint nu bij het
+  nieuwste jaar.
+
+### Removed
+- **Het "MuMa Sync"-scherm** met zijn zes knoppen. Tegels synchroniseren zichzelf via de
+  tegelbewerker en inloggen gebeurt al bij het opslaan van een server. Je MuMa-ID en API-sleutel
+  blijven in de instellingen staan.
+
+### Fixed
+- **Artiest-snelkoppelingen halen hun ontbrekende afbeelding alsnog op**, ook als ze bewaard zijn
+  toen de server nog geen foto had.
+- **Artiesten zonder afbeelding kosten niet meer bij elk terugscrollen een mislukte aanvraag**;
+  die worden twaalf uur onthouden, en alleen als de server echt "niet gevonden" antwoordde.
+
+## [6.5.26] - 2026-08-02
+
+### Changed
+- **De sterknop in Android Auto geeft een cijfer in plaats van een favoriet.** De knop loopt nu
+  door zes standen: een lege ster voor geen waardering, daarna een ster met het cijfer 1 tot en
+  met 5 erin, en vanaf 5 weer terug naar leeg. De waardering is waar de app verder op sorteert en
+  filtert, maar was vanuit de auto niet te bereiken. Favorieten werken op de telefoon gewoon
+  door; alleen hun knop in de auto vervalt, zodat shuffle en herhalen op de hoofdbalk blijven
+  staan.
+
+## [6.5.25] - 2026-08-02
+
+### Added
+- **De artiestenpagina begint bij de artiest.** Bovenaan staat nu een kop met de foto, de naam,
+  "12 albums · 143 nummers", de jaren waarin de discografie loopt en de genres. De "alles
+  afspelen"-knop zit in die kop.
+- **Labels doorbladeren.** Labels staan nu als tabblad in Library, naast Genres; een tik opent de
+  nummers van dat label. Voorheen kon je alleen op label filteren als je de naam al kende.
+- **Sallaands en Brabants**, te kiezen in het taalmenu in Instellingen — dezelfde twee dialecten
+  die de webinterface in 0.0.59 kreeg.
+
+### Fixed
+- **Het mapkeuzemenu stond niet meer in één smalle kolom geperst** als een albumlijst op
+  rasterweergave stond.
+- **Het Nederlands is af, en het Engels is echt Engels.** Er ontbraken 163 Nederlandse teksten, en
+  28 teksten stonden in het Nederlands in de Engelse bestanden — een Engelstalige telefoon liet
+  dus "Artiesten", "Jaren" en "Goedkeuren" zien.
+- **Artiesten zonder opgehaalde foto zijn niet langer grijs.** Je krijgt nu de ingescande
+  artiestfoto, of anders de hoes van zijn oudste release.
+
+## [6.5.24] - 2026-08-01
+
+### Added
+- **Zoeken en sorteren in Library.** Boven Artiesten en Albums staat nu een zoekveld en een
+  sorteerkeuze. Zoeken kijkt door je hele bibliotheek, niet alleen door wat er toevallig geladen
+  is, dus "angerfist" vindt die artiest ook als je nog bovenaan de A's staat. Sorteren kan op
+  naam, aantal nummers, aantal albums, recent toegevoegd en willekeurig; bij albums ook op artiest
+  en jaar. Bij elke artiest staat nu hoeveel albums en nummers je van hem hebt. De tabbladen
+  Genres, Jaren, Festivals, Lineups en Ratings hebben hetzelfde zoekveld.
+
+### Fixed
+- **Op een artiest tikken opende een leeg scherm.** Zowel in de artiestenlijst als bij de
+  artiesten op het beginscherm kwam je op een pagina die nooit is afgebouwd. Je komt nu op het
+  album-overzicht van die artiest — hetzelfde scherm dat je al kreeg via zoeken en via "Toon
+  artiest" in de speler.
+
+
+## [6.5.23] - 2026-08-01
+
+### Fixed
+- **De knoppen op "Over" wezen naar de verkeerde site.** "Website openen" en "Bug melden" openden nog de pagina's van het originele Ultrasonic-project. Ze gaan nu naar muma.example.com en naar de issue-tracker van dit project zelf.
+
+## [6.5.22] - 2026-08-01
+
+### Fixed
+- **De app crashte zodra je Instellingen opende.** Dit kwam door de nieuwe "Interface size"-optie uit 6.5.21: de percentages erin (100%, 75%, ...) werden per ongeluk als opmaakcode gelezen in plaats van als gewone tekst, waardoor de app afsloot op het moment dat die regel getekend werd. Opgelost; Instellingen opent weer gewoon.
+
+## [6.5.21] - 2026-08-01
+
+### Added
+- **De hele interface is kleiner en er past een stuk meer op je scherm.** Standaard staat alles nu op 75% van het oude formaat, ongeveer even compact als Spotify. Bevalt dat niet, dan zet je het terug bij Instellingen > Weergave > "Interface size": van 100% (het oude formaat) tot 70%.
+- **Favoriete genres.** Houd een genre ingedrukt in Library → Genres en kies "Aan favorieten toevoegen". Favorieten staan bovenaan de lijst met een sterretje. Het is dezelfde lijst als in de webspeler, dus wat je op je telefoon favoriet maakt, staat ook daar.
+- **Een Favorieten-map in Android Auto**, met daarin Favoriete genres en Favoriete playlists. Een favoriet genre begint direct met spelen, zonder eerst een jaar of sortering te kiezen. Onder playlists staan de tegels waarvan je het sterretje hebt aangezet in het filtermenu. De map verschijnt alleen als er iets in staat.
+
+### Changed
+- **De standaardtegels op Nummers/Livesets zijn nu tijdvak-tegels.** De acht tegels die alleen op één genre filterden voegden niks toe naast de genre-lijst. In plaats daarvan drie tegels die je via genres niet in één keer maakt: Hardstyle Classics (Mainstream Hardstyle, 2009-2017), Millennium Hardcore (Mainstream Hardcore, 2010-2015) en Early Uptempo (Uptempo Hardcore, 2012-2017), elk in willekeurige volgorde. Heb je al tegels staan, dan blijven die zoals ze zijn.
+- **Geen crashmelding meer bij het opstarten.** De app zag elke keer dat Android hem op de achtergrond had afgesloten als een crash, waardoor je bij vrijwel elke start de vraag kreeg om diagnostiek te delen. Crashdetectie staat nu uit; je zet hem desgewenst aan via Instellingen > Debug-opties > Crashdetectie.
+
+## [6.5.20] - 2026-07-31
+### Added
+- **Uitlogknop** in het menu rechtsboven. Hij vraagt eerst om bevestiging, stopt het afspelen en brengt je terug naar het inlogscherm met je gebruikersnaam alvast ingevuld. Gedownloade muziek blijft gewoon op je toestel staan.
+- **De startpagina laat meteen zien dat hij aan het laden is**: grijze plaatshouders in de vorm van de kaarten die eraan komen, in plaats van een leeg zwart scherm. Elke sectie vult zichzelf in zodra hij klaar is.
+
+### Changed
+- **De startpagina laadt een stuk sneller.** De onderdelen werden een voor een opgehaald; dat gebeurt nu tegelijk.
+
+### Fixed
+- **Klopt je wachtwoord niet meer, dan kom je terug op het inlogscherm.** Werd je wachtwoord op de server gewijzigd terwijl de app openstond, dan gaf elk scherm een foutmelding waar je niets mee kon en vroeg de app nooit meer om in te loggen.
+
+## [6.5.19] - 2026-07-31
+### Fixed
+- **De app crashte bijna elke keer dat het afspelen begon.** In de uitgebrachte versie konden de genres van een nummer niet teruggelezen worden, waardoor de app onderuit ging zodra er een nummer in de speler geladen werd. Afspelen, "alles afspelen" en teruggaan naar het spelerscherm werken weer.
+- **Een foutmelding die verscheen terwijl de app op de achtergrond stond, kon de app afsluiten** in plaats van de fout te tonen. Zo'n fout komt nu als gewone melding, of als korte toast wanneer er geen scherm beschikbaar is.
+
+## [6.5.18] - 2026-07-31
+### Added
+- **Vier tabbladen erbij in Library**: Jaren, Festivals, Lineups en Ratings. Zoeken op lineup kan daarmee weer.
+- **Beheer-tab** die de beheerpagina's van de webui spiegelt: Downloaders, Gebruikers en Verzoeken. Alleen zichtbaar als je beheerder bent.
+
+### Changed
+- **In sets-modus tonen de carrousels op de startpagina festivals in plaats van labels.** Livesets zijn festivalopnames, dus een platenlabel zegt er weinig over.
+
+## [6.5.17] - 2026-07-31
+### Fixed
+- **Een artiest aantikken op de startpagina leverde niets op.** De carrousels bevatten ook remixers en gastartiesten zonder eigen albums, waardoor je op een leeg scherm belandde. Er staan nu alleen nog artiesten met eigen releases in.
+- **Een label aantikken leverde niets op.** De labels kwamen uit een andere bron dan waarop gefilterd wordt, dus zoeken op zo'n naam gaf nul resultaten. Beide gebruiken nu dezelfde lijst.
+- **Artiestafbeeldingen** worden weer onder de juiste sleutel en op groot formaat opgehaald, zodat ze gedeeld worden met de rest van de app.
+
+## [6.5.16] - 2026-07-31
+### Fixed
+- **Bladeren kan weer**: met de filterknoppen op de startpagina verdween in 6.5.15 ook de enige ingang naar filter-afspeellijsten, genres, de albumlijst en de artiestenlijst — een filter-afspeellijst maken kon zelfs helemaal niet meer. Alles zit nu in de nieuwe Library-tab.
+- **De Favorieten-tab liet een kopie van de startpagina zien.** Nu staan er je albums en artiesten met een ster, plus alles wat je vier sterren of hoger gaf; tik je op zo'n nummer, dan speelt het meteen.
+
+### Added
+- **Library-tab** met vijf schuifbare pagina's: Playlists (je filter-afspeellijsten, inclusief nieuwe maken), Genres, Artiesten, Opgeslagen afspeellijsten en Albums.
+
+### Changed
+- **De onderbalk heeft nog drie knoppen**: Home, Library en Favorieten. Zoeken is eruit omdat het zoekveld al bovenin zit; opgeslagen afspeellijsten zitten nu in Library.
+
+## [6.5.12] - 2026-07-30
+### Fixed
+- **Login screen showed a generic "network error" for every kind of login problem**: it's now able to tell you when the server itself is unreachable, versus when the server responded but the login didn't succeed.
+- **A hidden bug could make the first-time login check silently report "success" without actually contacting the server**, if "Auto-switch server online/offline" was left on from an older install. This no longer happens.
+
+## [6.5.11] - 2026-07-29
+### Changed
+- **Dependencies**: Updated `activity-ktx`, `core-ktx`, `gson`, `okhttp`, `rxjava`, and other core libraries to latest stable versions.
+- **Target SDK**: Updated to Android 17 (API 37).
+- **Login/auth UI**: Restyled the login/welcome dialog, edit-server screen, and Google access-request screen to match the web frontend, including a branded "Sign in with Google" button and colored status banners for access requests.
+- **Settings**: `autoSwitchOffline` now defaults to `false` instead of `true`.
+
+### Added
+- **Export to Media Device**: New feature to export the current playlist to external USB devices (e.g., Shokz OpenSwim Pro) via SAF. Includes an option to clear the destination folder before exporting.
+
+## [6.5.2-232] - 2026-07-16
+### Fixed
+- **Update Checker**: Added `u=guest` and `p=guest` credentials to APK download URL to prevent access errors.
+
+## [6.5.0] - 2026-07-11
+### Added
+- **Log Viewer**: New diagnostic tool accessible from Settings > About to view and share app logs.
+- **Architecture Tests**: Integrated ArchUnit for maintaining code structure and dependency rules.
+- **Coverage Reporting**: Added JaCoCo integration for automated test coverage analysis.
+- **Welcome Messages**: Dynamic greeting messages based on the time of day.
+
+### Changed
+- **UI Refinement**: Wrapped main layout in a scrollable view for better accessibility on smaller screens.
+- **Track Loading**: Optimized track and album loading with a centralized, state-aware repository pattern.
+- **Server Selection**: Improved UX for server switching and connection validation.
+- **CI/CD**: Enhanced build pipeline with pre-commit hooks and automated documentation updates.
+
+### Fixed
+- **Android Auto**: Reverted to a stable Tile-based interface to resolve navigation and performance issues.
+- **Build Stability**: Fixed various compilation errors and resource conflicts in recent feature branches.
+
+## [6.4.0] - 2026-07-05
+### Added
+- **MuMa Cloud Sync**: New server-side backup system for app settings. Users can now backup their entire configuration to the MuMa database.
+- **Settings Restore**: Easily restore settings on a new device by entering your MuMa User ID and API Key.
+- **Enhanced API Integration**: Implemented a modern MumaAPIClient with support for secure X-API-Key authentication.
+- **Cloud Management UI**: Dedicated sync controls in the Settings menu for manual backup and restore operations.
+
+## [6.3.3] - 2026-07-05
+### Changed
+- **LMS API Key**: Replaced dynamic API key fetching with a hardcoded Subsonic API key for LMS servers for simplified setup.
+
+## [6.3.2] - 2026-07-05
+### Added
+- **API Key Automation**: Automatically fetches Subsonic API keys for LMS servers during setup and connection testing.
+
+## [6.3.0] - 2026-07-05
+### Added
+- **Welcome Dialog**: New users are now greeted with a setup wizard to enter login credentials.
+- **Auto-Server Discovery**: Automatically configures Alpha and Stable LMS servers based on build type.
+- **Connection Validation**: Real-time server ping during setup to ensure correct credentials.
+- **Dynamic Playlists (Tiles)**: Support for server-side dynamic playlists synced with LMS and Music Management.
+- **Debug Features**: Share and view debug logs directly from settings in debug builds.
+- **ListenBrainz**: Scrobbling is now enabled by default.
+
+### Changed
+- **UI Improvements**: Significant visibility improvements to player controls, including a green pause button.
+- **Landscape Player**: Optimized player layout for landscape mode with scrollable controls.
+- **Tile Loading**: Delayed initial tile loading until server connection is established.
+- **Deployment**: Improved APK distribution with robust fallbacks.
+- **Default Settings**: 5-star rating system enabled by default.
+
+## [6.2.0] - 2026-07-04
+### Added
+- **Spotify-style UI**: Integrated dynamic "Songs" (Green) and "Sets" (Blue) branding throughout the app.
+- **Merged Views**: "Songs" and "Livesets" tabs merged into a single view with a brand-aware toggle switch.
+- **OLED Black Theme**: Implemented a pure black (#000000) background for OLED displays and removed the light theme.
+- **Brand Consistency**: Dynamic accent color updates for switches, sliders, chips, and scrollbars across all fragments.
+- **Tooling Upgrade**: Modernized build pipeline with Gradle 9.6.0 and updated core dependencies.
+- **Improved About Screen**: Detailed information on `muma/lms` integration and technical build details.
+- **Update System**: Enhanced auto-update checker with authentication and version tracking.
+
+## [6.0.0-140] - 2026-07-04
+### Added
+- Integrated full changelog support for debug builds in the distribution pipeline.
+- Added direct link to `changelog.md` in the download portal.
+
+## [5.2.1] - 2026-07-04
+### Added
+- Automated version increment support to `bup` script (patch, minor, major).
+- Automatic synchronization of bundled assets during release.
+
+## [5.2.0] - 2026-07-04
+### Added
+- Major dependency update: All packages and Gradle are now completely up to date.
+- Under the hood improvements with Gradle 8.12.1, AGP 8.7.3, and Kotlin 2.1.0.
+- Script and build pipeline reorganization.
+
+## [5.1.0] - 2026-07-04
+### Added
+- Added auto update functionality that depends on an apk-hoster server. This will run on startup of the app or can be manually triggered via the "Check for Updates" button in the About screen.
+- Highlights: A new "What's New" popup shows you the most important changes after an update.
+- Changelog: The full history of changes is now accessible directly from the About screen.

@@ -1,4 +1,4 @@
-# Android SDK image for the Ultrasonic CI jobs.
+# Android SDK image for the MuMa Mobile CI jobs.
 #
 # Two problems with using mobiledevops/android-sdk-image directly, which this
 # solves: every job re-ran `sdkmanager` to install the same build-tools and

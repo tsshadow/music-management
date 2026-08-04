@@ -22,7 +22,7 @@ node_modules/
 coverage/
 coverage-python.xml
 coverage-lms.xml
-cobertura-ultrasonic.xml
+cobertura-muma-mobile.xml
 # JUnit report, published by music-management:unit so failures show up in the
 # merge request instead of only in the raw job log.
 report-python.xml

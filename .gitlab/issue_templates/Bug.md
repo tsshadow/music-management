@@ -15,7 +15,7 @@
 
 ## Where it happened
 
-- Component: <!-- music-manager / music-management-server / frontend / ultrasonic / importer / downloader / tagger / scanner -->
+- Component: <!-- music-manager / music-management-server / frontend / muma-mobile / importer / downloader / tagger / scanner -->
 - Version: <!-- contents of VERSION, or the app version in Settings -> About -->
 - Environment: <!-- production / local docker / dev server -->
 
@@ -30,7 +30,7 @@
 </details>
 
 <!-- `docker compose logs <service>` for the backend, the browser console for
-     the frontend, `adb logcat` for Ultrasonic. -->
+     the frontend, `adb logcat` for MuMa Mobile. -->
 
 ## Notes
 

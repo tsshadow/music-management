@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:a="http://schemas.android.com/apk/res/android"
+    a:layout_width="match_parent"
+    a:layout_height="match_parent"
+    a:orientation="vertical">
+
+    <nl.teunschriks.mumamobile.view.FilterButtonBar
+        a:id="@+id/filter_button_bar"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content" />
+
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        a:id="@+id/browse_refresh"
+        a:layout_width="match_parent"
+        a:layout_height="0dp"
+        a:layout_weight="1"
+        a:background="@color/spotify_black">
+
+        <androidx.recyclerview.widget.RecyclerView
+            a:id="@+id/browse_recycler"
+            a:layout_width="match_parent"
+            a:layout_height="match_parent"
+            a:clipToPadding="false"
+            a:paddingHorizontal="10dp"
+            a:paddingTop="8dp"
+            a:paddingBottom="80dp" />
+
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+</LinearLayout>

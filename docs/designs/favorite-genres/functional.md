@@ -52,6 +52,6 @@ device.
 
 ## Open Questions / Not Yet Decided
 
-- None — this reuses the existing generic per-user app-settings mechanism (already used by Ultrasonic
+- None — this reuses the existing generic per-user app-settings mechanism (already used by MuMa Mobile
   for its own settings sync), so no new backend contract or data model decisions are needed. See
   [technical.md](technical.md).

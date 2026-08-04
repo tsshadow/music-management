@@ -8,7 +8,7 @@ The Ratings & Scrobbling feature ensures that a user's track preferences and lis
 
 ## User Stories
 
-- As a listener, I want to rate a track on my Android phone (Ultrasonic) and see that rating reflected in the Web UI, so that my library remains consistent.
+- As a listener, I want to rate a track on my Android phone (MuMa Mobile) and see that rating reflected in the Web UI, so that my library remains consistent.
 - As a listener, I want my plays to be recorded automatically, so that I can view my listening statistics later.
 - As a listener, I want to see my most-played tracks in a "Recently Played" or "Top Rated" dynamic playlist.
 - As a listener, I want to import my existing listening history from ListenBrainz, so that I don't lose my past data.
@@ -17,7 +17,7 @@ The Ratings & Scrobbling feature ensures that a user's track preferences and lis
 
 | Situation | Observable outcome |
 |---|---|
-| User rates a track in Ultrasonic (Android app) | The rating is sent to the Music Management Server (LMS). LMS notifies the Music Manager. The rating appears in the Web UI and is stored permanently in the main library database. |
+| User rates a track in MuMa Mobile (Android app) | The rating is sent to the Music Management Server (LMS). LMS notifies the Music Manager. The rating appears in the Web UI and is stored permanently in the main library database. |
 | User rates a track in the LMS Web UI | LMS notifies the Music Manager. The rating is stored permanently in the main library database. |
 | User plays a track until the end | The client reports the play to the scrobbler service. The listen is recorded in the history. If the track is recognized in the library, it's linked to the specific track record; otherwise, it's stored as an "unmatched" listen for future reconciliation. |
 | User triggers a ListenBrainz import | Music Manager fetches the user's history from ListenBrainz in the background and populates the scrobble database. The user can monitor the progress of the import in the dashboard. |

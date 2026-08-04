@@ -29,7 +29,7 @@ GATING_JOBS = [
     "music-management:unit",
     "lms:unit",
     "frontend:unit",
-    "ultrasonic:check",
+    "muma-mobile:check",
 ]
 
 
@@ -149,7 +149,7 @@ def test_python_and_android_units_publish_junit():
     ci = load_ci()
     for name, path in [
         ("music-management:unit", "report-python.xml"),
-        ("ultrasonic:check", "services/ultrasonic/ultrasonic/build/test-results/**/TEST-*.xml"),
+        ("muma-mobile:check", "services/muma-mobile/app/build/test-results/**/TEST-*.xml"),
     ]:
         assert ci[name]["artifacts"]["reports"]["junit"] == path
 
@@ -157,7 +157,7 @@ def test_python_and_android_units_publish_junit():
 def test_junit_artifacts_are_uploaded_even_when_the_job_fails():
     """A report that only appears on success is exactly backwards."""
     ci = load_ci()
-    for name in ["music-management:unit", "ultrasonic:check"]:
+    for name in ["music-management:unit", "muma-mobile:check"]:
         assert ci[name]["artifacts"]["when"] == "always"
 
 
@@ -173,7 +173,7 @@ RELEASE_STAGE_JOBS = [
     "release:check-secrets",
     "release:version-check",
     "release:build-images",
-    "ultrasonic:build-release",
+    "muma-mobile:build-release",
     "deploy:prod",
 ]
 

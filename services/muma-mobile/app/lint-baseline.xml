@@ -7,7 +7,7 @@
         errorLine1="                        String.format(&quot;%d:%s&quot;, timeSpanAmount, timeSpanType)"
         errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/moire/ultrasonic/subsonic/ShareHandler.kt"
+            file="src/main/kotlin/nl/teunschriks/mumamobile/subsonic/ShareHandler.kt"
             line="257"
             column="25"/>
     </issue>
@@ -54,7 +54,7 @@
         errorLine1="                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/moire/ultrasonic/service/DownloadService.kt"
+            file="src/main/kotlin/nl/teunschriks/mumamobile/service/DownloadService.kt"
             line="512"
             column="21"/>
     </issue>
@@ -65,7 +65,7 @@
         errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/moire/ultrasonic/service/PlaybackService.kt"
+            file="src/main/kotlin/nl/teunschriks/mumamobile/service/PlaybackService.kt"
             line="338"
             column="13"/>
     </issue>
@@ -76,7 +76,7 @@
         errorLine1="                    val immutableFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
         errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/moire/ultrasonic/service/PlaybackService.kt"
+            file="src/main/kotlin/nl/teunschriks/mumamobile/service/PlaybackService.kt"
             line="382"
             column="45"/>
     </issue>
@@ -87,7 +87,7 @@
         errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/moire/ultrasonic/fragment/PlayerFragment.kt"
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/PlayerFragment.kt"
             line="261"
             column="13"/>
     </issue>
@@ -98,7 +98,7 @@
         errorLine1="        if (Settings.cacheLocationUri != &quot;&quot; &amp;&amp; Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
         errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/moire/ultrasonic/util/SelectCacheActivityContract.kt"
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/SelectCacheActivityContract.kt"
             line="22"
             column="48"/>
     </issue>
@@ -109,7 +109,7 @@
         errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/moire/ultrasonic/provider/UltrasonicAppWidgetProvider.kt"
+            file="src/main/kotlin/nl/teunschriks/mumamobile/provider/UltrasonicAppWidgetProvider.kt"
             line="221"
             column="17"/>
     </issue>
@@ -120,7 +120,7 @@
         errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/moire/ultrasonic/provider/UltrasonicAppWidgetProvider.kt"
+            file="src/main/kotlin/nl/teunschriks/mumamobile/provider/UltrasonicAppWidgetProvider.kt"
             line="238"
             column="17"/>
     </issue>
@@ -717,7 +717,7 @@
         errorLine1="        shortcutManager?.dynamicShortcuts = listOf(shortcut)"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/moire/ultrasonic/util/ShortcutUtil.kt"
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/ShortcutUtil.kt"
             line="34"
             column="9"/>
     </issue>
@@ -728,7 +728,7 @@
         errorLine1="                Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.about_webpage_url)))"
         errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/moire/ultrasonic/fragment/AboutFragment.kt"
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/AboutFragment.kt"
             line="63"
             column="44"/>
     </issue>
@@ -739,7 +739,7 @@
         errorLine1="                Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.about_report_url)))"
         errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/moire/ultrasonic/fragment/AboutFragment.kt"
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/AboutFragment.kt"
             line="69"
             column="44"/>
     </issue>
@@ -750,7 +750,7 @@
         errorLine1="        val uri = Uri.parse(Settings.cacheLocationUri)"
         errorLine2="                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/moire/ultrasonic/fragment/SettingsFragment.kt"
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/SettingsFragment.kt"
             line="197"
             column="19"/>
     </issue>
@@ -761,7 +761,7 @@
         errorLine1="            val uri = Uri.parse(path)"
         errorLine2="                      ~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/moire/ultrasonic/fragment/SettingsFragment.kt"
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/SettingsFragment.kt"
             line="345"
             column="23"/>
     </issue>
@@ -772,7 +772,7 @@
         errorLine1="                Uri.parse(Settings.cacheLocationUri)"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/moire/ultrasonic/util/Storage.kt"
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/Storage.kt"
             line="110"
             column="17"/>
     </issue>
@@ -783,7 +783,7 @@
         errorLine1="        preference.sharedPreferences!!.edit().putString(preference.key, persisted).apply()"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/moire/ultrasonic/util/TimeSpanPreferenceDialogFragmentCompat.kt"
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/TimeSpanPreferenceDialogFragmentCompat.kt"
             line="52"
             column="9"/>
     </issue>
@@ -794,7 +794,7 @@
         errorLine1="                    Uri.parse(url),"
         errorLine2="                    ~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/moire/ultrasonic/subsonic/VideoPlayer.kt"
+            file="src/main/kotlin/nl/teunschriks/mumamobile/subsonic/VideoPlayer.kt"
             line="30"
             column="21"/>
     </issue>

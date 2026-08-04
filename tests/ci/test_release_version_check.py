@@ -34,7 +34,7 @@ def repo(tmp_path: Path) -> Path:
     _write(origin, "VERSION", "0.0.1\n")
     _write(origin, "CHANGELOG.md", "# Changelog\n\n## [Unreleased]\n")
     _write(origin, "RELEASE_NOTES.md", "# Release notes\n")
-    gradle = origin / "services" / "ultrasonic" / "ultrasonic"
+    gradle = origin / "services" / "muma-mobile" / "app"
     gradle.mkdir(parents=True)
     (gradle / "build.gradle").write_text(
         'android { defaultConfig { versionCode 1\nversionName "0.0.1" } }\n',
@@ -113,15 +113,15 @@ def test_hotfix_branch_compares_against_master(repo: Path):
     """A hotfix is cut from master, so develop is the wrong "before" picture.
 
     Here develop carries an unreleased Ultrasonic change and the hotfix touches
-    no Android code at all. Measured against develop, services/ultrasonic
+    no Android code at all. Measured against develop, services/muma-mobile
     "changed" while build.gradle did not, and the script rejects a hotfix that
     is entirely correct.
     """
     _git(repo, "checkout", "develop", "--quiet")
-    queued = repo / "services" / "ultrasonic" / "ultrasonic" / "Queued.kt"
+    queued = repo / "services" / "muma-mobile" / "app" / "Queued.kt"
     queued.write_text("// unreleased work, still only on develop\n", encoding="utf-8")
     _git(repo, "add", ".")
-    _git(repo, "commit", "-m", "feat(ultrasonic): something not released yet", "--quiet")
+    _git(repo, "commit", "-m", "feat(muma-mobile): something not released yet", "--quiet")
     _git(repo, "push", "origin", "develop", "--quiet")
 
     _git(repo, "checkout", "master", "--quiet")

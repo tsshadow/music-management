@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="ultrasonic-debug" type="AndroidRunConfigurationType" factoryName="Android App">
-    <module name="ultrasonic.ultrasonic" />
+  <configuration default="false" name="debug-and-login" type="AndroidRunConfigurationType" factoryName="Android App">
+    <module name="muma-mobile.app" />
     <option name="SELECTED_BUILD_VARIANT" value="debug" />
     <option name="DEPLOY" value="true" />
     <option name="DEPLOY_APK_FROM_BUNDLE" value="false" />
@@ -10,9 +10,9 @@
     <option name="ALL_USERS" value="false" />
     <option name="ALWAYS_INSTALL_WITH_PM" value="false" />
     <option name="ALLOW_ASSUME_VERIFIED" value="false" />
-    <option name="CLEAR_APP_STORAGE" value="true" />
+    <option name="CLEAR_APP_STORAGE" value="false" />
     <option name="DYNAMIC_FEATURES_DISABLED_LIST" value="" />
-    <option name="ACTIVITY_EXTRA_FLAGS" value="" />
+    <option name="ACTIVITY_EXTRA_FLAGS" value="--ez FORCE_LOGIN true" />
     <option name="MODE" value="default_activity" />
     <option name="CLEAR_LOGCAT" value="false" />
     <option name="SHOW_LOGCAT_AUTOMATICALLY" value="false" />

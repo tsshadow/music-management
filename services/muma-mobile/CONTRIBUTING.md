@@ -80,4 +80,4 @@ run it with
 ./gradlew -Pqc lintRelease
 ```
 If there is a need to regenerate the baseline, remove
-`ultrasonic/lint-baseline.xml` and rerun the command.
+`app/lint-baseline.xml` and rerun the command.

@@ -1,5 +1,5 @@
 # Release folder
-ultrasonic/release/
+app/release/
 
 # Built application files
 *.apk

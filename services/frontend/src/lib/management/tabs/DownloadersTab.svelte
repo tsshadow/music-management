@@ -1,7 +1,7 @@
 <script >
   import { t, locale } from '../../i18n/index.js';
   import { onDestroy } from 'svelte';
-  import { Cloud, ExternalLink, Trash2, Plus, Search, Play, Timer, RotateCcw } from '@lucide/svelte';
+  import { Cloud, ExternalLink, Trash2, Plus, Search, Play, Timer, RotateCcw, AlertTriangle } from '@lucide/svelte';
   import { formatDuration, describeBackoff, changedValues } from '../downloaderTiming';
 
   export let API_BASE;
@@ -24,6 +24,8 @@
   let edited = {};
   let timingLoaded = false;
   let timingLoading = false;
+  let timingError = '';
+  let saveErrors = {};
   let savingSource = '';
   let pollTimer = null;
 
@@ -49,11 +51,17 @@
     if (pollTimer) clearInterval(pollTimer);
   });
 
+  /** The API's own explanation when it gave one, so an outage is more than a status code. */
+  async function reasonFor(res) {
+    const detail = await res.json().catch(() => ({}));
+    return detail.detail || `HTTP ${res.status}`;
+  }
+
   async function loadTiming() {
     timingLoading = true;
     try {
       const res = await fetch(`${API_BASE}/api/downloaders/settings`, { headers: getHeaders() });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(await reasonFor(res));
       const data = await res.json();
       timingSources = data.sources || [];
       edited = Object.fromEntries(
@@ -63,9 +71,14 @@
         ])
       );
       timingLoaded = true;
+      timingError = '';
       await loadRateState();
     } catch (err) {
-      onError($t('management.downloaders.timingLoadFailed'));
+      // Without this the tab is an empty pane with no save button anywhere in it,
+      // which reads as "my settings were never saved" rather than "the API is down".
+      timingError = err.message;
+      timingSources = [];
+      onError(`${$t('management.downloaders.timingLoadFailed')} ${err.message}`);
     } finally {
       timingLoading = false;
     }
@@ -97,14 +110,15 @@
         headers: getHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ source, updates }),
       });
-      if (!res.ok) {
-        const detail = await res.json().catch(() => ({}));
-        throw new Error(detail.detail || `HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(await reasonFor(res));
       onMessage(`${SOURCE_LABELS[source] || source} timing opgeslagen.`);
+      saveErrors = { ...saveErrors, [source]: '' };
       timingLoaded = false;
       await loadTiming();
     } catch (err) {
+      // A toast is gone by the time you look back at the form, and the field it
+      // failed on is still showing the value you typed, as if it had been accepted.
+      saveErrors = { ...saveErrors, [source]: err.message };
       onError(`Opslaan mislukt: ${err.message}`);
     } finally {
       savingSource = '';
@@ -333,6 +347,22 @@
         <p class="text-spotify-lightgray">{$t('management.downloaders.loadingSettings')}</p>
       {/if}
 
+      {#if timingError}
+        <div class="bg-red-500 bg-opacity-10 border border-red-500 border-opacity-30 rounded-xl p-6 space-y-3">
+          <h3 class="text-lg font-bold flex items-center gap-2 text-red-400">
+            <AlertTriangle size={20} /> {$t('management.downloaders.timingUnavailable')}
+          </h3>
+          <p class="text-sm text-spotify-lightgray">{$t('management.downloaders.timingUnavailableHelp')}</p>
+          <p class="text-xs font-mono text-red-300 break-all">{timingError}</p>
+          <button
+            on:click={loadTiming}
+            class="flex items-center gap-2 text-sm font-bold text-white border border-white border-opacity-20 rounded-full px-4 py-2 hover:bg-white hover:bg-opacity-5"
+          >
+            <RotateCcw size={14} /> {$t('management.downloaders.retry')}
+          </button>
+        </div>
+      {/if}
+
       {#each timingSources as entry (entry.source)}
         {@const state = rateStates[entry.source]}
         {@const backoff = describeBackoff(state)}
@@ -366,6 +396,16 @@
               </button>
             </div>
           </div>
+
+          {#if saveErrors[entry.source]}
+            <p class="px-6 pt-4 text-sm text-red-400 flex items-start gap-2">
+              <AlertTriangle size={16} class="shrink-0 mt-0.5" />
+              <span>
+                {$t('management.downloaders.saveFailed')}
+                <span class="font-mono text-xs text-red-300 break-all">{saveErrors[entry.source]}</span>
+              </span>
+            </p>
+          {/if}
 
           <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 p-6">
             {#each entry.fields as field (field.key)}

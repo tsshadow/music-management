@@ -28,8 +28,21 @@ class SettingsUpdatePayload(BaseModel):
 
 
 def _stored(source: str) -> dict[str, Any]:
-    from services.downloader.settings_store import load_settings
-    return load_settings(source, store=settings_store)
+    """The stored overrides, reporting an outage instead of falling back to defaults.
+
+    `settings_store.load_settings` swallows storage failures on purpose, so a worker
+    that cannot reach the database keeps running on the defaults rather than stopping.
+    The UI must not inherit that: a form full of defaults is indistinguishable from
+    settings that were never saved, with nothing on screen to say otherwise.
+    """
+    from services.downloader.timing import sanitize_settings
+    try:
+        raw = settings_store.load(source)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f'Could not read the downloader settings: {exc}') from exc
+    return sanitize_settings(source, raw)
 
 
 def _fields_for(source: str) -> list[dict[str, Any]]:
@@ -61,6 +74,10 @@ def update_settings(payload: SettingsUpdatePayload, _auth: dict=Depends(verify_a
         updated = save_settings(payload.source, payload.updates, store=settings_store)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f'Could not store the downloader settings: {exc}') from exc
     return {'status': 'success', 'source': payload.source, 'updated': updated}
 
 

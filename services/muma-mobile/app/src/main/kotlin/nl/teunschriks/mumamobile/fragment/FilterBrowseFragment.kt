@@ -11,7 +11,11 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.Spinner
 import android.widget.Toast
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
@@ -28,6 +32,7 @@ import nl.teunschriks.mumamobile.adapters.Utils
 import nl.teunschriks.mumamobile.home.BrowseCategory
 import nl.teunschriks.mumamobile.home.CardStyle
 import nl.teunschriks.mumamobile.home.FavoriteGenres
+import nl.teunschriks.mumamobile.home.GenreTrackLimit
 import nl.teunschriks.mumamobile.home.HomeCard
 import nl.teunschriks.mumamobile.home.HomeCardAction
 import nl.teunschriks.mumamobile.home.HomeCardAdapter
@@ -101,6 +106,8 @@ class FilterBrowseFragment : Fragment() {
             applyFilter()
         }
 
+        setupTrackLimit(view)
+
         load(refresh = false)
     }
 
@@ -111,6 +118,42 @@ class FilterBrowseFragment : Fragment() {
 
     private fun applyFilter() {
         adapter.items = filterAndSortCards(allCards, query, order)
+    }
+
+    /**
+     * The track limit is settable in Settings too, but picking it here is what people actually
+     * want: it is a per-visit decision, not a preference. Both write the same stored value.
+     */
+    private fun setupTrackLimit(view: View) {
+        val row: View = view.findViewById(R.id.browse_track_limit_row)
+
+        if (category != BrowseCategory.GENRES) {
+            row.isVisible = false
+            return
+        }
+        row.isVisible = true
+
+        val options = GenreTrackLimit.optionsFor(Settings.genreTrackLimit)
+        val spinner: Spinner = view.findViewById(R.id.browse_track_limit)
+
+        spinner.adapter = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_spinner_dropdown_item,
+            options
+        )
+        spinner.setSelection(GenreTrackLimit.indexOf(Settings.genreTrackLimit))
+        spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(
+                parent: AdapterView<*>?,
+                view: View?,
+                position: Int,
+                id: Long
+            ) {
+                Settings.genreTrackLimit = options[position]
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+        }
     }
 
     private fun load(refresh: Boolean) {

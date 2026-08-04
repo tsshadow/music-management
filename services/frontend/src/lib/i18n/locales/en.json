@@ -195,10 +195,14 @@
       "quickAdd": "Quick add",
       "quickAddHelp": "Add a channel to the automatic scanner.",
       "resetBackoff": "Reset backoff",
+      "retry": "Try again",
+      "saveFailed": "Saving failed:",
       "soundcloudId": "SoundCloud ID (optional)",
       "subtitle": "Manage SoundCloud accounts and YouTube channels for automatic imports.",
       "timingHelp": "How often and how fast the downloaders visit SoundCloud, YouTube and Telegram. On a 429 the system doubles its waits by itself and remembers that across restarts; after enough clean rounds it eases off again.",
       "timingLoadFailed": "Could not load the timing settings.",
+      "timingUnavailable": "Timing settings unavailable",
+      "timingUnavailableHelp": "The stored values could not be read, so there is nothing to show or save here. Your settings have not disappeared; the storage is unreachable.",
       "videoUrlPlaceholder": "YouTube video URL..."
     },
     "genres": {

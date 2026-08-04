@@ -9,6 +9,33 @@
         a:layout_width="match_parent"
         a:layout_height="wrap_content" />
 
+    <!-- Genres only: how many tracks opening a genre fetches. -->
+    <LinearLayout
+        a:id="@+id/browse_track_limit_row"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:background="@color/spotify_black"
+        a:gravity="center_vertical"
+        a:orientation="horizontal"
+        a:paddingHorizontal="10dp"
+        a:paddingBottom="4dp"
+        a:visibility="gone">
+
+        <TextView
+            a:layout_width="0dp"
+            a:layout_height="wrap_content"
+            a:layout_weight="1"
+            a:text="@string/browse.track_limit"
+            a:textColor="@color/spotify_text_secondary" />
+
+        <Spinner
+            a:id="@+id/browse_track_limit"
+            a:layout_width="wrap_content"
+            a:layout_height="wrap_content"
+            a:contentDescription="@string/browse.track_limit" />
+
+    </LinearLayout>
+
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         a:id="@+id/browse_refresh"
         a:layout_width="match_parent"

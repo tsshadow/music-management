@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Pick how many tracks a genre opens with, from the genre screen.** Opening a genre always
+  fetched the same number of tracks, and the only way to change it was a preference several
+  screens away, which is the wrong place for a choice that changes per visit. The genre grid now
+  carries a dropdown — 10, 25, 50, 100 or 500 — and the next genre you open uses it.
+
 ### Changed
 - **Renamed from Ultrasonic to MuMa Mobile.** The launcher name, notifications and in-app text now
   read "MuMa Mobile", the Kotlin package moved from `org.moire.ultrasonic` to
@@ -18,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `RuntimeContractTest` fails the build if one of them changes.
 - The built-in server entry is now labelled "MuMa" rather than "LMS"; the old stored name is still
   recognised so upgraded installs match it.
+
+### Fixed
+- **The genre track limit in Settings did nothing.** The preference stored its value under
+  `genreTrackLimit` while the code read an integer under `genre_track_limit`, so opening a genre
+  always used the built-in 100 no matter what was set. Both now read and write the same
+  preference.
 
 ## [6.7.0] - 2026-08-03
 

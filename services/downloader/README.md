@@ -49,6 +49,12 @@ and raised as `RateLimited`, which ends the sweep; the next sweep sees the coold
 and skips. `GET /api/downloaders/rate-state` shows the current multiplier and
 cooldown, and `POST /api/downloaders/rate-state/{source}/reset` clears them.
 
+A 403 also goes out over ntfy, because it means the service is refusing us outright
+rather than asking us to slow down, and downloads have stopped until the cooldown
+expires. The message is sent only while the 403 wait is still climbing, so a source
+that has plateaued at `backoff_403_cap` stops repeating itself every sweep. A 429 is
+routine self-regulation and stays silent.
+
 The `--sleeptime` flag on `downloader_service.py` is an override for manual runs; the
 worker containers take their interval from `sweep_interval` in the settings.
 

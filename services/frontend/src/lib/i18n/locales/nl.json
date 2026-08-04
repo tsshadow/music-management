@@ -195,10 +195,14 @@
       "quickAdd": "Snel Toevoegen",
       "quickAddHelp": "Voeg een kanaal toe aan de automatische scanner.",
       "resetBackoff": "Reset backoff",
+      "retry": "Opnieuw proberen",
+      "saveFailed": "Opslaan mislukt:",
       "soundcloudId": "SoundCloud ID (Optioneel)",
       "subtitle": "Beheer SoundCloud accounts en YouTube kanalen voor automatische imports.",
       "timingHelp": "Hoe vaak en hoe snel de downloaders bij SoundCloud, YouTube en Telegram langsgaan. Bij een 429 verdubbelt het systeem de wachttijden zelf en onthoudt dat over herstarts heen; na genoeg schone rondes zakt het weer terug.",
       "timingLoadFailed": "Kon de timing-instellingen niet laden.",
+      "timingUnavailable": "Timing-instellingen niet beschikbaar",
+      "timingUnavailableHelp": "De opgeslagen waarden konden niet gelezen worden, dus er is niets om te tonen of op te slaan. Dit zijn niet je instellingen die verdwenen zijn; de opslag is onbereikbaar.",
       "videoUrlPlaceholder": "YouTube Video URL..."
     },
     "genres": {

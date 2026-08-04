@@ -21,6 +21,13 @@ This project is now modularized. Detailed release notes for each module can be f
   "kan widget niet laden". Dit is eenmalig.
 - De vaste server in de app heet nu "MuMa" in plaats van "LMS".
 
+### 🎚️ Zelf kiezen hoeveel nummers een genre oplevert
+- Op het genre-scherm in de Android-app staat nu een keuzelijst: 10, 25, 50, 100 of 500 nummers.
+- Het genre dat je daarna aantikt, laadt precies dat aantal.
+- De instelling onder Instellingen deed tot nu toe niets — die werd onder een andere naam
+  opgeslagen dan de app uitlas, dus je kreeg altijd 100 nummers. Beide gebruiken nu dezelfde
+  waarde.
+
 ## Global Version 0.2.1 (2026-08-03)
 
 ### 🔑 Uitgelogd worden na een deploy is voorbij

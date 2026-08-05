@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [6.9.1] - 2026-08-05
+
 ### Fixed
 - **"Controleer op updates" ziet nieuwe versies weer.** Sinds de naamswijziging heette het
   geüploade installatiebestand `muma-mobile-...` in plaats van `ultrasonic-...`, en de

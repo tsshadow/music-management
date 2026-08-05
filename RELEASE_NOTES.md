@@ -11,6 +11,8 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.5.1 (2026-08-05)
+
 ### 📲 "Controleer op updates" ziet nieuwe versies weer
 - Sinds de naamswijziging heette het geüploade installatiebestand `muma-mobile-...` in plaats van
   `ultrasonic-...`, en de downloadsite gebruikt precies dat stukje naam om bij te houden welke

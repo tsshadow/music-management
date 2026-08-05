@@ -249,6 +249,7 @@
     <string name="library.tab_ratings">Ratings</string>
     <string name="library.tab_memories">Memories</string>
     <string name="library.rating_and_up">%1$d+ stars</string>
+    <string name="browse.track_limit">Tracks per genre</string>
     <string name="management.label">Management</string>
     <string name="management.tab_downloaders">Downloaders</string>
     <string name="management.tab_users">Users</string>
@@ -603,8 +604,6 @@
     <string name="api.subsonic.unknown_error">Unknown Subsonic error (code %1$d).</string>
 
     <!-- Subsonic features  -->
-    <string name="settings.five_star_rating_title">Use five star rating for songs</string>
-    <string name="settings.five_star_rating_description">Use five star rating system for songs instead of simply starring/unstarring items.</string>
     <string name="settings.use_hw_offload_title">Use hardware playback (experimental)</string>
     <string name="settings.use_hw_offload_description">Try to play the media using the media decoder chip on your phone. This can improve battery usage. Some users report glitches in playback when they activate this option!</string>
     <string name="list_view">List</string>

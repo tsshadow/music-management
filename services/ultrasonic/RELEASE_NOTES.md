@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [6.8.0] - 2026-08-05
+
+### Fixed
+- **In Android Auto kon je alleen 1 ster geven.** Stond een nummer op 5, dan werd het 1; stond het
+  op 1, dan bleef het 1; en een nummer zonder waardering kreeg er ook 1. De knop gaf de waardering
+  die erop stond mee aan de auto, maar Android Auto stuurt die informatie niet terug, dus begon de
+  app elke tik weer bij nul en kwam altijd op 1 uit. De knop kijkt nu naar het nummer dat speelt, en
+  loopt weer netjes door 0, 1, 2, 3, 4, 5 en terug naar 0. Een waardering die je op de telefoon
+  geeft, zie je nu ook meteen op de knop in de auto.
+
 ## [6.7.0] - 2026-08-03
 
 ### Added

@@ -444,8 +444,6 @@
     <string name="api.subsonic.upgrade_server">Incompatibele versies. Werk je Subsonic-server bij.</string>
 
     <!-- Subsonic features  -->
-    <string name="settings.five_star_rating_title">Vijf sterren gebruiken voor nummers</string>
-    <string name="settings.five_star_rating_description">Toon vijf sterren om nummers te beoordelen in plaats van items toe te voegen aan of te verwijderen uit de favorieten.</string>
 
     <string name="settings.use_hw_offload_title">Hardwarematig afspelen (experimenteel)</string>
     <string name="settings.use_hw_offload_description">Probeer media af te spelen met behulp van de mediadecoder op je telefoon. Let op: hierdoor kan het accuverbruik toenemen.</string>
@@ -589,6 +587,7 @@
     <string name="library.tab_lineups">Lineups</string>
     <string name="library.tab_ratings">Ratings</string>
     <string name="library.rating_and_up">%1$d+ sterren</string>
+    <string name="browse.track_limit">Nummers per genre</string>
     <string name="management.label">Beheer</string>
     <string name="management.tab_downloaders">Downloaders</string>
     <string name="management.tab_users">Gebruikers</string>

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-05
+
+An app-only cycle; the backend is unchanged. Ultrasonic moves to 6.8.0 / versionCode 259, and its
+own [CHANGELOG](services/ultrasonic/CHANGELOG.md) carries the full detail.
+
+### Added
+- **The number of tracks a genre opens with is picked from the genre screen**, through a dropdown
+  on the genre grid — 10, 25, 50, 100 or 500 — instead of a preference several screens away.
+
+### Fixed
+- **The rating button in Android Auto always gave one star**, whatever the track was rated before.
+  Each button carries the rating it was drawn with in its `SessionCommand` extras, but a tap made
+  in the car comes in over the legacy session, where media3 builds a fresh
+  `SessionCommand(action, Bundle.EMPTY)` and hands the received bundle to a separate parameter — so
+  the rating read as its default of 0 and every tap cycled to 1. The playing track now decides.
+  See `docs/bug-reports/024-android-auto-rating-button-always-sets-one-star.md`.
+- **The genre track limit in Settings did nothing**: it was stored under one preference key and
+  read from another, so every genre opened with the built-in 100.
+
 ## [0.2.1] - 2026-08-03
 
 ### Fixed

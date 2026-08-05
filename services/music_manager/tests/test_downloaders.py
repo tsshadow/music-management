@@ -105,6 +105,57 @@ class SettingsEndpointTest(DownloaderApiTestBase):
         self.assertEqual(response.status_code, 401)
 
 
+class BrokenStore:
+    """A store whose database is unreachable."""
+
+    def load(self, source):
+        raise RuntimeError('Connection refused')
+
+    def save(self, source, values):
+        raise RuntimeError('Connection refused')
+
+
+class UnreachableStorageTest(DownloaderApiTestBase):
+    """A storage failure must be reported, never disguised as "everything is default".
+
+    The worker deliberately falls back to the defaults so a downloader keeps running
+    without the database. The UI must not inherit that: a screen full of defaults is
+    indistinguishable from settings that were never saved, which is exactly the
+    complaint this covers.
+    """
+
+    def setUp(self):
+        super().setUp()
+        patch('services.music_manager.routers.downloaders.settings_store', BrokenStore()).start()
+
+    def test_reading_the_settings_reports_the_outage(self):
+        response = self.client.get('/api/downloaders/settings', headers=self.headers)
+        self.assertEqual(response.status_code, 503)
+
+    def test_the_read_failure_says_what_went_wrong(self):
+        response = self.client.get('/api/downloaders/settings', headers=self.headers)
+        self.assertIn('Connection refused', response.json()['detail'])
+
+    def test_writing_the_settings_reports_the_outage(self):
+        response = self.client.post('/api/downloaders/settings', headers=self.headers,
+                                    json={'source': 'soundcloud', 'updates': {'burst_size': 3}})
+        self.assertEqual(response.status_code, 503)
+
+    def test_the_write_failure_says_what_went_wrong(self):
+        response = self.client.post('/api/downloaders/settings', headers=self.headers,
+                                    json={'source': 'soundcloud', 'updates': {'burst_size': 3}})
+        self.assertIn('Connection refused', response.json()['detail'])
+
+    def test_an_invalid_value_is_still_a_400(self):
+        response = self.client.post('/api/downloaders/settings', headers=self.headers,
+                                    json={'source': 'soundcloud', 'updates': {'max_workers': 0}})
+        self.assertEqual(response.status_code, 400)
+
+    def test_the_rate_state_reports_the_outage_too(self):
+        response = self.client.get('/api/downloaders/rate-state', headers=self.headers)
+        self.assertEqual(response.status_code, 503)
+
+
 class RateStateEndpointTest(DownloaderApiTestBase):
 
     def _park_soundcloud(self):

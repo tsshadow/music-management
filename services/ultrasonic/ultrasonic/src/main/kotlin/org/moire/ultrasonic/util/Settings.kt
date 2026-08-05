@@ -314,11 +314,6 @@ object Settings {
     @JvmStatic
     val overrideLanguage by StringSetting(getKey(R.string.setting_key_override_language), "")
 
-    var useFiveStarRating by BooleanSetting(
-        getKey(R.string.setting_key_use_five_star_rating),
-        true
-    )
-
     var useHwOffload by BooleanSetting(getKey(R.string.setting_key_hardware_offload), false)
 
     @JvmStatic
@@ -351,8 +346,12 @@ object Settings {
     @JvmStatic
     var mumaUserId by StringIntSetting(getKey(R.string.setting_key_muma_user_id), -1)
 
+    // Settings offers this as a ListPreference, which stores its value as a String, so this has to
+    // be a StringIntSetting under that same key - an IntSetting under a key of its own meant the
+    // preference wrote a value nothing ever read.
     @JvmStatic
-    var genreTrackLimit by IntSetting("genre_track_limit", 100)
+    var genreTrackLimit
+        by StringIntSetting(getKey(R.string.setting_key_genre_track_limit), 100)
 
     // Still written by the scrobbler and read by the Android Auto browser.
     @JvmStatic

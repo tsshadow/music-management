@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Checking for updates finds new versions again.** The rename carried into the uploaded APK's
+  filename, and apk-hoster derives an app's series from exactly that prefix — the upload itself
+  sends only the file and its notes. The app asks for the series by name
+  (`/api/version?apk=ultrasonic`), so builds published as `muma-mobile-*` went somewhere no
+  installed app looks: 6.9.0 was invisible and every phone reported itself up to date. The
+  filename prefix is pinned again through `APK_SERIES` in `scripts/publish.sh`, separately from
+  the app's own name. Renaming the series later takes two releases: first a build whose
+  `UpdateChecker` asks for `muma-mobile` and falls back to `ultrasonic`, then the flip once that
+  build is everywhere.
+
 ## [6.9.0] - 2026-08-05
 
 ### Added

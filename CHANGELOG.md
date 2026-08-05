@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **The app can find its own updates again.** The rename to MuMa Mobile also renamed the uploaded
+  APK, from `ultrasonic-vX.Y.Z-<code>.apk` to `muma-mobile-*`, but apk-hoster has no field for an
+  app name — the upload carries the file and its release notes and nothing else — so it reads the
+  filename prefix to decide which series a build belongs to. Installed apps ask for the series by
+  name (`/api/version?apk=ultrasonic`), so 0.4.0 landed in a series nothing queries: every phone
+  would have stayed on 6.8.0 and been told it was up to date. The filename prefix now lives in its
+  own `APK_SERIES` setting, pinned to `ultrasonic` and independent of the app's name. Moving it
+  needs two releases — first a build that asks for the new series and falls back to the old one,
+  then the flip — and is written up in `docs/deployment.md`.
+
+## [0.5.0] - 2026-08-05
+
+The YouTube downloader finally reads the `download_type` column that has been sitting in the
+database unused, so channels marked as video are fetched as video -- in the best quality YouTube
+offers, not the 360p a failed merge leaves behind.
+
 ### Added
 - **YouTube channels marked as video are downloaded as video, in the best quality that exists.**
   `downloads_youtube_accounts.download_type` had been in the database for years without a single
@@ -29,15 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Its key was `video_id` alone, so whichever pass ran first would have blocked the other forever.
 - `active` and `min_duration` on a YouTube account row are read at last: an inactive channel is
   skipped, and the duration floor comes from the row instead of a hardcoded 60 seconds.
-- **The app can find its own updates again.** The rename to MuMa Mobile also renamed the uploaded
-  APK, from `ultrasonic-vX.Y.Z-<code>.apk` to `muma-mobile-*`, but apk-hoster has no field for an
-  app name — the upload carries the file and its release notes and nothing else — so it reads the
-  filename prefix to decide which series a build belongs to. Installed apps ask for the series by
-  name (`/api/version?apk=ultrasonic`), so 0.4.0 landed in a series nothing queries: every phone
-  would have stayed on 6.8.0 and been told it was up to date. The filename prefix now lives in its
-  own `APK_SERIES` setting, pinned to `ultrasonic` and independent of the app's name. Moving it
-  needs two releases — first a build that asks for the new series and falls back to the old one,
-  then the flip — and is written up in `docs/deployment.md`.
 
 ## [0.4.0] - 2026-08-05
 

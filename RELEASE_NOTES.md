@@ -19,6 +19,29 @@ This project is now modularized. Detailed release notes for each module can be f
 - De bestandsnaam staat weer op het oude, en de app vindt zijn updates weer. Verder verandert er
   niets — de app blijft MuMa Mobile heten.
 
+## Global Version 0.5.0 (2026-08-05)
+
+### 🎬 Muziekvideo's worden nu echt als video binnengehaald
+- In de database stond al jaren per kanaal of het audio of video moest zijn, en acht kanalen —
+  Q-dance, Intents, Bass Events, Art of Dance, Da Tweekaz, Elektrum, Supremacy en B2S — stonden op
+  video. Daar werd nooit iets mee gedaan: ze werden gewoon als audio opgehaald. Vanaf nu niet meer.
+- Video komt binnen in de hoogste kwaliteit die YouTube aanbiedt. Geen limiet: waar er 4K is, krijg
+  je 4K.
+- De video's landen in `/mnt/music/Youtube_Video`, netjes per kanaal, buiten je muziekbibliotheek.
+  Je speler en de scanner zien er dus niets van, en er komt geen mkv tussen je nummers te staan.
+- Audio gaat voor. Een ronde haalt eerst alle muziekkanalen op en pas daarna de videokanalen, dus
+  als YouTube ons onderweg afknijpt kost dat de video's en niet je muziek.
+- **De 360p-bestanden waren geen keuze maar een storing.** Zonder ffmpeg kan yt-dlp beeld en geluid
+  niet samenvoegen en pakt het het enige kant-en-klare bestand dat YouTube nog geeft: 640x360. De
+  downloader weigert nu te draaien als ffmpeg ontbreekt, in plaats van daar stilletjes nog meer van
+  te maken.
+- Wat er al aan losse videobestanden in je muziekmap rondslingert kun je opvragen met
+  `tools/list_youtube_video_residue.py`. Die laat zien welke het zijn en hoe groot; weggooien doe je
+  zelf.
+
+**Let op:** zet `youtube_video_folder` op `/mnt/music/Youtube_Video` in je `.env` of in het
+instellingenscherm, anders slaat de downloader de videokanalen over.
+
 ## Global Version 0.4.0 (2026-08-05)
 
 ### ⭐ Favoriet bestaat niet meer los: 5 sterren *is* favoriet

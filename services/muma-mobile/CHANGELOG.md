@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.9.0] - 2026-08-05
+
+### Added
+- **Albums carry a rating.** The app only stored a favorite flag for an album, which synced
+  nowhere. Albums now have a 0-5 rating like tracks, and the star on an album row toggles rating 5.
+
+### Changed
+- **Rating 5 is what favorite means; the separate favorite flag is gone.** The heart/star toggle in
+  track rows, the dedicated favorite button in the player and its overflow menu entry are removed,
+  and the five star display is always on screen. The hardware STAR key toggles rating 5. The
+  Favorites screen keeps its place: the server answers it with whatever is rated five stars.
+
 ## [6.8.0] - 2026-08-05
 
 ### Added

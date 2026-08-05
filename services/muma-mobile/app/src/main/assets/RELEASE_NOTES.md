@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [6.8.0] - 2026-08-05
+
 ### Fixed
 - **In Android Auto kon je alleen 1 ster geven.** Stond een nummer op 5, dan werd het 1; stond het
   op 1, dan bleef het 1; en een nummer zonder waardering kreeg er ook 1. De knop gaf de waardering

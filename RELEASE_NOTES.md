@@ -21,6 +21,16 @@ This project is now modularized. Detailed release notes for each module can be f
   "kan widget niet laden". Dit is eenmalig.
 - De vaste server in de app heet nu "MuMa" in plaats van "LMS".
 
+## Global Version 0.3.0 (2026-08-05)
+
+### ⭐ In Android Auto kon je alleen 1 ster geven
+- Stond een nummer op 5 sterren, dan werd het 1. Stond het op 1, dan bleef het 1. En een nummer
+  zonder waardering kreeg er ook 1 — een andere waardering was in de auto niet te geven.
+- De knop geeft de waardering die erop staat mee aan de auto, maar Android Auto stuurt die
+  informatie niet terug. De app begon daardoor elke tik weer bij nul en kwam altijd op 1 uit.
+- De knop kijkt nu naar het nummer dat speelt en loopt weer netjes door 0, 1, 2, 3, 4, 5 en terug
+  naar 0. Een waardering die je op de telefoon geeft, staat nu ook meteen goed op de knop in de auto.
+
 ### 🎚️ Zelf kiezen hoeveel nummers een genre oplevert
 - Op het genre-scherm in de Android-app staat nu een keuzelijst: 10, 25, 50, 100 of 500 nummers.
 - Het genre dat je daarna aantikt, laadt precies dat aantal.

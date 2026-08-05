@@ -42,6 +42,11 @@ function api({ configOk = true, verify = { type: 'user', user: USER }, loginOk =
     if (url.includes('/api/config') && !configOk) {
       return { ok: false, json: async () => ({}) };
     }
+    // Before the generic '/api/rules' entry below, which would otherwise answer
+    // the genre table with an object and leave it summarising a non-iterable.
+    if (url.includes('/api/rules/genres')) {
+      return { ok: true, json: async () => [] };
+    }
     const match = Object.keys(bodies).find((path) => url.includes(path));
     return { ok: true, json: async () => (match ? bodies[match] : {}) };
   });

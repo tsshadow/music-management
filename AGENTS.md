@@ -5,7 +5,7 @@ This document provides a high-level overview of the Music Management System's in
 ## 📦 Repository Layout
 
 This is a single monorepo containing every application in the ecosystem: the Python backend services, the
-C++ `music-management-server` (LMS fork), the Svelte `frontend`, and the `ultrasonic` Android app all live
+C++ `music-management-server` (LMS fork), the Svelte `frontend`, and the `muma-mobile` Android app all live
 directly under `services/`, with one shared Git history. There are no submodules and no separate, split-out
 repositories — a change that touches multiple apps (e.g. a new rating feature spanning the backend, the web
 player and the Android client) is made and committed as a single, atomic change here. Each part still has
@@ -107,14 +107,14 @@ separately built/deployed, and talk to each other only over HTTP/Subsonic APIs:
     - Synchronizes song ratings bidirectionally between the local database and the Server.
     - Uses the Subsonic API provided by the Server for client authentication and playback.
 
-### Ultrasonic (`services/ultrasonic`)
+### MuMa Mobile (`services/muma-mobile`)
 - **Mobile Client**: A native Android application for interacting with the music collection on the go.
 - **Subsonic Integration**: Connects directly to the `music-management-server` for audio streaming and library browsing.
 - **Settings Backup & Sync**:
     - Synchronizes application settings (stored as JSON) to the `music-manager` API (`POST /api/users/{id}/app-settings/ultrasonic`).
     - Provides a seamless transition when switching devices or re-installing the app.
 - **Real-time Feedback**:
-    - **Ratings**: Star ratings changed within Ultrasonic are sent to LMS via the Subsonic API and then webhooked to `music-manager`.
+    - **Ratings**: Star ratings changed within MuMa Mobile are sent to LMS via the Subsonic API and then webhooked to `music-manager`.
     - **Scrobbles**: Playback history is reported via LMS to the central scrobbling engine.
 - **Distribution**: Updates are managed via a dedicated `apk-hoster` service, allowing for independent delivery outside of app stores.
 
@@ -164,7 +164,7 @@ To maintain high code quality, the system employs an automated test suite:
       the cursor, so this is the only thing that proves MariaDB accepts the queries.
     - `./scripts/test/lms-unit.sh` — LMS C++ unit tests (existing upstream CTest/GTest suite).
     - `./scripts/test/frontend-unit.sh` — frontend lint + svelte-check + vitest with coverage.
-    - `./scripts/test/android-unit.sh` — Ultrasonic JVM unit tests.
+    - `./scripts/test/android-unit.sh` — MuMa Mobile JVM unit tests.
     - `./scripts/test/core-smoke.sh` — builds and starts `docker/compose.test.yml` from a clean state, waits for all healthchecks, then tears down.
     - `./scripts/test/contracts.sh` — LMS/OpenSubsonic contract tests + listen/scrobble flow, against the test stack + fixture track.
     - `./scripts/test/frontend-browser.sh` — Playwright browser tests (login, fixture track visible) against the test stack.
@@ -243,7 +243,7 @@ rule 11).
 6. **Frontend is Svelte**: `services/frontend` and the LMS-bundled UI stay Svelte + Tailwind, following
    [docs/styleguide.md](docs/styleguide.md); no other frontend framework is introduced.
 7. **Cross-app API changes are atomic**: a change to an API contract shared between apps (e.g.
-   `music-manager` REST endpoints consumed by `frontend`, LMS's Subsonic/`muma` proxy, or Ultrasonic) updates
+   `music-manager` REST endpoints consumed by `frontend`, LMS's Subsonic/`muma` proxy, or MuMa Mobile) updates
    *all* consumers in the same commit — matches the existing monorepo/atomic-change convention described
    under [Repository Layout](#-repository-layout).
 8. **No secrets, ever, in code, commits, or docs**: credentials, tokens, and keys are never committed or
@@ -266,7 +266,7 @@ rule 11).
     - `# reported problem`
     - `# Possible reason`
     - `# solution`
-14. **Style Guide Adherence & Workflow**: All UI updates and new components across both the Web frontend (`services/frontend`) and the Android client (`services/ultrasonic`) must strictly adhere to [docs/styleguide.md](docs/styleguide.md). Any new styles or design changes (after dev approval) must first be updated in the style guide (or recorded as a pending item/todo in `docs/styleguide.md`) before being implemented in code.
+14. **Style Guide Adherence & Workflow**: All UI updates and new components across both the Web frontend (`services/frontend`) and the Android client (`services/muma-mobile`) must strictly adhere to [docs/styleguide.md](docs/styleguide.md). Any new styles or design changes (after dev approval) must first be updated in the style guide (or recorded as a pending item/todo in `docs/styleguide.md`) before being implemented in code.
 15. **Ask which environment before touching live data**: any question that involves live data — the
     database, running containers, logs, checking whether something "actually works" — is ambiguous between
     production (192.0.2.27, see [.production](.production)) and the local dev stack (localhost) until

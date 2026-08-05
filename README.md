@@ -43,12 +43,12 @@ A FastAPI service acting as the management backend:
 
 ### 3. Music Management Server (`services/music-management-server`)
 The core streaming component:
-- Provides a stable Subsonic-compatible API for mobile apps like Ultrasonic.
+- Provides a stable Subsonic-compatible API for mobile apps like MuMa Mobile.
 - Handles high-performance audio streaming.
 - Integrated directly into the management ecosystem.
 
-### 4. Mobile Client: Ultrasonic
-The ecosystem includes a dedicated mobile experience via the **Ultrasonic** Android app:
+### 4. Mobile Client: MuMa Mobile
+The ecosystem includes a dedicated mobile experience via the **MuMa Mobile** Android app:
 - **Subsonic API**: Connects to the Music Management Server for streaming.
 - **Settings Sync**: Automatically synchronizes application settings (themes, bookmarks, player preferences) to the Music Manager API.
 - **Rating Integration**: Ratings changed in the app are propagated back to the central database.
@@ -177,14 +177,14 @@ pipeline, matching the branch model `feature/*` → `develop` → `release/x.y.z
 ### Which job runs when
 
 **Test jobs** — these only start when something they care about actually changed, so an
-Ultrasonic-only change doesn't wait on the C++ or frontend suites:
+MuMa Mobile-only change doesn't wait on the C++ or frontend suites:
 
 | Job | Runs when | Purpose |
 | --- | --- | --- |
 | `music-management:unit` | the Python services changed | Unit tests for music-manager, importer, downloader, tagger, scanner and shared code. Reports coverage. |
 | `lms:unit` | the playback server (C++) changed | Builds and runs the LMS test suite. Reports coverage. |
 | `frontend:unit` | the Svelte frontend changed | Lint + typecheck of the frontend. Reports coverage. |
-| `ultrasonic:check` | the Android app changed | Ultrasonic unit tests with coverage. |
+| `muma-mobile:check` | the Android app changed | MuMa Mobile unit tests with coverage. |
 | `contracts` | always on `develop`; elsewhere only if the server, music-manager or the test stack changed | Starts the real test stack and verifies the Subsonic/OpenSubsonic API still behaves as the mobile clients expect. |
 | `frontend:browser` | always on `develop`; elsewhere only if the frontend or test stack changed | Real browser (Playwright) run against a live stack: import a track, scan it, click through the UI. Screenshots/traces are kept for 14 days. |
 
@@ -194,21 +194,21 @@ pipeline fails as early and as cheaply as possible:
 | Job | Purpose |
 | --- | --- |
 | `release:check-secrets` | Runs first, before anything is built: refuses to continue if a deployment secret needed by production is missing or empty. A release pipeline that skips this job is not considered green. |
-| `release:version-check` | Enforces that the release was actually prepared: `VERSION` bumped, a dated `CHANGELOG.md` entry, release notes updated, and an Ultrasonic version bump if the app changed. |
+| `release:version-check` | Enforces that the release was actually prepared: `VERSION` bumped, a dated `CHANGELOG.md` entry, release notes updated, and an MuMa Mobile version bump if the app changed. |
 | `release:build-images` | Builds and pushes every Docker image production pulls, so the deploy can never pick up a stale, manually pushed image. |
-| `ultrasonic:build-release` | Builds and uploads the signed Android release APK to the APK hoster. Waits for `release:version-check`. |
+| `muma-mobile:build-release` | Builds and uploads the signed Android release APK to the APK hoster. Waits for `release:version-check`. |
 | `deploy:prod` | Deploys both production stacks (music-management and the playback/UI stack) over SSH. |
 
 **Post-release jobs** — these run on `master` after the release branch is merged:
 
 | Job | Purpose |
 | --- | --- |
-| `release:tag` | Creates the immutable `release-vX.Y.Z` tag (and `ultrasonic-vX.Y.Z` when the app was part of the release). Tags are never made by hand, so `master` always answers "what is live?". |
+| `release:tag` | Creates the immutable `release-vX.Y.Z` tag (and `muma-mobile-vX.Y.Z` when the app was part of the release). Tags are never made by hand, so `master` always answers "what is live?". |
 | `release:back-merge-develop` | Merges `master` back into `develop` automatically and deletes the merged release branch, so `develop` never drifts and stale release branches can't redeploy old code later. |
 
 ### Handy extras
 
-- **Debug APK on demand**: `ultrasonic:build-debug` runs automatically on `develop` when the app
+- **Debug APK on demand**: `muma-mobile:build-debug` runs automatically on `develop` when the app
   changed, and is available as a *manual* button on any other branch — useful for handing a
   reviewer a test build of a UI fix before merging.
 - **Interruptible by default**: pushing again cancels the previous run of the same branch, except
@@ -231,7 +231,7 @@ pipeline fails as early and as cheaply as possible:
 │   ├── tagger/             # Rule-based tagging engine
 │   ├── ml-analyzer/        # ML audio feature extraction
 │   ├── scanner/            # Library scan and sync
-│   ├── ultrasonic/         # Android mobile client
+│   ├── muma-mobile/        # Android mobile client
 │   └── common/             # Shared logic and internal API
 ├── docs/                   # Detailed documentation and diagrams
 └── tools/                  # Utility scripts

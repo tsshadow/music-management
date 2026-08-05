@@ -1,0 +1,115 @@
+/*
+ * GenericListModel.kt
+ * Copyright (C) 2009-2022 Ultrasonic developers
+ *
+ * Distributed under terms of the GNU GPLv3 license.
+ */
+
+package nl.teunschriks.mumamobile.model
+
+import android.app.Application
+import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+import nl.teunschriks.mumamobile.data.ActiveServerProvider
+import nl.teunschriks.mumamobile.data.ServerSetting
+import nl.teunschriks.mumamobile.domain.MusicFolder
+import nl.teunschriks.mumamobile.service.MusicService
+import nl.teunschriks.mumamobile.service.MusicServiceFactory
+import nl.teunschriks.mumamobile.util.CommunicationError
+
+/**
+ * An abstract Model, which can be extended to retrieve a list of items from the API
+ */
+open class GenericListModel(application: Application) :
+    AndroidViewModel(application),
+    KoinComponent {
+
+    val activeServerProvider: ActiveServerProvider by inject()
+
+    val activeServer: ServerSetting
+        get() = activeServerProvider.getActiveServer()
+
+    val context: Context
+        get() = getApplication<Application>().applicationContext
+
+    var currentListIsSortable = true
+    var showHeader = true
+
+    val musicFolders: MutableLiveData<List<MusicFolder>> = MutableLiveData(listOf())
+
+    open fun showSelectFolderHeader(): Boolean = false
+
+    /**
+     * Helper function to check online status
+     */
+    fun isOffline(): Boolean = ActiveServerProvider.isOffline()
+
+    /**
+     * Refreshes the cached items from the server
+     */
+    fun refresh(swipe: SwipeRefreshLayout) {
+        backgroundLoadFromServer(true, swipe)
+    }
+
+    /**
+     * Trigger a load() and notify the UI that we are loading
+     */
+    fun backgroundLoadFromServer(refresh: Boolean, swipe: SwipeRefreshLayout) {
+        viewModelScope.launch {
+            swipe.isRefreshing = true
+            loadFromServer(refresh, swipe)
+            swipe.isRefreshing = false
+        }
+    }
+
+    /**
+     * Calls the load() function with error handling
+     */
+    private suspend fun loadFromServer(refresh: Boolean, swipe: SwipeRefreshLayout) {
+        withContext(Dispatchers.IO) {
+            val musicService = MusicServiceFactory.getMusicService()
+            val isOffline = ActiveServerProvider.isOffline()
+            val useId3Tags = ActiveServerProvider.shouldUseId3Tags()
+
+            try {
+                load(isOffline, useId3Tags, musicService, refresh)
+            } catch (all: Exception) {
+                handleException(all, swipe.context)
+            }
+        }
+    }
+
+    private fun handleException(exception: Exception, context: Context) {
+        Handler(Looper.getMainLooper()).post {
+            CommunicationError.handleError(exception, context)
+        }
+    }
+
+    /**
+     * This is the central function you need to implement if you want to extend this class
+     */
+    open fun load(
+        isOffline: Boolean,
+        useId3Tags: Boolean,
+        musicService: MusicService,
+        refresh: Boolean
+    ) {
+        // Update the list of available folders if enabled
+        @Suppress("ComplexCondition")
+        if (showSelectFolderHeader() && !isOffline && !useId3Tags && refresh) {
+            musicFolders.postValue(
+                musicService.getMusicFolders(refresh)
+            )
+        }
+    }
+}

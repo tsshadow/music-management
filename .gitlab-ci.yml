@@ -11,7 +11,7 @@
 default:
   interruptible: true
   hooks:
-    # Safety net only. The Ultrasonic jobs used to build inside a root-running
+    # Safety net only. The MuMa Mobile jobs used to build inside a root-running
     # Android SDK container and hand the workspace back via an EXIT trap; a hard
     # kill of the runner host - reboot, LXC stop, OOM - skipped that trap and
     # left root-owned Gradle output behind, which broke the *next* job in
@@ -34,7 +34,7 @@ default:
 # has an open merge request creates a branch pipeline *and* an MR pipeline for
 # the same commit and runs the entire suite twice. The workaround for the
 # resulting Gradle cache collision is still visible in
-# scripts/test/ultrasonic-unit.sh.
+# scripts/test/muma-mobile-unit.sh.
 workflow:
   rules:
     # Release and hotfix branches always get their own branch pipeline, even
@@ -243,25 +243,25 @@ frontend:unit:
         coverage_format: cobertura
         path: services/frontend/coverage/cobertura-coverage.xml
 
-ultrasonic:check:
+muma-mobile:check:
   stage: unit
   timeout: 45m
   retry: !reference [.infra_retry, retry]
   rules:
     - !reference [.release_rule, rules]
     - changes:
-        - services/ultrasonic/**/*
+        - services/muma-mobile/**/*
         - .gitlab-ci.yml
   script:
-    - ./scripts/test/ultrasonic-unit.sh
+    - ./scripts/test/muma-mobile-unit.sh
   coverage: '/Total.*?(\d+(?:\.\d+)?\%)/'
   artifacts:
     when: always
     reports:
-      junit: services/ultrasonic/ultrasonic/build/test-results/**/TEST-*.xml
+      junit: services/muma-mobile/app/build/test-results/**/TEST-*.xml
       coverage_report:
         coverage_format: cobertura
-        path: cobertura-ultrasonic.xml
+        path: cobertura-muma-mobile.xml
 
 # Runs first, in the very first stage, so a release pipeline fails fast (before
 # any image is built) if a required deployment secret (e.g. GOOGLE_CLIENT_ID)
@@ -387,28 +387,28 @@ images:refresh-downloader:
   script:
     - ./scripts/ci/refresh-downloader-image.sh
 
-ultrasonic:build-debug:
+muma-mobile:build-debug:
   stage: release
   timeout: 45m
   retry: !reference [.infra_retry, retry]
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $APK_HOSTER_URL'
       changes:
-        - services/ultrasonic/**/*
+        - services/muma-mobile/**/*
         - .gitlab-ci.yml
     # Manual opt-in for merge request / feature branches: lets a reviewer build
     # and upload a debug APK for a specific MR (e.g. to test a UI fix against
     # prod before merging) without doing it for every push on every branch.
     - if: '$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH && $APK_HOSTER_URL'
       changes:
-        - services/ultrasonic/**/*
+        - services/muma-mobile/**/*
         - .gitlab-ci.yml
       when: manual
       allow_failure: true
   script:
-    - ./scripts/ci/ultrasonic-build-upload.sh debug
+    - ./scripts/ci/muma-mobile-build-upload.sh debug
 
-ultrasonic:build-release:
+muma-mobile:build-release:
   stage: release
   timeout: 45m
   retry: !reference [.infra_retry, retry]
@@ -417,7 +417,7 @@ ultrasonic:build-release:
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\// && $APK_HOSTER_URL && $SIGNING_STORE_FILE'
   script:
-    - ./scripts/ci/ultrasonic-build-upload.sh release
+    - ./scripts/ci/muma-mobile-build-upload.sh release
 
 # --- Deployment --------------------------------------------------------------
 

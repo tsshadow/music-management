@@ -6,7 +6,7 @@
 - **Tone and Voice**: Clear, concise, modern, helpful, direct.
 - **Design Principles**:
   - Immersive dark aesthetic that highlights cover art and media.
-  - Consistent layout paradigms across Web UI (`services/frontend`) and Android mobile (`services/ultrasonic`).
+  - Consistent layout paradigms across Web UI (`services/frontend`) and Android mobile (`services/muma-mobile`).
   - Generous whitespace and clean information hierarchy.
 
 ## Colors
@@ -40,7 +40,7 @@
   - **Web UI (Desktop / Tablet)**:
     - Fixed or collapsible sidebar (`w-64`), fluid main content container with padding (`p-6` to `p-8`).
     - Multi-column grid layouts for albums, artists, and playlists (`grid-cols-2 md:grid-cols-3 lg:grid-cols-5`).
-  - **Android UI (Ultrasonic / Mobile)**:
+  - **Android UI (MuMa Mobile / Mobile)**:
     - Compact touch targets (minimum 48x48dp).
     - Bottom navigation bar or hamburger menu for navigation.
     - Single-column lists or compact 2-column grids for track and album browsing due to limited screen width.
@@ -99,7 +99,7 @@
 
 ## Coding Conventions
 - **Web (`services/frontend`)**: Svelte components + Tailwind CSS utility classes adhering to the Spotify dark color tokens (`spotify-green`, `spotify-gray`, etc.).
-- **Android (`services/ultrasonic`)**: Kotlin + Material Design components customized with dark theme color attributes matching the web palette.
+- **Android (`services/muma-mobile`)**: Kotlin + Material Design components customized with dark theme color attributes matching the web palette.
 
 ## Do's & Don'ts
 - **Do**:
@@ -115,15 +115,15 @@
 To maintain clean design governance and prevent ad-hoc style drift:
 1. **Proposal & Approval**: Any new style, component variation, or design token must be proposed and receive dev approval.
 2. **Style Guide & Todo Tracking**: Upon approval, new or pending styles must first be registered in this style guide (under a pending todo section or design backlog) before code implementation begins. This acts as a design contract and checklist.
-3. **Code Implementation**: Once documented, implement the approved styles in code (`services/frontend` or `services/ultrasonic`), then mark the item as completed in the style guide.
+3. **Code Implementation**: Once documented, implement the approved styles in code (`services/frontend` or `services/muma-mobile`), then mark the item as completed in the style guide.
 
 ### Design Backlog
 
 - **Done** — Android login/welcome screens brought in line with the web's `LoginPage.svelte`: filled/rounded
-  dark inputs (`Ultrasonic.TextInputLayout`), a solid-green pill CTA
-  (`Ultrasonic.Button.Primary`), a branded white "Sign in with Google" pill button with the real
-  Google "G" logo (`Ultrasonic.Button.Google`), a hairline-flanked "OF" divider, a `spotify_light`-background
-  rounded dialog card (`ThemeOverlay.Ultrasonic.WelcomeDialog`, scoped to this one dialog only via the
+  dark inputs (`MuMa Mobile.TextInputLayout`), a solid-green pill CTA
+  (`MuMa Mobile.Button.Primary`), a branded white "Sign in with Google" pill button with the real
+  Google "G" logo (`MuMa Mobile.Button.Google`), a hairline-flanked "OF" divider, a `spotify_light`-background
+  rounded dialog card (`ThemeOverlay.MuMa Mobile.WelcomeDialog`, scoped to this one dialog only via the
   `MaterialAlertDialogBuilder` theme resId), and a circular avatar on the Google access-request screen
   (`google_auth_fragment.xml`).
 - **Done** — Android filter/search panel (`muma_filters.xml`, `muma_search.xml`,
@@ -142,5 +142,5 @@ To maintain clean design governance and prevent ad-hoc style drift:
   existing `default_ripple.xml`/`select_ripple.xml` drawables reference a `?attr/backgroundColor` that isn't
   a standard theme attribute in this app, so wiring one in without being able to visually verify it felt too
   risky for this pass. The rest of the Android UI (track/album cards, player, navigation) also hasn't been
-  brought in line with this style guide's component patterns; see `services/ultrasonic/STYLEGUIDE.md` for the
+  brought in line with this style guide's component patterns; see `services/muma-mobile/STYLEGUIDE.md` for the
   full reference these should eventually follow.

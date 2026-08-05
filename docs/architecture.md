@@ -6,7 +6,7 @@ This document describes the architecture of the MuMa (Music Management) ecosyste
 The ecosystem is divided into three main layers:
 - **Management & Data Hub (MuMa)**: The "source of truth" and management layer.
 - **Playback & Interface (LMS / Spotify UI)**: The layer where the user interacts with the music.
-- **Client & Distribution (Ultrasonic / APK Hoster)**: Mobile access and delivery.
+- **Client & Distribution (MuMa Mobile / APK Hoster)**: Mobile access and delivery.
 
 ---
 
@@ -40,8 +40,8 @@ Lightweight media server (lms) acts as the audio engine, but the user experience
 ---
 
 #### 4. Mobile Client & Distribution
-- **Ultrasonic**: An Android client that connects to the music collection via the Subsonic API (provided by LMS).
-- **APK Hoster**: A specific service that hosts the compiled Ultrasonic APK. 
+- **MuMa Mobile**: An Android client that connects to the music collection via the Subsonic API (provided by LMS).
+- **APK Hoster**: A specific service that hosts the compiled MuMa Mobile APK. 
     - *Why*: This allows the administrator to push updates of the mobile client without intervention from official app stores.
     - *Network*: APK Hoster is connected to the `music-management_db` network for potential configuration and logging.
 
@@ -53,7 +53,7 @@ Lightweight media server (lms) acts as the audio engine, but the user experience
 3. Upon successful login as an admin, the user gains access to management functions (e.g., starting workers, viewing logs).
 4. Listening activity is reported from the frontends to the `scrobble-service`.
 5. Dynamic playlist definitions (smart playlists) are synchronized to MuMa as a central registry. Each definition is explicitly linked to a MuMa `user_id` (via internal mapping from `lms_user_id`) to maintain consistency and user-specific rules across different LMS instances.
-6. Clients like **Ultrasonic** can synchronize their local application settings to the `Music Manager API`. These settings are stored in the MariaDB, providing a server-side backup that survives app re-installs or device switches.
+6. Clients like **MuMa Mobile** can synchronize their local application settings to the `Music Manager API`. These settings are stored in the MariaDB, providing a server-side backup that survives app re-installs or device switches.
 
 ---
 
@@ -80,7 +80,7 @@ The central database for all enriched metadata and user statistics. It is divide
     - `rules_genres`, `rules_artist_genres`, `rules_label_genres`: Manual and automatic rules for genre assignment.
     - `rules_ignored_artists`: List of artists to ignore during processing.
     - `dynamic_playlists`: Registry of smart playlist definitions (stores **parameters only**, allowing recreation in LMS).
-    - `user_app_settings`: Persistent backup of client application settings (e.g., for Ultrasonic), stored as JSON per user and per app.
+    - `user_app_settings`: Persistent backup of client application settings (e.g., for MuMa Mobile), stored as JSON per user and per app.
 
 4.  **Downloader Domain (`downloads`)**: Manages the sources and history of new music.
     - `youtube_archive` & `soundcloud_archive`: History of downloaded tracks to prevent duplicate downloads.
@@ -92,7 +92,7 @@ The central database for all enriched metadata and user statistics. It is divide
 - **Synchronization**: Read by `user-service` for authentication (`users` table). LMS reports changes (such as ratings) via webhooks to the MuMa services.
 
 ##### C. APK Hoster Database (MariaDB)
-- **Role**: Manages the distribution of the Ultrasonic Android app.
+- **Role**: Manages the distribution of the MuMa Mobile Android app.
 - **Tables**:
     - `apks`: Metadata of uploaded APKs (version, build date, release notes).
     - `users`: Specific access rights for the APK hosting interface.
@@ -104,7 +104,7 @@ The central database for all enriched metadata and user statistics. It is divide
 graph TD
     subgraph Clients
         WebUI[Spotify UI / Svelte]
-        Mobile[Ultrasonic Android]
+        Mobile[MuMa Mobile Android]
     end
 
     subgraph "Playback Layer (LMS)"
@@ -209,7 +209,7 @@ sequenceDiagram
     end
 
     rect rgb(50, 50, 50)
-    Note over U,LMS: LMS Sync (e.g., via Ultrasonic)
+    Note over U,LMS: LMS Sync (e.g., via MuMa Mobile)
     U->>LMS: Change rating (Subsonic API)
     LMS->>MM: Webhook (Rating changed)
     MM->>MDB: Sync rating in MariaDB

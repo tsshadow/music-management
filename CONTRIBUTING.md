@@ -1,7 +1,7 @@
 # Contributing
 
 This is a monorepo: the Python backend services, the C++ `music-management-server`,
-the Svelte `frontend` and the Android `ultrasonic` app all live under `services/`
+the Svelte `frontend` and the Android `muma-mobile` app all live under `services/`
 with one shared history. A change spanning several of them is one commit, not
 several. See [AGENTS.md](AGENTS.md) for how the pieces fit together.
 

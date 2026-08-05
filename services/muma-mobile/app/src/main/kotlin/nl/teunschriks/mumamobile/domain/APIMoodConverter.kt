@@ -1,0 +1,14 @@
+// Collection of functions to convert api Mood entity to domain entity
+@file:JvmName("ApiMoodConverter")
+
+package nl.teunschriks.mumamobile.domain
+
+import nl.teunschriks.mumamobile.api.subsonic.models.Mood as APIMood
+
+fun APIMood.toDomainEntity(): Mood = Mood(
+    name = this@toDomainEntity.name,
+    songCount = this@toDomainEntity.songCount,
+    index = this@toDomainEntity.name.substring(0, 1)
+)
+
+fun List<APIMood>.toDomainEntityList(): List<Mood> = this.map { it.toDomainEntity() }

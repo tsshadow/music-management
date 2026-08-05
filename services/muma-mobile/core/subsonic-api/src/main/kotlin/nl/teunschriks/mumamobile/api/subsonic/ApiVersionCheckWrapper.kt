@@ -1,0 +1,427 @@
+/*
+ * ApiVersionCheckWrapper.kt
+ * Copyright (C) 2009-2022 Ultrasonic developers
+ *
+ * Distributed under terms of the GNU GPLv3 license.
+ */
+
+package nl.teunschriks.mumamobile.api.subsonic
+
+import okhttp3.ResponseBody
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_11_0
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_12_0
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_14_0
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_16_0
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_2_0
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_3_0
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_4_0
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_5_0
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_6_0
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_7_0
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_8_0
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_9_0
+import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType
+import nl.teunschriks.mumamobile.api.subsonic.models.JukeboxAction
+import nl.teunschriks.mumamobile.api.subsonic.response.BookmarksResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.ChatMessagesResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.GenresResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.GetAlbumList2Response
+import nl.teunschriks.mumamobile.api.subsonic.response.GetAlbumListResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.GetAlbumResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.GetArtistInfo2Response
+import nl.teunschriks.mumamobile.api.subsonic.response.GetArtistResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.GetArtistsResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.GetLyricsResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.GetPlaylistResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.GetPlaylistsResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.GetPodcastsResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.GetRandomSongsResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.GetSongsByGenreResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.GetSongsResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.GetStarredResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.GetStarredTwoResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.GetUserResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.JukeboxResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.LineupResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.MoodsResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.SearchThreeResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.SearchTwoResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.SharesResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.SubsonicResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.TagsResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.VideosResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.YearsResponse
+import retrofit2.Call
+
+/**
+ * Special wrapper for [SubsonicAPIDefinition] that checks if [currentApiVersion] is suitable
+ * for this call.
+ */
+@Suppress("TooManyFunctions")
+internal class ApiVersionCheckWrapper(
+    val api: SubsonicAPIDefinition,
+    var currentApiVersion: SubsonicAPIVersions,
+    var isRealProtocolVersion: Boolean = false
+) : SubsonicAPIDefinition by api {
+    override fun getArtists(
+        musicFolderId: String?,
+        offset: Int?,
+        count: Int?,
+        query: String?,
+        sortBy: String?
+    ): Call<GetArtistsResponse> {
+        checkVersion(V1_8_0)
+        return api.getArtists(musicFolderId, offset, count, query, sortBy)
+    }
+
+    override fun star(id: String?, albumId: String?, artistId: String?): Call<SubsonicResponse> {
+        checkVersion(V1_8_0)
+        return api.star(id, albumId, artistId)
+    }
+
+    override fun unstar(id: String?, albumId: String?, artistId: String?): Call<SubsonicResponse> {
+        checkVersion(V1_8_0)
+        return api.unstar(id, albumId, artistId)
+    }
+
+    override fun getArtist(id: String): Call<GetArtistResponse> {
+        checkVersion(V1_8_0)
+        return api.getArtist(id)
+    }
+
+    override fun getArtistInfo2(
+        id: String,
+        count: Int?,
+        includeNotPresent: Boolean?
+    ): Call<GetArtistInfo2Response> {
+        checkVersion(V1_11_0)
+        return api.getArtistInfo2(id, count, includeNotPresent)
+    }
+
+    override fun getAlbum(id: String): Call<GetAlbumResponse> {
+        checkVersion(V1_8_0)
+        return api.getAlbum(id)
+    }
+
+    override fun getSingles(artistId: String): Call<GetSongsResponse> {
+        checkVersion(V1_16_0)
+        return api.getSingles(artistId)
+    }
+
+    override fun search2(
+        query: String,
+        artistCount: Int?,
+        artistOffset: Int?,
+        albumCount: Int?,
+        albumOffset: Int?,
+        songCount: Int?,
+        musicFolderId: String?
+    ): Call<SearchTwoResponse> {
+        checkVersion(V1_4_0)
+        checkParamVersion(musicFolderId, V1_12_0)
+        return api.search2(
+            query,
+            artistCount,
+            artistOffset,
+            albumCount,
+            albumOffset,
+            songCount,
+            musicFolderId
+        )
+    }
+
+    override fun search3(
+        query: String,
+        artistCount: Int?,
+        artistOffset: Int?,
+        albumCount: Int?,
+        albumOffset: Int?,
+        songCount: Int?,
+        musicFolderId: String?
+    ): Call<SearchThreeResponse> {
+        checkVersion(V1_8_0)
+        checkParamVersion(musicFolderId, V1_12_0)
+        return api.search3(
+            query,
+            artistCount,
+            artistOffset,
+            albumCount,
+            albumOffset,
+            songCount,
+            musicFolderId
+        )
+    }
+
+    override fun getPlaylists(username: String?): Call<GetPlaylistsResponse> {
+        checkParamVersion(username, V1_8_0)
+        return api.getPlaylists(username)
+    }
+
+    override fun createPlaylist(
+        id: String?,
+        name: String?,
+        songIds: List<String>?
+    ): Call<SubsonicResponse> {
+        checkVersion(V1_2_0)
+        return api.createPlaylist(id, name, songIds)
+    }
+
+    override fun deletePlaylist(id: String): Call<SubsonicResponse> {
+        checkVersion(V1_2_0)
+        return api.deletePlaylist(id)
+    }
+
+    override fun updatePlaylist(
+        id: String,
+        name: String?,
+        comment: String?,
+        public: Boolean?,
+        songIdsToAdd: List<String>?,
+        songIndexesToRemove: List<Int>?
+    ): Call<SubsonicResponse> {
+        checkVersion(V1_8_0)
+        return api.updatePlaylist(id, name, comment, public, songIdsToAdd, songIndexesToRemove)
+    }
+
+
+    override fun getPodcasts(includeEpisodes: Boolean?, id: String?): Call<GetPodcastsResponse> {
+        checkVersion(V1_6_0)
+        checkParamVersion(includeEpisodes, V1_9_0)
+        checkParamVersion(id, V1_9_0)
+        return api.getPodcasts(includeEpisodes, id)
+    }
+
+    override fun getLyrics(artist: String?, title: String?): Call<GetLyricsResponse> {
+        checkVersion(V1_2_0)
+        return api.getLyrics(artist, title)
+    }
+
+    override fun scrobble(id: String, time: Long?, submission: Boolean?): Call<SubsonicResponse> {
+        checkVersion(V1_5_0)
+        checkParamVersion(time, V1_8_0)
+        return api.scrobble(id, time, submission)
+    }
+
+    override fun getAlbumList(
+        type: AlbumListType,
+        size: Int?,
+        offset: Int?,
+        fromYear: Int?,
+        toYear: Int?,
+        genre: String?,
+        musicFolderId: String?
+    ): Call<GetAlbumListResponse> {
+        checkVersion(V1_2_0)
+        checkParamVersion(musicFolderId, V1_11_0)
+        return api.getAlbumList(type, size, offset, fromYear, toYear, genre, musicFolderId)
+    }
+
+    override fun getAlbumList2(
+        type: AlbumListType,
+        size: Int?,
+        offset: Int?,
+        fromYear: Int?,
+        toYear: Int?,
+        genre: String?,
+        musicFolderId: String?,
+        query: String?
+    ): Call<GetAlbumList2Response> {
+        checkVersion(V1_8_0)
+        checkParamVersion(musicFolderId, V1_12_0)
+        return api.getAlbumList2(type, size, offset, fromYear, toYear, genre, musicFolderId, query)
+    }
+
+    override fun getRandomSongs(
+        size: Int?,
+        genre: String?,
+        fromYear: Int?,
+        toYear: Int?,
+        musicFolderId: String?
+    ): Call<GetRandomSongsResponse> {
+        checkVersion(V1_2_0)
+        return api.getRandomSongs(size, genre, fromYear, toYear, musicFolderId)
+    }
+
+    override fun getStarred(musicFolderId: String?): Call<GetStarredResponse> {
+        checkVersion(V1_8_0)
+        checkParamVersion(musicFolderId, V1_12_0)
+        return api.getStarred(musicFolderId)
+    }
+
+    override fun getStarred2(musicFolderId: String?): Call<GetStarredTwoResponse> {
+        checkVersion(V1_8_0)
+        checkParamVersion(musicFolderId, V1_12_0)
+        return api.getStarred2(musicFolderId)
+    }
+
+    override fun stream(
+        id: String,
+        maxBitRate: Int?,
+        format: String?,
+        timeOffset: Int?,
+        videoSize: String?,
+        estimateContentLength: Boolean?,
+        converted: Boolean?,
+        offset: Long?
+    ): Call<ResponseBody> {
+        checkParamVersion(maxBitRate, V1_2_0)
+        checkParamVersion(format, V1_6_0)
+        checkParamVersion(videoSize, V1_6_0)
+        checkParamVersion(estimateContentLength, V1_8_0)
+        checkParamVersion(converted, V1_14_0)
+        return api.stream(
+            id,
+            maxBitRate,
+            format,
+            timeOffset,
+            videoSize,
+            estimateContentLength,
+            converted
+        )
+    }
+
+    override fun jukeboxControl(
+        action: JukeboxAction,
+        index: Int?,
+        offset: Int?,
+        ids: List<String>?,
+        gain: Float?
+    ): Call<JukeboxResponse> {
+        checkVersion(V1_2_0)
+        checkParamVersion(offset, V1_7_0)
+        return api.jukeboxControl(action, index, offset, ids, gain)
+    }
+
+    override fun getShares(): Call<SharesResponse> {
+        checkVersion(V1_6_0)
+        return api.getShares()
+    }
+
+    override fun createShare(
+        idsToShare: List<String>,
+        description: String?,
+        expires: Long?
+    ): Call<SharesResponse> {
+        checkVersion(V1_6_0)
+        return api.createShare(idsToShare, description, expires)
+    }
+
+    override fun deleteShare(id: String): Call<SubsonicResponse> {
+        checkVersion(V1_6_0)
+        return api.deleteShare(id)
+    }
+
+    override fun updateShare(
+        id: String,
+        description: String?,
+        expires: Long?
+    ): Call<SubsonicResponse> {
+        checkVersion(V1_6_0)
+        return api.updateShare(id, description, expires)
+    }
+
+    override fun getGenres(year: Int?, length: String?): Call<GenresResponse> {
+        checkVersion(V1_9_0)
+        return api.getGenres(year, length)
+    }
+    override fun getTags(name: String, year: Int?, length: String?): Call<TagsResponse> {
+        checkVersion(V1_9_0)
+        return api.getTags(name, year, length)
+    }
+    override fun getLineups(): Call<LineupResponse> {
+        checkVersion(V1_9_0)
+        return api.getLineups()
+    }
+    override fun getMoods(year: Int?, length: String?): Call<MoodsResponse> {
+        checkVersion(V1_9_0)
+        return api.getMoods(year, length)
+    }
+    override fun getYears(): Call<YearsResponse> {
+        checkVersion(V1_9_0)
+        return api.getYears()
+    }
+
+    override fun getSongsByGenre(
+        genre: String,
+        year: Int?,
+        length: String?,
+        ratingMin: Int?,
+        ratingMax: Int?,
+        count: Int,
+        offset: Int,
+        musicFolderId: String?
+    ): Call<GetSongsByGenreResponse> {
+        checkVersion(V1_9_0)
+        checkParamVersion(musicFolderId, V1_12_0)
+        return api.getSongsByGenre(
+            genre,
+            year,
+            length,
+            ratingMin,
+            ratingMax,
+            count,
+            offset,
+            musicFolderId
+        )
+    }
+
+    override fun getUser(username: String): Call<GetUserResponse> {
+        checkVersion(V1_3_0)
+        return api.getUser(username)
+    }
+
+    override fun getChatMessages(since: Long?): Call<ChatMessagesResponse> {
+        checkVersion(V1_2_0)
+        return api.getChatMessages(since)
+    }
+
+    override fun addChatMessage(message: String): Call<SubsonicResponse> {
+        checkVersion(V1_2_0)
+        return api.addChatMessage(message)
+    }
+
+    override fun getBookmarks(): Call<BookmarksResponse> {
+        checkVersion(V1_9_0)
+        return api.getBookmarks()
+    }
+
+    override fun createBookmark(
+        id: String,
+        position: Long,
+        comment: String?
+    ): Call<SubsonicResponse> {
+        checkVersion(V1_9_0)
+        return api.createBookmark(id, position, comment)
+    }
+
+    override fun deleteBookmark(id: String): Call<SubsonicResponse> {
+        checkVersion(V1_9_0)
+        return api.deleteBookmark(id)
+    }
+
+    override fun getVideos(): Call<VideosResponse> {
+        checkVersion(V1_8_0)
+        return api.getVideos()
+    }
+
+    override fun getAvatar(username: String): Call<ResponseBody> {
+        checkVersion(V1_8_0)
+        return api.getAvatar(username)
+    }
+
+    private fun checkVersion(expectedVersion: SubsonicAPIVersions) {
+        // If it is true, it is probably the first call with this server
+        if (!isRealProtocolVersion) return
+        if (currentApiVersion < expectedVersion) {
+            throw ApiNotSupportedException(currentApiVersion)
+        }
+    }
+
+    private fun checkParamVersion(param: Any?, expectedVersion: SubsonicAPIVersions) {
+        // If it is true, it is probably the first call with this server
+        if (!isRealProtocolVersion) return
+        if (param != null) {
+            checkVersion(expectedVersion)
+        }
+    }
+}

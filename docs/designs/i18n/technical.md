@@ -147,8 +147,8 @@ the mechanism. The rest of the strings on that screen stay hardcoded.
 
 ## Cross-App Impact
 
-None. `services/frontend` only. No `music_manager` change, no LMS/`muma` proxy change, no Ultrasonic change.
-Ultrasonic has its own Android resource-based localisation and is untouched; the `language` key added to the
+None. `services/frontend` only. No `music_manager` change, no LMS/`muma` proxy change, no MuMa Mobile change.
+MuMa Mobile has its own Android resource-based localisation and is untouched; the `language` key added to the
 `frontend` app-settings blob is namespaced to `app_id = 'frontend'` and invisible to it.
 
 ## Technical Acceptance Criteria

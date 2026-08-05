@@ -199,7 +199,7 @@ requests.
 ## Cross-App Impact
 
 **Frontend** — must change in the same commit as `/api/library/advanced`; it is that endpoint's only
-consumer. No LMS, muma-proxy or Ultrasonic code references `/api/library/advanced` or
+consumer. No LMS, muma-proxy or MuMa Mobile code references `/api/library/advanced` or
 `/api/library/genres`.
 
 **Dynamic playlist preview (`users.py`) — behavioural change, no code change.** Playlist genre rules match
@@ -207,7 +207,7 @@ consumer. No LMS, muma-proxy or Ultrasonic code references `/api/library/advance
 ML predictions, covering about 52,000 tracks; populating it makes the first branch live and the preview will
 match substantially more tracks. The blast radius is one screen: the query lives only in
 `GET /{user_id}/dynamic-playlists/{playlist_id}/tracks`, whose sole caller is `PlaylistsTab.svelte` in the
-web UI. Ultrasonic calls only the list, create and delete endpoints
+web UI. MuMa Mobile calls only the list, create and delete endpoints
 (`MumaAPIDefinition.kt:34-45`), `POST /dynamic-playlists/sync` stores a playlist definition without
 resolving tracks, and the C++ server references neither `library_track_genres` nor `dynamic_playlists`. The
 Android app's playlists are resolved elsewhere and are unaffected. The seeded default playlists are being

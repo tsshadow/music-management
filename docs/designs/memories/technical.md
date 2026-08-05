@@ -136,7 +136,7 @@ strings live under `settings.general` in `en` and `nl` only, because the two dia
 translate just a subset of the settings screen and fall back for the rest. Both headings use the i18n
 layer's CLDR plural forms (`{ one, other }` keyed on `count`) rather than separate singular keys.
 
-**`ultrasonic`** — `getMemories.view` added to `SubsonicAPIDefinition.kt` with its own response DTOs, in the
+**`muma-mobile`** — `getMemories.view` added to `SubsonicAPIDefinition.kt` with its own response DTOs, in the
 same Retrofit style as the surrounding calls.
 
 Memories gets two entry points, and they serve different purposes. The permanent one is a new page in the
@@ -186,7 +186,7 @@ than drifting apart.
 
 A client talking to a server without this endpoint gets an HTTP 404 or a Subsonic "unknown method" error.
 Both clients must treat that exactly like an empty result — no carousel, no error surface. This matters most
-for Ultrasonic, which can be pointed at any Subsonic server. On the Android side this falls out of returning
+for MuMa Mobile, which can be pointed at any Subsonic server. On the Android side this falls out of returning
 `null` from the section provider's `load()`; the existing `safely()` helper in `HomeSectionProvider.kt`
 already swallows the throw.
 
@@ -211,9 +211,9 @@ already swallows the throw.
 12. `maxPerYear` truncation never removes an exact-date match while a window match remains in the same group.
 13. Every `song` child validates as an ordinary Subsonic song entry and its `id` can be streamed via
     `/rest/stream`.
-14. The Ultrasonic response DTOs parse a two-group response, including the `kind`, `exact` and `yearsAgo`
+14. The MuMa Mobile response DTOs parse a two-group response, including the `kind`, `exact` and `yearsAgo`
     attributes, in a JVM unit test.
-15. When the API call fails or returns no groups, the Ultrasonic home section provider returns `null` and no
+15. When the API call fails or returns no groups, the MuMa Mobile home section provider returns `null` and no
     memories carousel is rendered.
 16. With the home preview preference off, the carousel is absent on both clients after a restart/reload,
     while the sidebar entry (web) and the Library pager page (Android) still open Memories.

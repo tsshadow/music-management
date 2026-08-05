@@ -3,7 +3,7 @@
 Implements [`functional.md`](functional.md).
 
 Two apps change together: the Subsonic API in `services/music-management-server` (the LMS fork) and
-the Android client in `services/ultrasonic`. Per AGENTS.md rule 7 they ship in the same change.
+the Android client in `services/muma-mobile`. Per AGENTS.md rule 7 they ship in the same change.
 
 ## Data Model
 
@@ -72,7 +72,7 @@ count only in that order. The fallback is a response-shape difference, not an AP
 
 `songCount` is an addition to a response, so older clients are unaffected.
 
-## Client Design (services/ultrasonic)
+## Client Design (services/muma-mobile)
 
 ### The header
 
@@ -139,7 +139,7 @@ sorting by name or by the count already on the card. No network call, no server 
 - `services/music-management-server`: new `query`/`sortBy` parameters and `songCount` attribute on
   `getArtists.view`, new `byTrackCount` album list type, two new sort methods, one new
   `Track::getCount` overload.
-- `services/ultrasonic`: header, query state, service-layer parameters, row layout.
+- `services/muma-mobile`: header, query state, service-layer parameters, row layout.
 - `services/frontend` and `services/music_manager`: no change. The web UI has its own search and
   does not call `getArtists.view`.
 
@@ -169,7 +169,7 @@ together, per AGENTS.md rule 7.
    descending with name as tie-breaker, and an empty query returns the input order.
 9. A `FilterButtonBar` test asserts the search row is hidden when `supportsSearch` is false and
    visible when it is true.
-10. `./gradlew :ultrasonic:testDebugUnitTest` and the server's existing test target both pass.
+10. `./gradlew :app:testDebugUnitTest` and the server's existing test target both pass.
 11. `getArtists.view?count=100` against production-sized data stays under 300 ms; if not, the
     `songCount` fallback described above applies.
 

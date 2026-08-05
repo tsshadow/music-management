@@ -1,5 +1,23 @@
 ## [Unreleased]
 
+## [6.9.2] - 2026-08-05
+
+### Changed
+- **De app heet voortaan gewoon MuMa, en heeft een eigen icoon.** "Mobile" is weg uit de naam op je
+  startscherm, uit de meldingen en uit de app zelf: het is hetzelfde MuMa als in je browser. Het
+  icoon is niet langer het geërfde koptelefoontje op paars, maar MuMa's eigen merkteken — vijf
+  staafjes in een groene schijf waarvan de bovenrand een M vormt. Hij installeert gewoon over je
+  huidige versie heen.
+
+### Fixed
+- **"Onlangs afgespeeld" onthoudt weer wat je hebt geluisterd.** Het raster op de startpagina
+  bewaarde alleen wat je zelf aantikte in een lijst; wie via Android Auto, de melding of de
+  wachtrij luisterde, liet dus niets achter. Een avond muziek in de auto veranderde er niets aan.
+  Bij dezelfde verbouwing raakte ook het bijhouden van "Laatst gespeelde genres" weg, terwijl
+  Android Auto die lijsten wél bleef tonen — ze waren daardoor altijd leeg. Allebei worden ze nu
+  weer bijgewerkt: elk nummer dat je uitluistert zet zijn album in het raster en zijn genres in de
+  genrelijst.
+
 ## [6.9.1] - 2026-08-05
 
 ### Fixed

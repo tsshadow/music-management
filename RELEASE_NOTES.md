@@ -11,6 +11,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+### 📲 "Controleer op updates" ziet nieuwe versies weer
+- Sinds de naamswijziging heette het geüploade installatiebestand `muma-mobile-...` in plaats van
+  `ultrasonic-...`, en de downloadsite gebruikt precies dat stukje naam om bij te houden welke
+  versies bij elkaar horen. De app vroeg nog naar de oude naam en kreeg daardoor niets terug:
+  versie 6.9.0 was onzichtbaar en je telefoon meldde netjes dat je bij was.
+- De bestandsnaam staat weer op het oude, en de app vindt zijn updates weer. Verder verandert er
+  niets — de app blijft MuMa Mobile heten.
+
 ## Global Version 0.5.0 (2026-08-05)
 
 ### 🎬 Muziekvideo's worden nu echt als video binnengehaald

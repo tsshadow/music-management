@@ -71,8 +71,7 @@ class ConfigStoreDefaultsTest(ConfigStoreTestCase):
         self.assertEqual(self.store.get('SOMETHING_ELSE', 'fallback'), 'fallback')
 
     def test_private_attributes_are_not_resolved_as_config(self):
-        with self.assertRaises(AttributeError):
-            self.store.__missing_attribute__
+        self.assertRaises(AttributeError, getattr, self.store, '_missing_attribute')
 
     def test_describe_exposes_the_schema_with_current_values(self):
         entry = next(item for item in self.store.describe() if item['key'] == 'notify_topic')

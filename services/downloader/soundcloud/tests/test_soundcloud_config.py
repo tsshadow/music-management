@@ -8,8 +8,13 @@ from services.tests.mock_base import setup_mocks
 
 setup_mocks()
 
-from services.downloader.soundcloud import soundcloud as soundcloud_module
-from services.downloader.soundcloud.soundcloud import FIREFOX_USER_AGENT, SoundcloudDownloader, account_from_url, get_accounts_from_db
+from services.downloader.soundcloud import soundcloud as soundcloud_module  # isort:skip
+from services.downloader.soundcloud.soundcloud import (  # isort:skip
+    FIREFOX_USER_AGENT,
+    SoundcloudDownloader,
+    account_from_url,
+    get_accounts_from_db,
+)
 
 
 class AccountFromUrlTest(unittest.TestCase):

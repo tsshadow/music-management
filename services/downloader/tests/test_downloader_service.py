@@ -169,11 +169,9 @@ class MainLoopTest(unittest.TestCase):
         service = MagicMock()
         with patch.object(downloader_service, 'DownloaderService', return_value=service), \
              patch.object(downloader_service, 'parse_args', return_value=parse_args(argv)), \
-             patch.object(downloader_service.time, 'sleep', side_effect=sleep) as sleeper:
-            try:
-                main()
-            except KeyboardInterrupt:
-                pass
+             patch.object(downloader_service.time, 'sleep', side_effect=sleep) as sleeper, \
+             contextlib.suppress(KeyboardInterrupt):
+            main()
         return service, sleeper
 
     def sources_run(self, service):

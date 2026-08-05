@@ -128,6 +128,16 @@ namespace lms::db
                     .bind(SyncState::PendingRemove);
             }
 
+            if (params.ratingUser.isValid())
+            {
+                query.join("rated_artist r_a ON r_a.artist_id = a.id")
+                    .where("r_a.user_id = ?")
+                    .bind(params.ratingUser);
+
+                if (params.minRating)
+                    query.where("r_a.rating >= ?").bind(*params.minRating);
+            }
+
             if (params.filters.clusters.size() == 1)
             {
                 query.join("track_cluster t_c ON t_c.track_id = t_a_l.track_id")
@@ -208,6 +218,10 @@ namespace lms::db
             case ArtistSortMethod::StarredDateDesc:
                 assert(params.starringUser.isValid());
                 query.orderBy("s_a.date_time DESC");
+                break;
+            case ArtistSortMethod::RatedDateDesc:
+                assert(params.ratingUser.isValid());
+                query.orderBy("r_a.last_updated DESC");
                 break;
             case ArtistSortMethod::Relevance:
                 {

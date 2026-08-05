@@ -53,7 +53,7 @@ namespace lms::ui
                 params.setFilters(getDbFilters());
                 params.setKeywords(getSearchKeywords());
                 params.setRange(range);
-                releases = feedbackService.findStarredReleases(params);
+                releases = feedbackService.findFavoriteReleases(params);
                 break;
             }
 

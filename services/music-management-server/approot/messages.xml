@@ -262,7 +262,7 @@
 <message id="Lms.Explore.search">Search</message>
 <message id="Lms.Explore.star">Star</message>
 <message id="Lms.Explore.star-item">Star {1}</message>
-<message id="Lms.Explore.starred">Starred</message>
+<message id="Lms.Explore.starred">Favorites</message>
 <message id="Lms.Explore.track-artist">
 	<plural case="0">Track artist</plural>
 	<plural case="1">Track artists</plural>

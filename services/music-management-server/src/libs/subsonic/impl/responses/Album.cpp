@@ -148,7 +148,7 @@ namespace lms::api::subsonic
                 albumNode.setAttribute("genre", clusters.front()->getName());
         }
 
-        if (const Wt::WDateTime dateTime{ core::Service<feedback::IFeedbackService>::get()->getStarredDateTime(context.getUser()->getId(), release->getId()) }; dateTime.isValid())
+        if (const Wt::WDateTime dateTime{ core::Service<feedback::IFeedbackService>::get()->getFavoriteDateTime(context.getUser()->getId(), release->getId()) }; dateTime.isValid())
             albumNode.setAttribute("starred", core::stringUtils::toISO8601String(dateTime));
 
         // Always report user rating, even if legacy API only specified it for directories

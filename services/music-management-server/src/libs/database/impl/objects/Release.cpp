@@ -174,6 +174,16 @@ namespace lms::db
                     .bind(SyncState::PendingRemove);
             }
 
+            if (params.ratingUser.isValid())
+            {
+                query.join("rated_release r_r ON r_r.release_id = r.id")
+                    .where("r_r.user_id = ?")
+                    .bind(params.ratingUser);
+
+                if (params.minRating)
+                    query.where("r_r.rating >= ?").bind(*params.minRating);
+            }
+
             if (params.artist.isValid())
             {
                 assert(!params.trackArtist.isValid());
@@ -294,6 +304,10 @@ namespace lms::db
             case ReleaseSortMethod::StarredDateDesc:
                 assert(params.starringUser.isValid());
                 query.orderBy("s_r.date_time DESC");
+                break;
+            case ReleaseSortMethod::RatedDateDesc:
+                assert(params.ratingUser.isValid());
+                query.orderBy("r_r.last_updated DESC");
                 break;
             case ReleaseSortMethod::Relevance:
                 {

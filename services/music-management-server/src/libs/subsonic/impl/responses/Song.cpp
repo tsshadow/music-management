@@ -164,7 +164,7 @@ namespace lms::api::subsonic
         if (const auto rating{ core::Service<feedback::IFeedbackService>::get()->getRating(context.getUser()->getId(), track->getId()) })
             trackResponse.setAttribute("userRating", *rating);
 
-        if (const Wt::WDateTime dateTime{ core::Service<feedback::IFeedbackService>::get()->getStarredDateTime(context.getUser()->getId(), track->getId()) }; dateTime.isValid())
+        if (const Wt::WDateTime dateTime{ core::Service<feedback::IFeedbackService>::get()->getFavoriteDateTime(context.getUser()->getId(), track->getId()) }; dateTime.isValid())
             trackResponse.setAttribute("starred", core::stringUtils::toISO8601String(dateTime));
 
         // Report genres for this track

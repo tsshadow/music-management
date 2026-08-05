@@ -54,7 +54,7 @@ namespace lms::ui
                 params.setKeywords(getSearchKeywords());
                 params.setRange(range);
                 params.setUser(LmsApp->getUserId());
-                tracks = feedbackService.findStarredTracks(params);
+                tracks = feedbackService.findFavoriteTracks(params);
                 break;
             }
 

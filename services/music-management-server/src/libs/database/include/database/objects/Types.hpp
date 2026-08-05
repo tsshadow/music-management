@@ -51,6 +51,7 @@ namespace lms::db
         LastWrittenDesc,
         AddedDesc,
         StarredDateDesc,
+        RatedDateDesc,
         TrackCountDesc,
         ReleaseCountDesc,
         Relevance,
@@ -112,6 +113,7 @@ namespace lms::db
         LastWrittenDesc,
         AddedDesc,
         StarredDateDesc,
+        RatedDateDesc,
         TrackCountDesc,
         Relevance,
     };
@@ -152,6 +154,7 @@ namespace lms::db
         LastWrittenDesc,
         AddedDesc,
         StarredDateDesc,
+        RatedDateDesc,
         AbsoluteFilePath,
         Name,
         DateDescAndRelease,

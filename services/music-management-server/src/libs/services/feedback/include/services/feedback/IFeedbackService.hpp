@@ -41,6 +41,12 @@ namespace lms::db
 
 namespace lms::feedback
 {
+    // There is no separate "favorite" flag any more: a track, release or artist is a
+    // favorite exactly when it carries the highest rating. The Subsonic "starred"
+    // notions (getStarred, the starred attribute, star/unstar) are all expressed in
+    // terms of this rating.
+    inline constexpr db::Rating favoriteRating{ 5 };
+
     class IFeedbackService
     {
     public:
@@ -105,9 +111,9 @@ namespace lms::feedback
 
         virtual void star(db::UserId userId, db::ArtistId artistId) = 0;
         virtual void unstar(db::UserId userId, db::ArtistId artistId) = 0;
-        virtual bool isStarred(db::UserId userId, db::ArtistId artistId) = 0;
-        virtual Wt::WDateTime getStarredDateTime(db::UserId userId, db::ArtistId artistId) = 0;
-        virtual ArtistContainer findStarredArtists(const ArtistFindParameters& params) = 0;
+        virtual bool isFavorite(db::UserId userId, db::ArtistId artistId) = 0;
+        virtual Wt::WDateTime getFavoriteDateTime(db::UserId userId, db::ArtistId artistId) = 0;
+        virtual ArtistContainer findFavoriteArtists(const ArtistFindParameters& params) = 0;
 
         virtual void setRating(db::UserId userId, db::ArtistId artistId, std::optional<db::Rating> rating) = 0;
         virtual std::optional<db::Rating> getRating(db::UserId userId, db::ArtistId artistId) = 0;
@@ -115,9 +121,9 @@ namespace lms::feedback
         // Releases
         virtual void star(db::UserId userId, db::ReleaseId releaseId) = 0;
         virtual void unstar(db::UserId userId, db::ReleaseId releaseId) = 0;
-        virtual bool isStarred(db::UserId userId, db::ReleaseId artistId) = 0;
-        virtual Wt::WDateTime getStarredDateTime(db::UserId userId, db::ReleaseId artistId) = 0;
-        virtual ReleaseContainer findStarredReleases(const FindParameters& params) = 0;
+        virtual bool isFavorite(db::UserId userId, db::ReleaseId releaseId) = 0;
+        virtual Wt::WDateTime getFavoriteDateTime(db::UserId userId, db::ReleaseId releaseId) = 0;
+        virtual ReleaseContainer findFavoriteReleases(const FindParameters& params) = 0;
 
         virtual void setRating(db::UserId userId, db::ReleaseId releaseId, std::optional<db::Rating> rating) = 0;
         virtual std::optional<db::Rating> getRating(db::UserId userId, db::ReleaseId releaseId) = 0;
@@ -125,9 +131,9 @@ namespace lms::feedback
         // Tracks
         virtual void star(db::UserId userId, db::TrackId trackId) = 0;
         virtual void unstar(db::UserId userId, db::TrackId trackId) = 0;
-        virtual bool isStarred(db::UserId userId, db::TrackId artistId) = 0;
-        virtual Wt::WDateTime getStarredDateTime(db::UserId userId, db::TrackId artistId) = 0;
-        virtual TrackContainer findStarredTracks(const FindParameters& params) = 0;
+        virtual bool isFavorite(db::UserId userId, db::TrackId trackId) = 0;
+        virtual Wt::WDateTime getFavoriteDateTime(db::UserId userId, db::TrackId trackId) = 0;
+        virtual TrackContainer findFavoriteTracks(const FindParameters& params) = 0;
 
         virtual void setRating(db::UserId userId, db::TrackId trackId, std::optional<db::Rating> rating) = 0;
         virtual std::optional<db::Rating> getRating(db::UserId userId, db::TrackId trackId) = 0;

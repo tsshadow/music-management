@@ -345,6 +345,10 @@ namespace lms::db
                 assert(params.starringUser.isValid());
                 query.orderBy("s_t.date_time DESC");
                 break;
+            case TrackSortMethod::RatedDateDesc:
+                assert(params.ratingUser.isValid());
+                query.orderBy("r_t.last_updated DESC");
+                break;
             case TrackSortMethod::RatingDesc:
                 if (params.ratingUser.isValid())
                     query.orderBy("r_t.rating DESC");

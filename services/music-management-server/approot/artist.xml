@@ -20,7 +20,6 @@
 					<li>${play-next class="dropdown-item"}</li>
 					<li>${play-last class="dropdown-item"}</li>
 					<li>${play-shuffled class="dropdown-item"}</li>
-					<li>${star class="dropdown-item"}</li>
 					${<if-has-mbid>}
 					<li><a href="${mbid-link}" target="_blank" class="dropdown-item">${tr:Lms.Explore.musicbrainz-artist}</a></li>
 					${</if-has-mbid>}

@@ -8,6 +8,7 @@ add_executable(test-database
 	Common.cpp
 	DatabaseTest.cpp
 	Directory.cpp
+	FavoriteByRating.cpp
 	Image.cpp
 	Listen.cpp
 	Medium.cpp

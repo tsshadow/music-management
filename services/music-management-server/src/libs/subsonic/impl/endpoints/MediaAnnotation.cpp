@@ -19,6 +19,7 @@
 
 #include "MediaAnnotation.hpp"
 
+#include <optional>
 #include <variant>
 #include <vector>
 
@@ -111,46 +112,44 @@ namespace lms::api::subsonic
 
     } // namespace
 
+    namespace
+    {
+        // star/unstar are kept for compatibility with third party Subsonic clients, but
+        // there is no separate favorite flag behind them any more: starring sets the
+        // highest rating and unstarring clears the rating. Ratings, unlike stars, are
+        // forwarded to music-management and end up in the file tags.
+        void applyStarRating(RequestContext& context, const StarParameters& params, std::optional<Rating> rating)
+        {
+            auto& feedbackService{ *core::Service<feedback::IFeedbackService>::get() };
+            const UserId userId{ context.getUser()->getId() };
+
+            for (const DirectoryId id : params.directoryIds)
+            {
+                if (const ReleaseId releaseId{ getReleaseIdFromDirectory(context.getDbSession(), id) }; releaseId.isValid())
+                    feedbackService.setRating(userId, releaseId, rating);
+            }
+
+            for (const ArtistId id : params.artistIds)
+                feedbackService.setRating(userId, id, rating);
+
+            for (const ReleaseId id : params.releaseIds)
+                feedbackService.setRating(userId, id, rating);
+
+            for (const TrackId id : params.trackIds)
+                feedbackService.setRating(userId, id, rating);
+        }
+    } // namespace
+
     Response handleStarRequest(RequestContext& context)
     {
-        StarParameters params{ getStarParameters(context.getParameters()) };
-
-        for (const DirectoryId id : params.directoryIds)
-        {
-            if (const ReleaseId releaseId{ getReleaseIdFromDirectory(context.getDbSession(), id) }; releaseId.isValid())
-                core::Service<feedback::IFeedbackService>::get()->star(context.getUser()->getId(), releaseId);
-        }
-
-        for (const ArtistId id : params.artistIds)
-            core::Service<feedback::IFeedbackService>::get()->star(context.getUser()->getId(), id);
-
-        for (const ReleaseId id : params.releaseIds)
-            core::Service<feedback::IFeedbackService>::get()->star(context.getUser()->getId(), id);
-
-        for (const TrackId id : params.trackIds)
-            core::Service<feedback::IFeedbackService>::get()->star(context.getUser()->getId(), id);
+        applyStarRating(context, getStarParameters(context.getParameters()), feedback::favoriteRating);
 
         return Response::createOkResponse(context.getServerProtocolVersion());
     }
 
     Response handleUnstarRequest(RequestContext& context)
     {
-        const StarParameters params{ getStarParameters(context.getParameters()) };
-
-        for (const DirectoryId id : params.directoryIds)
-        {
-            if (const ReleaseId releaseId{ getReleaseIdFromDirectory(context.getDbSession(), id) }; releaseId.isValid())
-                core::Service<feedback::IFeedbackService>::get()->unstar(context.getUser()->getId(), releaseId);
-        }
-
-        for (const ArtistId id : params.artistIds)
-            core::Service<feedback::IFeedbackService>::get()->unstar(context.getUser()->getId(), id);
-
-        for (const ReleaseId id : params.releaseIds)
-            core::Service<feedback::IFeedbackService>::get()->unstar(context.getUser()->getId(), id);
-
-        for (const TrackId id : params.trackIds)
-            core::Service<feedback::IFeedbackService>::get()->unstar(context.getUser()->getId(), id);
+        applyStarRating(context, getStarParameters(context.getParameters()), std::nullopt);
 
         return Response::createOkResponse(context.getServerProtocolVersion());
     }

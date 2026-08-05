@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-05
+
+The YouTube downloader finally reads the `download_type` column that has been sitting in the
+database unused, so channels marked as video are fetched as video -- in the best quality YouTube
+offers, not the 360p a failed merge leaves behind.
+
 ### Added
 - **YouTube channels marked as video are downloaded as video, in the best quality that exists.**
   `downloads_youtube_accounts.download_type` had been in the database for years without a single

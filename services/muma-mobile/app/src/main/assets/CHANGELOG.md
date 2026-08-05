@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.9.1] - 2026-08-05
+
 ### Fixed
 - **Checking for updates finds new versions again.** The rename carried into the uploaded APK's
   filename, and apk-hoster derives an app's series from exactly that prefix — the upload itself

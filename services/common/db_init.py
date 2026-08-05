@@ -66,7 +66,25 @@ def ensure_tables_exist() -> None:
                 # /api/youtube and /api/system/activity returned 500 on one.
                 for column_sql in (
                     'ALTER TABLE downloads_youtube_accounts ADD COLUMN IF NOT EXISTS channel_id VARCHAR(255)',
-                    "ALTER TABLE downloads_youtube_accounts ADD COLUMN IF NOT EXISTS download_type VARCHAR(50) DEFAULT 'audio'",
+                    "ALTER TABLE downloads_youtube_accounts ADD COLUMN IF NOT EXISTS download_type "
+                    "ENUM('audio', 'video') NOT NULL DEFAULT 'audio'",
+                    'ALTER TABLE downloads_youtube_accounts ADD COLUMN IF NOT EXISTS active TINYINT(1) NOT NULL DEFAULT 1',
+                    'ALTER TABLE downloads_youtube_accounts ADD COLUMN IF NOT EXISTS min_duration INT DEFAULT 60',
+                    'ALTER TABLE downloads_youtube_accounts ADD COLUMN IF NOT EXISTS '
+                    'output_folder_override VARCHAR(255)',
+                    # One channel can be both an audio and a video source, so the
+                    # name alone stops being a key. Production already carries the
+                    # composite key; this is what brings a db_init-built schema in
+                    # line with it. See migrate_v6_youtube_video.sql.
+                    'ALTER TABLE downloads_youtube_accounts DROP PRIMARY KEY, '
+                    'ADD PRIMARY KEY (name, download_type)',
+                    "ALTER TABLE downloads_youtube_archive ADD COLUMN IF NOT EXISTS download_type "
+                    "ENUM('audio', 'video') NOT NULL DEFAULT 'audio'",
+                    'ALTER TABLE downloads_youtube_archive ADD COLUMN IF NOT EXISTS path VARCHAR(255)',
+                    # Without this the audio row of a channel would permanently
+                    # block the video row from ever archiving the same video.
+                    'ALTER TABLE downloads_youtube_archive ADD UNIQUE KEY '
+                    'uniq_video_id_download_type (video_id, download_type)',
                     'ALTER TABLE library_track_ml_labels ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP '
                     'DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP',
                 ):

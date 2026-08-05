@@ -187,6 +187,7 @@
       "channelDeleteFailed": "Could not delete the channel.",
       "channelDeleted": "Channel deleted.",
       "channelPlaceholder": "Channel handle or ID...",
+      "downloadType": "Type",
       "fetch": "FETCH",
       "last429": "last 429: {date}",
       "loadingSettings": "Loading settings...",
@@ -203,6 +204,8 @@
       "timingLoadFailed": "Could not load the timing settings.",
       "timingUnavailable": "Timing settings unavailable",
       "timingUnavailableHelp": "The stored values could not be read, so there is nothing to show or save here. Your settings have not disappeared; the storage is unreachable.",
+      "typeAudio": "Audio",
+      "typeVideo": "Video",
       "videoUrlPlaceholder": "YouTube video URL..."
     },
     "genres": {

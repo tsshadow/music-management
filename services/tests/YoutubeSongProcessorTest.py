@@ -14,12 +14,12 @@ class DummyYoutubeArchive:
     inserted = []
 
     @staticmethod
-    def exists(_account, _video_id):
+    def exists(_account, _video_id, _download_type='audio'):
         return False
 
     @staticmethod
-    def insert(account, video_id, path, url, title):
-        DummyYoutubeArchive.inserted.append((account, video_id, path, url, title))
+    def insert(account, video_id, path, url, title, download_type='audio'):
+        DummyYoutubeArchive.inserted.append((account, video_id, path, url, title, download_type))
 
 # Import via the fully-qualified "services." path (matching every other test in
 # this suite, e.g. YoutubeDownloaderTest.py) rather than a bare top-level alias:
@@ -98,7 +98,7 @@ class YoutubeSongProcessorTest(unittest.TestCase):
         self.assertTrue(os.path.exists(expected_path))
         self.assertEqual(os.path.normpath(info['requested_downloads'][0]['filepath']), os.path.normpath(expected_path))
         self.assertEqual(os.path.normpath(info['requested_downloads'][0]['_filename']), os.path.normpath(expected_path))
-        self.assertEqual(DummyYoutubeArchive.inserted[-1], ('qdance', '5mKayZadF4g', info['filepath'], info['webpage_url'], 'Noiseflow | Defqon.1 2025'))
+        self.assertEqual(DummyYoutubeArchive.inserted[-1], ('qdance', '5mKayZadF4g', info['filepath'], info['webpage_url'], 'Noiseflow | Defqon.1 2025', 'audio'))
 
 if __name__ == '__main__':
     unittest.main()

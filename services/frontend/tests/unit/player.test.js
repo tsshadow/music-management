@@ -178,6 +178,61 @@ describe('Player', () => {
     expect(onnavigate).toHaveBeenCalledWith('album:album-1');
   });
 
+  it('the progress is followed while the track plays', async () => {
+    const { container } = renderPlayer();
+    const audioElement = container.querySelector('audio');
+    Object.defineProperty(audioElement, 'currentTime', { value: 30, writable: true });
+    Object.defineProperty(audioElement, 'duration', { value: 240, writable: true });
+
+    await fireEvent.timeUpdate(audioElement);
+
+    expect(get(playerState).progress).toBe(30);
+  });
+
+  it('the duration is taken from the loaded track', async () => {
+    const { container } = renderPlayer();
+    const audioElement = container.querySelector('audio');
+    Object.defineProperty(audioElement, 'duration', { value: 240, writable: true });
+
+    await fireEvent.loadedMetadata(audioElement);
+
+    expect(get(playerState).duration).toBe(240);
+  });
+
+  it('seeking moves to the clicked position', async () => {
+    const { container } = renderPlayer();
+    const audioElement = container.querySelector('audio');
+    Object.defineProperty(audioElement, 'duration', { value: 200, writable: true });
+    const bar = screen.getByLabelText('Door nummer spoelen');
+    bar.getBoundingClientRect = () => ({ left: 0, width: 100 });
+
+    await fireEvent.click(bar, { clientX: 50 });
+
+    expect(audioElement.currentTime).toBe(100);
+  });
+
+  it('the volume bar sets the volume', async () => {
+    const { container } = renderPlayer();
+    const audioElement = container.querySelector('audio');
+    const bar = screen.getByLabelText('Volume');
+    bar.getBoundingClientRect = () => ({ left: 0, width: 100 });
+
+    await fireEvent.click(bar, { clientX: 25 });
+
+    expect(audioElement.volume).toBeCloseTo(0.25);
+  });
+
+  it('dragging the volume to zero mutes', async () => {
+    const { container } = renderPlayer();
+    const audioElement = container.querySelector('audio');
+    const bar = screen.getByLabelText('Volume');
+    bar.getBoundingClientRect = () => ({ left: 0, width: 100 });
+
+    await fireEvent.click(bar, { clientX: 0 });
+
+    expect(audioElement.volume).toBe(0);
+  });
+
   it('the artist of the track can be opened', async () => {
     const onnavigate = vi.fn();
     renderPlayer({ onnavigate });

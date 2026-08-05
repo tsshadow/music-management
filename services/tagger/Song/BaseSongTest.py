@@ -1,10 +1,15 @@
+import os
+import tempfile
 import unittest
 from unittest.mock import MagicMock, Mock, patch
 
 from mutagen.easyid3 import EasyID3
+from mutagen.flac import VCFLACDict
+from mutagen.mp4 import MP4StreamInfoError
+from mutagen.oggopus import OggOpusVComment
 
-from services.tagger.constants import ARTIST, MusicFileType
-from services.tagger.Song.BaseSong import BaseSong, ExtensionNotSupportedException
+from services.tagger.constants import ARTIST, DATE, FESTIVAL, GENRE, TITLE, TRACK_NUMBER, MusicFileType
+from services.tagger.Song.BaseSong import BaseSong, ExtensionNotSupportedException, log_broken_file
 from services.tagger.Song.SongHelper import merge_and_sort_genres, split_artists
 from services.tagger.Song.Tag import Tag
 
@@ -109,5 +114,297 @@ class BaseSongTest(unittest.TestCase):
         tag_collection.get_item_as_array.return_value = ['Remixer1', 'Remixer2']
         song.tag_collection = tag_collection
         self.assertEqual(song.remixers(), ['Remixer1', 'Remixer2'])
+
+
+class BaseSongLoadingTest(unittest.TestCase):
+    """Covers what __init__ does per container format."""
+
+    def test_a_wav_without_a_tag_block_gets_one(self):
+        music_file = MagicMock()
+        music_file.tags = None
+
+        with patch('services.tagger.Song.BaseSong.WAVE', return_value=music_file):
+            song = BaseSong('some/path/test.wav')
+
+        music_file.add_tags.assert_called_once()
+        self.assertEqual(song.type, MusicFileType.WAV)
+
+    def flac_file(self):
+        music_file = MagicMock()
+        music_file.tags = VCFLACDict()
+        return music_file
+
+    def opus_file(self):
+        music_file = MagicMock()
+        music_file.tags = OggOpusVComment()
+        return music_file
+
+    def test_a_flac_is_normalized_on_load(self):
+        with patch('services.tagger.Song.BaseSong.FLAC', return_value=self.flac_file()), \
+             patch('services.tagger.Song.BaseSong.NormalizeFlacTagsRule') as normalize:
+            BaseSong('some/path/test.flac')
+
+        normalize.return_value.apply.assert_called_once()
+
+    def test_every_song_gets_the_title_cleaning_rule(self):
+        with patch('services.tagger.Song.BaseSong.OggOpus', return_value=self.opus_file()):
+            song = BaseSong('some/path/test.opus')
+
+        self.assertEqual([type(rule).__name__ for rule in song.rules], ['CleanTitleRule'])
+
+    def test_bpm_analysis_is_added_when_it_is_switched_on(self):
+        with patch('services.tagger.Song.BaseSong.OggOpus', return_value=self.opus_file()), \
+             patch('services.tagger.Song.BaseSong.analyze_bpm', True):
+            song = BaseSong('some/path/test.opus')
+
+        self.assertEqual([type(rule).__name__ for rule in song.rules], ['CleanTitleRule', 'AnalyzeBpmRule'])
+
+    def test_extra_info_from_a_downloader_dump_is_applied_on_load(self):
+        with patch('services.tagger.Song.BaseSong.OggOpus', return_value=self.opus_file()):
+            song = BaseSong('some/path/test.opus', extra_info={'title': 'Raise Your Fist'})
+
+        self.assertEqual(song.title(), 'Raise Your Fist')
+
+    def test_an_unreadable_m4a_is_deleted_and_logged(self):
+        with patch('services.tagger.Song.BaseSong.MP4', side_effect=MP4StreamInfoError('broken')), \
+             patch('services.tagger.Song.BaseSong.os.remove') as remove, \
+             patch('services.tagger.Song.BaseSong.log_broken_file') as log_broken:
+            song = BaseSong('some/path/test.m4a')
+
+        remove.assert_called_once_with('some/path/test.m4a')
+        log_broken.assert_called_once_with('some/path/test.m4a')
+        self.assertFalse(hasattr(song, 'tag_collection'))
+
+    def test_log_broken_file_appends_one_line_per_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log_file = os.path.join(tmp, 'broken-files.log')
+            with patch('services.tagger.Song.BaseSong.LOG_FILE', log_file):
+                log_broken_file('/music/a.m4a')
+                log_broken_file('/music/b.m4a')
+
+            with open(log_file, encoding='utf-8') as handle:
+                self.assertEqual(handle.read().splitlines(), ['/music/a.m4a', '/music/b.m4a'])
+
+
+class BaseSongTagWritingTest(unittest.TestCase):
+    """set_tag dispatches to a writer per container format."""
+
+    def song(self, file_type, music_file):
+        song = BaseSong.__new__(BaseSong)
+        song.type = file_type
+        song.music_file = music_file
+        return song
+
+    def tag(self, name, value):
+        tag = Mock()
+        tag.tag = name
+        tag.to_string.return_value = value
+        return tag
+
+    def test_an_empty_value_removes_the_tag_instead_of_writing_it(self):
+        song = self.song(MusicFileType.MP3, MagicMock())
+        song.tag_collection = MagicMock()
+        song.tag_collection.get.return_value = {ARTIST: 'x'}
+
+        song.set_tag(self.tag(ARTIST, '   '))
+
+        song.music_file.pop.assert_called_once_with(ARTIST)
+
+    def test_a_flac_tag_is_written_under_its_vorbis_name(self):
+        song = self.song(MusicFileType.FLAC, {})
+
+        song.set_tag(self.tag(ARTIST, 'Angerfist'))
+
+        self.assertEqual(song.music_file, {'ARTIST': 'Angerfist'})
+
+    def test_an_opus_tag_is_written_under_its_vorbis_name(self):
+        song = self.song(MusicFileType.OPUS, {})
+
+        song.set_tag(self.tag(GENRE, 'Hardcore'))
+
+        self.assertEqual(song.music_file, {'GENRE': 'Hardcore'})
+
+    def test_a_tag_the_format_does_not_know_is_skipped(self):
+        song = self.song(MusicFileType.FLAC, {})
+
+        song.set_tag(self.tag(TRACK_NUMBER, '3'))
+
+        self.assertEqual(song.music_file, {})
+
+    def test_a_wav_tag_becomes_an_id3_text_frame(self):
+        music_file = MagicMock()
+        music_file.tags = {}
+        song = self.song(MusicFileType.WAV, music_file)
+
+        song.set_tag(self.tag(ARTIST, 'Angerfist'))
+
+        self.assertEqual(music_file.tags['TPE1'].text, ['Angerfist'])
+
+    def test_a_wav_tag_without_an_id3_frame_becomes_a_txxx_frame(self):
+        music_file = MagicMock()
+        song = self.song(MusicFileType.WAV, music_file)
+
+        song.set_tag(self.tag(FESTIVAL, 'Defqon.1'))
+
+        music_file.tags.add.assert_called_once()
+
+    def test_an_m4a_tag_is_written_under_its_atom(self):
+        music_file = MagicMock()
+        music_file.tags = {}
+        song = self.song(MusicFileType.M4A, music_file)
+
+        song.set_tag(self.tag(ARTIST, 'Angerfist'))
+
+        self.assertEqual(music_file.tags['©ART'], 'Angerfist')
+
+    def test_an_m4a_tag_without_an_atom_becomes_a_freeform_atom(self):
+        music_file = MagicMock()
+        music_file.tags = {}
+        song = self.song(MusicFileType.M4A, music_file)
+
+        song.set_tag(self.tag(FESTIVAL, 'Defqon.1'))
+
+        self.assertEqual(music_file.tags['----:com.apple.iTunes:FESTIVAL'], [b'Defqon.1'])
+
+    def test_delete_tag_removes_it_from_the_file_and_the_collection(self):
+        song = BaseSong.__new__(BaseSong)
+        song.music_file = MagicMock()
+        song.tag_collection = MagicMock()
+        collection = {ARTIST: 'Angerfist'}
+        song.tag_collection.get.return_value = collection
+
+        song.delete_tag(ARTIST)
+
+        song.music_file.pop.assert_called_once_with(ARTIST)
+        self.assertEqual(collection, {})
+
+    def test_delete_tag_leaves_a_tag_the_file_does_not_have(self):
+        song = BaseSong.__new__(BaseSong)
+        song.music_file = MagicMock()
+        song.music_file.get.return_value = None
+        song.tag_collection = MagicMock()
+        song.tag_collection.get.return_value = {}
+
+        song.delete_tag(ARTIST)
+
+        song.music_file.pop.assert_not_called()
+
+    def test_saving_a_song_that_never_loaded_does_nothing(self):
+        song = BaseSong.__new__(BaseSong)
+
+        song.save_file()
+
+    def test_saving_without_changes_leaves_the_file_untouched(self):
+        song = BaseSong.__new__(BaseSong)
+        song.music_file = MagicMock()
+        song.tag_collection = MagicMock()
+        song.tag_collection.get.return_value = {ARTIST: Tag(tag=ARTIST, value='Angerfist')}
+
+        song.save_file()
+
+        song.music_file.save.assert_not_called()
+
+
+class BaseSongExtraInfoTest(unittest.TestCase):
+
+    def setUp(self):
+        self.song = BaseSong.__new__(BaseSong)
+        self.collection = MagicMock()
+        self.collection.get_item_as_string.return_value = ''
+        self.song.tag_collection = self.collection
+
+    def test_the_uploader_stands_in_for_a_missing_artist(self):
+        self.song._apply_extra_info({'uploader': 'Masters of Hardcore'})
+
+        self.collection.set_item.assert_any_call(ARTIST, 'Masters of Hardcore')
+
+    def test_the_channel_is_the_last_resort_for_an_artist(self):
+        self.song._apply_extra_info({'channel': 'Q-dance'})
+
+        self.collection.set_item.assert_any_call(ARTIST, 'Q-dance')
+
+    def test_a_plain_artist_field_is_used_when_there_is_no_artist_list(self):
+        self.song._apply_extra_info({'artist': 'Angerfist'})
+
+        self.collection.set_item.assert_any_call(ARTIST, 'Angerfist')
+
+    def test_an_artist_already_on_the_file_is_not_overwritten(self):
+        self.collection.get_item_as_string.return_value = 'Angerfist'
+
+        self.song._apply_extra_info({'uploader': 'Masters of Hardcore', 'title': 'Raise Your Fist'})
+
+        self.collection.set_item.assert_not_called()
+
+    def test_the_title_and_upload_date_are_taken_over(self):
+        self.song._apply_extra_info({'title': 'Raise Your Fist', 'upload_date': '20240101'})
+
+        self.collection.set_item.assert_any_call(TITLE, 'Raise Your Fist')
+        self.collection.set_item.assert_any_call(DATE, '20240101')
+
+    def test_a_genre_is_added_rather_than_replacing_what_is_there(self):
+        self.song._apply_extra_info({'genre': 'Hardcore'})
+
+        self.collection.get_item.return_value.add.assert_called_once_with('Hardcore')
+
+    def test_an_empty_dump_changes_nothing(self):
+        self.song._apply_extra_info({})
+
+        self.collection.set_item.assert_not_called()
+
+
+class BaseSongMiscTest(unittest.TestCase):
+
+    def test_length_comes_from_the_file_info(self):
+        song = BaseSong.__new__(BaseSong)
+        song.music_file = MagicMock()
+        song.music_file.info.length = 212.5
+
+        self.assertEqual(song.length(), 212.5)
+
+    def test_parse_runs_the_rules_and_then_saves(self):
+        song = BaseSong.__new__(BaseSong)
+        song.run_all_rules = MagicMock()
+        song.save_file = MagicMock()
+
+        song.parse()
+
+        song.run_all_rules.assert_called_once()
+        song.save_file.assert_called_once()
+
+    def test_run_all_rules_applies_every_rule_to_the_song(self):
+        song = BaseSong.__new__(BaseSong)
+        first, second = MagicMock(), MagicMock()
+        song.rules = [first, second]
+
+        song.run_all_rules()
+
+        first.apply.assert_called_once_with(song)
+        second.apply.assert_called_once_with(song)
+
+    def test_sort_genres_does_nothing_without_a_genre_tag(self):
+        song = BaseSong.__new__(BaseSong)
+        song.tag_collection = MagicMock()
+        song.tag_collection.has_item.return_value = False
+
+        song.sort_genres()
+
+        song.tag_collection.get_item.assert_not_called()
+
+    def test_the_string_form_lists_only_the_fields_that_are_set(self):
+        song = BaseSong.__new__(BaseSong)
+        song.tag_collection = MagicMock()
+        song._path = '/music/test.mp3'
+        song.title = lambda: 'Raise Your Fist'
+        song.artist = lambda: 'Angerfist'
+        song.album = lambda: ''
+        song.genre = lambda: 'Hardcore'
+        song.publisher = lambda: ''
+
+        self.assertEqual(
+            str(song),
+            'Title=Raise Your Fist\nArtists=Angerfist\nGenre=Hardcore\nPath=/music/test.mp3',
+        )
+
+
 if __name__ == '__main__':
     unittest.main()

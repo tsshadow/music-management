@@ -47,15 +47,14 @@ export default defineConfig(({ mode }) => {
         reporter: ["text", "json", "html", "cobertura"],
         reportsDirectory: "./coverage",
         include: ["src/**/*.{js,svelte}"],
-        // A ratchet, not a target. The frontend is the least-covered part of
-        // the repository (54 components, most of them untested); these sit
-        // just under the current numbers so the figure cannot quietly erode.
-        // Raise them as coverage climbs; never lower one to make a build green.
+        // A ratchet, not a target: these sit just under the current numbers so
+        // the figure cannot quietly erode. Raise them as coverage climbs; never
+        // lower one to make a build green.
         thresholds: {
-          statements: 21,
-          branches: 15,
-          functions: 20,
-          lines: 21,
+          statements: 80,
+          branches: 60,
+          functions: 78,
+          lines: 79,
         },
       },
     },

@@ -23,7 +23,6 @@
 					<li>${play-next class="dropdown-item"}</li>
 					<li>${play-last class="dropdown-item"}</li>
 					<li>${play-shuffled class="dropdown-item"}</li>
-					<li>${star class="dropdown-item"}</li>
 					${<if-has-mbid>}
 					<li><a href="${mbid-link}" target="_blank" class="dropdown-item">${tr:Lms.Explore.musicbrainz-release}</a></li>
 					${</if-has-mbid>}
@@ -109,14 +108,12 @@
 		</div>
 		<div class="p-2 d-flex">
 			${play-btn class="d-none d-sm-block btn btn-sm btn-outline-secondary border-0"}
-			${star-btn class="d-none d-sm-block btn btn-sm btn-outline-secondary border-0"}
 			<div class="dropdown d-inline-block">
 				${more-btn data-bs-toggle="dropdown" aria-expanded="false" class="btn btn-sm btn-outline-secondary border-0"}
 				<ul class="dropdown-menu" aria-labelledby="${id:more-btn}">
 					<li class="d-block d-sm-none">${play class="dropdown-item"}</li>
 					<li>${play-next class="dropdown-item"}</li>
 					<li>${play-last class="dropdown-item"}</li>
-					<li>${star class="dropdown-item"}</li>
 					${<if-has-download>}
 					<li>${download class="dropdown-item"}</li>
 					${</if-has-download>}

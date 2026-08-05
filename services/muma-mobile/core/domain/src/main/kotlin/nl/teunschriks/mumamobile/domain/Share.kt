@@ -1,0 +1,32 @@
+package nl.teunschriks.mumamobile.domain
+
+import java.io.Serializable
+
+data class Share(
+    override var id: String,
+    var url: String? = null,
+    var description: String? = null,
+    var username: String? = null,
+    var created: String? = null,
+    var lastVisited: String? = null,
+    var expires: String? = null,
+    var visitCount: Long? = null,
+    private val tracks: MutableList<Track> = mutableListOf()
+) : GenericEntry(),
+    Serializable {
+    override val name: String?
+        get() {
+            if (url != null) {
+                return urlPattern.matcher(url!!).replaceFirst("$1")
+            }
+            return null
+        }
+
+    fun getEntries(): List<Track> = tracks.toList()
+
+    companion object {
+        @Suppress("unused")
+        private const val serialVersionUID = 1L
+        private val urlPattern = ".*/([^/?]+).*".toPattern()
+    }
+}

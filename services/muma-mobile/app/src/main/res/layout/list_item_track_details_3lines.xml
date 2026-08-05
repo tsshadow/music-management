@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?><!-- DON'T CONVERT TO ConstraintLayout! We have been there and it was slower than LinearLayout :) -->
+<LinearLayout xmlns:a="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    a:layout_width="0dp"
+    a:layout_height="wrap_content"
+    a:layout_gravity="center_vertical"
+    a:layout_marginStart="4dp"
+    a:layout_marginRight="2dp"
+    a:layout_weight="1"
+    a:orientation="horizontal"
+    tools:layout_width="match_parent">
+
+    <!-- Left column: title, album, artist -->
+    <LinearLayout
+        a:layout_width="0dp"
+        a:layout_height="wrap_content"
+        a:layout_gravity="center_vertical"
+        a:layout_weight="1"
+        a:orientation="vertical">
+
+        <!-- Title row: optional track number, title, download status -->
+        <LinearLayout
+            a:layout_width="match_parent"
+            a:layout_height="wrap_content"
+            a:gravity="center_vertical"
+            a:orientation="horizontal">
+
+            <TextView
+                a:id="@+id/song_track_number"
+                a:layout_width="wrap_content"
+                a:layout_height="wrap_content"
+                a:layout_marginEnd="6dp"
+                a:text="1."
+                a:textAppearance="?android:attr/textAppearanceMedium"
+                a:textColor="?android:textColorSecondary"
+                a:visibility="gone"
+                tools:ignore="HardcodedText" />
+
+            <TextView
+                a:id="@+id/song_title"
+                a:layout_width="0dp"
+                a:layout_height="wrap_content"
+                a:layout_weight="1"
+                a:ellipsize="end"
+                a:maxLines="1"
+                a:text="Song Title"
+                a:textColor="@color/spotify_text_primary"
+                a:textSize="15sp"
+                a:textStyle="bold"
+                tools:ignore="HardcodedText" />
+
+            <ImageView
+                a:id="@+id/song_status_image"
+                a:layout_width="20dp"
+                a:layout_height="20dp"
+                a:layout_marginStart="8dp"
+                a:layout_marginEnd="4dp"
+                a:contentDescription="@null"
+                a:visibility="gone"
+                app:tint="?android:textColorSecondary" />
+
+            <com.google.android.material.progressindicator.CircularProgressIndicator
+                a:id="@+id/song_status_progress"
+                a:layout_width="20dp"
+                a:layout_height="20dp"
+                a:layout_marginEnd="4dp"
+                a:indeterminate="true"
+                a:visibility="gone"
+                app:indicatorColor="@color/spotify_green"
+                app:indicatorSize="20dp"
+                app:trackColor="@color/spotify_card" />
+        </LinearLayout>
+
+        <TextView
+            a:id="@+id/song_album"
+            a:layout_width="match_parent"
+            a:layout_height="wrap_content"
+            a:layout_marginTop="2dp"
+            a:ellipsize="end"
+            a:maxLines="1"
+            a:text="Album name"
+            a:textColor="@color/spotify_text_secondary"
+            a:textSize="13sp"
+            tools:ignore="HardcodedText" />
+
+        <TextView
+            a:id="@+id/song_artist"
+            a:layout_width="match_parent"
+            a:layout_height="wrap_content"
+            a:ellipsize="end"
+            a:maxLines="1"
+            a:text="Artist name"
+            a:textColor="@color/spotify_text_secondary"
+            a:textSize="13sp"
+            tools:ignore="HardcodedText" />
+    </LinearLayout>
+
+    <!-- Right column: rating, release date, duration -->
+    <LinearLayout
+        a:layout_width="wrap_content"
+        a:layout_height="wrap_content"
+        a:layout_gravity="center_vertical"
+        a:layout_marginStart="8dp"
+        a:gravity="end"
+        a:orientation="vertical">
+
+        <LinearLayout
+            a:id="@+id/song_rating"
+            a:layout_width="wrap_content"
+            a:layout_height="wrap_content"
+            a:layout_gravity="end"
+            a:orientation="horizontal"
+            a:visibility="gone"
+            tools:visibility="visible">
+
+            <ImageView
+                a:id="@+id/song_five_star_1"
+                a:layout_width="10dip"
+                a:layout_height="14dip"
+                a:background="@android:color/transparent"
+                a:focusable="false"
+                a:importantForAccessibility="no"
+                a:scaleType="centerInside"
+                a:src="@drawable/ic_star_hollow" />
+
+            <ImageView
+                a:id="@+id/song_five_star_2"
+                a:layout_width="10dip"
+                a:layout_height="14dip"
+                a:background="@android:color/transparent"
+                a:focusable="false"
+                a:importantForAccessibility="no"
+                a:scaleType="centerInside"
+                a:src="@drawable/ic_star_hollow" />
+
+            <ImageView
+                a:id="@+id/song_five_star_3"
+                a:layout_width="10dip"
+                a:layout_height="14dip"
+                a:background="@android:color/transparent"
+                a:focusable="false"
+                a:importantForAccessibility="no"
+                a:scaleType="centerInside"
+                a:src="@drawable/ic_star_hollow" />
+
+            <ImageView
+                a:id="@+id/song_five_star_4"
+                a:layout_width="10dip"
+                a:layout_height="14dip"
+                a:background="@android:color/transparent"
+                a:focusable="false"
+                a:importantForAccessibility="no"
+                a:scaleType="centerInside"
+                a:src="@drawable/ic_star_hollow" />
+
+            <ImageView
+                a:id="@+id/song_five_star_5"
+                a:layout_width="10dip"
+                a:layout_height="14dip"
+                a:background="@android:color/transparent"
+                a:focusable="false"
+                a:importantForAccessibility="no"
+                a:scaleType="centerInside"
+                a:src="@drawable/ic_star_hollow" />
+        </LinearLayout>
+
+
+        <TextView
+            a:id="@+id/song_date"
+            a:layout_width="wrap_content"
+            a:layout_height="wrap_content"
+            a:layout_gravity="end"
+            a:layout_marginTop="2dp"
+            a:textColor="@color/spotify_text_secondary"
+            a:textSize="13sp"
+            a:visibility="gone"
+            tools:text="12-03-2024"
+            tools:visibility="visible" />
+
+        <TextView
+            a:id="@+id/song_duration"
+            a:layout_width="wrap_content"
+            a:layout_height="wrap_content"
+            a:layout_gravity="end"
+            a:text="2:42"
+            a:textColor="@color/spotify_text_secondary"
+            a:textSize="13sp"
+            tools:ignore="HardcodedText" />
+    </LinearLayout>
+</LinearLayout>

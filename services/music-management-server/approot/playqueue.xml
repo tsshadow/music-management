@@ -70,7 +70,6 @@
 				${more-btn data-bs-toggle="dropdown" aria-expanded="false" class="btn btn-sm btn-outline-secondary border-0"}
 				<ul class="dropdown-menu" aria-labelledby="${id:more-btn}">
 					<li>${play class="dropdown-item"}</li>
-					<li>${star class="dropdown-item"}</li>
 					${<if-has-download>}
 					<li>${download class="dropdown-item"}</li>
 					${</if-has-download>}

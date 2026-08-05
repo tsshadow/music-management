@@ -104,7 +104,7 @@ namespace lms::api::subsonic
             artistNode.setAttribute("songCount", songCount);
         }
 
-        if (const Wt::WDateTime dateTime{ core::Service<feedback::IFeedbackService>::get()->getStarredDateTime(context.getUser()->getId(), artist->getId()) }; dateTime.isValid())
+        if (const Wt::WDateTime dateTime{ core::Service<feedback::IFeedbackService>::get()->getFavoriteDateTime(context.getUser()->getId(), artist->getId()) }; dateTime.isValid())
             artistNode.setAttribute("starred", core::stringUtils::toISO8601String(dateTime));
 
         if (const auto rating{ core::Service<feedback::IFeedbackService>::get()->getRating(context.getUser()->getId(), artist->getId()) })

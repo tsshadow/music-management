@@ -1,6 +1,6 @@
-# Ultrasonic session control & home screen loading — Technical Design
+# MuMa Mobile session control & home screen loading — Technical Design
 
-Implements [`functional.md`](functional.md). Everything here lives in `services/ultrasonic`; no
+Implements [`functional.md`](functional.md). Everything here lives in `services/muma-mobile`; no
 backend, frontend or LMS change is involved.
 
 ## Data Model

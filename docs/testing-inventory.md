@@ -16,7 +16,7 @@
 | `services/downloader` (soundcloud/youtube/telegram) | Python, standalone workers | n/a | none | MariaDB (shared) |
 | `services/ml-analyzer` | Python | n/a | none | own (`db_init.sql`) |
 | `services/frontend` | Svelte 5 + Vite | 5173 (dev) | n/a (static build) | n/a |
-| `services/ultrasonic` | Kotlin / Android (Gradle) | n/a (client) | n/a | local (Room, on device) |
+| `services/muma-mobile` | Kotlin / Android (Gradle) | n/a (client) | n/a | local (Room, on device) |
 | `services/common` | Python (shared helpers) | n/a | n/a | n/a |
 
 ## Per module — build / start / test / lint
@@ -74,9 +74,9 @@
 - The only remaining large uncovered block in the Python suite (~715 statements at 0%). Its dependencies (`sqlalchemy`, `pandas`, `scikit-learn`, `joblib`) are in its own `requirements.txt` but not in the repo root one, so tests for it would either need those added to the CI environment or an `importorskip` guard that makes them silently skip there
 - Compose service is commented out in `docker-compose.yml` (inactive)
 
-### ultrasonic (Android/Kotlin)
+### muma-mobile (Android/Kotlin)
 - Build: Gradle (`build.gradle`, `libs.versions.toml`), JVM target 21, uses `detekt` + `ktlintGradle`
-- Test: JVM unit tests present under `services/ultrasonic/ultrasonic/src/test/kotlin/...` (e.g. `ArchitectureTest`, `imageloader/*Test`, `domain/*Test`)
+- Test: JVM unit tests present under `services/muma-mobile/app/src/test/kotlin/...` (e.g. `ArchitectureTest`, `imageloader/*Test`, `domain/*Test`)
 - No instrumentation/Android Auto tests found in this pass (to confirm in a later step)
 
 ### common
@@ -134,7 +134,7 @@ These gaps are **not resolved in this step** (per Task 1: inventory only, no pro
 3. The pre-commit hook mentioned in `AGENTS.md` was not found as a file — needs verification.
 4. Downloader tests that may perform real external calls need to be mocked for CI (Phase 3.2).
 5. `ml-analyzer` has no visible tests and its compose service is disabled — a scope decision is needed on whether it's included in Phases 1–3.
-6. Ultrasonic instrumentation/Android Auto tests: not yet found, needs a separate inventory pass once Phase 6 is addressed.
+6. MuMa Mobile instrumentation/Android Auto tests: not yet found, needs a separate inventory pass once Phase 6 is addressed.
 7. `docker/Dockerfile.music-manager` runs `COPY .env /app/.env`, baking the real `.env` (with real secrets) into every built image. This is safe at runtime for `compose.test.yml` because `load_dotenv()` defaults to `override=False`, so container `environment:` values still win — but it's bad image hygiene (secrets end up in image layers) and should be fixed later (tracked as a follow-up, not done in Task 3).
 8. **Production config likely has the same bug as the Task 6 scrobble/rating URL fix.** All `music_manager` routes are mounted under `/api/*` (`main.py`: `app.include_router(..., prefix="/api/...")`), and this is what `UserSynchronizer.cpp` (`/users/`) and `MusicManagementPasswordService.cpp` (`/auth/login`) assume when appending directly onto `music-management-url`. On the production host (192.0.2.27, read-only SSH inspection), the deployed `LMS_MUSIC_MANAGEMENT_URL` is `http://192.0.2.27:8003` — **without** an `/api` suffix. This strongly suggests LMS→MusicManagement scrobbling/rating/user-sync is currently broken in production too, for the same root cause fixed in this session's `MusicManagementBackend.cpp` changes (scrobbling + feedback). Recommended fix: update the production `LMS_MUSIC_MANAGEMENT_URL` env var to `http://192.0.2.27:8003/api` (or the internal Docker service equivalent) once this fix is deployed. **Not changed in this session** — production was only inspected read-only, per explicit agreement; a production env change needs a deliberate, monitored rollout.
 9. Production (`docker-compose` v1.29.2, legacy) uses prebuilt Docker Hub images (`muma/lms:stable`/`:alpha`, `muma/music-manager:latest`, etc.) rather than building from the current checkout like `compose.test.yml` does. MariaDB version (10.6) matches, which is good for compatibility. `docker compose` v2 (used implicitly by `compose.test.yml`'s syntax) was not found on production; `docker-compose` v1 is present instead — worth confirming compatibility (or upgrading the runner/host) before ever pointing production at the new compose files. Also noted in passing: `muma-telegram-worker` was in a restart loop on production at inspection time — pre-existing, unrelated to this session's changes.

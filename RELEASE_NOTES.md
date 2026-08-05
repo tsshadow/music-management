@@ -11,6 +11,32 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.4.0 (2026-08-05)
+
+### ⭐ Favoriet bestaat niet meer los: 5 sterren *is* favoriet
+- Je had twee manieren om te zeggen dat je iets goed vindt, en die konden elkaar tegenspreken: een
+  nummer op vier sterren dat ook een hartje had, of een hartje zonder waardering. Vanaf nu is er
+  één schaal, van 0 tot 5, en het hoogste cijfer is je favoriet.
+- Je favorietenlijsten blijven staan waar ze stonden. Ze tonen voortaan wat vijf sterren heeft.
+- De hartjes en losse sterknoppen zijn weg: in de app uit de nummerlijsten, uit de speler en uit
+  het menu daarachter, en in de webinterface van de server. De vijf sterren blijven over.
+- **Albums kun je nu ook waarderen.** De ster op een albumregel zet vijf sterren in plaats van een
+  vlaggetje dat nergens heen ging — en die waardering belandt wél in je bestandstags.
+- Waardeer je vanuit een andere Subsonic-app? Die knop blijft werken en zet vanaf nu vijf sterren.
+  Voorheen ging zo'n hartje onderweg naar je tags verloren.
+- Alles wat je eerder als favoriet had gemarkeerd wordt omgezet naar vijf sterren. Had je al een
+  eigen waardering op iets staan, dan blijft die staan — een echte beoordeling wint altijd.
+
+### 📱 De app heet nu MuMa Mobile
+- De Android-app heet niet langer Ultrasonic maar **MuMa Mobile**, in lijn met de rest van MuMa.
+  Je ziet de nieuwe naam op je startscherm, in de meldingen en in de app zelf.
+- Je servers, instellingen en downloads gaan gewoon mee — de update installeert er overheen, je
+  hoeft niets opnieuw in te stellen en niet opnieuw in te loggen.
+- **Heb je een widget op je startscherm staan? Haal die er na het bijwerken één keer af en zet hem
+  er opnieuw op.** Je startscherm onthoudt de oude naam van de widget, dus tot je dat doet meldt hij
+  "kan widget niet laden". Dit is eenmalig.
+- De vaste server in de app heet nu "MuMa" in plaats van "LMS".
+
 ## Global Version 0.3.0 (2026-08-05)
 
 ### ⭐ In Android Auto kon je alleen 1 ster geven

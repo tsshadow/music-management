@@ -562,24 +562,6 @@ namespace lms::ui
                     loadTrack(*pos, true);
             });
 
-        auto isStarred{ [=] { return core::Service<feedback::IFeedbackService>::get()->isStarred(LmsApp->getUserId(), trackId); } };
-
-        Wt::WPushButton* starBtn{ entry->bindNew<Wt::WPushButton>("star", Wt::WString::tr(isStarred() ? "Lms.Explore.unstar" : "Lms.Explore.star")) };
-        starBtn->clicked().connect([=] {
-            auto transaction{ LmsApp->getDbSession().createWriteTransaction() };
-
-            if (isStarred())
-            {
-                core::Service<feedback::IFeedbackService>::get()->unstar(LmsApp->getUserId(), trackId);
-                starBtn->setText(Wt::WString::tr("Lms.Explore.star"));
-            }
-            else
-            {
-                core::Service<feedback::IFeedbackService>::get()->star(LmsApp->getUserId(), trackId);
-                starBtn->setText(Wt::WString::tr("Lms.Explore.unstar"));
-            }
-        });
-
         if (LmsApp->areDownloadsEnabled())
         {
             entry->setCondition("if-has-download", true);

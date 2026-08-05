@@ -7,9 +7,9 @@
 # Creates the immutable, CI-only git tags that make master's history the
 # trustworthy "what's actually been released" record:
 #   - release-vX.Y.Z         always, from the root VERSION file.
-#   - ultrasonic-vX.Y.Z      only if this merge also bumped Ultrasonic's own
+#   - muma-mobile-vX.Y.Z      only if this merge also bumped MuMa Mobile's own
 #                            versionName (i.e. this release included an
-#                            official Ultrasonic build).
+#                            official MuMa Mobile build).
 #
 # Tags are never created manually - only here, only on master, so "what's
 # live" can always be answered by looking at master's latest tags. See
@@ -48,14 +48,14 @@ create_tag() {
 BACKEND_VERSION=$(cat VERSION)
 create_tag "release-v${BACKEND_VERSION}" "Backend/monorepo release v${BACKEND_VERSION}"
 
-# Only tag Ultrasonic separately if its own versionName actually changed as
+# Only tag MuMa Mobile separately if its own versionName actually changed as
 # part of the commit(s) that just landed on master (i.e. this release cycle
-# included an official Ultrasonic release, per the debug-on-develop /
+# included an official MuMa Mobile release, per the debug-on-develop /
 # official-on-release policy).
 PARENT_SHA=$(git rev-parse "${CI_COMMIT_SHA}^1" 2>/dev/null || echo "")
-if [ -n "$PARENT_SHA" ] && ! git diff --quiet "$PARENT_SHA" "${CI_COMMIT_SHA}" -- services/ultrasonic/ultrasonic/build.gradle 2>/dev/null; then
-    ULTRASONIC_VERSION=$(grep "versionName" services/ultrasonic/ultrasonic/build.gradle | head -n 1 | sed 's/.*"\(.*\)".*/\1/')
-    create_tag "ultrasonic-v${ULTRASONIC_VERSION}" "Ultrasonic release v${ULTRASONIC_VERSION}"
+if [ -n "$PARENT_SHA" ] && ! git diff --quiet "$PARENT_SHA" "${CI_COMMIT_SHA}" -- services/muma-mobile/app/build.gradle 2>/dev/null; then
+    MUMA_MOBILE_VERSION=$(grep "versionName" services/muma-mobile/app/build.gradle | head -n 1 | sed 's/.*"\(.*\)".*/\1/')
+    create_tag "muma-mobile-v${MUMA_MOBILE_VERSION}" "MuMa Mobile release v${MUMA_MOBILE_VERSION}"
 else
-    echo "Ultrasonic build.gradle unchanged in this merge - no separate ultrasonic tag needed."
+    echo "MuMa Mobile build.gradle unchanged in this merge - no separate muma-mobile tag needed."
 fi

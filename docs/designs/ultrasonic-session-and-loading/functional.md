@@ -1,8 +1,8 @@
-# Ultrasonic session control & home screen loading — Functional Design
+# MuMa Mobile session control & home screen loading — Functional Design
 
 ## Overview
 
-Three related complaints about the Ultrasonic Android client are addressed together, because they
+Three related complaints about the MuMa Mobile Android client are addressed together, because they
 all concern what the app shows when it cannot yet, or can no longer, show real content.
 
 1. **The home screen looks broken while it loads.** After starting the app the home screen stays

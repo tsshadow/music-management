@@ -1,0 +1,71 @@
+@file:JvmName("MusicServiceModule")
+
+package nl.teunschriks.mumamobile.di
+
+import kotlin.math.abs
+import okhttp3.logging.HttpLoggingInterceptor
+import org.koin.core.qualifier.named
+import org.koin.dsl.module
+import nl.teunschriks.mumamobile.BuildConfig
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicClientConfiguration
+import nl.teunschriks.mumamobile.data.ActiveServerProvider
+import nl.teunschriks.mumamobile.log.TimberOkHttpLogger
+import nl.teunschriks.mumamobile.service.CachedMusicService
+import nl.teunschriks.mumamobile.service.MusicService
+import nl.teunschriks.mumamobile.service.OfflineMusicService
+import nl.teunschriks.mumamobile.service.RESTMusicService
+import nl.teunschriks.mumamobile.util.Constants
+
+/**
+ * This Koin module contains the registration of classes related to the Music Services
+ */
+internal const val ONLINE_MUSIC_SERVICE = "OnlineMusicService"
+internal const val OFFLINE_MUSIC_SERVICE = "OfflineMusicService"
+
+val musicServiceModule = module {
+
+    single(named("ServerInstance")) {
+        return@single ActiveServerProvider.getActiveServerId()
+    }
+
+    single(named("ServerID")) {
+        val serverInstance = get<Int>(named("ServerInstance"))
+        val serverUrl = get<ActiveServerProvider>().getActiveServer().url
+        return@single abs("$serverUrl$serverInstance".hashCode()).toString()
+    }
+
+    single {
+        val server = get<ActiveServerProvider>().getActiveServer()
+
+        return@single SubsonicClientConfiguration(
+            baseUrl = server.url,
+            username = server.userName,
+            password = server.password,
+            apiKey = server.apiKey ?: nl.teunschriks.mumamobile.util.Settings.mumaApiKey.takeIf { it.isNotEmpty() },
+            mumaUserId = server.mumaUserId ?: nl.teunschriks.mumamobile.util.Settings.mumaUserId.takeIf { it != -1 },
+            minimalProtocolVersion = SubsonicAPIVersions.getClosestKnownClientApiVersion(
+                server.minimumApiVersion
+                    ?: Constants.REST_PROTOCOL_VERSION
+            ),
+            clientID = Constants.REST_CLIENT_ID,
+            allowSelfSignedCertificate = server.allowSelfSignedCertificate,
+            forcePlainTextPassword = server.forcePlainTextPassword,
+            debug = BuildConfig.DEBUG,
+            isRealProtocolVersion = server.minimumApiVersion != null,
+            tokenStorage = nl.teunschriks.mumamobile.util.SecureSettings
+        )
+    }
+
+    single<HttpLoggingInterceptor.Logger> { TimberOkHttpLogger() }
+    single { SubsonicAPIClient(get(), get()) }
+
+    single<MusicService>(named(ONLINE_MUSIC_SERVICE)) {
+        CachedMusicService(RESTMusicService(get(), get()))
+    }
+
+    single<MusicService>(named(OFFLINE_MUSIC_SERVICE)) {
+        OfflineMusicService()
+    }
+}

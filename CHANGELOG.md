@@ -7,10 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-05
+
+Rating 5 now means "favorite" everywhere, and the separate favorite flag is gone. This cycle also
+completes the Android app's rename to MuMa Mobile.
+
+### Added
+- **Albums can be rated.** The app only ever stored a favorite flag for an album, which synced
+  nowhere; albums now carry a 0-5 rating like tracks do, and the star on an album row writes
+  rating 5 instead of that flag.
+- `scripts/migrate_stars_to_ratings.py` turns the existing `starred_*` rows in the LMS database
+  into ratings, so favorites set before this release stay visible. An explicit rating always wins
+  over a star, nothing is deleted, every row is written to a JSON export, and re-running is a
+  no-op.
+
+### Changed
+- **There is no separate "favorite" any more: rating 5 is what favorite means.** Two ways to say
+  "I like this" could contradict each other -- a four star track that was also starred, a starred
+  track with no rating -- and only the rating travelled on to the file tags. `getStarred`,
+  `getAlbumList type=starred` and the `starred` attribute in Subsonic responses now read the
+  ratings. The Favorites screens keep their place and simply list what is rated five stars.
+- **`star`/`unstar` still work, and now reach the file tags.** They stay in the Subsonic API for
+  third party clients, but set rating 5 / clear the rating. A star from such a client used to be
+  dropped on the way to the tags; it no longer is.
+- The favorite toggles are gone from the interfaces: the star buttons in the LMS web UI, and in
+  the app the heart/star toggle in track rows, the dedicated button in the player and its overflow
+  menu entry. The five star display is the only rating control left.
+- **The Android app is now MuMa Mobile.** The name it shows on the launcher, in its notifications
+  and in its own screens changed from "Ultrasonic" to "MuMa Mobile", the Kotlin package moved from
+  `org.moire.ultrasonic` to `nl.teunschriks.mumamobile`, and the module from `services/ultrasonic`
+  to `services/muma-mobile` — completing the split from the deprecated upstream Ultrasonic project.
+  The app's install identity (`applicationId`) is unchanged, so the update installs in place and
+  keeps all servers, settings and downloads. **Home-screen widgets must be removed and re-added
+  once** — launchers store the widget's old class name, which no longer exists. Media-button
+  broadcast actions, media-session custom commands and notification channel IDs deliberately keep
+  their historical `org.moire.ultrasonic` identifiers, pinned by `RuntimeContractTest`, so existing
+  notification settings and pending intents keep working. The Subsonic client id sent to the server
+  is unchanged for the same reason.
+- **The built-in server entry is now called "MuMa" instead of "LMS".** Installs that already store
+  the old name keep matching it, so nobody has to re-add the server.
+- CI jobs, scripts and coverage artifacts followed the module rename: `ultrasonic:check` is now
+  `muma-mobile:check`, `ultrasonic:build-debug`/`build-release` are now `muma-mobile:build-debug`/
+  `build-release`, and the app release tag prefix changed from `ultrasonic-v*` to `muma-mobile-v*`.
+  Existing tags are immutable and keep their old prefix; the version line continues unbroken.
+
+### Fixed
+- A change under `services/tests/` or `scripts/` did not run the Python test job, so a test added
+  there was never executed by CI.
+
 ## [0.3.0] - 2026-08-05
 
 An app-only cycle; the backend is unchanged. Ultrasonic moves to 6.8.0 / versionCode 259, and its
-own [CHANGELOG](services/ultrasonic/CHANGELOG.md) carries the full detail.
+own [CHANGELOG](services/muma-mobile/CHANGELOG.md) carries the full detail.
 
 ### Added
 - **The number of tracks a genre opens with is picked from the genre screen**, through a dropdown

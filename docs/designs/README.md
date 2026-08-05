@@ -51,7 +51,7 @@ undecided behavior that were flagged, not silently resolved, during this documen
 | [`importer/`](importer/) | Processing incoming music from external sources / label promo pools: archive extraction, folder-structure metadata inference, tagging, and moving into the library (`services/importer`). |
 | [`tagger/`](tagger/) | Metadata enforcement engine — song-type auto-detection and rule-based tagging, plus its `/api/tagger` REST API (`services/tagger`, `services/music_manager/routers/tagger.py`). |
 | [`scanner/`](scanner/) | Filesystem-to-database library sync and the SoundCloud/YouTube redownload service, plus their `/api/scanner` and `/api/library/tracks/{id}/redownload` REST APIs. |
-| [`ratings-scrobbling/`](ratings-scrobbling/) | Track ratings and scrobble/listen history, synchronized between `music-manager`, the LMS server, and Ultrasonic. |
+| [`ratings-scrobbling/`](ratings-scrobbling/) | Track ratings and scrobble/listen history, synchronized between `music-manager`, the LMS server, and MuMa Mobile. |
 | [`ml-analyzer/`](ml-analyzer/) | Audio analysis (BPM, and the currently-unimplemented musical key/mood) feeding the library's advanced metadata (`services/ml-analyzer`). |
 
 `authentication/` was the first of these, written from an already-existing deep-detail reference; the others

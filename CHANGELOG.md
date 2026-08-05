@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-08-05
+
+### Changed
+- **The test suites now cover the parts of the product people actually touch.** The frontend went
+  from 24.8% to 80.8% of statements and the Python services from 77.8% to 87.9% of production code,
+  with both ratchets moved up to match (frontend 80/60/78/79, Python 92%). The frontend gained
+  coverage of the login screen including the Google access-request flow, the dashboard and every
+  view it routes to, the player transport, the artist and album screens, dynamic playlists, tagger
+  rules, genre curation, the ListenBrainz import, access-request review, the library browser and its
+  facets, and the queue actions. On the Python side `services/ml-analyzer` had no tests at all — 766
+  lines at 0% — and now covers the analyzer, its maintenance scripts and the predictor.
+  `trainer.py` is deliberately left uncovered: it is pandas and scikit-learn end to end, and with
+  those libraries stubbed a test would assert on mocks rather than on behaviour.
+- **Coverage figures no longer count generated code.** Jacoco was measuring Room's generated
+  `*_Impl` classes for MuMa Mobile — 4534 of the 25331 lines it reported, about 18% of the app — so
+  the figure looked worse than the hand-written code actually is. No unit test should ever target
+  KSP output.
+
+### Fixed
+- **The music server's coverage report was measuring under 1% of it.** `CMAKE_UNITY_BUILD=ON` merges
+  many `.cpp` files into a single translation unit, and gcov then reports against that merged file
+  instead of the real sources: gcovr resolved 18 files and 453 lines of a 76 000-line codebase, so
+  the reported 36.9% was a figure about almost nothing. The unity build stays on for the images that
+  are shipped and is turned off for the run that measures coverage. The report now covers 686 files
+  and 44 034 lines, at 38.6% — the suite was always doing more than the badge showed.
+
 ## [0.5.2] - 2026-08-05
 
 ### Changed

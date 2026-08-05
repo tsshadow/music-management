@@ -534,8 +534,6 @@
     <string name="api.subsonic.upgrade_server">Versies passen neet. Wark oe Subsonic-server bi\'j.</string>
     <string name="api.subsonic.multiple_auth">Twee soorten inloggen deur mekaar (apiKey en wachtwoord). Nem d\'r mer één.</string>
     <string name="api.subsonic.unknown_error">Onbekende Subsonic-fout (code %1$d).</string>
-    <string name="settings.five_star_rating_title">Vief starren gebruken veur nummers</string>
-    <string name="settings.five_star_rating_description">Laat vief starren zien um nummers te beoordeeln, in plaats van ze bi\'j de favorieten te zetten of d\'r uut te haolen.</string>
     <string name="settings.use_hw_offload_title">Hardwarematig speulen (experimenteel)</string>
     <string name="settings.use_hw_offload_description">Prebeert media te speulen met de mediadecoder van oe telefoon. Pas op: dat kan meer accu kosten.</string>
     <string name="list_view">Lieste</string>

@@ -174,8 +174,8 @@
     <string name="main.songs_title">Songs</string>
     <string name="main.livesets_title">Livesets</string>
     <string name="main.videos">Videos</string>
-    <string name="main.welcome_text_demo">To use MuMa Mobile with your own music you will need your <b>own server</b>. \n\n➤ The LMS servers and a demo server have been pre-configured for you. \n\n➤ You can add or change servers in the <b>settings</b>.</string>
-    <string name="main.welcome_title">Welcome to MuMa Mobile!</string>
+    <string name="main.welcome_text_demo">To use MuMa with your own music you will need your <b>own server</b>. \n\n➤ The LMS servers and a demo server have been pre-configured for you. \n\n➤ You can add or change servers in the <b>settings</b>.</string>
+    <string name="main.welcome_title">Welcome to MuMa!</string>
     <string name="main.welcome_cancel">Take me to the settings</string>
     <string name="menu.about">About</string>
     <string name="menu.common">Common</string>
@@ -449,7 +449,7 @@
     <string name="settings.use_id3">Browse Using ID3 Tags</string>
     <string name="settings.use_id3_summary">Use ID3 tag methods instead of file system based methods</string>
     <string name="settings.use_id3_offline">Use ID3 method also when offline</string>
-    <string name="settings.use_id3_offline_summary">If you enable this Setting it will only show the music that you have downloaded with MuMa Mobile 4.0 or later. Earlier downloads don\'t have the necessary metadata downloaded. You can toggle between Pin and Save mode to trigger the download of the missing metadata.</string>
+    <string name="settings.use_id3_offline_summary">If you enable this Setting it will only show the music that you have downloaded with MuMa 4.0 or later. Earlier downloads don\'t have the necessary metadata downloaded. You can toggle between Pin and Save mode to trigger the download of the missing metadata.</string>
     <string name="settings.show_artist_picture">Show artist picture in artist list</string>
     <string name="settings.show_artist_picture_summary">Displays the artist picture in the artist list if available</string>
     <string name="main.video" tools:ignore="UnusedResources">Video</string>
@@ -517,7 +517,7 @@
     <string name="settings.debug.crash_detection">Crash detection</string>
     <string name="settings.debug.crash_detection_summary">Detect crashes and unclean shutdowns, and offer to share diagnostics on the next start</string>
     <string name="crash_report.dialog_title">Previous session crashed</string>
-    <string name="crash_report.dialog_message">MuMa Mobile did not shut down cleanly last time. Share diagnostics to help fix this?</string>
+    <string name="crash_report.dialog_message">MuMa did not shut down cleanly last time. Share diagnostics to help fix this?</string>
     <string name="crash_report.dialog_share">Share</string>
     <string name="crash_report.dialog_dismiss">Dismiss</string>
     <string name="settings.diagnostics.send_now">Send diagnostics now</string>
@@ -598,7 +598,7 @@
     <string name="api.subsonic.param_missing">Required param is missing.</string>
     <string name="api.subsonic.requested_data_was_not_found">Requested data was not found.</string>
     <string name="api.subsonic.trial_period_is_over">Trial period is over.</string>
-    <string name="api.subsonic.upgrade_client">Incompatible versions. Please upgrade MuMa Mobile Android app.</string>
+    <string name="api.subsonic.upgrade_client">Incompatible versions. Please upgrade MuMa Android app.</string>
     <string name="api.subsonic.upgrade_server">Incompatible versions. Please upgrade Subsonic server.</string>
     <string name="api.subsonic.multiple_auth">Conflicting authentication mechanisms (apiKey and password). Please use only one.</string>
     <string name="api.subsonic.unknown_error">Unknown Subsonic error (code %1$d).</string>
@@ -667,7 +667,7 @@
     <string name="setting_key_last_seen_version" translatable="false">last_seen_version</string>
     <string name="setting_media_device_export_title">Enable Media Device Export</string>
     <string name="setting_media_device_export_summary">Show an option to export the current playlist to a connected media device (USB/OpenSwim Pro)</string>
-    <string name="welcome_title">Welcome to MuMa Mobile</string>
+    <string name="welcome_title">Welcome to MuMa</string>
     <string name="welcome_login_info">What is your login information?</string>
     <string name="welcome_username">Name</string>
     <string name="welcome_password">Password</string>

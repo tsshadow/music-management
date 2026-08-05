@@ -114,7 +114,7 @@ android {
                     'minify/proguard-kotlin.pro'
 
             buildConfigField "String", "DEFAULT_SERVERS_JSON", "\"${getServerJson(false)}\""
-            resValue "string", "common_appname", "MuMa Mobile"
+            resValue "string", "common_appname", "MuMa"
         }
         debug {
             signingConfig = signingConfigs.debug
@@ -125,7 +125,7 @@ android {
             matchingFallbacks = ['release']
 
             buildConfigField "String", "DEFAULT_SERVERS_JSON", "\"${getServerJson(true)}\""
-            resValue "string", "common_appname", "MuMa Mobile Debug"
+            resValue "string", "common_appname", "MuMa Debug"
         }
     }
 

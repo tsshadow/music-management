@@ -174,7 +174,7 @@
     <string name="main.songs_title">Nummerkes</string>
     <string name="main.livesets_title">Livesets</string>
     <string name="main.videos">Video\'s</string>
-    <string name="main.welcome_text_demo">Om in MuMa Mobile naor oew eige muziek te luistere hedde \'n <b>eige server</b> nodig. \n\n➤ Maor wilde de app eerst efkes probere, dan kunde vurlopig de demoserver pakke. \n\n➤ Bij de <b>instellinge</b> zet ge oew eige server erin.</string>
+    <string name="main.welcome_text_demo">Om in MuMa naor oew eige muziek te luistere hedde \'n <b>eige server</b> nodig. \n\n➤ Maor wilde de app eerst efkes probere, dan kunde vurlopig de demoserver pakke. \n\n➤ Bij de <b>instellinge</b> zet ge oew eige server erin.</string>
     <string name="main.welcome_title">Welkom!</string>
     <string name="main.welcome_cancel">Doe de instellinge open</string>
     <string name="menu.about">Over</string>
@@ -426,7 +426,7 @@
     <string name="settings.use_id3">Navigere mee ID3-labels</string>
     <string name="settings.use_id3_summary">Pakt ID3-labels in plaats van systeemlabels</string>
     <string name="settings.use_id3_offline">ID3-manier ook offline gebruike</string>
-    <string name="settings.use_id3_offline_summary">Zette gij dit aon, dan ziede alleen de muziek die ge mee MuMa Mobile 4.0 of nieuwer binnegehaold het. Van oudere downloads is de metadata nie opgehaold. Ge kunt wissele tusse Pin- en Bewaormodus om die metadata alsnog binne te hale.</string>
+    <string name="settings.use_id3_offline_summary">Zette gij dit aon, dan ziede alleen de muziek die ge mee MuMa 4.0 of nieuwer binnegehaold het. Van oudere downloads is de metadata nie opgehaold. Ge kunt wissele tusse Pin- en Bewaormodus om die metadata alsnog binne te hale.</string>
     <string name="settings.show_artist_picture">Artiestfoto laote zien in de artiestenlijst</string>
     <string name="settings.show_artist_picture_summary">Laat de foto van de artiest zien in de lijst (as die d\'r is)</string>
     <string name="main.video" tools:ignore="UnusedResources">Video</string>
@@ -493,7 +493,7 @@
     <string name="settings.debug.crash_detection">Crashdetectie</string>
     <string name="settings.debug.crash_detection_summary">Merkt crashes en rare afsluitinge op en vraogt bij de volgende start of ge diagnostiek wilt dele</string>
     <string name="crash_report.dialog_title">Vurige keer gecrasht</string>
-    <string name="crash_report.dialog_message">MuMa Mobile is de vurige keer nie netjes afgesloten. Diagnostiek dele om da op te losse?</string>
+    <string name="crash_report.dialog_message">MuMa is de vurige keer nie netjes afgesloten. Diagnostiek dele om da op te losse?</string>
     <string name="crash_report.dialog_share">Dele</string>
     <string name="crash_report.dialog_dismiss">Laot maor</string>
     <string name="notification.downloading_title">Media wordt op de achtergrond binnegehaold…</string>
@@ -530,7 +530,7 @@
     <string name="api.subsonic.param_missing">D\'r ontbreekt \'n verplichte parameter.</string>
     <string name="api.subsonic.requested_data_was_not_found">De gevraagde gegevens zijn nie te vinde.</string>
     <string name="api.subsonic.trial_period_is_over">De proefperiode is vurbij.</string>
-    <string name="api.subsonic.upgrade_client">Versies passe nie. Werk de MuMa Mobile-app bij.</string>
+    <string name="api.subsonic.upgrade_client">Versies passe nie. Werk de MuMa-app bij.</string>
     <string name="api.subsonic.upgrade_server">Versies passe nie. Werk oewe Subsonic-server bij.</string>
     <string name="api.subsonic.multiple_auth">Twee soorte inlogge deur mekaor (apiKey en wachtwoord). Pak d\'r maor één.</string>
     <string name="api.subsonic.unknown_error">Onbekende Subsonic-fout (code %1$d).</string>
@@ -591,7 +591,7 @@
     <string name="changelog_button">Changelog</string>
     <string name="setting_media_device_export_title">Sture naor \'n media-apparaat aonzette</string>
     <string name="setting_media_device_export_summary">Laat \'n knop zien om de huidige playlist naor \'n aongeslote media-apparaat te sture (USB/OpenSwim Pro)</string>
-    <string name="welcome_title">Welkom bij MuMa Mobile</string>
+    <string name="welcome_title">Welkom bij MuMa</string>
     <string name="welcome_login_info">Wa zijn oew inloggegevens?</string>
     <string name="welcome_username">Naom</string>
     <string name="welcome_password">Wachtwoord</string>

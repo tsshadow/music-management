@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+## [6.9.0] - 2026-08-05
+
+### Changed
+- **Favoriet bestaat niet meer los: vijf sterren is je favoriet.** Het hartje in de nummerlijst, de
+  losse sterknop in de speler en het menu-item erachter zijn weg; de vijf sterren staan er altijd.
+  Je favorietenlijst blijft staan waar hij stond en toont voortaan wat vijf sterren heeft. De
+  STAR-knop op een bedrade koptelefoon zet vijf sterren.
+
+### Added
+- **Albums kun je nu waarderen.** De ster op een albumregel zette eerder een vlaggetje dat nergens
+  heen ging; hij zet nu vijf sterren, en die waardering komt ook in je bestandstags terecht.
+
 ## [6.8.0] - 2026-08-05
 
 ### Fixed

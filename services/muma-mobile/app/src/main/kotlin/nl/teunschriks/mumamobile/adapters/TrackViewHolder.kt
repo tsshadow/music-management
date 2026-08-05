@@ -20,7 +20,6 @@ import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
-import nl.teunschriks.mumamobile.data.RatingUpdate
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.service.DownloadService
 import nl.teunschriks.mumamobile.service.DownloadState
@@ -83,7 +82,6 @@ class TrackViewHolder(val view: View) :
 
     @Suppress("ComplexMethod")
     fun setSong(song: Track, checkable: Boolean, draggable: Boolean, isSelected: Boolean = false) {
-        val useFiveStarRating = Settings.useFiveStarRating
         entry = song
 
         val entryDescription = Util.readableEntryDescription(song)
@@ -121,7 +119,7 @@ class TrackViewHolder(val view: View) :
         if (ActiveServerProvider.isOffline()) {
             star.isGone = true
         } else {
-            setupStarButtons(song, useFiveStarRating)
+            setupStarButtons(song)
         }
 
         // Instead of blocking the UI thread while looking up the current state,
@@ -133,11 +131,7 @@ class TrackViewHolder(val view: View) :
             )
         }
 
-        if (useFiveStarRating) {
-            updateFiveStars(entry?.userRating ?: 0)
-        } else {
-            updateSingleStar(entry!!.starred)
-        }
+        updateFiveStars(entry?.userRating ?: 0)
 
         if (song.isVideo) {
             artist.isGone = true
@@ -202,28 +196,15 @@ class TrackViewHolder(val view: View) :
         }
     }
 
-    private fun setupStarButtons(track: Track, useFiveStarRating: Boolean) {
-        if (useFiveStarRating) {
-            // Hide single star
-            star.isGone = true
-            rating.isVisible = true
-            val rating = if (track.userRating == null) 0 else track.userRating!!
-            updateFiveStars(rating)
+    private fun setupStarButtons(track: Track) {
+        // Hide single star
+        star.isGone = true
+        rating.isVisible = true
+        val rating = if (track.userRating == null) 0 else track.userRating!!
+        updateFiveStars(rating)
 
-            // Five star rating has no click handler because in the
-            // track view theres not enough space
-        } else {
-            star.isVisible = true
-            rating.isGone = true
-            updateSingleStar(track.starred)
-            star.setOnClickListener {
-                track.starred = !track.starred
-                updateSingleStar(track.starred)
-                RxBus.ratingSubmitter.onNext(
-                    RatingUpdate(track.id, HeartRating(track.starred))
-                )
-            }
-        }
+        // Five star rating has no click handler because in the
+        // track view theres not enough space
     }
 
     @Suppress("MagicNumber")

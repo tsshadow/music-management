@@ -133,7 +133,6 @@ class PlayerFragment :
     private var swipeDistance = 0
     private var swipeVelocity = 0
     private var jukeboxAvailable = false
-    private var useFiveStarRating = false
     private var isEqualizerAvailable = false
 
     // Detectors & Callbacks
@@ -283,7 +282,6 @@ class PlayerFragment :
             Lifecycle.State.RESUMED
         )
 
-        useFiveStarRating = Settings.useFiveStarRating
         swipeDistance = (width + height) * PERCENTAGE_OF_SCREEN_FOR_SWIPE / 100
         swipeVelocity = swipeDistance
         gestureScanner = GestureDetector(context, this)
@@ -296,8 +294,9 @@ class PlayerFragment :
         updateRepeatButtonState(mediaPlayerManager.repeatMode)
 
         val ratingLinearLayout = view.findViewById<LinearLayout>(R.id.song_rating)
-        ratingLinearLayout.isVisible = useFiveStarRating
-        playerStarButton.isVisible = !useFiveStarRating
+        // Ratings are always five star, they are kept on the server
+        ratingLinearLayout.isVisible = true
+        playerStarButton.isVisible = false
 
         hollowStarDrawable = ResourcesCompat.getDrawable(resources, hollowStar, null)!!
         fullStarDrawable = ResourcesCompat.getDrawable(resources, fullStar, null)!!
@@ -661,7 +660,7 @@ class PlayerFragment :
             currentSong = track
         }
 
-        if (useFiveStarRating) starMenuItem.isVisible = false
+        starMenuItem.isVisible = false
 
         if (currentSong != null) {
             starMenuItem.setIcon(if (currentSong!!.starred) fullStar else hollowStar)

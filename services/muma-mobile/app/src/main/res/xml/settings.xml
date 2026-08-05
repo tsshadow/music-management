@@ -143,12 +143,6 @@
             a:title="@string/settings.playback.pause_on_bluetooth_device"
             app:iconSpaceReserved="false"/>
         <CheckBoxPreference
-            a:defaultValue="true"
-            a:key="@string/setting_key.use_five_star_rating"
-            a:summary="@string/settings.five_star_rating_description"
-            a:title="@string/settings.five_star_rating_title"
-            app:iconSpaceReserved="false" />
-        <CheckBoxPreference
             a:defaultValue="false"
             a:key="@string/setting_key.hardware_offload"
             a:summary="@string/settings.use_hw_offload_description"

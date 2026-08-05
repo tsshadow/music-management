@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.8.0] - 2026-08-05
+
 ### Added
 - **Pick how many tracks a genre opens with, from the genre screen.** Opening a genre always
   fetched the same number of tracks, and the only way to change it was a preference several

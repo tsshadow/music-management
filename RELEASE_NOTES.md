@@ -11,6 +11,26 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.5.2 (2026-08-05)
+
+### 🎨 MuMa heeft eindelijk een eigen naam en een eigen logo
+- De app op je telefoon heette "MuMa Mobile" en het tabblad in je browser "MuMa Spotify". Dat is nu
+  overal gewoon **MuMa** — Spotify noemt zijn app tenslotte ook geen "Spotify Mobile".
+- Er is een eigen beeldmerk: vijf staafjes in een groene schijf, waarvan de bovenrand een M vormt.
+  Van een afstand een equalizer, van dichtbij de M van MuMa. Je ziet hem op je startscherm, in het
+  tabblad van je browser, op het inlogscherm, in de zijbalk en rechtsboven in de webpagina.
+- Tot vandaag stond er in de zijbalk letterlijk het logo van Spotify. Dat is vervangen.
+- De app installeert gewoon over de vorige heen; je hoeft niets opnieuw in te stellen.
+
+### ⏮️ "Onlangs afgespeeld" onthoudt weer wat je hebt geluisterd
+- Het raster op de startpagina bewaarde alleen wat je zelf aantikte in een lijst. Wie via Android
+  Auto, de melding of de wachtrij luisterde, liet dus niets achter: een avond muziek in de auto
+  veranderde er niets aan.
+- Ook "Laatst gespeelde genres" werd nergens meer bijgewerkt, terwijl Android Auto die lijsten wél
+  bleef tonen — ze waren daardoor altijd leeg.
+- Allebei worden ze weer bijgehouden: elk nummer dat je uitluistert zet zijn album in het raster en
+  zijn genres in de genrelijst.
+
 ## Global Version 0.5.1 (2026-08-05)
 
 ### 📲 "Controleer op updates" ziet nieuwe versies weer

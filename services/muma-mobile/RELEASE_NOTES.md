@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+## [6.9.2] - 2026-08-05
+
+### Changed
+- **De app heet voortaan gewoon MuMa, en heeft een eigen icoon.** "Mobile" is weg uit de naam op je
+  startscherm, uit de meldingen en uit de app zelf: het is hetzelfde MuMa als in je browser. Het
+  icoon is niet langer het geërfde koptelefoontje op paars, maar MuMa's eigen merkteken — vijf
+  staafjes in een groene schijf waarvan de bovenrand een M vormt. Hij installeert gewoon over je
+  huidige versie heen.
+
 ### Fixed
 - **"Onlangs afgespeeld" onthoudt weer wat je hebt geluisterd.** Het raster op de startpagina
   bewaarde alleen wat je zelf aantikte in een lijst; wie via Android Auto, de melding of de

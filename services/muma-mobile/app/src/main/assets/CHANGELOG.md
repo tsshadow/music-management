@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.9.2] - 2026-08-05
+
+### Changed
+- **The app is called MuMa, and it has its own icon.** "Mobile" is gone from the launcher name, the
+  notification channels and every screen — the phone app and the web app are one product and now
+  say so. The launcher icon is no longer the inherited headphone on indigo but MuMa's own mark:
+  five bars in a green disc whose top edge traces an M, shipped as an adaptive icon with a round
+  variant and a monochrome layer for themed icons. `applicationId` is unchanged, so this installs
+  over the previous version.
+
+### Fixed
+- **"Onlangs afgespeeld" now remembers what was played.** The home grid only ever recorded items
+  you *opened* on a browse screen, on the assumption that playing something implies having opened
+  it first. That assumption does not hold for a session driven from Android Auto, the notification
+  or the play queue, so an evening of listening in the car left the grid showing whatever was last
+  tapped by hand. The same rebuild also deleted the only writer of the "Last played genres" lists
+  while leaving the Android Auto browser reading them, so those two lists had been permanently
+  empty. Both are written again, now from one place: every scrobble records the played album into
+  the home grid and its genres into the per-mode genre lists.
+
 ## [6.9.1] - 2026-08-05
 
 ### Fixed

@@ -605,8 +605,8 @@
     <string name="management.source_soundcloud">SoundCloud</string>
     <string name="management.source_youtube">YouTube</string>
     <string name="management.action_failed">Beheeractie mislukt: %1$s</string>
-    <string name="favorites.starred_albums">Albums met ster</string>
-    <string name="favorites.starred_artists">Artiesten met ster</string>
+    <string name="favorites.starred_albums">Favoriete albums</string>
+    <string name="favorites.starred_artists">Favoriete artiesten</string>
     <string name="favorites.highly_rated">Hoog gewaardeerd</string>
     <string name="favorites.title">Favorieten</string>
     <string name="favorites.genres">Favoriete genres</string>

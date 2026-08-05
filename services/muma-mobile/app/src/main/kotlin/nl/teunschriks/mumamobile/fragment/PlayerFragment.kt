@@ -30,7 +30,6 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.animation.AnimationUtils
 import android.widget.EditText
-import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupMenu
@@ -49,7 +48,6 @@ import androidx.core.view.MenuProvider
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.media3.common.HeartRating
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.StarRating
@@ -174,7 +172,6 @@ class PlayerFragment :
     private lateinit var releaseDateView: TextView
     private lateinit var bitrateFormatTextView: TextView
     private lateinit var albumArtImageView: ImageView
-    private lateinit var playerStarButton: ImageButton
     private lateinit var playlistView: RecyclerView
     private lateinit var positionTextView: TextView
     private lateinit var downloadTrackTextView: TextView
@@ -240,7 +237,6 @@ class PlayerFragment :
         releaseDateView = view.findViewById(R.id.current_playing_release_date)
         bitrateFormatTextView = view.findViewById(R.id.current_playing_bitrate_format)
         albumArtImageView = view.findViewById(R.id.current_playing_album_art_image)
-        playerStarButton = view.findViewById(R.id.player_star_button)
         positionTextView = view.findViewById(R.id.current_playing_position)
         downloadTrackTextView = view.findViewById(R.id.current_playing_track)
         downloadTotalDurationTextView = view.findViewById(R.id.current_total_duration)
@@ -293,10 +289,8 @@ class PlayerFragment :
         updateShuffleButtonState(mediaPlayerManager.isShufflePlayEnabled)
         updateRepeatButtonState(mediaPlayerManager.repeatMode)
 
-        val ratingLinearLayout = view.findViewById<LinearLayout>(R.id.song_rating)
         // Ratings are always five star, they are kept on the server
-        ratingLinearLayout.isVisible = true
-        playerStarButton.isVisible = false
+        view.findViewById<LinearLayout>(R.id.song_rating).isVisible = true
 
         hollowStarDrawable = ResourcesCompat.getDrawable(resources, hollowStar, null)!!
         fullStarDrawable = ResourcesCompat.getDrawable(resources, fullStar, null)!!
@@ -308,16 +302,6 @@ class PlayerFragment :
         fiveStar3ImageView.setOnClickListener { setSongRating(3) }
         fiveStar4ImageView.setOnClickListener { setSongRating(4) }
         fiveStar5ImageView.setOnClickListener { setSongRating(5) }
-
-        playerStarButton.setOnClickListener {
-            if (currentSong == null) return@setOnClickListener
-            currentSong!!.starred = !currentSong!!.starred
-            updatePlayerStarButtonDisplay()
-
-            RxBus.ratingSubmitter.onNext(
-                RatingUpdate(currentSong!!.id, HeartRating(currentSong!!.starred))
-            )
-        }
 
         albumArtImageView.setOnTouchListener { _, me ->
             gestureScanner.onTouchEvent(me)
@@ -608,7 +592,6 @@ class PlayerFragment :
         val shareMenuItem = menu.findItem(R.id.menu_item_share)
         val shareSongMenuItem = menu.findItem(R.id.menu_item_share_song)
         val refreshSongItem = menu.findItem(R.id.menu_refresh_track)
-        val starMenuItem = menu.findItem(R.id.menu_item_star)
         val bookmarkMenuItem = menu.findItem(R.id.menu_item_bookmark_set)
         val bookmarkRemoveMenuItem = menu.findItem(R.id.menu_item_bookmark_delete)
 
@@ -620,16 +603,9 @@ class PlayerFragment :
 
             // Ensure UI thread
             launch {
-                if (update.success == true && update.rating is HeartRating) {
-                    currentSong?.starred = update.rating.isHeart
-                    updatePlayerStarButtonDisplay()
-                    if (update.rating.isHeart) {
-                        starMenuItem.setIcon(fullStar)
-                        starMenuItem.setTitle(R.string.download_menu_unstar)
-                    } else {
-                        starMenuItem.setIcon(hollowStar)
-                        starMenuItem.setTitle(R.string.download_menu_star)
-                    }
+                if (update.success == true && update.rating is StarRating) {
+                    currentSong?.userRating = update.rating.starRating.toInt()
+                    updateSongRatingDisplay()
                 } else if (update.success == false) {
                     Toast.makeText(context, "Setting rating failed", Toast.LENGTH_SHORT)
                         .show()
@@ -641,7 +617,6 @@ class PlayerFragment :
             if (shareMenuItem != null) {
                 shareMenuItem.isVisible = false
             }
-            starMenuItem.isVisible = false
             if (bookmarkMenuItem != null) {
                 bookmarkMenuItem.isVisible = false
             }
@@ -660,17 +635,13 @@ class PlayerFragment :
             currentSong = track
         }
 
-        starMenuItem.isVisible = false
-
         if (currentSong != null) {
-            starMenuItem.setIcon(if (currentSong!!.starred) fullStar else hollowStar)
             shareSongMenuItem.isVisible = true
             goToAlbum.isVisible = true
             goToArtist.isVisible = true
             showMetadata.isVisible = true
             refreshSongItem.isVisible = true
         } else {
-            starMenuItem.setIcon(hollowStar)
             shareSongMenuItem.isVisible = false
             goToAlbum.isVisible = false
             goToArtist.isVisible = false
@@ -820,16 +791,6 @@ class PlayerFragment :
             }
             R.id.menu_item_export_to_media_device -> {
                 exportPlaylistToMediaDevice()
-                return true
-            }
-            R.id.menu_item_star -> {
-                if (track == null) return true
-                track.starred = !track.starred
-
-                RxBus.ratingSubmitter.onNext(
-                    RatingUpdate(track.id, HeartRating(track.starred))
-                )
-
                 return true
             }
             R.id.menu_item_bookmark_set -> {
@@ -1217,7 +1178,6 @@ class PlayerFragment :
         }
 
         updateSongRatingDisplay()
-        updatePlayerStarButtonDisplay()
     }
 
     private fun updateSongDetails() {
@@ -1427,11 +1387,6 @@ class PlayerFragment :
         fiveStar3ImageView.setImageDrawable(getStarForRating(rating, 2))
         fiveStar4ImageView.setImageDrawable(getStarForRating(rating, 3))
         fiveStar5ImageView.setImageDrawable(getStarForRating(rating, 4))
-    }
-
-    private fun updatePlayerStarButtonDisplay() {
-        if (currentSong == null) return
-        playerStarButton.setImageResource(if (currentSong!!.starred) R.drawable.ic_star_full else R.drawable.ic_star_hollow)
     }
 
     private fun getStarForRating(rating: Int, position: Int): Drawable = if (rating > position) fullStarDrawable else hollowStarDrawable

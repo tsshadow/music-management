@@ -9,7 +9,6 @@ package nl.teunschriks.mumamobile.service.androidauto
 
 import android.os.Bundle
 import androidx.annotation.OptIn
-import androidx.media3.common.HeartRating
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Rating
@@ -222,9 +221,7 @@ class MediaLibrarySessionCallback :
         val mediaItem = session.player.currentMediaItem
 
         if (mediaItem != null) {
-            if (rating is HeartRating) {
-                mediaItem.toTrack().starred = rating.isHeart
-            } else if (rating is StarRating) {
+            if (rating is StarRating) {
                 mediaItem.setUserRating(rating.starRating.toInt())
                 // A rating set on the phone must leave the car's button showing the same
                 // number, or the next tap in the car looks like it skipped a step

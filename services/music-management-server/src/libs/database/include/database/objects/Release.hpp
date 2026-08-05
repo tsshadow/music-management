@@ -172,6 +172,8 @@ namespace lms::db
             std::optional<YearRange> originalDateRange;
             UserId starringUser;                                     // only releases starred by this user
             std::optional<FeedbackBackend> feedbackBackend;          //    and for this backend
+            UserId ratingUser;                                       // only releases rated by this user
+            std::optional<int> minRating;                            //    and with at least this rating
             ArtistId artist;                                         // only releases by this release artist
             ArtistId trackArtist;                                    // only releases that involved this track artist
             core::EnumSet<TrackArtistLinkType> trackArtistLinkTypes; //    and for these link types, if set
@@ -224,6 +226,12 @@ namespace lms::db
             {
                 starringUser = _user;
                 feedbackBackend = _feedbackBackend;
+                return *this;
+            }
+            FindParameters& setRatingUser(UserId _user, int _minRating)
+            {
+                ratingUser = _user;
+                minRating = _minRating;
                 return *this;
             }
             FindParameters& setArtist(ArtistId _artist)

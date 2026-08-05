@@ -322,24 +322,6 @@ namespace lms::ui
                 showReleaseInfoModal(_releaseId);
             });
 
-        {
-            auto isStarred{ [this] { return core::Service<feedback::IFeedbackService>::get()->isStarred(LmsApp->getUserId(), _releaseId); } };
-
-            Wt::WPushButton* starBtn{ bindNew<Wt::WPushButton>("star", Wt::WString::tr(isStarred() ? "Lms.Explore.unstar" : "Lms.Explore.star")) };
-            starBtn->clicked().connect([=, this] {
-                if (isStarred())
-                {
-                    core::Service<feedback::IFeedbackService>::get()->unstar(LmsApp->getUserId(), _releaseId);
-                    starBtn->setText(Wt::WString::tr("Lms.Explore.star"));
-                }
-                else
-                {
-                    core::Service<feedback::IFeedbackService>::get()->star(LmsApp->getUserId(), _releaseId);
-                    starBtn->setText(Wt::WString::tr("Lms.Explore.unstar"));
-                }
-            });
-        }
-
         refreshDiscs(release);
     }
 
@@ -453,37 +435,6 @@ namespace lms::ui
                     .connect([this, trackId] {
                         _playQueueController.processCommand(PlayQueueController::Command::PlayOrAddLast, { trackId });
                     });
-
-                {
-                    auto isStarred{ [=] { return core::Service<feedback::IFeedbackService>::get()->isStarred(LmsApp->getUserId(), trackId); } };
-
-                    Wt::WPushButton* starBtn{ entry->bindNew<Wt::WPushButton>("star-btn", Wt::WString::tr(isStarred() ? "Lms.template.unstar-btn" : "Lms.template.star-btn"), Wt::TextFormat::XHTML) };
-                    starBtn->setAttributeValue("aria-pressed", isStarred() ? "true" : "false");
-                    starBtn->setAttributeValue("aria-label", Wt::WString::tr("Lms.Explore.star-item").arg(track->getName()));
-                    Wt::WPushButton* starMenuEntry{ entry->bindNew<Wt::WPushButton>("star", Wt::WString::tr(isStarred() ? "Lms.Explore.unstar" : "Lms.Explore.star")) };
-
-                    auto toggle{ [=] {
-                        auto transaction{ LmsApp->getDbSession().createWriteTransaction() };
-
-                        if (isStarred())
-                        {
-                            core::Service<feedback::IFeedbackService>::get()->unstar(LmsApp->getUserId(), trackId);
-                            starMenuEntry->setText(Wt::WString::tr("Lms.Explore.star"));
-                            starBtn->setText(Wt::WString::tr("Lms.template.star-btn"));
-                            starBtn->setAttributeValue("aria-pressed", "false");
-                        }
-                        else
-                        {
-                            core::Service<feedback::IFeedbackService>::get()->star(LmsApp->getUserId(), trackId);
-                            starMenuEntry->setText(Wt::WString::tr("Lms.Explore.unstar"));
-                            starBtn->setText(Wt::WString::tr("Lms.template.unstar-btn"));
-                            starBtn->setAttributeValue("aria-pressed", "true");
-                        }
-                    } };
-
-                    starMenuEntry->clicked().connect([=] { toggle(); });
-                    starBtn->clicked().connect([=] { toggle(); });
-                }
 
                 if (LmsApp->areDownloadsEnabled())
                 {

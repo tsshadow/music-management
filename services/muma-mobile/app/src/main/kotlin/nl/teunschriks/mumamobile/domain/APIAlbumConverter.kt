@@ -27,7 +27,8 @@ fun Album.toDomainEntity(serverId: Int): DomainAlbum = Album(
     created = this@toDomainEntity.created?.time,
     year = this@toDomainEntity.year,
     genre = this@toDomainEntity.genre,
-    starred = this@toDomainEntity.starredDate.isNotEmpty()
+    starred = this@toDomainEntity.starredDate.isNotEmpty(),
+    userRating = this@toDomainEntity.userRating
 )
 
 fun Album.toMusicDirectoryDomainEntity(serverId: Int): MusicDirectory = MusicDirectory().apply {

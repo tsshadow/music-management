@@ -63,7 +63,7 @@ namespace lms::ui
                                [&](db::TrackArtistLinkType trackArtistLinkType) { params.setTrackArtistLinkType(trackArtistLinkType); } },
                            _artistType);
 
-                artists = feedbackService.findStarredArtists(params);
+                artists = feedbackService.findFavoriteArtists(params);
                 break;
             }
 

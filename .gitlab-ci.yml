@@ -184,6 +184,9 @@ music-management:unit:
         - services/tagger/**/*
         - services/scanner/**/*
         - services/common/**/*
+        # A change to a test, or to a script a test covers, has to run the tests.
+        - services/tests/**/*
+        - scripts/**/*
         - pytest.ini
         - .gitlab-ci.yml
   script:

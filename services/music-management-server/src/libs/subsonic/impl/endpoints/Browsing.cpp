@@ -320,7 +320,7 @@ namespace lms::api::subsonic
                                        core::Service<scrobbling::IScrobblingService>::get()->getCount(
                                            context.getUser()->getId(), release->getId()));
             if (const Wt::WDateTime dateTime{
-                    core::Service<feedback::IFeedbackService>::get()->getStarredDateTime(
+                    core::Service<feedback::IFeedbackService>::get()->getFavoriteDateTime(
                         context.getUser()->getId(), release->getId()) };
                 dateTime.isValid())
                 directoryNode.setAttribute("starred", core::stringUtils::toISO8601String(dateTime));

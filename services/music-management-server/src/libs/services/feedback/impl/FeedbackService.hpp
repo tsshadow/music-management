@@ -44,27 +44,27 @@ namespace lms::feedback
     private:
         void star(db::UserId userId, db::ArtistId artistId) override;
         void unstar(db::UserId userId, db::ArtistId artistId) override;
-        bool isStarred(db::UserId userId, db::ArtistId artistId) override;
-        Wt::WDateTime getStarredDateTime(db::UserId userId, db::ArtistId artistId) override;
-        ArtistContainer findStarredArtists(const ArtistFindParameters& params) override;
+        bool isFavorite(db::UserId userId, db::ArtistId artistId) override;
+        Wt::WDateTime getFavoriteDateTime(db::UserId userId, db::ArtistId artistId) override;
+        ArtistContainer findFavoriteArtists(const ArtistFindParameters& params) override;
 
         void setRating(db::UserId userId, db::ArtistId artistId, std::optional<db::Rating> rating) override;
         std::optional<db::Rating> getRating(db::UserId userId, db::ArtistId artistId) override;
 
         void star(db::UserId userId, db::ReleaseId releaseId) override;
         void unstar(db::UserId userId, db::ReleaseId releaseId) override;
-        bool isStarred(db::UserId userId, db::ReleaseId releaseId) override;
-        Wt::WDateTime getStarredDateTime(db::UserId userId, db::ReleaseId releaseId) override;
-        ReleaseContainer findStarredReleases(const FindParameters& params) override;
+        bool isFavorite(db::UserId userId, db::ReleaseId releaseId) override;
+        Wt::WDateTime getFavoriteDateTime(db::UserId userId, db::ReleaseId releaseId) override;
+        ReleaseContainer findFavoriteReleases(const FindParameters& params) override;
 
         void setRating(db::UserId userId, db::ReleaseId releaseId, std::optional<db::Rating> rating) override;
         std::optional<db::Rating> getRating(db::UserId userId, db::ReleaseId releaseId) override;
 
         void star(db::UserId userId, db::TrackId trackId) override;
         void unstar(db::UserId userId, db::TrackId trackId) override;
-        bool isStarred(db::UserId userId, db::TrackId trackId) override;
-        Wt::WDateTime getStarredDateTime(db::UserId userId, db::TrackId trackId) override;
-        TrackContainer findStarredTracks(const FindParameters& params) override;
+        bool isFavorite(db::UserId userId, db::TrackId trackId) override;
+        Wt::WDateTime getFavoriteDateTime(db::UserId userId, db::TrackId trackId) override;
+        TrackContainer findFavoriteTracks(const FindParameters& params) override;
 
         void setRating(db::UserId userId, db::TrackId trackId, std::optional<db::Rating> rating) override;
         std::optional<db::Rating> getRating(db::UserId userId, db::TrackId trackId) override;
@@ -77,10 +77,10 @@ namespace lms::feedback
         void star(db::UserId userId, ObjIdType id);
         template<typename ObjType, typename ObjIdType, typename StarredObjType>
         void unstar(db::UserId userId, ObjIdType id);
-        template<typename ObjType, typename ObjIdType, typename StarredObjType>
-        bool isStarred(db::UserId userId, ObjIdType id);
-        template<typename ObjType, typename ObjIdType, typename StarredObjType>
-        Wt::WDateTime getStarredDateTime(db::UserId userId, ObjIdType id);
+        template<typename ObjType, typename ObjIdType, typename RatedObjType>
+        bool isFavorite(db::UserId userId, ObjIdType id);
+        template<typename ObjType, typename ObjIdType, typename RatedObjType>
+        Wt::WDateTime getFavoriteDateTime(db::UserId userId, ObjIdType id);
 
         template<typename ObjType, typename ObjIdType, typename RatedObjType>
         void setRating(db::UserId userId, ObjIdType objectId, std::optional<db::Rating> rating);

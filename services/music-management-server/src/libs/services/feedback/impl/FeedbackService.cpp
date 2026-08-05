@@ -82,28 +82,24 @@ namespace lms::feedback
         unstar<Artist, ArtistId, StarredArtist>(userId, artistId);
     }
 
-    bool FeedbackService::isStarred(UserId userId, ArtistId artistId)
+    bool FeedbackService::isFavorite(UserId userId, ArtistId artistId)
     {
-        return isStarred<Artist, ArtistId, StarredArtist>(userId, artistId);
+        return isFavorite<Artist, ArtistId, RatedArtist>(userId, artistId);
     }
 
-    Wt::WDateTime FeedbackService::getStarredDateTime(UserId userId, ArtistId artistId)
+    Wt::WDateTime FeedbackService::getFavoriteDateTime(UserId userId, ArtistId artistId)
     {
-        return getStarredDateTime<Artist, ArtistId, StarredArtist>(userId, artistId);
+        return getFavoriteDateTime<Artist, ArtistId, RatedArtist>(userId, artistId);
     }
 
-    FeedbackService::ArtistContainer FeedbackService::findStarredArtists(const ArtistFindParameters& params)
+    FeedbackService::ArtistContainer FeedbackService::findFavoriteArtists(const ArtistFindParameters& params)
     {
-        auto backend{ getUserFeedbackBackend(params.user) };
-        if (!backend)
-            return {};
-
         Artist::FindParameters searchParams;
         searchParams.setFilters(params.filters);
-        searchParams.setStarringUser(params.user, *backend);
+        searchParams.setRatingUser(params.user, favoriteRating);
         searchParams.setKeywords(params.keywords);
         searchParams.setTrackArtistLinkType(params.trackArtistLinkType);
-        searchParams.setSortMethod(params.sortMethod);
+        searchParams.setSortMethod(params.sortMethod == ArtistSortMethod::StarredDateDesc ? ArtistSortMethod::RatedDateDesc : params.sortMethod);
         searchParams.setRange(params.range);
 
         Session& session{ _db.getTLSSession() };
@@ -132,27 +128,23 @@ namespace lms::feedback
         unstar<Release, ReleaseId, StarredRelease>(userId, releaseId);
     }
 
-    bool FeedbackService::isStarred(UserId userId, ReleaseId releaseId)
+    bool FeedbackService::isFavorite(UserId userId, ReleaseId releaseId)
     {
-        return isStarred<Release, ReleaseId, StarredRelease>(userId, releaseId);
+        return isFavorite<Release, ReleaseId, RatedRelease>(userId, releaseId);
     }
 
-    Wt::WDateTime FeedbackService::getStarredDateTime(UserId userId, ReleaseId releaseId)
+    Wt::WDateTime FeedbackService::getFavoriteDateTime(UserId userId, ReleaseId releaseId)
     {
-        return getStarredDateTime<Release, ReleaseId, StarredRelease>(userId, releaseId);
+        return getFavoriteDateTime<Release, ReleaseId, RatedRelease>(userId, releaseId);
     }
 
-    FeedbackService::ReleaseContainer FeedbackService::findStarredReleases(const FindParameters& params)
+    FeedbackService::ReleaseContainer FeedbackService::findFavoriteReleases(const FindParameters& params)
     {
-        auto backend{ getUserFeedbackBackend(params.user) };
-        if (!backend)
-            return {};
-
         Release::FindParameters searchParams;
-        searchParams.setStarringUser(params.user, *backend);
+        searchParams.setRatingUser(params.user, favoriteRating);
         searchParams.setFilters(params.filters);
         searchParams.setKeywords(params.keywords);
-        searchParams.setSortMethod(ReleaseSortMethod::StarredDateDesc);
+        searchParams.setSortMethod(ReleaseSortMethod::RatedDateDesc);
         searchParams.setRange(params.range);
 
         Session& session{ _db.getTLSSession() };
@@ -181,27 +173,24 @@ namespace lms::feedback
         unstar<Track, TrackId, StarredTrack>(userId, trackId);
     }
 
-    bool FeedbackService::isStarred(UserId userId, TrackId trackId)
+    bool FeedbackService::isFavorite(UserId userId, TrackId trackId)
     {
-        return isStarred<Track, TrackId, StarredTrack>(userId, trackId);
+        return isFavorite<Track, TrackId, RatedTrack>(userId, trackId);
     }
 
-    Wt::WDateTime FeedbackService::getStarredDateTime(UserId userId, TrackId trackId)
+    Wt::WDateTime FeedbackService::getFavoriteDateTime(UserId userId, TrackId trackId)
     {
-        return getStarredDateTime<Track, TrackId, StarredTrack>(userId, trackId);
+        return getFavoriteDateTime<Track, TrackId, RatedTrack>(userId, trackId);
     }
 
-    FeedbackService::TrackContainer FeedbackService::findStarredTracks(const FindParameters& params)
+    FeedbackService::TrackContainer FeedbackService::findFavoriteTracks(const FindParameters& params)
     {
-        auto backend{ getUserFeedbackBackend(params.user) };
-        if (!backend)
-            return {};
-
         Track::FindParameters searchParams;
-        searchParams.setStarringUser(params.user, *backend);
+        searchParams.ratingUser = params.user;
+        searchParams.setMinRating(favoriteRating);
         searchParams.setFilters(params.filters);
         searchParams.setKeywords(params.keywords);
-        searchParams.setSortMethod(TrackSortMethod::StarredDateDesc);
+        searchParams.setSortMethod(TrackSortMethod::RatedDateDesc);
         searchParams.setRange(params.range);
 
         Session& session{ _db.getTLSSession() };

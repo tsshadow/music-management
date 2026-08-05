@@ -15,7 +15,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.media3.common.HeartRating
+import androidx.media3.common.StarRating
 import androidx.recyclerview.widget.RecyclerView
 import com.drakeet.multitype.ItemViewDelegate
 import org.koin.core.component.KoinComponent
@@ -56,7 +56,7 @@ open class AlbumRowDelegate(
             true
         }
         holder.coverArtId = item.coverArt
-        holder.star.setImageResource(if (item.starred) starDrawable else starHollowDrawable)
+        holder.star.setImageResource(if (item.isFavorite) starDrawable else starHollowDrawable)
         holder.star.setOnClickListener { onStarClick(item, holder.star) }
 
         val imageLoaderProvider: ImageLoaderProvider by inject()
@@ -107,16 +107,18 @@ open class AlbumRowDelegate(
     }
 
     /**
-     * Handles the star / unstar action for an album
+     * Toggles the album between favorite and unrated. There is no separate favorite
+     * flag: the highest rating is what favorite means, so the star writes a rating.
      */
     private fun onStarClick(entry: Album, star: ImageView) {
-        entry.starred = !entry.starred
-        star.setImageResource(if (entry.starred) starDrawable else starHollowDrawable)
+        val newRating = if (entry.isFavorite) 0 else Album.FAVORITE_RATING
+        entry.userRating = newRating
+        star.setImageResource(if (entry.isFavorite) starDrawable else starHollowDrawable)
 
         RxBus.ratingSubmitter.onNext(
             RatingUpdate(
                 entry.id,
-                HeartRating(entry.starred)
+                StarRating(Album.FAVORITE_RATING, newRating.toFloat())
             )
         )
     }

@@ -267,8 +267,8 @@
     <string name="management.source_soundcloud">SoundCloud</string>
     <string name="management.source_youtube">YouTube</string>
     <string name="management.action_failed">Management action failed: %1$s</string>
-    <string name="favorites.starred_albums">Starred albums</string>
-    <string name="favorites.starred_artists">Starred artists</string>
+    <string name="favorites.starred_albums">Favorite albums</string>
+    <string name="favorites.starred_artists">Favorite artists</string>
     <string name="favorites.highly_rated">Highly rated</string>
     <string name="favorites.title">Favorites</string>
     <string name="favorites.genres">Favorite genres</string>

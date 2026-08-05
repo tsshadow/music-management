@@ -165,17 +165,6 @@
                 a:src="@drawable/ic_star_hollow" />
         </LinearLayout>
 
-        <ImageView
-            a:id="@+id/song_star"
-            a:layout_width="20dp"
-            a:layout_height="20dp"
-            a:layout_gravity="end"
-            a:background="@android:color/transparent"
-            a:contentDescription="@string/download.menu_star"
-            a:focusable="false"
-            a:scaleType="centerInside"
-            a:src="@drawable/ic_star_hollow"
-            a:visibility="gone" />
 
         <TextView
             a:id="@+id/song_date"

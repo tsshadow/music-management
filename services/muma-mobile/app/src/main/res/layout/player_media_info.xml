@@ -20,7 +20,7 @@
         a:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
         a:textStyle="bold"
         a:textColor="@color/spotify_text_primary"
-        app:layout_constraintEnd_toStartOf="@+id/player_star_button"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         tools:text="Title" />
@@ -34,21 +34,10 @@
         a:singleLine="true"
         a:textAppearance="@style/TextAppearance.Material3.TitleMedium"
         a:textColor="@color/spotify_text_secondary"
-        app:layout_constraintEnd_toStartOf="@+id/player_star_button"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/current_playing_song"
         tools:text="Artist" />
-
-    <ImageButton
-        a:id="@+id/player_star_button"
-        a:layout_width="48dp"
-        a:layout_height="48dp"
-        a:background="?attr/selectableItemBackgroundBorderless"
-        a:src="@drawable/ic_star_hollow"
-        app:tint="@color/spotify_green"
-        app:layout_constraintBottom_toBottomOf="@+id/current_playing_artist"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/current_playing_song" />
 
     <TextView
         a:id="@+id/current_playing_album"

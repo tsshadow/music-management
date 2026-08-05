@@ -95,16 +95,5 @@
 
     </LinearLayout>
 
-    <ImageView
-        a:id="@+id/song_star"
-        a:layout_width="38dp"
-        a:layout_height="fill_parent"
-        a:background="@android:color/transparent"
-        a:contentDescription="@string/download.menu_star"
-        a:focusable="false"
-        a:gravity="center_vertical"
-        a:paddingEnd="8dip"
-        a:src="@drawable/ic_star_hollow"
-        a:visibility="gone" />
 
 </LinearLayout>

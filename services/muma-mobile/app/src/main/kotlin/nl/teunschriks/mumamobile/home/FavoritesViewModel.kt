@@ -23,7 +23,10 @@ import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.util.Settings
 import timber.log.Timber
 
-/** Starred albums and artists, plus everything rated four stars or better. */
+/**
+ * Favorite albums and artists, plus everything rated four stars or better. There is no separate
+ * favorite flag: the server answers `getStarred2` with whatever carries the highest rating.
+ */
 class FavoritesViewModel : ViewModel() {
 
     private val mutableSections = MutableStateFlow<List<HomeSection?>>(emptyList())

@@ -70,6 +70,8 @@ namespace lms::db
             Wt::WDateTime writtenAfter;
             UserId starringUser;                            // only artists starred by this user
             std::optional<FeedbackBackend> feedbackBackend; // and for this feedback backend
+            UserId ratingUser;                              // only artists rated by this user
+            std::optional<int> minRating;                   // and with at least this rating
             TrackId track;                                  // artists involved in this track
 
             FindParameters& setFilters(const Filters& _filters)
@@ -111,6 +113,12 @@ namespace lms::db
             {
                 starringUser = _user;
                 feedbackBackend = _feedbackBackend;
+                return *this;
+            }
+            FindParameters& setRatingUser(UserId _user, int _minRating)
+            {
+                ratingUser = _user;
+                minRating = _minRating;
                 return *this;
             }
             FindParameters& setTrack(TrackId _track)

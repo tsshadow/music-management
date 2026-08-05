@@ -179,24 +179,6 @@ namespace lms::ui
             bindNew<Wt::WPushButton>("download", Wt::WString::tr("Lms.Explore.download"))
                 ->setLink(Wt::WLink{ std::make_unique<DownloadArtistResource>(_artistId) });
         }
-
-        {
-            auto isStarred{ [this] { return core::Service<feedback::IFeedbackService>::get()->isStarred(LmsApp->getUserId(), _artistId); } };
-
-            Wt::WPushButton* starBtn{ bindNew<Wt::WPushButton>("star", Wt::WString::tr(isStarred() ? "Lms.Explore.unstar" : "Lms.Explore.star")) };
-            starBtn->clicked().connect([=, this] {
-                if (isStarred())
-                {
-                    core::Service<feedback::IFeedbackService>::get()->unstar(LmsApp->getUserId(), _artistId);
-                    starBtn->setText(Wt::WString::tr("Lms.Explore.star"));
-                }
-                else
-                {
-                    core::Service<feedback::IFeedbackService>::get()->star(LmsApp->getUserId(), _artistId);
-                    starBtn->setText(Wt::WString::tr("Lms.Explore.unstar"));
-                }
-            });
-        }
     }
 
     void Artist::refreshArtwork(db::ArtworkId artworkId)

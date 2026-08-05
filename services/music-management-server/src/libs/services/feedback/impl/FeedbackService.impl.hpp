@@ -22,6 +22,7 @@
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "database/objects/User.hpp"
+#include "services/feedback/IFeedbackService.hpp"
 
 namespace lms::feedback
 {
@@ -79,25 +80,28 @@ namespace lms::feedback
         _backends[*backend]->onUnstarred(starredObjId);
     }
 
-    template<typename ObjType, typename ObjIdType, typename StarredObjType>
-    bool FeedbackService::isStarred(UserId userId, ObjIdType objId)
+    template<typename ObjType, typename ObjIdType, typename RatedObjType>
+    bool FeedbackService::isFavorite(UserId userId, ObjIdType objId)
     {
         Session& session{ _db.getTLSSession() };
         auto transaction{ session.createReadTransaction() };
 
-        typename StarredObjType::pointer starredObj{ StarredObjType::find(session, objId, userId) };
-        return starredObj && (starredObj->getSyncState() != SyncState::PendingRemove);
+        const typename RatedObjType::pointer ratedObj{ RatedObjType::find(session, objId, userId) };
+        return ratedObj && ratedObj->getRating() >= favoriteRating;
     }
 
-    template<typename ObjType, typename ObjIdType, typename StarredObjType>
-    Wt::WDateTime FeedbackService::getStarredDateTime(UserId userId, ObjIdType objId)
+    template<typename ObjType, typename ObjIdType, typename RatedObjType>
+    Wt::WDateTime FeedbackService::getFavoriteDateTime(UserId userId, ObjIdType objId)
     {
+        // Nothing records when something became a favorite as such: the moment the
+        // rating was last changed is the closest thing we have, and it is what the
+        // Subsonic "starred" attribute is filled with.
         Session& session{ _db.getTLSSession() };
         auto transaction{ session.createReadTransaction() };
 
-        typename StarredObjType::pointer starredObj{ StarredObjType::find(session, objId, userId) };
-        if (starredObj && (starredObj->getSyncState() != SyncState::PendingRemove))
-            return starredObj->getDateTime();
+        const typename RatedObjType::pointer ratedObj{ RatedObjType::find(session, objId, userId) };
+        if (ratedObj && ratedObj->getRating() >= favoriteRating)
+            return ratedObj->getLastUpdated();
 
         return {};
     }

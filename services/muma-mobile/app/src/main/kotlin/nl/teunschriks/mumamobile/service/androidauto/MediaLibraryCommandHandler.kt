@@ -281,5 +281,20 @@ class MediaLibraryCommandHandler {
          */
         fun nextRating(current: Int): Int =
             (current.coerceIn(0, PlaybackService.MAX_RATING) + 1) % (PlaybackService.MAX_RATING + 1)
+
+        /**
+         * The rating a tap on the car's button moves to.
+         *
+         * Each button carries the rating it was drawn with in its `SessionCommand` extras, but a
+         * tap coming from Android Auto arrives over the legacy session, where media3 builds a
+         * fresh `SessionCommand(action, Bundle.EMPTY)` and `MediaControllerCompat` forwards only
+         * the caller's own bundle - never the custom action's extras. So [extrasRating] is null
+         * for every tap made in the car, and the playing track, which is what the button was
+         * drawn from, decides. The extras remain the fallback for controllers that do pass them
+         * back and for taps arriving while no track is loaded.
+         */
+        fun ratingAfterTap(trackRating: Int?, extrasRating: Int?): Int {
+            return nextRating(trackRating ?: extrasRating ?: 0)
+        }
     }
 }

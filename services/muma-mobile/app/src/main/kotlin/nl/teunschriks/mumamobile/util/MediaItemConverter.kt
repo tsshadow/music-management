@@ -221,6 +221,19 @@ fun MediaItem.toTrack(): Track {
     return track
 }
 
+/**
+ * Records a rating on the item, in both places a later read can come from.
+ *
+ * [toTrack] answers from the track cache while it holds the entry, and rebuilds from the item's
+ * metadata once the entry has expired - ten minutes, which a paused or long track outlives. Writing
+ * only the cached Track would therefore let the rating the item was built with come back and send
+ * the next rating change off the wrong number.
+ */
+fun MediaItem.setUserRating(rating: Int) {
+    toTrack().userRating = rating
+    mediaMetadata.extras?.putInt("userRating", rating)
+}
+
 private fun safeParseDate(created: String?): Date? = if (created != null) {
     try {
         DateFormat.getDateInstance().parse(created)

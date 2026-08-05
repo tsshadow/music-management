@@ -26,6 +26,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recognised so upgraded installs match it.
 
 ### Fixed
+- **The rating button in Android Auto always gave one star.** A track rated 5 dropped to 1, a track
+  rated 1 stayed at 1, and an unrated one became 1 — no other rating could be reached from the car.
+  Each button carries the rating it was drawn with in its `SessionCommand` extras, and the tap
+  handler cycled on from there, but a tap made in the car comes in over the legacy session, where
+  media3 builds a fresh `SessionCommand(action, Bundle.EMPTY)` and hands the received bundle to the
+  separate `args` parameter — and `MediaControllerCompat` sends only its caller's bundle, never the
+  custom action's own extras. The rating therefore read as its default of 0 and every tap cycled to
+  1. The playing track, which is what the button was drawn from, now decides; the extras are only a
+  fallback. `MediaItem.setUserRating` also records the rating in the item's metadata, so the ten
+  minute track cache expiring on a paused or long track no longer brings the old rating back, and a
+  rating given on the phone now redraws the car's button.
 - **The genre track limit in Settings did nothing.** The preference stored its value under
   `genreTrackLimit` while the code read an integer under `genre_track_limit`, so opening a genre
   always used the built-in 100 no matter what was set. Both now read and write the same

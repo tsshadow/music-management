@@ -80,7 +80,12 @@ class YoutubeDownloader:
 
         Same transport, cookies and pacing as the audio side; what differs is that
         nothing extracts the audio track out again, and that the file lands in its
-        own tree so the library scanner never meets an mkv.
+        own tree rather than between the m4a files of a channel.
+
+        That tree still sits under the music root, so LMS and the scanner do walk
+        it. What keeps an mkv out of the library is the extension filter on the
+        other side: the tagger and importer only accept audio extensions, and LMS
+        only indexes audio formats.
         """
         video_folder = self.downloader_config['video_folder']
         if not video_folder:

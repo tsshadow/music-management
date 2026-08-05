@@ -8,6 +8,17 @@ ROOT_DIR=$(pwd)
 APP_NAME="muma-mobile"
 MODULE="app"
 
+# The APK filename prefix, and NOT the same thing as APP_NAME. apk-hoster has no
+# field for an app name - deploy.sh posts the file and nothing else - so it derives
+# which series an upload belongs to from this prefix, and that is the series the
+# installed app asks for in UpdateChecker.getUpdateUrl() (`?apk=ultrasonic`).
+# Renaming the app to MuMa Mobile therefore must not rename this: an upload called
+# muma-mobile-* lands in a series no installed app ever queries, so every phone
+# out there would sit on its current version and be told it is up to date.
+# It can only move once a build that asks for the new series is on every phone;
+# see services/muma-mobile/CHANGELOG.md for the two-step plan.
+APK_SERIES="ultrasonic"
+
 # Load optional configuration from .env
 if [ -f ".env" ]; then
     while IFS='=' read -r key value; do
@@ -65,7 +76,7 @@ UNSIGNED_APK_PATH="$MODULE/build/outputs/apk/$BUILD_TYPE/$MODULE-$BUILD_TYPE-uns
 if [ -f "$APK_PATH" ]; then
     SUFFIX=""
     [ "$BUILD_TYPE" == "debug" ] && SUFFIX="-debug"
-    DEST="$DIST_DIR/$APP_NAME-v$VERSION_NAME-$VERSION_CODE$SUFFIX.apk"
+    DEST="$DIST_DIR/$APK_SERIES-v$VERSION_NAME-$VERSION_CODE$SUFFIX.apk"
     cp "$APK_PATH" "$DEST"
     echo "Successfully published: $DEST"
     # Save notes if found
@@ -75,7 +86,7 @@ if [ -f "$APK_PATH" ]; then
 elif [ -f "$UNSIGNED_APK_PATH" ]; then
     SUFFIX="-unsigned"
     [ "$BUILD_TYPE" == "debug" ] && SUFFIX="-debug-unsigned"
-    DEST="$DIST_DIR/$APP_NAME-v$VERSION_NAME-$VERSION_CODE$SUFFIX.apk"
+    DEST="$DIST_DIR/$APK_SERIES-v$VERSION_NAME-$VERSION_CODE$SUFFIX.apk"
     cp "$UNSIGNED_APK_PATH" "$DEST"
     echo "Successfully published (UNSIGNED): $DEST"
     echo "Note: Configure signing in .env to produce signed builds."
@@ -142,7 +153,7 @@ while IFS= read -r apk; do
     if [ -f "$notes_file" ]; then
         NOTES_CONTENT=$(cat "$notes_file")
     else
-        # Extract version from filename like muma-mobile-v5.1.1-134.apk
+        # Extract version from filename like ultrasonic-v5.1.1-134.apk
         v=$(echo "$filename" | sed -n 's/.*-v\([0-9.]*\)-.*/\1/p')
         if [ -n "$v" ] && [ -f "RELEASE_NOTES.md" ]; then
             NOTES_CONTENT=$(awk -v ver="$v" '$0 ~ "^## \\[" ver "\\]" {flag=1; next} /^## \[/ {flag=0} flag' RELEASE_NOTES.md | sed '/./,$!d' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')

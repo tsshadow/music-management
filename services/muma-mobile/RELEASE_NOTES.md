@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+## [6.9.1] - 2026-08-05
+
+### Fixed
+- **"Controleer op updates" ziet nieuwe versies weer.** Sinds de naamswijziging heette het
+  geüploade installatiebestand `muma-mobile-...` in plaats van `ultrasonic-...`, en de
+  downloadsite gebruikt precies dat stukje naam om bij te houden welke versies bij elkaar horen.
+  De app vroeg nog naar de oude naam en kreeg niets terug: 6.9.0 was onzichtbaar en je telefoon
+  meldde dat je bij was. De bestandsnaam staat weer op het oude; de app blijft MuMa Mobile heten.
+
 ## [6.9.0] - 2026-08-05
 
 ### Changed

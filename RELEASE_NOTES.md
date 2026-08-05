@@ -11,6 +11,25 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.5.3 (2026-08-05)
+
+### 🧪 Veel meer van MuMa wordt nu automatisch getest
+- De webinterface ging van 25% naar 80% getest, de Python-diensten van 78% naar 88%. Concreet: het
+  inlogscherm inclusief de Google-toegangsaanvraag, het startscherm, de speler, artiest- en
+  albumpagina's, dynamische afspeellijsten, tagger-regels, genre-curatie, de ListenBrainz-import en
+  de bibliotheekbrowser worden nu bij elke wijziging nagelopen.
+- De ml-analyzer had helemaal geen tests. Die zijn er nu voor de analyzer zelf, de
+  onderhoudsscripts en de voorspeller.
+
+### 🔧 Het dekkingscijfer van de muziekserver klopte niet
+- Het rapport voor de server keek naar 18 bestanden van de 818, oftewel 453 van de 76 000 regels.
+  De "36,9%" ging dus over minder dan 1% van de code. Oorzaak: een bouwoptie die veel bronbestanden
+  samenvoegt, waardoor de meting niet meer bij de echte bestanden kon komen. Die staat nu uit tijdens
+  het meten en blijft aan voor wat er wordt uitgerold. Het rapport dekt nu 686 bestanden en 44 034
+  regels.
+- Voor de Android-app telt de meting niet langer automatisch gegenereerde databasecode mee — dat was
+  bijna een vijfde van de app, en daar hoort niemand tests voor te schrijven.
+
 ## Global Version 0.5.2 (2026-08-05)
 
 ### 🎨 MuMa heeft eindelijk een eigen naam en een eigen logo

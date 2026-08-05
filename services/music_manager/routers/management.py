@@ -219,32 +219,49 @@ def get_youtube_accounts(_auth: dict=Depends(verify_api_key)):
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT name, channel_id FROM downloads_youtube_accounts')
+            cursor.execute('SELECT name, channel_id, download_type, active, min_duration FROM downloads_youtube_accounts')
             return cursor.fetchall()
     finally:
         conn.close()
 
+# A channel can be an audio source, a video source, or both: the table's key is
+# (name, download_type).
+YOUTUBE_DOWNLOAD_TYPES = ('audio', 'video')
+
+# Video rows are event channels, where the floor keeps trailers and teasers out.
+YOUTUBE_DEFAULT_MIN_DURATION = {'audio': 60, 'video': 1200}
+
 @router.post('/youtube')
 def add_youtube_account(req: dict[str, Any]=Body(...), _auth: dict=Depends(verify_api_key)):
+    download_type = req.get('download_type') or 'audio'
+    if download_type not in YOUTUBE_DOWNLOAD_TYPES:
+        raise HTTPException(status_code=400, detail=f'download_type must be one of {YOUTUBE_DOWNLOAD_TYPES}')
+    min_duration = req.get('min_duration') or YOUTUBE_DEFAULT_MIN_DURATION[download_type]
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
-            cursor.execute("\n                INSERT INTO downloads_youtube_accounts (name, download_type)\n                VALUES (%s, 'audio')\n                ON DUPLICATE KEY UPDATE name = name\n            ", (req.get('name'),))
+            cursor.execute('\n                INSERT INTO downloads_youtube_accounts (name, download_type, min_duration)\n                VALUES (%s, %s, %s)\n                ON DUPLICATE KEY UPDATE name = name\n            ', (req.get('name'), download_type, min_duration))
             conn.commit()
             return {'status': 'ok', 'message': 'YouTube account toegevoegd'}
     finally:
         conn.close()
 
 @router.delete('/youtube/{name}')
-def delete_youtube_account(name: str, _auth: dict=Depends(verify_api_key)):
+def delete_youtube_account(name: str, download_type: str='', _auth: dict=Depends(verify_api_key)):
+    """Delete one channel row, or every row for the channel when no type is given."""
+    if download_type and download_type not in YOUTUBE_DOWNLOAD_TYPES:
+        raise HTTPException(status_code=400, detail=f'download_type must be one of {YOUTUBE_DOWNLOAD_TYPES}')
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
-            cursor.execute('DELETE FROM downloads_youtube_accounts WHERE name = %s', (name,))
+            if download_type:
+                cursor.execute('DELETE FROM downloads_youtube_accounts WHERE name = %s AND download_type = %s', (name, download_type))
+            else:
+                cursor.execute('DELETE FROM downloads_youtube_accounts WHERE name = %s', (name,))
             conn.commit()
             return {'status': 'ok'}
     finally:

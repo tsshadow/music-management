@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-05
+
+The YouTube downloader finally reads the `download_type` column that has been sitting in the
+database unused, so channels marked as video are fetched as video -- in the best quality YouTube
+offers, not the 360p a failed merge leaves behind.
+
+### Added
+- **YouTube channels marked as video are downloaded as video, in the best quality that exists.**
+  `downloads_youtube_accounts.download_type` had been in the database for years without a single
+  line of code reading it, so the eight channels set to `video` were fetched as audio instead.
+  A sweep now runs the audio channels first and the video channels after, asks yt-dlp for
+  `bestvideo*+bestaudio` merged into mkv, and writes to `youtube_video_folder`
+  (`/mnt/music/Youtube_Video`) so the library scanner never meets a video file.
+- `tools/list_youtube_video_residue.py` reports the stray video files and unmerged `.fNNN`
+  fragments sitting in the audio tree, with their resolution. It only reports.
+
+### Fixed
+- **A channel listed as both audio and video is no longer swept twice as audio.** The table's key
+  is `(name, download_type)` but the downloader selected only `name`, so seven channels came back
+  as duplicates and both copies were treated as audio.
+- **The 360p downloads.** yt-dlp falls back to YouTube's one remaining progressive stream, which is
+  640x360, whenever it cannot merge separate video and audio. The video pass now refuses to run
+  when ffmpeg is missing rather than silently producing that, and logs the resolution of every
+  video it does fetch.
+- **`downloads_youtube_archive` can hold the same video twice**, once as audio and once as video.
+  Its key was `video_id` alone, so whichever pass ran first would have blocked the other forever.
+- `active` and `min_duration` on a YouTube account row are read at last: an inactive channel is
+  skipped, and the duration floor comes from the row instead of a hardcoded 60 seconds.
+
 ## [0.4.0] - 2026-08-05
 
 Rating 5 now means "favorite" everywhere, and the separate favorite flag is gone. This cycle also

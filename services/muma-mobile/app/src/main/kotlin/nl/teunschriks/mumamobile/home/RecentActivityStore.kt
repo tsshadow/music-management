@@ -19,8 +19,9 @@ import nl.teunschriks.mumamobile.util.Settings
  * Whole cards are stored rather than ids, so the shortcuts grid renders immediately and offline
  * without a network call per item.
  *
- * Items are recorded when the user *opens* them; playing from inside an album, artist or playlist
- * implies having opened it, so playback itself records nothing.
+ * Items are recorded when the user *opens* them, and, through [PlayHistoryRecorder], when a track
+ * is actually played: a session driven from Android Auto or the notification never touches a
+ * browse screen, and used to leave the grid showing whatever was last opened by hand.
  */
 class RecentActivityStore(
     private val preferences: SharedPreferences,

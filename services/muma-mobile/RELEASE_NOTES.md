@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+### Fixed
+- **"Onlangs afgespeeld" onthoudt weer wat je hebt geluisterd.** Het raster op de startpagina
+  bewaarde alleen wat je zelf aantikte in een lijst; wie via Android Auto, de melding of de
+  wachtrij luisterde, liet dus niets achter. Een avond muziek in de auto veranderde er niets aan.
+  Bij dezelfde verbouwing raakte ook het bijhouden van "Laatst gespeelde genres" weg, terwijl
+  Android Auto die lijsten wél bleef tonen — ze waren daardoor altijd leeg. Allebei worden ze nu
+  weer bijgewerkt: elk nummer dat je uitluistert zet zijn album in het raster en zijn genres in de
+  genrelijst.
+
 ## [6.9.1] - 2026-08-05
 
 ### Fixed

@@ -43,6 +43,7 @@ import org.moire.ultrasonic.service.PlaybackService
 import org.moire.ultrasonic.service.PlaybackStateSerializer
 import org.moire.ultrasonic.service.RatingManager
 import org.moire.ultrasonic.service.toMediaItemsWithStartPosition
+import org.moire.ultrasonic.util.setUserRating
 import org.moire.ultrasonic.util.toMediaItem
 import org.moire.ultrasonic.util.toTrack
 import timber.log.Timber
@@ -160,13 +161,14 @@ class MediaLibrarySessionCallback :
 
         when (customCommand.customAction) {
             PlaybackService.CUSTOM_COMMAND_CYCLE_RATING -> {
-                // The tapped button carries the rating it was drawn with, so a stale field
-                // here cannot make the rating jump to the wrong value
-                val current = customCommand.customExtras.getInt(
-                    PlaybackService.EXTRA_CURRENT_RATING,
-                    0
+                // Android Auto strips the extras the button was built with, so the playing track
+                // - which is what the button was drawn from - decides where the tap goes. The
+                // extras are only read for controllers that do hand them back.
+                val next = MediaLibraryCommandHandler.ratingAfterTap(
+                    trackRating = session.player.currentMediaItem?.toTrack()?.userRating,
+                    extrasRating = ratingFromExtras(args)
+                        ?: ratingFromExtras(customCommand.customExtras)
                 )
-                val next = MediaLibraryCommandHandler.nextRating(current)
                 customCommandFuture = onSetRating(
                     session,
                     controller,
@@ -206,6 +208,11 @@ class MediaLibrarySessionCallback :
             )
     }
 
+    private fun ratingFromExtras(extras: Bundle): Int? {
+        if (!extras.containsKey(PlaybackService.EXTRA_CURRENT_RATING)) return null
+        return extras.getInt(PlaybackService.EXTRA_CURRENT_RATING)
+    }
+
     override fun onSetRating(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,
@@ -218,7 +225,13 @@ class MediaLibrarySessionCallback :
             if (rating is HeartRating) {
                 mediaItem.toTrack().starred = rating.isHeart
             } else if (rating is StarRating) {
-                mediaItem.toTrack().userRating = rating.starRating.toInt()
+                mediaItem.setUserRating(rating.starRating.toInt())
+                // A rating set on the phone must leave the car's button showing the same
+                // number, or the next tap in the car looks like it skipped a step
+                commandHandler.updateCustomRatingButton(
+                    session,
+                    rating.starRating.toInt()
+                )
             }
             return onSetRating(
                 session,

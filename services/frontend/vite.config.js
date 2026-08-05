@@ -52,10 +52,10 @@ export default defineConfig(({ mode }) => {
         // just under the current numbers so the figure cannot quietly erode.
         // Raise them as coverage climbs; never lower one to make a build green.
         thresholds: {
-          statements: 33,
-          branches: 22,
-          functions: 33,
-          lines: 33,
+          statements: 51,
+          branches: 32,
+          functions: 52,
+          lines: 48,
         },
       },
     },

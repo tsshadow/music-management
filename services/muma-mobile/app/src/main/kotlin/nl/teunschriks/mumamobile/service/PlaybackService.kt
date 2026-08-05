@@ -416,7 +416,7 @@ class PlaybackService :
         var instance: PlaybackService? = null
 
         private const val NOTIFICATION_CHANNEL_ID = "org.moire.ultrasonic.error"
-        private const val NOTIFICATION_CHANNEL_NAME = "MuMa Mobile error messages"
+        private const val NOTIFICATION_CHANNEL_NAME = "MuMa error messages"
         const val CUSTOM_COMMAND_CYCLE_RATING =
             "org.moire.ultrasonic.CYCLE_RATING"
 

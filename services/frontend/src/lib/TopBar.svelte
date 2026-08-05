@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import ProfileButton from './ProfileButton.svelte';
+  import MumaMark from './MumaMark.svelte';
   import SearchBar from './SearchBar.svelte';
   import ReleaseNotesModal from './ReleaseNotesModal.svelte';
   import { activeView, authParams, activeModal } from './store.js';
@@ -72,6 +73,12 @@
   </div>
 
   <div class="flex items-center gap-4">
+    <div class="hidden sm:flex items-center gap-2" title="MuMa">
+      <div class="w-8 h-8 bg-brand rounded-full flex items-center justify-center text-black">
+        <MumaMark size={18} />
+      </div>
+      <span class="font-bold tracking-tight text-white">MuMa</span>
+    </div>
     <ProfileButton onNavigate={handleNavigate} />
   </div>
 </div>

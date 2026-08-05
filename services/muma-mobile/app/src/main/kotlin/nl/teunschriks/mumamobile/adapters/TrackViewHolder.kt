@@ -9,7 +9,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import androidx.lifecycle.MutableLiveData
-import androidx.media3.common.HeartRating
 import androidx.media3.common.StarRating
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.progressindicator.CircularProgressIndicator
@@ -59,7 +58,6 @@ class TrackViewHolder(val view: View) :
     private var fiveStar3: ImageView = view.findViewById(R.id.song_five_star_3)
     private var fiveStar4: ImageView = view.findViewById(R.id.song_five_star_4)
     private var fiveStar5: ImageView = view.findViewById(R.id.song_five_star_5)
-    private var star: ImageView = view.findViewById(R.id.song_star)
     private var track: TextView = view.findViewById(R.id.song_track_number)
     private var album: TextView = view.findViewById(R.id.song_album)
     private var title: TextView = view.findViewById(R.id.song_title)
@@ -117,9 +115,9 @@ class TrackViewHolder(val view: View) :
         if (drag.isVisible != draggable) drag.isVisible = draggable
 
         if (ActiveServerProvider.isOffline()) {
-            star.isGone = true
+            rating.isGone = true
         } else {
-            setupStarButtons(song)
+            setupStarButtons()
         }
 
         // Instead of blocking the UI thread while looking up the current state,
@@ -155,9 +153,7 @@ class TrackViewHolder(val view: View) :
                 // Ignore updates which are not for the current song
                 if (it.id != song.id) return@launch
 
-                if (it.rating is HeartRating) {
-                    updateSingleStar(it.rating.isHeart)
-                } else if (it.rating is StarRating) {
+                if (it.rating is StarRating) {
                     updateFiveStars(it.rating.starRating.toInt())
                 }
             }
@@ -196,12 +192,8 @@ class TrackViewHolder(val view: View) :
         }
     }
 
-    private fun setupStarButtons(track: Track) {
-        // Hide single star
-        star.isGone = true
+    private fun setupStarButtons() {
         rating.isVisible = true
-        val rating = if (track.userRating == null) 0 else track.userRating!!
-        updateFiveStars(rating)
 
         // Five star rating has no click handler because in the
         // track view theres not enough space
@@ -224,14 +216,6 @@ class TrackViewHolder(val view: View) :
         fiveStar5.setImageResource(
             if (rating > 4) R.drawable.ic_star_full else R.drawable.ic_star_hollow
         )
-    }
-
-    private fun updateSingleStar(starred: Boolean) {
-        if (starred) {
-            star.setImageResource(R.drawable.ic_star_full)
-        } else {
-            star.setImageResource(R.drawable.ic_star_hollow)
-        }
     }
 
     private fun updateStatus(status: DownloadState, progress: Int?) {

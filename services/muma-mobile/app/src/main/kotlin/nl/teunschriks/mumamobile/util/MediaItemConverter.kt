@@ -11,7 +11,6 @@ import android.annotation.SuppressLint
 import android.net.Uri
 import android.os.Bundle
 import androidx.core.net.toUri
-import androidx.media3.common.HeartRating
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
@@ -28,6 +27,9 @@ import nl.teunschriks.mumamobile.provider.AlbumArtContentProvider
 // for a single string value
 private const val DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_GROUP_TITLE =
     "android.media.browse.CONTENT_STYLE_GROUP_TITLE_HINT"
+
+// Ratings run from 0 to 5 everywhere; 5 is the highest and means favorite.
+const val MAX_STARS = 5
 
 object MediaItemConverter {
     private const val CACHE_SIZE = 250
@@ -81,7 +83,7 @@ fun Track.toMediaItem(mediaId: String = id): MediaItem {
         genre = genre,
         sourceUri = uri.toUri(),
         imageUri = artworkUri,
-        starred = starred,
+        userRating = userRating ?: 0,
         group = null,
         mediaType = if (isDirectory) {
             MEDIA_TYPE_FOLDER_MIXED
@@ -210,8 +212,8 @@ fun MediaItem.toTrack(): Track {
         mediaMetadata.extras?.getFloat("averageRating", 0F) ?: 0F,
         mediaMetadata.extras?.getString("name")
     )
-    if (mediaMetadata.userRating is HeartRating) {
-        track.starred = (mediaMetadata.userRating as HeartRating).isHeart
+    (mediaMetadata.userRating as? StarRating)?.let {
+        track.userRating = if (it.isRated) it.starRating.toInt() else 0
     }
 
     // Add MediaItem and Track to the cache
@@ -260,7 +262,7 @@ fun buildMediaItem(
     genre: String? = null,
     sourceUri: Uri? = null,
     imageUri: Uri? = null,
-    starred: Boolean = false,
+    userRating: Int = 0,
     group: String? = null,
     mediaType: @MediaMetadata.MediaType Int? = null
 ): MediaItem {
@@ -271,7 +273,13 @@ fun buildMediaItem(
         .setArtist(artist)
         .setAlbumArtist(artist)
         .setGenre(genre)
-        .setUserRating(HeartRating(starred))
+        .setUserRating(
+            if (userRating > 0) {
+                StarRating(MAX_STARS, userRating.toFloat())
+            } else {
+                StarRating(MAX_STARS)
+            }
+        )
         .setIsBrowsable(isBrowsable)
         .setIsPlayable(isPlayable)
 

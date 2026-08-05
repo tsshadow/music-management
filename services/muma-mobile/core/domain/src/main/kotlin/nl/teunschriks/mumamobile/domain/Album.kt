@@ -32,9 +32,21 @@ data class Album(
     override var genres: List<String>? = null,
     override var date: String? = null,
     override var starred: Boolean = false,
+    var userRating: Int? = null,
     override var path: String? = null,
     override var closeness: Int = 0
 ) : MusicDirectoryEntry() {
     override var isDirectory = true
     override var isVideo = false
+
+    /**
+     * There is no separate favorite flag: an album is a favorite exactly when it
+     * carries the highest rating.
+     */
+    val isFavorite: Boolean
+        get() = (userRating ?: 0) >= FAVORITE_RATING
+
+    companion object {
+        const val FAVORITE_RATING = 5
+    }
 }

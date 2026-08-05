@@ -12,7 +12,6 @@ import android.os.Looper
 import androidx.annotation.IntRange
 import androidx.fragment.app.Fragment
 import androidx.media3.common.C
-import androidx.media3.common.HeartRating
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -38,6 +37,7 @@ import nl.teunschriks.mumamobile.data.RatingUpdate
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.util.DownloadUtil
+import nl.teunschriks.mumamobile.util.MAX_STARS
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.Util.navigateToCurrent
@@ -744,8 +744,9 @@ class MediaPlayerManager(
     fun legacyToggleStar() {
         if (currentMediaItem == null) return
         val track = currentMediaItem!!.toTrack()
-        track.starred = !track.starred
-        val rating = HeartRating(track.starred)
+        val newRating = if ((track.userRating ?: 0) >= MAX_STARS) 0 else MAX_STARS
+        track.userRating = newRating
+        val rating = StarRating(MAX_STARS, newRating.toFloat())
 
         RxBus.ratingSubmitter.onNext(
             RatingUpdate(

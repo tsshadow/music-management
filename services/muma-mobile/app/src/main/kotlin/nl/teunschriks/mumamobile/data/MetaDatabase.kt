@@ -43,7 +43,7 @@ import nl.teunschriks.mumamobile.domain.Track
         )
     ],
     exportSchema = true,
-    version = 6
+    version = 7
 )
 @TypeConverters(Converters::class)
 abstract class MetaDatabase : RoomDatabase() {
@@ -120,5 +120,12 @@ val META_MIGRATION_4_5: Migration = object : Migration(4, 5) {
 val META_MIGRATION_5_6: Migration = object : Migration(5, 6) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE `artists` ADD COLUMN `songCount` INTEGER")
+    }
+}
+
+// Albums carry a rating now, because rating 5 is what "favorite" means.
+val META_MIGRATION_6_7: Migration = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `albums` ADD COLUMN `userRating` INTEGER")
     }
 }

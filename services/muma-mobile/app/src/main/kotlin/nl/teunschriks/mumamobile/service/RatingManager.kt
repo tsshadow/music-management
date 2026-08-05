@@ -7,7 +7,6 @@
 
 package nl.teunschriks.mumamobile.service
 
-import androidx.media3.common.HeartRating
 import androidx.media3.common.StarRating
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlinx.coroutines.CoroutineScope
@@ -24,7 +23,11 @@ import timber.log.Timber
 * and submit them when back online.
 * Only the manager should publish RatingSubmitted events
  */
-class RatingManager : CoroutineScope by CoroutineScope(Dispatchers.Default) {
+class RatingManager(
+    // Looking the service up through a lambda keeps MusicServiceFactory, which needs a live
+    // Koin context, out of the way of tests.
+    private val musicService: () -> MusicService = { getMusicService() }
+) : CoroutineScope by CoroutineScope(Dispatchers.Default) {
     private val rxBusSubscription: CompositeDisposable = CompositeDisposable()
 
     var lastUpdate: RatingUpdate? = null
@@ -39,36 +42,17 @@ class RatingManager : CoroutineScope by CoroutineScope(Dispatchers.Default) {
         // Don't submit the same rating twice
         if (update.id == lastUpdate?.id && update.rating == lastUpdate?.rating) return
 
-        val service = getMusicService()
+        val service = musicService()
         val id = update.id
 
         Timber.i("Submitting rating to server: ${update.rating} for $id")
 
-        if (update.rating is HeartRating) {
+        if (update.rating is StarRating) {
             launch {
                 var success = false
                 withContext(Dispatchers.IO) {
                     try {
-                        if (update.rating.isHeart) {
-                            service.star(id)
-                        } else {
-                            service.unstar(id)
-                        }
-                        success = true
-                    } catch (all: Exception) {
-                        Timber.e(all)
-                    }
-                }
-                RxBus.ratingPublished.onNext(
-                    update.copy(success = success)
-                )
-            }
-        } else if (update.rating is StarRating) {
-            launch {
-                var success = false
-                withContext(Dispatchers.IO) {
-                    try {
-                        getMusicService().setRating(id, update.rating.starRating.toInt())
+                        service.setRating(id, update.rating.starRating.toInt())
                         success = true
                     } catch (all: Exception) {
                         Timber.e(all)

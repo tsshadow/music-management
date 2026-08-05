@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-08-05
+
+### Changed
+- **MuMa is one name carrying one mark.** The web app and the Android app are the same product on
+  two screens, but they carried two names and no mark of their own: the browser tab said "MuMa
+  Spotify", the app was "MuMa Mobile", and the sidebar rendered Spotify's actual logo. The name is
+  now MuMa everywhere — launcher, notification channels, browser tab and user-facing strings — and
+  the mark is five bars in a green disc whose top edge traces an M. A single generator derives the
+  favicon, the adaptive icon layers, the round variant and all five mipmap densities from one
+  source, so they cannot drift apart; the adaptive foreground scales the disc to 83% so a round or
+  square mask cannot clip it, and the monochrome layer carries only the bars, since themed icons
+  get one colour. `applicationId` deliberately stays `nl.teunschriks.mumamobile`, so updates keep
+  landing on the existing install. Written up in
+  `docs/superpowers/specs/2026-08-05-muma-brand-design.md`.
+
+### Fixed
+- **"Recently played" remembers what was played, not only what was opened.** The home grid recorded
+  items opened on a browse screen, on the assumption that playing something implies having opened it
+  first. That does not hold for a session driven from Android Auto, the notification or the play
+  queue, so an evening of listening in the car left the grid showing whatever was last tapped by
+  hand. The same rebuild had also deleted the only writer of the "Last played genres" lists while
+  leaving the Android Auto browser reading them, so those two lists were permanently empty. Both are
+  written again from one place: every scrobble records the played album into the home grid and its
+  genres into the per-mode genre lists.
+
 ## [0.5.1] - 2026-08-05
 
 ### Fixed

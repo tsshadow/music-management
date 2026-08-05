@@ -37,7 +37,7 @@ TEST_TARGETS=(
 # Ratchet: the suite sits above this, and a change that drops below it fails here
 # rather than silently eroding the figure. Raise it when coverage climbs; never
 # lower it to make a red build green.
-COVERAGE_MIN="${COVERAGE_MIN:-85}"
+COVERAGE_MIN="${COVERAGE_MIN:-90}"
 
 echo "--- Running music-management Python unit tests (min coverage: ${COVERAGE_MIN}%) ---"
 # Not under `set -e`: a failing run must still leave a usable coverage report for

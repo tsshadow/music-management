@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from services.music_manager.main import app
 from services.music_manager.routers import users as users_router
+from services.music_manager.tests.scripted_cursor import ScriptedCursor
 
 API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
 
@@ -35,54 +36,6 @@ def _load_pristine_users_module():
 
 
 pristine_users = _load_pristine_users_module()
-
-
-def normalize(sql):
-    return ' '.join(sql.split())
-
-
-class ScriptedCursor:
-    """A cursor that answers fetchone/fetchall from a rule table.
-
-    Each rule is ``(sql_fragment, params_or_None, result)``. The first rule whose
-    fragment appears in the executed statement -- and whose params match, when it
-    pins them down -- supplies the result: a list is served by fetchall, a mapping
-    by fetchone. Anything unmatched reads as an empty table, which is what the
-    merge code should treat as "the secondary account owns nothing here".
-    """
-
-    def __init__(self, rules=()):
-        self.rules = list(rules)
-        self.executed = []
-        self._result = None
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *_exc):
-        return False
-
-    def execute(self, sql, params=None):
-        statement = normalize(sql)
-        self.executed.append((statement, params))
-        self._result = None
-        for fragment, expected_params, result in self.rules:
-            if fragment in statement and (expected_params is None or expected_params == params):
-                self._result = result
-                break
-
-    def fetchone(self):
-        if isinstance(self._result, list):
-            return self._result[0] if self._result else None
-        return self._result
-
-    def fetchall(self):
-        if isinstance(self._result, list):
-            return self._result
-        return [self._result] if self._result else []
-
-    def statements_matching(self, fragment):
-        return [(sql, params) for sql, params in self.executed if fragment in sql]
 
 
 PRIMARY = {'id': 1, 'username': 'user', 'display_name': 'Teun'}

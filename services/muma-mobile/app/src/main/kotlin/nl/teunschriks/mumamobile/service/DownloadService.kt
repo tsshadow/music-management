@@ -48,7 +48,7 @@ import nl.teunschriks.mumamobile.util.Util.stopForegroundRemoveNotification
 import timber.log.Timber
 
 private const val NOTIFICATION_CHANNEL_ID = "org.moire.ultrasonic"
-private const val NOTIFICATION_CHANNEL_NAME = "MuMa Mobile background service"
+private const val NOTIFICATION_CHANNEL_NAME = "MuMa background service"
 private const val NOTIFICATION_ID = 3033
 
 private const val CHECK_INTERVAL = 5000L

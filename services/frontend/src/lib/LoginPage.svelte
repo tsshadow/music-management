@@ -1,5 +1,6 @@
 <script>
   import { t, locale } from './i18n/index.js';
+  import MumaMark from './MumaMark.svelte';
   import { credentials, mumaApiUrl, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser } from './store.js';
 
   let username = $state('');
@@ -221,6 +222,9 @@
 <div class="min-h-screen w-screen bg-black flex flex-col justify-center items-center p-4 text-white">
   <div class="bg-[#181818] border border-[#282828] p-10 rounded-2xl w-full max-w-md flex flex-col gap-6 shadow-2xl">
     <div class="flex flex-col items-center gap-2 mb-2">
+      <div class="w-14 h-14 bg-brand rounded-full flex items-center justify-center text-black mb-1">
+        <MumaMark size={32} />
+      </div>
       <h1 class="text-3xl font-extrabold tracking-tight m-0">MuMa</h1>
       <h2 class="text-sm font-medium text-[#b3b3b3] m-0">{setupRequired ? $t('login.setupTitle') : $t('login.title')}</h2>
     </div>

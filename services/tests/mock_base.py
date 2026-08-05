@@ -92,6 +92,29 @@ librosa_mod.beat = librosa_beat_mod
 librosa_mod.load = lambda *a, **k: ([], 0)
 sys.modules['librosa'] = librosa_mod
 sys.modules['librosa.beat'] = librosa_beat_mod
+# The ml-analyzer's dependencies (services/ml-analyzer/requirements.txt) are not in
+# the repository-root requirements.txt, and CI does not pip-install anything before
+# running this suite -- it uses what the runner already has. Stubbing them here is
+# the same trade already made for librosa and yt_dlp above: the analyzer's own logic
+# is what these tests assert on, never SQLAlchemy's or scikit-learn's behaviour.
+sqlalchemy_mod = MagicMock()
+sqlalchemy_mod.__name__ = 'sqlalchemy'
+sys.modules['sqlalchemy'] = sqlalchemy_mod
+for _sub in ['dialects', 'dialects.mysql', 'orm', 'exc']:
+    sys.modules[f'sqlalchemy.{_sub}'] = MagicMock()
+sqlalchemy_mod.dialects = sys.modules['sqlalchemy.dialects']
+sys.modules['sqlalchemy.dialects'].mysql = sys.modules['sqlalchemy.dialects.mysql']
+for mod_name in ['pandas', 'joblib', 'tqdm', 'sklearn', 'sklearn.ensemble',
+                 'sklearn.model_selection', 'sklearn.preprocessing', 'sklearn.metrics']:
+    sys.modules[mod_name] = MagicMock()
+# numpy is in the root requirements, but only the ml-analyzer imports it, and a
+# stub keeps these tests runnable on a machine that has not installed it. The raw
+# signal maths it backs is deliberately not asserted on; the analyzer's own
+# branching is.
+sys.modules['numpy'] = MagicMock()
+# tqdm(iterable) has to keep iterating, or every progress-wrapped loop would run zero times.
+sys.modules['tqdm'].tqdm = lambda iterable=(), *a, **k: iterable
+
 for mod_name in ['yt_dlp', 'yt_dlp.postprocessor', 'yt_dlp.utils']:
     m = types.ModuleType(mod_name)
     sys.modules[mod_name] = m

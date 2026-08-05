@@ -15,6 +15,7 @@
   let downloaderSubTab = 'soundcloud';
   let newAccountName = '';
   let newAccountId = '';
+  let newYoutubeDownloadType = 'audio';
 
   const SOURCE_LABELS = { soundcloud: 'SoundCloud', youtube: 'YouTube', telegram: 'Telegram' };
   const RATE_STATE_POLL_MS = 30000;
@@ -188,7 +189,7 @@
       const res = await fetch(`${API_BASE}/api/youtube`, {
         method: 'POST',
         headers: getHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ name: newAccountName })
+        body: JSON.stringify({ name: newAccountName, download_type: newYoutubeDownloadType })
       });
       if (res.ok) {
         onMessage($t('management.downloaders.channelAdded'));
@@ -200,10 +201,12 @@
     }
   }
 
-  async function deleteYoutubeAccount(name) {
-    if (!confirm(`Weet je zeker dat je kanaal ${name} wilt verwijderen?`)) return;
+  async function deleteYoutubeAccount(name, downloadType) {
+    if (!confirm(`Weet je zeker dat je kanaal ${name} (${downloadType}) wilt verwijderen?`)) return;
     try {
-      const res = await fetch(`${API_BASE}/api/youtube/${name}`, {
+      // A channel can have both an audio and a video row; without the type the
+      // API would delete both of them.
+      const res = await fetch(`${API_BASE}/api/youtube/${name}?download_type=${downloadType}`, {
         method: 'DELETE',
         headers: getHeaders()
       });
@@ -300,6 +303,10 @@
         <form on:submit|preventDefault={addYoutubeAccount} class="space-y-4">
           <div class="flex gap-2">
             <input type="text" bind:value={newAccountName} placeholder={$t('management.downloaders.channelPlaceholder')} class="flex-1 bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
+            <select bind:value={newYoutubeDownloadType} aria-label={$t('management.downloaders.downloadType')} class="bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green">
+              <option value="audio">{$t('management.downloaders.typeAudio')}</option>
+              <option value="video">{$t('management.downloaders.typeVideo')}</option>
+            </select>
             <button type="submit" class="bg-spotify-green text-black font-extrabold px-6 rounded-md hover:scale-105 transition-transform">{$t('management.downloaders.addShort')}</button>
           </div>
           <p class="text-xs text-spotify-lightgray italic">{$t('management.downloaders.quickAddHelp')}</p>
@@ -316,18 +323,25 @@
       <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
         <table class="w-full text-left">
           <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
-            <tr><th class="p-4">{$t('management.downloaders.channel')}</th><th class="p-4 text-right">{$t('management.genres.actions')}</th></tr>
+            <tr><th class="p-4">{$t('management.downloaders.channel')}</th><th class="p-4">{$t('management.downloaders.downloadType')}</th><th class="p-4 text-right">{$t('management.genres.actions')}</th></tr>
           </thead>
           <tbody class="divide-y divide-spotify-gray divide-opacity-30">
-            {#each youtubeAccounts as account (account.name)}
+            <!-- The table's key is (name, download_type): a channel can appear once
+                 as audio and once as video, so the name alone is not a unique key. -->
+            {#each youtubeAccounts as account (account.name + '/' + (account.download_type || 'audio'))}
               <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
                 <td class="p-4 font-bold">
                   <a href="https://youtube.com/{account.name.startsWith('@') ? account.name : 'channel/'+account.name}" target="_blank" class="flex items-center gap-2 hover:text-spotify-green">
                     {account.name} <ExternalLink size={14} />
                   </a>
                 </td>
+                <td class="p-4">
+                  <span class="text-xs font-bold uppercase px-2 py-1 rounded-full {account.download_type === 'video' ? 'bg-red-500 bg-opacity-20 text-red-400' : 'bg-spotify-green bg-opacity-20 text-spotify-green'}">
+                    {account.download_type === 'video' ? $t('management.downloaders.typeVideo') : $t('management.downloaders.typeAudio')}
+                  </span>
+                </td>
                 <td class="p-4 text-right">
-                  <button on:click={() => deleteYoutubeAccount(account.name)} class="text-spotify-lightgray hover:text-red-500">
+                  <button on:click={() => deleteYoutubeAccount(account.name, account.download_type || 'audio')} class="text-spotify-lightgray hover:text-red-500">
                     <Trash2 size={16} />
                   </button>
                 </td>

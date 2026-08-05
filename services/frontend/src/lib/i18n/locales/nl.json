@@ -187,6 +187,7 @@
       "channelDeleteFailed": "Kon kanaal niet verwijderen.",
       "channelDeleted": "Kanaal verwijderd.",
       "channelPlaceholder": "Channel Handle of ID...",
+      "downloadType": "Type",
       "fetch": "FETCH",
       "last429": "laatste 429: {date}",
       "loadingSettings": "Instellingen laden...",
@@ -203,6 +204,8 @@
       "timingLoadFailed": "Kon de timing-instellingen niet laden.",
       "timingUnavailable": "Timing-instellingen niet beschikbaar",
       "timingUnavailableHelp": "De opgeslagen waarden konden niet gelezen worden, dus er is niets om te tonen of op te slaan. Dit zijn niet je instellingen die verdwenen zijn; de opslag is onbereikbaar.",
+      "typeAudio": "Audio",
+      "typeVideo": "Video",
       "videoUrlPlaceholder": "YouTube Video URL..."
     },
     "genres": {

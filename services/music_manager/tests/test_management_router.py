@@ -212,11 +212,29 @@ class DownloadAccountsTest(ManagementTestCase):
     def test_a_youtube_account_is_added_as_an_audio_download(self):
         response = self.client.post('/api/youtube', headers=self.headers, json={'name': 'channel'})
         self.assertEqual(response.json()['status'], 'ok')
-        self.assertIn("'audio'", self.statements()[0])
+        self.assertEqual(self.cursor.execute.call_args.args[1], ('channel', 'audio', 60))
+
+    def test_a_youtube_account_can_be_added_as_a_video_download(self):
+        """The duration floor keeps trailers and teasers out of an event channel."""
+        response = self.client.post('/api/youtube', headers=self.headers,
+                                    json={'name': '@qdance', 'download_type': 'video'})
+        self.assertEqual(response.json()['status'], 'ok')
+        self.assertEqual(self.cursor.execute.call_args.args[1], ('@qdance', 'video', 1200))
+
+    def test_an_unknown_youtube_download_type_is_rejected(self):
+        response = self.client.post('/api/youtube', headers=self.headers,
+                                    json={'name': 'channel', 'download_type': 'hologram'})
+        self.assertEqual(response.status_code, 400)
 
     def test_a_youtube_account_can_be_removed(self):
         response = self.client.delete('/api/youtube/channel', headers=self.headers)
         self.assertEqual(response.json(), {'status': 'ok'})
+
+    def test_removing_one_form_of_a_channel_leaves_the_other(self):
+        """A channel can hold both rows, so a delete without a type would take both."""
+        response = self.client.delete('/api/youtube/@qdance?download_type=video', headers=self.headers)
+        self.assertEqual(response.json(), {'status': 'ok'})
+        self.assertEqual(self.cursor.execute.call_args.args[1], ('@qdance', 'video'))
 
 
 class GenreCurationQueueTest(ManagementTestCase):

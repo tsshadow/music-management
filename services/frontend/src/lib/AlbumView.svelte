@@ -116,13 +116,6 @@
     }
   });
 
-  /**
-   * Navigates to the artist detail view for the album's primary artist.
-   */
-  function openArtist() {
-     const id_to_use = album.artistId || (allTracks.length > 0 ? allTracks[0].artistId : null);
-     if (id_to_use && onnavigate) onnavigate(`artist:${id_to_use}`);
-  }
 </script>
 
 {#if isLoading}

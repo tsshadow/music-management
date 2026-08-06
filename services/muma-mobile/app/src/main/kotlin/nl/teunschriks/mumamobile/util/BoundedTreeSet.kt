@@ -16,16 +16,22 @@ class BoundedTreeSet<E> : TreeSet<E> {
         setMaxSize(maxSize)
     }
 
-    constructor(maxSize: Int, c: Collection<E>?) : super(c) {
+    // The element-carrying constructors deliberately hand nothing to `super`: TreeSet's
+    // own constructors call addAll(), which is overridden here and adjusts against a
+    // maxSize that the property initializer has not run yet, so the bound reads as 0 and
+    // the set trims itself to nothing. Set the bound first, then add.
+    constructor(maxSize: Int, c: Collection<E>?) : super() {
         setMaxSize(maxSize)
+        if (c != null) addAll(c)
     }
 
     constructor(maxSize: Int, c: Comparator<in E>?) : super(c) {
         setMaxSize(maxSize)
     }
 
-    constructor(maxSize: Int, s: SortedSet<E>?) : super(s) {
+    constructor(maxSize: Int, s: SortedSet<E>?) : super(s?.comparator()) {
         setMaxSize(maxSize)
+        if (s != null) addAll(s)
     }
 
     fun getMaxSize(): Int = maxSize

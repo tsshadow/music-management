@@ -13,11 +13,6 @@ import org.junit.Test
  */
 class BoundedTreeSetTest {
 
-    // The constructors taking a Collection or a SortedSet are not exercised here:
-    // they hand their argument to TreeSet's constructor, which calls the overridden
-    // addAll() before maxSize has been initialised, so the bound reads as 0 and the
-    // set trims itself to nothing. Only the (maxSize) constructor is used in the app.
-
     @Test
     fun `a set below its bound keeps everything`() {
         val set = BoundedTreeSet<Int>(3)
@@ -54,6 +49,20 @@ class BoundedTreeSetTest {
         val set = BoundedTreeSet<Int>(2)
 
         set.addAll(listOf(4, 1, 3, 2))
+
+        set.toList() `should be equal to` listOf(1, 2)
+    }
+
+    @Test
+    fun `a set built from a collection is bounded straight away`() {
+        val set = BoundedTreeSet(2, listOf(4, 1, 3, 2))
+
+        set.toList() `should be equal to` listOf(1, 2)
+    }
+
+    @Test
+    fun `a set built from a sorted set keeps its order and its bound`() {
+        val set = BoundedTreeSet(2, sortedSetOf(3, 1, 2))
 
         set.toList() `should be equal to` listOf(1, 2)
     }

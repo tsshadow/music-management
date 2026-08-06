@@ -175,6 +175,13 @@ class BaseSongLoadingTest(unittest.TestCase):
         log_broken.assert_called_once_with('some/path/test.m4a')
         self.assertFalse(hasattr(song, 'tag_collection'))
 
+    def test_an_unreadable_m4a_that_cannot_be_deleted_does_not_break_the_load(self):
+        with patch('services.tagger.Song.BaseSong.MP4', side_effect=MP4StreamInfoError('broken')), \
+             patch('services.tagger.Song.BaseSong.os.remove', side_effect=OSError('read-only')):
+            song = BaseSong('some/path/test.m4a')
+
+        self.assertFalse(hasattr(song, 'tag_collection'))
+
     def test_log_broken_file_appends_one_line_per_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             log_file = os.path.join(tmp, 'broken-files.log')

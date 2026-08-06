@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/svelte';
+import { cleanup, render, screen, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import Management from '../../src/lib/management/Management.svelte';
 import {
@@ -65,6 +65,10 @@ describe('Management', () => {
   });
 
   afterEach(() => {
+    // Unmount before the mocks go: the screen polls for image-fetch progress on
+    // an interval, and a poll that outlives the test logs into a torn-down
+    // worker, which vitest reports as an unhandled rejection.
+    cleanup();
     vi.restoreAllMocks();
   });
 

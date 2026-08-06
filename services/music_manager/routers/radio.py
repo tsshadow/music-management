@@ -1,10 +1,14 @@
+import json
 import logging
+import re
 import time
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from services.music_manager.database import get_db_connection
 from services.music_manager.lms_subsonic import fetch_candidate_tracks
+from services.music_manager.rbac import require_permission
 from services.music_manager.routers.management import verify_api_key
 
 router = APIRouter(tags=['radio'])
@@ -22,6 +26,11 @@ def init_db(cursor):
         ' created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
         ')'
     )
+    # A channel is a stored library filter. The older `genre` column still drives
+    # any channel made before this column existed, so nothing needs migrating.
+    cursor.execute("SHOW COLUMNS FROM radio_channels LIKE 'filter_json'")
+    if not cursor.fetchone():
+        cursor.execute('ALTER TABLE radio_channels ADD COLUMN filter_json TEXT NULL AFTER genre')
     cursor.execute(
         'CREATE TABLE IF NOT EXISTS radio_timeline ('
         ' id BIGINT AUTO_INCREMENT PRIMARY KEY,'
@@ -71,6 +80,50 @@ CANDIDATE_BATCH_SIZE = 20
 HISTORY_RETENTION_SECONDS = 3600.0
 
 
+def channel_filter(channel: dict) -> dict:
+    """The filter a channel selects on, whichever column it was stored in."""
+    raw = channel.get('filter_json')
+    if raw:
+        try:
+            stored = json.loads(raw)
+        except ValueError:
+            logger.warning("Radio channel '%s': unreadable filter_json, ignoring it", channel.get('slug'))
+            stored = None
+        if isinstance(stored, dict):
+            return stored
+    genre = channel.get('genre')
+    return {'genre': genre} if genre else {}
+
+
+def pick_candidates(candidates: list, scheduled_track_ids) -> list:
+    """Choose which candidates may go on the timeline, in the order they play.
+
+    LMS already returns them randomised, so this only drops what is still on the
+    timeline -- without it a twenty-track channel repeats itself inside the same
+    ten-minute window. This is the seam for weighted selection later: the rating
+    travels on the candidate, so a weighted version changes this function alone.
+    """
+    already = set(scheduled_track_ids or ())
+    picked = []
+    for candidate in candidates:
+        track_id = candidate.get('track_id')
+        if track_id in already:
+            continue
+        already.add(track_id)
+        picked.append(candidate)
+    return picked
+
+
+def scheduled_track_ids(conn, channel_id: int, since: float) -> list:
+    """Track ids on this channel's timeline that have not finished playing yet."""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            'SELECT track_id FROM radio_timeline WHERE channel_id = %s AND ends_at > %s',
+            (channel_id, since),
+        )
+        return [row['track_id'] for row in (cursor.fetchall() or [])]
+
+
 def fill_channel(conn, channel: dict, now: float) -> int:
     """Top up one channel's timeline. Returns how many entries were inserted."""
     with conn.cursor() as cursor:
@@ -85,11 +138,12 @@ def fill_channel(conn, channel: dict, now: float) -> int:
         return 0
 
     try:
-        candidates = fetch_candidate_tracks(channel.get('genre'), size=CANDIDATE_BATCH_SIZE)
+        candidates = fetch_candidate_tracks(channel_filter(channel), size=CANDIDATE_BATCH_SIZE)
     except Exception as e:
         logger.warning("Radio channel '%s': could not fetch candidates: %s", channel['slug'], e)
         return 0
 
+    candidates = pick_candidates(candidates, scheduled_track_ids(conn, channel['id'], now))
     entries = plan_entries(existing_end, now, candidates)
     if not entries:
         return 0
@@ -118,7 +172,7 @@ def run_radio_scheduler(interval: int = 5):
         if conn:
             try:
                 with conn.cursor() as cursor:
-                    cursor.execute('SELECT id, slug, genre FROM radio_channels WHERE enabled = 1')
+                    cursor.execute('SELECT id, slug, genre, filter_json FROM radio_channels WHERE enabled = 1')
                     channels = cursor.fetchall()
                 for channel in channels:
                     fill_channel(conn, channel, time.time())
@@ -131,17 +185,167 @@ def run_radio_scheduler(interval: int = 5):
 
 @router.get('/channels')
 def list_channels(_auth: dict = Depends(verify_api_key)):
+    """Every listener may see the channel line-up, filters included: the filter is
+    what a player has to describe a channel with."""
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='Database unavailable')
     try:
         with conn.cursor() as cursor:
             cursor.execute(
-                'SELECT slug, name, genre FROM radio_channels WHERE enabled = 1 ORDER BY id'
+                'SELECT slug, name, genre, filter_json FROM radio_channels WHERE enabled = 1 ORDER BY id'
             )
-            return {'channels': cursor.fetchall()}
+            channels = cursor.fetchall() or []
+        return {'channels': [
+            {'slug': c['slug'], 'name': c['name'], 'genre': c['genre'], 'filter': channel_filter(c)}
+            for c in channels
+        ]}
     finally:
         conn.close()
+
+
+SLUG_PATTERN = re.compile(r'^[a-z0-9][a-z0-9-]{0,63}$')
+PREVIEW_PROBE_SIZE = 100
+PREVIEW_SAMPLE_SIZE = 10
+
+
+class ChannelFilter(BaseModel):
+    """The filter a channel selects on. Every field is optional; all of them empty
+    means the whole library, which is what the seeded `main` channel is."""
+    label: str | None = None
+    genre: str | None = None
+    artist: str | None = None
+    length: str | None = None
+    year: str | None = None
+    rating_min: int | None = None
+    rating_max: int | None = None
+    duration_min: int | None = None
+    duration_max: int | None = None
+    include_unrated: bool = False
+
+
+class ChannelCreate(BaseModel):
+    slug: str
+    name: str
+    filter: ChannelFilter = ChannelFilter()
+
+
+class ChannelUpdate(BaseModel):
+    name: str | None = None
+    filter: ChannelFilter | None = None
+    enabled: bool | None = None
+
+
+class FilterPreview(BaseModel):
+    filter: ChannelFilter = ChannelFilter()
+
+
+def _stored_filter(channel_filter_model: ChannelFilter) -> str:
+    return json.dumps(channel_filter_model.model_dump(exclude_none=True))
+
+
+def _require_db():
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail='Database unavailable')
+    return conn
+
+
+@router.post('/channels', status_code=201)
+def create_channel(body: ChannelCreate, _auth: dict = Depends(require_permission('radio.manage'))):
+    if not SLUG_PATTERN.match(body.slug):
+        raise HTTPException(status_code=400, detail='Slug must be lowercase letters, digits and dashes')
+    if not body.name.strip():
+        raise HTTPException(status_code=400, detail='Name is required')
+    conn = _require_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT id FROM radio_channels WHERE slug = %s', (body.slug,))
+            if cursor.fetchone():
+                raise HTTPException(status_code=409, detail='A channel with that slug already exists')
+            cursor.execute(
+                'INSERT INTO radio_channels (slug, name, filter_json) VALUES (%s, %s, %s)',
+                (body.slug, body.name.strip(), _stored_filter(body.filter)),
+            )
+        conn.commit()
+        return {'slug': body.slug, 'name': body.name.strip(), 'filter': body.filter.model_dump(exclude_none=True)}
+    finally:
+        conn.close()
+
+
+@router.put('/channels/{slug}')
+def update_channel(slug: str, body: ChannelUpdate, _auth: dict = Depends(require_permission('radio.manage'))):
+    conn = _require_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT id FROM radio_channels WHERE slug = %s', (slug,))
+            if not cursor.fetchone():
+                raise HTTPException(status_code=404, detail='Unknown channel')
+
+            assignments = []
+            params = []
+            if body.name is not None:
+                if not body.name.strip():
+                    raise HTTPException(status_code=400, detail='Name is required')
+                assignments.append('name = %s')
+                params.append(body.name.strip())
+            if body.filter is not None:
+                # A channel edited here stops using the legacy genre column, so the
+                # two can never disagree about what the channel plays.
+                assignments.append('filter_json = %s')
+                params.append(_stored_filter(body.filter))
+                assignments.append('genre = NULL')
+            if body.enabled is not None:
+                assignments.append('enabled = %s')
+                params.append(1 if body.enabled else 0)
+            if not assignments:
+                raise HTTPException(status_code=400, detail='Nothing to update')
+
+            params.append(slug)
+            cursor.execute(f"UPDATE radio_channels SET {', '.join(assignments)} WHERE slug = %s", tuple(params))
+        conn.commit()
+
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT slug, name, genre, filter_json, enabled FROM radio_channels WHERE slug = %s', (slug,))
+            channel = cursor.fetchone()
+        return {'slug': channel['slug'], 'name': channel['name'],
+                'enabled': bool(channel['enabled']), 'filter': channel_filter(channel)}
+    finally:
+        conn.close()
+
+
+@router.delete('/channels/{slug}')
+def delete_channel(slug: str, _auth: dict = Depends(require_permission('radio.manage'))):
+    conn = _require_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT id FROM radio_channels WHERE slug = %s', (slug,))
+            channel = cursor.fetchone()
+            if not channel:
+                raise HTTPException(status_code=404, detail='Unknown channel')
+            # The timeline goes with it; nothing would ever read those rows again.
+            cursor.execute('DELETE FROM radio_timeline WHERE channel_id = %s', (channel['id'],))
+            cursor.execute('DELETE FROM radio_channels WHERE id = %s', (channel['id'],))
+        conn.commit()
+        return {'deleted': slug}
+    finally:
+        conn.close()
+
+
+@router.post('/channels/preview')
+def preview_filter(body: FilterPreview, _auth: dict = Depends(require_permission('radio.manage'))):
+    """What a filter would play, so a channel can be judged before it is saved."""
+    try:
+        matches = fetch_candidate_tracks(body.filter.model_dump(exclude_none=True), size=PREVIEW_PROBE_SIZE)
+    except Exception as e:
+        logger.warning('Radio filter preview failed: %s', e)
+        raise HTTPException(status_code=502, detail=f'LMS could not answer this filter: {e}') from e
+    return {
+        'matched': len(matches),
+        # LMS was asked for a bounded number, so a full response means "at least".
+        'truncated': len(matches) >= PREVIEW_PROBE_SIZE,
+        'sample': matches[:PREVIEW_SAMPLE_SIZE],
+    }
 
 
 ENTRY_COLUMNS = 'track_id, title, artist, album, cover_art, duration_ms, started_at, ends_at'

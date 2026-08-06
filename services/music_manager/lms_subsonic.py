@@ -5,7 +5,6 @@ user through its auth-token service (see SubsonicResource.cpp:517-519).
 """
 import logging
 import os
-import random
 
 import requests
 
@@ -49,33 +48,59 @@ def normalize_song(song: dict):
     }
 
 
-def fetch_candidate_tracks(genre, size: int = 20, timeout: float = 10.0) -> list:
-    """Fetch `size` playable tracks from LMS. Genre None means the whole library."""
-    params = _auth_params()
-    if genre:
-        endpoint = '/rest/getSongsByGenre'
-        params['genre'] = genre
-        params['count'] = size
-        # getSongsByGenre is not randomised server-side, so jump to a random
-        # window and shuffle what comes back.
-        params['offset'] = random.randint(0, 500)
-        node_name = 'songsByGenre'
-    else:
-        endpoint = '/rest/getRandomSongs'
-        params['size'] = size
-        node_name = 'randomSongs'
+# A radio channel's filter, as stored, keyed the way it reaches LMS. Anything
+# absent or blank is not sent at all, which is what makes an empty filter mean
+# "the whole library".
+FILTER_FIELDS = {
+    'label': 'label',
+    'genre': 'genre',
+    'artist': 'artist',
+    'length': 'length',
+    'year': 'year',
+    'rating_min': 'ratingMin',
+    'rating_max': 'ratingMax',
+    'duration_min': 'durationMin',
+    'duration_max': 'durationMax',
+}
 
-    response = requests.get(lms_base_url() + endpoint, params=params, timeout=timeout)
+
+def build_filter_params(channel_filter: dict) -> dict:
+    """Turn a stored channel filter into getSongsByFilter query parameters."""
+    params = {}
+    for key, param in FILTER_FIELDS.items():
+        value = (channel_filter or {}).get(key)
+        if value is None:
+            continue
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                continue
+        params[param] = value
+    # Only meaningful alongside a rating bound, and false is LMS's default, so
+    # sending it unconditionally would be noise.
+    if ('ratingMin' in params or 'ratingMax' in params) and (channel_filter or {}).get('include_unrated'):
+        params['includeUnrated'] = 'true'
+    return params
+
+
+def fetch_candidate_tracks(channel_filter, size: int = 20, timeout: float = 10.0) -> list:
+    """Fetch `size` playable tracks matching a channel filter.
+
+    An empty filter draws from the whole library. Results come back randomised by
+    LMS, so unlike the old getSongsByGenre path there is nothing to shuffle here.
+    """
+    params = _auth_params()
+    params.update(build_filter_params(channel_filter))
+    params['count'] = size
+
+    response = requests.get(lms_base_url() + '/rest/getSongsByFilter', params=params, timeout=timeout)
     response.raise_for_status()
     body = response.json().get('subsonic-response') or {}
     if body.get('status') != 'ok':
         error = body.get('error') or {}
         raise RuntimeError(f"LMS returned status={body.get('status')} error={error.get('message')}")
 
-    songs = (body.get(node_name) or {}).get('song') or []
+    songs = (body.get('songsByFilter') or {}).get('song') or []
     if isinstance(songs, dict):
         songs = [songs]
-    tracks = [t for t in (normalize_song(s) for s in songs) if t]
-    if genre:
-        random.shuffle(tracks)
-    return tracks
+    return [t for t in (normalize_song(s) for s in songs) if t]

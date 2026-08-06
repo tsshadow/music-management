@@ -20,6 +20,7 @@
 #include "AlbumSongLists.hpp"
 
 #include <algorithm>
+#include <chrono>
 
 #include "core/Service.hpp"
 #include "core/String.hpp"
@@ -366,6 +367,87 @@ namespace lms::api::subsonic
 
         Track::find(context.getDbSession(), params, [&](const Track::pointer& track) {
             songsByGenreNode.addArrayChild("song", createSongNode(context, track, context.getUser()));
+        });
+
+        return response;
+    }
+
+    Response handleGetSongsByFilterRequest(RequestContext& context)
+    {
+        // Every parameter is optional: with none of them set this is getRandomSongs.
+        // Radio channels are stored filters, and they all come through here.
+        const std::optional<std::string> label{ getParameterAs<std::string>(context.getParameters(), "label") };
+        const std::optional<std::string> genre{ getParameterAs<std::string>(context.getParameters(), "genre") };
+        const std::optional<std::string> year{ getParameterAs<std::string>(context.getParameters(), "year") };
+        const std::optional<std::string> length{ getParameterAs<std::string>(context.getParameters(), "length") };
+        const std::optional<std::string> artist{ getParameterAs<std::string>(context.getParameters(), "artist") };
+        const std::optional<int> ratingMin{ getParameterAs<int>(context.getParameters(), "ratingMin") };
+        const std::optional<int> ratingMax{ getParameterAs<int>(context.getParameters(), "ratingMax") };
+        // Seconds, unlike getSongs' minDuration/maxDuration which are minutes -- hence the
+        // different names. A radio channel wants "under four minutes", not "under four".
+        const std::optional<int> durationMin{ getParameterAs<int>(context.getParameters(), "durationMin") };
+        const std::optional<int> durationMax{ getParameterAs<int>(context.getParameters(), "durationMax") };
+        // A rating filter selects on ratings, so unrated tracks are out unless asked for.
+        const bool includeUnrated{ getParameterAs<bool>(context.getParameters(), "includeUnrated").value_or(false) };
+        const MediaLibraryId mediaLibrary{ getParameterAs<MediaLibraryId>(context.getParameters(), "musicFolderId").value_or(MediaLibraryId{}) };
+        const std::size_t count{ getParameterAs<std::size_t>(context.getParameters(), "count").value_or(20) };
+        if (count > defaultMaxCountSize)
+            throw ParameterValueTooHighGenericError{ "count", defaultMaxCountSize };
+        const std::size_t offset{ getParameterAs<std::size_t>(context.getParameters(), "offset").value_or(0) };
+        const std::optional<int> seed{ getParameterAs<int>(context.getParameters(), "seed") };
+
+        auto transaction{ context.getDbSession().createReadTransaction() };
+
+        Track::FindParameters params;
+        params.setSortMethod(TrackSortMethod::Random);
+        params.setRange(Range{ offset, count });
+        params.filters.setMediaLibrary(mediaLibrary);
+        if (seed.has_value())
+            params.randomSeed = seed;
+
+        std::vector<ClusterId> clusters;
+        if (genre.has_value())
+            clusters.push_back(GetCluster(genre.value(), "GENRE", context));
+        if (year.has_value())
+            clusters.push_back(GetCluster(year.value(), "YEAR", context));
+        if (length.has_value())
+            clusters.push_back(GetCluster(length.value(), "LENGTH", context));
+        if (!clusters.empty())
+            params.filters.setClusters(clusters);
+
+        if (label.has_value())
+        {
+            // Named rather than by id: the caller stores a channel, not a database row,
+            // and the name survives a rescan.
+            const Label::pointer labelObject{ Label::find(context.getDbSession(), label.value()) };
+            if (!labelObject)
+                throw RequestedDataNotFoundError{};
+            params.filters.setLabel(labelObject->getId());
+        }
+
+        if (artist.has_value())
+            params.setArtistName(artist.value());
+
+        if (ratingMin.has_value() || ratingMax.has_value())
+        {
+            params.ratingUser = context.getUser()->getId();
+            params.includeUnrated = includeUnrated;
+            if (ratingMin.has_value())
+                params.setMinRating(ratingMin.value());
+            if (ratingMax.has_value())
+                params.setMaxRating(ratingMax.value());
+        }
+
+        if (durationMin.has_value())
+            params.minDuration = std::chrono::seconds{ durationMin.value() };
+        if (durationMax.has_value())
+            params.maxDuration = std::chrono::seconds{ durationMax.value() };
+
+        Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
+        Response::Node& songsByFilterNode{ response.createNode("songsByFilter") };
+
+        Track::find(context.getDbSession(), params, [&](const Track::pointer& track) {
+            songsByFilterNode.addArrayChild("song", createSongNode(context, track, context.getUser()));
         });
 
         return response;

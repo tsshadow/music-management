@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from services.common.db_init import ensure_tables_exist
 from services.common.Helpers.EventService import event_service
+from services.common.Helpers.logging_setup import setup_logging
 from services.common.version_helper import get_version
 from services.music_manager.database import get_db_connection
 from services.music_manager.events_retention import run_events_retention
@@ -40,7 +41,7 @@ from services.music_manager.thread_registry import start_thread, thread_status
 
 load_dotenv()
 logger = logging.getLogger('music-manager')
-logging.basicConfig(level=logging.INFO)
+setup_logging('music-manager')
 app = FastAPI(title='Music Manager API')
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
 app.include_router(users.router, prefix="/api/users")

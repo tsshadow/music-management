@@ -34,8 +34,8 @@
       <Activity size={20} /> Bibliotheek Stats
     </button>
     <button 
-      on:click={() => onTabChange('notifications')}
-      class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'notifications' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
+      on:click={() => onTabChange('events')}
+      class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'events' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
     >
       <Bell size={20} /> Meldingen
     </button>

@@ -33,19 +33,44 @@ class RadioChannelsTest(unittest.TestCase):
         mock_get_db.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         mock_cursor.fetchall.return_value = [
-            {'slug': 'main', 'name': 'Radio', 'genre': None, 'filter_json': None},
+            {'slug': 'main', 'name': 'Radio', 'genre': None, 'filter_json': None, 'enabled': 1},
             {'slug': 'qdance', 'name': 'Q-dance', 'genre': None,
-             'filter_json': '{"label": "Q-dance Records"}'},
+             'filter_json': '{"label": "Q-dance Records"}', 'enabled': 1},
         ]
         response = self.client.get('/api/radio/channels', headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {'channels': [
-            {'slug': 'main', 'name': 'Radio', 'genre': None, 'filter': {}},
-            {'slug': 'qdance', 'name': 'Q-dance', 'genre': None, 'filter': {'label': 'Q-dance Records'}},
+            {'slug': 'main', 'name': 'Radio', 'genre': None, 'enabled': True, 'filter': {}},
+            {'slug': 'qdance', 'name': 'Q-dance', 'genre': None, 'enabled': True,
+             'filter': {'label': 'Q-dance Records'}},
         ]})
         query = mock_cursor.execute.call_args[0][0]
         self.assertIn('FROM radio_channels', query)
         self.assertIn('enabled = 1', query)
+
+    @patch('services.music_manager.routers.radio.get_db_connection')
+    def test_include_disabled_lists_channels_that_are_off_the_air(self, mock_get_db):
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_db.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        mock_cursor.fetchall.return_value = [
+            {'slug': 'off', 'name': 'Off', 'genre': None, 'filter_json': None, 'enabled': 0},
+        ]
+        response = self.client.get('/api/radio/channels?include_disabled=true',
+                                   headers={'x-api-key': self.api_key})
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()['channels'][0]['enabled'])
+        self.assertNotIn('enabled = 1', mock_cursor.execute.call_args[0][0])
+
+    def test_include_disabled_needs_the_manage_permission(self):
+        with patch('services.music_manager.routers.users.verify_api_key') as mock_verify:
+            async def _listener(_x_api_key=None):
+                return {'type': 'user', 'user': {'id': 5, 'permissions': ['music.play'], 'role_name': 'user'}}
+            mock_verify.side_effect = _listener
+            response = self.client.get('/api/radio/channels?include_disabled=true',
+                                       headers={'x-api-key': 'listener-key'})
+            self.assertEqual(response.status_code, 403)
 
     @patch('services.music_manager.routers.radio.get_db_connection')
     def test_channels_db_failure_returns_500(self, mock_get_db):

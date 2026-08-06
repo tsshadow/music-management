@@ -89,19 +89,44 @@ rather than replaying history.
 
 `plan_entries` — the part that decides where entries land — is a pure function
 with no database or HTTP in it, which is where the scheduling behaviour is
-tested.
+tested. `pick_candidates` sits just before it and decides *which* candidates may
+be scheduled: for now only dropping tracks still on the timeline, so a channel
+with few matches cannot repeat itself inside one ten-minute window. It is the
+one place a weighted selection ("better songs more often") would land.
 
 ## Channels
 
-`radio_channels` has a `slug`, a display `name`, and a nullable `genre`. A NULL
-genre means "draw from the whole library", which is the single `main` channel
-seeded at startup. A genre channel needs nothing more than a row: the scheduler
-already switches to `/rest/getSongsByGenre` when `genre` is set, jumping to a
-random offset and shuffling because that endpoint is not randomised server-side.
+A channel is a stored library filter. `radio_channels` has a `slug`, a display
+`name`, and a `filter_json` holding any of `label`, `genre`, `artist`, `length`,
+`year`, `rating_min`, `rating_max`, `duration_min`, `duration_max` and
+`include_unrated`. Everything absent means "do not filter on this", so an empty
+filter is the whole library — which is what the seeded `main` channel is.
 
-What is missing for genre channels is only presentation: the web player tunes
-into the first channel it finds rather than offering a choice, and there is no
-admin screen for creating them.
+The scheduler asks LMS for candidates through one endpoint,
+`/rest/getSongsByFilter`, whatever the channel is. It is our own addition to the
+Subsonic surface (`AlbumSongLists.cpp`), and it only exposes filtering LMS
+already had: `db::Filters` carries a `LabelId`, `Track::FindParameters` carries
+`artistName`, duration and rating bounds, and YEAR/LENGTH are clusters. Results
+come back randomised server-side, so unlike the old `getSongsByGenre` path there
+is nothing to shuffle client-side.
+
+Two things about that endpoint are worth knowing. A label lives on the *release*
+in LMS while our tagger writes a per-file PUBLISHER tag, so label coverage
+depends on what LMS parsed; and ratings are per-user, resolved against whichever
+user the scheduler's API key belongs to. `include_unrated` decides whether a
+channel with a rating floor still plays tracks nobody has rated — it defaults to
+off, because a rating filter that quietly includes unrated tracks is not a
+rating filter.
+
+The older nullable `genre` column still drives any channel created before
+`filter_json` existed. Editing a channel's filter clears it, so the two can never
+disagree about what a channel plays.
+
+Channels are created and edited from the management page (`RadioTab`), behind a
+`radio.manage` permission. That screen can preview a filter — how many tracks
+match, plus a sample — before saving, which is also how a label name that LMS
+does not know gets caught. The web player offers a channel picker when more than
+one channel is on air, and tunes straight in when there is only one.
 
 ## Transport
 

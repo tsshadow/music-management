@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from services.music_manager.database import get_db_connection
 from services.music_manager.lms_subsonic import fetch_candidate_tracks
-from services.music_manager.rbac import require_permission
+from services.music_manager.rbac import has_permission, require_permission
 from services.music_manager.routers.management import verify_api_key
 
 router = APIRouter(tags=['radio'])
@@ -184,20 +184,26 @@ def run_radio_scheduler(interval: int = 5):
 
 
 @router.get('/channels')
-def list_channels(_auth: dict = Depends(verify_api_key)):
+def list_channels(include_disabled: bool = False, auth: dict = Depends(verify_api_key)):
     """Every listener may see the channel line-up, filters included: the filter is
-    what a player has to describe a channel with."""
+    what a player has to describe a channel with. A disabled channel is off the
+    air, so only whoever may edit channels has any use for seeing it."""
+    if include_disabled and not has_permission(auth, 'radio.manage'):
+        raise HTTPException(status_code=403, detail='Missing permission: radio.manage')
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='Database unavailable')
     try:
         with conn.cursor() as cursor:
             cursor.execute(
-                'SELECT slug, name, genre, filter_json FROM radio_channels WHERE enabled = 1 ORDER BY id'
+                'SELECT slug, name, genre, filter_json, enabled FROM radio_channels'
+                + ('' if include_disabled else ' WHERE enabled = 1')
+                + ' ORDER BY id'
             )
             channels = cursor.fetchall() or []
         return {'channels': [
-            {'slug': c['slug'], 'name': c['name'], 'genre': c['genre'], 'filter': channel_filter(c)}
+            {'slug': c['slug'], 'name': c['name'], 'genre': c['genre'],
+             'enabled': bool(c['enabled']), 'filter': channel_filter(c)}
             for c in channels
         ]}
     finally:

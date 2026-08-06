@@ -39,12 +39,13 @@ def purge_once(conn) -> dict[str, int]:
 
 def run_events_retention() -> None:
     while True:
-        conn = get_db_connection()
-        if conn:
-            try:
-                purge_once(conn)
-            except Exception as exc:
-                print(f'events-retention: opruimen mislukt: {exc}', file=sys.stderr)
-            finally:
-                conn.close()
+        try:
+            conn = get_db_connection()
+            if conn:
+                try:
+                    purge_once(conn)
+                finally:
+                    conn.close()
+        except Exception as exc:
+            print(f'events-retention: opruimen mislukt: {exc}', file=sys.stderr)
         time.sleep(INTERVAL_SECONDS)

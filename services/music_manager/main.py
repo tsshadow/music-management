@@ -13,7 +13,6 @@ from services.common.Helpers.EventService import event_service
 from services.common.version_helper import get_version
 from services.music_manager.database import get_db_connection
 from services.music_manager.events_retention import run_events_retention
-from services.music_manager.ntfy_listener import start_ntfy_listener
 from services.music_manager.routers import (
     analytics,
     artist_images,
@@ -24,7 +23,6 @@ from services.music_manager.routers import (
     jobs,
     library,
     management,
-    notifications,
     radio,
     rating,
     scanner,
@@ -55,7 +53,6 @@ app.include_router(management.router, prefix="/api")
 app.include_router(artist_images.router, prefix="/api/artists")
 app.include_router(library.router, prefix="/api/library")
 app.include_router(analytics.router, prefix="/api/analytics")
-app.include_router(notifications.router, prefix="/api/notifications")
 app.include_router(tagger.router, prefix="/api/tagger")
 app.include_router(scanner.router, prefix="/api/scanner")
 app.include_router(jobs.router, prefix="/api/jobs")
@@ -77,7 +74,6 @@ def startup_event():
                 rating.init_db(cursor)
                 management.init_db(cursor)
                 artist_images.init_db(cursor)
-                notifications.init_db(cursor)
                 user_requests.init_db(cursor)
                 radio.init_db(cursor)
                 downloaders.init_db(cursor)
@@ -97,7 +93,6 @@ def startup_event():
     start_thread('scanner', run_scanner_loop, (int(os.getenv('SCANNER_SLEEPTIME', '3600')),))
     start_thread('radio', radio.run_radio_scheduler)
     start_thread('events-retention', run_events_retention)
-    start_ntfy_listener()
 
 @app.get('/health')
 def health(response: Response):

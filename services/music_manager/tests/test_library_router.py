@@ -1,4 +1,4 @@
-"""Coverage for the /api/library, /api/jobs, /api/notifications and /api/scrobble routers."""
+"""Coverage for the /api/library, /api/jobs and /api/scrobble routers."""
 import asyncio
 import sys
 import unittest
@@ -7,9 +7,6 @@ from unittest.mock import MagicMock, patch
 for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
     sys.modules.setdefault(_mod_name, MagicMock())
 
-import services.music_manager.ntfy_listener
-
-services.music_manager.ntfy_listener.start_ntfy_listener = lambda: None
 import services.music_manager.routers.users as users_router
 
 users_router.run_lms_db_sync = lambda: None
@@ -19,7 +16,6 @@ from fastapi.testclient import TestClient
 from services.music_manager.main import app
 from services.music_manager.routers import jobs as jobs_router
 from services.music_manager.routers import library as library_router
-from services.music_manager.routers import notifications as notifications_router
 from services.music_manager.routers import scrobbler as scrobbler_router
 
 API_KEY = library_router.API_KEY
@@ -244,24 +240,6 @@ class RedownloadTaskTest(unittest.TestCase):
         downloader_module.SoundcloudDownloader.side_effect = RuntimeError('yt-dlp missing')
         with patch.dict(sys.modules, {'services.downloader.soundcloud.soundcloud': downloader_module}):
             library_router.run_redownload_task('https://soundcloud.com/x', 'soundcloud')  # must not raise
-
-
-class NotificationsTest(RouterTestCase):
-    module = notifications_router
-
-    def test_the_most_recent_notifications_are_returned(self):
-        self.cursor.fetchall.return_value = [{'id': 1, 'message': 'done'}]
-        response = self.client.get('/api/notifications/', headers=self.headers)
-        self.assertEqual(response.json()[0]['message'], 'done')
-
-    def test_a_single_notification_can_be_deleted(self):
-        response = self.client.delete('/api/notifications/3', headers=self.headers)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('DELETE', self.statements()[0])
-
-    def test_all_notifications_can_be_cleared(self):
-        response = self.client.delete('/api/notifications/', headers=self.headers)
-        self.assertEqual(response.status_code, 200)
 
 
 class ScrobbleEventTest(RouterTestCase):

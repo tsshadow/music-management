@@ -106,6 +106,19 @@ describe('App', () => {
     await waitFor(() => expect(get(activeView)).toBe('home'));
   });
 
+  it('puts a label with a slash in it in the URL without breaking the route', async () => {
+    render(App);
+    await waitFor(() => expect(screen.getAllByText('Albums').length).toBeGreaterThan(0));
+
+    activeView.set('label:Drum & Bass / UK');
+
+    await waitFor(() => expect(window.location.pathname).toBe('/label/' + encodeURIComponent('Drum & Bass / UK')));
+    // And the round trip: the path parses back into the same view.
+    window.history.replaceState({}, '', window.location.pathname);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    await waitFor(() => expect(get(activeView)).toBe('label:Drum & Bass / UK'));
+  });
+
   it('the search results modal is shown when it is opened', async () => {
     render(App);
     await waitFor(() => expect(screen.getAllByText('Albums').length).toBeGreaterThan(0));

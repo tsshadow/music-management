@@ -410,18 +410,23 @@ namespace lms::api::subsonic
 
         auto transaction{ context.getDbSession().createReadTransaction() };
 
-        Label::find(context.getDbSession(), LabelSortMethod::Name, [&](const Label::pointer& label) {
+        // songCount/albumCount are extensions on top of what OpenSubsonic specifies for this
+        // endpoint. The web UI sorts and filters the label grid on them client-side, the same
+        // way getGenres already lets it do for genres; clients that don't know them ignore them.
+        Label::findStats(context.getDbSession(), LabelSortMethod::Name, [&](const Label::Stats& label) {
             Response::Node labelNode;
 
             switch (context.getResponseFormat())
             {
             case ResponseFormat::json:
-                labelNode.setAttribute("value", label->getName());
+                labelNode.setAttribute("value", label.name);
                 break;
             case ResponseFormat::xml:
-                labelNode.setValue(label->getName());
+                labelNode.setValue(label.name);
                 break;
             }
+            labelNode.setAttribute("songCount", label.trackCount);
+            labelNode.setAttribute("albumCount", label.releaseCount);
 
             recordLabelsNode.addArrayChild("recordLabel", std::move(labelNode));
         });

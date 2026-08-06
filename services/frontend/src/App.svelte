@@ -12,6 +12,7 @@
   import SearchMoreModal from './lib/SearchMoreModal.svelte';
   import { playlist, activeView, currentPlaylist, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive } from './lib/store.js';
   import { get } from 'svelte/store';
+  import { viewArgument } from './lib/utils.js';
   import { t } from './lib/i18n/index.js';
 
   const hours = new Date().getHours();
@@ -79,10 +80,14 @@
     if (view === 'artists') return base + '/artists';
     if (view === 'playlists') return base + '/playlists';
     if (view === 'memories') return base + '/memories';
-    if (view.startsWith('genre:')) return base + '/genre/' + view.split(':')[1];
-    if (view.startsWith('label:')) return base + '/label/' + view.split(':')[1];
-    if (view.startsWith('artist:')) return base + '/artist/' + view.split(':')[1];
-    if (view.startsWith('album:')) return base + '/album/' + view.split(':')[1];
+    // Genre and label names are free text -- they contain colons, slashes and
+    // ampersands -- so they are taken whole and percent-encoded. Splitting on
+    // ':' would truncate the name, and an unencoded '/' would make the path
+    // parse back as a different view entirely.
+    if (view.startsWith('genre:')) return base + '/genre/' + encodeURIComponent(viewArgument(view));
+    if (view.startsWith('label:')) return base + '/label/' + encodeURIComponent(viewArgument(view));
+    if (view.startsWith('artist:')) return base + '/artist/' + viewArgument(view);
+    if (view.startsWith('album:')) return base + '/album/' + viewArgument(view);
     if (view === 'settings') return base + '/settings';
     if (view === 'management') return base + '/management';
     return null;

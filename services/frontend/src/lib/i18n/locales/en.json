@@ -21,6 +21,31 @@
     "similar": "Fans also like",
     "verified": "Verified artist"
   },
+  "collection": {
+    "albumCount": {
+      "one": "{count} album",
+      "other": "{count} albums"
+    },
+    "clearFilters": "Clear filters",
+    "favoritesFilter": "Favourites ({count})",
+    "hoursShort": "{count} h",
+    "minimum": "At least",
+    "minutesShort": "{count} m",
+    "noMatches": "Nothing matches these filters",
+    "noMatchesHelp": "Try a shorter search term, or lower the minimum track count.",
+    "reverseOrder": "Reverse sort order",
+    "searchLabel": "Search this list",
+    "shownOfTotal": "{shown} of {total}",
+    "sortedAscending": "Ascending — click for descending",
+    "sortedDescending": "Descending — click for ascending",
+    "thresholdAll": "All",
+    "toggleFavoriteLabel": "Toggle favourite label",
+    "toggleFavoritePlaylist": "Toggle favourite playlist",
+    "visibilityAll": "All",
+    "visibilityMine": "Mine",
+    "visibilityPrivate": "Private",
+    "visibilityPublic": "Public"
+  },
   "common": {
     "add": "Add",
     "album": "Album",
@@ -58,6 +83,8 @@
     "noAlbumsHelp": "No albums match the current filters.",
     "noGenres": "No genres found in your library.",
     "noLabels": "No labels found in your library.",
+    "noPlaylists": "No playlists found",
+    "noPlaylistsHelp": "You have no playlists yet.",
     "noSets": "No sets found",
     "noSetsHelp": "Nothing here matches the current set view.",
     "noTracks": "No tracks found",
@@ -734,13 +761,16 @@
     "toggleMode": "Toggle mode"
   },
   "sort": {
+    "albumCount": "Album count",
     "alphabetical": "Alphabetical",
     "alphabeticalByArtist": "Alphabetical (artist)",
     "alphabeticalByTitle": "Alphabetical (title)",
     "byRating": "By rating",
+    "duration": "Duration",
     "mostPlayed": "Most played",
     "random": "Random",
     "recentlyAdded": "Recently added",
+    "recentlyCreated": "Recently created",
     "recentlyListened": "Recently listened",
     "recentlyPlayed": "Recently played",
     "recentlyReleased": "Recently released",

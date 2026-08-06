@@ -19,6 +19,8 @@
 
 #include "database/objects/Release.hpp"
 
+#include <tuple>
+
 #include <Wt/Dbo/Impl.h>
 #include <Wt/Dbo/WtSqlTraits.h>
 
@@ -457,6 +459,42 @@ namespace lms::db
 
         utils::forEachQueryResult(query, [&](const Label::pointer& label) {
             func(label);
+        });
+    }
+
+    void Label::findStats(Session& session, LabelSortMethod sortMethod, std::function<void(const Label::Stats& stats)> func)
+    {
+        session.checkReadTransaction();
+
+        // Labels attach to releases, so the track count has to come through release_label.
+        // COUNT(DISTINCT ...) rather than COUNT(*) because a release carrying several labels
+        // appears once per label in the join, and its tracks would be counted twice.
+        // LEFT JOIN keeps labels whose releases went away, matching find(), which lists them too.
+        std::string sql{
+            "SELECT l.id, l.name, COUNT(DISTINCT t.id), COUNT(DISTINCT r_l.release_id)"
+            " FROM label l"
+            " LEFT JOIN release_label r_l ON r_l.label_id = l.id"
+            " LEFT JOIN track t ON t.release_id = r_l.release_id"
+            " GROUP BY l.id, l.name"
+        };
+
+        switch (sortMethod)
+        {
+        case LabelSortMethod::None:
+            break;
+        case LabelSortMethod::Name:
+            sql += " ORDER BY l.name COLLATE NOCASE";
+            break;
+        }
+
+        auto query{ session.getDboSession()->query<std::tuple<LabelId, std::string, int, int>>(sql) };
+
+        utils::forEachQueryResult(query, [&](const auto& row) {
+            func(Stats{
+                std::get<0>(row),
+                std::get<1>(row),
+                static_cast<std::size_t>(std::get<2>(row)),
+                static_cast<std::size_t>(std::get<3>(row)) });
         });
     }
 

@@ -1,13 +1,13 @@
 import logging
 import sys
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql'):
     sys.modules.setdefault(_mod_name, MagicMock())
 
 from services.common.Helpers.logging_setup import (
-    EventLogHandler, is_captured, level_name,
+    EventLogHandler, is_captured, level_name, setup_logging,
 )
 
 
@@ -102,3 +102,55 @@ class EventLogHandlerTest(unittest.TestCase):
         self.service.emit.side_effect = RuntimeError('queue stuk')
 
         self.handler.emit(make_record())  # mag niet opgooien
+
+
+class SetupLoggingTest(unittest.TestCase):
+
+    def setUp(self):
+        # Save current root logger handlers so we can restore them
+        self.saved_handlers = logging.getLogger().handlers[:]
+        # Reset the _sink_registered flag for each test
+        import services.common.Helpers.logging_setup as logging_setup_module
+        logging_setup_module._sink_registered = False
+
+    def tearDown(self):
+        # Restore root logger handlers to their original state
+        root = logging.getLogger()
+        for handler in root.handlers[:]:
+            root.removeHandler(handler)
+        for handler in self.saved_handlers:
+            root.addHandler(handler)
+        # Reset the flag again
+        import services.common.Helpers.logging_setup as logging_setup_module
+        logging_setup_module._sink_registered = False
+
+    @patch('services.common.Helpers.logging_setup.NtfySink')
+    @patch('services.common.Helpers.logging_setup.event_service')
+    def test_calling_setup_logging_twice_registers_sink_only_once(self, mock_event_service, mock_ntfy_sink):
+        setup_logging('music-manager')
+        setup_logging('music-manager')
+
+        self.assertEqual(mock_event_service.add_sink.call_count, 1)
+
+    @patch('services.common.Helpers.logging_setup.NtfySink')
+    @patch('services.common.Helpers.logging_setup.event_service')
+    def test_setup_logging_leaves_one_event_handler_and_stream_handler(self, mock_event_service, mock_ntfy_sink):
+        setup_logging('music-manager')
+
+        root = logging.getLogger()
+        event_handlers = [h for h in root.handlers if isinstance(h, EventLogHandler)]
+        stream_handlers = [h for h in root.handlers if isinstance(h, logging.StreamHandler) and not isinstance(h, EventLogHandler)]
+
+        self.assertEqual(len(event_handlers), 1)
+        self.assertEqual(len(stream_handlers), 1)
+
+    @patch('services.common.Helpers.logging_setup.NtfySink')
+    @patch('services.common.Helpers.logging_setup.event_service')
+    def test_calling_setup_logging_twice_leaves_one_event_handler(self, mock_event_service, mock_ntfy_sink):
+        setup_logging('music-manager')
+        setup_logging('music-manager')
+
+        root = logging.getLogger()
+        event_handlers = [h for h in root.handlers if isinstance(h, EventLogHandler)]
+
+        self.assertEqual(len(event_handlers), 1)

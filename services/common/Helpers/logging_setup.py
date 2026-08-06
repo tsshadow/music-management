@@ -21,6 +21,7 @@ _LEVEL_NAMES = ((logging.CRITICAL, 'CRITICAL'), (logging.ERROR, 'ERROR'),
                 (logging.WARNING, 'WARNING'), (logging.INFO, 'INFO'))
 
 _state = threading.local()
+_sink_registered = False
 
 
 def is_captured(logger_name: str, levelno: int) -> bool:
@@ -75,10 +76,15 @@ def setup_logging(source: str, level: int = logging.INFO) -> None:
     Dit is ook de plek waar de ntfy-sink wordt geregistreerd: elke service die
     zijn logging opzet krijgt daarmee automatisch de push-kant erbij, zonder
     dat elk entrypoint dat apart moet regelen.
+
+    De sink-registratie wordt maar één keer uitgevoerd per process: basicConfig
+    met force=True verwijdert alle bestaande handlers, dus een check op de handler-
+    lijst zou altijd waar zijn. We gebruiken een module-flag i.p.v. een handler-check
+    zodat de sink maar eenmaal geregistreerd wordt.
     """
+    global _sink_registered
     logging.basicConfig(level=level, format=LOG_FORMAT, force=True)
-    root = logging.getLogger()
-    if any(isinstance(handler, EventLogHandler) for handler in root.handlers):
-        return
-    event_service.add_sink(NtfySink())
-    root.addHandler(EventLogHandler(source=source))
+    if not _sink_registered:
+        event_service.add_sink(NtfySink())
+        _sink_registered = True
+    logging.getLogger().addHandler(EventLogHandler(source=source))

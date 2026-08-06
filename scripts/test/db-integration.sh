@@ -28,6 +28,11 @@ export DB_USER=muma_test
 export DB_PASS=muma_test
 export DB_DB=muma_test
 export PYTHONPATH="$ROOT_DIR:$ROOT_DIR/services:${PYTHONPATH:-}"
+# The tagger, scanner and radio loops write on their own schedule. Against this
+# database that collides with the per-test truncate: the radio scheduler holds
+# radio_timeline rows while the fixture is emptying every table, and whichever
+# run is slow enough for the scheduler to tick fails with lock waits.
+export MUMA_DISABLE_BACKGROUND_WORKERS=1
 
 cleanup() {
     if [ "${KEEP_DB:-0}" = "1" ]; then

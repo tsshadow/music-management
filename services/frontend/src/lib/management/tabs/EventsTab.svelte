@@ -31,23 +31,23 @@
   let counts = {};
   let total = 0;
   let loading = false;
-  let selectedLevels = new Set(LEVELS);
-  let selectedSources = new Set();
+  let selectedLevels = [...LEVELS];
+  let selectedSources = [];
   let timeWindow = '-24h';
   let search = '';
-  let expanded = new Set();
+  let expanded = [];
   let searchTimer;
   let pollTimer;
   let fetchSeq = 0;
 
   function buildQuery() {
-    const params = new URLSearchParams();
-    for (const level of selectedLevels) params.append('level', level);
-    for (const source of selectedSources) params.append('source', source);
-    if (timeWindow) params.set('since', timeWindow);
-    if (search.trim()) params.set('q', search.trim());
-    params.set('limit', '200');
-    return params.toString();
+    const parts = [];
+    for (const level of selectedLevels) parts.push(`level=${encodeURIComponent(level)}`);
+    for (const source of selectedSources) parts.push(`source=${encodeURIComponent(source)}`);
+    if (timeWindow) parts.push(`since=${encodeURIComponent(timeWindow)}`);
+    if (search.trim()) parts.push(`q=${encodeURIComponent(search.trim())}`);
+    parts.push('limit=200');
+    return parts.join('&');
   }
 
   async function fetchEvents() {
@@ -55,7 +55,7 @@
     // resolve; this sequence guard makes sure a slow, superseded response
     // can't overwrite state a newer request already set.
     const seq = ++fetchSeq;
-    if (selectedLevels.size === 0) {
+    if (selectedLevels.length === 0) {
       // counts blijft staan: de badges zijn juist het signaal waaraan je ziet
       // wat er achter een uitgezet niveau zit. Op nul zetten wist dat signaal.
       events = [];
@@ -84,14 +84,16 @@
   }
 
   function toggleLevel(level) {
-    selectedLevels.has(level) ? selectedLevels.delete(level) : selectedLevels.add(level);
-    selectedLevels = new Set(selectedLevels);
+    selectedLevels = selectedLevels.includes(level)
+      ? selectedLevels.filter((l) => l !== level)
+      : [...selectedLevels, level];
     fetchEvents();
   }
 
   function toggleSource(source) {
-    selectedSources.has(source) ? selectedSources.delete(source) : selectedSources.add(source);
-    selectedSources = new Set(selectedSources);
+    selectedSources = selectedSources.includes(source)
+      ? selectedSources.filter((s) => s !== source)
+      : [...selectedSources, source];
     fetchEvents();
   }
 
@@ -101,8 +103,7 @@
   }
 
   function toggleExpanded(id) {
-    expanded.has(id) ? expanded.delete(id) : expanded.add(id);
-    expanded = new Set(expanded);
+    expanded = expanded.includes(id) ? expanded.filter((e) => e !== id) : [...expanded, id];
   }
 
   async function deleteEvent(id) {
@@ -177,9 +178,9 @@
     <div class="flex flex-col gap-2">
       <span class="text-xs uppercase tracking-wider text-spotify-lightgray">{$t('management.events.levelFilter')}</span>
       <div class="flex gap-2">
-        {#each LEVELS as level}
+        {#each LEVELS as level (level)}
           <button on:click={() => toggleLevel(level)}
-            class="px-4 py-2 rounded-full text-xs font-bold border transition-all {selectedLevels.has(level) ? 'bg-white text-black border-white' : 'border-white/20 text-spotify-lightgray hover:text-white'}">
+            class="px-4 py-2 rounded-full text-xs font-bold border transition-all {selectedLevels.includes(level) ? 'bg-white text-black border-white' : 'border-white/20 text-spotify-lightgray hover:text-white'}">
             {level} {counts[level] ?? 0}
           </button>
         {/each}
@@ -189,9 +190,9 @@
     <div class="flex flex-col gap-2">
       <span class="text-xs uppercase tracking-wider text-spotify-lightgray">{$t('management.events.sourceFilter')}</span>
       <div class="flex gap-2 flex-wrap">
-        {#each SOURCES as source}
+        {#each SOURCES as source (source)}
           <button on:click={() => toggleSource(source)}
-            class="px-3 py-2 rounded-full text-xs font-bold border transition-all {selectedSources.has(source) ? 'bg-spotify-green text-black border-spotify-green' : 'border-white/20 text-spotify-lightgray hover:text-white'}">
+            class="px-3 py-2 rounded-full text-xs font-bold border transition-all {selectedSources.includes(source) ? 'bg-spotify-green text-black border-spotify-green' : 'border-white/20 text-spotify-lightgray hover:text-white'}">
             {source}
           </button>
         {/each}
@@ -202,7 +203,7 @@
       <span class="text-xs uppercase tracking-wider text-spotify-lightgray">{$t('management.events.timeFilter')}</span>
       <select bind:value={timeWindow} on:change={fetchEvents}
         class="bg-spotify-gray text-white rounded-lg px-4 py-2 border border-white/10 text-sm">
-        {#each WINDOWS as window}
+        {#each WINDOWS as window (window.value)}
           <option value={window.value}>{$t(window.labelKey)}</option>
         {/each}
       </select>
@@ -240,7 +241,7 @@
                Svelte weigert een <button> binnen een <button> te compileren. -->
           <div class="flex items-center gap-4 p-3">
             <button on:click={() => toggleExpanded(event.id)} class="flex items-center gap-4 text-left flex-1 min-w-0">
-              <ChevronRight size={16} class="transition-transform {expanded.has(event.id) ? 'rotate-90' : ''}" />
+              <ChevronRight size={16} class="transition-transform {expanded.includes(event.id) ? 'rotate-90' : ''}" />
               <span class="font-mono text-xs font-bold w-20 shrink-0">{event.level}</span>
               <span class="text-xs text-spotify-lightgray w-32 shrink-0 flex items-center gap-1">
                 <Clock size={12} />{formatDate(event.created_at)}
@@ -253,7 +254,7 @@
               <Trash2 size={16} />
             </button>
           </div>
-          {#if expanded.has(event.id)}
+          {#if expanded.includes(event.id)}
             <div class="px-10 pb-4 flex flex-col gap-3">
               <pre class="text-spotify-lightgray whitespace-pre-wrap font-mono text-xs bg-black bg-opacity-30 p-3 rounded">{event.message}</pre>
               {#if event.context}

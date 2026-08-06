@@ -4,13 +4,15 @@ import threading
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from services.common.db_init import ensure_tables_exist
+from services.common.Helpers.EventService import event_service
 from services.common.version_helper import get_version
 from services.music_manager.database import get_db_connection
+from services.music_manager.events_retention import run_events_retention
 from services.music_manager.ntfy_listener import start_ntfy_listener
 from services.music_manager.routers import (
     analytics,
@@ -36,6 +38,7 @@ from services.music_manager.routers.artist_images import run_fetch_missing
 from services.music_manager.routers.scanner import run_scanner_loop
 from services.music_manager.routers.tagger import run_tagger_loop
 from services.music_manager.routers.users import run_lms_db_sync
+from services.music_manager.thread_registry import start_thread, thread_status
 
 load_dotenv()
 logger = logging.getLogger('music-manager')
@@ -84,16 +87,44 @@ def startup_event():
             print('Music Manager: Database initialized')
         finally:
             conn.close()
+    # Eenmalige achtergrondtaken: die geven na afloop terug en horen niet in
+    # het liveness-register, anders staat /health binnen een minuut op degraded.
     threading.Thread(target=run_lms_db_sync, daemon=True).start()
-    threading.Thread(target=run_tagger_loop, args=(int(os.getenv('TAGGER_SLEEPTIME', '300')),), daemon=True).start()
-    threading.Thread(target=run_scanner_loop, args=(int(os.getenv('SCANNER_SLEEPTIME', '3600')),), daemon=True).start()
     threading.Thread(target=run_fetch_missing, daemon=True).start()
-    threading.Thread(target=radio.run_radio_scheduler, daemon=True).start()
+
+    # Lussen die horen te blijven draaien.
+    start_thread('tagger', run_tagger_loop, (int(os.getenv('TAGGER_SLEEPTIME', '300')),))
+    start_thread('scanner', run_scanner_loop, (int(os.getenv('SCANNER_SLEEPTIME', '3600')),))
+    start_thread('radio', radio.run_radio_scheduler)
+    start_thread('events-retention', run_events_retention)
     start_ntfy_listener()
 
 @app.get('/health')
-def health():
-    return {'status': 'ok', 'service': 'music-manager', 'version': get_version()}
+def health(response: Response):
+    """Rapporteert wat het beweert, zodat de Uptime Kuma-monitor iets meet.
+
+    De oude versie gaf altijd 'ok' terug en bleef dus groen terwijl de
+    database weg was of een achtergrondlus aan een exceptie was gestorven.
+    """
+    conn = get_db_connection()
+    database = 'unreachable'
+    if conn:
+        database = 'ok'
+        conn.close()
+
+    threads = thread_status()
+    threads['events'] = event_service.is_alive()
+
+    healthy = database == 'ok' and all(threads.values())
+    if not healthy:
+        response.status_code = 503
+    return {
+        'status': 'ok' if healthy else 'degraded',
+        'service': 'music-manager',
+        'version': get_version(),
+        'database': database,
+        'threads': threads,
+    }
 
 # Music Manager is API-only and must never serve a UI of its own: the single
 # unified web interface (player + management views) lives in services/frontend

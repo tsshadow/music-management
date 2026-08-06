@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-08-06
+
+### Fixed
+- **A broken .m4a on a read-only volume no longer fails in a confusing way.** When the tagger cannot
+  read an m4a it deletes the file and moves on, but if the delete itself fails — a read-only mount, a
+  permission error — the load continued into code that reads a field the failed load never set, so
+  the real problem surfaced as an `AttributeError` about an internal attribute. Both outcomes now
+  stop at the same place.
+- **"Zie meer" in the search results opens again.** The link handed its category on without an item,
+  and the code behind it read an id off that missing item, so clicking it threw and the full result
+  list never appeared.
+- **`BoundedTreeSet` built from an existing collection is no longer empty.** Its two element-taking
+  constructors handed their contents to `TreeSet`, which adds them through the very method that
+  enforces the bound — before the bound has a value. Every element was trimmed away immediately. The
+  bound is now set first. Nothing in the app used those constructors, so no behaviour changed with
+  it, but the class no longer contains a trap.
+
+### Removed
+- Two management components that nothing imported (`components/Sidebar.svelte` and
+  `components/Login.svelte` — the app uses `ManagementSidebar.svelte`), and an unreachable
+  `openArtist()` in the album view. Dropping them puts the frontend coverage figure at 82.0%, where
+  it was measuring code that could never run.
+
 ## [0.5.3] - 2026-08-05
 
 ### Changed

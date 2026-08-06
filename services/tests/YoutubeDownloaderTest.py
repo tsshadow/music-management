@@ -47,8 +47,9 @@ class YoutubeDownloaderTest(unittest.TestCase):
             p.stop()
         patch.stopall()
 
+    @patch('services.common.Helpers.NotificationService.notification_service.notify')
     @patch('services.downloader.youtube.youtube.YoutubeDL')
-    def test_youtube_downloader_run(self, mock_ytdlp):
+    def test_youtube_downloader_run(self, mock_ytdlp, mock_notify):
         """
         Test the YouTube downloader pipeline:
         Mock(yt-dlp returns) -> do run -> assert(tags)
@@ -79,10 +80,10 @@ class YoutubeDownloaderTest(unittest.TestCase):
         self.assertEqual(song.title(), 'Collider')
         self.assertEqual(song.album(), 'Youtube (Noisia)')
         self.assertEqual(song.publisher(), 'Youtube')
-        notification_service.notify.assert_called()
-        call_args = notification_service.notify.call_args[0]
+        mock_notify.assert_called()
+        call_args = mock_notify.call_args[0]
         self.assertIn('Title=Collider', call_args[0])
         self.assertIn('Artists=Noisia', call_args[0])
-        self.assertEqual(notification_service.notify.call_args[1]['title'], 'YouTube Download Complete')
+        self.assertEqual(mock_notify.call_args[1]['title'], 'YouTube Download Complete')
 if __name__ == '__main__':
     unittest.main()

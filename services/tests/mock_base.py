@@ -122,7 +122,7 @@ for mod_name in ['markdown', 'dotenv', 'pymysql', 'pymysql.err', 'pymysql.cursor
         if 'pymysql' in sys.modules:
             sys.modules['pymysql'].err = mock_mod
     sys.modules[mod_name] = mock_mod
-for mod_name in ['services.common.config_store', 'services.common.Helpers.NotificationService', 'services.common.Helpers.ProcessedFilesHelper']:
+for mod_name in ['services.common.config_store', 'services.common.Helpers.ProcessedFilesHelper']:
     # Always mock these to prevent real side effects during tests
     sys.modules[mod_name] = MagicMock()
 if 'services.common.config_store' in sys.modules:
@@ -134,10 +134,6 @@ if 'yt_dlp.utils' in sys.modules:
     sys.modules['yt_dlp.utils'].sanitize_filename = lambda x, **k: x
 if 'dotenv' in sys.modules:
     sys.modules['dotenv'].load_dotenv = lambda *a, **k: None
-if 'services.common.Helpers.NotificationService' in sys.modules:
-    if not isinstance(sys.modules['services.common.Helpers.NotificationService'], MagicMock):
-        sys.modules['services.common.Helpers.NotificationService'] = MagicMock()
-    sys.modules['services.common.Helpers.NotificationService'].notification_service = MagicMock()
 # Force mock Cache
 cache_mod = types.ModuleType('services.common.Helpers.Cache')
 cache_mod.databaseHelpers = {'library_artists': MagicMock(), 'rules_ignored_artists': MagicMock(), 'rules_genres': MagicMock(), 'rules_ignored_genres': MagicMock(), 'artistGenreHelper': MagicMock(), 'subgenreHelper': MagicMock(), 'rules_genre_backlog': MagicMock(), 'rules_label_genre': MagicMock(), 'rules_subgenre_hierarchy': MagicMock()}
@@ -177,8 +173,6 @@ def setup_mocks():
     pass
 
 def reset_database_helpers():
-    if 'services.common.Helpers.NotificationService' in sys.modules:
-        sys.modules['services.common.Helpers.NotificationService'].notification_service.reset_mock()
     helpers = sys.modules['services.common.Helpers.Cache'].databaseHelpers
     for h_name, h in helpers.items():
         if isinstance(h, MagicMock):

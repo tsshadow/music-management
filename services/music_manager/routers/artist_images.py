@@ -392,8 +392,13 @@ def run_fetch_missing():
                 logger.info('Background fetch for missing artist images completed.')
                 fetch_progress.update({'active': False, 'status': 'completed', 'message': f'Completed: {success_count} succeeded, {failed_count} failed'})
                 try:
-                    from services.common.Helpers.NotificationService import notification_service
-                    notification_service.send_notification(title='Artist Image Fetcher', message=f'Background fetch completed.\nSucceeded: {success_count}\nFailed: {failed_count}', topic='artist-images')
+                    from services.common.Helpers.EventService import event_service
+                    event_service.emit(
+                        level='INFO', title='Artist Image Fetcher',
+                        message=f'Background fetch completed.\nSucceeded: {success_count}\nFailed: {failed_count}',
+                        source='music-manager', context={'succeeded': success_count, 'failed': failed_count},
+                        push=True,
+                    )
                 except Exception as e:
                     logger.warning(f'Failed to send completion notification: {e}')
         finally:

@@ -5,11 +5,6 @@ from unittest.mock import MagicMock, patch
 for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql'):
     sys.modules.setdefault(_mod_name, MagicMock())
 
-# Ensure real requests is available (ArtistFixerTest creates a stub that we need to override)
-if 'requests' in sys.modules and not hasattr(sys.modules['requests'], 'post'):
-    del sys.modules['requests']
-import requests
-
 from services.common.Helpers.EventService import Event
 from services.common.Helpers.ntfy_sink import NtfySink
 
@@ -45,63 +40,63 @@ class NtfySinkTest(unittest.TestCase):
         self.clock = FakeClock()
         self.sink = NtfySink(config=fake_config(), clock=self.clock)
 
-    @patch('services.common.Helpers.ntfy_sink.requests.post')
-    def test_warning_goes_to_alerts_topic(self, mock_post):
+    @patch('services.common.Helpers.ntfy_sink.requests')
+    def test_warning_goes_to_alerts_topic(self, mock_requests):
         self.sink.handle(make_event(level='WARNING'))
 
-        url = mock_post.call_args[0][0]
-        headers = mock_post.call_args[1]['headers']
+        url = mock_requests.post.call_args[0][0]
+        headers = mock_requests.post.call_args[1]['headers']
         self.assertEqual(url, 'https://ntfy.example.nl/music-management-alerts')
         self.assertEqual(headers['Priority'], 'high')
         self.assertEqual(headers['Tags'], 'warning')
 
-    @patch('services.common.Helpers.ntfy_sink.requests.post')
-    def test_critical_is_urgent(self, mock_post):
+    @patch('services.common.Helpers.ntfy_sink.requests')
+    def test_critical_is_urgent(self, mock_requests):
         self.sink.handle(make_event(level='CRITICAL'))
 
-        headers = mock_post.call_args[1]['headers']
+        headers = mock_requests.post.call_args[1]['headers']
         self.assertEqual(headers['Priority'], 'urgent')
         self.assertEqual(headers['Tags'], 'sos')
 
-    @patch('services.common.Helpers.ntfy_sink.requests.post')
-    def test_info_without_push_goes_nowhere(self, mock_post):
+    @patch('services.common.Helpers.ntfy_sink.requests')
+    def test_info_without_push_goes_nowhere(self, mock_requests):
         self.sink.handle(make_event(level='INFO', push=False))
 
-        mock_post.assert_not_called()
+        mock_requests.post.assert_not_called()
 
-    @patch('services.common.Helpers.ntfy_sink.requests.post')
-    def test_info_with_push_goes_to_milestone_topic(self, mock_post):
+    @patch('services.common.Helpers.ntfy_sink.requests')
+    def test_info_with_push_goes_to_milestone_topic(self, mock_requests):
         self.sink.handle(make_event(level='INFO', push=True))
 
-        self.assertEqual(mock_post.call_args[0][0], 'https://ntfy.example.nl/music-management')
+        self.assertEqual(mock_requests.post.call_args[0][0], 'https://ntfy.example.nl/music-management')
 
-    @patch('services.common.Helpers.ntfy_sink.requests.post')
-    def test_duplicate_within_window_is_suppressed(self, mock_post):
+    @patch('services.common.Helpers.ntfy_sink.requests')
+    def test_duplicate_within_window_is_suppressed(self, mock_requests):
         self.sink.handle(make_event(level='ERROR', title='zelfde'))
         self.clock.now = 299.0
         self.sink.handle(make_event(level='ERROR', title='zelfde'))
 
-        self.assertEqual(mock_post.call_count, 1)
+        self.assertEqual(mock_requests.post.call_count, 1)
 
-    @patch('services.common.Helpers.ntfy_sink.requests.post')
-    def test_duplicate_after_window_is_sent_again(self, mock_post):
+    @patch('services.common.Helpers.ntfy_sink.requests')
+    def test_duplicate_after_window_is_sent_again(self, mock_requests):
         self.sink.handle(make_event(level='ERROR', title='zelfde'))
         self.clock.now = 301.0
         self.sink.handle(make_event(level='ERROR', title='zelfde'))
 
-        self.assertEqual(mock_post.call_count, 2)
+        self.assertEqual(mock_requests.post.call_count, 2)
 
-    @patch('services.common.Helpers.ntfy_sink.requests.post')
-    def test_different_source_is_not_a_duplicate(self, mock_post):
+    @patch('services.common.Helpers.ntfy_sink.requests')
+    def test_different_source_is_not_a_duplicate(self, mock_requests):
         self.sink.handle(make_event(level='ERROR', title='zelfde', source='downloader'))
         self.sink.handle(make_event(level='ERROR', title='zelfde', source='importer'))
 
-        self.assertEqual(mock_post.call_count, 2)
+        self.assertEqual(mock_requests.post.call_count, 2)
 
-    @patch('services.common.Helpers.ntfy_sink.requests.post')
-    def test_missing_configuration_sends_nothing(self, mock_post):
+    @patch('services.common.Helpers.ntfy_sink.requests')
+    def test_missing_configuration_sends_nothing(self, mock_requests):
         sink = NtfySink(config=fake_config({'notify_url': ''}), clock=self.clock)
 
         sink.handle(make_event(level='ERROR'))
 
-        mock_post.assert_not_called()
+        mock_requests.post.assert_not_called()

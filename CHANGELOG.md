@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-06
+
+### Added
+- **A radio channel is a stored library filter.** Channels could only be "the whole library" or one
+  genre, which is too coarse to give a station an identity — Q-dance Records and Dirty Workz both
+  collapse into "hardstyle". A channel now stores any combination of label, genre, artist, length,
+  year and rating, served by a new `/rest/getSongsByFilter` endpoint in LMS that exposes filtering
+  the database layer already had.
+- **Radio channels are managed from the management page**, behind a new `radio.manage` permission:
+  create, edit, take on and off air, and preview what a filter matches — how many tracks plus a
+  sample — before saving. Previewing is also what catches a label name LMS does not know.
+- **The player offers a channel picker** when more than one channel is on air, labelled by what each
+  one plays, and still tunes straight in when there is only one.
+
+### Fixed
+- The tagger, scanner and radio loops no longer start when `MUMA_DISABLE_BACKGROUND_WORKERS` is set,
+  which keeps the radio scheduler out of the integration database it was deadlocking with.
+
 ## [0.5.5] - 2026-08-06
 
 ### Changed

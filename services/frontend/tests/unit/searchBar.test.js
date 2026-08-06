@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import SearchBar from '../../src/lib/SearchBar.svelte';
-import { activeView, credentials, currentTrack, playlist, viewMode } from '../../src/lib/store.js';
+import { activeModal, activeView, credentials, currentTrack, playlist, viewMode } from '../../src/lib/store.js';
 
 const TRACK = { id: 'song-1', title: 'Raise Your Fist', artist: 'Angerfist', suffix: 'flac' };
 
@@ -30,6 +30,7 @@ describe('SearchBar', () => {
     credentials.set({ url: '', username: 'user', password: 'pw' });
     viewMode.set('songs');
     activeView.set('home');
+    activeModal.set(null);
     currentTrack.set(null);
     playlist.set([]);
     globalThis.fetch = subsonicApi({ searchResult: { song: [TRACK] } });
@@ -183,6 +184,19 @@ describe('SearchBar', () => {
     await fireEvent.click(screen.getByText('Roughstate'));
 
     expect(get(activeView)).toBe('label:Roughstate');
+  });
+
+  it('opens the full result list for a category', async () => {
+    render(SearchBar);
+    await search('angerfist');
+    await waitFor(() => expect(screen.getByText('Raise Your Fist')).toBeTruthy());
+
+    await fireEvent.click(screen.getAllByText('Zie meer')[0]);
+
+    expect(get(activeModal)).toEqual({
+      type: 'search-results',
+      data: { query: 'angerfist', category: 'tracks' }
+    });
   });
 
   it('closes the results shortly after the box loses focus', async () => {

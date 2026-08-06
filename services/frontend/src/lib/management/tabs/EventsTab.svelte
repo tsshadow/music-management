@@ -36,6 +36,7 @@
   let expanded = new Set();
   let searchTimer;
   let pollTimer;
+  let fetchSeq = 0;
 
   function buildQuery() {
     const params = new URLSearchParams();
@@ -48,6 +49,10 @@
   }
 
   async function fetchEvents() {
+    // Rapid filter toggling can fire several requests before earlier ones
+    // resolve; this sequence guard makes sure a slow, superseded response
+    // can't overwrite state a newer request already set.
+    const seq = ++fetchSeq;
     if (selectedLevels.size === 0) {
       events = [];
       counts = {};
@@ -57,8 +62,10 @@
     loading = true;
     try {
       const res = await fetch(`${API_BASE}/api/events?${buildQuery()}`, { headers: getHeaders() });
+      if (seq !== fetchSeq) return;
       if (res.ok) {
         const body = await res.json();
+        if (seq !== fetchSeq) return;
         events = body.events;
         counts = body.counts;
         total = body.total;
@@ -67,7 +74,7 @@
       }
     } catch (err) {
       console.error(err);
-      onError($t('management.events.fetchFailed'));
+      if (seq === fetchSeq) onError($t('management.events.fetchFailed'));
     } finally {
       loading = false;
     }

@@ -90,6 +90,10 @@ def list_events(level: list[str] = Query(default=[]), source: list[str] = Query(
     limit = max(1, min(limit, MAX_LIMIT))
     offset = max(0, offset)
     where, params = _build_filters(level, source, since_value, until_value, q)
+    # The level badges must show what's behind each chip, including chips that
+    # are currently unchecked — so the counts query drops the level filter
+    # while keeping every other filter the user applied.
+    counts_where, counts_params = _build_filters([], source, since_value, until_value, q)
 
     conn = get_db_connection()
     if not conn:
@@ -105,7 +109,8 @@ def list_events(level: list[str] = Query(default=[]), source: list[str] = Query(
             total = (cursor.fetchone() or {}).get('total', 0)
 
             cursor.execute(
-                f'SELECT level, COUNT(*) AS n FROM events {where} GROUP BY level', tuple(params))
+                f'SELECT level, COUNT(*) AS n FROM events {counts_where} GROUP BY level',
+                tuple(counts_params))
             counts = {row['level']: row['n'] for row in cursor.fetchall()}
 
         return {

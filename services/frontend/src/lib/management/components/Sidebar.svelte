@@ -1,5 +1,5 @@
 <script >
-  import { Bell, Database, Home, Activity, Image, List, Tag, Cloud, Radio, ShieldCheck, Users, LayoutTemplate, Info, ExternalLink, Music } from '@lucide/svelte';
+  import { ScrollText, Database, Home, Activity, Image, List, Tag, Cloud, Radio, ShieldCheck, Users, LayoutTemplate, Info, ExternalLink, Music } from '@lucide/svelte';
 
   export let activeTab;
   export let onTabChange;
@@ -37,7 +37,7 @@
       on:click={() => onTabChange('events')}
       class="w-full flex items-center gap-4 px-4 py-2.5 rounded-md font-bold transition-colors {activeTab === 'events' ? 'bg-spotify-gray text-white' : 'text-spotify-lightgray hover:text-white'}"
     >
-      <Bell size={20} /> Meldingen
+      <ScrollText size={20} /> Logboek
     </button>
 
     <div class="pt-4 pb-1 px-4 text-[10px] font-bold text-spotify-lightgray uppercase tracking-widest">Bibliotheek</div>

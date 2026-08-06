@@ -93,6 +93,28 @@ class EventsRouterTest(unittest.TestCase):
         self.assertNotIn('WARNING', params)
 
     @patch('services.music_manager.routers.events.get_db_connection')
+    def test_counts_query_drops_the_level_filter(self, mock_get_db):
+        cursor = self._mock_db(mock_get_db)
+
+        self.client.get('/api/events?level=ERROR', headers=self.headers)
+
+        events_sql, _events_params = cursor.execute.call_args_list[0][0]
+        counts_sql, _counts_params = cursor.execute.call_args_list[2][0]
+        self.assertIn('level IN (%s)', events_sql)
+        self.assertNotIn('level IN', counts_sql)
+
+    @patch('services.music_manager.routers.events.get_db_connection')
+    def test_counts_query_keeps_the_other_filters(self, mock_get_db):
+        cursor = self._mock_db(mock_get_db)
+
+        self.client.get('/api/events?level=ERROR&source=importer', headers=self.headers)
+
+        counts_sql, counts_params = cursor.execute.call_args_list[2][0]
+        self.assertNotIn('level IN', counts_sql)
+        self.assertIn('source IN (%s)', counts_sql)
+        self.assertIn('importer', counts_params)
+
+    @patch('services.music_manager.routers.events.get_db_connection')
     def test_source_and_search_filters_combine(self, mock_get_db):
         cursor = self._mock_db(mock_get_db)
 

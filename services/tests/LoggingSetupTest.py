@@ -1,3 +1,5 @@
+import contextlib
+import io
 import logging
 import sys
 import unittest
@@ -23,6 +25,11 @@ class IsCapturedTest(unittest.TestCase):
         self.assertTrue(is_captured('music-manager.radio', logging.INFO))
         self.assertTrue(is_captured('downloader', logging.INFO))
         self.assertTrue(is_captured('importer.mover', logging.INFO))
+
+    def test_root_logger_captured_from_info(self):
+        # downloader, importer en tagger loggen via de module-API, dus hun
+        # records heten 'root'. Zonder deze regel viel al hun INFO weg.
+        self.assertTrue(is_captured('root', logging.INFO))
 
     def test_own_logger_not_captured_below_info(self):
         self.assertFalse(is_captured('music-manager.radio', logging.DEBUG))
@@ -102,6 +109,17 @@ class EventLogHandlerTest(unittest.TestCase):
         self.service.emit.side_effect = RuntimeError('queue stuk')
 
         self.handler.emit(make_record())  # mag niet opgooien
+
+    def test_a_failing_service_complains_on_stderr(self):
+        # Stil falen maakte deze handler een zwart gat: precies daarom bleven
+        # de allowlist- en dedup-fouten onzichtbaar.
+        self.service.emit.side_effect = RuntimeError('queue stuk')
+        stderr = io.StringIO()
+
+        with contextlib.redirect_stderr(stderr):
+            self.handler.emit(make_record())
+
+        self.assertIn('queue stuk', stderr.getvalue())
 
 
 class SetupLoggingTest(unittest.TestCase):

@@ -17,6 +17,11 @@ from services.common.Helpers.EventService import Event
 ALERT_LEVELS = ('WARNING', 'ERROR', 'CRITICAL')
 PRIORITY_BY_LEVEL = {'WARNING': 'high', 'ERROR': 'high', 'CRITICAL': 'urgent'}
 TAG_BY_LEVEL = {'WARNING': 'warning', 'ERROR': 'rotating_light', 'CRITICAL': 'sos'}
+# De rem sleutelt op (level, source, logger) en bewust niet op de titel. Veel
+# routinewaarschuwingen dragen een afteller in hun tekst ('nog 240s afkoelen'),
+# waardoor elke herhaling een andere titel oplevert en een titel-sleutel nooit
+# tweemaal raakt. Op de logger-naam vallen die herhalingen wel samen. Events die
+# rechtstreeks worden ge-emit hebben geen logger; die vallen terug op de titel.
 DEDUP_WINDOW_SECONDS = 300
 REQUEST_TIMEOUT_SECONDS = 10
 
@@ -54,7 +59,7 @@ class NtfySink:
         """
         now = self._clock()
         self._prune(now)
-        key = (event.level, event.source, event.title)
+        key = (event.level, event.source, event.logger or event.title)
         if key in self._last_sent and now - self._last_sent[key] < DEDUP_WINDOW_SECONDS:
             return True
         self._last_sent[key] = now

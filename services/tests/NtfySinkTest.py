@@ -30,8 +30,9 @@ def fake_config(values=None):
     return config
 
 
-def make_event(level='INFO', title='t', push=False, source='downloader'):
-    return Event(level=level, title=title, message='bericht', source=source, push=push)
+def make_event(level='INFO', title='t', push=False, source='downloader', logger=None):
+    return Event(level=level, title=title, message='bericht', source=source, push=push,
+                 logger=logger)
 
 
 class NtfySinkTest(unittest.TestCase):
@@ -92,6 +93,42 @@ class NtfySinkTest(unittest.TestCase):
         self.sink.handle(make_event(level='ERROR', title='zelfde', source='importer'))
 
         self.assertEqual(mock_requests.post.call_count, 2)
+
+    @patch('services.common.Helpers.ntfy_sink.requests')
+    def test_error_is_high_with_a_siren(self, mock_requests):
+        self.sink.handle(make_event(level='ERROR'))
+
+        headers = mock_requests.post.call_args[1]['headers']
+        self.assertEqual(headers['Priority'], 'high')
+        self.assertEqual(headers['Tags'], 'rotating_light')
+
+    @patch('services.common.Helpers.ntfy_sink.requests')
+    def test_same_logger_with_a_changing_countdown_pushes_once(self, mock_requests):
+        # sweep.py waarschuwt 'nog 240s afkoelen' en even later 'nog 180s'. Dat
+        # is dezelfde melding met een andere titel; op de telefoon hoort dat
+        # eenmaal aan te komen, niet elke sweep opnieuw.
+        self.sink.handle(make_event(level='WARNING', logger='downloader.sweep',
+                                    title='soundcloud koelt nog 240s af'))
+        self.clock.now = 60.0
+        self.sink.handle(make_event(level='WARNING', logger='downloader.sweep',
+                                    title='soundcloud koelt nog 180s af'))
+
+        self.assertEqual(mock_requests.post.call_count, 1)
+
+    @patch('services.common.Helpers.ntfy_sink.requests')
+    def test_same_title_from_different_loggers_pushes_twice(self, mock_requests):
+        self.sink.handle(make_event(level='ERROR', logger='downloader.sweep', title='zelfde'))
+        self.sink.handle(make_event(level='ERROR', logger='downloader.queue', title='zelfde'))
+
+        self.assertEqual(mock_requests.post.call_count, 2)
+
+    @patch('services.common.Helpers.ntfy_sink.requests')
+    def test_events_without_a_logger_still_dedup_on_title(self, mock_requests):
+        self.sink.handle(make_event(level='ERROR', logger=None, title='zelfde'))
+        self.clock.now = 60.0
+        self.sink.handle(make_event(level='ERROR', logger=None, title='zelfde'))
+
+        self.assertEqual(mock_requests.post.call_count, 1)
 
     @patch('services.common.Helpers.ntfy_sink.requests')
     def test_missing_configuration_sends_nothing(self, mock_requests):

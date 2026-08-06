@@ -23,16 +23,21 @@ CREATE TABLE IF NOT EXISTS events (
 );
 
 -- 2. De bestaande meldingen overzetten.
---    Alleen wanneer notifications nog bestaat en events nog leeg is, zodat een
---    tweede run geen duplicaten oplevert.
+--    De kopie draait zolang notifications nog bestaat -- verder niets. Een gate op
+--    een lege events-tabel is bewust weggelaten: de applicatie maakt events al bij
+--    het opstarten aan en vult hem meteen (zie events.init_db en EventService), dus
+--    zo'n gate zou de oude rijen stilletjes weggooien zodra de app draait vóórdat
+--    deze migratie gedraaid is -- en dat is bij een gewone compose-deploy eerder
+--    regel dan uitzondering. Herhaald draaien is alsnog veilig: na een geslaagde
+--    run is notifications weg (stap 3), dus een tweede run neemt de no-op-tak en
+--    de DROP hieronder is zelf ook idempotent.
 
 SET @notifications_exists := (
     SELECT COUNT(*) FROM information_schema.tables
     WHERE table_schema = DATABASE() AND table_name = 'notifications'
 );
-SET @events_empty := (SELECT COUNT(*) = 0 FROM events);
 
-SET @copy := IF(@notifications_exists > 0 AND @events_empty,
+SET @copy := IF(@notifications_exists > 0,
     'INSERT INTO events (created_at, level, source, logger, title, message, context)
      SELECT created_at, ''INFO'',
             CASE
@@ -42,7 +47,7 @@ SET @copy := IF(@notifications_exists > 0 AND @events_empty,
             END,
             NULL, title, message, NULL
      FROM notifications',
-    'SELECT ''overslaan: notifications ontbreekt of events is al gevuld''');
+    'SELECT ''overslaan: notifications ontbreekt''');
 PREPARE stmt FROM @copy;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;

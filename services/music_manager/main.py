@@ -18,6 +18,7 @@ from services.music_manager.routers import (
     config,
     diagnostics,
     downloaders,
+    events,
     jobs,
     library,
     management,
@@ -42,6 +43,7 @@ logging.basicConfig(level=logging.INFO)
 app = FastAPI(title='Music Manager API')
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
 app.include_router(users.router, prefix="/api/users")
+app.include_router(events.router, prefix="/api/events") # before /api/auth/* below: its bare /{user_id} DELETE would otherwise shadow /api/events
 app.include_router(users.router, prefix="/api") # For /api/auth/*
 app.include_router(scrobbler.router, prefix="/api/scrobble")
 app.include_router(rating.router, prefix="/api/rating")
@@ -77,6 +79,7 @@ def startup_event():
                 radio.init_db(cursor)
                 downloaders.init_db(cursor)
                 diagnostics.init_db(cursor)
+                events.init_db(cursor)
             conn.commit()
             print('Music Manager: Database initialized')
         finally:

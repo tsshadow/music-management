@@ -100,3 +100,10 @@ class NtfySinkTest(unittest.TestCase):
         sink.handle(make_event(level='ERROR'))
 
         mock_requests.post.assert_not_called()
+
+    @patch('services.common.Helpers.ntfy_sink.requests')
+    def test_post_failure_does_not_propagate(self, mock_requests):
+        mock_requests.post.return_value.raise_for_status.side_effect = RuntimeError('503 Service Unavailable')
+
+        # Should not raise; exceptions in POST are swallowed
+        self.sink.handle(make_event(level='ERROR'))

@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 from services.tests.mock_base import reset_database_helpers, setup_mocks
 
 setup_mocks()
-from services.common.Helpers.NotificationService import notification_service
 from services.importer.mover import Mover, post_processing_songs
 
 
@@ -20,9 +19,10 @@ class TestMover(unittest.TestCase):
     def tearDown(self):
         patch.stopall()
 
+    @patch('services.common.Helpers.NotificationService.notification_service.notify')
     @patch('os.walk')
     @patch('os.path.isfile')
-    def test_post_processing_notifications(self, mock_isfile, mock_walk):
+    def test_post_processing_notifications(self, mock_isfile, mock_walk, mock_notify):
         """Verify that post_processing_songs sends a notification."""
         mock_walk.return_value = [('/tmp/eps/Scantraxx/SCAN123', [], ['song1.mp3'])]
         mock_isfile.return_value = True
@@ -30,8 +30,8 @@ class TestMover(unittest.TestCase):
             mock_song = MockLabelSong.return_value
             mock_song.__str__.return_value = 'Title=Test Song\nArtists=Test Artist'
             post_processing_songs('/tmp/eps/Scantraxx/SCAN123')
-            notification_service.notify.assert_called()
-            self.assertEqual(notification_service.notify.call_args[1]['title'], 'Import Complete')
+            mock_notify.assert_called()
+            self.assertEqual(mock_notify.call_args[1]['title'], 'Import Complete')
 
 
 class TestMoverConflictHandling(unittest.TestCase):

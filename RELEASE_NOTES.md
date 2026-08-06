@@ -11,6 +11,18 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.6.0 (2026-08-06)
+
+### 📻 Radiokanalen die ergens over gaan
+- Een kanaal was voorheen "de hele bibliotheek" of hooguit één genre. Nu is een kanaal een
+  **opgeslagen filter**: label, genre, artiest, lengte, jaar of waardering, in elke combinatie.
+  Q-dance Records en Dirty Workz zijn daarmee twee kanalen in plaats van allebei "hardstyle".
+- Kanalen beheer je op de **beheerderspagina**: aanmaken, bewerken, in en uit de lucht halen. Met
+  **proefdraaien** zie je vóór het opslaan hoeveel tracks een filter oplevert, met een voorproefje.
+  Dat is meteen de plek waar een labelnaam die de server niet kent boven water komt.
+- De speler laat je **kiezen** zodra er meer dan één kanaal in de lucht is, met per kanaal een
+  regeltje over wat het draait. Is er maar één kanaal, dan begint die gewoon meteen.
+
 ## Global Version 0.5.5 (2026-08-06)
 
 ### 🎨 MuMa stond er twee keer

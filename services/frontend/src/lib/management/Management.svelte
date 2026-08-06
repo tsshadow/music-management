@@ -1,6 +1,6 @@
 <script>
   import { t } from '../i18n/index.js';
-  import { onMount, untrack } from 'svelte';
+  import { onDestroy, onMount, untrack } from 'svelte';
   import { RefreshCw } from '@lucide/svelte';
   import { activeManagementTab, credentials, isAdmin, mumaApiKey, mumaApiUrl, userPermissions, mumaUser, hasPermission } from '../store.js';
 
@@ -189,6 +189,13 @@
       }
     }, 1000);
   }
+
+  // The poll outlives the screen otherwise: nothing stops it when the user
+  // navigates away, so it keeps asking the server for image-fetch progress —
+  // and keeps logging once the answers stop being useful.
+  onDestroy(() => {
+    if (progressInterval) clearInterval(progressInterval);
+  });
 
   async function fetchImageStats() {
     try {

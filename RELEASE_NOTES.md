@@ -11,6 +11,19 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.5.4 (2026-08-06)
+
+### 🐛 Drie foutjes die bij het testwerk boven water kwamen
+- **"Zie meer" in de zoekresultaten werkt weer.** Klikken op die link deed niets — de volledige
+  resultatenlijst ging niet open.
+- **Een kapot m4a-bestand op een alleen-lezen schijf** liet de tagger struikelen met een
+  onbegrijpelijke foutmelding in plaats van het bestand netjes over te slaan.
+- Een interne hulpklasse (`BoundedTreeSet`) leverde een lege lijst op als je hem met bestaande
+  inhoud aanmaakte. Niets in de app gebruikte dat, maar de valkuil is nu weg.
+
+### 🧹 Opgeruimd
+- Twee schermen in het beheergedeelte die nergens meer werden gebruikt zijn verwijderd.
+
 ## Global Version 0.5.3 (2026-08-05)
 
 ### 🧪 Veel meer van MuMa wordt nu automatisch getest

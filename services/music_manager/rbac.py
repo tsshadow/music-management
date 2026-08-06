@@ -36,6 +36,8 @@ PERMISSIONS = [
     ('user-requests.reject', 'Reject an access request'),
     ('user-requests.unapprove', 'Undo an approved access request (deletes/unlinks the resulting account)'),
 
+    ('radio.manage', 'Create and edit radio channels'),
+
     ('roles.read', 'View roles'),
     ('roles.manage', 'Manage roles and their permissions'),
     ('permissions.read', 'View permissions'),

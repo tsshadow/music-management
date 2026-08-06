@@ -174,6 +174,7 @@ namespace lms::api::subsonic
             { "/getRandomSongs", { handleGetRandomSongsRequest } },
             { "/getSongsByGenre", { handleGetSongsByGenreRequest } },
             { "/getSongsByGenreAndYear", { handleGetSongsByGenreRequest } },
+            { "/getSongsByFilter", { handleGetSongsByFilterRequest } },
             { "/getSongs", { handleGetSongs } },
             { "/getSongSortMethods", { handleGetSongSortMethods } },
             { "/getLineups", { handleGetLineups } },

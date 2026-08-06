@@ -4,6 +4,7 @@
   import { currentTrack, playerState, audio, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey } from './store.js';
   import { createRadioController } from './radioController.js';
   import { shouldPushJamState } from './radioSync.js';
+  import { describeFilter } from './management/radioChannels.js';
   import ArtistList from './ArtistList.svelte';
   import { getArtistImageUrl } from './utils.js';
 
@@ -20,6 +21,8 @@
   let radioTickInterval = null;
   let radioRefreshInterval = null;
   let radioClockInterval = null;
+  let radioChannels = $state([]);
+  let showRadioPicker = $state(false);
 
   /**
    * Builds a stream URL for radio playback. `format=mp3` is required: LMS only
@@ -34,9 +37,8 @@
   }
 
   /**
-   * Tunes into the first enabled radio channel, or switches radio off again.
-   * Requires a user gesture, which is exactly why this lives on a click handler:
-   * starting playback from a timer would be blocked by browser autoplay policy.
+   * Switches radio off, or offers the channels on air. With one channel there is
+   * nothing to choose, so it starts straight away.
    */
   async function toggleRadio() {
     if ($radioChannel) {
@@ -50,6 +52,12 @@
       radioController = null;
       radioChannel.set(null);
       radioNowPlaying.set(null);
+      showRadioPicker = false;
+      return;
+    }
+
+    if (showRadioPicker) {
+      showRadioPicker = false;
       return;
     }
 
@@ -58,12 +66,31 @@
         headers: { 'X-API-Key': $mumaApiKey },
       });
       const body = await response.json();
-      const channel = (body.channels || [])[0];
-      if (!channel) {
+      radioChannels = body.channels || [];
+      if (!radioChannels.length) {
         console.warn($t('radio.noChannels'));
         return;
       }
+      if (radioChannels.length === 1) {
+        await startRadio(radioChannels[0]);
+        return;
+      }
+      showRadioPicker = true;
+    } catch (e) {
+      console.error($t('radio.couldNotStart'), e);
+    }
+  }
 
+  /**
+   * Tunes into one channel. Requires a user gesture, which is exactly why this
+   * runs from a click handler: starting playback from a timer would be blocked
+   * by browser autoplay policy.
+   *
+   * @param {{slug: string}} channel
+   */
+  async function startRadio(channel) {
+    showRadioPicker = false;
+    try {
       radioController = createRadioController({
         audio: audioElement,
         apiBase: $mumaApiUrl,
@@ -1060,18 +1087,43 @@
           {/each}
         </div>
       {/if}
-      <button
-        class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white"
-        style="color: {radioColor}"
-        onclick={toggleRadio}
-        title={isRadioActive ? 'Radio: aan het luisteren' : 'Radio (beta)'}
-        aria-label={$t('player.radio')}
-        aria-pressed={isRadioActive}
-      >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-            <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
-          </svg>
-      </button>
+      <div class="relative flex items-center">
+        <button
+          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white"
+          style="color: {radioColor}"
+          onclick={toggleRadio}
+          title={isRadioActive ? 'Radio: aan het luisteren' : 'Radio (beta)'}
+          aria-label={$t('player.radio')}
+          aria-pressed={isRadioActive}
+          aria-expanded={showRadioPicker}
+        >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+              <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
+            </svg>
+        </button>
+        {#if showRadioPicker}
+          <div
+            class="absolute bottom-full right-0 mb-3 w-56 bg-[#282828] rounded-md shadow-xl border border-white/5 py-1 z-50"
+            role="menu"
+          >
+            <div class="px-3 py-2 text-[10px] uppercase tracking-wider text-[#b3b3b3]">
+              {$t('radio.chooseChannel')}
+            </div>
+            {#each radioChannels as channel (channel.slug)}
+              <button
+                class="w-full text-left px-3 py-2 bg-transparent border-none cursor-pointer text-sm text-white hover:bg-white/10 transition-colors"
+                role="menuitem"
+                onclick={() => startRadio(channel)}
+              >
+                <span class="font-bold">{channel.name}</span>
+                <span class="block text-[11px] text-[#b3b3b3]">
+                  {describeFilter(channel.filter, $t('management.radio.wholeLibrary'))}
+                </span>
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
       <button
         class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors"
         onclick={toggleJamMode}

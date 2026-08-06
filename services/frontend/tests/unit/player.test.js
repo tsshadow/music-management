@@ -241,4 +241,55 @@ describe('Player', () => {
 
     expect(onnavigate).toHaveBeenCalledWith('artist:artist-1');
   });
+
+  describe('radio channels', () => {
+    function radioApi(channels) {
+      return vi.fn(async (url) => {
+        if (url.includes('/api/radio/channels')) return { ok: true, json: async () => ({ channels }) };
+        if (url.includes('/api/radio/time')) {
+          return { ok: true, json: async () => ({ server_time: Date.now() / 1000 }) };
+        }
+        if (url.includes('/state')) return { ok: true, json: async () => ({ current: null, next: null }) };
+        return { ok: true, json: async () => ({ 'subsonic-response': { status: 'ok' } }) };
+      });
+    }
+
+    it('offers a choice when more than one channel is on air', async () => {
+      globalThis.fetch = radioApi([
+        { slug: 'main', name: 'Radio', filter: {} },
+        { slug: 'qdance', name: 'Q-dance', filter: { label: 'Q-dance Records' } }
+      ]);
+      renderPlayer();
+
+      await fireEvent.click(screen.getByLabelText('Radio'));
+
+      await waitFor(() => expect(screen.getByText('Q-dance')).toBeTruthy());
+      expect(screen.getByText('Q-dance Records')).toBeTruthy();
+      // Nothing is tuned in until a channel is picked.
+      expect(get(radioChannel)).toBeNull();
+    });
+
+    it('tunes into the channel that was picked', async () => {
+      globalThis.fetch = radioApi([
+        { slug: 'main', name: 'Radio', filter: {} },
+        { slug: 'qdance', name: 'Q-dance', filter: { label: 'Q-dance Records' } }
+      ]);
+      renderPlayer();
+
+      await fireEvent.click(screen.getByLabelText('Radio'));
+      await waitFor(() => expect(screen.getByText('Q-dance')).toBeTruthy());
+      await fireEvent.click(screen.getByText('Q-dance'));
+
+      await waitFor(() => expect(get(radioChannel)).toBe('qdance'));
+    });
+
+    it('starts straight away when there is only one channel', async () => {
+      globalThis.fetch = radioApi([{ slug: 'main', name: 'Radio', filter: {} }]);
+      renderPlayer();
+
+      await fireEvent.click(screen.getByLabelText('Radio'));
+
+      await waitFor(() => expect(get(radioChannel)).toBe('main'));
+    });
+  });
 });

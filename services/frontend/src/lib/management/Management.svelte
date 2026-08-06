@@ -11,6 +11,7 @@
   import PlaylistsTab from './tabs/PlaylistsTab.svelte';
   import TaggerTab from './tabs/TaggerTab.svelte';
   import GenreCurationTab from './tabs/GenreCurationTab.svelte';
+  import RadioTab from './tabs/RadioTab.svelte';
   import DownloadersTab from './tabs/DownloadersTab.svelte';
   import ScrobbleTab from './tabs/ScrobbleTab.svelte';
   import HealthTab from './tabs/HealthTab.svelte';
@@ -435,6 +436,12 @@
         />
       {:else if $activeManagementTab === 'genre-curation'}
         <GenreCurationTab
+          {API_BASE} getHeaders={getHeaders}
+          onMessage={(m) => message = m}
+          onError={(e) => error = e}
+        />
+      {:else if $activeManagementTab === 'radio'}
+        <RadioTab
           {API_BASE} getHeaders={getHeaders}
           onMessage={(m) => message = m}
           onError={(e) => error = e}

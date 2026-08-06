@@ -60,6 +60,19 @@ app.include_router(user_requests.router, prefix="/api") # /api/auth/google, /api
 app.include_router(radio.router, prefix="/api/radio")
 app.include_router(diagnostics.router, prefix="/api/diagnostics")
 
+def background_workers_enabled() -> bool:
+    """Whether startup should spin up the tagger, scanner and radio loops.
+
+    They keep writing to the database on their own schedule, which is right in
+    production and wrong against a test database: the radio scheduler holds rows
+    in radio_timeline while the integration suite is emptying every table between
+    tests, and the two deadlock on the same tables (see tests/integration for the
+    lock-wait history). Set MUMA_DISABLE_BACKGROUND_WORKERS=1 to run the API
+    without them.
+    """
+    return os.getenv('MUMA_DISABLE_BACKGROUND_WORKERS', '').strip().lower() not in ('1', 'true', 'yes')
+
+
 @app.on_event('startup')
 def startup_event():
     ensure_tables_exist()
@@ -81,12 +94,13 @@ def startup_event():
             print('Music Manager: Database initialized')
         finally:
             conn.close()
-    threading.Thread(target=run_lms_db_sync, daemon=True).start()
-    threading.Thread(target=run_tagger_loop, args=(int(os.getenv('TAGGER_SLEEPTIME', '300')),), daemon=True).start()
-    threading.Thread(target=run_scanner_loop, args=(int(os.getenv('SCANNER_SLEEPTIME', '3600')),), daemon=True).start()
-    threading.Thread(target=run_fetch_missing, daemon=True).start()
-    threading.Thread(target=radio.run_radio_scheduler, daemon=True).start()
-    start_ntfy_listener()
+    if background_workers_enabled():
+        threading.Thread(target=run_lms_db_sync, daemon=True).start()
+        threading.Thread(target=run_tagger_loop, args=(int(os.getenv('TAGGER_SLEEPTIME', '300')),), daemon=True).start()
+        threading.Thread(target=run_scanner_loop, args=(int(os.getenv('SCANNER_SLEEPTIME', '3600')),), daemon=True).start()
+        threading.Thread(target=run_fetch_missing, daemon=True).start()
+        threading.Thread(target=radio.run_radio_scheduler, daemon=True).start()
+        start_ntfy_listener()
 
 @app.get('/health')
 def health():

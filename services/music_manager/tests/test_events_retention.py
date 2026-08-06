@@ -8,7 +8,9 @@ for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql'):
     sys.modules.setdefault(_mod_name, MagicMock())
 
 from services.music_manager.events_retention import (
-    RETENTION_DAYS, purge_once, run_events_retention,
+    RETENTION_DAYS,
+    purge_once,
+    run_events_retention,
 )
 
 

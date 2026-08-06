@@ -9,7 +9,10 @@ for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql'):
     sys.modules.setdefault(_mod_name, MagicMock())
 
 from services.common.Helpers.logging_setup import (
-    EventLogHandler, is_captured, level_name, setup_logging,
+    EventLogHandler,
+    is_captured,
+    level_name,
+    setup_logging,
 )
 
 

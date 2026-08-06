@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import os
 import threading
@@ -115,10 +116,11 @@ def health(response: Response):
     database = 'unreachable'
     if conn:
         database = 'ok'
-        try:
+        # Sluiten mag hier nooit alsnog het endpoint laten crashen: de status
+        # is al bepaald, dus een fout bij het sluiten van de connectie
+        # negeren we bewust.
+        with contextlib.suppress(Exception):
             conn.close()
-        except Exception:
-            pass
 
     threads = thread_status()
     threads['events'] = event_service.is_alive()

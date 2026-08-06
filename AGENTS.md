@@ -113,8 +113,21 @@ and does not filter reliably on priority:
   emitting code passes `push=True` (four call sites today).
 - `notify_topic_alerts` (default `music-management-alerts`) — every `WARNING` and higher,
   automatically, with `Priority: high` (`WARNING`/`ERROR`) or `urgent` (`CRITICAL`) and a
-  severity-specific tag. Identical `(level, source, title)` within a 5-minute window produces a
-  database row but no repeat push, so a single flapping connection cannot flood the phone.
+  severity-specific tag. A repeat of `(level, source, logger)` within a 5-minute window produces a
+  database row but no repeat push, so a single flapping connection cannot flood the phone. The key
+  deliberately ignores the title: routine warnings embed a changing countdown in their text
+  (`"still cooling down for 240s"`), and keying on the title would mean the brake never engages.
+  Events emitted directly, without a logger name, fall back to the title.
+
+`setup_logging(source)` decides what reaches the stream: `ALLOWED_PREFIXES` (`music-manager`,
+`downloader`, `importer`, `tagger`, `scanner`, `root` and their subloggers) is captured from `INFO`
+upward, everything else — uvicorn's access log above all — only from `WARNING`. `root` is on that
+list because the worker services log through the module-level API (`logging.info(...)`) rather than
+a named logger, so their records arrive as `root`; without it every `INFO` from the downloader and
+importer was dropped. The `source` field still identifies the process, since `setup_logging` sets it
+per service — only the `logger` column is uninformative for those rows. Filtering `/api/events` by
+source therefore offers exactly three values: `music-manager`, `downloader`, `importer`. The tagger
+and scanner loops run as threads inside the music-manager process and emit under its source.
 
 ### Deployment prerequisite: `upstream-base-url`
 Instant delivery on the phone depends on a setting outside this repository. The official ntfy

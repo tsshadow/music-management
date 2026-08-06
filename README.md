@@ -168,7 +168,13 @@ topics exist so milestones and alerts can have their own sound and visibility:
 - `notify_topic` (default `music-management`) — download/import milestones, pushed only when the
   emitting code explicitly opts in.
 - `notify_topic_alerts` (default `music-management-alerts`) — every `WARNING` and higher,
-  automatically, with `Priority: high` (`WARNING`/`ERROR`) or `urgent` (`CRITICAL`).
+  automatically, with `Priority: high` (`WARNING`/`ERROR`) or `urgent` (`CRITICAL`). A repeat from
+  the same level/source/logger within five minutes is still written to the database but not pushed
+  again, so a warning that repeats every sweep cannot flood the phone.
+
+Filtering by source offers three values — `music-manager`, `downloader` and `importer` — the three
+processes that set up their own logging. The tagger and scanner loops are threads inside
+music-manager, so their events appear under `music-manager`.
 
 ### Deployment prerequisite: instant delivery on a self-hosted ntfy server
 The official ntfy Android app uses Firebase for instant push, but only for topics hosted on

@@ -15,7 +15,7 @@ The `music-manager` service provides a REST API (FastAPI) for managing the music
 ### 🔔 Events
 - **GET `/api/events`**: Query the event log. All query parameters are optional and combine as AND filters:
   - `level` (repeatable): restrict to one or more of `INFO`, `WARNING`, `ERROR`, `CRITICAL`. Omitted means all levels; an unknown value returns 400.
-  - `source` (repeatable): restrict to one or more of `music-manager`, `downloader`, `importer`, `tagger`, `scanner`. Omitted means all sources; an unknown value returns 400.
+  - `source` (repeatable): restrict to one or more of `music-manager`, `downloader`, `importer` — the three processes that call `setup_logging`. The tagger and scanner loops run inside the music-manager process, so their events carry `source=music-manager`. Omitted means all sources; an unknown value returns 400.
   - `since` / `until`: an ISO-8601 timestamp, or a relative form such as `-30m`, `-1h`, `-7d` (minutes/hours/days ago).
   - `q`: substring match against `title` and `message`.
   - `limit`: default 100, capped at 1000.

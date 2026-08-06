@@ -48,7 +48,8 @@ READ_ENDPOINTS = [
     ('/api/artists/1/images', 404),
 
     ('/api/scrobble/import/latest', 200),
-    ('/api/notifications/', 200),
+    ('/api/events', 200),
+    ('/api/events?level=ERROR&source=importer&since=-1h&q=test', 200),
     ('/api/stats/', 200),
     ('/api/analytics/summary', 200),
     ('/api/analytics/genre-distribution', 200),

@@ -67,14 +67,14 @@ def database():
 def _apply_schema(connection):
     from services.common import db_init
     from services.music_manager import rbac
-    from services.music_manager.routers import artist_images, notifications, scrobbler, users
+    from services.music_manager.routers import artist_images, events, scrobbler, users
 
     db_init.ensure_tables_exist()
     with connection.cursor() as cursor:
         # Order matters: rbac.init_db creates `roles`, which users.init_db's
         # foreign keys and the user_requests table depend on.
         for init in (users.init_db, rbac.init_db, scrobbler.init_db,
-                     artist_images.init_db, notifications.init_db):
+                     artist_images.init_db, events.init_db):
             init(cursor)
     _apply_migrations(connection)
 
@@ -153,9 +153,6 @@ def api(db, monkeypatch):
     """A FastAPI TestClient wired to the real database instead of a mock."""
     from fastapi.testclient import TestClient
 
-    import services.music_manager.ntfy_listener as ntfy_listener
-    monkeypatch.setattr(ntfy_listener, 'start_ntfy_listener', lambda: None)
-
     from services.music_manager import database as database_module
     from services.music_manager.main import app
 
@@ -171,7 +168,7 @@ def api(db, monkeypatch):
         'services.music_manager.routers.management',
         'services.music_manager.routers.artist_images',
         'services.music_manager.routers.scrobbler',
-        'services.music_manager.routers.notifications',
+        'services.music_manager.routers.events',
         'services.music_manager.routers.stats',
         'services.music_manager.routers.rating',
         'services.music_manager.routers.analytics',

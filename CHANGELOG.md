@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bound is now set first. Nothing in the app used those constructors, so no behaviour changed with
   it, but the class no longer contains a trap.
 
+- **The management screen stops polling when you leave it.** It asks the server every second how far
+  the artist-image fetch has got, and nothing cancelled that when the screen was torn down, so the
+  requests — and the logging when they stopped being answerable — carried on for the rest of the
+  session.
+
 ### Removed
 - Two management components that nothing imported (`components/Sidebar.svelte` and
   `components/Login.svelte` — the app uses `ManagementSidebar.svelte`), and an unreachable

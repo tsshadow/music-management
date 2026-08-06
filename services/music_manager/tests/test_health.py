@@ -29,9 +29,9 @@ class ThreadRegistryTest(unittest.TestCase):
     def test_started_thread_reports_alive(self):
         stop = threading.Event()
         thread_registry.start_thread('slaper', stop.wait)
+        self.addCleanup(stop.set)
 
         self.assertTrue(thread_registry.thread_status()['slaper'])
-        stop.set()
 
     def test_finished_thread_reports_dead(self):
         thread = thread_registry.start_thread('vlieger', lambda: None)
@@ -56,6 +56,7 @@ class HealthTest(unittest.TestCase):
         mock_events.is_alive.return_value = True
         stop = threading.Event()
         thread_registry.start_thread('tagger', stop.wait)
+        self.addCleanup(stop.set)
 
         response = self.client.get('/health')
 
@@ -65,12 +66,23 @@ class HealthTest(unittest.TestCase):
         self.assertEqual(body['database'], 'ok')
         self.assertTrue(body['threads']['tagger'])
         self.assertTrue(body['threads']['events'])
-        stop.set()
 
     @patch('services.music_manager.main.event_service')
     @patch('services.music_manager.main.get_db_connection')
     def test_degraded_with_503_when_database_is_gone(self, mock_get_db, mock_events):
         mock_get_db.return_value = None
+        mock_events.is_alive.return_value = True
+
+        response = self.client.get('/health')
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()['status'], 'degraded')
+        self.assertEqual(response.json()['database'], 'unreachable')
+
+    @patch('services.music_manager.main.event_service')
+    @patch('services.music_manager.main.get_db_connection')
+    def test_degraded_with_503_when_database_raises(self, mock_get_db, mock_events):
+        mock_get_db.side_effect = Exception('pool kan geen connectie geven')
         mock_events.is_alive.return_value = True
 
         response = self.client.get('/health')

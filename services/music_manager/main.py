@@ -105,12 +105,24 @@ def health(response: Response):
 
     De oude versie gaf altijd 'ok' terug en bleef dus groen terwijl de
     database weg was of een achtergrondlus aan een exceptie was gestorven.
+
+    get_db_connection() geeft alleen None terug als de pool zelf niet
+    aangemaakt kon worden; als de pool wel bestaat maar geen connectie meer
+    kan uitgeven, gooit hij een exceptie. Die vangen we hier af, want een
+    monitoring-endpoint dat zelf crasht is erger dan een dat liegt.
     """
-    conn = get_db_connection()
+    conn = None
+    try:
+        conn = get_db_connection()
+    except Exception:
+        conn = None
     database = 'unreachable'
     if conn:
         database = 'ok'
-        conn.close()
+        try:
+            conn.close()
+        except Exception:
+            pass
 
     threads = thread_status()
     threads['events'] = event_service.is_alive()

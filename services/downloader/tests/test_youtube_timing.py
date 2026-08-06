@@ -14,6 +14,13 @@ from services.downloader.youtube.youtube import YoutubeDownloader
 NOW = datetime(2026, 7, 30, 12, 0, 0)
 
 
+class StubNotifier:
+    """Stub notifier for test isolation — prevents sweep.py lazy import."""
+
+    def notify(self, message, title='Music Management'):
+        return True
+
+
 class YoutubeTimingTestBase(unittest.TestCase):
 
     overrides: dict = {}
@@ -53,6 +60,7 @@ class YoutubeTimingTestBase(unittest.TestCase):
             timing=self.timing,
             rate_state=self._rate_state(),
             schedule=AccountSchedule('youtube', store=self.check_store, now=lambda: self.now),
+            notifier=StubNotifier(),
         )
         downloader.get_accounts_from_db = lambda: list(self.accounts)
         return downloader

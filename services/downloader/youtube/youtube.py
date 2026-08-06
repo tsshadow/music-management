@@ -36,7 +36,7 @@ VIDEO_FORMAT = 'bestvideo*+bestaudio/best'
 class YoutubeDownloader:
 
     def __init__(self, break_on_existing: bool=True, dry_run: bool=False,
-                 timing=None, rate_state=None, schedule=None, socket_timeout: int=30):
+                 timing=None, rate_state=None, schedule=None, socket_timeout: int=30, notifier=None):
         """
         Initializes the YoutubeDownloader instance with configuration settings.
 
@@ -47,9 +47,11 @@ class YoutubeDownloader:
             rate_state: Persisted backoff state; loaded from the database when omitted.
             schedule: Per-account check schedule; loaded from the database when omitted.
             socket_timeout (int): Timeout value (in seconds) for network connections.
+            notifier: Optional notifier for SweepPolicy; defaults to None (lazy-loads at runtime).
         """
         self._config = ConfigStore()
-        self.policy = SweepPolicy(SOURCE, timing=timing, rate_state=rate_state, schedule=schedule)
+        self.policy = SweepPolicy(SOURCE, timing=timing, rate_state=rate_state, schedule=schedule,
+                                  notifier=notifier)
         values = self._config.get_many(['youtube_folder', 'youtube_video_folder', 'youtube_archive', 'ffmpeg_location', 'yt_cookies', 'yt_user_agent'])
         self.downloader_config = {'output_folder': values.get('youtube_folder'), 'video_folder': values.get('youtube_video_folder'), 'archive_dir': values.get('youtube_archive'), 'ffmpeg_location': values.get('ffmpeg_location') or '/usr/bin', 'cookies_file': values.get('yt_cookies'), 'user_agent': values.get('yt_user_agent'), 'enabled': False, 'video_enabled': False}
         self.socket_timeout = socket_timeout

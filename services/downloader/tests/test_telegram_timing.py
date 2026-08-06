@@ -66,6 +66,13 @@ from services.downloader.timing import load_timing
 NOW = datetime(2026, 7, 30, 12, 0, 0)
 
 
+class StubNotifier:
+    """Stub notifier for test isolation — prevents sweep.py lazy import."""
+
+    def notify(self, message, title='Music Management'):
+        return True
+
+
 class TelegramTimingTestBase(unittest.TestCase):
 
     overrides: dict = {}
@@ -88,6 +95,7 @@ class TelegramTimingTestBase(unittest.TestCase):
             timing=self.timing,
             rate_state=self._rate_state(),
             schedule=AccountSchedule('telegram', store=self.check_store, now=lambda: self.now),
+            notifier=StubNotifier(),
         )
         downloader.output_folder = tmpdir
         downloader.api_id = '1'

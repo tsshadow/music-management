@@ -41,7 +41,6 @@ from services.music_manager.thread_registry import start_thread, thread_status
 
 load_dotenv()
 logger = logging.getLogger('music-manager')
-setup_logging('music-manager')
 app = FastAPI(title='Music Manager API')
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
 app.include_router(users.router, prefix="/api/users")
@@ -65,6 +64,7 @@ app.include_router(diagnostics.router, prefix="/api/diagnostics")
 
 @app.on_event('startup')
 def startup_event():
+    setup_logging('music-manager')
     ensure_tables_exist()
     conn = get_db_connection()
     if conn:

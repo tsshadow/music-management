@@ -142,7 +142,7 @@ def health(response: Response):
 def root():
     return {'service': 'music-manager', 'status': 'ok', 'message': 'API only, no UI is served here.'}
 
-# Deze blok draait bij het importeren van de module, ruim voordat startup_event
+# Dit blok draait bij het importeren van de module, ruim voordat startup_event
 # setup_logging aanroept. Logging is op dit moment dus nog niet ingericht: de
 # info-regel hieronder haalt de standaarddrempel (WARNING) niet en verdwijnt
 # stilletjes, en de foutregel valt terug op Pythons ongeformatteerde

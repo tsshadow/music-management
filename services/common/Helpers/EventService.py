@@ -120,10 +120,10 @@ class EventService:
 
     def _run(self) -> None:
         while True:
-            event = self._queue.get(timeout=1.0)
-            if event is None:
-                continue
             try:
+                event = self._queue.get(timeout=1.0)
+                if event is None:
+                    continue
                 self._write(event)
                 self._dispatch(event)
             except Exception as exc:  # de worker mag nooit sterven

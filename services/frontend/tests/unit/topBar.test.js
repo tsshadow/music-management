@@ -41,6 +41,12 @@ describe('TopBar', () => {
     expect(screen.queryByText('Goedemiddag')).toBeNull();
   });
 
+  it('leaves the branding to the sidebar', () => {
+    render(TopBar, { greeting: 'Goedemiddag' });
+
+    expect(screen.queryByText('MuMa')).toBeNull();
+  });
+
   it('remembers the server version on a first visit', async () => {
     render(TopBar, { greeting: '' });
 

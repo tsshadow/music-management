@@ -10,7 +10,9 @@
   export let config;
 
   const LEVELS = ['INFO', 'WARNING', 'ERROR', 'CRITICAL'];
-  const SOURCES = ['music-manager', 'downloader', 'importer', 'tagger', 'scanner'];
+  // Alleen deze drie processen roepen setup_logging aan; de tagger- en scanner-
+  // lussen draaien binnen music-manager en schrijven dus source='music-manager'.
+  const SOURCES = ['music-manager', 'downloader', 'importer'];
   const WINDOWS = [
     { value: '-1h', labelKey: 'management.events.windowHour' },
     { value: '-24h', labelKey: 'management.events.windowDay' },
@@ -54,8 +56,9 @@
     // can't overwrite state a newer request already set.
     const seq = ++fetchSeq;
     if (selectedLevels.size === 0) {
+      // counts blijft staan: de badges zijn juist het signaal waaraan je ziet
+      // wat er achter een uitgezet niveau zit. Op nul zetten wist dat signaal.
       events = [];
-      counts = {};
       total = 0;
       return;
     }
@@ -233,19 +236,23 @@
       <p class="text-xs text-spotify-lightgray">{total} {$t('management.events.matches')}</p>
       {#each events as event (event.id)}
         <div class="bg-black bg-opacity-40 hover:bg-opacity-60 transition-all rounded-lg border {LEVEL_STYLES[event.level] ?? 'border-white/10'} group">
-          <button on:click={() => toggleExpanded(event.id)} class="w-full flex items-center gap-4 p-3 text-left">
-            <ChevronRight size={16} class="transition-transform {expanded.has(event.id) ? 'rotate-90' : ''}" />
-            <span class="font-mono text-xs font-bold w-20 shrink-0">{event.level}</span>
-            <span class="text-xs text-spotify-lightgray w-32 shrink-0 flex items-center gap-1">
-              <Clock size={12} />{formatDate(event.created_at)}
-            </span>
-            <span class="text-xs text-spotify-lightgray w-32 shrink-0">{event.source}</span>
-            <span class="text-sm text-white truncate flex-1">{event.title}</span>
-            <button on:click|stopPropagation={() => deleteEvent(event.id)}
+          <!-- Uitklappen en verwijderen zijn broers, geen knop-in-een-knop:
+               Svelte weigert een <button> binnen een <button> te compileren. -->
+          <div class="flex items-center gap-4 p-3">
+            <button on:click={() => toggleExpanded(event.id)} class="flex items-center gap-4 text-left flex-1 min-w-0">
+              <ChevronRight size={16} class="transition-transform {expanded.has(event.id) ? 'rotate-90' : ''}" />
+              <span class="font-mono text-xs font-bold w-20 shrink-0">{event.level}</span>
+              <span class="text-xs text-spotify-lightgray w-32 shrink-0 flex items-center gap-1">
+                <Clock size={12} />{formatDate(event.created_at)}
+              </span>
+              <span class="text-xs text-spotify-lightgray w-32 shrink-0">{event.source}</span>
+              <span class="text-sm text-white truncate flex-1">{event.title}</span>
+            </button>
+            <button on:click={() => deleteEvent(event.id)}
               class="text-spotify-lightgray hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
               <Trash2 size={16} />
             </button>
-          </button>
+          </div>
           {#if expanded.has(event.id)}
             <div class="px-10 pb-4 flex flex-col gap-3">
               <pre class="text-spotify-lightgray whitespace-pre-wrap font-mono text-xs bg-black bg-opacity-30 p-3 rounded">{event.message}</pre>

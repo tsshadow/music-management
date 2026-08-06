@@ -13,7 +13,10 @@ from services.music_manager.routers.management import verify_api_key
 router = APIRouter(tags=['events'])
 
 LEVELS = ('INFO', 'WARNING', 'ERROR', 'CRITICAL')
-SOURCES = ('music-manager', 'downloader', 'importer', 'tagger', 'scanner')
+# Drie processen roepen setup_logging aan en dus bestaan er drie bronnen. De
+# tagger- en scannerlussen draaien binnen music-manager; hun events dragen
+# source='music-manager'. Een chip voor 'tagger' zou altijd leeg blijven.
+SOURCES = ('music-manager', 'downloader', 'importer')
 DEFAULT_LIMIT = 100
 MAX_LIMIT = 1000
 

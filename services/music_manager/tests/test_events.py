@@ -133,6 +133,12 @@ class EventsRouterTest(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
 
     @patch('services.music_manager.routers.events.get_db_connection')
+    def test_invalid_source_gives_400(self, mock_get_db):
+        response = self.client.get('/api/events?source=unknown-service', headers=self.headers)
+
+        self.assertEqual(response.status_code, 400)
+
+    @patch('services.music_manager.routers.events.get_db_connection')
     def test_delete_one(self, mock_get_db):
         cursor = self._mock_db(mock_get_db)
 

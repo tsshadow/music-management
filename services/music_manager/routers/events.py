@@ -13,6 +13,7 @@ from services.music_manager.routers.management import verify_api_key
 router = APIRouter(tags=['events'])
 
 LEVELS = ('INFO', 'WARNING', 'ERROR', 'CRITICAL')
+SOURCES = ('music-manager', 'downloader', 'importer', 'tagger', 'scanner')
 DEFAULT_LIMIT = 100
 MAX_LIMIT = 1000
 
@@ -77,6 +78,9 @@ def list_events(level: list[str] = Query(default=[]), source: list[str] = Query(
     unknown = [item for item in level if item not in LEVELS]
     if unknown:
         raise HTTPException(status_code=400, detail=f'unknown level(s): {unknown}')
+    unknown_source = [item for item in source if item not in SOURCES]
+    if unknown_source:
+        raise HTTPException(status_code=400, detail=f'unknown source(s): {unknown_source}')
     try:
         since_value = parse_since(since) if since else None
         until_value = parse_since(until) if until else None

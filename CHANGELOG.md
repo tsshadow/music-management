@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-08-06
+
+### Changed
+- **The MuMa wordmark appears once per screen again.** The top bar carried its own mark and wordmark
+  next to the profile button, right above the one the sidebar header already shows, so the branding
+  read twice on every screen. The top-right copy is gone and the sidebar owns the brand.
+
 ## [0.5.4] - 2026-08-06
 
 ### Fixed

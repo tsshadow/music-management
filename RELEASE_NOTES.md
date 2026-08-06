@@ -11,6 +11,12 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.5.5 (2026-08-06)
+
+### 🎨 MuMa stond er twee keer
+- Het logo met de naam **MuMa** stond zowel links in de zijbalk als rechtsboven naast je profielknop.
+  Die rechterbovenhoek is nu leeg op de profielknop na.
+
 ## Global Version 0.5.4 (2026-08-06)
 
 ### 🐛 Drie foutjes die bij het testwerk boven water kwamen

@@ -2,7 +2,7 @@
 
 import re
 
-from scripts.branding import render_icons
+from tools import render_branding_icons as render_icons
 
 
 def test_the_middle_bar_is_the_shortest():
@@ -44,4 +44,4 @@ def test_the_safe_zone_scale_reproduces_the_committed_green_icon():
 
 
 def test_every_committed_file_matches_the_generator():
-    assert render_icons.main(["--check"]) == 0, "run python3 scripts/branding/render_icons.py"
+    assert render_icons.main(["--check"]) == 0, "run python3 tools/render_branding_icons.py"

@@ -11,6 +11,48 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.7.0 (2026-08-07)
+
+### 📜 Een logboek in plaats van een meldingenlijst
+- Elke dienst schrijft nu gebeurtenissen met een niveau — `INFO`, `WARNING`, `ERROR`, `CRITICAL` —
+  rechtstreeks naar een nieuwe `events`-tabel. Die tabel is de bron van waarheid; ntfy is voortaan
+  een afnemer in plaats van de enige plek waar een melding ooit bestond.
+- De tab **Meldingen** heet nu **Logboek** en heeft filters die er toe doen: chips per niveau met
+  een teller, een filter per dienst, een tijdvenster en zoeken. De tellers blijven staan als je een
+  niveau uitzet, want juist dan wil je zien wat er achter schuilgaat.
+- Een nieuw ntfy-onderwerp krijgt automatisch alles vanaf `WARNING`, met een eigen prioriteit en tag
+  per niveau. Herhalingen binnen vijf minuten worden samengevoegd, zodat één haperende verbinding je
+  telefoon niet plat legt.
+- `GET /health` rapporteert nu echt de database en de achtergrondlussen en geeft 503 bij problemen,
+  in plaats van altijd `ok` te zeggen.
+
+### 🎵 Nummerinfo in de app met één tik
+- Tik op de titel van het spelende nummer en er schuift een venster omhoog met alles wat we weten:
+  de hoes op een vervaagde versie van zichzelf, de vijf sterren, en artiest en album als regels waar
+  je op door kunt klikken.
+- Songtekst, delen, bookmark en verversen staan er als knoppen. Daaronder genre, tracknummer,
+  uitgiftedatum en duur, met de technische details dichtgeklapt. Lang indrukken op het pad kopieert
+  het.
+- Het overloopmenu rechtsboven raakt daarmee zeven regels kwijt en gaat weer over de wachtrij en de
+  speler. Velden die het nummer niet heeft verdwijnen nu, in plaats van als `Jaar: ` te blijven staan.
+
+### 🔎 Sorteren en filteren op genres, labels en afspeellijsten
+- De drie overzichten hadden geen enkele knop: genres alfabetisch met alles onder tien tracks
+  stilzwijgend weggelaten, labels alfabetisch zonder aantallen, afspeellijsten in willekeurige
+  volgorde. Ze delen nu een zoekveld, een sorteersleutel met richting, een favorietenchip en een
+  live "getoond van totaal".
+- Genres en labels krijgen chips voor **minimaal 10/50/100** in plaats van de vaste drempel, dus de
+  lange staart is verborgen maar bereikbaar. Afspeellijsten sorteren op lengte en laatste wijziging
+  en krijgen een chip voor van mij / openbaar / privé.
+- Labels en afspeellijsten kun je nu favoriet maken, net als genres al kon, en die lijsten volgen je
+  account.
+
+### 🐛 Opgelost
+- Op een label klikken filterde op het verkeerde: `label:Kompakt: Total` werd op elke dubbele punt
+  gesplitst. Namen worden nu heel genomen. Een genre of zoekterm van een ander scherm versmalde
+  bovendien stilletjes het label dat je net had aangetikt; die filters worden nu gewist.
+- Het beheerscherm bleef na sluiten doorvragen naar de voortgang van artiestafbeeldingen.
+
 ## Global Version 0.6.0 (2026-08-06)
 
 ### 📻 Radiokanalen die ergens over gaan

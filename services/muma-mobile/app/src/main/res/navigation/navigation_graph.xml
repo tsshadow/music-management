@@ -367,9 +367,6 @@
         <action
             android:id="@+id/playerToEqualizer"
             app:destination="@id/equalizerFragment" />
-        <action
-            android:id="@+id/playerToMetadata"
-            app:destination="@id/metadataFragment" />
     </fragment>
     <fragment
         android:id="@+id/lyricsFragment"
@@ -384,13 +381,6 @@
     <fragment
         android:id="@+id/equalizerFragment"
         android:name="nl.teunschriks.mumamobile.fragment.EqualizerFragment" />
-    <fragment
-        android:id="@+id/metadataFragment"
-        android:name="nl.teunschriks.mumamobile.fragment.MetadataFragment">
-        <argument
-            android:name="track"
-            app:argType="nl.teunschriks.mumamobile.domain.Track" />
-    </fragment>
     <fragment
         android:id="@+id/serverSelectorFragment"
         android:name="nl.teunschriks.mumamobile.fragment.ServerSelectorFragment">

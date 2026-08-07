@@ -69,9 +69,11 @@
       if (res.ok) {
         const body = await res.json();
         if (seq !== fetchSeq) return;
-        events = body.events;
-        counts = body.counts;
-        total = body.total;
+        // A 200 with a body we did not expect used to crash the tab on
+        // events.length rather than just showing nothing.
+        events = body.events ?? [];
+        counts = body.counts ?? {};
+        total = body.total ?? 0;
       } else {
         onError($t('management.events.fetchFailed'));
       }

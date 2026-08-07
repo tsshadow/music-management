@@ -30,7 +30,8 @@ function api({ configOk = true, verify = { type: 'user', user: USER }, loginOk =
     '/api/system/activity': { recent_added: [], recent_tagged: [] },
     '/api/stats': STATS,
     '/api/roles': [],
-    '/api/artist-images/stats': { total: 0, missing: 0 }
+    '/api/artist-images/stats': { total: 0, missing: 0 },
+    '/api/events': { events: [], counts: {}, total: 0 }
   };
 
   return vi.fn(async (url, options = {}) => {

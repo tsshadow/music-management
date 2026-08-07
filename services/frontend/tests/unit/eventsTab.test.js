@@ -92,6 +92,14 @@ describe('EventsTab', () => {
     await waitFor(() => expect(screen.getByText(text('management.events.empty'))).toBeTruthy());
   });
 
+  it('shows nothing rather than crashing on a 200 with an unexpected body', async () => {
+    globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({}) }));
+
+    render(EventsTab, props());
+
+    await waitFor(() => expect(screen.getByText(text('management.events.empty'))).toBeTruthy());
+  });
+
   it('reports a failed load rather than rendering an empty list silently', async () => {
     globalThis.fetch = vi.fn(async () => { throw new Error('network down'); });
     const onError = vi.fn();

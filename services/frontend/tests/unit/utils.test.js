@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { get } from "svelte/store";
 
 import { mumaApiUrl } from "../../src/lib/store.js";
-import { formatArtistList, getArtistImageUrl, splitArtists } from "../../src/lib/utils.js";
+import { formatArtistList, getArtistImageUrl, splitArtists, viewArgument } from "../../src/lib/utils.js";
 
 describe("splitArtists", () => {
   it("returns nothing for an empty value", () => {
@@ -73,5 +73,21 @@ describe("getArtistImageUrl", () => {
   it("falls back to the placeholder when nothing identifies the artist", () => {
     expect(getArtistImageUrl({}, "u=user")).toBe("/images/unknown-artist.svg");
     expect(getArtistImageUrl(null, "u=user")).toBe("/images/unknown-artist.svg");
+  });
+});
+
+describe("viewArgument", () => {
+  it("returns everything after the first colon", () => {
+    expect(viewArgument("label:Roughstate")).toBe("Roughstate");
+  });
+
+  it("keeps a colon that is part of the name", () => {
+    expect(viewArgument("label:Kompakt: Total")).toBe("Kompakt: Total");
+    expect(viewArgument("search:artist: angerfist")).toBe("artist: angerfist");
+  });
+
+  it("returns nothing for a view without an argument", () => {
+    expect(viewArgument("genres")).toBe("");
+    expect(viewArgument(undefined)).toBe("");
   });
 });

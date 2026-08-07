@@ -114,6 +114,16 @@ export const highlightedTrackId = writable(null);
 export const favoriteGenres = writable([]);
 persist("lms_favorite_genres", favoriteGenres);
 
+// Favorites for the other two collection browse views. Genres came first (see
+// the sync block further down); labels and playlists reuse the exact same
+// mechanism so all three behave identically.
+export const favoriteLabels = writable([]);
+persist("lms_favorite_labels", favoriteLabels);
+
+// Keyed by playlist id rather than name: playlist names are not unique.
+export const favoritePlaylists = writable([]);
+persist("lms_favorite_playlists", favoritePlaylists);
+
 export const deduplicateEnabled = writable(true);
 persist("lms_deduplicate_enabled", deduplicateEnabled);
 
@@ -314,8 +324,16 @@ let syncedUserId = null;
 // True while values just fetched from the account are being applied to the
 // stores, so those writes don't get echoed straight back to the server.
 let applyingAccountSettings = false;
-let favoriteGenresSaveTimer = null;
 let localeSaveTimer = null;
+
+// The favorite lists that follow the account, as `settings key -> store`. They
+// are handled as a group so that adding one (labels, playlists) is a one-line
+// change instead of another copy of the load/save/logout plumbing.
+const syncedFavoriteLists = {
+  favoriteGenres,
+  favoriteLabels,
+  favoritePlaylists
+};
 
 /**
  * Applies `userId`'s account settings to the local stores. Anything the
@@ -328,14 +346,16 @@ let localeSaveTimer = null;
 async function applyAccountSettings(userId) {
   const settings = await loadFrontendSettings(userId);
 
-  if (settings && Array.isArray(settings.favoriteGenres)) {
-    applyingAccountSettings = true;
-    favoriteGenres.set(settings.favoriteGenres);
-    applyingAccountSettings = false;
-  } else {
-    const localGenres = get(favoriteGenres);
-    if (localGenres.length > 0) {
-      await saveFrontendSetting(userId, 'favoriteGenres', localGenres);
+  for (const [key, store] of Object.entries(syncedFavoriteLists)) {
+    if (settings && Array.isArray(settings[key])) {
+      applyingAccountSettings = true;
+      store.set(settings[key]);
+      applyingAccountSettings = false;
+    } else {
+      const local = get(store);
+      if (local.length > 0) {
+        await saveFrontendSetting(userId, key, local);
+      }
     }
   }
 
@@ -355,7 +375,7 @@ mumaUser.subscribe(($user) => {
     if (syncedUserId !== null) {
       syncedUserId = null;
       applyingAccountSettings = true;
-      favoriteGenres.set([]);
+      for (const store of Object.values(syncedFavoriteLists)) store.set([]);
       resetLocaleToBrowser();
       applyingAccountSettings = false;
     }
@@ -369,12 +389,15 @@ mumaUser.subscribe(($user) => {
   applyAccountSettings($user.id);
 });
 
-favoriteGenres.subscribe(($genres) => {
-  if (applyingAccountSettings || !syncedUserId) return;
-  const userId = syncedUserId;
-  clearTimeout(favoriteGenresSaveTimer);
-  favoriteGenresSaveTimer = setTimeout(() => saveFrontendSetting(userId, 'favoriteGenres', $genres), 400);
-});
+for (const [key, store] of Object.entries(syncedFavoriteLists)) {
+  let saveTimer = null;
+  store.subscribe(($value) => {
+    if (applyingAccountSettings || !syncedUserId) return;
+    const userId = syncedUserId;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => saveFrontendSetting(userId, key, $value), 400);
+  });
+}
 
 locale.subscribe(($locale) => {
   if (applyingAccountSettings || !syncedUserId) return;

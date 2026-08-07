@@ -3,7 +3,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import Dashboard from '../../src/lib/Dashboard.svelte';
 import {
-  credentials, deduplicateEnabled, favoriteGenres, memoriesOnHomeEnabled, viewMode
+  credentials, deduplicateEnabled, favoriteGenres, favoriteLabels, favoritePlaylists,
+  memoriesOnHomeEnabled, viewMode
 } from '../../src/lib/store.js';
 
 const TRACK = { id: 'song-1', title: 'Raise Your Fist', artist: 'Angerfist', artistId: 'artist-1', duration: 240, suffix: 'flac' };
@@ -212,5 +213,143 @@ describe('Dashboard', () => {
     render(Dashboard, { activeView: 'home' });
 
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+  });
+
+  it('keeps a colon inside a label name instead of filtering on half of it', async () => {
+    render(Dashboard, { activeView: 'label:Kompakt: Total' });
+
+    await waitFor(() =>
+      expect(urlsFor('/rest/getSpotifyTracks').some((url) => url.includes(`label=${encodeURIComponent('Kompakt: Total')}`))).toBe(true)
+    );
+  });
+
+  it('does not carry a search term over into the label that was tapped next', async () => {
+    const { rerender } = render(Dashboard, { activeView: 'search:Angerfist' });
+    await waitFor(() => expect(urlsFor('query=Angerfist').length).toBeGreaterThan(0));
+
+    await rerender({ activeView: 'label:Roughstate' });
+
+    await waitFor(() => expect(urlsFor('label=Roughstate').length).toBeGreaterThan(0));
+    expect(urlsFor('label=Roughstate').every((url) => !url.includes('query='))).toBe(true);
+  });
+});
+
+describe('Dashboard - collection sorting and filtering', () => {
+  const GENRES = [
+    { value: 'Hardcore', songCount: 1200, albumCount: 90 },
+    { value: 'Ambient', songCount: 400, albumCount: 30 },
+    { value: 'Mistag', songCount: 2, albumCount: 1 }
+  ];
+  const LABELS = [
+    { value: 'Roughstate', songCount: 500, albumCount: 20 },
+    { value: 'Anjunadeep', songCount: 120, albumCount: 8 }
+  ];
+  const PLAYLISTS = [
+    { id: 'pl-1', name: 'Gabber', songCount: 12, duration: 2400, owner: 'user', public: false },
+    { id: 'pl-2', name: 'Chill', songCount: 300, duration: 36000, owner: 'gast', public: 'true' }
+  ];
+
+  /** The names on the cards, in the order they are rendered. */
+  function cardNames(candidates) {
+    return candidates.filter((name) => screen.queryByText(name)).sort(
+      (a, b) =>
+        screen.getByText(a).compareDocumentPosition(screen.getByText(b)) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
+    );
+  }
+
+  beforeEach(() => {
+    credentials.set({ url: '', username: 'user', password: 'pw' });
+    viewMode.set('songs');
+    deduplicateEnabled.set(false);
+    favoriteGenres.set([]);
+    favoriteLabels.set([]);
+    favoritePlaylists.set([]);
+    memoriesOnHomeEnabled.set(false);
+    globalThis.fetch = subsonic({ genres: GENRES, labels: LABELS, playlists: PLAYLISTS });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('hides the long tail of tiny genres by default, and shows it on request', async () => {
+    render(Dashboard, { activeView: 'genres' });
+    await waitFor(() => expect(screen.getByText('Hardcore')).toBeTruthy());
+
+    expect(screen.queryByText('Mistag')).toBeNull();
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Alles' }));
+
+    await waitFor(() => expect(screen.getByText('Mistag')).toBeTruthy());
+  });
+
+  it('searches genres by name, ignoring case', async () => {
+    render(Dashboard, { activeView: 'genres' });
+    await waitFor(() => expect(screen.getByText('Hardcore')).toBeTruthy());
+
+    await fireEvent.input(screen.getByLabelText('Zoeken in deze lijst'), { target: { value: 'ambi' } });
+
+    await waitFor(() => expect(screen.queryByText('Hardcore')).toBeNull());
+    expect(screen.getByText('Ambient')).toBeTruthy();
+  });
+
+  it('sorts genres by track count, most first', async () => {
+    render(Dashboard, { activeView: 'genres' });
+    await waitFor(() => expect(screen.getByText('Ambient')).toBeTruthy());
+
+    await fireEvent.change(screen.getByLabelText('Sorteer op'), { target: { value: 'songs' } });
+
+    await waitFor(() => expect(cardNames(['Hardcore', 'Ambient'])).toEqual(['Hardcore', 'Ambient']));
+  });
+
+  it('offers a way back when the filters match nothing', async () => {
+    render(Dashboard, { activeView: 'genres' });
+    await waitFor(() => expect(screen.getByText('Hardcore')).toBeTruthy());
+
+    await fireEvent.input(screen.getByLabelText('Zoeken in deze lijst'), { target: { value: 'niets' } });
+    await waitFor(() => expect(screen.getByText('Niets voldoet aan deze filters')).toBeTruthy());
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Filters wissen' }));
+
+    await waitFor(() => expect(screen.getByText('Hardcore')).toBeTruthy());
+  });
+
+  it('marks a label as favourite and can then show only those', async () => {
+    render(Dashboard, { activeView: 'labels' });
+    await waitFor(() => expect(screen.getByText('Roughstate')).toBeTruthy());
+
+    // The grid starts alphabetical, so the first heart belongs to Anjunadeep.
+    await fireEvent.click(screen.getAllByLabelText('Favoriet label toggelen')[0]);
+    expect(get(favoriteLabels)).toEqual(['Anjunadeep']);
+
+    await fireEvent.click(screen.getByRole('button', { name: /Favorieten/ }));
+
+    await waitFor(() => expect(screen.queryByText('Roughstate')).toBeNull());
+    expect(screen.getByText('Anjunadeep')).toBeTruthy();
+  });
+
+  it('shows how many tracks a label holds', async () => {
+    render(Dashboard, { activeView: 'labels' });
+
+    await waitFor(() => expect(screen.getByText(/500 nummers/)).toBeTruthy());
+  });
+
+  it('filters playlists down to the ones you own', async () => {
+    render(Dashboard, { activeView: 'playlists' });
+    await waitFor(() => expect(screen.getByText('Chill')).toBeTruthy());
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Van mij' }));
+
+    await waitFor(() => expect(screen.queryByText('Chill')).toBeNull());
+    expect(screen.getByText('Gabber')).toBeTruthy();
+  });
+
+  it('sorts playlists by length', async () => {
+    render(Dashboard, { activeView: 'playlists' });
+    await waitFor(() => expect(screen.getByText('Gabber')).toBeTruthy());
+
+    await fireEvent.change(screen.getByLabelText('Sorteer op'), { target: { value: 'duration' } });
+
+    await waitFor(() => expect(cardNames(['Chill', 'Gabber'])).toEqual(['Chill', 'Gabber']));
   });
 });

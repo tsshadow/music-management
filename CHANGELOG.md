@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-07
+
+### Added
+- **MuMa Mobile gets two accent colours and a launcher icon you pick separately.** Settings →
+  Appearance now offers an accent colour, MuMa green or Ultrasonic indigo, and an app icon in those
+  same two colours, as two independent settings. The theme preference it replaces offered Day &
+  Night, Dark and Black, all three of which resolved to the same black theme and so did nothing. The
+  accent lives in the theme now rather than in 34 hardcoded resource references and 8 Kotlin call
+  sites, which is what makes a second colour possible at all. Sets mode turns out to carry a second
+  brand colour of its own, so that one is a theme attribute too and the pair swaps roles rather than
+  leaving two near-identical blues next to each other. The launcher icon is switched by enabling one
+  of two `activity-alias` entries, which is the only mechanism Android offers.
+
+### Changed
+- **The last two Ultrasonic headphones are gone.** The download and playback notification icons show
+  the five-bar MuMa mark. All icon geometry is now emitted by `tools/render_branding_icons.py` from
+  one description of the mark, so the green and indigo variants cannot drift apart.
+
 ## [0.7.0] - 2026-08-07
 
 ### Added

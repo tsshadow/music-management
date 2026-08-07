@@ -42,6 +42,7 @@ import nl.teunschriks.mumamobile.log.FileLoggerTree.Companion.uprootFromTimberFo
 import nl.teunschriks.mumamobile.provider.SearchSuggestionProvider
 import nl.teunschriks.mumamobile.service.DownloadService
 import nl.teunschriks.mumamobile.service.RxBus
+import nl.teunschriks.mumamobile.util.AppIconVariant
 import nl.teunschriks.mumamobile.util.ConfirmationDialog
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.ErrorDialog
@@ -67,7 +68,7 @@ class SettingsFragment :
     KoinComponent {
     private val activeServerProvider: nl.teunschriks.mumamobile.data.ActiveServerProvider by inject()
 
-    private var theme: ListPreference? = null
+    private var accent: ListPreference? = null
     private var cacheLocation: Preference? = null
     private var showArtistPicture: CheckBoxPreference? = null
     private var useId3TagsOffline: CheckBoxPreference? = null
@@ -83,7 +84,7 @@ class SettingsFragment :
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setTitle(this, R.string.menu_settings)
-        theme = findPreference(getString(R.string.setting_key_theme))
+        accent = findPreference(getString(R.string.setting_key_accent))
         resumeOnBluetoothDevice =
             findPreference(getString(R.string.setting_key_resume_on_bluetooth_device))
         pauseOnBluetoothDevice =
@@ -143,7 +144,17 @@ class SettingsFragment :
                 showArtistPicture?.isEnabled = enabled
                 useId3TagsOffline?.isEnabled = enabled
             }
-            getString(R.string.setting_key_theme),
+            getString(R.string.setting_key_app_icon) -> {
+                // Not a theme change: the icon lives in the manifest, so nothing on screen
+                // needs rebuilding. The toast is the only place the launcher caveat fits --
+                // updatePreferenceSummaries overwrites every ListPreference summary with the
+                // selected entry.
+                context?.let {
+                    AppIconVariant.apply(it, AppIconVariant.fromSetting(Settings.appIcon))
+                    toast(R.string.settings_app_icon_changed)
+                }
+            }
+            getString(R.string.setting_key_accent),
             getString(R.string.setting_key_ui_scale),
             getString(R.string.setting_key_track_list_lines) -> {
                 // Theme and scale are baked into the activity's context; the track row layout is

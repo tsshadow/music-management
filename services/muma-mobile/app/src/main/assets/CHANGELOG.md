@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.10.0] - 2026-08-07
+
+### Added
+- **Tapping the playing track opens a track info sheet.** The player's options menu carried seven
+  entries that all acted on the one playing track — go to artist, go to album, show metadata,
+  lyrics, share song, refresh track and the two bookmark items — buried behind an overflow menu
+  that is otherwise about the queue. Tapping the title block now opens a sheet with the cover on a
+  blurred backdrop of itself, the five star rating, artist and album as rows that navigate, the
+  remaining actions as buttons, and genre, track number, release date and duration underneath, with
+  the technical details folded away. Long-pressing the path copies it.
+
+### Changed
+- The now-playing options menu is down to what acts on the queue or the player.
+- Rows the track cannot fill are hidden instead of rendering `Year: ` with nothing after it, which
+  the metadata screen this replaces did. That screen, its layout and the navigation action to it are
+  gone; the playlist's long-press *Show metadata* opens the same sheet.
+
 ## [6.9.2] - 2026-08-05
 
 ### Changed

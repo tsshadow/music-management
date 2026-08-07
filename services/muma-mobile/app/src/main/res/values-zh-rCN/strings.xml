@@ -272,10 +272,6 @@
     <string name="settings.show_track_number">显示曲目编号</string>
     <string name="settings.show_track_number_summary">显示歌曲时包括曲目编号</string>
     <string name="settings.test_connection_title">测试连接</string>
-    <string name="settings.theme_light">亮色</string>
-    <string name="settings.theme_dark">暗色</string>
-    <string name="settings.theme_black">黑色</string>
-    <string name="settings.theme_title">主题</string>
     <string name="settings.title.allow_self_signed_certificate">允许自签名 HTTPS 证书</string>
     <string name="settings.title.force_plain_text_password">强制原始密码认证</string>
     <string name="settings.use_folder_for_album_artist">将艺术家名称作为文件夹</string>
@@ -428,7 +424,6 @@
     <string name="language.it">意大利语</string>
     <string name="language.ru">俄语</string>
     <string name="language.nl">荷兰语</string>
-    <string name="settings.theme_day_night">日与夜</string>
     <string name="language.hu">匈牙利语</string>
     <string name="language.pl">波兰语</string>
     <string name="jukebox">点唱机</string>

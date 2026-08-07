@@ -21,6 +21,7 @@ import com.google.android.material.chip.Chip
 import com.google.android.material.slider.Slider
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.databinding.mumaFiltersBinding
+import nl.teunschriks.mumamobile.util.themeColor
 
 enum class FilterModalType { SONG, LIVESET }
 
@@ -206,9 +207,9 @@ class FilterModalFragment : BottomSheetDialogFragment() {
 
     private fun updateBrandColors() {
         val brandColor = if (modalType == FilterModalType.LIVESET) {
-            requireContext().getColor(R.color.spotify_blue)
+            requireContext().themeColor(R.attr.brandColorSets)
         } else {
-            requireContext().getColor(R.color.spotify_green)
+            requireContext().themeColor(androidx.appcompat.R.attr.colorPrimary)
         }
 
         binding.durationSlider.thumbTintList = ColorStateList.valueOf(brandColor)
@@ -277,9 +278,9 @@ class FilterModalFragment : BottomSheetDialogFragment() {
             allOptions: List<String>?
         ) {
             val brandColor = if (modalType == FilterModalType.LIVESET) {
-                requireContext().getColor(R.color.spotify_blue)
+                requireContext().themeColor(R.attr.brandColorSets)
             } else {
-                requireContext().getColor(R.color.spotify_green)
+                requireContext().themeColor(androidx.appcompat.R.attr.colorPrimary)
             }
 
             values.forEach { value ->

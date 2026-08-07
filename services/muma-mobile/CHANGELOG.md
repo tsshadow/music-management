@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.11.0] - 2026-08-07
+
+### Added
+- **Two accent colours, and a launcher icon you pick separately.** Settings → Appearance now has
+  an accent colour, green or Ultrasonic indigo, and an app icon in the same two colours. They are
+  independent: an indigo accent with the green icon is a perfectly ordinary combination. Sets mode
+  keeps its own colour in both themes, so the two modes never blur into one another.
+
+### Changed
+- The theme setting used to offer Day & Night, Dark and Black, all three of which resolved to the
+  same black theme. It picks the accent instead. An existing installation keeps green.
+- The download and playback notifications show the MuMa equalizer mark. They were the last two
+  places still showing the Ultrasonic headphone.
+
 ## [6.10.0] - 2026-08-07
 
 ### Added

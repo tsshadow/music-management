@@ -1,5 +1,23 @@
 ## [Unreleased]
 
+## [6.10.0] - 2026-08-07
+
+### Added
+- **Tik op het spelende nummer voor alle info.** Het menu rechtsboven had zeven regels die allemaal
+  over datzelfde ene nummer gingen — naar artiest, naar album, metadata, songtekst, delen,
+  verversen en twee keer bookmark — weggestopt achter een menu dat verder over de wachtrij gaat.
+  Tik nu op de titel en er schuift een venster omhoog met de hoes op een vervaagde versie van
+  zichzelf, de vijf sterren, en artiest en album als regels waar je op door kunt klikken.
+- Songtekst, delen, bookmark en verversen staan er als knoppen. Daaronder genre, tracknummer,
+  uitgiftedatum en duur, met de technische details dichtgeklapt. Lang indrukken op het pad kopieert
+  het.
+
+### Changed
+- Het menu rechtsboven gaat weer over de wachtrij en de speler.
+- Velden die het nummer niet heeft verdwijnen nu, in plaats van als `Jaar: ` zonder iets erachter te
+  blijven staan zoals het oude metadata-scherm deed. Dat scherm is vervangen: ook lang indrukken op
+  een nummer in de wachtrij opent hetzelfde venster.
+
 ## [6.9.2] - 2026-08-05
 
 ### Changed

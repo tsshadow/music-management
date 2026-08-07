@@ -1,4 +1,9 @@
 <resources>
+    <!-- The app has two brand colours, not one: colorPrimary marks songs mode and this marks
+         sets mode. Both are theme attributes so the accent setting can swap the pair while
+         keeping the two modes clearly apart. -->
+    <attr name="brandColorSets" format="color" />
+
     <declare-styleable name="AppWidgetAttrs">
         <attr name="appWidgetPadding" format="dimension" />
         <attr name="appWidgetInnerRadius" format="dimension" />

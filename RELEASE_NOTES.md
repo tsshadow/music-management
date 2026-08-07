@@ -11,6 +11,24 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.8.0 (2026-08-07)
+
+### 🎨 Groen of Ultrasonic-blauw, en het icoon kies je los
+- De app heeft nu twee accentkleuren: het vertrouwde MuMa-groen, of het indigo van het oude
+  Ultrasonic. Je vindt het onder Instellingen → Uiterlijk.
+- Het app-icoon is een aparte instelling in dezelfde twee kleuren. Blauw accent met een groen icoon
+  mag gewoon; de twee staan los van elkaar.
+- De oude thema-instelling bood Dag & Nacht, Donker en Zwart aan, en alle drie leverden precies
+  hetzelfde zwarte thema op. Die keuze doet nu eindelijk iets.
+- Sets-modus houdt in beide thema's een eigen kleur, zodat je in één oogopslag ziet of je in
+  nummers of in sets zit.
+- Sommige launchers halen de app van je beginscherm als het icoon verandert; de app zegt dat erbij
+  op het moment dat je wisselt.
+
+### 🎧 De laatste koptelefoontjes zijn weg
+- De meldingen voor downloads en afspelen tonen het MuMa-merkteken in plaats van het geërfde
+  Ultrasonic-koptelefoontje.
+
 ## Global Version 0.7.0 (2026-08-07)
 
 ### 📜 Een logboek in plaats van een meldingenlijst

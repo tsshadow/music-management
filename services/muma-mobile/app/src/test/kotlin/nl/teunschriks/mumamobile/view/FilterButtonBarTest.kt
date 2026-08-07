@@ -15,7 +15,7 @@ import org.robolectric.annotation.Config
 class FilterButtonBarTest {
 
     private fun barWith(caps: ViewCapabilities): FilterButtonBar {
-        val context = ContextThemeWrapper(RuntimeEnvironment.getApplication(), R.style.UltrasonicTheme_Dark)
+        val context = ContextThemeWrapper(RuntimeEnvironment.getApplication(), R.style.UltrasonicTheme_Green)
         val bar = FilterButtonBar(context)
         bar.configureWithCapabilities(caps)
         return bar
@@ -88,7 +88,7 @@ class FilterButtonBarTest {
     @Test
     fun `every sort order resolves to its own specific label`() {
         val bar = barWith(ViewCapabilities(supportsGrid = true, supportedSortOrders = emptyList()))
-        val context = ContextThemeWrapper(RuntimeEnvironment.getApplication(), R.style.UltrasonicTheme_Dark)
+        val context = ContextThemeWrapper(RuntimeEnvironment.getApplication(), R.style.UltrasonicTheme_Green)
 
         val expectedLabelRes = mapOf(
             SortOrder.RANDOM to R.string.main_albums_random,

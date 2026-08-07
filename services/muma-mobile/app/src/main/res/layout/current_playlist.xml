@@ -28,11 +28,11 @@
         app:fastScrollAutoHide="true"
         app:fastScrollAutoHideDelay="2000"
         app:fastScrollPopupBackgroundSize="42dp"
-        app:fastScrollPopupBgColor="@color/spotify_green"
+        app:fastScrollPopupBgColor="?attr/colorPrimary"
         app:fastScrollPopupPosition="adjacent"
         app:fastScrollPopupTextColor="#000000"
         app:fastScrollPopupTextSize="28sp"
-        app:fastScrollThumbColor="@color/spotify_green"
+        app:fastScrollThumbColor="?attr/colorPrimary"
         app:fastScrollTrackColor="@color/spotify_light" />
 
 </LinearLayout>

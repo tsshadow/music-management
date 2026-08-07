@@ -12,7 +12,7 @@
         a:layout_height="wrap_content"
         a:background="@color/spotify_black"
         app:tabGravity="start"
-        app:tabIndicatorColor="@color/spotify_green"
+        app:tabIndicatorColor="?attr/colorPrimary"
         app:tabMode="scrollable"
         app:tabSelectedTextColor="@color/spotify_text_primary"
         app:tabTextColor="@color/spotify_text_secondary" />

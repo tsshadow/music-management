@@ -42,7 +42,7 @@ class ArtistHeaderBinderTest {
     fun setUp() {
         Settings.id3TagsEnabledOnline = false
 
-        val themed = ContextThemeWrapper(RuntimeEnvironment.getApplication(), R.style.UltrasonicTheme_Black)
+        val themed = ContextThemeWrapper(RuntimeEnvironment.getApplication(), R.style.UltrasonicTheme_Green)
         parent = FrameLayout(themed)
     }
 

@@ -25,6 +25,13 @@
             a:title="@string/settings.accent_title"
             app:iconSpaceReserved="false"/>
         <ListPreference
+            a:defaultValue="@string/setting_key.app_icon_green"
+            a:entries="@array/appIconNames"
+            a:entryValues="@array/appIconValues"
+            a:key="@string/setting_key.app_icon"
+            a:title="@string/settings.app_icon_title"
+            app:iconSpaceReserved="false"/>
+        <ListPreference
             a:defaultValue="75"
             a:entries="@array/uiScaleNames"
             a:entryValues="@array/uiScaleValues"

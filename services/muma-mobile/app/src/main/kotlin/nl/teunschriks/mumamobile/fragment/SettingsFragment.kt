@@ -42,6 +42,7 @@ import nl.teunschriks.mumamobile.log.FileLoggerTree.Companion.uprootFromTimberFo
 import nl.teunschriks.mumamobile.provider.SearchSuggestionProvider
 import nl.teunschriks.mumamobile.service.DownloadService
 import nl.teunschriks.mumamobile.service.RxBus
+import nl.teunschriks.mumamobile.util.AppIconVariant
 import nl.teunschriks.mumamobile.util.ConfirmationDialog
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.ErrorDialog
@@ -142,6 +143,16 @@ class SettingsFragment :
                 val enabled = sharedPreferences.getBoolean(key, false)
                 showArtistPicture?.isEnabled = enabled
                 useId3TagsOffline?.isEnabled = enabled
+            }
+            getString(R.string.setting_key_app_icon) -> {
+                // Not a theme change: the icon lives in the manifest, so nothing on screen
+                // needs rebuilding. The toast is the only place the launcher caveat fits --
+                // updatePreferenceSummaries overwrites every ListPreference summary with the
+                // selected entry.
+                context?.let {
+                    AppIconVariant.apply(it, AppIconVariant.fromSetting(Settings.appIcon))
+                    toast(R.string.settings_app_icon_changed)
+                }
             }
             getString(R.string.setting_key_accent),
             getString(R.string.setting_key_ui_scale),

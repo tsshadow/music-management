@@ -173,6 +173,8 @@
     <string name="settings.accent_title">Accentkleur</string>
     <string name="settings.accent_green">Groen</string>
     <string name="settings.accent_blue">Blauw</string>
+    <string name="settings.app_icon_title">App-icoon</string>
+    <string name="settings.app_icon_changed">Icoon gewijzigd. Sommige launchers halen de app van het beginscherm; je moet hem dan opnieuw plaatsen.</string>
     <string name="settings.increment_time_0">Uitgeschakeld</string>
     <string name="settings.increment_time_1">1 seconde</string>
     <string name="settings.increment_time_10">10 seconden</string>

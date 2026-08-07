@@ -9,6 +9,14 @@
         <item>@string/settings.accent_green</item>
         <item>@string/settings.accent_blue</item>
     </string-array>
+    <string-array name="appIconValues" translatable="false">
+        <item>@string/setting_key.app_icon_green</item>
+        <item>@string/setting_key.app_icon_blue</item>
+    </string-array>
+    <string-array name="appIconNames" translatable="false">
+        <item>@string/settings.accent_green</item>
+        <item>@string/settings.accent_blue</item>
+    </string-array>
     <string-array name="uiScaleValues" translatable="false">
         <item>100</item>
         <item>90</item>

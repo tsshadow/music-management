@@ -17,6 +17,110 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   flapping connection can't flood the phone. `GET /health` reports real database and background-thread
   status and returns 503 when degraded, instead of a hard-coded `ok`.
 
+## [0.6.0] - 2026-08-06
+
+### Added
+- **A radio channel is a stored library filter.** Channels could only be "the whole library" or one
+  genre, which is too coarse to give a station an identity — Q-dance Records and Dirty Workz both
+  collapse into "hardstyle". A channel now stores any combination of label, genre, artist, length,
+  year and rating, served by a new `/rest/getSongsByFilter` endpoint in LMS that exposes filtering
+  the database layer already had.
+- **Radio channels are managed from the management page**, behind a new `radio.manage` permission:
+  create, edit, take on and off air, and preview what a filter matches — how many tracks plus a
+  sample — before saving. Previewing is also what catches a label name LMS does not know.
+- **The player offers a channel picker** when more than one channel is on air, labelled by what each
+  one plays, and still tunes straight in when there is only one.
+
+### Fixed
+- The tagger, scanner and radio loops no longer start when `MUMA_DISABLE_BACKGROUND_WORKERS` is set,
+  which keeps the radio scheduler out of the integration database it was deadlocking with.
+
+## [0.5.5] - 2026-08-06
+
+### Changed
+- **The MuMa wordmark appears once per screen again.** The top bar carried its own mark and wordmark
+  next to the profile button, right above the one the sidebar header already shows, so the branding
+  read twice on every screen. The top-right copy is gone and the sidebar owns the brand.
+
+## [0.5.4] - 2026-08-06
+
+### Fixed
+- **A broken .m4a on a read-only volume no longer fails in a confusing way.** When the tagger cannot
+  read an m4a it deletes the file and moves on, but if the delete itself fails — a read-only mount, a
+  permission error — the load continued into code that reads a field the failed load never set, so
+  the real problem surfaced as an `AttributeError` about an internal attribute. Both outcomes now
+  stop at the same place.
+- **"Zie meer" in the search results opens again.** The link handed its category on without an item,
+  and the code behind it read an id off that missing item, so clicking it threw and the full result
+  list never appeared.
+- **`BoundedTreeSet` built from an existing collection is no longer empty.** Its two element-taking
+  constructors handed their contents to `TreeSet`, which adds them through the very method that
+  enforces the bound — before the bound has a value. Every element was trimmed away immediately. The
+  bound is now set first. Nothing in the app used those constructors, so no behaviour changed with
+  it, but the class no longer contains a trap.
+
+- **The management screen stops polling when you leave it.** It asks the server every second how far
+  the artist-image fetch has got, and nothing cancelled that when the screen was torn down, so the
+  requests — and the logging when they stopped being answerable — carried on for the rest of the
+  session.
+
+### Removed
+- Two management components that nothing imported (`components/Sidebar.svelte` and
+  `components/Login.svelte` — the app uses `ManagementSidebar.svelte`), and an unreachable
+  `openArtist()` in the album view. Dropping them puts the frontend coverage figure at 82.0%, where
+  it was measuring code that could never run.
+
+## [0.5.3] - 2026-08-05
+
+### Changed
+- **The test suites now cover the parts of the product people actually touch.** The frontend went
+  from 24.8% to 80.8% of statements and the Python services from 77.8% to 87.9% of production code,
+  with both ratchets moved up to match (frontend 80/60/78/79, Python 92%). The frontend gained
+  coverage of the login screen including the Google access-request flow, the dashboard and every
+  view it routes to, the player transport, the artist and album screens, dynamic playlists, tagger
+  rules, genre curation, the ListenBrainz import, access-request review, the library browser and its
+  facets, and the queue actions. On the Python side `services/ml-analyzer` had no tests at all — 766
+  lines at 0% — and now covers the analyzer, its maintenance scripts and the predictor.
+  `trainer.py` is deliberately left uncovered: it is pandas and scikit-learn end to end, and with
+  those libraries stubbed a test would assert on mocks rather than on behaviour.
+- **Coverage figures no longer count generated code.** Jacoco was measuring Room's generated
+  `*_Impl` classes for MuMa Mobile — 4534 of the 25331 lines it reported, about 18% of the app — so
+  the figure looked worse than the hand-written code actually is. No unit test should ever target
+  KSP output.
+
+### Fixed
+- **The music server's coverage report was measuring under 1% of it.** `CMAKE_UNITY_BUILD=ON` merges
+  many `.cpp` files into a single translation unit, and gcov then reports against that merged file
+  instead of the real sources: gcovr resolved 18 files and 453 lines of a 76 000-line codebase, so
+  the reported 36.9% was a figure about almost nothing. The unity build stays on for the images that
+  are shipped and is turned off for the run that measures coverage. The report now covers 686 files
+  and 44 034 lines, at 38.6% — the suite was always doing more than the badge showed.
+
+## [0.5.2] - 2026-08-05
+
+### Changed
+- **MuMa is one name carrying one mark.** The web app and the Android app are the same product on
+  two screens, but they carried two names and no mark of their own: the browser tab said "MuMa
+  Spotify", the app was "MuMa Mobile", and the sidebar rendered Spotify's actual logo. The name is
+  now MuMa everywhere — launcher, notification channels, browser tab and user-facing strings — and
+  the mark is five bars in a green disc whose top edge traces an M. A single generator derives the
+  favicon, the adaptive icon layers, the round variant and all five mipmap densities from one
+  source, so they cannot drift apart; the adaptive foreground scales the disc to 83% so a round or
+  square mask cannot clip it, and the monochrome layer carries only the bars, since themed icons
+  get one colour. `applicationId` deliberately stays `nl.teunschriks.mumamobile`, so updates keep
+  landing on the existing install. Written up in
+  `docs/superpowers/specs/2026-08-05-muma-brand-design.md`.
+
+### Fixed
+- **"Recently played" remembers what was played, not only what was opened.** The home grid recorded
+  items opened on a browse screen, on the assumption that playing something implies having opened it
+  first. That does not hold for a session driven from Android Auto, the notification or the play
+  queue, so an evening of listening in the car left the grid showing whatever was last tapped by
+  hand. The same rebuild had also deleted the only writer of the "Last played genres" lists while
+  leaving the Android Auto browser reading them, so those two lists were permanently empty. Both are
+  written again from one place: every scrobble records the played album into the home grid and its
+  genres into the per-mode genre lists.
+
 ## [0.5.1] - 2026-08-05
 
 ### Fixed

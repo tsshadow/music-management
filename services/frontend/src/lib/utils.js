@@ -27,6 +27,23 @@ export function formatArtistList(artists) {
 }
 
 /**
+ * The argument of a prefixed view id, e.g. "Bad Taste Recordings" out of
+ * "label:Bad Taste Recordings".
+ *
+ * Splitting on ":" and taking element 1 truncates every name that contains a
+ * colon of its own -- and plenty of labels, genres and search terms do -- which
+ * then filters the track list on a name no track carries. Everything after the
+ * first colon is the argument.
+ *
+ * @param {string} view - A view id of the form "prefix:argument".
+ * @returns {string} The argument, or "" when the view has no colon at all.
+ */
+export function viewArgument(view) {
+  const separator = String(view ?? "").indexOf(":");
+  return separator === -1 ? "" : view.slice(separator + 1);
+}
+
+/**
  * Returns the URL for an artist image.
  *
  * @param {Object} artist - The artist object.

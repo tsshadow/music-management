@@ -1,6 +1,6 @@
 <script>
   import { t } from '../i18n/index.js';
-  import { onMount, untrack } from 'svelte';
+  import { onDestroy, onMount, untrack } from 'svelte';
   import { RefreshCw } from '@lucide/svelte';
   import { activeManagementTab, credentials, isAdmin, mumaApiKey, mumaApiUrl, userPermissions, mumaUser, hasPermission } from '../store.js';
 
@@ -11,6 +11,7 @@
   import PlaylistsTab from './tabs/PlaylistsTab.svelte';
   import TaggerTab from './tabs/TaggerTab.svelte';
   import GenreCurationTab from './tabs/GenreCurationTab.svelte';
+  import RadioTab from './tabs/RadioTab.svelte';
   import DownloadersTab from './tabs/DownloadersTab.svelte';
   import ScrobbleTab from './tabs/ScrobbleTab.svelte';
   import HealthTab from './tabs/HealthTab.svelte';
@@ -189,6 +190,13 @@
       }
     }, 1000);
   }
+
+  // The poll outlives the screen otherwise: nothing stops it when the user
+  // navigates away, so it keeps asking the server for image-fetch progress —
+  // and keeps logging once the answers stop being useful.
+  onDestroy(() => {
+    if (progressInterval) clearInterval(progressInterval);
+  });
 
   async function fetchImageStats() {
     try {
@@ -428,6 +436,12 @@
         />
       {:else if $activeManagementTab === 'genre-curation'}
         <GenreCurationTab
+          {API_BASE} getHeaders={getHeaders}
+          onMessage={(m) => message = m}
+          onError={(e) => error = e}
+        />
+      {:else if $activeManagementTab === 'radio'}
+        <RadioTab
           {API_BASE} getHeaders={getHeaders}
           onMessage={(m) => message = m}
           onError={(e) => error = e}

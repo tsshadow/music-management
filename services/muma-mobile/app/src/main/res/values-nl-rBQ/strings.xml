@@ -99,16 +99,6 @@
     <string name="error.label">Fout</string>
     <string name="jukebox.is_default">Standaard beginne in jukebox-modus</string>
     <string name="lyrics.nomatch">Gin tekst gevonde</string>
-    <string name="metadata.label">Metadata</string>
-    <string name="meta_title">Titel: %1$s</string>
-    <string name="meta_artist">Artiest: %1$s</string>
-    <string name="meta_album">Album: %1$s</string>
-    <string name="meta_year">Jaor: %1$s</string>
-    <string name="meta_genre">Genre: %1$s</string>
-    <string name="meta_track">Nummerke: %1$s</string>
-    <string name="meta_duration">Duur: %1$s</string>
-    <string name="meta_bitrate">Bitrate: %1$s kbps</string>
-    <string name="meta_path">Pad: %1$s</string>
     <string name="export.clear_dialog_title">Apparaat leegmake?</string>
     <string name="export.clear_dialog_message">Wilde de doelmap leegmake vurdat ge exporteert?</string>
     <string name="export.success">Sture gelukt</string>

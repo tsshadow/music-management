@@ -44,10 +44,16 @@ ARG LMS_BUILD_TYPE="Release"
 RUN \
 	DIR=/tmp/lms/build && mkdir -p ${DIR} && cd ${DIR}  && \
 		if xx-info is-cross; then export BUILD_TESTS=OFF; else export BUILD_TESTS=ON; fi && \
+		: 'A unity build merges many .cpp files into one translation unit, and gcov' && \
+		: 'then reports against the merged file instead of the real sources: gcovr' && \
+		: 'resolved only 18 files / 453 lines of a 76k-line codebase, so the coverage' && \
+		: 'figure was measuring under 1% of it. Keep the unity build for the images' && \
+		: 'that are shipped, and turn it off for the run that measures coverage.' && \
+		if [ "${BUILD_TESTS}" = "ON" ]; then export UNITY_BUILD=OFF; else export UNITY_BUILD=ON; fi && \
 		PKG_CONFIG_PATH=/$(xx-info)/usr/lib/pkgconfig \
 		cmake /tmp/lms/ \
 			-DCMAKE_INCLUDE_PATH=/$(xx-info)/usr/include \
-			-DCMAKE_UNITY_BUILD=ON \
+			-DCMAKE_UNITY_BUILD=${UNITY_BUILD} \
 			-DCMAKE_BUILD_TYPE=${LMS_BUILD_TYPE} \
 			$(xx-clang --print-cmake-defines) \
 			-DCMAKE_PREFIX_PATH=/$(xx-info)/usr/lib/cmake \

@@ -22,6 +22,11 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+# Belt and braces with scripts/test/db-integration.sh: the background loops write
+# to the database on their own schedule, and the radio scheduler's rows collide
+# with the per-test truncate below. Set before main.py is imported anywhere.
+os.environ.setdefault('MUMA_DISABLE_BACKGROUND_WORKERS', '1')
+
 pymysql = pytest.importorskip('pymysql', reason='the integration suite needs the real pymysql')
 
 

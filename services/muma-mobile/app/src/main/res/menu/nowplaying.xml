@@ -9,24 +9,8 @@
         a:icon="@drawable/media_toggle_list"
         app:showAsAction="always"
         a:title="@string/download.toggle_playlist"/>
-    <item
-        a:id="@+id/menu_show_artist"
-        a:title="@string/download.menu_show_artist"/>
-    <item
-        a:id="@+id/menu_show_album"
-        a:title="@string/download.menu_show_album"/>
-    <item
-        a:id="@+id/menu_show_metadata"
-        a:title="@string/download.menu_show_metadata"/>
-    <item
-        a:id="@+id/menu_refresh_track"
-        a:title="@string/download.menu_refresh_track"/>
-
-    <item
-        a:id="@+id/menu_item_share_song"
-        a:icon="@drawable/ic_menu_share"
-        app:showAsAction="ifRoom|withText"
-        a:title="@string/download.share_song"/>
+    <!-- Everything about the playing track itself lives on the track info sheet: tap the
+         title block in the player. What is left here acts on the queue or the player. -->
     <item
         a:id="@+id/menu_item_share"
         a:icon="@drawable/ic_menu_share"
@@ -47,21 +31,6 @@
         a:icon="@drawable/ic_menu_save"
         app:showAsAction="never"
         a:title="@string/download.menu_export_to_media_device"/>
-    <item
-        a:id="@+id/menu_lyrics"
-        a:icon="@drawable/ic_library"
-        app:showAsAction="ifRoom|withText"
-        a:title="@string/download.menu_lyrics"/>
-    <item
-        a:id="@+id/menu_item_bookmark_set"
-        a:icon="@drawable/ic_menu_bookmark"
-        app:showAsAction="ifRoom|withText"
-        a:title="@string/download.bookmark_set"/>
-    <item
-        a:id="@+id/menu_item_bookmark_delete"
-        a:icon="@drawable/ic_menu_bookmark"
-        app:showAsAction="ifRoom|withText"
-        a:title="@string/download.bookmark_delete"/>
     <item
         a:id="@+id/menu_item_equalizer"
         app:showAsAction="never"

@@ -35,8 +35,8 @@ android {
 
     defaultConfig {
         applicationId = 'nl.teunschriks.mumamobile'
-        versionCode 261
-        versionName "6.9.1"
+        versionCode 262
+        versionName "6.9.2"
 
         minSdk = libs.versions.appMinSdk.get().toInteger()
         targetSdk = libs.versions.appTargetSdk.get().toInteger()
@@ -299,7 +299,11 @@ tasks.register('jacocoTestReport', JacocoReport) {
         html.required = true
     }
 
-    def fileFilter = ['**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*', '**/*Test*.*', 'android/**/*.*']
+    // '**/*_Impl*' drops the Room-generated DAO and database implementations. They are
+    // 4534 of the 25331 lines the report used to count -- about 18% of the app -- and
+    // nobody should be writing unit tests for KSP output, so leaving them in only made
+    // the figure look worse than the hand-written code actually is.
+    def fileFilter = ['**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*', '**/*Test*.*', 'android/**/*.*', '**/*_Impl*.*']
     def debugTree = fileTree(dir: "${project.layout.buildDirectory.get().asFile}/intermediates/javac/debug/classes", excludes: fileFilter)
     def kotlinDebugTree = fileTree(dir: "${project.layout.buildDirectory.get().asFile}/tmp/kotlin-classes/debug", excludes: fileFilter)
     def mainSrc = "${project.projectDir}/src/main/kotlin"

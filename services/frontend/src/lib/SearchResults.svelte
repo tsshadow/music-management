@@ -27,12 +27,13 @@
    * @param {any} item - The item object or name.
    */
   function handleSelect(type, item) {
-    if (onSelect) {
-      if (type === 'genre' || type === 'label') {
-        onSelect(type, item);
-      } else {
-        onSelect(type, item.id);
-      }
+    if (!onSelect) return;
+    // A genre or label is its own value, and the "see more" links carry no item
+    // at all -- only an artist, album or track has an id to hand on.
+    if (type === 'genre' || type === 'label' || item === undefined) {
+      onSelect(type, item);
+    } else {
+      onSelect(type, item.id);
     }
   }
 </script>

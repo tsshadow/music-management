@@ -9,4 +9,11 @@
     <item name="dialog_layout" type="id" />
     <item name="multi_select_list" type="id" />
     <item name="btn_ok" type="id" />
+
+    <!-- Actions that used to live in the now-playing options menu and now only exist as buttons
+         on the track info sheet. PlayerFragment still dispatches on them, so the ids have to
+         outlive their menu entries. -->
+    <item name="menu_item_share_song" type="id" />
+    <item name="menu_item_bookmark_set" type="id" />
+    <item name="menu_item_bookmark_delete" type="id" />
 </resources>

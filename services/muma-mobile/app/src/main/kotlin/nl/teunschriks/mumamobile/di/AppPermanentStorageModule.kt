@@ -23,6 +23,7 @@ import nl.teunschriks.mumamobile.data.MIGRATION_8_9
 import nl.teunschriks.mumamobile.home.FavoritesViewModel
 import nl.teunschriks.mumamobile.home.HomeViewModel
 import nl.teunschriks.mumamobile.home.MemoriesViewModel
+import nl.teunschriks.mumamobile.home.PlayHistoryRecorder
 import nl.teunschriks.mumamobile.home.RecentActivityStore
 import nl.teunschriks.mumamobile.management.ManagementRepository
 import nl.teunschriks.mumamobile.management.ManagementViewModel
@@ -70,6 +71,8 @@ val appPermanentStorage = module {
             androidContext().getSharedPreferences(HOME_RECENT_SP_NAME, Context.MODE_PRIVATE)
         )
     }
+
+    single { PlayHistoryRecorder(get()) }
 
     viewModel { ServerSettingsModel(get(), get(), get()) }
     viewModel { AlbumListModel(get()) }

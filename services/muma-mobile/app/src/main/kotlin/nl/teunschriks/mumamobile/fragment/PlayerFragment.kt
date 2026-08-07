@@ -43,6 +43,7 @@ import androidx.annotation.AttrRes
 import androidx.annotation.ColorInt
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.os.BundleCompat
 import androidx.core.view.MenuHost
 import androidx.core.view.MenuProvider
 import androidx.core.view.isVisible
@@ -97,6 +98,7 @@ import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.fragment.FragmentTitle.setTitle
 import nl.teunschriks.mumamobile.fragment.PlayerFragmentDirections
+import nl.teunschriks.mumamobile.fragment.muma.TrackInfoModalFragment
 import nl.teunschriks.mumamobile.service.DownloadService
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
@@ -302,6 +304,12 @@ class PlayerFragment :
         fiveStar3ImageView.setOnClickListener { setSongRating(3) }
         fiveStar4ImageView.setOnClickListener { setSongRating(4) }
         fiveStar5ImageView.setOnClickListener { setSongRating(5) }
+
+        view.findViewById<View>(R.id.current_playing_info_touch).setOnClickListener {
+            showTrackInfo(currentSong)
+        }
+
+        listenForTrackInfoResults()
 
         albumArtImageView.setOnTouchListener { _, me ->
             gestureScanner.onTouchEvent(me)
@@ -581,19 +589,14 @@ class PlayerFragment :
 
     @Suppress("ComplexMethod", "LongMethod", "NestedBlockDepth")
     fun setupOptionsMenu(menu: Menu) {
+        // Everything that acts on the playing track itself now lives on the track info sheet,
+        // so this menu only has to manage the queue and the player.
         // Seems there is nothing like ViewBinding for Menus
         val screenOption = menu.findItem(R.id.menu_item_screen_on_off)
-        val goToAlbum = menu.findItem(R.id.menu_show_album)
-        val goToArtist = menu.findItem(R.id.menu_show_artist)
-        val showMetadata = menu.findItem(R.id.menu_show_metadata)
         val jukeboxOption = menu.findItem(R.id.menu_item_jukebox)
         val exportMenuItem = menu.findItem(R.id.menu_item_export_to_media_device)
         val equalizerMenuItem = menu.findItem(R.id.menu_item_equalizer)
         val shareMenuItem = menu.findItem(R.id.menu_item_share)
-        val shareSongMenuItem = menu.findItem(R.id.menu_item_share_song)
-        val refreshSongItem = menu.findItem(R.id.menu_refresh_track)
-        val bookmarkMenuItem = menu.findItem(R.id.menu_item_bookmark_set)
-        val bookmarkRemoveMenuItem = menu.findItem(R.id.menu_item_bookmark_delete)
 
         // Listen to rating changes and update the UI
         rxBusSubscription += RxBus.ratingPublishedObservable.subscribe { update ->
@@ -617,12 +620,6 @@ class PlayerFragment :
             if (shareMenuItem != null) {
                 shareMenuItem.isVisible = false
             }
-            if (bookmarkMenuItem != null) {
-                bookmarkMenuItem.isVisible = false
-            }
-            if (bookmarkRemoveMenuItem != null) {
-                bookmarkRemoveMenuItem.isVisible = false
-            }
         }
         if (equalizerMenuItem != null) {
             equalizerMenuItem.isEnabled = isEqualizerAvailable
@@ -633,20 +630,6 @@ class PlayerFragment :
 
         if (track != null) {
             currentSong = track
-        }
-
-        if (currentSong != null) {
-            shareSongMenuItem.isVisible = true
-            goToAlbum.isVisible = true
-            goToArtist.isVisible = true
-            showMetadata.isVisible = true
-            refreshSongItem.isVisible = true
-        } else {
-            shareSongMenuItem.isVisible = false
-            goToAlbum.isVisible = false
-            goToArtist.isVisible = false
-            showMetadata.isVisible = false
-            refreshSongItem.isVisible = false
         }
 
         if (mediaPlayerManager.keepScreenOn) {
@@ -731,8 +714,7 @@ class PlayerFragment :
             R.id.menu_show_metadata -> {
                 if (track == null) return false
 
-                val action = PlayerFragmentDirections.playerToMetadata(track)
-                findNavController().navigate(action)
+                showTrackInfo(track)
                 return true
             }
             R.id.menu_lyrics -> {
@@ -1404,16 +1386,57 @@ class PlayerFragment :
         .data
 
     private fun setSongRating(rating: Int) {
-        if (currentSong == null) return
-        currentSong?.userRating = rating
-        updateSongRatingDisplay()
+        setRatingFor(currentSong ?: return, rating)
+    }
+
+    /**
+     * The track info sheet can rate a track that is not the one playing (it also opens from the
+     * playlist), so the star row is only refreshed when the two are the same song.
+     */
+    private fun setRatingFor(track: Track, rating: Int) {
+        track.userRating = rating
+        if (track.id == currentSong?.id) {
+            currentSong?.userRating = rating
+            updateSongRatingDisplay()
+        }
 
         RxBus.ratingSubmitter.onNext(
             RatingUpdate(
-                currentSong!!.id,
+                track.id,
                 StarRating(5, rating.toFloat())
             )
         )
+    }
+
+    private fun showTrackInfo(track: Track?) {
+        if (track == null) return
+        if (childFragmentManager.findFragmentByTag(TrackInfoModalFragment.TAG) != null) return
+
+        TrackInfoModalFragment.newInstance(track)
+            .show(childFragmentManager, TrackInfoModalFragment.TAG)
+    }
+
+    /**
+     * The sheet only reports what the user picked; the actions themselves stay here so there is
+     * one implementation of "go to album", "share this song" and friends.
+     */
+    private fun listenForTrackInfoResults() {
+        childFragmentManager.setFragmentResultListener(
+            TrackInfoModalFragment.RESULT_KEY,
+            viewLifecycleOwner
+        ) { _, bundle ->
+            val track = BundleCompat.getSerializable(
+                bundle,
+                TrackInfoModalFragment.RESULT_TRACK,
+                Track::class.java
+            ) ?: return@setFragmentResultListener
+
+            if (bundle.containsKey(TrackInfoModalFragment.RESULT_RATING)) {
+                setRatingFor(track, bundle.getInt(TrackInfoModalFragment.RESULT_RATING))
+            } else {
+                menuItemSelected(bundle.getInt(TrackInfoModalFragment.RESULT_ACTION_ID), track)
+            }
+        }
     }
 
     @SuppressLint("InflateParams")

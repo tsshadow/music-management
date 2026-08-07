@@ -28,6 +28,42 @@ class NormalizeSongTest(unittest.TestCase):
         self.assertIsNone(lms_subsonic.normalize_song({'duration': 100}))
 
 
+class BuildFilterParamsTest(unittest.TestCase):
+
+    def test_empty_filter_sends_nothing(self):
+        self.assertEqual(lms_subsonic.build_filter_params({}), {})
+        self.assertEqual(lms_subsonic.build_filter_params(None), {})
+
+    def test_maps_stored_keys_to_subsonic_parameters(self):
+        params = lms_subsonic.build_filter_params({
+            'label': 'Q-dance Records', 'genre': 'hardstyle', 'artist': 'Headhunterz',
+            'length': 'short', 'year': '2024',
+            'rating_min': 4, 'rating_max': 5, 'duration_min': 60, 'duration_max': 300,
+        })
+        self.assertEqual(params, {
+            'label': 'Q-dance Records', 'genre': 'hardstyle', 'artist': 'Headhunterz',
+            'length': 'short', 'year': '2024',
+            'ratingMin': 4, 'ratingMax': 5, 'durationMin': 60, 'durationMax': 300,
+        })
+
+    def test_drops_blank_and_missing_values(self):
+        params = lms_subsonic.build_filter_params({'label': '  ', 'genre': None, 'artist': 'X'})
+        self.assertEqual(params, {'artist': 'X'})
+
+    def test_include_unrated_only_travels_with_a_rating_bound(self):
+        self.assertNotIn('includeUnrated', lms_subsonic.build_filter_params({'include_unrated': True}))
+        self.assertEqual(
+            lms_subsonic.build_filter_params({'rating_min': 4, 'include_unrated': True})['includeUnrated'],
+            'true',
+        )
+
+    def test_include_unrated_false_is_left_to_the_server_default(self):
+        self.assertNotIn(
+            'includeUnrated',
+            lms_subsonic.build_filter_params({'rating_min': 4, 'include_unrated': False}),
+        )
+
+
 class FetchCandidateTracksTest(unittest.TestCase):
 
     def _response(self, payload):
@@ -36,31 +72,29 @@ class FetchCandidateTracksTest(unittest.TestCase):
         response.raise_for_status.return_value = None
         return response
 
+    def _songs(self, *songs):
+        return self._response({'subsonic-response': {'status': 'ok', 'songsByFilter': {'song': list(songs)}}})
+
     @patch('services.music_manager.lms_subsonic.requests.get')
-    def test_uses_random_songs_when_no_genre(self, mock_get):
-        mock_get.return_value = self._response({'subsonic-response': {'status': 'ok', 'randomSongs': {
-            'song': [{'id': 'tr-1', 'title': 'A', 'artist': 'X', 'album': 'Y', 'duration': 100}]
-        }}})
-        tracks = lms_subsonic.fetch_candidate_tracks(None, size=5)
+    def test_empty_filter_draws_from_the_whole_library(self, mock_get):
+        mock_get.return_value = self._songs({'id': 'tr-1', 'title': 'A', 'artist': 'X', 'album': 'Y', 'duration': 100})
+        tracks = lms_subsonic.fetch_candidate_tracks({}, size=5)
         self.assertEqual([t['track_id'] for t in tracks], ['tr-1'])
         url = mock_get.call_args[0][0]
         params = mock_get.call_args[1]['params']
-        self.assertTrue(url.endswith('/rest/getRandomSongs'))
-        self.assertEqual(params['size'], 5)
+        self.assertTrue(url.endswith('/rest/getSongsByFilter'))
+        self.assertEqual(params['count'], 5)
         self.assertEqual(params['f'], 'json')
+        self.assertNotIn('label', params)
 
     @patch('services.music_manager.lms_subsonic.requests.get')
-    def test_uses_songs_by_genre_when_genre_given(self, mock_get):
-        mock_get.return_value = self._response({'subsonic-response': {'status': 'ok', 'songsByGenre': {
-            'song': [{'id': 'tr-2', 'title': 'B', 'artist': 'X', 'album': 'Y', 'duration': 120}]
-        }}})
-        tracks = lms_subsonic.fetch_candidate_tracks('hardstyle', size=5)
+    def test_sends_the_channel_filter(self, mock_get):
+        mock_get.return_value = self._songs({'id': 'tr-2', 'title': 'B', 'artist': 'X', 'album': 'Y', 'duration': 120})
+        tracks = lms_subsonic.fetch_candidate_tracks({'label': 'Dirty Workz', 'length': 'short'}, size=5)
         self.assertEqual([t['track_id'] for t in tracks], ['tr-2'])
-        url = mock_get.call_args[0][0]
         params = mock_get.call_args[1]['params']
-        self.assertTrue(url.endswith('/rest/getSongsByGenre'))
-        self.assertEqual(params['genre'], 'hardstyle')
-        self.assertEqual(params['count'], 5)
+        self.assertEqual(params['label'], 'Dirty Workz')
+        self.assertEqual(params['length'], 'short')
 
     @patch('services.music_manager.lms_subsonic.requests.get')
     def test_raises_on_subsonic_error_status(self, mock_get):
@@ -68,12 +102,12 @@ class FetchCandidateTracksTest(unittest.TestCase):
             'status': 'failed', 'error': {'code': 40, 'message': 'Wrong username or password'}
         }})
         with self.assertRaises(RuntimeError):
-            lms_subsonic.fetch_candidate_tracks(None)
+            lms_subsonic.fetch_candidate_tracks({})
 
     @patch('services.music_manager.lms_subsonic.requests.get')
     def test_handles_single_song_object_instead_of_list(self, mock_get):
-        mock_get.return_value = self._response({'subsonic-response': {'status': 'ok', 'randomSongs': {
+        mock_get.return_value = self._response({'subsonic-response': {'status': 'ok', 'songsByFilter': {
             'song': {'id': 'tr-9', 'title': 'Solo', 'artist': 'X', 'album': 'Y', 'duration': 90}
         }}})
-        tracks = lms_subsonic.fetch_candidate_tracks(None)
+        tracks = lms_subsonic.fetch_candidate_tracks({})
         self.assertEqual([t['track_id'] for t in tracks], ['tr-9'])

@@ -93,9 +93,12 @@ class BaseSong:
                 os.remove(path)
                 print('deleted broken file: ' + path)
                 log_broken_file(path)
-                return
             except Exception as e:
+                # A read-only volume or a permission error: the file stays, but it is
+                # still unreadable. Returning here is what keeps the rest of __init__
+                # from reading self.type, which the failed load never got to set.
                 print('Kon bestand niet verwijderen:', e)
+            return
         if self.type == MusicFileType.WAV and self.music_file.tags is None:
             self.music_file.add_tags()
         self.tag_collection = TagCollection(self.music_file.tags if self.type != MusicFileType.AAC else self.music_file)

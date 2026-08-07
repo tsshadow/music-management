@@ -15,6 +15,7 @@ add_executable(test-database
 	Migration.cpp
 	PlayListFile.cpp
 	Podcast.cpp
+	RadioFilters.cpp
 	RatedArtist.cpp
 	RatedRelease.cpp
 	RatedTrack.cpp

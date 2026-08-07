@@ -11,6 +11,76 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.6.0 (2026-08-06)
+
+### 📻 Radiokanalen die ergens over gaan
+- Een kanaal was voorheen "de hele bibliotheek" of hooguit één genre. Nu is een kanaal een
+  **opgeslagen filter**: label, genre, artiest, lengte, jaar of waardering, in elke combinatie.
+  Q-dance Records en Dirty Workz zijn daarmee twee kanalen in plaats van allebei "hardstyle".
+- Kanalen beheer je op de **beheerderspagina**: aanmaken, bewerken, in en uit de lucht halen. Met
+  **proefdraaien** zie je vóór het opslaan hoeveel tracks een filter oplevert, met een voorproefje.
+  Dat is meteen de plek waar een labelnaam die de server niet kent boven water komt.
+- De speler laat je **kiezen** zodra er meer dan één kanaal in de lucht is, met per kanaal een
+  regeltje over wat het draait. Is er maar één kanaal, dan begint die gewoon meteen.
+
+## Global Version 0.5.5 (2026-08-06)
+
+### 🎨 MuMa stond er twee keer
+- Het logo met de naam **MuMa** stond zowel links in de zijbalk als rechtsboven naast je profielknop.
+  Die rechterbovenhoek is nu leeg op de profielknop na.
+
+## Global Version 0.5.4 (2026-08-06)
+
+### 🐛 Drie foutjes die bij het testwerk boven water kwamen
+- **"Zie meer" in de zoekresultaten werkt weer.** Klikken op die link deed niets — de volledige
+  resultatenlijst ging niet open.
+- **Een kapot m4a-bestand op een alleen-lezen schijf** liet de tagger struikelen met een
+  onbegrijpelijke foutmelding in plaats van het bestand netjes over te slaan.
+- Een interne hulpklasse (`BoundedTreeSet`) leverde een lege lijst op als je hem met bestaande
+  inhoud aanmaakte. Niets in de app gebruikte dat, maar de valkuil is nu weg.
+
+### 🧹 Opgeruimd
+- Twee schermen in het beheergedeelte die nergens meer werden gebruikt zijn verwijderd.
+
+## Global Version 0.5.3 (2026-08-05)
+
+### 🧪 Veel meer van MuMa wordt nu automatisch getest
+- De webinterface ging van 25% naar 80% getest, de Python-diensten van 78% naar 88%. Concreet: het
+  inlogscherm inclusief de Google-toegangsaanvraag, het startscherm, de speler, artiest- en
+  albumpagina's, dynamische afspeellijsten, tagger-regels, genre-curatie, de ListenBrainz-import en
+  de bibliotheekbrowser worden nu bij elke wijziging nagelopen.
+- De ml-analyzer had helemaal geen tests. Die zijn er nu voor de analyzer zelf, de
+  onderhoudsscripts en de voorspeller.
+
+### 🔧 Het dekkingscijfer van de muziekserver klopte niet
+- Het rapport voor de server keek naar 18 bestanden van de 818, oftewel 453 van de 76 000 regels.
+  De "36,9%" ging dus over minder dan 1% van de code. Oorzaak: een bouwoptie die veel bronbestanden
+  samenvoegt, waardoor de meting niet meer bij de echte bestanden kon komen. Die staat nu uit tijdens
+  het meten en blijft aan voor wat er wordt uitgerold. Het rapport dekt nu 686 bestanden en 44 034
+  regels.
+- Voor de Android-app telt de meting niet langer automatisch gegenereerde databasecode mee — dat was
+  bijna een vijfde van de app, en daar hoort niemand tests voor te schrijven.
+
+## Global Version 0.5.2 (2026-08-05)
+
+### 🎨 MuMa heeft eindelijk een eigen naam en een eigen logo
+- De app op je telefoon heette "MuMa Mobile" en het tabblad in je browser "MuMa Spotify". Dat is nu
+  overal gewoon **MuMa** — Spotify noemt zijn app tenslotte ook geen "Spotify Mobile".
+- Er is een eigen beeldmerk: vijf staafjes in een groene schijf, waarvan de bovenrand een M vormt.
+  Van een afstand een equalizer, van dichtbij de M van MuMa. Je ziet hem op je startscherm, in het
+  tabblad van je browser, op het inlogscherm, in de zijbalk en rechtsboven in de webpagina.
+- Tot vandaag stond er in de zijbalk letterlijk het logo van Spotify. Dat is vervangen.
+- De app installeert gewoon over de vorige heen; je hoeft niets opnieuw in te stellen.
+
+### ⏮️ "Onlangs afgespeeld" onthoudt weer wat je hebt geluisterd
+- Het raster op de startpagina bewaarde alleen wat je zelf aantikte in een lijst. Wie via Android
+  Auto, de melding of de wachtrij luisterde, liet dus niets achter: een avond muziek in de auto
+  veranderde er niets aan.
+- Ook "Laatst gespeelde genres" werd nergens meer bijgewerkt, terwijl Android Auto die lijsten wél
+  bleef tonen — ze waren daardoor altijd leeg.
+- Allebei worden ze weer bijgehouden: elk nummer dat je uitluistert zet zijn album in het raster en
+  zijn genres in de genrelijst.
+
 ## Global Version 0.5.1 (2026-08-05)
 
 ### 📲 "Controleer op updates" ziet nieuwe versies weer

@@ -353,7 +353,7 @@ object Settings {
     var genreTrackLimit
         by StringIntSetting(getKey(R.string.setting_key_genre_track_limit), 100)
 
-    // Still written by the scrobbler and read by the Android Auto browser.
+    // Written by PlayHistoryRecorder on every scrobble, read by the Android Auto browser.
     @JvmStatic
     var lastPlayedGenres by StringSetting("last_played_genres", "[]")
 

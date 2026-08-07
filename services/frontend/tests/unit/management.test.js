@@ -5,6 +5,7 @@ import Management from '../../src/lib/management/Management.svelte';
 import {
   activeManagementTab, credentials, mumaApiKey, mumaUser, userPermissions
 } from '../../src/lib/store.js';
+import { t } from '../../src/lib/i18n/index.js';
 
 const STATS = {
   total_tracks: 12345, total_artists: 678, total_scrobbles: 90123, match_rate: 92,
@@ -135,12 +136,14 @@ describe('Management', () => {
     await waitFor(() => expect(screen.getByText('Docker Containers')).toBeTruthy());
   });
 
-  it('the notifications tab is reachable', async () => {
-    activeManagementTab.set('notifications');
+  it('the event log tab is reachable', async () => {
+    activeManagementTab.set('events');
 
     render(Management);
 
-    await waitFor(() => expect(screen.getByText('Meldingen')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText(get(t)('management.events.subtitle'))).toBeTruthy()
+    );
   });
 
   it('the user requests tab is reachable', async () => {

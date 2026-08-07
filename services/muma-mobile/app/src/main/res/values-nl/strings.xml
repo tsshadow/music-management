@@ -170,6 +170,11 @@
     <string name="select_genre.empty">Geen genres gevonden</string>
     <string name="select_playlist.empty">Geen opgeslagen afspeellijsten op server</string>
     <string name="settings.appearance_title">Uiterlijk</string>
+    <string name="settings.accent_title">Accentkleur</string>
+    <string name="settings.accent_green">Groen</string>
+    <string name="settings.accent_blue">Blauw</string>
+    <string name="settings.app_icon_title">App-icoon</string>
+    <string name="settings.app_icon_changed">Icoon gewijzigd. Sommige launchers halen de app van het beginscherm; je moet hem dan opnieuw plaatsen.</string>
     <string name="settings.increment_time_0">Uitgeschakeld</string>
     <string name="settings.increment_time_1">1 seconde</string>
     <string name="settings.increment_time_10">10 seconden</string>
@@ -308,11 +313,6 @@
     <string name="settings.show_track_number">Itemnummer tonen</string>
     <string name="settings.show_track_number_summary">Itemnummer tonen tijdens tonen van nummers</string>
     <string name="settings.test_connection_title">Verbinding testen</string>
-    <string name="settings.theme_day_night">Dag en nacht</string>
-    <string name="settings.theme_light">Licht</string>
-    <string name="settings.theme_dark">Donker</string>
-    <string name="settings.theme_black">Zwart</string>
-    <string name="settings.theme_title">Thema</string>
     <string name="settings.title.allow_self_signed_certificate">Zelf-gesigneerd HTTPS-certificaat toestaan</string>
     <string name="settings.title.force_plain_text_password">Verificatie met gewoon wachtwoord afdwingen</string>
     <string name="settings.summary.force_plain_text_password">Dit dwingt de app om het wachtwoord altijd op de ouderwetse manier te versturen, als de Subsonic-server geen ondersteuning biedt voor het autoriseren via de nieuwe api.</string>

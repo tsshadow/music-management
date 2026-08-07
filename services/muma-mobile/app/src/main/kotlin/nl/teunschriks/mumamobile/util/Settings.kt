@@ -25,9 +25,17 @@ object Settings {
         get() = PreferenceManager.getDefaultSharedPreferences(Util.appContext())
 
     @JvmStatic
-    var theme by StringSetting(
-        getKey(R.string.setting_key_theme),
-        getKey(R.string.setting_key_theme_black)
+    var accent by StringSetting(
+        getKey(R.string.setting_key_accent),
+        getKey(R.string.setting_key_accent_green)
+    )
+
+    // Which launcher icon is showing. Deliberately independent of [accent]: the icon lives
+    // in the manifest and is switched by enabling one activity-alias, not by the theme.
+    @JvmStatic
+    var appIcon by StringSetting(
+        getKey(R.string.setting_key_app_icon),
+        getKey(R.string.setting_key_app_icon_green)
     )
 
     /**

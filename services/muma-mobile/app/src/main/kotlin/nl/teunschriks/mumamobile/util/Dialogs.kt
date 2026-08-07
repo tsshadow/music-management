@@ -23,7 +23,7 @@ import timber.log.Timber
  * has the application context. Wrapping in the app theme makes the builder constructible.
  */
 internal fun Context.withUltrasonicTheme(): Context =
-    if (this is Activity) this else ContextThemeWrapper(this, R.style.UltrasonicTheme_Dark)
+    if (this is Activity) this else ContextThemeWrapper(this, R.style.UltrasonicTheme_Green)
 
 /*
  * InfoDialog can be used to show some information to the user. Typically it cannot be cancelled,

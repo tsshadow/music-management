@@ -109,7 +109,7 @@
     <style name="Ultrasonic.TrackInfo.Action" parent="Widget.Material3.Button.TextButton.Icon">
         <item name="android:textColor">@color/spotify_text_primary</item>
         <item name="android:textAllCaps">false</item>
-        <item name="iconTint">@color/spotify_green</item>
+        <item name="iconTint">?attr/colorPrimary</item>
     </style>
 
     <!-- Login / Google-auth styles - mirror the web frontend's login card
@@ -123,13 +123,13 @@
         <item name="boxCornerRadiusBottomEnd">8dp</item>
         <item name="boxStrokeWidth">0dp</item>
         <item name="boxStrokeWidthFocused">2dp</item>
-        <item name="boxStrokeColor">@color/spotify_green</item>
+        <item name="boxStrokeColor">?attr/colorPrimary</item>
         <item name="hintTextColor">@color/spotify_text_secondary</item>
         <item name="android:textColorHint">@color/spotify_text_secondary</item>
     </style>
 
     <style name="Ultrasonic.Button.Primary" parent="Widget.Material3.Button">
-        <item name="backgroundTint">@color/spotify_green</item>
+        <item name="backgroundTint">?attr/colorPrimary</item>
         <item name="cornerRadius">24dp</item>
         <item name="android:textColor">@color/spotify_black</item>
         <item name="android:textStyle">bold</item>

@@ -21,7 +21,7 @@ class TrackRowLayoutContractTest {
 
     class HostActivity : AppCompatActivity() {
         override fun onCreate(savedInstanceState: android.os.Bundle?) {
-            setTheme(R.style.UltrasonicTheme_Black)
+            setTheme(R.style.UltrasonicTheme_Green)
             super.onCreate(savedInstanceState)
         }
     }

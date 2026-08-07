@@ -265,10 +265,6 @@
     <string name="settings.show_track_number">Показать номер трека</string>
     <string name="settings.show_track_number_summary">Включить номер дорожки при отображении песни</string>
     <string name="settings.test_connection_title">Тестовое соединение</string>
-    <string name="settings.theme_light">Светлая</string>
-    <string name="settings.theme_dark">Темная</string>
-    <string name="settings.theme_black">Черная</string>
-    <string name="settings.theme_title">Оформление</string>
     <string name="settings.title.allow_self_signed_certificate">Разрешить самоподписанный сертификат HTTPS</string>
     <string name="settings.title.force_plain_text_password">Принудительная аутентификация по обычному паролю</string>
     <string name="settings.use_folder_for_album_artist">Использовать папки для имени исполнителя</string>

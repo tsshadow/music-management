@@ -243,14 +243,9 @@
     <string name="settings.server_username">Brukernavn</string>
     <string name="settings.server_color">Tjenerfarge</string>
     <string name="settings.test_connection_title">Test tilkobling</string>
-    <string name="settings.theme_light">Lys</string>
-    <string name="settings.theme_dark">Mørk</string>
-    <string name="settings.theme_black">Svart</string>
-    <string name="settings.theme_title">Drakt</string>
     <string name="settings.title.allow_self_signed_certificate">Tillat selvsignert HTTPS-sertifikat</string>
     <string name="settings.search_title">Søkeinnstillinger</string>
     <string name="settings.show_track_number">Vis spornummer</string>
-    <string name="settings.theme_day_night">Dag og natt</string>
     <string name="settings.use_folder_for_album_artist">Bruk mapper for artistnavn</string>
     <string name="download.bookmark_set">Bokmerk</string>
     <string name="settings.wifi_required_title">Kun last ned på Wi-Fi</string>

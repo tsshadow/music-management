@@ -54,7 +54,7 @@
         app:iconTint="#000000"
         app:iconGravity="textEnd"
         app:iconSize="32dp"
-        app:backgroundTint="@color/spotify_green" />
+        app:backgroundTint="?attr/colorPrimary" />
 
     <Button
         a:id="@+id/button_pause"
@@ -71,7 +71,7 @@
         app:iconTint="#000000"
         app:iconGravity="textEnd"
         app:iconSize="32dp"
-        app:backgroundTint="@color/spotify_green" />
+        app:backgroundTint="?attr/colorPrimary" />
 
     <Button
         a:id="@+id/button_stop"

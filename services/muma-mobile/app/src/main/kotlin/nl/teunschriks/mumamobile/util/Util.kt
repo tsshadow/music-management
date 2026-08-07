@@ -99,19 +99,14 @@ object Util {
         context.theme.applyStyle(R.style.UltrasonicTheme_Base, true)
     }
 
-    private fun getStyleFromSettings(context: Context): Int = when (Settings.theme.lowercase()) {
-        context.getString(R.string.setting_key_theme_black) -> {
-            R.style.UltrasonicTheme_Black
+    private fun getStyleFromSettings(context: Context): Int =
+        if (Settings.accent.lowercase() == context.getString(R.string.setting_key_accent_blue)) {
+            R.style.UltrasonicTheme_Blue
+        } else {
+            // Anything else, including a value left behind by the old four-way theme
+            // preference, is green.
+            R.style.UltrasonicTheme_Green
         }
-
-        context.getString(R.string.setting_key_theme_day_night) -> {
-            R.style.UltrasonicTheme_DayNight
-        }
-
-        else -> {
-            R.style.UltrasonicTheme_Black
-        }
-    }
 
     fun getString(@StringRes resId: Int): String = applicationContext().resources.getString(resId)
 

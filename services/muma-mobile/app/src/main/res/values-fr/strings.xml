@@ -281,10 +281,6 @@
     <string name="settings.show_track_number">Afficher le numéro du titre</string>
     <string name="settings.show_track_number_summary">Inclure son numéro lors de l\'affichage d\'un titre</string>
     <string name="settings.test_connection_title">Tester la connexion</string>
-    <string name="settings.theme_light">Clair</string>
-    <string name="settings.theme_dark">Sombre</string>
-    <string name="settings.theme_black">Noir</string>
-    <string name="settings.theme_title">Thème</string>
     <string name="settings.title.allow_self_signed_certificate">Autoriser le certificat HTTPS auto-signé</string>
     <string name="settings.title.force_plain_text_password">Forcer l\'authentification par mot de passe simple</string>
     <string name="settings.use_folder_for_album_artist">Utiliser les noms des dossiers pour les noms d\'artistes</string>
@@ -389,7 +385,6 @@
     <string name="settings.show_confirmation_dialog_summary">Affiche une boîte de dialogue de confirmation avant de supprimer ou de déprogrammer des chansons</string>
     <string name="settings.preload_50">50 morceaux</string>
     <string name="chat.user_avatar">Image d\'avatar</string>
-    <string name="settings.theme_day_night">Jour et nuit</string>
     <plurals name="n_songs_added_to_end">
         <item quantity="one">%d morceau ajouté à la file d\'attente de fin de lecture</item>
         <item quantity="many">"%d morceaux  ajoutés à la file d\'attente de fin de lecture"</item>

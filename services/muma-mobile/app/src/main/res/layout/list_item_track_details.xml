@@ -62,7 +62,7 @@
             a:layout_marginEnd="4dp"
             a:indeterminate="true"
             a:visibility="gone"
-            app:indicatorColor="@color/spotify_green"
+            app:indicatorColor="?attr/colorPrimary"
             app:indicatorSize="20dp"
             app:trackColor="@color/spotify_card" />
     </LinearLayout>

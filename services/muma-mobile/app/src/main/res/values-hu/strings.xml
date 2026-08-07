@@ -247,10 +247,6 @@
     <string name="settings.show_track_number">Sorszám megjelenítése</string>
     <string name="settings.show_track_number_summary">Dalok sorszámának megjelenítése.</string>
     <string name="settings.test_connection_title">Kapcsolat tesztelése</string>
-    <string name="settings.theme_light">Világos</string>
-    <string name="settings.theme_dark">Sötét</string>
-    <string name="settings.theme_black">Fekete</string>
-    <string name="settings.theme_title">Téma</string>
     <string name="settings.title.allow_self_signed_certificate">Engedélyezze az önaláírt HTTPS tanúsítványt</string>
     <string name="settings.title.force_plain_text_password">Egyszerű jelszavas hitelesítés kényszerítése</string>
     <string name="settings.use_folder_for_album_artist">Mappanevek használata az előadók neveként</string>

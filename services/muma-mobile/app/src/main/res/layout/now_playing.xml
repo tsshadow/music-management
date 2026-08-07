@@ -17,7 +17,7 @@
         a:layout_height="wrap_content"
         a:layout_marginHorizontal="0dp"
         a:layout_marginTop="0dp"
-        app:indicatorColor="@color/spotify_green"
+        app:indicatorColor="?attr/colorPrimary"
         app:trackColor="@color/spotify_light"
         app:trackThickness="2dp"
         a:progress="30" />
@@ -82,7 +82,7 @@
             a:contentDescription="@string/buttons.play"
             a:focusable="false"
             app:icon="@drawable/media_pause"
-            app:iconTint="@color/spotify_green"
+            app:iconTint="?attr/colorPrimary"
             app:iconSize="32dp" />
     </LinearLayout>
 </LinearLayout>

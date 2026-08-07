@@ -238,9 +238,6 @@
     <string name="settings.show_track_number">Wyświetlaj numer utworu</string>
     <string name="settings.show_track_number_summary">Dołącza numer utworu podczas wyświetlania utworu</string>
     <string name="settings.test_connection_title">Testuj połączenie</string>
-    <string name="settings.theme_light">Jasny</string>
-    <string name="settings.theme_dark">Ciemny</string>
-    <string name="settings.theme_title">Motyw</string>
     <string name="settings.title.allow_self_signed_certificate">Zezwalaj na własne certyfikaty HTTPS</string>
     <string name="settings.title.force_plain_text_password">Wymuś uwierzytelnianie zwykłym hasłem</string>
     <string name="settings.use_folder_for_album_artist">Używaj folderów jako nazw wykonawców</string>
@@ -385,8 +382,6 @@
     <string name="foreground_exception_title">Nie można wznowić odtwarzania</string>
     <string name="chat.user_avatar">Awatar</string>
     <string name="language.zh_TW">Chiński (Tajwan)</string>
-    <string name="settings.theme_day_night">Dzień i noc</string>
-    <string name="settings.theme_black">Czarny</string>
     <string name="settings.summary.force_plain_text_password">Zmusza aplikację do przesyłania hasła w postaci niezaszyfrowanej. Przydaje się, gdy serwer Subsonic nie obsługuje nowego API uwierzytelniania użytkowników.</string>
     <string name="settings.show_now_playing_details_summary">Pokaż więcej informacji o utworze w sekcji Obecnie odtwarzane (gatunek, rok, przepustowość)</string>
     <string name="settings.show_now_playing_details">Pokaż szczegóły w sekcji Obecnie odtwarzane</string>

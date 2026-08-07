@@ -287,11 +287,6 @@
     <string name="settings.show_track_number">Mostrar o Número da Faixa</string>
     <string name="settings.show_track_number_summary">Incluir o número da faixa ao mostrar uma música</string>
     <string name="settings.test_connection_title">Teste de Conexão</string>
-    <string name="settings.theme_day_night">Dia &amp; Noite</string>
-    <string name="settings.theme_light">Claro</string>
-    <string name="settings.theme_dark">Escuro</string>
-    <string name="settings.theme_black">Negro</string>
-    <string name="settings.theme_title">Tema</string>
     <string name="settings.title.allow_self_signed_certificate">Permitir Certificado HTTPS Auto-assinado</string>
     <string name="settings.title.force_plain_text_password">Forçar autenticação não criptografada</string>
     <string name="settings.summary.force_plain_text_password">Isso força o aplicativo a enviar a senha sem criptografia. É útil se o servidor Subsonic não suporta a nova API de autenticação de usuários.</string>

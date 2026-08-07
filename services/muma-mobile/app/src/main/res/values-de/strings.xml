@@ -287,10 +287,6 @@
     <string name="settings.show_track_number">Titelnummer anzeigen</string>
     <string name="settings.show_track_number_summary">Titel mit Nummer anzeigen</string>
     <string name="settings.test_connection_title">Verbindung testen</string>
-    <string name="settings.theme_light">Hell</string>
-    <string name="settings.theme_dark">Dunkel</string>
-    <string name="settings.theme_black">Schwarz</string>
-    <string name="settings.theme_title">Farbschema</string>
     <string name="settings.title.allow_self_signed_certificate">Selbst-signierte HTTPS Zertifikate erlauben</string>
     <string name="settings.title.force_plain_text_password">Authentifizierung mit einfachem Passwort erzwingen</string>
     <string name="settings.summary.force_plain_text_password">Dies zwingt die App, das Kennwort immer unverschlüsselt zu senden. Hilfreich wenn der Subsonic Server keine Autorisierungs-API unterstützt.</string>
@@ -427,7 +423,6 @@
     <string name="settings.preload_50">50 Titel</string>
     <string name="settings.preload_100">100 Titel</string>
     <string name="settings.preload_1000">1000 Titel</string>
-    <string name="settings.theme_day_night">Tag &amp; Nacht</string>
     <string name="settings.use_id3_offline_summary">Wenn Du diese Einstellung aktivierst, wird nur die Musik angezeigt, die Du mit Ultrasonic 4.0 oder höher heruntergeladen hast. Bei früheren Downloads werden die erforderlichen Metadaten nicht heruntergeladen. Du kannst zwischen Pin- und Speichermodus umschalten, um den Download der fehlenden Metadaten auszulösen.</string>
     <string name="albumArt">Album-Artwork</string>
     <string name="notification.permission_required">Benachrichtigungen sind für die Medienwiedergabe erforderlich. Du kannst die Erlaubnis jederzeit in den Android-Einstellungen erteilen.</string>

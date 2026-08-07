@@ -25,9 +25,9 @@ object Settings {
         get() = PreferenceManager.getDefaultSharedPreferences(Util.appContext())
 
     @JvmStatic
-    var theme by StringSetting(
-        getKey(R.string.setting_key_theme),
-        getKey(R.string.setting_key_theme_black)
+    var accent by StringSetting(
+        getKey(R.string.setting_key_accent),
+        getKey(R.string.setting_key_accent_green)
     )
 
     /**

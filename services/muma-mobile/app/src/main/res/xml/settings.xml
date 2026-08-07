@@ -18,11 +18,11 @@
         a:title="@string/settings.appearance_title"
         app:iconSpaceReserved="false">
         <ListPreference
-            a:defaultValue="@string/setting_key.theme_black"
-            a:entries="@array/themeNames"
-            a:entryValues="@array/themeValues"
-            a:key="@string/setting_key.theme"
-            a:title="@string/settings.theme_title"
+            a:defaultValue="@string/setting_key.accent_green"
+            a:entries="@array/accentNames"
+            a:entryValues="@array/accentValues"
+            a:key="@string/setting_key.accent"
+            a:title="@string/settings.accent_title"
             app:iconSpaceReserved="false"/>
         <ListPreference
             a:defaultValue="75"

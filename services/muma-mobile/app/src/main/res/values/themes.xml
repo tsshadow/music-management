@@ -17,11 +17,7 @@
         <item name="windowNoTitle">true</item>
     </style>
 
-    <!-- The day & night theme. There is a night specific override in the values-night folder -->
-    <style name="UltrasonicTheme.DayNight" parent="UltrasonicTheme.Black">
-    </style>
-
-    <style name="UltrasonicTheme.Black" parent="Theme.Material3.Dark">
+    <style name="UltrasonicTheme.Green" parent="Theme.Material3.Dark">
         <item name="colorPrimary">@color/spotify_green</item>
         <item name="colorPrimaryDark">@color/spotify_black</item>
         <item name="colorAccent">@color/spotify_green</item>
@@ -33,10 +29,10 @@
         <item name="android:textColorSecondary">@color/spotify_text_secondary</item>
     </style>
 
-    <style name="UltrasonicTheme.Dark" parent="UltrasonicTheme.Black">
-    </style>
-
-    <style name="UltrasonicTheme.Light" parent="UltrasonicTheme.Black">
+    <!-- Only the accent differs; the background stays black in both themes. -->
+    <style name="UltrasonicTheme.Blue" parent="UltrasonicTheme.Green">
+        <item name="colorPrimary">@color/muma_indigo</item>
+        <item name="colorAccent">@color/muma_indigo</item>
     </style>
 
 </resources>

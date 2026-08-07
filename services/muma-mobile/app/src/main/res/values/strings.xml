@@ -223,6 +223,9 @@
     <string name="select_year.empty">No years found</string>
     <string name="select_playlist.empty">No saved playlists on server</string>
     <string name="settings.appearance_title">Appearance</string>
+    <string name="settings.accent_title">Accent colour</string>
+    <string name="settings.accent_green">Green</string>
+    <string name="settings.accent_blue">Blue</string>
     <string name="settings.memories_on_home_title">Show memories on the home screen</string>
     <string name="settings.memories_on_home_summary">A short row of "today, X years ago" releases above the other sections</string>
     <string name="settings.separate_home_history_title">Separate home history per mode</string>
@@ -435,11 +438,6 @@
     <string name="settings.track_list_lines_summary">How much of a track to show on each row</string>
     <string name="settings.track_list_lines_two">2 lines (compact)</string>
     <string name="settings.track_list_lines_three">3 lines (detailed)</string>
-    <string name="settings.theme_day_night">Day &amp; Night</string>
-    <string name="settings.theme_light">Light</string>
-    <string name="settings.theme_dark">Dark</string>
-    <string name="settings.theme_black">Black</string>
-    <string name="settings.theme_title">Theme</string>
     <string name="settings.ui_scale_title">Interface size</string>
     <string name="settings.title.allow_self_signed_certificate">Allow self-signed HTTPS certificate</string>
     <string name="settings.title.force_plain_text_password">Force plain password authentication</string>

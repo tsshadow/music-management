@@ -224,9 +224,6 @@
     <string name="settings.show_track_number">トラック番号を表示</string>
     <string name="settings.show_track_number_summary">曲を表示するとき、トラック番号も表示します</string>
     <string name="settings.test_connection_title">接続テスト</string>
-    <string name="settings.theme_day_night">デイ &amp; ナイト</string>
-    <string name="settings.theme_light">ライト</string>
-    <string name="settings.theme_dark">ダーク</string>
     <string name="settings.title.allow_self_signed_certificate">自己署名のHTTPS証明書を許可</string>
     <string name="settings.title.force_plain_text_password">平文パスワード認証を強制する</string>
     <string name="settings.summary.force_plain_text_password">この機能により、アプリは常にパスワードを暗号化せずに送信するようになります。 Subsonic サーバーがユーザーの新しい認証 API をサポートしていない場合に有用です。</string>
@@ -403,8 +400,6 @@
     <string name="settings.search_50">50</string>
     <string name="settings.search_75">75</string>
     <string name="settings.search_500">500</string>
-    <string name="settings.theme_black">ブラック</string>
-    <string name="settings.theme_title">テーマ</string>
     <string name="settings.use_id3_offline_summary">この設定を有効にすると、Ultrasonic 4.0以降でダウンロードした音楽のみが表示されます。それ以前のバージョンでダウンロードしたファイルには、必要なメタデータが含まれていません。固定モードと保存モードを切り替えることで、不足メタデータのダウンロードができます。</string>
     <string name="settings.show_now_playing_details">再生中に詳細を表示</string>
     <string name="widget.sdcard_busy">SDカード利用不可</string>

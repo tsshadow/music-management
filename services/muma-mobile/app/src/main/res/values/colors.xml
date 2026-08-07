@@ -15,6 +15,11 @@
     <color name="spotify_text_primary">#ffffff</color>
     <color name="spotify_text_secondary">#b3b3b3</color>
 
+    <!-- Ultrasonic indigo. The launcher icon uses the original #3f51b5, but that measures
+         2.73:1 against #121212, below the 3:1 floor for UI components, so the in-app accent
+         is Indigo 300 at 5.43:1 — on par with the green's 6.96:1. -->
+    <color name="muma_indigo">#7986cb</color>
+
     <!-- Loading placeholders: one step lighter than a card, so a skeleton reads as "content is
          coming" rather than as an empty card -->
     <color name="skeleton_block">#2f2f2f</color>

@@ -37,6 +37,7 @@ import nl.teunschriks.mumamobile.service.RxBus
 import nl.teunschriks.mumamobile.service.plusAssign
 import nl.teunschriks.mumamobile.util.RefreshableFragment
 import nl.teunschriks.mumamobile.util.Util
+import nl.teunschriks.mumamobile.util.themeColor
 
 /**
  * An abstract Model, which can be extended to display a list of items of type T from the API
@@ -168,9 +169,9 @@ abstract class MultiListFragment<T : Identifiable> :
         if (!isAdded) return
 
         val brandColor = if (nl.teunschriks.mumamobile.util.Settings.isSetsMode) {
-            requireContext().getColor(R.color.spotify_blue)
+            requireContext().themeColor(R.attr.brandColorSets)
         } else {
-            requireContext().getColor(R.color.spotify_green)
+            requireContext().themeColor(androidx.appcompat.R.attr.colorPrimary)
         }
 
         (listView as? FastScrollRecyclerView)?.let {

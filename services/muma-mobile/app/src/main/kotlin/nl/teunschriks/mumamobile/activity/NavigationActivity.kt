@@ -97,6 +97,7 @@ import nl.teunschriks.mumamobile.util.UiScaleHelper
 import nl.teunschriks.mumamobile.util.UncaughtExceptionHandler
 import nl.teunschriks.mumamobile.util.UpdateChecker
 import nl.teunschriks.mumamobile.util.Util
+import nl.teunschriks.mumamobile.util.themeColor
 import timber.log.Timber
 
 /**
@@ -310,7 +311,7 @@ class NavigationActivity : ScopeActivity() {
     }
 
     private fun updateSetsToggleColors(toggle: MaterialSwitch, isSets: Boolean) {
-        val brandColor = getColor(R.color.spotify_green)
+        val brandColor = themeColor(androidx.appcompat.R.attr.colorPrimary)
         val states = arrayOf(
             intArrayOf(android.R.attr.state_checked),
             intArrayOf(-android.R.attr.state_checked)

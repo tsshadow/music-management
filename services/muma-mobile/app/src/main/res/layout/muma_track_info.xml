@@ -102,7 +102,7 @@
                                 android:background="?attr/selectableItemBackgroundBorderless"
                                 android:contentDescription="@null"
                                 android:padding="2dp"
-                                app:tint="@color/spotify_green" />
+                                app:tint="?attr/colorPrimary" />
 
                             <ImageView
                                 android:id="@+id/track_info_star_2"
@@ -111,7 +111,7 @@
                                 android:background="?attr/selectableItemBackgroundBorderless"
                                 android:contentDescription="@null"
                                 android:padding="2dp"
-                                app:tint="@color/spotify_green" />
+                                app:tint="?attr/colorPrimary" />
 
                             <ImageView
                                 android:id="@+id/track_info_star_3"
@@ -120,7 +120,7 @@
                                 android:background="?attr/selectableItemBackgroundBorderless"
                                 android:contentDescription="@null"
                                 android:padding="2dp"
-                                app:tint="@color/spotify_green" />
+                                app:tint="?attr/colorPrimary" />
 
                             <ImageView
                                 android:id="@+id/track_info_star_4"
@@ -129,7 +129,7 @@
                                 android:background="?attr/selectableItemBackgroundBorderless"
                                 android:contentDescription="@null"
                                 android:padding="2dp"
-                                app:tint="@color/spotify_green" />
+                                app:tint="?attr/colorPrimary" />
 
                             <ImageView
                                 android:id="@+id/track_info_star_5"
@@ -138,7 +138,7 @@
                                 android:background="?attr/selectableItemBackgroundBorderless"
                                 android:contentDescription="@null"
                                 android:padding="2dp"
-                                app:tint="@color/spotify_green" />
+                                app:tint="?attr/colorPrimary" />
                         </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>

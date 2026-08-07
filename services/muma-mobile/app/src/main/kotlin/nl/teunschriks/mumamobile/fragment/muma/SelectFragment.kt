@@ -34,6 +34,7 @@ import nl.teunschriks.mumamobile.service.plusAssign
 import nl.teunschriks.mumamobile.util.RefreshableFragment
 import nl.teunschriks.mumamobile.util.Util.applyTheme
 import nl.teunschriks.mumamobile.util.toastingExceptionHandler
+import nl.teunschriks.mumamobile.util.themeColor
 import timber.log.Timber
 
 abstract class SelectFragment :
@@ -125,9 +126,9 @@ abstract class SelectFragment :
         if (!isAdded) return
 
         val brandColor = if (nl.teunschriks.mumamobile.util.Settings.isSetsMode) {
-            requireContext().getColor(R.color.spotify_blue)
+            requireContext().themeColor(R.attr.brandColorSets)
         } else {
-            requireContext().getColor(R.color.spotify_green)
+            requireContext().themeColor(androidx.appcompat.R.attr.colorPrimary)
         }
 
         swipeRefresh?.setColorSchemeColors(brandColor)

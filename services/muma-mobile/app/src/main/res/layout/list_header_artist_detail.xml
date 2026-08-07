@@ -95,7 +95,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:contentDescription="@string/select_album.play_all"
-        app:backgroundTint="@color/spotify_green"
+        app:backgroundTint="?attr/colorPrimary"
         app:fabSize="normal"
         app:layout_constraintBottom_toBottomOf="@id/artist_image"
         app:layout_constraintEnd_toEndOf="parent"

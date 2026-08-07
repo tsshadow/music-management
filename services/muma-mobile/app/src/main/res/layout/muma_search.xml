@@ -34,7 +34,7 @@
             android:layout_height="48dp"
             android:layout_gravity="bottom|end"
             android:layout_margin="32dp"
-            android:backgroundTint="@color/spotify_green"
+            android:backgroundTint="?attr/colorPrimary"
             android:background="@drawable/rounded_button"
             android:contentDescription="@string/show_filters"
             android:src="@android:drawable/ic_menu_search"

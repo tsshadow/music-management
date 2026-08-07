@@ -115,6 +115,7 @@ import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.Util.toast
 import nl.teunschriks.mumamobile.util.toTrack
+import nl.teunschriks.mumamobile.util.themeColor
 import nl.teunschriks.mumamobile.view.AutoRepeatButton
 import timber.log.Timber
 
@@ -1119,9 +1120,9 @@ class PlayerFragment :
 
     private fun updateBrandColors() {
         val brandColor = if (Settings.isSetsMode) {
-            requireContext().getColor(R.color.spotify_blue)
+            requireContext().themeColor(R.attr.brandColorSets)
         } else {
-            requireContext().getColor(R.color.spotify_green)
+            requireContext().themeColor(androidx.appcompat.R.attr.colorPrimary)
         }
 
         progressBar.progressTintList = ColorStateList.valueOf(brandColor)
@@ -1376,14 +1377,11 @@ class PlayerFragment :
     private fun setLayerDrawableColors(drawable: LayerDrawable) {
         drawable.apply {
             getDrawable(0).setTint(requireContext().themeColor(com.google.android.material.R.attr.colorSurface))
-            getDrawable(1).setTint(requireContext().themeColor(android.R.attr.colorPrimary))
+            // The appcompat attribute, not android:colorPrimary: our themes only define the
+            // former, so the framework one would not follow the accent setting.
+            getDrawable(1).setTint(requireContext().themeColor(androidx.appcompat.R.attr.colorPrimary))
         }
     }
-
-    @ColorInt
-    fun Context.themeColor(@AttrRes attrRes: Int): Int = TypedValue()
-        .apply { theme.resolveAttribute(attrRes, this, true) }
-        .data
 
     private fun setSongRating(rating: Int) {
         setRatingFor(currentSong ?: return, rating)

@@ -32,6 +32,7 @@ import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Util.applyTheme
 import nl.teunschriks.mumamobile.util.Util.getNotificationImageSize
 import nl.teunschriks.mumamobile.util.toTrack
+import nl.teunschriks.mumamobile.util.themeColor
 import timber.log.Timber
 
 /**
@@ -117,9 +118,9 @@ class NowPlayingFragment : ScopeFragment() {
     private fun update() {
         try {
             val brandColor = if (Settings.isSetsMode) {
-                requireContext().getColor(R.color.spotify_blue)
+                requireContext().themeColor(R.attr.brandColorSets)
             } else {
-                requireContext().getColor(R.color.spotify_green)
+                requireContext().themeColor(androidx.appcompat.R.attr.colorPrimary)
             }
             nowPlayingProgress?.setIndicatorColor(brandColor)
 

@@ -28,6 +28,7 @@ import com.google.android.material.textfield.TextInputLayout
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.util.LayoutType
 import nl.teunschriks.mumamobile.util.Settings
+import nl.teunschriks.mumamobile.util.themeColor
 import timber.log.Timber
 
 /**
@@ -226,9 +227,9 @@ class FilterButtonBar : ConstraintLayout {
      */
     fun updateBrandColors(isSetsChecked: Boolean = Settings.isSetsMode) {
         val brandColor = if (isSetsChecked) {
-            context.getColor(R.color.spotify_blue)
+            context.themeColor(R.attr.brandColorSets)
         } else {
-            context.getColor(R.color.spotify_green)
+            context.themeColor(androidx.appcompat.R.attr.colorPrimary)
         }
 
         val states = arrayOf(

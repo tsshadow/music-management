@@ -39,7 +39,7 @@ A modern, responsive Svelte application that provides:
 A FastAPI service acting as the management backend:
 - Consolidates ratings, scrobbling history, and stats.
 - Manages the "Artist Image Fetcher" for metadata enrichment.
-- Provides real-time notifications via `ntfy.sh`.
+- Keeps a severity-tagged event log (`/api/events`) as the source of truth; `ntfy.sh` is a downstream push sink, not the origin of the data.
 
 ### 3. Music Management Server (`services/music-management-server`)
 The core streaming component:
@@ -155,6 +155,57 @@ docker-compose up -d
 ```bash
 docker-compose -f docker-compose.yml -f docker-compose.workers.yml logs -f importer_worker
 ```
+
+---
+
+## 🔔 Event Log & Alerts
+
+Every service writes structured events (`INFO`/`WARNING`/`ERROR`/`CRITICAL`) straight to the `events`
+table via `EventService`; that table is the source of truth, browsable in the frontend's Logboek tab
+and queryable via `GET /api/events` (see [API Specification](docs/api-specification.md)). `ntfy.sh` is
+a downstream sink, not the origin: the database keeps every event even if ntfy is unreachable. Two
+topics exist so milestones and alerts can have their own sound and visibility:
+- `notify_topic` (default `music-management`) — download/import milestones, pushed only when the
+  emitting code explicitly opts in.
+- `notify_topic_alerts` (default `music-management-alerts`) — every `WARNING` and higher,
+  automatically, with `Priority: high` (`WARNING`/`ERROR`) or `urgent` (`CRITICAL`). A repeat from
+  the same level/source/logger within five minutes is still written to the database but not pushed
+  again, so a warning that repeats every sweep cannot flood the phone.
+
+Filtering by source offers three values — `music-manager`, `downloader` and `importer` — the three
+processes that set up their own logging. The tagger and scanner loops are threads inside
+music-manager, so their events appear under `music-manager`.
+
+### Deployment prerequisite: instant delivery on a self-hosted ntfy server
+The official ntfy Android app uses Firebase for instant push, but only for topics hosted on
+`ntfy.sh` itself. Against a self-hosted server (this project uses `ntfy.example.com`) the app
+falls back to periodic polling, so a `CRITICAL` alert can arrive minutes late — which defeats the
+point of the alerts topic. The fix lives outside this repository, in the ntfy server's `server.yml`:
+
+```yaml
+upstream-base-url: "https://ntfy.sh"
+```
+
+With that line set, the self-hosted server sends a wake-up to `ntfy.sh` containing only a hash of
+the topic name — never the title or message body. `ntfy.sh` fires a Firebase push, the app wakes up
+and fetches the real message from the self-hosted server. Delivery is then instant, costs no extra
+battery, and the actual content never leaves the home network. Without this line the feature works
+exactly as designed, just late.
+
+### One-off device setup
+- The ntfy app creates a separate Android notification channel per priority. The channel used for
+  `urgent` (i.e. `CRITICAL`) must be set to override Do Not Disturb, or a `CRITICAL` alert stays
+  silent at night.
+- Give the alerts topic its own notification sound, distinct from the milestones topic, so a
+  `CRITICAL` is recognizable without looking at the phone.
+
+### Home Assistant and uptime monitoring
+Home Assistant needs no dedicated integration: a REST sensor polling
+`/api/events?level=ERROR&level=CRITICAL&since=-1h` with the API key as a header is enough to drive
+automations off the event count. Separately, `GET /health` now returns HTTP 503 (with
+`"status": "degraded"`) when the database is unreachable or a background thread has died, instead of
+always answering `ok` — this is what makes the existing Uptime Kuma monitor on that endpoint
+meaningful; no change is needed on the Kuma side.
 
 ---
 

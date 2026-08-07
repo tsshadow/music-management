@@ -73,7 +73,8 @@ The system is split into specialized services, each handling a specific part of 
     - User authentication (synchronizing with `music-management-server`).
     - Permanent track ratings and consolidated scrobbling history.
     - Master copies of metadata rules (genres, labels, artist normalization).
-    - Real-time notifications via `ntfy.sh`.
+    - The severity-tagged event log (`events` table, `/api/events`); `ntfy.sh` is a downstream push
+      sink, not the source of truth — see [Events & Alerts](#-events--alerts) below.
     - Dashboard API for the Svelte frontend.
     - **Integrated Services**: Hosts the `tagger` and `scanner` logic to enforce library standards.
 - **See Also**: [docs/architecture/responsibilities.md](docs/architecture/responsibilities.md) for data boundary details.
@@ -91,7 +92,73 @@ The system is split into specialized services, each handling a specific part of 
 3. **Database Update**: Metadata and tracking information are saved to the MariaDB `music_management` database.
 4. **Library Placement**: The file is moved to its permanent location in the music library.
 5. **Server Sync**: Music Management Server rescans the library, making the music available for playback.
-6. **Notification**: A success message (formatted via `BaseSong.__str__`) is sent to the user's mobile device via `ntfy.sh`.
+6. **Notification**: An `INFO` event with `push=True` is emitted, its message formatted via
+   `BaseSong.__str__`. It is written to the event log and, because push was requested, also relayed
+   to the user's mobile device via ntfy.
+
+---
+
+## 🔔 Events & Alerts
+
+Every service writes structured events (`INFO`/`WARNING`/`ERROR`/`CRITICAL`) directly to the `events`
+table through `EventService`; that table is the source of truth, not `ntfy.sh`. Each event then fans
+out to every registered sink, of which ntfy is currently the only one — so an event still exists,
+queryable via `GET /api/events`, even if ntfy itself is unreachable. This is the reverse of the
+pre-events design, where code POSTed to ntfy and a listener thread read it back to populate the
+database.
+
+Two ntfy topics keep milestones and alerts separate, since the ntfy Android app subscribes per topic
+and does not filter reliably on priority:
+- `notify_topic` (default `music-management`) — download/import milestones. Reached only when the
+  emitting code passes `push=True` (four call sites today).
+- `notify_topic_alerts` (default `music-management-alerts`) — every `WARNING` and higher,
+  automatically, with `Priority: high` (`WARNING`/`ERROR`) or `urgent` (`CRITICAL`) and a
+  severity-specific tag. A repeat of `(level, source, logger)` within a 5-minute window produces a
+  database row but no repeat push, so a single flapping connection cannot flood the phone. The key
+  deliberately ignores the title: routine warnings embed a changing countdown in their text
+  (`"still cooling down for 240s"`), and keying on the title would mean the brake never engages.
+  Events emitted directly, without a logger name, fall back to the title.
+
+`setup_logging(source)` decides what reaches the stream: `ALLOWED_PREFIXES` (`music-manager`,
+`downloader`, `importer`, `tagger`, `scanner`, `root` and their subloggers) is captured from `INFO`
+upward, everything else — uvicorn's access log above all — only from `WARNING`. `root` is on that
+list because the worker services log through the module-level API (`logging.info(...)`) rather than
+a named logger, so their records arrive as `root`; without it every `INFO` from the downloader and
+importer was dropped. The `source` field still identifies the process, since `setup_logging` sets it
+per service — only the `logger` column is uninformative for those rows. Filtering `/api/events` by
+source therefore offers exactly three values: `music-manager`, `downloader`, `importer`. The tagger
+and scanner loops run as threads inside the music-manager process and emit under its source.
+
+### Deployment prerequisite: `upstream-base-url`
+Instant delivery on the phone depends on a setting outside this repository. The official ntfy
+Android app uses Firebase for push, but only for topics hosted on `ntfy.sh` itself; against a
+self-hosted server (`ntfy.example.com` here) the app falls back to periodic polling, so a
+`CRITICAL` could arrive minutes late — defeating the purpose of the alerts topic. The fix is one line
+in the self-hosted server's `server.yml`:
+
+```yaml
+upstream-base-url: "https://ntfy.sh"
+```
+
+With that line set, the self-hosted server sends `ntfy.sh` a wake-up containing only a hash of the
+topic name (never the title or message body); `ntfy.sh` fires the Firebase push, and the app fetches
+the real message from the self-hosted server. Delivery is instant, costs no extra battery, and
+content never leaves the home network. Without it, the code-side implementation is unaffected —
+alerts just arrive late.
+
+Two one-off steps on the device itself: the ntfy app creates a separate Android notification channel
+per priority, so the channel backing `urgent` (i.e. `CRITICAL`) must be set to override Do Not
+Disturb, or a `CRITICAL` stays silent at night; and the alerts topic should get its own notification
+sound, distinct from the milestones topic.
+
+### Home Assistant and health monitoring
+Home Assistant needs no dedicated integration — a REST sensor on
+`/api/events?level=ERROR&level=CRITICAL&since=-1h`, with the API key sent as a header, is enough to
+drive automations off the event count. Separately, `GET /health` reports `status`, `service`,
+`version`, `database` (`ok`/`unreachable`) and `threads` (the long-running loops: `tagger`,
+`scanner`, `radio`, `events-retention`, plus `events` for the event worker), and returns HTTP 503
+when any of those is unhealthy — instead of the old hard-coded `ok`. This is what makes the existing
+Uptime Kuma monitor on that endpoint meaningful; nothing needs to change on the Kuma side.
 
 ---
 

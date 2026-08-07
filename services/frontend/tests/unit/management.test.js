@@ -5,6 +5,7 @@ import Management from '../../src/lib/management/Management.svelte';
 import {
   activeManagementTab, credentials, mumaApiKey, mumaUser, userPermissions
 } from '../../src/lib/store.js';
+import { t } from '../../src/lib/i18n/index.js';
 
 const STATS = {
   total_tracks: 12345, total_artists: 678, total_scrobbles: 90123, match_rate: 92,
@@ -29,7 +30,8 @@ function api({ configOk = true, verify = { type: 'user', user: USER }, loginOk =
     '/api/system/activity': { recent_added: [], recent_tagged: [] },
     '/api/stats': STATS,
     '/api/roles': [],
-    '/api/artist-images/stats': { total: 0, missing: 0 }
+    '/api/artist-images/stats': { total: 0, missing: 0 },
+    '/api/events': { events: [], counts: {}, total: 0 }
   };
 
   return vi.fn(async (url, options = {}) => {
@@ -135,12 +137,14 @@ describe('Management', () => {
     await waitFor(() => expect(screen.getByText('Docker Containers')).toBeTruthy());
   });
 
-  it('the notifications tab is reachable', async () => {
-    activeManagementTab.set('notifications');
+  it('the event log tab is reachable', async () => {
+    activeManagementTab.set('events');
 
     render(Management);
 
-    await waitFor(() => expect(screen.getByText('Meldingen')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText(get(t)('management.events.subtitle'))).toBeTruthy()
+    );
   });
 
   it('the user requests tab is reachable', async () => {

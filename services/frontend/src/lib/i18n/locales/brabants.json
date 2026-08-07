@@ -20,6 +20,11 @@
     "similar": "Da vinde ze ok schôon",
     "verified": "Echte artiest"
   },
+  "collection": {
+    "clearFilters": "Filters weghaole",
+    "minimum": "Minstens",
+    "noMatches": "Niks gevonde mee deez filters"
+  },
   "common": {
     "add": "Derbij doen",
     "album": "Album",
@@ -56,6 +61,7 @@
     "noAlbums": "Gin albums gevonde",
     "noGenres": "Gin soorte in oew bieb.",
     "noLabels": "Gin labels in oew bieb.",
+    "noPlaylists": "Gin lijskes gevonde",
     "noSets": "Gin sets gevonde",
     "noTracks": "Gin nummerkes gevonde",
     "noTracksInSection": "Hier staot niks in.",

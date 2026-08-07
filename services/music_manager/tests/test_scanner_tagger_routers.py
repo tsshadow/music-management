@@ -1,4 +1,4 @@
-"""Coverage for the scanner/tagger routers and the ntfy listener."""
+"""Coverage for the scanner/tagger routers."""
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
@@ -6,9 +6,6 @@ from unittest.mock import MagicMock, patch
 for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
     sys.modules.setdefault(_mod_name, MagicMock())
 
-import services.music_manager.ntfy_listener as ntfy_listener
-
-ntfy_listener.start_ntfy_listener = lambda: None
 import services.music_manager.routers.users as users_router
 
 users_router.run_lms_db_sync = lambda: None
@@ -355,62 +352,6 @@ class TaggerManagerTest(unittest.TestCase):
             with self.assertRaises(KeyboardInterrupt):
                 tagger_router.run_tagger_loop(sleeptime=1)
         self.assertEqual(run_full.call_count, 2)
-
-
-class NtfyListenerTest(unittest.TestCase):
-
-    def setUp(self):
-        self.conn = MagicMock()
-        self.cursor = MagicMock()
-        self.conn.cursor.return_value.__enter__.return_value = self.cursor
-        self.conn.cursor.return_value.__exit__.return_value = False
-        patcher = patch.object(ntfy_listener, 'get_db_connection', return_value=self.conn)
-        patcher.start()
-        self.addCleanup(patcher.stop)
-
-    def test_a_message_is_stored(self):
-        ntfy_listener._handle_notification(
-            {'event': 'message', 'title': 'Import', 'message': 'done', 'topic': 'music'})
-        self.assertEqual(self.cursor.execute.call_args.args[1], ('Import', 'done', 'music'))
-        self.conn.commit.assert_called_once()
-
-    def test_a_message_without_a_title_gets_the_default_one(self):
-        ntfy_listener._handle_notification({'event': 'message'})
-        self.assertEqual(self.cursor.execute.call_args.args[1], ('Music Management', '', ''))
-
-    def test_a_non_message_event_is_ignored(self):
-        ntfy_listener._handle_notification({'event': 'keepalive'})
-        self.cursor.execute.assert_not_called()
-
-    def test_a_message_arriving_without_a_database_is_dropped(self):
-        with patch.object(ntfy_listener, 'get_db_connection', return_value=None):
-            ntfy_listener._handle_notification({'event': 'message'})  # must not raise
-
-    def test_an_unconfigured_listener_waits_and_retries(self):
-        config = MagicMock()
-        config.get.return_value = None
-        with patch.object(ntfy_listener, 'ConfigStore', return_value=config), \
-             patch.object(ntfy_listener.time, 'sleep', side_effect=KeyboardInterrupt), \
-             patch.object(ntfy_listener, 'requests') as http, self.assertRaises(KeyboardInterrupt):
-            ntfy_listener.listen_to_ntfy()
-        http.get.assert_not_called()
-
-    def test_every_streamed_line_is_handled(self):
-        config = MagicMock()
-        config.get.side_effect = lambda key: {'notify_url': 'https://ntfy.test/', 'notify_topic': 'music'}[key]
-        response = MagicMock()
-        response.__enter__.return_value = response
-        response.iter_lines.return_value = [b'', b'{"event": "message"}', b'not json']
-        with patch.object(ntfy_listener, 'ConfigStore', return_value=config), \
-             patch.object(ntfy_listener, 'requests') as http, \
-             patch.object(ntfy_listener, '_handle_notification') as handle, \
-             patch.object(ntfy_listener.time, 'sleep', side_effect=KeyboardInterrupt):
-            http.get.return_value = response
-            # The listener loops forever; the second pass is cut short by the sleep.
-            http.get.side_effect = [response, RuntimeError('stream dropped')]
-            with self.assertRaises(KeyboardInterrupt):
-                ntfy_listener.listen_to_ntfy()
-        handle.assert_called_once_with({'event': 'message'})
 
 
 if __name__ == '__main__':

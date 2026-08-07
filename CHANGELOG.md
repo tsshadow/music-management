@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-07
+
+### Added
+- **A severity-tagged event log replaces the flat notifications list.** Every service now writes
+  `INFO`/`WARNING`/`ERROR`/`CRITICAL` events straight to a new `events` table, which is the source of
+  truth; `ntfy.sh` becomes a downstream sink instead of the only place an event ever existed. The
+  frontend's Notifications tab is now Logboek, with level chips, a service filter, a time window and
+  search. A new `notify_topic_alerts` topic gets every `WARNING` and higher automatically, with a
+  priority and tag per severity and de-duplication for repeats within five minutes, so a single
+  flapping connection can't flood the phone. `GET /health` reports real database and background-thread
+  status and returns 503 when degraded, instead of a hard-coded `ok`.
+- **Tapping the playing track opens a track info sheet.** The MuMa Mobile player's options menu
+  carried seven entries that all acted on the one playing track — go to artist, go to album, show
+  metadata, lyrics, share song, refresh track and the two bookmark items — buried behind an overflow
+  menu that is otherwise about the queue. Tapping the title block now opens a sheet with the cover on
+  a blurred backdrop of itself, the five star rating, artist and album as rows that navigate, the
+  remaining actions as buttons, and genre, track number, release date and duration underneath, with
+  the technical details folded away. Rows the track cannot fill hide instead of rendering `Year: `
+  with nothing after it, which the old metadata screen did.
+- **The genres, labels and playlists views can be sorted and filtered.** The three collection grids
+  had no controls at all: genres arrived alphabetically with everything under ten tracks silently
+  dropped, labels arrived alphabetically without counts, and playlists in whatever order the server
+  listed them. They now share a search box, a sort key with a direction toggle, a favourites chip and
+  a live "shown of total". Genres and labels get "minimaal 10/50/100" chips in place of the hardcoded
+  threshold, playlists get a visibility chip and sort on length and last change, and labels and
+  playlists can be favourited the way genres already could. `getRecordLabels` answers with
+  `songCount`/`albumCount`, without which labels could not be sorted or filtered by size at all.
+
+### Fixed
+- **Clicking a label filtered on the wrong thing.** `label:Kompakt: Total` was split on every colon
+  and filtered on `Kompakt`, which no track carries; names are now taken whole. The genre, year and
+  search filters are shared by every track list, so a genre picked on the Songs screen — or a
+  leftover search term — silently narrowed the label just tapped; they are reset when a different
+  track list opens. Genre and label names now go into the URL percent-encoded, so a name with a slash
+  no longer parses back as a different view.
+- The management screen kept polling artist-image progress after it was gone, so the requests and
+  their logging outlived the screen.
+- The event log tab no longer crashes on a `200` whose body is not the log payload; it shows nothing
+  instead.
+
 ## [0.6.0] - 2026-08-06
 
 ### Added

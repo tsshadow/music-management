@@ -13,6 +13,13 @@ from services.downloader.timing import load_timing
 NOW = datetime(2026, 8, 2, 12, 0, 0)
 
 
+class StubNotifier:
+    """Stub notifier for test isolation — prevents sweep.py lazy import."""
+
+    def notify(self, message, title='Music Management'):
+        return True
+
+
 class BlankAccountRunTest(unittest.TestCase):
     """An account can give nothing back without SoundCloud having blocked us.
 
@@ -34,6 +41,7 @@ class BlankAccountRunTest(unittest.TestCase):
             rate_state=RateState('soundcloud', self.timing, store=self.store,
                                  now=lambda: NOW, jitter=lambda: 1.0),
             schedule=AccountSchedule('soundcloud', store=InMemoryCheckStore(), now=lambda: NOW),
+            notifier=StubNotifier(),
         )
 
     def test_a_single_blank_account_does_not_park_the_source(self):

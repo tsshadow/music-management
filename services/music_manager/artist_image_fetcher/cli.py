@@ -1,5 +1,4 @@
 import argparse
-import logging
 import os
 import sys
 
@@ -9,15 +8,13 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'
 from dotenv import load_dotenv
 
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+from services.common.Helpers.logging_setup import setup_logging
 from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetcher
 
 load_dotenv()
 
-def setup_logging():
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', handlers=[logging.StreamHandler()])
-
 def main():
-    setup_logging()
+    setup_logging('music-manager')
     parser = argparse.ArgumentParser(description='Artist Image Fetcher CLI')
     subparsers = parser.add_subparsers(dest='command', help='Commands')
     fetch_parser = subparsers.add_parser('fetch', help='Fetch images for a specific artist')

@@ -70,12 +70,13 @@ class SoundcloudDownloader:
     """
 
     def __init__(self, break_on_existing=True, dry_run=False, timing=None, rate_state=None,
-                 schedule=None, unavailable=None):
+                 schedule=None, unavailable=None, notifier=None):
         self._config = ConfigStore()
         self.default_break_on_existing = break_on_existing
         self.dry_run = dry_run
         self.redownload_mode = False
-        self.policy = SweepPolicy(SOURCE, timing=timing, rate_state=rate_state, schedule=schedule)
+        self.policy = SweepPolicy(SOURCE, timing=timing, rate_state=rate_state, schedule=schedule,
+                                  notifier=notifier)
         self.unavailable = unavailable if unavailable is not None else UnavailableTracks(
             retry_days=self.policy.timing.unavailable_retry_days)
         self._profile_snapshot: str | None = None

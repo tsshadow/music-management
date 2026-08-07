@@ -98,10 +98,23 @@ namespace lms::db
     public:
         Label() = default;
 
+        // A label with the size of its catalogue, so a client can sort labels by how much
+        // music they account for without asking for a count per label.
+        struct Stats
+        {
+            LabelId id;
+            std::string name;
+            std::size_t trackCount{};
+            std::size_t releaseCount{};
+        };
+
         static std::size_t getCount(Session& session);
         static pointer find(Session& session, LabelId id);
         static pointer find(Session& session, std::string_view name);
         static void find(Session& session, LabelSortMethod sortMethod, std::function<void(const Label::pointer& label)> func);
+        // Same set and order as find(), with the counts filled in by one grouped query rather
+        // than a query per label.
+        static void findStats(Session& session, LabelSortMethod sortMethod, std::function<void(const Stats& stats)> func);
         static RangeResults<LabelId> findOrphanIds(Session& session, std::optional<Range> range = std::nullopt);
 
         // Accessors

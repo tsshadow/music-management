@@ -20,6 +20,11 @@
     "similar": "Dit vindt ze ok mooi",
     "verified": "Echte artiest"
   },
+  "collection": {
+    "clearFilters": "Filters weghaoln",
+    "minimum": "Minstens",
+    "noMatches": "Niks evondn met disse filters"
+  },
   "common": {
     "add": "Derbie doon",
     "album": "Album",
@@ -56,6 +61,7 @@
     "noAlbums": "Gin albums evondn",
     "noGenres": "Gin soortn in oew bieb.",
     "noLabels": "Gin labels in oew bieb.",
+    "noPlaylists": "Gin lieskes evondn",
     "noSets": "Gin sets evondn",
     "noTracks": "Gin nummers evondn",
     "noTracksInSection": "Hier steet niks in.",

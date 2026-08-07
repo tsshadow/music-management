@@ -118,5 +118,19 @@
         app:layout_constraintTop_toBottomOf="@+id/current_total_duration"
         tools:text="Details" />
 
+    <!-- Sits on top of the title/artist/album block so tapping the track opens its info sheet.
+         An overlay rather than a wrapper, because the rows below are constrained to these views. -->
+    <View
+        a:id="@+id/current_playing_info_touch"
+        a:layout_width="0dp"
+        a:layout_height="0dp"
+        a:background="?attr/selectableItemBackground"
+        a:clickable="true"
+        a:contentDescription="@string/track_info.open"
+        a:focusable="true"
+        app:layout_constraintBottom_toBottomOf="@+id/current_playing_album"
+        app:layout_constraintEnd_toEndOf="@+id/current_playing_song"
+        app:layout_constraintStart_toStartOf="@+id/current_playing_song"
+        app:layout_constraintTop_toTopOf="@+id/current_playing_song" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

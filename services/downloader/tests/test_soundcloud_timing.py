@@ -14,6 +14,13 @@ from services.downloader.timing import load_timing
 NOW = datetime(2026, 7, 30, 12, 0, 0)
 
 
+class StubNotifier:
+    """Stub notifier for test isolation — prevents sweep.py lazy import."""
+
+    def notify(self, message, title='Music Management'):
+        return True
+
+
 class SoundcloudTimingTestBase(unittest.TestCase):
 
     overrides: dict = {}
@@ -58,6 +65,7 @@ class SoundcloudTimingTestBase(unittest.TestCase):
             timing=self.timing.with_multiplier(rate_state.multiplier),
             rate_state=rate_state,
             schedule=AccountSchedule('soundcloud', store=self.check_store, now=lambda: self.now),
+            notifier=StubNotifier(),
         )
 
 

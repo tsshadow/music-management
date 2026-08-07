@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Darkens the blurred cover behind the hero block so the title stays readable
+  ~ whatever the artwork looks like.
+  -->
+<shape xmlns:a="http://schemas.android.com/apk/res/android"
+    a:shape="rectangle">
+    <gradient
+        a:angle="315"
+        a:endColor="#E6121212"
+        a:startColor="#66121212"
+        a:type="linear" />
+</shape>

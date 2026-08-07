@@ -113,12 +113,11 @@ class LoopingTest(CliTestCase):
         self.assertEqual(sleep.call_args.args, (1,))
 
 
-class SetupLoggingTest(unittest.TestCase):
+class SetupLoggingTest(CliTestCase):
 
-    def test_logging_is_configured_at_info_level(self):
-        with patch.object(cli.logging, 'basicConfig') as basic_config:
-            cli.setup_logging()
-        self.assertEqual(basic_config.call_args.kwargs['level'], cli.logging.INFO)
+    def test_main_sets_up_logging_with_the_music_manager_source(self):
+        self.run_cli('fetch', '--artist-id', '7', '--name', 'Angerfist')
+        cli.setup_logging.assert_called_once_with('music-manager')
 
 
 if __name__ == '__main__':

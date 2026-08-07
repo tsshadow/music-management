@@ -992,6 +992,70 @@ namespace lms::db::tests
         }
     }
 
+    TEST_F(DatabaseFixture, Label_findStats)
+    {
+        ScopedLabel label{ session, "MyLabel" };
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            std::vector<Label::Stats> stats;
+            Label::findStats(session, LabelSortMethod::Name, [&](const Label::Stats& s) { stats.push_back(s); });
+            ASSERT_EQ(stats.size(), 1);
+            EXPECT_EQ(stats.front().id, label.getId());
+            EXPECT_EQ(stats.front().name, "MyLabel");
+            EXPECT_EQ(stats.front().trackCount, 0);
+            EXPECT_EQ(stats.front().releaseCount, 0);
+        }
+
+        ScopedRelease release{ session, "MyRelease" };
+        ScopedTrack track1{ session };
+        ScopedTrack track2{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            release.get().modify()->addLabel(label.get());
+            track1.get().modify()->setRelease(release.get());
+            track2.get().modify()->setRelease(release.get());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            std::vector<Label::Stats> stats;
+            Label::findStats(session, LabelSortMethod::Name, [&](const Label::Stats& s) { stats.push_back(s); });
+            ASSERT_EQ(stats.size(), 1);
+            EXPECT_EQ(stats.front().trackCount, 2);
+            EXPECT_EQ(stats.front().releaseCount, 1);
+        }
+    }
+
+    TEST_F(DatabaseFixture, Label_findStats_countsEachTrackOnce)
+    {
+        // A release can carry more than one label; the join then repeats its tracks, and a
+        // plain COUNT(*) would report them twice for each of the labels.
+        ScopedLabel labelA{ session, "LabelA" };
+        ScopedLabel labelB{ session, "LabelB" };
+        ScopedRelease release{ session, "MyRelease" };
+        ScopedTrack track{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            release.get().modify()->addLabel(labelA.get());
+            release.get().modify()->addLabel(labelB.get());
+            track.get().modify()->setRelease(release.get());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            std::vector<Label::Stats> stats;
+            Label::findStats(session, LabelSortMethod::Name, [&](const Label::Stats& s) { stats.push_back(s); });
+            ASSERT_EQ(stats.size(), 2);
+            EXPECT_EQ(stats[0].name, "LabelA");
+            EXPECT_EQ(stats[0].trackCount, 1);
+            EXPECT_EQ(stats[1].name, "LabelB");
+            EXPECT_EQ(stats[1].trackCount, 1);
+        }
+    }
+
     TEST_F(DatabaseFixture, Label_orphan)
     {
         ScopedLabel label{ session, "MyLabel" };

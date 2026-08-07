@@ -110,13 +110,25 @@ already had: `db::Filters` carries a `LabelId`, `Track::FindParameters` carries
 come back randomised server-side, so unlike the old `getSongsByGenre` path there
 is nothing to shuffle client-side.
 
-Two things about that endpoint are worth knowing. A label lives on the *release*
-in LMS while our tagger writes a per-file PUBLISHER tag, so label coverage
-depends on what LMS parsed; and ratings are per-user, resolved against whichever
-user the scheduler's API key belongs to. `include_unrated` decides whether a
-channel with a rating floor still plays tracks nobody has rated — it defaults to
-off, because a rating filter that quietly includes unrated tracks is not a
-rating filter.
+A label and a publisher are the same thing here, read from the same tag on both
+sides: our scanner stores `song.publisher()` in `library_labels`, and LMS maps
+`TagType::RecordLabel` to `LABEL`, `PUBLISHER` and `ORGANIZATION`
+(`audio/impl/taglib/TagReader.cpp`). So the names in the management screen's
+label picker are the names LMS knows, and nothing needs reconciling between the
+two. Two smaller mismatches are still possible, and the filter preview is how
+you spot either:
+
+- LMS hangs the label on the *release* and filters tracks through
+  `release_label` on `t.release_id`, so a track LMS never grouped into a release
+  is unreachable by a label channel however well tagged its file is.
+- LMS splits a multi-valued tag on its configured delimiters while the scanner
+  keeps the publisher string whole, so `Foo;Bar` is two labels there and one row
+  here.
+
+Ratings are per-user, resolved against whichever user the scheduler's API key
+belongs to. `include_unrated` decides whether a channel with a rating floor
+still plays tracks nobody has rated — it defaults to off, because a rating
+filter that quietly includes unrated tracks is not a rating filter.
 
 The older nullable `genre` column still drives any channel created before
 `filter_json` existed. Editing a channel's filter clears it, so the two can never

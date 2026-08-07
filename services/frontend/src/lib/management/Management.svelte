@@ -20,7 +20,7 @@
   import UsersTab from './tabs/UsersTab.svelte';
   import UserRequestsTab from './tabs/UserRequestsTab.svelte';
   import WorkerVersionsTab from './tabs/WorkerVersionsTab.svelte';
-  import NotificationsTab from './tabs/NotificationsTab.svelte';
+  import EventsTab from './tabs/EventsTab.svelte';
   import AboutTab from './tabs/AboutTab.svelte';
 
   // State (using Svelte 5 runes)
@@ -484,12 +484,12 @@
         <WorkerVersionsTab {versions} />
       {:else if $activeManagementTab === 'about'}
         <AboutTab {API_BASE} {apiKey} />
-      {:else if $activeManagementTab === 'notifications'}
-        <NotificationsTab 
-          {API_BASE} {getHeaders} 
-          onMessage={(m) => message = m} 
-          onError={(e) => error = e} 
-          {config} 
+      {:else if $activeManagementTab === 'events'}
+        <EventsTab
+          {API_BASE} {getHeaders}
+          onMessage={(m) => message = m}
+          onError={(e) => error = e}
+          {config}
         />
       {/if}
     {/if}

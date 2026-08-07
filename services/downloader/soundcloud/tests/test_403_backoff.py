@@ -20,6 +20,13 @@ from services.downloader.timing import load_timing
 NOW = datetime(2026, 7, 30, 12, 0, 0)
 
 
+class StubNotifier:
+    """Stub notifier for test isolation — prevents sweep.py lazy import."""
+
+    def notify(self, message, title='Music Management'):
+        return True
+
+
 class TestSoundcloud403Backoff(unittest.TestCase):
     """A 403 reported through the yt-dlp logger has to park SoundCloud.
 
@@ -60,6 +67,7 @@ class TestSoundcloud403Backoff(unittest.TestCase):
             schedule=AccountSchedule('soundcloud', store=self.check_store, now=lambda: self.now),
             unavailable=UnavailableTracks(store=self.unavailable_store, retry_days=30,
                                           now=lambda: self.now),
+            notifier=StubNotifier(),
         )
 
     def _fail_with_403(self, mock_ytdlp):

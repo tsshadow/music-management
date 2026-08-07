@@ -5,6 +5,7 @@ import signal
 from time import sleep
 
 from services.common.config_store import ConfigStore as Settings
+from services.common.Helpers.logging_setup import setup_logging
 from services.common.step import Step
 from services.importer.extractor import Extractor
 from services.importer.mover import Mover
@@ -63,7 +64,7 @@ class ImporterService:
         logging.info('Importer pipeline completed.')
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s  %(filename)s:%(lineno)s [%(levelname)s] %(message)s', force=True)
+    setup_logging('importer')
     args = parse_args()
     logging.info('Starting music importer service')
     importer_service = ImporterService()

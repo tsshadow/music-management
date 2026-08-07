@@ -25,7 +25,7 @@ EXPECTED_TABLES = {
     'downloads_soundcloud_accounts', 'downloads_soundcloud_archive',
     'downloads_youtube_accounts', 'downloads_youtube_archive',
     'scrobble_listens', 'scrobble_unmatched_listens', 'scrobble_imports',
-    'notifications',
+    'events',
 }
 
 

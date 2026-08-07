@@ -17,9 +17,9 @@
     FolderTree,
     Users,
     UserPlus,
-    GitBranch, 
-    Bell, 
-    Info 
+    GitBranch,
+    ScrollText,
+    Info
   } from '@lucide/svelte';
 
   const { onnavigate } = $props();
@@ -40,7 +40,7 @@
     { id: 'users', labelKey: 'management.tabs.users', icon: Users, show: hasPermission('users.read') },
     { id: 'user-requests', labelKey: 'management.tabs.userRequests', icon: UserPlus, show: hasPermission('user-requests.read') },
     { id: 'versions', labelKey: 'management.tabs.versions', icon: GitBranch },
-    { id: 'notifications', labelKey: 'management.tabs.notifications', icon: Bell },
+    { id: 'events', labelKey: 'management.tabs.events', icon: ScrollText },
     { id: 'about', labelKey: 'management.tabs.about', icon: Info }
   ].filter(t => t.show !== false));
 

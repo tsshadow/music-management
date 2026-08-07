@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **A severity-tagged event log replaces the flat notifications list.** Every service now writes
+  `INFO`/`WARNING`/`ERROR`/`CRITICAL` events straight to a new `events` table, which is the source of
+  truth; `ntfy.sh` becomes a downstream sink instead of the only place an event ever existed. The
+  frontend's Notifications tab is now Logboek, with level chips, a service filter, a time window and
+  search. A new `notify_topic_alerts` topic gets every `WARNING` and higher automatically, with a
+  priority and tag per severity and de-duplication for repeats within five minutes, so a single
+  flapping connection can't flood the phone. `GET /health` reports real database and background-thread
+  status and returns 503 when degraded, instead of a hard-coded `ok`.
+
 ## [0.6.0] - 2026-08-06
 
 ### Added

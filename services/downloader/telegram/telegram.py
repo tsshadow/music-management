@@ -27,12 +27,13 @@ class TelegramDownloader:
     forgotten on the next restart.
     """
 
-    def __init__(self, dry_run=False, timing=None, rate_state=None, schedule=None):
+    def __init__(self, dry_run=False, timing=None, rate_state=None, schedule=None, notifier=None):
         self.dry_run = dry_run
         self._config = ConfigStore()
         values = self._config.get_many(['telegram_folder', 'telegram_api_id', 'telegram_api_hash',
                                         'telegram_session'])
-        self.policy = SweepPolicy(SOURCE, timing=timing, rate_state=rate_state, schedule=schedule)
+        self.policy = SweepPolicy(SOURCE, timing=timing, rate_state=rate_state, schedule=schedule,
+                                  notifier=notifier)
         self.output_folder = values.get('telegram_folder')
         self.api_id = values.get('telegram_api_id')
         self.api_hash = values.get('telegram_api_hash')

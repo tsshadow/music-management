@@ -1,27 +1,30 @@
+import contextlib
 import logging
 import os
 import threading
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from services.common.db_init import ensure_tables_exist
+from services.common.Helpers.EventService import event_service
+from services.common.Helpers.logging_setup import setup_logging
 from services.common.version_helper import get_version
 from services.music_manager.database import get_db_connection
-from services.music_manager.ntfy_listener import start_ntfy_listener
+from services.music_manager.events_retention import run_events_retention
 from services.music_manager.routers import (
     analytics,
     artist_images,
     config,
     diagnostics,
     downloaders,
+    events,
     jobs,
     library,
     management,
-    notifications,
     radio,
     rating,
     scanner,
@@ -35,13 +38,14 @@ from services.music_manager.routers.artist_images import run_fetch_missing
 from services.music_manager.routers.scanner import run_scanner_loop
 from services.music_manager.routers.tagger import run_tagger_loop
 from services.music_manager.routers.users import run_lms_db_sync
+from services.music_manager.thread_registry import start_thread, thread_status
 
 load_dotenv()
 logger = logging.getLogger('music-manager')
-logging.basicConfig(level=logging.INFO)
 app = FastAPI(title='Music Manager API')
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
 app.include_router(users.router, prefix="/api/users")
+app.include_router(events.router, prefix="/api/events") # before /api/auth/* below: its bare /{user_id} DELETE would otherwise shadow /api/events
 app.include_router(users.router, prefix="/api") # For /api/auth/*
 app.include_router(scrobbler.router, prefix="/api/scrobble")
 app.include_router(rating.router, prefix="/api/rating")
@@ -50,7 +54,6 @@ app.include_router(management.router, prefix="/api")
 app.include_router(artist_images.router, prefix="/api/artists")
 app.include_router(library.router, prefix="/api/library")
 app.include_router(analytics.router, prefix="/api/analytics")
-app.include_router(notifications.router, prefix="/api/notifications")
 app.include_router(tagger.router, prefix="/api/tagger")
 app.include_router(scanner.router, prefix="/api/scanner")
 app.include_router(jobs.router, prefix="/api/jobs")
@@ -75,6 +78,7 @@ def background_workers_enabled() -> bool:
 
 @app.on_event('startup')
 def startup_event():
+    setup_logging('music-manager')
     ensure_tables_exist()
     conn = get_db_connection()
     if conn:
@@ -85,26 +89,66 @@ def startup_event():
                 rating.init_db(cursor)
                 management.init_db(cursor)
                 artist_images.init_db(cursor)
-                notifications.init_db(cursor)
                 user_requests.init_db(cursor)
                 radio.init_db(cursor)
                 downloaders.init_db(cursor)
                 diagnostics.init_db(cursor)
+                events.init_db(cursor)
             conn.commit()
             print('Music Manager: Database initialized')
         finally:
             conn.close()
     if background_workers_enabled():
+        # Eenmalige achtergrondtaken: die geven na afloop terug en horen niet in
+        # het liveness-register, anders staat /health binnen een minuut op degraded.
         threading.Thread(target=run_lms_db_sync, daemon=True).start()
-        threading.Thread(target=run_tagger_loop, args=(int(os.getenv('TAGGER_SLEEPTIME', '300')),), daemon=True).start()
-        threading.Thread(target=run_scanner_loop, args=(int(os.getenv('SCANNER_SLEEPTIME', '3600')),), daemon=True).start()
         threading.Thread(target=run_fetch_missing, daemon=True).start()
-        threading.Thread(target=radio.run_radio_scheduler, daemon=True).start()
-        start_ntfy_listener()
+
+        # Lussen die horen te blijven draaien.
+        start_thread('tagger', run_tagger_loop, (int(os.getenv('TAGGER_SLEEPTIME', '300')),))
+        start_thread('scanner', run_scanner_loop, (int(os.getenv('SCANNER_SLEEPTIME', '3600')),))
+        start_thread('radio', radio.run_radio_scheduler)
+        start_thread('events-retention', run_events_retention)
 
 @app.get('/health')
-def health():
-    return {'status': 'ok', 'service': 'music-manager', 'version': get_version()}
+def health(response: Response):
+    """Rapporteert wat het beweert, zodat de Uptime Kuma-monitor iets meet.
+
+    De oude versie gaf altijd 'ok' terug en bleef dus groen terwijl de
+    database weg was of een achtergrondlus aan een exceptie was gestorven.
+
+    get_db_connection() geeft alleen None terug als de pool zelf niet
+    aangemaakt kon worden; als de pool wel bestaat maar geen connectie meer
+    kan uitgeven, gooit hij een exceptie. Die vangen we hier af, want een
+    monitoring-endpoint dat zelf crasht is erger dan een dat liegt.
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+    except Exception:
+        conn = None
+    database = 'unreachable'
+    if conn:
+        database = 'ok'
+        # Sluiten mag hier nooit alsnog het endpoint laten crashen: de status
+        # is al bepaald, dus een fout bij het sluiten van de connectie
+        # negeren we bewust.
+        with contextlib.suppress(Exception):
+            conn.close()
+
+    threads = thread_status()
+    threads['events'] = event_service.is_alive()
+
+    healthy = database == 'ok' and all(threads.values())
+    if not healthy:
+        response.status_code = 503
+    return {
+        'status': 'ok' if healthy else 'degraded',
+        'service': 'music-manager',
+        'version': get_version(),
+        'database': database,
+        'threads': threads,
+    }
 
 # Music Manager is API-only and must never serve a UI of its own: the single
 # unified web interface (player + management views) lives in services/frontend
@@ -114,6 +158,12 @@ def health():
 def root():
     return {'service': 'music-manager', 'status': 'ok', 'message': 'API only, no UI is served here.'}
 
+# Dit blok draait bij het importeren van de module, ruim voordat startup_event
+# setup_logging aanroept. Logging is op dit moment dus nog niet ingericht: de
+# info-regel hieronder haalt de standaarddrempel (WARNING) niet en verdwijnt
+# stilletjes, en de foutregel valt terug op Pythons ongeformatteerde
+# lastResort-handler. Beide missen de events-pipeline. Bekend en geaccepteerd
+# gevolg van logging pas bij startup opzetten in plaats van bij import.
 artist_images_path = os.getenv('STORAGE_PATH', '/mnt/music/artists')
 try:
     os.makedirs(artist_images_path, exist_ok=True)

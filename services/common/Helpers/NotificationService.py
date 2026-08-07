@@ -1,37 +1,25 @@
-import logging
+"""Dunne laag over de events-stroom, voor de vier plekken die een mijlpaal melden.
 
-import requests
+De signatuur blijft precies wat hij was, zodat de bestaande aanroepers niet
+hoeven te veranderen. Wat wél verandert: de melding gaat nu eerst de database
+in en pas daarna naar ntfy, in plaats van uitsluitend naar ntfy.
+"""
+from __future__ import annotations
 
-from services.common.config_store import ConfigStore
+from services.common.Helpers.EventService import event_service
+
+DEFAULT_SOURCE = 'music-manager'
 
 
 class NotificationService:
 
-    def __init__(self):
-        self._config = ConfigStore()
-        try:
-            self.notify_url = self._config.get('notify_url')
-            self.notify_topic = self._config.get('notify_topic')
-            self._config.subscribe('notify_url', lambda v: setattr(self, 'notify_url', v))
-            self._config.subscribe('notify_topic', lambda v: setattr(self, 'notify_topic', v))
-        except (KeyError, AttributeError):
-            logging.warning('NotificationService: notify_url or notify_topic not found in ConfigStore. Notifications will be disabled.')
-            self.notify_url = None
-            self.notify_topic = None
+    def __init__(self, source: str = DEFAULT_SOURCE) -> None:
+        self._source = source
 
-    def notify(self, message: str, title: str='Music Management'):
-        """Sends a notification via ntfy.sh"""
-        if not self.notify_url or not self.notify_topic:
-            logging.warning('NotificationService: notify_url or notify_topic not configured.')
-            return False
-        url = self.notify_url.rstrip('/') + '/' + self.notify_topic
-        try:
-            logging.info(f'Sending notification to {url}: {title} - {message[:50]}...')
-            response = requests.post(url, data=message.encode('utf-8'), headers={'Title': title}, timeout=10)
-            response.raise_for_status()
-            return True
-        except Exception as e:
-            logging.error(f'Failed to send notification: {e}')
-            return False
-logging.info('Initializing global NotificationService instance')
+    def notify(self, message: str, title: str = 'Music Management') -> bool:
+        """Meld een mijlpaal: een INFO-event dat wél de telefoon mag halen."""
+        return event_service.emit(level='INFO', title=title, message=message,
+                                  source=self._source, push=True)
+
+
 notification_service = NotificationService()

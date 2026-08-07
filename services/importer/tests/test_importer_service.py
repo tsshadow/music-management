@@ -61,15 +61,24 @@ class MainTest(unittest.TestCase):
 
     def setUp(self):
         self.service = MagicMock()
-        patcher = patch.object(importer_service, 'ImporterService', return_value=self.service)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        patches = [
+            patch.object(importer_service, 'ImporterService', return_value=self.service),
+            patch.object(importer_service, 'setup_logging'),
+        ]
+        for p in patches:
+            p.start()
+            self.addCleanup(p.stop)
 
     def test_without_the_repeat_flag_the_pipeline_runs_exactly_once(self):
         with patch('sys.argv', ['importer']), patch.object(importer_service, 'sleep') as sleep:
             importer_service.main()
         self.service.run_import.assert_called_once()
         sleep.assert_not_called()
+
+    def test_main_sets_up_logging_with_the_importer_source(self):
+        with patch('sys.argv', ['importer']), patch.object(importer_service, 'sleep'):
+            importer_service.main()
+        importer_service.setup_logging.assert_called_once_with('importer')
 
     def test_with_the_repeat_flag_the_pipeline_sleeps_between_runs(self):
         with patch('sys.argv', ['importer', '--repeat', '--sleeptime', '7']), \

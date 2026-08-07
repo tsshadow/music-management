@@ -7,6 +7,7 @@ import time
 from collections.abc import Callable, Iterable, Sequence
 
 from services.common.config_store import ConfigStore as Settings
+from services.common.Helpers.logging_setup import setup_logging
 from services.downloader.sweep import SweepPolicy
 
 faulthandler.register(signal.SIGUSR1)
@@ -85,7 +86,7 @@ class DownloaderService:
             raise ValueError(f'Unknown source: {source}')
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s  %(filename)s:%(lineno)s [%(levelname)s] %(message)s', force=True)
+    setup_logging('downloader')
     args = parse_args()
     downloader_service = DownloaderService()
     if args.step:

@@ -11,9 +11,6 @@ from unittest.mock import MagicMock, patch
 
 for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
     sys.modules.setdefault(_mod_name, MagicMock())
-import services.music_manager.ntfy_listener
-
-services.music_manager.ntfy_listener.start_ntfy_listener = lambda: None
 import services.music_manager.routers.users
 
 services.music_manager.routers.users.run_lms_db_sync = lambda: None
@@ -40,15 +37,20 @@ class BackgroundWorkersEnabledTest(unittest.TestCase):
             self.assertTrue(main.background_workers_enabled())
 
     def test_startup_starts_no_thread_when_disabled(self):
+        # The long-running loops go through the thread registry so /health can see them, the
+        # one-shot tasks are plain Threads; the switch has to hold both back.
         with patch.dict('os.environ', {'MUMA_DISABLE_BACKGROUND_WORKERS': '1'}, clear=True), \
+                patch.object(main, 'start_thread') as start_thread, \
                 patch.object(main.threading, 'Thread') as thread:
             main.startup_event()
         thread.assert_not_called()
+        start_thread.assert_not_called()
 
     def test_startup_starts_the_loops_when_enabled(self):
         with patch.dict('os.environ', {}, clear=True), \
+                patch.object(main, 'start_thread') as start_thread, \
                 patch.object(main.threading, 'Thread') as thread:
             main.startup_event()
         self.assertTrue(thread.called)
-        targets = {call.kwargs.get('target') for call in thread.call_args_list}
-        self.assertIn(main.radio.run_radio_scheduler, targets)
+        registered = {call.args[0] for call in start_thread.call_args_list}
+        self.assertEqual({'tagger', 'scanner', 'radio', 'events-retention'}, registered)

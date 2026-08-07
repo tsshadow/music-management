@@ -109,7 +109,6 @@ def startup_event():
         start_thread('scanner', run_scanner_loop, (int(os.getenv('SCANNER_SLEEPTIME', '3600')),))
         start_thread('radio', radio.run_radio_scheduler)
         start_thread('events-retention', run_events_retention)
-        start_ntfy_listener()
 
 @app.get('/health')
 def health(response: Response):

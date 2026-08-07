@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.11.0] - 2026-08-07
+
 ### Added
 - **Two accent colours, and a launcher icon you pick separately.** Settings → Appearance now has
   an accent colour, green or Ultrasonic indigo, and an app icon in the same two colours. They are

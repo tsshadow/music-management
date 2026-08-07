@@ -1,5 +1,24 @@
 ## [Unreleased]
 
+## [6.11.0] - 2026-08-07
+
+### Added
+- **Kies je eigen kleur, en je eigen icoon.** Onder Instellingen → Uiterlijk staat nu een
+  accentkleur: MuMa-groen of het indigo van het oude Ultrasonic. Voortgangsbalken, actieve tabbladen,
+  chips en de afspeelknop volgen die keuze.
+- Het app-icoon is een losse instelling in dezelfde twee kleuren. Je kunt dus een blauw accent met
+  een groen icoon draaien, of andersom.
+- Sets-modus houdt in beide thema's een eigen kleur, zodat nummers en sets nooit dezelfde tint
+  krijgen.
+
+### Changed
+- De oude thema-instelling bood Dag & Nacht, Donker en Zwart aan en die leverden alle drie hetzelfde
+  zwarte thema op. Stond hij op een van die drie, dan begin je nu in het groen.
+- De meldingen voor downloads en afspelen tonen het MuMa-merkteken; dat waren de laatste twee
+  plekken met een Ultrasonic-koptelefoontje.
+- Sommige launchers halen de app van je beginscherm als het icoon wisselt. De app waarschuwt daarvoor
+  op het moment zelf.
+
 ## [6.10.0] - 2026-08-07
 
 ### Added

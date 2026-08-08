@@ -951,6 +951,43 @@ namespace lms::db::tests
         }
     }
 
+    TEST_F(DatabaseFixture, Track_countAdvanced)
+    {
+        ScopedClusterType genreType{ session, "GENRE" };
+        ScopedCluster hardstyle{ session, genreType.lockAndGet(), "Hardstyle" };
+
+        ScopedTrack tagged1{ session };
+        ScopedTrack tagged2{ session };
+        ScopedTrack untagged{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            hardstyle.get().modify()->addTrack(tagged1.get());
+            hardstyle.get().modify()->addTrack(tagged2.get());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            std::map<std::string, std::set<ClusterId>> clusterGroups;
+            clusterGroups["GENRE"].insert(hardstyle.getId());
+
+            // The count ignores the range: it answers "how many are there", not "how many did
+            // this page return".
+            Track::FindParameters params;
+            params.setRange(Range{ 0, 1 });
+
+            std::vector<TrackId> firstPage;
+            Track::find_advanced(session, params, clusterGroups, [&](const Track::pointer& t) {
+                firstPage.push_back(t->getId());
+            });
+
+            EXPECT_EQ(firstPage.size(), 1);
+            EXPECT_EQ(Track::countAdvanced(session, params, clusterGroups), 2);
+            EXPECT_EQ(Track::countAdvanced(session, Track::FindParameters{}, {}), 3);
+        }
+    }
+
     TEST_F(DatabaseFixture, Track_findIdsByReleaseAnniversary)
     {
         ScopedTrack exactMatch{ session };

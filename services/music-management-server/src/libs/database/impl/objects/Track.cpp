@@ -695,6 +695,279 @@ namespace lms::db
         utils::forEachQueryRangeResult(query, params.range, moreResults, func);
     }
 
+    namespace
+    {
+        /**
+         * The FROM/JOIN/WHERE (and optionally ORDER BY) part shared by find_advanced and
+         * countAdvanced. Callers prepend their own SELECT. Binders are appended to `bindFuncs`
+         * in the order their placeholders appear, so the two must stay in step.
+         *
+         * Nothing here captures `params` itself: the binders outlive this call, so every value
+         * a binder needs is copied into it.
+         */
+        template<typename ResultType>
+        std::string buildAdvancedQueryBody(
+            const Track::FindParameters& params,
+            const std::map<std::string, std::set<ClusterId>>& clusterGroups,
+            std::vector<std::function<void(Wt::Dbo::Query<ResultType>&)>>& bindFuncs,
+            bool includeOrderBy)
+        {
+            const UserId ratingUserId = params.ratingUser;
+
+            std::string baseQuery = " FROM track t";
+
+            if (ratingUserId.isValid())
+            {
+                if (params.includeUnrated)
+                {
+                    baseQuery += " LEFT JOIN rated_track r_t ON (r_t.track_id = t.id AND r_t.user_id = ?)";
+                    bindFuncs.emplace_back([ratingUserId](auto& q) { q.bind(ratingUserId); });
+                }
+                else
+                {
+                    baseQuery += " JOIN rated_track r_t ON (r_t.track_id = t.id AND r_t.user_id = ?)";
+                    bindFuncs.emplace_back([ratingUserId](auto& q) { q.bind(ratingUserId); });
+                }
+            }
+
+            if (params.sortMethod == TrackSortMethod::DateDescAndRelease
+                || params.sortMethod == TrackSortMethod::OriginalDateDescAndRelease
+                || params.sortMethod == TrackSortMethod::Release)
+            {
+                baseQuery += " LEFT JOIN medium m ON t.medium_id = m.id";
+            }
+
+            int groupCounter = 0;
+            for (const auto& [filterName, clusterIds] : clusterGroups)
+            {
+                std::string joinAlias = "tc" + std::to_string(groupCounter++);
+                baseQuery += " JOIN track_cluster " + joinAlias + " ON " + joinAlias + ".track_id = t.id"
+                           + " AND " + joinAlias + ".cluster_id IN (" + utils::createPlaceholders(clusterIds.size()) + ")";
+
+                for (const auto& cid : clusterIds)
+                {
+                    bindFuncs.emplace_back([cid](auto& q) { q.bind(cid); });
+                }
+            }
+
+            // Every artist gets its own join, so the aliases AND together: a track survives only
+            // when it is linked to all of them. Same shape as the cluster groups above.
+            {
+                std::set<ArtistId> wantedArtists{ params.artists };
+                if (params.artist.isValid())
+                    wantedArtists.insert(params.artist);
+
+                // If params.artist has its own alias below, artistName hangs off that same link row
+                // instead of a fresh one, so "this id" and "this name" have to be the same artist on
+                // the same link (the meaning setArtist()+setArtistName() had before setArtists() existed).
+                std::string singleArtistAlias;
+
+                int artistCounter = 0;
+                for (const ArtistId wantedArtist : wantedArtists)
+                {
+                    const std::string joinAlias = "t_a_l" + std::to_string(artistCounter++);
+                    baseQuery += " JOIN track_artist_link " + joinAlias + " ON " + joinAlias + ".track_id = t.id"
+                               + " AND " + joinAlias + ".artist_id = ?";
+                    bindFuncs.emplace_back([wantedArtist](auto& q) { q.bind(wantedArtist); });
+
+                    if (!params.trackArtistLinkTypes.empty())
+                    {
+                        baseQuery += " AND " + joinAlias + ".type IN (" + utils::createPlaceholders(params.trackArtistLinkTypes.size()) + ")";
+                        for (TrackArtistLinkType type : params.trackArtistLinkTypes)
+                            bindFuncs.emplace_back([type](auto& q) { q.bind(type); });
+                    }
+
+                    if (params.artist.isValid() && wantedArtist == params.artist)
+                        singleArtistAlias = joinAlias;
+                }
+
+                if (!params.artistName.empty())
+                {
+                    if (!singleArtistAlias.empty())
+                    {
+                        baseQuery += " JOIN artist a ON a.id = " + singleArtistAlias + ".artist_id";
+                    }
+                    else
+                    {
+                        baseQuery += " JOIN track_artist_link t_a_l ON t_a_l.track_id = t.id"
+                                     " JOIN artist a ON a.id = t_a_l.artist_id";
+
+                        if (!params.trackArtistLinkTypes.empty())
+                        {
+                            baseQuery += " AND t_a_l.type IN (" + utils::createPlaceholders(params.trackArtistLinkTypes.size()) + ")";
+                            for (TrackArtistLinkType type : params.trackArtistLinkTypes)
+                                bindFuncs.emplace_back([type](auto& q) { q.bind(type); });
+                        }
+                    }
+                }
+            }
+
+            if (!params.releaseName.empty())
+            {
+                baseQuery += " JOIN release r_f ON t.release_id = r_f.id";
+            }
+
+            // Labels hang off the release, so a track only carries one through release_label.
+            // The condition sits in the join rather than in the WHERE below because the binds
+            // here are consumed in the order their placeholders appear in the query text.
+            if (params.filters.label.isValid())
+            {
+                baseQuery += " JOIN release_label r_l ON r_l.release_id = t.release_id AND r_l.label_id = ?";
+                const LabelId labelId = params.filters.label;
+                bindFuncs.emplace_back([labelId](auto& q) { q.bind(labelId); });
+            }
+
+            baseQuery += " WHERE 1=1";
+            if (!params.allowedArtists.empty())
+            {
+                baseQuery += " AND LOWER(t.artist_display_name) IN (" + utils::createPlaceholders(params.allowedArtists.size()) + ")";
+                for (const auto& artist : params.allowedArtists)
+                {
+                    bindFuncs.emplace_back([artist](auto& q) { q.bind(core::stringUtils::stringToLower(artist)); });
+                }
+            }
+            if (params.minRating.has_value() && params.maxRating.has_value())
+            {
+                const int minRating = params.minRating.value();
+                const int maxRating = params.maxRating.value();
+
+                if (params.includeUnrated || minRating == 0)
+                {
+                    if (ratingUserId.isValid())
+                        baseQuery += " AND (r_t.rating IS NULL OR r_t.rating = 0 OR r_t.rating BETWEEN ? AND ?)";
+                    else
+                        baseQuery += " AND (t.rating IS NULL OR t.rating = 0 OR t.rating BETWEEN ? AND ?)";
+
+                    bindFuncs.emplace_back([minRating](auto& q) { q.bind(minRating); });
+                    bindFuncs.emplace_back([maxRating](auto& q) { q.bind(maxRating); });
+                }
+                else
+                {
+                    if (ratingUserId.isValid())
+                        baseQuery += " AND r_t.rating BETWEEN ? AND ?";
+                    else
+                        baseQuery += " AND t.rating BETWEEN ? AND ?";
+
+                    bindFuncs.emplace_back([minRating](auto& q) { q.bind(minRating); });
+                    bindFuncs.emplace_back([maxRating](auto& q) { q.bind(maxRating); });
+                }
+            }
+            else if (params.minRating.has_value())
+            {
+                const int minRating = params.minRating.value();
+
+                if (params.includeUnrated || minRating == 0)
+                {
+                    if (ratingUserId.isValid())
+                        baseQuery += " AND (r_t.rating IS NULL OR r_t.rating = 0 OR r_t.rating >= ?)";
+                    else
+                        baseQuery += " AND (t.rating IS NULL OR t.rating = 0 OR t.rating >= ?)";
+
+                    bindFuncs.emplace_back([minRating](auto& q) { q.bind(minRating); });
+                }
+                else
+                {
+                    if (ratingUserId.isValid())
+                        baseQuery += " AND r_t.rating >= ?";
+                    else
+                        baseQuery += " AND t.rating >= ?";
+
+                    bindFuncs.emplace_back([minRating](auto& q) { q.bind(minRating); });
+                }
+            }
+            else if (params.maxRating.has_value())
+            {
+                const int maxRating = params.maxRating.value();
+
+                if (ratingUserId.isValid())
+                    baseQuery += " AND (r_t.rating IS NULL OR r_t.rating <= ?)";
+                else
+                    baseQuery += " AND (t.rating IS NULL OR t.rating <= ?)";
+
+                bindFuncs.emplace_back([maxRating](auto& q) { q.bind(maxRating); });
+            }
+
+            if (params.minDuration.has_value())
+            {
+                baseQuery += " AND t.duration >= ?";
+                const long long minDuration = static_cast<long long>(params.minDuration->count());
+                bindFuncs.emplace_back([minDuration](auto& q) { q.bind(minDuration); });
+            }
+
+            if (params.maxDuration.has_value())
+            {
+                baseQuery += " AND t.duration <= ?";
+                const long long maxDuration = static_cast<long long>(params.maxDuration->count());
+                bindFuncs.emplace_back([maxDuration](auto& q) { q.bind(maxDuration); });
+            }
+
+            if (params.filters.mediaLibrary.isValid())
+            {
+                baseQuery += " AND t.media_library_id = ?";
+                const MediaLibraryId mediaLibraryId = params.filters.mediaLibrary;
+                bindFuncs.emplace_back([mediaLibraryId](auto& q) { q.bind(mediaLibraryId); });
+            }
+
+            if (!params.artistName.empty())
+            {
+                baseQuery += " AND a.name = ?";
+                std::string aname = params.artistName;
+                bindFuncs.emplace_back([aname](auto& q) { q.bind(aname); });
+            }
+            if (!params.releaseName.empty())
+            {
+                baseQuery += " AND r_f.name = ?";
+                std::string rname = params.releaseName;
+                bindFuncs.emplace_back([rname](auto& q) { q.bind(rname); });
+            }
+            if (params.release.isValid())
+            {
+                baseQuery += " AND t.release_id = ?";
+                ReleaseId rid = params.release;
+                bindFuncs.emplace_back([rid](auto& q) { q.bind(rid); });
+            }
+            if (params.nonRelease)
+            {
+                baseQuery += " AND t.release_id IS NULL";
+            }
+            if (!params.name.empty())
+            {
+                baseQuery += " AND t.name = ?";
+                std::string tname = params.name;
+                bindFuncs.emplace_back([tname](auto& q) { q.bind(tname); });
+            }
+
+            for (std::string_view keyword : params.keywords)
+            {
+                std::string escaped = "%" + utils::escapeForLikeKeyword(keyword) + "%";
+                baseQuery += " AND (LOWER(t.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "'"
+                             " OR EXISTS (SELECT 1 FROM track_artist_link t_a_l_k JOIN artist a_k ON a_k.id = t_a_l_k.artist_id WHERE t_a_l_k.track_id = t.id AND (LOWER(a_k.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' OR LOWER(a_k.sort_name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "'))"
+                             " OR EXISTS (SELECT 1 FROM release r_k WHERE r_k.id = t.release_id AND (LOWER(r_k.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' OR LOWER(r_k.sort_name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "')))";
+
+                for (int i = 0; i < 5; ++i)
+                {
+                    std::string esc = escaped;
+                    bindFuncs.emplace_back([esc](auto& q) { q.bind(esc); });
+                }
+            }
+
+            if (includeOrderBy)
+            {
+                if (params.sortMethod != TrackSortMethod::None)
+                {
+                    if (params.sortMethod == TrackSortMethod::RatingDesc && ratingUserId.isValid())
+                        baseQuery += " ORDER BY r_t.rating DESC";
+                    else
+                        baseQuery += " ORDER BY " + sortMethodToSQL(params.sortMethod);
+                }
+                else
+                    baseQuery += " ORDER BY t.id";
+            }
+
+            return baseQuery;
+        }
+    } // namespace
+
     /**
      * @brief Perform an advanced search for tracks using a wide range of filtering options.
      *
@@ -730,248 +1003,11 @@ namespace lms::db
         const std::function<void(const Track::pointer&)>& func)
     {
         session.checkReadTransaction();
-        const UserId ratingUserId = params.ratingUser;
 
-        std::string baseQuery = "SELECT DISTINCT t FROM track t";
-        std::vector<ClusterId> bindClusterIds;
-        std::vector<std::function<void(Wt::Dbo::Query<Wt::Dbo::ptr<Track>>&)>>
-            bindFuncs; // store lambdas that bind later
+        std::vector<std::function<void(Wt::Dbo::Query<Wt::Dbo::ptr<Track>>&)>> bindFuncs;
+        const std::string body{ buildAdvancedQueryBody<Wt::Dbo::ptr<Track>>(params, clusterGroups, bindFuncs, /* includeOrderBy = */ true) };
 
-        if (ratingUserId.isValid())
-        {
-            if (params.includeUnrated)
-            {
-                baseQuery += " LEFT JOIN rated_track r_t ON (r_t.track_id = t.id AND r_t.user_id = ?)";
-                bindFuncs.emplace_back([ratingUserId](auto& q) { q.bind(ratingUserId); });
-            }
-            else
-            {
-                baseQuery += " JOIN rated_track r_t ON (r_t.track_id = t.id AND r_t.user_id = ?)";
-                bindFuncs.emplace_back([ratingUserId](auto& q) { q.bind(ratingUserId); });
-            }
-        }
-
-        if (params.sortMethod == TrackSortMethod::DateDescAndRelease
-            || params.sortMethod == TrackSortMethod::OriginalDateDescAndRelease
-            || params.sortMethod == TrackSortMethod::Release)
-        {
-            baseQuery += " LEFT JOIN medium m ON t.medium_id = m.id";
-        }
-
-        int groupCounter = 0;
-        for (const auto& [filterName, clusterIds] : clusterGroups)
-        {
-            std::string joinAlias = "tc" + std::to_string(groupCounter++);
-            baseQuery += " JOIN track_cluster " + joinAlias + " ON " + joinAlias + ".track_id = t.id"
-                       + " AND " + joinAlias + ".cluster_id IN (" + utils::createPlaceholders(clusterIds.size()) + ")";
-
-            for (const auto& cid : clusterIds)
-            {
-                bindFuncs.emplace_back([cid](auto& q) { q.bind(cid); });
-            }
-        }
-
-        // Every artist gets its own join, so the aliases AND together: a track survives only
-        // when it is linked to all of them. Same shape as the cluster groups above.
-        {
-            std::set<ArtistId> wantedArtists{ params.artists };
-            if (params.artist.isValid())
-                wantedArtists.insert(params.artist);
-
-            // If params.artist has its own alias below, artistName hangs off that same link row
-            // instead of a fresh one, so "this id" and "this name" have to be the same artist on
-            // the same link (the meaning setArtist()+setArtistName() had before setArtists() existed).
-            std::string singleArtistAlias;
-
-            int artistCounter = 0;
-            for (const ArtistId wantedArtist : wantedArtists)
-            {
-                const std::string joinAlias = "t_a_l" + std::to_string(artistCounter++);
-                baseQuery += " JOIN track_artist_link " + joinAlias + " ON " + joinAlias + ".track_id = t.id"
-                           + " AND " + joinAlias + ".artist_id = ?";
-                bindFuncs.emplace_back([wantedArtist](auto& q) { q.bind(wantedArtist); });
-
-                if (!params.trackArtistLinkTypes.empty())
-                {
-                    baseQuery += " AND " + joinAlias + ".type IN (" + utils::createPlaceholders(params.trackArtistLinkTypes.size()) + ")";
-                    for (TrackArtistLinkType type : params.trackArtistLinkTypes)
-                        bindFuncs.emplace_back([type](auto& q) { q.bind(type); });
-                }
-
-                if (params.artist.isValid() && wantedArtist == params.artist)
-                    singleArtistAlias = joinAlias;
-            }
-
-            if (!params.artistName.empty())
-            {
-                if (!singleArtistAlias.empty())
-                {
-                    baseQuery += " JOIN artist a ON a.id = " + singleArtistAlias + ".artist_id";
-                }
-                else
-                {
-                    baseQuery += " JOIN track_artist_link t_a_l ON t_a_l.track_id = t.id"
-                                 " JOIN artist a ON a.id = t_a_l.artist_id";
-
-                    if (!params.trackArtistLinkTypes.empty())
-                    {
-                        baseQuery += " AND t_a_l.type IN (" + utils::createPlaceholders(params.trackArtistLinkTypes.size()) + ")";
-                        for (TrackArtistLinkType type : params.trackArtistLinkTypes)
-                            bindFuncs.emplace_back([type](auto& q) { q.bind(type); });
-                    }
-                }
-            }
-        }
-
-        if (!params.releaseName.empty())
-        {
-            baseQuery += " JOIN release r_f ON t.release_id = r_f.id";
-        }
-
-        // Labels hang off the release, so a track only carries one through release_label.
-        // The condition sits in the join rather than in the WHERE below because the binds
-        // here are consumed in the order their placeholders appear in the query text.
-        if (params.filters.label.isValid())
-        {
-            baseQuery += " JOIN release_label r_l ON r_l.release_id = t.release_id AND r_l.label_id = ?";
-            bindFuncs.emplace_back([&params](auto& q) { q.bind(params.filters.label); });
-        }
-
-        baseQuery += " WHERE 1=1";
-        if (!params.allowedArtists.empty())
-        {
-            baseQuery += " AND LOWER(t.artist_display_name) IN (" + utils::createPlaceholders(params.allowedArtists.size()) + ")";
-            for (const auto& artist : params.allowedArtists)
-            {
-                bindFuncs.emplace_back([artist](auto& q) { q.bind(core::stringUtils::stringToLower(artist)); });
-            }
-        }
-        if (params.minRating.has_value() && params.maxRating.has_value())
-        {
-            if (params.includeUnrated || params.minRating.value() == 0)
-            {
-                if (ratingUserId.isValid())
-                    baseQuery += " AND (r_t.rating IS NULL OR r_t.rating = 0 OR r_t.rating BETWEEN ? AND ?)";
-                else
-                    baseQuery += " AND (t.rating IS NULL OR t.rating = 0 OR t.rating BETWEEN ? AND ?)";
-
-                bindFuncs.emplace_back([&params](auto& q) { q.bind(params.minRating.value()); });
-                bindFuncs.emplace_back([&params](auto& q) { q.bind(params.maxRating.value()); });
-            }
-            else
-            {
-                if (ratingUserId.isValid())
-                    baseQuery += " AND r_t.rating BETWEEN ? AND ?";
-                else
-                    baseQuery += " AND t.rating BETWEEN ? AND ?";
-
-                bindFuncs.emplace_back([&params](auto& q) { q.bind(params.minRating.value()); });
-                bindFuncs.emplace_back([&params](auto& q) { q.bind(params.maxRating.value()); });
-            }
-        }
-        else if (params.minRating.has_value())
-        {
-            if (params.includeUnrated || params.minRating.value() == 0)
-            {
-                if (ratingUserId.isValid())
-                    baseQuery += " AND (r_t.rating IS NULL OR r_t.rating = 0 OR r_t.rating >= ?)";
-                else
-                    baseQuery += " AND (t.rating IS NULL OR t.rating = 0 OR t.rating >= ?)";
-
-                bindFuncs.emplace_back([&params](auto& q) { q.bind(params.minRating.value()); });
-            }
-            else
-            {
-                if (ratingUserId.isValid())
-                    baseQuery += " AND r_t.rating >= ?";
-                else
-                    baseQuery += " AND t.rating >= ?";
-
-                bindFuncs.emplace_back([&params](auto& q) { q.bind(params.minRating.value()); });
-            }
-        }
-        else if (params.maxRating.has_value())
-        {
-            if (ratingUserId.isValid())
-                baseQuery += " AND (r_t.rating IS NULL OR r_t.rating <= ?)";
-            else
-                baseQuery += " AND (t.rating IS NULL OR t.rating <= ?)";
-
-            bindFuncs.emplace_back([&params](auto& q) { q.bind(params.maxRating.value()); });
-        }
-
-        if (params.minDuration.has_value())
-        {
-            baseQuery += " AND t.duration >= ?";
-            bindFuncs.emplace_back([&params](auto& q) { q.bind(static_cast<long long>(params.minDuration->count())); });
-        }
-
-        if (params.maxDuration.has_value())
-        {
-            baseQuery += " AND t.duration <= ?";
-            bindFuncs.emplace_back([&params](auto& q) { q.bind(static_cast<long long>(params.maxDuration->count())); });
-        }
-
-        if (params.filters.mediaLibrary.isValid())
-        {
-            baseQuery += " AND t.media_library_id = ?";
-            bindFuncs.emplace_back([&params](auto& q) { q.bind(params.filters.mediaLibrary); });
-        }
-
-        if (!params.artistName.empty())
-        {
-            baseQuery += " AND a.name = ?";
-            std::string aname = params.artistName;
-            bindFuncs.emplace_back([aname](auto& q) { q.bind(aname); });
-        }
-        if (!params.releaseName.empty())
-        {
-            baseQuery += " AND r_f.name = ?";
-            std::string rname = params.releaseName;
-            bindFuncs.emplace_back([rname](auto& q) { q.bind(rname); });
-        }
-        if (params.release.isValid())
-        {
-            baseQuery += " AND t.release_id = ?";
-            ReleaseId rid = params.release;
-            bindFuncs.emplace_back([rid](auto& q) { q.bind(rid); });
-        }
-        if (params.nonRelease)
-        {
-            baseQuery += " AND t.release_id IS NULL";
-        }
-        if (!params.name.empty())
-        {
-            baseQuery += " AND t.name = ?";
-            std::string tname = params.name;
-            bindFuncs.emplace_back([tname](auto& q) { q.bind(tname); });
-        }
-
-        for (std::string_view keyword : params.keywords)
-        {
-            std::string escaped = "%" + utils::escapeForLikeKeyword(keyword) + "%";
-            baseQuery += " AND (LOWER(t.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "'"
-                         " OR EXISTS (SELECT 1 FROM track_artist_link t_a_l_k JOIN artist a_k ON a_k.id = t_a_l_k.artist_id WHERE t_a_l_k.track_id = t.id AND (LOWER(a_k.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' OR LOWER(a_k.sort_name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "'))"
-                         " OR EXISTS (SELECT 1 FROM release r_k WHERE r_k.id = t.release_id AND (LOWER(r_k.name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "' OR LOWER(r_k.sort_name) LIKE LOWER(?) ESCAPE '" ESCAPE_CHAR_STR "')))";
-
-            for (int i = 0; i < 5; ++i)
-            {
-                std::string esc = escaped;
-                bindFuncs.emplace_back([esc](auto& q) { q.bind(esc); });
-            }
-        }
-
-        if (params.sortMethod != TrackSortMethod::None)
-        {
-            if (params.sortMethod == TrackSortMethod::RatingDesc && ratingUserId.isValid())
-                baseQuery += " ORDER BY r_t.rating DESC";
-            else
-                baseQuery += " ORDER BY " + sortMethodToSQL(params.sortMethod);
-        }
-        else
-            baseQuery += " ORDER BY t.id";
-
-        auto query = session.getDboSession()->query<Wt::Dbo::ptr<Track>>(baseQuery);
+        auto query{ session.getDboSession()->query<Wt::Dbo::ptr<Track>>("SELECT DISTINCT t" + body) };
 
         // Apply all bind lambdas
         for (const auto& bind : bindFuncs)
@@ -979,6 +1015,26 @@ namespace lms::db
 
         bool moreResults = false;
         utils::forEachQueryRangeResult(query, params.range, moreResults, func);
+    }
+
+    std::size_t Track::countAdvanced(
+        Session& session,
+        const FindParameters& params,
+        const std::map<std::string, std::set<ClusterId>>& clusterGroups)
+    {
+        session.checkReadTransaction();
+
+        std::vector<std::function<void(Wt::Dbo::Query<int>&)>> bindFuncs;
+        // No ORDER BY: sorting a count is wasted work, and some sort expressions are not
+        // valid in a query without the selected columns.
+        const std::string body{ buildAdvancedQueryBody<int>(params, clusterGroups, bindFuncs, /* includeOrderBy = */ false) };
+
+        auto query{ session.getDboSession()->query<int>("SELECT COUNT(DISTINCT t.id)" + body) };
+
+        for (const auto& bind : bindFuncs)
+            bind(query);
+
+        return utils::fetchQuerySingleResult(query);
     }
 
     RangeResults<TrackId> Track::findSimilarTrackIds(Session& session, const std::vector<TrackId>& tracks, std::optional<Range> range)

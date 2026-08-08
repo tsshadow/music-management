@@ -280,6 +280,11 @@ namespace lms::db
             const FindParameters& params,
             const std::map<std::string, std::set<ClusterId>>& clusterGroups,
             const std::function<void(const Track::pointer&)>& func);
+        /** How many tracks find_advanced would yield for the same filter, ignoring params.range. */
+        static std::size_t countAdvanced(
+            Session& session,
+            const FindParameters& params,
+            const std::map<std::string, std::set<ClusterId>>& clusterGroups);
         static RangeResults<TrackId> findIdsTrackMBIDDuplicates(Session& session, std::optional<Range> range = std::nullopt);
         static RangeResults<TrackId> findIdsWithRecordingMBIDAndMissingFeatures(Session& session, std::optional<Range> range = std::nullopt);
         static void logPlay(Session& session, TrackId trackId, std::optional<UserId> userId);

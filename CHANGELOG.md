@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-08-08
+
+### Fixed
+- **A track with more than one genre now offers a link per genre.** The genre column in the track
+  list rendered the whole genre string as a single link, so a track tagged `hardstyle, hardcore`
+  linked to a genre by that literal name — a genre that does not exist — instead of to either of
+  the two. The column now links each genre on its own and keeps the separators as plain text, so it
+  still reads exactly as the server sent it.
+
 ## [0.8.0] - 2026-08-07
 
 ### Added

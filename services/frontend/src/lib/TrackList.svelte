@@ -39,6 +39,22 @@
   }
 
   /**
+   * Splits a genre string into the individual genres and the separators
+   * between them, so "hardstyle,hardcore" becomes two links instead of one
+   * while still reading as the string the backend stored.
+   *
+   * @param {string} genre - The raw genre string from the backend.
+   * @returns {Array<{text: string, name: string|null}>} Segments in order; `name` is null for separators.
+   */
+  function genreSegments(genre) {
+    return (genre || '')
+      .split(/([,;]\s*)/)
+      .filter(part => part !== '')
+      .map(part => /^[,;]/.test(part) ? { text: part, name: null } : { text: part, name: part.trim() })
+      .filter(segment => segment.name !== '');
+  }
+
+  /**
    * Formats a date string to a more readable format.
    *
    * @param {string} dateStr - The date string from the backend.
@@ -304,15 +320,13 @@
             >{track.album || ''}</span>
           </td>
           <td class="p-2 px-4 text-xs italic opacity-80 max-w-[150px] truncate hidden md:table-cell" title={track.genre || ''}>
-            {#if track.genre}
-              <span
+            {#each genreSegments(track.genre) as segment, i (i)}{#if segment.name}<span
                 role="link"
                 tabindex="0"
                 class="hover:underline cursor-pointer"
-                onclick={(e) => { e.stopPropagation(); if (onnavigate) onnavigate(`genre:${track.genre}`); }}
-                onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); if (onnavigate) onnavigate(`genre:${track.genre}`); } }}
-              >{track.genre}</span>
-            {/if}
+                onclick={(e) => { e.stopPropagation(); if (onnavigate) onnavigate(`genre:${segment.name}`); }}
+                onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); if (onnavigate) onnavigate(`genre:${segment.name}`); } }}
+              >{segment.text}</span>{:else}{segment.text}{/if}{/each}
           </td>
           <td class="p-2 px-4 hidden md:table-cell">
             {#if showDate}

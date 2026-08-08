@@ -914,6 +914,43 @@ namespace lms::db::tests
         }
     }
 
+    TEST_F(DatabaseFixture, Track_findAdvanced_byArtistAndMismatchedArtistName)
+    {
+        // setArtist (singular) + setArtistName must keep meaning "the artist with this id also
+        // has this name" -- i.e. the SAME link row -- even though setArtists (plural) now gives
+        // each wanted artist its own alias. A collaboration track must not satisfy "id = A" and
+        // "name = B" just because A and B are both linked to it via different rows.
+        ScopedArtist headhunterz{ session, "Headhunterz" };
+        ScopedArtist wildstylez{ session, "Wildstylez" };
+
+        ScopedTrack collab{ session };
+        ScopedTrack soloA{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.create<TrackArtistLink>(collab.get(), headhunterz.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(collab.get(), wildstylez.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(soloA.get(), headhunterz.get(), TrackArtistLinkType::Artist);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Track::FindParameters params;
+            // setArtistName overwrites trackArtistLinkTypes, so set it last to keep the filter.
+            params.setArtist(headhunterz.getId()).setArtistName("Wildstylez", { TrackArtistLinkType::Artist });
+
+            std::vector<TrackId> foundIds;
+            Track::find_advanced(session, params, {}, [&](const Track::pointer& t) {
+                foundIds.push_back(t->getId());
+            });
+
+            // Neither track has a single link row that is both "Headhunterz" and "Wildstylez",
+            // so nothing should match -- not even the collaboration track.
+            EXPECT_TRUE(foundIds.empty());
+        }
+    }
+
     TEST_F(DatabaseFixture, Track_findIdsByReleaseAnniversary)
     {
         ScopedTrack exactMatch{ session };

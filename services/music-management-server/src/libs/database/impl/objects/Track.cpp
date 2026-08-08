@@ -778,6 +778,11 @@ namespace lms::db
             if (params.artist.isValid())
                 wantedArtists.insert(params.artist);
 
+            // If params.artist has its own alias below, artistName hangs off that same link row
+            // instead of a fresh one, so "this id" and "this name" have to be the same artist on
+            // the same link (the meaning setArtist()+setArtistName() had before setArtists() existed).
+            std::string singleArtistAlias;
+
             int artistCounter = 0;
             for (const ArtistId wantedArtist : wantedArtists)
             {
@@ -792,18 +797,28 @@ namespace lms::db
                     for (TrackArtistLinkType type : params.trackArtistLinkTypes)
                         bindFuncs.emplace_back([type](auto& q) { q.bind(type); });
                 }
+
+                if (params.artist.isValid() && wantedArtist == params.artist)
+                    singleArtistAlias = joinAlias;
             }
 
             if (!params.artistName.empty())
             {
-                baseQuery += " JOIN track_artist_link t_a_l ON t_a_l.track_id = t.id"
-                             " JOIN artist a ON a.id = t_a_l.artist_id";
-
-                if (!params.trackArtistLinkTypes.empty())
+                if (!singleArtistAlias.empty())
                 {
-                    baseQuery += " AND t_a_l.type IN (" + utils::createPlaceholders(params.trackArtistLinkTypes.size()) + ")";
-                    for (TrackArtistLinkType type : params.trackArtistLinkTypes)
-                        bindFuncs.emplace_back([type](auto& q) { q.bind(type); });
+                    baseQuery += " JOIN artist a ON a.id = " + singleArtistAlias + ".artist_id";
+                }
+                else
+                {
+                    baseQuery += " JOIN track_artist_link t_a_l ON t_a_l.track_id = t.id"
+                                 " JOIN artist a ON a.id = t_a_l.artist_id";
+
+                    if (!params.trackArtistLinkTypes.empty())
+                    {
+                        baseQuery += " AND t_a_l.type IN (" + utils::createPlaceholders(params.trackArtistLinkTypes.size()) + ")";
+                        for (TrackArtistLinkType type : params.trackArtistLinkTypes)
+                            bindFuncs.emplace_back([type](auto& q) { q.bind(type); });
+                    }
                 }
             }
         }

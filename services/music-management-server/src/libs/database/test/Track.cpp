@@ -820,6 +820,100 @@ namespace lms::db::tests
         }
     }
 
+    TEST_F(DatabaseFixture, Track_findAdvanced_byArtists)
+    {
+        ScopedArtist headhunterz{ session, "Headhunterz" };
+        ScopedArtist wildstylez{ session, "Wildstylez" };
+
+        ScopedTrack solo{ session };
+        ScopedTrack collab{ session };
+        ScopedTrack otherSolo{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.create<TrackArtistLink>(solo.get(), headhunterz.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(collab.get(), headhunterz.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(collab.get(), wildstylez.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(otherSolo.get(), wildstylez.get(), TrackArtistLinkType::Artist);
+        }
+
+        auto findIds{ [&](const std::set<ArtistId>& artists) {
+            Track::FindParameters params;
+            params.setArtists(artists, { TrackArtistLinkType::Artist });
+
+            std::vector<TrackId> foundIds;
+            Track::find_advanced(session, params, {}, [&](const Track::pointer& t) {
+                foundIds.push_back(t->getId());
+            });
+            return foundIds;
+        } };
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            // One artist: everything they are on, collaborations included.
+            {
+                const auto foundIds{ findIds({ headhunterz.getId() }) };
+                ASSERT_EQ(foundIds.size(), 2);
+                EXPECT_NE(std::find(foundIds.begin(), foundIds.end(), collab.getId()), foundIds.end());
+            }
+
+            // Two artists: only what they made together.
+            {
+                const auto foundIds{ findIds({ headhunterz.getId(), wildstylez.getId() }) };
+                ASSERT_EQ(foundIds.size(), 1);
+                EXPECT_EQ(foundIds[0], collab.getId());
+            }
+
+            // An artist nobody worked with matches nothing rather than everything.
+            {
+                ScopedArtist stranger{ session, "Stranger" };
+                const auto foundIds{ findIds({ headhunterz.getId(), stranger.getId() }) };
+                EXPECT_TRUE(foundIds.empty());
+            }
+        }
+    }
+
+    TEST_F(DatabaseFixture, Track_findAdvanced_byArtistsAndGenre)
+    {
+        ScopedClusterType genreType{ session, "GENRE" };
+        ScopedCluster hardstyle{ session, genreType.lockAndGet(), "Hardstyle" };
+
+        ScopedArtist headhunterz{ session, "Headhunterz" };
+        ScopedArtist wildstylez{ session, "Wildstylez" };
+
+        ScopedTrack hardstyleCollab{ session };
+        ScopedTrack untaggedCollab{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            for (auto* track : { &hardstyleCollab, &untaggedCollab })
+            {
+                session.create<TrackArtistLink>(track->get(), headhunterz.get(), TrackArtistLinkType::Artist);
+                session.create<TrackArtistLink>(track->get(), wildstylez.get(), TrackArtistLinkType::Artist);
+            }
+            hardstyle.get().modify()->addTrack(hardstyleCollab.get());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Track::FindParameters params;
+            params.setArtists({ headhunterz.getId(), wildstylez.getId() }, { TrackArtistLinkType::Artist });
+
+            std::map<std::string, std::set<ClusterId>> clusterGroups;
+            clusterGroups["GENRE"].insert(hardstyle.getId());
+
+            std::vector<TrackId> foundIds;
+            Track::find_advanced(session, params, clusterGroups, [&](const Track::pointer& t) {
+                foundIds.push_back(t->getId());
+            });
+
+            ASSERT_EQ(foundIds.size(), 1);
+            EXPECT_EQ(foundIds[0], hardstyleCollab.getId());
+        }
+    }
+
     TEST_F(DatabaseFixture, Track_findIdsByReleaseAnniversary)
     {
         ScopedTrack exactMatch{ session };

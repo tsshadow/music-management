@@ -771,26 +771,39 @@ namespace lms::db
             }
         }
 
-        if (params.artist.isValid() || !params.artistName.empty())
+        // Every artist gets its own join, so the aliases AND together: a track survives only
+        // when it is linked to all of them. Same shape as the cluster groups above.
         {
-            baseQuery += " JOIN track_artist_link t_a_l ON t_a_l.track_id = t.id";
+            std::set<ArtistId> wantedArtists{ params.artists };
             if (params.artist.isValid())
+                wantedArtists.insert(params.artist);
+
+            int artistCounter = 0;
+            for (const ArtistId wantedArtist : wantedArtists)
             {
-                baseQuery += " AND t_a_l.artist_id = ?";
-                ArtistId aid = params.artist;
-                bindFuncs.emplace_back([aid](auto& q) { q.bind(aid); });
-            }
-            if (!params.artistName.empty())
-            {
-                baseQuery += " JOIN artist a ON a.id = t_a_l.artist_id";
+                const std::string joinAlias = "t_a_l" + std::to_string(artistCounter++);
+                baseQuery += " JOIN track_artist_link " + joinAlias + " ON " + joinAlias + ".track_id = t.id"
+                           + " AND " + joinAlias + ".artist_id = ?";
+                bindFuncs.emplace_back([wantedArtist](auto& q) { q.bind(wantedArtist); });
+
+                if (!params.trackArtistLinkTypes.empty())
+                {
+                    baseQuery += " AND " + joinAlias + ".type IN (" + utils::createPlaceholders(params.trackArtistLinkTypes.size()) + ")";
+                    for (TrackArtistLinkType type : params.trackArtistLinkTypes)
+                        bindFuncs.emplace_back([type](auto& q) { q.bind(type); });
+                }
             }
 
-            if (!params.trackArtistLinkTypes.empty())
+            if (!params.artistName.empty())
             {
-                baseQuery += " AND t_a_l.type IN (" + utils::createPlaceholders(params.trackArtistLinkTypes.size()) + ")";
-                for (TrackArtistLinkType type : params.trackArtistLinkTypes)
+                baseQuery += " JOIN track_artist_link t_a_l ON t_a_l.track_id = t.id"
+                             " JOIN artist a ON a.id = t_a_l.artist_id";
+
+                if (!params.trackArtistLinkTypes.empty())
                 {
-                    bindFuncs.emplace_back([type](auto& q) { q.bind(type); });
+                    baseQuery += " AND t_a_l.type IN (" + utils::createPlaceholders(params.trackArtistLinkTypes.size()) + ")";
+                    for (TrackArtistLinkType type : params.trackArtistLinkTypes)
+                        bindFuncs.emplace_back([type](auto& q) { q.bind(type); });
                 }
             }
         }

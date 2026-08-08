@@ -23,6 +23,7 @@
 #include <filesystem>
 #include <optional>
 #include <ostream>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -87,6 +88,7 @@ namespace lms::db
             UserId ratingUser;                                       // only tracks rated by this user
             std::optional<FeedbackBackend> feedbackBackend;          // and for this feedback backend
             ArtistId artist;                                         // only tracks that involve this artist
+            std::set<ArtistId> artists;                              // only tracks that involve ALL of these artists
             std::string artistName;                                  // only tracks that involve this artist name
             core::EnumSet<TrackArtistLinkType> trackArtistLinkTypes; //    and for these link types
             bool nonRelease{};                                       // only tracks that do not belong to a release
@@ -163,6 +165,16 @@ namespace lms::db
             FindParameters& setArtist(ArtistId _artist, core::EnumSet<TrackArtistLinkType> _trackArtistLinkTypes = {})
             {
                 artist = _artist;
+                trackArtistLinkTypes = _trackArtistLinkTypes;
+                return *this;
+            }
+            /**
+             * Only tracks that involve every one of these artists. Meant for "what did these
+             * people make together"; honoured by find_advanced and countAdvanced only.
+             */
+            FindParameters& setArtists(std::set<ArtistId> _artists, core::EnumSet<TrackArtistLinkType> _trackArtistLinkTypes = {})
+            {
+                artists = std::move(_artists);
                 trackArtistLinkTypes = _trackArtistLinkTypes;
                 return *this;
             }

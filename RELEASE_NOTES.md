@@ -11,6 +11,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.8.1 (2026-08-08)
+
+### 🎵 Elk genre van een nummer is nu een eigen link
+- Staan er meerdere genres bij een nummer, dan was de hele reeks één link — klikken op
+  `hardstyle, hardcore` zocht naar een genre met precies die naam, dat niet bestaat.
+- Nu is elk genre apart aanklikbaar en kom je gewoon bij het genre waar je op klikt.
+- De kolom leest verder onveranderd; alleen de links zijn opgesplitst.
+
 ## Global Version 0.8.0 (2026-08-07)
 
 ### 🎨 Groen of Ultrasonic-blauw, en het icoon kies je los

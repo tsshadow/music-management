@@ -162,8 +162,10 @@ class SweepPolicy:
         logging.info('Throttling %s: sleeping %d seconds...', self.source, pause)
         time.sleep(pause)
 
-    def mark_checked(self, account: str) -> None:
-        self.schedule.mark_checked(account)
+    def mark_checked(self, account: str, last_upload_at=None,
+                     last_seen_track_id: str | None = None) -> None:
+        self.schedule.mark_checked(account, last_upload_at=last_upload_at,
+                                   last_seen_track_id=last_seen_track_id)
 
     def finish(self) -> None:
         """Register a sweep that completed without being pushed back."""

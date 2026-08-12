@@ -122,9 +122,16 @@ class MatchFilterTest(unittest.TestCase):
     def test_every_track_the_filter_sees_is_reported_as_extracted(self):
         report = MagicMock()
 
+        self.downloader._make_match_filter('angerfist', report)(self.track(timestamp=1750000000))
+
+        report.note_extracted.assert_called_once_with('track-1', 1750000000)
+
+    def test_a_track_without_a_timestamp_is_still_reported(self):
+        report = MagicMock()
+
         self.downloader._make_match_filter('angerfist', report)(self.track())
 
-        report.note_extracted.assert_called_once_with('track-1')
+        report.note_extracted.assert_called_once_with('track-1', None)
 
     def test_a_track_that_answered_403_before_is_not_tried_again(self):
         self.downloader.unavailable.should_skip.return_value = True

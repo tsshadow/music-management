@@ -4,6 +4,7 @@ import math
 import os
 import shutil
 import time
+from datetime import datetime
 from pathlib import Path
 
 from yt_dlp import YoutubeDL
@@ -20,6 +21,7 @@ from services.downloader.soundcloud.account_report import (
     UNAVAILABLE_TRACKS,
     AccountReport,
 )
+from services.downloader.soundcloud.account_probe import ProbeResult, newest_track
 from services.downloader.soundcloud.SoundcloudArchive import SoundcloudArchive
 from services.downloader.soundcloud.unavailable_tracks import UnavailableTracks
 from services.downloader.sweep import SweepPolicy
@@ -80,6 +82,10 @@ class SoundcloudDownloader:
         self.unavailable = unavailable if unavailable is not None else UnavailableTracks(
             retry_days=self.policy.timing.unavailable_retry_days)
         self._profile_snapshot: str | None = None
+        # What this sweep learned per account, waiting to be written to the
+        # schedule once the account's future comes back.
+        self._learned: dict[str, datetime] = {}
+        self._seen_tracks: dict[str, str] = {}
         self._subscriptions = []
         self._apply_config()
         for key in ['soundcloud_folder', 'soundcloud_archive', 'soundcloud_cookies', 'ffmpeg_location']:
@@ -101,7 +107,7 @@ class SoundcloudDownloader:
         out": an account that yields no metadata *and* a 403 gave us nothing.
         """
         def _filter(info):
-            report.note_extracted(info.get('id'))
+            report.note_extracted(info.get('id'), info.get('timestamp'))
             if self.unavailable.should_skip(account, info.get('id')):
                 logging.info("Skipping track '%s' (answered 403 before)", info.get('title', 'unknown'))
                 return 'Known to be unavailable'
@@ -120,6 +126,55 @@ class SoundcloudDownloader:
             logging.info(f"Skipping track '{title}' (already in database archive)")
             return 'Already in database archive'
         return None
+
+    def _probe(self, account: str, ydl_opts: dict) -> ProbeResult | None:
+        """The account's newest track, or None when the probe cannot answer.
+
+        A 403 or 429 is handed to the policy and stops the sweep, exactly as it
+        would from a full run. Anything else returns None, which falls through to
+        the full run: the probe is an optimisation and may never be the reason an
+        account goes unchecked.
+        """
+        try:
+            return newest_track(account, ydl_opts)
+        except Exception as exc:
+            rate_limited = self.policy.rate_limit_from(exc, account)
+            if rate_limited is not None:
+                raise rate_limited from exc
+            logging.warning('Could not probe %s (%s); doing the full run instead.', account, exc)
+            return None
+
+    def _check_account(self, account: str, ydl_opts: dict) -> None:
+        """One account: ask what its newest track is, and only dig in if it is new."""
+        probe = self._probe(account, ydl_opts)
+        if probe is not None:
+            self._seen_tracks[account] = probe.track_id
+            if SoundcloudArchive.track_exists(probe.track_id):
+                logging.info('%s has nothing new; newest track %s is already archived.',
+                             account, probe.track_id)
+                # Not optional: without this a stretch of quiet accounts leaves
+                # the blank run untouched, and the next genuinely blank account
+                # can tip the source over block_threshold and park it.
+                self.policy.note_progress()
+                return
+        self.download_account(account, ydl_opts)
+
+    def _record_upload_date(self, account: str, report: AccountReport) -> None:
+        """Remember the newest upload this run saw, for the tier ladder."""
+        if report.newest_timestamp is None:
+            return
+        self._learned[account] = datetime.fromtimestamp(report.newest_timestamp)
+
+    def _checked_kwargs(self, account: str) -> dict:
+        """What this sweep learned about the account, consumed as it is reported."""
+        learned = {}
+        upload_at = self._learned.pop(account, None)
+        if upload_at is not None:
+            learned['last_upload_at'] = upload_at
+        track_id = self._seen_tracks.pop(account, None)
+        if track_id is not None:
+            learned['last_seen_track_id'] = track_id
+        return learned
 
     def download_account(self, name: str, yt_dl_opts: dict=None):
         self.policy.guard(name)
@@ -179,6 +234,7 @@ class SoundcloudDownloader:
         Raises `RateLimited` only when the evidence supports it: an explicit 429, or
         enough accounts in a row that gave nothing back.
         """
+        self._record_upload_date(account, report)
         outcome = report.outcome
         if outcome == THROTTLED:
             raise self.policy.park('429', url)
@@ -244,13 +300,13 @@ class SoundcloudDownloader:
             futures = {}
             for acc in batch:
                 ydl_opts = self._prepare_ydl_opts(acc, break_on_existing_arg, redownload)
-                futures[executor.submit(self.download_account, acc, ydl_opts)] = acc
+                futures[executor.submit(self._check_account, acc, ydl_opts)] = acc
             for future in concurrent.futures.as_completed(futures):
                 acc = futures[future]
                 processed += 1
                 try:
                     future.result()
-                    self.policy.mark_checked(acc)
+                    self.policy.mark_checked(acc, **self._checked_kwargs(acc))
                 except RateLimited as exc:
                     rate_limited = exc
                 except SweepAborted as exc:

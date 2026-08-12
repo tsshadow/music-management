@@ -205,8 +205,10 @@ def _reset_auth_rate_limiter():
 
 @pytest.fixture
 def api_key():
-    from services.music_manager.routers.users import API_KEY
-    return API_KEY
+    # The resolver is what the app actually checks X-API-Key against, so asking it
+    # keeps the fixture correct no matter which variable the compose file sets.
+    from services.music_manager.api_key import resolve_system_api_key
+    return resolve_system_api_key()
 
 
 @pytest.fixture

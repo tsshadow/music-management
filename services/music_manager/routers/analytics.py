@@ -5,10 +5,10 @@ count flat as scopes multiply, and lets a later player page reuse these directly
 "BPM statistics for this artist" is /api/analytics/bpm-histogram?artist=X, not a
 new endpoint.
 """
-import os
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
+from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
 from services.music_manager.routers.analytics_filters import (
     FROM_CLAUSE,
@@ -18,7 +18,6 @@ from services.music_manager.routers.analytics_filters import (
 )
 
 router = APIRouter(tags=['analytics'])
-API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
 
 # Years outside this range are tagging accidents, not releases.
 YEAR_FLOOR = 1950
@@ -28,7 +27,7 @@ YEAR_CEILING = 2100
 def verify_api_key(x_api_key: str | None = Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
-    if API_KEY and x_api_key == API_KEY:
+    if is_system_api_key(x_api_key):
         return {'type': 'system'}
     from services.music_manager.routers.users import verify_token
     try:

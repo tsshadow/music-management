@@ -10,12 +10,16 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, 
 from pydantic import BaseModel
 
 from services.music_manager import rbac
+from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
 from services.music_manager.rate_limit import auth_attempt
 from services.music_manager.rbac import has_permission, require_permission
 
 router = APIRouter(tags=['users'])
-MUMA_API_KEY = os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
+# These four are the keys this service *presents* when it calls the muma server.
+# What it *accepts* as the system key is api_key.is_system_api_key(), which reads
+# API_KEY/MUMA_API_KEY and has no literal fallback -- see that module for why.
+MUMA_API_KEY = os.getenv('MUMA_API_KEY')
 MUMA_SERVER_API_KEY = os.getenv('MUMA_SERVER_API_KEY') or os.getenv('LMS_API_KEY') or MUMA_API_KEY
 API_KEY = os.getenv('API_KEY') or MUMA_SERVER_API_KEY
 MUMA_SERVER_SUBSONIC_API_KEY = os.getenv('MUMA_SERVER_SUBSONIC_API_KEY') or os.getenv('LMS_SUBSONIC_API_KEY') or API_KEY
@@ -24,7 +28,7 @@ MUMA_SERVER_HOSTS = os.getenv('MUMA_SERVER_HOSTS', 'music-management-server:5082
 async def verify_api_key(x_api_key: str=Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
-    if API_KEY and x_api_key == API_KEY:
+    if is_system_api_key(x_api_key):
         return {'type': 'system'}
     res = verify_token(x_api_key)
     if res.get('status') == 'ok':
@@ -176,7 +180,7 @@ def build_auth_user(cursor, user_row):
 def verify_token(x_api_key: str=Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
-    if API_KEY and x_api_key == API_KEY:
+    if is_system_api_key(x_api_key):
         return {'status': 'ok', 'type': 'system'}
     conn = get_db_connection()
     if conn:

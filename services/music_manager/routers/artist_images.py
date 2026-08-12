@@ -7,17 +7,17 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
 
 router = APIRouter(tags=['artists'])
 logger = logging.getLogger(__name__)
 fetch_progress = {'active': False, 'total': 0, 'current': 0, 'last_artist': None, 'status': 'idle', 'message': None}
-API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
 
 def verify_api_key(x_api_key: str | None=Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
-    if API_KEY and x_api_key == API_KEY:
+    if is_system_api_key(x_api_key):
         return {'type': 'system'}
     from services.music_manager.routers.users import verify_token
     try:

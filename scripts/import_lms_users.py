@@ -1,4 +1,5 @@
 import os
+import shlex
 import subprocess
 import pymysql
 import sqlite3
@@ -47,18 +48,30 @@ def fetch_lms_users_local(db_path):
 def fetch_lms_users_ssh():
     remote_host = os.getenv('REMOTE_HOST', '192.0.2.27')
     remote_user = os.getenv('REMOTE_USER', 'root')
-    remote_pass = os.getenv('REMOTE_PASS', 'queue')
+    # No default: this used to fall back to the deployment's real root password,
+    # committed in plain text. With REMOTE_PASS unset the script uses whatever
+    # key-based authentication ssh already has, which is the better path anyway.
+    remote_pass = os.getenv('REMOTE_PASS')
     db_path = os.getenv('REMOTE_LMS_DB_PATH', '/docker/lms/var/lms/lms.db')
-    
+
     print(f"🌐 Fetching users from remote LMS via SSH: {remote_user}@{remote_host}:{db_path}")
-    
+
     query = 'SELECT id, login_name, listenbrainz_token FROM user;'
-    # Use sshpass if available, otherwise regular ssh
-    ssh_prefix = f"sshpass -p {remote_pass} " if remote_pass else ""
-    cmd = f"""{ssh_prefix}ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 {remote_user}@{remote_host} 'sqlite3 {db_path} "{query}"'"""
-    
+    # Quoted for the *remote* shell, which is the one that expands this string.
+    remote_cmd = f'sqlite3 {shlex.quote(db_path)} {shlex.quote(query)}'
+    # accept-new rather than no: a first connection still succeeds unattended,
+    # but a changed host key afterwards aborts instead of being accepted silently.
+    argv = ['ssh', '-o', 'StrictHostKeyChecking=accept-new', '-o', 'ConnectTimeout=5',
+            f'{remote_user}@{remote_host}', remote_cmd]
+    env = os.environ.copy()
+    if remote_pass:
+        # sshpass -e reads SSHPASS from the environment; -p would put the password
+        # in the process list, where any other user on this box could read it.
+        env['SSHPASS'] = remote_pass
+        argv = ['sshpass', '-e', *argv]
+
     try:
-        result = subprocess.check_output(cmd, shell=True).decode('utf-8')
+        result = subprocess.check_output(argv, env=env).decode('utf-8')
         users = []
         for line in result.strip().split('\n'):
             if line:

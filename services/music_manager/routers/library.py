@@ -5,6 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, 
 
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
+from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
 from services.music_manager.routers.analytics_filters import (
     FROM_CLAUSE,
@@ -15,12 +16,11 @@ from services.music_manager.routers.analytics_filters import (
 
 router = APIRouter(tags=['library'])
 settings = Settings()
-API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
 
 def verify_api_key(x_api_key: str | None=Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
-    if API_KEY and x_api_key == API_KEY:
+    if is_system_api_key(x_api_key):
         return {'type': 'system'}
     from services.music_manager.routers.users import verify_token
     try:

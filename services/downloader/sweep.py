@@ -90,8 +90,8 @@ class SweepPolicy:
         return self.park('403', f'{self._blank_run} accounts in a row ending at {account}')
 
     def due(self, accounts: Iterable[str]) -> list[str]:
-        """The accounts that have not been checked within the cooldown."""
-        return self.schedule.due(accounts, self.timing.account_cooldown)
+        """The accounts whose own tier cooldown has passed."""
+        return self.schedule.due(accounts, self.timing)
 
     def guard(self, name: str) -> None:
         """Raise if the sweep is already stopping, so queued accounts are skipped."""

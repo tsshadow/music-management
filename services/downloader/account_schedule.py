@@ -63,14 +63,22 @@ class AccountCheck:
 
 
 def due_accounts(accounts: Iterable[str], checks: Mapping[str, AccountCheck],
-                 cooldown: int, now: datetime) -> list[str]:
-    """Return the accounts that may be checked again, in their original order."""
-    if cooldown <= 0:
-        return list(accounts)
+                 cooldown: int, now: datetime,
+                 cooldown_for_account: Callable[[AccountCheck | None], int] | None = None
+                 ) -> list[str]:
+    """Return the accounts that may be checked again, in their original order.
+
+    ``cooldown_for_account`` decides the wait per account. Without it every
+    account gets the same flat ``cooldown``.
+    """
     due = []
     for account in accounts:
         record = checks.get(account)
-        if record is None or (now - record.last_checked_at).total_seconds() >= cooldown:
+        wait = cooldown if cooldown_for_account is None else cooldown_for_account(record)
+        if wait <= 0:
+            due.append(account)
+            continue
+        if record is None or (now - record.last_checked_at).total_seconds() >= wait:
             due.append(account)
     return due
 
@@ -174,8 +182,15 @@ class AccountSchedule:
             logging.warning('Could not read the check schedule for %s: %s', self.source, exc)
             return {}
 
-    def due(self, accounts: Iterable[str], cooldown: int) -> list[str]:
-        return due_accounts(accounts, self._checks(), cooldown, self._now())
+    def due(self, accounts: Iterable[str], timing: DownloaderTiming) -> list[str]:
+        """The accounts whose own tier cooldown has passed."""
+        now = self._now()
+
+        def wait_for(record: AccountCheck | None) -> int:
+            return cooldown_for(record.last_upload_at if record else None, now, timing)
+
+        return due_accounts(accounts, self._checks(), timing.account_cooldown, now,
+                            cooldown_for_account=wait_for)
 
     def mark_checked(self, account: str, when: datetime | None = None,
                      last_upload_at: datetime | None = None,

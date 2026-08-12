@@ -107,34 +107,41 @@ class AccountScheduleTest(unittest.TestCase):
     def setUp(self):
         self.store = InMemoryCheckStore()
         self.now = NOW
+        # These cases are about the store and the clock, not about tiers. None of
+        # their accounts has an upload date, so every one lands in the unknown
+        # tier and gets account_cooldown -- the 3600 they were written against.
+        self.timing = DownloaderTiming('soundcloud', {'account_cooldown': 3600})
         self.schedule = AccountSchedule('soundcloud', store=self.store, now=lambda: self.now)
 
     def test_all_accounts_are_due_on_a_fresh_install(self):
-        self.assertEqual(self.schedule.due(['dj_a', 'dj_b'], cooldown=3600), ['dj_a', 'dj_b'])
+        self.assertEqual(self.schedule.due(['dj_a', 'dj_b'], self.timing), ['dj_a', 'dj_b'])
 
     def test_a_checked_account_drops_out_until_the_cooldown_passes(self):
         self.schedule.mark_checked('dj_a')
-        self.assertEqual(self.schedule.due(['dj_a', 'dj_b'], cooldown=3600), ['dj_b'])
+        self.assertEqual(self.schedule.due(['dj_a', 'dj_b'], self.timing), ['dj_b'])
 
     def test_the_account_returns_once_the_cooldown_has_passed(self):
         self.schedule.mark_checked('dj_a')
         self.now = NOW + timedelta(seconds=3601)
-        self.assertEqual(self.schedule.due(['dj_a'], cooldown=3600), ['dj_a'])
+        self.assertEqual(self.schedule.due(['dj_a'], self.timing), ['dj_a'])
 
     def test_marking_the_same_account_twice_just_moves_the_timestamp(self):
         self.schedule.mark_checked('dj_a')
         self.now = NOW + timedelta(seconds=1800)
         self.schedule.mark_checked('dj_a')
         self.now = NOW + timedelta(seconds=3601)
-        self.assertEqual(self.schedule.due(['dj_a'], cooldown=3600), [])
+        self.assertEqual(self.schedule.due(['dj_a'], self.timing), [])
 
     def test_sources_do_not_share_their_schedule(self):
         self.schedule.mark_checked('dj_a')
         other = AccountSchedule('youtube', store=self.store, now=lambda: self.now)
-        self.assertEqual(other.due(['dj_a'], cooldown=3600), ['dj_a'])
+        self.assertEqual(other.due(['dj_a'], self.timing), ['dj_a'])
 
 
 class AccountScheduleSurvivesStorageFailureTest(unittest.TestCase):
+
+    def setUp(self):
+        self.timing = DownloaderTiming('soundcloud', {'account_cooldown': 3600})
 
     class BrokenStore:
 
@@ -147,11 +154,57 @@ class AccountScheduleSurvivesStorageFailureTest(unittest.TestCase):
 
     def test_everything_is_due_when_the_store_cannot_be_read(self):
         schedule = AccountSchedule('soundcloud', store=self.BrokenStore(), now=lambda: NOW)
-        self.assertEqual(schedule.due(['dj_a'], cooldown=3600), ['dj_a'])
+        self.assertEqual(schedule.due(['dj_a'], self.timing), ['dj_a'])
 
     def test_marking_a_check_does_not_raise_when_the_store_is_down(self):
         schedule = AccountSchedule('soundcloud', store=self.BrokenStore(), now=lambda: NOW)
         schedule.mark_checked('dj_a')
+
+
+class TieredDueTest(unittest.TestCase):
+    """Each account waits out its own tier, not one cooldown shared by all."""
+
+    def setUp(self):
+        self.store = InMemoryCheckStore()
+        self.now = NOW
+        self.timing = DownloaderTiming('soundcloud', {})
+        self.schedule = AccountSchedule('soundcloud', store=self.store, now=lambda: self.now)
+
+    def _seen(self, account, upload_age_days, checked_ago_seconds):
+        self.store.mark('soundcloud', account,
+                        NOW - timedelta(seconds=checked_ago_seconds),
+                        last_upload_at=NOW - timedelta(days=upload_age_days),
+                        last_seen_track_id=f'{account}-track')
+
+    def test_a_fresh_account_is_due_once_its_own_cooldown_passes(self):
+        self._seen('dj_fresh', upload_age_days=1,
+                   checked_ago_seconds=self.timing.account_cooldown + 1)
+        self.assertEqual(self.schedule.due(['dj_fresh'], self.timing), ['dj_fresh'])
+
+    def test_a_dormant_account_is_held_back_far_past_the_flat_cooldown(self):
+        # Checked eight hours ago: due under the old flat six-hour cooldown,
+        # nowhere near due on the dormant tier.
+        self._seen('dj_dead', upload_age_days=800, checked_ago_seconds=8 * 3600)
+        self.assertEqual(self.schedule.due(['dj_dead'], self.timing), [])
+
+    def test_a_dormant_account_comes_back_after_its_own_cooldown(self):
+        self._seen('dj_dead', upload_age_days=800,
+                   checked_ago_seconds=self.timing.dormant_cooldown + 1)
+        self.assertEqual(self.schedule.due(['dj_dead'], self.timing), ['dj_dead'])
+
+    def test_tiers_are_applied_per_account_in_one_pass(self):
+        self._seen('dj_fresh', upload_age_days=1, checked_ago_seconds=8 * 3600)
+        self._seen('dj_dead', upload_age_days=800, checked_ago_seconds=8 * 3600)
+        self.assertEqual(self.schedule.due(['dj_fresh', 'dj_dead'], self.timing),
+                         ['dj_fresh'])
+
+    def test_an_unprobed_account_is_due_on_the_fresh_cooldown(self):
+        self.assertEqual(self.schedule.due(['dj_new'], self.timing), ['dj_new'])
+
+    def test_an_account_that_uploaded_again_leaves_the_dormant_tier_at_once(self):
+        self._seen('dj_back', upload_age_days=800, checked_ago_seconds=8 * 3600)
+        self._seen('dj_back', upload_age_days=0, checked_ago_seconds=8 * 3600)
+        self.assertEqual(self.schedule.due(['dj_back'], self.timing), ['dj_back'])
 
 
 class CooldownForTest(unittest.TestCase):

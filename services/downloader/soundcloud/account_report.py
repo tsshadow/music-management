@@ -58,13 +58,21 @@ class AccountReport:
         self.extracted = 0
         self.throttled = False
         self.forbidden = 0
+        self.newest_timestamp: int | None = None
         self._current_track: str | None = None
         self._forbidden: list[str] = []
 
-    def note_extracted(self, track_id: str | None) -> None:
-        """Register that metadata for a track came back; called from the match filter."""
+    def note_extracted(self, track_id: str | None, timestamp: int | None = None) -> None:
+        """Register that metadata for a track came back; called from the match filter.
+
+        The timestamp comes along for free -- the full extraction already carries
+        it -- and the newest one is what places the account in a check tier.
+        """
         self.extracted += 1
         self._current_track = track_id
+        if timestamp is not None and (self.newest_timestamp is None
+                                      or timestamp > self.newest_timestamp):
+            self.newest_timestamp = timestamp
 
     @property
     def forbidden_tracks(self) -> list[str]:

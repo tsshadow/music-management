@@ -34,12 +34,23 @@ _CREATE_RATE_STATE = """
 
 _CREATE_ACCOUNT_CHECKS = """
     CREATE TABLE IF NOT EXISTS downloads_account_checks (
-        source          VARCHAR(32)  NOT NULL,
-        account         VARCHAR(255) NOT NULL,
-        last_checked_at DATETIME     NOT NULL,
+        source             VARCHAR(32)  NOT NULL,
+        account            VARCHAR(255) NOT NULL,
+        last_checked_at    DATETIME     NOT NULL,
+        last_upload_at     DATETIME     NULL,
+        last_seen_track_id VARCHAR(64)  NULL,
         PRIMARY KEY (source, account)
     )
 """
+
+# Installs that predate the tier ladder already have the table without these two,
+# and CREATE TABLE IF NOT EXISTS leaves such a table alone.
+_ALTER_ACCOUNT_CHECKS = (
+    'ALTER TABLE downloads_account_checks '
+    'ADD COLUMN IF NOT EXISTS last_upload_at DATETIME NULL',
+    'ALTER TABLE downloads_account_checks '
+    'ADD COLUMN IF NOT EXISTS last_seen_track_id VARCHAR(64) NULL',
+)
 
 _CREATE_UNAVAILABLE = """
     CREATE TABLE IF NOT EXISTS downloads_soundcloud_unavailable (
@@ -59,8 +70,10 @@ _created = False
 
 
 def ensure_downloader_tables(cursor) -> None:
-    """Create the downloader tables if they do not exist yet."""
+    """Create the downloader tables if they do not exist yet, and widen the old ones."""
     for statement in _STATEMENTS:
+        cursor.execute(statement)
+    for statement in _ALTER_ACCOUNT_CHECKS:
         cursor.execute(statement)
 
 

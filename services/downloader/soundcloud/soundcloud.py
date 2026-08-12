@@ -319,7 +319,7 @@ class SoundcloudDownloader:
             os.makedirs(self.downloader_config['archive_dir'], exist_ok=True)
             self.downloader_config['archive_file'] = None
         self.downloader_config['enabled'] = True
-        self.downloader_config['ydl_opts'] = {'http_headers': {'User-Agent': self.downloader_config['user_agent']}, 'outtmpl': f"{self.downloader_config['output_folder']}/%(uploader)s/%(title)s.%(ext)s", 'compat_opts': ['filename'], 'nooverwrites': False, 'no_part': True, 'format': 'bestaudio[ext=mp3]', 'quiet': False, 'ignoreerrors': True, 'set_file_timestamp': True, 'ffmpeg_location': self.downloader_config['ffmpeg_location'], 'playlist_random': True, **self.timing.to_ydl_opts()}
+        self.downloader_config['ydl_opts'] = {'http_headers': {'User-Agent': self.downloader_config['user_agent']}, 'outtmpl': f"{self.downloader_config['output_folder']}/%(uploader)s/%(title)s.%(ext)s", 'compat_opts': ['filename'], 'nooverwrites': False, 'no_part': True, 'format': 'bestaudio[ext=mp3]', 'quiet': False, 'ignoreerrors': True, 'set_file_timestamp': True, 'ffmpeg_location': self.downloader_config['ffmpeg_location'], 'lazy_playlist': True, **self.timing.to_ydl_opts()}
         cookies_file = self.downloader_config['cookies_file']
         if cookies_file:
             if cookies_file.startswith('firefox:'):

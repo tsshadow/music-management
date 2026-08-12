@@ -268,6 +268,18 @@ class ApplyConfigTest(unittest.TestCase):
 
         self.assertEqual(config['ydl_opts']['cookies'], 'soundcloud.com_cookies.txt')
 
+    def test_the_dead_playlist_random_key_is_gone(self):
+        # YoutubeDL reads 'playlistrandom'; the 'playlist_random' key an API
+        # caller passes is never read by anything, so it shuffled nothing. It is
+        # dropped rather than corrected: newest-first is the order both
+        # break_on_existing and the account probe rely on.
+        self.assertNotIn('playlist_random', self.apply()['ydl_opts'])
+
+    def test_lazy_playlist_is_on_so_break_on_existing_stops_the_paging(self):
+        # Without it __process_playlist materialises every entry before a single
+        # download starts, so break_on_existing can only stop the download loop.
+        self.assertIs(self.apply()['ydl_opts']['lazy_playlist'], True)
+
 
 if __name__ == '__main__':
     unittest.main()

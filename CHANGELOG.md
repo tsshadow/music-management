@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **A rating the server refused no longer looks like it was stored.** Subsonic reports its own
+  errors (a throttled login, an id it cannot parse, a failed write) in the response body with HTTP
+  200, and the web UI only looked at the HTTP status: the stars lit up and stayed lit while nothing
+  reached `rated_track`, so the same track was still unrated in the listening history, in Favorites
+  and in the file tags. The track list and the player now read the Subsonic status, put the stars
+  back the way they were when the rating did not land, and log why.
+- **The stars now repaint on the click that sets them.** They were painted from `track.userRating`
+  on an object that is not reactive state in most views (and is rebuilt from scratch on every radio
+  update), so the click stored a rating that only became visible after the list was fetched
+  again — and in the player during radio, never.
+
 ## [0.8.2] - 2026-08-12
 
 ### Fixed

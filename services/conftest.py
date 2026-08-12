@@ -1,15 +1,7 @@
-import os
-
 import pytest
 
 
 def pytest_configure(config):
-    # The system API key no longer has a literal fallback in the source, so the
-    # suite has to supply one. setdefault (plus load_dotenv's own refusal to
-    # override) means this wins over any API_KEY in a developer's .env, keeping
-    # the tests independent of whatever that machine deploys with.
-    os.environ.setdefault('API_KEY', 'test-system-api-key')
-
     from services.tests import mock_base
     mock_base.setup_mocks()
 

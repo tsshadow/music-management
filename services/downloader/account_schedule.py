@@ -4,12 +4,53 @@ Sweeping every account on every run is what generates the traffic that gets a
 downloader rate limited. The cooldown here spreads that out: a sweep only touches
 the accounts that have not been looked at recently, so raising the sweep frequency
 no longer means raising the request count.
+
+How long "recently" is depends on the account. One that uploaded this week is
+worth coming back to today; one whose newest track is from 2019 is not. The
+ladder in `cooldown_for` turns the age of an account's newest upload into its own
+cooldown, which is what stops the quiet majority from setting the request budget
+for everyone.
 """
 from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Iterable, Mapping
 from datetime import datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover - for type checkers only
+    from services.downloader.timing import DownloaderTiming
+
+SECONDS_PER_DAY = 86400
+
+# The tier boundaries, in days since the account's newest known upload. Week,
+# month, quarter and year are calendar-meaningful and deliberately not settings;
+# what an operator tunes is the cooldown each tier gets.
+FRESH_DAYS = 7
+RECENT_DAYS = 30
+MONTHLY_DAYS = 90
+OCCASIONAL_DAYS = 365
+
+
+def cooldown_for(last_upload_at: datetime | None, now: datetime,
+                 timing: DownloaderTiming) -> int:
+    """How long to leave an account alone, given when it last uploaded.
+
+    An unknown date counts as fresh. A newly added account has to be checked
+    promptly, and one look is enough to place it in the tier it belongs in.
+    """
+    if last_upload_at is None:
+        return timing.account_cooldown
+    age_days = (now - last_upload_at).total_seconds() / SECONDS_PER_DAY
+    if age_days < FRESH_DAYS:
+        return timing.account_cooldown
+    if age_days < RECENT_DAYS:
+        return timing.recent_cooldown
+    if age_days < MONTHLY_DAYS:
+        return timing.monthly_cooldown
+    if age_days < OCCASIONAL_DAYS:
+        return timing.occasional_cooldown
+    return timing.dormant_cooldown
 
 
 def due_accounts(accounts: Iterable[str], last_checked: Mapping[str, datetime],

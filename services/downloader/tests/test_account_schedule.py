@@ -8,8 +8,10 @@ setup_mocks()
 from services.downloader.account_schedule import (
     AccountSchedule,
     InMemoryCheckStore,
+    cooldown_for,
     due_accounts,
 )
+from services.downloader.timing import DownloaderTiming
 
 NOW = datetime(2026, 7, 30, 12, 0, 0)
 
@@ -94,6 +96,51 @@ class AccountScheduleSurvivesStorageFailureTest(unittest.TestCase):
     def test_marking_a_check_does_not_raise_when_the_store_is_down(self):
         schedule = AccountSchedule('soundcloud', store=self.BrokenStore(), now=lambda: NOW)
         schedule.mark_checked('dj_a')
+
+
+class CooldownForTest(unittest.TestCase):
+    """The ladder from 'when did this account last upload' to 'how long to wait'."""
+
+    def setUp(self):
+        self.timing = DownloaderTiming('soundcloud', {})
+
+    def _for_age(self, days):
+        return cooldown_for(NOW - timedelta(days=days), NOW, self.timing)
+
+    def test_an_account_with_no_known_upload_is_checked_as_if_it_were_fresh(self):
+        # A newly added account has no date yet and must not sink to the bottom
+        # tier before a single probe has placed it.
+        self.assertEqual(cooldown_for(None, NOW, self.timing), self.timing.account_cooldown)
+
+    def test_an_upload_this_week_keeps_the_fastest_cooldown(self):
+        self.assertEqual(self._for_age(3), self.timing.account_cooldown)
+
+    def test_the_week_boundary_belongs_to_the_slower_tier(self):
+        self.assertEqual(self._for_age(6.9), self.timing.account_cooldown)
+        self.assertEqual(self._for_age(7), self.timing.recent_cooldown)
+
+    def test_the_month_boundary(self):
+        self.assertEqual(self._for_age(29.9), self.timing.recent_cooldown)
+        self.assertEqual(self._for_age(30), self.timing.monthly_cooldown)
+
+    def test_the_quarter_boundary(self):
+        self.assertEqual(self._for_age(89.9), self.timing.monthly_cooldown)
+        self.assertEqual(self._for_age(90), self.timing.occasional_cooldown)
+
+    def test_the_year_boundary(self):
+        self.assertEqual(self._for_age(364.9), self.timing.occasional_cooldown)
+        self.assertEqual(self._for_age(365), self.timing.dormant_cooldown)
+
+    def test_a_long_dead_account_stays_on_the_dormant_cooldown(self):
+        self.assertEqual(self._for_age(4000), self.timing.dormant_cooldown)
+
+    def test_an_upload_stamped_in_the_future_counts_as_fresh(self):
+        self.assertEqual(self._for_age(-5), self.timing.account_cooldown)
+
+    def test_the_backoff_multiplier_stretches_whichever_tier_applies(self):
+        stretched = DownloaderTiming('soundcloud', {}, multiplier=4)
+        self.assertEqual(cooldown_for(NOW - timedelta(days=800), NOW, stretched),
+                         self.timing.dormant_cooldown * 4)
 
 
 if __name__ == '__main__':

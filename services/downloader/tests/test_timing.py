@@ -142,5 +142,37 @@ class TimingIsUsableWithoutADatabaseTest(unittest.TestCase):
         self.assertEqual(timing.sweep_interval, 60)
 
 
+class TierCooldownFieldsTest(unittest.TestCase):
+    """The ladder that lets a quiet account be checked less often."""
+
+    TIER_KEYS = ('recent_cooldown', 'monthly_cooldown',
+                 'occasional_cooldown', 'dormant_cooldown')
+
+    def test_every_source_has_the_tier_cooldowns(self):
+        for source in SOURCES:
+            keys = field_map(source)
+            for key in self.TIER_KEYS:
+                self.assertIn(key, keys, f'{source} is missing {key}')
+
+    def test_the_tiers_get_slower_as_an_account_goes_quiet(self):
+        timing = DownloaderTiming('soundcloud', {})
+        self.assertLess(timing.account_cooldown, timing.recent_cooldown)
+        self.assertLess(timing.recent_cooldown, timing.monthly_cooldown)
+        self.assertLess(timing.monthly_cooldown, timing.occasional_cooldown)
+        self.assertLess(timing.occasional_cooldown, timing.dormant_cooldown)
+
+    def test_the_dormant_cooldown_can_be_dialled_back_to_a_fortnight(self):
+        # Its value is the worst case delay before a returning account is
+        # noticed, so it has to be shortenable without a deploy.
+        field = field_map('soundcloud')['dormant_cooldown']
+        self.assertLessEqual(field.minimum, 14 * 86400)
+
+    def test_the_multiplier_stretches_the_tier_cooldowns(self):
+        stretched = DownloaderTiming('soundcloud', {}, multiplier=4)
+        plain = DownloaderTiming('soundcloud', {})
+        for key in self.TIER_KEYS:
+            self.assertEqual(stretched.get(key), plain.get(key) * 4, key)
+
+
 if __name__ == '__main__':
     unittest.main()

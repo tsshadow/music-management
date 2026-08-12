@@ -183,14 +183,30 @@ class AccountSchedule:
             return {}
 
     def due(self, accounts: Iterable[str], timing: DownloaderTiming) -> list[str]:
-        """The accounts whose own tier cooldown has passed."""
+        """The accounts whose own tier cooldown has passed, most overdue first.
+
+        Overdue-ness is measured against each account's own tier, so a dormant
+        account is not permanently last merely for having a long cooldown. It
+        also means a sweep cut short by `burst_size` or a 403 leaves behind the
+        accounts that have waited least, rather than the same tail every time.
+        """
         now = self._now()
+        checks = self._checks()
 
         def wait_for(record: AccountCheck | None) -> int:
             return cooldown_for(record.last_upload_at if record else None, now, timing)
 
-        return due_accounts(accounts, self._checks(), timing.account_cooldown, now,
-                            cooldown_for_account=wait_for)
+        ready = due_accounts(accounts, checks, timing.account_cooldown, now,
+                             cooldown_for_account=wait_for)
+
+        def overdue_by(account: str) -> float:
+            record = checks.get(account)
+            if record is None:
+                return float('inf')
+            waited = (now - record.last_checked_at).total_seconds()
+            return waited - wait_for(record)
+
+        return sorted(ready, key=overdue_by, reverse=True)
 
     def mark_checked(self, account: str, when: datetime | None = None,
                      last_upload_at: datetime | None = None,

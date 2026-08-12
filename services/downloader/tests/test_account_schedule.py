@@ -206,6 +206,37 @@ class TieredDueTest(unittest.TestCase):
         self._seen('dj_back', upload_age_days=0, checked_ago_seconds=8 * 3600)
         self.assertEqual(self.schedule.due(['dj_back'], self.timing), ['dj_back'])
 
+    def test_the_most_overdue_account_comes_first(self):
+        # Alphabetical order meant the same tail of the list was always the part
+        # that went unchecked when burst_size or a 403 cut a sweep short.
+        self._seen('dj_a', upload_age_days=1,
+                   checked_ago_seconds=self.timing.account_cooldown + 60)
+        self._seen('dj_z', upload_age_days=1,
+                   checked_ago_seconds=self.timing.account_cooldown + 9000)
+        self.assertEqual(self.schedule.due(['dj_a', 'dj_z'], self.timing), ['dj_z', 'dj_a'])
+
+    def test_an_account_that_was_never_checked_outranks_a_late_one(self):
+        self._seen('dj_a', upload_age_days=1,
+                   checked_ago_seconds=self.timing.account_cooldown + 60)
+        self.assertEqual(self.schedule.due(['dj_a', 'dj_new'], self.timing),
+                         ['dj_new', 'dj_a'])
+
+    def test_ordering_does_not_let_an_undue_account_through(self):
+        self._seen('dj_dead', upload_age_days=800, checked_ago_seconds=8 * 3600)
+        self._seen('dj_a', upload_age_days=1,
+                   checked_ago_seconds=self.timing.account_cooldown + 60)
+        self.assertEqual(self.schedule.due(['dj_dead', 'dj_a'], self.timing), ['dj_a'])
+
+    def test_a_dormant_account_long_past_its_cooldown_outranks_a_barely_due_one(self):
+        # Overdue-ness is measured against each account's own tier, so a dormant
+        # account is not permanently last just for having a long cooldown.
+        self._seen('dj_fresh', upload_age_days=1,
+                   checked_ago_seconds=self.timing.account_cooldown + 60)
+        self._seen('dj_dead', upload_age_days=800,
+                   checked_ago_seconds=self.timing.dormant_cooldown + 90000)
+        self.assertEqual(self.schedule.due(['dj_fresh', 'dj_dead'], self.timing),
+                         ['dj_dead', 'dj_fresh'])
+
 
 class CooldownForTest(unittest.TestCase):
     """The ladder from 'when did this account last upload' to 'how long to wait'."""

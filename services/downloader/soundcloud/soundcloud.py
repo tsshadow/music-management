@@ -290,7 +290,7 @@ class SoundcloudDownloader:
             if not accounts:
                 logging.warning('No SoundCloud accounts found in the database.')
                 return []
-            accounts.sort()
+            # Left unsorted: the schedule orders whatever is due by overdue-ness.
             return accounts
         return [account]
 

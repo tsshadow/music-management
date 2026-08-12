@@ -27,6 +27,12 @@ if str(ROOT) not in sys.path:
 # with the per-test truncate below. Set before main.py is imported anywhere.
 os.environ.setdefault('MUMA_DISABLE_BACKGROUND_WORKERS', '1')
 
+# Likewise set before main.py: the system API key has no literal fallback any more
+# (services/music_manager/api_key.py), and this suite runs the app in-process, so the
+# same value serves the client and the server. It matches the key
+# docker/compose.test.yml uses, so no suite disagrees with another about it.
+os.environ.setdefault('API_KEY', 'test-api-key')
+
 pymysql = pytest.importorskip('pymysql', reason='the integration suite needs the real pymysql')
 
 

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -53,34 +54,61 @@ def cooldown_for(last_upload_at: datetime | None, now: datetime,
     return timing.dormant_cooldown
 
 
-def due_accounts(accounts: Iterable[str], last_checked: Mapping[str, datetime],
+@dataclass(frozen=True)
+class AccountCheck:
+    """What we know about one account after the last time we looked at it."""
+    last_checked_at: datetime
+    last_upload_at: datetime | None = None
+    last_seen_track_id: str | None = None
+
+
+def due_accounts(accounts: Iterable[str], checks: Mapping[str, AccountCheck],
                  cooldown: int, now: datetime) -> list[str]:
     """Return the accounts that may be checked again, in their original order."""
     if cooldown <= 0:
         return list(accounts)
     due = []
     for account in accounts:
-        checked_at = last_checked.get(account)
-        if checked_at is None or (now - checked_at).total_seconds() >= cooldown:
+        record = checks.get(account)
+        if record is None or (now - record.last_checked_at).total_seconds() >= cooldown:
             due.append(account)
     return due
 
 
 class InMemoryCheckStore:
-    """Keeps the check times in a dict. Used by tests."""
+    """Keeps the check records in a dict. Used by tests."""
 
     def __init__(self) -> None:
-        self._rows: dict[str, dict[str, datetime]] = {}
+        self._rows: dict[str, dict[str, AccountCheck]] = {}
 
-    def load(self, source: str) -> dict[str, datetime]:
+    def load(self, source: str) -> dict[str, AccountCheck]:
         return dict(self._rows.get(source, {}))
 
-    def mark(self, source: str, account: str, when: datetime) -> None:
-        self._rows.setdefault(source, {})[account] = when
+    def mark(self, source: str, account: str, when: datetime,
+             last_upload_at: datetime | None = None,
+             last_seen_track_id: str | None = None) -> None:
+        rows = self._rows.setdefault(source, {})
+        previous = rows.get(account)
+        rows[account] = AccountCheck(
+            last_checked_at=when,
+            last_upload_at=_kept(last_upload_at, previous, 'last_upload_at'),
+            last_seen_track_id=_kept(last_seen_track_id, previous, 'last_seen_track_id'),
+        )
+
+
+def _kept(new_value, previous: AccountCheck | None, attribute: str):
+    """The new value, or what was already stored when there is no new one.
+
+    Mirrors the ``COALESCE`` in the database store: an ordinary check knows only
+    the time, and must not wipe a date the account had already earned.
+    """
+    if new_value is not None:
+        return new_value
+    return getattr(previous, attribute) if previous is not None else None
 
 
 class DatabaseCheckStore:
-    """Persists the check times in ``downloads_account_checks``."""
+    """Persists the check records in ``downloads_account_checks``."""
 
     def _connect(self):
         from services.common.Helpers.DatabaseConnector import DatabaseConnector
@@ -89,26 +117,38 @@ class DatabaseCheckStore:
         ensure_once(connection)
         return connection
 
-    def load(self, source: str) -> dict[str, datetime]:
+    def load(self, source: str) -> dict[str, AccountCheck]:
         connection = self._connect()
         try:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    'SELECT account, last_checked_at FROM downloads_account_checks WHERE source = %s',
+                    'SELECT account, last_checked_at, last_upload_at, last_seen_track_id '
+                    'FROM downloads_account_checks WHERE source = %s',
                     (source,))
-                return dict(cursor.fetchall())
+                return {
+                    account: AccountCheck(checked_at, upload_at, track_id)
+                    for account, checked_at, upload_at, track_id in cursor.fetchall()
+                }
         finally:
             connection.close()
 
-    def mark(self, source: str, account: str, when: datetime) -> None:
+    def mark(self, source: str, account: str, when: datetime,
+             last_upload_at: datetime | None = None,
+             last_seen_track_id: str | None = None) -> None:
         connection = self._connect()
         try:
             with connection.cursor() as cursor:
+                # COALESCE, not a plain assignment: an ordinary check passes NULL
+                # for the two upload columns and must leave them as they were.
                 cursor.execute(
-                    'INSERT INTO downloads_account_checks (source, account, last_checked_at) '
-                    'VALUES (%s, %s, %s) '
-                    'ON DUPLICATE KEY UPDATE last_checked_at = %s',
-                    (source, account, when, when))
+                    'INSERT INTO downloads_account_checks '
+                    '(source, account, last_checked_at, last_upload_at, last_seen_track_id) '
+                    'VALUES (%s, %s, %s, %s, %s) '
+                    'ON DUPLICATE KEY UPDATE '
+                    '  last_checked_at = VALUES(last_checked_at), '
+                    '  last_upload_at = COALESCE(VALUES(last_upload_at), last_upload_at), '
+                    '  last_seen_track_id = COALESCE(VALUES(last_seen_track_id), last_seen_track_id)',
+                    (source, account, when, last_upload_at, last_seen_track_id))
             connection.commit()
         finally:
             connection.close()
@@ -127,7 +167,7 @@ class AccountSchedule:
         self._store = store if store is not None else DatabaseCheckStore()
         self._now = now
 
-    def _last_checked(self) -> dict[str, datetime]:
+    def _checks(self) -> dict[str, AccountCheck]:
         try:
             return self._store.load(self.source)
         except Exception as exc:
@@ -135,10 +175,13 @@ class AccountSchedule:
             return {}
 
     def due(self, accounts: Iterable[str], cooldown: int) -> list[str]:
-        return due_accounts(accounts, self._last_checked(), cooldown, self._now())
+        return due_accounts(accounts, self._checks(), cooldown, self._now())
 
-    def mark_checked(self, account: str, when: datetime | None = None) -> None:
+    def mark_checked(self, account: str, when: datetime | None = None,
+                     last_upload_at: datetime | None = None,
+                     last_seen_track_id: str | None = None) -> None:
         try:
-            self._store.mark(self.source, account, when or self._now())
+            self._store.mark(self.source, account, when or self._now(),
+                             last_upload_at, last_seen_track_id)
         except Exception as exc:
             logging.warning('Could not record the check of %s/%s: %s', self.source, account, exc)

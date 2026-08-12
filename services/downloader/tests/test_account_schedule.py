@@ -6,6 +6,7 @@ from services.tests.mock_base import setup_mocks
 setup_mocks()
 
 from services.downloader.account_schedule import (
+    AccountCheck,
     AccountSchedule,
     InMemoryCheckStore,
     cooldown_for,
@@ -16,35 +17,89 @@ from services.downloader.timing import DownloaderTiming
 NOW = datetime(2026, 7, 30, 12, 0, 0)
 
 
+def checked_at(when):
+    """One account's record, for the cases that only care about the check time."""
+    return AccountCheck(last_checked_at=when)
+
+
 class DueAccountsTest(unittest.TestCase):
 
     def test_an_account_that_was_never_checked_is_due(self):
         self.assertEqual(due_accounts(['dj_a'], {}, cooldown=3600, now=NOW), ['dj_a'])
 
     def test_an_account_checked_within_the_cooldown_is_skipped(self):
-        checked = {'dj_a': NOW - timedelta(seconds=60)}
+        checked = {'dj_a': checked_at(NOW - timedelta(seconds=60))}
         self.assertEqual(due_accounts(['dj_a'], checked, cooldown=3600, now=NOW), [])
 
     def test_an_account_checked_before_the_cooldown_is_due_again(self):
-        checked = {'dj_a': NOW - timedelta(seconds=3601)}
+        checked = {'dj_a': checked_at(NOW - timedelta(seconds=3601))}
         self.assertEqual(due_accounts(['dj_a'], checked, cooldown=3600, now=NOW), ['dj_a'])
 
     def test_a_zero_cooldown_lets_everything_through(self):
-        checked = {'dj_a': NOW}
+        checked = {'dj_a': checked_at(NOW)}
         self.assertEqual(due_accounts(['dj_a'], checked, cooldown=0, now=NOW), ['dj_a'])
 
     def test_the_order_of_the_accounts_is_kept(self):
-        checked = {'dj_b': NOW - timedelta(seconds=10)}
+        checked = {'dj_b': checked_at(NOW - timedelta(seconds=10))}
         due = due_accounts(['dj_a', 'dj_b', 'dj_c'], checked, cooldown=3600, now=NOW)
         self.assertEqual(due, ['dj_a', 'dj_c'])
 
     def test_a_check_stamped_in_the_future_still_blocks(self):
-        checked = {'dj_a': NOW + timedelta(hours=1)}
+        checked = {'dj_a': checked_at(NOW + timedelta(hours=1))}
         self.assertEqual(due_accounts(['dj_a'], checked, cooldown=3600, now=NOW), [])
 
     def test_accounts_that_were_never_seen_are_not_invented(self):
-        checked = {'dj_gone': NOW - timedelta(days=9)}
+        checked = {'dj_gone': checked_at(NOW - timedelta(days=9))}
         self.assertEqual(due_accounts(['dj_a'], checked, cooldown=3600, now=NOW), ['dj_a'])
+
+
+class CheckRecordTest(unittest.TestCase):
+    """What the store remembers about an account beyond the last check time."""
+
+    def setUp(self):
+        self.store = InMemoryCheckStore()
+        self.now = NOW
+        self.schedule = AccountSchedule('soundcloud', store=self.store, now=lambda: self.now)
+
+    def _record(self, account='dj_a'):
+        return self.store.load('soundcloud')[account]
+
+    def test_a_plain_check_records_only_the_time(self):
+        self.schedule.mark_checked('dj_a')
+        record = self._record()
+        self.assertEqual(record.last_checked_at, NOW)
+        self.assertIsNone(record.last_upload_at)
+        self.assertIsNone(record.last_seen_track_id)
+
+    def test_an_upload_date_is_recorded_when_it_is_known(self):
+        uploaded = NOW - timedelta(days=2)
+        self.schedule.mark_checked('dj_a', last_upload_at=uploaded,
+                                   last_seen_track_id='2379459947')
+        record = self._record()
+        self.assertEqual(record.last_upload_at, uploaded)
+        self.assertEqual(record.last_seen_track_id, '2379459947')
+
+    def test_a_later_plain_check_does_not_erase_a_known_upload_date(self):
+        # Writing NULL on every ordinary check would throw away the date and
+        # force the account to be re-probed forever.
+        uploaded = NOW - timedelta(days=2)
+        self.schedule.mark_checked('dj_a', last_upload_at=uploaded,
+                                   last_seen_track_id='2379459947')
+        self.now = NOW + timedelta(hours=7)
+        self.schedule.mark_checked('dj_a')
+        record = self._record()
+        self.assertEqual(record.last_checked_at, self.now)
+        self.assertEqual(record.last_upload_at, uploaded)
+        self.assertEqual(record.last_seen_track_id, '2379459947')
+
+    def test_a_newer_upload_date_replaces_the_stored_one(self):
+        self.schedule.mark_checked('dj_a', last_upload_at=NOW - timedelta(days=200),
+                                   last_seen_track_id='old')
+        newer = NOW - timedelta(hours=1)
+        self.schedule.mark_checked('dj_a', last_upload_at=newer, last_seen_track_id='new')
+        record = self._record()
+        self.assertEqual(record.last_upload_at, newer)
+        self.assertEqual(record.last_seen_track_id, 'new')
 
 
 class AccountScheduleTest(unittest.TestCase):
@@ -86,7 +141,8 @@ class AccountScheduleSurvivesStorageFailureTest(unittest.TestCase):
         def load(self, source):
             raise RuntimeError('database is down')
 
-        def mark(self, source, account, when):
+        def mark(self, source, account, when, last_upload_at=None,
+                 last_seen_track_id=None):
             raise RuntimeError('database is down')
 
     def test_everything_is_due_when_the_store_cannot_be_read(self):

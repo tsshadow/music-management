@@ -17,6 +17,16 @@ function renderPlayer(props = {}) {
   return render(Player, { onnavigate: vi.fn(), ontoggleQueue: vi.fn(), ...props });
 }
 
+// Lets the click's fetch resolve and Svelte flush the resulting render, so an
+// assertion sees the state the component settled on and not the one it passed
+// through on the way there.
+async function settled() {
+  await waitFor(() =>
+    expect(globalThis.fetch.mock.calls.some(([url]) => url.includes('/rest/setRating'))).toBe(true)
+  );
+  for (let i = 0; i < 3; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 describe('Player', () => {
   beforeEach(() => {
     credentials.set({ url: '', username: 'user', password: 'pw' });
@@ -167,6 +177,34 @@ describe('Player', () => {
     await waitFor(() =>
       expect(globalThis.fetch.mock.calls.some(([url]) => url.includes('/rest/setRating'))).toBe(true)
     );
+  });
+
+  it('a rating the server accepted stays on screen', async () => {
+    currentTrack.set({ ...FIRST, userRating: 0 });
+    renderPlayer();
+
+    await fireEvent.click(screen.getAllByLabelText('4 sterren')[0]);
+    await settled();
+
+    expect(screen.getAllByLabelText('4 sterren')[0].className).toContain('text-brand');
+  });
+
+  // Subsonic answers errors with HTTP 200 and a "failed" body, so a rating the
+  // server refused used to keep its stars lit while nothing was stored.
+  it('a rating the server refused does not stay on screen', async () => {
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        'subsonic-response': { status: 'failed', error: { code: 60, message: 'Wrong username or password.' } }
+      })
+    }));
+    currentTrack.set({ ...FIRST, userRating: 0 });
+    renderPlayer();
+
+    await fireEvent.click(screen.getAllByLabelText('4 sterren')[0]);
+    await settled();
+
+    expect(screen.getAllByLabelText('4 sterren')[0].className).not.toContain('text-brand');
   });
 
   it('the album of the track can be opened', async () => {

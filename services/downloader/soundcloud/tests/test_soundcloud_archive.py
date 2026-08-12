@@ -25,6 +25,36 @@ class SoundcloudArchiveTestCase(unittest.TestCase):
         self.connector_cls.return_value.connect.return_value = self.connection
 
 
+class TrackExistsTest(SoundcloudArchiveTestCase):
+    """The probe's gate: is this track held, regardless of which account it is under?"""
+
+    def test_a_known_track_is_reported_as_archived(self):
+        self.cursor.fetchone.return_value = (1,)
+
+        self.assertTrue(SoundcloudArchive.track_exists('2379459947'))
+
+    def test_an_unknown_track_is_not_archived(self):
+        self.cursor.fetchone.return_value = None
+
+        self.assertFalse(SoundcloudArchive.track_exists('2379459947'))
+
+    def test_it_matches_on_the_track_id_alone(self):
+        # The account column holds the numeric SoundCloud id, not the name the
+        # sweep iterates, so filtering on it would never match.
+        self.cursor.fetchone.return_value = (1,)
+
+        SoundcloudArchive.track_exists('2379459947')
+
+        query, params = self.cursor.execute.call_args[0]
+        self.assertNotIn('account', query)
+        self.assertEqual(params, ('2379459947',))
+
+    def test_an_unreachable_database_means_do_the_full_run(self):
+        self.connector_cls.return_value.connect.side_effect = RuntimeError('no database')
+
+        self.assertFalse(SoundcloudArchive.track_exists('2379459947'))
+
+
 class ExistsTest(SoundcloudArchiveTestCase):
 
     def test_a_known_track_is_reported_as_archived(self):

@@ -27,6 +27,32 @@ class SoundcloudArchive:
             return False
 
     @staticmethod
+    def track_exists(track_id: str) -> bool:
+        """Whether this track is already held, whatever account it came from.
+
+        Deliberately does not filter on `account`. That column holds the numeric
+        SoundCloud account id -- `SoundcloudSongProcessor` passes `channel_id or
+        uploader_id` into both `exists` and `insert` -- while the sweep works in
+        account names, so an account-filtered lookup would never match. Track ids
+        are globally unique on SoundCloud, so the account adds nothing to this
+        question, and leaving it out also covers accounts whose `soundcloud_id`
+        was never filled in. `downloads_soundcloud_archive` indexes `video_id`.
+
+        A database that cannot be reached answers "no": that means "do the full
+        run", never "skip this account".
+        """
+        try:
+            conn = DatabaseConnector().connect()
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    'SELECT 1 FROM downloads_soundcloud_archive WHERE video_id = %s LIMIT 1',
+                    (track_id,))
+                return cursor.fetchone() is not None
+        except Exception as e:
+            logging.warning(f'Could not check archive for track {track_id}: {e}', exc_info=True)
+            return False
+
+    @staticmethod
     def _get_uploader_id(self_info):
         return self_info.get('channel_id') or self_info.get('uploader_id') or None
 

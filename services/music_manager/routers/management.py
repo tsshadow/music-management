@@ -10,6 +10,7 @@ import docker
 from services.common.Helpers.GenreRulesHelper import BLACK, VALID_STATES, WHITE
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 from services.common.version_helper import get_changelog, get_release_notes, get_version
+from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
 
 router = APIRouter(tags=['management'])
@@ -38,12 +39,11 @@ class GenreDecisionRequest(BaseModel):
 class LabelGenreRule(BaseModel):
     label_name: str
     genre_id: int
-API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
 
 def verify_api_key(x_api_key: str | None=Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
-    if API_KEY and x_api_key == API_KEY:
+    if is_system_api_key(x_api_key):
         return {'type': 'system'}
     from services.music_manager.routers.users import verify_token
     try:

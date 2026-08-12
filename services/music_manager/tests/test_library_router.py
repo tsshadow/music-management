@@ -8,6 +8,7 @@ for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen
     sys.modules.setdefault(_mod_name, MagicMock())
 
 import services.music_manager.routers.users as users_router
+from services.music_manager.api_key import resolve_system_api_key
 
 users_router.run_lms_db_sync = lambda: None
 
@@ -18,7 +19,7 @@ from services.music_manager.routers import jobs as jobs_router
 from services.music_manager.routers import library as library_router
 from services.music_manager.routers import scrobbler as scrobbler_router
 
-API_KEY = library_router.API_KEY
+API_KEY = resolve_system_api_key()
 
 
 class RouterTestCase(unittest.TestCase):

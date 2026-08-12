@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-08-12
+
+### Fixed
+- **A genre in `rules_genres` is now recognised whatever its casing.** SoundCloud hands out the
+  genre exactly as the uploader typed it, and the rules lookup matched on the stored spelling only:
+  `uptempo` was accepted while `Uptempo`, `UPTEMPO`, `techno`, `hardcore` and `frenchcore` were all
+  rejected as unknown genres, even though the row was there under a different casing. Both the
+  preloaded and the database lookup now compare case-insensitively and answer with the spelling the
+  table stores, or with its correction, so a single genre no longer enters the library as
+  `Uptempo Hardcore` next to `uptempo`.
+- **The SoundCloud genre fetcher no longer pays a full minute for a track that does not exist.** It
+  paused 60 seconds after every yt-dlp call, so a deleted track (HTTP 404) and a DRM-only track cost
+  as much as a real fetch, while a 403 was skipped as if nothing had happened and the next thousand
+  tracks ran into the same refusal. Failures are now told apart: a permanent one waits 5 seconds, a
+  refusal backs off from 5 minutes and doubles to at most an hour, and five refusals in a row end
+  the pass. The end-of-run summary reports the failures per kind, and yt-dlp's multi-line complaint
+  is logged as its single ERROR line.
+
 ## [0.8.1] - 2026-08-08
 
 ### Fixed

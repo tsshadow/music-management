@@ -36,14 +36,25 @@ class FilterTableHelperTest(unittest.TestCase):
         self.assertEqual(result, '')
 
     def test_get_corrected_or_exists_corrected(self):
-        self.mock_cursor.fetchone.return_value = ('Speedcore',)
+        self.mock_cursor.fetchone.return_value = ('speedcore', 'Speedcore')
         result = self.helper.get_corrected_or_exists('speedcore')
         self.assertEqual(result, 'Speedcore')
 
     def test_get_corrected_or_exists_only_exists(self):
-        self.mock_cursor.fetchone.return_value = ('',)
+        self.mock_cursor.fetchone.return_value = ('rave', '')
         result = self.helper.get_corrected_or_exists('rave')
         self.assertEqual(result, 'rave')
+
+    def test_get_corrected_or_exists_returns_the_stored_spelling(self):
+        self.mock_cursor.fetchone.return_value = ('uptempo', '')
+        result = self.helper.get_corrected_or_exists('UPTEMPO')
+        self.assertEqual(result, 'uptempo')
+
+    def test_get_corrected_or_exists_asks_the_database_case_insensitively(self):
+        self.mock_cursor.fetchone.return_value = ('uptempo', '')
+        self.helper.get_corrected_or_exists('Uptempo')
+        query = self.mock_cursor.execute.call_args[0][0]
+        self.assertIn('LOWER(name) = LOWER(%s)', query)
 
     def test_get_corrected_or_exists_not_found(self):
         self.mock_cursor.fetchone.return_value = None
@@ -64,4 +75,46 @@ class FilterTableHelperTest(unittest.TestCase):
         self.mock_cursor.fetchall.return_value = [('Hardcore',), ('Terror',), ('Speedcore',)]
         result = self.helper.get_all()
         self.assertEqual(result, ['Hardcore', 'Speedcore', 'Terror'])
+
+
+class FilterTableHelperCachedTest(unittest.TestCase):
+    """The preloaded path, which is the one every long-running service uses.
+
+    SoundCloud hands out genres in whatever casing the uploader typed, so a
+    lookup that only matches the stored spelling silently throws away genres
+    that are in `rules_genres` under a different casing.
+    """
+
+    def setUp(self):
+        patcher = patch('services.common.Helpers.FilterTableHelper.DatabaseConnector')
+        self.addCleanup(patcher.stop)
+        self.mock_connector_cls = patcher.start()
+        self.mock_connection = MagicMock()
+        self.mock_cursor = MagicMock()
+        self.mock_connection.cursor.return_value.__enter__.return_value = self.mock_cursor
+        self.mock_connector_cls.return_value.connect.return_value = self.mock_connection
+        self.mock_cursor.fetchall.return_value = [
+            ('uptempo', None),
+            ('Hardcore', ''),
+            ('uptempo hardcore', 'Uptempo Hardcore'),
+        ]
+        self.helper = FilterTableHelper('rules_genres', 'name', 'corrected_genre')
+
+    def test_exists_ignores_case(self):
+        self.assertTrue(self.helper.exists('HARDCORE'))
+
+    def test_get_corrected_or_exists_ignores_case(self):
+        self.assertEqual(self.helper.get_corrected_or_exists('Uptempo'), 'uptempo')
+
+    def test_get_corrected_or_exists_returns_the_stored_spelling(self):
+        self.assertEqual(self.helper.get_corrected_or_exists('hardcore'), 'Hardcore')
+
+    def test_get_corrected_or_exists_prefers_the_correction(self):
+        self.assertEqual(self.helper.get_corrected_or_exists('UPTEMPO HARDCORE'), 'Uptempo Hardcore')
+
+    def test_get_corrected_ignores_case(self):
+        self.assertEqual(self.helper.get_corrected('Uptempo Hardcore'), 'Uptempo Hardcore')
+
+    def test_unknown_genre_is_still_rejected(self):
+        self.assertFalse(self.helper.get_corrected_or_exists('jazz'))
 unittest.TextTestRunner().run(unittest.defaultTestLoader.loadTestsFromTestCase(FilterTableHelperTest))

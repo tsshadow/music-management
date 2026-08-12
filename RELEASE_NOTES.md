@@ -11,6 +11,24 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.8.2 (2026-08-12)
+
+### 🏷️ Genres worden nu herkend ongeacht hoofdletters
+- SoundCloud levert het genre precies zoals de uploader het typte. `uptempo` werd geaccepteerd,
+  maar `Uptempo`, `UPTEMPO`, `techno`, `hardcore` en `frenchcore` gingen de prullenbak in als
+  "onbekend genre", terwijl het genre wél in je regels stond — alleen met andere hoofdletters.
+- Dat matcht nu hoofdletter-ongevoelig, en er wordt weggeschreven zoals jij het genre hebt
+  opgeslagen. Je krijgt dus geen `uptempo` meer náást `Uptempo Hardcore` bij hetzelfde nummer.
+
+### ⏱️ De genre-fetcher verspilt geen minuut meer aan verdwenen nummers
+- Na elke bevraging wachtte hij een volle minuut, ook na een verwijderd nummer (404) of een nummer
+  dat SoundCloud alleen versleuteld uitlevert. Een weigering (403) werd bovendien genegeerd, waarna
+  de volgende duizend nummers tegen dezelfde weigering aanliepen.
+- Nu wordt onderscheid gemaakt: verdwenen nummers kosten 5 seconden, een weigering leidt tot een
+  oplopende pauze van 5 minuten tot maximaal een uur, en vijf weigeringen op rij stoppen de ronde.
+- Het eindoverzicht laat zien hoeveel nummers verdwenen waren, hoeveel weigeringen er waren en wat
+  er anders misging.
+
 ## Global Version 0.8.1 (2026-08-08)
 
 ### 🎵 Elk genre van een nummer is nu een eigen link

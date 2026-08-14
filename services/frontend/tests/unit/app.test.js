@@ -64,12 +64,12 @@ describe('App', () => {
     render(App);
 
     await waitFor(() => expect(screen.queryByLabelText('Gebruikersnaam')).toBeNull());
-    expect(screen.getAllByText('Albums').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Afspeellijsten').length).toBeGreaterThan(0);
   });
 
   it('set mode is marked on the document', async () => {
     render(App);
-    await waitFor(() => expect(screen.getAllByText('Albums').length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText('Afspeellijsten').length).toBeGreaterThan(0));
 
     viewMode.set('sets');
 
@@ -78,7 +78,7 @@ describe('App', () => {
 
   it('switching to set mode moves the songs view along', async () => {
     render(App);
-    await waitFor(() => expect(screen.getAllByText('Albums').length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText('Afspeellijsten').length).toBeGreaterThan(0));
     // Set after mounting: App restores the view from the URL on arrival.
     activeView.set('songs');
 
@@ -90,7 +90,7 @@ describe('App', () => {
   it('switching back to song mode moves the sets view along', async () => {
     viewMode.set('sets');
     render(App);
-    await waitFor(() => expect(screen.getAllByText('Albums').length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText('Afspeellijsten').length).toBeGreaterThan(0));
     activeView.set('sets');
 
     viewMode.set('songs');
@@ -108,7 +108,7 @@ describe('App', () => {
 
   it('puts a label with a slash in it in the URL without breaking the route', async () => {
     render(App);
-    await waitFor(() => expect(screen.getAllByText('Albums').length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText('Afspeellijsten').length).toBeGreaterThan(0));
 
     activeView.set('label:Drum & Bass / UK');
 
@@ -121,7 +121,7 @@ describe('App', () => {
 
   it('the search results modal is shown when it is opened', async () => {
     render(App);
-    await waitFor(() => expect(screen.getAllByText('Albums').length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText('Afspeellijsten').length).toBeGreaterThan(0));
 
     activeModal.set({ type: 'search-results', data: { query: 'angerfist', category: 'tracks' } });
 

@@ -141,9 +141,7 @@ function add(type, message, options = {}) {
   );
   if (existing) {
     notifications.update((list) =>
-      list.map((item) =>
-        item.id === existing.id ? { ...item, count: item.count + 1 } : item,
-      ),
+      list.map((item) => (item.id === existing.id ? { ...item, count: item.count + 1 } : item)),
     );
     startTimer(existing.id, LIFETIMES[type]);
     return existing.id;

@@ -149,8 +149,18 @@ Implementations should listen to the `viewMode` state and update `--color-brand`
 ## States & Error Handling
 
 - **Empty States**: Display a centered icon (e.g., Search or Music icon) in `Secondary Text` color, with a clear title and a call-to-action button (e.g., "Ontdek muziek" or "Reset filters").
-- **Error States**: Show a non-intrusive toast or a dedicated error section with a "Retry" button. Use a muted red for critical errors if necessary, but prefer staying within the dark theme palette.
+- **Error States**: Show a non-intrusive toast (see Notifications below) or a dedicated error section with a "Retry" button. Use a muted red for critical errors if necessary, but prefer staying within the dark theme palette.
 - **Skeleton Loaders**: While tracks are fetching, show 5-10 placeholder rows with gray boxes for cover art and title.
+
+### Notifications
+
+Failures of things the user just did are reported in a stack in the top-right corner (`src/lib/Toaster.svelte`), fed by `notify.error/warning/info/success` from `src/lib/notifications.js`. Errors stay until dismissed or until the page reloads; warning, info and success clear themselves after 8, 5 and 4 seconds, and hovering the stack freezes those countdowns.
+
+- Panel `#282828`, 3px left accent: error `#e22134`, warning `#f0ad4e`, info `#b3b3b3`, success `#1db954`. On mobile the stack drops below the TopBar and spans the width.
+- Use it for player errors and failed user actions only. Background loads stay silent, and the management tabs keep their inline status panels — a notification is gone by the time an admin looks back at the form.
+- Pass an already translated string. The store holds no translation keys, so a language switch does not retranslate what is already on screen.
+- Identical notifications count up (`2×`) rather than stacking, and five are visible at once.
+- Subsonic reports its own failures with HTTP 200, so check `subsonicError(response)` from `utils.js` rather than `response.ok`.
 
 ## API & Data Integration (for Developers)
 

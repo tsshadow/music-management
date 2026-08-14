@@ -7,7 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Failed player actions now say so.** A scrobble that never reached the server, a rating the
+  server rejected, playback that would not start and a stream that failed to load all ended in the
+  browser console, where nobody looks. They now appear as notifications in the top-right corner of
+  the web player: errors stay until you dismiss them or reload the page, while warnings and
+  confirmations clear themselves. Repeats of the same message count up instead of stacking. Only
+  player errors and actions you took yourself are reported — background loads stay quiet, and the
+  management tabs keep their inline status panels.
+
 ### Changed
+
+- **The blocking alert boxes are gone from the web player.** Refreshing a track and saving the
+  queue as a playlist used browser `alert()` popups, which halt the page and look nothing like the
+  rest of the interface. Both now report through the notification stack.
 
 - SoundCloud accounts are now checked at a rate that follows how recently they
   uploaded, across five tiers: six-hourly for accounts that posted this week, then
@@ -25,7 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   200, and the web UI only looked at the HTTP status: the stars lit up and stayed lit while nothing
   reached `rated_track`, so the same track was still unrated in the listening history, in Favorites
   and in the file tags. The track list and the player now read the Subsonic status, put the stars
-  back the way they were when the rating did not land, and log why.
+  back the way they were when the rating did not land, say so in a notification, and log why. That
+  same check now guards scrobbling, which was silently losing plays the same way.
 - **The stars now repaint on the click that sets them.** They were painted from `track.userRating`
   on an object that is not reactive state in most views (and is rebuilt from scratch on every radio
   update), so the click stored a rating that only became visible after the list was fetched

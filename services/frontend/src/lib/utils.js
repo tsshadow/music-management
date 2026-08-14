@@ -63,3 +63,39 @@ export function getArtistImageUrl(artist, authParams) {
   }
   return "/images/unknown-artist.svg";
 }
+
+/**
+ * The failure a Subsonic response describes, if any.
+ *
+ * Subsonic answers a rejected call with HTTP 200 and a `status: "failed"`
+ * body, so `response.ok` is not a success check -- it only says the request
+ * reached the server. Callers that only looked at `response.ok` silently
+ * treated every server-side rejection as a success.
+ *
+ * Only an explicit `status: "ok"` counts as success. A 200 whose body will
+ * not parse, or which carries no `subsonic-response` at all, is a proxy error
+ * page or a login redirect rather than a stored write -- calling that a
+ * success is the same silent failure in a different disguise.
+ *
+ * @param {Response} response - The response from a `/rest/...` call.
+ * @returns {Promise<{code: number|null, message: string}|null>} `null` when
+ *   the call succeeded, otherwise the reported failure.
+ */
+export async function subsonicError(response) {
+  if (!response.ok) {
+    return { code: null, message: response.statusText || `HTTP ${response.status}` };
+  }
+  let body;
+  try {
+    body = await response.json();
+  } catch {
+    return { code: null, message: "unreadable response" };
+  }
+  const payload = body?.["subsonic-response"];
+  if (!payload) return { code: null, message: "unreadable response" };
+  if (payload.status === "ok") return null;
+  return {
+    code: payload.error?.code ?? null,
+    message: payload.error?.message ?? payload.status ?? "failed",
+  };
+}

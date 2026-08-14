@@ -5,6 +5,7 @@ import Player from '../../src/lib/Player.svelte';
 import {
   credentials, currentTrack, isMobile, playerState, playlist, radioChannel, syncMode
 } from '../../src/lib/store.js';
+import { notify, dismissAll } from '../../src/lib/notifications.js';
 
 const FIRST = { id: 'song-1', title: 'Raise Your Fist', artist: 'Angerfist', artistId: 'artist-1', albumId: 'album-1', duration: 240 };
 const SECOND = { id: 'song-2', title: 'Encore', artist: 'Angerfist', artistId: 'artist-1', albumId: 'album-1', duration: 200 };
@@ -44,6 +45,9 @@ describe('Player', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    // The store outlives a render, so a notification raised here would show
+    // up in the next test's assertions.
+    dismissAll();
   });
 
   it('shows the track that is playing', () => {
@@ -176,6 +180,53 @@ describe('Player', () => {
 
     await waitFor(() =>
       expect(globalThis.fetch.mock.calls.some(([url]) => url.includes('/rest/setRating'))).toBe(true)
+    );
+  });
+
+  it('reports a rejected rating and puts the old one back', async () => {
+    const spy = vi.spyOn(notify, 'error');
+    // Subsonic rejects with a 200, which is exactly what used to pass as a
+    // success here.
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        'subsonic-response': { status: 'failed', error: { code: 50, message: 'Not authorized' } },
+      }),
+    }));
+    currentTrack.set({ ...FIRST, userRating: 3 });
+    renderPlayer();
+
+    await fireEvent.click(screen.getAllByLabelText('5 sterren')[0]);
+
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+    expect(spy.mock.calls[0][0]).toBe('Beoordeling kon niet worden opgeslagen');
+    expect(get(currentTrack).userRating).toBe(3);
+  });
+
+  // Losing a scrobble does not stop the music, so it must not read as an
+  // error the user has to act on.
+  it('reports a failed scrobble as a warning, not an error', async () => {
+    const warning = vi.spyOn(notify, 'warning');
+    const error = vi.spyOn(notify, 'error');
+    globalThis.fetch = vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    const { container } = renderPlayer();
+
+    await fireEvent.play(container.querySelector('audio'));
+
+    await waitFor(() => expect(warning).toHaveBeenCalledWith('Scrobble mislukt', expect.anything()));
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it('reports a stream that will not load', async () => {
+    const spy = vi.spyOn(notify, 'error');
+    const { container } = renderPlayer();
+
+    await fireEvent.error(container.querySelector('audio'));
+
+    await waitFor(() =>
+      expect(spy).toHaveBeenCalledWith('"Raise Your Fist" kon niet worden geladen'),
     );
   });
 

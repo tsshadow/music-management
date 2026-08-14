@@ -3,6 +3,8 @@
   import { currentTrack, playerState, authParams, playlist, isMobile, highlightedTrackId, mumaApiUrl } from './store.js';
   import ArtistList from './ArtistList.svelte';
   import Modal from './Modal.svelte';
+  import { subsonicError } from './utils.js';
+  import { notify } from './notifications.js';
 
   const { tracks = [], isQueue = false, playlistId = null, onremove = null, onnavigate, showDate = false } = $props();
 
@@ -102,19 +104,19 @@
     track.userRating = newRating;
 
     try {
-      const response = await fetch(`/rest/setRating?id=${track.id}&rating=${newRating}&${$authParams}`);
       // Subsonic reports its own errors (a throttled login, an id it cannot
-      // parse, a failed write) in the body with HTTP 200, so the status of the
-      // response is the only thing that says whether the rating was stored.
-      const data = await response.json().catch(() => null);
-      const status = data?.['subsonic-response']?.status;
-      if (!response.ok || status !== 'ok') {
-        throw new Error(data?.['subsonic-response']?.error?.message || 'Failed to update rating');
-      }
+      // parse, a failed write) in the body with HTTP 200, so the status in
+      // the body is the only thing that says whether the rating was stored.
+      // `subsonicError` is that check, shared with the player.
+      const failure = await subsonicError(
+        await fetch(`/rest/setRating?id=${track.id}&rating=${newRating}&${$authParams}`)
+      );
+      if (failure) throw new Error(failure.message);
     } catch (e) {
       console.error("Failed to update rating:", e);
       ownRatings[track.id] = oldRating;
       track.userRating = oldRating;
+      notify.error($t('notify.ratingFailed'), { detail: e.message });
     }
   }
 
@@ -216,14 +218,16 @@
               method: 'POST'
           });
           if (response.ok) {
-              alert('Track succesvol ververst! De wijzigingen zijn over enkele seconden zichtbaar.');
+              notify.success($t('notify.trackRefreshed'));
           } else {
-              const data = await response.json();
-              alert('Fout bij verversen track: ' + (data.detail || response.statusText));
+              const data = await response.json().catch(() => ({}));
+              notify.error($t('notify.trackRefreshFailed'), {
+                  detail: data.detail || response.statusText,
+              });
           }
       } catch (e) {
           console.error("Failed to refresh track:", e);
-          alert('Netwerkfout bij verversen track');
+          notify.error($t('notify.trackRefreshFailed'), { detail: e.message });
       }
   }
 

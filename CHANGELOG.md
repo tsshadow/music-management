@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-08-14
+
+### Added
+- **Failed player actions now say so.** A scrobble that never reached the server, a rating the
+  server rejected, playback that would not start and a stream that failed to load all ended in the
+  browser console, where nobody looks. They now appear as notifications in the top-right corner of
+  the web player: errors stay until you dismiss them or reload the page, while warnings and
+  confirmations clear themselves. Repeats of the same message count up instead of stacking. Only
+  player errors and actions you took yourself are reported — background loads stay quiet, and the
+  management tabs keep their inline status panels.
+
+### Changed
+
+- **The blocking alert boxes are gone from the web player.** Refreshing a track and saving the
+  queue as a playlist used browser `alert()` popups, which halt the page and look nothing like the
+  rest of the interface. Both now report through the notification stack.
+
+### Fixed
+- A rating the server refused is now reported as a notification rather than only being put back
+  silently, and the same Subsonic status check now guards scrobbling, which was losing plays the
+  way ratings were lost before 0.8.3.
+
 ## [0.8.3] - 2026-08-14
 
 ### Security

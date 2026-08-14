@@ -679,6 +679,19 @@
     "songs": "Nummers",
     "starred": "Favorieten"
   },
+  "notify": {
+    "dismiss": "Sluiten",
+    "dismissAll": "Alles wissen",
+    "playbackFailed": "Afspelen kon niet starten",
+    "queueSaveFailed": "Afspeellijst kon niet worden opgeslagen",
+    "queueSaved": "Afspeellijst opgeslagen",
+    "ratingFailed": "Beoordeling kon niet worden opgeslagen",
+    "region": "Meldingen",
+    "scrobbleFailed": "Scrobble mislukt",
+    "streamFailed": "\"{title}\" kon niet worden geladen",
+    "trackRefreshFailed": "Track verversen mislukt",
+    "trackRefreshed": "Track ververst. De wijzigingen zijn over enkele seconden zichtbaar."
+  },
   "player": {
     "next": "Volgende",
     "nothingPlaying": "Niets aan het afspelen",

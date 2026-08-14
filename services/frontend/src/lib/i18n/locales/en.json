@@ -679,6 +679,19 @@
     "songs": "Songs",
     "starred": "Favourites"
   },
+  "notify": {
+    "dismiss": "Dismiss",
+    "dismissAll": "Clear all",
+    "playbackFailed": "Playback could not start",
+    "queueSaveFailed": "Could not save the playlist",
+    "queueSaved": "Playlist saved",
+    "ratingFailed": "Could not save your rating",
+    "region": "Notifications",
+    "scrobbleFailed": "Scrobble failed",
+    "streamFailed": "Could not load \"{title}\"",
+    "trackRefreshFailed": "Could not refresh the track",
+    "trackRefreshed": "Track refreshed. The changes appear in a few seconds."
+  },
   "player": {
     "next": "Next",
     "nothingPlaying": "Nothing playing",

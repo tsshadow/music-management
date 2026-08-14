@@ -10,6 +10,8 @@
   import SettingsSidebar from './lib/SettingsSidebar.svelte';
   import ManagementSidebar from './lib/management/ManagementSidebar.svelte';
   import SearchMoreModal from './lib/SearchMoreModal.svelte';
+  import Toaster from './lib/Toaster.svelte';
+  import { notify } from './lib/notifications.js';
   import { playlist, activeView, currentPlaylist, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive } from './lib/store.js';
   import { get } from 'svelte/store';
   import { viewArgument } from './lib/utils.js';
@@ -182,11 +184,11 @@
           const songIds = tracks.map(t => t.id).join('&songId=');
           const auth = get(authParams);
           const resp = await fetch(`/rest/createPlaylist?name=${encodeURIComponent(name)}&songId=${songIds}&${auth}`);
-          if (resp.ok) alert("Afspeellijst opgeslagen!");
-          else throw new Error("Failed");
+          if (!resp.ok) throw new Error(resp.statusText || `HTTP ${resp.status}`);
+          notify.success($t('notify.queueSaved'));
       } catch (e) {
           console.error(e);
-          alert("Fout bij het opslaan.");
+          notify.error($t('notify.queueSaveFailed'), { detail: e.message });
       }
   }
 
@@ -283,6 +285,11 @@
     <SearchMoreModal query={$activeModal.data.query} category={$activeModal.data.category} />
   {/if}
 {/if}
+
+<!-- Outside the logged-in branch on purpose: a failure on the login screen
+     has the same right to be seen as one inside the app. Renders nothing
+     while there is nothing to report. -->
+<Toaster />
 
 <style>
   :global(body) {

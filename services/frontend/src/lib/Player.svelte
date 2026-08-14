@@ -6,7 +6,8 @@
   import { shouldPushJamState } from './radioSync.js';
   import { describeFilter } from './management/radioChannels.js';
   import ArtistList from './ArtistList.svelte';
-  import { getArtistImageUrl } from './utils.js';
+  import { getArtistImageUrl, subsonicError } from './utils.js';
+  import { notify } from './notifications.js';
 
   const { onnavigate, ontoggleQueue } = $props();
 
@@ -253,7 +254,10 @@
     }
 
     if (audioElement.paused) {
-      audioElement.play().catch(e => console.error("Playback failed", e));
+      audioElement.play().catch(e => {
+        console.error("Playback failed", e);
+        notify.error($t('notify.playbackFailed'), { detail: e.message });
+      });
     } else {
       audioElement.pause();
     }
@@ -441,6 +445,16 @@
         scrobble(false);
         hasScrobbledStarted = true;
     }
+  }
+
+  /**
+   * The stream itself failed -- a missing file, a transcode that died, an
+   * expired session. The audio element reports this on its own, without any
+   * of the fetch calls in this component failing.
+   */
+  function handleAudioError() {
+    if (!track) return;
+    notify.error($t('notify.streamFailed', { title: track.title }));
   }
 
   /**
@@ -720,9 +734,16 @@
     const params = $authParams;
     const url = `${$credentials.url}/rest/scrobble?id=${track.id}&submission=${submission}&${params}`;
     try {
-      await fetch(url);
+      const failure = await subsonicError(await fetch(url));
+      if (failure) {
+        // A lost scrobble does not interrupt playback, so it is a warning
+        // rather than an error -- but it is silent otherwise, and a listening
+        // history with holes in it is what people notice weeks later.
+        notify.warning($t('notify.scrobbleFailed'), { detail: failure.message });
+      }
     } catch (e) {
       console.error("Scrobble failed", e);
+      notify.warning($t('notify.scrobbleFailed'), { detail: e.message });
     }
   }
 
@@ -742,19 +763,19 @@
     track.userRating = newRating;
 
     try {
-      const response = await fetch(`${$credentials.url}/rest/setRating?id=${trackId}&rating=${newRating}&${$authParams}`);
       // Subsonic reports its own errors (a throttled login, an id it cannot
-      // parse, a failed write) in the body with HTTP 200, so the status of the
-      // response is the only thing that says whether the rating was stored.
-      const data = await response.json().catch(() => null);
-      const status = data?.['subsonic-response']?.status;
-      if (!response.ok || status !== 'ok') {
-        throw new Error(data?.['subsonic-response']?.error?.message || 'Failed to update rating');
-      }
+      // parse, a failed write) in the body with HTTP 200, so the status in
+      // the body is the only thing that says whether the rating was stored.
+      // `subsonicError` is that check, shared with the track list.
+      const failure = await subsonicError(
+        await fetch(`${$credentials.url}/rest/setRating?id=${trackId}&rating=${newRating}&${$authParams}`)
+      );
+      if (failure) throw new Error(failure.message);
     } catch (e) {
       console.error("Failed to update rating:", e);
       ownRating = { trackId, rating: oldRating };
       track.userRating = oldRating;
+      notify.error($t('notify.ratingFailed'), { detail: e.message });
     }
   }
 
@@ -775,8 +796,12 @@
             audioElement.src = streamUrl;
             if (!isInitialLoad) {
                 audioElement.play().catch(e => {
+                    // An AbortError is the previous track's play() being
+                    // cancelled by this one, which is what skipping does --
+                    // not something to report.
                     if (e.name !== 'AbortError') {
                         console.error("Auto-play failed", e);
+                        notify.error($t('notify.playbackFailed'), { detail: e.message });
                     }
                 });
             }
@@ -902,6 +927,7 @@
   onpause={handlePause}
   onvolumechange={handleVolumeChange}
   onended={handleEnded}
+  onerror={handleAudioError}
 ></audio>
 
 <footer class="flex items-center h-full px-2 md:px-4 relative">

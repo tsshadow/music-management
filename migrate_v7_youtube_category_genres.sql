@@ -91,15 +91,18 @@ DROP TEMPORARY TABLE IF EXISTS tmp_youtube_categories;
 -- Scoped to the YouTube tree rather than using the 'rescan everything' button in
 -- management, because nothing outside it changed.
 --
--- Guarded on the table existing: it is created by Tagger.__init__, so a database
--- where the tagger has never run does not have it yet and does not need this.
+-- The table is normally created by Tagger.__init__ rather than db_init, so it is
+-- ensured here first: on a database where the tagger has never run the UPDATE
+-- would otherwise be an error rather than a no-op. The definition is the one in
+-- ProcessedFilesHelper.
 
-SET @rescan := IF(
-    (SELECT COUNT(*) FROM information_schema.tables
-     WHERE table_schema = DATABASE() AND table_name = 'tagger_processed_files') > 0,
-    'UPDATE tagger_processed_files SET needs_rescan = TRUE WHERE filepath LIKE ''%/Youtube/%''',
-    'SELECT ''tagger_processed_files does not exist yet; nothing to rescan''');
+CREATE TABLE IF NOT EXISTS tagger_processed_files (
+    filepath VARCHAR(767) PRIMARY KEY,
+    mtime FLOAT,
+    last_processed TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    needs_rescan BOOLEAN DEFAULT FALSE
+);
 
-PREPARE stmt FROM @rescan;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
+UPDATE tagger_processed_files
+SET needs_rescan = TRUE
+WHERE filepath LIKE '%/Youtube/%';

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-08-14
+
+### Changed
+- **Design documents only; no runtime code changed.** This release records two designs that were
+  written but never merged: origin metadata sidecars for the downloaders and the importer, and
+  navigation out of the track info modal in MuMa Mobile. The published images are identical in
+  content to 0.9.0 — nothing under `services/` differs — so a deployment of this version changes
+  the version string and nothing else.
+
 ## [0.9.0] - 2026-08-14
 
 ### Added

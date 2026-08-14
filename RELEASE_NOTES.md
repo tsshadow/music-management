@@ -11,6 +11,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.9.1 (2026-08-14)
+
+### 📄 Alleen ontwerpdocumenten
+- Twee ontwerpen die al geschreven waren maar nog niet gemerged: origin-metadata sidecars voor de
+  downloaders en de importer, en navigatie uit het track-info-scherm in MuMa Mobile.
+- Er is geen enkele regel uitvoerende code gewijzigd. De images zijn inhoudelijk gelijk aan 0.9.0;
+  deze release verandert het versienummer en verder niets.
+
 ## Global Version 0.9.0 (2026-08-14)
 
 ### 🔔 De webspeler vertelt het nu als er iets misgaat

@@ -11,6 +11,26 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.9.0 (2026-08-14)
+
+### 🔔 De webspeler vertelt het nu als er iets misgaat
+- Een scrobble die de server nooit haalde, een rating die geweigerd werd, muziek die niet wilde
+  starten, een stream die niet laadde — dat verdween allemaal in de browserconsole, waar niemand
+  kijkt. Het verschijnt nu rechtsboven als melding.
+- Fouten blijven staan tot je ze wegklikt of de pagina ververst; waarschuwingen en bevestigingen
+  verdwijnen vanzelf. Dezelfde melding twee keer telt op in plaats van te stapelen.
+- Alleen speler-fouten en dingen die jij zelf deed worden gemeld. Achtergrondwerk blijft stil, en
+  de beheertabbladen houden hun eigen statuspanelen.
+
+### 🚫 Geen blokkerende alert-popups meer
+- Een nummer verversen en de wachtrij als afspeellijst opslaan gebruikten nog `alert()`-popups.
+  Die zetten de pagina stil en pasten nergens bij. Beide melden nu via de meldingen.
+
+### ⭐ Geweigerde ratings en verloren scrobbles
+- In 0.8.3 stopten de sterren met doen alsof een geweigerde rating was opgeslagen. Nu krijg je er
+  ook een melding van, en dezelfde controle geldt voortaan voor scrobbles — die gingen tot nu toe
+  op precies dezelfde manier stilletjes verloren.
+
 ## Global Version 0.8.3 (2026-08-14)
 
 ### 🎬 YouTube-downloads worden nu getagd zoals SoundCloud-downloads

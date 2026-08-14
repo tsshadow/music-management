@@ -51,9 +51,31 @@ class MockTextFrame:
         self.text = text if text is not None else []
 
 
+class MockMP4(dict):
+    """An m4a whose tags are a real MP4Tags dict, the way MockMP3 does for mp3.
+
+    Subclasses dict because mutagen's FileType is itself mapping-like: the tagger
+    reads `music_file.get(...)` and `music_file.pop(...)` straight off it.
+
+    A bare MagicMock hands TagCollection an attribute that is neither None nor an
+    MP4Tags, so every m4a test had to patch mutagen out again and could never
+    assert on what the tagger actually wrote. YouTube downloads are m4a, so the
+    format that carries most of the library was the one with no usable fixture.
+    """
+    __module__ = 'mutagen.mp4'
+
+    def __init__(self, *_args, **_kwargs):
+        super().__init__()
+        self.tags = MockMP4Tags()
+        self.info = MagicMock(length=180)
+
+    def save(self, *_args, **_kwargs):
+        pass
+
+
 sys.modules['mutagen.flac'].FLAC = MagicMock
 sys.modules['mutagen.flac'].VCFLACDict = MockVCFLACDict
-sys.modules['mutagen.mp4'].MP4 = MagicMock
+sys.modules['mutagen.mp4'].MP4 = MockMP4
 sys.modules['mutagen.mp4'].MP4Tags = MockMP4Tags
 sys.modules['mutagen.mp4'].MP4FreeForm = MockMP4FreeForm
 sys.modules['mutagen.mp4'].MP4StreamInfoError = Exception

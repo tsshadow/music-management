@@ -11,6 +11,7 @@ from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.job_manager import job_manager
 from services.downloader.rate_state import RateLimited, SweepAborted
 from services.downloader.sweep import SweepPolicy
+from services.downloader.youtube.DropCategoryGenre import DropCategoryGenrePP
 from services.downloader.youtube.YoutubeAccount import (
     AUDIO,
     DEFAULT_MIN_DURATION,
@@ -173,6 +174,7 @@ class YoutubeDownloader:
             YoutubeDL: A YoutubeDL instance configured with the given options.
         """
         ydl = YoutubeDL(ydl_opts)
+        ydl.add_post_processor(DropCategoryGenrePP(), when='pre_process')
         ydl.add_post_processor(YoutubeSongProcessor(download_type=download_type))
         return ydl
 

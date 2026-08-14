@@ -4,6 +4,7 @@ from unittest.mock import patch
 from services.tests.mock_base import reset_database_helpers, setup_mocks
 
 setup_mocks()
+from services.downloader.youtube.DropCategoryGenre import DropCategoryGenrePP
 from services.downloader.youtube.youtube import YoutubeDownloader
 from services.tagger.constants import ARTIST, TITLE
 from services.tagger.Song.YoutubeSong import YoutubeSong
@@ -57,7 +58,7 @@ class YoutubeDownloaderTest(unittest.TestCase):
         mock_instance = mock_ytdlp.return_value.__enter__.return_value
         self.processor = None
 
-        def mock_add_pp(pp):
+        def mock_add_pp(pp, **_kwargs):
             if 'YoutubeSongProcessor' in str(type(pp)):
                 self.processor = pp
         mock_ytdlp.return_value.add_post_processor.side_effect = mock_add_pp
@@ -84,5 +85,36 @@ class YoutubeDownloaderTest(unittest.TestCase):
         self.assertIn('Title=Collider', call_args[0])
         self.assertIn('Artists=Noisia', call_args[0])
         self.assertEqual(mock_notify.call_args[1]['title'], 'YouTube Download Complete')
+
+    def test_youtube_category_is_not_offered_as_a_genre(self):
+        """yt-dlp resolves the genre tag as genre -> genres -> categories -> tags.
+
+        The YouTube extractor sets neither of the first two and always sets
+        `categories`, so ffmpeg wrote `genre=Music` on every music video and the
+        keyword list on everything else. SoundCloud never hits this because its
+        extractor supplies a real genre.
+        """
+        info = {'id': 'x', 'title': 'In The Pit', 'categories': ['Music'], 'tags': ['hardcore', 'gabber']}
+        _, cleaned = DropCategoryGenrePP().run(info)
+        self.assertIsNone(cleaned.get('categories'))
+        self.assertIsNone(cleaned.get('tags'))
+        self.assertEqual(cleaned['title'], 'In The Pit')
+
+    def test_a_real_genre_from_the_extractor_survives(self):
+        info = {'id': 'x', 'genre': 'Hardcore', 'categories': ['Music']}
+        _, cleaned = DropCategoryGenrePP().run(info)
+        self.assertEqual(cleaned['genre'], 'Hardcore')
+
+    @patch('services.downloader.youtube.youtube.YoutubeDL')
+    def test_downloader_strips_categories_before_the_metadata_is_written(self, mock_ytdlp):
+        """The filter has to run before download, since FFmpegMetadata is added
+        through the `postprocessors` option and therefore always runs first."""
+        downloader = YoutubeDownloader(break_on_existing=False)
+        downloader._create_ydl({})
+        registered = [(type(call.args[0]).__name__, call.kwargs.get('when'))
+                      for call in mock_ytdlp.return_value.add_post_processor.call_args_list]
+        self.assertIn(('DropCategoryGenrePP', 'pre_process'), registered)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -1,16 +1,16 @@
 """Covers the Google login and access-request review flow in routers/user_requests.py."""
-import os
 import unittest
 from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
+from services.music_manager.api_key import resolve_system_api_key
 from services.music_manager.main import app
 from services.music_manager.routers import user_requests
 from services.music_manager.tests.scripted_cursor import ScriptedCursor
 
-API_KEY = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
+API_KEY = resolve_system_api_key()
 
 CLAIMS = {
     'sub': 'google-sub-1',

@@ -108,5 +108,30 @@ class AccountReportTest(unittest.TestCase):
         self.assertEqual(self.report.forbidden_tracks, ['t2'])
 
 
+class NewestTimestampTest(unittest.TestCase):
+    """The run's own answer to 'when did this account last upload?'."""
+
+    def setUp(self):
+        self.report = AccountReport()
+
+    def test_a_report_that_saw_nothing_has_no_date(self):
+        self.assertIsNone(self.report.newest_timestamp)
+
+    def test_a_track_without_a_timestamp_leaves_it_unset(self):
+        self.report.note_extracted('t1')
+        self.assertIsNone(self.report.newest_timestamp)
+
+    def test_the_newest_of_several_tracks_wins(self):
+        self.report.note_extracted('t1', 1000)
+        self.report.note_extracted('t2', 3000)
+        self.report.note_extracted('t3', 2000)
+        self.assertEqual(self.report.newest_timestamp, 3000)
+
+    def test_a_track_without_a_timestamp_does_not_erase_a_known_one(self):
+        self.report.note_extracted('t1', 3000)
+        self.report.note_extracted('t2')
+        self.assertEqual(self.report.newest_timestamp, 3000)
+
+
 if __name__ == '__main__':
     unittest.main()

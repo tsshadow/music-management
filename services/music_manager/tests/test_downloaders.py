@@ -1,4 +1,3 @@
-import os
 import sys
 import unittest
 from datetime import datetime
@@ -9,6 +8,7 @@ for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen
     sys.modules.setdefault(_mod_name, MagicMock())
 
 import services.music_manager.routers.users
+from services.music_manager.api_key import resolve_system_api_key
 
 services.music_manager.routers.users.run_lms_db_sync = lambda: None
 import services.music_manager.database
@@ -29,7 +29,7 @@ class DownloaderApiTestBase(unittest.TestCase):
 
     def setUp(self):
         self.client = TestClient(app)
-        self.api_key = os.getenv('API_KEY') or os.getenv('MUMA_API_KEY') or '00000000-0000-4000-8000-000000000000'
+        self.api_key = resolve_system_api_key()
         self.headers = {'x-api-key': self.api_key}
         self.settings_store = InMemorySettingsStore()
         self.rate_store = InMemoryRateStateStore()

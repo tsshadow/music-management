@@ -40,7 +40,7 @@ The system is split into specialized services, each handling a specific part of 
         - `GET /api/tagger/health`: Health check and status.
 - **Song Types**:
     - `SoundcloudSong`: Specialized in SoundCloud metadata (e.g., handling "Premiere" prefixes).
-    - `YoutubeSong`: Splitting "Artist - Title" strings and handling channel attribution.
+    - `YoutubeSong`: Runs the same rule stack as `SoundcloudSong` — the artists usually only exist in the title, whether the channel belongs to the artist or to a label. What differs is the album (`Youtube (<channel>)`), the publisher, the festival inference, and the channel-to-genre lookup.
     - `LabelSong`: Mapping folder structures to Publisher/Catalog tags and copyright strings.
 - **Rules**: A flexible rule engine (`services/tagger/Song/rules/`) that handles:
     - Genre inference based on artists or subgenres.

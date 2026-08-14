@@ -72,9 +72,10 @@ export function getArtistImageUrl(artist, authParams) {
  * reached the server. Callers that only looked at `response.ok` silently
  * treated every server-side rejection as a success.
  *
- * A body that will not parse is treated as a success: a 200 that came back
- * empty or as HTML is not a failure the user can do anything about, and the
- * transport-level `catch` around the fetch covers the cases that matter.
+ * Only an explicit `status: "ok"` counts as success. A 200 whose body will
+ * not parse, or which carries no `subsonic-response` at all, is a proxy error
+ * page or a login redirect rather than a stored write -- calling that a
+ * success is the same silent failure in a different disguise.
  *
  * @param {Response} response - The response from a `/rest/...` call.
  * @returns {Promise<{code: number|null, message: string}|null>} `null` when
@@ -88,12 +89,13 @@ export async function subsonicError(response) {
   try {
     body = await response.json();
   } catch {
-    return null;
+    return { code: null, message: "unreadable response" };
   }
   const payload = body?.["subsonic-response"];
-  if (!payload || payload.status !== "failed") return null;
+  if (!payload) return { code: null, message: "unreadable response" };
+  if (payload.status === "ok") return null;
   return {
     code: payload.error?.code ?? null,
-    message: payload.error?.message ?? "failed",
+    message: payload.error?.message ?? payload.status ?? "failed",
   };
 }

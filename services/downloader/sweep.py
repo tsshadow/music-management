@@ -90,8 +90,8 @@ class SweepPolicy:
         return self.park('403', f'{self._blank_run} accounts in a row ending at {account}')
 
     def due(self, accounts: Iterable[str]) -> list[str]:
-        """The accounts that have not been checked within the cooldown."""
-        return self.schedule.due(accounts, self.timing.account_cooldown)
+        """The accounts whose own tier cooldown has passed."""
+        return self.schedule.due(accounts, self.timing)
 
     def guard(self, name: str) -> None:
         """Raise if the sweep is already stopping, so queued accounts are skipped."""
@@ -162,8 +162,10 @@ class SweepPolicy:
         logging.info('Throttling %s: sleeping %d seconds...', self.source, pause)
         time.sleep(pause)
 
-    def mark_checked(self, account: str) -> None:
-        self.schedule.mark_checked(account)
+    def mark_checked(self, account: str, last_upload_at=None,
+                     last_seen_track_id: str | None = None) -> None:
+        self.schedule.mark_checked(account, last_upload_at=last_upload_at,
+                                   last_seen_track_id=last_seen_track_id)
 
     def finish(self) -> None:
         """Register a sweep that completed without being pushed back."""

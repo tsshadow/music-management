@@ -1,4 +1,17 @@
+import os
+
 import pytest
+
+# The system API key has no literal fallback in the source any more (see
+# services/music_manager/api_key.py), so this suite has to supply one. It runs the app
+# in-process, so one value covers both sides. 'test-api-key' is what
+# docker/compose.test.yml starts the containerised music-manager with and what
+# tests/contracts/ defaults to, so every suite agrees on the same key.
+#
+# Module level rather than pytest_configure: this has to land before main.py is
+# imported. setdefault, plus load_dotenv's own refusal to override, keeps the run
+# independent of whatever API_KEY a developer's .env deploys with.
+os.environ.setdefault('API_KEY', 'test-api-key')
 
 
 def pytest_configure(config):

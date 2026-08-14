@@ -42,7 +42,17 @@ def _scheduling(sweep_interval: int) -> tuple[TimingField, ...]:
         TimingField('sweep_interval', sweep_interval, 60, 7 * DAY, 'seconden',
                     'Hoe lang de worker wacht tussen twee rondes langs de accounts.'),
         TimingField('account_cooldown', 6 * 3600, 0, 30 * DAY, 'seconden',
-                    'Minimale tijd tussen twee controles van hetzelfde account. 0 schakelt de cooldown uit.'),
+                    'Minimale tijd tussen twee controles van hetzelfde account. 0 schakelt de cooldown uit. '
+                    'Geldt voor accounts die deze week nog uploadden, en voor accounts waarvan de laatste upload nog onbekend is.'),
+        TimingField('recent_cooldown', DAY, 3600, 30 * DAY, 'seconden',
+                    'Wachttijd voor een account waarvan de nieuwste upload 1 week tot 1 maand oud is.'),
+        TimingField('monthly_cooldown', 3 * DAY, 3600, 30 * DAY, 'seconden',
+                    'Wachttijd voor een account waarvan de nieuwste upload 1 tot 3 maanden oud is.'),
+        TimingField('occasional_cooldown', 7 * DAY, 3600, 90 * DAY, 'seconden',
+                    'Wachttijd voor een account waarvan de nieuwste upload 3 tot 12 maanden oud is.'),
+        TimingField('dormant_cooldown', 30 * DAY, 6 * 3600, 90 * DAY, 'seconden',
+                    'Wachttijd voor een account dat langer dan een jaar niets uploadde. '
+                    'Dit is meteen de langste tijd die een terugkeer onopgemerkt kan blijven.'),
         TimingField('retry_attempts', 3, 1, 10, 'pogingen',
                     'Aantal pogingen per account voordat de worker doorgaat naar het volgende.'),
     )
@@ -109,6 +119,10 @@ TIMING_FIELDS: dict[str, tuple[TimingField, ...]] = {
 SCALED_KEYS = frozenset({
     'sweep_interval',
     'account_cooldown',
+    'recent_cooldown',
+    'monthly_cooldown',
+    'occasional_cooldown',
+    'dormant_cooldown',
     'min_pause',
     'max_pause',
     'sleep_interval',
@@ -218,6 +232,22 @@ class DownloaderTiming:
     @property
     def account_cooldown(self) -> int:
         return self.get('account_cooldown')
+
+    @property
+    def recent_cooldown(self) -> int:
+        return self.get('recent_cooldown')
+
+    @property
+    def monthly_cooldown(self) -> int:
+        return self.get('monthly_cooldown')
+
+    @property
+    def occasional_cooldown(self) -> int:
+        return self.get('occasional_cooldown')
+
+    @property
+    def dormant_cooldown(self) -> int:
+        return self.get('dormant_cooldown')
 
     @property
     def retry_attempts(self) -> int:

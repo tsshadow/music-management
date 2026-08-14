@@ -38,11 +38,27 @@ not share `config.json`; the database is the one thing they do share.
   multiplier and parks the source until a cooldown expires; both are stored in
   `downloads_rate_state`, so a container restart cannot forget about them. Enough
   clean sweeps in a row halve the multiplier again.
-- `account_schedule.py` records when each account was last checked, so a sweep only
-  visits accounts that are past their cooldown. This, more than the backoff, is what
-  keeps the request volume down.
+- `account_schedule.py` records when each account was last checked *and* when it last
+  uploaded, and gives every account a cooldown that follows how recently it posted:
+  under a week old keeps `account_cooldown`, then `recent_cooldown` up to a month,
+  `monthly_cooldown` up to three, `occasional_cooldown` up to a year and
+  `dormant_cooldown` beyond that. An account whose upload date is not known yet counts
+  as fresh, so a newly added one is not held back. Whatever is due comes back ordered
+  by how far past its own cooldown it is, so a sweep cut short leaves behind the
+  accounts that have waited least. This, more than the backoff, is what keeps the
+  request volume down. Note that `dormant_cooldown` is also the longest a returning
+  account can go unnoticed.
 - `sweep.py` ties the three together into the pacing policy both yt-dlp-based
   downloaders share.
+
+Every SoundCloud check starts with a probe: one flat request for the account's newest
+track (`soundcloud/account_probe.py`). When `downloads_soundcloud_archive` already
+holds that track the account is done, without paging its catalogue — which for a large
+account is 28 API requests that would otherwise be spent finding out nothing changed.
+Only a track we have not seen leads to a full run, and that run is also where the
+account's upload date is learned, from the timestamp the extraction already carries.
+A probe that fails for any reason other than a 403 or 429 falls through to the full
+run, so the probe can never be the reason an account goes unchecked.
 
 A 403 or 429 is never slept off inside a worker thread. It is written to the database
 and raised as `RateLimited`, which ends the sweep; the next sweep sees the cooldown

@@ -67,6 +67,27 @@ Summarised here because it affects what counts as a vulnerability;
 * Passwords are stored as bcrypt hashes. Revoking sessions clears the api_key
   and every refresh token in one step.
 
+## The system API key
+
+Service-to-service calls authenticate with a *system* key rather than a user
+account. `rbac.has_permission` and `rbac.is_admin_auth` both return True for
+`{'type': 'system'}` unconditionally, so this key is the most privileged
+credential the installation has -- strictly more than an admin login, because no
+role lookup stands between it and any endpoint.
+
+It is resolved in exactly one place,
+[`services/music_manager/api_key.py`](services/music_manager/api_key.py), from
+`API_KEY` or, failing that, `MUMA_API_KEY`. Resolution **fails closed**: neither
+variable set means there is no system key, and every `X-API-Key` falls through to
+the per-user lookup in `routers.users.verify_token`. A missing key can cost
+service-to-service calls their access; it must never grant access instead.
+
+Nothing may reintroduce a literal default. Ten routers and fourteen test modules
+used to end their key expression with `or '<a uuid>'`, and that uuid was the
+deployment's real `MUMA_API_KEY` -- read access to this repository was
+unrestricted admin access to the API. `services/music_manager/tests/test_api_key.py`
+walks the tree and fails if that literal reappears in any Python source.
+
 ## Secrets
 
 * `.env` is gitignored and must never be committed; `.env.example` documents the
@@ -78,3 +99,21 @@ Summarised here because it affects what counts as a vulnerability;
 * Store the GitLab token for pushing in a credential helper rather than
   embedding it in the remote URL: a token in `.git/config` is plain text on
   disk and ends up in the output of anything that prints the remote.
+* `scripts/import_lms_users.py` takes the remote host's credentials from
+  `REMOTE_PASS` and has no default. Unset it and the script uses key-based
+  authentication, which is the better path; when it is set it reaches `sshpass`
+  through the environment (`-e`), never through `-p`, which would expose the
+  password in the process list to every other user on the machine.
+
+### Rotating a leaked secret
+
+Removing a committed secret from the working tree does not unpublish it -- every
+clone still holds it, and `git log -S'<the value>'` finds it in seconds. Deletion
+is the second step; the first is always to rotate the credential at its source,
+after which the copy in history is worthless.
+
+The system API key described above is in this position. It was committed until
+the `api_key.py` change, so it must be replaced in `.env` (`API_KEY` and
+`MUMA_API_KEY`) and in every consumer configured with it -- the LMS integration's
+`LMS_MUSIC_MANAGEMENT_API_KEY`, the CI/CD variables, and any deployed
+`docker-compose` environment -- before the old value can be considered dead.

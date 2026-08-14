@@ -41,7 +41,10 @@ describe("subsonicError", () => {
     expect(result).toEqual({ code: null, message: "HTTP 500" });
   });
 
-  it("treats a body that is not JSON as a success", async () => {
+  // A 200 that is not a Subsonic envelope is a proxy error page or a login
+  // redirect. Calling it a success is the same silent failure this helper
+  // exists to stop.
+  it("reports a body that is not JSON", async () => {
     const broken = {
       ok: true,
       status: 200,
@@ -51,7 +54,16 @@ describe("subsonicError", () => {
       },
     };
 
-    await expect(subsonicError(broken)).resolves.toBeNull();
+    await expect(subsonicError(broken)).resolves.toEqual({
+      code: null,
+      message: "unreadable response",
+    });
+  });
+
+  it("reports a 200 that carries no subsonic-response", async () => {
+    const result = await subsonicError(response({ something: "else" }));
+
+    expect(result).toEqual({ code: null, message: "unreadable response" });
   });
 
   it("reports a failure that carries no error object", async () => {

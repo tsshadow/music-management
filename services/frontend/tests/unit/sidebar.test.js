@@ -23,11 +23,16 @@ async function renderLoaded(props = {}) {
   return rendered;
 }
 
+async function openLibrary() {
+  await fireEvent.click(screen.getByText('Bibliotheek'));
+}
+
 describe('Sidebar', () => {
   beforeEach(() => {
     credentials.set({ url: '', username: 'user', password: 'pw' });
     viewMode.set('songs');
     favoriteGenres.set([]);
+    localStorage.clear();
     globalThis.fetch = subsonic();
   });
 
@@ -68,10 +73,69 @@ describe('Sidebar', () => {
   it('navigating to a section is reported to the parent', async () => {
     const onnavigate = vi.fn();
     await renderLoaded({ onnavigate });
+    await openLibrary();
 
     await fireEvent.click(screen.getByText('Albums'));
 
     expect(onnavigate).toHaveBeenCalledWith('albums');
+  });
+
+  it('keeps the library sections out of the way until asked', async () => {
+    await renderLoaded();
+
+    expect(screen.queryByText('Albums')).toBeNull();
+    expect(screen.queryByText('Artiesten')).toBeNull();
+  });
+
+  it('reveals every library section at once', async () => {
+    await renderLoaded();
+
+    await openLibrary();
+
+    for (const label of ['Artiesten', 'Albums', 'Genres', 'Labels']) {
+      expect(screen.getByText(label)).toBeTruthy();
+    }
+  });
+
+  it('folds the library away again on a second click', async () => {
+    await renderLoaded();
+    await openLibrary();
+
+    await openLibrary();
+
+    expect(screen.queryByText('Albums')).toBeNull();
+  });
+
+  it('remembers that the library was left open', async () => {
+    const { unmount } = await renderLoaded();
+    await openLibrary();
+    unmount();
+
+    render(Sidebar, { activeView: 'home', onnavigate: vi.fn() });
+
+    await waitFor(() => expect(screen.getByText('Albums')).toBeTruthy());
+  });
+
+  it('opens the library when the current view lives inside it', async () => {
+    await renderLoaded({ activeView: 'labels' });
+
+    expect(screen.getByText('Labels')).toBeTruthy();
+  });
+
+  it('no longer offers the release radar', async () => {
+    await renderLoaded();
+
+    expect(screen.queryByText('Release Radar')).toBeNull();
+  });
+
+  it('keeps the songs list reachable next to the mode switch', async () => {
+    const onnavigate = vi.fn();
+    await renderLoaded({ onnavigate });
+
+    await fireEvent.click(screen.getAllByText('Nummers')[1]);
+
+    expect(onnavigate).toHaveBeenCalledWith('songs');
+    expect(get(viewMode)).toBe('songs');
   });
 
   it('switching to sets changes the mode', async () => {
@@ -96,7 +160,7 @@ describe('Sidebar', () => {
 
     render(Sidebar, { activeView: 'home', onnavigate: vi.fn() });
 
-    await waitFor(() => expect(screen.getByText('Albums')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Bibliotheek')).toBeTruthy());
   });
 
   it('copes with a server that returns a single genre rather than a list', async () => {

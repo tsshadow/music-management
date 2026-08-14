@@ -806,6 +806,7 @@
   "sidebar": {
     "backToPlayer": "Terug naar Player",
     "favoriteGenres": "FAVORIETE GENRES",
+    "library": "Bibliotheek",
     "popularGenres": "POPULAIRE GENRES",
     "toggleMode": "Modus wisselen"
   },

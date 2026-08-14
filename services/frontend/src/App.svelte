@@ -10,6 +10,7 @@
   import SettingsSidebar from './lib/SettingsSidebar.svelte';
   import ManagementSidebar from './lib/management/ManagementSidebar.svelte';
   import SearchMoreModal from './lib/SearchMoreModal.svelte';
+  import Toaster from './lib/Toaster.svelte';
   import { playlist, activeView, currentPlaylist, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive } from './lib/store.js';
   import { get } from 'svelte/store';
   import { viewArgument } from './lib/utils.js';
@@ -283,6 +284,11 @@
     <SearchMoreModal query={$activeModal.data.query} category={$activeModal.data.category} />
   {/if}
 {/if}
+
+<!-- Outside the logged-in branch on purpose: a failure on the login screen
+     has the same right to be seen as one inside the app. Renders nothing
+     while there is nothing to report. -->
+<Toaster />
 
 <style>
   :global(body) {

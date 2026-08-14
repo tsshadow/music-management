@@ -9,6 +9,7 @@ for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen
 
 
 import services.music_manager.routers.users as users_router
+from services.music_manager.api_key import resolve_system_api_key
 
 users_router.run_lms_db_sync = lambda: None
 
@@ -17,7 +18,7 @@ from fastapi.testclient import TestClient
 from services.music_manager.main import app
 from services.music_manager.routers import artist_images as artist_images_router
 
-API_KEY = artist_images_router.API_KEY
+API_KEY = resolve_system_api_key()
 
 
 class ArtistImagesTestCase(unittest.TestCase):

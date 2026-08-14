@@ -70,6 +70,23 @@
     }
   }
 
+  // Ratings we set ourselves, keyed by track id. `tracks` comes in as a prop and
+  // is not always reactive state in the parent, so writing to `track.userRating`
+  // alone repaints nothing: the stars would keep showing the rating the list was
+  // fetched with until the parent re-fetched it.
+  let ownRatings = $state({});
+
+  /**
+   * The rating to show for a track: what we last set for it, or what the
+   * backend sent with the list.
+   *
+   * @param {Object} track - The track object.
+   * @returns {number} The rating, 0 when unrated.
+   */
+  function ratingOf(track) {
+    return ownRatings[track.id] ?? track.userRating ?? 0;
+  }
+
   /**
    * Updates the rating of a track.
    *
@@ -77,17 +94,26 @@
    * @param {number} rating - The new rating (1-5).
    */
   async function updateRating(track, rating) {
-    const newRating = track.userRating === rating ? 0 : rating;
-    const oldRating = track.userRating;
+    const oldRating = ratingOf(track);
+    const newRating = oldRating === rating ? 0 : rating;
 
     // Optimistic update
+    ownRatings[track.id] = newRating;
     track.userRating = newRating;
 
     try {
       const response = await fetch(`/rest/setRating?id=${track.id}&rating=${newRating}&${$authParams}`);
-      if (!response.ok) throw new Error('Failed to update rating');
+      // Subsonic reports its own errors (a throttled login, an id it cannot
+      // parse, a failed write) in the body with HTTP 200, so the status of the
+      // response is the only thing that says whether the rating was stored.
+      const data = await response.json().catch(() => null);
+      const status = data?.['subsonic-response']?.status;
+      if (!response.ok || status !== 'ok') {
+        throw new Error(data?.['subsonic-response']?.error?.message || 'Failed to update rating');
+      }
     } catch (e) {
       console.error("Failed to update rating:", e);
+      ownRatings[track.id] = oldRating;
       track.userRating = oldRating;
     }
   }
@@ -343,7 +369,7 @@
               {#each [1, 2, 3, 4, 5] as star (star)}
                 <button
                   aria-label="{star} sterren"
-                  class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { (track.userRating || 0) >= star ? 'text-brand' : 'text-white/10 hover:text-white/30' }"
+                  class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { ratingOf(track) >= star ? 'text-brand' : 'text-white/10 hover:text-white/30' }"
                   onclick={(e) => { e.stopPropagation(); updateRating(track, star); }}
                 >
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">

@@ -619,6 +619,15 @@
         coverArt: $radioNowPlaying.cover_art,
       }
     : $currentTrack);
+  // The rating we last set ourselves, with the track it belongs to. `track` is
+  // either the plain object in the `currentTrack` store or, on radio, one built
+  // fresh from the timeline entry, so writing to `track.userRating` alone
+  // repaints nothing and is lost on the next rebuild.
+  let ownRating = $state(null);
+  const currentRating = $derived(
+    ownRating && ownRating.trackId === track?.id ? ownRating.rating : (track?.userRating || 0)
+  );
+
   const primaryArtist = $derived.by(() => {
     if (track?.artists && track.artists.length > 0) return track.artists[0];
     if (track?.artist) {
@@ -724,17 +733,27 @@
    */
   async function updateRating(rating) {
     if (!track) return;
-    const newRating = track.userRating === rating ? 0 : rating;
-    const oldRating = track.userRating;
+    const trackId = track.id;
+    const oldRating = currentRating;
+    const newRating = oldRating === rating ? 0 : rating;
 
     // Optimistic update
+    ownRating = { trackId, rating: newRating };
     track.userRating = newRating;
 
     try {
-      const response = await fetch(`${$credentials.url}/rest/setRating?id=${track.id}&rating=${newRating}&${$authParams}`);
-      if (!response.ok) throw new Error('Failed to update rating');
+      const response = await fetch(`${$credentials.url}/rest/setRating?id=${trackId}&rating=${newRating}&${$authParams}`);
+      // Subsonic reports its own errors (a throttled login, an id it cannot
+      // parse, a failed write) in the body with HTTP 200, so the status of the
+      // response is the only thing that says whether the rating was stored.
+      const data = await response.json().catch(() => null);
+      const status = data?.['subsonic-response']?.status;
+      if (!response.ok || status !== 'ok') {
+        throw new Error(data?.['subsonic-response']?.error?.message || 'Failed to update rating');
+      }
     } catch (e) {
       console.error("Failed to update rating:", e);
+      ownRating = { trackId, rating: oldRating };
       track.userRating = oldRating;
     }
   }
@@ -909,7 +928,7 @@
           {#each [1, 2, 3, 4, 5] as star (star)}
             <button
               aria-label="{star} sterren"
-              class="bg-transparent border-none p-0 cursor-pointer transition-colors { (track?.userRating || 0) >= star ? 'text-brand' : 'text-white/10' }"
+              class="bg-transparent border-none p-0 cursor-pointer transition-colors { currentRating >= star ? 'text-brand' : 'text-white/10' }"
               onclick={() => updateRating(star)}
             >
               <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor">
@@ -1077,7 +1096,7 @@
           {#each [1, 2, 3, 4, 5] as star (star)}
             <button
               aria-label="{star} sterren"
-              class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { (track?.userRating || 0) >= star ? 'text-brand' : 'text-white/10 hover:text-white/30' }"
+              class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { currentRating >= star ? 'text-brand' : 'text-white/10 hover:text-white/30' }"
               onclick={() => updateRating(star)}
             >
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">

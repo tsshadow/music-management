@@ -122,9 +122,16 @@ class MatchFilterTest(unittest.TestCase):
     def test_every_track_the_filter_sees_is_reported_as_extracted(self):
         report = MagicMock()
 
+        self.downloader._make_match_filter('angerfist', report)(self.track(timestamp=1750000000))
+
+        report.note_extracted.assert_called_once_with('track-1', 1750000000)
+
+    def test_a_track_without_a_timestamp_is_still_reported(self):
+        report = MagicMock()
+
         self.downloader._make_match_filter('angerfist', report)(self.track())
 
-        report.note_extracted.assert_called_once_with('track-1')
+        report.note_extracted.assert_called_once_with('track-1', None)
 
     def test_a_track_that_answered_403_before_is_not_tried_again(self):
         self.downloader.unavailable.should_skip.return_value = True
@@ -267,6 +274,18 @@ class ApplyConfigTest(unittest.TestCase):
         config = self.apply({'soundcloud_cookies': ''})
 
         self.assertEqual(config['ydl_opts']['cookies'], 'soundcloud.com_cookies.txt')
+
+    def test_the_dead_playlist_random_key_is_gone(self):
+        # YoutubeDL reads 'playlistrandom'; the 'playlist_random' key an API
+        # caller passes is never read by anything, so it shuffled nothing. It is
+        # dropped rather than corrected: newest-first is the order both
+        # break_on_existing and the account probe rely on.
+        self.assertNotIn('playlist_random', self.apply()['ydl_opts'])
+
+    def test_lazy_playlist_is_on_so_break_on_existing_stops_the_paging(self):
+        # Without it __process_playlist materialises every entry before a single
+        # download starts, so break_on_existing can only stop the download loop.
+        self.assertIs(self.apply()['ydl_opts']['lazy_playlist'], True)
 
 
 if __name__ == '__main__':

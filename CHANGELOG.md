@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.3] - 2026-08-14
+
+### Security
+
+- The system API key is no longer hardcoded as a fallback in the music_manager
+  routers. Resolution moved to `services/music_manager/api_key.py`, which fails
+  closed when no key is configured. The key's own value still has to be rotated:
+  removing it from the working tree does not unpublish the copy in git history.
+
 ### Changed
 
+- The browse views are grouped under a collapsible Library section in the
+  frontend navigation.
 - SoundCloud accounts are now checked at a rate that follows how recently they
   uploaded, across five tiers: six-hourly for accounts that posted this week, then
   daily, every three days, weekly, and monthly for accounts dormant over a year. The
@@ -20,6 +31,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of working alphabetically.
 
 ### Fixed
+- **YouTube downloads are tagged the way SoundCloud downloads are.** `YoutubeSong` had no artist
+  inference; in its place sat a hand-written title split that only fired while the artist tag still
+  equalled the channel folder. YouTube's music-credit panel makes yt-dlp supply an artist of its
+  own, and from that moment the split stopped happening and the artists stayed in the title. It
+  also appended to the artist tag rather than replacing it, so the channel name stayed behind next
+  to the real artist. YouTube now runs the same rule stack as SoundCloud, keeping only its own
+  album, publisher, festival inference and channel-to-genre lookup.
+- **A YouTube download is no longer tagged with the genre `Music`.** yt-dlp resolves the genre tag
+  as `genre -> genres -> categories -> tags`, and the YouTube extractor sets neither of the first
+  two but always sets `categories` — so ffmpeg wrote the video's YouTube category, or its keyword
+  list where there was no category, and every one of them landed in the genre curation queue.
+  `migrate_v7_youtube_category_genres.sql` marks the categories black and flags the YouTube tree
+  for rescan, so tracks already on disk are corrected too.
 - **A rating the server refused no longer looks like it was stored.** Subsonic reports its own
   errors (a throttled login, an id it cannot parse, a failed write) in the response body with HTTP
   200, and the web UI only looked at the HTTP status: the stars lit up and stayed lit while nothing

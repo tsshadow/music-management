@@ -11,6 +11,36 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.8.3 (2026-08-14)
+
+### 🎬 YouTube-downloads worden nu getagd zoals SoundCloud-downloads
+- De artiesten bleven in de titel staan. De YouTube-tak had helemaal geen artiest-herkenning; er zat
+  één handgeschreven split in die alleen werkte zolang de artiest-tag nog gelijk was aan de
+  kanaalmap. Zodra YouTube z'n eigen muziek-credits meegaf, klopte dat niet meer en gebeurde er
+  niets. `Deadly Guns & The Dark Horror - In The Pit (Official Videoclip)` bleef dus zo staan.
+- Ook plakte hij de gevonden artiest ernaast in plaats van erover, waardoor de kanaalnaam als
+  tweede artiest bleef hangen.
+- YouTube draait nu dezelfde regels als SoundCloud: streepje, `@`, `by`, `presents`, `feat.` en
+  losse artiesten, gecontroleerd tegen je artiestenlijst. Het album, de uitgever, de festival-
+  herkenning en de kanaal-naar-genre-lookup blijven YouTube-eigen.
+
+### 🏷️ Geen genre `Music` meer op YouTube-nummers
+- yt-dlp valt voor het genre terug op de YouTube-categorie van de video als er geen echt genre is,
+  en die is bij muziek altijd `Music`. Bij video's zonder categorie kwamen zelfs de YouTube-
+  trefwoorden als genre binnen. Allemaal belandden ze in je genre-wachtrij.
+- Nieuwe downloads krijgen dit niet meer. Voor wat al binnen is zet de migratie de YouTube-
+  categorieën op de zwarte lijst en vraagt hij de tagger de YouTube-map opnieuw te bekijken, zodat
+  bestaande nummers ook opgeschoond worden.
+
+### 🔐 De systeem-API-sleutel staat niet meer in de broncode
+- De sleutel zat als fallback in tien routers. Dat is eruit; er is nu één plek die hem uitleest en
+  die weigert te werken als er geen sleutel is ingesteld.
+- **De sleutel zelf is hiermee niet vervangen.** Hij staat nog in de git-geschiedenis en blijft
+  geldig tot je hem overal roteert.
+
+### 🗂️ De browse-weergaven zitten onder één inklapbare Library
+- Scheelt ruimte in de navigatie.
+
 ## Global Version 0.8.2 (2026-08-12)
 
 ### 🏷️ Genres worden nu herkend ongeacht hoofdletters

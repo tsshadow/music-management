@@ -13,9 +13,9 @@
   import SearchMoreModal from './lib/SearchMoreModal.svelte';
   import Toaster from './lib/Toaster.svelte';
   import { notify } from './lib/notifications.js';
-  import { playlist, activeView, currentPlaylist, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive, sidebarDrawerOpen } from './lib/store.js';
+  import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive, sidebarDrawerOpen } from './lib/store.js';
   import { get } from 'svelte/store';
-  import { viewArgument } from './lib/utils.js';
+  import { pathToState, viewToPath } from './lib/router.js';
   import { t } from './lib/i18n/index.js';
 
   const hours = new Date().getHours();
@@ -85,55 +85,28 @@
   }
 
   let isMounted = $state(false);
-  const base = '';
 
-  function viewToPath(view, _playlistObj) {
-    if (!$credentials.username && !$mumaSessionActive) return base + '/login';
-    if (view === 'login') return base + '/login';
-    if (view === 'home') return base + '/';
-    if (view === 'songs') return base + '/songs';
-    if (view === 'sets') return base + '/sets';
-    if (view === 'albums') return base + '/albums';
-    if (view === 'genres') return base + '/genres';
-    if (view === 'labels') return base + '/labels';
-    if (view === 'artists') return base + '/artists';
-    if (view === 'playlists') return base + '/playlists';
-    if (view === 'memories') return base + '/memories';
-    // Genre and label names are free text -- they contain colons, slashes and
-    // ampersands -- so they are taken whole and percent-encoded. Splitting on
-    // ':' would truncate the name, and an unencoded '/' would make the path
-    // parse back as a different view entirely.
-    if (view.startsWith('genre:')) return base + '/genre/' + encodeURIComponent(viewArgument(view));
-    if (view.startsWith('label:')) return base + '/label/' + encodeURIComponent(viewArgument(view));
-    if (view.startsWith('artist:')) return base + '/artist/' + viewArgument(view);
-    if (view.startsWith('album:')) return base + '/album/' + viewArgument(view);
-    if (view === 'settings') return base + '/settings';
-    if (view === 'management') return base + '/management';
-    return null;
-  }
-
-  function pathToView(path) {
-    if (path === base + '/login') return 'login';
-    if (path === base || path === base + '/') return 'home';
-    if (path === base + '/songs') return 'songs';
-    if (path === base + '/sets') return 'sets';
-    if (path === base + '/albums') return 'albums';
-    if (path === base + '/genres') return 'genres';
-    if (path === base + '/labels') return 'labels';
-    if (path === base + '/artists') return 'artists';
-    if (path === base + '/playlists') return 'playlists';
-    if (path === base + '/memories') return 'memories';
-    if (path.startsWith(base + '/genre/')) return 'genre:' + decodeURIComponent(path.slice((base + '/genre/').length));
-    if (path.startsWith(base + '/label/')) return 'label:' + decodeURIComponent(path.slice((base + '/label/').length));
-    if (path.startsWith(base + '/artist/')) return 'artist:' + path.slice((base + '/artist/').length);
-    if (path.startsWith(base + '/album/')) return 'album:' + path.slice((base + '/album/').length);
-    if (path.startsWith(base + '/playlist/')) {
-        const id = path.slice((base + '/playlist/').length);
-        return { view: 'playlist-detail', id };
+  /**
+   * Moves the app onto the view a URL describes.
+   *
+   * Fields the path doesn't mention are left alone on purpose: '/settings'
+   * without a tab keeps whichever tab the store remembers, rather than
+   * bouncing the user back to the first one on every visit.
+   *
+   * @param {Object} state - The view state parsed out of the path.
+   */
+  function applyState(state) {
+    if (state.view === 'sets') {
+        viewMode.set('sets');
+    } else if (state.view === 'songs') {
+        viewMode.set('songs');
     }
-    if (path === base + '/settings') return 'settings';
-    if (path === base + '/management') return 'management';
-    return 'home';
+
+    if (state.playlistId) currentPlaylist.set({ id: state.playlistId });
+    if (state.settingsTab) activeSettingsTab.set(state.settingsTab);
+    if (state.managementTab) activeManagementTab.set(state.managementTab);
+
+    activeView.set(state.view);
   }
 
   onMount(() => {
@@ -144,44 +117,26 @@
     updateMobile();
     window.addEventListener('resize', updateMobile);
 
-    const initialView = pathToView(window.location.pathname);
     if (!get(credentials).username && !get(mumaSessionActive)) {
         activeView.set('login');
     } else {
-        if (initialView === 'sets') {
-            viewMode.set('sets');
-        } else if (initialView === 'songs') {
-            viewMode.set('songs');
-        }
-
-        if (typeof initialView === 'object') {
-            currentPlaylist.set({ id: initialView.id });
-            activeView.set(initialView.view);
-        } else {
-            activeView.set(initialView);
-        }
+        applyState(pathToState(window.location.pathname));
     }
 
     window.addEventListener('popstate', () => {
-        const view = pathToView(window.location.pathname);
-        if (view === 'sets') {
-            viewMode.set('sets');
-        } else if (view === 'songs') {
-            viewMode.set('songs');
-        }
-
-        if (typeof view === 'object') {
-            currentPlaylist.set({ id: view.id });
-            activeView.set(view.view);
-        } else {
-            activeView.set(view);
-        }
+        applyState(pathToState(window.location.pathname));
     });
   });
 
   $effect(() => {
     if (isMounted) {
-        const path = viewToPath($activeView, $currentPlaylist);
+        const path = viewToPath({
+            view: $activeView,
+            loggedIn: Boolean($credentials.username) || $mumaSessionActive,
+            playlistId: $currentPlaylist?.id,
+            settingsTab: $activeSettingsTab,
+            managementTab: $activeManagementTab
+        });
         if (path && path !== window.location.pathname) {
             window.history.pushState({}, '', path);
         }

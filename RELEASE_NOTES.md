@@ -11,6 +11,23 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+### 🔗 De adresbalk klopt nu overal
+- Schermen die geen eigen adres hadden — luistergeschiedenis, favorieten, een geopende afspeellijst,
+  en elk tabblad in Instellingen en Beheer — hebben er nu wel een. `/management/scanner` en
+  `/playlist/1234` kun je dus bookmarken, verversen en doorsturen.
+- `/settings` of `/management` zonder tabblad opent nog steeds het tabblad dat je het laatst gebruikte.
+  Een adres met een tabblad dat niet meer bestaat opent het eerste tabblad in plaats van een leeg scherm.
+- Terug en vooruit lopen door de schermen die je bezocht, tabbladwissels meegerekend.
+- Genres en labels houden hun naam in het adres, dus eerder gedeelde links blijven werken.
+
+### 🐛 Verversen op een genre met een punt erin
+- Een genre als `nu.jazz` gaf bij verversen "File not found": LMS zag de punt aan voor een
+  bestandsnaam. Alleen echte bestandsextensies worden nu nog zo behandeld.
+
+### 🔒 LMS serveert geen bestanden meer van buiten de webmap
+- Een adres met `..` erin kwam uit op een echt bestand op schijf en werd gewoon teruggegeven. Zulke
+  verzoeken krijgen nu een 404.
+
 ## Global Version 0.9.2 (2026-08-15)
 
 ### 🛠️ Productiefouten uit de logs

@@ -45,8 +45,7 @@ def account_from_url(url: str) -> str:
 
 def get_accounts_from_db():
     try:
-        db = DatabaseConnector().connect()
-        with db.cursor() as cursor:
+        with DatabaseConnector().connection() as db, db.cursor() as cursor:
             cursor.execute('SELECT name FROM downloads_soundcloud_accounts')
             accounts = [row[0] for row in cursor.fetchall()]
         return accounts

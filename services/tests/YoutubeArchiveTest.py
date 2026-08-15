@@ -1,4 +1,5 @@
 import unittest
+from contextlib import contextmanager
 from unittest.mock import patch
 
 from services.tests.mock_base import reset_database_helpers, setup_mocks
@@ -51,8 +52,18 @@ class YoutubeArchiveTest(unittest.TestCase):
         reset_database_helpers()
 
     def _with_connection(self, connection):
+        # Mirrors both entry points of the real DatabaseConnector: the archive
+        # helpers go through `connection()` so the socket is always closed again.
+        @contextmanager
+        def _connection(_self):
+            try:
+                yield connection
+            finally:
+                connection.close()
+
         return patch('services.downloader.youtube.YoutubeArchive.DatabaseConnector',
-                     return_value=type('Connector', (), {'connect': lambda _self: connection})())
+                     return_value=type('Connector', (), {'connect': lambda _self: connection,
+                                                         'connection': _connection})())
 
     def test_exists_returns_false_when_not_present(self):
         connection = FakeConnection(row=None)

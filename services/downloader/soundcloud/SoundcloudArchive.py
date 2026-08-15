@@ -18,8 +18,7 @@ class SoundcloudArchive:
     @staticmethod
     def exists(account: str, video_id: str) -> bool:
         try:
-            conn = DatabaseConnector().connect()
-            with conn.cursor() as cursor:
+            with DatabaseConnector().connection() as conn, conn.cursor() as cursor:
                 cursor.execute('\n                    SELECT 1 FROM downloads_soundcloud_archive WHERE account = %s AND video_id = %s\n                ', (account, video_id))
                 return cursor.fetchone() is not None
         except Exception as e:
@@ -42,8 +41,7 @@ class SoundcloudArchive:
         run", never "skip this account".
         """
         try:
-            conn = DatabaseConnector().connect()
-            with conn.cursor() as cursor:
+            with DatabaseConnector().connection() as conn, conn.cursor() as cursor:
                 cursor.execute(
                     'SELECT 1 FROM downloads_soundcloud_archive WHERE video_id = %s LIMIT 1',
                     (track_id,))
@@ -68,8 +66,7 @@ class SoundcloudArchive:
             logging.warning(f'Missing fields for archive insert: account_id={account_id!r}, video_id={video_id!r}, url={url!r}')
             return
         try:
-            conn = DatabaseConnector().connect()
-            with conn.cursor() as cursor:
+            with DatabaseConnector().connection() as conn, conn.cursor() as cursor:
                 cursor.execute('SELECT soundcloud_id FROM downloads_soundcloud_accounts WHERE name = %s', (account_name,))
                 existing = cursor.fetchone()
                 print(existing, account_id, account_name)

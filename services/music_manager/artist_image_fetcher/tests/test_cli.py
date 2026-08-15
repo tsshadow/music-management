@@ -11,9 +11,15 @@ class CliTestCase(unittest.TestCase):
         self.conn = MagicMock()
         self.cursor = self.conn.cursor.return_value.__enter__.return_value
         self.conn.cursor.return_value.__exit__.return_value = False
+        # The CLI takes connections through DatabaseConnector.connection(), which
+        # closes them again -- `--repeat` runs these commands in a loop, so a
+        # dropped connection there is one leaked MariaDB session per pass.
+        connector = MagicMock(connect=MagicMock(return_value=self.conn))
+        connector.connection.return_value.__enter__.return_value = self.conn
+        connector.connection.return_value.__exit__.return_value = False
         patches = [
             patch.object(cli, 'ArtistImageFetcher', return_value=self.fetcher),
-            patch.object(cli, 'DatabaseConnector', return_value=MagicMock(connect=MagicMock(return_value=self.conn))),
+            patch.object(cli, 'DatabaseConnector', return_value=connector),
             patch.object(cli, 'setup_logging'),
         ]
         for p in patches:

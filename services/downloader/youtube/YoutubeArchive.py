@@ -18,8 +18,7 @@ class YoutubeArchive:
     def exists(account: str, video_id: str, download_type: str = AUDIO) -> bool:
         """Return True if the video was already archived for the account in this form."""
         try:
-            conn = DatabaseConnector().connect()
-            with conn.cursor() as cursor:
+            with DatabaseConnector().connection() as conn, conn.cursor() as cursor:
                 cursor.execute(
                     '\n                    SELECT 1 FROM downloads_youtube_archive\n'
                     '                    WHERE account = %s AND video_id = %s AND download_type = %s\n'
@@ -38,8 +37,7 @@ class YoutubeArchive:
             logging.warning(f'Missing fields for archive insert: account={account}, video_id={video_id}, url={url}')
             return
         try:
-            conn = DatabaseConnector().connect()
-            with conn.cursor() as cursor:
+            with DatabaseConnector().connection() as conn, conn.cursor() as cursor:
                 cursor.execute(
                     'INSERT IGNORE INTO downloads_youtube_accounts (name, download_type) VALUES (%s, %s)',
                     (account, download_type))

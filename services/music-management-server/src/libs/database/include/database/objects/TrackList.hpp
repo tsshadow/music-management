@@ -123,12 +123,18 @@ namespace lms::db
         std::string_view getName() const { return _name; }
         Visibility getVisibility() const { return _visibility; }
         TrackListType getType() const { return _type; }
-        UserId getUserId() const { return _userId; }
+        UserId getUserId() const { return _userId.value_or(UserId{}); }
         Wt::WDateTime getLastModifiedDateTime() const { return _lastModifiedDateTime; }
         Wt::WDateTime getCreationDateTime() const { return _creationDateTime; }
 
         // Modifiers
-        void setUserId(UserId userId) { _userId = userId; }
+        void setUserId(UserId userId)
+        {
+            if (userId.isValid())
+                _userId = userId;
+            else
+                _userId.reset();
+        }
         void setName(std::string_view name) { _name = name; }
         void setVisibility(Visibility visibility) { _visibility = visibility; }
         void clear() { _entries.clear(); }
@@ -178,7 +184,15 @@ namespace lms::db
         Wt::WDateTime _creationDateTime;
         Wt::WDateTime _lastModifiedDateTime;
 
-        UserId _userId;
+        // Optional, so that "no owning user" is stored as NULL rather than as the
+        // raw invalidId() sentinel (-1). The scanner creates a TrackList for every
+        // playlist file, and those have no user; databases created by older versions
+        // still carry "fk_tracklist_user" on this column, DEFERRABLE INITIALLY
+        // DEFERRED, so a -1 passed the INSERT and then aborted the COMMIT with
+        // "FOREIGN KEY constraint failed" -- which terminated the process and made
+        // every library scan crash-loop. TrackList::find already filters on
+        // "user_id IS NULL", so NULL was the intended representation all along.
+        std::optional<UserId> _userId;
         Wt::Dbo::ptr<PlayListFile> _playListFile;
         Wt::Dbo::collection<Wt::Dbo::ptr<TrackListEntry>> _entries;
     };

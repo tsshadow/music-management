@@ -62,9 +62,8 @@ class Mover:
 
     def get_label(self, key) -> str | None:
         query = 'SELECT `label` FROM `rules_catid_label` WHERE `catid` = %s'
-        connection = self.db_connector.connect()
         try:
-            with connection.cursor() as cursor:
+            with self.db_connector.connection() as connection, connection.cursor() as cursor:
                 cursor.execute(query, key)
                 result = cursor.fetchone()
                 if result:

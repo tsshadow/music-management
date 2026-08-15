@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
+from services.tests.connector_fakes import fake_connector
 from services.tests.mock_base import reset_database_helpers, setup_mocks
 
 setup_mocks()
@@ -71,8 +72,7 @@ class MoverTestCase(unittest.TestCase):
     def setUp(self):
         reset_database_helpers()
         self.settings = MagicMock(import_folder_path='/import', eps_folder_path='/eps', delimiter='/')
-        self.connector = MagicMock()
-        self.connection = self.connector.connect.return_value
+        self.connector, self.connection = fake_connector()
         self.cursor = self.connection.cursor.return_value.__enter__.return_value
         patches = [
             patch.object(mover_module, 'Settings', return_value=self.settings),

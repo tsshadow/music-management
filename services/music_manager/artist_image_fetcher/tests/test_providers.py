@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
+from requests.exceptions import Timeout
+
 from services.music_manager.artist_image_fetcher.providers import lastfm, musicbrainz, soundcloud, spotify
 
 
@@ -160,6 +162,32 @@ class MusicBrainzProviderTest(unittest.TestCase):
         with patch.object(musicbrainz, 'requests') as http:
             http.get.return_value = make_response(payload={'artists': []})
             self.assertIsNone(self.provider.get_artist_metadata('Nobody'))
+
+    def test_a_read_timeout_is_retried_before_giving_up(self):
+        # musicbrainz.org routinely takes longer than a couple of seconds to answer.
+        # A single-shot 5s timeout turned that into ~2.3k ERROR lines a day in
+        # production while the very next attempt would usually have succeeded.
+        payload = {'artists': [{'id': 'mb1', 'name': 'Angerfist'}]}
+        with patch.object(musicbrainz, 'requests') as http:
+            http.get.side_effect = [Timeout('read timed out'), make_response(payload=payload)]
+            metadata = self.provider.get_artist_metadata('Angerfist')
+        self.assertIsNotNone(metadata)
+        self.assertEqual(metadata['mbid'], 'mb1')
+        self.assertEqual(http.get.call_count, 2)
+
+    def test_a_persistent_timeout_gives_up_and_returns_nothing(self):
+        with patch.object(musicbrainz, 'requests') as http:
+            http.get.side_effect = Timeout('read timed out')
+            self.assertIsNone(self.provider.get_artist_metadata('Angerfist'))
+        self.assertGreater(http.get.call_count, 1)
+
+    def test_the_read_timeout_is_longer_than_the_connect_timeout(self):
+        with patch.object(musicbrainz, 'requests') as http:
+            http.get.return_value = make_response(payload={'artists': []})
+            self.provider.get_artist_metadata('Angerfist')
+        connect_timeout, read_timeout = http.get.call_args.kwargs['timeout']
+        self.assertGreaterEqual(read_timeout, 15)
+        self.assertGreater(read_timeout, connect_timeout)
 
     def test_a_lookup_by_mbid_uses_the_direct_url_and_reads_the_relations(self):
         payload = {'id': 'mb1', 'name': 'Angerfist', 'relations': [

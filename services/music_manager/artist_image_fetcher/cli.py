@@ -36,8 +36,7 @@ def main():
             if args.artist_id:
                 fetcher.fetch_for_artist(args.artist_id, args.name, force_refresh=args.force)
             elif args.name:
-                db = DatabaseConnector().connect()
-                with db.cursor(pymysql.cursors.DictCursor) as cursor:
+                with DatabaseConnector().connection() as db, db.cursor(pymysql.cursors.DictCursor) as cursor:
                     cursor.execute('SELECT id FROM library_artists WHERE name = %s', (args.name,))
                     row = cursor.fetchone()
                     if row:
@@ -47,8 +46,7 @@ def main():
             else:
                 print('Either --artist-id or --name must be provided')
         elif args.command == 'fetch-missing':
-            db = DatabaseConnector().connect()
-            with db.cursor(pymysql.cursors.DictCursor) as cursor:
+            with DatabaseConnector().connection() as db, db.cursor(pymysql.cursors.DictCursor) as cursor:
                 status_filter = "(image_status IS NULL OR image_status != 'failed')"
                 if args.include_failed:
                     status_filter = "(image_status IS NULL OR image_status = 'failed')"
@@ -66,8 +64,7 @@ def main():
                     for artist in artists:
                         fetcher.fetch_for_artist(artist['id'], artist['name'])
         elif args.command == 'refresh':
-            db = DatabaseConnector().connect()
-            with db.cursor(pymysql.cursors.DictCursor) as cursor:
+            with DatabaseConnector().connection() as db, db.cursor(pymysql.cursors.DictCursor) as cursor:
                 query = '\n                    SELECT id, name FROM library_artists\n                    WHERE image_updated_at < DATE_SUB(NOW(), INTERVAL %s DAY)\n                    LIMIT %s\n                '
                 cursor.execute(query, (args.older_than_days, args.limit))
                 artists = cursor.fetchall()

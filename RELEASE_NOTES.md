@@ -28,6 +28,21 @@ This project is now modularized. Detailed release notes for each module can be f
 - Een adres met `..` erin kwam uit op een echt bestand op schijf en werd gewoon teruggegeven. Zulke
   verzoeken krijgen nu een 404.
 
+## Global Version 0.9.3 (2026-08-15)
+
+### 🛠️ Opgelost
+
+- **Bij elk genre stond "0 nummers".** De genrepagina telde nergens meer iets op, terwijl er
+  bijvoorbeeld 67.653 Hardstyle-nummers in de bibliotheek zitten. De server bewaart die aantallen
+  apart van de nummers zelf, en werkte ze alleen bij als een scan iets nieuws vond. Een scan die
+  halverwege afbrak liet ze daardoor op nul staan, en elke volgende scan sloeg het bijwerken over
+  omdat er niets te doen was. De scan controleert nu of die aantallen nog kloppen en herstelt ze
+  vanzelf.
+- **Op de telefoon kwam je niet meer uit het beheerscherm.** De tabbladen binnen beheer en
+  instellingen stonden in een zijbalk die op een klein scherm verborgen is, dus het scherm opende op
+  het laatst gebruikte tabblad zonder uitweg. Er zit nu een menuknop in de bovenbalk die de zijbalk
+  als uitschuifpaneel opent.
+
 ## Global Version 0.9.2 (2026-08-15)
 
 ### 🛠️ Productiefouten uit de logs

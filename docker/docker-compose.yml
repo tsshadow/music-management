@@ -85,7 +85,13 @@ services:
       # docs/deployment.md for why LMS is deployed as its own stack instead of
       # an inline service here.
       MUMA_SERVER_HOSTS: "lms:5082"
-      MUMA_SERVER_SUBSONIC_API_KEY: ${MUMA_SERVER_SUBSONIC_API_KEY:-${LMS_SUBSONIC_API_KEY}}
+      # Both are passed through as-is and the fallback happens in Python
+      # (services/music_manager/lms_subsonic.py). Compose does NOT support a
+      # nested "${A:-${B}}" default: it stops the default at the first "}", so
+      # that form resolved to the literal string "${LMS_SUBSONIC_API_KEY}",
+      # which LMS then rejected with "Invalid API key." on every radio poll.
+      MUMA_SERVER_SUBSONIC_API_KEY: ${MUMA_SERVER_SUBSONIC_API_KEY:-}
+      LMS_SUBSONIC_API_KEY: ${LMS_SUBSONIC_API_KEY:-}
       NOTIFY_URL: ${NOTIFY_URL}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     volumes:

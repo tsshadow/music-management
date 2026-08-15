@@ -4,6 +4,7 @@ configuration that decides whether it runs at all."""
 import unittest
 from unittest.mock import MagicMock, patch
 
+from services.tests.connector_fakes import wire_connector
 from services.tests.mock_base import setup_mocks
 
 setup_mocks()
@@ -38,7 +39,7 @@ class GetAccountsFromDbTest(unittest.TestCase):
         self.cursor = MagicMock()
         connection = MagicMock()
         connection.cursor.return_value.__enter__.return_value = self.cursor
-        self.connector_cls.return_value.connect.return_value = connection
+        wire_connector(self.connector_cls.return_value, connection)
 
     def test_the_configured_accounts_are_returned(self):
         self.cursor.fetchall.return_value = [('angerfist',), ('outsiders',)]

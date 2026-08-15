@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from services.downloader.soundcloud.SoundcloudArchive import SoundcloudArchive
+from services.tests.connector_fakes import wire_connector
 
 TRACK = {
     'account_name': 'Angerfist',
@@ -22,7 +23,7 @@ class SoundcloudArchiveTestCase(unittest.TestCase):
         self.connection = MagicMock()
         self.cursor = MagicMock()
         self.connection.cursor.return_value.__enter__.return_value = self.cursor
-        self.connector_cls.return_value.connect.return_value = self.connection
+        wire_connector(self.connector_cls.return_value, self.connection)
 
 
 class TrackExistsTest(SoundcloudArchiveTestCase):
@@ -50,7 +51,7 @@ class TrackExistsTest(SoundcloudArchiveTestCase):
         self.assertEqual(params, ('2379459947',))
 
     def test_an_unreachable_database_means_do_the_full_run(self):
-        self.connector_cls.return_value.connect.side_effect = RuntimeError('no database')
+        self.connector_cls.return_value.connection.side_effect = RuntimeError('no database')
 
         self.assertFalse(SoundcloudArchive.track_exists('2379459947'))
 

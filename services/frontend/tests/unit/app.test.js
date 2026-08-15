@@ -3,8 +3,10 @@ import { render, screen, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import App from '../../src/App.svelte';
 import {
-  activeModal, activeView, credentials, isMobile, mumaSessionActive, playlist, viewMode
+  activeManagementTab, activeModal, activeSettingsTab, activeView, credentials, currentPlaylist,
+  isMobile, mumaSessionActive, mumaUser, playlist, viewMode
 } from '../../src/lib/store.js';
+import { setLocaleFromAccount } from '../../src/lib/i18n/index.js';
 
 /** Answers everything the shell and the home screen ask for. */
 function subsonic() {
@@ -32,6 +34,13 @@ describe('App', () => {
     viewMode.set('songs');
     playlist.set([]);
     isMobile.set(false);
+    currentPlaylist.set(null);
+    activeSettingsTab.set('general');
+    activeManagementTab.set('overview');
+    // Not mumaUser.set(null): store.js reads that as a logout and resets the
+    // language to the browser's, which in jsdom is English -- every assertion
+    // on a Dutch label in this file would then fail.
+    setLocaleFromAccount('nl');
     // App keeps the view in the URL, so a previous test that ended on /login
     // would otherwise put this one back on the login screen.
     window.history.replaceState({}, '', '/');
@@ -117,6 +126,64 @@ describe('App', () => {
     window.history.replaceState({}, '', window.location.pathname);
     window.dispatchEvent(new PopStateEvent('popstate'));
     await waitFor(() => expect(get(activeView)).toBe('label:Drum & Bass / UK'));
+  });
+
+  it('a sidebar page that used to have no route now lands in the URL', async () => {
+    render(App);
+    await waitFor(() => expect(screen.getAllByText('Afspeellijsten').length).toBeGreaterThan(0));
+
+    activeView.set('history');
+
+    await waitFor(() => expect(window.location.pathname).toBe('/history'));
+  });
+
+  it('the open playlist is named in the URL', async () => {
+    render(App);
+    await waitFor(() => expect(screen.getAllByText('Afspeellijsten').length).toBeGreaterThan(0));
+
+    currentPlaylist.set({ id: 'pl-7', name: 'Zaterdag' });
+    activeView.set('playlist-detail');
+
+    await waitFor(() => expect(window.location.pathname).toBe('/playlist/pl-7'));
+  });
+
+  it('the open settings tab is named in the URL', async () => {
+    render(App);
+    await waitFor(() => expect(screen.getAllByText('Afspeellijsten').length).toBeGreaterThan(0));
+
+    activeView.set('settings');
+    activeSettingsTab.set('advanced');
+
+    await waitFor(() => expect(window.location.pathname).toBe('/settings/advanced'));
+  });
+
+  it('a settings tab in the URL is opened on arrival', async () => {
+    window.history.replaceState({}, '', '/settings/about');
+
+    render(App);
+
+    await waitFor(() => expect(get(activeSettingsTab)).toBe('about'));
+    expect(get(activeView)).toBe('settings');
+  });
+
+  it('a management tab in the URL is opened on arrival', async () => {
+    mumaUser.set({ id: 1, username: 'user', is_admin: true });
+    window.history.replaceState({}, '', '/management/scanner');
+
+    render(App);
+
+    await waitFor(() => expect(get(activeManagementTab)).toBe('scanner'));
+    expect(get(activeView)).toBe('management');
+  });
+
+  it('keeps the stored tab when the settings URL names none', async () => {
+    activeSettingsTab.set('advanced');
+    window.history.replaceState({}, '', '/settings');
+
+    render(App);
+
+    await waitFor(() => expect(get(activeView)).toBe('settings'));
+    expect(get(activeSettingsTab)).toBe('advanced');
   });
 
   it('the search results modal is shown when it is opened', async () => {

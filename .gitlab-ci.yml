@@ -344,6 +344,10 @@ db:integration:
         - migrate_*.sql
         - tests/integration/**/*
         - .gitlab-ci.yml
+        # A job has to run when the script it runs changes. Without this line a
+        # merge request that only edits scripts/test/db-integration.sh is
+        # reviewed and merged without ever executing it.
+        - scripts/test/db-integration.sh
   script:
     - ./scripts/test/db-integration.sh
 
@@ -365,6 +369,8 @@ contracts:
         - tests/fixtures/**/*
         - tests/contracts/**/*
         - .gitlab-ci.yml
+        # Same reason as db:integration above.
+        - scripts/test/contracts.sh
   script:
     - ./scripts/test/contracts.sh
 
@@ -382,6 +388,8 @@ frontend:browser:
         - docker/compose.test.yml
         - tests/fixtures/**/*
         - .gitlab-ci.yml
+        # Same reason as db:integration above.
+        - scripts/test/frontend-browser.sh
   script:
     - ./scripts/test/frontend-browser.sh
   artifacts:

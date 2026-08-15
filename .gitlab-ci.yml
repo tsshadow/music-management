@@ -90,6 +90,26 @@ stages:
     paths:
       - services/frontend/node_modules/
 
+# Jobs that may run on either CI host, so two of them can run at once.
+#
+# There are two runners and both carry the `fast` tag: the always-on LXC
+# (debian-dev-192.0.2.40, also picks up untagged jobs) and Teun's workstation
+# (minipc-debian13-192.0.2.227), which is tagged-only and often powered off.
+# GitLab hands a `fast` job to whichever runner polls first, so tagging a job
+# here buys parallelism when the workstation is up and changes nothing when it
+# is not -- the LXC still carries the same tag, so nothing ever queues waiting
+# for a machine that is asleep.
+#
+# Only add a job here when it needs nothing from the host but Docker and git.
+# The workstation has no project Python environment, so anything invoking
+# `python3 -m pytest` (music-management:unit) or `npm` (frontend:unit) directly
+# stays untagged and LXC-only until those dependencies are provisioned there.
+# Deploy and release jobs must never carry this tag: they hold the production
+# SSH key and push tags, and neither belongs on a desktop.
+.fast_runner:
+  tags:
+    - fast
+
 # --- Static analysis ---------------------------------------------------------
 # Runs the same scripts/lint.sh the pre-commit hook runs, so a commit made with
 # --no-verify, or through the GitLab web UI, still meets the same bar. Both the
@@ -100,6 +120,8 @@ quality:lint:
   stage: quality
   timeout: 10m
   retry: !reference [.infra_retry, retry]
+  # scripts/lint.sh re-runs itself in a container when ruff/pylint are missing.
+  tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.release_rule, rules]
     - changes:
@@ -120,6 +142,8 @@ quality:typecheck:
   stage: quality
   timeout: 10m
   retry: !reference [.infra_retry, retry]
+  # Same container fallback as quality:lint, for mypy.
+  tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.release_rule, rules]
     - changes:
@@ -160,6 +184,8 @@ security:secret-scan:
   stage: quality
   timeout: 15m
   retry: !reference [.infra_retry, retry]
+  # gitleaks runs as a container; nothing is needed on the host.
+  tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.release_rule, rules]
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
@@ -213,6 +239,10 @@ lms:unit:
   stage: unit
   timeout: 45m
   retry: !reference [.infra_retry, retry]
+  # The whole build and test run happens inside Dockerfile-build-alpine, so this
+  # needs only a Docker daemon. It is also the longest job in the pipeline, which
+  # makes it the one worth handing to a spare 16-core host when there is one.
+  tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.release_rule, rules]
     - changes:

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-08-15
+
+### Fixed
+
+- **Every genre reported "0 nummers".** On production all 38284 rows of the `cluster` table carried
+  `track_count` 0 while `track_cluster` held 1.7M links, so `getGenres` answered `songCount="0"` for
+  a library that actually has 67653 Hardstyle tracks. That column is cached, and only
+  `ScanStepComputeClusterStats` fills it — a step that ran solely when a scan saw changes. A scan
+  that aborts after the clusters are created therefore leaves every count at zero, and each later
+  scan, having nothing to do, skips the step and keeps it that way. The step now also runs when a
+  cluster has tracks but still reports zero, so an interrupted scan heals itself on the next run.
+- **The management tabs are reachable on a phone again.** The sidebar column is hidden below `md`
+  and the mobile bottom bar has no entry for the tabs inside the management view, so the screen
+  opened on whatever tab was last used with no way to leave it; settings had the same problem. Both
+  sidebars are now also offered as a drawer, opened from a menu button in the top bar.
+
 ## [0.9.2] - 2026-08-15
 
 ### Fixed

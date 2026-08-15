@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { fade, fly } from 'svelte/transition';
   import Sidebar from './lib/Sidebar.svelte';
   import Player from './lib/Player.svelte';
   import Dashboard from './lib/Dashboard.svelte';
@@ -12,7 +13,7 @@
   import SearchMoreModal from './lib/SearchMoreModal.svelte';
   import Toaster from './lib/Toaster.svelte';
   import { notify } from './lib/notifications.js';
-  import { playlist, activeView, currentPlaylist, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive } from './lib/store.js';
+  import { playlist, activeView, currentPlaylist, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive, sidebarDrawerOpen } from './lib/store.js';
   import { get } from 'svelte/store';
   import { viewArgument } from './lib/utils.js';
   import { t } from './lib/i18n/index.js';
@@ -43,6 +44,22 @@
         activeView.set('home');
     }
   });
+
+  // The drawer belongs to the settings/management shell. Leaving that shell
+  // (including from the switch inside the drawer's own header) has to take the
+  // overlay with it, otherwise it hangs over the player.
+  const hasDrawer = $derived($activeView === 'settings' || $activeView === 'management');
+  $effect(() => {
+    if (!hasDrawer) sidebarDrawerOpen.set(false);
+  });
+
+  function closeDrawer() {
+    sidebarDrawerOpen.set(false);
+  }
+
+  function handleDrawerKeydown(e) {
+    if (e.key === 'Escape') closeDrawer();
+  }
 
   let queueWidth = $state(350);
   let isResizing = $state(false);
@@ -208,6 +225,8 @@
   }
 </script>
 
+<svelte:window onkeydown={handleDrawerKeydown} />
+
 {#if !$credentials.username && !$mumaSessionActive}
   <LoginPage />
 {:else}
@@ -277,6 +296,30 @@
   <div class="row-start-3 row-end-4 md:hidden z-20">
     <MobileNav activeView={$activeView} onnavigate={handleNavigate} />
   </div>
+
+  <!-- Below `md` the sidebar column is hidden and the bottom bar has no entry
+       for the settings/management tabs, so the same sidebar is offered as a
+       drawer instead. -->
+  {#if hasDrawer && $sidebarDrawerOpen}
+    <div class="md:hidden fixed inset-0 z-40 flex" role="dialog" aria-modal="true" aria-label={$t('nav.menu')}>
+      <button
+        class="absolute inset-0 w-full h-full bg-black/70 backdrop-blur-sm border-none cursor-default"
+        aria-label={$t('nav.closeMenu')}
+        onclick={closeDrawer}
+        transition:fade={{ duration: 150 }}
+      ></button>
+      <div
+        class="relative w-[280px] max-w-[85vw] h-full bg-black border-r border-[#282828] overflow-y-auto shadow-2xl"
+        transition:fly={{ x: -280, duration: 200 }}
+      >
+        {#if $activeView === 'settings'}
+          <SettingsSidebar onnavigate={handleNavigate} onselect={closeDrawer} />
+        {:else}
+          <ManagementSidebar onnavigate={handleNavigate} onselect={closeDrawer} />
+        {/if}
+      </div>
+    </div>
+  {/if}
 </main>
 {/if}
 

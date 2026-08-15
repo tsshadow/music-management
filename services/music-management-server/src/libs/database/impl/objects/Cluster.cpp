@@ -191,6 +191,13 @@ namespace lms::db
         return utils::fetchQuerySingleResult(session.getDboSession()->query<int>("SELECT COUNT(DISTINCT t.release_id) FROM track t INNER JOIN track_cluster t_c ON t_c.track_id = t.id").where("t_c.cluster_id = ?").bind(id));
     }
 
+    bool Cluster::hasOutdatedStats(Session& session)
+    {
+        session.checkReadTransaction();
+
+        return utils::fetchQuerySingleResult(session.getDboSession()->query<int>("SELECT EXISTS (SELECT 1 FROM cluster c WHERE c.track_count = 0 AND EXISTS (SELECT 1 FROM track_cluster t_c WHERE t_c.cluster_id = c.id))")) != 0;
+    }
+
     void Cluster::addTrack(ObjectPtr<Track> track)
     {
         _tracks.insert(getDboPtr(track));

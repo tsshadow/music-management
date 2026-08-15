@@ -101,6 +101,11 @@ namespace lms::db
         static std::size_t computeTrackCount(Session& session, ClusterId id);
         static std::size_t computeReleaseCount(Session& session, ClusterId id);
 
+        // True when at least one cluster has tracks but still carries the zero track count it
+        // was created with, i.e. the cached stats were never computed for it. Cheap enough to
+        // call on every scan: it stops at the first such cluster.
+        static bool hasOutdatedStats(Session& session);
+
         // Accessors
         std::string_view getName() const { return _name; }
         ObjectPtr<ClusterType> getType() const { return _clusterType; }

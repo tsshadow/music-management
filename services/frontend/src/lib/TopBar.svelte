@@ -3,10 +3,17 @@
   import ProfileButton from './ProfileButton.svelte';
   import SearchBar from './SearchBar.svelte';
   import ReleaseNotesModal from './ReleaseNotesModal.svelte';
-  import { activeView, authParams, activeModal } from './store.js';
+  import { activeView, authParams, activeModal, sidebarDrawerOpen } from './store.js';
+  import { t } from './i18n/index.js';
+  import { Menu } from '@lucide/svelte';
   import { get } from 'svelte/store';
 
   const { greeting = "" } = $props();
+
+  // The bottom bar covers the player views, but it has no entry for the
+  // settings and management tabs -- those only live in the sidebar, which is
+  // hidden below `md`. So on those two views the top bar carries the opener.
+  const hasDrawer = $derived($activeView === 'settings' || $activeView === 'management');
 
   async function checkVersion() {
       try {
@@ -64,6 +71,16 @@
 
 <div class="flex items-center justify-between mb-6 sticky top-0 z-30 py-2 bg-[#121212]/90 backdrop-blur-md px-4 -mx-4">
   <div class="flex items-center gap-4 flex-grow">
+    {#if hasDrawer}
+      <button
+        class="md:hidden flex items-center justify-center w-9 h-9 shrink-0 rounded-full bg-transparent border-none text-white hover:bg-[#282828] transition-colors cursor-pointer"
+        aria-label={$t('nav.openMenu')}
+        onclick={() => sidebarDrawerOpen.set(true)}
+      >
+        <Menu size={22} />
+      </button>
+    {/if}
+
     {#if $activeView === 'home'}
         <h1 class="text-xl md:text-3xl font-bold ml-2 whitespace-nowrap">{greeting}</h1>
     {/if}

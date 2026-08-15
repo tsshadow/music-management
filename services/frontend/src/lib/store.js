@@ -97,6 +97,12 @@ persist("lms_active_settings_tab", activeSettingsTab);
 export const activeManagementTab = writable("overview");
 persist("lms_active_management_tab", activeManagementTab);
 
+// The settings and management sidebars are the only way to reach their tabs,
+// and the sidebar column is desktop-only. On a narrow screen they are opened
+// as a drawer instead; deliberately not persisted -- an overlay that survives
+// a reload would cover the screen on arrival.
+export const sidebarDrawerOpen = writable(false);
+
 export const isMobile = writable(false);
 export const syncMode = writable('off'); // 'off', 'host', 'follower-jam', 'follower-radio'
 persist("lms_sync_mode", syncMode);

@@ -22,7 +22,9 @@
     Info
   } from '@lucide/svelte';
 
-  const { onnavigate } = $props();
+  // `onselect` lets the mobile drawer close itself once a tab was picked; on
+  // the desktop sidebar it is simply not passed.
+  const { onnavigate, onselect } = $props();
 
   const tabs = $derived([
     { id: 'overview', labelKey: 'management.tabs.overview', icon: LayoutDashboard },
@@ -50,6 +52,7 @@
 
   function setTab(id) {
     activeManagementTab.set(id);
+    if (onselect) onselect(id);
   }
 </script>
 

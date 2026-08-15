@@ -29,7 +29,17 @@ namespace lms::scanner
 {
     bool ScanStepComputeClusterStats::needProcess(const ScanContext& context) const
     {
-        return context.stats.getChangesCount() > 0;
+        if (context.stats.getChangesCount() > 0)
+            return true;
+
+        // Changes alone are not enough to keep the cached counts correct: this is the
+        // second to last step, so a scan that is aborted (or that crashes) after the
+        // clusters were created leaves every count at zero, and every later scan without
+        // changes would skip this step and keep it that way forever -- which is exactly
+        // how getGenres ends up answering songCount="0" for the whole library.
+        db::Session& dbSession{ _db.getTLSSession() };
+        auto transaction{ dbSession.createReadTransaction() };
+        return db::Cluster::hasOutdatedStats(dbSession);
     }
 
     void ScanStepComputeClusterStats::process(ScanContext& context)

@@ -222,6 +222,40 @@ namespace lms::db::tests
         }
     }
 
+    TEST_F(DatabaseFixture, Cluster_hasOutdatedStats)
+    {
+        ScopedTrack track{ session };
+        ScopedClusterType clusterType{ session, "MyClusterType" };
+        ScopedCluster cluster{ session, clusterType.lockAndGet(), "MyCluster" };
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            // A cluster without tracks legitimately has a zero track count
+            EXPECT_FALSE(Cluster::hasOutdatedStats(session));
+        }
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            cluster.get().modify()->addTrack(track.get());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            // The track is linked but the cached count was never computed
+            EXPECT_TRUE(Cluster::hasOutdatedStats(session));
+        }
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            cluster.get().modify()->setTrackCount(1);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_FALSE(Cluster::hasOutdatedStats(session));
+        }
+    }
+
     TEST_F(DatabaseFixture, Cluster_singleTrackWithSeveralClusters)
     {
         ScopedTrack track{ session };

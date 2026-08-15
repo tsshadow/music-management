@@ -19,6 +19,12 @@
 
 #include <list>
 
+// The user_id assertions below run a raw query, and Wt::Dbo keeps the definitions
+// of Query<> in Impl.h -- the same header every database/impl/objects/*.cpp
+// includes. Without it the test compiles but fails to link on
+// Wt::Dbo::Query<int, Wt::Dbo::DynamicBinding>::resultValue().
+#include <Wt/Dbo/Impl.h>
+
 #include "database/objects/Release.hpp"
 #include "database/objects/TrackList.hpp"
 
@@ -325,6 +331,53 @@ namespace lms::db::tests
             ASSERT_EQ(visitedTrackIds.size(), 2);
             EXPECT_EQ(visitedTrackIds[0], track1.getId());
             EXPECT_EQ(visitedTrackIds[1], track2.getId());
+        }
+    }
+
+    // A tracklist the scanner builds for a playlist file has no owning user. That has
+    // to reach the database as NULL: databases created by older versions still carry
+    // "fk_tracklist_user" on this column, and it is DEFERRABLE INITIALLY DEFERRED, so
+    // storing the invalidId() sentinel (-1) instead does not fail on the INSERT -- it
+    // aborts the entire write transaction at COMMIT and takes the scan down with it.
+    TEST_F(DatabaseFixture, TrackListWithoutUserStoresNullUserId)
+    {
+        ScopedTrackList trackList{ session, "ScannerPlayList", TrackListType::PlayList };
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            EXPECT_FALSE(trackList.get()->getUserId().isValid());
+
+            const int nullUserIdCount{ session.getDboSession()
+                                           ->query<int>("SELECT COUNT(*) FROM tracklist WHERE user_id IS NULL")
+                                           .resultValue() };
+            EXPECT_EQ(nullUserIdCount, 1);
+
+            const int sentinelUserIdCount{ session.getDboSession()
+                                               ->query<int>("SELECT COUNT(*) FROM tracklist WHERE user_id = -1")
+                                               .resultValue() };
+            EXPECT_EQ(sentinelUserIdCount, 0);
+        }
+    }
+
+    TEST_F(DatabaseFixture, TrackListWithUserStoresThatUserId)
+    {
+        ScopedUser user{ session, "MyUser" };
+        ScopedTrackList trackList{ session, "MyTrackList", TrackListType::PlayList };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            trackList.get().modify()->setUserId(user.getId());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(trackList.get()->getUserId(), user.getId());
+
+            const int nullUserIdCount{ session.getDboSession()
+                                           ->query<int>("SELECT COUNT(*) FROM tracklist WHERE user_id IS NULL")
+                                           .resultValue() };
+            EXPECT_EQ(nullUserIdCount, 0);
         }
     }
 

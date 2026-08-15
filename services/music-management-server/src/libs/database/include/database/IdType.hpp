@@ -80,6 +80,13 @@ namespace Wt::Dbo
             return sql_value_traits<typename T::ValueType, void>::type(conn, size);
         }
 
+        // NOTE: deliberately binds the raw value, including invalidId() (-1), rather
+        // than NULL. These traits are used for query *parameters* as well as column
+        // values, and the range-scan helpers (findNextIdRange, findByRangedIdBased)
+        // start from a default-constructed id: binding NULL there turns "id > ?" into
+        // "id > NULL", which is never true, and every ranged iteration returns
+        // nothing. A column that must store NULL when unset has to say so itself --
+        // see TrackList::_userId.
         static void bind(const T& v, SqlStatement* statement, int column, int size)
         {
             sql_value_traits<typename T::ValueType>::bind(v.getValue(), statement, column, size);

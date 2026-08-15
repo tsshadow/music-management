@@ -1,3 +1,4 @@
+import contextlib
 import os
 import sys
 import types
@@ -204,6 +205,14 @@ class MockDatabaseConnector:
 
     def connect(self):
         return MagicMock()
+
+    @contextlib.contextmanager
+    def connection(self):
+        conn = self.connect()
+        try:
+            yield conn
+        finally:
+            conn.close()
 db_conn_mod.DatabaseConnector = MockDatabaseConnector
 sys.modules['services.common.Helpers.DatabaseConnector'] = db_conn_mod
 # The genre rules helper is a real object holding in-memory rows: a MagicMock would

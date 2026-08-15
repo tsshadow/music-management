@@ -308,8 +308,7 @@ class YoutubeDownloader:
             (name, download_type) is for.
         """
         try:
-            db = DatabaseConnector().connect()
-            with db.cursor() as cursor:
+            with DatabaseConnector().connection() as db, db.cursor() as cursor:
                 cursor.execute('SELECT name, download_type, min_duration, active FROM downloads_youtube_accounts')
                 accounts = [YoutubeAccount.from_row(row) for row in cursor.fetchall()]
             return accounts

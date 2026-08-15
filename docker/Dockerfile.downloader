@@ -12,7 +12,12 @@ RUN apt-get update && apt-get install -y ffmpeg unzip && rm -rf /var/lib/apt/lis
 # solver scripts (the [default] extra pulls in yt-dlp-ejs) and a runtime to execute them.
 # Without these every download logs "Signature solving failed" and falls back to the few
 # formats that need no challenge -- which for most videos means none at all.
-RUN pip install --no-cache-dir "yt-dlp[default]"
+#
+# The curl-cffi extra is what makes browser impersonation possible. Without it every
+# SoundCloud run logs "The extractor is attempting impersonation, but no impersonate
+# target is available" and `yt-dlp --list-impersonate-targets` reports every target as
+# "(unavailable)", which is what SoundCloud's 403 throttling looked like in production.
+RUN pip install --no-cache-dir "yt-dlp[default,curl-cffi]"
 
 # Deno is the runtime yt-dlp uses by default; the others need an explicit --js-runtimes flag.
 RUN curl -fsSL -o /tmp/deno.zip \

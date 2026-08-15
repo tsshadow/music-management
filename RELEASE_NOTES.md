@@ -11,6 +11,26 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.9.2 (2026-08-15)
+
+### 🛠️ Productiefouten uit de logs
+
+- **De muziekscan legde LMS plat.** Elke scan (elk uur) liet het proces crashen op een
+  databasefout, goed voor 835 herstarts per dag. Geen enkele scan kwam ooit af, dus afspeellijsten
+  uit m3u-bestanden verschenen nooit in de speler. Oorzaak: een afspeellijst heeft geen eigenaar,
+  en dat werd verkeerd opgeslagen — als een ongeldig gebruikersnummer in plaats van "leeg".
+- **De workers lieten databaseverbindingen openstaan.** Tien plekken openden een verbinding zonder
+  hem te sluiten. De importer alleen al was goed voor 841.000 waarschuwingen per dag in de
+  database. Dat is opgelost bij de bron.
+- **De radio kreeg letterlijk de tekst van een instelling doorgestuurd** in plaats van de sleutel
+  zelf, door een schrijfwijze in het configuratiebestand die de versie van docker-compose op de
+  server niet ondersteunt. Let op: hiermee werkt de radio nog niet volledig — LMS bewaart deze
+  sleutels alleen in het geheugen, dus ze overleven geen herstart. Dat punt staat nog open.
+- **SoundCloud-downloads werkten weer tegen de 403-blokkade aan** doordat een benodigd onderdeel
+  ontbrak in het downloader-image.
+- **MusicBrainz-fouten vulden het log** met zo'n 2.300 regels per dag. De wachttijd is verruimd, er
+  wordt één keer opnieuw geprobeerd, en een tijdslimiet telt niet langer als fout.
+
 ## Global Version 0.9.1 (2026-08-14)
 
 ### 📄 Alleen ontwerpdocumenten

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-08-15
+
+### Fixed
+
+- **The library scan no longer takes LMS down with it.** Every hourly scan aborted the process with
+  `Sqlite3: commit transaction: FOREIGN KEY constraint failed` — 835 restarts in a day, and no scan
+  ever finished: the `tracklist` table held 3 rows against 48266 playlist files. A tracklist the
+  scanner builds for a playlist file has no owning user, and that was stored as the internal
+  "invalid id" sentinel (-1) instead of NULL, against a foreign key that older databases still
+  carry. Because the constraint is deferred, the insert passed and the commit killed the process.
+- **The workers no longer leak a database connection per lookup.** Ten call sites opened a
+  connection and never closed it; the importer's catalogue-ID lookup alone accounted for 841k of
+  the 843k `Aborted connection` warnings MariaDB logged in 24 hours. `DatabaseConnector` now offers
+  a context manager that always closes.
+- **The radio's Subsonic key is passed through correctly.** The compose file used a nested default
+  (`${A:-${B}}`), which the docker-compose version running in production renders as a literal
+  string rather than expanding it, so the player received the text `${LMS_SUBSONIC_API_KEY}` as its
+  API key. Note that radio is not fully restored by this: LMS keeps Subsonic tokens in memory only,
+  so a key configured in a file cannot survive a restart. That remains open.
+- **SoundCloud downloads can impersonate a browser again.** The downloader image installed yt-dlp
+  without the curl-cffi extra, so every impersonation target reported as unavailable and SoundCloud
+  answered with 403s.
+- **A slow MusicBrainz no longer floods the log.** Lookups used a flat 5-second timeout with no
+  retry, producing ~2.3k error lines a day. They now allow longer to read, retry once, and record a
+  timeout as a warning.
+
 ## [0.9.1] - 2026-08-14
 
 ### Changed

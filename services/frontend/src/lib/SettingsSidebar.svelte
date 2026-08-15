@@ -3,7 +3,9 @@
   import { activeSettingsTab, activeView } from './store.js';
   import SidebarHeader from './SidebarHeader.svelte';
 
-  const { onnavigate } = $props();
+  // `onselect` lets the mobile drawer close itself once a tab was picked; on
+  // the desktop sidebar it is simply not passed.
+  const { onnavigate, onselect } = $props();
 
   // Player settings are personal settings only. Everything that administers the
   // server itself (scanner, libraries, users, API tokens) lives in the
@@ -28,6 +30,7 @@
    */
   function setTab(id) {
     activeSettingsTab.set(id);
+    if (onselect) onselect(id);
   }
 </script>
 

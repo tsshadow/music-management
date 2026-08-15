@@ -60,6 +60,9 @@ stages:
   - e2e
   - release
   - deploy
+  # Last on purpose, and nothing is ever placed after it: this stage exists so
+  # that the jobs in it cannot gate anything. See security:dependency-audit.
+  - audit
 
 # Referenced by every job that gates a production deploy. Those jobs also have
 # `changes:` rules, which is what keeps ordinary feature pushes cheap -- but on
@@ -163,8 +166,18 @@ quality:typecheck:
 # transient outage should not turn master red. Read the job log. Findings that
 # genuinely cannot be fixed yet are listed, with a reason, in
 # security/accepted-vulnerabilities.txt.
+#
+# It sits in the `audit` stage with `needs: []` rather than in `quality`, and
+# the two halves of that are both load-bearing. `needs: []` frees it to start at
+# the beginning of the pipeline instead of waiting for a stage boundary; the
+# late stage means nothing waits for it to finish. It used to be a `quality`
+# job, and on develop pipeline 1104 that held the entire unit stage for ten
+# minutes -- five queued behind a busy runner, six running -- before a single
+# test started, for a result that is `allow_failure` and gates nothing. A job
+# whose outcome cannot block the pipeline should not be able to delay it either.
 security:dependency-audit:
-  stage: quality
+  stage: audit
+  needs: []
   timeout: 15m
   interruptible: false
   allow_failure: true

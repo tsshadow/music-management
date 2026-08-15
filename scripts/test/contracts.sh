@@ -28,7 +28,13 @@ FIXTURE="$ROOT_DIR/tests/fixtures/music/ci-test-track-001.mp3"
 
 cleanup() {
     echo "--- Tearing down test stack ---"
-    $COMPOSE down -v --remove-orphans
+    # --rmi local also deletes the two images compose built for this project.
+    # Without it they stay behind under the job-id-scoped project name, one pair
+    # per CI job forever: the runner had accumulated 2587 of them by 2026-08-15
+    # and filled its 148G disk, which fails every job on the host at once with
+    # "no space left on device". Only images compose named itself go -- test-db
+    # declares `image: mariadb:10.6`, and an explicit tag is what `local` spares.
+    $COMPOSE down -v --remove-orphans --rmi local
 }
 trap cleanup EXIT
 

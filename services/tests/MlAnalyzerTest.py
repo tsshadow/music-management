@@ -417,5 +417,30 @@ class AnalyzeTrackTest(unittest.TestCase):
         self.instance.save_features.assert_not_called()
 
 
+class ReleaseDatePrecisionTest(unittest.TestCase):
+    """The analyzer used to reduce every date to a year; the full value now travels beside it."""
+
+    def test_a_full_date_is_kept_whole(self):
+        self.assertEqual(TrackAnalyzer._partial_date('2026-01-16'), '2026-01-16')
+
+    def test_a_compact_date_is_normalised(self):
+        self.assertEqual(TrackAnalyzer._partial_date('20260116'), '2026-01-16')
+
+    def test_a_month_precision_value_is_kept_as_a_month(self):
+        self.assertEqual(TrackAnalyzer._partial_date('2026-01'), '2026-01')
+
+    def test_a_year_stays_a_year(self):
+        self.assertEqual(TrackAnalyzer._partial_date('2026'), '2026')
+
+    def test_a_timestamp_is_trimmed_to_the_date(self):
+        """Slicing to ten characters first stops a timestamp's time digits reading as a longer date."""
+        self.assertEqual(TrackAnalyzer._partial_date('2026-01-16T00:00:00Z'), '2026-01-16')
+
+    def test_junk_yields_nothing(self):
+        self.assertIsNone(TrackAnalyzer._partial_date('sometime'))
+        self.assertIsNone(TrackAnalyzer._partial_date(''))
+        self.assertIsNone(TrackAnalyzer._partial_date(None))
+
+
 if __name__ == '__main__':
     unittest.main()

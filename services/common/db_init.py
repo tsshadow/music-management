@@ -14,7 +14,10 @@ REQUIRED_TABLES = [
     'rules_genres', 'library_track_genres',
     'rules_artist_genres', 'rules_label_genres',
     'rules_artist_genre', 'rules_label_genre', 'rules_catid_label', 
-    'rules_festival_data', 'rules_ignored_artists', 'rules_ignored_genres', 
+    'rules_festival_data',
+    # rules_festivals must precede its two children: both carry a foreign key to it.
+    'rules_festivals', 'rules_festival_aliases', 'rules_festival_editions',
+    'rules_ignored_artists', 'rules_ignored_genres',
     'rules_subgenre_hierarchy', 'rules_genre_backlog', 'rules_genre_expansions',
     'rules_scene_group_date_format',
     # Same ordering constraint as rules_genres above: the alias table points at
@@ -39,7 +42,10 @@ def ensure_tables_exist() -> None:
         'library_track_labels': '\n            CREATE TABLE IF NOT EXISTS library_track_labels (\n                track_id INT NOT NULL,\n                label_id INT NOT NULL,\n                PRIMARY KEY (track_id, label_id),\n                FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE CASCADE,\n                FOREIGN KEY (label_id) REFERENCES library_labels(id) ON DELETE CASCADE\n            )\n        ',
         'rules_artist_genre': '\n            CREATE VIEW IF NOT EXISTS rules_artist_genre AS\n            SELECT r.artist_name AS artist, g.name AS genre\n            FROM rules_artist_genres r\n            JOIN rules_genres g ON r.genre_id = g.id\n        ', 
         'rules_catid_label': '\n            CREATE TABLE IF NOT EXISTS rules_catid_label (\n                catid VARCHAR(255) PRIMARY KEY,\n                label VARCHAR(255) NOT NULL\n            )\n        ', 
-        'rules_festival_data': '\n            CREATE TABLE IF NOT EXISTS rules_festival_data (\n                festival VARCHAR(255) NOT NULL,\n                year INT NOT NULL,\n                date DATE NOT NULL,\n                PRIMARY KEY (festival, year)\n            )\n        ', 
+        'rules_festival_data': '\n            CREATE TABLE IF NOT EXISTS rules_festival_data (\n                festival VARCHAR(255) NOT NULL,\n                year INT NOT NULL,\n                date DATE NOT NULL,\n                PRIMARY KEY (festival, year)\n            )\n        ',
+        'rules_festivals': '\n            CREATE TABLE IF NOT EXISTS rules_festivals (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                name VARCHAR(255) NOT NULL,\n                normalized_name VARCHAR(191) NOT NULL UNIQUE,\n                active TINYINT(1) NOT NULL DEFAULT 1,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n            )\n        ',
+        'rules_festival_aliases': '\n            CREATE TABLE IF NOT EXISTS rules_festival_aliases (\n                festival_id INT NOT NULL,\n                alias VARCHAR(255) NOT NULL,\n                normalized_alias VARCHAR(191) NOT NULL,\n                PRIMARY KEY (festival_id, normalized_alias),\n                INDEX idx_normalized_alias (normalized_alias),\n                FOREIGN KEY (festival_id) REFERENCES rules_festivals(id) ON DELETE CASCADE\n            )\n        ',
+        'rules_festival_editions': '\n            CREATE TABLE IF NOT EXISTS rules_festival_editions (\n                festival_id INT NOT NULL,\n                year INT NOT NULL,\n                date DATE NOT NULL,\n                PRIMARY KEY (festival_id, year),\n                FOREIGN KEY (festival_id) REFERENCES rules_festivals(id) ON DELETE CASCADE\n            )\n        ',
         'rules_genres': "\n            CREATE TABLE IF NOT EXISTS rules_genres (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                name VARCHAR(255) NOT NULL,\n                normalized_name VARCHAR(191) NOT NULL UNIQUE,\n                state ENUM('white', 'black', 'unknown') NOT NULL DEFAULT 'unknown',\n                canonical_id INT NULL,\n                occurrences INT NOT NULL DEFAULT 0,\n                corrected_genre VARCHAR(255),\n                detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                decided_at TIMESTAMP NULL,\n                decided_by VARCHAR(64),\n                INDEX(state),\n                FOREIGN KEY (canonical_id) REFERENCES rules_genres(id) ON DELETE SET NULL\n            )\n        ",
         'rules_ignored_artists': '\n            CREATE TABLE IF NOT EXISTS rules_ignored_artists (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                name VARCHAR(255) NOT NULL,\n                corrected_name VARCHAR(255),\n                INDEX(name)\n            )\n        ', 
         'rules_ignored_genres': '\n            CREATE TABLE IF NOT EXISTS rules_ignored_genres (\n                name VARCHAR(255) PRIMARY KEY\n            )\n        ', 

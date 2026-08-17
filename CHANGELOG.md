@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **De Festivals-tab kent nu 63 festivals in plaats van 15.** Qlimax, Reverze, Ground Zero, Q-BASE,
+  X-Qlusive, Thunderdome, Masters of Hardcore, Pussy Lounge en de rest zijn toegevoegd, elk met de
+  schrijfwijzen waaronder ze in titels en mapnamen voorkomen. Een festival hoeft nog maar één keer
+  ingevoerd te worden: waar vroeger een rij per editie nodig was voordat er überhaupt iets herkend werd,
+  voegt een editie nu alleen de datum toe.
+- **Livesets, warm-up mixes en podcasts worden eindelijk gelabeld.** De festivalherkenning hing alleen aan
+  YouTube-downloads, waardoor juist de map met je livesets er nooit langs kwam. Hij draait nu ook op de
+  generieke mappen en op SoundCloud, en kijkt naast de titel ook naar de map waarin een set staat --
+  `Livesets/Qlimax 2022/` zegt vaak meer dan de tag in het bestand.
 - **Radioshows en podcasts worden gelabeld, net als festivals.** Isaac's Hardstyle Sessions, Hard With
   Style, The Uptempo Tribe Podcast, Hardcore Italia: een aflevering was tot nu toe niet van een gewone
   lange mix te onderscheiden. De tagger schrijft nu een PODCAST- en PODCAST_EPISODE-tag op elke mix van
@@ -22,6 +31,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Niets wordt getagd zolang een show niet is goedgekeurd.
 - **Een Podcasts-pagina in de webplayer en in de Android-app**, met per show zijn afleveringen. Beide
   lijsten komen van de PODCAST-tag, dus ze vullen zich zodra de tagger langs is geweest.
+
+### Fixed
+- **Bestanden die los in Warm Up Mixes stonden werden helemaal overgeslagen.** De tagger liep alleen over
+  de submappen van de generieke mappen, en in die map staat vrijwel alles los. Ze kregen dus ook geen
+  genre of artiest.
+- **Een nieuw label is meteen zichtbaar in plaats van pas de volgende dag.** Na een tagronde vraagt MuMa
+  de muziekserver zelf om te scannen, in plaats van te wachten tot die er uit zichzelf aan toe is.
+- **Een festivalnaam met een spatie te veel matchte niet meer.** Herkenning gaat nu op genormaliseerde
+  tekst, dus accenten, leestekens en spaties maken niet meer uit -- en 'Rise' matcht niet langer op
+  'Sunrise'.
 
 ## [0.11.0] - 2026-08-17
 

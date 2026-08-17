@@ -1,6 +1,7 @@
 import logging
 import re
 import unicodedata
+from dataclasses import dataclass, field
 
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 
@@ -8,10 +9,8 @@ from services.common.Helpers.DatabaseConnector import DatabaseConnector
 # uses: "#150", "Episode #73", "ep. 12", "Podcast 140", "week 023", "Podcast_130",
 # "afl 12". Anchored on the marker rather than on any number, so a year or a bitrate
 # never reads as an episode. The separator class includes '_' and '-' because scene
-# releases join every word with them.
-# The marker is preceded by a lookbehind rather than \b because '_' is a word character:
-# \b never fires in 'Twisted_Darkside_Podcast_130', which is how half the ripped
-# episodes in the library are named.
+# releases join every word with them, and the marker is preceded by a lookbehind rather
+# than \b because '_' is a word character: \b never fires in 'Twisted_Darkside_Podcast_130'.
 EPISODE_PATTERN = re.compile('(?<![a-z])(?:episode|podcast|afl|ep|week)\\.?[\\s_-]*#?[\\s_-]*(\\d{1,4})\\b|#\\s*(\\d{1,4})\\b', re.IGNORECASE)
 
 # "Podcast" is regularly part of a show's own name -- The Uptempo Tribe Podcast,
@@ -20,16 +19,30 @@ EPISODE_PATTERN = re.compile('(?<![a-z])(?:episode|podcast|afl|ep|week)\\.?[\\s_
 NAME_MARKERS = ('podcast',)
 
 
+@dataclass
+class Show:
+    """One radio show or podcast series, and the spellings it is known by."""
+    name: str
+    aliases: list[str] = field(default_factory=list)
+
+
 def normalize(name: str | None) -> str:
     """
     Casing-, accent- and punctuation-insensitive key for a show name.
 
     Deliberately the same rule as `GenreRulesHelper.normalize` and `normalizeGenre` in
     the webui, so a curator, the tagger and the detector all group names identically.
+    Unpadded, because this is also the key stored in `normalized_name`; matching pads
+    both sides itself.
     """
     decomposed = unicodedata.normalize('NFKD', name or '')
     without_accents = ''.join(c for c in decomposed if not unicodedata.combining(c))
     return re.sub('[^a-z0-9]+', ' ', without_accents.lower()).strip()
+
+
+def padded(name: str | None) -> str:
+    """Normalized and wrapped in spaces, so an alias only matches on word boundaries."""
+    return f' {normalize(name)} '
 
 
 def series_cut(text: str | None) -> int | None:
@@ -80,17 +93,74 @@ class PodcastHelper:
     """
     Identifies the radio show or podcast series a recording belongs to.
 
-    Only shows a human approved (`state = 'white'`) are matched, so a hit is trusted on
-    the strength of that decision: an episode number is welcome but not required. The
-    lookup is loaded once and kept, because the tagger builds one helper per run and the
-    table is small.
+    The names live in two tables: `rules_podcasts` holds the canonical name and the
+    curation state, `rules_podcast_aliases` the spellings that occur in the wild. Only
+    shows a human approved (`state = 'white'`) are matched, so a hit is trusted on the
+    strength of that decision: an episode number is welcome but not required.
+
+    Matching works on normalised text padded with a space on both sides, so an alias
+    only matches on word boundaries -- "Louder" does not match "Loudness". When more
+    than one alias hits, the longest one wins, which is what makes "Isaac's Hardstyle
+    Sessions Yearmix" resolve to the yearmix series rather than to the show it contains.
     """
 
-    def __init__(self, table_name: str='rules_podcasts', alias_table_name: str='rules_podcast_aliases'):
+    def __init__(self, preload: bool=True, table_name: str='rules_podcasts', alias_table_name: str='rules_podcast_aliases'):
         self.table_name = table_name
         self.alias_table_name = alias_table_name
         self.db_connector = DatabaseConnector()
-        self._aliases: dict[str, str] | None = None
+        self._shows: list[Show] = []
+        # Longest alias first, so the first hit is always the most specific one.
+        self._index: list[tuple[str, Show]] = []
+        if preload:
+            self.reload()
+
+    # -- data ------------------------------------------------------------
+
+    def set_shows(self, shows: list[Show]) -> None:
+        self._shows = shows
+        index = []
+        for show in shows:
+            for alias in show.aliases or [show.name]:
+                key = padded(alias)
+                if key.strip():
+                    index.append((key, show))
+        index.sort(key=lambda pair: len(pair[0]), reverse=True)
+        self._index = index
+
+    def reload(self) -> None:
+        """Reloads the approved shows, e.g. after a curation decision."""
+        self.set_shows(self._load())
+
+    def _load(self) -> list[Show]:
+        """
+        The approved shows and their spellings.
+
+        A show's own name counts as an alias, which is what makes a freshly approved
+        show match before anyone has recorded a spelling for it.
+        """
+        query = f'\n            SELECT p.id, p.name, a.alias\n            FROM {self.table_name} p\n            LEFT JOIN {self.alias_table_name} a ON a.podcast_id = p.id\n            WHERE p.state = %s\n        '
+        try:
+            connection = self.db_connector.connect()
+        except Exception as e:
+            logging.error('[PodcastHelper] Failed to connect: %s', e)
+            return []
+        try:
+            by_id: dict[int, Show] = {}
+            with connection.cursor() as cursor:
+                cursor.execute(query, ('white',))
+                for row in cursor.fetchall():
+                    show_id, name, alias = (row['id'], row['name'], row['alias']) if isinstance(row, dict) else (row[0], row[1], row[2])
+                    show = by_id.setdefault(show_id, Show(name=name, aliases=[name]))
+                    if alias and alias not in show.aliases:
+                        show.aliases.append(alias)
+            return list(by_id.values())
+        except Exception as e:
+            logging.error('[PodcastHelper] Failed to load shows from %s: %s', self.table_name, e)
+            return []
+        finally:
+            connection.close()
+
+    # -- matching --------------------------------------------------------
 
     def get(self, text: str | None) -> dict | None:
         """
@@ -100,53 +170,12 @@ class PodcastHelper:
             dict or None: `{'podcast': canonical name, 'episode': number or None}`, or
                 None when no approved show matches.
         """
-        haystack = normalize(text)
-        if not haystack:
+        if not text:
             return None
-        aliases = self._load()
-        if not aliases:
+        haystack = padded(text)
+        if not haystack.strip():
             return None
-        # Longest alias first: "Hardstyle Sessions Yearmix" is its own series and must
-        # not be resolved to the "Hardstyle Sessions" it contains.
-        matches = [alias for alias in aliases if alias and alias in haystack]
-        if not matches:
-            return None
-        best = max(matches, key=len)
-        return {'podcast': aliases[best], 'episode': find_episode(text)}
-
-    def reload(self) -> None:
-        """Drops the cached lookup, so the next `get` sees fresh curation decisions."""
-        self._aliases = None
-
-    def _load(self) -> dict[str, str]:
-        """
-        Normalized alias -> canonical show name, for approved shows only.
-
-        A show's own name counts as an alias, which is what makes a freshly approved
-        show match before anyone has recorded a spelling for it.
-        """
-        if self._aliases is not None:
-            return self._aliases
-        query = f'\n            SELECT p.name, a.alias\n            FROM {self.table_name} p\n            LEFT JOIN {self.alias_table_name} a ON a.podcast_id = p.id\n            WHERE p.state = %s\n        '
-        aliases: dict[str, str] = {}
-        try:
-            connection = self.db_connector.connect()
-        except Exception as e:
-            logging.error(f'[PodcastHelper] Could not connect: {e}')
-            return {}
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute(query, ('white',))
-                for row in cursor.fetchall():
-                    name, alias = (row['name'], row['alias']) if isinstance(row, dict) else (row[0], row[1])
-                    aliases[normalize(name)] = name
-                    if alias:
-                        aliases[normalize(alias)] = name
-        except Exception as e:
-            logging.error(f'[PodcastHelper] Error querying {self.table_name}: {e}')
-            return {}
-        finally:
-            connection.close()
-        aliases.pop('', None)
-        self._aliases = aliases
-        return aliases
+        for alias, show in self._index:
+            if alias in haystack:
+                return {'podcast': show.name, 'episode': find_episode(text)}
+        return None

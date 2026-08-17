@@ -1,6 +1,11 @@
 import unittest
 
-from services.common.Helpers.PodcastHelper import PodcastHelper, normalize, strip_episode_and_guest
+from services.common.Helpers.PodcastHelper import (
+    PodcastHelper,
+    Show,
+    normalize,
+    strip_episode_and_guest,
+)
 
 
 class PodcastHelperGetTest(unittest.TestCase):
@@ -8,8 +13,8 @@ class PodcastHelperGetTest(unittest.TestCase):
 
     def helper(self, shows):
         """A helper with its lookup pre-filled, so no database is involved."""
-        instance = PodcastHelper.__new__(PodcastHelper)
-        instance._aliases = {normalize(alias): name for name, aliases in shows.items() for alias in aliases}
+        instance = PodcastHelper(preload=False)
+        instance.set_shows([Show(name=name, aliases=aliases) for name, aliases in shows.items()])
         return instance
 
     def test_returns_none_without_a_match(self):
@@ -75,6 +80,18 @@ class PodcastHelperGetTest(unittest.TestCase):
         for title, expected in cases.items():
             with self.subTest(title=title):
                 self.assertEqual(expected, helper.get(title)["episode"])
+
+    def test_an_alias_only_matches_on_word_boundaries(self):
+        """'Louder' is a show; 'Loudness' is not an episode of it."""
+        helper = self.helper({"Louder": ["Louder"]})
+
+        self.assertIsNone(helper.get("Angerfist - Loudness #3"))
+        self.assertIsNotNone(helper.get("The Prophet - Louder #3"))
+
+    def test_matches_before_any_show_is_loaded(self):
+        helper = PodcastHelper(preload=False)
+
+        self.assertIsNone(helper.get("Hardstyle Sessions #150"))
 
     def test_ignores_a_year_that_is_not_an_episode_number(self):
         helper = self.helper({"Louder": ["Louder"]})

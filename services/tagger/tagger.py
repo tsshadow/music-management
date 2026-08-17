@@ -9,6 +9,7 @@ from mutagen.easymp4 import EasyMP4Tags
 
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.BrokenSongHelper import BrokenSongHelper
+from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 from services.tagger.constants import SongTypeEnum
 from services.tagger.Song.BaseSong import ExtensionNotSupportedException
@@ -66,6 +67,10 @@ class Tagger:
             self._parse_generic_folders()
         if self.stop_requested:
             logging.info('Tagging process was interrupted by user')
+        # One scan per run, not per file: LMS only reprocesses what changed, so this is
+        # cheap, and it is what makes a new or corrected tag show up in the app without
+        # waiting for LMS's own schedule. Best effort -- it never raises.
+        lms_scan_trigger.trigger()
 
     def _parse_label_folders(self):
         """
@@ -99,6 +104,10 @@ class Tagger:
     def _parse_generic_folders(self):
         """
         Parses generic folders like Livesets, Podcasts, Top 100.
+
+        The root itself is handed to parse_folder, which recurses. Walking only the
+        subfolders -- as this did before -- skipped every file that sits loose in the
+        root, and in Warm Up Mixes that is nearly the whole folder.
         """
         generic_folders = ['Livesets', 'Podcasts', 'Top 100', 'Warm Up Mixes']
         music_root = Path(s.music_folder_path)
@@ -108,10 +117,7 @@ class Tagger:
             root_path = music_root / folder_name
             if not root_path.exists():
                 continue
-            for subfolder in [f for f in root_path.iterdir() if f.is_dir()]:
-                if self.stop_requested:
-                    break
-                self.parse_folder(subfolder, SongTypeEnum.GENERIC)
+            self.parse_folder(root_path, SongTypeEnum.GENERIC)
 
     def parse_folder(self, folder: Path, song_type: SongTypeEnum, extra_info=None):
         """

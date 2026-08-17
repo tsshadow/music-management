@@ -8,6 +8,7 @@ from services.tagger.Song.rules.CleanTagsRule import CleanTagsRule
 from services.tagger.Song.rules.CleanTitleRule import CleanTitleRule
 from services.tagger.Song.rules.InferArtistFromTitleRule import InferArtistFromTitleRule
 from services.tagger.Song.rules.InferFeatureFromTitleRule import InferFeatureFromTitleRule
+from services.tagger.Song.rules.InferFestivalFromTitleRule import InferFestivalFromTitleRule
 from services.tagger.Song.rules.InferGenreFromArtistRule import InferGenreFromArtistRule
 from services.tagger.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
 from services.tagger.Song.rules.InferPodcastFromTitleRule import InferPodcastFromTitleRule
@@ -44,7 +45,9 @@ class SoundcloudSong(BaseSong):
         self.rules.append(InferArtistFromTitleRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists'], genre_db=databaseHelpers['rules_genres']))
         self.rules.append(InferRemixerFromTitleRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']))
         self.rules.append(InferFeatureFromTitleRule())
-        self.rules.append(InferPodcastFromTitleRule())
+        # SoundCloud is where the warm-up mixes and podcast-length sets land.
+        self.rules.append(InferFestivalFromTitleRule(helper=databaseHelpers['festivalHelper']))
+        self.rules.append(InferPodcastFromTitleRule(helper=databaseHelpers['podcastHelper']))
         self.rules.append(CleanTagsRule())
         self.rules.append(InferGenreFromArtistRule(helper=databaseHelpers['artistGenreHelper']))
         self.rules.append(InferGenreFromSubgenreRule(databaseHelpers['subgenreHelper']))

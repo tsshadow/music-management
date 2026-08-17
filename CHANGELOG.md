@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-08-17
+
+### Added
+- **The address bar now describes where you are in the web player.** Screens that had no address of their
+  own — listening history, favourites, an open playlist, and every tab inside Settings and Management —
+  now each have one, so `/management/scanner` and `/playlist/1234` can be bookmarked, refreshed and shared.
+  Visiting `/settings` or `/management` without naming a tab still reopens the tab you last used, and an
+  address naming a tab that no longer exists opens that screen's first tab instead of a blank page. Back
+  and forward move through the screens you visited, tab switches included. Genre and label addresses keep
+  using the name, so links made before this change still work.
+
+### Fixed
+- **Refreshing on a genre or search term containing a dot no longer shows "File not found".** LMS treated
+  any dot in the address as a request for a file, so a genre named `nu.jazz` returned a 404 on reload
+  instead of the app. It now only treats known asset extensions that way.
+
+- **Ratings given in the app now survive in music-management again.** The webhook that mirrors a rating
+  matches the track by file path, but only knew the `/mnt/music` spelling of it. Since the media library
+  was re-rooted at `/music` no lookup matched, and 202 of the 336 mirrored ratings were filed under a
+  track id that no longer exists. Both roots are now recognised, in either direction.
+
+### Security
+- **LMS no longer serves files from outside its web root.** A crafted address containing `..` resolved to a
+  real path on disk and was returned verbatim; such requests are now rejected with a 404.
+
 ## [0.9.3] - 2026-08-15
 
 ### Fixed

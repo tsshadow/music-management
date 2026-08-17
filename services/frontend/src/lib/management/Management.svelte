@@ -3,6 +3,7 @@
   import { onDestroy, onMount, untrack } from 'svelte';
   import { RefreshCw } from '@lucide/svelte';
   import { activeManagementTab, credentials, isAdmin, mumaApiKey, mumaApiUrl, userPermissions, mumaUser, hasPermission } from '../store.js';
+  import { MANAGEMENT_TABS } from '../router.js';
 
   // Import Tabs
   import OverviewTab from './tabs/OverviewTab.svelte';
@@ -22,6 +23,13 @@
   import WorkerVersionsTab from './tabs/WorkerVersionsTab.svelte';
   import EventsTab from './tabs/EventsTab.svelte';
   import AboutTab from './tabs/AboutTab.svelte';
+
+  // The active tab is persisted and can also arrive from the URL, so a name
+  // that no longer exists -- a renamed tab, an old bookmark, a typo -- would
+  // otherwise render an empty screen with a working sidebar next to it.
+  $effect(() => {
+    if (!MANAGEMENT_TABS.includes($activeManagementTab)) activeManagementTab.set('overview');
+  });
 
   // State (using Svelte 5 runes)
   let isLoggedIn = $state(false);

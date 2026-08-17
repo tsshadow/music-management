@@ -34,7 +34,10 @@ FRONTEND_DIR="$ROOT_DIR/services/frontend"
 
 cleanup() {
     echo "--- Tearing down test stack ---"
-    $COMPOSE down -v --remove-orphans
+    # See the same call in scripts/test/contracts.sh: --rmi local removes the
+    # images compose built under this job's project name, which otherwise pile
+    # up one pair per CI job until the runner disk is full.
+    $COMPOSE down -v --remove-orphans --rmi local
 }
 trap cleanup EXIT
 

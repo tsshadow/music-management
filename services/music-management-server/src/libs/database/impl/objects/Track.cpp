@@ -800,6 +800,15 @@ namespace lms::db
             baseQuery += " JOIN release r_f ON t.release_id = r_f.id";
         }
 
+        // Labels hang off the release, so a track only carries one through release_label.
+        // The condition sits in the join rather than in the WHERE below because the binds
+        // here are consumed in the order their placeholders appear in the query text.
+        if (params.filters.label.isValid())
+        {
+            baseQuery += " JOIN release_label r_l ON r_l.release_id = t.release_id AND r_l.label_id = ?";
+            bindFuncs.emplace_back([&params](auto& q) { q.bind(params.filters.label); });
+        }
+
         baseQuery += " WHERE 1=1";
         if (!params.allowedArtists.empty())
         {

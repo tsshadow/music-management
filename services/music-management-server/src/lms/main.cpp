@@ -19,6 +19,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include <thread>
 
 #include <Wt/Http/Response.h>
@@ -353,6 +354,19 @@ namespace lms
             core::logging::ILogger& _logger;
         };
 
+        // The extensions the built frontend actually ships (see the mime type
+        // mapping in SpotifyResource::handleRequest). Anything else is treated
+        // as an application route, not as a missing file.
+        bool isStaticAssetExtension(const std::filesystem::path& extension)
+        {
+            static const std::set<std::string> assetExtensions{
+                ".css", ".ico", ".jpeg", ".jpg", ".js", ".json", ".map", ".mjs",
+                ".png", ".svg", ".ttf", ".webmanifest", ".webp", ".woff", ".woff2"
+            };
+
+            return assetExtensions.contains(extension.string());
+        }
+
         class SpotifyResource : public Wt::WResource
         {
         public:
@@ -380,11 +394,31 @@ namespace lms
                 else
                     filePath /= pathInfo.substr(1);
 
+                const std::filesystem::path spotifyRoot{ std::filesystem::path(docRoot) / "spotify" };
+
+                // The path comes from the URL, so "/../lms.conf" would otherwise
+                // resolve to a file outside the docroot and be served verbatim.
+                // lexically_normal resolves the ".." segments textually (the file
+                // need not exist yet), after which the result must still start
+                // with the docroot.
+                filePath = filePath.lexically_normal();
+                if (!filePath.string().starts_with(spotifyRoot.lexically_normal().string()))
+                {
+                    response.setStatus(404);
+                    response.out() << "File not found";
+                    return;
+                }
+
                 if (!std::filesystem::exists(filePath) || std::filesystem::is_directory(filePath))
                 {
-                    // Only fallback to index.html if it doesn't look like a static asset request
-                    if (!filePath.has_extension() || filePath.extension() == ".html")
-                        filePath = std::filesystem::path(docRoot) / "spotify" / "index.html";
+                    // Anything that isn't a known asset extension is a frontend
+                    // route, and the SPA has to receive index.html so it can
+                    // handle it -- including routes whose last segment happens to
+                    // contain a dot, like a genre named "nu.jazz" or a search for
+                    // "1.21 gigawatts". Testing merely for "has an extension"
+                    // turned those into a 404 on refresh.
+                    if (!isStaticAssetExtension(filePath.extension()))
+                        filePath = spotifyRoot / "index.html";
                     else
                     {
                         response.setStatus(404);

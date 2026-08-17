@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-08-17
+
 ### Added
 - **De Festivals-tab kent nu 63 festivals in plaats van 15.** Qlimax, Reverze, Ground Zero, Q-BASE,
   X-Qlusive, Thunderdome, Masters of Hardcore, Pussy Lounge en de rest zijn toegevoegd, elk met de
@@ -31,6 +33,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Niets wordt getagd zolang een show niet is goedgekeurd.
 - **Een Podcasts-pagina in de webplayer en in de Android-app**, met per show zijn afleveringen. Beide
   lijsten komen van de PODCAST-tag, dus ze vullen zich zodra de tagger langs is geweest.
+- **Het beginscherm van MuMa Mobile eindigt in twee leesbare nummerlijsten**, "Onlangs uitgebracht" en
+  "Onlangs toegevoegd", elk met een "Toon meer" die de volledige lijst in dezelfde sortering opent. Een
+  carrousel herken je aan de hoes, en juist het SoundCloud- en YouTube-deel van de bibliotheek heeft er
+  geen: een rij blanco vierkantjes zei niets waar een regel met titel en artiest dat altijd doet.
+- **Twee nieuwe instellingen onder Home**: hoeveel snelkoppelingen het raster toont (2 tot 10, standaard
+  8) en hoeveel regels elke nummerlijst toont voor "Toon meer" (1 tot 10, standaard 5).
+
+### Changed
+- **"Onlangs afgespeeld" onthoudt nu waar je vandaan speelde.** De lijst vulde zich met alles wat je
+  opende, dus bladeren vervuilde hem en het album van één aangetikt nummer duwde de rest eruit. Een
+  snelkoppeling wordt nu pas geschreven als je op afspelen drukt, en wijst naar de lijst waar de
+  wachtrij uit kwam: speel je één track uit Raw Hardstyle, dan is de snelkoppeling Raw Hardstyle.
+  Aantikken draait die zoekopdracht opnieuw, dus je krijgt andere nummers uit dezelfde hoek van je
+  bibliotheek in plaats van een herhaling. Shuffle-all, favorietenlijsten en gedeelde links leggen
+  niets vast — daar zit geen zoekopdracht achter om opnieuw te draaien.
+- **Memories is één balk in plaats van een carrousel van jaren**, met het dichtstbijzijnde jaar
+  samengevat, en verdwijnt volledig op een dag waar niets in zit. Alle jaren staan nog steeds compleet
+  op het Memories-scherm, één tik verderop.
+
+### Removed
+- **De sectie "Onlangs bijgewerkt" in MuMa Mobile.** Herschreven metadata is iets wat de scanner doet,
+  niet iets om naar te luisteren.
 
 ### Fixed
 - **Bestanden die los in Warm Up Mixes stonden werden helemaal overgeslagen.** De tagger liep alleen over

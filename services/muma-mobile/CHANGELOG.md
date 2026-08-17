@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.13.0] - 2026-08-17
+
 ### Added
 - **Recently released and Recently added, as lists you can read.** The home screen now ends in two
   track lists instead of carousels of albums and artists, each with a "Show more" that opens the
@@ -31,6 +33,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - The "Recently updated" section. Rewritten metadata is something the scanner does, not something
   worth listening to.
+
+## [6.12.0] - 2026-08-17
+
+Written after the fact. Release 0.11.0 bumped versionCode/versionName to 265/6.12.0 without adding
+the matching entry here, so this section reconstructs what that build actually shipped.
+
+### Changed
+- **A track shows its original release date rather than the date of the edition it came in.** The app
+  already formatted and displayed one release date; it simply never received the original one. The
+  choice is made at the API boundary rather than carried through the domain model, because
+  `MusicDirectory.Child`, `Track`, `Album` and every view showing a date would each have needed a
+  second field saying the same thing. A year-only original never beats a full edition date, so
+  precision is not traded away.
 
 ## [6.11.0] - 2026-08-07
 

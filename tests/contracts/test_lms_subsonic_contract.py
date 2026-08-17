@@ -207,6 +207,27 @@ def test_fixture_track_is_findable_with_correct_metadata(admin_credentials, medi
     pytest.song_id = song["id"]  # stash for the streaming test below
 
 
+def test_song_carries_an_original_date_attribute(admin_credentials):
+    """muma-mobile prefers the original release date, so it has to be on the wire.
+
+    The `date` attribute carries this edition's date, which is not what the tagger resolves into
+    ORIGINALDATE. Without a separate attribute the resolved value never reaches a client.
+    """
+    username, password = admin_credentials
+    song_id = getattr(pytest, "song_id", None)
+    assert song_id, "test_fixture_track_is_findable_with_correct_metadata must run first"
+
+    resp = _subsonic_get("getSong.view", username, password, id=song_id)
+    assert resp.status_code == 200, resp.text[:500]
+    song = resp.json()["subsonic-response"]["song"]
+
+    assert "originalDate" in song
+    # The fixture library carries year-only dates, so the value may be a bare year or empty. What
+    # this pins is that the attribute exists and never contradicts the year.
+    if song["originalDate"] and song.get("year"):
+        assert song["originalDate"].startswith(str(song["year"]))
+
+
 def test_stream_returns_audio_bytes(admin_credentials):
     username, password = admin_credentials
     song_id = getattr(pytest, "song_id", None)

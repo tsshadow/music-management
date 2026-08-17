@@ -100,6 +100,11 @@ namespace lms::api::subsonic
         else if (const auto year{ track->getYear() })
             trackResponse.setAttribute("year", *year);
         trackResponse.setAttribute("date", track->getDate().toString());
+        // This edition's date is what "date" means, so the original release travels separately.
+        // PartialDateTime::toString() yields an empty string for an invalid date, so a track without
+        // an original date gets an empty attribute rather than a missing one, which keeps the
+        // client's fallback simple.
+        trackResponse.setAttribute("originalDate", track->getOriginalDate().toString());
         trackResponse.setAttribute("playCount", core::Service<scrobbling::IScrobblingService>::get()->getCount(context.getUser()->getId(), track->getId()));
         trackResponse.setAttribute("globalPlayCount", track->getPlayCount());
 

@@ -11,6 +11,7 @@ from services.tagger.Song.rules.InferFeatureFromTitleRule import InferFeatureFro
 from services.tagger.Song.rules.InferFestivalFromTitleRule import InferFestivalFromTitleRule
 from services.tagger.Song.rules.InferGenreFromArtistRule import InferGenreFromArtistRule
 from services.tagger.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
+from services.tagger.Song.rules.InferPodcastFromTitleRule import InferPodcastFromTitleRule
 from services.tagger.Song.rules.InferRemixerFromTitleRule import InferRemixerFromTitleRule
 from services.tagger.Song.rules.ReplaceInvalidUnicodeRule import ReplaceInvalidUnicodeRule
 from services.tagger.Song.rules.ResolveGenreRule import ResolveGenreRule
@@ -46,6 +47,7 @@ class SoundcloudSong(BaseSong):
         self.rules.append(InferFeatureFromTitleRule())
         # SoundCloud is where the warm-up mixes and podcast-length sets land.
         self.rules.append(InferFestivalFromTitleRule(helper=databaseHelpers['festivalHelper']))
+        self.rules.append(InferPodcastFromTitleRule(helper=databaseHelpers['podcastHelper']))
         self.rules.append(CleanTagsRule())
         self.rules.append(InferGenreFromArtistRule(helper=databaseHelpers['artistGenreHelper']))
         self.rules.append(InferGenreFromSubgenreRule(databaseHelpers['subgenreHelper']))

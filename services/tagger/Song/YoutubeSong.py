@@ -12,6 +12,7 @@ from services.tagger.Song.rules.InferFestivalFromTitleRule import InferFestivalF
 from services.tagger.Song.rules.InferGenreFromAlbumArtistRule import InferGenreFromAlbumArtistRule
 from services.tagger.Song.rules.InferGenreFromArtistRule import InferGenreFromArtistRule
 from services.tagger.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
+from services.tagger.Song.rules.InferPodcastFromTitleRule import InferPodcastFromTitleRule
 from services.tagger.Song.rules.InferRemixerFromTitleRule import InferRemixerFromTitleRule
 from services.tagger.Song.rules.ReplaceInvalidUnicodeRule import ReplaceInvalidUnicodeRule
 from services.tagger.Song.rules.ResolveGenreRule import ResolveGenreRule
@@ -62,6 +63,7 @@ class YoutubeSong(BaseSong):
         self.rules.append(InferRemixerFromTitleRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']))
         self.rules.append(InferFeatureFromTitleRule())
         self.rules.append(InferFestivalFromTitleRule(helper=databaseHelpers['festivalHelper']))
+        self.rules.append(InferPodcastFromTitleRule(helper=databaseHelpers['podcastHelper']))
         self.rules.append(CleanTagsRule())
         self.rules.append(InferGenreFromArtistRule(helper=databaseHelpers['artistGenreHelper']))
         self.rules.append(InferGenreFromAlbumArtistRule())

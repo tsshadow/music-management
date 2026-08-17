@@ -218,6 +218,7 @@
     <string name="library.tab_albums">Albums</string>
     <string name="library.tab_years">Jaoren</string>
     <string name="library.tab_festivals">Festivals</string>
+    <string name="library.tab_podcasts">Podcasts</string>
     <string name="library.tab_lineups">Lineups</string>
     <string name="library.tab_ratings">Ratings</string>
     <string name="library.rating_and_up">%1$d+ starren</string>

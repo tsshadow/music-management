@@ -105,6 +105,7 @@ class HomeCardAdapter(
         HomeCardType.GENRE -> R.string.home_card_genre
         HomeCardType.YEAR -> R.string.library_tab_years
         HomeCardType.FESTIVAL -> R.string.library_tab_festivals
+        HomeCardType.PODCAST -> R.string.library_tab_podcasts
         HomeCardType.LINEUP -> R.string.library_tab_lineups
         HomeCardType.RATING -> R.string.library_tab_ratings
         HomeCardType.TRACK -> R.string.main_songs

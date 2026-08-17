@@ -88,6 +88,7 @@ class GenericSongParseTest(unittest.TestCase):
             [
                 'InferRemixerFromTitleRule',
                 'InferFestivalFromTitleRule',
+                'InferPodcastFromTitleRule',
                 'CleanTagsRule',
                 'InferGenreFromArtistRule',
                 'InferGenreFromSubgenreRule',

@@ -17,6 +17,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   YouTube-downloads, waardoor juist de map met je livesets er nooit langs kwam. Hij draait nu ook op de
   generieke mappen en op SoundCloud, en kijkt naast de titel ook naar de map waarin een set staat --
   `Livesets/Qlimax 2022/` zegt vaak meer dan de tag in het bestand.
+- **Radioshows en podcasts worden gelabeld, net als festivals.** Isaac's Hardstyle Sessions, Hard With
+  Style, The Uptempo Tribe Podcast, Hardcore Italia: een aflevering was tot nu toe niet van een gewone
+  lange mix te onderscheiden. De tagger schrijft nu een PODCAST- en PODCAST_EPISODE-tag op elke mix van
+  tien minuten of langer die bij een goedgekeurde show hoort, en herkent de show ook aan de map, want
+  `Podcasts/The Magic Show/2011/Podcast week 023.mp3` noemt zichzelf nergens in de bestandsnaam.
+- **De showlijst wordt gevonden, niet ingetypt.** `tools/detect_podcasts.py` groepeert alles met een
+  afleveringsnummer op wat er overblijft als je het nummer, de gast en de maand weglaat, en zet elke serie
+  klaar ter beoordeling. Op de huidige bibliotheek vindt hij 208 series met acht of meer afleveringen.
+- **Beheer > Podcasts keurt shows goed of af**, met dezelfde wit/zwart/onbekend-logica als genrecuratie.
+  Eén show met meerdere namen voeg je samen: de schrijfwijzen verhuizen naar de show die je houdt, zodat
+  "DJ ISAAC - HARDSTYLE SESSIONS" blijft matchen maar "Isaac's Hardstyle Sessions" in je bibliotheek staat.
+  Niets wordt getagd zolang een show niet is goedgekeurd.
+- **Een Podcasts-pagina in de webplayer en in de Android-app**, met per show zijn afleveringen. Beide
+  lijsten komen van de PODCAST-tag, dus ze vullen zich zodra de tagger langs is geweest.
 
 ### Fixed
 - **Bestanden die los in Warm Up Mixes stonden werden helemaal overgeslagen.** De tagger liep alleen over

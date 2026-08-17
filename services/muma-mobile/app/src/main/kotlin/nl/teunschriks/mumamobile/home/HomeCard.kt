@@ -16,6 +16,7 @@ enum class HomeCardType {
     GENRE,
     YEAR,
     FESTIVAL,
+    PODCAST,
     LINEUP,
     RATING,
     TRACK,

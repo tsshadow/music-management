@@ -12,6 +12,7 @@ This module contains shared logic, database helpers, and the main internal API t
     - `TableHelper.py`: Abstraction for database table operations.
     - `Cache.py`: Simple file-based or memory-based caching.
     - `FestivalHelper.py`: Logic for festival detection.
+    - `PodcastHelper.py`: Logic for radio show and podcast series detection.
 
 ## 🌐 API
 

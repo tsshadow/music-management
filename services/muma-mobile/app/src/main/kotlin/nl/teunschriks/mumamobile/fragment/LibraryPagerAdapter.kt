@@ -51,11 +51,12 @@ class LibraryPagerAdapter(
         const val PAGE_ALBUMS = 4
         const val PAGE_YEARS = 5
         const val PAGE_FESTIVALS = 6
-        const val PAGE_LINEUPS = 7
-        const val PAGE_RATINGS = 8
-        const val PAGE_STATIC_PLAYLISTS = 9
-        const val PAGE_MEMORIES = 10
-        const val PAGE_COUNT = 11
+        const val PAGE_PODCASTS = 7
+        const val PAGE_LINEUPS = 8
+        const val PAGE_RATINGS = 9
+        const val PAGE_STATIC_PLAYLISTS = 10
+        const val PAGE_MEMORIES = 11
+        const val PAGE_COUNT = 12
 
         private const val ALBUM_PAGE_SIZE = 500
 
@@ -65,6 +66,7 @@ class LibraryPagerAdapter(
             PAGE_LABELS to BrowseCategory.LABELS,
             PAGE_YEARS to BrowseCategory.YEARS,
             PAGE_FESTIVALS to BrowseCategory.FESTIVALS,
+            PAGE_PODCASTS to BrowseCategory.PODCASTS,
             PAGE_LINEUPS to BrowseCategory.LINEUPS,
             PAGE_RATINGS to BrowseCategory.RATINGS
         )

@@ -403,6 +403,20 @@ namespace lms::api::subsonic
             }
         }
 
+        // The radio show or podcast series a long mix belongs to, written by the
+        // tagger as a PODCAST tag. Resolved through its cluster type exactly like
+        // GENRE and YEAR, so it needs PODCAST in the scanner's extra tags to scan.
+        if (auto podcast = getParameterAs<std::string>(ctx.getParameters(), "podcast"))
+        {
+            if (auto podcastType = db::ClusterType::find(session, "PODCAST"))
+            {
+                if (auto cluster = podcastType->getCluster(*podcast))
+                {
+                    clusterGroups["PODCAST"].insert(cluster->getId());
+                }
+            }
+        }
+
         if (auto sort = getParameterAs<std::string>(ctx.getParameters(), "sort"))
         {
             if (*sort == "recent" || *sort == "releasedate")

@@ -404,5 +404,95 @@ class ProxyAndRescanTest(ManagementTestCase):
         helper.return_value.mark_for_rescan.assert_called_once_with('/music/a.mp3')
 
 
+class PodcastCurationQueueTest(ManagementTestCase):
+
+    def test_the_whole_table_is_returned_without_a_state_filter(self):
+        self.cursor.fetchall.side_effect = [[{'id': 1, 'name': 'Hard With Style'}], []]
+        response = self.client.get('/api/rules/podcasts', headers=self.headers)
+        self.assertEqual(response.json()[0]['name'], 'Hard With Style')
+        self.assertNotIn('WHERE p.state', self.statements()[0])
+
+    def test_a_state_filter_narrows_the_query(self):
+        self.cursor.fetchall.side_effect = [[{'id': 1, 'name': 'Euphoricast'}], []]
+        self.client.get('/api/rules/podcasts?state=unknown', headers=self.headers)
+        self.assertIn('WHERE p.state = %s', self.statements()[0])
+
+    def test_an_unknown_state_is_rejected(self):
+        response = self.client.get('/api/rules/podcasts?state=purple', headers=self.headers)
+        self.assertEqual(response.status_code, 400)
+
+    def test_the_spellings_are_attached_to_each_show(self):
+        self.cursor.fetchall.side_effect = [
+            [{'id': 1, 'name': "Isaac's Hardstyle Sessions"}, {'id': 2, 'name': 'Euphoricast'}],
+            [{'podcast_id': 1, 'alias': "Isaac's Hardstyle Sessions"},
+             {'podcast_id': 1, 'alias': 'DJ ISAAC - HARDSTYLE SESSIONS'}],
+        ]
+        body = self.client.get('/api/rules/podcasts', headers=self.headers).json()
+        self.assertEqual(body[0]['aliases'], ["Isaac's Hardstyle Sessions", 'DJ ISAAC - HARDSTYLE SESSIONS'])
+        self.assertEqual(body[1]['aliases'], [])
+
+    def test_an_empty_queue_skips_the_alias_query(self):
+        self.cursor.fetchall.return_value = []
+        self.client.get('/api/rules/podcasts', headers=self.headers)
+        self.assertEqual(len(self.statements()), 1)
+
+
+class DecidePodcastTest(ManagementTestCase):
+
+    def decide(self, payload, podcast_id=1):
+        return self.client.post(f'/api/rules/podcasts/{podcast_id}/decide', headers=self.headers, json=payload)
+
+    def test_a_show_can_be_approved(self):
+        self.cursor.fetchone.return_value = {'id': 1, 'name': 'Hard With Style'}
+        response = self.decide({'state': management_router.WHITE})
+        self.assertEqual(response.json(), {'status': 'ok'})
+        self.assertTrue(any('UPDATE rules_podcasts' in s for s in self.statements()))
+
+    def test_an_invalid_state_is_rejected(self):
+        self.assertEqual(self.decide({'state': 'purple'}).status_code, 400)
+
+    def test_an_unknown_show_is_a_not_found(self):
+        self.cursor.fetchone.return_value = None
+        self.assertEqual(self.decide({'state': management_router.WHITE}).status_code, 404)
+
+    def test_a_show_cannot_be_merged_into_itself(self):
+        response = self.decide({'state': management_router.WHITE, 'merge_into_podcast_id': 1})
+        self.assertEqual(response.status_code, 400)
+
+    def test_an_unknown_merge_target_is_rejected(self):
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'x'}, None]
+        response = self.decide({'state': management_router.WHITE, 'merge_into_podcast_id': 9})
+        self.assertEqual(response.status_code, 400)
+
+    def test_a_merge_moves_the_spellings_and_drops_the_row(self):
+        """Losing the alias would unmatch every file that spells the show that way."""
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'DJ ISAAC - HARDSTYLE SESSIONS'}, {'id': 9}]
+        response = self.decide({'state': management_router.WHITE, 'merge_into_podcast_id': 9})
+        self.assertEqual(response.json(), {'status': 'ok', 'merged_into': 9})
+        moves = [call.args[1] for call in self.cursor.execute.call_args_list
+                 if 'UPDATE rules_podcast_aliases' in call.args[0]]
+        self.assertEqual(moves, [(9, 1)])
+        self.assertTrue(any('DELETE FROM rules_podcasts' in s for s in self.statements()))
+
+    def test_a_merge_does_not_also_write_a_state(self):
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'x'}, {'id': 9}]
+        self.decide({'state': management_router.WHITE, 'merge_into_podcast_id': 9})
+        self.assertFalse(any('UPDATE rules_podcasts' in s for s in self.statements()))
+
+    def test_a_system_decision_is_attributed_to_the_system(self):
+        self.cursor.fetchone.return_value = {'id': 1, 'name': 'x'}
+        self.decide({'state': management_router.WHITE})
+        update = [call for call in self.cursor.execute.call_args_list
+                  if 'UPDATE rules_podcasts' in call.args[0]][0]
+        self.assertEqual(update.args[1][3], 'system')
+
+    def test_the_host_and_station_are_stored_when_given(self):
+        self.cursor.fetchone.return_value = {'id': 1, 'name': 'x'}
+        self.decide({'state': management_router.WHITE, 'host': 'DJ Isaac', 'station': 'Q-dance'})
+        update = [call for call in self.cursor.execute.call_args_list
+                  if 'UPDATE rules_podcasts' in call.args[0]][0]
+        self.assertEqual(update.args[1][1:3], ('DJ Isaac', 'Q-dance'))
+
+
 if __name__ == '__main__':
     unittest.main()

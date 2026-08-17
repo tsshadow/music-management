@@ -227,6 +227,10 @@ cache_mod.databaseHelpers['genre_rules'].record_unknown = MagicMock()
 from services.common.Helpers.FestivalHelper import FestivalHelper
 
 cache_mod.databaseHelpers['festivalHelper'] = FestivalHelper(preload=False)
+# Same again for shows: a MagicMock would claim every file is an episode of something.
+from services.common.Helpers.PodcastHelper import PodcastHelper
+
+cache_mod.databaseHelpers['podcastHelper'] = PodcastHelper(preload=False)
 
 def setup_mocks():
     pass
@@ -250,3 +254,4 @@ def reset_database_helpers():
     helpers['genre_rules'].set_rows([])
     helpers['genre_rules'].record_unknown.reset_mock()
     helpers['festivalHelper'].set_festivals([])
+    helpers['podcastHelper'].set_shows([])

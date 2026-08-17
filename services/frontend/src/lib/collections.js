@@ -59,6 +59,10 @@ export const COLLECTION_SORTS = {
     { id: "songs", labelKey: "sort.trackCount", of: (l) => l.songCount, compare: number, defaultDirection: "desc" },
     { id: "albums", labelKey: "sort.albumCount", of: (l) => l.albumCount, compare: number, defaultDirection: "desc" },
   ],
+  podcasts: [
+    { id: "name", labelKey: "sort.alphabetical", of: (p) => p.value, compare: text, defaultDirection: "asc" },
+    { id: "songs", labelKey: "sort.episodeCount", of: (p) => p.songCount, compare: number, defaultDirection: "desc" },
+  ],
   playlists: [
     { id: "name", labelKey: "sort.alphabetical", of: (p) => p.name, compare: text, defaultDirection: "asc" },
     { id: "songs", labelKey: "sort.trackCount", of: (p) => p.songCount, compare: number, defaultDirection: "desc" },
@@ -75,6 +79,7 @@ export const COLLECTION_SORTS = {
 export const COLLECTION_KEYS = {
   genres: { nameOf: (g) => g.value, keyOf: (g) => g.value },
   labels: { nameOf: (l) => l.value, keyOf: (l) => l.value },
+  podcasts: { nameOf: (p) => p.value, keyOf: (p) => p.value },
   playlists: { nameOf: (p) => p.name, keyOf: (p) => String(p.id) },
 };
 
@@ -107,7 +112,7 @@ export const PLAYLIST_VISIBILITY = [
  * The default view state for a collection, used both as the initial value and
  * by the "filters wissen" button.
  *
- * @param {'genres'|'labels'|'playlists'} type
+ * @param {'genres'|'labels'|'podcasts'|'playlists'} type
  * @returns {Object}
  */
 export function defaultCollectionState(type) {
@@ -117,8 +122,10 @@ export function defaultCollectionState(type) {
     direction: "asc",
     favoritesOnly: false,
     // Genres and labels start at 10+: below that the grid is mostly noise from
-    // single mistagged releases. Playlists have no long tail to hide.
-    threshold: type === "playlists" ? "all" : "10",
+    // single mistagged releases. Playlists have no long tail to hide, and a
+    // podcast list is already curated by hand, so hiding the small shows there
+    // would hide exactly the ones somebody just approved.
+    threshold: type === "playlists" || type === "podcasts" ? "all" : "10",
     visibility: "all",
   };
 }
@@ -128,7 +135,7 @@ export function defaultCollectionState(type) {
  * (e.g. a stale value restored from a previous session) can never wedge a view
  * into rendering nothing.
  *
- * @param {'genres'|'labels'|'playlists'} type
+ * @param {'genres'|'labels'|'podcasts'|'playlists'} type
  * @param {string} sortId
  * @returns {Object}
  */
@@ -149,7 +156,7 @@ export function thresholdMin(thresholdId) {
  * Filters and sorts one collection for display.
  *
  * @param {Object[]} items - The full, unfiltered list as loaded from the server.
- * @param {'genres'|'labels'|'playlists'} type
+ * @param {'genres'|'labels'|'podcasts'|'playlists'} type
  * @param {Object} state - See {@link defaultCollectionState}.
  * @param {Object} [context]
  * @param {string[]} [context.favorites] - Keys of the favorited items.

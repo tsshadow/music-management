@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-08-17
+
 ### Added
 - **The address bar now describes where you are in the web player.** Screens that had no address of their
   own — listening history, favourites, an open playlist, and every tab inside Settings and Management —
@@ -20,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Refreshing on a genre or search term containing a dot no longer shows "File not found".** LMS treated
   any dot in the address as a request for a file, so a genre named `nu.jazz` returned a 404 on reload
   instead of the app. It now only treats known asset extensions that way.
+
+- **Ratings given in the app now survive in music-management again.** The webhook that mirrors a rating
+  matches the track by file path, but only knew the `/mnt/music` spelling of it. Since the media library
+  was re-rooted at `/music` no lookup matched, and 202 of the 336 mirrored ratings were filed under a
+  track id that no longer exists. Both roots are now recognised, in either direction.
 
 ### Security
 - **LMS no longer serves files from outside its web root.** A crafted address containing `..` resolved to a

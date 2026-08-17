@@ -11,6 +11,17 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.10.0 (2026-08-17)
+
+### ⭐ Je ratings komen weer aan in music-management
+- De koppeling die een rating doorgeeft zoekt het nummer op via het bestandspad, maar kende alleen de
+  schrijfwijze `/mnt/music/...`. Sinds de muziekbibliotheek onder `/music` hangt vond die zoekopdracht
+  niets meer, en werden 202 van de 336 doorgegeven ratings weggeschreven onder een nummer-id dat niet
+  meer bestaat. Beide schrijfwijzen worden nu herkend, in allebei de richtingen.
+- Er is een herstelscript bijgekomen dat de sterren terugzet die verdwenen toen de bibliotheek opnieuw
+  werd toegevoegd. Het leest de twee kopieën die dat overleefden — de RATING-tags in de bestanden zelf
+  en de doorgegeven ratings in music-management — en raakt een rating die er al staat nooit aan.
+
 ### 🔗 De adresbalk klopt nu overal
 - Schermen die geen eigen adres hadden — luistergeschiedenis, favorieten, een geopende afspeellijst,
   en elk tabblad in Instellingen en Beheer — hebben er nu wel een. `/management/scanner` en

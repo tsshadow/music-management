@@ -30,11 +30,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.OFFLINE_DB_ID
 import nl.teunschriks.mumamobile.data.RatingUpdate
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.home.PlaybackSourceHolder
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.util.DownloadUtil
 import nl.teunschriks.mumamobile.util.MAX_STARS
@@ -68,6 +70,9 @@ class MediaPlayerManager(
     private var autoPlayStart = false
 
     private val scrobbler = Scrobbler()
+
+    /** See [PlaybackSourceHolder]: a browse screen arms itself, filling the queue promotes it. */
+    private val playbackSourceHolder: PlaybackSourceHolder by inject()
 
     private val rxBusSubscription: CompositeDisposable = CompositeDisposable()
 
@@ -434,7 +439,13 @@ class MediaPlayerManager(
         var insertAt = 0
 
         when (insertionMode) {
-            InsertionMode.CLEAR -> clear()
+            InsertionMode.CLEAR -> {
+                // A replaced queue is a new queue: it belongs to whichever screen armed itself just
+                // now, and to nothing at all when none did. Appending leaves the source alone --
+                // the queue is still the one it was started from.
+                playbackSourceHolder.startQueue()
+                clear()
+            }
             InsertionMode.APPEND -> insertAt = mediaItemCount
             InsertionMode.AFTER_CURRENT -> {
                 // Must never be larger than the count of items (especially when empty)

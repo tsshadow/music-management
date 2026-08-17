@@ -18,6 +18,12 @@ class PlaybackSourceHolderTest {
         payload = """{"length":"short","sortMethod":"OriginalDateDescAndRelease"}"""
     )
 
+    private val uptempo = HomeCard(
+        type = HomeCardType.GENRE,
+        itemId = "Uptempo",
+        title = "Uptempo"
+    )
+
     @Test
     fun `nothing has been played yet`() {
         holder().current().shouldBeNull()
@@ -25,26 +31,67 @@ class PlaybackSourceHolderTest {
 
     @Test
     fun `remembers the card the queue was filled from`() {
-        holder().set(rawHardstyle)
+        holder().arm(rawHardstyle)
+        holder().startQueue()
 
         holder().current() `should be equal to` rawHardstyle
     }
 
     @Test
+    fun `arming alone is not playing yet`() {
+        holder().arm(rawHardstyle)
+
+        holder().current().shouldBeNull()
+    }
+
+    @Test
     fun `the stored source keeps its query, so replaying it re-runs the search`() {
-        holder().set(rawHardstyle)
+        holder().arm(rawHardstyle)
+        holder().startQueue()
 
         holder().current()?.payload `should be equal to`
             """{"length":"short","sortMethod":"OriginalDateDescAndRelease"}"""
     }
 
     @Test
-    fun `a queue with no source forgets the previous one`() {
-        holder().set(rawHardstyle)
+    fun `a queue nothing armed forgets the previous source`() {
+        holder().arm(rawHardstyle)
+        holder().startQueue()
 
-        holder().set(null)
+        holder().startQueue()
 
         holder().current().shouldBeNull()
+    }
+
+    @Test
+    fun `a screen that is no place to go back to arms nothing`() {
+        holder().arm(rawHardstyle)
+        holder().startQueue()
+
+        holder().arm(null)
+        holder().startQueue()
+
+        holder().current().shouldBeNull()
+    }
+
+    @Test
+    fun `the next queue replaces the source of the last one`() {
+        holder().arm(rawHardstyle)
+        holder().startQueue()
+
+        holder().arm(uptempo)
+        holder().startQueue()
+
+        holder().current() `should be equal to` uptempo
+    }
+
+    @Test
+    fun `an armed source survives the process, because playback does`() {
+        holder().arm(rawHardstyle)
+
+        holder().startQueue()
+
+        PlaybackSourceHolder(preferences).current() `should be equal to` rawHardstyle
     }
 
     @Test

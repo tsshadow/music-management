@@ -334,10 +334,11 @@ open class TrackCollectionFragment(initialOrder: SortOrder? = null) :
      * Files the queue about to be filled under the screen that produced it, so the home grid shows
      * where the user played *from* rather than what they happened to hear.
      *
-     * Recorded on play rather than on open: screens get opened to be looked at.
+     * Recorded on play rather than on open: screens get opened to be looked at. Armed rather than
+     * written, so that it only counts for the queue this screen is about to fill.
      */
     private fun rememberPlaybackSource() {
-        playbackSourceHolder.set(PlaybackSourceFactory.forTrackCollection(navArgs))
+        playbackSourceHolder.arm(PlaybackSourceFactory.forTrackCollection(navArgs))
     }
 
     private fun playAll(

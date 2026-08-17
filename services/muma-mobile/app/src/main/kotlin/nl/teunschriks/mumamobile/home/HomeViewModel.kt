@@ -66,7 +66,7 @@ class HomeViewModel(
             store = store,
             setsMode = { Settings.isSetsMode },
             count = { HomeLimits.shortcuts(Settings.homeShortcutCount) },
-            resolveArtistCoverArt = { getMusicService().getArtist(it)?.coverArt }
+            resolveCoverArt = { card -> borrowedCoverArt(card) }
         ),
         RecentTracksProvider(
             titleRes = R.string.home_recently_released,
@@ -162,6 +162,44 @@ class HomeViewModel(
     private fun listRows(): Int = HomeLimits.listRows(Settings.homeListCount)
 
     /**
+     * The picture a shortcut with none of its own can borrow.
+     *
+     * An artist has one on the server. A tag has not: a genre, a festival, a label and a podcast are
+     * queries, so the honest stand-in is the cover of something the query returns -- which is also
+     * what makes the card recognisable at a glance instead of one more generic glyph. A lineup, a
+     * rating and a saved tile are left alone: their query is not a single tag, and a wrong picture
+     * would be worse than none.
+     *
+     * [ShortcutsProvider] writes the result back into the stored card, so this is one call per
+     * shortcut rather than one per home screen.
+     */
+    private fun borrowedCoverArt(card: HomeCard): String? = when (card.type) {
+        HomeCardType.ARTIST -> getMusicService().getArtist(card.itemId)?.coverArt
+        HomeCardType.GENRE -> firstCoverArt(FILTER_GENRE, card.itemId)
+        HomeCardType.YEAR -> firstCoverArt(FILTER_YEAR, card.itemId)
+        HomeCardType.FESTIVAL -> firstCoverArt(FILTER_FESTIVAL, card.itemId)
+        HomeCardType.PODCAST -> firstCoverArt(FILTER_PODCAST, card.itemId)
+        HomeCardType.LABEL -> firstCoverArt(FILTER_PUBLISHER, card.itemId)
+        else -> null
+    }
+
+    /** The cover of the newest track carrying [value], which is the tag's face on the grid. */
+    private fun firstCoverArt(filter: String, value: String): String? {
+        val filters = Filters().apply { add(Filter(filter, value)) }
+
+        val track = getMusicService().getSongs(
+            filters = filters,
+            ratingMin = null,
+            ratingMax = null,
+            count = 1,
+            offset = 0,
+            sortMethod = HomeSorts.ADDED
+        ).getTracks().firstOrNull() ?: return null
+
+        return track.coverArt ?: track.id
+    }
+
+    /**
      * Both track lists are the same server call with a different sort, and the mode toggle is
      * nothing more than a duration filter -- the same `LENGTH` filter the browse screens send.
      *
@@ -201,5 +239,12 @@ class HomeViewModel(
         private const val FILTER_LENGTH = "LENGTH"
         private const val LENGTH_LONG = "long"
         private const val LENGTH_SHORT = "short"
+
+        // The same tag names the browse screens filter on; see HomeCardNavigator.
+        private const val FILTER_GENRE = "GENRE"
+        private const val FILTER_YEAR = "YEAR"
+        private const val FILTER_FESTIVAL = "FESTIVAL"
+        private const val FILTER_PODCAST = "PODCAST"
+        private const val FILTER_PUBLISHER = "PUBLISHER"
     }
 }

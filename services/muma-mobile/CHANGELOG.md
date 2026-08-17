@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **A shortcut now appears the moment you press play.** It was written when a track scrobbled, and
+  a scrobble is only submitted once a track plays out, so starting a list and skipping through it --
+  or listening to half of one song -- left the grid untouched. Filling the queue is what records it
+  now.
+- **"Recently played" stopped changing.** The list a queue came from was remembered permanently
+  rather than per queue, so the last browse screen you played from stayed the source of every later
+  play -- from the home lists, from search, from the notification, from the car. The grid recorded
+  that same shortcut over and over and never moved. A source now belongs to the one queue it was
+  armed for, and a queue that started somewhere without a list behind it falls back to the album
+  again.
+- **Shortcuts lost their artwork.** An album or a playlist shortcut was stored without the id its
+  cover is keyed by, so the grid drew a placeholder where it used to show the sleeve. A genre, a
+  festival, a label and a podcast have no cover of their own and now borrow one from a track that
+  carries the tag, the way an artist already borrowed its picture -- one lookup per shortcut, kept
+  in the stored card.
+
 ## [6.13.0] - 2026-08-17
 
 ### Added

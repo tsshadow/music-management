@@ -127,6 +127,44 @@ class PlayHistoryTest {
     }
 
     @Test
+    fun `starting a queue records the shortcut straight away, without waiting for a scrobble`() {
+        recorder(source = { rawHardstyle }).recordQueueStart(track())
+
+        store.recent(setsMode = false).single().itemId `should be equal to` "Raw Hardstyle"
+    }
+
+    @Test
+    fun `a queue started with no source records the first track's album`() {
+        recorder(source = { null }).recordQueueStart(track(albumId = "a1"))
+
+        store.recent(setsMode = false).single().itemId `should be equal to` "a1"
+    }
+
+    @Test
+    fun `a queue that starts empty records nothing`() {
+        recorder(source = { rawHardstyle }).recordQueueStart(null)
+
+        store.recent(setsMode = false) `should be equal to` emptyList()
+    }
+
+    @Test
+    fun `the scrobble that follows the start of a queue does not add a second card`() {
+        val recorder = recorder(source = { rawHardstyle })
+
+        recorder.recordQueueStart(track(id = "1"))
+        recorder.record(track(id = "1"))
+
+        store.recent(setsMode = false).map { it.itemId } `should be equal to` listOf("Raw Hardstyle")
+    }
+
+    @Test
+    fun `starting a queue leaves the genre lists to the tracks that actually play`() {
+        recorder().recordQueueStart(track(genre = "Hardcore"))
+
+        genres.getValue(false) `should be equal to` "[]"
+    }
+
+    @Test
     fun `a queue of unknown origin still records the album, so a car session leaves a trace`() {
         recorder(source = { null }).record(track(albumId = "a1"))
 

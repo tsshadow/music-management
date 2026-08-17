@@ -36,6 +36,7 @@ import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.OFFLINE_DB_ID
 import nl.teunschriks.mumamobile.data.RatingUpdate
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.home.PlayHistoryRecorder
 import nl.teunschriks.mumamobile.home.PlaybackSourceHolder
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.util.DownloadUtil
@@ -73,6 +74,9 @@ class MediaPlayerManager(
 
     /** See [PlaybackSourceHolder]: a browse screen arms itself, filling the queue promotes it. */
     private val playbackSourceHolder: PlaybackSourceHolder by inject()
+
+    /** Writes the home shortcut the moment a queue starts, rather than when a track scrobbles. */
+    private val playHistoryRecorder: PlayHistoryRecorder by inject()
 
     private val rxBusSubscription: CompositeDisposable = CompositeDisposable()
 
@@ -444,6 +448,7 @@ class MediaPlayerManager(
                 // now, and to nothing at all when none did. Appending leaves the source alone --
                 // the queue is still the one it was started from.
                 playbackSourceHolder.startQueue()
+                rememberOnHomeScreen(songs.firstOrNull())
                 clear()
             }
             InsertionMode.APPEND -> insertAt = mediaItemCount
@@ -483,6 +488,20 @@ class MediaPlayerManager(
             } else {
                 play(0)
             }
+        }
+    }
+
+    /**
+     * The home grid is written on play, not on scrobble: a scrobble is only submitted when a track
+     * plays out, so starting something and skipping through it used to leave no trace.
+     *
+     * Local bookkeeping must never be able to stop the music from starting.
+     */
+    private fun rememberOnHomeScreen(first: Track?) {
+        try {
+            playHistoryRecorder.recordQueueStart(first)
+        } catch (all: Exception) {
+            Timber.w(all, "Failed to record the start of the queue")
         }
     }
 

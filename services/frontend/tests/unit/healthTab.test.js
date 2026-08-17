@@ -61,8 +61,8 @@ describe('HealthTab', () => {
   it('shows recently tagged tracks separately from recently added ones', () => {
     render(HealthTab, props());
 
-    expect(screen.getByText('Recent Toegevoegd')).toBeTruthy();
-    expect(screen.getByText('Recent Getagged')).toBeTruthy();
+    expect(screen.getByText('Recent toegevoegd')).toBeTruthy();
+    expect(screen.getByText('Recent getagged')).toBeTruthy();
     expect(screen.getByText('Thunder')).toBeTruthy();
   });
 

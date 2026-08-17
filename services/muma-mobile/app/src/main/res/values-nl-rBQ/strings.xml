@@ -138,7 +138,7 @@
     <string name="main.artists_title">Artieste</string>
     <string name="main.genres_title">Genres</string>
     <string name="main.library_title">Bibliotheek</string>
-    <string name="main.last_played_genres">Laatst afgespeelde genres</string>
+    <string name="main.last_played_genres">Net afgespeelde genres</string>
     <string name="main.moods_title">Stemminge</string>
     <string name="main.years_title">Jaore</string>
     <string name="main.title_all_songs">Ammel (nummerkes)</string>
@@ -546,9 +546,9 @@
     <string name="search">Zoeke</string>
     <string name="sort_none">Gin</string>
     <string name="sort_random">Deur mekaor</string>
-    <string name="sort_added_desc">Laatst d\'r bij</string>
-    <string name="sort_date_and_release">Releasedatum</string>
-    <string name="sort_written_desc">Laatst bewerkt</string>
+    <string name="sort_added_desc">Net d\'r bij</string>
+    <string name="sort_date_and_release">Net uitgekome</string>
+    <string name="sort_written_desc">Net bewerkt</string>
     <string name="close">dichtdoen</string>
     <string name="select_items_placeholder">Ammel</string>
     <string name="tile_title">Titel</string>

@@ -61,7 +61,7 @@ class YoutubeSong(BaseSong):
         self.rules.append(InferArtistFromTitleRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists'], genre_db=databaseHelpers['rules_genres']))
         self.rules.append(InferRemixerFromTitleRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']))
         self.rules.append(InferFeatureFromTitleRule())
-        self.rules.append(InferFestivalFromTitleRule())
+        self.rules.append(InferFestivalFromTitleRule(helper=databaseHelpers['festivalHelper']))
         self.rules.append(CleanTagsRule())
         self.rules.append(InferGenreFromArtistRule(helper=databaseHelpers['artistGenreHelper']))
         self.rules.append(InferGenreFromAlbumArtistRule())

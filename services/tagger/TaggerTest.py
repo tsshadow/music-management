@@ -85,6 +85,14 @@ class RunTest(TaggerTestCase):
             self.tagger.run()
         labels.assert_called_once()
 
+    def test_a_run_asks_lms_to_pick_up_what_changed(self):
+        with patch.object(self.tagger, '_parse_label_folders'), \
+             patch.object(self.tagger, '_parse_channel_folders'), \
+             patch.object(self.tagger, '_parse_generic_folders'), \
+             patch.object(tagger_module, 'lms_scan_trigger') as trigger:
+            self.tagger.run()
+        trigger.trigger.assert_called_once()
+
 
 class FolderWalkTest(TaggerTestCase):
 
@@ -126,13 +134,21 @@ class FolderWalkTest(TaggerTestCase):
             self.tagger._parse_channel_folders('Soundcloud', SongTypeEnum.SOUNDCLOUD)
         parse_folder.assert_not_called()
 
-    def test_the_generic_folders_are_walked_one_level_deep(self):
+    def test_every_generic_root_that_exists_is_handed_to_parse_folder(self):
         (self.music / 'Livesets' / 'Defqon').mkdir(parents=True)
         (self.music / 'Podcasts' / 'Show').mkdir(parents=True)
         with patch.object(self.tagger, 'parse_folder') as parse_folder:
             self.tagger._parse_generic_folders()
-        self.assertEqual(parse_folder.call_count, 2)
+        self.assertEqual([call.args[0] for call in parse_folder.call_args_list],
+                         [self.music / 'Livesets', self.music / 'Podcasts'])
         self.assertEqual(parse_folder.call_args.args[1], SongTypeEnum.GENERIC)
+
+    def test_a_file_loose_in_a_generic_root_is_parsed_too(self):
+        self.make_song(self.music / 'Warm Up Mixes', 'Korsakoff at Pussy Lounge 2019.mp3')
+        with patch.object(self.tagger, '_try_parse') as try_parse:
+            self.tagger._parse_generic_folders()
+        self.assertEqual([call.args[0].name for call in try_parse.call_args_list],
+                         ['Korsakoff at Pussy Lounge 2019.mp3'])
 
     def test_a_missing_generic_folder_is_skipped(self):
         with patch.object(self.tagger, 'parse_folder') as parse_folder:

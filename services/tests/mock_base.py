@@ -222,6 +222,11 @@ from services.common.Helpers.GenreRulesHelper import GenreRulesHelper
 
 cache_mod.databaseHelpers['genre_rules'] = GenreRulesHelper(preload=False, rows=[])
 cache_mod.databaseHelpers['genre_rules'].record_unknown = MagicMock()
+# Same reasoning as genre_rules: a MagicMock would report a festival match for every
+# file, so tests get a real helper with no festivals in it and fill it when they mean to.
+from services.common.Helpers.FestivalHelper import FestivalHelper
+
+cache_mod.databaseHelpers['festivalHelper'] = FestivalHelper(preload=False)
 
 def setup_mocks():
     pass
@@ -244,3 +249,4 @@ def reset_database_helpers():
     helpers['rules_genres'].exists.return_value = True
     helpers['genre_rules'].set_rows([])
     helpers['genre_rules'].record_unknown.reset_mock()
+    helpers['festivalHelper'].set_festivals([])

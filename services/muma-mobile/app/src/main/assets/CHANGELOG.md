@@ -7,6 +7,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **"Recently played" stopped changing.** The list a queue came from was remembered permanently
+  rather than per queue, so the last browse screen you played from stayed the source of every later
+  play -- from the home lists, from search, from the notification, from the car. The grid recorded
+  that same shortcut over and over and never moved. A source now belongs to the one queue it was
+  armed for, and a queue that started somewhere without a list behind it falls back to the album
+  again.
+- **Shortcuts lost their artwork.** An album or a playlist shortcut was stored without the id its
+  cover is keyed by, so the grid drew a placeholder where it used to show the sleeve. A genre, a
+  festival, a label and a podcast have no cover of their own and now borrow one from a track that
+  carries the tag, the way an artist already borrowed its picture -- one lookup per shortcut, kept
+  in the stored card.
+
+## [6.13.0] - 2026-08-17
+
+### Added
+- **Recently released and Recently added, as lists you can read.** The home screen now ends in two
+  track lists instead of carousels of albums and artists, each with a "Show more" that opens the
+  full list under the same sort. A carousel card is identified by its cover art, and the SoundCloud
+  and YouTube part of the library has none, so a strip of blank squares said nothing where a row
+  naming the title and the artist always does.
+- Two new settings under the home section: how many shortcuts the grid shows (2 to 10, default 8)
+  and how many rows each track list shows before "Show more" (1 to 10, default 5).
+
+### Changed
+- **"Recently played" now remembers where you played *from*.** It used to fill up with everything
+  you opened, so browsing polluted it and the album of a single song you tried pushed everything
+  else out. A shortcut is now written when you press play, and what it points at is the list the
+  queue came from: play one track out of Raw Hardstyle and the shortcut is Raw Hardstyle. Tapping it
+  later re-runs that query, so you get different tracks from the same corner of the library rather
+  than a replay. Shuffle-all, starred lists and shared links record nothing -- there is no query
+  behind them to re-run.
+- Memories is a single banner row rather than a carousel of years, summarising the nearest year and
+  disappearing entirely on a day that holds nothing. Every year is still listed in full on the
+  Memories screen, one tap away.
+
+### Removed
+- The "Recently updated" section. Rewritten metadata is something the scanner does, not something
+  worth listening to.
+
+## [6.12.0] - 2026-08-17
+
+Written after the fact. Release 0.11.0 bumped versionCode/versionName to 265/6.12.0 without adding
+the matching entry here, so this section reconstructs what that build actually shipped.
+
+### Changed
+- **A track shows its original release date rather than the date of the edition it came in.** The app
+  already formatted and displayed one release date; it simply never received the original one. The
+  choice is made at the API boundary rather than carried through the domain model, because
+  `MusicDirectory.Child`, `Track`, `Album` and every view showing a date would each have needed a
+  second field saying the same thing. A year-only original never beats a full edition date, so
+  precision is not traded away.
+
+## [6.11.0] - 2026-08-07
+
+### Added
+- **Two accent colours, and a launcher icon you pick separately.** Settings → Appearance now has
+  an accent colour, green or Ultrasonic indigo, and an app icon in the same two colours. They are
+  independent: an indigo accent with the green icon is a perfectly ordinary combination. Sets mode
+  keeps its own colour in both themes, so the two modes never blur into one another.
+
+### Changed
+- The theme setting used to offer Day & Night, Dark and Black, all three of which resolved to the
+  same black theme. It picks the accent instead. An existing installation keeps green.
+- The download and playback notifications show the MuMa equalizer mark. They were the last two
+  places still showing the Ultrasonic headphone.
+
 ## [6.10.0] - 2026-08-07
 
 ### Added

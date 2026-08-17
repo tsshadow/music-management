@@ -19,6 +19,8 @@
   let filters = emptyFilters();
   let searchInput = '';
   let page = 1;
+  let sort = 'created';
+  let direction = 'desc';
 
   let tracks = [];
   let total = 0;
@@ -44,7 +46,7 @@
     loadError = null;
     try {
       const data = await apiGet(API_BASE, '/api/library/advanced', filters, getHeaders,
-                                { page, limit: LIMIT });
+                                { page, limit: LIMIT, sort, direction });
       tracks = data.tracks;
       total = data.total;
     } catch (err) {
@@ -122,6 +124,14 @@
 
   function goToPage(next) {
     page = next;
+    reload({ resetPage: false });
+  }
+
+  /** A different sort reorders the whole library, not the current page, so it starts from page 1. */
+  function changeSort(key, nextDirection) {
+    sort = key;
+    direction = nextDirection;
+    page = 1;
     reload({ resetPage: false });
   }
 
@@ -250,7 +260,8 @@
     <div class="flex-1 min-w-0 w-full bg-[#181818] border border-white/5 rounded-xl overflow-hidden">
       {#if view === 'library'}
         <TrackTable {tracks} {total} {page} limit={LIMIT} {loading} error={loadError}
-                    {selectedTrack} onSelect={(t) => selectedTrack = t} onPage={goToPage} />
+                    {selectedTrack} onSelect={(t) => selectedTrack = t} onPage={goToPage}
+                    {sort} {direction} onSort={changeSort} />
       {:else}
         <AnalyticsPanel {genreDistribution} {bpmHistogram} {yearHistogram}
                         {topArtists} {topLabels} bpmBucket={BPM_BUCKET}

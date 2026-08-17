@@ -17,6 +17,23 @@ from services.music_manager.routers.analytics_filters import (
 router = APIRouter(tags=['library'])
 settings = Settings()
 
+# Sort keys the track table offers, mapped to SQL. The value is interpolated into the query, so a
+# caller's sort parameter may only ever select a key here, never contribute text.
+#
+# A NULL release date sorts last in both directions: "unknown" is not older than 1970, it is absent.
+_SORTS = {
+    'created': 't.created_at',
+    'release': 'af.release_date IS NULL, af.release_date',
+    'title': 't.title',
+    'bpm': 'COALESCE(af.tempo, af.bpm_tag)',
+}
+
+
+def _order_by(sort: str, direction: str) -> str:
+    """The ORDER BY body for a requested sort, falling back to the default for anything unknown."""
+    column = _SORTS.get(sort, _SORTS['created'])
+    return f'{column} {"ASC" if direction == "asc" else "DESC"}'
+
 def verify_api_key(x_api_key: str | None=Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
@@ -53,6 +70,8 @@ def get_tracks(q: str='', page: int=1, limit: int=50, _auth: dict=Depends(verify
 def get_advanced_library(
     page: int = 1,
     limit: int = 100,
+    sort: str = 'created',
+    direction: str = 'desc',
     f: LibraryFilter = Depends(parse_filter),
     _auth: dict = Depends(verify_api_key),
 ):
@@ -86,10 +105,11 @@ def get_advanced_library(
                      WHERE mf.track_id = t.id LIMIT 1) AS file_path,
                     COALESCE(af.tempo, af.bpm_tag) AS bpm,
                     af.release_year,
+                    af.release_date,
                     CAST(t.created_at AS CHAR) AS created_at
                 {FROM_CLAUSE}
                 WHERE {where}
-                ORDER BY t.created_at DESC
+                ORDER BY {_order_by(sort, direction)}
                 LIMIT %s OFFSET %s
             """, (*params, limit, offset))
             tracks = cursor.fetchall()

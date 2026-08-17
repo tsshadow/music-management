@@ -129,6 +129,14 @@ describe('Management', () => {
     expect(get(mumaUser)?.is_admin).toBe(true);
   });
 
+  it('a tab that no longer exists falls back to the overview instead of an empty screen', async () => {
+    activeManagementTab.set('scan-settings');
+
+    render(Management);
+
+    await waitFor(() => expect(get(activeManagementTab)).toBe('overview'));
+  });
+
   it('the health tab is reachable', async () => {
     activeManagementTab.set('health');
 

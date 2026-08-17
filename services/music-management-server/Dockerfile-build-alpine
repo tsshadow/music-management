@@ -2,6 +2,7 @@ FROM --platform=$BUILDPLATFORM tonistiigi/xx AS xx
 FROM --platform=$BUILDPLATFORM alpine:3.21
 
 ARG BUILD_PACKAGES="\
+	ccache \
 	clang \
 	llvm \
 	make \
@@ -41,7 +42,17 @@ RUN	xx-apk add --no-scripts --no-cache ${LMS_BUILD_PACKAGES}
 # LMS
 COPY . /tmp/lms/
 ARG LMS_BUILD_TYPE="Release"
-RUN \
+# The cache mount holds ccache's object cache. `COPY . /tmp/lms/` above is
+# invalidated by any change under this directory, so without it every run
+# recompiles all 378 translation units even when a single file moved -- which is
+# the normal case in CI. The mount lives on the builder, outside the image, so
+# it survives that invalidation and nothing of it is baked into the result.
+# `sharing=locked` because two pipelines on one runner would otherwise write to
+# the same cache concurrently.
+RUN --mount=type=cache,target=/ccache,sharing=locked \
+	export CCACHE_DIR=/ccache && \
+	: 'Bounded so the cache cannot become the thing that fills the runner disk.' && \
+	export CCACHE_MAXSIZE=2G && \
 	DIR=/tmp/lms/build && mkdir -p ${DIR} && cd ${DIR}  && \
 		if xx-info is-cross; then export BUILD_TESTS=OFF; else export BUILD_TESTS=ON; fi && \
 		: 'A unity build merges many .cpp files into one translation unit, and gcov' && \
@@ -50,23 +61,45 @@ RUN \
 		: 'figure was measuring under 1% of it. Keep the unity build for the images' && \
 		: 'that are shipped, and turn it off for the run that measures coverage.' && \
 		if [ "${BUILD_TESTS}" = "ON" ]; then export UNITY_BUILD=OFF; else export UNITY_BUILD=ON; fi && \
+		: 'Nothing in this file ever runs a benchmark -- the test step below is' && \
+		: '`make test`, which is CTest, and the benchmark targets are not registered' && \
+		: 'with it. Building them is a compile-check, and it is cheap in the unity' && \
+		: 'build the shipped images use. In the coverage configuration it is not:' && \
+		: 'unity is off there, so the 6 benchmark sources compile separately and' && \
+		: 'link 4 more executables against Wt and boost, for a signal no one reads.' && \
+		: 'So it follows UNITY_BUILD: on where it is cheap, off where it is not.' && \
+		if [ "${BUILD_TESTS}" = "ON" ]; then export BENCHMARKS=OFF; else export BENCHMARKS=ON; fi && \
 		PKG_CONFIG_PATH=/$(xx-info)/usr/lib/pkgconfig \
 		cmake /tmp/lms/ \
 			-DCMAKE_INCLUDE_PATH=/$(xx-info)/usr/include \
 			-DCMAKE_UNITY_BUILD=${UNITY_BUILD} \
 			-DCMAKE_BUILD_TYPE=${LMS_BUILD_TYPE} \
 			$(xx-clang --print-cmake-defines) \
+			-DCMAKE_C_COMPILER_LAUNCHER=ccache \
+			-DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
 			-DCMAKE_PREFIX_PATH=/$(xx-info)/usr/lib/cmake \
 			-DBUILD_TESTING=${BUILD_TESTS} \
-			-DBUILD_BENCHMARKS=ON \
+			-DBUILD_BENCHMARKS=${BENCHMARKS} \
 			-DENABLE_COVERAGE=${BUILD_TESTS} && \
 		VERBOSE=1 make -j$(nproc) && \
+		: 'Printed so a run that unexpectedly misses the cache is visible in the log' && \
+		: 'rather than just slow.' && \
+		ccache --show-stats && \
 		xx-verify src/lms/lms && \
 		if [ "${BUILD_TESTS}" = "ON" ]; then \
 			{ make test || exit 1; } && \
 			GCOV=$(command -v llvm-cov 2>/dev/null) && [ -n "$GCOV" ] && GCOV="$GCOV gcov" || GCOV=gcov; \
 			if xx-info is-cross; then GCOV=$(xx-info)-gcov; fi && \
 			cd /tmp/lms && \
-			gcovr -r . --xml-pretty -o /tmp/lms/coverage-lms.xml --gcov-executable "$GCOV" --object-directory build --gcov-ignore-errors=no_working_dir_found && \
-			gcovr -r . --gcov-executable "$GCOV" --object-directory build --gcov-ignore-errors=no_working_dir_found; \
+			: 'One invocation, two reports. This used to be two gcovr runs -- one for' && \
+			: 'the XML the GitLab widget reads, one for the text the coverage regex in' && \
+			: '.gitlab-ci.yml scrapes -- which parsed every .gcda file twice for the' && \
+			: 'same numbers. gcovr writes both formats in a single pass, and -j 0' && \
+			: 'spreads that pass over the available cores.' && \
+			gcovr -r . -j 0 \
+				--gcov-executable "$GCOV" \
+				--object-directory build \
+				--gcov-ignore-errors=no_working_dir_found \
+				--xml-pretty --xml /tmp/lms/coverage-lms.xml \
+				--txt; \
 		fi

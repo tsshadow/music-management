@@ -135,7 +135,7 @@
   },
   "history": {
     "empty": "Nog geen luistergeschiedenis gevonden.",
-    "subtitle": "Jouw recent beluisterde nummers.",
+    "subtitle": "Jouw recent afgespeelde nummers.",
     "title": "Luistergeschiedenis"
   },
   "library": {
@@ -261,8 +261,8 @@
       "logsFor": "Logs: {container}",
       "logsUnavailable": "Kon logs niet ophalen.",
       "name": "Naam",
-      "recentlyAdded": "Recent Toegevoegd",
-      "recentlyTagged": "Recent Getagged",
+      "recentlyAdded": "Recent toegevoegd",
+      "recentlyTagged": "Recent getagged",
       "status": "Status",
       "subtitle": "Systeem monitoring en recente activiteit van alle workers.",
       "title": "Gezondheid & activiteit"
@@ -833,7 +833,7 @@
     "alphabeticalByTitle": "Alfabetisch (Titel)",
     "byRating": "Op rating",
     "duration": "Speelduur",
-    "mostPlayed": "Meest beluisterd",
+    "mostPlayed": "Meest afgespeeld",
     "random": "Willekeurig",
     "recentlyAdded": "Recent toegevoegd",
     "recentlyCreated": "Recent aangemaakt",

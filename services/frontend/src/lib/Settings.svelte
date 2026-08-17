@@ -3,14 +3,15 @@
   import Advanced from './settings/Advanced.svelte';
   import About from './settings/About.svelte';
   import { activeSettingsTab } from './store.js';
+  import { SETTINGS_TABS } from './router.js';
 
-  // The active tab is persisted, so an account that still has one of the
-  // removed admin tabs ('libraries', 'scan-settings', 'scanner', 'users')
-  // stored would otherwise land on an empty screen. Those now live in the
-  // management view; fall back to the first personal tab instead.
-  const knownTabs = ['general', 'advanced', 'about'];
+  // The active tab is persisted and can also arrive from the URL, so an
+  // account that still has one of the removed admin tabs ('libraries',
+  // 'scan-settings', 'scanner', 'users') stored would otherwise land on an
+  // empty screen. Those now live in the management view; fall back to the
+  // first personal tab instead.
   $effect(() => {
-    if (!knownTabs.includes($activeSettingsTab)) activeSettingsTab.set('general');
+    if (!SETTINGS_TABS.includes($activeSettingsTab)) activeSettingsTab.set('general');
   });
 </script>
 

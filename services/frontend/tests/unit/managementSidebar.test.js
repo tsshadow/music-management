@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import ManagementSidebar from '../../src/lib/management/ManagementSidebar.svelte';
 import { activeManagementTab, mumaUser, userPermissions } from '../../src/lib/store.js';
+import { MANAGEMENT_TABS } from '../../src/lib/router.js';
 
 describe('ManagementSidebar', () => {
   beforeEach(() => {
@@ -63,6 +64,24 @@ describe('ManagementSidebar', () => {
     await fireEvent.click(screen.getByText('Downloaders'));
 
     expect(get(activeManagementTab)).toBe('downloaders');
+  });
+
+  it('every tab an administrator can open has a route', async () => {
+    mumaUser.set({ id: 1, username: 'user', is_admin: true });
+    userPermissions.set(['users.read', 'user-requests.read', 'radio.manage']);
+    const { container } = render(ManagementSidebar, { onnavigate: vi.fn() });
+
+    // Clicking is the only way to learn a tab's id from the outside; the
+    // sidebar keeps its own list, and a tab added there but not to the routing
+    // table would silently lose its URL.
+    const reached = [];
+    for (const button of container.querySelectorAll('nav button')) {
+      await fireEvent.click(button);
+      reached.push(get(activeManagementTab));
+    }
+
+    expect(reached.length).toBeGreaterThan(0);
+    expect(reached.filter((tab) => !MANAGEMENT_TABS.includes(tab))).toEqual([]);
   });
 
   it('the tab that is open is marked as such', async () => {

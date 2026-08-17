@@ -31,6 +31,7 @@ namespace lms::db::tests
 {
     using ScopedArtwork = ScopedEntity<db::Artwork>;
     using ScopedImage = ScopedEntity<db::Image>;
+    using ScopedLabel = ScopedEntity<db::Label>;
 
     TEST_F(DatabaseFixture, Track)
     {
@@ -756,6 +757,43 @@ namespace lms::db::tests
                 ASSERT_GT(foundIds.size(), 0);
                 EXPECT_EQ(foundIds[0], trackRock2020.getId());
             }
+        }
+    }
+
+    // The label view of the web UI browses through find_advanced, not through find:
+    // a label that filters in one and not in the other shows the whole library.
+    TEST_F(DatabaseFixture, Track_findAdvancedByLabel)
+    {
+        ScopedLabel label{ session, "Roughstate" };
+        ScopedLabel otherLabel{ session, "Dirty Workz" };
+        ScopedRelease release{ session, "Release" };
+        ScopedRelease otherRelease{ session, "OtherRelease" };
+        ScopedTrack onLabel{ session };
+        ScopedTrack onOtherLabel{ session };
+        ScopedTrack withoutRelease{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+
+            release.get().modify()->addLabel(label.get());
+            otherRelease.get().modify()->addLabel(otherLabel.get());
+            onLabel.get().modify()->setRelease(release.get());
+            onOtherLabel.get().modify()->setRelease(otherRelease.get());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Track::FindParameters params;
+            params.filters.setLabel(label.getId());
+
+            std::vector<TrackId> foundIds;
+            Track::find_advanced(session, params, {}, [&](const Track::pointer& t) {
+                foundIds.push_back(t->getId());
+            });
+
+            ASSERT_EQ(foundIds.size(), 1);
+            EXPECT_EQ(foundIds[0], onLabel.getId());
         }
     }
 

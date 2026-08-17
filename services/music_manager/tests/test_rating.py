@@ -61,6 +61,29 @@ class TestRating(unittest.TestCase):
         insert_call = next(call for call in mock_cursor.execute.call_args_list if 'INSERT INTO rating_tracks' in call[0][0])
         self.assertEqual(insert_call[0][1][1], 'resolved-uid')
 
+    @patch('services.music_manager.routers.rating.get_db_connection')
+    def test_handle_lms_event_resolves_lms_library_root(self, mock_get_db):
+        """LMS reports paths under its own media-library root (/music), while muma stores
+        them under /mnt/music. The lookup must bridge the two, otherwise every event falls
+        back to the raw LMS track id and the mirrored rating becomes unusable."""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_db.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        mock_cursor.fetchone.return_value = {'track_uid': 'resolved-uid'}
+        payload = {'event': 'rating_changed', 'object_type': 'track', 'object_id': '1392868', 'username': 'user', 'rating': 5, 'path': '/music/Soundcloud/EQUAL2/song.mp3'}
+        response = self.client.post('/api/rating/lms-event', json=payload, headers={'x-api-key': self.api_key})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'status': 'success', 'entity_id': 'resolved-uid'})
+        path_res_call = next(call for call in mock_cursor.execute.call_args_list if 'SELECT t.track_uid' in call[0][0])
+        self.assertIn('/mnt/music/Soundcloud/EQUAL2/song.mp3', path_res_call[0][1])
+
+    def test_candidate_paths_bridges_both_roots(self):
+        from services.music_manager.routers.rating import candidate_paths
+        self.assertEqual(candidate_paths('/music/a/b.mp3'), ['/music/a/b.mp3', '/mnt/music/a/b.mp3', 'a/b.mp3'])
+        self.assertEqual(candidate_paths('/mnt/music/a/b.mp3'), ['/mnt/music/a/b.mp3', '/music/a/b.mp3', 'a/b.mp3'])
+        self.assertEqual(candidate_paths('a/b.mp3'), ['a/b.mp3', '/mnt/music/a/b.mp3', '/music/a/b.mp3'])
+
     def test_handle_lms_event_invalid_event(self):
         payload = {'event': 'some_other_event', 'object_type': 'track', 'object_id': '123', 'username': 'user', 'rating': 50}
         response = self.client.post('/api/rating/lms-event', json=payload, headers={'x-api-key': self.api_key})

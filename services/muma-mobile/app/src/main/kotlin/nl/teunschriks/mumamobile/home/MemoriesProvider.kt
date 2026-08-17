@@ -12,19 +12,25 @@ import nl.teunschriks.mumamobile.domain.MemoryGroup
 import timber.log.Timber
 
 /**
- * The home teaser for memories: one carousel of the years that hold a release from this day.
+ * The home teaser for memories: one banner row, one tap from the Memories screen.
  *
- * One card per year rather than per track: a day can hold sixty releases, and the carousel has to
- * stay a short strip. Tapping a card opens the Memories screen, where the year is listed in full.
+ * Memories are either relevant today or not at all, so a carousel of years made the screen open on
+ * something that is usually thin or empty. A banner costs one row, reads in a glance ("8 years ago,
+ * 12 tracks"), and disappears entirely on a day that holds nothing -- then the home screen simply
+ * starts at the shortcuts.
  *
- * [label] turns a group into its heading. It is passed in because resolving a string resource
- * needs a context, and keeping that out of here is what lets this class be tested as plain Kotlin.
+ * It summarises the *nearest* year rather than all of them, because that is the one a single line can
+ * be honest about. Every other year is listed in full on the Memories screen.
+ *
+ * [title] and [summary] are passed in because resolving a string resource needs a context, and
+ * keeping that out of here is what lets this class be tested as plain Kotlin.
  */
 class MemoriesProvider(
     @StringRes private val titleRes: Int,
     private val loadMemories: suspend (String) -> List<MemoryGroup>,
     private val today: () -> String,
-    private val label: (MemoryGroup) -> String
+    private val title: () -> String,
+    private val summary: (MemoryGroup) -> String
 ) : HomeSectionProvider {
 
     /**
@@ -40,17 +46,15 @@ class MemoriesProvider(
             return null
         }
 
-        val cards = groups
+        val nearest = groups
             .filter { it.tracks.isNotEmpty() }
-            .take(CAROUSEL_SIZE)
-            .map { it.toHomeCard(label(it)) }
+            .minByOrNull { it.yearsAgo }
+            ?: return null
 
-        if (cards.isEmpty()) return null
-
-        return HomeSection(titleRes, CardStyle.CAROUSEL, cards)
-    }
-
-    private companion object {
-        const val CAROUSEL_SIZE = 10
+        return HomeSection(
+            titleRes,
+            CardStyle.BANNER,
+            listOf(nearest.toHomeCard(title(), summary(nearest)))
+        )
     }
 }

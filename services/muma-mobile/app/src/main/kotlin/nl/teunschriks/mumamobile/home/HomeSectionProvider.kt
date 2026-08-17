@@ -8,10 +8,7 @@
 package nl.teunschriks.mumamobile.home
 
 import androidx.annotation.StringRes
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import nl.teunschriks.mumamobile.domain.Album
-import nl.teunschriks.mumamobile.domain.Artist
+import nl.teunschriks.mumamobile.domain.Track
 import timber.log.Timber
 
 /**
@@ -26,23 +23,29 @@ interface HomeSectionProvider {
 }
 
 /**
- * The shortcuts grid: what the user recently opened, served from the store.
+ * The shortcuts grid: where the user recently played *from*, served from the store.
  *
  * The one thing it does reach out for is missing artist artwork. Cards are stored whole, at the
- * moment they are opened, so an artist that had no picture then keeps an empty one for as long as
- * it stays in the history -- long after the picture itself has arrived. Resolving it here repairs
- * the stored card, so it is at most one lookup per artist, ever.
+ * moment they are played, so an artist that had no picture then keeps an empty one for as long as it
+ * stays in the history -- long after the picture itself has arrived. Resolving it here repairs the
+ * stored card, so it is at most one lookup per artist, ever.
  */
 class ShortcutsProvider(
     @StringRes private val titleRes: Int,
     private val store: RecentActivityStore,
     private val setsMode: () -> Boolean,
+    /**
+     * How many cards to show. A function rather than a value because it is a setting: reading it
+     * per load is what lets a change take effect on the next return to the home screen instead of
+     * on the next app start.
+     */
+    private val count: () -> Int,
     /** Artist id to cover art id. Null when the server has no picture either. */
     private val resolveArtistCoverArt: suspend (String) -> String? = { null }
 ) : HomeSectionProvider {
 
     override suspend fun load(): HomeSection? {
-        val cards = store.recent(setsMode())
+        val cards = store.recent(setsMode(), count())
         if (cards.isEmpty()) return null
 
         return HomeSection(titleRes, CardStyle.GRID, cards.map { withArtwork(it) })
@@ -67,62 +70,39 @@ class ShortcutsProvider(
 }
 
 /**
- * Backs both library carousels. "Recently updated" and "recently added" differ only in the
- * server-side sort ([type]) and the title, so they share one implementation.
+ * Backs both track lists. "Recently released" and "recently added" differ only in the server-side
+ * sort and the title, so they share one implementation.
  *
- * The loaders are passed in rather than a whole [nl.teunschriks.mumamobile.service.MusicService], which
- * keeps the merge logic testable without mocking a sixty-method interface.
+ * A list rather than a carousel, and tracks rather than albums and artists: see [CardStyle.LIST].
+ *
+ * [loadTracks] is passed in rather than a whole
+ * [nl.teunschriks.mumamobile.service.MusicService], which keeps this testable without mocking a
+ * sixty-method interface.
  */
-class LibraryActivityProvider(
+class RecentTracksProvider(
     @StringRes private val titleRes: Int,
-    private val type: String,
-    private val loadArtists: suspend (String) -> List<Artist>,
-    private val loadAlbums: suspend (String) -> List<Album>,
-    /**
-     * The third source is labels for songs and festivals for livesets, which are different card
-     * types, so this loader yields cards rather than one domain type.
-     */
-    private val loadExtra: suspend (String) -> List<HomeCard>
+    /** A `TrackSortMethod` name the server understands, e.g. `OriginalDateDescAndRelease`. */
+    private val sortMethod: String,
+    /** Rows to show. A function for the same reason as [ShortcutsProvider.count]. */
+    private val rows: () -> Int,
+    private val loadTracks: suspend (sortMethod: String, count: Int) -> List<Track>
 ) : HomeSectionProvider {
 
-    /**
-     * The three sources are independent server calls, so they run at the same time; loading them
-     * one after another made the home screen wait for the sum of three round trips instead of the
-     * slowest one.
-     */
-    override suspend fun load(): HomeSection? = coroutineScope {
-        val artists = async { safely { loadArtists(type) }.map { it.toHomeCard() } }
-        val albums = async { safely { loadAlbums(type) }.map { it.toHomeCard() } }
-        val extra = async { safely { loadExtra(type) } }
+    override suspend fun load(): HomeSection? {
+        val requested = rows()
 
-        val cards = interleave(listOf(artists.await(), albums.await(), extra.await()))
-        if (cards.isEmpty()) return@coroutineScope null
-
-        HomeSection(titleRes, CardStyle.CAROUSEL, cards)
-    }
-
-    // One failing source (or one the server doesn't know yet) must not empty the whole carousel.
-    private suspend fun <T> safely(block: suspend () -> List<T>): List<T> = try {
-        block()
-    } catch (e: Exception) {
-        Timber.w(e, "Home section '%s' failed to load one of its sources", type)
-        emptyList()
-    }
-
-    /**
-     * Round-robin rather than a timestamp merge: each list already arrives correctly ordered, and
-     * interleaving guarantees all three types show up near the head of the carousel.
-     */
-    private fun interleave(lists: List<List<HomeCard>>): List<HomeCard> {
-        val result = mutableListOf<HomeCard>()
-        val longest = lists.maxOfOrNull { it.size } ?: 0
-
-        for (index in 0 until longest) {
-            for (list in lists) {
-                list.getOrNull(index)?.let(result::add)
-            }
+        val tracks = try {
+            loadTracks(sortMethod, requested)
+        } catch (e: Exception) {
+            Timber.w(e, "Home section '%s' failed to load", sortMethod)
+            return null
         }
 
-        return result
+        // The count is a request, not a promise: an older server, or a cached response from when the
+        // setting was higher, can hand back more than was asked for.
+        val cards = tracks.take(requested).map { it.toHomeCard() }
+        if (cards.isEmpty()) return null
+
+        return HomeSection(titleRes, CardStyle.LIST, cards)
     }
 }

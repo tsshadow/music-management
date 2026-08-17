@@ -14,6 +14,7 @@ import java.util.regex.Pattern
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.BuildConfig
 import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.home.HomeLimits
 
 /**
  * Contains convenience functions for reading and writing preferences
@@ -68,6 +69,23 @@ object Settings {
         getKey(R.string.setting_key_separate_home_history),
         true
     )
+
+    // How many shortcuts the "Recently played" grid shows. Read through HomeLimits.shortcuts(),
+    // which is what turns an unwritten key or a hand-edited value into something renderable.
+    @JvmStatic
+    var homeShortcutCount
+        by StringIntSetting(
+            getKey(R.string.setting_key_home_shortcut_count),
+            HomeLimits.DEFAULT_SHORTCUTS
+        )
+
+    // Rows per home track list, before "Show more". Read through HomeLimits.listRows().
+    @JvmStatic
+    var homeListCount
+        by StringIntSetting(
+            getKey(R.string.setting_key_home_list_count),
+            HomeLimits.DEFAULT_LIST_ROWS
+        )
 
     @JvmStatic
     var lastSyncedVersion by IntSetting(

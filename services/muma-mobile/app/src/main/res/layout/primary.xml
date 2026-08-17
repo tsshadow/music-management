@@ -21,7 +21,7 @@
             layout="@layout/home_section" />
 
         <include
-            a:id="@+id/section_updated"
+            a:id="@+id/section_released"
             layout="@layout/home_section" />
 
         <include

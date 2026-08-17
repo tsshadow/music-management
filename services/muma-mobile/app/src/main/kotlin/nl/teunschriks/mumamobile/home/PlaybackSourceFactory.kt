@@ -43,10 +43,12 @@ object PlaybackSourceFactory {
         args.playlistId.isUsable() -> card(
             HomeCardType.STATIC_PLAYLIST,
             args.playlistId!!,
-            args.playlistName ?: args.name
+            args.playlistName ?: args.name,
+            coverArtId = args.playlistId
         )
 
-        args.isAlbum && args.id.isUsable() -> card(HomeCardType.ALBUM, args.id!!, args.name)
+        args.isAlbum && args.id.isUsable() ->
+            card(HomeCardType.ALBUM, args.id!!, args.name, coverArtId = args.id)
 
         args.isArtist && args.id.isUsable() -> card(HomeCardType.ARTIST, args.id!!, args.name)
 
@@ -61,11 +63,24 @@ object PlaybackSourceFactory {
         else -> null
     }
 
-    /** The title falls back to the id, which for a tag card *is* the human-readable name. */
-    private fun card(type: HomeCardType, itemId: String, title: String?): HomeCard = HomeCard(
+    /**
+     * The title falls back to the id, which for a tag card *is* the human-readable name.
+     *
+     * An album and a playlist are keyed by their own id everywhere else in the app
+     * ([nl.teunschriks.mumamobile.home.toHomeCard]), so the same id makes the shortcut show its
+     * cover instead of a placeholder. A tag has no artwork of its own; [ShortcutsProvider] borrows
+     * one from the library for those.
+     */
+    private fun card(
+        type: HomeCardType,
+        itemId: String,
+        title: String?,
+        coverArtId: String? = null
+    ): HomeCard = HomeCard(
         type = type,
         itemId = itemId,
-        title = title?.takeIf { it.isNotBlank() } ?: itemId
+        title = title?.takeIf { it.isNotBlank() } ?: itemId,
+        coverArtId = coverArtId
     )
 
     private fun String?.isUsable(): Boolean = !this.isNullOrBlank()

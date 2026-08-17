@@ -25,10 +25,12 @@ interface HomeSectionProvider {
 /**
  * The shortcuts grid: where the user recently played *from*, served from the store.
  *
- * The one thing it does reach out for is missing artist artwork. Cards are stored whole, at the
- * moment they are played, so an artist that had no picture then keeps an empty one for as long as it
- * stays in the history -- long after the picture itself has arrived. Resolving it here repairs the
- * stored card, so it is at most one lookup per artist, ever.
+ * The one thing it does reach out for is missing artwork. Cards are stored whole, at the moment they
+ * are played, and most of them are a place rather than a thing: a genre, a festival, a lineup and a
+ * label have no cover of their own, and an artist that had no picture when it was played would keep
+ * an empty one for as long as it stays in the history. Borrowing one here -- the artist's picture,
+ * or the cover of a track that carries the tag -- and writing it back into the stored card makes it
+ * at most one lookup per shortcut, ever, instead of a grid of identical placeholders.
  */
 class ShortcutsProvider(
     @StringRes private val titleRes: Int,
@@ -40,8 +42,8 @@ class ShortcutsProvider(
      * on the next app start.
      */
     private val count: () -> Int,
-    /** Artist id to cover art id. Null when the server has no picture either. */
-    private val resolveArtistCoverArt: suspend (String) -> String? = { null }
+    /** A card to the cover art it can borrow. Null when the library holds none either. */
+    private val resolveCoverArt: suspend (HomeCard) -> String? = { null }
 ) : HomeSectionProvider {
 
     override suspend fun load(): HomeSection? {
@@ -52,13 +54,13 @@ class ShortcutsProvider(
     }
 
     private suspend fun withArtwork(card: HomeCard): HomeCard {
-        if (card.type != HomeCardType.ARTIST || !card.coverArtId.isNullOrBlank()) return card
+        if (!card.coverArtId.isNullOrBlank() || !card.type.canBorrowArtwork()) return card
 
-        // Missing artwork is the normal case for most artists; it must not empty the grid.
+        // Artwork the library cannot supply is the normal case; it must not empty the grid.
         val coverArtId = try {
-            resolveArtistCoverArt(card.itemId)
+            resolveCoverArt(card)
         } catch (e: Exception) {
-            Timber.w(e, "Could not resolve cover art for artist '%s'", card.itemId)
+            Timber.w(e, "Could not resolve cover art for %s '%s'", card.type, card.itemId)
             null
         }
 
@@ -66,6 +68,20 @@ class ShortcutsProvider(
 
         store.updateCoverArt(card.key, coverArtId, setsMode())
         return card.copy(coverArtId = coverArtId)
+    }
+
+    /**
+     * A track and a memory always name their own artwork, and an album or a playlist is keyed by an
+     * id the image loader already understands, so a blank one there means the server has none.
+     * Everything else is a query, and a query can borrow the cover of something it returns.
+     */
+    private fun HomeCardType.canBorrowArtwork(): Boolean = when (this) {
+        HomeCardType.TRACK,
+        HomeCardType.MEMORY,
+        HomeCardType.ALBUM,
+        HomeCardType.STATIC_PLAYLIST -> false
+
+        else -> true
     }
 }
 

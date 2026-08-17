@@ -56,6 +56,25 @@ class PlaybackSourceFactoryTest {
     }
 
     @Test
+    fun `an album shortcut carries its cover, so the grid shows it rather than a placeholder`() {
+        val card = source(TrackCollectionFragmentArgs(isAlbum = true, id = "al1", name = "Renegades"))!!
+
+        card.coverArtId `should be equal to` "al1"
+    }
+
+    @Test
+    fun `a playlist shortcut carries its cover`() {
+        val card = source(TrackCollectionFragmentArgs(playlistId = "p1", playlistName = "Road trip"))!!
+
+        card.coverArtId `should be equal to` "p1"
+    }
+
+    @Test
+    fun `a tag has no cover of its own, so the grid borrows one later`() {
+        source(TrackCollectionFragmentArgs(genre = "Raw Hardstyle"))!!.coverArtId.shouldBeNull()
+    }
+
+    @Test
     fun `an artist is remembered as the artist`() {
         val card = source(TrackCollectionFragmentArgs(isArtist = true, id = "ar1", name = "Warface"))!!
 

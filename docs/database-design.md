@@ -30,6 +30,7 @@ rules_artist_genres ──> rules_genres
 rules_label_genres  ──> rules_genres
 rules_ignored_artists, rules_ignored_genres
 rules_catid_label, rules_festival_data
+rules_podcasts ──< rules_podcast_aliases
 rules_genre_backlog
 
 ──────────────────────────────────────────────────────────────────────────────
@@ -86,6 +87,8 @@ These tables contain the "knowledge" of the system, used by the tagger service t
 | `rules_ignored_genres` | (Legacy) Migrated into `rules_genres` as state `black`; no longer read by the tagger. | `name` |
 | `rules_catid_label` | Mapping Catalog IDs to library_labels. | `catid`, `label` |
 | `rules_festival_data` | Information about festivals for title parsing. | `festival`, `year` |
+| `rules_podcasts` | Radio shows and podcast series, curated white/black/unknown; only `white` is tagged. | `name`, `normalized_name`, `state` |
+| `rules_podcast_aliases` | The spellings one show occurs under, so every variant matches the same name. | `podcast_id`, `alias`, `normalized_alias` |
 | `rules_genre_backlog` | (Legacy) Migrated into `rules_genres` as state `unknown`; no longer read by the tagger. | `genre` |
 | `rules_genres_new` | (Legacy) New genre structure being phased in. | `name` |
 

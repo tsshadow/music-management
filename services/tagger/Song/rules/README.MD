@@ -45,6 +45,9 @@ This folder contains all **tagging rules** used in the `BaseSong` subclasses of 
 - **`InferFestivalFromTitleRule.py`**  
   Extracts a festival or event name from the `TITLE` tag and assigns it to the `FESTIVAL` tag if recognized.
 
+- **`InferPodcastFromTitleRule.py`**  
+  Matches the title and the path against the approved radio shows and podcast series in `rules_podcasts`, and writes the show to the `PODCAST` tag plus its episode number to `PODCAST_EPISODE`. Only runs on recordings of ten minutes or longer, and deliberately not on `LabelSong`: under `/mnt/music/EPs` a name like "Hard With Style" is a record label, not the show.
+
 - **`InferRemixerFromTitleRule.py`**  
   Detects remixers or editors from parenthetical phrases in the title (e.g., "(XYZ Remix)") and adds them to both the `ARTIST` and optionally `REMIXERS` tags. Prompts the user if an unknown remixer is found.
 

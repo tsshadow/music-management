@@ -35,6 +35,7 @@ STRICT_MODULES=(
     services/common/Helpers/FilterTableHelper.py
     services/common/Helpers/GenreRulesHelper.py
     services/common/Helpers/LookupTableHelper.py
+    services/common/Helpers/PodcastHelper.py
     services/common/Helpers/TableHelper.py
     services/downloader/account_schedule.py
     services/downloader/rate_state.py

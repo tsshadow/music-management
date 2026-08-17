@@ -7,6 +7,7 @@ from services.tagger.Song.rules.CheckArtistRule import CheckArtistRule
 from services.tagger.Song.rules.CleanTagsRule import CleanTagsRule
 from services.tagger.Song.rules.InferGenreFromArtistRule import InferGenreFromArtistRule
 from services.tagger.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
+from services.tagger.Song.rules.InferPodcastFromTitleRule import InferPodcastFromTitleRule
 from services.tagger.Song.rules.InferRemixerFromTitleRule import InferRemixerFromTitleRule
 from services.tagger.Song.rules.ReplaceInvalidUnicodeRule import ReplaceInvalidUnicodeRule
 from services.tagger.Song.rules.ResolveGenreRule import ResolveGenreRule
@@ -24,6 +25,7 @@ class GenericSong(BaseSong):
             self.tag_collection.set_item(COPYRIGHT, self.calculate_copyright())
         self.sort_genres()
         self.rules.append(InferRemixerFromTitleRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']))
+        self.rules.append(InferPodcastFromTitleRule())
         self.rules.append(CleanTagsRule())
         self.rules.append(InferGenreFromArtistRule(helper=databaseHelpers['artistGenreHelper']))
         self.rules.append(InferGenreFromSubgenreRule(databaseHelpers['subgenreHelper']))

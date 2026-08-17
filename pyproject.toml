@@ -90,6 +90,7 @@ module = [
     "services.common.version_helper",
     "services.common.Helpers.ArtistNameAnalyzer",
     "services.common.Helpers.FestivalHelper",
+    "services.common.Helpers.PodcastHelper",
     "services.common.Helpers.FilterTableHelper",
     "services.common.Helpers.GenreRulesHelper",
     "services.common.Helpers.LookupTableHelper",

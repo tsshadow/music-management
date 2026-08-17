@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stands in for the Memories banner while it loads. Height matches home_card_banner.xml. -->
+<LinearLayout xmlns:a="http://schemas.android.com/apk/res/android"
+    a:layout_width="match_parent"
+    a:layout_height="wrap_content"
+    a:orientation="vertical"
+    a:paddingHorizontal="16dp">
+
+    <View
+        a:layout_width="match_parent"
+        a:layout_height="56dp"
+        a:background="@drawable/skeleton_block" />
+
+</LinearLayout>

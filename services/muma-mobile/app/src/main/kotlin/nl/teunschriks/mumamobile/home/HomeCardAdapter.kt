@@ -48,12 +48,29 @@ class HomeCardAdapter(
 
         /** Grid cards only; the carousel layout has no room for it. */
         val favorite: ImageView? = view.findViewById(R.id.card_favorite)
+
+        /** List rows only: the duration, and the five stars beneath it. */
+        val meta: TextView? = view.findViewById(R.id.card_meta)
+        val rating: View? = view.findViewById(R.id.card_rating)
+        val stars: List<ImageView> = if (rating == null) {
+            emptyList()
+        } else {
+            listOf(
+                view.findViewById(R.id.card_star_1),
+                view.findViewById(R.id.card_star_2),
+                view.findViewById(R.id.card_star_3),
+                view.findViewById(R.id.card_star_4),
+                view.findViewById(R.id.card_star_5)
+            )
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val layout = when (style) {
             CardStyle.GRID -> R.layout.home_card_grid
             CardStyle.CAROUSEL -> R.layout.home_card_carousel
+            CardStyle.LIST -> R.layout.home_card_list
+            CardStyle.BANNER -> R.layout.home_card_banner
         }
 
         return ViewHolder(LayoutInflater.from(parent.context).inflate(layout, parent, false))
@@ -67,6 +84,7 @@ class HomeCardAdapter(
         holder.subtitle?.text = card.subtitle ?: context.getString(subtitleResFor(card.type))
         holder.itemView.setOnClickListener { onClick(card) }
         holder.favorite?.visibility = if (card.isFavorite) View.VISIBLE else View.GONE
+        bindMeta(holder, card)
 
         val longClick = onLongClick
         if (longClick == null) {
@@ -88,6 +106,34 @@ class HomeCardAdapter(
     }
 
     override fun getItemCount() = items.size
+
+    /**
+     * The duration and the stars, on the styles that have room for them.
+     *
+     * Views are recycled, so every branch here has to say what it wants: leaving the stars alone
+     * when a card is unrated would show the previous row's rating.
+     */
+    private fun bindMeta(holder: ViewHolder, card: HomeCard) {
+        holder.meta?.let {
+            it.text = card.meta.orEmpty()
+            it.visibility = if (card.meta.isNullOrBlank()) View.GONE else View.VISIBLE
+        }
+
+        val rating = holder.rating ?: return
+        val stars = card.rating
+
+        if (stars == null || stars <= 0) {
+            rating.visibility = View.GONE
+            return
+        }
+
+        rating.visibility = View.VISIBLE
+        holder.stars.forEachIndexed { index, star ->
+            star.setImageResource(
+                if (index < stars) R.drawable.ic_star_full else R.drawable.ic_star_hollow
+            )
+        }
+    }
 
     /**
      * The on-disk cache key. Artist art is keyed the way the rest of the app keys it, so a picture

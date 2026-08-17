@@ -18,6 +18,7 @@ import nl.teunschriks.mumamobile.domain.Tag
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.fragment.muma.TileInfo
 import nl.teunschriks.mumamobile.fragment.muma.toSmartParamsJson
+import nl.teunschriks.mumamobile.util.Util
 
 fun Album.toHomeCard(): HomeCard = HomeCard(
     type = HomeCardType.ALBUM,
@@ -52,24 +53,37 @@ fun Genre.toHomeCard(isFavorite: Boolean = false): HomeCard = HomeCard(
     isFavorite = isFavorite
 )
 
+/**
+ * A track as a home screen row.
+ *
+ * Artist *and* album, because this is what identifies a track on a list row where the artwork often
+ * cannot: a SoundCloud or YouTube item usually has none, and a row of blank squares was the reason
+ * the recent sections are lists rather than carousels.
+ */
 fun Track.toHomeCard(): HomeCard = HomeCard(
     type = HomeCardType.TRACK,
     itemId = id,
     title = title.orEmpty(),
-    subtitle = artist,
-    coverArtId = coverArt ?: id
+    subtitle = listOfNotNull(artist, album)
+        .filter { it.isNotBlank() }
+        .joinToString(SUBTITLE_SEPARATOR)
+        .ifBlank { null },
+    coverArtId = coverArt ?: id,
+    meta = duration?.let { Util.formatTotalDuration(it.toLong()) },
+    rating = userRating
 )
 
+private const val SUBTITLE_SEPARATOR = " · "
+
 /**
- * A whole year of memories as one card: the carousel shows years, not tracks, so that a day with
- * sixty releases still fits in a short strip. Its artwork is the first track's, which is what makes
- * the year recognisable at a glance.
+ * A year of memories as the home banner. Its artwork is the first track's, which is what makes the
+ * year recognisable at a glance.
  */
-fun MemoryGroup.toHomeCard(label: String): HomeCard = HomeCard(
+fun MemoryGroup.toHomeCard(title: String, subtitle: String): HomeCard = HomeCard(
     type = HomeCardType.MEMORY,
     itemId = year.toString(),
-    title = label,
-    subtitle = tracks.size.toString(),
+    title = title,
+    subtitle = subtitle,
     coverArtId = tracks.firstOrNull()?.let { it.coverArt ?: it.id }
 )
 

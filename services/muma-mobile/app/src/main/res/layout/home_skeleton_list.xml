@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stands in for a track list while it loads. Row heights match home_card_list.xml so the real
+     rows do not shift the page when they arrive. Five rows: the default setting, and the most a
+     placeholder needs to suggest "a list is coming". -->
+<LinearLayout xmlns:a="http://schemas.android.com/apk/res/android"
+    a:layout_width="match_parent"
+    a:layout_height="wrap_content"
+    a:orientation="vertical"
+    a:paddingHorizontal="16dp">
+
+    <View
+        a:layout_width="match_parent"
+        a:layout_height="40dp"
+        a:layout_marginVertical="8dp"
+        a:background="@drawable/skeleton_block" />
+
+    <View
+        a:layout_width="match_parent"
+        a:layout_height="40dp"
+        a:layout_marginVertical="8dp"
+        a:background="@drawable/skeleton_block" />
+
+    <View
+        a:layout_width="match_parent"
+        a:layout_height="40dp"
+        a:layout_marginVertical="8dp"
+        a:background="@drawable/skeleton_block" />
+
+    <View
+        a:layout_width="match_parent"
+        a:layout_height="40dp"
+        a:layout_marginVertical="8dp"
+        a:background="@drawable/skeleton_block" />
+
+    <View
+        a:layout_width="match_parent"
+        a:layout_height="40dp"
+        a:layout_marginVertical="8dp"
+        a:background="@drawable/skeleton_block" />
+
+</LinearLayout>

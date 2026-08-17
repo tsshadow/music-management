@@ -1,0 +1,115 @@
+package nl.teunschriks.mumamobile.home
+
+import org.amshove.kluent.`should be equal to`
+import org.amshove.kluent.shouldBeNull
+import org.junit.Test
+import nl.teunschriks.mumamobile.fragment.TrackCollectionFragmentArgs
+
+class PlaybackSourceFactoryTest {
+
+    private fun source(args: TrackCollectionFragmentArgs) =
+        PlaybackSourceFactory.forTrackCollection(args)
+
+    @Test
+    fun `a genre list is remembered as the genre, not as its tracks`() {
+        val card = source(TrackCollectionFragmentArgs(genre = "Raw Hardstyle", songs = "Raw Hardstyle"))!!
+
+        card.type `should be equal to` HomeCardType.GENRE
+        card.itemId `should be equal to` "Raw Hardstyle"
+        card.title `should be equal to` "Raw Hardstyle"
+    }
+
+    @Test
+    fun `a festival lineup is remembered as the lineup`() {
+        val card = source(
+            TrackCollectionFragmentArgs(festivalLineup = "Defqon.1 2019", songs = "Defqon.1 2019")
+        )!!
+
+        card.type `should be equal to` HomeCardType.LINEUP
+        card.itemId `should be equal to` "Defqon.1 2019"
+    }
+
+    @Test
+    fun `a lineup wins over the genre it was filtered by`() {
+        val card = source(
+            TrackCollectionFragmentArgs(festivalLineup = "Defqon.1 2019", genre = "Raw Hardstyle")
+        )!!
+
+        card.type `should be equal to` HomeCardType.LINEUP
+    }
+
+    @Test
+    fun `a festival is remembered as the festival`() {
+        val card = source(TrackCollectionFragmentArgs(festival = "Dominator"))!!
+
+        card.type `should be equal to` HomeCardType.FESTIVAL
+        card.itemId `should be equal to` "Dominator"
+    }
+
+    @Test
+    fun `an album is remembered as the album`() {
+        val card = source(TrackCollectionFragmentArgs(isAlbum = true, id = "al1", name = "Renegades"))!!
+
+        card.type `should be equal to` HomeCardType.ALBUM
+        card.itemId `should be equal to` "al1"
+        card.title `should be equal to` "Renegades"
+    }
+
+    @Test
+    fun `an artist is remembered as the artist`() {
+        val card = source(TrackCollectionFragmentArgs(isArtist = true, id = "ar1", name = "Warface"))!!
+
+        card.type `should be equal to` HomeCardType.ARTIST
+        card.itemId `should be equal to` "ar1"
+    }
+
+    @Test
+    fun `a playlist is remembered as the playlist`() {
+        val card = source(
+            TrackCollectionFragmentArgs(playlistId = "p1", playlistName = "Road trip")
+        )!!
+
+        card.type `should be equal to` HomeCardType.STATIC_PLAYLIST
+        card.itemId `should be equal to` "p1"
+        card.title `should be equal to` "Road trip"
+    }
+
+    @Test
+    fun `a playlist wins over the album flag it was opened with`() {
+        val card = source(
+            TrackCollectionFragmentArgs(playlistId = "p1", playlistName = "Road trip", isAlbum = true, id = "al1")
+        )!!
+
+        card.type `should be equal to` HomeCardType.STATIC_PLAYLIST
+    }
+
+    @Test
+    fun `shuffle all has nowhere to go back to`() {
+        source(TrackCollectionFragmentArgs(getRandom = true)).shouldBeNull()
+    }
+
+    @Test
+    fun `a starred list has nowhere to go back to`() {
+        source(TrackCollectionFragmentArgs(getStarred = true)).shouldBeNull()
+    }
+
+    @Test
+    fun `a share has nowhere to go back to`() {
+        source(TrackCollectionFragmentArgs(shareId = "s1", shareName = "From a friend")).shouldBeNull()
+    }
+
+    @Test
+    fun `an album without an id is not a destination`() {
+        source(TrackCollectionFragmentArgs(isAlbum = true, id = null)).shouldBeNull()
+    }
+
+    @Test
+    fun `a blank genre is not a destination`() {
+        source(TrackCollectionFragmentArgs(genre = "  ")).shouldBeNull()
+    }
+
+    @Test
+    fun `a plain filtered list with no identifying tag records nothing`() {
+        source(TrackCollectionFragmentArgs(songs = "Songs", sortMethod = "AddedDesc")).shouldBeNull()
+    }
+}

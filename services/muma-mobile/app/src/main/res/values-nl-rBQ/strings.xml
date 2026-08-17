@@ -205,7 +205,6 @@
     <string name="settings.separate_home_history_title">Aparte thuisgeschiedenis per modus</string>
     <string name="settings.separate_home_history_summary">Houd wa ge net geopend het apart vur nummerkes en livesets</string>
     <string name="home.shortcuts">Net afgespeeld</string>
-    <string name="home.recently_updated">Net bijgewerkt</string>
     <string name="home.recently_added">Net d\'r bij</string>
     <string name="home.card_label">Label</string>
     <string name="home.card_genre">Genre</string>

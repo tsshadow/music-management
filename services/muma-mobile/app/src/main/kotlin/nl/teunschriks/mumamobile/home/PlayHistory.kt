@@ -37,19 +37,20 @@ fun mergeLastPlayedGenres(existing: List<String>, played: List<String>): List<St
 /**
  * Records what was actually *played*.
  *
- * [RecentActivityStore] on its own only learns about items the user opened on a browse screen, so
- * a session driven entirely from Android Auto, the notification or the play queue used to leave no
- * trace at all: the "Last played genres" lists the car browser reads had no writer since the home
- * screen was rebuilt, and the home grid stayed on whatever was last opened by hand.
+ * The home grid is a list of places to go back to, so what a play records is the list the queue came
+ * from -- see [PlaybackSourceHolder]. Opening a screen records nothing: lists get opened to be looked
+ * at, but what gets played says where the user actually wanted to be.
  */
 class PlayHistoryRecorder(
     private val store: RecentActivityStore,
     /**
-     * The home grid is read with the current mode toggle, so the played album is filed under that
-     * same toggle. Only the genre lists use the duration heuristic, because the car browser offers
-     * them under its separate Songs and Live sets tabs.
+     * The home grid is read with the current mode toggle, so a play is filed under that same toggle.
+     * Only the genre lists use the duration heuristic, because the car browser offers them under its
+     * separate Songs and Live sets tabs.
      */
     private val setsMode: () -> Boolean = { Settings.isSetsMode },
+    /** Where the queue came from, or null when it has no place worth going back to. */
+    private val source: () -> HomeCard?,
     private val readGenres: (live: Boolean) -> String = { live ->
         if (live) Settings.lastPlayedLiveGenres else Settings.lastPlayedGenres
     },
@@ -62,7 +63,20 @@ class PlayHistoryRecorder(
 
     fun record(track: Track) {
         recordGenres(track)
-        recordAlbum(track)
+        recordShortcut(track)
+    }
+
+    /**
+     * The list the queue came from, and only if that is unknown, the album.
+     *
+     * The fallback is what keeps a session driven entirely from Android Auto, the notification or a
+     * restored queue from leaving no trace at all -- there is no browse screen in any of those to
+     * have set a source.
+     */
+    private fun recordShortcut(track: Track) {
+        val card = source() ?: albumCard(track) ?: return
+
+        store.record(card, setsMode())
     }
 
     private fun recordGenres(track: Track) {
@@ -79,18 +93,15 @@ class PlayHistoryRecorder(
      * The album, not the track: the home grid navigates to collections, and a grid of single songs
      * would push everything else out within one listening session.
      */
-    private fun recordAlbum(track: Track) {
-        val albumId = track.albumId?.takeIf { it.isNotBlank() } ?: return
+    private fun albumCard(track: Track): HomeCard? {
+        val albumId = track.albumId?.takeIf { it.isNotBlank() } ?: return null
 
-        store.record(
-            HomeCard(
-                type = HomeCardType.ALBUM,
-                itemId = albumId,
-                title = track.album ?: track.title.orEmpty(),
-                subtitle = track.artist,
-                coverArtId = track.coverArt ?: albumId
-            ),
-            setsMode()
+        return HomeCard(
+            type = HomeCardType.ALBUM,
+            itemId = albumId,
+            title = track.album ?: track.title.orEmpty(),
+            subtitle = track.artist,
+            coverArtId = track.coverArt ?: albumId
         )
     }
 

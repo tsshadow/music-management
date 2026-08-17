@@ -46,6 +46,8 @@ import nl.teunschriks.mumamobile.domain.Identifiable
 import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.MusicDirectoryEntry
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.home.PlaybackSourceFactory
+import nl.teunschriks.mumamobile.home.PlaybackSourceHolder
 import nl.teunschriks.mumamobile.fragment.FragmentTitle.setTitle
 import nl.teunschriks.mumamobile.model.TrackCollectionModel
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
@@ -95,6 +97,7 @@ open class TrackCollectionFragment(initialOrder: SortOrder? = null) :
 
     internal val mediaPlayerManager: MediaPlayerManager by inject()
     private val shareHandler: ShareHandler by inject()
+    private val playbackSourceHolder: PlaybackSourceHolder by inject()
 
     override val listModel: TrackCollectionModel by viewModels()
     private val rxBusSubscription: CompositeDisposable = CompositeDisposable()
@@ -327,10 +330,22 @@ open class TrackCollectionFragment(initialOrder: SortOrder? = null) :
             }
         }
 
+    /**
+     * Files the queue about to be filled under the screen that produced it, so the home grid shows
+     * where the user played *from* rather than what they happened to hear.
+     *
+     * Recorded on play rather than on open: screens get opened to be looked at.
+     */
+    private fun rememberPlaybackSource() {
+        playbackSourceHolder.set(PlaybackSourceFactory.forTrackCollection(navArgs))
+    }
+
     private fun playAll(
         shuffle: Boolean = false,
         insertionMode: MediaPlayerManager.InsertionMode = MediaPlayerManager.InsertionMode.CLEAR
     ) {
+        rememberPlaybackSource()
+
         var hasSubFolders = false
 
         for (item in viewAdapter.getCurrentList()) {
@@ -382,6 +397,8 @@ open class TrackCollectionFragment(initialOrder: SortOrder? = null) :
     }
 
     private fun playSelectedOrAllTracks(insertionMode: MediaPlayerManager.InsertionMode) {
+        rememberPlaybackSource()
+
         mediaPlayerManager.playTracksAndToast(
             fragment = this,
             insertionMode = insertionMode,

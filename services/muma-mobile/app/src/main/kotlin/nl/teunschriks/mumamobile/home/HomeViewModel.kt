@@ -7,9 +7,11 @@
 
 package nl.teunschriks.mumamobile.home
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import java.time.LocalDate
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,11 +20,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import nl.teunschriks.mumamobile.R
-import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType
+import nl.teunschriks.mumamobile.api.subsonic.models.Filter
+import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.app.UApp
-import nl.teunschriks.mumamobile.data.ActiveServerProvider
-import nl.teunschriks.mumamobile.domain.Album
 import nl.teunschriks.mumamobile.domain.MemoryGroup
+import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.util.Settings
 import timber.log.Timber
@@ -56,27 +58,27 @@ class HomeViewModel(
             titleRes = R.string.home_memories,
             loadMemories = { date -> memories(date) },
             today = { LocalDate.now().toString() },
-            label = ::memoryLabel
+            title = { string(R.string.home_memories) },
+            summary = ::memorySummary
         ),
         ShortcutsProvider(
             titleRes = R.string.home_shortcuts,
             store = store,
             setsMode = { Settings.isSetsMode },
+            count = { HomeLimits.shortcuts(Settings.homeShortcutCount) },
             resolveArtistCoverArt = { getMusicService().getArtist(it)?.coverArt }
         ),
-        LibraryActivityProvider(
-            titleRes = R.string.home_recently_updated,
-            type = TYPE_UPDATED,
-            loadArtists = { getMusicService().getArtistList(it, CAROUSEL_SIZE) },
-            loadAlbums = { albums(it) },
-            loadExtra = { labelsOrFestivals(it) }
+        RecentTracksProvider(
+            titleRes = R.string.home_recently_released,
+            sortMethod = HomeSorts.RELEASED,
+            rows = ::listRows,
+            loadTracks = { sortMethod, count -> tracks(sortMethod, count) }
         ),
-        LibraryActivityProvider(
+        RecentTracksProvider(
             titleRes = R.string.home_recently_added,
-            type = TYPE_NEWEST,
-            loadArtists = { getMusicService().getArtistList(it, CAROUSEL_SIZE) },
-            loadAlbums = { albums(it) },
-            loadExtra = { labelsOrFestivals(it) }
+            sortMethod = HomeSorts.ADDED,
+            rows = ::listRows,
+            loadTracks = { sortMethod, count -> tracks(sortMethod, count) }
         )
     )
 
@@ -123,8 +125,9 @@ class HomeViewModel(
         }
     }
 
-    /** Records that the user opened [card], so it moves to the front of the shortcuts grid. */
-    fun recordOpened(card: HomeCard) = store.record(card, Settings.isSetsMode)
+    // Opening an item used to record it here. It no longer does: the grid is fed by what gets
+    // played, through PlaybackSourceHolder and PlayHistoryRecorder. Lists get opened to be looked
+    // at; what gets played is what says where the user wanted to be.
 
     /**
      * The memory groups for [date], or nothing at all when the user has hidden the carousel.
@@ -141,37 +144,62 @@ class HomeViewModel(
         *memoryHeadingArgs(group).toTypedArray()
     )
 
+    /** The banner's second line: which year, and how much of it. */
+    private fun memorySummary(group: MemoryGroup): String {
+        val context = UApp.applicationContext()
+        val trackCount = context.resources.getQuantityString(
+            R.plurals.home_memories_track_count,
+            group.tracks.size,
+            group.tracks.size
+        )
+
+        return context.getString(R.string.home_memories_summary, memoryLabel(group), trackCount)
+    }
+
+    private fun string(@StringRes resId: Int): String =
+        UApp.applicationContext().getString(resId)
+
+    private fun listRows(): Int = HomeLimits.listRows(Settings.homeListCount)
+
     /**
-     * Livesets are festival recordings, so a record label says nothing about them; in sets mode the
-     * third carousel source becomes festivals instead.
+     * Both track lists are the same server call with a different sort, and the mode toggle is
+     * nothing more than a duration filter -- the same `LENGTH` filter the browse screens send.
      *
-     * Festivals come from the FESTIVAL tag, which carries no recency, so they arrive in whatever
-     * order the server returns. Acceptable for a ten-item carousel.
+     * What comes back is kept by id so that [trackFor] can answer a tap without asking the server
+     * again: a home card is plain serializable data and cannot carry a whole [Track].
      */
-    private fun labelsOrFestivals(type: String): List<HomeCard> = if (Settings.isSetsMode) {
-        getMusicService().getTags(false, TAG_FESTIVAL, null, null)
-            .take(CAROUSEL_SIZE)
-            .map { it.toHomeCard(HomeCardType.FESTIVAL) }
-    } else {
-        getMusicService().getLabelList(type, CAROUSEL_SIZE).map { it.toHomeCard() }
-    }
-
-    private fun albums(type: String): List<Album> {
-        val listType =
-            if (type == TYPE_UPDATED) AlbumListType.UPDATED else AlbumListType.NEWEST
-        val service = getMusicService()
-
-        return if (ActiveServerProvider.shouldUseId3Tags()) {
-            service.getAlbumList2(listType, CAROUSEL_SIZE, 0, null)
-        } else {
-            service.getAlbumList(listType, CAROUSEL_SIZE, 0, null)
+    private fun tracks(sortMethod: String, count: Int): List<Track> {
+        val filters = Filters().apply {
+            add(Filter(FILTER_LENGTH, if (Settings.isSetsMode) LENGTH_LONG else LENGTH_SHORT))
         }
+
+        val loaded = getMusicService().getSongs(
+            filters = filters,
+            ratingMin = null,
+            ratingMax = null,
+            count = count,
+            offset = 0,
+            sortMethod = sortMethod
+        ).getTracks()
+
+        loaded.forEach { tracksById[it.id] = it }
+
+        return loaded
     }
+
+    /**
+     * The track behind a row, or null once the sections have been reloaded out from under a tap.
+     *
+     * Concurrent because the two list providers load in parallel, on the IO dispatcher, and both
+     * write here.
+     */
+    fun trackFor(id: String): Track? = tracksById[id]
+
+    private val tracksById = ConcurrentHashMap<String, Track>()
 
     companion object {
-        private const val CAROUSEL_SIZE = 10
-        private const val TYPE_NEWEST = "newest"
-        private const val TYPE_UPDATED = "updated"
-        private const val TAG_FESTIVAL = "FESTIVAL"
+        private const val FILTER_LENGTH = "LENGTH"
+        private const val LENGTH_LONG = "long"
+        private const val LENGTH_SHORT = "short"
     }
 }

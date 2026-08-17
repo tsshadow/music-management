@@ -13,6 +13,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AnimationUtils
 import android.widget.TextView
+import androidx.annotation.StringRes
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -26,6 +27,7 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.scope.ScopeFragment
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import org.koin.core.component.KoinScopeComponent
+import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.home.CardStyle
 import nl.teunschriks.mumamobile.home.HomeCard
@@ -34,17 +36,22 @@ import nl.teunschriks.mumamobile.home.HomeCardAdapter
 import nl.teunschriks.mumamobile.home.HomeCardNavigator
 import nl.teunschriks.mumamobile.home.HomeSection
 import nl.teunschriks.mumamobile.home.HomeSectionState
+import nl.teunschriks.mumamobile.home.HomeSorts
 import nl.teunschriks.mumamobile.home.HomeViewModel
+import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.service.RxBus
 import timber.log.Timber
 
 /**
- * The home screen: a carousel of the years that hold a release from this day, a shortcuts grid of
- * recently opened items, and carousels showing what the library recently had rewritten and what it
- * recently gained.
+ * The home screen: a Memories banner, a grid of where the user recently played from, and two lists
+ * of tracks -- what the library recently gained, and what was recently released.
+ *
+ * The two are lists rather than carousels on purpose: a carousel card is identified by its artwork,
+ * and the SoundCloud and YouTube half of the library has none. See
+ * [nl.teunschriks.mumamobile.home.CardStyle].
  *
  * Every section is drawn by the same [HomeCardAdapter]; this fragment knows nothing about albums,
- * artists or labels specifically.
+ * artists or tracks specifically.
  */
 class MainFragment :
     ScopeFragment(),
@@ -53,6 +60,8 @@ class MainFragment :
     private var binding: View? = null
 
     private val homeViewModel: HomeViewModel by viewModel()
+
+    private val mediaPlayerManager: MediaPlayerManager by inject()
 
     private var slots: List<SectionSlot> = emptyList()
 
@@ -84,10 +93,14 @@ class MainFragment :
         FragmentTitle.setTitle(this, R.string.music_library_label)
 
         slots = listOf(
-            slot(view, R.id.section_memories, CardStyle.CAROUSEL),
+            slot(view, R.id.section_memories, CardStyle.BANNER),
             slot(view, R.id.section_shortcuts, CardStyle.GRID),
-            slot(view, R.id.section_updated, CardStyle.CAROUSEL),
-            slot(view, R.id.section_added, CardStyle.CAROUSEL)
+            slot(view, R.id.section_released, CardStyle.LIST) {
+                showMore(R.string.home_recently_released, HomeSorts.RELEASED)
+            },
+            slot(view, R.id.section_added, CardStyle.LIST) {
+                showMore(R.string.home_recently_added, HomeSorts.ADDED)
+            }
         )
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -105,7 +118,13 @@ class MainFragment :
         homeViewModel.load()
     }
 
-    private fun slot(root: View, sectionId: Int, style: CardStyle): SectionSlot {
+    private fun slot(
+        root: View,
+        sectionId: Int,
+        style: CardStyle,
+        /** Only the track lists have more to show; the grid and the banner pass nothing. */
+        onMore: (() -> Unit)? = null
+    ): SectionSlot {
         val container: View = root.findViewById(sectionId)
         val recycler: RecyclerView = container.findViewById(R.id.section_recycler)
 
@@ -116,6 +135,7 @@ class MainFragment :
                 RecyclerView.HORIZONTAL,
                 false
             )
+            CardStyle.LIST, CardStyle.BANNER -> LinearLayoutManager(requireContext())
         }
         recycler.isNestedScrollingEnabled = false
 
@@ -125,13 +145,22 @@ class MainFragment :
         val skeletonLayout = when (style) {
             CardStyle.GRID -> R.layout.home_skeleton_grid
             CardStyle.CAROUSEL -> R.layout.home_skeleton_carousel
+            CardStyle.LIST -> R.layout.home_skeleton_list
+            CardStyle.BANNER -> R.layout.home_skeleton_banner
         }
         val skeletonCards: ViewGroup = container.findViewById(R.id.section_skeleton_cards)
         layoutInflater.inflate(skeletonLayout, skeletonCards, true)
 
+        val more: TextView = container.findViewById(R.id.section_more)
+        if (onMore != null) more.setOnClickListener { onMore() }
+
         return SectionSlot(
             container = container,
             title = container.findViewById(R.id.section_title),
+            more = more,
+            hasMore = onMore != null,
+            // A banner names itself, so a heading above it would only say the same thing twice.
+            showTitle = style != CardStyle.BANNER,
             skeleton = container.findViewById(R.id.section_skeleton),
             recycler = recycler,
             adapter = adapter
@@ -153,14 +182,29 @@ class MainFragment :
     }
 
     private fun onCardClicked(card: HomeCard) {
-        homeViewModel.recordOpened(card)
-
         when (val action = HomeCardNavigator.actionFor(card)) {
             is HomeCardAction.Navigate -> findNavController().navigate(action.directions)
 
-            // Every home card opens a screen, memories included; this keeps the when exhaustive.
-            is HomeCardAction.PlayTrack -> Unit
+            is HomeCardAction.PlayTrack -> {
+                val track = homeViewModel.trackFor(action.trackId) ?: return
+                mediaPlayerManager.playTracksAndToast(
+                    fragment = this,
+                    insertionMode = MediaPlayerManager.InsertionMode.CLEAR,
+                    tracks = listOf(track),
+                    isDirectory = false
+                )
+            }
         }
+    }
+
+    /**
+     * Opens the full list behind a section, under the same sort the section was built with, so the
+     * five rows on the home screen are the head of what "Show more" shows.
+     */
+    private fun showMore(@StringRes titleRes: Int, sortMethod: String) {
+        findNavController().navigate(
+            HomeCardNavigator.directionsForRecentTracks(getString(titleRes), sortMethod)
+        )
     }
 
     override fun onDestroyView() {
@@ -173,6 +217,9 @@ class MainFragment :
     private class SectionSlot(
         val container: View,
         val title: TextView,
+        val more: TextView,
+        val hasMore: Boolean,
+        val showTitle: Boolean,
         val skeleton: View,
         val recycler: RecyclerView,
         val adapter: HomeCardAdapter
@@ -181,6 +228,7 @@ class MainFragment :
         fun showSkeleton() {
             container.visibility = View.VISIBLE
             title.visibility = View.GONE
+            more.visibility = View.GONE
             recycler.visibility = View.GONE
 
             if (skeleton.visibility != View.VISIBLE) {
@@ -196,12 +244,14 @@ class MainFragment :
             skeleton.visibility = View.GONE
 
             container.visibility = View.VISIBLE
-            title.visibility = View.VISIBLE
+            title.visibility = if (showTitle) View.VISIBLE else View.GONE
             title.text = if (section.titleArgs.isEmpty()) {
                 title.context.getString(section.titleRes)
             } else {
                 title.context.getString(section.titleRes, *section.titleArgs.toTypedArray())
             }
+            // Only worth offering once there is something to be more of.
+            more.visibility = if (hasMore) View.VISIBLE else View.GONE
             recycler.visibility = View.VISIBLE
             adapter.items = section.cards
         }

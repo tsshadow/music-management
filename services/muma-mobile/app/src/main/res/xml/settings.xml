@@ -50,6 +50,22 @@
             a:summary="@string/settings.separate_home_history_summary"
             a:title="@string/settings.separate_home_history_title"
             app:iconSpaceReserved="false"/>
+        <ListPreference
+            a:defaultValue="8"
+            a:entries="@array/homeShortcutCounts"
+            a:entryValues="@array/homeShortcutCounts"
+            a:key="@string/setting_key.home_shortcut_count"
+            a:summary="@string/settings.home_shortcut_count_summary"
+            a:title="@string/settings.home_shortcut_count_title"
+            app:iconSpaceReserved="false"/>
+        <ListPreference
+            a:defaultValue="5"
+            a:entries="@array/homeListCounts"
+            a:entryValues="@array/homeListCounts"
+            a:key="@string/setting_key.home_list_count"
+            a:summary="@string/settings.home_list_count_summary"
+            a:title="@string/settings.home_list_count_title"
+            app:iconSpaceReserved="false"/>
         <CheckBoxPreference
             a:defaultValue="true"
             a:key="@string/setting_key.server_scaling"

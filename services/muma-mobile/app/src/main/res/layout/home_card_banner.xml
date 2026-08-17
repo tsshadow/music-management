@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     A whole section as one tappable row. Used by Memories, which is one tap to somewhere else rather
+     than a set of items to choose between. The accent stripe on the leading edge is what marks it as
+     a destination instead of a list item.
+-->
+<com.google.android.material.card.MaterialCardView
+    xmlns:a="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    a:layout_width="match_parent"
+    a:layout_height="wrap_content"
+    a:layout_marginHorizontal="6dp"
+    app:cardBackgroundColor="@color/spotify_card"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="0dp"
+    app:strokeWidth="0dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:background="?attr/selectableItemBackground"
+        a:minHeight="56dp"
+        a:paddingEnd="14dp">
+
+        <View
+            a:id="@+id/banner_stripe"
+            a:layout_width="3dp"
+            a:layout_height="0dp"
+            a:background="?attr/colorPrimary"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <com.google.android.material.imageview.ShapeableImageView
+            a:id="@+id/card_image"
+            a:layout_width="36dp"
+            a:layout_height="36dp"
+            a:layout_marginStart="12dp"
+            a:scaleType="centerCrop"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/banner_stripe"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:src="@drawable/unknown_album" />
+
+        <TextView
+            a:id="@+id/card_title"
+            a:layout_width="0dp"
+            a:layout_height="wrap_content"
+            a:layout_marginStart="12dp"
+            a:layout_marginEnd="8dp"
+            a:ellipsize="end"
+            a:maxLines="1"
+            a:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+            a:textColor="@color/spotify_text_primary"
+            a:textStyle="bold"
+            app:layout_constraintBottom_toTopOf="@+id/card_subtitle"
+            app:layout_constraintEnd_toStartOf="@+id/banner_chevron"
+            app:layout_constraintStart_toEndOf="@+id/card_image"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_chainStyle="packed"
+            tools:text="Memories" />
+
+        <TextView
+            a:id="@+id/card_subtitle"
+            a:layout_width="0dp"
+            a:layout_height="wrap_content"
+            a:layout_marginStart="12dp"
+            a:layout_marginEnd="8dp"
+            a:ellipsize="end"
+            a:maxLines="1"
+            a:textAppearance="@style/TextAppearance.Material3.BodySmall"
+            a:textColor="@color/spotify_text_secondary"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/banner_chevron"
+            app:layout_constraintStart_toEndOf="@+id/card_image"
+            app:layout_constraintTop_toBottomOf="@+id/card_title"
+            tools:text="Today, 8 years ago · 12 tracks" />
+
+        <ImageView
+            a:id="@+id/banner_chevron"
+            a:layout_width="20dp"
+            a:layout_height="20dp"
+            a:contentDescription="@null"
+            a:src="@drawable/ic_chevron_right"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/spotify_text_secondary" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</com.google.android.material.card.MaterialCardView>

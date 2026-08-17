@@ -7,6 +7,7 @@ import nl.teunschriks.mumamobile.domain.Album
 import nl.teunschriks.mumamobile.domain.Artist
 import nl.teunschriks.mumamobile.domain.Label
 import nl.teunschriks.mumamobile.domain.Playlist
+import nl.teunschriks.mumamobile.domain.Track
 
 class HomeCardMappersTest {
 
@@ -55,6 +56,38 @@ class HomeCardMappersTest {
         card.type `should be equal to` HomeCardType.STATIC_PLAYLIST
         card.itemId `should be equal to` "p1"
         card.title `should be equal to` "Favorites"
+    }
+
+    @Test
+    fun `Track maps to a TRACK card naming both artist and album`() {
+        val card = Track(id = "t1", title = "Silence", artist = "Sub Zero Project", album = "Renegades")
+            .toHomeCard()
+
+        card.type `should be equal to` HomeCardType.TRACK
+        card.itemId `should be equal to` "t1"
+        card.title `should be equal to` "Silence"
+        card.subtitle `should be equal to` "Sub Zero Project · Renegades"
+    }
+
+    @Test
+    fun `a Track with no album is named by its artist alone`() {
+        Track(id = "t1", title = "Antidote", artist = "D-Sturb")
+            .toHomeCard().subtitle `should be equal to` "D-Sturb"
+    }
+
+    @Test
+    fun `a Track carries its duration as row metadata`() {
+        Track(id = "t1", title = "Silence", duration = 252).toHomeCard().meta `should be equal to` "4:12"
+    }
+
+    @Test
+    fun `a Track of unknown length has no row metadata`() {
+        Track(id = "t1", title = "Silence").toHomeCard().meta.shouldBeNull()
+    }
+
+    @Test
+    fun `a Track carries its user rating`() {
+        Track(id = "t1", title = "Silence", userRating = 4).toHomeCard().rating `should be equal to` 4
     }
 
     @Test

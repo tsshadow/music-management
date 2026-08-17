@@ -60,6 +60,8 @@ object HomeCardNavigator {
 
         HomeCardType.FESTIVAL -> filteredDirections(card, Filter("FESTIVAL", card.itemId))
 
+        HomeCardType.PODCAST -> filteredDirections(card, Filter("PODCAST", card.itemId))
+
         HomeCardType.LINEUP -> lineupDirections(card)
 
         HomeCardType.RATING -> ratingDirections(card)

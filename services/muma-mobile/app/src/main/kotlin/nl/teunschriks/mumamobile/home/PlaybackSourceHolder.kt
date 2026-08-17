@@ -62,6 +62,15 @@ class PlaybackSourceHolder(private val preferences: SharedPreferences) {
         }
     }
 
+    /**
+     * A queue was added to rather than replaced: the source is still the one it was started from,
+     * and whatever armed itself for this action does not get to outlive it. Dropping it here is
+     * what keeps a "play next" from a genre screen out of the *next* queue that starts.
+     */
+    fun discardArmed() {
+        preferences.edit { remove(KEY_ARMED) }
+    }
+
     fun current(): HomeCard? {
         val json = preferences.getString(KEY_CURRENT, null) ?: return null
 

@@ -581,6 +581,12 @@ open class TrackCollectionFragment(initialOrder: SortOrder? = null) :
     ): Boolean {
         val tracks = getClickedSong(item)
 
+        // "Play now" on a single song starts a queue just like the play button does, and it starts
+        // it from this screen: without arming, playing one track out of Raw Hardstyle recorded the
+        // compilation it happens to sit on instead of the genre. Only this one item, because an
+        // action that never fills a queue would leave the arming behind for the next one that does.
+        if (menuItem.itemId == R.id.song_menu_play_now) rememberPlaybackSource()
+
         return ContextMenuUtil.handleContextMenuTracks(
             menuItem = menuItem,
             tracks = tracks,

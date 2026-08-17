@@ -86,6 +86,26 @@ class PlaybackSourceHolderTest {
     }
 
     @Test
+    fun `an append discards the arming instead of letting it wait for the next queue`() {
+        holder().arm(rawHardstyle)
+
+        holder().discardArmed()
+        holder().startQueue()
+
+        holder().current().shouldBeNull()
+    }
+
+    @Test
+    fun `an append leaves the source of the queue it added to alone`() {
+        holder().arm(rawHardstyle)
+        holder().startQueue()
+
+        holder().discardArmed()
+
+        holder().current() `should be equal to` rawHardstyle
+    }
+
+    @Test
     fun `an armed source survives the process, because playback does`() {
         holder().arm(rawHardstyle)
 

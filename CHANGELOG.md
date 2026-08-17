@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **"Speel nu" op één nummer onthoudt de lijst waaruit je het speelde.** Alleen de play-knop van een
+  lijst meldde het scherm erachter aan, dus één nummer uit Raw Hardstyle via het nummermenu legde de
+  compilatie vast waar dat nummer toevallig op staat -- Dirty Workz in plaats van het genre.
+  "Speel hierna" en "Achteraan" laten de bron van de lopende wachtrij met rust.
 - **Een snelkoppeling verschijnt nu zodra je op play drukt.** Hij werd pas weggeschreven als een
   nummer scrobbelde, en dat gebeurt alleen als het uitspeelt -- dus een lijst starten en doorskippen,
   of half luisteren, liet het raster onaangeroerd. Het vullen van de wachtrij schrijft hem nu weg.

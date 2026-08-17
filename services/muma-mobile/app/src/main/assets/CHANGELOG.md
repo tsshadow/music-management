@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **"Play now" on a single song records the list you played it from.** Only the play button of a
+  list announced the screen behind it, so playing one track out of Raw Hardstyle through the song
+  menu recorded the compilation that track happens to sit on -- Dirty Workz rather than the genre.
+  "Play next" and "Play last" still leave the source of the running queue alone.
 - **A shortcut now appears the moment you press play.** It was written when a track scrobbled, and
   a scrobble is only submitted once a track plays out, so starting a list and skipping through it --
   or listening to half of one song -- left the grid untouched. Filling the queue is what records it

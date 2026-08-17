@@ -451,8 +451,12 @@ class MediaPlayerManager(
                 rememberOnHomeScreen(songs.firstOrNull())
                 clear()
             }
-            InsertionMode.APPEND -> insertAt = mediaItemCount
+            InsertionMode.APPEND -> {
+                playbackSourceHolder.discardArmed()
+                insertAt = mediaItemCount
+            }
             InsertionMode.AFTER_CURRENT -> {
+                playbackSourceHolder.discardArmed()
                 // Must never be larger than the count of items (especially when empty)
                 insertAt = (currentMediaItemIndex + 1).coerceAtMost(mediaItemCount)
             }

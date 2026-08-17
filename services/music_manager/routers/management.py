@@ -40,6 +40,19 @@ class LabelGenreRule(BaseModel):
     label_name: str
     genre_id: int
 
+class PodcastDecisionRequest(BaseModel):
+    """A curation decision on a radio show or podcast series.
+
+    `merge_into_podcast_id` folds this row into another show, which is how the
+    detected spellings "Isaac's Hardstyle Sessions", "DJ ISAAC - HARDSTYLE
+    SESSIONS" and "Q-Dance: Isaac's Hardstyle Sessions" become one show. `host`
+    and `station` are descriptive and optional.
+    """
+    state: str
+    merge_into_podcast_id: int | None = None
+    host: str | None = None
+    station: str | None = None
+
 def verify_api_key(x_api_key: str | None=Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
@@ -337,6 +350,83 @@ def decide_genre(genre_id: int, decision: GenreDecisionRequest, auth: dict=Depen
             cursor.execute('DELETE FROM rules_genre_expansions WHERE genre_id = %s', (genre_id,))
             for position, target in enumerate(targets):
                 cursor.execute('INSERT INTO rules_genre_expansions (genre_id, target_id, position) VALUES (%s, %s, %s)', (genre_id, target, position))
+            conn.commit()
+            return {'status': 'ok'}
+    finally:
+        conn.close()
+
+@router.get('/rules/podcasts')
+def get_podcast_curation_queue(state: str | None=None, limit: int=200, _auth: dict=Depends(verify_api_key)):
+    """Radio shows and podcast series by curation state, most episodes first.
+
+    `state=unknown` is the queue `tools/detect_podcasts.py` fills; only the shows
+    moved to white are ever written to a file by the tagger.
+    """
+    if state is not None and state not in VALID_STATES:
+        raise HTTPException(status_code=400, detail=f"Invalid state, expected one of {', '.join(VALID_STATES)}")
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            query = '\n                SELECT p.id, p.name, p.state, p.occurrences, p.host, p.station,\n                       CAST(p.detected_at AS CHAR) AS detected_at,\n                       CAST(p.decided_at AS CHAR) AS decided_at, p.decided_by\n                FROM rules_podcasts p\n            '
+            params: list = []
+            if state:
+                query += ' WHERE p.state = %s'
+                params.append(state)
+            query += ' ORDER BY p.occurrences DESC, p.name LIMIT %s'
+            params.append(limit)
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            # Aliases come from a second query for the same reason the genre targets
+            # do: a show has several spellings, and joining would multiply the rows.
+            ids = [row['id'] for row in rows]
+            if ids:
+                placeholders = ', '.join(['%s'] * len(ids))
+                cursor.execute(f'\n                    SELECT podcast_id, alias\n                    FROM rules_podcast_aliases\n                    WHERE podcast_id IN ({placeholders})\n                    ORDER BY occurrences DESC, alias\n                ', ids)
+                aliases: dict = {}
+                for row in cursor.fetchall():
+                    aliases.setdefault(row['podcast_id'], []).append(row['alias'])
+                for row in rows:
+                    row['aliases'] = aliases.get(row['id'], [])
+            return rows
+    finally:
+        conn.close()
+
+@router.post('/rules/podcasts/{podcast_id}/decide')
+def decide_podcast(podcast_id: int, decision: PodcastDecisionRequest, auth: dict=Depends(verify_api_key)):
+    """Move a show to white or black, optionally merging it into another show.
+
+    Merging is how the three spellings of Isaac's Hardstyle Sessions become one
+    show: the aliases move to the target and this row goes away, so the tagger
+    matches every spelling and writes one name.
+    """
+    if decision.state not in (WHITE, BLACK):
+        raise HTTPException(status_code=400, detail=f'Invalid state, expected {WHITE} or {BLACK}')
+    if decision.merge_into_podcast_id == podcast_id:
+        raise HTTPException(status_code=400, detail='A show cannot be merged into itself')
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT id, name FROM rules_podcasts WHERE id = %s', (podcast_id,))
+            row = cursor.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail='Unknown podcast')
+            target_id = decision.merge_into_podcast_id
+            if target_id is not None:
+                cursor.execute('SELECT id FROM rules_podcasts WHERE id = %s', (target_id,))
+                if not cursor.fetchone():
+                    raise HTTPException(status_code=400, detail='Unknown merge target')
+                # The name this row was known by has to survive as an alias of the
+                # target, or every file that spells the show that way stops matching.
+                cursor.execute('UPDATE rules_podcast_aliases SET podcast_id = %s WHERE podcast_id = %s', (target_id, podcast_id))
+                cursor.execute('DELETE FROM rules_podcasts WHERE id = %s', (podcast_id,))
+                conn.commit()
+                return {'status': 'ok', 'merged_into': target_id}
+            decided_by = (auth.get('user') or {}).get('username') if isinstance(auth.get('user'), dict) else auth.get('type', 'human')
+            cursor.execute('\n                UPDATE rules_podcasts\n                SET state = %s, host = COALESCE(%s, host), station = COALESCE(%s, station),\n                    decided_at = NOW(), decided_by = %s\n                WHERE id = %s\n            ', (decision.state, decision.host, decision.station, decided_by or 'human', podcast_id))
             conn.commit()
             return {'status': 'ok'}
     finally:

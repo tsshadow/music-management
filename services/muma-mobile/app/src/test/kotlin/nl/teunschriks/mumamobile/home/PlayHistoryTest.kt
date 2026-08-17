@@ -9,11 +9,21 @@ class PlayHistoryTest {
     private val genres = mutableMapOf(false to "[]", true to "[]")
     private val store = RecentActivityStore(FakePreferences(), separatePerMode = { true })
 
-    private fun recorder(setsMode: Boolean = false) = PlayHistoryRecorder(
+    private fun recorder(
+        setsMode: Boolean = false,
+        source: () -> HomeCard? = { null }
+    ) = PlayHistoryRecorder(
         store = store,
         setsMode = { setsMode },
+        source = source,
         readGenres = { live -> genres.getValue(live) },
         writeGenres = { live, json -> genres[live] = json }
+    )
+
+    private val rawHardstyle = HomeCard(
+        type = HomeCardType.GENRE,
+        itemId = "Raw Hardstyle",
+        title = "Raw Hardstyle"
     )
 
     private fun track(
@@ -96,6 +106,31 @@ class PlayHistoryTest {
         recorder().record(track(genre = "Techno"))
 
         genres.getValue(false) `should be equal to` """["Techno"]"""
+    }
+
+    @Test
+    fun `the list the queue came from is recorded, not the track's album`() {
+        recorder(source = { rawHardstyle }).record(track(albumId = "a1"))
+
+        val card = store.recent(setsMode = false).single()
+        card.type `should be equal to` HomeCardType.GENRE
+        card.itemId `should be equal to` "Raw Hardstyle"
+    }
+
+    @Test
+    fun `several tracks out of one list record a single shortcut`() {
+        val recorder = recorder(source = { rawHardstyle })
+        recorder.record(track(id = "1", albumId = "a1"))
+        recorder.record(track(id = "2", albumId = "a2"))
+
+        store.recent(setsMode = false).map { it.itemId } `should be equal to` listOf("Raw Hardstyle")
+    }
+
+    @Test
+    fun `a queue of unknown origin still records the album, so a car session leaves a trace`() {
+        recorder(source = { null }).record(track(albumId = "a1"))
+
+        store.recent(setsMode = false).single().itemId `should be equal to` "a1"
     }
 
     @Test

@@ -6,16 +6,40 @@
     a:orientation="vertical"
     a:paddingTop="16dp">
 
-    <TextView
-        a:id="@+id/section_title"
+    <!-- Title and "Show more" share a row: the action belongs to the section, and putting it at the
+         end of the heading is what keeps it out of the scrolling content. -->
+    <LinearLayout
+        a:id="@+id/section_header"
         a:layout_width="match_parent"
         a:layout_height="wrap_content"
+        a:baselineAligned="true"
+        a:orientation="horizontal"
         a:paddingHorizontal="16dp"
-        a:paddingBottom="8dp"
-        a:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-        a:textColor="@color/spotify_text_primary"
-        a:textStyle="bold"
-        tools:text="Recently added" />
+        a:paddingBottom="8dp">
+
+        <TextView
+            a:id="@+id/section_title"
+            a:layout_width="0dp"
+            a:layout_height="wrap_content"
+            a:layout_weight="1"
+            a:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+            a:textColor="@color/spotify_text_primary"
+            a:textStyle="bold"
+            tools:text="Recently added" />
+
+        <TextView
+            a:id="@+id/section_more"
+            a:layout_width="wrap_content"
+            a:layout_height="wrap_content"
+            a:background="?attr/selectableItemBackground"
+            a:paddingHorizontal="4dp"
+            a:text="@string/home.show_more"
+            a:textAppearance="@style/TextAppearance.Material3.LabelMedium"
+            a:textColor="@color/spotify_text_secondary"
+            a:visibility="gone"
+            tools:visibility="visible" />
+
+    </LinearLayout>
 
     <!-- Shown until the section has loaded. The card placeholders are added at runtime, because
          which shape they take (grid or carousel) is a property of the section. -->

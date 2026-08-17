@@ -40,8 +40,6 @@ import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.isOffline
 import nl.teunschriks.mumamobile.domain.Playlist
 import nl.teunschriks.mumamobile.fragment.FragmentTitle.setTitle
-import nl.teunschriks.mumamobile.home.RecentActivityStore
-import nl.teunschriks.mumamobile.home.toHomeCard
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.util.CacheCleaner
 import nl.teunschriks.mumamobile.util.ConfirmationDialog
@@ -49,7 +47,6 @@ import nl.teunschriks.mumamobile.util.DownloadAction
 import nl.teunschriks.mumamobile.util.DownloadUtil
 import nl.teunschriks.mumamobile.util.InfoDialog
 import nl.teunschriks.mumamobile.util.RefreshableFragment
-import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Util.applyTheme
 import nl.teunschriks.mumamobile.util.Util.toast
 import nl.teunschriks.mumamobile.util.toastingExceptionHandler
@@ -69,7 +66,6 @@ class PlaylistsFragment :
     private var emptyTextView: View? = null
     private var playlistAdapter: ArrayAdapter<Playlist>? = null
     private val activeServerProvider: ActiveServerProvider by inject()
-    private val recentActivityStore: RecentActivityStore by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -103,7 +99,6 @@ class PlaylistsFragment :
             val playlist = parent.getItemAtPosition(position) as Playlist
             val (id, name) = playlist
 
-            recentActivityStore.record(playlist.toHomeCard(), Settings.isSetsMode)
 
             val action = NavigationGraphDirections.toTrackCollection(
                 id = id,

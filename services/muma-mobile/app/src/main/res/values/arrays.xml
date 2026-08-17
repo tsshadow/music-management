@@ -315,4 +315,24 @@
         <item>pt-BR</item>
         <item>ru</item>
     </string-array>
+    <!-- The shortcuts grid is two columns wide, so an odd count would leave a half-empty row. -->
+    <string-array name="homeShortcutCounts" translatable="false">
+        <item>2</item>
+        <item>4</item>
+        <item>6</item>
+        <item>8</item>
+        <item>10</item>
+    </string-array>
+    <string-array name="homeListCounts" translatable="false">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+        <item>7</item>
+        <item>8</item>
+        <item>9</item>
+        <item>10</item>
+    </string-array>
 </resources>

@@ -22,6 +22,7 @@ enum class BrowseCategory(
     LABELS(R.string.library_tab_labels, HomeCardType.LABEL),
     YEARS(R.string.library_tab_years, HomeCardType.YEAR),
     FESTIVALS(R.string.library_tab_festivals, HomeCardType.FESTIVAL),
+    PODCASTS(R.string.library_tab_podcasts, HomeCardType.PODCAST),
     LINEUPS(R.string.library_tab_lineups, HomeCardType.LINEUP),
     RATINGS(R.string.library_tab_ratings, HomeCardType.RATING);
 

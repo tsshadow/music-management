@@ -16,9 +16,6 @@ import nl.teunschriks.mumamobile.R
 
 import nl.teunschriks.mumamobile.domain.Playlist
 import nl.teunschriks.mumamobile.NavigationGraphDirections
-import nl.teunschriks.mumamobile.home.RecentActivityStore
-import nl.teunschriks.mumamobile.home.toHomeCard
-import nl.teunschriks.mumamobile.util.Settings
 
 interface TileAdapterCallback {
     fun onEditTile(tile: TileInfo, position: Int)
@@ -33,7 +30,6 @@ class TileAdapter(
 ) : RecyclerView.Adapter<TileAdapter.TileViewHolder>(),
     KoinComponent {
 
-    private val recentActivityStore: RecentActivityStore by inject()
 
     inner class TileViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val iconContainer: View = view.findViewById(R.id.tile_icon_container)
@@ -47,7 +43,6 @@ class TileAdapter(
             if (item is TileInfo) {
                 setupIconAndText(item)
                 itemView.setOnClickListener {
-                    recentActivityStore.record(item.toHomeCard(), Settings.isSetsMode)
                     navController.navigate(navigateToGenre(item))
                 }
                 itemView.setOnLongClickListener {
@@ -59,7 +54,6 @@ class TileAdapter(
                 tileText.text = item.name
                 subtext.text = "Static Playlist"
                 itemView.setOnClickListener {
-                    recentActivityStore.record(item.toHomeCard(), Settings.isSetsMode)
                     val action = NavigationGraphDirections.toTrackCollection(
                         id = item.id,
                         playlistId = item.id,

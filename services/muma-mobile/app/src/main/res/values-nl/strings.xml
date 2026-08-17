@@ -572,9 +572,18 @@
     <string name="select_year.empty">Geen jaren gevonden</string>
     <string name="settings.separate_home_history_title">Aparte startgeschiedenis per modus</string>
     <string name="settings.separate_home_history_summary">Houd recent geopende items gescheiden voor nummers en livesets</string>
-    <string name="home.shortcuts">Recent afgespeeld</string>
-    <string name="home.recently_updated">Recent bijgewerkt</string>
+    <string name="settings.home_shortcut_count_title">Aantal shortcuts</string>
+    <string name="settings.home_shortcut_count_summary">Hoeveel shortcuts het startscherm laat zien. Ze vullen twee kolommen, dus alleen even aantallen.</string>
+    <string name="settings.home_list_count_title">Nummers per lijst</string>
+    <string name="settings.home_list_count_summary">Hoeveel rijen "Recent uitgebracht" en "Recent toegevoegd" laten zien voor "Meer"</string>
+    <string name="home.shortcuts">Recent gespeeld</string>
+    <string name="home.recently_released">Recent uitgebracht</string>
     <string name="home.recently_added">Recent toegevoegd</string>
+    <string name="home.show_more">Meer</string>
+    <plurals name="home.memories_track_count">
+        <item quantity="one">%1$d nummer</item>
+        <item quantity="other">%1$d nummers</item>
+    </plurals>
     <string name="home.card_label">Label</string>
     <string name="home.card_genre">Genre</string>
     <string name="library.label">Bibliotheek</string>
@@ -586,6 +595,7 @@
     <string name="library.tab_albums">Albums</string>
     <string name="library.tab_years">Jaren</string>
     <string name="library.tab_festivals">Festivals</string>
+    <string name="library.tab_podcasts">Podcasts</string>
     <string name="library.tab_lineups">Lineups</string>
     <string name="library.tab_ratings">Ratings</string>
     <string name="library.rating_and_up">%1$d+ sterren</string>

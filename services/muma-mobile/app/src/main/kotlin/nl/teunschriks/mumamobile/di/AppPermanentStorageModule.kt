@@ -24,6 +24,7 @@ import nl.teunschriks.mumamobile.home.FavoritesViewModel
 import nl.teunschriks.mumamobile.home.HomeViewModel
 import nl.teunschriks.mumamobile.home.MemoriesViewModel
 import nl.teunschriks.mumamobile.home.PlayHistoryRecorder
+import nl.teunschriks.mumamobile.home.PlaybackSourceHolder
 import nl.teunschriks.mumamobile.home.RecentActivityStore
 import nl.teunschriks.mumamobile.management.ManagementRepository
 import nl.teunschriks.mumamobile.management.ManagementViewModel
@@ -72,7 +73,18 @@ val appPermanentStorage = module {
         )
     }
 
-    single { PlayHistoryRecorder(get()) }
+    // Shares the home preferences file: the source and the history it feeds belong together, and
+    // both have to outlive the process for a queue restored on startup to still be attributable.
+    single {
+        PlaybackSourceHolder(
+            androidContext().getSharedPreferences(HOME_RECENT_SP_NAME, Context.MODE_PRIVATE)
+        )
+    }
+
+    single {
+        val sourceHolder = get<PlaybackSourceHolder>()
+        PlayHistoryRecorder(store = get(), source = { sourceHolder.current() })
+    }
 
     viewModel { ServerSettingsModel(get(), get(), get()) }
     viewModel { AlbumListModel(get()) }

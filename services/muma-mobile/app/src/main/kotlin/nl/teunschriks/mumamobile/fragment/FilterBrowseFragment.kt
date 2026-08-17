@@ -198,6 +198,13 @@ class FilterBrowseFragment : Fragment() {
                 service.getTags(refresh, TAG_FESTIVAL, null, null)
                     .map { it.toHomeCard(HomeCardType.FESTIVAL) }
 
+            // Radio shows and podcast series, matched by the PODCAST tag the tagger writes
+            // for an approved show. An empty list means the server has not indexed that tag
+            // yet, which is why this page can be empty while the library is full.
+            BrowseCategory.PODCASTS ->
+                service.getTags(refresh, TAG_PODCAST, null, null)
+                    .map { it.toHomeCard(HomeCardType.PODCAST) }
+
             BrowseCategory.LINEUPS ->
                 service.getLineups(refresh).map { it.toHomeCard() }
 
@@ -309,6 +316,7 @@ class FilterBrowseFragment : Fragment() {
         private const val MAX_REMEMBERED = 50
         private const val TAG_YEAR = "YEAR"
         private const val TAG_FESTIVAL = "FESTIVAL"
+        private const val TAG_PODCAST = "PODCAST"
         private const val TAG_PUBLISHER = "PUBLISHER"
 
         fun argumentsFor(category: BrowseCategory): Bundle = Bundle().apply { putString(ARG_CATEGORY, category.name) }

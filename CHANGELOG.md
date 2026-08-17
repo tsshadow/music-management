@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-08-17
+
+### Added
+- **De Festivals-tab kent nu 63 festivals in plaats van 15.** Qlimax, Reverze, Ground Zero, Q-BASE,
+  X-Qlusive, Thunderdome, Masters of Hardcore, Pussy Lounge en de rest zijn toegevoegd, elk met de
+  schrijfwijzen waaronder ze in titels en mapnamen voorkomen. Een festival hoeft nog maar één keer
+  ingevoerd te worden: waar vroeger een rij per editie nodig was voordat er überhaupt iets herkend werd,
+  voegt een editie nu alleen de datum toe.
+- **Livesets, warm-up mixes en podcasts worden eindelijk gelabeld.** De festivalherkenning hing alleen aan
+  YouTube-downloads, waardoor juist de map met je livesets er nooit langs kwam. Hij draait nu ook op de
+  generieke mappen en op SoundCloud, en kijkt naast de titel ook naar de map waarin een set staat --
+  `Livesets/Qlimax 2022/` zegt vaak meer dan de tag in het bestand.
+- **Radioshows en podcasts worden gelabeld, net als festivals.** Isaac's Hardstyle Sessions, Hard With
+  Style, The Uptempo Tribe Podcast, Hardcore Italia: een aflevering was tot nu toe niet van een gewone
+  lange mix te onderscheiden. De tagger schrijft nu een PODCAST- en PODCAST_EPISODE-tag op elke mix van
+  tien minuten of langer die bij een goedgekeurde show hoort, en herkent de show ook aan de map, want
+  `Podcasts/The Magic Show/2011/Podcast week 023.mp3` noemt zichzelf nergens in de bestandsnaam.
+- **De showlijst wordt gevonden, niet ingetypt.** `tools/detect_podcasts.py` groepeert alles met een
+  afleveringsnummer op wat er overblijft als je het nummer, de gast en de maand weglaat, en zet elke serie
+  klaar ter beoordeling. Op de huidige bibliotheek vindt hij 208 series met acht of meer afleveringen.
+- **Beheer > Podcasts keurt shows goed of af**, met dezelfde wit/zwart/onbekend-logica als genrecuratie.
+  Eén show met meerdere namen voeg je samen: de schrijfwijzen verhuizen naar de show die je houdt, zodat
+  "DJ ISAAC - HARDSTYLE SESSIONS" blijft matchen maar "Isaac's Hardstyle Sessions" in je bibliotheek staat.
+  Niets wordt getagd zolang een show niet is goedgekeurd.
+- **Een Podcasts-pagina in de webplayer en in de Android-app**, met per show zijn afleveringen. Beide
+  lijsten komen van de PODCAST-tag, dus ze vullen zich zodra de tagger langs is geweest.
+- **Het beginscherm van MuMa Mobile eindigt in twee leesbare nummerlijsten**, "Onlangs uitgebracht" en
+  "Onlangs toegevoegd", elk met een "Toon meer" die de volledige lijst in dezelfde sortering opent. Een
+  carrousel herken je aan de hoes, en juist het SoundCloud- en YouTube-deel van de bibliotheek heeft er
+  geen: een rij blanco vierkantjes zei niets waar een regel met titel en artiest dat altijd doet.
+- **Twee nieuwe instellingen onder Home**: hoeveel snelkoppelingen het raster toont (2 tot 10, standaard
+  8) en hoeveel regels elke nummerlijst toont voor "Toon meer" (1 tot 10, standaard 5).
+
+### Changed
+- **"Onlangs afgespeeld" onthoudt nu waar je vandaan speelde.** De lijst vulde zich met alles wat je
+  opende, dus bladeren vervuilde hem en het album van één aangetikt nummer duwde de rest eruit. Een
+  snelkoppeling wordt nu pas geschreven als je op afspelen drukt, en wijst naar de lijst waar de
+  wachtrij uit kwam: speel je één track uit Raw Hardstyle, dan is de snelkoppeling Raw Hardstyle.
+  Aantikken draait die zoekopdracht opnieuw, dus je krijgt andere nummers uit dezelfde hoek van je
+  bibliotheek in plaats van een herhaling. Shuffle-all, favorietenlijsten en gedeelde links leggen
+  niets vast — daar zit geen zoekopdracht achter om opnieuw te draaien.
+- **Memories is één balk in plaats van een carrousel van jaren**, met het dichtstbijzijnde jaar
+  samengevat, en verdwijnt volledig op een dag waar niets in zit. Alle jaren staan nog steeds compleet
+  op het Memories-scherm, één tik verderop.
+
+### Removed
+- **De sectie "Onlangs bijgewerkt" in MuMa Mobile.** Herschreven metadata is iets wat de scanner doet,
+  niet iets om naar te luisteren.
+
+### Fixed
+- **Bestanden die los in Warm Up Mixes stonden werden helemaal overgeslagen.** De tagger liep alleen over
+  de submappen van de generieke mappen, en in die map staat vrijwel alles los. Ze kregen dus ook geen
+  genre of artiest.
+- **Een nieuw label is meteen zichtbaar in plaats van pas de volgende dag.** Na een tagronde vraagt MuMa
+  de muziekserver zelf om te scannen, in plaats van te wachten tot die er uit zichzelf aan toe is.
+- **Een festivalnaam met een spatie te veel matchte niet meer.** Herkenning gaat nu op genormaliseerde
+  tekst, dus accenten, leestekens en spaties maken niet meer uit -- en 'Rise' matcht niet langer op
+  'Sunrise'.
+
 ## [0.11.0] - 2026-08-17
 
 ### Added

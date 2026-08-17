@@ -60,6 +60,8 @@ object HomeCardNavigator {
 
         HomeCardType.FESTIVAL -> filteredDirections(card, Filter("FESTIVAL", card.itemId))
 
+        HomeCardType.PODCAST -> filteredDirections(card, Filter("PODCAST", card.itemId))
+
         HomeCardType.LINEUP -> lineupDirections(card)
 
         HomeCardType.RATING -> ratingDirections(card)
@@ -71,6 +73,26 @@ object HomeCardNavigator {
         HomeCardType.MEMORY -> NavigationGraphDirections.toMemories()
 
         HomeCardType.TRACK -> error("TRACK cards are played, see actionFor")
+    }
+
+    /**
+     * "Show more" behind one of the home track lists: the same query the section was built from,
+     * without the row limit.
+     *
+     * The page size is the genre track limit rather than the home row count -- the home count says
+     * how much of it belongs on the home screen, not how much exists.
+     */
+    fun directionsForRecentTracks(title: String, sortMethod: String): NavDirections {
+        val length = currentLength()
+        val filters = Filters().apply { add(Filter("LENGTH", length)) }
+
+        return NavigationGraphDirections.toTrackCollection(
+            songs = title,
+            filters = Gson().toJson(filters.sanitized()),
+            size = Settings.genreTrackLimit,
+            length = length,
+            sortMethod = sortMethod
+        )
     }
 
     private fun tileFor(card: HomeCard): TileInfo {

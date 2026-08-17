@@ -232,10 +232,20 @@
     <string name="settings.memories_on_home_summary">A short row of "today, X years ago" releases above the other sections</string>
     <string name="settings.separate_home_history_title">Separate home history per mode</string>
     <string name="settings.separate_home_history_summary">Keep recently opened items apart for songs and livesets</string>
+    <string name="settings.home_shortcut_count_title">Recently played shortcuts</string>
+    <string name="settings.home_shortcut_count_summary">How many shortcuts the home screen shows. They fill two columns, so only even counts are offered.</string>
+    <string name="settings.home_list_count_title">Tracks per home list</string>
+    <string name="settings.home_list_count_summary">How many rows "Recently released" and "Recently added" show before "Show more"</string>
     <string name="home.shortcuts">Recently played</string>
-    <string name="home.recently_updated">Recently updated</string>
+    <string name="home.recently_released">Recently released</string>
     <string name="home.recently_added">Recently added</string>
     <string name="home.memories">Memories</string>
+    <string name="home.show_more">Show more</string>
+    <plurals name="home.memories_track_count">
+        <item quantity="one">%1$d track</item>
+        <item quantity="other">%1$d tracks</item>
+    </plurals>
+    <string name="home.memories_summary">%1$s · %2$s</string>
     <string name="home.card_label">Label</string>
     <string name="home.card_genre">Genre</string>
     <string name="memories.today">Today, %1$d years ago</string>
@@ -252,6 +262,7 @@
     <string name="library.tab_albums">Albums</string>
     <string name="library.tab_years">Years</string>
     <string name="library.tab_festivals">Festivals</string>
+    <string name="library.tab_podcasts">Podcasts</string>
     <string name="library.tab_lineups">Lineups</string>
     <string name="library.tab_ratings">Ratings</string>
     <string name="library.tab_memories">Memories</string>

@@ -30,6 +30,9 @@ rules_artist_genres ──> rules_genres
 rules_label_genres  ──> rules_genres
 rules_ignored_artists, rules_ignored_genres
 rules_catid_label, rules_festival_data
+rules_festivals ──< rules_festival_aliases
+                └─< rules_festival_editions
+rules_podcasts ──< rules_podcast_aliases
 rules_genre_backlog
 
 ──────────────────────────────────────────────────────────────────────────────
@@ -85,7 +88,12 @@ These tables contain the "knowledge" of the system, used by the tagger service t
 | `rules_ignored_artists` | Artists to skip during processing. | `name` |
 | `rules_ignored_genres` | (Legacy) Migrated into `rules_genres` as state `black`; no longer read by the tagger. | `name` |
 | `rules_catid_label` | Mapping Catalog IDs to library_labels. | `catid`, `label` |
-| `rules_festival_data` | Information about festivals for title parsing. | `festival`, `year` |
+| `rules_festival_data` | (Legacy) Migrated into `rules_festivals` and `rules_festival_editions` by `migrate_v7_festivals.sql`; no longer read by the tagger. | `festival`, `year` |
+| `rules_festivals` | One row per festival: the name that ends up on the `FESTIVAL` tag and thus on the card in the app. | `id`, `normalized_name` |
+| `rules_festival_aliases` | The spellings a festival occurs under in titles and folder names. The longest matching alias wins. | `festival_id`, `normalized_alias` |
+| `rules_festival_editions` | The date of one edition. Optional -- without it a set is still labelled, only its date is left alone. | `festival_id`, `year` |
+| `rules_podcasts` | One row per radio show or podcast series, curated white/black/unknown; only `white` is ever tagged. | `id`, `normalized_name`, `state` |
+| `rules_podcast_aliases` | The spellings one show occurs under, so every variant matches the same name. The longest matching alias wins. | `podcast_id`, `normalized_alias` |
 | `rules_genre_backlog` | (Legacy) Migrated into `rules_genres` as state `unknown`; no longer read by the tagger. | `genre` |
 | `rules_genres_new` | (Legacy) New genre structure being phased in. | `name` |
 

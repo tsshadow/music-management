@@ -16,11 +16,12 @@ class MemoriesProviderTest {
         titleRes = R.string.home_memories,
         loadMemories = { load() },
         today = { "2026-08-02" },
-        label = { "${it.yearsAgo} years ago" }
+        title = { "Memories" },
+        summary = { "${it.yearsAgo} years ago · ${it.tracks.size} tracks" }
     )
 
     @Test
-    fun `builds one card per year, newest first`() = runBlocking<Unit> {
+    fun `builds a single banner card`() = runBlocking<Unit> {
         val section = provider {
             listOf(
                 MemoryGroup(2018, 8, true, listOf(track("a"), track("b"))),
@@ -28,15 +29,27 @@ class MemoriesProviderTest {
             )
         }.load()!!
 
-        section.style `should be equal to` CardStyle.CAROUSEL
-        section.cards.map { it.itemId } `should be equal to` listOf("2018", "2015")
-        section.cards.map { it.type }.distinct() `should be equal to` listOf(HomeCardType.MEMORY)
-        section.cards.map { it.title } `should be equal to` listOf("8 years ago", "11 years ago")
-        section.cards.map { it.subtitle } `should be equal to` listOf("2", "1")
+        section.style `should be equal to` CardStyle.BANNER
+        section.cards.single().type `should be equal to` HomeCardType.MEMORY
+        section.cards.single().title `should be equal to` "Memories"
     }
 
     @Test
-    fun `a card carries the first track's artwork, so the year is recognisable`() = runBlocking<Unit> {
+    fun `the banner summarises the nearest year, whatever order the server sent`() =
+        runBlocking<Unit> {
+            val section = provider {
+                listOf(
+                    MemoryGroup(2015, 11, false, listOf(track("c"))),
+                    MemoryGroup(2018, 8, true, listOf(track("a"), track("b")))
+                )
+            }.load()!!
+
+            section.cards.single().itemId `should be equal to` "2018"
+            section.cards.single().subtitle `should be equal to` "8 years ago · 2 tracks"
+        }
+
+    @Test
+    fun `the banner carries the first track's artwork`() = runBlocking<Unit> {
         val section = provider {
             listOf(MemoryGroup(2018, 8, true, listOf(track("a"), track("b"))))
         }.load()!!
@@ -50,8 +63,20 @@ class MemoriesProviderTest {
     }
 
     @Test
-    fun `a group without tracks does not produce an empty section`() = runBlocking<Unit> {
+    fun `a group without tracks does not produce an empty banner`() = runBlocking<Unit> {
         provider { listOf(MemoryGroup(2018, 8, true, emptyList())) }.load().shouldBeNull()
+    }
+
+    @Test
+    fun `an empty year is skipped in favour of one that has tracks`() = runBlocking<Unit> {
+        val section = provider {
+            listOf(
+                MemoryGroup(2020, 6, true, emptyList()),
+                MemoryGroup(2018, 8, true, listOf(track("a")))
+            )
+        }.load()!!
+
+        section.cards.single().itemId `should be equal to` "2018"
     }
 
     @Test
@@ -60,22 +85,13 @@ class MemoriesProviderTest {
     }
 
     @Test
-    fun `caps the carousel at ten years`() = runBlocking<Unit> {
-        val section = provider {
-            (1..25).map { MemoryGroup(2026 - it, it, false, listOf(track("t$it"))) }
-        }.load()!!
-
-        section.cards.size `should be equal to` 10
-    }
-
-    @Test
-    fun `one year with many tracks is still one card`() = runBlocking<Unit> {
+    fun `sixty releases in one year are still one banner`() = runBlocking<Unit> {
         val section = provider {
             listOf(MemoryGroup(2018, 8, true, (1..60).map { track(it.toString()) }))
         }.load()!!
 
         section.cards.size `should be equal to` 1
-        section.cards.single().subtitle `should be equal to` "60"
+        section.cards.single().subtitle `should be equal to` "8 years ago · 60 tracks"
     }
 
     @Test
@@ -89,7 +105,8 @@ class MemoriesProviderTest {
                 listOf(MemoryGroup(2018, 8, true, listOf(track("a"))))
             },
             today = { "2026-12-25" },
-            label = { "whatever" }
+            title = { "Memories" },
+            summary = { "whatever" }
         ).load()
 
         requested `should be equal to` "2026-12-25"

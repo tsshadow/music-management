@@ -1,6 +1,7 @@
 <script>
   /**
-   * The sort/filter header shared by the Genres, Labels and Playlists views.
+   * The sort/filter header shared by the Genres, Labels, Podcasts and Playlists
+   * views.
    *
    * `FilterBar` is the equivalent for the track/album/artist views, but those
    * filter server-side and take a different set of controls; this one drives
@@ -16,6 +17,10 @@
     total = 0,
     shown = 0,
     favoriteCount = 0,
+    // Podcasts have no favorites store, so the chip would only ever empty the
+    // grid there; a view without favorites hides it instead of showing a control
+    // that cannot do anything.
+    showFavorites = true,
     visibilityOptions = [],
     onchange
   } = $props();
@@ -111,6 +116,7 @@
   </div>
 
   <div class="flex flex-wrap items-center gap-2">
+    {#if showFavorites}
     <button
       type="button"
       class="{chip} {state.favoritesOnly ? chipOn : chipOff} flex items-center gap-1.5"
@@ -122,6 +128,7 @@
       </svg>
       {$t('collection.favoritesFilter', { count: favoriteCount })}
     </button>
+    {/if}
 
     {#if visibilityOptions.length > 0}
       <span class="w-px h-5 bg-white/10 mx-1" aria-hidden="true"></span>

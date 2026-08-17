@@ -18,6 +18,7 @@ const PLAIN_VIEWS = [
   'albums',
   'genres',
   'labels',
+  'podcasts',
   'artists',
   'playlists',
   'memories',
@@ -37,6 +38,7 @@ const PLAIN_VIEWS = [
 const ARGUMENT_VIEWS = [
   { kind: 'genre', segment: 'genre', encode: true },
   { kind: 'label', segment: 'label', encode: true },
+  { kind: 'podcast', segment: 'podcast', encode: true },
   { kind: 'search', segment: 'search', encode: true },
   { kind: 'artist', segment: 'artist', encode: false },
   { kind: 'album', segment: 'album', encode: false }
@@ -55,6 +57,7 @@ export const MANAGEMENT_TABS = [
   'playlists',
   'tagger',
   'genre-curation',
+  'podcast-curation',
   'radio',
   'downloaders',
   'scrobble',

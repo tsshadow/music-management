@@ -10,7 +10,7 @@
     <string name="background_task.ssl_error">SSL connection exception. Please check server certificate.</string>
     <string name="main.songs">Songs</string>
     <string name="main.sets">Sets</string>
-    <string name="main_recently_played">Recently Played</string>
+    <string name="main_recently_played">Recently played</string>
     <string name="filter.recent">Recent</string>
     <string name="filter.favorites">Favorites</string>
     <string name="filter.new">New</string>
@@ -134,14 +134,14 @@
     <string name="language.ru">Russian</string>
     <string name="main.albums_alphaByArtist">By Artist</string>
     <string name="main.albums_alphaByName">By Name</string>
-    <string name="main.albums_frequent">Most Played</string>
+    <string name="main.albums_frequent">Most played</string>
     <string name="main.albums_highest">Top Rated</string>
-    <string name="main.albums_newest">Recently Added</string>
+    <string name="main.albums_newest">Recently added</string>
     <string name="main.albums_random">Random</string>
-    <string name="main.albums_recent">Recently Played</string>
+    <string name="main.albums_recent">Recently played</string>
     <string name="main.albums_starred">Starred</string>
     <string name="main.albums_by_year">Chronological</string>
-    <string name="main.albums_released">Recent Released</string>
+    <string name="main.albums_released">Recently released</string>
     <string name="main.albums_title">Albums</string>
     <string name="sort_order_track_count">Number of tracks</string>
     <string name="sort_order_newest_first">Newest first</string>
@@ -150,7 +150,7 @@
     <string name="main.artists_title">Artists</string>
     <string name="main.genres_title">Genres</string>
     <string name="main.library_title">Library</string>
-    <string name="main.last_played_genres">Last played genres</string>
+    <string name="main.last_played_genres">Recently played genres</string>
     <string name="main.moods_title">Moods</string>
     <string name="main.years_title">Years</string>
     <string name="main.title_all_songs">All (songs)</string>
@@ -168,9 +168,9 @@
     <string name="main.songs_random">Random</string>
     <string name="main.songs_random_this_year">Random (2025)</string>
     <string name="main.songs_recent">Recent</string>
-    <string name="main.livesets_recent">Recent Live sets</string>
-    <string name="main.songs_recent_added">Recent Added</string>
-    <string name="main.songs_recent_modified">Recent Modified</string>
+    <string name="main.livesets_recent">Recent live sets</string>
+    <string name="main.songs_recent_added">Recently added</string>
+    <string name="main.songs_recent_modified">Recently modified</string>
     <string name="main.songs_starred">Starred</string>
     <string name="main.radio_title">Radio</string>
     <string name="main.songs_title">Songs</string>
@@ -638,9 +638,9 @@
 
     <string name="sort_none">None</string>
     <string name="sort_random">Random</string>
-    <string name="sort_added_desc">Last Added</string>
-    <string name="sort_date_and_release">Release Date</string>
-    <string name="sort_written_desc">Last Edited</string>
+    <string name="sort_added_desc">Recently added</string>
+    <string name="sort_date_and_release">Recently released</string>
+    <string name="sort_written_desc">Recently edited</string>
     <string name="close">close</string>
     <string name="select_items_placeholder">All</string>
     <string name="tile_title">title</string>

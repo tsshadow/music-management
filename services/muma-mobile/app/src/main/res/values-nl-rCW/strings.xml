@@ -138,7 +138,7 @@
     <string name="main.artists_title">Artiesten</string>
     <string name="main.genres_title">Genres</string>
     <string name="main.library_title">Bibliotheek</string>
-    <string name="main.last_played_genres">Leste espeulde genres</string>
+    <string name="main.last_played_genres">Krek espeulde genres</string>
     <string name="main.moods_title">Stemmingen</string>
     <string name="main.years_title">Jaoren</string>
     <string name="main.title_all_songs">Alles (nummers)</string>
@@ -546,9 +546,9 @@
     <string name="search">Zeuken</string>
     <string name="sort_none">Gin</string>
     <string name="sort_random">Deur mekaar</string>
-    <string name="sort_added_desc">Leste d\'r bi\'j</string>
-    <string name="sort_date_and_release">Releasedatum</string>
-    <string name="sort_written_desc">Leste bewarkt</string>
+    <string name="sort_added_desc">Krek d\'r bi\'j</string>
+    <string name="sort_date_and_release">Krek uutebracht</string>
+    <string name="sort_written_desc">Krek bewarkt</string>
     <string name="close">dichtdoon</string>
     <string name="select_items_placeholder">Alles</string>
     <string name="tile_title">Titel</string>

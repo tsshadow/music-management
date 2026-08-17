@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Een snelkoppeling verschijnt nu zodra je op play drukt.** Hij werd pas weggeschreven als een
+  nummer scrobbelde, en dat gebeurt alleen als het uitspeelt -- dus een lijst starten en doorskippen,
+  of half luisteren, liet het raster onaangeroerd. Het vullen van de wachtrij schrijft hem nu weg.
 - **"Onlangs beluisterd" in de Android-app bewoog niet meer.** De lijst waar een wachtrij vandaan kwam
   werd blijvend onthouden in plaats van per wachtrij, dus het laatste bladerscherm waaruit je speelde
   bleef de bron van alles daarna -- van het beginscherm, uit zoeken, uit de notificatie, uit de auto.

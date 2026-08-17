@@ -448,11 +448,15 @@ class MediaPlayerManager(
                 // now, and to nothing at all when none did. Appending leaves the source alone --
                 // the queue is still the one it was started from.
                 playbackSourceHolder.startQueue()
-                rememberOnHomeScreen(songs.firstOrNull())
+                if (songs.isNotEmpty()) rememberOnHomeScreen()
                 clear()
             }
-            InsertionMode.APPEND -> insertAt = mediaItemCount
+            InsertionMode.APPEND -> {
+                playbackSourceHolder.discardArmed()
+                insertAt = mediaItemCount
+            }
             InsertionMode.AFTER_CURRENT -> {
+                playbackSourceHolder.discardArmed()
                 // Must never be larger than the count of items (especially when empty)
                 insertAt = (currentMediaItemIndex + 1).coerceAtMost(mediaItemCount)
             }
@@ -497,9 +501,9 @@ class MediaPlayerManager(
      *
      * Local bookkeeping must never be able to stop the music from starting.
      */
-    private fun rememberOnHomeScreen(first: Track?) {
+    private fun rememberOnHomeScreen() {
         try {
-            playHistoryRecorder.recordQueueStart(first)
+            playHistoryRecorder.recordQueueStart()
         } catch (all: Exception) {
             Timber.w(all, "Failed to record the start of the queue")
         }

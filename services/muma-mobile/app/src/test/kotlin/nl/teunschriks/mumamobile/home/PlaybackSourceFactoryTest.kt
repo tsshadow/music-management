@@ -131,4 +131,133 @@ class PlaybackSourceFactoryTest {
     fun `a plain filtered list with no identifying tag records nothing`() {
         source(TrackCollectionFragmentArgs(songs = "Songs", sortMethod = "AddedDesc")).shouldBeNull()
     }
+
+    // Every browse screen ships its tag in the filters JSON rather than in its own argument, so
+    // this is the shape that actually reaches the factory in the app.
+    private fun filters(vararg pairs: Pair<String, Any>): String {
+        val items = pairs.joinToString(",") { (name, value) ->
+            val rendered = if (value is List<*>) {
+                value.joinToString(prefix = "[", postfix = "]") { "\"$it\"" }
+            } else {
+                "\"$value\""
+            }
+            """{"name":"$name","value":$rendered}"""
+        }
+
+        return """{"filterItems":[$items]}"""
+    }
+
+    @Test
+    fun `a genre screen is recognised through its filters`() {
+        val card = source(
+            TrackCollectionFragmentArgs(
+                songs = "Raw Hardstyle",
+                filters = filters("GENRE" to "Raw Hardstyle", "LENGTH" to "short")
+            )
+        )!!
+
+        card.type `should be equal to` HomeCardType.GENRE
+        card.itemId `should be equal to` "Raw Hardstyle"
+        card.title `should be equal to` "Raw Hardstyle"
+    }
+
+    @Test
+    fun `a label screen is recognised through its PUBLISHER filter`() {
+        val card = source(
+            TrackCollectionFragmentArgs(
+                songs = "Art of Creation",
+                filters = filters("PUBLISHER" to "Art of Creation", "LENGTH" to "short")
+            )
+        )!!
+
+        card.type `should be equal to` HomeCardType.LABEL
+        card.itemId `should be equal to` "Art of Creation"
+    }
+
+    @Test
+    fun `a festival screen is recognised through its filters`() {
+        val card = source(
+            TrackCollectionFragmentArgs(songs = "Dominator", filters = filters("FESTIVAL" to "Dominator"))
+        )!!
+
+        card.type `should be equal to` HomeCardType.FESTIVAL
+    }
+
+    @Test
+    fun `a podcast screen is recognised through its filters`() {
+        val card = source(
+            TrackCollectionFragmentArgs(filters = filters("PODCAST" to "Hard With Style"))
+        )!!
+
+        card.type `should be equal to` HomeCardType.PODCAST
+        card.itemId `should be equal to` "Hard With Style"
+    }
+
+    @Test
+    fun `a year screen is recognised through its filters`() {
+        val card = source(TrackCollectionFragmentArgs(filters = filters("YEAR" to "2019")))!!
+
+        card.type `should be equal to` HomeCardType.YEAR
+    }
+
+    @Test
+    fun `the festival wins over the genre it was filtered by`() {
+        val card = source(
+            TrackCollectionFragmentArgs(
+                filters = filters("GENRE" to "Raw Hardstyle", "FESTIVAL" to "Defqon.1")
+            )
+        )!!
+
+        card.type `should be equal to` HomeCardType.FESTIVAL
+    }
+
+    @Test
+    fun `a lineup argument still wins over a genre filter`() {
+        val card = source(
+            TrackCollectionFragmentArgs(
+                festivalLineup = "Defqon.1 2019",
+                filters = filters("GENRE" to "Raw Hardstyle")
+            )
+        )!!
+
+        card.type `should be equal to` HomeCardType.LINEUP
+    }
+
+    @Test
+    fun `the length toggle is a filter but not a place`() {
+        source(TrackCollectionFragmentArgs(filters = filters("LENGTH" to "long"))).shouldBeNull()
+    }
+
+    @Test
+    fun `an artist filter is not a shortcut, because a card needs an id and this is a name`() {
+        source(TrackCollectionFragmentArgs(filters = filters("ARTIST" to "Warface"))).shouldBeNull()
+    }
+
+    @Test
+    fun `a filter holding several genres is no single place`() {
+        source(
+            TrackCollectionFragmentArgs(filters = filters("GENRE" to listOf("Raw", "Uptempo")))
+        ).shouldBeNull()
+    }
+
+    @Test
+    fun `a filter holding exactly one genre is that genre`() {
+        val card = source(
+            TrackCollectionFragmentArgs(filters = filters("GENRE" to listOf("Uptempo")))
+        )!!
+
+        card.itemId `should be equal to` "Uptempo"
+    }
+
+    @Test
+    fun `an unreadable filter set does not take the play down with it`() {
+        source(TrackCollectionFragmentArgs(filters = "{not json")).shouldBeNull()
+    }
+
+    @Test
+    fun `shuffle all stays a one-off even when it carries filters`() {
+        source(
+            TrackCollectionFragmentArgs(getRandom = true, filters = filters("GENRE" to "Uptempo"))
+        ).shouldBeNull()
+    }
 }

@@ -125,8 +125,9 @@ class HomeViewModel(
         }
     }
 
-    /** Records that the user opened [card], so it moves to the front of the shortcuts grid. */
-    fun recordOpened(card: HomeCard) = store.record(card, Settings.isSetsMode)
+    // Opening an item used to record it here. It no longer does: the grid is fed by what gets
+    // played, through PlaybackSourceHolder and PlayHistoryRecorder. Lists get opened to be looked
+    // at; what gets played is what says where the user wanted to be.
 
     /**
      * The memory groups for [date], or nothing at all when the user has hidden the carousel.

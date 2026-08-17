@@ -31,8 +31,9 @@ import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.Album
 import nl.teunschriks.mumamobile.domain.Identifiable
-import nl.teunschriks.mumamobile.home.RecentActivityStore
-import nl.teunschriks.mumamobile.home.toHomeCard
+import nl.teunschriks.mumamobile.home.HomeCard
+import nl.teunschriks.mumamobile.home.HomeCardType
+import nl.teunschriks.mumamobile.home.PlaybackSourceHolder
 import nl.teunschriks.mumamobile.model.AlbumListModel
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.util.LayoutType
@@ -54,9 +55,8 @@ class AlbumListFragment(
     private var filterButtonBar: FilterButtonBar? = null
     private var albumQuery = LibraryQuery()
 
-    private val recentActivityStore: RecentActivityStore by inject()
-
     private val mediaPlayerManager: MediaPlayerManager by inject()
+    private val playbackSourceHolder: PlaybackSourceHolder by inject()
 
     /**
      * The id of the artist whose page this is, or null when this is an ordinary album list.
@@ -306,6 +306,14 @@ class AlbumListFragment(
     private fun playAllOfArtist() {
         val artistId = headerArtistId ?: return
 
+        playbackSourceHolder.set(
+            HomeCard(
+                type = HomeCardType.ARTIST,
+                itemId = artistId,
+                title = navArgs.title.orEmpty()
+            )
+        )
+
         mediaPlayerManager.playTracksAndToast(
             fragment = this,
             insertionMode = MediaPlayerManager.InsertionMode.CLEAR,
@@ -316,8 +324,6 @@ class AlbumListFragment(
     }
 
     override fun onItemClick(item: Album) {
-        recentActivityStore.record(item.toHomeCard(), Settings.isSetsMode)
-
         val action = NavigationGraphDirections.toTrackCollection(
             item.id,
             isAlbum = item.isDirectory,

@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and how many rows each track list shows before "Show more" (1 to 10, default 5).
 
 ### Changed
+- **"Recently played" now remembers where you played *from*.** It used to fill up with everything
+  you opened, so browsing polluted it and the album of a single song you tried pushed everything
+  else out. A shortcut is now written when you press play, and what it points at is the list the
+  queue came from: play one track out of Raw Hardstyle and the shortcut is Raw Hardstyle. Tapping it
+  later re-runs that query, so you get different tracks from the same corner of the library rather
+  than a replay. Shuffle-all, starred lists and shared links record nothing -- there is no query
+  behind them to re-run.
 - Memories is a single banner row rather than a carousel of years, summarising the nearest year and
   disappearing entirely on a day that holds nothing. Every year is still listed in full on the
   Memories screen, one tap away.

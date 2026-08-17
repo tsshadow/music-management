@@ -36,15 +36,12 @@ import nl.teunschriks.mumamobile.domain.Index
 import nl.teunschriks.mumamobile.domain.SearchResult
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.fragment.FragmentTitle.setTitle
-import nl.teunschriks.mumamobile.home.RecentActivityStore
-import nl.teunschriks.mumamobile.home.toHomeCard
 import nl.teunschriks.mumamobile.model.SearchListModel
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.subsonic.VideoPlayer.Companion.playVideo
 import nl.teunschriks.mumamobile.util.ContextMenuUtil.handleContextMenu
 import nl.teunschriks.mumamobile.util.ContextMenuUtil.handleContextMenuTracks
 import nl.teunschriks.mumamobile.util.RefreshableFragment
-import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.Util.toast
 import nl.teunschriks.mumamobile.util.toastingExceptionHandler
@@ -60,7 +57,6 @@ class SearchFragment :
     private var searchResult: SearchResult? = null
     override var swipeRefresh: SwipeRefreshLayout? = null
     private val mediaPlayerManager: MediaPlayerManager by inject()
-    private val recentActivityStore: RecentActivityStore by inject()
     private val navArgs by navArgs<SearchFragmentArgs>()
     override val listModel: SearchListModel by viewModels()
     override val mainLayout: Int = R.layout.search
@@ -193,7 +189,6 @@ class SearchFragment :
     }
 
     private fun onArtistSelected(item: ArtistOrIndex) {
-        recentActivityStore.record(item.toHomeCard(), Settings.isSetsMode)
 
         // Create action based on type
         val action = if (item is Index) {
@@ -221,7 +216,6 @@ class SearchFragment :
     }
 
     private fun onAlbumSelected(album: Album, autoplay: Boolean) {
-        recentActivityStore.record(album.toHomeCard(), Settings.isSetsMode)
 
         val action = SearchFragmentDirections.searchToTrackCollection(
             id = album.id,

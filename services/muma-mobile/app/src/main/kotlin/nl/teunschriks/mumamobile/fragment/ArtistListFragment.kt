@@ -20,10 +20,7 @@ import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.adapters.ArtistRowBinder
 import nl.teunschriks.mumamobile.domain.ArtistOrIndex
 import nl.teunschriks.mumamobile.domain.Index
-import nl.teunschriks.mumamobile.home.RecentActivityStore
-import nl.teunschriks.mumamobile.home.toHomeCard
 import nl.teunschriks.mumamobile.model.ArtistListModel
-import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.view.FilterButtonBar
 import nl.teunschriks.mumamobile.view.SortOrder
 import nl.teunschriks.mumamobile.view.ViewCapabilities
@@ -36,7 +33,6 @@ class ArtistListFragment :
     FilterableFragment {
 
     override val listModel: ArtistListModel by viewModels()
-    private val recentActivityStore: RecentActivityStore by inject()
 
     /**
      * The id of the main layout
@@ -108,7 +104,6 @@ class ArtistListFragment :
 
     override fun onItemClick(item: ArtistOrIndex) {
         if (item !is Index) {
-            recentActivityStore.record(item.toHomeCard(), Settings.isSetsMode)
         }
 
         findNavController().navigate(ArtistNavigation.directionsFor(item))

@@ -15,6 +15,8 @@ data class MusicDirectoryChild(
     val genre: String = "",
     @JsonProperty("genres") val genresValue: List<ApiGenre> = emptyList(),
     val date: String = "",
+    /** The original release date, which MuMa resolves from the scene NFO. Preferred over [date]. */
+    val originalDate: String = "",
     val coverArt: String = "",
     val size: Long = -1,
     val contentType: String = "",

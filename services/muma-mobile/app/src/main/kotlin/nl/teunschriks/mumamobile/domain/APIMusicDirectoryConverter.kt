@@ -15,6 +15,7 @@ import java.util.Locale
 import nl.teunschriks.mumamobile.api.subsonic.models.MusicDirectory as APIMusicDirectory
 import nl.teunschriks.mumamobile.api.subsonic.models.MusicDirectoryChild
 import nl.teunschriks.mumamobile.api.subsonic.models.genreNames
+import nl.teunschriks.mumamobile.util.TrackDateFormatter
 
 /*
  * Converts MusicDirectory entity from [nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient]
@@ -47,7 +48,7 @@ private fun populateCommonProps(entry: MusicDirectoryEntry, source: MusicDirecto
     entry.year = source.year
     entry.genre = source.genre
     entry.genres = source.genreNames
-    entry.date = source.date
+    entry.date = TrackDateFormatter.preferredReleaseDate(source.date, source.originalDate)
     entry.coverArt = source.coverArt
     entry.duration = source.duration
     entry.path = source.path

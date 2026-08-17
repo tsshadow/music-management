@@ -7,6 +7,7 @@ from services.tagger.Song.rules.CheckArtistRule import CheckArtistRule
 from services.tagger.Song.rules.CleanTagsRule import CleanTagsRule
 from services.tagger.Song.rules.InferGenreFromArtistRule import InferGenreFromArtistRule
 from services.tagger.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
+from services.tagger.Song.rules.InferReleaseDateFromNfoRule import InferReleaseDateFromNfoRule
 from services.tagger.Song.rules.InferRemixerFromTitleRule import InferRemixerFromTitleRule
 from services.tagger.Song.rules.ReplaceInvalidUnicodeRule import ReplaceInvalidUnicodeRule
 from services.tagger.Song.rules.ResolveGenreRule import ResolveGenreRule
@@ -37,6 +38,7 @@ class LabelSong(BaseSong):
         self.rules.append(AddMissingArtistToDatabaseRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']))
         self.rules.append(ResolveGenreRule(databaseHelpers['genre_rules']))
         self.rules.append(CleanTagsRule())
+        self.rules.append(InferReleaseDateFromNfoRule(format_helper=databaseHelpers['sceneGroupDateFormatHelper']))
         self.rules.append(CheckArtistRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']))
         self.rules.append(ReplaceInvalidUnicodeRule())
         super().parse()

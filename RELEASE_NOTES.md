@@ -11,6 +11,30 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.11.0 (2026-08-17)
+
+### ⭐ Labelnummers hebben nu een releasedatum op de dag
+- Een import las alleen het jaartal uit de tags. Daardoor stond alles van 2026 als één blok door elkaar,
+  kwam er niets van dit jaar bovenaan bij "recent uitgebracht", en kon Memories er nooit een verjaardag
+  op vinden.
+- De exacte datum blijkt meestal al mee te komen: de scene-NFO in de releasemap noemt hem letterlijk
+  (`Str.date : 16-01-2026`). Gemeten over 150 releases staat daar voor 63 een datum in, tegen 17 in de
+  audiotags zelf.
+- Die datum wordt nu als originele releasedatum in de bestanden geschreven, en de bibliotheek, LMS en de
+  telefoon-app lezen allemaal diezelfde waarde. Sorteren op releasedatum werkt daarmee overal hetzelfde.
+- Staat er alleen een dubbelzinnige datum (`05.06.2026` kan 5 juni of 6 mei zijn), dan wordt de volgorde
+  bepaald door waar het jaartal staat. Voor de 30 scene-groepen die het Amerikaans opschrijven is dat
+  uitgemeten en vastgelegd, in plaats van gegokt.
+
+### 🛠 Oude muziek blijft oud
+- Een NFO noemt vaak de ripdatum in plaats van de releasedatum. Die wordt alleen geaccepteerd als het
+  jaar klopt met het jaartal van de release, dus een vinylrip uit 1995 die in 2024 gerippt is blijft
+  netjes uit 1995 staan.
+
+### 📱 MuMa Mobile
+- De app gebruikt de originele releasedatum als de server die stuurt, en valt terug op de datum van deze
+  uitgave als die preciezer is.
+
 ## Global Version 0.10.0 (2026-08-17)
 
 ### ⭐ Je ratings komen weer aan in music-management

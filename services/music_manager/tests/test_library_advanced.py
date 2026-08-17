@@ -104,6 +104,35 @@ class LibraryAdvancedTest(unittest.TestCase):
     def test_missing_api_key_is_401(self):
         self.assertEqual(self.client.get('/api/library/advanced').status_code, 401)
 
+    @patch('services.music_manager.routers.library.get_db_connection')
+    def test_release_date_is_selected(self, mock_get_db):
+        cursor = self._mock(mock_get_db)
+        self.client.get('/api/library/advanced', headers=self.headers)
+        self.assertIn('af.release_date', cursor.execute.call_args_list[0].args[0])
+
+    @patch('services.music_manager.routers.library.get_db_connection')
+    def test_default_sort_is_newest_added_first(self, mock_get_db):
+        cursor = self._mock(mock_get_db)
+        self.client.get('/api/library/advanced', headers=self.headers)
+        self.assertIn('ORDER BY t.created_at DESC', cursor.execute.call_args_list[0].args[0])
+
+    @patch('services.music_manager.routers.library.get_db_connection')
+    def test_sorting_by_release_puts_unknown_dates_last(self, mock_get_db):
+        cursor = self._mock(mock_get_db)
+        self.client.get('/api/library/advanced?sort=release&direction=desc', headers=self.headers)
+        sql = cursor.execute.call_args_list[0].args[0]
+        self.assertIn('af.release_date IS NULL', sql)
+        self.assertIn('af.release_date DESC', sql)
+
+    @patch('services.music_manager.routers.library.get_db_connection')
+    def test_an_unknown_sort_key_falls_back_to_the_default(self, mock_get_db):
+        """The sort key reaches the SQL as an expression, so only a whitelist may decide it."""
+        cursor = self._mock(mock_get_db)
+        self.client.get('/api/library/advanced?sort=%3B+DROP+TABLE+library_tracks--', headers=self.headers)
+        sql = cursor.execute.call_args_list[0].args[0]
+        self.assertIn('ORDER BY t.created_at DESC', sql)
+        self.assertNotIn('DROP', sql)
+
 
 class LibraryGenresTest(unittest.TestCase):
 

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/svelte';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/svelte';
 import TrackTable from '../../src/lib/management/library/TrackTable.svelte';
 
 const noop = () => {};
@@ -75,5 +75,42 @@ describe('TrackTable', () => {
   it('hides pagination when everything fits on one page', () => {
     render(TrackTable, { ...base, total: 10, limit: 100 });
     expect(screen.queryByText('1 / 1')).toBeNull();
+  });
+
+  const sortable = {
+    id: 1, title: 'Test Track', artist: 'Angerfist', label: 'MOH',
+    genres: [], bpm: 150, duration_secs: 200,
+  };
+
+  it('shows the full release date when there is one', () => {
+    render(TrackTable, {
+      ...base, total: 1,
+      tracks: [{ ...sortable, release_date: '2026-01-16', release_year: 2026 }],
+    });
+    expect(screen.getByText('2026-01-16')).toBeTruthy();
+  });
+
+  it('falls back to the year when only a year is known', () => {
+    render(TrackTable, {
+      ...base, total: 1,
+      tracks: [{ ...sortable, release_date: null, release_year: 2026 }],
+    });
+    expect(screen.getByText('2026')).toBeTruthy();
+  });
+
+  it('asks for a descending release sort on the first click of that header', async () => {
+    const onSort = vi.fn();
+    render(TrackTable, { ...base, total: 1, tracks: [sortable], onSort });
+    await fireEvent.click(screen.getByRole('button', { name: /releasedatum/i }));
+    expect(onSort).toHaveBeenCalledWith('release', 'desc');
+  });
+
+  it('flips the direction when the active header is clicked again', async () => {
+    const onSort = vi.fn();
+    render(TrackTable, {
+      ...base, total: 1, tracks: [sortable], onSort, sort: 'release', direction: 'desc',
+    });
+    await fireEvent.click(screen.getByRole('button', { name: /releasedatum/i }));
+    expect(onSort).toHaveBeenCalledWith('release', 'asc');
   });
 });

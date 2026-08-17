@@ -11,8 +11,26 @@
   export let selectedTrack = null;
   export let onSelect;
   export let onPage;
+  export let onSort = null;
+  export let sort = 'created';
+  export let direction = 'desc';
 
   $: pages = Math.max(1, Math.ceil(total / limit));
+
+  // Sorting happens server-side: the table shows one page of a much longer list, so reordering
+  // these hundred rows locally would be meaningless.
+  //
+  // First click on a column sorts descending, because "newest" and "fastest" are the interesting
+  // ends; clicking the column that is already active flips it.
+  function requestSort(key) {
+    if (!onSort) return;
+    onSort(key, sort === key && direction === 'desc' ? 'asc' : 'desc');
+  }
+
+  function arrow(key) {
+    if (sort !== key) return '';
+    return direction === 'desc' ? ' ↓' : ' ↑';
+  }
 
   function duration(secs) {
     if (!secs) return '-';
@@ -27,12 +45,24 @@
     <table class="w-full text-left text-sm border-collapse min-w-[720px]">
       <thead class="bg-[#121212] border-b border-white/10">
         <tr class="text-[#b3b3b3] uppercase text-[10px] tracking-widest font-black">
-          <th class="px-4 py-4">{$t('track.title')}</th>
+          <th class="px-4 py-4">
+            <button class="uppercase tracking-widest font-black hover:text-white" on:click={() => requestSort('title')}>
+              {$t('track.title')}{arrow('title')}
+            </button>
+          </th>
           <th class="px-4 py-4">{$t('common.artist')}</th>
           <th class="px-4 py-4">{$t('library.label')}</th>
           <th class="px-4 py-4">{$t('nav.genres')}</th>
-          <th class="px-4 py-4 text-right">BPM</th>
-          <th class="px-4 py-4 text-right">{$t('filter.year')}</th>
+          <th class="px-4 py-4 text-right">
+            <button class="uppercase tracking-widest font-black hover:text-white" on:click={() => requestSort('bpm')}>
+              BPM{arrow('bpm')}
+            </button>
+          </th>
+          <th class="px-4 py-4 text-right">
+            <button class="uppercase tracking-widest font-black hover:text-white" on:click={() => requestSort('release')}>
+              {$t('track.releaseDate')}{arrow('release')}
+            </button>
+          </th>
           <th class="px-4 py-4 text-right"><Clock size={14} class="inline" /></th>
         </tr>
       </thead>
@@ -79,7 +109,7 @@
                 </div>
               </td>
               <td class="px-4 py-3 text-right text-[#b3b3b3] font-mono tabular-nums">{track.bpm ? Math.round(track.bpm) : '-'}</td>
-              <td class="px-4 py-3 text-right text-[#b3b3b3] font-mono tabular-nums">{track.release_year || '-'}</td>
+              <td class="px-4 py-3 text-right text-[#b3b3b3] font-mono tabular-nums">{track.release_date || track.release_year || '-'}</td>
               <td class="px-4 py-3 text-right text-[#b3b3b3] font-mono tabular-nums">{duration(track.duration_secs)}</td>
             </tr>
           {/each}

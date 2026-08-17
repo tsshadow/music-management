@@ -1,6 +1,7 @@
 import contextlib
 import hashlib
 import os
+import re
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -17,6 +18,24 @@ from services.common.config_store import ConfigStore
 load_dotenv()
 
 class TrackAnalyzer:
+
+    @staticmethod
+    def _partial_date(value):
+        """A tag's date as a partial date string, or None.
+
+        Precision is whatever the tag actually carries: a year, a year and month, or a full date.
+        Nothing is padded, because a padded day is indistinguishable from a real one downstream.
+        The ten-character slice comes first so a timestamp's time digits cannot run on and be read
+        as part of the date.
+        """
+        digits = re.sub(r'\D', '', (value or '')[:10])
+        if len(digits) >= 8:
+            return f'{digits[0:4]}-{digits[4:6]}-{digits[6:8]}'
+        if len(digits) >= 6:
+            return f'{digits[0:4]}-{digits[4:6]}'
+        if len(digits) >= 4:
+            return digits[0:4]
+        return None
 
     def __init__(self, max_workers=4):
         self._config = ConfigStore()
@@ -79,7 +98,8 @@ class TrackAnalyzer:
         metadata['artist_name'] = tags.get('artist', [None])[0]
         metadata['genre_tag'] = tags.get('genre', [None])[0]
         metadata['label_name'] = metadata['label_name'] or tags.get('publisher', [None])[0]
-        date = tags.get('date', [None])[0]
+        date = tags.get('originaldate', [None])[0] or tags.get('date', [None])[0]
+        metadata['release_date'] = self._partial_date(date)
         if date and len(date) >= 4:
             with contextlib.suppress(ValueError):
                 metadata['release_year'] = int(date[:4])
@@ -94,7 +114,10 @@ class TrackAnalyzer:
         metadata['artist_name'] = tags.get('artist', [None])[0]
         metadata['genre_tag'] = tags.get('genre', [None])[0]
         metadata['label_name'] = metadata['label_name'] or tags.get('publisher', [None])[0]
-        date = tags.get('date', [None])[0]
+        # FLAC field names are case-insensitive on read; the uppercase spelling is how the tagger
+        # writes it (services/tagger/constants.py).
+        date = tags.get('ORIGINALDATE', [None])[0] or tags.get('date', [None])[0]
+        metadata['release_date'] = self._partial_date(date)
         if date and len(date) >= 4:
             with contextlib.suppress(ValueError):
                 metadata['release_year'] = int(date[:4])
@@ -105,14 +128,20 @@ class TrackAnalyzer:
         metadata['artist_name'] = tags.get('©ART', [None])[0]
         metadata['genre_tag'] = tags.get('©gen', [None])[0]
         metadata['label_name'] = metadata['label_name'] or tags.get('----:com.apple.iTunes:PUBLISHER', [None])[0]
-        date = tags.get('©day', [None])[0]
+        # The tagger writes the original date to the freeform atom, whose value is raw bytes rather
+        # than a string (services/tagger/Song/BaseSong.py::_set_m4a_tag).
+        original = tags.get('----:com.apple.iTunes:ORIGINALDATE', [None])[0]
+        if isinstance(original, (bytes, bytearray)):
+            original = bytes(original).decode('utf-8', 'replace')
+        date = original or tags.get('©day', [None])[0]
+        metadata['release_date'] = self._partial_date(date)
         if date and len(date) >= 4:
             with contextlib.suppress(ValueError):
                 metadata['release_year'] = int(date[:4])
 
     def extract_metadata(self, file_path):
         """Extraheer metadata (tags) uit het audiobestand."""
-        metadata = {'artist_name': None, 'label_name': None, 'genre_tag': None, 'release_year': None, 'bpm_tag': None, 'source_platform': None}
+        metadata = {'artist_name': None, 'label_name': None, 'genre_tag': None, 'release_year': None, 'release_date': None, 'bpm_tag': None, 'source_platform': None}
         path_parts = Path(file_path).parts
         for platform in ['Soundcloud', 'Youtube', 'Telegram']:
             if platform in path_parts:
@@ -139,7 +168,7 @@ class TrackAnalyzer:
         return metadata
 
     def _get_audio_features_table(self, md):
-        return Table('library_track_audio_features', md, Column('track_id', String(255), primary_key=True), Column('internal_track_id', Integer), Column('file_path', Text), Column('tempo', Float), Column('duration', Float), Column('mean_spectral_centroid', Float), Column('std_spectral_centroid', Float), Column('mean_spectral_bandwidth', Float), Column('std_spectral_bandwidth', Float), Column('mean_spectral_rolloff', Float), Column('std_spectral_rolloff', Float), Column('mean_rms', Float), Column('std_rms', Float), Column('mean_zcr', Float), Column('std_zcr', Float), Column('mean_spectral_contrast', Float), Column('std_spectral_contrast', Float), Column('mfcc_1', Float), Column('mfcc_2', Float), Column('mfcc_3', Float), Column('mfcc_4', Float), Column('mfcc_5', Float), Column('mfcc_6', Float), Column('mfcc_7', Float), Column('mfcc_8', Float), Column('mfcc_9', Float), Column('mfcc_10', Float), Column('mfcc_11', Float), Column('mfcc_12', Float), Column('mfcc_13', Float), Column('std_mfcc_1', Float), Column('std_mfcc_2', Float), Column('std_mfcc_3', Float), Column('std_mfcc_4', Float), Column('std_mfcc_5', Float), Column('std_mfcc_6', Float), Column('std_mfcc_7', Float), Column('std_mfcc_8', Float), Column('std_mfcc_9', Float), Column('std_mfcc_10', Float), Column('std_mfcc_11', Float), Column('std_mfcc_12', Float), Column('std_mfcc_13', Float), Column('mean_chroma', Float), Column('std_chroma', Float), Column('artist_name', String(255)), Column('label_name', String(255)), Column('release_year', Integer), Column('source_platform', String(50)), Column('bpm_tag', Float), Column('genre_tag', String(100)), extend_existing=True)
+        return Table('library_track_audio_features', md, Column('track_id', String(255), primary_key=True), Column('internal_track_id', Integer), Column('file_path', Text), Column('tempo', Float), Column('duration', Float), Column('mean_spectral_centroid', Float), Column('std_spectral_centroid', Float), Column('mean_spectral_bandwidth', Float), Column('std_spectral_bandwidth', Float), Column('mean_spectral_rolloff', Float), Column('std_spectral_rolloff', Float), Column('mean_rms', Float), Column('std_rms', Float), Column('mean_zcr', Float), Column('std_zcr', Float), Column('mean_spectral_contrast', Float), Column('std_spectral_contrast', Float), Column('mfcc_1', Float), Column('mfcc_2', Float), Column('mfcc_3', Float), Column('mfcc_4', Float), Column('mfcc_5', Float), Column('mfcc_6', Float), Column('mfcc_7', Float), Column('mfcc_8', Float), Column('mfcc_9', Float), Column('mfcc_10', Float), Column('mfcc_11', Float), Column('mfcc_12', Float), Column('mfcc_13', Float), Column('std_mfcc_1', Float), Column('std_mfcc_2', Float), Column('std_mfcc_3', Float), Column('std_mfcc_4', Float), Column('std_mfcc_5', Float), Column('std_mfcc_6', Float), Column('std_mfcc_7', Float), Column('std_mfcc_8', Float), Column('std_mfcc_9', Float), Column('std_mfcc_10', Float), Column('std_mfcc_11', Float), Column('std_mfcc_12', Float), Column('std_mfcc_13', Float), Column('mean_chroma', Float), Column('std_chroma', Float), Column('artist_name', String(255)), Column('label_name', String(255)), Column('release_year', Integer), Column('release_date', String(10)), Column('source_platform', String(50)), Column('bpm_tag', Float), Column('genre_tag', String(100)), extend_existing=True)
 
     def _get_ml_labels_table(self, md):
         return Table('library_track_ml_labels', md, Column('track_id', String(255), primary_key=True), Column('ml_genre', String(100)), Column('ml_review_status', String(20)), Column('approved_for_training', Boolean), extend_existing=True)
@@ -165,7 +194,7 @@ class TrackAnalyzer:
                 if f'std_mfcc_{i}' in features:
                     values[f'std_mfcc_{i}'] = features[f'std_mfcc_{i}']
         if metadata:
-            for meta_key in ['artist_name', 'label_name', 'release_year', 'source_platform', 'bpm_tag', 'genre_tag']:
+            for meta_key in ['artist_name', 'label_name', 'release_year', 'release_date', 'source_platform', 'bpm_tag', 'genre_tag']:
                 values[meta_key] = metadata.get(meta_key)
         with self.engine.begin() as conn:
             stmt = insert(library_track_audio_features).values(**values)

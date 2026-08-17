@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-08-17
+
+### Added
+- **Nummers van een label krijgen nu een echte releasedatum, niet alleen een jaartal.** Bij een import
+  las MuMa alleen het jaar uit de tags, waardoor alles van 2026 als één hoop door elkaar stond en niets
+  van dit jaar bovenaan "recent uitgebracht" kwam. De exacte datum staat meestal al in de NFO die met de
+  release meekomt, en die wordt nu uitgelezen en als originele releasedatum weggeschreven. Je kunt in de
+  bibliotheek op releasedatum sorteren, en Memories kan er verjaardagen op matchen.
+- **De trackkolommen in de bibliotheek zijn sorteerbaar.** Titel, BPM en releasedatum; een klik sorteert
+  aflopend, nog een klik draait het om. Nummers zonder bekende datum staan altijd onderaan, in beide
+  richtingen — onbekend is niet ouder dan 1970, het is er niet.
+
+### Fixed
+- **Een ripdatum maakt oude muziek niet meer jong.** De datum uit een NFO wordt alleen geaccepteerd als
+  het jaar overeenkomt met het jaartal van de release zelf, dus een vinylrip uit 1995 die in 2024 is
+  gerippt blijft uit 1995 staan.
+
 ## [0.10.0] - 2026-08-17
 
 ### Added

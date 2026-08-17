@@ -21,6 +21,7 @@ from services.tagger.constants import (
     DATE,
     FESTIVAL,
     GENRE,
+    ORIGINAL_DATE,
     PARSED,
     PUBLISHER,
     RATING,
@@ -235,6 +236,10 @@ class BaseSong:
 
     def date(self):
         return self.tag_collection.get_item_as_string(DATE)
+
+    def original_date(self):
+        """The original release date, which is the one worth sorting and dating by."""
+        return self.tag_collection.get_item_as_string(ORIGINAL_DATE)
 
     def festival(self):
         return self.tag_collection.get_item_as_string(FESTIVAL)

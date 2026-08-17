@@ -11,6 +11,76 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.12.0 (2026-08-17)
+
+### ⭐ Livesets zijn eindelijk per festival te vinden
+- De Festivals-tab liet vijftien namen zien, terwijl je bibliotheek sets bevat van Qlimax, Reverze,
+  Ground Zero, Q-BASE, X-Qlusive, Thunderdome, Masters of Hardcore en Pussy Lounge. Die staan er nu
+  allemaal in: 63 festivals, elk met de schrijfwijzen waaronder ze in titels en mapnamen voorkomen.
+- De herkenning hing alleen aan YouTube-downloads. Juist de map met je livesets kwam er dus nooit
+  langs. Hij draait nu ook op Livesets, Warm Up Mixes, de generieke mappen en SoundCloud.
+- Naast de titel wordt nu ook naar de map gekeken. Bij scene-releases noemt de titel de artiest en
+  de map het evenement, dus `Livesets/Qlimax 2022/` is daar de betere bron.
+
+### 🛠 Waarom er zo weinig in stond
+- Een festival moest per editie ingevoerd worden voordat het überhaupt herkend werd. Eén rij is nu
+  genoeg om te labelen; een editie voegt alleen de datum toe.
+- Bestanden die los in Warm Up Mixes stonden werden helemaal overgeslagen — ook voor genre en
+  artiest. De tagger liep alleen over de submappen.
+- Herkenning gaat op genormaliseerde tekst, dus accenten, leestekens en een spatie te veel maken
+  niet meer uit. En "Rise" matcht niet langer op "Sunrise".
+
+### 🎙 Radioshows en podcasts zijn een eigen categorie geworden
+- Isaac's Hardstyle Sessions, Hard With Style en The Uptempo Tribe Podcast waren niet te
+  onderscheiden van welke andere lange mix dan ook. Ze hebben nu een eigen label, een eigen
+  overzichtspagina en een afleveringenlijst per show.
+- Gemeten over de bibliotheek: 14.222 bestanden passen op een show- of afleveringspatroon, en
+  daaruit komen 208 series met acht of meer afleveringen. De grootste zijn KTRA (818), Twisted's
+  Darkside Podcast (313), B2S TV (308), Hardcore Italia (308) en Monstercat Podcast (301).
+- De map `Podcasts` had helemaal geen serieregel, dus daar stond bijvoorbeeld een aflevering van
+  The Magic Show als uren naamloze mix in je bibliotheek.
+- Welke shows meedoen bepaal je zelf onder Beheer > Podcasts, met dezelfde goedkeuren-, afwijzen- en
+  samenvoegenknoppen als bij genres. Eén show heeft vaak meerdere schrijfwijzen, dus die kun je vanaf
+  het begin aan elkaar knopen in plaats van ze los te laten staan.
+- De showlijst wordt voorgesteld door de bibliotheek zelf te meten, niet met de hand geschreven.
+
+### 🛠 Waar een showtitel juist géén show is
+- De regel draait bewust niet op de map `EPs`. "Hard With Style" (200 bestanden) en "Hardcore
+  Blasters" (720) zijn daar platenlabels, en dat is precies de plek waar een shownaam en een
+  labelnaam op elkaar lijken.
+- Herkennen gebeurt op titel én pad, dus een show die zichzelf alleen in de mapnaam noemt telt ook
+  mee. Een afleveringsnummer wordt meegenomen als het er staat, maar is niet verplicht.
+- `ALBUM` en het tracknummer worden met rust gelaten. Die overschrijven is niet terug te draaien.
+
+### 📻 Sneller zichtbaar
+- Na een tagronde vraagt MuMa de muziekserver zelf om te scannen, in plaats van te wachten tot die
+  er uit zichzelf aan toe is.
+
+### 📱 MuMa Mobile
+- Het beginscherm is opnieuw ingedeeld. Memories staat nu als één balk bovenaan in plaats van een
+  carrousel van jaren, en verdwijnt op een dag waar niets in zit.
+- De snelkoppelingen gaan niet meer over welke schermen je opent, maar over wat je echt geluisterd
+  hebt: "Onlangs afgespeeld" wordt geschreven als je op afspelen drukt, en onthoudt de lijst waar de
+  wachtrij uit kwam.
+- "Onlangs bijgewerkt" is vervangen door twee echte nummerlijsten — "Onlangs uitgebracht" en
+  "Onlangs toegevoegd" — allebei met een knop om verder te kijken.
+- Hoeveel je te zien krijgt stel je zelf in: het aantal snelkoppelingen (2 tot 10) en het aantal
+  regels per lijst (1 tot 10).
+- Er is een Podcasts-pagina bijgekomen, met dezelfde shows als in de webspeler.
+
+### 🧭 Wat nog niet kan
+- Radio is nog geen bron voor een snelkoppeling. Het bestaat alleen in de Android Auto-verkenner en
+  heeft nog geen eigen plek in de telefoon-app.
+- Een snelkoppeling naar een genre onthoudt het genre, niet de sortering die op dat moment op het
+  scherm stond. Je krijgt hem dus terug in de standaardvolgorde.
+
+### 🧰 Na het uitrollen
+- Deze uitgave verandert wat de tagger zou schrijven, maar niet wanneer hij het schrijft: bestanden
+  die hij al eens verwerkt heeft blijft hij overslaan zolang hun wijzigingsdatum gelijk blijft. Om de
+  nieuwe labels op bestaande bestanden te krijgen zijn `migrate_v7_festivals.sql` en
+  `migrate_v9_podcasts.sql` nodig, moet `PODCAST` bij de extra tags van de muziekserver, en moet
+  `needs_rescan` gezet worden. Zonder die stappen verandert er aan je bestaande bibliotheek niets.
+
 ## Global Version 0.11.0 (2026-08-17)
 
 ### ⭐ Labelnummers hebben nu een releasedatum op de dag

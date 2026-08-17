@@ -41,6 +41,7 @@
   let artists = $state([]);
   let allGenres = $state([]);
   let allLabels = $state([]);
+  let allPodcasts = $state([]);
   let playlists = $state([]);
   let tracksOffset = $state(0);
   let tracksHasMore = $state(true);
@@ -62,10 +63,12 @@
   // so switching between Genres and Labels doesn't carry a search term across.
   let genreView = $state(defaultCollectionState('genres'));
   let labelView = $state(defaultCollectionState('labels'));
+  let podcastView = $state(defaultCollectionState('podcasts'));
   let playlistView = $state(defaultCollectionState('playlists'));
 
   const visibleGenres = $derived(queryCollection(allGenres, 'genres', genreView, { favorites: $favoriteGenres }));
   const visibleLabels = $derived(queryCollection(allLabels, 'labels', labelView, { favorites: $favoriteLabels }));
+  const visiblePodcasts = $derived(queryCollection(allPodcasts, 'podcasts', podcastView));
   const visiblePlaylists = $derived(
     queryCollection(playlists, 'playlists', playlistView, {
       favorites: $favoritePlaylists,
@@ -146,6 +149,9 @@
         }
         if (activeView.startsWith('label:')) {
           url += `&label=${encodeURIComponent(viewArgument(activeView))}`;
+        }
+        if (activeView.startsWith('podcast:')) {
+          url += `&podcast=${encodeURIComponent(viewArgument(activeView))}`;
         }
 
         if (currentYear) url += `&year=${encodeURIComponent(currentYear)}`;
@@ -341,6 +347,28 @@
   }
 
   /**
+   * Loads the radio shows and podcast series from the server.
+   *
+   * `getTags` answers for one cluster type, so this only returns something once
+   * PODCAST is in the LMS scanner's extra tags to scan and the library has been
+   * rescanned. An empty list is therefore a normal state, not an error.
+   */
+  async function loadAllPodcasts() {
+    if (!$authParams) return;
+    isLoading = true;
+    try {
+      const response = await fetch(`/rest/getTags?name=PODCAST&${$authParams}`);
+      const data = await response.json();
+      const result = data['subsonic-response']?.tags?.tag || [];
+      allPodcasts = Array.isArray(result) ? result : [result];
+    } catch (e) {
+      console.error("Failed to load podcasts:", e);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  /**
    * Adds or removes one entry in a favorites store, keeping it sorted so the
    * value that gets synced to the account doesn't churn on every toggle.
    *
@@ -495,7 +523,7 @@
         if (view === 'home') {
             loadCurated();
             loadMemoryGroups();
-        } else if (view === 'songs' || view === 'sets' || view.startsWith('genre:') || view.startsWith('label:')) {
+        } else if (view === 'songs' || view === 'sets' || view.startsWith('genre:') || view.startsWith('label:') || view.startsWith('podcast:')) {
             resetTrackFiltersFor(view);
             loadAllTracks();
         } else if (view === 'radar') {
@@ -506,6 +534,8 @@
             loadAllGenres();
         } else if (view === 'labels') {
             loadAllLabels();
+        } else if (view === 'podcasts') {
+            loadAllPodcasts();
         } else if (view === 'artists') {
             loadArtists();
         } else if (view === 'playlists') {
@@ -524,7 +554,7 @@
   });
 
   $effect(() => {
-    if (sentinel && tracksHasMore && !isLoading && (activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('search:'))) {
+    if (sentinel && tracksHasMore && !isLoading && (activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('podcast:') || activeView.startsWith('search:'))) {
       const observer = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting) {
           loadAllTracks(true);
@@ -616,7 +646,7 @@
         </div>
       </section>
     {/each}
-  {:else if activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:')}
+  {:else if activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('podcast:')}
     <div class="flex flex-col gap-4 mb-6">
         <h2 class="text-2xl font-bold m-0 flex items-center gap-3">
             {#if activeView === 'songs' || activeView === 'sets'}
@@ -634,11 +664,11 @@
                 </svg>
               </button>
             {:else}
-              {@const labelName = viewArgument(activeView)}
-              <span>{labelName}</span>
+              {@const collectionName = viewArgument(activeView)}
+              <span>{collectionName}</span>
             {/if}
         </h2>
-        <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} showGenre={!activeView.startsWith('genre:') && !activeView.startsWith('label:')} onchange={handleFilterChange} />
+        <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} showGenre={!activeView.startsWith('genre:') && !activeView.startsWith('label:') && !activeView.startsWith('podcast:')} onchange={handleFilterChange} />
     </div>
     {#if isLoading && tracks.length === 0}
         <p>{$t('common.loading')}</p>
@@ -748,6 +778,46 @@
                       {#if Number(g.albumCount) > 0}
                         &middot; {$t('collection.albumCount', { count: Number(g.albumCount) })}
                       {/if}
+                    </span>
+                </div>
+            {/each}
+        </div>
+    {/if}
+  {:else if activeView === 'podcasts'}
+    <div class="flex flex-col gap-4 mb-6">
+      <h2 class="text-2xl font-bold m-0">{$t('nav.podcasts')}</h2>
+      <CollectionBar
+        type="podcasts"
+        bind:state={podcastView}
+        total={allPodcasts.length}
+        shown={visiblePodcasts.length}
+        showFavorites={false}
+      />
+    </div>
+    {#if isLoading && allPodcasts.length === 0}
+        <p>{$t('common.loading')}</p>
+    {:else if allPodcasts.length === 0}
+        <p class="text-[#b3b3b3]">{$t('collection.noPodcasts')}</p>
+    {:else if visiblePodcasts.length === 0}
+        {@render noMatches(() => (podcastView = defaultCollectionState('podcasts')))}
+    {:else}
+        <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+            {#each visiblePodcasts as p (p.value)}
+                <div
+                  role="button"
+                  tabindex="0"
+                  class="bg-[#181818] p-6 rounded-lg flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors hover:bg-[#282828] aspect-square relative group"
+                  onclick={() => activeView = `podcast:${p.value}`}
+                  onkeydown={(e) => e.key === 'Enter' && (activeView = `podcast:${p.value}`)}
+                >
+                    <div class="w-16 h-16 rounded-full bg-brand flex items-center justify-center text-black mb-2 shadow-lg">
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-2.08c3.39-.49 6-3.39 6-6.92h-2z"></path>
+                        </svg>
+                    </div>
+                    <span class="font-bold text-center break-words w-full">{p.value}</span>
+                    <span class="text-xs text-[#b3b3b3] text-center">
+                      {$t('collection.episodeCount', { count: Number(p.songCount) || 0 })}
                     </span>
                 </div>
             {/each}

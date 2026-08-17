@@ -21,6 +21,7 @@ function subsonic({
   playlists = [PLAYLIST],
   genres = [{ value: 'Hardcore', songCount: 1200 }],
   labels = [{ value: 'Roughstate', albumCount: 20 }],
+  podcasts = [{ value: 'Hard With Style', songCount: 71 }],
   memories = null
 } = {}) {
   return vi.fn(async (url) => {
@@ -41,6 +42,9 @@ function subsonic({
     }
     if (url.includes('/rest/getGenres')) {
       return { ok: true, json: async () => ({ 'subsonic-response': { genres: { genre: genres } } }) };
+    }
+    if (url.includes('/rest/getTags')) {
+      return { ok: true, json: async () => ({ 'subsonic-response': { tags: { tag: podcasts } } }) };
     }
     if (url.includes('/rest/getRecordLabels')) {
       return { ok: true, json: async () => ({ 'subsonic-response': { recordLabels: { recordLabel: labels } } }) };
@@ -183,6 +187,30 @@ describe('Dashboard', () => {
     render(Dashboard, { activeView: 'labels' });
 
     await waitFor(() => expect(screen.getByText('Roughstate')).toBeTruthy());
+  });
+
+  it('the podcasts view lists the shows the server has tags for', async () => {
+    render(Dashboard, { activeView: 'podcasts' });
+
+    await waitFor(() => expect(screen.getByText('Hard With Style')).toBeTruthy());
+    expect(urlsFor('/rest/getTags').some((url) => url.includes('name=PODCAST'))).toBe(true);
+  });
+
+  it('a server without the PODCAST tag yet says so instead of showing an empty grid', async () => {
+    globalThis.fetch = subsonic({ podcasts: [] });
+    render(Dashboard, { activeView: 'podcasts' });
+
+    await waitFor(() => expect(screen.getByText(/Nog geen podcasts/)).toBeTruthy());
+  });
+
+  it('opening a show asks for that shows episodes', async () => {
+    render(Dashboard, { activeView: 'podcast:Hard With Style' });
+
+    await waitFor(() =>
+      expect(
+        urlsFor('/rest/getSpotifyTracks').some((url) => url.includes('podcast=Hard%20With%20Style'))
+      ).toBe(true)
+    );
   });
 
   it('an artist view is handed to the artist screen', async () => {

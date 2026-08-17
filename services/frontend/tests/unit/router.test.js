@@ -23,6 +23,7 @@ describe('viewToPath', () => {
     ['albums', '/albums'],
     ['genres', '/genres'],
     ['labels', '/labels'],
+    ['podcasts', '/podcasts'],
     ['artists', '/artists'],
     ['playlists', '/playlists'],
     ['memories', '/memories'],
@@ -38,6 +39,10 @@ describe('viewToPath', () => {
 
   it('percent-encodes a label name the same way', () => {
     expect(viewToPath(state('label:Drum & Bass / UK'))).toBe('/label/Drum%20%26%20Bass%20%2F%20UK');
+  });
+
+  it('percent-encodes a show name, which can hold a slash and a hash', () => {
+    expect(viewToPath(state('podcast:Q-dance Radio / #40'))).toBe('/podcast/Q-dance%20Radio%20%2F%20%2340');
   });
 
   it('puts the artist id in the path', () => {
@@ -141,9 +146,10 @@ describe('pathToState', () => {
 
 describe('round trip', () => {
   const paths = [
-    '/', '/login', '/songs', '/sets', '/albums', '/genres', '/labels', '/artists',
+    '/', '/login', '/songs', '/sets', '/albums', '/genres', '/labels', '/podcasts', '/artists',
     '/playlists', '/memories', '/history', '/starred',
-    '/genre/Drum%20%26%20Bass%20%2F%20UK', '/label/Hardcore', '/artist/ar-1', '/album/al-2',
+    '/genre/Drum%20%26%20Bass%20%2F%20UK', '/label/Hardcore', '/podcast/Hard%20With%20Style',
+    '/artist/ar-1', '/album/al-2',
     '/playlist/pl-3', '/search/drum%20%26%20bass',
     ...SETTINGS_TABS.map((tab) => `/settings/${tab}`),
     ...MANAGEMENT_TABS.map((tab) => `/management/${tab}`)

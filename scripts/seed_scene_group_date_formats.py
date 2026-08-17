@@ -64,19 +64,36 @@ def collect_evidence(root):
     return evidence
 
 
-def group_verdicts(evidence):
-    """Overrides to store: only groups that always contradict the default.
+# A group needs this many contradicting tokens before its evidence counts at all, and has to
+# contradict this many times more often than it agrees.
+#
+# Both thresholds come from measuring the real library. A single contradicting token is not a format,
+# it is one odd NFO, and twelve groups had exactly that. At the other end, requiring zero agreement
+# was worse: group BC contradicts the default 170 times and agrees once, and that lone token would
+# have left all 170 misdated. Compliant groups produce noise at around one in a thousand (FMC agrees
+# 4922 times and contradicts 3), so a 4:1 majority separates a deviant group from noise with room to
+# spare.
+MIN_CONTRADICTIONS = 2
+MAJORITY_FACTOR = 4
 
-    Any agreement at all leaves the group to the default, because a mixture is not a format.
-    """
+
+def group_verdicts(evidence):
+    """Overrides to store: groups whose evidence clearly contradicts the positional default."""
     verdicts = {}
     for group, counts in evidence.items():
-        if counts['contradicts'] and not counts['agrees']:
+        contradicts, agrees = counts['contradicts'], counts['agrees']
+        if contradicts >= MIN_CONTRADICTIONS and contradicts > MAJORITY_FACTOR * agrees:
             verdicts[group] = 'md'
     return verdicts
 
 
 def store(verdicts):
+    """Writes the overrides, upserting so a re-measurement can correct an earlier verdict.
+
+    Group names differ only in case across releases (NBD and Nbd, QTXMP3 and QTXMp3). Both the
+    table's collation and LookupTableHelper.get compare case-insensitively, so those variants share
+    one row and one verdict rather than disagreeing.
+    """
     from services.common.Helpers.DatabaseConnector import DatabaseConnector
 
     connection = DatabaseConnector().connect()

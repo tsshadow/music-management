@@ -49,3 +49,23 @@ def test_mixed_evidence_is_left_to_the_default():
 
 def test_a_group_with_no_testable_evidence_gets_no_entry():
     assert seed.group_verdicts({'FMC': Counter()}) == {}
+
+
+def test_a_single_contradicting_token_is_not_a_format():
+    """Twelve groups in the real library had exactly one, which is one odd NFO rather than a format."""
+    assert seed.group_verdicts({'LEV': Counter({'contradicts': 1})}) == {}
+
+
+def test_one_stray_agreement_does_not_save_the_default():
+    """Group BC contradicts 170 times and agrees once; that token must not misdate all 170."""
+    assert seed.group_verdicts({'BC': Counter({'contradicts': 170, 'agrees': 1})}) == {'BC': 'md'}
+
+
+def test_noise_in_a_compliant_group_is_ignored():
+    """FMC agrees 4922 times and contradicts 3: the three are noise, not a format."""
+    assert seed.group_verdicts({'FMC': Counter({'agrees': 4922, 'contradicts': 3})}) == {}
+
+
+def test_a_genuinely_split_group_is_left_to_the_default():
+    """Two against one is not a majority worth acting on."""
+    assert seed.group_verdicts({'UTE': Counter({'contradicts': 2, 'agrees': 1})}) == {}

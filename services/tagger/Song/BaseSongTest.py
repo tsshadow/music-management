@@ -8,7 +8,22 @@ from mutagen.flac import VCFLACDict
 from mutagen.mp4 import MP4StreamInfoError
 from mutagen.oggopus import OggOpusVComment
 
-from services.tagger.constants import ARTIST, DATE, FESTIVAL, GENRE, TITLE, TRACK_NUMBER, MusicFileType
+from services.tagger.constants import (
+    ARTIST,
+    DATE,
+    FESTIVAL,
+    GENRE,
+    ORIGINAL_DATE,
+    TITLE,
+    TRACK_NUMBER,
+    AACTags,
+    FLACTags,
+    MP3Tags,
+    MP4Tags,
+    MusicFileType,
+    OPUSTags,
+    WAVTags,
+)
 from services.tagger.Song.BaseSong import BaseSong, ExtensionNotSupportedException, log_broken_file
 from services.tagger.Song.SongHelper import merge_and_sort_genres, split_artists
 from services.tagger.Song.Tag import Tag
@@ -411,6 +426,35 @@ class BaseSongMiscTest(unittest.TestCase):
             str(song),
             'Title=Raise Your Fist\nArtists=Angerfist\nGenre=Hardcore\nPath=/music/test.mp3',
         )
+
+
+class OriginalDateTagTest(unittest.TestCase):
+    """The original release date needs a mapping in every format the tagger writes."""
+
+    def test_original_date_is_mapped_for_every_text_format(self):
+        self.assertEqual(MP3Tags[ORIGINAL_DATE], 'originaldate')
+        self.assertEqual(FLACTags[ORIGINAL_DATE], 'ORIGINALDATE')
+        self.assertEqual(OPUSTags[ORIGINAL_DATE], 'ORIGINALDATE')
+        self.assertEqual(AACTags[ORIGINAL_DATE], 'ORIGINALDATE')
+        self.assertEqual(WAVTags[ORIGINAL_DATE], 'TDOR')
+
+    def test_m4a_is_left_unmapped_so_the_freeform_fallback_applies(self):
+        """_set_m4a_tag builds ----:com.apple.iTunes:ORIGINALDATE itself, with the MP4FreeForm
+        wrapping a direct MP4Tags mapping would skip."""
+        self.assertNotIn(ORIGINAL_DATE, MP4Tags)
+
+    def test_the_standard_name_is_itself_the_mp3_key(self):
+        """BaseSong.set_tag writes `music_file[tag.tag]` on the MP3 path, using the standard tag
+        name directly, so that name has to be a key EasyID3 accepts. `originaldate` is one — it is
+        native to EasyID3 and writes a real TDOR frame. mutagen is stubbed in this suite
+        (services/tests/mock_base.py), so that fact cannot be asserted here, only relied on."""
+        self.assertEqual(ORIGINAL_DATE, MP3Tags[ORIGINAL_DATE])
+
+    def test_original_date_accessor_reads_the_tag(self):
+        song = MagicMock()
+        song.tag_collection.get_item_as_string = MagicMock(return_value='2026-01-16')
+        self.assertEqual(BaseSong.original_date(song), '2026-01-16')
+        song.tag_collection.get_item_as_string.assert_called_once_with(ORIGINAL_DATE)
 
 
 if __name__ == '__main__':

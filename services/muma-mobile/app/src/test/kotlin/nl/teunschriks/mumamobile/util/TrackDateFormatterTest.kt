@@ -44,4 +44,29 @@ class TrackDateFormatterTest {
     fun `a zero year is not a year`() {
         TrackDateFormatter.format(null, 0).`should be null`()
     }
+
+    @Test
+    fun `the original date wins over the edition date`() {
+        TrackDateFormatter.preferredReleaseDate("2024-11-02", "2024-03-12") `should be equal to` "2024-03-12"
+    }
+
+    @Test
+    fun `the edition date is used when there is no original`() {
+        TrackDateFormatter.preferredReleaseDate("2024-03-12", "") `should be equal to` "2024-03-12"
+    }
+
+    @Test
+    fun `a year-only original does not beat a full edition date`() {
+        TrackDateFormatter.preferredReleaseDate("2024-03-12", "2024") `should be equal to` "2024-03-12"
+    }
+
+    @Test
+    fun `a full original beats a year-only edition date`() {
+        TrackDateFormatter.preferredReleaseDate("2024", "2024-03-12") `should be equal to` "2024-03-12"
+    }
+
+    @Test
+    fun `neither date yields nothing to format`() {
+        TrackDateFormatter.preferredReleaseDate(null, null).`should be null`()
+    }
 }

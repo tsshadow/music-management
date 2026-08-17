@@ -182,7 +182,7 @@ if 'dotenv' in sys.modules:
     sys.modules['dotenv'].load_dotenv = lambda *a, **k: None
 # Force mock Cache
 cache_mod = types.ModuleType('services.common.Helpers.Cache')
-cache_mod.databaseHelpers = {'library_artists': MagicMock(), 'rules_ignored_artists': MagicMock(), 'rules_genres': MagicMock(), 'rules_ignored_genres': MagicMock(), 'artistGenreHelper': MagicMock(), 'subgenreHelper': MagicMock(), 'rules_genre_backlog': MagicMock(), 'rules_label_genre': MagicMock(), 'rules_subgenre_hierarchy': MagicMock()}
+cache_mod.databaseHelpers = {'library_artists': MagicMock(), 'rules_ignored_artists': MagicMock(), 'rules_genres': MagicMock(), 'rules_ignored_genres': MagicMock(), 'artistGenreHelper': MagicMock(), 'subgenreHelper': MagicMock(), 'rules_genre_backlog': MagicMock(), 'rules_label_genre': MagicMock(), 'rules_subgenre_hierarchy': MagicMock(), 'sceneGroupDateFormatHelper': MagicMock()}
 sys.modules['services.common.Helpers.Cache'] = cache_mod
 for helper_name in ['library_artists', 'rules_ignored_artists', 'rules_genres', 'rules_ignored_genres', 'rules_genre_backlog']:
     helper = cache_mod.databaseHelpers[helper_name]
@@ -192,7 +192,7 @@ for helper_name in ['library_artists', 'rules_ignored_artists', 'rules_genres', 
     helper.exists.return_value = False
     helper.get_all_values.return_value = []
     helper.get_all.return_value = []
-for helper_name in ['artistGenreHelper', 'subgenreHelper', 'rules_label_genre', 'rules_subgenre_hierarchy']:
+for helper_name in ['artistGenreHelper', 'subgenreHelper', 'rules_label_genre', 'rules_subgenre_hierarchy', 'sceneGroupDateFormatHelper']:
     if helper_name in cache_mod.databaseHelpers:
         helper = cache_mod.databaseHelpers[helper_name]
         helper.get.return_value = []

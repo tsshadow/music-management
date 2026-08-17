@@ -42,9 +42,9 @@ def update_metadata():
             continue
         try:
             metadata = analyzer.extract_metadata(file_path)
-            update_query = '\n                UPDATE library_track_audio_features\n                SET artist_name = :artist,\n                    label_name = :label,\n                    release_year = :year,\n                    bpm_tag = :bpm,\n                    genre_tag = :genre,\n                    source_platform = :platform,\n                    file_path = :path\n                WHERE track_id = :tid\n            '
+            update_query = '\n                UPDATE library_track_audio_features\n                SET artist_name = :artist,\n                    label_name = :label,\n                    release_year = :year,\n                    release_date = :release_date,\n                    bpm_tag = :bpm,\n                    genre_tag = :genre,\n                    source_platform = :platform,\n                    file_path = :path\n                WHERE track_id = :tid\n            '
             with analyzer.engine.begin() as conn:
-                conn.execute(text(update_query), {'artist': metadata.get('artist_name'), 'label': metadata.get('label_name'), 'year': metadata.get('release_year'), 'bpm': metadata.get('bpm_tag'), 'genre': metadata.get('genre_tag'), 'platform': metadata.get('source_platform'), 'path': file_path, 'tid': track_id})
+                conn.execute(text(update_query), {'artist': metadata.get('artist_name'), 'label': metadata.get('label_name'), 'year': metadata.get('release_year'), 'release_date': metadata.get('release_date'), 'bpm': metadata.get('bpm_tag'), 'genre': metadata.get('genre_tag'), 'platform': metadata.get('source_platform'), 'path': file_path, 'tid': track_id})
             count += 1
         except Exception as e:
             print(f'Fout bij updaten van {track_id}: {e}')

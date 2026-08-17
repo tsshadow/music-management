@@ -34,10 +34,12 @@
             <span class="text-lg font-black font-mono tabular-nums">{Math.round(track.bpm)}</span>
           </div>
         {/if}
-        {#if track.release_year}
+        {#if track.release_date || track.release_year}
           <div class="bg-white/5 p-3 rounded-lg border border-white/5">
-            <span class="text-[9px] uppercase tracking-widest text-[#b3b3b3] block mb-1">{$t('filter.year')}</span>
-            <span class="text-lg font-black font-mono tabular-nums">{track.release_year}</span>
+            <span class="text-[9px] uppercase tracking-widest text-[#b3b3b3] block mb-1">
+              {track.release_date && track.release_date.length > 4 ? $t('track.releaseDate') : $t('filter.year')}
+            </span>
+            <span class="text-lg font-black font-mono tabular-nums">{track.release_date || track.release_year}</span>
           </div>
         {/if}
         {#if duration(track.duration_secs)}

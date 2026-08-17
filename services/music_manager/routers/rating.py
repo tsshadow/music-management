@@ -1,4 +1,6 @@
 
+import os
+
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 
@@ -6,6 +8,25 @@ from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
 
 router = APIRouter(tags=['rating'])
+
+# The same file goes by two names depending on who is talking about it. LMS reports paths
+# under its own media-library root (prod: /music), muma stores them under the mount it
+# scans (/mnt/music). A lookup that knows only one of the two never matches, and the
+# handler then falls back to the raw LMS track id -- which stops meaning anything the
+# moment LMS rebuilds its library and hands out new ids.
+LMS_MUSIC_ROOT = (os.getenv('LMS_MUSIC_ROOT') or '/music').rstrip('/')
+MUMA_MUSIC_ROOT = (os.getenv('MUMA_MUSIC_ROOT') or '/mnt/music').rstrip('/')
+
+def candidate_paths(path: str) -> list[str]:
+    """Every spelling of `path` worth looking up, the one we were given first."""
+    relative = path
+    for root in (MUMA_MUSIC_ROOT, LMS_MUSIC_ROOT):
+        if path.startswith(root + '/'):
+            relative = path[len(root) + 1:]
+            break
+    candidates = [path, f'{MUMA_MUSIC_ROOT}/{relative}', f'{LMS_MUSIC_ROOT}/{relative}', relative]
+    seen = set()
+    return [c for c in candidates if not (c in seen or seen.add(c))]
 
 def verify_api_key(x_api_key: str | None=Header(None)):
     if not x_api_key:
@@ -45,15 +66,13 @@ def handle_server_event(event: MuMaServerEvent, _auth: dict=Depends(verify_api_k
         return {'status': 'ignored', 'reason': 'unsupported event type'}
     entity_id = event.object_id
     if event.object_type == 'track' and event.path:
-        clean_path = event.path
-        if clean_path.startswith('/mnt/music/'):
-            clean_path = clean_path[len('/mnt/music/'):]
-        possible_paths = [event.path, clean_path, f'/mnt/music/{clean_path}']
+        possible_paths = candidate_paths(event.path)
         conn = get_db_connection()
         if conn:
             try:
                 with conn.cursor() as cursor:
-                    sql = '\n                        SELECT t.track_uid\n                        FROM library_media_files f\n                        JOIN library_tracks t ON f.track_id = t.id\n                        WHERE f.file_path IN (%s, %s, %s)\n                    '
+                    placeholders = ', '.join(['%s'] * len(possible_paths))
+                    sql = f'\n                        SELECT t.track_uid\n                        FROM library_media_files f\n                        JOIN library_tracks t ON f.track_id = t.id\n                        WHERE f.file_path IN ({placeholders})\n                    '
                     cursor.execute(sql, tuple(possible_paths))
                     row = cursor.fetchone()
                     if row:

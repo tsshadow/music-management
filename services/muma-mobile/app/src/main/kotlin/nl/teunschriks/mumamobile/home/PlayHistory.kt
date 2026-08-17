@@ -68,7 +68,7 @@ class PlayHistoryRecorder(
 
     fun record(track: Track) {
         recordGenres(track)
-        recordShortcut(track)
+        recordShortcut()
     }
 
     /**
@@ -83,19 +83,24 @@ class PlayHistoryRecorder(
      * a genre says something about the track that actually played rather than about the one the
      * queue happened to start with.
      */
-    fun recordQueueStart(first: Track?) {
-        if (first != null) recordShortcut(first)
+    fun recordQueueStart() {
+        recordShortcut()
     }
 
     /**
-     * The list the queue came from, and only if that is unknown, the album.
+     * The list the queue came from, and nothing at all when there is none.
      *
-     * The fallback is what keeps a session driven entirely from Android Auto, the notification or a
-     * restored queue from leaving no trace at all -- there is no browse screen in any of those to
-     * have set a source.
+     * There used to be a fallback to the played track's album, so that a session driven entirely
+     * from Android Auto or the notification left some trace. It cost more than it was worth: the
+     * grid is a set of places -- a genre, a label, a festival -- and the album of a track is not
+     * the place the user went to. Play one song out of Raw Hardstyle and the trace was the
+     * compilation it was released on, which is precisely what nobody was looking for.
+     *
+     * A queue with no place behind it therefore records nothing; the album still appears when the
+     * album screen itself is where playback started.
      */
-    private fun recordShortcut(track: Track) {
-        val card = source() ?: albumCard(track) ?: return
+    private fun recordShortcut() {
+        val card = source() ?: return
 
         store.record(card, setsMode())
     }
@@ -108,22 +113,6 @@ class PlayHistoryRecorder(
         val live = track.isLiveSet()
         val merged = mergeLastPlayedGenres(read(readGenres(live)), played)
         writeGenres(live, gson.toJson(merged))
-    }
-
-    /**
-     * The album, not the track: the home grid navigates to collections, and a grid of single songs
-     * would push everything else out within one listening session.
-     */
-    private fun albumCard(track: Track): HomeCard? {
-        val albumId = track.albumId?.takeIf { it.isNotBlank() } ?: return null
-
-        return HomeCard(
-            type = HomeCardType.ALBUM,
-            itemId = albumId,
-            title = track.album ?: track.title.orEmpty(),
-            subtitle = track.artist,
-            coverArtId = track.coverArt ?: albumId
-        )
     }
 
     // A half-written or hand-edited list must not stop the next play from being recorded.

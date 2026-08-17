@@ -7,7 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Het raster onthoudt de plek, nooit het album eronder.** Een wachtrij zonder lijst erachter --
+  gestart vanuit Android Auto, vanuit de notificatie, of hersteld bij het opstarten -- legde het
+  album vast van wat er speelde. Dat is geen plek waar je heen ging, en uit een genrelijst was het
+  ronduit fout: een nummer uit Raw Hardstyle schreef de compilatie weg waarop het is uitgebracht.
+  Zo'n wachtrij schrijft nu niets weg. Een albumscherm legt nog wel zijn album vast, want daar begon
+  het afspelen.
+
 ### Fixed
+- **Een genre-, label-, festival-, podcast- of jaarlijst wordt eindelijk als zichzelf herkend.** Elk
+  bladerscherm draagt zijn tag in de filters in plaats van in een eigen argument, en de historie las
+  alleen die argumenten -- dus die schermen leken bronloos en vielen door naar het album. Spelen uit
+  Raw Hardstyle legt nu Raw Hardstyle vast, en spelen uit Art of Creation het label.
 - **"Speel nu" op één nummer onthoudt de lijst waaruit je het speelde.** Alleen de play-knop van een
   lijst meldde het scherm erachter aan, dus één nummer uit Raw Hardstyle via het nummermenu legde de
   compilatie vast waar dat nummer toevallig op staat -- Dirty Workz in plaats van het genre.

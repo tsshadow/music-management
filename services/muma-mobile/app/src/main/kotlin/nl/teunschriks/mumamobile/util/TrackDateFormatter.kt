@@ -28,4 +28,21 @@ object TrackDateFormatter {
         if (year != null && year > 0) return year.toString()
         return null
     }
+
+    /**
+     * Which of a server's two dates to treat as the release date.
+     *
+     * MuMa resolves a release date into `ORIGINALDATE`, which LMS sends as `originalDate`, while
+     * `date` stays this edition's. The original is the more meaningful one, but only when it is at
+     * least as precise: a bare `2024` must not throw away a full date the server did send.
+     *
+     * The app displays one release date, so the choice is made here at the API boundary rather than
+     * carried through the domain model and every view that shows it.
+     */
+    fun preferredReleaseDate(date: String?, originalDate: String?): String? {
+        val preferred = if (precision(originalDate) >= precision(date)) originalDate else date
+        return preferred?.takeIf { it.isNotBlank() } ?: date
+    }
+
+    private fun precision(value: String?): Int = value?.count { it.isDigit() } ?: 0
 }

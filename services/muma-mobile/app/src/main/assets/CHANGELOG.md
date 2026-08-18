@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **"Speel genre hardstyle af" plays that genre.** The voice search only ever ran the free text
+  search, which matches artist, album and track names -- a genre matches none of them, so a spoken
+  genre left the car silent or on some unrelated album. A spoken genre now runs the same query the
+  browse tree runs: the most recently added tracks of that genre, capped at the maximum number of
+  songs from the settings, every rating included. The genre Assistant hands over in the search
+  extras is used when it is there, and the utterance itself otherwise -- "play genre hardstyle" and
+  "speel genre hardstyle af" both land. Saying "sets" or "livesets" ("speel hardstyle sets") picks
+  the livesets instead of the songs. Speech recognition splits and pads names, so "hard style" and
+  "tech house music" still find their genre; a genre the library does not know falls back to the
+  free text search unchanged.
+
 ## [6.13.2] - 2026-08-18
 
 ### Fixed

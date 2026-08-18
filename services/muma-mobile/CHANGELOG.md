@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.13.2] - 2026-08-18
+
+### Fixed
+- **"Play all" in the car plays in order again.** `shuffleModeEnabled` is sticky player state: once
+  shuffle play ran on the phone it stayed on until it was toggled off again, and the Android Auto
+  browse tree never touched it. A queue started from the car inherited it, on exactly the drives
+  that followed a shuffled listen on the phone -- which is why it looked intermittent. Both paths
+  that start a queue from the car, a browse tap and a voice search, now clear the flag. Queues added
+  from the phone are unaffected, and the car's own shuffle button still reorders the queue in place.
+
 ## [6.13.1] - 2026-08-18
 
 ### Changed

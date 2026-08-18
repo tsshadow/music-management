@@ -220,6 +220,24 @@ class MediaLibraryCommandHandler {
         )
     }
 
+    /**
+     * Clears shuffle for a queue that was just started from the car.
+     *
+     * `shuffleModeEnabled` is sticky player state: once "shuffle play" ran on the phone it stays
+     * on until it is toggled off again, and the car's browse tree never touches it. "Play all" in
+     * the car then came back shuffled, but only on the drives that followed a shuffled listen on
+     * the phone - which is why it looked intermittent. A tap in the car names what to play, and
+     * must play it in the order it was browsed.
+     *
+     * The car keeps its own shuffle affordance ([PlaybackService.CUSTOM_COMMAND_SHUFFLE]), which
+     * reorders the queue in place instead of flipping this flag, so nothing is taken away here.
+     */
+    fun clearShuffleForNewCarQueue(player: Player) {
+        if (!player.shuffleModeEnabled) return
+        Timber.i("Clearing shuffle mode for a queue started from the car")
+        player.shuffleModeEnabled = false
+    }
+
     fun shuffleCurrentPlaylist(player: Player) {
         Timber.d("shuffleCurrentPlaylist")
 

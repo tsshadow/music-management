@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [6.13.2] - 2026-08-18
+
+### Fixed
+- **"Speel alles" in de auto speelt weer op volgorde.** Shuffle bleef aan staan tussen luisterbeurten
+  door, en het bladermenu van Android Auto raakte die stand nooit aan -- dus een wachtrij die je in
+  de auto startte erfde de shuffle van je laatste luisterbeurt op de telefoon. Een wachtrij die in
+  de auto begint zet shuffle nu uit. De shuffle-knop in de auto blijft gewoon werken.
+
 ## [6.13.1] - 2026-08-18
 
 ### Fixed

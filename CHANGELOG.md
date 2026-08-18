@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **"Speel mainstream hardstyle af" speelt nu dat genre.** Het woord "genre" was het enige signaal
+  waar de spraakzoekactie op afging, en juist dat woord haalt Google Assistent uit de zin zodra hij
+  begrijpt dat er een genre bedoeld wordt -- dus kwam er "mainstream hardstyle" binnen, ging dat
+  naar de vrije-tekstzoekactie, en landde je op een album. Een zin zonder genre-bewoording wordt nu
+  ook als genrenaam aangeboden, en speelt dat genre zodra hij exact overeenkomt met een genre uit de
+  bibliotheek. Minder dan exact blijft bij de vrije-tekstzoekactie, zodat een titel die alleen maar
+  op een genre lijkt niets merkt. Het aanspreken van de app ("... af op MuMa") wordt voortaan van de
+  zin afgehaald, wat eerder niet gebeurde.
+
 ## [0.13.0] - 2026-08-18
 
 ### Added

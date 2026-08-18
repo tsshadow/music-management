@@ -305,18 +305,28 @@ class MediaLibraryPlaybackController(
     internal fun genreTracksFromVoice(query: String, spokenGenre: String?): List<Track>? {
         val parsed = VoiceGenreQuery.parse(query)
         val request = when {
-            spokenGenre.isNullOrBlank() -> parsed
-            else -> VoiceGenreQuery.Request(
+            !spokenGenre.isNullOrBlank() -> VoiceGenreQuery.Request(
                 term = spokenGenre,
                 length = parsed?.length ?: VoiceGenreQuery.LENGTH_SHORT
             )
+            parsed != null -> parsed
+            // Nothing in the utterance said "genre", which is the normal case rather than the
+            // exception: Assistant removes that word exactly when it understood the request as a
+            // genre one. So the bare utterance gets one shot at being a genre name, on the strict
+            // terms VoiceGenreQuery.implicit sets.
+            else -> VoiceGenreQuery.implicit(query)
         } ?: return null
 
-        Timber.i("genreTracksFromVoice: term=%s length=%s", request.term, request.length)
+        Timber.i(
+            "genreTracksFromVoice: term=%s length=%s exact=%s",
+            request.term,
+            request.length,
+            request.exact
+        )
 
         val genres = callWithErrorHandling { musicService.getGenres(false, null, null) }
             ?: return null
-        val genre = VoiceGenreQuery.match(request.term, genres)
+        val genre = VoiceGenreQuery.match(request.term, genres, exact = request.exact)
         if (genre == null) {
             Timber.i("genreTracksFromVoice: no genre matches %s", request.term)
             return null

@@ -48,7 +48,8 @@ class MediaLibraryVoiceGenreSearchTest {
     fun setUp() {
         every { musicService.getGenres(any(), any(), any()) } returns listOf(
             Genre("1", "Hardstyle", 100),
-            Genre("2", "Hardcore", 50)
+            Genre("2", "Hardcore", 50),
+            Genre("3", "Mainstream Hardstyle", 200)
         )
         every {
             musicService.getSongs(
@@ -129,10 +130,38 @@ class MediaLibraryVoiceGenreSearchTest {
     }
 
     @Test
-    fun `an ordinary search never asks for genres`() {
+    fun `a spoken genre name plays that genre without the word genre`() {
+        val tracks = controller.genreTracksFromVoice("speel mainstream hardstyle af op muma", null)
+
+        val expected = """[{"name":"GENRE","value":["Mainstream Hardstyle"]}, """ +
+            """{"name":"LENGTH","value":"short"}]"""
+
+        tracks?.size `should be equal to` 2
+        capturedFilters().toString() `should be equal to` expected
+    }
+
+    @Test
+    fun `an ordinary search stays on the free text search`() {
         controller.genreTracksFromVoice("play Headhunterz Dragonborn", null).`should be null`()
 
-        verify(exactly = 0) { musicService.getGenres(any(), any(), any()) }
+        verify(exactly = 0) {
+            musicService.getSongs(
+                filters = any(),
+                ratingMin = any(),
+                ratingMax = any(),
+                count = any(),
+                offset = any(),
+                sortMethod = any(),
+                festivalLineup = any(),
+                minDuration = any(),
+                maxDuration = any()
+            )
+        }
+    }
+
+    @Test
+    fun `a title that merely resembles a genre stays on the free text search`() {
+        controller.genreTracksFromVoice("speel hardstyle classics af", null).`should be null`()
     }
 
     private fun capturedFilters(): Filters {

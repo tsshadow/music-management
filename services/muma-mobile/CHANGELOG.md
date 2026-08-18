@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.14.1] - 2026-08-18
+
 ### Fixed
 - **A spoken genre no longer needs the word "genre" to survive the trip.** The parser only ever
   recognised a genre request by that word -- and Assistant strips it precisely when it understood

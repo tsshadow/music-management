@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [6.14.1] - 2026-08-18
+
 ### Fixed
 - **"Speel mainstream hardstyle af" speelt nu dat genre.** Het woord "genre" was het enige signaal
   waar de app op afging, en juist dat woord haalt Google Assistent uit je zin zodra hij begrijpt dat

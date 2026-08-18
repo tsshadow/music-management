@@ -11,6 +11,21 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.13.1 (2026-08-18)
+
+### 🎙️ "Speel mainstream hardstyle af" speelt nu dat genre
+- Het woord "genre" was het enige signaal waar de spraakzoekactie op afging, en juist dat woord
+  haalt Google Assistent uit je zin zodra hij begrijpt dat je een genre bedoelt. Wat overbleef ging
+  naar de gewone zoekactie -- die kent alleen artiest, album en titel -- en landde op een album.
+- Een zin zonder het woord "genre" wordt nu ook als genrenaam geprobeerd, en speelt dat genre zodra
+  hij precies overeenkomt met een genre uit je bibliotheek.
+- Komt hij niet precies overeen, dan verandert er niets: een titel die alleen maar op een genre
+  lijkt blijft gewoon door de zoekactie gaan.
+- Bij een precieze treffer wint het genre wel van een artiest of album met dezelfde naam. Dat is de
+  prijs van de bewoording die de rit overleeft.
+- "... af op MuMa" wordt voortaan van de zin afgehaald. Dat gebeurde eerder niet, en de zoekterm
+  bevatte dus letterlijk "af op muma".
+
 ## Global Version 0.13.0 (2026-08-18)
 
 ### 🎙️ Een genre vragen in de auto werkt nu

@@ -277,6 +277,88 @@ class MediaLibrarySessionCallback :
         }
     }
 
+    /**
+     * Every spoken request arrives here, because Assistant talks to the session over the legacy
+     * transport controls and those land on `onSetMediaItems` once it is overridden. Assistant has
+     * no verb for queueing -- it answers "can't add X to MuMa" all by itself and never calls us --
+     * so a request to hear something after the current song has to travel inside the play query as
+     * a marker word, which [VoiceQueueIntent] reads back out.
+     *
+     * Media3 hands whatever this returns to `Player.setMediaItems`, so the queued song is inserted
+     * into the queue that is returned rather than pushed onto the player separately: returning
+     * anything shorter would throw the rest of the queue away.
+     */
+    @OptIn(UnstableApi::class)
+    override fun onSetMediaItems(
+        mediaSession: MediaSession,
+        controller: MediaSession.ControllerInfo,
+        mediaItems: MutableList<MediaItem>,
+        startIndex: Int,
+        startPositionMs: Long
+    ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+        val query = mediaItems.firstOrNull()?.requestMetadata?.searchQuery
+        if (query != null) {
+            // Logged in full: what Assistant actually forwards decides which markers are worth
+            // recognising, and only a real car can tell us.
+            Timber.i("Voice query from %s: %s", controller.packageName, query)
+            val parsed = VoiceQueueIntent.parse(query)
+            if (parsed.mode == VoiceQueueMode.PLAY_NEXT && canQueueNext(mediaSession.player)) {
+                Timber.i("Queueing next from voice: %s", parsed.query)
+                return queueNextFromSearch(mediaSession, parsed.query)
+            }
+        }
+        return super.onSetMediaItems(
+            mediaSession,
+            controller,
+            mediaItems,
+            startIndex,
+            startPositionMs
+        )
+    }
+
+    /**
+     * "After this one" needs a this one. With an empty queue, or with radio driving the timeline
+     * from the server, there is nothing to insert after and the request is better served as a
+     * plain play.
+     */
+    private fun canQueueNext(player: Player): Boolean =
+        !radioPlaybackController.isActive && player.mediaItemCount > 0
+
+    @OptIn(UnstableApi::class)
+    private fun queueNextFromSearch(
+        mediaSession: MediaSession,
+        query: String
+    ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+        val result = SettableFuture.create<MediaSession.MediaItemsWithStartPosition>()
+        mainScope.launch {
+            val found = try {
+                withContext(Dispatchers.IO) { playbackController.playFromSearch(query).get() }
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                Timber.e(e, "Voice queue-next search failed for %s", query)
+                emptyList()
+            }
+
+            // Read on the main thread, after the search: the driver may have skipped a track
+            // while the server was answering, and the insert belongs after whatever plays now.
+            val player = mediaSession.player
+            val queue = (0 until player.mediaItemCount).map(player::getMediaItemAt)
+            val current = player.currentMediaItemIndex
+
+            if (found.isEmpty()) {
+                Timber.i("Nothing found to queue next for %s, leaving the queue alone", query)
+            }
+
+            result.set(
+                MediaSession.MediaItemsWithStartPosition(
+                    VoiceQueueInsertion.insertAfter(queue, current, found),
+                    current.coerceAtLeast(0),
+                    player.currentPosition
+                )
+            )
+        }
+        return result
+    }
+
     /*
      * For some reason the LocalConfiguration of MediaItem are stripped somewhere in ExoPlayer,
      * and thereby customarily it is required to rebuild it..

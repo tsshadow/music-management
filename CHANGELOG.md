@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.2] - 2026-08-18
+
+### Fixed
+- **"Speel alles" in de auto speelt weer op volgorde.** Shuffle is plakkerige spelerstand: zette je
+  hem ooit aan op de telefoon, dan bleef hij aan tot je hem zelf uitzette, en het bladermenu van
+  Android Auto raakte die stand nooit aan. Een wachtrij die je in de auto startte erfde hem dus --
+  precies op de ritten na een geshuffelde luisterbeurt op de telefoon, wat het willekeurig deed
+  lijken. Een wachtrij die in de auto begint zet shuffle nu uit. De shuffle-knop in de auto blijft
+  gewoon werken; die hutselt de wachtrij zelf door elkaar.
+
 ## [0.12.1] - 2026-08-18
 
 ### Changed

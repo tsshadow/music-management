@@ -11,6 +11,17 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.12.2 (2026-08-18)
+
+### 🚗 "Speel alles" in de auto speelt op volgorde
+- Shuffle bleef aan staan tussen luisterbeurten door: zette je hem ooit aan op de telefoon, dan bleef
+  hij aan tot je hem zelf uitzette. Het bladermenu van Android Auto raakte die stand niet aan, dus
+  een wachtrij die je in de auto startte erfde hem -- alleen op de ritten na een geshuffelde
+  luisterbeurt, waardoor het willekeurig leek.
+- Een wachtrij die in de auto begint, of dat nu via bladeren of via een spraakopdracht is, zet
+  shuffle nu uit en speelt in de volgorde die je voor je zag.
+- De shuffle-knop in de auto verandert niet: die hutselt de wachtrij zelf door elkaar.
+
 ## Global Version 0.12.1 (2026-08-18)
 
 ### 📱 "Onlangs beluisterd" doet weer wat het belooft

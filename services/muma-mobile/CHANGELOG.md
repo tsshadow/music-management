@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.14.1] - 2026-08-18
+
+### Fixed
+- **A spoken genre no longer needs the word "genre" to survive the trip.** The parser only ever
+  recognised a genre request by that word -- and Assistant strips it precisely when it understood
+  the request as a genre one, so "speel het genre mainstream hardstyle af" arrived as "mainstream
+  hardstyle" and went straight to the free text search, which matched an album instead. An
+  utterance that carries no genre wording is now offered to the genre lookup as a name in its own
+  right, and plays that genre when it matches one of the library's genres outright. Anything short
+  of an outright match stays on the free text search, so a title that merely resembles a genre is
+  unaffected. Addressing the app ("... af op MuMa") is stripped along with the other trailing
+  wording, which it never was before.
+
 ## [6.14.0] - 2026-08-18
 
 ### Added

@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [6.14.1] - 2026-08-18
+
+### Fixed
+- **"Speel mainstream hardstyle af" speelt nu dat genre.** Het woord "genre" was het enige signaal
+  waar de app op afging, en juist dat woord haalt Google Assistent uit je zin zodra hij begrijpt dat
+  je een genre bedoelt. Wat overbleef ging naar de gewone zoekactie en landde op een album. Een zin
+  zonder het woord "genre" wordt nu ook als genrenaam geprobeerd, en speelt dat genre zodra hij
+  precies overeenkomt met een genre uit je bibliotheek. Komt hij niet precies overeen, dan verandert
+  er niets en zoekt de app gewoon door. "... af op MuMa" wordt voortaan van de zin afgehaald.
+
 ## [6.14.0] - 2026-08-18
 
 ### Added

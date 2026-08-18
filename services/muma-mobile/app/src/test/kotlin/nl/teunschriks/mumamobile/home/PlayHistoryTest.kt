@@ -92,11 +92,11 @@ class PlayHistoryTest {
     }
 
     @Test
-    fun `a track without a genre still records its album`() {
+    fun `a track without a genre records neither a genre nor a shortcut`() {
         recorder().record(track(genre = null))
 
         genres.getValue(false) `should be equal to` "[]"
-        store.recent(setsMode = false).map { it.itemId } `should be equal to` listOf("a1")
+        store.recent(setsMode = false) `should be equal to` emptyList()
     }
 
     @Test
@@ -127,53 +127,68 @@ class PlayHistoryTest {
     }
 
     @Test
-    fun `a queue of unknown origin still records the album, so a car session leaves a trace`() {
-        recorder(source = { null }).record(track(albumId = "a1"))
+    fun `starting a queue records the shortcut straight away, without waiting for a scrobble`() {
+        recorder(source = { rawHardstyle }).recordQueueStart()
 
-        store.recent(setsMode = false).single().itemId `should be equal to` "a1"
+        store.recent(setsMode = false).single().itemId `should be equal to` "Raw Hardstyle"
     }
 
     @Test
-    fun `playing puts the album at the front of the home grid`() {
-        val recorder = recorder()
-        recorder.record(track(id = "1", albumId = "a1"))
-        recorder.record(track(id = "2", albumId = "a2"))
+    fun `a queue with no place behind it records nothing, not the album of its tracks`() {
+        val recorder = recorder(source = { null })
 
-        store.recent(setsMode = false).map { it.itemId } `should be equal to` listOf("a2", "a1")
-    }
-
-    @Test
-    fun `every track of one album records a single card`() {
-        val recorder = recorder()
-        recorder.record(track(id = "1", albumId = "a1"))
-        recorder.record(track(id = "2", albumId = "a1"))
-
-        store.recent(setsMode = false).size `should be equal to` 1
-    }
-
-    @Test
-    fun `the album card carries what the grid draws`() {
-        recorder().record(track())
-
-        val card = store.recent(setsMode = false).first()
-        card.type `should be equal to` HomeCardType.ALBUM
-        card.title `should be equal to` "Album a1"
-        card.subtitle `should be equal to` "Artist"
-        card.coverArtId `should be equal to` "cover-t1"
-    }
-
-    @Test
-    fun `a track with no album records nothing in the grid`() {
-        recorder().record(track(albumId = null))
+        recorder.recordQueueStart()
+        recorder.record(track(albumId = "a1"))
 
         store.recent(setsMode = false) `should be equal to` emptyList()
     }
 
     @Test
-    fun `the album is filed under the current mode, not the track length`() {
-        recorder(setsMode = true).record(track(duration = 300))
+    fun `the scrobble that follows the start of a queue does not add a second card`() {
+        val recorder = recorder(source = { rawHardstyle })
 
-        store.recent(setsMode = true).map { it.itemId } `should be equal to` listOf("a1")
+        recorder.recordQueueStart()
+        recorder.record(track(id = "1"))
+
+        store.recent(setsMode = false).map { it.itemId } `should be equal to` listOf("Raw Hardstyle")
+    }
+
+    @Test
+    fun `starting a queue leaves the genre lists to the tracks that actually play`() {
+        recorder().recordQueueStart()
+
+        genres.getValue(false) `should be equal to` "[]"
+    }
+
+    @Test
+    fun `an album screen still records the album, because that is where playback started`() {
+        val albumCard = HomeCard(type = HomeCardType.ALBUM, itemId = "a1", title = "Renegades")
+
+        recorder(source = { albumCard }).recordQueueStart()
+
+        val card = store.recent(setsMode = false).single()
+        card.type `should be equal to` HomeCardType.ALBUM
+        card.itemId `should be equal to` "a1"
+    }
+
+    @Test
+    fun `the newest place is at the front of the home grid`() {
+        var current: HomeCard? = rawHardstyle
+        val recorder = recorder(source = { current })
+
+        recorder.recordQueueStart()
+        current = HomeCard(type = HomeCardType.LABEL, itemId = "Art of Creation", title = "Art of Creation")
+        recorder.recordQueueStart()
+
+        store.recent(setsMode = false).map { it.itemId } `should be equal to`
+            listOf("Art of Creation", "Raw Hardstyle")
+    }
+
+    @Test
+    fun `the place is filed under the current mode, not the track length`() {
+        recorder(setsMode = true, source = { rawHardstyle }).record(track(duration = 300))
+
+        store.recent(setsMode = true).map { it.itemId } `should be equal to` listOf("Raw Hardstyle")
         store.recent(setsMode = false) `should be equal to` emptyList()
     }
 

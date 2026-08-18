@@ -10,14 +10,14 @@ class HomeSectionProviderTest {
 
     private fun shortcuts(
         store: RecentActivityStore,
-        resolve: suspend (String) -> String? = { null },
+        resolve: suspend (HomeCard) -> String? = { null },
         count: () -> Int = { 8 }
     ) = ShortcutsProvider(
         titleRes = R.string.home_shortcuts,
         store = store,
         setsMode = { false },
         count = count,
-        resolveArtistCoverArt = resolve
+        resolveCoverArt = resolve
     )
 
     private fun storeWith(vararg cards: HomeCard) =
@@ -70,7 +70,29 @@ class HomeSectionProviderTest {
     }
 
     @Test
-    fun `only artists are looked up`() = runBlocking<Unit> {
+    fun `a genre borrows the artwork of a track that carries it`() = runBlocking<Unit> {
+        val genre = HomeCard(type = HomeCardType.GENRE, itemId = "Uptempo", title = "Uptempo")
+        val store = storeWith(genre)
+
+        val section = shortcuts(store, resolve = { "muma-77-0" }).load()!!
+
+        section.cards.single().coverArtId `should be equal to` "muma-77-0"
+        store.recent(setsMode = false).single().coverArtId `should be equal to` "muma-77-0"
+    }
+
+    @Test
+    fun `the card being repaired is what the lookup is handed`() = runBlocking<Unit> {
+        var asked: HomeCard? = null
+        val festival = HomeCard(type = HomeCardType.FESTIVAL, itemId = "Defqon.1", title = "Defqon.1")
+
+        shortcuts(storeWith(festival), resolve = { asked = it; null }).load()
+
+        asked?.type `should be equal to` HomeCardType.FESTIVAL
+        asked?.itemId `should be equal to` "Defqon.1"
+    }
+
+    @Test
+    fun `an album is keyed by its own id, so it is never looked up`() = runBlocking<Unit> {
         val album = HomeCard(type = HomeCardType.ALBUM, itemId = "al1", title = "L1")
 
         val section = shortcuts(storeWith(album), resolve = { error("should not be asked") }).load()!!

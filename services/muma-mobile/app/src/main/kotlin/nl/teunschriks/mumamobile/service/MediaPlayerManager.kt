@@ -30,11 +30,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.OFFLINE_DB_ID
 import nl.teunschriks.mumamobile.data.RatingUpdate
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.home.PlayHistoryRecorder
+import nl.teunschriks.mumamobile.home.PlaybackSourceHolder
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.util.DownloadUtil
 import nl.teunschriks.mumamobile.util.MAX_STARS
@@ -68,6 +71,12 @@ class MediaPlayerManager(
     private var autoPlayStart = false
 
     private val scrobbler = Scrobbler()
+
+    /** See [PlaybackSourceHolder]: a browse screen arms itself, filling the queue promotes it. */
+    private val playbackSourceHolder: PlaybackSourceHolder by inject()
+
+    /** Writes the home shortcut the moment a queue starts, rather than when a track scrobbles. */
+    private val playHistoryRecorder: PlayHistoryRecorder by inject()
 
     private val rxBusSubscription: CompositeDisposable = CompositeDisposable()
 
@@ -434,9 +443,20 @@ class MediaPlayerManager(
         var insertAt = 0
 
         when (insertionMode) {
-            InsertionMode.CLEAR -> clear()
-            InsertionMode.APPEND -> insertAt = mediaItemCount
+            InsertionMode.CLEAR -> {
+                // A replaced queue is a new queue: it belongs to whichever screen armed itself just
+                // now, and to nothing at all when none did. Appending leaves the source alone --
+                // the queue is still the one it was started from.
+                playbackSourceHolder.startQueue()
+                if (songs.isNotEmpty()) rememberOnHomeScreen()
+                clear()
+            }
+            InsertionMode.APPEND -> {
+                playbackSourceHolder.discardArmed()
+                insertAt = mediaItemCount
+            }
             InsertionMode.AFTER_CURRENT -> {
+                playbackSourceHolder.discardArmed()
                 // Must never be larger than the count of items (especially when empty)
                 insertAt = (currentMediaItemIndex + 1).coerceAtMost(mediaItemCount)
             }
@@ -472,6 +492,20 @@ class MediaPlayerManager(
             } else {
                 play(0)
             }
+        }
+    }
+
+    /**
+     * The home grid is written on play, not on scrobble: a scrobble is only submitted when a track
+     * plays out, so starting something and skipping through it used to leave no trace.
+     *
+     * Local bookkeeping must never be able to stop the music from starting.
+     */
+    private fun rememberOnHomeScreen() {
+        try {
+            playHistoryRecorder.recordQueueStart()
+        } catch (all: Exception) {
+            Timber.w(all, "Failed to record the start of the queue")
         }
     }
 

@@ -306,7 +306,7 @@ class AlbumListFragment(
     private fun playAllOfArtist() {
         val artistId = headerArtistId ?: return
 
-        playbackSourceHolder.set(
+        playbackSourceHolder.arm(
             HomeCard(
                 type = HomeCardType.ARTIST,
                 itemId = artistId,

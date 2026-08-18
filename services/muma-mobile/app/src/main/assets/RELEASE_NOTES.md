@@ -1,5 +1,80 @@
 ## [Unreleased]
 
+## [6.13.1] - 2026-08-18
+
+### Fixed
+- **"Onlangs afgespeeld" bewoog niet meer.** De bron van een wachtrij werd blijvend onthouden in
+  plaats van per wachtrij, dus het laatste bladerscherm waaruit je speelde bleef de bron van alles
+  daarna. Een bron hoort nu bij precies één wachtrij.
+- **Een snelkoppeling verschijnt zodra je op play drukt**, niet pas als een nummer uitspeelt.
+- **Een genre-, label-, festival-, podcast- of jaarlijst wordt als zichzelf herkend.** Spelen uit
+  Raw Hardstyle legde de compilatie vast waarop het nummer stond; nu staat het genre er.
+- **"Speel nu" op één nummer** onthoudt de lijst waaruit je het speelde. "Speel hierna" en
+  "Achteraan" laten de lopende bron met rust.
+- **Snelkoppelingen hebben hun hoes terug.** Een album of afspeellijst draagt weer het id waarop de
+  hoes hangt; een genre, festival, label of podcast leent er één van een nummer met die tag.
+
+### Changed
+- **Een wachtrij zonder lijst erachter legt niets meer vast.** Het album van het spelende nummer is
+  niet de plek waar je heen ging.
+
+## [6.13.0] - 2026-08-17
+
+### Added
+- **Het beginscherm eindigt in twee lijsten die je kunt lezen.** "Onlangs uitgebracht" en "Onlangs
+  toegevoegd" staan er als nummerlijsten, elk met een "Toon meer" die de volledige lijst opent in
+  dezelfde volgorde. Een carrousel herken je aan de hoes, en juist het SoundCloud- en YouTube-deel
+  van je bibliotheek heeft er geen — een rij blanco vierkantjes zei niets.
+- **Twee instellingen onder Home**: hoeveel snelkoppelingen het raster toont (2 tot 10, standaard 8)
+  en hoeveel regels elke lijst toont voordat je "Toon meer" nodig hebt (1 tot 10, standaard 5).
+- **Een Podcasts-pagina**, met dezelfde shows en afleveringen als in de webspeler.
+
+### Changed
+- **"Onlangs afgespeeld" onthoudt waar je vandaan speelde.** De lijst vulde zich met alles wat je
+  opende, dus bladeren vervuilde hem en het album van één aangetikt nummer duwde de rest eruit. Er
+  wordt nu pas iets vastgelegd als je op afspelen drukt, en wat er wordt vastgelegd is de lijst waar
+  de wachtrij uit kwam. Speel je één nummer uit Raw Hardstyle, dan is de snelkoppeling Raw
+  Hardstyle, en aantikken geeft je andere nummers uit diezelfde hoek in plaats van een herhaling.
+  Shuffle-all, favorieten en gedeelde links leggen niets vast.
+- **Memories is één balk geworden** met het dichtstbijzijnde jaar erin, in plaats van een carrousel
+  van jaren, en verdwijnt op een dag waar niets in zit. Alle jaren staan nog gewoon op het
+  Memories-scherm.
+
+### Removed
+- De sectie "Onlangs bijgewerkt". Herschreven metadata is iets wat de scanner doet, niet iets om
+  naar te luisteren.
+
+### Nog niet
+- Radio is nog geen bron voor een snelkoppeling; het bestaat alleen in de Android Auto-verkenner.
+- Een snelkoppeling naar een genre onthoudt het genre, niet de sortering die op je scherm stond.
+
+## [6.12.0] - 2026-08-17
+
+### Changed
+- **Een nummer toont de originele releasedatum in plaats van de datum van de uitgave waarin het
+  zat.** De app liet die datum altijd al zien, maar kreeg de originele nooit doorgestuurd. Staat er
+  alleen een jaartal als origineel, dan wint een volledige datum van de uitgave — je levert dus
+  nooit precisie in.
+
+## [6.11.0] - 2026-08-07
+
+### Added
+- **Kies je eigen kleur, en je eigen icoon.** Onder Instellingen → Uiterlijk staat nu een
+  accentkleur: MuMa-groen of het indigo van het oude Ultrasonic. Voortgangsbalken, actieve tabbladen,
+  chips en de afspeelknop volgen die keuze.
+- Het app-icoon is een losse instelling in dezelfde twee kleuren. Je kunt dus een blauw accent met
+  een groen icoon draaien, of andersom.
+- Sets-modus houdt in beide thema's een eigen kleur, zodat nummers en sets nooit dezelfde tint
+  krijgen.
+
+### Changed
+- De oude thema-instelling bood Dag & Nacht, Donker en Zwart aan en die leverden alle drie hetzelfde
+  zwarte thema op. Stond hij op een van die drie, dan begin je nu in het groen.
+- De meldingen voor downloads en afspelen tonen het MuMa-merkteken; dat waren de laatste twee
+  plekken met een Ultrasonic-koptelefoontje.
+- Sommige launchers halen de app van je beginscherm als het icoon wisselt. De app waarschuwt daarvoor
+  op het moment zelf.
+
 ## [6.10.0] - 2026-08-07
 
 ### Added

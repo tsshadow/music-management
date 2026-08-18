@@ -40,6 +40,11 @@ fun mergeLastPlayedGenres(existing: List<String>, played: List<String>): List<St
  * The home grid is a list of places to go back to, so what a play records is the list the queue came
  * from -- see [PlaybackSourceHolder]. Opening a screen records nothing: lists get opened to be looked
  * at, but what gets played says where the user actually wanted to be.
+ *
+ * The shortcut is written when a queue starts ([recordQueueStart]) and again when a track scrobbles
+ * ([record]). The first is what the user sees: press play, the shortcut is there. The second covers
+ * the queues that never pass through the app's own play path -- Android Auto, the notification, a
+ * queue restored on startup -- and re-recording the same card is only a reorder.
  */
 class PlayHistoryRecorder(
     private val store: RecentActivityStore,
@@ -63,18 +68,39 @@ class PlayHistoryRecorder(
 
     fun record(track: Track) {
         recordGenres(track)
-        recordShortcut(track)
+        recordShortcut()
     }
 
     /**
-     * The list the queue came from, and only if that is unknown, the album.
+     * A queue was just filled from [first]: the shortcut belongs on the grid now.
      *
-     * The fallback is what keeps a session driven entirely from Android Auto, the notification or a
-     * restored queue from leaving no trace at all -- there is no browse screen in any of those to
-     * have set a source.
+     * Pressing play is the moment the user says where they wanted to be, so that is when the
+     * shortcut is written. Waiting for the scrobble meant waiting for a track to play out --
+     * Media3 only submits on an automatic transition or at the end of the queue -- so starting
+     * something and skipping through it, or listening to half of it, left the grid untouched.
+     *
+     * Genres are not recorded here: they are the "last played genres" the car browser reads, and
+     * a genre says something about the track that actually played rather than about the one the
+     * queue happened to start with.
      */
-    private fun recordShortcut(track: Track) {
-        val card = source() ?: albumCard(track) ?: return
+    fun recordQueueStart() {
+        recordShortcut()
+    }
+
+    /**
+     * The list the queue came from, and nothing at all when there is none.
+     *
+     * There used to be a fallback to the played track's album, so that a session driven entirely
+     * from Android Auto or the notification left some trace. It cost more than it was worth: the
+     * grid is a set of places -- a genre, a label, a festival -- and the album of a track is not
+     * the place the user went to. Play one song out of Raw Hardstyle and the trace was the
+     * compilation it was released on, which is precisely what nobody was looking for.
+     *
+     * A queue with no place behind it therefore records nothing; the album still appears when the
+     * album screen itself is where playback started.
+     */
+    private fun recordShortcut() {
+        val card = source() ?: return
 
         store.record(card, setsMode())
     }
@@ -87,22 +113,6 @@ class PlayHistoryRecorder(
         val live = track.isLiveSet()
         val merged = mergeLastPlayedGenres(read(readGenres(live)), played)
         writeGenres(live, gson.toJson(merged))
-    }
-
-    /**
-     * The album, not the track: the home grid navigates to collections, and a grid of single songs
-     * would push everything else out within one listening session.
-     */
-    private fun albumCard(track: Track): HomeCard? {
-        val albumId = track.albumId?.takeIf { it.isNotBlank() } ?: return null
-
-        return HomeCard(
-            type = HomeCardType.ALBUM,
-            itemId = albumId,
-            title = track.album ?: track.title.orEmpty(),
-            subtitle = track.artist,
-            coverArtId = track.coverArt ?: albumId
-        )
     }
 
     // A half-written or hand-edited list must not stop the next play from being recorded.

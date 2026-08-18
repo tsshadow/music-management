@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.13.1] - 2026-08-18
+
+### Changed
+- **The grid records the place, never the album underneath it.** A queue with no list behind it --
+  one started from Android Auto, from the notification, or restored on startup -- used to record the
+  album of whatever was playing. That is not a place you went to, and out of a genre list it was
+  actively wrong: playing a Raw Hardstyle track wrote down the compilation it was released on. Such
+  a queue now records nothing. An album screen still records its album, because that is where
+  playback started.
+
+### Fixed
+- **A genre, label, festival, podcast or year list is finally recognised as itself.** Every browse
+  screen carries its tag in its filters rather than in a named argument, and the play history only
+  read the named ones -- so those screens looked source-less and fell through to the album. Playing
+  out of Raw Hardstyle now records Raw Hardstyle, and playing out of Art of Creation records the
+  label.
+- **"Play now" on a single song records the list you played it from.** Only the play button of a
+  list announced the screen behind it, so playing one track out of Raw Hardstyle through the song
+  menu recorded the compilation that track happens to sit on -- Dirty Workz rather than the genre.
+  "Play next" and "Play last" still leave the source of the running queue alone.
+- **A shortcut now appears the moment you press play.** It was written when a track scrobbled, and
+  a scrobble is only submitted once a track plays out, so starting a list and skipping through it --
+  or listening to half of one song -- left the grid untouched. Filling the queue is what records it
+  now.
+- **"Recently played" stopped changing.** The list a queue came from was remembered permanently
+  rather than per queue, so the last browse screen you played from stayed the source of every later
+  play -- from the home lists, from search, from the notification, from the car. The grid recorded
+  that same shortcut over and over and never moved. A source now belongs to the one queue it was
+  armed for, and a queue with no list behind it records nothing.
+- **Shortcuts lost their artwork.** An album or a playlist shortcut was stored without the id its
+  cover is keyed by, so the grid drew a placeholder where it used to show the sleeve. A genre, a
+  festival, a label and a podcast have no cover of their own and now borrow one from a track that
+  carries the tag, the way an artist already borrowed its picture -- one lookup per shortcut, kept
+  in the stored card.
+
 ## [6.13.0] - 2026-08-17
 
 ### Added

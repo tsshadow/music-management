@@ -334,10 +334,11 @@ open class TrackCollectionFragment(initialOrder: SortOrder? = null) :
      * Files the queue about to be filled under the screen that produced it, so the home grid shows
      * where the user played *from* rather than what they happened to hear.
      *
-     * Recorded on play rather than on open: screens get opened to be looked at.
+     * Recorded on play rather than on open: screens get opened to be looked at. Armed rather than
+     * written, so that it only counts for the queue this screen is about to fill.
      */
     private fun rememberPlaybackSource() {
-        playbackSourceHolder.set(PlaybackSourceFactory.forTrackCollection(navArgs))
+        playbackSourceHolder.arm(PlaybackSourceFactory.forTrackCollection(navArgs))
     }
 
     private fun playAll(
@@ -579,6 +580,12 @@ open class TrackCollectionFragment(initialOrder: SortOrder? = null) :
         item: MusicDirectoryEntry
     ): Boolean {
         val tracks = getClickedSong(item)
+
+        // "Play now" on a single song starts a queue just like the play button does, and it starts
+        // it from this screen: without arming, playing one track out of Raw Hardstyle recorded the
+        // compilation it happens to sit on instead of the genre. Only this one item, because an
+        // action that never fills a queue would leave the arming behind for the next one that does.
+        if (menuItem.itemId == R.id.song_menu_play_now) rememberPlaybackSource()
 
         return ContextMenuUtil.handleContextMenuTracks(
             menuItem = menuItem,

@@ -37,6 +37,7 @@ import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.data.RatingUpdate
 import nl.teunschriks.mumamobile.domain.SearchCriteria
+import nl.teunschriks.mumamobile.home.PlaybackSourceHolder
 import nl.teunschriks.mumamobile.service.MusicServiceFactory
 import nl.teunschriks.mumamobile.service.PlaybackService
 import nl.teunschriks.mumamobile.service.PlaybackStateSerializer
@@ -75,6 +76,14 @@ class MediaLibrarySessionCallback :
     private val searchCache = mutableMapOf<Pair<String, String>, List<MediaItem>>() // (packageName, query) -> items
 
     private val playbackStateSerializer: PlaybackStateSerializer by inject()
+
+    /**
+     * A queue the car started has no browse screen behind it, so it must not inherit the source of
+     * whatever the phone played last -- see [PlaybackSourceHolder]. Nothing is armed here, so
+     * starting the queue is exactly "this one has no source", and the play history falls back to
+     * the album.
+     */
+    private val playbackSourceHolder: PlaybackSourceHolder by inject()
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private val mainScope = CoroutineScope(Dispatchers.Main)
@@ -283,6 +292,7 @@ class MediaLibrarySessionCallback :
         // Return early if its a search
         if (mediaItems[0].requestMetadata.searchQuery != null) {
             stopRadioIfRunning(mediaSession)
+            playbackSourceHolder.startQueue()
             return playbackController.playFromSearch(mediaItems[0].requestMetadata.searchQuery!!)
         }
 
@@ -315,6 +325,7 @@ class MediaLibrarySessionCallback :
         } else {
             // Android Auto devices still only use the MediaId to identify the selected Items
             // They also only select a single item at once
+            playbackSourceHolder.startQueue()
             playbackController.onAddLegacyAutoItems(mediaItems)
         }
     }

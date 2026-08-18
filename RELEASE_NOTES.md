@@ -11,6 +11,35 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.12.1 (2026-08-18)
+
+### 📱 "Onlangs beluisterd" doet weer wat het belooft
+- Het raster bewoog niet meer. De lijst waar een wachtrij vandaan kwam werd blijvend onthouden in
+  plaats van per wachtrij, dus het laatste bladerscherm waaruit je speelde bleef de bron van alles
+  daarna — van het beginscherm, uit zoeken, uit de notificatie, uit de auto. Een bron hoort nu bij
+  precies één wachtrij.
+- Een snelkoppeling verschijnt zodra je op play drukt. Hij werd pas weggeschreven als een nummer
+  scrobbelde, en dat gebeurt alleen als het uitspeelt — een lijst starten en doorskippen liet het
+  raster onaangeroerd.
+- Een genre-, label-, festival-, podcast- of jaarlijst wordt eindelijk als zichzelf herkend. Elk
+  bladerscherm draagt zijn tag in de filters in plaats van in een eigen argument, en de historie las
+  alleen die argumenten. Spelen uit Raw Hardstyle legde daardoor de compilatie vast waarop het
+  nummer stond — Dirty Workz in plaats van het genre. Nu staat Raw Hardstyle er.
+- "Speel nu" op één nummer onthoudt de lijst waaruit je het speelde. "Speel hierna" en "Achteraan"
+  laten de bron van de lopende wachtrij met rust.
+
+### 🖼 De hoezen zijn terug
+- Een album of afspeellijst werd opgeslagen zonder het id waarop de hoes hangt, dus het raster
+  tekende een placeholder waar eerst de hoes stond.
+- Een genre, festival, label of podcast heeft zelf geen hoes en leent er nu één van een nummer met
+  die tag, net zoals een artiest zijn foto al leende — één keer opzoeken per snelkoppeling, daarna
+  bewaard.
+
+### Nog niet
+- Een sessie die volledig vanuit Android Auto of de notificatie start heeft geen bladerscherm
+  erachter en laat dus geen spoor na op het beginscherm. Het album van wat er speelde vastleggen is
+  bewust weggehaald: dat is niet de plek waar je heen ging.
+
 ## Global Version 0.12.0 (2026-08-17)
 
 ### ⭐ Livesets zijn eindelijk per festival te vinden

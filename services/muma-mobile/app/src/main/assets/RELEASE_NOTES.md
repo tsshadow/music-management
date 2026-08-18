@@ -1,5 +1,23 @@
 ## [Unreleased]
 
+## [6.13.1] - 2026-08-18
+
+### Fixed
+- **"Onlangs afgespeeld" bewoog niet meer.** De bron van een wachtrij werd blijvend onthouden in
+  plaats van per wachtrij, dus het laatste bladerscherm waaruit je speelde bleef de bron van alles
+  daarna. Een bron hoort nu bij precies één wachtrij.
+- **Een snelkoppeling verschijnt zodra je op play drukt**, niet pas als een nummer uitspeelt.
+- **Een genre-, label-, festival-, podcast- of jaarlijst wordt als zichzelf herkend.** Spelen uit
+  Raw Hardstyle legde de compilatie vast waarop het nummer stond; nu staat het genre er.
+- **"Speel nu" op één nummer** onthoudt de lijst waaruit je het speelde. "Speel hierna" en
+  "Achteraan" laten de lopende bron met rust.
+- **Snelkoppelingen hebben hun hoes terug.** Een album of afspeellijst draagt weer het id waarop de
+  hoes hangt; een genre, festival, label of podcast leent er één van een nummer met die tag.
+
+### Changed
+- **Een wachtrij zonder lijst erachter legt niets meer vast.** Het album van het spelende nummer is
+  niet de plek waar je heen ging.
+
 ## [6.13.0] - 2026-08-17
 
 ### Added

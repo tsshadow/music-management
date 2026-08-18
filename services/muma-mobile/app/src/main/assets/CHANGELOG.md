@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.13.1] - 2026-08-18
+
 ### Changed
 - **The grid records the place, never the album underneath it.** A queue with no list behind it --
   one started from Android Auto, from the notification, or restored on startup -- used to record the
@@ -33,8 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rather than per queue, so the last browse screen you played from stayed the source of every later
   play -- from the home lists, from search, from the notification, from the car. The grid recorded
   that same shortcut over and over and never moved. A source now belongs to the one queue it was
-  armed for, and a queue that started somewhere without a list behind it falls back to the album
-  again.
+  armed for, and a queue with no list behind it records nothing.
 - **Shortcuts lost their artwork.** An album or a playlist shortcut was stored without the id its
   cover is keyed by, so the grid drew a placeholder where it used to show the sleeve. A genre, a
   festival, a label and a podcast have no cover of their own and now borrow one from a track that

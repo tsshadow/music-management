@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-08-18
+
 ### Changed
 - **Het raster onthoudt de plek, nooit het album eronder.** Een wachtrij zonder lijst erachter --
   gestart vanuit Android Auto, vanuit de notificatie, of hersteld bij het opstarten -- legde het
@@ -31,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   werd blijvend onthouden in plaats van per wachtrij, dus het laatste bladerscherm waaruit je speelde
   bleef de bron van alles daarna -- van het beginscherm, uit zoeken, uit de notificatie, uit de auto.
   Het raster schreef steeds dezelfde snelkoppeling weg en veranderde daardoor nooit. Een bron hoort nu
-  bij precies één wachtrij, en een wachtrij zonder lijst erachter valt weer terug op het album.
+  bij precies één wachtrij, en een wachtrij zonder lijst erachter legt niets vast.
 - **Snelkoppelingen waren hun hoes kwijt.** Een album of afspeellijst werd opgeslagen zonder het id
   waarop de hoes hangt, dus het raster tekende een placeholder waar eerst de hoes stond. Een genre,
   festival, label of podcast heeft zelf geen hoes en leent er nu één van een nummer met die tag,

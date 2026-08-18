@@ -23,7 +23,8 @@ class VoiceGenreQueryTest {
         Genre("1", "Hardstyle", 100),
         Genre("2", "Hardcore", 50),
         Genre("3", "Drum and Bass", 20),
-        Genre("4", "Tech House", 10)
+        Genre("4", "Tech House", 10),
+        Genre("5", "Mainstream Hardstyle", 200)
     )
 
     @Test
@@ -97,5 +98,43 @@ class VoiceGenreQueryTest {
     @Test
     fun `an unknown genre does not match`() {
         VoiceGenreQuery.match("polka", genres).`should be null`()
+    }
+
+    @Test
+    fun `the bare utterance is offered as a genre name`() {
+        val request = VoiceGenreQuery.implicit("speel mainstream hardstyle af")
+
+        request?.term `should be equal to` "mainstream hardstyle"
+        request?.length `should be equal to` VoiceGenreQuery.LENGTH_SHORT
+        request?.exact `should be equal to` true
+    }
+
+    @Test
+    fun `addressing the app is not part of what was asked for`() {
+        VoiceGenreQuery.implicit("speel mainstream hardstyle af op muma")?.term `should be equal to`
+            "mainstream hardstyle"
+    }
+
+    @Test
+    fun `an utterance that is nothing but wrapping offers no genre`() {
+        VoiceGenreQuery.implicit("speel af op muma").`should be null`()
+    }
+
+    @Test
+    fun `an exact match wins without the word genre`() {
+        VoiceGenreQuery.match("mainstream hardstyle", genres, exact = true) `should be equal to`
+            "Mainstream Hardstyle"
+    }
+
+    @Test
+    fun `an exact match still tolerates what the recogniser did to the spacing`() {
+        VoiceGenreQuery.match("main stream hardstyle", genres, exact = true) `should be equal to`
+            "Mainstream Hardstyle"
+    }
+
+    @Test
+    fun `without the word genre a near miss is not a genre`() {
+        VoiceGenreQuery.match("hardstyle classics", genres, exact = true).`should be null`()
+        VoiceGenreQuery.match("tech house music", genres, exact = true).`should be null`()
     }
 }

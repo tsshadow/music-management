@@ -293,6 +293,7 @@ class MediaLibrarySessionCallback :
         if (mediaItems[0].requestMetadata.searchQuery != null) {
             stopRadioIfRunning(mediaSession)
             playbackSourceHolder.startQueue()
+            commandHandler.clearShuffleForNewCarQueue(mediaSession.player)
             return playbackController.playFromSearch(mediaItems[0].requestMetadata.searchQuery!!)
         }
 
@@ -326,6 +327,7 @@ class MediaLibrarySessionCallback :
             // Android Auto devices still only use the MediaId to identify the selected Items
             // They also only select a single item at once
             playbackSourceHolder.startQueue()
+            commandHandler.clearShuffleForNewCarQueue(mediaSession.player)
             playbackController.onAddLegacyAutoItems(mediaItems)
         }
     }

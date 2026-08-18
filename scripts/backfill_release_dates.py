@@ -10,8 +10,16 @@ import os
 import sys
 from collections import Counter
 
+from dotenv import load_dotenv
+
 from services.tagger.constants import ORIGINAL_DATE
 from services.tagger.Song import NfoDate
+
+# The scene group overrides come from the database, and DatabaseConnector reads its parameters
+# straight from the environment. The compose stack injects them, but run from a checkout they live
+# only in the repository's .env. load_dotenv leaves variables already set on the command line
+# alone, so an override like DB_HOST=192.0.2.27 still wins.
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'))
 
 AUDIO_EXTENSIONS = ('.mp3', '.flac', '.m4a', '.aac', '.wav')
 DEFAULT_ROOT = '/mnt/music/EPs'

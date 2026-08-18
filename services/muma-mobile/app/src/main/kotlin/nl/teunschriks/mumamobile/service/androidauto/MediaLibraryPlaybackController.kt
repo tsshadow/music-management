@@ -13,6 +13,8 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.guava.future
+import nl.teunschriks.mumamobile.api.subsonic.models.Filter
+import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.domain.SearchCriteria
 import nl.teunschriks.mumamobile.domain.Track
@@ -195,7 +197,10 @@ class MediaLibraryPlaybackController(
             ?: Futures.immediateFuture(mediaItems)
     }
 
-    fun playFromSearch(query: String): ListenableFuture<List<MediaItem>> {
+    fun playFromSearch(
+        query: String,
+        spokenGenre: String? = null
+    ): ListenableFuture<List<MediaItem>> {
         Timber.w("App state: %s", UApp.instance != null)
 
         Timber.i("AutoMediaBrowserService onSearch query: %s", query)
@@ -211,6 +216,10 @@ class MediaLibraryPlaybackController(
         }
 
         val searchFuture = serviceScope.future {
+            // A spoken genre never matches an artist, album or track name, so it has to run the
+            // genre query of the browse tree instead of the free text search below.
+            playGenreFromVoice(query, spokenGenre)?.let { return@future it }
+
             val criteria = SearchCriteria(mediaTitle, SEARCH_LIMIT, SEARCH_LIMIT, SEARCH_LIMIT)
             val searchResult = callWithErrorHandling { musicService.search(criteria) }
 
@@ -269,6 +278,73 @@ class MediaLibraryPlaybackController(
             },
             MoreExecutors.directExecutor()
         )
+    }
+
+    /**
+     * @brief Plays the most recently added tracks of a spoken genre.
+     *
+     * @details Runs the query the browse tree uses for `MEDIA_GENRE_SONGS`: the genre and the
+     * length as filters, sorted by the date they were added, capped at the maximum number of songs
+     * from the settings. No rating filter is applied, so unrated tracks are included.
+     *
+     * @param query the spoken utterance
+     * @param spokenGenre the genre Android Auto passed in the search extras, if it did
+     * @return the tracks to play, or null when the query is not about a genre, the genre is
+     * unknown to the library, or it holds no tracks - the caller then falls back to the free text
+     * search
+     */
+    private fun playGenreFromVoice(query: String, spokenGenre: String?): List<MediaItem>? {
+        val tracks = genreTracksFromVoice(query, spokenGenre) ?: return null
+        return tracks.map { it.toMediaItem() }
+    }
+
+    /**
+     * @brief Resolves the tracks a spoken genre request should play.
+     * @see playGenreFromVoice
+     */
+    internal fun genreTracksFromVoice(query: String, spokenGenre: String?): List<Track>? {
+        val parsed = VoiceGenreQuery.parse(query)
+        val request = when {
+            spokenGenre.isNullOrBlank() -> parsed
+            else -> VoiceGenreQuery.Request(
+                term = spokenGenre,
+                length = parsed?.length ?: VoiceGenreQuery.LENGTH_SHORT
+            )
+        } ?: return null
+
+        Timber.i("genreTracksFromVoice: term=%s length=%s", request.term, request.length)
+
+        val genres = callWithErrorHandling { musicService.getGenres(false, null, null) }
+            ?: return null
+        val genre = VoiceGenreQuery.match(request.term, genres)
+        if (genre == null) {
+            Timber.i("genreTracksFromVoice: no genre matches %s", request.term)
+            return null
+        }
+
+        val filters = Filters()
+        filters.add(Filter("GENRE", listOf(genre)))
+        filters.add(Filter("LENGTH", request.length))
+
+        val songs = callWithErrorHandling {
+            musicService.getSongs(
+                filters = filters,
+                ratingMin = null,
+                ratingMax = null,
+                count = maxSongs,
+                offset = 0,
+                sortMethod = "AddedDesc",
+                festivalLineup = null,
+                minDuration = null,
+                maxDuration = null
+            )
+        } ?: return null
+
+        val tracks = songs.getTracks()
+        Timber.i("genreTracksFromVoice: genre=%s tracks=%d", genre, tracks.size)
+        if (tracks.isEmpty()) return null
+
+        return tracks
     }
 
     fun playPodcast(id: String): List<Track>? {

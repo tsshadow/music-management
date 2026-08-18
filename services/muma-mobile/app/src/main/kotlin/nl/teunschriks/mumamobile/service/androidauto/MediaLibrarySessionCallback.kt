@@ -8,6 +8,7 @@
 package nl.teunschriks.mumamobile.service.androidauto
 
 import android.os.Bundle
+import android.provider.MediaStore
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -294,7 +295,13 @@ class MediaLibrarySessionCallback :
             stopRadioIfRunning(mediaSession)
             playbackSourceHolder.startQueue()
             commandHandler.clearShuffleForNewCarQueue(mediaSession.player)
-            return playbackController.playFromSearch(mediaItems[0].requestMetadata.searchQuery!!)
+            // Assistant names the genre in the search extras when it understood the request as a
+            // genre one ("play genre hardstyle"); the utterance itself is the fallback.
+            val requestMetadata = mediaItems[0].requestMetadata
+            return playbackController.playFromSearch(
+                requestMetadata.searchQuery!!,
+                requestMetadata.extras?.getString(MediaStore.EXTRA_MEDIA_GENRE)
+            )
         }
 
         // Radio owns the player while it is on: it drives a single item from the

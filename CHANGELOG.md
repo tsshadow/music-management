@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-08-18
+
+### Added
+- **"Speel genre hardstyle af" speelt dat genre.** De spraakzoekopdracht in de auto draaide altijd de
+  vrije-tekstzoekactie, en die kijkt naar artiest, album en titel -- een genre komt daar in geen van
+  drieën voor, dus bleef de auto stil of landde je op een willekeurig album dat toevallig een woord
+  deelde. Een uitgesproken genre draait nu dezelfde query als het bladermenu: de laatst toegevoegde
+  nummers van dat genre, tot het maximum uit de instellingen, ongeacht waardering. Zeg je "sets" of
+  "livesets", dan krijg je de lange opnames in plaats van de nummers. Spraakherkenning knipt en plakt
+  namen, dus "hard style" en "tech house music" vinden hun genre alsnog; een genre dat de bibliotheek
+  niet kent valt terug op de oude vrije-tekstzoekactie.
+- **"Speel X hierna af op MuMa" zet dat nummer achter wat er speelt.** Google Assistent kent geen
+  wachtrij-werkwoord voor externe muziekapps: "voeg X toe aan MuMa" wordt binnen Assistent zelf
+  geweigerd en bereikt de app nooit. De enige deur die wel opengaat is een speelverzoek met vrije
+  tekst, dus reist de wachtrij-instructie mee in die zin als markeerwoord ("speel X hierna af op
+  MuMa", "play X next on MuMa") en wordt er in de app weer uitgehaald. Markeerwoorden tellen alleen
+  aan het eind van de zin, zodat een titel als "The Next Level" heel blijft, en een zin die uit niets
+  anders dan een markeerwoord bestaat valt terug op gewoon afspelen.
+- **Een LMS-scan kan voortaan per batch worden aangezet.** `LmsScanTrigger` roept `startScan.view`
+  aan op elke ingestelde LMS-host, bedoeld voor één keer per download-, import- of tagronde. LMS'
+  incrementele scan verwerkt alleen nieuwe of gewijzigde bestanden, dus dat is goedkoop, en het laat
+  LMS' eigen schema omlaag -- van uurlijks naar dagelijks -- zonder dat de bibliotheek achterloopt.
+  De helper draait nog nergens mee; hij wordt aangesloten bij de uitvoering van het
+  retag-invalidatie- en BPM-plan dat in deze release is vastgelegd.
+
+### Fixed
+- **De backfill-scripts vinden de database weer.** `backfill_release_dates.py` en
+  `seed_scene_group_date_formats.py` lezen hun databaseparameters rechtstreeks uit de omgeving. De
+  compose-stack injecteert die, maar vanuit een checkout staan ze alleen in de `.env` van de
+  repository -- het seeding-script liep dus eerst de hele bibliotheek af en faalde pas daarna op het
+  wegschrijven, wat de volledige run kostte. Allebei laden nu die `.env`, net als
+  `scripts/library_stats.py` al deed. Een override op de commandoregel wint nog steeds.
+
 ## [0.12.2] - 2026-08-18
 
 ### Fixed

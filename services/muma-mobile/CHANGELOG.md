@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.14.0] - 2026-08-18
+
 ### Added
 - **"Speel genre hardstyle af" plays that genre.** The voice search only ever ran the free text
   search, which matches artist, album and track names -- a genre matches none of them, so a spoken
@@ -18,6 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the livesets instead of the songs. Speech recognition splits and pads names, so "hard style" and
   "tech house music" still find their genre; a genre the library does not know falls back to the
   free text search unchanged.
+- **"Play X next on MuMa" queues that song instead of replacing the queue.** Assistant exposes no
+  queueing verb to third-party media apps: "add X to MuMa" is refused inside Assistant itself and the
+  session is never called. The only door it opens is a play request carrying free text, so the queue
+  instruction now travels inside that query as a marker word -- "speel X hierna af op MuMa", "play X
+  next on MuMa" -- and is read back out on arrival. The resolved song is inserted into the queue
+  rather than pushed onto the player separately, because Media3 hands the returned list straight to
+  `Player.setMediaItems` and a shorter list would discard the rest of the queue. Markers are matched
+  only at the tail of the query, keeping titles like "The Next Level" intact, and a query that is
+  nothing but a marker falls back to the old play-from-search path.
 
 ## [6.13.2] - 2026-08-18
 

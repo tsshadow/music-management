@@ -1,5 +1,20 @@
 ## [Unreleased]
 
+## [6.14.0] - 2026-08-18
+
+### Added
+- **"Speel genre hardstyle af" speelt dat genre.** De spraakzoekopdracht draaide altijd de
+  vrije-tekstzoekactie, en die kijkt naar artiest, album en titel -- een genre komt daar niet in
+  voor, dus bleef de auto stil of landde je op een willekeurig album. Een uitgesproken genre draait
+  nu dezelfde lijst als het bladermenu: de laatst toegevoegde nummers van dat genre, tot het maximum
+  uit de instellingen, ongeacht waardering. "Speel hardstyle sets" geeft de lange opnames in plaats
+  van de nummers. "Hard style" en "tech house music" vinden hun genre alsnog; een genre dat de
+  bibliotheek niet kent valt terug op de oude zoekactie.
+- **"Speel X hierna af op MuMa" zet dat nummer achter wat er speelt.** Google Assistent kent geen
+  wachtrij-werkwoord voor externe muziekapps, dus reist de instructie mee in het speelverzoek zelf,
+  als markeerwoord aan het eind van de zin. De rest van de wachtrij blijft staan. Markeerwoorden
+  tellen alleen aan het eind, dus een titel als "The Next Level" blijft heel.
+
 ## [6.13.2] - 2026-08-18
 
 ### Fixed

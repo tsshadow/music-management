@@ -11,6 +11,36 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.13.0 (2026-08-18)
+
+### 🎙️ Een genre vragen in de auto werkt nu
+- De spraakzoekopdracht draaide altijd de vrije-tekstzoekactie, en die kijkt naar artiest, album en
+  titel. Een genre komt daar niet in voor, dus "speel genre hardstyle af" liet de auto stil of
+  landde op een willekeurig album dat toevallig een woord deelde.
+- Een uitgesproken genre draait nu dezelfde lijst als het bladermenu: de laatst toegevoegde nummers
+  van dat genre, tot het maximum uit de instellingen, ongeacht waardering.
+- "Speel hardstyle sets" of "livesets" geeft de lange opnames in plaats van de nummers.
+- Spraakherkenning knipt en plakt namen, dus "hard style" en "tech house music" vinden hun genre
+  alsnog. Een genre dat de bibliotheek niet kent valt terug op de oude zoekactie.
+
+### ⏭️ "Speel X hierna af op MuMa"
+- Google Assistent kent geen wachtrij-werkwoord voor externe muziekapps: "voeg X toe aan MuMa" wordt
+  binnen Assistent zelf geweigerd en bereikt MuMa nooit.
+- De instructie reist daarom mee in het speelverzoek zelf, als markeerwoord aan het eind van de zin:
+  "speel X hierna af op MuMa", "play X next on MuMa".
+- Het gevonden nummer schuift achter wat er speelt; de rest van de wachtrij blijft staan.
+- Markeerwoorden tellen alleen aan het eind, dus een titel als "The Next Level" blijft heel.
+
+### 🛠️ Onder de motorkap
+- `LmsScanTrigger` kan na een download-, import- of tagronde meteen een incrementele LMS-scan
+  aanzetten, zodat LMS' eigen schema van uurlijks naar dagelijks kan zonder dat de bibliotheek
+  achterloopt. De helper is er wel, maar draait nog nergens mee -- die aansluiting hoort bij het
+  retag-invalidatie- en BPM-plan dat in deze release is vastgelegd.
+- Het ontwerp voor twee kiesbare stijlen in MuMa Mobile (Spotify en MuMa) is vastgelegd.
+- De backfill-scripts voor releasedatums laden de `.env` van de repository voordat ze de database
+  aanspreken. Vanuit een checkout liep het seeding-script eerst de hele bibliotheek af en faalde het
+  pas daarna op het wegschrijven.
+
 ## Global Version 0.12.2 (2026-08-18)
 
 ### 🚗 "Speel alles" in de auto speelt op volgorde

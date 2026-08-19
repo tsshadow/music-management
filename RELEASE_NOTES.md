@@ -11,6 +11,21 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.15.0 (2026-08-19)
+
+### 📦 Weekpakketten worden uitgepakt tot op de release
+- Zet je een weekpakket zoals `HHC-2026-WEEK-33.rar` in de importmap, dan bleef na het uitpakken de
+  map van het pakket zelf staan, met alle releases daarin.
+- De importer keek alleen naar de bovenste laag, vond daar geen catalogusnummer, logde "No valid
+  CAT ID found" en keek er nooit in. Geen enkele release uit zo'n pakket is ooit geïmporteerd.
+- Er zit nu een stap tussen die de releases uit de pakketmap omhoog haalt, zodat ze precies zo
+  verwerkt worden als een losse download. De pakketmap verdwijnt daarna, met de losse `.nfo`- en
+  `.sfv`-bestanden erin.
+- Een pakketmap wordt herkend aan de inhoud, niet aan de naam: een release bevat zijn audio direct,
+  een pakketmap bevat alleen mappen. Een album waarvan de nummers in één submap staan, zoals `CD1`,
+  wordt daarom met rust gelaten.
+- Bestaat een release al in de importmap, dan blijft die staan en wordt er niets overschreven.
+
 ## Global Version 0.14.0 (2026-08-19)
 
 ### 🎙️ De stemzoekopdracht begrijpt een heel verzoek

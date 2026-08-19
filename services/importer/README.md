@@ -7,7 +7,7 @@ This service is responsible for discovering, extracting, and organizing music fi
 The Importer works as a background worker that monitors a specific `__TODO` folder. When new files (archives or loose audio files) are detected, it performs the following steps:
 
 1. **Extraction**: Unpacks `.zip` and `.rar` files.
-2. **Flattening**: Removes unnecessary nested folders.
+2. **Flattening**: Lifts the releases of a multipack (a weekly pack, for example) out of the folder its archive extracted into, so every release sits directly in the watch folder.
 3. **Renaming**: Normalizes file names to a consistent format.
 4. **Metadata Extraction**: Reads existing tags and identifies track information.
 5. **Archiving**: Moves the original source (e.g., the ZIP file) to an archive folder.
@@ -17,6 +17,7 @@ The Importer works as a background worker that monitors a specific `__TODO` fold
 
 - `importer_service.py`: The main entry point for the worker.
 - `extractor.py`: Handles ZIP and RAR extraction.
+- `flattener.py`: Removes the wrapper folder a multipack archive leaves behind.
 - `mover.py`: Logic for moving files to their final destination.
 - `renamer.py`: Sanitizes file and folder names.
 

@@ -11,6 +11,40 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.14.0 (2026-08-19)
+
+### 🎙️ De stemzoekopdracht begrijpt een heel verzoek
+- "Speel willekeurige favorieten uit 2023 af" kwam vroeger bij de vrije-tekstzoekopdracht terecht.
+  Die kent alleen artiest-, album- en titelnamen, dus op zo'n zin bleef het stil.
+- De zin wordt nu uit elkaar gehaald in de onderdelen waar de bibliotheek op kan filteren: een
+  genre, een artiest ("van headhunterz"), een label ("label art of creation"), een jaar ("uit
+  2021"), je favorieten, en nummers of livesets. Daarbovenop een volgorde: "willekeurig" schudt,
+  "recent" speelt op releasedatum, "recent toegevoegd" op de datum dat de bibliotheek bijkwam.
+- Alles is combineerbaar en alles is optioneel, in het Nederlands en in het Engels. "Speel recent
+  af" speelt je hele bibliotheek op releasedatum.
+- Een naam die de bibliotheek niet kan plaatsen valt weg en de rest speelt gewoon door, dus "speel
+  zwabberkore uit 2021 af" speelt 2021. Kan er niets geplaatst worden, dan neemt de gewone
+  zoekfunctie het over.
+- Nieuw onder Over: een pagina met alle spraakcommando's, want bovenstaande formulering vind je
+  niet door tegen de auto te praten en te hopen.
+
+### 🔀 Een tracklijst in de app is zelf te sorteren
+- Open je een genre, een label, een festival, een jaar, een podcast, een line-up of een
+  sterrenfilter, dan kwam die lijst altijd terug op releasedatum, zonder manier om dat te wijzigen.
+- Boven de lijst staat nu dezelfde keuzelijst als in de webinterface: recent uitgebracht, recent
+  toegevoegd, meest gespeeld, recent gespeeld, op waardering, op naam en willekeurig.
+- De lijst opent op de sortering waarmee je binnenkwam, dus zonder een keuze te maken verandert er
+  niets, en je keuze blijft staan als je het scherm draait.
+- Albums, afspeellijsten en podcastafleveringen houden hun eigen volgorde en krijgen de keuzelijst
+  niet. In offlinemodus blijft hij verborgen, omdat de sortering daar bij de server vandaan zou
+  moeten komen.
+
+### ⭐ De Android Auto-bibliotheek toont "Favorieten" nog maar één keer
+- De nummers met een ster en de map met favoriete genres en tegels heetten in het Nederlands
+  allebei "Favorieten", dus in de auto was niet te zien welke welke was.
+- Er is nu één map Favorieten, met daarin "Favoriete nummers" naast de favoriete genres en
+  playlists.
+
 ## Global Version 0.13.3 (2026-08-19)
 
 ### 🎙️ Een genre dat je met je stem opvraagt speelt nu op releasedatum

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-08-19
+
 ### Added
 - **De stemzoekopdracht begrijpt nu een heel verzoek in plaats van alleen een genre.** "Speel
   willekeurige favorieten uit 2023 af" kwam bij de vrije-tekstzoekopdracht terecht, die alleen

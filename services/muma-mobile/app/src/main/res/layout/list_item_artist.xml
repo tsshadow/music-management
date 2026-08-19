@@ -13,6 +13,7 @@
     a:layout_width="match_parent"
     a:layout_height="wrap_content"
     a:background="?android:attr/selectableItemBackground"
+    a:foreground="?attr/rowSeam"
     a:clickable="true"
     a:focusable="true">
 

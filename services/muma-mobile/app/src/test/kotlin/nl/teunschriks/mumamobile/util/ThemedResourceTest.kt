@@ -2,6 +2,7 @@ package nl.teunschriks.mumamobile.util
 
 import android.content.Context
 import android.graphics.drawable.GradientDrawable
+import android.util.TypedValue
 import android.view.ContextThemeWrapper
 import androidx.appcompat.content.res.AppCompatResources
 import nl.teunschriks.mumamobile.R
@@ -59,6 +60,47 @@ class ThemedResourceTest {
     fun `the themeColor helper resolves colorPrimary`() {
         themed(R.style.UltrasonicTheme_Muma)
             .themeColor(androidx.appcompat.R.attr.colorPrimary) `should be equal to` green
+    }
+
+    private fun attr(theme: Int, attribute: Int): TypedValue {
+        val out = TypedValue()
+        themed(theme).theme.resolveAttribute(attribute, out, true)
+        return out
+    }
+
+    // A theme entry of @null comes back as a reference to resource 0 rather than as TYPE_NULL,
+    // so "draws nothing" is a resourceId of 0.
+    private val nothing = 0
+
+    @Test
+    fun `only the spotify style wraps a row in a card`() {
+        attr(R.style.UltrasonicTheme_Spotify, R.attr.listRowBackground)
+            .resourceId `should be equal to` R.drawable.song_card_background
+        attr(R.style.UltrasonicTheme_Muma, R.attr.listRowBackground)
+            .resourceId `should be equal to` nothing
+    }
+
+    @Test
+    fun `only the muma style draws a seam between rows`() {
+        attr(R.style.UltrasonicTheme_Spotify, R.attr.rowSeam)
+            .resourceId `should be equal to` nothing
+        attr(R.style.UltrasonicTheme_Muma, R.attr.rowSeam)
+            .resourceId `should be equal to` R.drawable.list_row_hairline
+    }
+
+    @Test
+    fun `a card floats on its margins and a seamed row does not`() {
+        // A seam only reads as a seam if the rows it separates are flush. Margins and the card
+        // have to come and go together, so they are asserted together.
+        val display = RuntimeEnvironment.getApplication().resources.displayMetrics
+
+        for (attribute in listOf(R.attr.rowMarginVertical, R.attr.rowMarginHorizontal)) {
+            val spotify = attr(R.style.UltrasonicTheme_Spotify, attribute)
+            (spotify.getDimension(display) > 0f) `should be equal to` true
+
+            val muma = attr(R.style.UltrasonicTheme_Muma, attribute)
+            muma.getDimension(display) `should be equal to` 0f
+        }
     }
 
     @Test

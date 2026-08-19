@@ -13,6 +13,7 @@
     a:layout_width="match_parent"
     a:layout_height="56dp"
     a:background="?attr/selectableItemBackground"
+    a:foreground="?attr/rowSeam"
     a:paddingHorizontal="6dp">
 
     <com.google.android.material.imageview.ShapeableImageView

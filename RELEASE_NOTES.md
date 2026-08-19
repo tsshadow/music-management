@@ -11,6 +11,37 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.13.2 (2026-08-19)
+
+### 🔑 De beheerpagina herkent je weer als beheerder
+- De pagina zag niet dat je beheerder bent en laadde vaak helemaal niet. De gedeelde systeemsleutel
+  staat in de productie-instellingen onder een andere naam dan de servers doorkregen, en die tweede
+  naam was leeg -- dus draaide productie zonder sleutel.
+- Dat trof meer dan de beheerpagina: ook de scrobbles en waarderingen die LMS terugstuurt werden
+  stilzwijgend geweigerd. Beide schrijfwijzen worden nu doorgegeven, en een release kan niet meer
+  uitgerold worden als geen van beide is ingevuld.
+- Een sleutel die de server niet meer accepteert blokkeert de pagina ook niet langer. Die bleef
+  eeuwig in je browser hangen: elk bezoek "kan niet verbinden", en je beheerstatus leek willekeurig
+  te verdwijnen. Hij wordt nu weggegooid en je logt opnieuw in met je spelerwachtwoord. Bij een
+  haperend netwerk gebeurt dat expres niet -- dat is geen bewijs dat je sleutel fout is.
+
+### ☁️ SoundCloud kijkt slimmer welke accounts aandacht nodig hebben
+- Accounts worden nu gecontroleerd op een ritme dat volgt hoe recent ze iets plaatsten: zesuurlijks
+  voor wie deze week postte, en verder dagelijks, driedaags, wekelijks en maandelijks voor accounts
+  die al meer dan een jaar stilliggen. De vier nieuwe wachttijden staan onder Systeembeheer →
+  Downloaders → Timing.
+- Een controle begint met één enkel verzoek om het nieuwste nummer, en slaat het account over zodra
+  dat nummer al binnen is. Voorheen werd de hele catalogus doorgebladerd voordat er iets gebeurde --
+  een groot account kostte 28 verzoeken per controle, of er nu nieuw werk was of niet.
+- Een ronde begint bij de accounts die het verst over hun eigen wachttijd heen zijn, in plaats van
+  alfabetisch.
+
+### 🏷️ "File saved" betekent voortaan dat het bestand ook echt geschreven is
+- De tagger meldde de opslag één stap vóór het schrijven, dus een bestand dat het bestandssysteem
+  weigerde kwam er alsnog als succes uit. Bij de backfill over de bibliotheek waren dat 17356
+  meldingen voor 8885 werkelijk geschreven bestanden.
+
+
 ## Global Version 0.13.1 (2026-08-18)
 
 ### 🎙️ "Speel mainstream hardstyle af" speelt nu dat genre

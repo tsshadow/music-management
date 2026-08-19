@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.2] - 2026-08-19
+
 ### Changed
 - SoundCloud accounts are now checked at a rate that follows how recently they
   uploaded, across five tiers: six-hourly for accounts that posted this week, then
@@ -36,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   because `lazy_playlist` was off and `break_on_existing` could therefore only stop the
   download loop. A large account cost 28 API requests per check whether or not it had
   anything new.
+- **"File saved" betekent voortaan dat het bestand ook echt geschreven is.** De tagger logde die
+  regel één statement vóór de schrijfactie, dus een write die het bestandssysteem weigerde kwam er
+  alsnog als succes uit -- de backfill over de bibliotheek logde 17356 keer "File saved" voor 8885
+  daadwerkelijk geschreven bestanden, met de waarheid alleen in een WARNING twee regels verderop.
 
 ## [0.13.1] - 2026-08-18
 

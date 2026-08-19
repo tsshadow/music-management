@@ -621,6 +621,7 @@
     <string name="favorites.starred_artists">Favoriete artiesten</string>
     <string name="favorites.highly_rated">Hoog gewaardeerd</string>
     <string name="favorites.title">Favorieten</string>
+    <string name="favorites.songs">Favoriete nummers</string>
     <string name="favorites.genres">Favoriete genres</string>
     <string name="favorites.playlists">Favoriete playlists</string>
     <string name="genre.favorite_add">Aan favorieten toevoegen</string>

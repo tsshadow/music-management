@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **In de Android Auto-bibliotheek stond "Favorieten" twee keer.** De nummers met een ster en de map
+  met favoriete genres en tegels hadden in het Nederlands allebei dezelfde naam, dus in de auto was
+  niet te zien welke welke was. Er is nu één map Favorieten, met daarin "Favoriete nummers" naast de
+  favoriete genres en playlists.
+
 ## [0.13.3] - 2026-08-19
 
 ### Changed

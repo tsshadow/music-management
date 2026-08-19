@@ -15,7 +15,7 @@ const STATS = {
 const USER = { id: 1, username: 'user', display_name: 'Teun', permissions: ['users.read'] };
 
 /** Answers every endpoint Management loads on arrival. */
-function api({ configOk = true, verify = { type: 'user', user: USER }, loginOk = true } = {}) {
+function api({ configOk = true, verify = { type: 'user', user: USER }, loginOk = true, rejectKey = null } = {}) {
   const bodies = {
     '/api/config': { version: '0.0.57' },
     '/api/notes': { release_notes: '<p>Notes</p>' },
@@ -42,7 +42,12 @@ function api({ configOk = true, verify = { type: 'user', user: USER }, loginOk =
       return { ok: true, json: async () => verify };
     }
     if (url.includes('/api/config') && !configOk) {
-      return { ok: false, json: async () => ({}) };
+      return { ok: false, status: 401, json: async () => ({}) };
+    }
+    // A key the backend no longer accepts -- e.g. a system key left in
+    // localStorage after the deployment stopped resolving one.
+    if (rejectKey && options.headers?.['X-API-Key'] === rejectKey) {
+      return { ok: false, status: 401, json: async () => ({}) };
     }
     // Before the generic '/api/rules' entry below, which would otherwise answer
     // the genre table with an object and leave it summarising a non-iterable.
@@ -111,6 +116,19 @@ describe('Management', () => {
     render(Management);
 
     await waitFor(() => expect(screen.queryByText('1 / 1 Running')).toBeNull());
+  });
+
+  it('trades a stored key the server rejects for a fresh one instead of staying closed', async () => {
+    // Without this the screen wedges permanently: it only ever auto-logs in
+    // when there is no key at all, so a stale-but-present key in localStorage
+    // meant every visit rendered "kan niet verbinden" until the user cleared
+    // their browser storage by hand.
+    globalThis.fetch = api({ rejectKey: 'key-1' });
+
+    render(Management);
+
+    await waitFor(() => expect(screen.getByText('1 / 1 Running')).toBeTruthy());
+    expect(get(mumaApiKey)).toBe('key-from-login');
   });
 
   it('the signed-in user and their permissions are published', async () => {

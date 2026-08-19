@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-
 - SoundCloud accounts are now checked at a rate that follows how recently they
   uploaded, across five tiers: six-hourly for accounts that posted this week, then
   daily, every three days, weekly, and monthly for accounts dormant over a year. The
@@ -20,7 +19,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of working alphabetically.
 
 ### Fixed
-
+- **De beheerpagina herkent je weer als beheerder.** De gedeelde systeemsleutel stond in de
+  productie-`.env` als `MUMA_API_KEY`, maar de compose-stack gaf alleen `API_KEY` door -- en die
+  regel was leeg. Zolang de code nog een hardgecodeerde sleutel als terugval had, viel dat niet op;
+  sinds die terugval weg is, weigert de server elke aanroep met de systeemsleutel. Dat waren niet
+  alleen `/api/auth/verify` (403) en `/api/config` (401) van de beheerpagina, maar ook de
+  scrobble- en waarderingswebhooks van LMS, die stilzwijgend werden weggegooid. Beide spellingen
+  worden nu doorgegeven, en de pijplijn weigert voortaan te deployen als geen van beide is gezet.
+- **Een sleutel die de server niet meer accepteert blokkeert de beheerpagina niet langer.** De
+  automatische login liep alleen als er helemaal geen sleutel was, dus een verouderde sleutel in de
+  browseropslag bleef eeuwig hangen: elk bezoek toonde "kan niet verbinden" en `isAdmin` viel terug
+  op alleen de Subsonic-rol, waardoor je beheerstatus willekeurig leek te verdwijnen. Een 401 of 403
+  gooit de sleutel nu weg en logt opnieuw in met je spelerwachtwoord. Een 5xx of een mislukt verzoek
+  doet dat expres niet -- een haperend netwerk is geen bewijs dat je sleutel fout is.
 - SoundCloud checks paged an account's entire catalogue before downloading anything,
   because `lazy_playlist` was off and `break_on_existing` could therefore only stop the
   download loop. A large account cost 28 API requests per check whether or not it had

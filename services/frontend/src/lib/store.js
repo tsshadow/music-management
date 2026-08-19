@@ -243,14 +243,25 @@ credentials.subscribe(($c) => {
 // startup, not only once already inside the management view.
 export const mumaUserHydrated = writable(!get(mumaApiKey));
 
-async function hydrateMumaUserFromApiKey() {
+export async function hydrateMumaUserFromApiKey() {
   const key = get(mumaApiKey);
   if (!key) return;
   try {
     const res = await fetch(`${get(mumaApiUrl)}/api/auth/verify`, {
       headers: { 'X-API-Key': key }
     });
-    if (res.ok) {
+    if (!res.ok && (res.status === 401 || res.status === 403)) {
+      // The backend does not accept this key any more -- a rotated or
+      // no-longer-resolving system key, or an account whose key was reissued.
+      // Keeping it makes every later call fail with no way back: the login
+      // paths (AuthOverlay, LoginPage, Management's auto-login) only run when
+      // there is no key at all, so a user would have to clear localStorage by
+      // hand. A 5xx or a thrown request is NOT evidence of a bad key and
+      // deliberately leaves it alone.
+      mumaApiKey.set('');
+      mumaUser.set(null);
+      userPermissions.set([]);
+    } else if (res.ok) {
       const data = await res.json();
       if (data.type === 'user') {
         userPermissions.set(data.user.permissions || []);

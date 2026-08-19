@@ -50,6 +50,23 @@ require_key() {
     return 0
 }
 
+require_any_key() {
+    # $1: rendered .env content, $2: human description, $3: which CI/CD
+    # variable it comes from, $4..: the accepted key names.
+    local content="$1" description="$2" source_var="$3"
+    shift 3
+    local key value
+    for key in "$@"; do
+        value="$(printf '%s\n' "$content" | grep -E "^${key}=" | tail -1 | cut -d'=' -f2-)"
+        if [ -n "${value}" ]; then
+            echo "OK: ${description} is set as '${key}' in '${source_var}'."
+            return 0
+        fi
+    done
+    echo "Missing required secret: ${description} -- none of [$*] is set (or non-empty) in the '${source_var}' CI/CD variable."
+    return 1
+}
+
 missing=0
 
 if [ -z "${PROD_ENV_FILE}" ]; then
@@ -60,6 +77,15 @@ else
     # GOOGLE_CLIENT_ID: backend audience verification for Google Sign-In
     # (see services/music_manager/routers/user_requests.py).
     require_key "$env_content" "GOOGLE_CLIENT_ID" "PROD_ENV_FILE" || missing=1
+    # The shared system API key, under either spelling: services/music_manager/
+    # api_key.py reads API_KEY first and falls back to MUMA_API_KEY, and the
+    # production .env happens to use the second one. Without either, the key
+    # resolution fails closed and every service-to-service caller is rejected
+    # -- LMS's scrobble/rating webhooks and the management UI both stop working
+    # (401/403). This was invisible while the code still carried a hardcoded
+    # literal fallback; removing that literal is what made it a deploy secret.
+    require_any_key "$env_content" "the shared system API key" "PROD_ENV_FILE" \
+        "API_KEY" "MUMA_API_KEY" || missing=1
 fi
 
 if [ -z "${PROD_ENV_FILE_LMS}" ]; then

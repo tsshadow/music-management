@@ -41,7 +41,7 @@
             a:text="Song Title"
             a:textSize="15sp"
             a:textStyle="bold"
-            a:textColor="@color/spotify_text_primary"
+            a:textColor="?android:attr/textColorPrimary"
             tools:ignore="HardcodedText" />
 
         <!-- Status icons -->
@@ -82,7 +82,7 @@
             a:maxLines="1"
             a:text="Artist name"
             a:textSize="13sp"
-            a:textColor="@color/spotify_text_secondary"
+            a:textColor="?android:attr/textColorSecondary"
             tools:ignore="HardcodedText" />
 
         <TextView
@@ -91,7 +91,7 @@
             a:layout_height="wrap_content"
             a:text=" • "
             a:textSize="13sp"
-            a:textColor="@color/spotify_text_secondary"
+            a:textColor="?android:attr/textColorSecondary"
             tools:ignore="HardcodedText" />
 
         <TextView
@@ -103,7 +103,7 @@
             a:maxLines="1"
             a:text="Album name"
             a:textSize="13sp"
-            a:textColor="@color/spotify_text_secondary"
+            a:textColor="?android:attr/textColorSecondary"
             tools:ignore="HardcodedText" />
 
         <TextView
@@ -112,7 +112,7 @@
             a:layout_height="wrap_content"
             a:layout_marginEnd="6dp"
             a:textSize="13sp"
-            a:textColor="@color/spotify_text_secondary"
+            a:textColor="?android:attr/textColorSecondary"
             a:visibility="gone"
             tools:text="2023" />
 
@@ -122,7 +122,7 @@
             a:layout_height="wrap_content"
             a:text="2:42"
             a:textSize="13sp"
-            a:textColor="@color/spotify_text_secondary"
+            a:textColor="?android:attr/textColorSecondary"
             tools:ignore="HardcodedText" />
     </LinearLayout>
 </LinearLayout>

@@ -52,7 +52,7 @@
             a:ellipsize="end"
             a:maxLines="1"
             a:textAppearance="@style/TextAppearance.Material3.TitleSmall"
-            a:textColor="@color/spotify_text_primary"
+            a:textColor="?android:attr/textColorPrimary"
             a:textStyle="bold"
             app:layout_constraintBottom_toTopOf="@+id/card_subtitle"
             app:layout_constraintEnd_toStartOf="@+id/banner_chevron"
@@ -70,7 +70,7 @@
             a:ellipsize="end"
             a:maxLines="1"
             a:textAppearance="@style/TextAppearance.Material3.BodySmall"
-            a:textColor="@color/spotify_text_secondary"
+            a:textColor="?android:attr/textColorSecondary"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/banner_chevron"
             app:layout_constraintStart_toEndOf="@+id/card_image"
@@ -86,7 +86,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/spotify_text_secondary" />
+            app:tint="?android:attr/textColorSecondary" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </com.google.android.material.card.MaterialCardView>

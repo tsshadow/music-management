@@ -54,6 +54,6 @@
         a:layout_alignParentBottom="true"
         a:background="@color/spotify_black"
         app:itemIconTint="?attr/colorPrimary"
-        app:itemTextColor="@color/spotify_text_primary"
+        app:itemTextColor="?android:attr/textColorPrimary"
         app:menu="@menu/bottom_navigation" />
 </RelativeLayout>

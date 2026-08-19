@@ -14,8 +14,8 @@
         app:tabGravity="start"
         app:tabIndicatorColor="?attr/colorPrimary"
         app:tabMode="scrollable"
-        app:tabSelectedTextColor="@color/spotify_text_primary"
-        app:tabTextColor="@color/spotify_text_secondary" />
+        app:tabSelectedTextColor="?android:attr/textColorPrimary"
+        app:tabTextColor="?android:attr/textColorSecondary" />
 
     <androidx.viewpager2.widget.ViewPager2
         a:id="@+id/library_pager"

@@ -28,7 +28,7 @@
             a:paddingTop="32dp"
             a:text="@string/memories.empty"
             a:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-            a:textColor="@color/spotify_text_secondary"
+            a:textColor="?android:attr/textColorSecondary"
             a:visibility="gone" />
 
     </LinearLayout>

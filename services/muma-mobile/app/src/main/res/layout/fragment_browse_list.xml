@@ -26,7 +26,7 @@
             a:layout_height="wrap_content"
             a:layout_weight="1"
             a:text="@string/browse.track_limit"
-            a:textColor="@color/spotify_text_secondary" />
+            a:textColor="?android:attr/textColorSecondary" />
 
         <Spinner
             a:id="@+id/browse_track_limit"

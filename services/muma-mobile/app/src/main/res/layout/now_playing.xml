@@ -55,7 +55,7 @@
                 a:ellipsize="marquee"
                 a:singleLine="true"
                 a:textSize="15sp"
-                a:textColor="@color/spotify_text_primary"
+                a:textColor="?android:attr/textColorPrimary"
                 a:textStyle="bold"
                 tools:text="Title" />
 
@@ -67,7 +67,7 @@
                 a:ellipsize="end"
                 a:scrollHorizontally="true"
                 a:singleLine="true"
-                a:textColor="@color/spotify_text_secondary"
+                a:textColor="?android:attr/textColorSecondary"
                 a:textSize="13sp"
                 tools:text="Artist" />
         </LinearLayout>

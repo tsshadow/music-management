@@ -84,7 +84,7 @@
                             android:ellipsize="end"
                             android:maxLines="3"
                             android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
-                            android:textColor="@color/spotify_text_primary"
+                            android:textColor="?android:attr/textColorPrimary"
                             android:textStyle="bold"
                             tools:text="Strobe" />
 
@@ -166,7 +166,7 @@
                 android:contentDescription="@null"
                 android:importantForAccessibility="no"
                 android:src="@drawable/ic_artist"
-                app:tint="@color/spotify_text_secondary" />
+                app:tint="?android:attr/textColorSecondary" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -197,7 +197,7 @@
                 android:contentDescription="@null"
                 android:importantForAccessibility="no"
                 android:src="@drawable/ic_chevron_right"
-                app:tint="@color/spotify_text_secondary" />
+                app:tint="?android:attr/textColorSecondary" />
         </LinearLayout>
 
         <LinearLayout
@@ -219,7 +219,7 @@
                 android:contentDescription="@null"
                 android:importantForAccessibility="no"
                 android:src="@drawable/baseline_music_note_24"
-                app:tint="@color/spotify_text_secondary" />
+                app:tint="?android:attr/textColorSecondary" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -250,7 +250,7 @@
                 android:contentDescription="@null"
                 android:importantForAccessibility="no"
                 android:src="@drawable/ic_chevron_right"
-                app:tint="@color/spotify_text_secondary" />
+                app:tint="?android:attr/textColorSecondary" />
         </LinearLayout>
 
         <!-- Actions -->
@@ -444,7 +444,7 @@
                 android:contentDescription="@null"
                 android:importantForAccessibility="no"
                 android:src="@drawable/arrow_drop_down"
-                app:tint="@color/spotify_text_secondary" />
+                app:tint="?android:attr/textColorSecondary" />
         </LinearLayout>
 
         <LinearLayout
@@ -474,7 +474,7 @@
                 android:fontFamily="monospace"
                 android:longClickable="true"
                 android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-                android:textColor="@color/spotify_text_secondary"
+                android:textColor="?android:attr/textColorSecondary"
                 tools:text="/music/Deadmau5/For Lack of a Better Name/07 Strobe.mp3" />
         </LinearLayout>
     </LinearLayout>

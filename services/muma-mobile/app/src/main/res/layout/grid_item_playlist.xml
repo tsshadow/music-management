@@ -31,7 +31,7 @@
             a:ellipsize="end"
             a:maxLines="2"
             a:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-            a:textColor="@color/spotify_text_primary"
+            a:textColor="?android:attr/textColorPrimary"
             a:textStyle="bold" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

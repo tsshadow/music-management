@@ -60,7 +60,7 @@
                 a:layout_width="match_parent"
                 a:layout_height="wrap_content"
                 a:singleLine="true"
-                a:textColor="@color/spotify_text_secondary"
+                a:textColor="?android:attr/textColorSecondary"
                 a:textAppearance="@style/TextAppearance.Material3.LabelSmall"
                 tools:text="Artist" />
 

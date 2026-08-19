@@ -21,7 +21,7 @@
             a:ellipsize="end"
             a:maxLines="1"
             a:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-            a:textColor="@color/spotify_text_primary"
+            a:textColor="?android:attr/textColorPrimary"
             a:textStyle="bold"
             tools:text="scantraxx" />
 
@@ -32,7 +32,7 @@
             a:ellipsize="end"
             a:maxLines="2"
             a:textAppearance="@style/TextAppearance.Material3.LabelSmall"
-            a:textColor="@color/spotify_text_secondary"
+            a:textColor="?android:attr/textColorSecondary"
             tools:text="user@example.com" />
     </LinearLayout>
 

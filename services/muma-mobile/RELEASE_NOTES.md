@@ -1,5 +1,28 @@
 ## [Unreleased]
 
+## [6.15.0] - 2026-08-19
+
+### Added
+- **De stemzoekopdracht begrijpt nu een heel verzoek in plaats van alleen een genre.** "Speel
+  willekeurige favorieten uit 2023 af" kwam bij de vrije-tekstzoekopdracht terecht, die alleen
+  artiest-, album- en titelnamen kent, en antwoordde met stilte. De zin wordt nu uit elkaar gehaald
+  in de onderdelen waar de bibliotheek op kan filteren -- een genre, een artiest, een label, een
+  jaar, je favorieten, en nummers of livesets -- plus een volgorde: "willekeurig", "recent" of
+  "recent toegevoegd". Alles is combineerbaar en optioneel, in het Nederlands en in het Engels. Een
+  naam die de bibliotheek niet kan plaatsen valt weg en de rest speelt gewoon door.
+- **Een pagina met alle spraakcommando's**, te vinden via Over.
+- **Een tracklijst is nu zelf te sorteren.** Een genre, label, festival, jaar, podcast, line-up of
+  sterrenfilter kwam altijd terug op releasedatum. Boven de lijst staat nu dezelfde keuzelijst als
+  in de webinterface: recent uitgebracht, recent toegevoegd, meest gespeeld, recent gespeeld, op
+  waardering, op naam en willekeurig. De lijst opent op de sortering waarmee je binnenkwam, en je
+  keuze overleeft het draaien van het scherm. Albums, afspeellijsten en podcastafleveringen houden
+  hun eigen volgorde.
+
+### Fixed
+- **In de Android Auto-bibliotheek stond "Favorieten" twee keer.** De nummers met een ster en de map
+  met favoriete genres en tegels hadden in het Nederlands allebei dezelfde naam. Er is nu één map
+  Favorieten, met daarin "Favoriete nummers" naast de favoriete genres en playlists.
+
 ## [6.14.2] - 2026-08-19
 
 ### Changed

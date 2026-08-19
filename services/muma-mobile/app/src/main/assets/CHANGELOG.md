@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.15.0] - 2026-08-19
+
 ### Added
 - **The voice search understands a whole request, not just a genre.** "Speel willekeurige
   favorieten uit 2023 af" used to reach the free text search, which only knows artist, album and

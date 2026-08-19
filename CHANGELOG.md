@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-08-19
+
 ### Added
 - **Weekpakketten met meerdere releases worden nu vanzelf uitgepakt tot op de release.** Zet je
   een weekpakket zoals `HHC-2026-WEEK-33.rar` in de importmap, dan blijft na het uitpakken de

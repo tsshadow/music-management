@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+## [6.14.2] - 2026-08-19
+
+### Changed
+- **Een genre dat je met je stem opvraagt speelt nu op releasedatum, niet op datum toegevoegd.**
+  "Speel genre hardstyle af" gaf de nummers die het laatst in je bibliotheek waren beland, en bij een
+  importronde is dat honderd nummers uit twintig jaargangen die op één middag binnenkwamen. De
+  stemzoekopdracht gebruikt nu dezelfde sortering als het blok "Recent uitgebracht" op de
+  startpagina. Een nummer zonder releasedatum valt terug op zijn bestandsdatum en sluit de rij, dus
+  er verdwijnt niets uit het resultaat. De bladerboom onder Genres sorteert ongewijzigd op datum
+  toegevoegd.
+
 ## [6.14.1] - 2026-08-18
 
 ### Fixed

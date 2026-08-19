@@ -11,6 +11,18 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.13.3 (2026-08-19)
+
+### 🎙️ Een genre dat je met je stem opvraagt speelt nu op releasedatum
+- "Speel genre hardstyle af" gaf je de nummers die het laatst in je bibliotheek waren beland. Bij
+  een importronde is dat honderd nummers uit twintig jaargangen die op één middag binnenkwamen, en
+  die verslaan allemaal een release van vorige week.
+- De stemzoekopdracht gebruikt nu dezelfde sortering als het blok "Recent uitgebracht" op de
+  startpagina: nieuwste release eerst.
+- Een nummer zonder releasedatum valt terug op zijn bestandsdatum en sluit de rij, dus er verdwijnt
+  niets uit het resultaat zolang de releasedatums nog niet compleet zijn.
+- De bladerboom onder Genres is niet veranderd en sorteert nog op datum toegevoegd.
+
 ## Global Version 0.13.2 (2026-08-19)
 
 ### 🔑 De beheerpagina herkent je weer als beheerder

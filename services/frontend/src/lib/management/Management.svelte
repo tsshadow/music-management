@@ -295,39 +295,66 @@
     }
   }
 
+  /**
+   * Exchanges the player's Subsonic credentials for a MuMa API key.
+   *
+   * @returns {Promise<string>} The new key, or '' when there are no
+   *   credentials to log in with or the login was refused.
+   */
+  async function loginWithPlayerCredentials() {
+    if (!$credentials.username || !$credentials.password) return '';
+    try {
+      const loginRes = await fetch(`${$mumaApiUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: $credentials.username,
+          password: $credentials.password
+        })
+      });
+
+      if (loginRes.ok) {
+        const loginData = await loginRes.json();
+        if (loginData.api_key) {
+          mumaApiKey.set(loginData.api_key);
+          return loginData.api_key;
+        }
+      }
+    } catch (e) {
+      console.error('Auto-login failed', e);
+    }
+    return '';
+  }
+
   onMount(async () => {
     // 1. Try existing API key from store
     apiKey = $mumaApiKey || '';
-    
-    if (!apiKey && $credentials.username && $credentials.password) {
-      // 2. Try auto-login with player credentials
-      try {
-        const loginRes = await fetch(`${$mumaApiUrl}/api/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username: $credentials.username,
-            password: $credentials.password
-          })
-        });
-        
-        if (loginRes.ok) {
-          const loginData = await loginRes.json();
-          if (loginData.api_key) {
-            apiKey = loginData.api_key;
-            mumaApiKey.set(apiKey);
-          }
-        }
-      } catch (e) {
-        console.error('Auto-login failed', e);
-      }
+
+    // 2. Try auto-login with player credentials
+    if (!apiKey) {
+      apiKey = await loginWithPlayerCredentials();
     }
 
     if (apiKey) {
       try {
-        const res = await fetch(`${$mumaApiUrl}/api/config`, { 
+        let res = await fetch(`${$mumaApiUrl}/api/config`, { 
           headers: { 'X-API-Key': apiKey }
         });
+        // 3. A persisted key the backend no longer accepts (a rotated or
+        // no-longer-resolving system key, an account whose key was reissued)
+        // used to wedge this screen forever: step 2 only ran when there was no
+        // key at all, so every visit rendered "kan niet verbinden" until the
+        // user cleared localStorage by hand. Drop it and log in once more.
+        if (!res.ok && (res.status === 401 || res.status === 403)) {
+          mumaApiKey.set('');
+          const freshKey = await loginWithPlayerCredentials();
+          if (freshKey && freshKey !== apiKey) {
+            apiKey = freshKey;
+            res = await fetch(`${$mumaApiUrl}/api/config`, {
+              headers: { 'X-API-Key': apiKey }
+            });
+          }
+        }
         if (res.ok) {
           isLoggedIn = true;
           const authRes = await fetch(`${$mumaApiUrl}/api/auth/verify`, {

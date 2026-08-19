@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { get, writable } from 'svelte/store';
-import { hasPermission, userPermissions, mumaUser, authParams, credentials, mumaApiUrl, mumaApiKey, favoriteGenres, loadFrontendSettings, saveFrontendSetting } from '../../src/lib/store';
+import { hasPermission, userPermissions, mumaUser, authParams, credentials, mumaApiUrl, mumaApiKey, favoriteGenres, loadFrontendSettings, saveFrontendSetting, hydrateMumaUserFromApiKey } from '../../src/lib/store';
 import { locale } from '../../src/lib/i18n';
 
 describe('store - hasPermission', () => {
@@ -282,5 +282,64 @@ describe('store - language account sync', () => {
 
     mumaUser.set(null);
     expect(get(locale)).toBe('en');
+  });
+});
+
+describe('store - hydrateMumaUserFromApiKey', () => {
+  beforeEach(() => {
+    mumaUser.set(null);
+    userPermissions.set([]);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('publishes the user behind an accepted key', async () => {
+    mumaApiKey.set('good-key');
+    const user = { id: 1, username: 'user', is_admin: true, permissions: ['users.read'] };
+    globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ type: 'user', user }) }));
+
+    await hydrateMumaUserFromApiKey();
+
+    expect(get(mumaUser)).toEqual(user);
+    expect(get(userPermissions)).toEqual(['users.read']);
+    expect(get(mumaApiKey)).toBe('good-key');
+  });
+
+  it('drops a persisted key the server rejects', async () => {
+    // A key that stays in localStorage after the backend stopped accepting it
+    // (a rotated system key, an account whose key was reissued) made every
+    // later call fail: nothing cleared it, and the login paths only run when
+    // there is no key at all. See docker/docker-compose.yml's MUMA_API_KEY.
+    mumaApiKey.set('stale-key');
+    mumaUser.set({ id: 1, is_admin: true });
+    globalThis.fetch = vi.fn(async () => ({ ok: false, status: 403, json: async () => ({}) }));
+
+    await hydrateMumaUserFromApiKey();
+
+    expect(get(mumaApiKey)).toBe('');
+    expect(get(mumaUser)).toBe(null);
+    expect(get(userPermissions)).toEqual([]);
+  });
+
+  it('keeps the key when the server is merely unreachable', async () => {
+    // A network blip or a restarting backend is not evidence that the key is
+    // wrong; throwing it away would log the user out of a working session.
+    mumaApiKey.set('good-key');
+    globalThis.fetch = vi.fn(async () => { throw new Error('network down'); });
+
+    await hydrateMumaUserFromApiKey();
+
+    expect(get(mumaApiKey)).toBe('good-key');
+  });
+
+  it('keeps the key on a server error', async () => {
+    mumaApiKey.set('good-key');
+    globalThis.fetch = vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) }));
+
+    await hydrateMumaUserFromApiKey();
+
+    expect(get(mumaApiKey)).toBe('good-key');
   });
 });

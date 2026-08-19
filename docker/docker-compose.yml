@@ -6,7 +6,15 @@ x-environment-db: &environment-db
   DB_USER: ${DB_USER}
   DB_PASS: ${DB_PASS}
   DB_DB: ${DB_DB}
-  API_KEY: ${API_KEY}
+  API_KEY: ${API_KEY:-}
+  # The deployment's .env spells the system key MUMA_API_KEY, not API_KEY, and
+  # compose does NOT support a nested "${A:-${B}}" default (see the comment on
+  # MUMA_SERVER_SUBSONIC_API_KEY below), so both are passed through as-is and
+  # the fallback happens in Python (services/music_manager/api_key.py). Passing
+  # only API_KEY left the containers with an empty system key once the literal
+  # fallback was removed from the code, which rejected every service-to-service
+  # call with 401/403 -- LMS scrobble/rating webhooks and the management UI.
+  MUMA_API_KEY: ${MUMA_API_KEY:-}
   AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
 
 x-environment-telegram: &environment-telegram
@@ -78,7 +86,8 @@ services:
       MUMA_SERVER_DB_ROOT: /app/data
       STORAGE_PATH: /mnt/music/artists
       PYTHONPATH: /app
-      API_KEY: ${API_KEY}
+      API_KEY: ${API_KEY:-}
+      MUMA_API_KEY: ${MUMA_API_KEY:-}
       # "lms" is the container_name of the LMS service defined in the separate
       # "lms" stack (services/music-management-server/docker-compose.yml),
       # which shares the "music-management_db" network with this stack. See

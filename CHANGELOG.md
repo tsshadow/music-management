@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Weekpakketten met meerdere releases worden nu vanzelf uitgepakt tot op de release.** Zet je
+  een weekpakket zoals `HHC-2026-WEEK-33.rar` in de importmap, dan blijft na het uitpakken de
+  map van het pakket zelf staan met alle releases daarin. De importer keek alleen naar de
+  bovenste laag, zag daar geen catalogusnummer in en logde "No valid CAT ID found", waarna geen
+  van de releases eronder ooit is opgepakt. Er zit nu een stap tussen die de releases uit de
+  pakketmap omhoog haalt, zodat ze precies zo verwerkt worden als een losse download. De pakketmap
+  verdwijnt daarna, met de losse `.nfo`- en `.sfv`-bestanden erin. Bestaat een release al in de
+  importmap, dan blijft die staan en wordt er niets overschreven. Een album waarvan de nummers in
+  één submap staan, zoals `CD1`, wordt met rust gelaten.
 - **Een tracklijst in de app is nu zelf te sorteren.** Open je een genre, een label, een
   festival, een jaar, een podcast, een line-up of een sterrenfilter, dan kwam die lijst altijd
   terug op releasedatum, zonder manier om dat te wijzigen. Boven de lijst staat nu dezelfde

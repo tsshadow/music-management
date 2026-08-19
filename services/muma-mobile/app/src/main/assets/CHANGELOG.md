@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **A filtered track list can be re-sorted from the list itself.** Opening a genre, label,
+  festival, year, podcast, line-up or rating navigated with `sortMethod = "DateDescAndRelease"`
+  baked into the directions, and `list_layout_track` carried no filter bar, so
+  `TrackCollectionFragment.setOrderType` was unreachable code. The screen now shows the same
+  `FilterButtonBar` the album and artist lists use, offering the web UI's song sorts: recently
+  released, recently added, most played, recently played, by rating, by name and random. The bar
+  opens on whatever sort the caller navigated with, so an untouched list is unchanged. It stays
+  hidden for albums, playlists, shares and podcast channels, whose order is the server's own
+  (disc and track number, playlist sequence), and offline, where the list comes from the cache.
+  "Starred" is deliberately absent: the server maps it to `t.starred_date`, a column
+  `Track::find_advanced` never selects, so asking for it fails the request.
+
+### Fixed
+- **The car library listed "Favorieten" twice.** Two separate root entries carried the same Dutch
+  label: the starred songs (`main.songs_starred`, "Starred" in English but "Favorieten" in Dutch)
+  and the folder holding the favorite genres and tiles (`favorites.title`). In the car they were
+  indistinguishable, and which one held what was a guess. The root now shows a single Favorites
+  folder, with the starred songs inside it as "Favoriete nummers" next to the favorite genres and
+  playlists. The folder is always present, since starred songs no longer depend on a genre or tile
+  being marked; the genres and playlists entries still only appear when something is marked.
+
 ## [6.14.2] - 2026-08-19
 
 ### Changed

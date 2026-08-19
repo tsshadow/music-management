@@ -11,6 +11,22 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.16.0 (2026-08-19)
+
+### 🎨 De app heeft nu twee stijlen: Spotify en MuMa
+- De instelling onder Uiterlijk bood Groen en Blauw. Dat verwisselde één accentkleur en liet
+  verder alles hetzelfde, dus je kon er weinig mee.
+- Er staat nu **Spotify** en **MuMa**. Spotify is de app precies zoals hij was. MuMa houdt hetzelfde
+  groen voor nummers en blauw voor sets, maar staat op een warmere en diepere achtergrond, scheidt
+  lijstregels met een haarlijn in plaats van ze als kaartjes te laten zweven, dimt de minder
+  belangrijke tekst echt in plaats van alles hetzelfde grijs te geven, rondt hoeken strakker af en
+  kleurt een ingevulde ster goud.
+- Spotify blijft de standaard, dus er verandert niets tot je zelf wisselt. Wisselen werkt meteen,
+  zonder de app opnieuw te starten.
+- Het blauwe accent vervalt. Het blauwe app-icoon is een aparte instelling en blijft gewoon staan.
+- Twee dingen die onderweg zijn rechtgezet: een geselecteerde regel versprong van vorm, en het
+  uitklapvak was nog een witte balk met zwarte tekst uit een lichte modus die de app niet meer heeft.
+
 ## Global Version 0.15.0 (2026-08-19)
 
 ### 📦 Weekpakketten worden uitgepakt tot op de release

@@ -86,6 +86,35 @@ class FilterButtonBarTest {
     }
 
     @Test
+    fun `the bar opens on the order the list is already in`() {
+        val context = ContextThemeWrapper(RuntimeEnvironment.getApplication(), R.style.UltrasonicTheme_Green)
+        val bar = FilterButtonBar(context)
+
+        bar.configureWithCapabilities(
+            ViewCapabilities(supportedSortOrders = TrackSortMethods.SUPPORTED),
+            selected = SortOrder.RANDOM
+        )
+
+        bar.findViewById<android.widget.AutoCompleteTextView>(R.id.sort_order_menu_options)
+            .text.toString() `should be equal to` context.getString(R.string.main_albums_random)
+    }
+
+    @Test
+    fun `an order the bar does not offer cannot be shown as selected`() {
+        val context = ContextThemeWrapper(RuntimeEnvironment.getApplication(), R.style.UltrasonicTheme_Green)
+        val bar = FilterButtonBar(context)
+
+        bar.configureWithCapabilities(
+            ViewCapabilities(supportedSortOrders = TrackSortMethods.SUPPORTED),
+            selected = SortOrder.STARRED
+        )
+
+        bar.findViewById<android.widget.AutoCompleteTextView>(R.id.sort_order_menu_options)
+            .text.toString() `should be equal to`
+            context.getString(bar.getStringForSortOrder(TrackSortMethods.SUPPORTED.first()))
+    }
+
+    @Test
     fun `every sort order resolves to its own specific label`() {
         val bar = barWith(ViewCapabilities(supportsGrid = true, supportedSortOrders = emptyList()))
         val context = ContextThemeWrapper(RuntimeEnvironment.getApplication(), R.style.UltrasonicTheme_Green)
@@ -96,6 +125,7 @@ class FilterButtonBarTest {
             SortOrder.HIGHEST to R.string.main_albums_highest,
             SortOrder.FREQUENT to R.string.main_albums_frequent,
             SortOrder.RECENT to R.string.main_albums_recent,
+            SortOrder.RELEASED to R.string.main_albums_released,
             SortOrder.BY_NAME to R.string.main_albums_alphaByName,
             SortOrder.BY_ARTIST to R.string.main_albums_alphaByArtist,
             SortOrder.STARRED to R.string.main_albums_starred,

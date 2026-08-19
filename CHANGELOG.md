@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-08-19
+
+### Added
+- **De stemzoekopdracht begrijpt nu een heel verzoek in plaats van alleen een genre.** "Speel
+  willekeurige favorieten uit 2023 af" kwam bij de vrije-tekstzoekopdracht terecht, die alleen
+  artiest-, album- en titelnamen kent, en antwoordde met stilte. De zin wordt nu uit elkaar
+  gehaald in de onderdelen waar de bibliotheek op kan filteren -- een genre, een artiest ("van
+  headhunterz"), een label ("label art of creation"), een jaar ("uit 2021"), je favorieten, en
+  nummers of livesets -- plus een volgorde: "willekeurig" schudt, "recent" speelt op releasedatum,
+  "recent toegevoegd" op de datum dat de bibliotheek bijkwam. Alles is combineerbaar en alles is
+  optioneel, in het Nederlands en in het Engels; "speel recent af" speelt de hele bibliotheek op
+  releasedatum.
+
+  Elke uitgesproken naam wordt eerst tegen de bibliotheek gelegd, want de server antwoordt op een
+  filterwaarde die hij niet kent met een fout in plaats van met een lege lijst -- één verkeerd
+  verstaan woord zou anders het hele verzoek kosten. Wat niet geplaatst kan worden valt weg en de
+  rest speelt gewoon, dus "speel zwabberkore uit 2021 af" speelt 2021. Kan er niets geplaatst
+  worden, dan neemt de gewone zoekfunctie het over en zoekt op titel -- daarom vindt "speel
+  headhunterz af" nog steeds het nummer met die naam en niet alles wat de artiest ooit uitbracht.
+- **Een pagina met alle spraakcommando's**, te vinden via Over. Niets van bovenstaande formulering
+  is te ontdekken door tegen de auto te praten en te hopen.
+- **Een tracklijst in de app is nu zelf te sorteren.** Open je een genre, een label, een
+  festival, een jaar, een podcast, een line-up of een sterrenfilter, dan kwam die lijst altijd
+  terug op releasedatum, zonder manier om dat te wijzigen. Boven de lijst staat nu dezelfde
+  keuzelijst als in de webinterface: recent uitgebracht, recent toegevoegd, meest gespeeld,
+  recent gespeeld, op waardering, op naam en willekeurig. De lijst opent op de sortering
+  waarmee je binnenkwam, dus zonder een keuze te maken verandert er niets. Albums, afspeellijsten
+  en podcastafleveringen houden hun eigen volgorde en krijgen de keuzelijst niet, en in
+  offlinemodus blijft hij verborgen omdat de sortering daar bij de server vandaan zou moeten komen.
+
+### Fixed
+- **In de Android Auto-bibliotheek stond "Favorieten" twee keer.** De nummers met een ster en de map
+  met favoriete genres en tegels hadden in het Nederlands allebei dezelfde naam, dus in de auto was
+  niet te zien welke welke was. Er is nu één map Favorieten, met daarin "Favoriete nummers" naast de
+  favoriete genres en playlists.
+
 ## [0.13.3] - 2026-08-19
 
 ### Changed

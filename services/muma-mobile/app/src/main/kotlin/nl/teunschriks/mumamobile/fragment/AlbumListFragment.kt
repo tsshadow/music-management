@@ -358,4 +358,6 @@ fun SortOrder.mapToAlbumListType(): AlbumListType = when (this) {
         throw UnsupportedOperationException("Artist-specific sort orders cannot be used for albums")
     SortOrder.BY_YEAR_DESC ->
         throw UnsupportedOperationException("The years browse tab sorts its own cards")
+    SortOrder.RELEASED ->
+        throw UnsupportedOperationException("Only filtered track lists sort by release date")
 }

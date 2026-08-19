@@ -621,6 +621,7 @@
     <string name="favorites.starred_artists">Favoriete artiesten</string>
     <string name="favorites.highly_rated">Hoog gewaardeerd</string>
     <string name="favorites.title">Favorieten</string>
+    <string name="favorites.songs">Favoriete nummers</string>
     <string name="favorites.genres">Favoriete genres</string>
     <string name="favorites.playlists">Favoriete playlists</string>
     <string name="genre.favorite_add">Aan favorieten toevoegen</string>
@@ -694,4 +695,7 @@
         <item quantity="one">%d nummer toegevoegd aan de wachtrij</item>
         <item quantity="other">%d nummers toegevoegd aan de wachtrij</item>
     </plurals>
+    <string name="about.voice">Spraakcommando\'s</string>
+    <string name="voice.title">Spraakcommando\'s</string>
+    <string name="voice.text"><![CDATA[Vraag het de Assistent in de auto, of gebruik de spraakzoekfunctie van de app. Alles hieronder mag in één zin door elkaar.\n\n<b>Een genre</b>\nSpeel genre hardstyle af\nSpeel uptempo hardcore af\nSpeel drum and bass livesets af\n\n<b>Een artiest</b>\nSpeel muziek van headhunterz af\nSpeel artiest brennan heart af\n\n<b>Een label</b>\nSpeel label art of creation af\n\n<b>Een jaar</b>\nSpeel hardstyle uit 2021 af\nSpeel headhunterz uit 2020 af\n\n<b>Een volgorde</b>\nSpeel random hardcore af\nSpeel recent af\nSpeel recent toegevoegd af\n\n<b>Je favorieten</b>\nSpeel favorieten af\nSpeel favorieten van headhunterz af\nSpeel favorieten uit 2021 af\n\n<b>Alles tegelijk</b>\nSpeel willekeurige favorieten uit 2023 af\nSpeel random uptempo hardcore uit 2021 af\n\n<b>Later in de wachtrij</b>\nSpeel project one hierna af\nSpeel dragonborn als volgende af\n\nEen naam moet er één zijn die de bibliotheek kent. Wat niet geplaatst kan worden valt weg en de rest van het verzoek speelt gewoon; kan er niets geplaatst worden, dan neemt de gewone zoekfunctie het over en zoekt op titel.]]></string>
 </resources>

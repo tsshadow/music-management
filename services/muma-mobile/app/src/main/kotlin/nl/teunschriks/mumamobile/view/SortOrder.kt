@@ -16,6 +16,8 @@ enum class SortOrder(val typeName: String) {
     HIGHEST("highest"),
     FREQUENT("frequent"),
     RECENT("recent"),
+    // Only filtered track lists sort by release date; the album list has no equivalent.
+    RELEASED("released"),
     BY_NAME("alphabeticalByName"),
     BY_ARTIST("alphabeticalByArtist"),
     STARRED("starred"),

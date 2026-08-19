@@ -27,6 +27,7 @@ class ImporterServiceTest(unittest.TestCase):
         patches = [
             patch.object(importer_service, 'Settings', return_value=self.settings),
             patch.object(importer_service, 'Extractor'),
+            patch.object(importer_service, 'Flattener'),
             patch.object(importer_service, 'Renamer'),
             patch.object(importer_service, 'Mover'),
         ]
@@ -34,9 +35,9 @@ class ImporterServiceTest(unittest.TestCase):
             p.start()
             self.addCleanup(p.stop)
 
-    def test_the_pipeline_is_extract_then_rename_then_move(self):
+    def test_the_pipeline_is_extract_then_flatten_then_rename_then_move(self):
         service = ImporterService()
-        self.assertEqual([step.name for step in service.steps], ['Extractor', 'Renamer', 'Mover'])
+        self.assertEqual([step.name for step in service.steps], ['Extractor', 'Flattener', 'Renamer', 'Mover'])
 
     def test_running_the_pipeline_runs_every_step_in_order(self):
         service = ImporterService()

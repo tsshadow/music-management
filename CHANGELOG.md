@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- SoundCloud accounts are now checked at a rate that follows how recently they
+  uploaded, across five tiers: six-hourly for accounts that posted this week, then
+  daily, every three days, weekly, and monthly for accounts dormant over a year. The
+  four new tier cooldowns are configurable under Systeembeheer → Downloaders → Timing;
+  the dormant one doubles as the longest a returning account can go unnoticed.
+- A SoundCloud check now begins with a single-request probe for the account's newest
+  track, and skips the account entirely when that track is already archived.
+- A sweep now visits the accounts that are furthest past their own cooldown first,
+  instead of working alphabetically.
+
 ### Fixed
 - **De beheerpagina herkent je weer als beheerder.** De gedeelde systeemsleutel stond in de
   productie-`.env` als `MUMA_API_KEY`, maar de compose-stack gaf alleen `API_KEY` door -- en die
@@ -21,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   op alleen de Subsonic-rol, waardoor je beheerstatus willekeurig leek te verdwijnen. Een 401 of 403
   gooit de sleutel nu weg en logt opnieuw in met je spelerwachtwoord. Een 5xx of een mislukt verzoek
   doet dat expres niet -- een haperend netwerk is geen bewijs dat je sleutel fout is.
+- SoundCloud checks paged an account's entire catalogue before downloading anything,
+  because `lazy_playlist` was off and `break_on_existing` could therefore only stop the
+  download loop. A large account cost 28 API requests per check whether or not it had
+  anything new.
 
 ## [0.13.1] - 2026-08-18
 
@@ -296,15 +311,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The browse views are grouped under a collapsible Library section in the
   frontend navigation.
-- SoundCloud accounts are now checked at a rate that follows how recently they
-  uploaded, across five tiers: six-hourly for accounts that posted this week, then
-  daily, every three days, weekly, and monthly for accounts dormant over a year. The
-  four new tier cooldowns are configurable under Systeembeheer → Downloaders → Timing;
-  the dormant one doubles as the longest a returning account can go unnoticed.
-- A SoundCloud check now begins with a single-request probe for the account's newest
-  track, and skips the account entirely when that track is already archived.
-- A sweep now visits the accounts that are furthest past their own cooldown first,
-  instead of working alphabetically.
 
 ### Fixed
 - **YouTube downloads are tagged the way SoundCloud downloads are.** `YoutubeSong` had no artist
@@ -330,10 +336,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on an object that is not reactive state in most views (and is rebuilt from scratch on every radio
   update), so the click stored a rating that only became visible after the list was fetched
   again — and in the player during radio, never.
-- SoundCloud checks paged an account's entire catalogue before downloading anything,
-  because `lazy_playlist` was off and `break_on_existing` could therefore only stop the
-  download loop. A large account cost 28 API requests per check whether or not it had
-  anything new.
 
 ## [0.8.2] - 2026-08-12
 

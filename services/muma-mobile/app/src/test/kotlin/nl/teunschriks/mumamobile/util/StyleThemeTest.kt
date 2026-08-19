@@ -78,6 +78,7 @@ class StyleThemeTest {
             R.attr.colorInkQuaternary,
             R.attr.colorRating,
             R.attr.colorWarn,
+            R.attr.colorKicker,
             R.attr.brandColorSets
         )
         val dimensions = listOf(
@@ -92,8 +93,7 @@ class StyleThemeTest {
         // asserted as "the theme has an entry" rather than "the entry points at a drawable".
         val references = listOf(
             R.attr.listRowBackground,
-            R.attr.rowSeam,
-            R.attr.kickerTextAppearance
+            R.attr.rowSeam
         )
 
         for (style in listOf("spotify", "muma")) {
@@ -151,6 +151,7 @@ class StyleThemeTest {
             R.attr.colorInkQuaternary to 3.0,
             R.attr.colorRating to 3.0,
             R.attr.colorWarn to 3.0,
+            R.attr.colorKicker to 3.0,
             R.attr.brandColorSets to 3.0
         )
 

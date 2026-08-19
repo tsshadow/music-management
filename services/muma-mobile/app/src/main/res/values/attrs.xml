@@ -32,9 +32,11 @@
     <attr name="rowMarginVertical" format="dimension" />
     <attr name="rowMarginHorizontal" format="dimension" />
 
-    <!-- The all-caps micro-label above a form field. Brand-coloured and bold in Spotify, dim
-         monospace in MuMa. -->
-    <attr name="kickerTextAppearance" format="reference" />
+    <!-- The all-caps micro-label above a form field: brand-coloured in Spotify, dim in MuMa.
+         A colour rather than a text appearance on purpose: two of the three sites attach the
+         label style with android:theme, and a TextView takes android:textColor from the theme
+         but not android:textAppearance. -->
+    <attr name="colorKicker" format="color" />
 
     <declare-styleable name="AppWidgetAttrs">
         <attr name="appWidgetPadding" format="dimension" />

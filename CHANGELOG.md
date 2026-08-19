@@ -14,9 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hetzelfde groen voor nummers en blauw voor sets, maar staat op een warmere, diepere
   achtergrond, scheidt rijen met een haarlijn in plaats van ze als kaartjes te laten zweven,
   dimt derde- en vierderangs tekst echt in plaats van alles hetzelfde grijs te geven, rondt
-  hoeken strakker af, zet de kopjes in monospace en kleurt een ingevulde ster goud. Spotify
-  blijft de standaard, dus er verandert niets tot je zelf wisselt, en wisselen werkt meteen. Het
-  blauwe accent vervalt; het blauwe app-icoon is een aparte instelling en blijft gewoon staan.
+  hoeken strakker af, dimt de veldlabels in plaats van ze groen te kleuren en kleurt een
+  ingevulde ster goud. Spotify blijft de standaard, dus er verandert niets tot je zelf wisselt,
+  en wisselen werkt meteen. Het blauwe accent vervalt; het blauwe app-icoon is een aparte
+  instelling en blijft gewoon staan.
 
 ### Fixed
 - **Een geselecteerde regel in de mobiele app verspringt niet meer van vorm.** De geselecteerde

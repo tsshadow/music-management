@@ -57,7 +57,7 @@
         <item name="rowMarginVertical">2dp</item>
         <item name="rowMarginHorizontal">8dp</item>
 
-        <item name="kickerTextAppearance">@style/TextAppearance.Kicker.Spotify</item>
+        <item name="colorKicker">@color/spotify_green</item>
     </style>
 
     <!-- Only the values below differ. The brand colours do not: both styles mark songs green and
@@ -84,7 +84,7 @@
         <item name="rowMarginVertical">0dp</item>
         <item name="rowMarginHorizontal">0dp</item>
 
-        <item name="kickerTextAppearance">@style/TextAppearance.Kicker.Muma</item>
+        <item name="colorKicker">@color/muma_ink_quaternary</item>
     </style>
 
 </resources>

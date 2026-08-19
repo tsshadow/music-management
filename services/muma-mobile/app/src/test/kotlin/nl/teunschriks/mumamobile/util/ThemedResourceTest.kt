@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.ContextThemeWrapper
+import android.view.LayoutInflater
+import android.widget.TextView
 import androidx.appcompat.content.res.AppCompatResources
 import nl.teunschriks.mumamobile.R
 import org.amshove.kluent.`should be equal to`
@@ -101,6 +103,23 @@ class ThemedResourceTest {
             val muma = attr(R.style.UltrasonicTheme_Muma, attribute)
             muma.getDimension(display) `should be equal to` 0f
         }
+    }
+
+    @Test
+    fun `the micro-label follows the style through a theme overlay`() {
+        // Ultrasonic.AllCapsLabel is attached with android:theme, not style, on this layout, so
+        // its items land as theme defaults rather than on the view. That indirection is easy to
+        // break by moving an item into the TextAppearance, so it is inflated for real here
+        // rather than reasoned about.
+        val spotify = LayoutInflater.from(themed(R.style.UltrasonicTheme_Spotify))
+            .inflate(R.layout.list_item_divider, null)
+            .findViewById<TextView>(R.id.text)
+        spotify.currentTextColor `should be equal to` green
+
+        val muma = LayoutInflater.from(themed(R.style.UltrasonicTheme_Muma))
+            .inflate(R.layout.list_item_divider, null)
+            .findViewById<TextView>(R.id.text)
+        muma.currentTextColor `should be equal to` 0xFF6F6764.toInt()
     }
 
     @Test

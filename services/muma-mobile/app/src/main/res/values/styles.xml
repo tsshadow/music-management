@@ -1,25 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- The app's one micro-label, above the fields in server_edit and share_details and on the
-         list divider. The two styles disagree about it, so its appearance comes from the theme. -->
-    <style name="TextAppearance.Kicker.Spotify" parent="TextAppearance.AppCompat.Small">
-        <item name="android:textColor">?attr/colorPrimary</item>
-        <item name="android:textStyle">bold</item>
-    </style>
-
-    <!-- A dim monospace label that names its field, instead of a green one that competes with
-         the field's own content. -->
-    <style name="TextAppearance.Kicker.Muma" parent="TextAppearance.AppCompat.Small">
-        <item name="android:textColor">?attr/colorInkQuaternary</item>
-        <item name="android:textSize">11sp</item>
-        <item name="android:fontFamily">monospace</item>
-        <item name="android:letterSpacing">0.11</item>
-        <item name="android:textStyle">normal</item>
-    </style>
-
+    <!-- The app's one micro-label: above the fields in server_edit and share_details, and on the
+         list divider. Two of those three attach it with android:theme rather than style, which
+         makes its items theme defaults. A TextView picks android:textColor up that way but not
+         android:textAppearance, so the two styles differ here by colour alone - a brand-coloured
+         label in Spotify, a dim one in MuMa. -->
     <style name="Ultrasonic.AllCapsLabel" parent="">
-        <item name="android:textAppearance">?attr/kickerTextAppearance</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">?attr/colorKicker</item>
+        <item name="android:textAppearance">?android:attr/textAppearanceSmall</item>
         <item name="android:textAllCaps">true</item>
         <item name="android:gravity">center_vertical</item>
         <item name="android:singleLine">true</item>

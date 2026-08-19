@@ -14,9 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   keeps the same green for songs and blue for sets, but sits on a warmer, deeper background,
   separates list rows with a hairline instead of floating them as cards, dims third- and
   fourth-rank text properly instead of painting everything the same grey, rounds corners more
-  tightly, sets its section labels in monospace, and colours a filled rating star gold. Spotify
-  stays the default, so nothing changes until you switch, and switching takes effect
-  immediately. The Blue accent is gone; the blue app icon is a separate setting and is
+  tightly, dims its field labels instead of colouring them green, and colours a filled rating
+  star gold. Spotify stays the default, so nothing changes until you switch, and switching takes
+  effect immediately. The Blue accent is gone; the blue app icon is a separate setting and is
   unaffected.
 
 ### Fixed

@@ -2,9 +2,9 @@
 <resources>
     <string name="setting_key.resume_play_on_headphones_plug" translatable="false">playback.resume_play_on_headphones_plug</string>
     <string name="setting_key.server_instance" translatable="false">serverInstanceId</string>
-    <string name="setting_key.accent" translatable="false">accent</string>
-    <string name="setting_key.accent_green" translatable="false">green</string>
-    <string name="setting_key.accent_blue" translatable="false">blue</string>
+    <string name="setting_key.style" translatable="false">style</string>
+    <string name="setting_key.style_spotify" translatable="false">spotify</string>
+    <string name="setting_key.style_muma" translatable="false">muma</string>
     <string name="setting_key.app_icon" translatable="false">appIcon</string>
     <string name="setting_key.app_icon_green" translatable="false">green</string>
     <string name="setting_key.app_icon_blue" translatable="false">blue</string>

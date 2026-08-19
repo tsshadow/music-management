@@ -18,11 +18,11 @@
         a:title="@string/settings.appearance_title"
         app:iconSpaceReserved="false">
         <ListPreference
-            a:defaultValue="@string/setting_key.accent_green"
-            a:entries="@array/accentNames"
-            a:entryValues="@array/accentValues"
-            a:key="@string/setting_key.accent"
-            a:title="@string/settings.accent_title"
+            a:defaultValue="@string/setting_key.style_spotify"
+            a:entries="@array/styleNames"
+            a:entryValues="@array/styleValues"
+            a:key="@string/setting_key.style"
+            a:title="@string/settings.style_title"
             app:iconSpaceReserved="false"/>
         <ListPreference
             a:defaultValue="@string/setting_key.app_icon_green"

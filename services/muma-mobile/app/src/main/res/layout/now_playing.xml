@@ -18,7 +18,7 @@
         a:layout_marginHorizontal="0dp"
         a:layout_marginTop="0dp"
         app:indicatorColor="?attr/colorPrimary"
-        app:trackColor="@color/spotify_light"
+        app:trackColor="?attr/colorSurfaceContainer"
         app:trackThickness="2dp"
         a:progress="30" />
 
@@ -55,7 +55,7 @@
                 a:ellipsize="marquee"
                 a:singleLine="true"
                 a:textSize="15sp"
-                a:textColor="@color/spotify_text_primary"
+                a:textColor="?android:attr/textColorPrimary"
                 a:textStyle="bold"
                 tools:text="Title" />
 
@@ -67,7 +67,7 @@
                 a:ellipsize="end"
                 a:scrollHorizontally="true"
                 a:singleLine="true"
-                a:textColor="@color/spotify_text_secondary"
+                a:textColor="?android:attr/textColorSecondary"
                 a:textSize="13sp"
                 tools:text="Artist" />
         </LinearLayout>

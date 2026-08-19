@@ -13,6 +13,7 @@
     a:layout_width="match_parent"
     a:layout_height="56dp"
     a:background="?attr/selectableItemBackground"
+    a:foreground="?attr/rowSeam"
     a:paddingHorizontal="6dp">
 
     <com.google.android.material.imageview.ShapeableImageView
@@ -34,7 +35,7 @@
         a:ellipsize="end"
         a:maxLines="1"
         a:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-        a:textColor="@color/spotify_text_primary"
+        a:textColor="?android:attr/textColorPrimary"
         app:layout_constraintBottom_toTopOf="@+id/card_subtitle"
         app:layout_constraintEnd_toStartOf="@+id/card_trailing"
         app:layout_constraintStart_toEndOf="@+id/card_image"
@@ -51,7 +52,7 @@
         a:ellipsize="end"
         a:maxLines="1"
         a:textAppearance="@style/TextAppearance.Material3.BodySmall"
-        a:textColor="@color/spotify_text_secondary"
+        a:textColor="?android:attr/textColorSecondary"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/card_trailing"
         app:layout_constraintStart_toEndOf="@+id/card_image"
@@ -73,7 +74,7 @@
             a:layout_width="wrap_content"
             a:layout_height="wrap_content"
             a:textAppearance="@style/TextAppearance.Material3.LabelSmall"
-            a:textColor="@color/spotify_text_secondary"
+            a:textColor="?android:attr/textColorSecondary"
             tools:text="4:12" />
 
         <LinearLayout

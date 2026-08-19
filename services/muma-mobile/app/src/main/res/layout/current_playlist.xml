@@ -33,6 +33,6 @@
         app:fastScrollPopupTextColor="#000000"
         app:fastScrollPopupTextSize="28sp"
         app:fastScrollThumbColor="?attr/colorPrimary"
-        app:fastScrollTrackColor="@color/spotify_light" />
+        app:fastScrollTrackColor="?attr/colorSurfaceContainer" />
 
 </LinearLayout>

@@ -68,7 +68,7 @@ class SettingsFragment :
     KoinComponent {
     private val activeServerProvider: nl.teunschriks.mumamobile.data.ActiveServerProvider by inject()
 
-    private var accent: ListPreference? = null
+    private var style: ListPreference? = null
     private var cacheLocation: Preference? = null
     private var showArtistPicture: CheckBoxPreference? = null
     private var useId3TagsOffline: CheckBoxPreference? = null
@@ -84,7 +84,7 @@ class SettingsFragment :
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setTitle(this, R.string.menu_settings)
-        accent = findPreference(getString(R.string.setting_key_accent))
+        style = findPreference(getString(R.string.setting_key_style))
         resumeOnBluetoothDevice =
             findPreference(getString(R.string.setting_key_resume_on_bluetooth_device))
         pauseOnBluetoothDevice =
@@ -154,7 +154,7 @@ class SettingsFragment :
                     toast(R.string.settings_app_icon_changed)
                 }
             }
-            getString(R.string.setting_key_accent),
+            getString(R.string.setting_key_style),
             getString(R.string.setting_key_ui_scale),
             getString(R.string.setting_key_track_list_lines) -> {
                 // Theme and scale are baked into the activity's context; the track row layout is

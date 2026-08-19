@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **The appearance setting now picks a whole style, not just an accent colour.** It used to
+  offer Green and Blue, which swapped one highlight colour and left everything else identical.
+  It now offers **Spotify** and **MuMa**. Spotify is the app exactly as it looked before. MuMa
+  keeps the same green for songs and blue for sets, but sits on a warmer, deeper background,
+  separates list rows with a hairline instead of floating them as cards, dims third- and
+  fourth-rank text properly instead of painting everything the same grey, rounds corners more
+  tightly, dims its field labels instead of colouring them green, and colours a filled rating
+  star gold. Spotify stays the default, so nothing changes until you switch, and switching takes
+  effect immediately. The Blue accent is gone; the blue app icon is a separate setting and is
+  unaffected.
+
+### Fixed
+- **A selected track row no longer changes shape.** The selected background was rounded to 8dp
+  while the unselected one was 16dp, so a row visibly snapped when you picked it.
+- **The dropdown box is no longer a white slab with invisible text.** It was still painted for
+  a light theme the app has not had since before the rebrand: white fill, grey border and black
+  text, on a black screen.
+
 ## [6.15.0] - 2026-08-19
 
 ### Added

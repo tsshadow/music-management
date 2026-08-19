@@ -45,7 +45,7 @@
                 a:ellipsize="end"
                 a:maxLines="1"
                 a:text="Song Title"
-                a:textColor="@color/spotify_text_primary"
+                a:textColor="?android:attr/textColorPrimary"
                 a:textSize="15sp"
                 a:textStyle="bold"
                 tools:ignore="HardcodedText" />
@@ -69,7 +69,7 @@
                 a:visibility="gone"
                 app:indicatorColor="?attr/colorPrimary"
                 app:indicatorSize="20dp"
-                app:trackColor="@color/spotify_card" />
+                app:trackColor="?attr/colorSurfaceVariant" />
         </LinearLayout>
 
         <TextView
@@ -80,7 +80,7 @@
             a:ellipsize="end"
             a:maxLines="1"
             a:text="Album name"
-            a:textColor="@color/spotify_text_secondary"
+            a:textColor="?android:attr/textColorSecondary"
             a:textSize="13sp"
             tools:ignore="HardcodedText" />
 
@@ -91,7 +91,7 @@
             a:ellipsize="end"
             a:maxLines="1"
             a:text="Artist name"
-            a:textColor="@color/spotify_text_secondary"
+            a:textColor="?android:attr/textColorSecondary"
             a:textSize="13sp"
             tools:ignore="HardcodedText" />
     </LinearLayout>
@@ -172,7 +172,7 @@
             a:layout_height="wrap_content"
             a:layout_gravity="end"
             a:layout_marginTop="2dp"
-            a:textColor="@color/spotify_text_secondary"
+            a:textColor="?android:attr/textColorSecondary"
             a:textSize="13sp"
             a:visibility="gone"
             tools:text="12-03-2024"
@@ -184,7 +184,7 @@
             a:layout_height="wrap_content"
             a:layout_gravity="end"
             a:text="2:42"
-            a:textColor="@color/spotify_text_secondary"
+            a:textColor="?android:attr/textColorSecondary"
             a:textSize="13sp"
             tools:ignore="HardcodedText" />
     </LinearLayout>

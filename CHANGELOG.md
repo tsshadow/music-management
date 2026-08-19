@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Toegevoegd
+- **De stemzoekopdracht begrijpt nu een heel verzoek in plaats van alleen een genre.** "Speel
+  willekeurige favorieten uit 2023 af" kwam bij de vrije-tekstzoekopdracht terecht, die alleen
+  artiest-, album- en titelnamen kent, en antwoordde met stilte. De zin wordt nu uit elkaar
+  gehaald in de onderdelen waar de bibliotheek op kan filteren -- een genre, een artiest ("van
+  headhunterz"), een label ("label art of creation"), een jaar ("uit 2021"), je favorieten, en
+  nummers of livesets -- plus een volgorde: "willekeurig" schudt, "recent" speelt op releasedatum,
+  "recent toegevoegd" op de datum dat de bibliotheek bijkwam. Alles is combineerbaar en alles is
+  optioneel, in het Nederlands en in het Engels; "speel recent af" speelt de hele bibliotheek op
+  releasedatum.
+
+  Elke uitgesproken naam wordt eerst tegen de bibliotheek gelegd, want de server antwoordt op een
+  filterwaarde die hij niet kent met een fout in plaats van met een lege lijst -- één verkeerd
+  verstaan woord zou anders het hele verzoek kosten. Wat niet geplaatst kan worden valt weg en de
+  rest speelt gewoon, dus "speel zwabberkore uit 2021 af" speelt 2021. Kan er niets geplaatst
+  worden, dan neemt de gewone zoekfunctie het over en zoekt op titel -- daarom vindt "speel
+  headhunterz af" nog steeds het nummer met die naam en niet alles wat de artiest ooit uitbracht.
+- **Een pagina met alle spraakcommando's**, te vinden via Over. Niets van bovenstaande formulering
+  is te ontdekken door tegen de auto te praten en te hopen.
+
 ## [0.13.3] - 2026-08-19
 
 ### Changed

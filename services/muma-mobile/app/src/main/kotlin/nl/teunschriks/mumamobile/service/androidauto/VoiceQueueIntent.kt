@@ -17,7 +17,7 @@ enum class VoiceQueueMode {
 }
 
 /** A voice query with its queue instruction taken back out of the text. */
-data class VoiceQuery(val query: String, val mode: VoiceQueueMode)
+data class VoiceQueueRequest(val query: String, val mode: VoiceQueueMode)
 
 /**
  * Reads a queue instruction out of a spoken search query.
@@ -89,7 +89,7 @@ object VoiceQueueIntent {
 
     private val WHITESPACE = Regex("\\s+")
 
-    fun parse(raw: String): VoiceQuery {
+    fun parse(raw: String): VoiceQueueRequest {
         val tokens = raw.trim().split(WHITESPACE).filter { it.isNotEmpty() }.toMutableList()
         var sawMarker = false
 
@@ -118,9 +118,9 @@ object VoiceQueueIntent {
 
         // Nothing named, or nothing to queue: hand the query back untouched and let the old
         // play-from-search path deal with it.
-        if (!sawMarker || tokens.isEmpty()) return VoiceQuery(raw, VoiceQueueMode.PLAY_NOW)
+        if (!sawMarker || tokens.isEmpty()) return VoiceQueueRequest(raw, VoiceQueueMode.PLAY_NOW)
 
-        return VoiceQuery(tokens.joinToString(" ") { clean(it) }, VoiceQueueMode.PLAY_NEXT)
+        return VoiceQueueRequest(tokens.joinToString(" ") { clean(it) }, VoiceQueueMode.PLAY_NEXT)
     }
 
     /** Returns how many tokens the longest matching phrase covers, or 0 for no match. */

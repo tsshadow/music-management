@@ -219,7 +219,7 @@ class MediaLibraryPlaybackController(
         val searchFuture = serviceScope.future {
             // A spoken genre never matches an artist, album or track name, so it has to run the
             // genre query of the browse tree instead of the free text search below.
-            playGenreFromVoice(query, spokenGenre)?.let { return@future it }
+            playFilteredFromVoice(query, spokenGenre)?.let { return@future it }
 
             val criteria = SearchCriteria(mediaTitle, SEARCH_LIMIT, SEARCH_LIMIT, SEARCH_LIMIT)
             val searchResult = callWithErrorHandling { musicService.search(criteria) }
@@ -282,77 +282,58 @@ class MediaLibraryPlaybackController(
     }
 
     /**
-     * @brief Plays the most recently released tracks of a spoken genre.
+     * @brief Plays the tracks a spoken request asks for.
      *
-     * @details Runs the query the browse tree uses for `MEDIA_GENRE_SONGS` -- the genre and the
-     * length as filters, capped at the maximum number of songs from the settings, no rating filter
-     * so unrated tracks are included -- but sorted by release date rather than by the date the
-     * track was added.
+     * @details Runs the query the browse tree uses for `MEDIA_GENRE_SONGS` -- the spoken genre,
+     * artist, label, year and rating as filters and the length alongside them, capped at the
+     * maximum number of songs from the settings -- instead of the free text search, which only
+     * knows artist, album and track names and therefore returns nothing for "speel willekeurige
+     * favorieten uit 2023 af".
      *
-     * Asking for a genre out loud is asking what is new in it, and that is the release date: the
-     * date a track was added says when the library caught up, which for a back catalogue import is
-     * a hundred tracks from twenty different years arriving in one afternoon. `HomeSorts.RELEASED`
-     * is the same sort the "Recent uitgebracht" home section uses, and the server falls back to
-     * the file date for a track whose release date is unknown, so nothing drops out of the result
-     * -- undated tracks sort to the back.
+     * Without a spoken order, tracks come back by release date. Asking for a genre or an artist
+     * out loud is asking what is new in it, and that is the release date: the date a track was
+     * added says when the library caught up, which for a back catalogue import is a hundred tracks
+     * from twenty different years arriving in one afternoon. `HomeSorts.RELEASED` is the same sort
+     * the "Recent uitgebracht" home section uses, and the server falls back to the file date for a
+     * track whose release date is unknown, so nothing drops out of the result -- undated tracks
+     * sort to the back. "Recent toegevoegd" asks for the other one, and "willekeurig" for neither.
      *
      * @param query the spoken utterance
      * @param spokenGenre the genre Android Auto passed in the search extras, if it did
-     * @return the tracks to play, or null when the query is not about a genre, the genre is
-     * unknown to the library, or it holds no tracks - the caller then falls back to the free text
-     * search
+     * @return the tracks to play, or null when the utterance named nothing the library knows -
+     * the caller then falls back to the free text search
      */
-    private fun playGenreFromVoice(query: String, spokenGenre: String?): List<MediaItem>? {
-        val tracks = genreTracksFromVoice(query, spokenGenre) ?: return null
+    private fun playFilteredFromVoice(query: String, spokenGenre: String?): List<MediaItem>? {
+        val tracks = tracksFromVoice(query, spokenGenre) ?: return null
         return tracks.map { it.toMediaItem() }
     }
 
     /**
-     * @brief Resolves the tracks a spoken genre request should play.
-     * @see playGenreFromVoice
+     * @brief Resolves the tracks a spoken request should play.
+     * @see playFilteredFromVoice
      */
-    internal fun genreTracksFromVoice(query: String, spokenGenre: String?): List<Track>? {
-        val parsed = VoiceGenreQuery.parse(query)
-        val request = when {
-            !spokenGenre.isNullOrBlank() -> VoiceGenreQuery.Request(
-                term = spokenGenre,
-                length = parsed?.length ?: VoiceGenreQuery.LENGTH_SHORT
-            )
-            parsed != null -> parsed
-            // Nothing in the utterance said "genre", which is the normal case rather than the
-            // exception: Assistant removes that word exactly when it understood the request as a
-            // genre one. So the bare utterance gets one shot at being a genre name, on the strict
-            // terms VoiceGenreQuery.implicit sets.
-            else -> VoiceGenreQuery.implicit(query)
-        } ?: return null
+    internal fun tracksFromVoice(query: String, spokenGenre: String?): List<Track>? {
+        val parsed = VoiceQuery.parse(query)
+        if (parsed == null && spokenGenre.isNullOrBlank()) return null
+        val spoken = parsed ?: VoiceQuery.Request()
 
-        Timber.i(
-            "genreTracksFromVoice: term=%s length=%s exact=%s",
-            request.term,
-            request.length,
-            request.exact
-        )
+        val filters = resolveFilters(spoken, spokenGenre) ?: return null
+        filters.add(Filter("LENGTH", spoken.length))
 
-        val genres = callWithErrorHandling { musicService.getGenres(false, null, null) }
-            ?: return null
-        val genre = VoiceGenreQuery.match(request.term, genres, exact = request.exact)
-        if (genre == null) {
-            Timber.i("genreTracksFromVoice: no genre matches %s", request.term)
-            return null
+        val sortMethod = when (spoken.sort) {
+            VoiceQuery.Sort.RANDOM -> HomeSorts.RANDOM
+            VoiceQuery.Sort.ADDED -> HomeSorts.ADDED
+            else -> HomeSorts.RELEASED
         }
-
-        val filters = Filters()
-        filters.add(Filter("GENRE", listOf(genre)))
-        filters.add(Filter("LENGTH", request.length))
 
         val songs = callWithErrorHandling {
             musicService.getSongs(
                 filters = filters,
-                ratingMin = null,
-                ratingMax = null,
+                ratingMin = if (spoken.favorites) FAVORITE_RATING else null,
+                ratingMax = if (spoken.favorites) FAVORITE_RATING else null,
                 count = maxSongs,
                 offset = 0,
-                sortMethod = HomeSorts.RELEASED,
+                sortMethod = sortMethod,
                 festivalLineup = null,
                 minDuration = null,
                 maxDuration = null
@@ -360,11 +341,99 @@ class MediaLibraryPlaybackController(
         } ?: return null
 
         val tracks = songs.getTracks()
-        Timber.i("genreTracksFromVoice: genre=%s tracks=%d", genre, tracks.size)
+        Timber.i("tracksFromVoice: filters=%s sort=%s tracks=%d", filters, sortMethod, tracks.size)
         if (tracks.isEmpty()) return null
 
         return tracks
     }
+
+    /**
+     * @brief Turns the spoken terms into the filters the library understands.
+     *
+     * @details Every value has to be the one the library spells, because the server answers a
+     * filter value it does not know with an error rather than with an empty list -- one misheard
+     * word would otherwise cost the whole request. A term that resolves to nothing is therefore
+     * dropped, and the rest of the request still runs: "speel zwabberkore uit 2021 af" plays 2021.
+     *
+     * @return the filters, or null when nothing in the utterance survived the library
+     */
+    private fun resolveFilters(spoken: VoiceQuery.Request, spokenGenre: String?): Filters? {
+        val genres = genreNames()
+
+        var genre = spokenGenre?.takeIf { it.isNotBlank() }?.let { VoiceQuery.match(it, genres) }
+            ?: spoken.genre?.let { VoiceQuery.match(it, genres) }
+        var artist = spoken.artist?.let { VoiceQuery.match(it, artistNames(it)) }
+        var label = spoken.label?.let { VoiceQuery.match(it, tagNames(TAG_PUBLISHER)) }
+        val year = spoken.year?.takeIf { tagNames(TAG_YEAR).contains(it) }
+
+        val free = spoken.free?.takeIf { listOfNotNull(genre, artist, label).isEmpty() }
+        if (free != null) {
+            // Nothing qualified this term, so the name is the only evidence there is and it has to
+            // be the library's own spelling: a near miss is far more likely to be an album nobody
+            // wanted turned into five hundred tracks. A bare name is tried as an artist or a label
+            // only once something else in the utterance -- a year, an order, the favourites --
+            // shows a filtered query was meant at all, so "speel headhunterz af" keeps finding the
+            // track of that name.
+            genre = VoiceQuery.match(free, genres, exact = true)
+            if (genre == null && namesMoreThanTheTerm(spoken, year)) {
+                artist = VoiceQuery.match(free, artistNames(free), exact = true)
+                if (artist == null) {
+                    label = VoiceQuery.match(free, tagNames(TAG_PUBLISHER), exact = true)
+                }
+            }
+            if (genre == null && artist == null && label == null) {
+                Timber.i("tracksFromVoice: the library places none of %s", free)
+            }
+        }
+
+        val rating = if (spoken.favorites) favoriteRatingTag() else null
+        val named = listOfNotNull(genre, artist, label, year)
+        if (named.isEmpty() && !spoken.favorites && spoken.sort == null) return null
+
+        return Filters().apply {
+            genre?.let { add(Filter("GENRE", listOf(it))) }
+            artist?.let { add(Filter("ARTIST", it)) }
+            label?.let { add(Filter("PUBLISHER", it)) }
+            year?.let { add(Filter("YEAR", it)) }
+            rating?.let { add(Filter("RATING", it)) }
+        }
+    }
+
+    /** Whether the utterance asked for anything besides the term nobody qualified. */
+    private fun namesMoreThanTheTerm(spoken: VoiceQuery.Request, year: String?): Boolean {
+        if (year != null || spoken.favorites) return true
+        return spoken.sort != null || spoken.length == VoiceQuery.LENGTH_LONG
+    }
+
+    private fun genreNames(): List<String> {
+        val genres = callWithErrorHandling { musicService.getGenres(false, null, null) }
+        return genres?.map { it.name } ?: emptyList()
+    }
+
+    /** Asks the server for the artists that look like the spoken term, not for all of them. */
+    private fun artistNames(term: String): List<String> {
+        val artists = callWithErrorHandling {
+            musicService.getArtists(false, null, ARTIST_CANDIDATES, term, null)
+        }
+        return artists?.mapNotNull { it.name } ?: emptyList()
+    }
+
+    private fun tagNames(type: String): List<String> {
+        val tags = callWithErrorHandling { musicService.getTags(false, type, null, null) }
+        return tags?.map { it.name } ?: emptyList()
+    }
+
+    /**
+     * The rating tag of a favourite, when the library indexes ratings as a tag at all.
+     *
+     * The rating range alone cannot carry "speel favorieten af": the server widens a minimum
+     * rating to include the unrated tracks, so asking for five stars answers with five stars plus
+     * everything nobody ever rated. The tag is a hard filter and excludes them, and it is the same
+     * one the Favorites screen leans on. A library that does not index it falls back to the range,
+     * which is the wider answer rather than no answer.
+     */
+    private fun favoriteRatingTag(): String? =
+        tagNames(TAG_RATING).firstOrNull { it == FAVORITE_RATING.toString() }
 
     fun playPodcast(id: String): List<Track>? {
         Timber.d("playPodcast")
@@ -427,5 +496,17 @@ class MediaLibraryPlaybackController(
             if (song != null) return listOf(song)
         }
         return null
+    }
+
+    private companion object {
+        const val TAG_PUBLISHER = "PUBLISHER"
+        const val TAG_YEAR = "YEAR"
+        const val TAG_RATING = "RATING"
+
+        /** Five stars is what a favourite is, here and on the rating buttons of the car. */
+        const val FAVORITE_RATING = 5
+
+        /** How many artists the server is asked to offer for one spoken name. */
+        const val ARTIST_CANDIDATES = 20
     }
 }

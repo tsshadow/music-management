@@ -22,4 +22,7 @@ object HomeSorts {
 
     /** Most recently added to the library first: "Recently added". */
     const val ADDED = "AddedDesc"
+
+    /** No order at all: what "speel willekeurig af" asks for. */
+    const val RANDOM = "Random"
 }

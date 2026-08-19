@@ -39,6 +39,7 @@ class AboutFragment : Fragment() {
     private var updateButton: Button? = null
     private var changelogButton: Button? = null
     private var viewLogButton: Button? = null
+    private var voiceButton: Button? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         applyTheme(this.context)
@@ -58,6 +59,7 @@ class AboutFragment : Fragment() {
         updateButton = view.findViewById(R.id.help_update)
         changelogButton = view.findViewById(R.id.help_changelog)
         viewLogButton = view.findViewById(R.id.help_view_log)
+        voiceButton = view.findViewById(R.id.help_voice)
 
         val versionName = getVersionName(requireContext())
         val title = String.format(
@@ -112,6 +114,10 @@ class AboutFragment : Fragment() {
 
         viewLogButton?.setOnClickListener {
             findNavController().navigate(R.id.logViewerFragment)
+        }
+
+        voiceButton?.setOnClickListener {
+            findNavController().navigate(R.id.voiceCommandsFragment)
         }
     }
 }

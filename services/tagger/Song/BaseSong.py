@@ -139,8 +139,11 @@ class BaseSong:
                 tag.clear_changes()
                 changes = True
         if changes:
-            logging.info(f'File saved: {self.path()}')
+            # Logged after the write, not before it. A read-only file raises here, and announcing
+            # the save first made a denied write read as a success: the backfill over the library
+            # logged 17356 "File saved" lines for 8885 files it actually wrote.
             self.music_file.save()
+            logging.info(f'File saved: {self.path()}')
 
     def set_tag(self, tag: Tag):
         """Sets a tag on the underlying music file based on type."""

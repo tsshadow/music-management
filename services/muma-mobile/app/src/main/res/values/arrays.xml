@@ -1,21 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string-array name="accentValues" translatable="false">
-        <item>@string/setting_key.accent_green</item>
-        <item>@string/setting_key.accent_blue</item>
+    <string-array name="styleValues" translatable="false">
+        <item>@string/setting_key.style_spotify</item>
+        <item>@string/setting_key.style_muma</item>
     </string-array>
-    <string-array name="accentNames" translatable="false">
-        <item>@string/settings.accent_green</item>
-        <item>@string/settings.accent_blue</item>
+    <string-array name="styleNames" translatable="false">
+        <item>@string/settings.style_spotify</item>
+        <item>@string/settings.style_muma</item>
     </string-array>
     <string-array name="appIconValues" translatable="false">
         <item>@string/setting_key.app_icon_green</item>
         <item>@string/setting_key.app_icon_blue</item>
     </string-array>
+    <!-- Its own labels, not the style setting's. These two borrowed the accent labels while both
+         settings happened to read "Green"/"Blue"; the style setting no longer has such labels. -->
     <string-array name="appIconNames" translatable="false">
-        <item>@string/settings.accent_green</item>
-        <item>@string/settings.accent_blue</item>
+        <item>@string/settings.app_icon_green</item>
+        <item>@string/settings.app_icon_blue</item>
     </string-array>
     <string-array name="uiScaleValues" translatable="false">
         <item>100</item>

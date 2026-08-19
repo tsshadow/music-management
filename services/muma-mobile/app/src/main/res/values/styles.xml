@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- The app's one micro-label: above the fields in server_edit and share_details, and on the
+         list divider. Two of those three attach it with android:theme rather than style, which
+         makes its items theme defaults. A TextView picks android:textColor up that way but not
+         android:textAppearance, so the two styles differ here by colour alone - a brand-coloured
+         label in Spotify, a dim one in MuMa. -->
     <style name="Ultrasonic.AllCapsLabel" parent="">
         <item name="android:textStyle">bold</item>
-        <item name="android:textColor">?attr/colorPrimary</item>
+        <item name="android:textColor">?attr/colorKicker</item>
         <item name="android:textAppearance">?android:attr/textAppearanceSmall</item>
         <item name="android:textAllCaps">true</item>
         <item name="android:gravity">center_vertical</item>
@@ -88,7 +93,7 @@
     </style>
 
     <style name="Ultrasonic.TrackInfoSheetStyle" parent="Widget.Material3.BottomSheet.Modal">
-        <item name="backgroundTint">@color/spotify_light</item>
+        <item name="backgroundTint">?attr/colorSurfaceContainer</item>
     </style>
 
     <style name="ShapeAppearance.TrackInfoCover" parent="">
@@ -98,16 +103,16 @@
 
     <style name="Ultrasonic.TrackInfo.Label" parent="">
         <item name="android:textAppearance">@style/TextAppearance.Material3.LabelMedium</item>
-        <item name="android:textColor">@color/spotify_text_secondary</item>
+        <item name="android:textColor">?android:attr/textColorSecondary</item>
     </style>
 
     <style name="Ultrasonic.TrackInfo.Value" parent="">
         <item name="android:textAppearance">@style/TextAppearance.Material3.BodyLarge</item>
-        <item name="android:textColor">@color/spotify_text_primary</item>
+        <item name="android:textColor">?android:attr/textColorPrimary</item>
     </style>
 
     <style name="Ultrasonic.TrackInfo.Action" parent="Widget.Material3.Button.TextButton.Icon">
-        <item name="android:textColor">@color/spotify_text_primary</item>
+        <item name="android:textColor">?android:attr/textColorPrimary</item>
         <item name="android:textAllCaps">false</item>
         <item name="iconTint">?attr/colorPrimary</item>
     </style>
@@ -116,7 +121,7 @@
          (services/frontend/src/lib/LoginPage.svelte) so both surfaces feel the same. -->
 
     <style name="Ultrasonic.TextInputLayout" parent="Widget.Material3.TextInputLayout.FilledBox">
-        <item name="boxBackgroundColor">@color/spotify_card</item>
+        <item name="boxBackgroundColor">?attr/colorSurfaceVariant</item>
         <item name="boxCornerRadiusTopStart">8dp</item>
         <item name="boxCornerRadiusTopEnd">8dp</item>
         <item name="boxCornerRadiusBottomStart">8dp</item>
@@ -124,14 +129,14 @@
         <item name="boxStrokeWidth">0dp</item>
         <item name="boxStrokeWidthFocused">2dp</item>
         <item name="boxStrokeColor">?attr/colorPrimary</item>
-        <item name="hintTextColor">@color/spotify_text_secondary</item>
-        <item name="android:textColorHint">@color/spotify_text_secondary</item>
+        <item name="hintTextColor">?android:attr/textColorSecondary</item>
+        <item name="android:textColorHint">?android:attr/textColorSecondary</item>
     </style>
 
     <style name="Ultrasonic.Button.Primary" parent="Widget.Material3.Button">
         <item name="backgroundTint">?attr/colorPrimary</item>
         <item name="cornerRadius">24dp</item>
-        <item name="android:textColor">@color/spotify_black</item>
+        <item name="android:textColor">?attr/colorOnPrimary</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textAllCaps">false</item>
     </style>
@@ -152,7 +157,7 @@
          theme resId) so this styling stays scoped to that one screen instead of every
          AlertDialog in the app. Mirrors the web login card's bg-[#181818] rounded-2xl panel. -->
     <style name="ThemeOverlay.Ultrasonic.WelcomeDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
-        <item name="colorSurface">@color/spotify_light</item>
+        <item name="colorSurface">?attr/colorSurfaceContainer</item>
         <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.Ultrasonic.WelcomeDialog</item>
         <item name="buttonBarPositiveButtonStyle">@style/Ultrasonic.Button.Primary</item>
         <item name="materialAlertDialogTitleTextStyle">@style/TextAppearance.Ultrasonic.WelcomeDialog.Title</item>
@@ -163,7 +168,7 @@
     </style>
 
     <style name="TextAppearance.Ultrasonic.WelcomeDialog.Title" parent="MaterialAlertDialog.Material3.Title.Text">
-        <item name="android:textColor">@color/spotify_text_primary</item>
+        <item name="android:textColor">?android:attr/textColorPrimary</item>
         <item name="android:textStyle">bold</item>
     </style>
 </resources>

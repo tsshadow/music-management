@@ -1,5 +1,17 @@
 # Spotify UI Style Guide
 
+> **This describes one of two styles.** MuMa Mobile ships a **Spotify** style and a **MuMa**
+> style, chosen in Settings. Everything below is the Spotify style, which is also what the web
+> frontend implements. The MuMa style keeps the same brand colours and the same layout but sits
+> on a warmer, three-level dark ramp, spends four ink ranks instead of two, separates list rows
+> with a hairline instead of floating them as cards, and colours a filled rating star gold. Its
+> values, and the contrast measurements behind every one of them, are in
+> `docs/superpowers/specs/2026-08-18-muma-mobile-style-themes-design.md`.
+>
+> In the Android module none of these colours are referenced directly any more: layouts and
+> drawables read theme attributes, and `app/src/main/res/values/themes.xml` is the only place a
+> style names a value.
+
 This document outlines the design principles, colors, typography, and component patterns used in the MuMa Spotify (Spotify-style) UI. The goal is to provide a reference for other implementations (e.g., Android) to ensure visual consistency.
 
 ## Core Principles

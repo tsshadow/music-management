@@ -23,7 +23,7 @@
             a:layout_height="wrap_content"
             a:layout_weight="1"
             a:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-            a:textColor="@color/spotify_text_primary"
+            a:textColor="?android:attr/textColorPrimary"
             a:textStyle="bold"
             tools:text="Recently added" />
 
@@ -35,7 +35,7 @@
             a:paddingHorizontal="4dp"
             a:text="@string/home.show_more"
             a:textAppearance="@style/TextAppearance.Material3.LabelMedium"
-            a:textColor="@color/spotify_text_secondary"
+            a:textColor="?android:attr/textColorSecondary"
             a:visibility="gone"
             tools:visibility="visible" />
 

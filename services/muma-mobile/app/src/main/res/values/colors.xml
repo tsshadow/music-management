@@ -4,21 +4,31 @@
     <color name="selected_menu_dark">#FFFFFF</color>
     <color name="selected_menu_light">#191414</color>
 
+    <!-- The Spotify style's palette. Nothing outside values/themes.xml names these any more:
+         every layout and drawable reads the theme attribute instead, which is what lets the
+         MuMa style substitute its own values. -->
     <!-- Spotify branding -->
     <color name="spotify_green">#1db954</color>
     <color name="spotify_blue">#2d5afc</color>
     <color name="spotify_black">#121212</color>
-    <color name="spotify_dark">#000000</color>
     <color name="spotify_light">#181818</color>
     <color name="spotify_card">#282828</color>
     <color name="spotify_hover_light">#3e3e3e</color>
     <color name="spotify_text_primary">#ffffff</color>
     <color name="spotify_text_secondary">#b3b3b3</color>
 
-    <!-- Ultrasonic indigo. The launcher icon uses the original #3f51b5, but that measures
-         2.73:1 against #121212, below the 3:1 floor for UI components, so the in-app accent
-         is Indigo 300 at 5.43:1 — on par with the green's 6.96:1. -->
-    <color name="muma_indigo">#7986cb</color>
+    <!-- MuMa style. The Spotify style has one dark level under the panel; MuMa has three, so a
+         card visibly floats instead of sitting flush. Every contrast measurement behind these
+         values is in docs/superpowers/specs/2026-08-18-muma-mobile-style-themes-design.md. -->
+    <color name="muma_deep">#0d0b0b</color>
+    <color name="muma_ground">#191414</color>
+    <color name="muma_hairline">#2a2424</color>
+    <color name="muma_ink_tertiary">#8a8280</color>
+    <!-- The Home proposal specifies #5d5654, which measures 2.54:1 on muma_ground. In the app
+         this rank colours the field labels in server_edit and share_details - text someone has
+         to read to fill in a form - so it is lifted to 3.30:1. -->
+    <color name="muma_ink_quaternary">#6f6764</color>
+    <color name="muma_rating">#e8b62c</color>
 
     <!-- Loading placeholders: one step lighter than a card, so a skeleton reads as "content is
          coming" rather than as an empty card -->

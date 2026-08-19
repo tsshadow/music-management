@@ -26,9 +26,9 @@ object Settings {
         get() = PreferenceManager.getDefaultSharedPreferences(Util.appContext())
 
     @JvmStatic
-    var accent by StringSetting(
-        getKey(R.string.setting_key_accent),
-        getKey(R.string.setting_key_accent_green)
+    var style by StringSetting(
+        getKey(R.string.setting_key_style),
+        getKey(R.string.setting_key_style_spotify)
     )
 
     // Which launcher icon is showing. Deliberately independent of [accent]: the icon lives

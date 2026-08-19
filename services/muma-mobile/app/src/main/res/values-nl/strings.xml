@@ -170,10 +170,12 @@
     <string name="select_genre.empty">Geen genres gevonden</string>
     <string name="select_playlist.empty">Geen opgeslagen afspeellijsten op server</string>
     <string name="settings.appearance_title">Uiterlijk</string>
-    <string name="settings.accent_title">Accentkleur</string>
-    <string name="settings.accent_green">Groen</string>
-    <string name="settings.accent_blue">Blauw</string>
+    <string name="settings.style_title">Stijl</string>
+    <string name="settings.style_spotify">Spotify</string>
+    <string name="settings.style_muma">MuMa</string>
     <string name="settings.app_icon_title">App-icoon</string>
+    <string name="settings.app_icon_green">Groen</string>
+    <string name="settings.app_icon_blue">Blauw</string>
     <string name="settings.app_icon_changed">Icoon gewijzigd. Sommige launchers halen de app van het beginscherm; je moet hem dan opnieuw plaatsen.</string>
     <string name="settings.increment_time_0">Uitgeschakeld</string>
     <string name="settings.increment_time_1">1 seconde</string>

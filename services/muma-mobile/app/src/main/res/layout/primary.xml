@@ -2,7 +2,7 @@
 <androidx.core.widget.NestedScrollView xmlns:a="http://schemas.android.com/apk/res/android"
     a:layout_width="match_parent"
     a:layout_height="match_parent"
-    a:background="@color/spotify_black"
+    a:background="?android:attr/colorBackground"
     a:fillViewport="true">
 
     <LinearLayout

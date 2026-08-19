@@ -11,32 +11,80 @@
     <style name="UltrasonicTheme.Base" parent="">
         <item name="searchViewStyle">@style/CleanSearchStyle</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
-        <item name="android:statusBarColor">@color/spotify_black</item>
-        <item name="android:navigationBarColor">@color/spotify_black</item>
+        <!-- The deepest level, so the system bars recede behind the app. Each style names its
+             own through colorPrimaryDark; Base is an overlay applied on top of the chosen
+             style, so the attribute resolves against that style. -->
+        <item name="android:statusBarColor">?attr/colorPrimaryDark</item>
+        <item name="android:navigationBarColor">?attr/colorPrimaryDark</item>
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
     </style>
 
-    <style name="UltrasonicTheme.Green" parent="Theme.Material3.Dark">
+    <!-- The app as it has always looked. Every value below is what the layouts hardcoded before
+         the style sweep, so this theme renders pixel-for-pixel as the previous release. -->
+    <style name="UltrasonicTheme.Spotify" parent="Theme.Material3.Dark">
         <item name="colorPrimary">@color/spotify_green</item>
         <item name="colorPrimaryDark">@color/spotify_black</item>
         <item name="colorAccent">@color/spotify_green</item>
+        <item name="colorOnPrimary">@color/spotify_black</item>
         <item name="brandColorSets">@color/spotify_blue</item>
         <item name="android:colorBackground">@color/spotify_black</item>
         <item name="colorSurface">@color/spotify_black</item>
+        <item name="colorSurfaceContainer">@color/spotify_light</item>
         <item name="colorSurfaceVariant">@color/spotify_card</item>
+        <item name="colorSurfaceContainerHighest">@color/spotify_hover_light</item>
         <item name="colorControlNormal">@color/spotify_text_secondary</item>
         <item name="android:textColorPrimary">@color/spotify_text_primary</item>
         <item name="android:textColorSecondary">@color/spotify_text_secondary</item>
+
+        <!-- This style has two ink ranks, so ranks 3 and 4 collapse onto rank 2. -->
+        <item name="colorInkTertiary">@color/spotify_text_secondary</item>
+        <item name="colorInkQuaternary">@color/spotify_text_secondary</item>
+        <item name="colorHairline">@android:color/transparent</item>
+        <item name="colorRating">@color/spotify_text_secondary</item>
+        <!-- Both styles. It fills the error banner, which carries white text; the Home
+             proposal's warm #d98324 is a text accent on a dark ground, and using it as a fill
+             would drop that white text to 2.91:1. An error is red in both styles. -->
+        <item name="colorWarn">@color/spotify_error_banner</item>
+
+        <item name="radiusRow">16dp</item>
+        <item name="radiusSurface">24dp</item>
+        <item name="radiusBanner">8dp</item>
+        <item name="radiusThumb">4dp</item>
+
+        <item name="listRowBackground">@drawable/song_card_background</item>
+        <item name="rowSeam">@null</item>
+        <item name="rowMarginVertical">2dp</item>
+        <item name="rowMarginHorizontal">8dp</item>
+
+        <item name="colorKicker">@color/spotify_green</item>
     </style>
 
-    <!-- Only the accents differ; the background stays black in both themes. The two brand
-         colours swap roles rather than the sets colour staying put: #2d5afc next to the
-         indigo #7986cb would leave the two modes nearly indistinguishable. -->
-    <style name="UltrasonicTheme.Blue" parent="UltrasonicTheme.Green">
-        <item name="colorPrimary">@color/muma_indigo</item>
-        <item name="colorAccent">@color/muma_indigo</item>
-        <item name="brandColorSets">@color/spotify_green</item>
+    <!-- Only the values below differ. The brand colours do not: both styles mark songs green and
+         sets blue, because the launcher icon, the glyph and the web frontend all use them. What
+         separates the two styles is depth and warmth - Spotify has one dark level under the
+         panel, MuMa has three - plus a seam between rows instead of a card around each one. -->
+    <style name="UltrasonicTheme.Muma" parent="UltrasonicTheme.Spotify">
+        <item name="colorPrimaryDark">@color/muma_deep</item>
+        <item name="colorOnPrimary">@color/muma_ground</item>
+        <item name="android:colorBackground">@color/muma_ground</item>
+
+        <item name="colorInkTertiary">@color/muma_ink_tertiary</item>
+        <item name="colorInkQuaternary">@color/muma_ink_quaternary</item>
+        <item name="colorHairline">@color/muma_hairline</item>
+        <item name="colorRating">@color/muma_rating</item>
+
+        <item name="radiusRow">4dp</item>
+        <item name="radiusSurface">12dp</item>
+        <item name="radiusBanner">4dp</item>
+        <item name="radiusThumb">3dp</item>
+
+        <item name="listRowBackground">@null</item>
+        <item name="rowSeam">@drawable/list_row_hairline</item>
+        <item name="rowMarginVertical">0dp</item>
+        <item name="rowMarginHorizontal">0dp</item>
+
+        <item name="colorKicker">@color/muma_ink_quaternary</item>
     </style>
 
 </resources>

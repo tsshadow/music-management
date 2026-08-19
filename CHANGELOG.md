@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.14.0] - 2026-08-19
-
 ### Added
 - **Weekpakketten met meerdere releases worden nu vanzelf uitgepakt tot op de release.** Zet je
   een weekpakket zoals `HHC-2026-WEEK-33.rar` in de importmap, dan blijft na het uitpakken de
@@ -19,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdwijnt daarna, met de losse `.nfo`- en `.sfv`-bestanden erin. Bestaat een release al in de
   importmap, dan blijft die staan en wordt er niets overschreven. Een album waarvan de nummers in
   één submap staan, zoals `CD1`, wordt met rust gelaten.
+
+## [0.14.0] - 2026-08-19
+
+### Added
 - **De stemzoekopdracht begrijpt nu een heel verzoek in plaats van alleen een genre.** "Speel
   willekeurige favorieten uit 2023 af" kwam bij de vrije-tekstzoekopdracht terecht, die alleen
   artiest-, album- en titelnamen kent, en antwoordde met stilte. De zin wordt nu uit elkaar

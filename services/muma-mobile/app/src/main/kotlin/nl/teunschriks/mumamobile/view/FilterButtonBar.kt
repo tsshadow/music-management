@@ -69,7 +69,11 @@ class FilterButtonBar : ConstraintLayout {
      *
      * @param caps
      */
-    fun configureWithCapabilities(caps: ViewCapabilities, isSetsChecked: Boolean = Settings.isSetsMode) {
+    fun configureWithCapabilities(
+        caps: ViewCapabilities,
+        isSetsChecked: Boolean = Settings.isSetsMode,
+        selected: SortOrder? = null
+    ) {
         viewTypeToggle!!.isVisible = caps.supportsGrid
         updateBrandColors(isSetsChecked)
         sortOrderMenu!!.isVisible = caps.supportedSortOrders.isNotEmpty()
@@ -83,8 +87,11 @@ class FilterButtonBar : ConstraintLayout {
                     string = context.getString(getStringForSortOrder(it))
                 )
             }
-            // Fill the visible with  the first available option
-            sortOrderOptions!!.setText(getStringForSortOrder(translatedOrders.first().sortOrder))
+            // Fill the visible field with the order the list is already in, so the bar does not
+            // claim a sort the caller never asked for. Without one, the first available option.
+            val shown = selected?.takeIf { caps.supportedSortOrders.contains(it) }
+                ?: translatedOrders.first().sortOrder
+            sortOrderOptions!!.setText(getStringForSortOrder(shown))
             adapter!!.clear()
             // Next line addresses a bug in Android components:
             // https://github.com/material-components/material-components-android/issues/1464
@@ -256,6 +263,7 @@ class FilterButtonBar : ConstraintLayout {
         SortOrder.HIGHEST -> R.string.main_albums_highest
         SortOrder.FREQUENT -> R.string.main_albums_frequent
         SortOrder.RECENT -> R.string.main_albums_recent
+        SortOrder.RELEASED -> R.string.main_albums_released
         SortOrder.BY_NAME -> R.string.main_albums_alphaByName
         SortOrder.BY_ARTIST -> R.string.main_albums_alphaByArtist
         SortOrder.STARRED -> R.string.main_albums_starred

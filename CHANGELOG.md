@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Een tracklijst in de app is nu zelf te sorteren.** Open je een genre, een label, een
+  festival, een jaar, een podcast, een line-up of een sterrenfilter, dan kwam die lijst altijd
+  terug op releasedatum, zonder manier om dat te wijzigen. Boven de lijst staat nu dezelfde
+  keuzelijst als in de webinterface: recent uitgebracht, recent toegevoegd, meest gespeeld,
+  recent gespeeld, op waardering, op naam en willekeurig. De lijst opent op de sortering
+  waarmee je binnenkwam, dus zonder een keuze te maken verandert er niets. Albums, afspeellijsten
+  en podcastafleveringen houden hun eigen volgorde en krijgen de keuzelijst niet, en in
+  offlinemodus blijft hij verborgen omdat de sortering daar bij de server vandaan zou moeten komen.
+
 ### Fixed
 - **In de Android Auto-bibliotheek stond "Favorieten" twee keer.** De nummers met een ster en de map
   met favoriete genres en tegels hadden in het Nederlands allebei dezelfde naam, dus in de auto was

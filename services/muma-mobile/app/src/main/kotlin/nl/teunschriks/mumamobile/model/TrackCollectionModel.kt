@@ -40,6 +40,13 @@ class TrackCollectionModel(application: Application) : GenericListModel(applicat
     var hasMoreData = true
     var autoPlayExecuted = false
 
+    /**
+     * The sort the user picked from the list's own sort bar, which outranks the one the screen was
+     * navigated with. It lives here rather than in the fragment so that rotating the device does
+     * not silently put the list back in the order the user just sorted it out of.
+     */
+    var selectedSortMethod: String? = null
+
     data class LoadParams(
         val id: String? = null,
         val artistId: String? = null,

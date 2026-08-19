@@ -64,7 +64,9 @@ import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Util.navigateToCurrent
 import nl.teunschriks.mumamobile.util.Util.toast
 import nl.teunschriks.mumamobile.util.toastingExceptionHandler
+import nl.teunschriks.mumamobile.view.FilterButtonBar
 import nl.teunschriks.mumamobile.view.SortOrder
+import nl.teunschriks.mumamobile.view.TrackSortMethods
 import nl.teunschriks.mumamobile.view.ViewCapabilities
 import timber.log.Timber
 
@@ -76,7 +78,7 @@ import timber.log.Timber
  * or using Offline mode, both in which Indexes instead of Artists are being used.
  */
 @Suppress("TooManyFunctions")
-open class TrackCollectionFragment(initialOrder: SortOrder? = null) :
+open class TrackCollectionFragment :
     MultiListFragment<MusicDirectoryEntry>(),
     FilterableFragment {
 
@@ -102,8 +104,6 @@ open class TrackCollectionFragment(initialOrder: SortOrder? = null) :
     override val listModel: TrackCollectionModel by viewModels()
     private val rxBusSubscription: CompositeDisposable = CompositeDisposable()
 
-    private var sortOrder = initialOrder
-
     /**
      * The id of the main layout
      */
@@ -123,6 +123,7 @@ open class TrackCollectionFragment(initialOrder: SortOrder? = null) :
         }
 
         setupButtons(view)
+        setupSortBar(view)
 
         registerForContextMenu(listView!!)
 
@@ -551,7 +552,7 @@ open class TrackCollectionFragment(initialOrder: SortOrder? = null) :
             songs = navArgs.songs,
             year = navArgs.year,
             length = navArgs.length,
-            sortMethod = navArgs.sortMethod ?: "",
+            sortMethod = listModel.selectedSortMethod ?: navArgs.sortMethod ?: "",
             ratingMin = navArgs.ratingMin,
             festivalLineup = navArgs.festivalLineup,
             ratingMax = navArgs.ratingMax,
@@ -571,9 +572,9 @@ open class TrackCollectionFragment(initialOrder: SortOrder? = null) :
         return listModel.currentList as LiveData<List<MusicDirectoryEntry>>
     }
 
-    private fun displayStarred() = (sortOrder == SortOrder.STARRED) || navArgs.getStarred
+    private fun displayStarred() = navArgs.getStarred
 
-    private fun displayRandom() = (sortOrder == SortOrder.RANDOM) || navArgs.getRandom
+    private fun displayRandom() = navArgs.getRandom
 
     override fun onContextMenuItemSelected(
         menuItem: MenuItem,
@@ -629,8 +630,34 @@ open class TrackCollectionFragment(initialOrder: SortOrder? = null) :
     }
 
     override fun setOrderType(newOrder: SortOrder) {
-        sortOrder = newOrder
+        TrackSortMethods.toSortMethod(newOrder)?.let { listModel.selectedSortMethod = it }
         getLiveData(refresh = true)
+    }
+
+    /**
+     * Only a filtered track list can be re-sorted: it is a server query, and the server takes the
+     * order as a parameter. An album, a playlist or a podcast channel arrives in an order of its
+     * own -- disc and track number, the playlist's own sequence -- and re-asking for it under a
+     * different sort would not reorder those, so the bar stays hidden there.
+     */
+    private fun setupSortBar(view: View) {
+        val bar: FilterButtonBar = view.findViewById(R.id.filter_button_bar) ?: return
+
+        val orders = getListOfSortOrders()
+        if (navArgs.songs == null || orders.isEmpty()) {
+            bar.isVisible = false
+            return
+        }
+
+        val current = listModel.selectedSortMethod ?: navArgs.sortMethod
+        viewCapabilities = ViewCapabilities(supportsGrid = false, supportedSortOrders = orders)
+
+        bar.isVisible = true
+        bar.configureWithCapabilities(
+            viewCapabilities,
+            selected = TrackSortMethods.fromSortMethod(current)
+        )
+        bar.setOnOrderChangedListener { setOrderType(it) }
     }
 
     override var viewCapabilities: ViewCapabilities = ViewCapabilities(
@@ -638,13 +665,10 @@ open class TrackCollectionFragment(initialOrder: SortOrder? = null) :
         supportedSortOrders = getListOfSortOrders()
     )
 
-    private fun getListOfSortOrders(): List<SortOrder> {
-        val isOnline = !isOffline()
-        val supported = mutableListOf(SortOrder.RANDOM)
-
-        if (isOnline) {
-            supported.add(SortOrder.STARRED)
-        }
-        return supported
-    }
+    /**
+     * Offline the tracks come from the cache instead of a query, and none of these orders reach it,
+     * so there is nothing to offer.
+     */
+    private fun getListOfSortOrders(): List<SortOrder> =
+        if (isOffline()) emptyList() else TrackSortMethods.SUPPORTED
 }

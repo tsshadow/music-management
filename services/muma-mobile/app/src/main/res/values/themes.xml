@@ -42,6 +42,9 @@
         <item name="colorInkQuaternary">@color/spotify_text_secondary</item>
         <item name="colorHairline">@android:color/transparent</item>
         <item name="colorRating">@color/spotify_text_secondary</item>
+        <!-- Both styles. It fills the error banner, which carries white text; the Home
+             proposal's warm #d98324 is a text accent on a dark ground, and using it as a fill
+             would drop that white text to 2.91:1. An error is red in both styles. -->
         <item name="colorWarn">@color/spotify_error_banner</item>
 
         <item name="radiusRow">16dp</item>
@@ -70,7 +73,6 @@
         <item name="colorInkQuaternary">@color/muma_ink_quaternary</item>
         <item name="colorHairline">@color/muma_hairline</item>
         <item name="colorRating">@color/muma_rating</item>
-        <item name="colorWarn">@color/muma_warn</item>
 
         <item name="radiusRow">4dp</item>
         <item name="radiusSurface">12dp</item>

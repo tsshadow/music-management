@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **De uiterlijk-instelling in de mobiele app kiest nu een hele stijl in plaats van alleen een
+  accentkleur.** Er stond Groen en Blauw, wat één kleurtje verwisselde en verder alles hetzelfde
+  liet. Er staat nu **Spotify** en **MuMa**. Spotify is de app precies zoals hij was. MuMa houdt
+  hetzelfde groen voor nummers en blauw voor sets, maar staat op een warmere, diepere
+  achtergrond, scheidt rijen met een haarlijn in plaats van ze als kaartjes te laten zweven,
+  dimt derde- en vierderangs tekst echt in plaats van alles hetzelfde grijs te geven, rondt
+  hoeken strakker af, zet de kopjes in monospace en kleurt een ingevulde ster goud. Spotify
+  blijft de standaard, dus er verandert niets tot je zelf wisselt, en wisselen werkt meteen. Het
+  blauwe accent vervalt; het blauwe app-icoon is een aparte instelling en blijft gewoon staan.
+
+### Fixed
+- **Een geselecteerde regel in de mobiele app verspringt niet meer van vorm.** De geselecteerde
+  achtergrond was op 8dp afgerond en de gewone op 16dp, dus een regel klapte zichtbaar om zodra
+  je hem aantikte.
+- **Het uitklapvak in de mobiele app is geen witte balk met onleesbare tekst meer.** Het was nog
+  geschilderd voor een lichte modus die de app al sinds ver voor de rebrand niet meer heeft:
+  witte vulling, grijze rand en zwarte tekst, op een zwart scherm.
+
 ## [0.15.0] - 2026-08-19
 
 ### Added

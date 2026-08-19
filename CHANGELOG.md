@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.13.2] - 2026-08-19
+## [0.13.3] - 2026-08-19
 
 ### Changed
 - **Een genre dat je met je stem opvraagt speelt nu op releasedatum, niet op datum
@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "Recent uitgebracht" op de startpagina. Nummers zonder releasedatum vallen terug op hun
   bestandsdatum en sluiten de rij, dus er verdwijnt niets uit het resultaat. De bladerboom
   onder Genres sorteert ongewijzigd op datum toegevoegd.
+
+## [0.13.2] - 2026-08-19
+
+### Changed
 - SoundCloud accounts are now checked at a rate that follows how recently they
   uploaded, across five tiers: six-hourly for accounts that posted this week, then
   daily, every three days, weekly, and monthly for accounts dormant over a year. The

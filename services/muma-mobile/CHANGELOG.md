@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.14.2] - 2026-08-19
+
+### Changed
+- **A spoken genre is sorted by release date, not by the date it was added.** Asking for a genre out
+  loud is asking what is new in it. The voice search ran the browse tree's query with `AddedDesc`,
+  which answers a different question: when the library caught up. A back catalogue import lands a
+  hundred tracks from twenty years in one afternoon, and all of them outranked a release from last
+  week. The search now uses `OriginalDateDescAndRelease`, the same sort as the "Recent uitgebracht"
+  home section. A track with no release date falls back to its file date and sorts to the back
+  rather than dropping out, which matters while the release date backfill is incomplete. The browse
+  tree under Genres is untouched and still sorts by date added.
+
 ## [6.14.1] - 2026-08-18
 
 ### Fixed

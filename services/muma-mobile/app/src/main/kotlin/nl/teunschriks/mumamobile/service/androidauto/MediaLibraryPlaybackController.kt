@@ -18,6 +18,7 @@ import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.domain.SearchCriteria
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.home.HomeSorts
 import nl.teunschriks.mumamobile.service.MusicService
 import nl.teunschriks.mumamobile.service.MusicServiceFactory
 import nl.teunschriks.mumamobile.util.Settings.maxSongs
@@ -281,11 +282,19 @@ class MediaLibraryPlaybackController(
     }
 
     /**
-     * @brief Plays the most recently added tracks of a spoken genre.
+     * @brief Plays the most recently released tracks of a spoken genre.
      *
-     * @details Runs the query the browse tree uses for `MEDIA_GENRE_SONGS`: the genre and the
-     * length as filters, sorted by the date they were added, capped at the maximum number of songs
-     * from the settings. No rating filter is applied, so unrated tracks are included.
+     * @details Runs the query the browse tree uses for `MEDIA_GENRE_SONGS` -- the genre and the
+     * length as filters, capped at the maximum number of songs from the settings, no rating filter
+     * so unrated tracks are included -- but sorted by release date rather than by the date the
+     * track was added.
+     *
+     * Asking for a genre out loud is asking what is new in it, and that is the release date: the
+     * date a track was added says when the library caught up, which for a back catalogue import is
+     * a hundred tracks from twenty different years arriving in one afternoon. `HomeSorts.RELEASED`
+     * is the same sort the "Recent uitgebracht" home section uses, and the server falls back to
+     * the file date for a track whose release date is unknown, so nothing drops out of the result
+     * -- undated tracks sort to the back.
      *
      * @param query the spoken utterance
      * @param spokenGenre the genre Android Auto passed in the search extras, if it did
@@ -343,7 +352,7 @@ class MediaLibraryPlaybackController(
                 ratingMax = null,
                 count = maxSongs,
                 offset = 0,
-                sortMethod = "AddedDesc",
+                sortMethod = HomeSorts.RELEASED,
                 festivalLineup = null,
                 minDuration = null,
                 maxDuration = null

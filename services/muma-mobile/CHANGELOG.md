@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **The car library listed "Favorieten" twice.** Two separate root entries carried the same Dutch
+  label: the starred songs (`main.songs_starred`, "Starred" in English but "Favorieten" in Dutch)
+  and the folder holding the favorite genres and tiles (`favorites.title`). In the car they were
+  indistinguishable, and which one held what was a guess. The root now shows a single Favorites
+  folder, with the starred songs inside it as "Favoriete nummers" next to the favorite genres and
+  playlists. The folder is always present, since starred songs no longer depend on a genre or tile
+  being marked; the genres and playlists entries still only appear when something is marked.
+
 ## [6.14.2] - 2026-08-19
 
 ### Changed

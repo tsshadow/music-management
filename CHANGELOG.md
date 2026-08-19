@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.13.2] - 2026-08-19
 
 ### Changed
+- **Een genre dat je met je stem opvraagt speelt nu op releasedatum, niet op datum
+  toegevoegd.** "Speel genre hardstyle af" gaf de nummers die het laatst in de bibliotheek
+  waren beland, en bij een importronde is dat honderd nummers uit twintig jaargangen die op
+  één middag binnenkwamen. De stemzoekopdracht gebruikt nu dezelfde sortering als het blok
+  "Recent uitgebracht" op de startpagina. Nummers zonder releasedatum vallen terug op hun
+  bestandsdatum en sluiten de rij, dus er verdwijnt niets uit het resultaat. De bladerboom
+  onder Genres sorteert ongewijzigd op datum toegevoegd.
 - SoundCloud accounts are now checked at a rate that follows how recently they
   uploaded, across five tiers: six-hourly for accounts that posted this week, then
   daily, every three days, weekly, and monthly for accounts dormant over a year. The

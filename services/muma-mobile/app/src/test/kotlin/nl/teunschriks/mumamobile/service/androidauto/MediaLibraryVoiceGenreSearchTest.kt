@@ -17,6 +17,7 @@ import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.domain.Genre
 import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.home.HomeSorts
 import nl.teunschriks.mumamobile.service.MusicService
 import nl.teunschriks.mumamobile.util.Settings
 import org.amshove.kluent.`should be equal to`
@@ -67,7 +68,7 @@ class MediaLibraryVoiceGenreSearchTest {
     }
 
     @Test
-    fun `a spoken genre plays the most recently added songs of that genre`() {
+    fun `a spoken genre plays the songs of that genre`() {
         val tracks = controller.genreTracksFromVoice("speel genre hardstyle af", null)
 
         tracks?.size `should be equal to` 2
@@ -86,10 +87,29 @@ class MediaLibraryVoiceGenreSearchTest {
                 ratingMax = null,
                 count = Settings.maxSongs,
                 offset = 0,
-                sortMethod = "AddedDesc",
+                sortMethod = any(),
                 festivalLineup = null,
                 minDuration = null,
                 maxDuration = null
+            )
+        }
+    }
+
+    @Test
+    fun `a spoken genre is sorted by release date, not by the date added`() {
+        controller.genreTracksFromVoice("play genre hardstyle", null)
+
+        verify {
+            musicService.getSongs(
+                filters = any(),
+                ratingMin = any(),
+                ratingMax = any(),
+                count = any(),
+                offset = any(),
+                sortMethod = HomeSorts.RELEASED,
+                festivalLineup = any(),
+                minDuration = any(),
+                maxDuration = any()
             )
         }
     }

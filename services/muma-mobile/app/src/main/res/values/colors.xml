@@ -4,11 +4,13 @@
     <color name="selected_menu_dark">#FFFFFF</color>
     <color name="selected_menu_light">#191414</color>
 
+    <!-- The Spotify style's palette. Nothing outside values/themes.xml names these any more:
+         every layout and drawable reads the theme attribute instead, which is what lets the
+         MuMa style substitute its own values. -->
     <!-- Spotify branding -->
     <color name="spotify_green">#1db954</color>
     <color name="spotify_blue">#2d5afc</color>
     <color name="spotify_black">#121212</color>
-    <color name="spotify_dark">#000000</color>
     <color name="spotify_light">#181818</color>
     <color name="spotify_card">#282828</color>
     <color name="spotify_hover_light">#3e3e3e</color>

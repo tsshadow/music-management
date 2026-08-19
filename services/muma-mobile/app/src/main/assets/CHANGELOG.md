@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **The voice search understands a whole request, not just a genre.** "Speel willekeurige
+  favorieten uit 2023 af" used to reach the free text search, which only knows artist, album and
+  track names, and answered a sentence like that with silence. The utterance is now taken apart
+  into the pieces the library can filter on -- a genre, an artist ("van headhunterz"), a label
+  ("label art of creation"), a year ("uit 2021"), the favourites, songs or livesets -- and an order
+  on top of it: "willekeurig" shuffles, "recent" plays by release date, "recent toegevoegd" by the
+  date the library caught up. They combine freely, in Dutch and in English, and each part is
+  optional: "speel recent af" plays the whole library by release date.
+
+  Every spoken name is resolved against the library before it is sent, because the server answers
+  a filter value it does not know with an error rather than with an empty list -- one misheard word
+  would otherwise cost the whole request. A term the library cannot place is dropped and the rest
+  still plays, so "speel zwabberkore uit 2021 af" plays 2021. When it can place nothing at all, the
+  ordinary search takes over and looks for the title, which is what keeps "speel headhunterz af"
+  finding the track of that name rather than everything the artist ever released.
+- **A page listing what the voice search understands**, reachable from About. None of the wording
+  above is discoverable by talking to the car and hoping.
 - **A filtered track list can be re-sorted from the list itself.** Opening a genre, label,
   festival, year, podcast, line-up or rating navigated with `sortMethod = "DateDescAndRelease"`
   baked into the directions, and `list_layout_track` carried no filter bar, so

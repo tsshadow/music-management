@@ -722,4 +722,7 @@
     <string name="rejected_message">Your access request has been rejected.</string>
     <string name="try_again_button">Try Again</string>
     <string name="approved_retry_message">Your request was approved! Please try signing in again.</string>
+    <string name="about.voice">Voice commands</string>
+    <string name="voice.title">Voice commands</string>
+    <string name="voice.text"><![CDATA[Ask the Assistant in the car, or use the voice search of the app. Everything below can be combined in one sentence.\n\n<b>A genre</b>\nPlay genre hardstyle\nPlay uptempo hardcore\nPlay drum and bass livesets\n\n<b>An artist</b>\nPlay music by headhunterz\nPlay artist brennan heart\n\n<b>A label</b>\nPlay label art of creation\n\n<b>A year</b>\nPlay hardstyle from 2021\nPlay headhunterz from 2020\n\n<b>An order</b>\nPlay random hardcore\nPlay recent\nPlay recently added\n\n<b>Your favourites</b>\nPlay favourites\nPlay favourites by headhunterz\nPlay favourites from 2021\n\n<b>All of it at once</b>\nPlay random favourites from 2023\nPlay random uptempo hardcore from 2021\n\n<b>Later in the queue</b>\nPlay project one next\nPlay dragonborn after this\n\nA name has to be one the library knows. What it cannot place is dropped and the rest of the request still plays; when it can place nothing at all, the ordinary search takes over and looks for the title.]]></string>
 </resources>

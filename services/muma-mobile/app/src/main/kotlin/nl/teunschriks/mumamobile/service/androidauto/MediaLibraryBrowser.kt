@@ -452,14 +452,6 @@ class MediaLibraryBrowser(
         )
 
         mediaItems.add(
-            R.string.main_songs_starred,
-            MEDIA_SONG_STARRED_ID,
-            imageUri = Uri.parse("android.resource://$packageName/${R.drawable.ic_star_full}"),
-            isBrowsable = true,
-            mediaType = MEDIA_TYPE_FOLDER_MIXED
-        )
-
-        mediaItems.add(
             R.string.main_radio_title,
             MEDIA_RADIO_ID,
             imageUri = Uri.parse("android.resource://$packageName/${R.drawable.ic_menu_podcasts}"),
@@ -467,17 +459,15 @@ class MediaLibraryBrowser(
             mediaType = MEDIA_TYPE_FOLDER_MIXED
         )
 
-        // Both sources are local, so this stays a no-network call, and a Favorites folder that
-        // leads nowhere never shows up in the car.
-        if (favoriteGenres().isNotEmpty() || favoriteTiles().isNotEmpty()) {
-            mediaItems.add(
-                R.string.favorites_title,
-                MEDIA_FAVORITES_ID,
-                imageUri = Uri.parse("android.resource://$packageName/${R.drawable.ic_star_full}"),
-                isBrowsable = true,
-                mediaType = MEDIA_TYPE_FOLDER_MIXED
-            )
-        }
+        // One Favorites entry at the root: starred songs used to sit next to this folder under the
+        // same Dutch label, so they now live inside it together with the favorite genres and tiles.
+        mediaItems.add(
+            R.string.favorites_title,
+            MEDIA_FAVORITES_ID,
+            imageUri = Uri.parse("android.resource://$packageName/${R.drawable.ic_star_full}"),
+            isBrowsable = true,
+            mediaType = MEDIA_TYPE_FOLDER_MIXED
+        )
 
         return Futures.immediateFuture(
             LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
@@ -509,6 +499,8 @@ class MediaLibraryBrowser(
 
     private fun getFavoriteItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val mediaItems: MutableList<MediaItem> = ArrayList()
+
+        mediaItems.add(R.string.favorites_songs, MEDIA_SONG_STARRED_ID)
 
         if (favoriteGenres().isNotEmpty()) {
             mediaItems.add(R.string.favorites_genres, MEDIA_FAVORITE_GENRES_ID)

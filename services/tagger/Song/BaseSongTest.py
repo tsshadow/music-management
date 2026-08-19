@@ -107,6 +107,23 @@ class BaseSongTest(unittest.TestCase):
         song.save_file()
         song.music_file.save.assert_called_once()
 
+    @patch('services.tagger.Song.BaseSong.logging')
+    def test_save_file_does_not_announce_a_write_that_failed(self, mock_logging):
+        tag = Tag(tag=ARTIST, value='Original Artist')
+        tag.set('Some Artist')
+        song = BaseSong.__new__(BaseSong)
+        song.music_file = MagicMock()
+        song.music_file.save.side_effect = PermissionError(13, 'Permission denied')
+        song.path = MagicMock()
+        song.set_tag = MagicMock()
+        tag_collection = MagicMock()
+        tag_collection.get.return_value = {ARTIST: tag}
+        song.tag_collection = tag_collection
+        with self.assertRaises(PermissionError):
+            song.save_file()
+        announced = [c for c in mock_logging.info.call_args_list if 'File saved' in str(c)]
+        self.assertEqual([], announced)
+
     def test_apply_extra_info_sets_artist(self):
         song = BaseSong.__new__(BaseSong)
         tag_collection = MagicMock()

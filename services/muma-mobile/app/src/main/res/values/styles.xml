@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- The two micro-label appearances the themes choose between. Filled in where the label
+         style itself is reworked; declared here so both themes resolve. -->
+    <style name="TextAppearance.Kicker.Spotify" parent="TextAppearance.AppCompat.Small" />
+    <style name="TextAppearance.Kicker.Muma" parent="TextAppearance.AppCompat.Small" />
+
     <style name="Ultrasonic.AllCapsLabel" parent="">
         <item name="android:textStyle">bold</item>
         <item name="android:textColor">?attr/colorPrimary</item>

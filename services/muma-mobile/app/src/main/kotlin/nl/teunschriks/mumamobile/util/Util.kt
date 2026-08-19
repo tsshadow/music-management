@@ -100,12 +100,12 @@ object Util {
     }
 
     private fun getStyleFromSettings(context: Context): Int =
-        if (Settings.accent.lowercase() == context.getString(R.string.setting_key_accent_blue)) {
-            R.style.UltrasonicTheme_Blue
+        if (Settings.style.lowercase() == context.getString(R.string.setting_key_style_muma)) {
+            R.style.UltrasonicTheme_Muma
         } else {
-            // Anything else, including a value left behind by the old four-way theme
-            // preference, is green.
-            R.style.UltrasonicTheme_Green
+            // Anything else, including a value left behind by the old accent preference, is the
+            // Spotify style - the one the app already rendered, so an upgrade changes nothing.
+            R.style.UltrasonicTheme_Spotify
         }
 
     fun getString(@StringRes resId: Int): String = applicationContext().resources.getString(resId)

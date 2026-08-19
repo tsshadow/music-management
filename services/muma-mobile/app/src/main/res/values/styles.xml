@@ -93,7 +93,7 @@
     </style>
 
     <style name="Ultrasonic.TrackInfoSheetStyle" parent="Widget.Material3.BottomSheet.Modal">
-        <item name="backgroundTint">@color/spotify_light</item>
+        <item name="backgroundTint">?attr/colorSurfaceContainer</item>
     </style>
 
     <style name="ShapeAppearance.TrackInfoCover" parent="">
@@ -121,7 +121,7 @@
          (services/frontend/src/lib/LoginPage.svelte) so both surfaces feel the same. -->
 
     <style name="Ultrasonic.TextInputLayout" parent="Widget.Material3.TextInputLayout.FilledBox">
-        <item name="boxBackgroundColor">@color/spotify_card</item>
+        <item name="boxBackgroundColor">?attr/colorSurfaceVariant</item>
         <item name="boxCornerRadiusTopStart">8dp</item>
         <item name="boxCornerRadiusTopEnd">8dp</item>
         <item name="boxCornerRadiusBottomStart">8dp</item>
@@ -136,7 +136,7 @@
     <style name="Ultrasonic.Button.Primary" parent="Widget.Material3.Button">
         <item name="backgroundTint">?attr/colorPrimary</item>
         <item name="cornerRadius">24dp</item>
-        <item name="android:textColor">@color/spotify_black</item>
+        <item name="android:textColor">?attr/colorOnPrimary</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textAllCaps">false</item>
     </style>
@@ -157,7 +157,7 @@
          theme resId) so this styling stays scoped to that one screen instead of every
          AlertDialog in the app. Mirrors the web login card's bg-[#181818] rounded-2xl panel. -->
     <style name="ThemeOverlay.Ultrasonic.WelcomeDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
-        <item name="colorSurface">@color/spotify_light</item>
+        <item name="colorSurface">?attr/colorSurfaceContainer</item>
         <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.Ultrasonic.WelcomeDialog</item>
         <item name="buttonBarPositiveButtonStyle">@style/Ultrasonic.Button.Primary</item>
         <item name="materialAlertDialogTitleTextStyle">@style/TextAppearance.Ultrasonic.WelcomeDialog.Title</item>

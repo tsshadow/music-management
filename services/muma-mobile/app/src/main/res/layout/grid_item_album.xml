@@ -8,7 +8,7 @@
     a:layout_margin="4dp"
     app:cardCornerRadius="8dp"
     app:cardElevation="0dp"
-    app:cardBackgroundColor="@color/spotify_card"
+    app:cardBackgroundColor="?attr/colorSurfaceVariant"
     style="?attr/materialCardViewFilledStyle">
 
     <androidx.constraintlayout.widget.ConstraintLayout

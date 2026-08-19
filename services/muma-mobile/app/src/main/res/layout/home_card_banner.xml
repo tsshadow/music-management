@@ -11,7 +11,7 @@
     a:layout_width="match_parent"
     a:layout_height="wrap_content"
     a:layout_marginHorizontal="6dp"
-    app:cardBackgroundColor="@color/spotify_card"
+    app:cardBackgroundColor="?attr/colorSurfaceVariant"
     app:cardCornerRadius="8dp"
     app:cardElevation="0dp"
     app:strokeWidth="0dp">

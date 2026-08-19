@@ -33,7 +33,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
-            app:cardBackgroundColor="@color/spotify_card"
+            app:cardBackgroundColor="?attr/colorSurfaceVariant"
             app:cardCornerRadius="16dp"
             app:cardElevation="0dp">
 
@@ -316,7 +316,7 @@
             android:layout_marginStart="20dp"
             android:layout_marginTop="10dp"
             android:layout_marginEnd="20dp"
-            android:background="@color/spotify_hover_light" />
+            android:background="?attr/colorSurfaceContainerHighest" />
 
         <!-- Facts. Every row hides itself when the track has nothing to say. -->
         <LinearLayout

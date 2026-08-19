@@ -69,7 +69,7 @@
                 a:visibility="gone"
                 app:indicatorColor="?attr/colorPrimary"
                 app:indicatorSize="20dp"
-                app:trackColor="@color/spotify_card" />
+                app:trackColor="?attr/colorSurfaceVariant" />
         </LinearLayout>
 
         <TextView

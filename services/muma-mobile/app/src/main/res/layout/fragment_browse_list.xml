@@ -14,7 +14,7 @@
         a:id="@+id/browse_track_limit_row"
         a:layout_width="match_parent"
         a:layout_height="wrap_content"
-        a:background="@color/spotify_black"
+        a:background="?android:attr/colorBackground"
         a:gravity="center_vertical"
         a:orientation="horizontal"
         a:paddingHorizontal="10dp"
@@ -41,7 +41,7 @@
         a:layout_width="match_parent"
         a:layout_height="0dp"
         a:layout_weight="1"
-        a:background="@color/spotify_black">
+        a:background="?android:attr/colorBackground">
 
         <androidx.recyclerview.widget.RecyclerView
             a:id="@+id/browse_recycler"

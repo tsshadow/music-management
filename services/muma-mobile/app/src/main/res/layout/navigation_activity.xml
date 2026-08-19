@@ -12,7 +12,7 @@
         a:id="@+id/toolbar"
         a:layout_width="match_parent"
         a:layout_height="?attr/actionBarSize"
-        a:background="@color/spotify_black" />
+        a:background="?attr/colorSurface" />
 
     <TextView
         a:id="@+id/offline_mode_banner"
@@ -52,7 +52,7 @@
         a:layout_width="match_parent"
         a:layout_height="wrap_content"
         a:layout_alignParentBottom="true"
-        a:background="@color/spotify_black"
+        a:background="?attr/colorSurface"
         app:itemIconTint="?attr/colorPrimary"
         app:itemTextColor="?android:attr/textColorPrimary"
         app:menu="@menu/bottom_navigation" />

@@ -14,63 +14,31 @@ import kotlin.math.abs
  * @brief Turns a spoken search query into a filtered library query.
  *
  * @details
- * The voice search of Android Auto hands us the raw utterance. "Speel random uptempo hardcore uit
- * 2021 af" names no artist, album or track, so the free text search behind
- * [MediaLibraryPlaybackController.playFromSearch] returns nothing for it. This parser pulls the
+ * A voice search hands us the raw utterance. "Speel random uptempo hardcore uit 2021 af" names no
+ * artist, album or track, so a free text search returns nothing for it. This parser pulls the
  * pieces of the request apart -- the sort, the year, the genre, the artist, the label, the
  * favourites and whether songs or livesets were asked for -- so the utterance can run the same
  * filtered query the browse tree runs.
  *
+ * It produces text only. Nothing here talks to the library, and nothing here knows which entry
+ * point the words arrived through: Android Auto, the microphone and the text field all reach this
+ * same [parse].
+ *
  * Everything is a slot, and every slot is optional. What is left over after the recognised words
- * are taken out is the [Request.free] term: the part nobody qualified. "Speel headhunterz uit 2020
- * af" leaves "headhunterz" there, and only the library can say whether that is a genre, an artist
- * or a label -- see [MediaLibraryPlaybackController.tracksFromVoice], which resolves it.
+ * are taken out is the [ParsedQuery.free] term: the part nobody qualified. "Speel headhunterz uit
+ * 2020 af" leaves "headhunterz" there, and only the library can say whether that is a genre, an
+ * artist or a label -- see [QueryResolver], which resolves it.
  *
  * The word "genre" is the one word that cannot be relied on: Assistant strips it precisely when it
  * understood the request as a genre one, so "speel het genre mainstream hardstyle af" arrives as
  * "mainstream hardstyle" and nothing about it says genre any more. That utterance therefore lands
- * in [Request.free] rather than [Request.genre], and the resolver takes it on the strict terms
- * [match] applies with `exact` set: the name as the library spells it or nothing at all.
+ * in [ParsedQuery.free] rather than [ParsedQuery.genre], and the resolver takes it on the strict
+ * terms [match] applies with `exact` set: the name as the library spells it or nothing at all.
  */
 object VoiceQuery {
 
     const val LENGTH_SHORT = "short"
     const val LENGTH_LONG = "long"
-
-    /**
-     * @brief The order the spoken request asks its tracks in.
-     *
-     * @details [RELEASED] is what asking for a genre or an artist out loud means -- what is new in
-     * it -- and it is what the request falls back to when nothing was said about the order.
-     * [ADDED] is the other question ("recent toegevoegd"): when the library caught up, which for a
-     * back catalogue import is a hundred tracks from twenty different years arriving in one
-     * afternoon.
-     */
-    enum class Sort { RELEASED, ADDED, RANDOM }
-
-    /**
-     * @brief A parsed spoken request.
-     *
-     * @property genre the spoken genre, still unmatched against the library
-     * @property artist the spoken artist, still unmatched
-     * @property label the spoken label, still unmatched
-     * @property year the spoken year, four digits
-     * @property free what was left over, which the resolver tries as a genre, an artist and a
-     *           label in that order
-     * @property length "short" for songs, "long" for livesets
-     * @property sort the order asked for, or null when the utterance said nothing about it
-     * @property favorites whether only the highest rated tracks were asked for
-     */
-    data class Request(
-        val genre: String? = null,
-        val artist: String? = null,
-        val label: String? = null,
-        val year: String? = null,
-        val free: String? = null,
-        val length: String = LENGTH_SHORT,
-        val sort: Sort? = null,
-        val favorites: Boolean = false
-    )
 
     private val PLAY_WORDS = setOf("play", "speel", "start", "zet", "draai", "afspelen")
 
@@ -124,7 +92,7 @@ object VoiceQuery {
      * @return the request, or null when the utterance asked for nothing this can act on
      */
     @Suppress("CyclomaticComplexMethod")
-    fun parse(query: String): Request? {
+    fun parse(query: String): ParsedQuery? {
         var tokens = strip(query)
 
         val wantsSets = tokens.any { it in SET_WORDS }
@@ -176,7 +144,7 @@ object VoiceQuery {
             }
         }
 
-        val request = Request(
+        val request = ParsedQuery(
             genre = terms[Slot.GENRE]?.joinToString(" "),
             artist = terms[Slot.ARTIST]?.joinToString(" "),
             label = terms[Slot.LABEL]?.joinToString(" "),
@@ -184,15 +152,15 @@ object VoiceQuery {
             free = free.joinToString(" ").ifEmpty { null },
             length = if (wantsSets) LENGTH_LONG else LENGTH_SHORT,
             sort = when {
-                random -> Sort.RANDOM
-                added -> Sort.ADDED
-                released -> Sort.RELEASED
+                random -> ParsedQuery.Sort.RANDOM
+                added -> ParsedQuery.Sort.ADDED
+                released -> ParsedQuery.Sort.RELEASED
                 else -> null
             },
             favorites = favorites
         )
 
-        return request.takeIf { it != Request(length = it.length) }
+        return request.takeIf { !it.isEmpty() }
     }
 
     /** Splits the utterance and drops the wrapping that is never part of what was asked for. */

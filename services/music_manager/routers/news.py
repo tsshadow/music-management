@@ -248,8 +248,21 @@ def _enabled_sources(conn) -> list:
         return cursor.fetchall() or []
 
 
+def sources_due_at(sources: list, capture_at: float, now: float) -> list:
+    """The sources whose own next boundary is the one being woken up for.
+
+    The loop sleeps until the earliest boundary of any source, which is not
+    every source's boundary: a second source recording at half past would
+    otherwise be captured on the hour and filed under the wrong one.
+    """
+    return [
+        s for s in sources
+        if abs(next_capture_at(now, s['minute_of_hour'], s['lead_seconds']) - capture_at) < 1.0
+    ]
+
+
 def run_news_recorder():
-    """Background loop: sleep until the next boundary, then record every source."""
+    """Background loop: sleep until the next boundary, then record what is due."""
     while True:
         conn = get_db_connection()
         if not conn:
@@ -274,13 +287,14 @@ def run_news_recorder():
         capture_at = min(
             next_capture_at(now, s['minute_of_hour'], s['lead_seconds']) for s in sources
         )
+        due = sources_due_at(sources, capture_at, now)
         time.sleep(max(0.0, capture_at - time.time()))
 
         conn = get_db_connection()
         if not conn:
             continue
         try:
-            for source in sources:
+            for source in due:
                 record_source(conn, source, capture_at)
         finally:
             conn.close()

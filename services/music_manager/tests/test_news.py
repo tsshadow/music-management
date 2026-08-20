@@ -136,6 +136,19 @@ class NewsRecorderTest(unittest.TestCase):
         updates = ' '.join(call[0][0] for call in cursor.execute.call_args_list)
         self.assertIn('last_error', updates)
 
+    def test_only_the_sources_due_at_that_boundary_are_recorded(self):
+        # 17:30:00 UTC: the on-the-hour source is due at 17:59:55, the half-past
+        # one not until 18:29:55, and recording both now would file the second
+        # bulletin under an hour it does not belong to.
+        now = 1787247000.0
+        on_the_hour = {'slug': 'nos', 'minute_of_hour': 0, 'lead_seconds': 5}
+        half_past = {'slug': 'other', 'minute_of_hour': 30, 'lead_seconds': 5}
+        sources = [on_the_hour, half_past]
+        capture_at = min(
+            news.next_capture_at(now, s['minute_of_hour'], s['lead_seconds']) for s in sources
+        )
+        self.assertEqual(news.sources_due_at(sources, capture_at, now), [on_the_hour])
+
     @patch('services.music_manager.routers.news.capture_once', return_value=9)
     def test_success_clears_the_error_and_stamps_the_time(self, _mock_capture):
         conn = MagicMock()

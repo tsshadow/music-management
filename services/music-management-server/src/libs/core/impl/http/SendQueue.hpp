@@ -57,6 +57,9 @@ namespace lms::core::http
         void throttle(std::chrono::seconds duration);
 
         const std::size_t _maxRetryCount{ 2 };
+        // How many transport errors in a row it takes before the endpoint is treated as down and
+        // the queue stops sending altogether.
+        const std::size_t _consecutiveErrorsBeforeThrottling{ 3 };
         const std::chrono::seconds _defaultRetryWaitDuration{ 30 };
         const std::chrono::seconds _minRetryWaitDuration{ 1 };
         const std::chrono::seconds _maxRetryWaitDuration{ 300 };
@@ -74,6 +77,7 @@ namespace lms::core::http
         };
         void setState(State state);
         std::atomic<bool> _abortAllRequests;
+        std::size_t _consecutiveErrorCount{}; // strand-protected, like _state and _sendQueue
         State _state;
         Wt::Http::Client _client;
         std::map<ClientRequestParameters::Priority, std::deque<std::unique_ptr<ClientRequest>>> _sendQueue;

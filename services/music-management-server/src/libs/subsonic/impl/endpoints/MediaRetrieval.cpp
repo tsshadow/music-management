@@ -21,7 +21,9 @@
 
 #include <algorithm>
 #include <chrono>
-#include <future>
+#include <memory>
+#include <mutex>
+#include <unordered_map>
 
 #include <Wt/Utils.h>
 
@@ -32,6 +34,7 @@
 #include "core/String.hpp"
 #include "core/http/ClientRequestParameters.hpp"
 #include "core/http/IClient.hpp"
+#include "core/http/ProxyContinuation.hpp"
 #include "core/media/Codec.hpp"
 #include "core/media/MimeType.hpp"
 
@@ -308,6 +311,33 @@ namespace lms::api::subsonic
 
             return true;
         }
+
+        // How long a cover art request waits on MuMa before the fallback image is served instead.
+        constexpr std::chrono::seconds mumaCoverArtDeadline{ 10 };
+
+        // One long-lived client per MuMa base URL.
+        //
+        // This used to be a fresh client per request, which meant a fresh connection and a fresh
+        // send queue every time -- and, worse, ~SendQueue aborts its in-flight request and spins on
+        // std::this_thread::yield() until that lands, so tearing one down ran a busy-wait on an
+        // HTTP thread on the hottest path in the server.
+        //
+        // Deliberately never destroyed: ~SendQueue does that same blocking abort, and running it
+        // during static destruction, once the io_context is gone and nothing is left to drain the
+        // strand, would spin forever on the way out.
+        core::http::IClient& getMumaCoverArtClient(boost::asio::io_context& ioContext, const std::string& baseUrl)
+        {
+            static std::mutex mutex;
+            static auto& clients{ *new std::unordered_map<std::string, std::unique_ptr<core::http::IClient>>{} };
+
+            const std::lock_guard lock{ mutex };
+
+            auto& client{ clients[baseUrl] };
+            if (!client)
+                client = core::http::createClient(ioContext, baseUrl);
+
+            return *client;
+        }
     } // namespace
 
     Response handleGetLyrics(RequestContext& context)
@@ -434,7 +464,7 @@ namespace lms::api::subsonic
             continuation->setData(resourceHandler);
     }
 
-    void handleGetCoverArt(RequestContext& context, const Wt::Http::Request& /*request*/, Wt::Http::Response& response)
+    void handleGetCoverArt(RequestContext& context, const Wt::Http::Request& request, Wt::Http::Response& response)
     {
         // Mandatory params
         const CoverArtId coverArtId{ getMandatoryParameterAs<CoverArtId>(context.getParameters(), "id") };
@@ -482,7 +512,6 @@ namespace lms::api::subsonic
             }
 
             std::string mumaApiKey = std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-key", "") };
-            auto httpClient = core::http::createClient(context.getIoContext(), mumaApiUrl);
 
             std::string encodedName = Wt::Utils::urlEncode(coverArtId.mumaArtistName);
             for (size_t i = 0; i < encodedName.length(); ++i)
@@ -494,70 +523,40 @@ namespace lms::api::subsonic
             }
             std::string relativeUrl = "/api/artists/" + encodedName + "/image";
 
-            struct ProxyResult
-            {
-                int status;
-                std::string contentType;
-                std::vector<std::byte> data;
-            };
-            auto resultPromise = std::make_shared<std::promise<ProxyResult>>();
-            auto resultFuture = resultPromise->get_future();
-
             core::http::ClientGETRequestParameters getParams;
             getParams.relativeUrl = relativeUrl;
+            // Artwork is the one thing here nobody is waiting on. Behind a scrobble or a rating is
+            // exactly where it belongs.
+            getParams.priority = core::http::ClientRequestParameters::Priority::Low;
             if (!mumaApiKey.empty())
                 getParams.headers.push_back(Wt::Http::Message::Header("X-API-Key", mumaApiKey));
 
-            getParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
-                ProxyResult res;
-                res.status = msg.status();
-                if (const std::string* contentType = msg.getHeader("Content-Type"))
-                    res.contentType = *contentType;
-                const std::string& body = msg.body();
-                res.data.resize(body.size());
-                std::memcpy(res.data.data(), body.data(), body.size());
-                resultPromise->set_value(std::move(res));
-            };
-            getParams.onFailureFunc = [resultPromise]() {
-                ProxyResult res;
-                res.status = 502; // Bad Gateway
-                resultPromise->set_value(std::move(res));
-            };
+            // Parks on a continuation rather than holding this thread until MuMa answers. Waiting
+            // here is what used to drain the whole HTTP thread pool and take the server down with
+            // it: every request, a plain ping included, then had nowhere left to run.
+            const auto answer{ core::http::proxyRequest(request, response, context.getIoContext(),
+                getMumaCoverArtClient(context.getIoContext(), mumaApiUrl), std::move(getParams), mumaCoverArtDeadline) };
+            if (!answer)
+                return; // in flight; nothing may be written yet
 
-            httpClient->sendGETRequest(std::move(getParams));
-
-            if (resultFuture.wait_for(std::chrono::seconds(10)) == std::future_status::ready)
+            if (answer->status == 200)
             {
-                ProxyResult res = resultFuture.get();
-                if (res.status == 200)
-                {
-                    response.setStatus(res.status);
-                    response.setMimeType(res.contentType);
-                    response.out().write(reinterpret_cast<const char*>(res.data.data()), res.data.size());
-                }
-                else
-                {
-                    LMS_LOG(API_SUBSONIC, WARNING, "handleGetCoverArt: MuMa returned status " << res.status << " for artist '" << coverArtId.mumaArtistName << "'");
-
-                    // MuMa has no picture for this artist (yet): 404 also queues a fetch on its
-                    // side, so this is the normal case for most of the library, not an error.
-                    if (serveArtistFallbackImage(context, coverArtId.mumaArtistName, size, response))
-                        return;
-
-                    response.setStatus(res.status);
-                    response.out() << "MuMa returned error: " << res.status;
-                }
+                response.setStatus(answer->status);
+                response.setMimeType(answer->contentType);
+                response.out() << answer->body;
+                return;
             }
-            else
-            {
-                LMS_LOG(API_SUBSONIC, ERROR, "handleGetCoverArt: Timeout waiting for MuMa response for artist '" << coverArtId.mumaArtistName << "'");
 
-                if (serveArtistFallbackImage(context, coverArtId.mumaArtistName, size, response))
-                    return;
+            LMS_LOG(API_SUBSONIC, WARNING, "handleGetCoverArt: MuMa returned status " << answer->status << " for artist '" << coverArtId.mumaArtistName << "'");
 
-                response.setStatus(504); // Gateway Timeout
-                response.out() << "Timeout waiting for MuMa";
-            }
+            // MuMa has no picture for this artist (yet): 404 also queues a fetch on its
+            // side, so this is the normal case for most of the library, not an error.
+            if (serveArtistFallbackImage(context, coverArtId.mumaArtistName, size, response))
+                return;
+
+            response.setStatus(answer->status);
+            response.out() << "MuMa returned error: " << answer->status;
+            return;
         }
         else
         {

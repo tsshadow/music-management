@@ -77,7 +77,7 @@ namespace lms::db
         _session.mapClass<Artist>("artist");
         _session.mapClass<ArtistInfo>("artist_info");
         _session.mapClass<Artwork>("artwork");
-        _session.mapClass<AuthToken>("volatile.auth_token");
+        _session.mapClass<AuthToken>("auth_token");
         _session.mapClass<Cluster>("cluster");
         _session.mapClass<ClusterType>("cluster_type");
         _session.mapClass<Country>("country");
@@ -200,7 +200,10 @@ namespace lms::db
             // these columns here previously produced a schema the ORM could no longer query
             // against ("no such column: u.password_salt"), taking down production.
             utils::executeCommand(_session, "CREATE TABLE IF NOT EXISTS user (id INTEGER PRIMARY KEY AUTOINCREMENT, version INTEGER, type INTEGER, login_name TEXT, password_salt TEXT NOT NULL DEFAULT '', password_hash TEXT NOT NULL DEFAULT '', last_login DATETIME, subsonic_enable_transcoding_by_default INTEGER, subsonic_default_transcode_format INTEGER, subsonic_default_transcode_bitrate INTEGER, subsonic_artist_list_mode INTEGER, ui_theme INTEGER, ui_artist_release_sort_method INTEGER, ui_enable_inline_artist_relationships INTEGER, ui_inline_artist_relationships BLOB, feedback_backend INTEGER, scrobbling_backend INTEGER, muma_scrobbling_enabled INTEGER, listenbrainz_token TEXT, muma_id INTEGER, ui_transcoding_mode INTEGER, ui_transcoding_format INTEGER, ui_transcoding_bitrate INTEGER, ui_replaygain_mode INTEGER, ui_replaygain_preamp_gain REAL, ui_replaygain_preamp_gain_no_info REAL, scrobbling_backend_id INTEGER, feedback_backend_id INTEGER, subsonic_default_transcode_output_format INTEGER)");
-            utils::executeCommand(_session, "CREATE TABLE IF NOT EXISTS volatile.auth_token (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, value TEXT, expiry DATETIME, domain TEXT)");
+            // Persistent, unlike ui_state below: a Subsonic API key that does not survive a
+            // restart is indistinguishable, from the client's side, from a key that was never
+            // valid. Columns must stay in sync with AuthToken::persist().
+            utils::executeCommand(_session, "CREATE TABLE IF NOT EXISTS auth_token (id INTEGER PRIMARY KEY AUTOINCREMENT, version INTEGER NOT NULL DEFAULT 0, domain TEXT NOT NULL DEFAULT '', value TEXT NOT NULL DEFAULT '', expiry DATETIME, use_count INTEGER NOT NULL DEFAULT 0, last_used TEXT, max_use_count INTEGER, user_id INTEGER)");
             utils::executeCommand(_session, "CREATE TABLE IF NOT EXISTS volatile.ui_state (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, key TEXT, value TEXT)");
         }
 
@@ -231,9 +234,9 @@ namespace lms::db
             tryExecute("CREATE INDEX IF NOT EXISTS artwork_image_idx ON artwork(image_id)");
             tryExecute("CREATE INDEX IF NOT EXISTS artwork_track_embedded_image_idx ON artwork(track_embedded_image_id)");
 
-            tryExecute("CREATE INDEX IF NOT EXISTS volatile.auth_token_user_domain_idx ON auth_token(user_id, domain)");
-            tryExecute("CREATE INDEX IF NOT EXISTS volatile.auth_token_domain_expiry_idx ON auth_token(domain, expiry)");
-            tryExecute("CREATE INDEX IF NOT EXISTS volatile.auth_token_domain_value_idx ON auth_token(domain, value)");
+            tryExecute("CREATE INDEX IF NOT EXISTS auth_token_user_domain_idx ON auth_token(user_id, domain)");
+            tryExecute("CREATE INDEX IF NOT EXISTS auth_token_domain_expiry_idx ON auth_token(domain, expiry)");
+            tryExecute("CREATE INDEX IF NOT EXISTS auth_token_domain_value_idx ON auth_token(domain, value)");
 
             tryExecute("CREATE INDEX IF NOT EXISTS cluster_id_idx ON cluster(id)");
             tryExecute("CREATE INDEX IF NOT EXISTS cluster_cluster_type_idx ON cluster(cluster_type_id)");

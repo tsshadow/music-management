@@ -12,6 +12,8 @@ configure_file(
 
 add_library(lmscore STATIC
 	impl/http/Client.cpp
+	impl/http/ProxyContinuation.cpp
+	impl/http/RetryPolicy.cpp
 	impl/http/SendQueue.cpp
 	impl/media/Codec.cpp
 	impl/media/Container.cpp

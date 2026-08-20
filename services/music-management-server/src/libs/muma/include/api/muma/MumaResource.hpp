@@ -21,6 +21,7 @@ namespace lms::api::muma
         void handleRequest(const Wt::Http::Request& request, Wt::Http::Response& response) override;
 
     private:
+        boost::asio::io_context& _ioContext;
         db::IDb& _db;
         auth::IUserSynchronizer& _userSynchronizer;
         std::unique_ptr<core::http::IClient> _httpClient;

@@ -1,4 +1,5 @@
 import os
+import shutil
 from typing import Any
 
 import markdown
@@ -7,6 +8,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 import docker
+from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.GenreRulesHelper import BLACK, VALID_STATES, WHITE
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 from services.common.version_helper import get_changelog, get_release_notes, get_version
@@ -109,6 +111,96 @@ def search_labels(q: str='', _auth: dict=Depends(verify_api_key)):
         with conn.cursor() as cursor:
             cursor.execute('SELECT id, name FROM library_labels WHERE name LIKE %s LIMIT 50', (f'%{q}%',))
             return cursor.fetchall()
+    finally:
+        conn.close()
+
+class LabelDecisionRequest(BaseModel):
+    label: str
+
+def folder_exists(path: str) -> bool:
+    """Named so a test can replace it without patching os.path.isdir for the whole process."""
+    return os.path.isdir(path)
+
+@router.get('/label-proposals')
+def get_label_proposals(status: str='new', _auth: dict=Depends(verify_api_key)):
+    """
+    Releases the importer could not place.
+
+    Ordered by proposed label so the caller can group them: one label usually covers
+    many releases, and confirming a group is one decision instead of fifteen. The
+    proposals nothing could be read from sort last, because they are the ones that
+    genuinely need a human to go looking.
+    """
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                'SELECT id, folder, catid, proposed_label, source, confidence, status '
+                'FROM rules_label_proposals WHERE status = %s '
+                'ORDER BY proposed_label IS NULL, proposed_label, confidence DESC',
+                (status,))
+            # get_db_connection hands out a DictCursor, so these rows are already the
+            # objects the caller wants.
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+@router.post('/label-proposals/{proposal_id}/confirm')
+def confirm_label_proposal(proposal_id: int, decision: LabelDecisionRequest=Body(...), _auth: dict=Depends(verify_api_key)):
+    """
+    Accept a proposal.
+
+    With a catalogue number this writes the rule and stops: the importer already
+    knows how to move a release whose CAT ID resolves, and it will do so on its next
+    cycle, so there is no second move implementation here. Without one there is
+    nothing to learn -- no key to hang a rule on -- so this places that single folder.
+    """
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500)
+    settings = Settings()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT id, folder, catid, proposed_label FROM rules_label_proposals WHERE id = %s', (proposal_id,))
+            row = cursor.fetchone()
+            if not row:
+                raise HTTPException(status_code=404)
+            folder, catid = row['folder'], row['catid']
+            if catid:
+                cursor.execute(
+                    'INSERT INTO rules_catid_label (catid, label) VALUES (%s, %s) '
+                    'ON DUPLICATE KEY UPDATE label = VALUES(label)',
+                    (catid, decision.label))
+            else:
+                src = os.path.join(settings.import_folder_path, folder)
+                if not folder_exists(src):
+                    # Another import cycle moved it, or it was cleaned up by hand. Not an
+                    # error: the row is simply out of date, and saying so beats a stack trace.
+                    cursor.execute("UPDATE rules_label_proposals SET status = 'stale', decided_at = NOW() WHERE id = %s", (proposal_id,))
+                    conn.commit()
+                    return {'status': 'stale', 'folder': folder}
+                shutil.move(src, os.path.join(settings.eps_folder_path, decision.label, folder))
+            cursor.execute(
+                "UPDATE rules_label_proposals SET status = 'confirmed', decided_label = %s, decided_at = NOW() WHERE id = %s",
+                (decision.label, proposal_id))
+        conn.commit()
+        return {'status': 'confirmed', 'folder': folder, 'label': decision.label}
+    finally:
+        conn.close()
+
+@router.post('/label-proposals/{proposal_id}/reject')
+def reject_label_proposal(proposal_id: int, _auth: dict=Depends(verify_api_key)):
+    """A rejected proposal never returns to the list, however often the importer meets the folder again."""
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("UPDATE rules_label_proposals SET status = 'rejected', decided_at = NOW() WHERE id = %s", (proposal_id,))
+        conn.commit()
+        return {'status': 'rejected'}
     finally:
         conn.close()
 

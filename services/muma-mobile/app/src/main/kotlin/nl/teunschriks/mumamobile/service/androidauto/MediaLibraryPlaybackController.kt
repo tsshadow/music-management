@@ -24,7 +24,10 @@ import nl.teunschriks.mumamobile.util.toMediaItem
 import nl.teunschriks.mumamobile.voice.MusicServiceVocabulary
 import nl.teunschriks.mumamobile.voice.ParsedQuery
 import nl.teunschriks.mumamobile.voice.QueryResolver
+import nl.teunschriks.mumamobile.voice.QueryTrace
+import nl.teunschriks.mumamobile.voice.VoiceEntryPoint
 import nl.teunschriks.mumamobile.voice.VoiceQuery
+import nl.teunschriks.mumamobile.voice.VoiceTraceLog
 import timber.log.Timber
 /**
  * @class MediaLibraryPlaybackController
@@ -201,11 +204,13 @@ class MediaLibraryPlaybackController(
 
     fun playFromSearch(
         query: String,
-        spokenGenre: String? = null
+        spokenGenre: String? = null,
+        trace: QueryTrace = QueryTrace(VoiceEntryPoint.ON_ADD_MEDIA_ITEMS, "unknown")
     ): ListenableFuture<List<MediaItem>> {
         Timber.w("App state: %s", UApp.instance != null)
 
-        Timber.i("AutoMediaBrowserService onSearch query: %s", query)
+        if (trace.raw.isEmpty()) trace.raw = query
+        spokenGenre?.let { trace.note("Assistant named the genre \"$it\" in the extras") }
         val mediaItems: MutableList<MediaItem> = ArrayList()
 
         // Only accept query with pattern "play [Title]" or "[Title]"
@@ -220,9 +225,15 @@ class MediaLibraryPlaybackController(
         val searchFuture = serviceScope.future {
             // A spoken genre never matches an artist, album or track name, so it has to run the
             // genre query of the browse tree instead of the free text search below.
-            playFilteredFromVoice(query, spokenGenre)?.let { return@future it }
+            playFilteredFromVoice(query, spokenGenre, trace)?.let {
+                trace.results(it.size)
+                VoiceTraceLog.record(trace)
+                return@future it
+            }
 
+            trace.note("the filtered query found nothing, falling back to the free text search")
             val criteria = SearchCriteria(mediaTitle, SEARCH_LIMIT, SEARCH_LIMIT, SEARCH_LIMIT)
+            trace.request("search3 \"$mediaTitle\" limit=$SEARCH_LIMIT")
             val searchResult = callWithErrorHandling { musicService.search(criteria) }
 
             // TODO Add More... button to categories
@@ -256,6 +267,9 @@ class MediaLibraryPlaybackController(
 
             if (mediaItems.isEmpty()) {
                 Timber.i("No media found for query: %s", query)
+                trace.outcome("NoMatch: neither the filters nor the free text search placed it")
+                trace.results(0)
+                VoiceTraceLog.record(trace)
                 return@future listOf<MediaItem>()
             }
 
@@ -266,6 +280,9 @@ class MediaLibraryPlaybackController(
             Timber.i("Found media id: %s", firstItem.mediaId)
             val result = tracks?.map { it.toMediaItem() } ?: listOf()
             Timber.i("Result size: %d", result.size)
+            trace.outcome("Resolved by the free text search: ${firstItem.mediaId}")
+            trace.results(result.size)
+            VoiceTraceLog.record(trace)
             return@future result
         }
 
@@ -304,8 +321,12 @@ class MediaLibraryPlaybackController(
      * @return the tracks to play, or null when the utterance named nothing the library knows -
      * the caller then falls back to the free text search
      */
-    private fun playFilteredFromVoice(query: String, spokenGenre: String?): List<MediaItem>? {
-        val tracks = tracksFromVoice(query, spokenGenre) ?: return null
+    private fun playFilteredFromVoice(
+        query: String,
+        spokenGenre: String?,
+        trace: QueryTrace?
+    ): List<MediaItem>? {
+        val tracks = tracksFromVoice(query, spokenGenre, trace) ?: return null
         return tracks.map { it.toMediaItem() }
     }
 
@@ -313,12 +334,16 @@ class MediaLibraryPlaybackController(
      * @brief Resolves the tracks a spoken request should play.
      * @see playFilteredFromVoice
      */
-    internal fun tracksFromVoice(query: String, spokenGenre: String?): List<Track>? {
-        val parsed = VoiceQuery.parse(query)
+    internal fun tracksFromVoice(
+        query: String,
+        spokenGenre: String?,
+        trace: QueryTrace? = null
+    ): List<Track>? {
+        val parsed = VoiceQuery.parse(query, trace)
         if (parsed == null && spokenGenre.isNullOrBlank()) return null
 
         val resolver = QueryResolver(MusicServiceVocabulary(musicService))
-        val resolved = resolver.resolve(parsed ?: ParsedQuery(), spokenGenre) ?: return null
+        val resolved = resolver.resolve(parsed ?: ParsedQuery(), spokenGenre, trace) ?: return null
 
         val songs = callWithErrorHandling {
             musicService.getSongs(

@@ -43,11 +43,16 @@ class SpeechCapture(private val context: Context) {
      * @param onPartial called as the words arrive, for the live text in the sheet
      * @param onResult called once with every reading, most confident first
      * @param onError called with a `SpeechRecognizer.ERROR_*` code
+     * @param biasing names the recogniser should lean towards. The library's genres are loanwords
+     *        and subculture compounds that a Dutch acoustic model has no reason to prefer, so
+     *        without this it answers with whatever ordinary Dutch is closest and the words that
+     *        were actually spoken never reach the parser.
      */
     fun start(
         onPartial: (String) -> Unit,
         onResult: (List<Hypothesis>) -> Unit,
-        onError: (Int) -> Unit
+        onError: (Int) -> Unit,
+        biasing: List<String> = emptyList()
     ) {
         stop()
 
@@ -57,7 +62,21 @@ class SpeechCapture(private val context: Context) {
             return
         }
 
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+        recognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+            setRecognitionListener(Listener(onPartial, onResult, onError))
+            startListening(recognizerIntent(biasing))
+        }
+    }
+
+    /**
+     * The whole contract with the recogniser, in one place so it can be read without a microphone.
+     *
+     * Whether the biasing extra changes anything is up to the recogniser implementation; it is
+     * free to ignore it. That is acceptable because the near-miss step in `QueryResolver` covers
+     * the same failure from the other side, and because an ignored extra costs nothing.
+     */
+    internal fun recognizerIntent(biasing: List<String>): Intent =
+        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(
                 RecognizerIntent.EXTRA_LANGUAGE_MODEL,
                 RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
@@ -65,13 +84,10 @@ class SpeechCapture(private val context: Context) {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, LANGUAGE)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, MAX_RESULTS)
+            if (biasing.isNotEmpty()) {
+                putExtra(RecognizerIntent.EXTRA_BIASING_STRINGS, ArrayList(biasing))
+            }
         }
-
-        recognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
-            setRecognitionListener(Listener(onPartial, onResult, onError))
-            startListening(intent)
-        }
-    }
 
     fun stop() {
         recognizer?.runCatching {

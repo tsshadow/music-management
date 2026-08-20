@@ -114,6 +114,15 @@ object VoiceQuery {
     private val SEPARATORS = Regex("[^\\p{L}\\p{N}&]+")
     private val YEAR = Regex("(19|20)\\d{2}")
 
+    /** Nothing is guessed from a single word; the untouched words are the corroboration. */
+    private const val MIN_TOKENS_TO_GUESS = 2
+
+    /** Below this a word is too short for the distance to mean anything: "raw" is not "rap". */
+    private const val MIN_GUESSED_LENGTH = 4
+
+    /** The ceiling on a forgiven word. "Uptempo" heard as "temple" costs exactly this. */
+    private const val MAX_WORD_EDITS = 4
+
     private enum class Slot { GENRE, ARTIST, LABEL, ALBUM, PLAYLIST, TITLE }
 
     /** Every word that opens a slot or carries a request, so a title word can tell a name apart. */
@@ -384,6 +393,87 @@ object VoiceQuery {
                 }
                 .minByOrNull { abs(key(it).length - spoken.length) }
         )
+    }
+
+    /**
+     * @brief The name a misheard term most likely meant, when one word is wrong and the rest are
+     *        right.
+     *
+     * @details The recogniser gets the familiar half of a compound genre right and invents the
+     * unfamiliar half: "temple hardcore" for "uptempo hardcore". Comparing word by word separates
+     * that from a genuine miss far better than any whole-string measure does, because the
+     * untouched words are the corroboration. Levenshtein over the whole name puts that pair four
+     * edits apart in fifteen characters, which is indistinguishable from noise; the same pair is
+     * one exact word and one close word, which is not.
+     *
+     * The rules are deliberately strict. Both names carry the same number of words, exactly one
+     * position differs, both words in that position are at least [MIN_GUESSED_LENGTH] characters,
+     * and they are within [threshold] edits of each other. A single-word term is refused outright:
+     * there is nothing left to corroborate it.
+     *
+     * @param names the candidates to guess against, most prominent first. Passing the whole
+     *        library here would defeat the point -- see [LibraryVocabulary.prominentGenres].
+     * @return the closest candidate, or null when none is one word away. Ties go to the earlier
+     *         candidate, which is the more prominent one.
+     */
+    fun nearest(term: String, names: List<String>): String? {
+        val spoken = words(term)
+        if (spoken.size < MIN_TOKENS_TO_GUESS) return null
+
+        return names
+            .mapNotNull { name -> wordDistance(spoken, words(name))?.let { name to it } }
+            .minByOrNull { it.second }
+            ?.first
+    }
+
+    /** The utterance split the way a name is, with the punctuation taken out of each word. */
+    private fun words(value: String): List<String> = value.lowercase()
+        .split(SEPARATORS)
+        .mapNotNull { word -> word.filter { it.isLetterOrDigit() }.ifEmpty { null } }
+
+    /** How far apart, or null when the two are not exactly one forgivable word apart. */
+    private fun wordDistance(spoken: List<String>, name: List<String>): Int? {
+        if (spoken.size != name.size) return null
+
+        val differing = spoken.indices.filter { spoken[it] != name[it] }
+        if (differing.size != 1) return null
+
+        val heard = spoken[differing.single()]
+        val meant = name[differing.single()]
+        if (heard.length < MIN_GUESSED_LENGTH || meant.length < MIN_GUESSED_LENGTH) return null
+
+        return editDistance(heard, meant).takeIf { it <= threshold(heard, meant) }
+    }
+
+    /**
+     * Half the longer word, capped.
+     *
+     * Loose on its own, and three guards are what make it safe: another word in the name matched
+     * exactly, the candidates are the twenty-five genres the library is built from, and this runs
+     * only after every ordinary match has already failed. Within that candidate list the
+     * modifiers sit five or more edits apart, so a forgiven word has one plausible destination
+     * rather than several.
+     */
+    private fun threshold(heard: String, meant: String): Int =
+        ((maxOf(heard.length, meant.length) + 1) / 2).coerceIn(1, MAX_WORD_EDITS)
+
+    /** Ordinary Levenshtein, two rows wide, over two single words. */
+    private fun editDistance(from: String, to: String): Int {
+        var previous = IntArray(to.length + 1) { it }
+        var current = IntArray(to.length + 1)
+
+        for (i in 1..from.length) {
+            current[0] = i
+            for (j in 1..to.length) {
+                val substitution = previous[j - 1] + if (from[i - 1] == to[j - 1]) 0 else 1
+                current[j] = minOf(current[j - 1] + 1, previous[j] + 1, substitution)
+            }
+            val finished = previous
+            previous = current
+            current = finished
+        }
+
+        return previous[to.length]
     }
 
     private fun key(value: String): String = value.lowercase().filter { it.isLetterOrDigit() }

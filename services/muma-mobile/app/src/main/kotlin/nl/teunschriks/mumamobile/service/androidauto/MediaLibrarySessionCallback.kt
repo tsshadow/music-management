@@ -47,6 +47,10 @@ import nl.teunschriks.mumamobile.service.toMediaItemsWithStartPosition
 import nl.teunschriks.mumamobile.util.setUserRating
 import nl.teunschriks.mumamobile.util.toMediaItem
 import nl.teunschriks.mumamobile.util.toTrack
+import nl.teunschriks.mumamobile.voice.QueryTrace
+import nl.teunschriks.mumamobile.voice.VoiceEntryPoint
+import nl.teunschriks.mumamobile.voice.VoiceTraceLog
+import nl.teunschriks.mumamobile.voice.dumpInto
 import timber.log.Timber
 
 /**
@@ -298,14 +302,23 @@ class MediaLibrarySessionCallback :
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
         val query = mediaItems.firstOrNull()?.requestMetadata?.searchQuery
         if (query != null) {
-            // Logged in full: what Assistant actually forwards decides which markers are worth
+            // Traced in full: what Assistant actually forwards decides which markers are worth
             // recognising, and only a real car can tell us.
-            Timber.i("Voice query from %s: %s", controller.packageName, query)
+            val trace = QueryTrace(VoiceEntryPoint.ON_SET_MEDIA_ITEMS, controller.packageName)
+            trace.raw = query
+            mediaItems.firstOrNull()?.requestMetadata?.extras.dumpInto(trace)
+
             val parsed = VoiceQueueIntent.parse(query)
+            trace.note("queue intent: ${parsed.mode}, query left as \"${parsed.query}\"")
+
             if (parsed.mode == VoiceQueueMode.PLAY_NEXT && canQueueNext(mediaSession.player)) {
                 Timber.i("Queueing next from voice: %s", parsed.query)
+                trace.outcome("PLAY_NEXT")
+                VoiceTraceLog.record(trace)
                 return queueNextFromSearch(mediaSession, parsed.query)
             }
+            trace.outcome("PLAY_NOW, handed to the ordinary play path")
+            VoiceTraceLog.record(trace)
         }
         return super.onSetMediaItems(
             mediaSession,
@@ -378,11 +391,17 @@ class MediaLibrarySessionCallback :
             playbackSourceHolder.startQueue()
             commandHandler.clearShuffleForNewCarQueue(mediaSession.player)
             // Assistant names the genre in the search extras when it understood the request as a
-            // genre one ("play genre hardstyle"); the utterance itself is the fallback.
+            // genre one ("play genre hardstyle"); the utterance itself is the fallback. Every other
+            // key of that bundle goes into the trace, because nobody has ever looked at them.
             val requestMetadata = mediaItems[0].requestMetadata
+            val trace = QueryTrace(VoiceEntryPoint.ON_ADD_MEDIA_ITEMS, controller.packageName)
+            trace.raw = requestMetadata.searchQuery!!
+            requestMetadata.extras.dumpInto(trace)
+
             return playbackController.playFromSearch(
                 requestMetadata.searchQuery!!,
-                requestMetadata.extras?.getString(MediaStore.EXTRA_MEDIA_GENRE)
+                requestMetadata.extras?.getString(MediaStore.EXTRA_MEDIA_GENRE),
+                trace
             )
         }
 
@@ -456,6 +475,9 @@ class MediaLibrarySessionCallback :
         params: MediaLibraryService.LibraryParams?
     ): ListenableFuture<LibraryResult<Void>> {
         Timber.d("onSearch query=%s from=%s", query, browser.packageName)
+        val trace = QueryTrace(VoiceEntryPoint.ON_SEARCH, browser.packageName)
+        trace.raw = query
+        params?.extras.dumpInto(trace)
 
         return serviceScope.future {
             try {
@@ -464,9 +486,14 @@ class MediaLibrarySessionCallback :
 
                 session.notifySearchResultChanged(browser, query, items.size, params)
 
+                trace.outcome("browse search")
+                trace.results(items.size)
+                VoiceTraceLog.record(trace)
                 LibraryResult.ofVoid()
             } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
                 Timber.e(e, "Error during search")
+                trace.outcome("failed: ${e.javaClass.simpleName}")
+                VoiceTraceLog.record(trace)
                 LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
             }
         }
@@ -482,6 +509,10 @@ class MediaLibrarySessionCallback :
         params: MediaLibraryService.LibraryParams?
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         Timber.d("onGetSearchResult query=%s page=%d size=%d", query, page, pageSize)
+        val trace = QueryTrace(VoiceEntryPoint.ON_GET_SEARCH_RESULT, browser.packageName)
+        trace.raw = query
+        trace.note("page $page of $pageSize")
+        params?.extras.dumpInto(trace)
 
         return serviceScope.future {
             val all = searchCache[browser.packageName to query] ?: getSearchItems(query)
@@ -508,6 +539,9 @@ class MediaLibrarySessionCallback :
                 )
             }
 
+            trace.outcome("browse search result page")
+            trace.results(pageItems.size)
+            VoiceTraceLog.record(trace)
             LibraryResult.ofItemList(ImmutableList.copyOf(pageItems), /*params=*/null)
         }
     }

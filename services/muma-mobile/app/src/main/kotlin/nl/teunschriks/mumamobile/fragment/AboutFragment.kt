@@ -40,6 +40,7 @@ class AboutFragment : Fragment() {
     private var changelogButton: Button? = null
     private var viewLogButton: Button? = null
     private var voiceButton: Button? = null
+    private var voiceDiagnosticsButton: Button? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         applyTheme(this.context)
@@ -60,6 +61,7 @@ class AboutFragment : Fragment() {
         changelogButton = view.findViewById(R.id.help_changelog)
         viewLogButton = view.findViewById(R.id.help_view_log)
         voiceButton = view.findViewById(R.id.help_voice)
+        voiceDiagnosticsButton = view.findViewById(R.id.help_voice_diagnostics)
 
         val versionName = getVersionName(requireContext())
         val title = String.format(
@@ -118,6 +120,10 @@ class AboutFragment : Fragment() {
 
         voiceButton?.setOnClickListener {
             findNavController().navigate(R.id.voiceCommandsFragment)
+        }
+
+        voiceDiagnosticsButton?.setOnClickListener {
+            findNavController().navigate(R.id.voiceDiagnosticsFragment)
         }
     }
 }

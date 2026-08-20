@@ -11,6 +11,45 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.18.0 (2026-08-20)
+
+### 🎤 MuMa Voice: praat tegen de app, niet alleen tegen de auto
+- Er staat een microfoonknop in de werkbalk. Tik erop en zeg wat er moet spelen.
+- Het gaat door precies dezelfde parser en zoekmachine als Android Auto, dus een zin die in de auto
+  werkt werkt hier ook — en andersom.
+- De spraakherkenning geeft meerdere lezingen van dezelfde zin terug en MuMa probeert ze op
+  volgorde. Dat is wat "hard style" alsnog op "hardstyle" laat uitkomen zonder dat je iets merkt.
+- Op hetzelfde scherm staat een tekstveld, zodat je een formulering kunt uitproberen zonder te
+  praten.
+
+### 🤔 MuMa vraagt het na als een naam meer dan één ding kan zijn
+- "Speel Thunderdome" kan het label zijn, het album, of de playlist. MuMa Voice laat de
+  mogelijkheden zien en vraagt welke je bedoelde; je tikt het aan of je zegt "het label".
+- In de auto kan dat niet — een mediasessie heeft geen weg terug om iets te vragen — dus daar kiest
+  hij de sterkste lezing en legt hij de afgewezen lezingen vast.
+
+### 🗣️ Meer soorten opdrachten
+- Albums, playlists en losse titels: "speel album thunderdome af", "speel de afspeellijst zomer af",
+  "speel het nummer dragonborn af".
+- Sterren: "speel hardstyle met minstens 4 sterren af".
+- Twee waarden tegelijk: "speel hardstyle en hardcore af" is één zoekopdracht. "Drum and bass"
+  blijft gewoon één genre.
+
+### 🔍 Voice diagnostics, onder Over
+- Elke spraakopdracht laat nu een volledig spoor achter: via welke callback hij binnenkwam, de
+  zoekopdracht precies zoals ontvangen, élke extra die Android meestuurde, welke parserregel welk
+  woord opeiste, wat de bibliotheek over elke term zei, en het verzoek dat er uitging.
+- De laatste vijftig blijven bewaard en zijn als tekst te delen.
+- Hiermee is eindelijk te zien wat Google van een gesproken zin maakt vóór MuMa hem krijgt —
+  vermoedens daarover waren tot nu toe afgeleid, niet afgelezen.
+
+### 🩹 Twee dingen die hierbij rechtgezet zijn
+- Vond geen enkel filter iets, dan werd er gezocht op de hele zin. "Speel het nummer dragonborn af"
+  zocht dus letterlijk daarnaar en vond niets. Nu wordt er op "dragonborn" gezocht.
+- Een gesproken sterrenfilter sleepte elke ongewaardeerde track mee, omdat de server een losse
+  ondergrens oprekt tot alles wat niemand ooit beoordeeld heeft. Er gaat nu altijd een bovengrens
+  mee.
+
 ## Global Version 0.17.1 (2026-08-20)
 
 ### 🩹 De hele site gaf 504, en dat lag niet aan het scherm waar je op stond

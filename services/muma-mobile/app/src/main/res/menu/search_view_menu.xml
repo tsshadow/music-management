@@ -39,6 +39,12 @@
         app:showAsAction="always" />
 
     <item
+        a:id="@+id/mumaVoiceFragment"
+        a:icon="@drawable/ic_menu_microphone"
+        a:title="@string/muma_voice_title"
+        app:showAsAction="ifRoom" />
+
+    <item
         a:id="@+id/action_search"
         a:icon="@drawable/ic_menu_search"
         a:title="@string/button_bar.search"

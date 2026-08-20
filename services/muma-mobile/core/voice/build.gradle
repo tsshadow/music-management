@@ -1,0 +1,9 @@
+apply from: bootstrap.kotlinModule
+
+dependencies {
+    api project(':core:subsonic-api')
+
+    testImplementation libs.kotlinJunit
+    testImplementation libs.junit
+    testImplementation libs.kluent
+}

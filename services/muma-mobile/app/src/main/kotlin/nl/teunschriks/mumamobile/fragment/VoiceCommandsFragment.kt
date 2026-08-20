@@ -21,7 +21,7 @@ import nl.teunschriks.mumamobile.util.Util.applyTheme
  * The parser behind it takes far more than a title -- a genre, an artist, a label, a year, an
  * order and the favourites, in any combination -- and none of that is discoverable by talking to
  * the car and hoping. This page is where the wording lives; see
- * [nl.teunschriks.mumamobile.service.androidauto.VoiceQuery] for what actually reads it.
+ * [nl.teunschriks.mumamobile.voice.VoiceQuery] for what actually reads it.
  */
 class VoiceCommandsFragment : Fragment() {
 

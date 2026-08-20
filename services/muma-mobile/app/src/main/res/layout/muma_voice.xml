@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:a="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    a:layout_width="match_parent"
+    a:layout_height="match_parent"
+    a:background="?attr/colorSurface"
+    a:gravity="center_horizontal"
+    a:orientation="vertical"
+    a:padding="24dp">
+
+    <TextView
+        a:id="@+id/muma_voice_status"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:layout_marginTop="24dp"
+        a:gravity="center"
+        a:text="@string/muma_voice_prompt"
+        a:textAppearance="?attr/textAppearanceTitleLarge"
+        a:textColor="?attr/colorOnSurface" />
+
+    <TextView
+        a:id="@+id/muma_voice_heard"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:layout_marginTop="16dp"
+        a:gravity="center"
+        a:textAppearance="?attr/textAppearanceBodyMedium"
+        a:textColor="?attr/colorOnSurfaceVariant" />
+
+    <com.google.android.material.button.MaterialButton
+        a:id="@+id/muma_voice_mic"
+        a:layout_width="160dp"
+        a:layout_height="160dp"
+        a:layout_marginTop="32dp"
+        a:insetTop="0dp"
+        a:insetBottom="0dp"
+        a:text="@string/muma_voice_title"
+        app:cornerRadius="80dp" />
+
+    <com.google.android.material.chip.ChipGroup
+        a:id="@+id/muma_voice_choices"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:layout_marginTop="32dp"
+        a:visibility="gone" />
+
+    <EditText
+        a:id="@+id/muma_voice_input"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:layout_marginTop="32dp"
+        a:autofillHints=""
+        a:hint="@string/voice_diagnostics_hint"
+        a:imeOptions="actionSearch"
+        a:inputType="text"
+        a:textColor="?attr/colorOnSurface"
+        a:textColorHint="?attr/colorOnSurfaceVariant" />
+</LinearLayout>

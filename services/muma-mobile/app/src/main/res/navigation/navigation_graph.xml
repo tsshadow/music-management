@@ -356,6 +356,9 @@
         android:id="@+id/voiceDiagnosticsFragment"
         android:name="nl.teunschriks.mumamobile.fragment.VoiceDiagnosticsFragment" />
     <fragment
+        android:id="@+id/mumaVoiceFragment"
+        android:name="nl.teunschriks.mumamobile.fragment.MumaVoiceFragment" />
+    <fragment
         android:id="@+id/selectSongFragment"
         android:name="nl.teunschriks.mumamobile.fragment.muma.SelectSongFragment"/>
     <fragment

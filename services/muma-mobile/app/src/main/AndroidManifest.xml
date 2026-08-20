@@ -12,8 +12,20 @@
     <uses-permission android:name="android.permission.BLUETOOTH"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- MuMa Voice records only while the microphone sheet is open. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <uses-sdk tools:overrideLibrary="androidx.car.app" />
+
+    <!--
+        Without this the speech recogniser is invisible: from API 30 on, a package this app does not
+        declare an interest in simply does not exist as far as it is concerned.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
 
     <supports-screens
         android:anyDensity="true"

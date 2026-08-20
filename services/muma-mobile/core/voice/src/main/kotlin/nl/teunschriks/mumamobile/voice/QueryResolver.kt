@@ -133,6 +133,46 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
     }
 
     /**
+     * @brief Resolves the first of several readings of the same sentence that the library can place.
+     *
+     * @details A recogniser hands back an n-best list, and the reading it liked best is not always
+     * the one that matches: it splits and pads names, so "hardstyle" comes back as "hard style" and
+     * a filter finds nothing. Trying the readings in order is the cheapest possible repair, and it
+     * costs nothing at all when the first one is right.
+     *
+     * An answer beats a question and a question beats nothing, so a later reading only wins when it
+     * is a better kind of outcome than everything before it.
+     *
+     * @param hypotheses the readings, most confident first
+     * @param trace records every reading tried and how each one ended
+     */
+    fun resolveFirst(hypotheses: List<String>, trace: QueryTrace): QueryResolution {
+        var question: QueryResolution.Ambiguous? = null
+
+        hypotheses.forEachIndexed { index, hypothesis ->
+            trace.note("reading ${index + 1} of ${hypotheses.size}: \"$hypothesis\"")
+            val parsed = VoiceQuery.parse(hypothesis, trace)
+            if (parsed == null) {
+                trace.note("reading ${index + 1} named nothing this can act on")
+                return@forEachIndexed
+            }
+            when (val resolution = resolve(parsed, null, trace)) {
+                is QueryResolution.Resolved -> return resolution
+                is QueryResolution.Ambiguous -> if (question == null) question = resolution
+                is QueryResolution.NoMatch -> Unit
+            }
+        }
+
+        question?.let {
+            trace.outcome("Ambiguous: no reading resolved outright, so the question stands")
+            return it
+        }
+
+        trace.outcome("NoMatch: the library places none of the ${hypotheses.size} readings")
+        return QueryResolution.NoMatch("none of the readings named anything the library has", trace)
+    }
+
+    /**
      * An album or a playlist the speaker named outright.
      *
      * "Speel album Thunderdome af" leaves no doubt about which kind was meant, so this never asks.

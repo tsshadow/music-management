@@ -25,6 +25,7 @@ from services.music_manager.routers import (
     jobs,
     library,
     management,
+    news,
     radio,
     rating,
     scanner,
@@ -61,6 +62,7 @@ app.include_router(config.router, prefix="/api/config")
 app.include_router(downloaders.router, prefix="/api/downloaders")
 app.include_router(user_requests.router, prefix="/api") # /api/auth/google, /api/user-requests/*
 app.include_router(radio.router, prefix="/api/radio")
+app.include_router(news.router, prefix="/api/news")
 app.include_router(diagnostics.router, prefix="/api/diagnostics")
 
 def background_workers_enabled() -> bool:
@@ -91,6 +93,7 @@ def startup_event():
                 artist_images.init_db(cursor)
                 user_requests.init_db(cursor)
                 radio.init_db(cursor)
+                news.init_db(cursor)
                 downloaders.init_db(cursor)
                 diagnostics.init_db(cursor)
                 events.init_db(cursor)

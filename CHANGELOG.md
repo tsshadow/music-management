@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-08-20
+
+### Fixed
+- **MuMa Voice sluit de app niet langer af zodra hij iets gevonden heeft om te spelen.** Het
+  scherm las de zin, doorzocht de bibliotheek en klapte er dan op de allerlaatste stap uit — wat
+  eruitzag alsof de zoekopdracht mislukt was terwijl die juist geslaagd was. De speler hoort bij
+  het scherm dat hem draagt en dit scherm vroeg hem op de verkeerde plek op; omdat die vraag pas
+  gesteld wordt als er echt muziek te starten valt, leek alles daarvoor in orde.
+
 ## [0.18.0] - 2026-08-20
 
 ### Added

@@ -17,7 +17,6 @@ import android.widget.EditText
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
 import androidx.core.content.ContextCompat
-import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
@@ -45,6 +44,7 @@ import nl.teunschriks.mumamobile.voice.VoiceEntryPoint
 import nl.teunschriks.mumamobile.voice.VoiceQuery
 import nl.teunschriks.mumamobile.voice.VoiceTraceLog
 import org.koin.android.ext.android.inject
+import org.koin.androidx.scope.ScopeFragment
 import timber.log.Timber
 
 /**
@@ -60,8 +60,13 @@ import timber.log.Timber
  *
  * The text field underneath is the same pipeline without the microphone, which is what makes a
  * phrasing testable at a desk instead of on a motorway.
+ *
+ * A `ScopeFragment` rather than a plain one, because [MediaPlayerManager] is scoped to the hosting
+ * `NavigationActivity` and a plain fragment injects from the root scope, where it is not. The
+ * injection is lazy, so getting that wrong costs nothing until the moment something resolves and
+ * this screen actually has music to start.
  */
-class MumaVoiceFragment : Fragment() {
+class MumaVoiceFragment : ScopeFragment() {
 
     private val mediaPlayerManager: MediaPlayerManager by inject()
 

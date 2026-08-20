@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [6.17.1] - 2026-08-20
+
+### Fixed
+- **MuMa Voice sluit de app niet meer af zodra hij iets te spelen heeft.** De opdracht werd goed
+  gelezen en de bibliotheek goed doorzocht, maar bij de allerlaatste stap — de muziek daadwerkelijk
+  starten — viel de app weg. Omdat dat alleen gebeurde als er iets *gevonden* was, leek het alsof
+  MuMa Voice niets kon vinden.
+
 ## [6.17.0] - 2026-08-20
 
 ### Added

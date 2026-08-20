@@ -51,14 +51,14 @@ namespace lms::db
     {
         session.checkReadTransaction();
 
-        return utils::fetchQuerySingleResult(session.getDboSession()->query<int>("SELECT COUNT(*) FROM volatile.auth_token"));
+        return utils::fetchQuerySingleResult(session.getDboSession()->query<int>("SELECT COUNT(*) FROM auth_token"));
     }
 
     std::size_t AuthToken::getCount(Session& session, UserId userId)
     {
         session.checkReadTransaction();
 
-        return utils::fetchQuerySingleResult(session.getDboSession()->query<int>("SELECT COUNT(*) FROM volatile.auth_token").where("user_id = ?").bind(userId.getValue()));
+        return utils::fetchQuerySingleResult(session.getDboSession()->query<int>("SELECT COUNT(*) FROM auth_token").where("user_id = ?").bind(userId.getValue()));
     }
 
     AuthToken::pointer AuthToken::find(Session& session, AuthTokenId id)
@@ -92,13 +92,13 @@ namespace lms::db
     {
         session.checkWriteTransaction();
 
-        utils::executeCommand(*session.getDboSession(), "DELETE FROM volatile.auth_token WHERE expiry < ? AND domain = ?", now, domain);
+        utils::executeCommand(*session.getDboSession(), "DELETE FROM auth_token WHERE expiry < ? AND domain = ?", now, domain);
     }
 
     void AuthToken::clearUserTokens(Session& session, std::string_view domain, UserId user)
     {
         session.checkWriteTransaction();
 
-        utils::executeCommand(*session.getDboSession(), "DELETE FROM volatile.auth_token WHERE user_id = ? AND domain = ?", user, domain);
+        utils::executeCommand(*session.getDboSession(), "DELETE FROM auth_token WHERE user_id = ? AND domain = ?", user, domain);
     }
 } // namespace lms::db

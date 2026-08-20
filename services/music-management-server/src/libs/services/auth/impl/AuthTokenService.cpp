@@ -90,8 +90,24 @@ namespace lms::auth
     std::optional<AuthTokenService::AuthTokenInfo> AuthTokenService::processAuthToken(core::LiteralString domain, std::string_view token)
     {
         db::Session& session{ getDbSession() };
+
+        // Resolve the token under a read transaction first, which takes no lock at all. An unknown
+        // token is the normal case whenever a client is stuck on a stale key, and a write
+        // transaction takes the process-wide exclusive lock (see Session::createWriteTransaction),
+        // queueing behind every other writer -- the scanner above all, which writes in batches for
+        // the whole length of a scan. Resolving a key that was never issued used to park an HTTP
+        // thread there, several times a minute, for as long as the client kept retrying.
+        {
+            auto readTransaction{ session.createReadTransaction() };
+
+            if (!db::AuthToken::find(session, domain.str(), token))
+                return std::nullopt;
+        }
+
         auto transaction{ session.createWriteTransaction() };
 
+        // Looked up again: the read transaction above was released before this one was taken, so
+        // the token may have been removed in between (expiry sweep, use count, user deletion).
         db::AuthToken::pointer authToken{ db::AuthToken::find(session, domain.str(), token) };
         if (!authToken)
             return std::nullopt;

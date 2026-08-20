@@ -75,6 +75,15 @@ class MumaVoiceFragment : ScopeFragment() {
     private var choices: ChipGroup? = null
     private var capture: SpeechCapture? = null
 
+    /**
+     * The names the recogniser is biased towards, loaded once when the screen opens.
+     *
+     * Held rather than fetched at the microphone tap, because the lookup is a server call and the
+     * tap is on the main thread. An empty list is not a failure: the microphone still works and
+     * simply goes unbiased, which is what it did before.
+     */
+    private var biasing: List<String> = emptyList()
+
     /** The question currently on screen, so a spoken answer knows what it is answering. */
     private var question: QueryResolution.Ambiguous? = null
     private var questionQuery: String? = null
@@ -119,6 +128,17 @@ class MumaVoiceFragment : ScopeFragment() {
                 false
             }
         }
+
+        lifecycleScope.launch {
+            biasing = withContext(Dispatchers.IO) {
+                runCatching {
+                    MusicServiceVocabulary(MusicServiceFactory.getMusicService()).prominentGenres()
+                }.getOrElse {
+                    Timber.w(it, "could not load the genres to bias speech towards")
+                    emptyList()
+                }
+            }
+        }
     }
 
     override fun onPause() {
@@ -151,7 +171,8 @@ class MumaVoiceFragment : ScopeFragment() {
             },
             onError = {
                 status?.setText(R.string.muma_voice_prompt)
-            }
+            },
+            biasing = biasing
         )
     }
 
@@ -234,6 +255,7 @@ class MumaVoiceFragment : ScopeFragment() {
         if (capture?.isAvailable() == true) listenForAnswer()
     }
 
+    /** Unbiased on purpose: this is listening for a kind, not for a name. */
     private fun listenForAnswer() = capture?.start(
         onPartial = { heard?.text = it },
         onResult = { onHeard(it) },

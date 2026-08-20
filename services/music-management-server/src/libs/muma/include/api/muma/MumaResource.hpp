@@ -3,6 +3,7 @@
 #include <boost/asio/io_context.hpp>
 #include <Wt/WResource.h>
 #include "database/IDb.hpp"
+#include "core/ConcurrencyGate.hpp"
 #include "core/http/IClient.hpp"
 
 namespace lms::auth
@@ -26,5 +27,9 @@ namespace lms::api::muma
         std::unique_ptr<core::http::IClient> _httpClient;
         std::string _mumaApiUrl;
         std::string _mumaApiKey;
+        // Bounds how many of these handlers may sit waiting on MuMa at once. See
+        // core::ConcurrencyGate: each waiting handler is holding an HTTP server thread, and there
+        // are only as many of those as the machine has cores.
+        core::ConcurrencyGate _mumaCallGate;
     };
 }

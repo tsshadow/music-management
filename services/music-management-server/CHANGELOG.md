@@ -8,6 +8,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **HTTP**: Handlers that proxy to music-management can no longer take the whole
+  HTTP thread pool. `handleGetCoverArt` and the five `/muma/*` proxy paths
+  blocked on a `std::future` for 10-30s inside `Wt::WResource::handleRequest`;
+  with `http-server-thread-count = 0` (one thread per core), enough concurrent
+  artist images took the pool between them and the server stopped answering
+  anything at all, an unauthenticated ping included, until it was restarted.
+  `getCoverArt` -- by far the highest volume, and always answering with an image
+  -- now parks on a Wt continuation (`core::http::proxyRequest`) and costs a
+  connection instead of a thread. The `/muma/*` paths keep waiting, because they
+  forward the upstream status verbatim and Wt commits response headers before a
+  continuation resumes, but at most half the pool may wait at once
+  (`core::ConcurrencyGate`); past that they answer 503 rather than queue.
+- **Subsonic**: `getCoverArt` declares `image/jpeg` up front rather than
+  forwarding MuMa's exact subtype, which is no longer knowable by the time the
+  headers are written. Browsers sniff the real format; a png or webp still
+  renders.
+- **HTTP**: `handleGetCoverArt` reuses one client per MuMa base URL instead of
+  building and tearing one down per request. `~SendQueue` aborts its in-flight
+  request and spins on `std::this_thread::yield()` until that lands, so the old
+  code ran a busy-wait on an HTTP thread on the hottest path in the server.
+- **HTTP**: A transport error backs off the request that failed instead of the
+  whole `SendQueue`. One unreachable artist image used to throttle all outbound
+  traffic -- scrobbles and ratings with it -- for 30s, and re-queue itself at
+  the head. The queue is only paused once several requests in a row fail, which
+  is what actually indicates the endpoint is down.
+- **Auth**: `AuthTokenService::processAuthToken` resolves a token under a read
+  transaction and only escalates to a write transaction once it is known to
+  exist. An unknown key used to take the process-wide exclusive lock for
+  nothing on every attempt, queueing behind the scanner's write batches.
+- **Auth**: `SubsonicResource` caches authentication failures as well as
+  successes (`AuthCache`, 30s, bounded at 1000 entries with grants preferred
+  over denials on eviction), so a client stuck on a stale key stops reaching
+  the database on every request.
+- **Subsonic**: `getCoverArt` forwards MuMa's real status. A missing artist
+  image is a 404, but arrived through `onFailureFunc` as a 502, which is why
+  the log filled with gateway errors that were never gateway problems.
 - **Subsonic**: `getCoverArt` no longer fails for artists whose picture
   music-management does not have. A MuMa-backed cover art id whose proxied
   request 404s (or times out, or has no MuMa configured at all) now falls back
@@ -16,6 +52,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   placeholder. Resolved per request rather than in `createArtistNode`, so the
   id keeps pointing at MuMa and the real artist picture wins as soon as it
   exists.
+
+### Changed
+- **Database**: Auth tokens moved from the in-memory `volatile` schema into the
+  main database (migration to schema version 116). Every LMS restart used to
+  discard every provisioned Subsonic API key, which no client can tell apart
+  from a wrong key -- they simply retry one that will never work again. The
+  legacy `main.auth_token` table left over from before the move is replaced
+  outright; nothing has been able to read it since.
 
 ### Added
 - **UI**: Restored the legacy Wt-based admin/explore UI (library, user and

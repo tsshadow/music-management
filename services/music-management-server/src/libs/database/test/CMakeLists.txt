@@ -4,6 +4,7 @@ add_executable(test-database
 	ArtistInfo.cpp
 	Artwork.cpp
 	AuthToken.cpp
+	AuthTokenPersistence.cpp
 	Cluster.cpp
 	Common.cpp
 	DatabaseTest.cpp

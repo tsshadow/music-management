@@ -18,10 +18,8 @@
  */
 #pragma once
 
-#include <chrono>
 #include <mutex>
 #include <string>
-#include <unordered_map>
 
 #include <Wt/Http/Request.h>
 #include <Wt/Http/Response.h>
@@ -29,6 +27,7 @@
 
 #include "database/objects/UserId.hpp"
 
+#include "AuthCache.hpp"
 #include "SubsonicResourceConfig.hpp"
 
 namespace boost::asio
@@ -51,12 +50,6 @@ namespace lms::api::subsonic
         SubsonicResource(boost::asio::io_context& ioContext, db::IDb& db);
 
     private:
-        struct AuthCacheEntry
-        {
-            db::UserId userId;
-            std::chrono::steady_clock::time_point expiry;
-        };
-
         void handleRequest(const Wt::Http::Request& request, Wt::Http::Response& response) override;
 
         bool handleMediaRetrievalRequest(const std::string& requestPath, const Wt::Http::Request& request, Wt::Http::Response& response);
@@ -69,6 +62,6 @@ namespace lms::api::subsonic
         boost::asio::io_context& _ioContext;
 
         std::mutex _authCacheMutex;
-        std::unordered_map<std::string, AuthCacheEntry> _authCache;
+        AuthCache _authCache;
     };
 } // namespace lms::api::subsonic

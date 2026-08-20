@@ -35,7 +35,7 @@ namespace lms::db
 {
     namespace
     {
-        static constexpr Version LMS_DATABASE_VERSION{ 115 };
+        static constexpr Version LMS_DATABASE_VERSION{ 116 };
     }
 
     VersionInfo::VersionInfo()
@@ -1866,6 +1866,23 @@ FROM track)");
     }
 
 
+    void migrateFromV115(Session& session)
+    {
+        // Auth tokens used to be mapped into the in-memory database attached as "volatile", so
+        // every restart threw away every Subsonic API key that had been provisioned. A client could
+        // not tell that apart from a wrong key and simply kept retrying one that would never work
+        // again. They live in the main database now.
+        //
+        // Any auth_token table still sitting in the main database predates that move, and its
+        // columns have been through migrateFromV74 and whatever came before it, so its exact shape
+        // is not something to bet the schema on. It is replaced outright: nothing has been able to
+        // read those rows since the move, and every token that mattered was in the volatile
+        // database, which this restart has already emptied. Clients re-provision either way.
+        utils::executeCommand(*session.getDboSession(), "DROP TABLE IF EXISTS main.auth_token");
+        utils::executeCommand(*session.getDboSession(), "CREATE TABLE main.auth_token (id INTEGER PRIMARY KEY AUTOINCREMENT, version INTEGER NOT NULL DEFAULT 0, domain TEXT NOT NULL DEFAULT '', value TEXT NOT NULL DEFAULT '', expiry DATETIME, use_count INTEGER NOT NULL DEFAULT 0, last_used TEXT, max_use_count INTEGER, user_id INTEGER)");
+    }
+
+
     bool doDbMigration(Session& session)
     {
         constexpr std::string_view outdatedMsg{ "Outdated database, please rebuild it (delete the .db file and restart)" };
@@ -1957,6 +1974,7 @@ FROM track)");
             { 112, migrateFromV112 },
             { 113, migrateFromV113 },
             { 114, migrateFromV114 },
+            { 115, migrateFromV115 },
         };
 
         bool migrationPerformed{};

@@ -37,6 +37,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verbreedt een losse minimumwaardering tot alles wat niemand ooit beoordeeld heeft, dus er gaat
   nu altijd een bovengrens mee.
 
+## [0.17.0] - 2026-08-20
+
+### Added
+- **Releases die de importer niet kan wegzetten staan nu als voorstel in het beheerscherm.** Een
+  release werd overgeslagen zodra het catalogusnummer niet in de labeltabel stond, of zodra er
+  helemaal geen catalogusnummer in de mapnaam zat. Die bleef dan liggen in de importmap en werd
+  elke ronde opnieuw als waarschuwing gelogd, zonder dat er iets anders mee gebeurde dan een
+  handmatige ingreep in de database. De importer leest nu het label uit de bestanden zelf — uit de
+  labelvelden van een FLAC, het publisher-frame van een MP3, en anders uit de `.nfo` — en zet het
+  als voorstel klaar onder Labelvoorstellen.
+- **Eén bevestiging ruimt een heel label op.** De lijst staat gegroepeerd op voorgesteld label, dus
+  je bevestigt in één keer alle releases van bijvoorbeeld Brutal Kuts in plaats van vijftien keer
+  hetzelfde. Bevestig je een voorstel met catalogusnummer, dan wordt die koppeling onthouden en
+  lopen alle volgende releases van dat label vanzelf door. Zit er geen catalogusnummer in, dan valt
+  er niets te onthouden en wordt alleen die ene map weggezet. Het labelveld kiest uit labels die al
+  bestaan, zodat een andere schrijfwijze geen tweede labelmap aanmaakt. Een voorstel dat je afwijst
+  komt niet meer terug, hoe vaak de importer die map daarna ook nog tegenkomt.
+
+### Fixed
+- **De hele site gaf 504 zodra er genoeg artiestafbeeldingen tegelijk werden opgevraagd.** LMS heeft
+  net zoveel HTTP-threads als de machine cores heeft, en elke aanvraag die een plaatje bij MuMa
+  ophaalde hield er daar één van bezet zolang hij op antwoord wachtte. Genoeg tegels op één scherm
+  en er was geen thread meer vrij: de server bleef draaien, hield zijn poort open en beantwoordde
+  niets meer — een scrobble niet, een gewone ping ook niet — tot iemand hem herstartte. Die
+  aanvragen wachten nu naast de threads in plaats van erop. Voor de overige MuMa-calls, die de
+  statuscode van MuMa letterlijk moeten doorgeven en dus niet op dezelfde manier opzij kunnen, geldt
+  een harde limiet: hooguit de helft van de threads mag tegelijk staan wachten.
+- **Een ongeldige API-sleutel greep bij elke poging de exclusieve databaselock.** Een client die na
+  een herstart met een dode sleutel bleef proberen — muma-radio doet dat elke vijf seconden — zette
+  daarmee elke keer een schrijftransactie op, ook al bestond de sleutel niet. Tijdens een scan stond
+  die achter de scanner in de rij. Onbekende sleutels worden nu zonder lock afgehandeld en kort
+  onthouden.
+- **Subsonic-sleutels overleven een herstart.** Ze stonden in een database die alleen in het
+  geheugen bestond, dus elke herstart van LMS gooide ze weg. Voor een client was dat niet te
+  onderscheiden van een verkeerde sleutel: die bleef eindeloos proberen met iets dat nooit meer zou
+  werken. Daardoor was het herstarten van LMS ook precies wat het volgende probleem opzette.
+- **Eén mislukte aanvraag legde niet langer de hele wachtrij stil.** Ging er één call naar MuMa mis,
+  dan pauzeerde LMS dertig seconden lang al het uitgaande verkeer — scrobbles en ratings incluis.
+  Dat gebeurt nu pas als MuMa meerdere keren achter elkaar niet reageert.
+- **`getCoverArt` meldt weer de echte status.** "Geen afbeelding voor deze artiest" is een 404, maar
+  kwam in het log terecht als een 502. Dat is waarom het log vol stond met gateway-fouten die nooit
+  een gatewayprobleem waren.
+- Een vastgelopen LMS herstart nu zichzelf in plaats van te wachten tot iemand merkt dat de site
+  eruit ligt.
+
 ## [0.16.0] - 2026-08-19
 
 ### Added

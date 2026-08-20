@@ -1,6 +1,7 @@
 include(GoogleTest)
 
 add_executable(test-subsonic
+	AuthCache.cpp
 	ClientInfo.cpp
 	Memories.cpp
 	Subsonic.cpp

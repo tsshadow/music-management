@@ -18,6 +18,8 @@ The Importer works as a background worker that monitors a specific `__TODO` fold
 - `importer_service.py`: The main entry point for the worker.
 - `extractor.py`: Handles ZIP and RAR extraction.
 - `flattener.py`: Removes the wrapper folder a multipack archive leaves behind.
+- `label_resolver.py`: Reads the record label out of a release's own tags, falling back to its `.nfo`.
+- `label_proposal_store.py`: Records releases the Mover could not place, for review in the management page.
 - `mover.py`: Logic for moving files to their final destination.
 - `renamer.py`: Sanitizes file and folder names.
 

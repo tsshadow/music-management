@@ -20,6 +20,8 @@
 #include "SubsonicResource.hpp"
 
 #include <atomic>
+#include <chrono>
+#include <cstddef>
 #include <unordered_map>
 
 #include <Wt/Dbo/Exception.h>
@@ -68,6 +70,16 @@ namespace lms::api::subsonic
 
     namespace
     {
+        // How long a successful authentication is trusted without asking the database again.
+        constexpr std::chrono::seconds authGrantedCacheDuration{ std::chrono::minutes{ 5 } };
+        // Denials are held far more briefly, so a key that has just been provisioned starts working
+        // almost at once. Long enough to absorb a client retrying every few seconds, which is the
+        // case this exists for.
+        constexpr std::chrono::seconds authDeniedCacheDuration{ 30 };
+        // A denial can be cached on behalf of a caller who never authenticated, so the map needs a
+        // ceiling. Comfortably above the number of distinct clients this server ever sees.
+        constexpr std::size_t maxAuthCacheEntryCount{ 1000 };
+
         std::string parameterMapToDebugString(const Wt::Http::ParameterMap& parameterMap)
         {
             constexpr std::string_view redactedStr{ "*REDACTED*" };
@@ -312,6 +324,7 @@ namespace lms::api::subsonic
         : _config{ readSubsonicResourceConfig(*core::Service<core::IConfig>::get()) }
         , _db{ db }
         , _ioContext{ ioContext }
+        , _authCache{ authGrantedCacheDuration, authDeniedCacheDuration, maxAuthCacheEntryCount }
     {
     }
 
@@ -505,18 +518,33 @@ namespace lms::api::subsonic
         const std::string cacheKey{ (user ? *user : "") + ":" + (password ? *password : "") + ":" + (token ? *token : "") + ":" + (salt ? *salt : "") + ":" + (apiKey ? *apiKey : "") + ":" + xApiKeyHeader + ":" + clientAddress.to_string() };
         {
             std::lock_guard lock{ _authCacheMutex };
-            if (auto it{ _authCache.find(cacheKey) }; it != _authCache.end())
+            if (const auto entry{ _authCache.lookup(cacheKey, std::chrono::steady_clock::now()) })
             {
-                if (it->second.expiry > std::chrono::steady_clock::now())
-                    return it->second.userId;
+                if (!entry->granted)
+                    throw InvalidAPIkeyError{};
+
+                return entry->userId;
             }
         }
 
         auto onAuthSuccess{ [&](db::UserId userId) {
             std::lock_guard lock{ _authCacheMutex };
 
-            _authCache[cacheKey] = { userId, std::chrono::steady_clock::now() + std::chrono::minutes{ 5 } };
+            _authCache.storeGranted(cacheKey, userId, std::chrono::steady_clock::now());
             return userId;
+        } };
+
+        // Only ever called for an API key the database rejected outright, which is why a cache hit
+        // below can raise InvalidAPIkeyError without having to remember which error it was: the
+        // username/password path deliberately does not cache its denials, and could not share a
+        // cache key with this one anyway, since the key is built from the credentials themselves.
+        //
+        // A throttled answer is not remembered either: it says nothing about the credentials, and
+        // LoginThrottler already owns how long that client waits.
+        auto onAuthDenied{ [&]() {
+            std::lock_guard lock{ _authCacheMutex };
+
+            _authCache.storeDenied(cacheKey, std::chrono::steady_clock::now());
         } };
 
         if (apiKey)
@@ -528,6 +556,7 @@ namespace lms::api::subsonic
             if (authResult.state == auth::IAuthTokenService::AuthTokenProcessResult::State::Throttled)
                 throw LoginThrottledGenericError{};
 
+            onAuthDenied();
             throw InvalidAPIkeyError{};
         }
 

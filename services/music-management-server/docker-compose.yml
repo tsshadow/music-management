@@ -25,6 +25,49 @@ services:
       - music-management_db
     user: "0:0"
     restart: unless-stopped
+    labels:
+      # Watched by the "autoheal" service below.
+      autoheal: "true"
+    # Asks LMS a question over its own HTTP port and only cares that it answers
+    # at all. Without credentials /rest/ping.view is a 400, which is a perfectly
+    # good answer for this purpose -- the point is not what LMS says but whether
+    # it still has a thread free to say anything. When its HTTP threads were all
+    # parked waiting on MuMa, the process stayed up, kept its port open, and
+    # answered nothing; that is precisely the state this catches.
+    #
+    # -S prints the status line to stderr, so grepping for it distinguishes "LMS
+    # replied 400" from "wget gave up after 4 seconds".
+    healthcheck:
+      test: ["CMD-SHELL", "wget -S -q -O /dev/null -T 4 http://127.0.0.1:5082/rest/ping.view 2>&1 | grep -q 'HTTP/1'"]
+      interval: 30s
+      timeout: 10s
+      start_period: 180s
+      retries: 3
+
+  # A healthcheck on its own only marks a container unhealthy; nothing acts on
+  # it. This watches for that and restarts the container, so a wedged LMS comes
+  # back on its own instead of waiting for someone to notice the site is down.
+  #
+  # This became safe to do only once Subsonic auth tokens survived a restart
+  # (database migration 116). Before that, restarting LMS silently invalidated
+  # every provisioned API key, so an automatic restart would have traded an
+  # outage for every client -- muma-radio, muma-mobile -- quietly losing its
+  # credentials.
+  #
+  # It needs the Docker socket to restart a container, which is effectively root
+  # on this host. Read-only limits it to no worse than the daemon's own API.
+  autoheal:
+    container_name: lms-autoheal
+    image: willfarrell/autoheal
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=autoheal
+      - AUTOHEAL_INTERVAL=15
+      - AUTOHEAL_START_PERIOD=180
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - default
+    restart: unless-stopped
 
   # Serves spotify.<domain> at "/" by rewriting requests to LMS's "/spotify"
   # docroot mount, since Wt's WServer already reserves the deploy-path "/" for

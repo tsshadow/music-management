@@ -33,9 +33,24 @@
 
 namespace lms::api::muma
 {
+    namespace
+    {
+        // At most half the HTTP thread pool may be waiting on MuMa, so the other half is always
+        // there to serve everything else. Mirrors getThreadCount() in main.cpp, which is what sets
+        // the pool size Wt actually runs with.
+        std::size_t getMumaCallLimit()
+        {
+            const unsigned long configured{ core::Service<core::IConfig>::get()->getULong("http-server-thread-count", 0) };
+            const unsigned long threadCount{ configured ? configured : std::max<unsigned long>(2, std::thread::hardware_concurrency()) };
+
+            return std::max<std::size_t>(1, threadCount / 2);
+        }
+    } // namespace
+
     MumaResource::MumaResource(boost::asio::io_context& ioContext, db::IDb& db, auth::IUserSynchronizer& userSynchronizer)
         : _db{ db }
         , _userSynchronizer{ userSynchronizer }
+        , _mumaCallGate{ getMumaCallLimit() }
     {
         _mumaApiUrl = std::string{ core::Service<core::IConfig>::get()->getString("music-management-url", "") };
         if (_mumaApiUrl.empty())
@@ -468,6 +483,18 @@ namespace lms::api::muma
                 resultPromise->set_value(std::move(res));
             };
 
+            // Refused rather than queued: waiting here means holding an HTTP server thread, and
+            // letting enough of these pile up is what used to take the whole pool and leave the
+            // server answering nothing at all. See core::ConcurrencyGate.
+            const auto mumaCallLease{ _mumaCallGate.tryAcquire() };
+            if (!mumaCallLease)
+            {
+                LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: artist image refused, " << _mumaCallGate.getInUseCount() << " of " << _mumaCallGate.getMaxConcurrent() << " calls to MuMa already in flight");
+                response.setStatus(503);
+                response.out() << "Too many requests to MuMa in flight";
+                return;
+            }
+
             _httpClient->sendGETRequest(std::move(getParams));
 
             if (resultFuture.wait_for(std::chrono::seconds(10)) == std::future_status::ready)
@@ -613,6 +640,18 @@ namespace lms::api::muma
                 resultPromise->set_value(502);
             };
 
+            // Refused rather than queued: waiting here means holding an HTTP server thread, and
+            // letting enough of these pile up is what used to take the whole pool and leave the
+            // server answering nothing at all. See core::ConcurrencyGate.
+            const auto mumaCallLease{ _mumaCallGate.tryAcquire() };
+            if (!mumaCallLease)
+            {
+                LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: track refresh refused, " << _mumaCallGate.getInUseCount() << " of " << _mumaCallGate.getMaxConcurrent() << " calls to MuMa already in flight");
+                response.setStatus(503);
+                response.out() << "{\"status\":\"error\", \"detail\": \"Too many requests to MuMa in flight\"}";
+                return;
+            }
+
             _httpClient->sendPOSTRequest(std::move(postParams));
 
             if (resultFuture.wait_for(std::chrono::seconds(15)) == std::future_status::ready)
@@ -704,6 +743,18 @@ namespace lms::api::muma
                         resultPromise->set_value("{\"settings\": null}");
                     };
 
+                    // Refused rather than queued: waiting here means holding an HTTP server thread, and
+                    // letting enough of these pile up is what used to take the whole pool and leave the
+                    // server answering nothing at all. See core::ConcurrencyGate.
+                    const auto mumaCallLease{ _mumaCallGate.tryAcquire() };
+                    if (!mumaCallLease)
+                    {
+                        LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: settings read refused, " << _mumaCallGate.getInUseCount() << " of " << _mumaCallGate.getMaxConcurrent() << " calls to MuMa already in flight");
+                        response.setStatus(503);
+                        response.out() << "{\"settings\": null}";
+                        return;
+                    }
+
                     _httpClient->sendGETRequest(std::move(getParams));
                     if (resultFuture.wait_for(std::chrono::seconds(10)) == std::future_status::ready)
                     {
@@ -743,6 +794,18 @@ namespace lms::api::muma
                         resultPromise->set_value(502);
                     };
 
+                    // Refused rather than queued: waiting here means holding an HTTP server thread, and
+                    // letting enough of these pile up is what used to take the whole pool and leave the
+                    // server answering nothing at all. See core::ConcurrencyGate.
+                    const auto mumaCallLease{ _mumaCallGate.tryAcquire() };
+                    if (!mumaCallLease)
+                    {
+                        LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: settings write refused, " << _mumaCallGate.getInUseCount() << " of " << _mumaCallGate.getMaxConcurrent() << " calls to MuMa already in flight");
+                        response.setStatus(503);
+                        response.out() << "{\"status\":\"error\"}";
+                        return;
+                    }
+
                     _httpClient->sendPOSTRequest(std::move(postParams));
                     if (resultFuture.wait_for(std::chrono::seconds(10)) == std::future_status::ready)
                     {
@@ -762,6 +825,18 @@ namespace lms::api::muma
             {
                 response.setStatus(500);
                 response.out() << "Music Management not configured";
+                return;
+            }
+
+            // Refused rather than queued: waiting here means holding an HTTP server thread, and
+            // letting enough of these pile up is what used to take the whole pool and leave the
+            // server answering nothing at all. See core::ConcurrencyGate.
+            const auto mumaCallLease{ _mumaCallGate.tryAcquire() };
+            if (!mumaCallLease)
+            {
+                LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: generic proxy call refused, " << _mumaCallGate.getInUseCount() << " of " << _mumaCallGate.getMaxConcurrent() << " calls to MuMa already in flight");
+                response.setStatus(503);
+                response.out() << "Too many requests to MuMa in flight";
                 return;
             }
 

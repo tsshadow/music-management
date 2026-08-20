@@ -32,6 +32,8 @@
 #include "core/ITraceLogger.hpp"
 #include "core/String.hpp"
 
+#include "RetryPolicy.hpp"
+
 #define LOG(sev, message) LMS_LOG(HTTP, sev, "[Http SendQueue] - " << message)
 
 namespace lms::core::stringUtils
@@ -253,25 +255,46 @@ namespace lms::core::http
     {
         assert(_strand.running_in_this_thread());
 
-        LOG(WARNING, "Retry " << request->retryCount << ", client error: '" << ec.message() << "'");
+        ++_consecutiveErrorCount;
 
-        // may be a network error, try again later
-        throttle(_defaultRetryWaitDuration);
+        const RetryDecision decision{ decideAfterTransportError(request->retryCount, _maxRetryCount, _consecutiveErrorCount, _consecutiveErrorsBeforeThrottling) };
 
-        if (request->retryCount++ < _maxRetryCount)
+        LOG(WARNING, "Retry " << request->retryCount << " (" << _consecutiveErrorCount << " in a row), client error: '" << ec.message() << "'");
+
+        if (decision.retryRequest)
         {
-            _sendQueue[request->getParameters().priority].emplace_front(std::move(request));
+            request->retryCount++;
+
+            // Back of the queue, not the front. A request that keeps failing -- an artist image
+            // MuMa has nothing for, typically -- must not be handed the head of the queue over and
+            // over while scrobbles and ratings wait behind it.
+            _sendQueue[request->getParameters().priority].emplace_back(std::move(request));
         }
         else
         {
-            LOG(ERROR, "Too many retries, giving up operation and throttle");
+            LOG(ERROR, "Too many retries, giving up operation");
             if (request->getParameters().onFailureFunc)
                 request->getParameters().onFailureFunc();
+        }
+
+        // Only once the errors keep coming does this look like the endpoint being down rather than
+        // one request going wrong, and only then is it worth stopping the queue as a whole.
+        if (decision.throttleQueue)
+        {
+            LOG(WARNING, "Endpoint has failed " << _consecutiveErrorCount << " times in a row, backing the whole queue off");
+            throttle(_defaultRetryWaitDuration);
+        }
+        else
+        {
+            sendNextQueuedRequest();
         }
     }
 
     void SendQueue::onClientDoneSuccess(std::unique_ptr<ClientRequest> request, const Wt::Http::Message& msg)
     {
+        // The exchange completed, whatever the status code says, so the endpoint is reachable.
+        _consecutiveErrorCount = 0;
+
         const ClientRequestParameters& requestParameters{ request->getParameters() };
         bool mustThrottle{};
         if (msg.status() == 429)

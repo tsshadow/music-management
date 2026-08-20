@@ -8,7 +8,6 @@ plugins {
     alias libs.plugins.kotlinAndroid
     alias libs.plugins.kotlinSerialization
     alias libs.plugins.kotlinParcelize
-    alias libs.plugins.kotlinKapt
     alias libs.plugins.navigationSafeArgs
     id 'jacoco'
 }
@@ -152,7 +151,7 @@ android {
 
     buildFeatures {
         viewBinding = true
-        dataBinding = true
+        dataBinding = false
         buildConfig = true
     }
 

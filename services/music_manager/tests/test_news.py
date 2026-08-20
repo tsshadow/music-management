@@ -297,34 +297,41 @@ class NewsManagementTest(unittest.TestCase):
         updates = ' '.join(call[0][0] for call in cursor.execute.call_args_list)
         self.assertIn('UPDATE news_sources SET', updates)
 
-    @patch('services.music_manager.routers.news.record_source', return_value=11)
+    @staticmethod
+    def _source_row():
+        return {'id': 1, 'slug': 'nos', 'stream_url': 'http://stream.test/mp3',
+                'minute_of_hour': 0, 'duration_seconds': 600, 'lead_seconds': 5,
+                'retention_count': 12}
+
     @patch('services.music_manager.routers.news.get_db_connection')
-    def test_record_now_captures_immediately(self, mock_get_db, mock_record):
+    def test_record_now_answers_at_once_and_records_in_the_background(self, mock_get_db):
+        # A capture takes as long as the recording, so holding the request open
+        # would time out at the proxy for a capture that actually succeeded.
         conn = MagicMock()
         mock_get_db.return_value = conn
-        conn.cursor.return_value.__enter__.return_value.fetchone.return_value = {
-            'id': 1, 'slug': 'nos', 'stream_url': 'http://stream.test/mp3',
-            'minute_of_hour': 0, 'duration_seconds': 600, 'lead_seconds': 5,
-            'retention_count': 12}
-        response = self.client.post('/api/news/sources/nos/record-now',
-                                    headers={'x-api-key': self.api_key})
+        conn.cursor.return_value.__enter__.return_value.fetchone.return_value = self._source_row()
+        with patch('services.music_manager.routers.news.threading.Thread') as mock_thread:
+            response = self.client.post('/api/news/sources/nos/record-now',
+                                        headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {'bulletin_id': 11})
-        self.assertEqual(mock_record.call_count, 1)
+        self.assertEqual(
+            response.json(), {'started': True, 'slug': 'nos', 'duration_seconds': 600}
+        )
+        self.assertEqual(mock_thread.call_args.kwargs['target'], news._record_in_background)
+        mock_thread.return_value.start.assert_called_once()
 
     @patch('services.music_manager.routers.news.record_source', return_value=None)
     @patch('services.music_manager.routers.news.get_db_connection')
-    def test_record_now_reports_a_discarded_capture(self, mock_get_db, _mock_record):
+    def test_the_background_capture_uses_its_own_connection(self, mock_get_db, mock_record):
         conn = MagicMock()
         mock_get_db.return_value = conn
-        conn.cursor.return_value.__enter__.return_value.fetchone.return_value = {
-            'id': 1, 'slug': 'nos', 'stream_url': 'http://stream.test/mp3',
-            'minute_of_hour': 0, 'duration_seconds': 600, 'lead_seconds': 5,
-            'retention_count': 12}
-        response = self.client.post('/api/news/sources/nos/record-now',
-                                    headers={'x-api-key': self.api_key})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {'bulletin_id': None})
+        news._record_in_background(self._source_row())
+        self.assertEqual(mock_record.call_count, 1)
+        conn.close.assert_called_once()
+
+    @patch('services.music_manager.routers.news.get_db_connection', return_value=None)
+    def test_the_background_capture_survives_a_dead_database(self, _mock_get_db):
+        news._record_in_background(self._source_row())
 
     @patch('services.music_manager.routers.news.get_db_connection')
     def test_updating_an_unknown_source_is_a_404(self, mock_get_db):

@@ -114,9 +114,12 @@
   }
 
   /**
-   * Records straight away instead of waiting for the hour. A capture that came
-   * back too short is reported as an error: the server discarded it, and a
-   * silent "done" would be a lie.
+   * Records straight away instead of waiting for the hour.
+   *
+   * The server answers at once and records in the background, because a capture
+   * takes as long as the recording itself. So this reports that it started, not
+   * that it finished: the recording shows up in the list below once it lands,
+   * and a failure lands in the error line above it.
    */
   async function recordNow() {
     recording = true;
@@ -126,18 +129,22 @@
         headers: getHeaders()
       });
       const body = await res.json();
-      if (res.ok && body.bulletin_id) {
-        onMessage($t('management.news.recorded'));
-        await fetchBulletins();
-        await fetchSources();
+      if (res.ok && body.started) {
+        onMessage($t('management.news.recordingStarted', { seconds: body.duration_seconds }));
       } else {
-        onError(body.detail || $t('management.news.discarded'));
+        onError(body.detail || $t('management.news.recordFailed'));
       }
     } catch (err) {
-      onError($t('management.news.discarded'));
+      onError($t('management.news.recordFailed'));
     } finally {
       recording = false;
     }
+  }
+
+  /** The background capture cannot tell this screen it finished, so ask. */
+  async function refresh() {
+    await fetchSources();
+    await fetchBulletins();
   }
 
   onMount(async () => {
@@ -212,7 +219,16 @@
     </div>
 
     <div class="max-w-2xl">
-      <h3 class="text-sm font-bold text-white mb-2">{$t('management.news.bulletins')}</h3>
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-sm font-bold text-white">{$t('management.news.bulletins')}</h3>
+        <button
+          class="flex items-center gap-1 bg-transparent text-[#b3b3b3] border-none cursor-pointer text-xs hover:text-white"
+          onclick={refresh}
+        >
+          <RefreshCw size={14} />
+          {$t('management.news.refresh')}
+        </button>
+      </div>
       {#if bulletins.length === 0}
         <p class="text-sm text-[#b3b3b3]">{$t('management.news.noBulletins')}</p>
       {:else}

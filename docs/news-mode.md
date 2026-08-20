@@ -57,6 +57,14 @@ shows when the last capture succeeded, the last error if there was one, and a
 **record now** button — which is the way to check a change without waiting an
 hour.
 
+That button reports that a recording *started*, not that it finished: a capture
+takes as long as the recording itself, so the server answers immediately and
+records in the background. Holding the request open for ten minutes would time
+out at the reverse proxy and report a failure for a capture that succeeded. The
+result appears in the bulletin list — the refresh button next to it is there
+because a background capture has no way to announce itself — and any failure
+lands in `last_error`.
+
 Adding a second source (BNR, a foreign broadcaster) needs no code: the schema and
 the recorder loop already handle several, only the seed carries one.
 

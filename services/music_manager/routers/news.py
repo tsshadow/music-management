@@ -13,6 +13,7 @@ day would be noise in every one of them.
 import logging
 import os
 import re
+import threading
 import time
 from datetime import UTC, datetime
 
@@ -512,18 +513,40 @@ def delete_source(slug: str, _auth: dict = Depends(require_permission('news.mana
         conn.close()
 
 
+def _record_in_background(source: dict):
+    """Runs a manual capture on its own connection, off the request thread."""
+    conn = get_db_connection()
+    if not conn:
+        logger.error('Manual news capture for %s: database unavailable', source['slug'])
+        return
+    try:
+        record_source(conn, source, time.time() - source['lead_seconds'])
+    finally:
+        conn.close()
+
+
 @router.post('/sources/{slug}/record-now')
 def record_now(slug: str, _auth: dict = Depends(require_permission('news.manage'))):
     """Capture straight away instead of waiting for the hour.
 
-    This is the test path in production: without it, checking a change costs
-    an hour of waiting.
+    This is the test path in production: without it, checking a change costs an
+    hour of waiting.
+
+    It answers immediately and records in the background, because a capture
+    takes as long as the recording itself -- ten minutes by default. Holding the
+    request open for that would time out at the reverse proxy and report a
+    failure for a capture that actually succeeded. The result shows up in the
+    bulletin list, and any failure in `last_error`.
     """
     conn = _require_db()
     try:
         with conn.cursor() as cursor:
             source = _load_source(cursor, slug)
-        bulletin_id = record_source(conn, source, time.time() - source['lead_seconds'])
-        return {'bulletin_id': bulletin_id}
     finally:
         conn.close()
+
+    threading.Thread(
+        target=_record_in_background, args=(source,), daemon=True,
+        name=f'news-record-{slug}',
+    ).start()
+    return {'started': True, 'slug': slug, 'duration_seconds': source['duration_seconds']}

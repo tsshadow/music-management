@@ -28,7 +28,8 @@ function props(overrides = {}) {
   };
 }
 
-function mockApi({ source = SOURCE, bulletins = BULLETINS, recordResult = { bulletin_id: 7 } } = {}) {
+function mockApi({ source = SOURCE, bulletins = BULLETINS,
+  recordResult = { started: true, slug: 'nos', duration_seconds: 600 } } = {}) {
   return vi.fn(async (url, options = {}) => {
     if (url.includes('/record-now')) {
       return { ok: true, json: async () => recordResult };
@@ -88,12 +89,31 @@ describe('NewsTab', () => {
     expect(globalThis.fetch.mock.calls.some(([url]) => url.includes('/record-now'))).toBe(true);
   });
 
-  it('says so when a capture was discarded for being too short', async () => {
-    globalThis.fetch = mockApi({ recordResult: { bulletin_id: null } });
+  it('reports that the recording started, not that it finished', async () => {
+    // The server records in the background: a ten-minute capture cannot be
+    // awaited inside one request, so the screen must not claim it is done.
+    const onMessage = vi.fn();
+    render(NewsTab, props({ onMessage }));
+    await waitFor(() => expect(screen.getByDisplayValue('600')).toBeTruthy());
+    await fireEvent.click(screen.getByRole('button', { name: /nu opnemen|record now/i }));
+    await waitFor(() => expect(onMessage).toHaveBeenCalled());
+    expect(onMessage.mock.calls[0][0]).toMatch(/600/);
+  });
+
+  it('says so when the recording could not be started at all', async () => {
+    globalThis.fetch = mockApi({ recordResult: { detail: 'Unknown source' } });
     const onError = vi.fn();
     render(NewsTab, props({ onError }));
     await waitFor(() => expect(screen.getByDisplayValue('600')).toBeTruthy());
     await fireEvent.click(screen.getByRole('button', { name: /nu opnemen|record now/i }));
     await waitFor(() => expect(onError).toHaveBeenCalled());
+  });
+
+  it('refreshes the list, since a background capture cannot announce itself', async () => {
+    render(NewsTab, props());
+    await waitFor(() => expect(screen.getByDisplayValue('600')).toBeTruthy());
+    const before = globalThis.fetch.mock.calls.length;
+    await fireEvent.click(screen.getByRole('button', { name: /vernieuwen|refresh/i }));
+    await waitFor(() => expect(globalThis.fetch.mock.calls.length).toBeGreaterThan(before));
   });
 });

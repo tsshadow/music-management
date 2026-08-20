@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-08-20
+
 ### Added
 - **Releases die de importer niet kan wegzetten staan nu als voorstel in het beheerscherm.** Een
   release werd overgeslagen zodra het catalogusnummer niet in de labeltabel stond, of zodra er
